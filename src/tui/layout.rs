@@ -4,20 +4,18 @@
 //! into multiple panes with configurable sizes, weights, and constraints.
 //!
 //! # Example
-//! ```
+//! ```ignore
 //! use tui::layout::{LayoutNode, SplitDir, Child, Size, Rect};
+//! use tui::render::TextRenderer;
 //! 
-//! let layout = LayoutNode {
-//!     id: None,
+//! let layout = LayoutNode::Split {
 //!     dir: SplitDir::Horizontal,
 //!     gutter: 2,
 //!     children: vec![
 //!         Child {
-//!             node: Box::new(LayoutNode {
-//!                 id: Some(0),
-//!                 dir: SplitDir::Horizontal,
-//!                 gutter: 0,
-//!                 children: vec![],
+//!             node: Box::new(LayoutNode::Pane { 
+//!                 id: 0,
+//!                 renderer: Box::new(TextRenderer::new("Hello")),
 //!             }),
 //!             size: Size {
 //!                 weight: 1,
@@ -68,7 +66,6 @@ pub struct Size {
 }
 
 /// A child node in a split layout.
-#[derive(Debug, Clone)]
 pub struct Child {
     /// The nested layout node
     pub node: Box<LayoutNode>,
@@ -76,21 +73,26 @@ pub struct Child {
     pub size: Size,
 }
 
-/// A layout node that can either be a leaf (pane) or contain child nodes.
-///
-/// When `children` is empty, this node represents a leaf/pane and its `id`
-/// will be included in the computed layout. Otherwise, it's a container
-/// that splits its area among its children.
-#[derive(Debug, Clone)]
-pub struct LayoutNode {
-    /// Optional identifier for leaf nodes (panes)
-    pub id: Option<usize>,
-    /// Direction to split (only used when children exist)
-    pub dir: SplitDir,
-    /// Space between children in pixels (only used when children exist)
-    pub gutter: u32,
-    /// Child nodes (empty for leaf nodes)
-    pub children: Vec<Child>,
+use super::render::PaneRenderer;
+
+/// A layout node that can either be a split container or a leaf pane.
+pub enum LayoutNode {
+    /// A container that splits its area among children
+    Split {
+        /// Direction to split
+        dir: SplitDir,
+        /// Space between children in pixels
+        gutter: u32,
+        /// Child nodes (must be non-empty)
+        children: Vec<Child>,
+    },
+    /// A leaf node representing a single pane
+    Pane {
+        /// Identifier for this pane
+        id: usize,
+        /// Renderer for this pane
+        renderer: Box<dyn PaneRenderer>,
+    },
 }
 
 impl LayoutNode {
@@ -105,17 +107,11 @@ impl LayoutNode {
     }
 
     fn compute_into(&self, rect: Rect, out: &mut Vec<(usize, Rect)>) {
-        if self.children.is_empty() {
-            if let Some(id) = self.id {
-                out.push((id, rect));
+        match self {
+            LayoutNode::Pane { id, .. } => {
+                out.push((*id, rect));
             }
-            return;
-        }
-
-        {
-            let dir = &self.dir;
-            let gutter = &self.gutter;
-            let children = &self.children;
+            LayoutNode::Split { dir, gutter, children } => {
                 let n = children.len() as u32;
                 let axis_len = match dir {
                     SplitDir::Horizontal => rect.w,
@@ -200,6 +196,7 @@ impl LayoutNode {
                         cursor = cursor.saturating_add(*gutter);
                     }
                 }
+            }
         }
     }
 }
@@ -207,14 +204,13 @@ impl LayoutNode {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::super::render::NoopRenderer;
 
     #[test]
     fn test_single_pane() {
-        let layout = LayoutNode {
-            id: Some(42),
-            dir: SplitDir::Horizontal,
-            gutter: 0,
-            children: vec![],
+        let layout = LayoutNode::Pane { 
+            id: 42,
+            renderer: Box::new(NoopRenderer),
         };
 
         let rect = Rect {
@@ -235,17 +231,14 @@ mod tests {
 
     #[test]
     fn test_horizontal_split_equal_weights() {
-        let layout = LayoutNode {
-            id: None,
+        let layout = LayoutNode::Split {
             dir: SplitDir::Horizontal,
             gutter: 0,
             children: vec![
                 Child {
-                    node: Box::new(LayoutNode {
-                        id: Some(1),
-                        dir: SplitDir::Horizontal,
-                        gutter: 0,
-                        children: vec![],
+                    node: Box::new(LayoutNode::Pane { 
+                        id: 1,
+                        renderer: Box::new(NoopRenderer),
                     }),
                     size: Size {
                         weight: 1,
@@ -254,11 +247,9 @@ mod tests {
                     },
                 },
                 Child {
-                    node: Box::new(LayoutNode {
-                        id: Some(2),
-                        dir: SplitDir::Horizontal,
-                        gutter: 0,
-                        children: vec![],
+                    node: Box::new(LayoutNode::Pane { 
+                        id: 2,
+                        renderer: Box::new(NoopRenderer),
                     }),
                     size: Size {
                         weight: 1,
@@ -290,17 +281,14 @@ mod tests {
 
     #[test]
     fn test_vertical_split_with_weights() {
-        let layout = LayoutNode {
-            id: None,
+        let layout = LayoutNode::Split {
             dir: SplitDir::Vertical,
             gutter: 0,
             children: vec![
                 Child {
-                    node: Box::new(LayoutNode {
-                        id: Some(1),
-                        dir: SplitDir::Horizontal,
-                        gutter: 0,
-                        children: vec![],
+                    node: Box::new(LayoutNode::Pane { 
+                        id: 1,
+                        renderer: Box::new(NoopRenderer),
                     }),
                     size: Size {
                         weight: 1,
@@ -309,11 +297,9 @@ mod tests {
                     },
                 },
                 Child {
-                    node: Box::new(LayoutNode {
-                        id: Some(2),
-                        dir: SplitDir::Horizontal,
-                        gutter: 0,
-                        children: vec![],
+                    node: Box::new(LayoutNode::Pane { 
+                        id: 2,
+                        renderer: Box::new(NoopRenderer),
                     }),
                     size: Size {
                         weight: 2,
@@ -345,17 +331,14 @@ mod tests {
 
     #[test]
     fn test_gutter() {
-        let layout = LayoutNode {
-            id: None,
+        let layout = LayoutNode::Split {
             dir: SplitDir::Horizontal,
             gutter: 10,
             children: vec![
                 Child {
-                    node: Box::new(LayoutNode {
-                        id: Some(1),
-                        dir: SplitDir::Horizontal,
-                        gutter: 0,
-                        children: vec![],
+                    node: Box::new(LayoutNode::Pane { 
+                        id: 1,
+                        renderer: Box::new(NoopRenderer),
                     }),
                     size: Size {
                         weight: 1,
@@ -364,11 +347,9 @@ mod tests {
                     },
                 },
                 Child {
-                    node: Box::new(LayoutNode {
-                        id: Some(2),
-                        dir: SplitDir::Horizontal,
-                        gutter: 0,
-                        children: vec![],
+                    node: Box::new(LayoutNode::Pane { 
+                        id: 2,
+                        renderer: Box::new(NoopRenderer),
                     }),
                     size: Size {
                         weight: 1,
@@ -398,17 +379,14 @@ mod tests {
 
     #[test]
     fn test_min_max_constraints() {
-        let layout = LayoutNode {
-            id: None,
+        let layout = LayoutNode::Split {
             dir: SplitDir::Horizontal,
             gutter: 0,
             children: vec![
                 Child {
-                    node: Box::new(LayoutNode {
-                        id: Some(1),
-                        dir: SplitDir::Horizontal,
-                        gutter: 0,
-                        children: vec![],
+                    node: Box::new(LayoutNode::Pane { 
+                        id: 1,
+                        renderer: Box::new(NoopRenderer),
                     }),
                     size: Size {
                         weight: 0,
@@ -417,11 +395,9 @@ mod tests {
                     },
                 },
                 Child {
-                    node: Box::new(LayoutNode {
-                        id: Some(2),
-                        dir: SplitDir::Horizontal,
-                        gutter: 0,
-                        children: vec![],
+                    node: Box::new(LayoutNode::Pane { 
+                        id: 2,
+                        renderer: Box::new(NoopRenderer),
                     }),
                     size: Size {
                         weight: 1,
@@ -448,17 +424,14 @@ mod tests {
 
     #[test]
     fn test_nested_splits() {
-        let layout = LayoutNode {
-            id: None,
+        let layout = LayoutNode::Split {
             dir: SplitDir::Horizontal,
             gutter: 0,
             children: vec![
                 Child {
-                    node: Box::new(LayoutNode {
-                        id: Some(1),
-                        dir: SplitDir::Horizontal,
-                        gutter: 0,
-                        children: vec![],
+                    node: Box::new(LayoutNode::Pane { 
+                        id: 1,
+                        renderer: Box::new(NoopRenderer),
                     }),
                     size: Size {
                         weight: 1,
@@ -467,18 +440,15 @@ mod tests {
                     },
                 },
                 Child {
-                    node: Box::new(LayoutNode {
-                        id: None,
+                    node: Box::new(LayoutNode::Split {
                         dir: SplitDir::Vertical,
                         gutter: 0,
                         children: vec![
                             Child {
-                                node: Box::new(LayoutNode {
-                                    id: Some(2),
-                                    dir: SplitDir::Horizontal,
-                                    gutter: 0,
-                                    children: vec![],
-                                }),
+                                node: Box::new(LayoutNode::Pane { 
+                        id: 2,
+                        renderer: Box::new(NoopRenderer),
+                    }),
                                 size: Size {
                                     weight: 1,
                                     min_cells: None,
@@ -486,11 +456,9 @@ mod tests {
                                 },
                             },
                             Child {
-                                node: Box::new(LayoutNode {
-                                    id: Some(3),
-                                    dir: SplitDir::Horizontal,
-                                    gutter: 0,
-                                    children: vec![],
+                                node: Box::new(LayoutNode::Pane { 
+                                    id: 3,
+                                    renderer: Box::new(NoopRenderer),
                                 }),
                                 size: Size {
                                     weight: 1,
@@ -535,17 +503,14 @@ mod tests {
 
     #[test]
     fn test_three_way_split() {
-        let layout = LayoutNode {
-            id: None,
+        let layout = LayoutNode::Split {
             dir: SplitDir::Horizontal,
             gutter: 2,
             children: vec![
                 Child {
-                    node: Box::new(LayoutNode {
-                        id: Some(0),
-                        dir: SplitDir::Horizontal,
-                        gutter: 0,
-                        children: vec![],
+                    node: Box::new(LayoutNode::Pane { 
+                        id: 0,
+                        renderer: Box::new(NoopRenderer),
                     }),
                     size: Size {
                         weight: 1,
@@ -554,11 +519,9 @@ mod tests {
                     },
                 },
                 Child {
-                    node: Box::new(LayoutNode {
-                        id: Some(1),
-                        dir: SplitDir::Horizontal,
-                        gutter: 0,
-                        children: vec![],
+                    node: Box::new(LayoutNode::Pane { 
+                        id: 1,
+                        renderer: Box::new(NoopRenderer),
                     }),
                     size: Size {
                         weight: 1,
@@ -567,11 +530,9 @@ mod tests {
                     },
                 },
                 Child {
-                    node: Box::new(LayoutNode {
-                        id: Some(2),
-                        dir: SplitDir::Horizontal,
-                        gutter: 0,
-                        children: vec![],
+                    node: Box::new(LayoutNode::Pane { 
+                        id: 2,
+                        renderer: Box::new(NoopRenderer),
                     }),
                     size: Size {
                         weight: 1,

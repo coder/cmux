@@ -2,6 +2,9 @@ mod tui;
 
 use clap::{Parser, ValueEnum};
 use tui::layout::{Child, LayoutNode, Rect, Size, SplitDir};
+use tui::render::{TextRenderer, RenderContext, PaneRenderer};
+use tui::buffer::Buffer;
+use tui::style::{Style, Color};
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
 enum Direction {
@@ -33,30 +36,31 @@ fn main() {
         Direction::Vertical => SplitDir::Vertical,
     };
 
-    let layout = LayoutNode {
-        id: None,
+    let mut layout = LayoutNode::Split {
         dir,
         gutter: args.gutter,
         children: vec![
             Child {
-                node: Box::new(LayoutNode {
-                    id: Some(0),
-                    dir: SplitDir::Horizontal,
-                    gutter: 0,
-                    children: vec![],
+                node: Box::new(LayoutNode::Pane { 
+                    id: 0,
+                    renderer: Box::new(
+                        TextRenderer::new("Pane 0: Fixed 20 cols")
+                            .with_style(Style::new().fg(Color::Red))
+                    ),
                 }),
                 size: Size {
-                    weight: 0,
-                    min_cells: Some(20),
-                    max_cells: Some(20),
+                    weight: 1,  // Changed to use weight instead of fixed size
+                    min_cells: Some(3),
+                    max_cells: None,
                 },
             },
             Child {
-                node: Box::new(LayoutNode {
-                    id: Some(1),
-                    dir: SplitDir::Horizontal,
-                    gutter: 0,
-                    children: vec![],
+                node: Box::new(LayoutNode::Pane { 
+                    id: 1,
+                    renderer: Box::new(
+                        TextRenderer::new("Pane 1: Weight 1")
+                            .with_style(Style::new().fg(Color::Green))
+                    ),
                 }),
                 size: Size {
                     weight: 1,
@@ -65,11 +69,12 @@ fn main() {
                 },
             },
             Child {
-                node: Box::new(LayoutNode {
-                    id: Some(2),
-                    dir: SplitDir::Horizontal,
-                    gutter: 0,
-                    children: vec![],
+                node: Box::new(LayoutNode::Pane { 
+                    id: 2,
+                    renderer: Box::new(
+                        TextRenderer::new("Pane 2: Weight 2 (twice as large as Pane 1)")
+                            .with_style(Style::new().fg(Color::Blue))
+                    ),
                 }),
                 size: Size {
                     weight: 2,
@@ -104,7 +109,30 @@ fn main() {
     }
     println!();
 
+    // Render with the new rendering system
+    println!("Rendered output:");
+    let mut buffer = Buffer::new(args.width as u16, args.height as u16);
+    let mut render_ctx = RenderContext::new();
+    render_ctx.set_focused(1, true); // Focus the middle pane
+    
+    render_ctx.render(&mut layout, &mut buffer);
+    
+    // Print the buffer
+    print_buffer(&buffer);
+    
+    println!();
     print_visual_layout(&panes, container);
+}
+
+fn print_buffer(buffer: &Buffer) {
+    for y in 0..buffer.height {
+        for x in 0..buffer.width {
+            if let Some(cell) = buffer.get(x, y) {
+                print!("{}", cell.ch);
+            }
+        }
+        println!();
+    }
 }
 
 fn print_visual_layout(panes: &[(usize, Rect)], container: Rect) {
