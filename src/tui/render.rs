@@ -171,35 +171,45 @@ impl PaneRenderer for TextRenderer {
             let x = text_rect.x as u16;
             let y = text_rect.y as u16;
             
-            // Simple word wrapping
+            // Handle text with newlines and word wrapping
             let mut current_y = y;
-            let mut current_x = x;
-            let max_x = (text_rect.x + text_rect.w) as u16;
             let max_y = (text_rect.y + text_rect.h) as u16;
             
-            for word in self.text.split_whitespace() {
-                let word_len = word.len() as u16;
+            for line in self.text.lines() {
+                if current_y >= max_y {
+                    break;
+                }
                 
-                // Check if word fits on current line
-                if current_x + word_len > max_x && current_x > x {
-                    // Move to next line
-                    current_y += 1;
-                    current_x = x;
+                let mut current_x = x;
+                let max_x = (text_rect.x + text_rect.w) as u16;
+                
+                for word in line.split_whitespace() {
+                    let word_len = word.len() as u16;
                     
-                    if current_y >= max_y {
-                        break;
+                    // Check if word fits on current line
+                    if current_x + word_len > max_x && current_x > x {
+                        // Move to next line
+                        current_y += 1;
+                        current_x = x;
+                        
+                        if current_y >= max_y {
+                            break;
+                        }
+                    }
+                    
+                    // Draw word
+                    buffer.set_string(current_x, current_y, word, self.style);
+                    current_x += word_len;
+                    
+                    // Add space after word if there's room
+                    if current_x < max_x {
+                        buffer.set_char(current_x, current_y, ' ', self.style);
+                        current_x += 1;
                     }
                 }
                 
-                // Draw word
-                buffer.set_string(current_x, current_y, word, self.style);
-                current_x += word_len;
-                
-                // Add space after word if there's room
-                if current_x < max_x {
-                    buffer.set_char(current_x, current_y, ' ', self.style);
-                    current_x += 1;
-                }
+                // Move to next line for newline
+                current_y += 1;
             }
         }
     }

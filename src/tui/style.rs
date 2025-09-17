@@ -29,7 +29,7 @@ pub enum Color {
 /// Text modifiers (bold, italic, underline, etc.).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct Modifiers {
-    bits: u16,
+    pub bits: u16,
 }
 
 impl Modifiers {
