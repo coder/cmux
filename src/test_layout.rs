@@ -125,9 +125,20 @@ fn run_demo_mode(layout: LayoutNode, dir: SplitDir, gutter: u32) {
     println!("Rendered output:");
     let mut buffer = Buffer::new(width, height);
     let mut render_ctx = RenderContext::new();
-    render_ctx.set_focused(2, true); // Focus one of the nested panes
     
     let mut layout_mut = layout;
+    
+    // First render to populate pane_rects
+    render_ctx.render(&mut layout_mut, &mut buffer);
+    
+    // Now simulate mouse position - let's put it in pane 0 (left)
+    let mouse_x = 10;  // Well within pane 0 which goes from x=0 to x=18
+    let mouse_y = 10;  // Middle of the screen vertically
+    render_ctx.set_mouse_position(mouse_x, mouse_y);
+    println!("(Simulated mouse at x={}, y={} for demo - should focus Pane 0)", mouse_x, mouse_y);
+    
+    // Re-render with mouse position
+    buffer.clear();
     render_ctx.render(&mut layout_mut, &mut buffer);
     
     print_buffer(&buffer);

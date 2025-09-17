@@ -29,9 +29,12 @@ impl Screen {
     /// Create a new screen with the given layout.
     pub fn new(layout: LayoutNode) -> Self {
         let (width, height) = terminal::size().unwrap_or((80, 24));
+        let mut render_context = RenderContext::new();
+        // Focus the first pane by default (pane 0)
+        render_context.set_focused(0, true);
         Self {
             layout,
-            render_context: RenderContext::new(),
+            render_context,
             buffer: Buffer::new(width, height),
             active: false,
         }
@@ -48,7 +51,8 @@ impl Screen {
             io::stdout(),
             EnterAlternateScreen,
             cursor::Hide,
-            terminal::Clear(terminal::ClearType::All)
+            terminal::Clear(terminal::ClearType::All),
+            crossterm::event::EnableMouseCapture
         )?;
         
         // Enable raw mode for input handling
@@ -74,6 +78,7 @@ impl Screen {
         // Leave alternate screen
         execute!(
             io::stdout(),
+            crossterm::event::DisableMouseCapture,
             cursor::Show,
             LeaveAlternateScreen
         )?;
@@ -197,6 +202,11 @@ impl Screen {
     pub async fn run(&mut self) -> io::Result<()> {
         self.setup()?;
         
+        // Send initial focus event to pane 0
+        let screen_rect = self.buffer.area();
+        let focus_event = RenderEvent::Focus { focused: true };
+        self.render_context.forward_event(&mut self.layout, &focus_event, screen_rect);
+        
         // Initial render
         self.render()?;
         
@@ -224,6 +234,7 @@ impl Screen {
                         }
                         
                         // Forward key event to all panes
+                        let screen_rect = self.buffer.area();
                         let render_event = RenderEvent::Key(super::render::KeyEvent {
                             code: convert_keycode(key_event.code),
                             modifiers: super::render::KeyModifiers {
@@ -232,26 +243,37 @@ impl Screen {
                                 alt: key_event.modifiers.contains(event::KeyModifiers::ALT),
                             },
                         });
-                        needs_render = self.render_context.forward_event(&mut self.layout, &render_event);
+                        needs_render = self.render_context.forward_event(&mut self.layout, &render_event, screen_rect);
                     }
                     Event::Resize(width, height) => {
                         self.buffer = Buffer::new(width, height);
                         
                         // Forward resize event to all panes
+                        let screen_rect = self.buffer.area();
                         let render_event = RenderEvent::Resize(width, height);
-                        self.render_context.forward_event(&mut self.layout, &render_event);
+                        self.render_context.forward_event(&mut self.layout, &render_event, screen_rect);
                         
                         // Always render after resize
                         needs_render = true;
                     }
                     Event::Mouse(mouse_event) => {
                         // Forward mouse event to all panes
+                        let screen_rect = self.buffer.area();
                         let render_event = RenderEvent::Mouse(super::render::MouseEvent {
                             x: mouse_event.column,
                             y: mouse_event.row,
                             kind: convert_mouse_kind(mouse_event.kind),
                         });
-                        needs_render = self.render_context.forward_event(&mut self.layout, &render_event);
+                        let event_needs_render = self.render_context.forward_event(&mut self.layout, &render_event, screen_rect);
+                        
+                        // Always re-render on mouse movement since it can change focus
+                        // (Mouse position affects which pane is focused)
+                        use event::MouseEventKind;
+                        if matches!(mouse_event.kind, MouseEventKind::Moved) {
+                            needs_render = true;
+                        } else {
+                            needs_render = event_needs_render;
+                        }
                     }
                     _ => {}
                 }

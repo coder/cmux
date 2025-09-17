@@ -111,12 +111,16 @@ pub enum MouseButton {
 
 
 use super::layout::LayoutNode;
-use std::collections::HashSet;
+use std::collections::{HashSet, HashMap};
 
 /// Context for rendering a layout tree.
 pub struct RenderContext {
     /// Set of pane IDs that are currently focused.
     focused_panes: HashSet<usize>,
+    /// Current mouse position (if any).
+    mouse_position: Option<(u16, u16)>,
+    /// Cached pane rectangles from last compute.
+    pane_rects: HashMap<usize, Rect>,
 }
 
 impl RenderContext {
@@ -124,6 +128,8 @@ impl RenderContext {
     pub fn new() -> Self {
         Self {
             focused_panes: HashSet::new(),
+            mouse_position: None,
+            pane_rects: HashMap::new(),
         }
     }
     
@@ -136,8 +142,34 @@ impl RenderContext {
         }
     }
     
+    /// Set the current mouse position.
+    pub fn set_mouse_position(&mut self, x: u16, y: u16) {
+        self.mouse_position = Some((x, y));
+    }
+    
+    /// Clear the mouse position.
+    pub fn clear_mouse_position(&mut self) {
+        self.mouse_position = None;
+    }
+    
     /// Check if a pane is focused.
+    /// A pane is focused if:
+    /// 1. The mouse is over it (if mouse position is known), OR
+    /// 2. It's in the focused_panes set (keyboard focus)
     pub fn is_focused(&self, pane_id: usize) -> bool {
+        // First check mouse position
+        if let Some((mouse_x, mouse_y)) = self.mouse_position {
+            if let Some(rect) = self.pane_rects.get(&pane_id) {
+                let in_bounds = mouse_x >= rect.x as u16 
+                    && mouse_x < (rect.x + rect.w) as u16
+                    && mouse_y >= rect.y as u16 
+                    && mouse_y < (rect.y + rect.h) as u16;
+                if in_bounds {
+                    return true;
+                }
+            }
+        }
+        // Fall back to keyboard focus
         self.focused_panes.contains(&pane_id)
     }
     
@@ -146,32 +178,36 @@ impl RenderContext {
         let rect = buffer.area();
         let panes = layout.compute(rect);
         
-        // Create a map of pane IDs to their rectangles
-        let mut pane_rects = std::collections::HashMap::new();
+        // Update cached pane rectangles
+        self.pane_rects.clear();
         for (id, rect) in panes {
-            pane_rects.insert(id, rect);
+            self.pane_rects.insert(id, rect);
         }
         
         // Now render each pane
-        self.render_node(layout, &pane_rects, buffer);
+        self.render_node(layout, &self.pane_rects.clone(), buffer);
     }
     
     /// Forward an event to all panes in the layout tree.
     /// Returns true if any pane requested a re-render.
-    pub fn forward_event(&mut self, layout: &mut LayoutNode, event: &Event) -> bool {
-        let rect = Rect { x: 0, y: 0, w: 0, h: 0 }; // Dummy rect for event handling
-        let panes = layout.compute(rect);
-        
-        // Create a map of pane IDs to their rectangles
-        let mut pane_rects = std::collections::HashMap::new();
-        for (id, rect) in panes {
-            pane_rects.insert(id, rect);
+    pub fn forward_event(&mut self, layout: &mut LayoutNode, event: &Event, screen_rect: Rect) -> bool {
+        // Update mouse position if this is a mouse event
+        if let Event::Mouse(mouse_event) = event {
+            self.set_mouse_position(mouse_event.x, mouse_event.y);
         }
         
-        self.forward_event_node(layout, &pane_rects, event)
+        let panes = layout.compute(screen_rect);
+        
+        // Update cached pane rectangles
+        self.pane_rects.clear();
+        for (id, rect) in panes {
+            self.pane_rects.insert(id, rect);
+        }
+        
+        self.forward_event_node(layout, &self.pane_rects.clone(), event)
     }
     
-    fn forward_event_node(&mut self, node: &mut LayoutNode, pane_rects: &std::collections::HashMap<usize, Rect>, event: &Event) -> bool {
+    fn forward_event_node(&mut self, node: &mut LayoutNode, pane_rects: &HashMap<usize, Rect>, event: &Event) -> bool {
         match node {
             LayoutNode::Pane { id, renderer } => {
                 let rect = pane_rects.get(id).copied().unwrap_or(Rect { x: 0, y: 0, w: 0, h: 0 });
@@ -191,7 +227,7 @@ impl RenderContext {
         }
     }
     
-    fn render_node(&mut self, node: &mut LayoutNode, pane_rects: &std::collections::HashMap<usize, Rect>, buffer: &mut Buffer) {
+    fn render_node(&mut self, node: &mut LayoutNode, pane_rects: &HashMap<usize, Rect>, buffer: &mut Buffer) {
         match node {
             LayoutNode::Pane { id, renderer } => {
                 if let Some(&rect) = pane_rects.get(id) {

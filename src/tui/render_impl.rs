@@ -19,6 +19,7 @@ pub struct TextRenderer {
     pub text: String,
     pub style: Style,
     pub border: BorderStyle,
+    pub focused_border: BorderStyle,
 }
 
 impl TextRenderer {
@@ -27,6 +28,7 @@ impl TextRenderer {
             text: text.into(),
             style: Style::default(),
             border: BorderStyle::Single,
+            focused_border: BorderStyle::Thick,
         }
     }
 
@@ -39,17 +41,29 @@ impl TextRenderer {
         self.border = border;
         self
     }
+    
+    pub fn with_focused_border(mut self, border: BorderStyle) -> Self {
+        self.focused_border = border;
+        self
+    }
 }
 
 impl PaneRenderer for TextRenderer {
     fn render(&mut self, ctx: &PaneContext, buffer: &mut Buffer) {
+        // Use focused border style if focused
+        let border_style = if ctx.focused {
+            self.focused_border
+        } else {
+            self.border
+        };
+        
         // Draw border if not None
-        if !matches!(self.border, BorderStyle::None) {
-            buffer.draw_box(ctx.rect, self.border);
+        if !matches!(border_style, BorderStyle::None) {
+            buffer.draw_box(ctx.rect, border_style);
         }
         
         // Calculate text area (inside border if present)
-        let text_rect = if matches!(self.border, BorderStyle::None) {
+        let text_rect = if matches!(border_style, BorderStyle::None) {
             ctx.rect
         } else {
             Rect {
