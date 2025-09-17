@@ -2,7 +2,6 @@
 
 use super::buffer::Buffer;
 use super::layout::Rect;
-use super::style::{Style, BorderStyle};
 
 /// Context passed to pane renderers.
 #[derive(Debug, Clone)]
@@ -21,21 +20,18 @@ pub trait PaneRenderer: Send {
     fn render(&mut self, ctx: &PaneContext, buffer: &mut Buffer);
     
     /// Handle an event. Default implementation does nothing.
-    fn handle_event(&mut self, _ctx: &PaneContext, _event: Event) -> EventResult {
-        EventResult::Ignored
+    fn handle_event(&mut self, _ctx: &PaneContext, _event: &Event) -> EventResult {
+        EventResult::None
     }
-    
-    /// Called when focus state changes. Default implementation does nothing.
-    fn focus_changed(&mut self, _ctx: &PaneContext, _focused: bool) {}
 }
 
 /// Result of handling an event.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EventResult {
-    /// The event was handled and should not be propagated.
-    Consumed,
-    /// The event was not handled and should be propagated.
-    Ignored,
+    /// No action needed.
+    None,
+    /// Request a re-render.
+    Render,
 }
 
 /// Events that can be sent to panes.
@@ -47,6 +43,8 @@ pub enum Event {
     Mouse(MouseEvent),
     /// The terminal was resized.
     Resize(u16, u16),
+    /// Focus state changed.
+    Focus { focused: bool },
 }
 
 /// A keyboard event.
@@ -111,109 +109,6 @@ pub enum MouseButton {
     Middle,
 }
 
-/// A no-op renderer for testing.
-pub struct NoopRenderer;
-
-impl PaneRenderer for NoopRenderer {
-    fn render(&mut self, _ctx: &PaneContext, _buffer: &mut Buffer) {
-        // Do nothing
-    }
-}
-
-/// A simple text renderer.
-pub struct TextRenderer {
-    pub text: String,
-    pub style: Style,
-    pub border: BorderStyle,
-}
-
-impl TextRenderer {
-    pub fn new(text: impl Into<String>) -> Self {
-        Self {
-            text: text.into(),
-            style: Style::default(),
-            border: BorderStyle::Single,
-        }
-    }
-
-    pub fn with_style(mut self, style: Style) -> Self {
-        self.style = style;
-        self
-    }
-
-    pub fn with_border(mut self, border: BorderStyle) -> Self {
-        self.border = border;
-        self
-    }
-}
-
-impl PaneRenderer for TextRenderer {
-    fn render(&mut self, ctx: &PaneContext, buffer: &mut Buffer) {
-        // Draw border if not None
-        if !matches!(self.border, BorderStyle::None) {
-            buffer.draw_box(ctx.rect, self.border);
-        }
-        
-        // Calculate text area (inside border if present)
-        let text_rect = if matches!(self.border, BorderStyle::None) {
-            ctx.rect
-        } else {
-            Rect {
-                x: ctx.rect.x + 1,
-                y: ctx.rect.y + 1,
-                w: ctx.rect.w.saturating_sub(2),
-                h: ctx.rect.h.saturating_sub(2),
-            }
-        };
-        
-        // Draw text
-        if text_rect.w > 0 && text_rect.h > 0 {
-            let x = text_rect.x as u16;
-            let y = text_rect.y as u16;
-            
-            // Handle text with newlines and word wrapping
-            let mut current_y = y;
-            let max_y = (text_rect.y + text_rect.h) as u16;
-            
-            for line in self.text.lines() {
-                if current_y >= max_y {
-                    break;
-                }
-                
-                let mut current_x = x;
-                let max_x = (text_rect.x + text_rect.w) as u16;
-                
-                for word in line.split_whitespace() {
-                    let word_len = word.len() as u16;
-                    
-                    // Check if word fits on current line
-                    if current_x + word_len > max_x && current_x > x {
-                        // Move to next line
-                        current_y += 1;
-                        current_x = x;
-                        
-                        if current_y >= max_y {
-                            break;
-                        }
-                    }
-                    
-                    // Draw word
-                    buffer.set_string(current_x, current_y, word, self.style);
-                    current_x += word_len;
-                    
-                    // Add space after word if there's room
-                    if current_x < max_x {
-                        buffer.set_char(current_x, current_y, ' ', self.style);
-                        current_x += 1;
-                    }
-                }
-                
-                // Move to next line for newline
-                current_y += 1;
-            }
-        }
-    }
-}
 
 use super::layout::LayoutNode;
 use std::collections::HashSet;
@@ -261,6 +156,41 @@ impl RenderContext {
         self.render_node(layout, &pane_rects, buffer);
     }
     
+    /// Forward an event to all panes in the layout tree.
+    /// Returns true if any pane requested a re-render.
+    pub fn forward_event(&mut self, layout: &mut LayoutNode, event: &Event) -> bool {
+        let rect = Rect { x: 0, y: 0, w: 0, h: 0 }; // Dummy rect for event handling
+        let panes = layout.compute(rect);
+        
+        // Create a map of pane IDs to their rectangles
+        let mut pane_rects = std::collections::HashMap::new();
+        for (id, rect) in panes {
+            pane_rects.insert(id, rect);
+        }
+        
+        self.forward_event_node(layout, &pane_rects, event)
+    }
+    
+    fn forward_event_node(&mut self, node: &mut LayoutNode, pane_rects: &std::collections::HashMap<usize, Rect>, event: &Event) -> bool {
+        match node {
+            LayoutNode::Pane { id, renderer } => {
+                let rect = pane_rects.get(id).copied().unwrap_or(Rect { x: 0, y: 0, w: 0, h: 0 });
+                let ctx = PaneContext {
+                    id: *id,
+                    rect,
+                    focused: self.is_focused(*id),
+                };
+                matches!(renderer.handle_event(&ctx, event), EventResult::Render)
+            }
+            LayoutNode::Split { children, .. } => {
+                // Forward to all children and accumulate results
+                children.iter_mut()
+                    .map(|child| self.forward_event_node(&mut child.node, pane_rects, event))
+                    .any(|needs_render| needs_render)
+            }
+        }
+    }
+    
     fn render_node(&mut self, node: &mut LayoutNode, pane_rects: &std::collections::HashMap<usize, Rect>, buffer: &mut Buffer) {
         match node {
             LayoutNode::Pane { id, renderer } => {
@@ -286,39 +216,7 @@ impl RenderContext {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_noop_renderer() {
-        let mut renderer = NoopRenderer;
-        let mut buffer = Buffer::new(10, 10);
-        let ctx = PaneContext {
-            id: 0,
-            rect: Rect { x: 0, y: 0, w: 10, h: 10 },
-            focused: false,
-        };
-        
-        renderer.render(&ctx, &mut buffer);
-        // Should complete without error
-    }
-
-    #[test]
-    fn test_text_renderer() {
-        let mut renderer = TextRenderer::new("Hello, World!");
-        let mut buffer = Buffer::new(20, 10);
-        let ctx = PaneContext {
-            id: 0,
-            rect: Rect { x: 0, y: 0, w: 20, h: 5 },
-            focused: false,
-        };
-        
-        renderer.render(&ctx, &mut buffer);
-        
-        // Check that border was drawn
-        assert_eq!(buffer.get_mut(0, 0).unwrap().ch, '┌');
-        assert_eq!(buffer.get_mut(19, 0).unwrap().ch, '┐');
-        assert_eq!(buffer.get_mut(0, 4).unwrap().ch, '└');
-        assert_eq!(buffer.get_mut(19, 4).unwrap().ch, '┘');
-    }
+    use crate::tui::render_impl::TextRenderer;
     
     #[test]
     fn test_render_context() {

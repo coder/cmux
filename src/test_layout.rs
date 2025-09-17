@@ -1,6 +1,7 @@
 use crate::tui::buffer::Buffer;
 use crate::tui::layout::{Child, LayoutNode, Rect, Size, SplitDir};
-use crate::tui::render::{TextRenderer, RenderContext};
+use crate::tui::render::RenderContext;
+use crate::tui::render_impl::TextRenderer;
 use crate::tui::screen::Screen;
 use crate::tui::style::{Style, Color};
 
