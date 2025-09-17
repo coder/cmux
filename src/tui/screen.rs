@@ -162,10 +162,21 @@ impl Screen {
         Ok(())
     }
     
-    /// Handle terminal events.
-    pub fn handle_event(&mut self) -> io::Result<bool> {
-        if event::poll(std::time::Duration::from_millis(100))? {
-            match event::read()? {
+    /// Handle terminal events (async version).
+    pub async fn handle_event(&mut self) -> io::Result<bool> {
+        // Poll for events in a blocking task
+        let event_result = tokio::task::spawn_blocking(|| -> io::Result<Option<Event>> {
+            if event::poll(std::time::Duration::from_millis(100))? {
+                Ok(Some(event::read()?))
+            } else {
+                Ok(None)
+            }
+        })
+        .await
+        .map_err(|e| io::Error::new(io::ErrorKind::Other, e))??;
+        
+        if let Some(event) = event_result {
+            match event {
                 Event::Key(key_event) => {
                     // Check for quit keys
                     if key_event.code == KeyCode::Char('q') || key_event.code == KeyCode::Esc {
@@ -183,7 +194,7 @@ impl Screen {
     }
     
     /// Run the screen in a loop until quit.
-    pub fn run(&mut self) -> io::Result<()> {
+    pub async fn run(&mut self) -> io::Result<()> {
         self.setup()?;
         
         // Initial render
@@ -191,8 +202,31 @@ impl Screen {
         
         // Event loop
         loop {
-            if !self.handle_event()? {
-                break;
+            // Poll for events in a blocking task since crossterm's event polling is blocking
+            let event_result = tokio::task::spawn_blocking(|| -> io::Result<Option<Event>> {
+                if event::poll(std::time::Duration::from_millis(100))? {
+                    Ok(Some(event::read()?))
+                } else {
+                    Ok(None)
+                }
+            })
+            .await
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))??;
+            
+            if let Some(event) = event_result {
+                match event {
+                    Event::Key(key_event) => {
+                        // Check for quit keys
+                        if key_event.code == KeyCode::Char('q') || key_event.code == KeyCode::Esc {
+                            break;
+                        }
+                    }
+                    Event::Resize(width, height) => {
+                        self.buffer = Buffer::new(width, height);
+                        self.render()?;
+                    }
+                    _ => {}
+                }
             }
         }
         
