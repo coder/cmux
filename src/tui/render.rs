@@ -109,8 +109,14 @@ pub enum MouseButton {
     Middle,
 }
 
+impl From<MouseEvent> for Point {
+    fn from(mouse: MouseEvent) -> Self {
+        Point::new(mouse.x, mouse.y)
+    }
+}
 
 use super::layout::LayoutNode;
+use super::point::Point;
 use std::collections::{HashSet, HashMap};
 
 /// Context for rendering a layout tree.
@@ -289,7 +295,22 @@ mod tests {
         ctx.render(&mut layout, &mut buffer);
         
         // Check that both panes were rendered with borders
-        assert_eq!(buffer.get_mut(0, 0).unwrap().ch, '┌');
+        // Pane 0 is focused, so it should have thick border
+        assert_eq!(buffer.get_mut(0, 0).unwrap().ch, '┏');
+        // Pane 1 is not focused, so it should have single border  
         assert_eq!(buffer.get_mut(10, 0).unwrap().ch, '┌');
+    }
+
+    #[test]
+    fn test_mouse_event_to_point_conversion() {
+        let mouse = MouseEvent {
+            x: 42,
+            y: 17,
+            kind: MouseEventKind::Down(MouseButton::Left),
+        };
+        
+        let point = Point::from(mouse);
+        assert_eq!(point.x(), 42);
+        assert_eq!(point.y(), 17);
     }
 }

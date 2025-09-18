@@ -51,9 +51,9 @@ pub struct Rect {
 
 impl Rect {
     /// Check if the given position is within this rectangle.
-    pub fn contains(&self, x: u16, y: u16) -> bool {
-        let x = x as u32;
-        let y = y as u32;
+    pub fn contains(&self, point: Point) -> bool {
+        let x = point.x() as u32;
+        let y = point.y() as u32;
         x >= self.x && x < self.x + self.w && y >= self.y && y < self.y + self.h
     }
 }
@@ -83,6 +83,7 @@ pub struct Child {
 }
 
 use super::render::PaneRenderer;
+use super::point::Point;
 
 /// A layout node that can either be a split container or a leaf pane.
 pub enum LayoutNode {
@@ -213,7 +214,7 @@ impl LayoutNode {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use super::super::render::NoopRenderer;
+    use crate::tui::render_impl::NoopRenderer;
 
     #[test]
     fn test_single_pane() {

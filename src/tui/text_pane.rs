@@ -4,6 +4,7 @@ use super::buffer::Buffer;
 use super::render::{PaneRenderer, PaneContext, Event, EventResult, MouseEventKind, MouseButton, KeyCode};
 use super::style::{Style, Color};
 use super::border::BorderStyle;
+use super::point::Point;
 use arboard::Clipboard;
 
 /// A text pane that supports mouse-based text selection.
@@ -18,8 +19,8 @@ pub struct TextPane {
     pub focused_border: BorderStyle,
     
     // Selection state
-    selection_start: Option<(u16, u16)>,  // (col, row) within pane content area
-    selection_end: Option<(u16, u16)>,
+    selection_start: Option<Point>,  // Point within pane content area
+    selection_end: Option<Point>,
     is_selecting: bool,
     selected_text: String,
     
@@ -134,17 +135,17 @@ impl TextPane {
     }
     
     /// Start a new selection at the given position.
-    fn start_selection(&mut self, x: u16, y: u16) {
-        self.selection_start = Some((x, y));
-        self.selection_end = Some((x, y));
+    fn start_selection(&mut self, point: Point) {
+        self.selection_start = Some(point);
+        self.selection_end = Some(point);
         self.is_selecting = true;
         self.selected_text.clear();
     }
     
     /// Update the selection end point.
-    fn update_selection(&mut self, x: u16, y: u16) {
+    fn update_selection(&mut self, point: Point) {
         if self.is_selecting {
-            self.selection_end = Some((x, y));
+            self.selection_end = Some(point);
             self.update_selected_text();
         }
     }
@@ -170,7 +171,7 @@ impl TextPane {
         let (start, end) = match (self.selection_start, self.selection_end) {
             (Some(s), Some(e)) => {
                 // Normalize selection (start should be before end)
-                if s.1 < e.1 || (s.1 == e.1 && s.0 <= e.0) {
+                if s.y() < e.y() || (s.y() == e.y() && s.x() <= e.x()) {
                     (s, e)
                 } else {
                     (e, s)
@@ -180,19 +181,19 @@ impl TextPane {
         };
         
         // Extract text between start and end positions
-        for y in start.1..=end.1 {
+        for y in start.y()..=end.y() {
             let line_idx = y as usize;
             if line_idx >= self.wrapped_lines.len() {
                 break;
             }
             
             let line = &self.wrapped_lines[line_idx];
-            let start_col = if y == start.1 { start.0 as usize } else { 0 };
-            let end_col = if y == end.1 { end.0 as usize } else { line.len() };
+            let start_col = if y == start.y() { start.x() as usize } else { 0 };
+            let end_col = if y == end.y() { end.x() as usize } else { line.len() };
             
             if start_col < line.len() {
                 self.selected_text.push_str(&line[start_col..end_col.min(line.len())]);
-                if y < end.1 {
+                if y < end.y() {
                     self.selected_text.push('\n');
                 }
             }
@@ -204,7 +205,7 @@ impl TextPane {
         let (start, end) = match (self.selection_start, self.selection_end) {
             (Some(s), Some(e)) => {
                 // Normalize selection
-                if s.1 < e.1 || (s.1 == e.1 && s.0 <= e.0) {
+                if s.y() < e.y() || (s.y() == e.y() && s.x() <= e.x()) {
                     (s, e)
                 } else {
                     (e, s)
@@ -213,19 +214,19 @@ impl TextPane {
             _ => return false,
         };
         
-        if y < start.1 || y > end.1 {
+        if y < start.y() || y > end.y() {
             return false;
         }
         
-        if y == start.1 && y == end.1 {
+        if y == start.y() && y == end.y() {
             // Selection on single line
-            x >= start.0 && x < end.0
-        } else if y == start.1 {
+            x >= start.x() && x < end.x()
+        } else if y == start.y() {
             // First line of selection
-            x >= start.0
-        } else if y == end.1 {
+            x >= start.x()
+        } else if y == end.y() {
             // Last line of selection
-            x < end.0
+            x < end.x()
         } else {
             // Middle lines are fully selected
             true
@@ -296,23 +297,24 @@ impl PaneRenderer for TextPane {
             Event::Mouse(mouse) => {
                 // Calculate text area bounds
                 let text_rect = self.border.content_rect(ctx.rect);
+                let mouse_point = Point::from(*mouse);
                 
                 // Check if mouse is within text area
-                if !text_rect.contains(mouse.x, mouse.y) {
+                if !text_rect.contains(mouse_point) {
                     return EventResult::None;
                 }
                 
                 // Convert to text-area-relative coordinates
-                let local_x = mouse.x - text_rect.x as u16;
-                let local_y = mouse.y - text_rect.y as u16;
+                let text_rect_origin = Point::new(text_rect.x as u16, text_rect.y as u16);
+                let local_point = mouse_point - text_rect_origin;
                 
                 match mouse.kind {
                     MouseEventKind::Down(MouseButton::Left) => {
-                        self.start_selection(local_x, local_y);
+                        self.start_selection(local_point);
                         EventResult::Render
                     }
                     MouseEventKind::Drag(MouseButton::Left) if self.is_selecting => {
-                        self.update_selection(local_x, local_y);
+                        self.update_selection(local_point);
                         EventResult::Render
                     }
                     MouseEventKind::Up(MouseButton::Left) if self.is_selecting => {
