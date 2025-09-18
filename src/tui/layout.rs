@@ -6,7 +6,7 @@
 //! # Example
 //! ```ignore
 //! use tui::layout::{LayoutNode, SplitDir, Child, Size, Rect};
-//! use tui::render::TextRenderer;
+//! use tui::text_pane::TextPane;
 //! 
 //! let layout = LayoutNode::Split {
 //!     dir: SplitDir::Horizontal,
@@ -15,7 +15,7 @@
 //!         Child {
 //!             node: Box::new(LayoutNode::Pane { 
 //!                 id: 0,
-//!                 renderer: Box::new(TextRenderer::new("Hello")),
+//!                 renderer: Box::new(TextPane::new("Hello")),
 //!             }),
 //!             size: Size {
 //!                 weight: 1,
@@ -47,6 +47,15 @@ pub struct Rect {
     pub w: u32,
     /// Height in cells
     pub h: u32,
+}
+
+impl Rect {
+    /// Check if the given position is within this rectangle.
+    pub fn contains(&self, x: u16, y: u16) -> bool {
+        let x = x as u32;
+        let y = y as u32;
+        x >= self.x && x < self.x + self.w && y >= self.y && y < self.y + self.h
+    }
 }
 
 /// Size configuration for a child in a split layout.

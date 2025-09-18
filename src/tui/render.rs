@@ -115,10 +115,8 @@ use std::collections::{HashSet, HashMap};
 
 /// Context for rendering a layout tree.
 pub struct RenderContext {
-    /// Set of pane IDs that are currently focused.
-    focused_panes: HashSet<usize>,
-    /// Current mouse position (if any).
-    mouse_position: Option<(u16, u16)>,
+    /// The currently focused pane ID.
+    focused_pane: Option<usize>,
     /// Cached pane rectangles from last compute.
     pane_rects: HashMap<usize, Rect>,
 }
@@ -127,50 +125,37 @@ impl RenderContext {
     /// Create a new render context.
     pub fn new() -> Self {
         Self {
-            focused_panes: HashSet::new(),
-            mouse_position: None,
+            focused_pane: None,
             pane_rects: HashMap::new(),
         }
     }
     
-    /// Set a pane as focused.
-    pub fn set_focused(&mut self, pane_id: usize, focused: bool) {
-        if focused {
-            self.focused_panes.insert(pane_id);
-        } else {
-            self.focused_panes.remove(&pane_id);
-        }
+    /// Set the focused pane.
+    pub fn set_focused_pane(&mut self, pane_id: usize) {
+        self.focused_pane = Some(pane_id);
     }
     
-    /// Set the current mouse position.
-    pub fn set_mouse_position(&mut self, x: u16, y: u16) {
-        self.mouse_position = Some((x, y));
-    }
-    
-    /// Clear the mouse position.
-    pub fn clear_mouse_position(&mut self) {
-        self.mouse_position = None;
+    /// Clear the focused pane.
+    pub fn clear_focus(&mut self) {
+        self.focused_pane = None;
     }
     
     /// Check if a pane is focused.
-    /// A pane is focused if:
-    /// 1. The mouse is over it (if mouse position is known), OR
-    /// 2. It's in the focused_panes set (keyboard focus)
     pub fn is_focused(&self, pane_id: usize) -> bool {
-        // First check mouse position
-        if let Some((mouse_x, mouse_y)) = self.mouse_position {
-            if let Some(rect) = self.pane_rects.get(&pane_id) {
-                let in_bounds = mouse_x >= rect.x as u16 
-                    && mouse_x < (rect.x + rect.w) as u16
-                    && mouse_y >= rect.y as u16 
-                    && mouse_y < (rect.y + rect.h) as u16;
-                if in_bounds {
-                    return true;
-                }
+        self.focused_pane == Some(pane_id)
+    }
+    
+    /// Get the pane at the given position.
+    pub fn pane_at_position(&self, x: u16, y: u16) -> Option<usize> {
+        for (pane_id, rect) in &self.pane_rects {
+            if x >= rect.x as u16 
+                && x < (rect.x + rect.w) as u16
+                && y >= rect.y as u16 
+                && y < (rect.y + rect.h) as u16 {
+                return Some(*pane_id);
             }
         }
-        // Fall back to keyboard focus
-        self.focused_panes.contains(&pane_id)
+        None
     }
     
     /// Render a layout tree to a buffer.
@@ -191,17 +176,27 @@ impl RenderContext {
     /// Forward an event to all panes in the layout tree.
     /// Returns true if any pane requested a re-render.
     pub fn forward_event(&mut self, layout: &mut LayoutNode, event: &Event, screen_rect: Rect) -> bool {
-        // Update mouse position if this is a mouse event
-        if let Event::Mouse(mouse_event) = event {
-            self.set_mouse_position(mouse_event.x, mouse_event.y);
-        }
-        
         let panes = layout.compute(screen_rect);
         
         // Update cached pane rectangles
         self.pane_rects.clear();
         for (id, rect) in panes {
             self.pane_rects.insert(id, rect);
+        }
+        
+        // Handle mouse click to change focus
+        if let Event::Mouse(mouse_event) = event {
+            use super::render::MouseEventKind;
+            if let MouseEventKind::Down(_) = mouse_event.kind {
+                if let Some(pane_id) = self.pane_at_position(mouse_event.x, mouse_event.y) {
+                    let was_focused = self.focused_pane;
+                    self.focused_pane = Some(pane_id);
+                    // Request re-render if focus changed
+                    if was_focused != self.focused_pane {
+                        return true;
+                    }
+                }
+            }
         }
         
         self.forward_event_node(layout, &self.pane_rects.clone(), event)
@@ -252,7 +247,7 @@ impl RenderContext {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::tui::render_impl::TextRenderer;
+    use crate::tui::text_pane::TextPane;
     
     #[test]
     fn test_render_context() {
@@ -265,7 +260,7 @@ mod tests {
                 Child {
                     node: Box::new(LayoutNode::Pane {
                         id: 0,
-                        renderer: Box::new(TextRenderer::new("Left")),
+                        renderer: Box::new(TextPane::new("Left")),
                     }),
                     size: Size {
                         weight: 1,
@@ -276,7 +271,7 @@ mod tests {
                 Child {
                     node: Box::new(LayoutNode::Pane {
                         id: 1,
-                        renderer: Box::new(TextRenderer::new("Right")),
+                        renderer: Box::new(TextPane::new("Right")),
                     }),
                     size: Size {
                         weight: 1,
@@ -289,7 +284,7 @@ mod tests {
         
         let mut buffer = Buffer::new(20, 10);
         let mut ctx = RenderContext::new();
-        ctx.set_focused(0, true);
+        ctx.set_focused_pane(0);
         
         ctx.render(&mut layout, &mut buffer);
         

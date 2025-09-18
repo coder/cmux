@@ -3,5 +3,6 @@ pub mod buffer;
 pub mod style;
 pub mod render;
 pub mod render_impl;
+pub mod text_pane;
 pub mod screen;
 pub mod ansi;

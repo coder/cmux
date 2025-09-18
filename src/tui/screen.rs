@@ -23,6 +23,8 @@ pub struct Screen {
     buffer: Buffer,
     /// Whether the alternate screen is active.
     active: bool,
+    /// Whether to capture mouse events.
+    capture_mouse: bool,
 }
 
 impl Screen {
@@ -31,13 +33,19 @@ impl Screen {
         let (width, height) = terminal::size().unwrap_or((80, 24));
         let mut render_context = RenderContext::new();
         // Focus the first pane by default (pane 0)
-        render_context.set_focused(0, true);
+        render_context.set_focused_pane(0);
         Self {
             layout,
             render_context,
             buffer: Buffer::new(width, height),
             active: false,
+            capture_mouse: true,  // Default to true for click-based focus
         }
+    }
+    
+    /// Set whether to capture mouse events.
+    pub fn set_capture_mouse(&mut self, capture: bool) {
+        self.capture_mouse = capture;
     }
     
     /// Enter the alternate screen and set up the terminal.
@@ -47,13 +55,22 @@ impl Screen {
         }
         
         // Enter alternate screen
-        execute!(
-            io::stdout(),
-            EnterAlternateScreen,
-            cursor::Hide,
-            terminal::Clear(terminal::ClearType::All),
-            crossterm::event::EnableMouseCapture
-        )?;
+        if self.capture_mouse {
+            execute!(
+                io::stdout(),
+                EnterAlternateScreen,
+                cursor::Hide,
+                terminal::Clear(terminal::ClearType::All),
+                crossterm::event::EnableMouseCapture
+            )?;
+        } else {
+            execute!(
+                io::stdout(),
+                EnterAlternateScreen,
+                cursor::Hide,
+                terminal::Clear(terminal::ClearType::All)
+            )?;
+        }
         
         // Enable raw mode for input handling
         terminal::enable_raw_mode()?;
@@ -76,12 +93,20 @@ impl Screen {
         terminal::disable_raw_mode()?;
         
         // Leave alternate screen
-        execute!(
-            io::stdout(),
-            crossterm::event::DisableMouseCapture,
-            cursor::Show,
-            LeaveAlternateScreen
-        )?;
+        if self.capture_mouse {
+            execute!(
+                io::stdout(),
+                crossterm::event::DisableMouseCapture,
+                cursor::Show,
+                LeaveAlternateScreen
+            )?;
+        } else {
+            execute!(
+                io::stdout(),
+                cursor::Show,
+                LeaveAlternateScreen
+            )?;
+        }
         
         self.active = false;
         Ok(())
@@ -264,16 +289,7 @@ impl Screen {
                             y: mouse_event.row,
                             kind: convert_mouse_kind(mouse_event.kind),
                         });
-                        let event_needs_render = self.render_context.forward_event(&mut self.layout, &render_event, screen_rect);
-                        
-                        // Always re-render on mouse movement since it can change focus
-                        // (Mouse position affects which pane is focused)
-                        use event::MouseEventKind;
-                        if matches!(mouse_event.kind, MouseEventKind::Moved) {
-                            needs_render = true;
-                        } else {
-                            needs_render = event_needs_render;
-                        }
+                        needs_render = self.render_context.forward_event(&mut self.layout, &render_event, screen_rect);
                     }
                     _ => {}
                 }

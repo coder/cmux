@@ -1,7 +1,7 @@
 use crate::tui::buffer::Buffer;
 use crate::tui::layout::{Child, LayoutNode, Rect, Size, SplitDir};
 use crate::tui::render::RenderContext;
-use crate::tui::render_impl::TextRenderer;
+use crate::tui::text_pane::TextPane;
 use crate::tui::screen::Screen;
 use crate::tui::style::{Style, Color};
 
@@ -14,7 +14,7 @@ pub fn create_test_layout(dir: SplitDir, gutter: u32) -> LayoutNode {
                 node: Box::new(LayoutNode::Pane { 
                     id: 0,
                     renderer: Box::new(
-                        TextRenderer::new("Pane 0: Left/Top\nPress 'q' or ESC to quit")
+                        TextPane::new("Pane 0: Left/Top\n\nYou can click and drag to select text within this pane.\n\nThe selection will be highlighted and stays within the pane boundaries.\n\nPress 'q' or ESC to quit")
                             .with_style(Style::new().fg(Color::Red))
                     ),
                 }),
@@ -28,7 +28,7 @@ pub fn create_test_layout(dir: SplitDir, gutter: u32) -> LayoutNode {
                 node: Box::new(LayoutNode::Pane { 
                     id: 1,
                     renderer: Box::new(
-                        TextRenderer::new("Pane 1: Middle\nWeight 1")
+                        TextPane::new("Pane 1: Middle\n\nThis pane demonstrates text selection with mouse support.\n\nClick and drag to select any text here. The selection is independent per pane.")
                             .with_style(Style::new().fg(Color::Green))
                     ),
                 }),
@@ -47,7 +47,7 @@ pub fn create_test_layout(dir: SplitDir, gutter: u32) -> LayoutNode {
                             node: Box::new(LayoutNode::Pane {
                                 id: 2,
                                 renderer: Box::new(
-                                    TextRenderer::new("Pane 2: Top\nNested in vertical split")
+                                    TextPane::new("Pane 2: Top (Nested)\n\nEach pane tracks its own selection state independently.")
                                         .with_style(Style::new().fg(Color::Blue))
                                 ),
                             }),
@@ -61,7 +61,7 @@ pub fn create_test_layout(dir: SplitDir, gutter: u32) -> LayoutNode {
                             node: Box::new(LayoutNode::Pane {
                                 id: 3,
                                 renderer: Box::new(
-                                    TextRenderer::new("Pane 3: Bottom\nAlso nested")
+                                    TextPane::new("Pane 3: Bottom (Nested)\n\nSelection highlighting uses reversed colors for visibility.")
                                         .with_style(Style::new().fg(Color::Magenta))
                                 ),
                             }),
@@ -83,13 +83,14 @@ pub fn create_test_layout(dir: SplitDir, gutter: u32) -> LayoutNode {
     }
 }
 
-pub async fn run_test_layout(dir: SplitDir, gutter: u32, demo: bool) -> Result<(), Box<dyn std::error::Error>> {
+pub async fn run_test_layout(dir: SplitDir, gutter: u32, demo: bool, capture_mouse: bool) -> Result<(), Box<dyn std::error::Error>> {
     let layout = create_test_layout(dir, gutter);
 
     if demo {
         run_demo_mode(layout, dir, gutter);
     } else {
         let mut screen = Screen::new(layout);
+        screen.set_capture_mouse(capture_mouse);
         screen.run().await?;
     }
     
@@ -126,19 +127,11 @@ fn run_demo_mode(layout: LayoutNode, dir: SplitDir, gutter: u32) {
     let mut buffer = Buffer::new(width, height);
     let mut render_ctx = RenderContext::new();
     
+    // Set focus to pane 0 by default
+    render_ctx.set_focused_pane(0);
+    println!("(Default focus on Pane 0 - click on other panes to change focus)");
+    
     let mut layout_mut = layout;
-    
-    // First render to populate pane_rects
-    render_ctx.render(&mut layout_mut, &mut buffer);
-    
-    // Now simulate mouse position - let's put it in pane 0 (left)
-    let mouse_x = 10;  // Well within pane 0 which goes from x=0 to x=18
-    let mouse_y = 10;  // Middle of the screen vertically
-    render_ctx.set_mouse_position(mouse_x, mouse_y);
-    println!("(Simulated mouse at x={}, y={} for demo - should focus Pane 0)", mouse_x, mouse_y);
-    
-    // Re-render with mouse position
-    buffer.clear();
     render_ctx.render(&mut layout_mut, &mut buffer);
     
     print_buffer(&buffer);

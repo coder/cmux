@@ -30,6 +30,11 @@ enum Commands {
         /// Run in demo mode (don't use alternate screen)
         #[arg(short = 'D', long)]
         demo: bool,
+        
+        /// Disable mouse support (keeps terminal text selection working)
+        /// When enabled, click-to-focus works but terminal text selection is disabled
+        #[arg(long)]
+        no_mouse: bool,
     },
 }
 
@@ -38,13 +43,13 @@ async fn main() {
     let args = Args::parse();
 
     match args.command {
-        Some(Commands::TestLayout { direction, gutter, demo }) => {
+        Some(Commands::TestLayout { direction, gutter, demo, no_mouse }) => {
             let dir = match direction {
                 Direction::Horizontal => SplitDir::Horizontal,
                 Direction::Vertical => SplitDir::Vertical,
             };
 
-            if let Err(e) = test_layout::run_test_layout(dir, gutter, demo).await {
+            if let Err(e) = test_layout::run_test_layout(dir, gutter, demo, !no_mouse).await {
                 eprintln!("Error: {}", e);
                 std::process::exit(1);
             }
