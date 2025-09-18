@@ -134,6 +134,48 @@ impl TextPane {
         Some(self.line_starts[line_idx] + col_idx.min(line.len()))
     }
     
+    /// Find word boundaries at the given position and return (start_point, end_point).
+    fn find_word_at_position(&self, point: Point) -> Option<(Point, Point)> {
+        let line_idx = point.y() as usize;
+        if line_idx >= self.wrapped_lines.len() {
+            return None;
+        }
+        
+        let line = &self.wrapped_lines[line_idx];
+        let col_idx = point.x() as usize;
+        if col_idx >= line.len() {
+            return None;
+        }
+        
+        // Check if the character at this position is a word character
+        let char_at_pos = line.chars().nth(col_idx).unwrap_or(' ');
+        if !Self::is_word_char(char_at_pos) {
+            return None;
+        }
+        
+        // Find word start (move left while we're in a word character)
+        let mut start_col = col_idx;
+        while start_col > 0 && Self::is_word_char(line.chars().nth(start_col - 1).unwrap_or(' ')) {
+            start_col -= 1;
+        }
+        
+        // Find word end (move right while we're in a word character)
+        let mut end_col = col_idx + 1;
+        while end_col < line.len() && Self::is_word_char(line.chars().nth(end_col).unwrap_or(' ')) {
+            end_col += 1;
+        }
+        
+        Some((
+            Point::new(start_col as u16, line_idx as u16),
+            Point::new(end_col as u16, line_idx as u16),
+        ))
+    }
+    
+    /// Check if a character is considered part of a word (alphanumeric or underscore).
+    fn is_word_char(ch: char) -> bool {
+        ch.is_alphanumeric() || ch == '_'
+    }
+    
     /// Start a new selection at the given position.
     fn start_selection(&mut self, point: Point) {
         self.selection_start = Some(point);
@@ -320,6 +362,29 @@ impl PaneRenderer for TextPane {
                         self.finalize_selection();
                         EventResult::Render
                     }
+                    MouseEventKind::DoubleClick(MouseButton::Left) => {
+                        // On double-click, select the word at the click position
+                        if let Some((start, end)) = self.find_word_at_position(local_point) {
+                            self.selection_start = Some(start);
+                            self.selection_end = Some(end);
+                            self.is_selecting = false;
+                            self.update_selected_text();
+                            return EventResult::Render;
+                        }
+                        EventResult::None
+                    }
+                    MouseEventKind::TripleClick(MouseButton::Left) => {
+                        // On triple-click, select the entire line
+                        if (local_point.y() as usize) < self.wrapped_lines.len() {
+                            let line_idx = local_point.y() as usize;
+                            self.selection_start = Some(Point::new(0, line_idx as u16));
+                            self.selection_end = Some(Point::new(self.wrapped_lines[line_idx].len() as u16, line_idx as u16));
+                            self.is_selecting = false;
+                            self.update_selected_text();
+                            return EventResult::Render;
+                        }
+                        EventResult::None
+                    }
                     _ => EventResult::None,
                 }
             }
@@ -349,5 +414,59 @@ impl PaneRenderer for TextPane {
             }
             _ => EventResult::None,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_word_finding() {
+        let mut text_pane = TextPane::new("Hello world! This is a test.");
+        
+        // Need to initialize wrapped lines first
+        text_pane.update_wrapped_lines(&text_pane.text.clone(), 80);
+        
+        // Test finding word "Hello" at the beginning (position 2 is inside "Hello")
+        let word = text_pane.find_word_at_position(Point::new(2, 0));
+        assert_eq!(word, Some((Point::new(0, 0), Point::new(5, 0))));
+        
+        // Test finding word "world" (position 8 is inside "world")
+        let word = text_pane.find_word_at_position(Point::new(8, 0));
+        assert_eq!(word, Some((Point::new(6, 0), Point::new(11, 0))));
+        
+        // Test clicking on non-word character (space at position 5) - should return None
+        let word = text_pane.find_word_at_position(Point::new(5, 0));
+        assert_eq!(word, None);
+        
+        // Test clicking on punctuation
+        let word = text_pane.find_word_at_position(Point::new(11, 0));
+        assert_eq!(word, None);
+    }
+    
+    #[test]
+    fn test_is_word_char() {
+        assert!(TextPane::is_word_char('a'));
+        assert!(TextPane::is_word_char('Z'));
+        assert!(TextPane::is_word_char('5'));
+        assert!(TextPane::is_word_char('_'));
+        
+        assert!(!TextPane::is_word_char(' '));
+        assert!(!TextPane::is_word_char('!'));
+        assert!(!TextPane::is_word_char('.'));
+        assert!(!TextPane::is_word_char('-'));
+    }
+
+    #[test]
+    fn test_word_selection_with_underscores() {
+        let mut text_pane = TextPane::new("my_variable_name = 42");
+        
+        // Need to initialize wrapped lines first
+        text_pane.update_wrapped_lines(&text_pane.text.clone(), 80);
+        
+        // Test selecting the entire variable name with underscores
+        let word = text_pane.find_word_at_position(Point::new(8, 0));
+        assert_eq!(word, Some((Point::new(0, 0), Point::new(16, 0))));
     }
 }

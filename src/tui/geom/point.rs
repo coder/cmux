@@ -21,6 +21,14 @@ impl Point {
     pub fn y(self) -> u16 {
         self.1
     }
+
+    /// Calculate the Chebyshev distance to another point.
+    /// This is the maximum of the absolute differences in x and y coordinates.
+    pub fn distance_to(self, other: Point) -> u16 {
+        let dx = (self.0 as i32 - other.0 as i32).abs() as u16;
+        let dy = (self.1 as i32 - other.1 as i32).abs() as u16;
+        dx.max(dy)
+    }
 }
 
 
@@ -76,5 +84,26 @@ mod tests {
         let diff = p1 - p2;
         assert_eq!(diff.x(), 0); // saturating_sub prevents underflow
         assert_eq!(diff.y(), 0);
+    }
+
+    #[test]
+    fn test_point_distance() {
+        let p1 = Point::new(0, 0);
+        let p2 = Point::new(3, 4);
+        
+        // Chebyshev distance: max of dx=3, dy=4 is 4
+        assert_eq!(p1.distance_to(p2), 4);
+        assert_eq!(p2.distance_to(p1), 4); // Distance is symmetric
+        
+        // Same point
+        assert_eq!(p1.distance_to(p1), 0);
+        
+        // Horizontal distance
+        let p3 = Point::new(5, 0);
+        assert_eq!(p1.distance_to(p3), 5);
+        
+        // Vertical distance  
+        let p4 = Point::new(0, 7);
+        assert_eq!(p1.distance_to(p4), 7);
     }
 }

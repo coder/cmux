@@ -8,3 +8,4 @@ pub mod render_impl;
 pub mod text_pane;
 pub mod screen;
 pub mod ansi;
+pub mod event_loop;

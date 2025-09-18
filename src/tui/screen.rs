@@ -3,7 +3,6 @@
 use std::io::{self, Write};
 use crossterm::{
     cursor,
-    event::{self, Event, KeyCode},
     execute,
     terminal::{self, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -192,39 +191,11 @@ impl Screen {
         Ok(())
     }
     
-    /// Handle terminal events (async version).
-    pub async fn handle_event(&mut self) -> io::Result<bool> {
-        // Poll for events in a blocking task
-        let event_result = tokio::task::spawn_blocking(|| -> io::Result<Option<Event>> {
-            if event::poll(std::time::Duration::from_millis(100))? {
-                Ok(Some(event::read()?))
-            } else {
-                Ok(None)
-            }
-        })
-        .await
-        .map_err(|e| io::Error::new(io::ErrorKind::Other, e))??;
-        
-        if let Some(event) = event_result {
-            match event {
-                Event::Key(key_event) => {
-                    // Check for quit keys
-                    if key_event.code == KeyCode::Char('q') || key_event.code == KeyCode::Esc {
-                        return Ok(false); // Signal to quit
-                    }
-                }
-                Event::Resize(width, height) => {
-                    self.buffer = Buffer::new(width, height);
-                    self.render()?;
-                }
-                _ => {}
-            }
-        }
-        Ok(true) // Continue running
-    }
     
     /// Run the screen in a loop until quit.
     pub async fn run(&mut self) -> io::Result<()> {
+        use super::event_loop::{EventLoopHandle, ProcessedEvent};
+        
         self.setup()?;
         
         // Send initial focus event to pane 0
@@ -235,68 +206,38 @@ impl Screen {
         // Initial render
         self.render()?;
         
-        // Event loop
-        loop {
-            // Poll for events in a blocking task since crossterm's event polling is blocking
-            let event_result = tokio::task::spawn_blocking(|| -> io::Result<Option<Event>> {
-                if event::poll(std::time::Duration::from_millis(100))? {
-                    Ok(Some(event::read()?))
-                } else {
-                    Ok(None)
+        // Start the background event loop
+        let mut event_handle = EventLoopHandle::start()?;
+        
+        // Main event processing loop
+        while let Some(processed_event) = event_handle.recv().await {
+            match processed_event {
+                ProcessedEvent::Quit => {
+                    break;
                 }
-            })
-            .await
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))??;
-            
-            if let Some(event) = event_result {
-                let mut needs_render = false;
-                
-                match event {
-                    Event::Key(key_event) => {
-                        // Check for quit keys first
-                        if key_event.code == KeyCode::Char('q') || key_event.code == KeyCode::Esc {
-                            break;
-                        }
-                        
-                        // Forward key event to all panes
-                        let screen_rect = self.buffer.area();
-                        let render_event = RenderEvent::Key(super::render::KeyEvent {
-                            code: convert_keycode(key_event.code),
-                            modifiers: super::render::KeyModifiers {
-                                shift: key_event.modifiers.contains(event::KeyModifiers::SHIFT),
-                                ctrl: key_event.modifiers.contains(event::KeyModifiers::CONTROL),
-                                alt: key_event.modifiers.contains(event::KeyModifiers::ALT),
-                            },
-                        });
-                        needs_render = self.render_context.forward_event(&mut self.layout, &render_event, screen_rect);
-                    }
-                    Event::Resize(width, height) => {
-                        self.buffer = Buffer::new(width, height);
-                        
-                        // Forward resize event to all panes
-                        let screen_rect = self.buffer.area();
-                        let render_event = RenderEvent::Resize(width, height);
-                        self.render_context.forward_event(&mut self.layout, &render_event, screen_rect);
-                        
-                        // Always render after resize
+                ProcessedEvent::Render(render_event) => {
+                    let mut needs_render = false;
+                    let screen_rect = self.buffer.area();
+                    
+                    // Handle resize specially to update buffer
+                    if let RenderEvent::Resize(width, height) = &render_event {
+                        self.buffer = Buffer::new(*width, *height);
                         needs_render = true;
                     }
-                    Event::Mouse(mouse_event) => {
-                        // Forward mouse event to all panes
-                        let screen_rect = self.buffer.area();
-                        let render_event = RenderEvent::Mouse(super::render::MouseEvent {
-                            x: mouse_event.column,
-                            y: mouse_event.row,
-                            kind: convert_mouse_kind(mouse_event.kind),
-                        });
-                        needs_render = self.render_context.forward_event(&mut self.layout, &render_event, screen_rect);
+                    
+                    // Forward event to all panes
+                    let pane_needs_render = self.render_context.forward_event(
+                        &mut self.layout, 
+                        &render_event, 
+                        screen_rect
+                    );
+                    
+                    needs_render = needs_render || pane_needs_render;
+                    
+                    // Re-render if any pane requested it
+                    if needs_render {
+                        self.render()?;
                     }
-                    _ => {}
-                }
-                
-                // Re-render if any pane requested it
-                if needs_render {
-                    self.render()?;
                 }
             }
         }
@@ -313,52 +254,3 @@ impl Drop for Screen {
     }
 }
 
-/// Convert crossterm KeyCode to our KeyCode
-fn convert_keycode(key: KeyCode) -> super::render::KeyCode {
-    match key {
-        KeyCode::Char(c) => super::render::KeyCode::Char(c),
-        KeyCode::Enter => super::render::KeyCode::Enter,
-        KeyCode::Tab => super::render::KeyCode::Tab,
-        KeyCode::Backspace => super::render::KeyCode::Backspace,
-        KeyCode::Delete => super::render::KeyCode::Delete,
-        KeyCode::Left => super::render::KeyCode::Left,
-        KeyCode::Right => super::render::KeyCode::Right,
-        KeyCode::Up => super::render::KeyCode::Up,
-        KeyCode::Down => super::render::KeyCode::Down,
-        KeyCode::Home => super::render::KeyCode::Home,
-        KeyCode::End => super::render::KeyCode::End,
-        KeyCode::PageUp => super::render::KeyCode::PageUp,
-        KeyCode::PageDown => super::render::KeyCode::PageDown,
-        KeyCode::F(n) => super::render::KeyCode::F(n),
-        KeyCode::Esc => super::render::KeyCode::Esc,
-        _ => super::render::KeyCode::Char(' '), // Default for unmapped keys
-    }
-}
-
-/// Convert crossterm mouse event kind to our mouse event kind
-fn convert_mouse_kind(kind: event::MouseEventKind) -> super::render::MouseEventKind {
-    use event::MouseEventKind;
-    use super::render::MouseEventKind as RenderMouseKind;
-    
-    match kind {
-        MouseEventKind::Moved => RenderMouseKind::Moved,
-        MouseEventKind::Down(btn) => RenderMouseKind::Down(convert_mouse_button(btn)),
-        MouseEventKind::Up(btn) => RenderMouseKind::Up(convert_mouse_button(btn)),
-        MouseEventKind::Drag(btn) => RenderMouseKind::Drag(convert_mouse_button(btn)),
-        MouseEventKind::ScrollDown => RenderMouseKind::ScrollDown,
-        MouseEventKind::ScrollUp => RenderMouseKind::ScrollUp,
-        _ => RenderMouseKind::Moved, // Default for unmapped events
-    }
-}
-
-/// Convert crossterm mouse button to our mouse button
-fn convert_mouse_button(btn: event::MouseButton) -> super::render::MouseButton {
-    use event::MouseButton as CTMouseButton;
-    use super::render::MouseButton;
-    
-    match btn {
-        CTMouseButton::Left => MouseButton::Left,
-        CTMouseButton::Right => MouseButton::Right,
-        CTMouseButton::Middle => MouseButton::Middle,
-    }
-}

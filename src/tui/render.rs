@@ -96,12 +96,14 @@ pub enum MouseEventKind {
     Down(MouseButton),
     Up(MouseButton),
     Drag(MouseButton),
+    DoubleClick(MouseButton),
+    TripleClick(MouseButton),
     ScrollDown,
     ScrollUp,
 }
 
 /// Mouse button.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum MouseButton {
     Left,
     Right,
@@ -116,7 +118,7 @@ impl From<MouseEvent> for Point {
 
 use super::layout::LayoutNode;
 use super::geom::{Point, Rect};
-use std::collections::{HashSet, HashMap};
+use std::collections::HashMap;
 
 /// Context for rendering a layout tree.
 pub struct RenderContext {
