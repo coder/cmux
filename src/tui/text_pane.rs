@@ -275,8 +275,8 @@ impl PaneRenderer for TextPane {
                     
                     let x = text_rect.x + col_idx as u32;
                     
-                    // Check if this character is selected
-                    let style = if self.is_char_selected(col_idx as u16, line_idx as u16) {
+                    // Check if this character is selected and pane is focused
+                    let style = if ctx.focused && self.is_char_selected(col_idx as u16, line_idx as u16) {
                         // Highlight selected text with reversed colors
                         Style::new()
                             .fg(self.style.bg.unwrap_or(Color::Black))
