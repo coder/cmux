@@ -1,7 +1,5 @@
 //! Styling and theming for terminal rendering.
 
-use std::fmt;
-
 /// Color representation for terminal output.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Color {
@@ -122,83 +120,3 @@ impl Style {
     }
 }
 
-/// Characters used for drawing box borders.
-#[derive(Debug, Clone, Copy)]
-pub struct BorderChars {
-    pub top_left: char,
-    pub top_right: char,
-    pub bottom_left: char,
-    pub bottom_right: char,
-    pub horizontal: char,
-    pub vertical: char,
-}
-
-/// Border style presets.
-#[derive(Debug, Clone, Copy)]
-pub enum BorderStyle {
-    None,
-    Single,
-    Double,
-    Rounded,
-    Thick,
-}
-
-impl BorderStyle {
-    /// Get the characters for this border style.
-    pub fn chars(&self) -> BorderChars {
-        match self {
-            BorderStyle::None => BorderChars {
-                top_left: ' ',
-                top_right: ' ',
-                bottom_left: ' ',
-                bottom_right: ' ',
-                horizontal: ' ',
-                vertical: ' ',
-            },
-            BorderStyle::Single => BorderChars {
-                top_left: '┌',
-                top_right: '┐',
-                bottom_left: '└',
-                bottom_right: '┘',
-                horizontal: '─',
-                vertical: '│',
-            },
-            BorderStyle::Double => BorderChars {
-                top_left: '╔',
-                top_right: '╗',
-                bottom_left: '╚',
-                bottom_right: '╝',
-                horizontal: '═',
-                vertical: '║',
-            },
-            BorderStyle::Rounded => BorderChars {
-                top_left: '╭',
-                top_right: '╮',
-                bottom_left: '╰',
-                bottom_right: '╯',
-                horizontal: '─',
-                vertical: '│',
-            },
-            BorderStyle::Thick => BorderChars {
-                top_left: '┏',
-                top_right: '┓',
-                bottom_left: '┗',
-                bottom_right: '┛',
-                horizontal: '━',
-                vertical: '┃',
-            },
-        }
-    }
-}
-
-impl fmt::Display for BorderStyle {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            BorderStyle::None => write!(f, "None"),
-            BorderStyle::Single => write!(f, "Single"),
-            BorderStyle::Double => write!(f, "Double"),
-            BorderStyle::Rounded => write!(f, "Rounded"),
-            BorderStyle::Thick => write!(f, "Thick"),
-        }
-    }
-}

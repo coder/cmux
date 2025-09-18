@@ -1,7 +1,8 @@
 //! Buffer for terminal rendering.
 
 use super::layout::Rect;
-use super::style::{Style, BorderStyle};
+use super::style::Style;
+use super::border::BorderStyle;
 
 /// A single cell in the terminal buffer.
 #[derive(Debug, Clone, Copy, PartialEq)]

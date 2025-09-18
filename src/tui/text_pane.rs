@@ -1,9 +1,10 @@
 //! Text pane with mouse-based text selection support.
 
 use super::buffer::Buffer;
-use super::layout::Rect;
-use super::render::{PaneRenderer, PaneContext, Event, EventResult, MouseEvent, MouseEventKind, MouseButton};
-use super::style::{Style, Color, BorderStyle};
+use super::render::{PaneRenderer, PaneContext, Event, EventResult, MouseEventKind, MouseButton, KeyCode};
+use super::style::{Style, Color};
+use super::border::BorderStyle;
+use arboard::Clipboard;
 
 /// A text pane that supports mouse-based text selection.
 pub struct TextPane {
@@ -252,16 +253,7 @@ impl PaneRenderer for TextPane {
         }
         
         // Calculate text area (inside border if present)
-        let text_rect = if matches!(border_style, BorderStyle::None) {
-            ctx.rect
-        } else {
-            Rect {
-                x: ctx.rect.x + 1,
-                y: ctx.rect.y + 1,
-                w: ctx.rect.w.saturating_sub(2),
-                h: ctx.rect.h.saturating_sub(2),
-            }
-        };
+        let text_rect = border_style.content_rect(ctx.rect);
         
         // Update wrapped lines if width changed
         let text = self.text.clone();
@@ -303,22 +295,10 @@ impl PaneRenderer for TextPane {
         match event {
             Event::Mouse(mouse) => {
                 // Calculate text area bounds
-                let text_rect = if matches!(self.border, BorderStyle::None) {
-                    ctx.rect
-                } else {
-                    Rect {
-                        x: ctx.rect.x + 1,
-                        y: ctx.rect.y + 1,
-                        w: ctx.rect.w.saturating_sub(2),
-                        h: ctx.rect.h.saturating_sub(2),
-                    }
-                };
+                let text_rect = self.border.content_rect(ctx.rect);
                 
                 // Check if mouse is within text area
-                if mouse.x < text_rect.x as u16 
-                    || mouse.x >= (text_rect.x + text_rect.w) as u16
-                    || mouse.y < text_rect.y as u16
-                    || mouse.y >= (text_rect.y + text_rect.h) as u16 {
+                if !text_rect.contains(mouse.x, mouse.y) {
                     return EventResult::None;
                 }
                 
@@ -340,6 +320,23 @@ impl PaneRenderer for TextPane {
                         EventResult::Render
                     }
                     _ => EventResult::None,
+                }
+            }
+            Event::Key(key) => {
+                // Handle Ctrl+C to copy selected text to clipboard
+                if key.code == KeyCode::Char('c') && key.modifiers.ctrl && !self.selected_text.is_empty() {
+                    match Clipboard::new().and_then(|mut clipboard| clipboard.set_text(&self.selected_text)) {
+                        Ok(()) => {
+                            // Successfully copied to clipboard - could add visual feedback here
+                            EventResult::None
+                        }
+                        Err(_) => {
+                            // Clipboard operation failed - silently ignore for now
+                            EventResult::None
+                        }
+                    }
+                } else {
+                    EventResult::None
                 }
             }
             Event::Focus { focused } => {
