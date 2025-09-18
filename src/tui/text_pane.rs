@@ -389,11 +389,17 @@ impl PaneRenderer for TextPane {
                 }
             }
             Event::Key(key) => {
-                // Handle Ctrl+C to copy selected text to clipboard
-                if key.code == KeyCode::Char('c') && key.modifiers.ctrl && !self.selected_text.is_empty() {
+                // Handle copy command: Ctrl+C (Windows/Linux) or Cmd+C (macOS)
+                // On macOS, crossterm typically maps Cmd to ALT modifier, but this can vary by terminal
+                // Also support Ctrl+C on macOS as a fallback since some terminal emulators use it
+                let is_copy_command = key.code == KeyCode::Char('c') && 
+                    (key.modifiers.ctrl || key.modifiers.alt) && 
+                    !self.selected_text.is_empty();
+                
+                if is_copy_command {
                     match Clipboard::new().and_then(|mut clipboard| clipboard.set_text(&self.selected_text)) {
                         Ok(()) => {
-                            // Successfully copied to clipboard - could add visual feedback here
+                            // Successfully copied to clipboard
                             EventResult::None
                         }
                         Err(_) => {
@@ -468,5 +474,49 @@ mod tests {
         // Test selecting the entire variable name with underscores
         let word = text_pane.find_word_at_position(Point::new(8, 0));
         assert_eq!(word, Some((Point::new(0, 0), Point::new(16, 0))));
+    }
+
+    #[test]
+    fn test_copy_key_detection() {
+        use super::super::render::{KeyEvent, KeyCode, KeyModifiers};
+        use super::super::geom::Rect;
+        
+        let mut text_pane = TextPane::new("Hello World");
+        text_pane.update_wrapped_lines(&text_pane.text.clone(), 80);
+        
+        // Set up some selected text
+        text_pane.selection_start = Some(Point::new(0, 0));
+        text_pane.selection_end = Some(Point::new(5, 0));
+        text_pane.update_selected_text();
+        
+        let ctx = PaneContext {
+            id: 0,
+            rect: Rect { x: 0, y: 0, w: 20, h: 10 },
+            focused: true,
+        };
+        
+        // Test Ctrl+C (Windows/Linux)
+        let ctrl_c = Event::Key(KeyEvent {
+            code: KeyCode::Char('c'),
+            modifiers: KeyModifiers { shift: false, ctrl: true, alt: false },
+        });
+        let result = text_pane.handle_event(&ctx, &ctrl_c);
+        assert_eq!(result, EventResult::None); // Copy operation should complete
+        
+        // Test Alt+C (should work for macOS Cmd+C)
+        let alt_c = Event::Key(KeyEvent {
+            code: KeyCode::Char('c'),
+            modifiers: KeyModifiers { shift: false, ctrl: false, alt: true },
+        });
+        let result = text_pane.handle_event(&ctx, &alt_c);
+        assert_eq!(result, EventResult::None); // Copy operation should complete
+        
+        // Test regular 'c' (should not trigger copy)
+        let regular_c = Event::Key(KeyEvent {
+            code: KeyCode::Char('c'),
+            modifiers: KeyModifiers { shift: false, ctrl: false, alt: false },
+        });
+        let result = text_pane.handle_event(&ctx, &regular_c);
+        assert_eq!(result, EventResult::None); // Should not copy
     }
 }

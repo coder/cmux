@@ -15,7 +15,7 @@ pub fn create_test_layout(dir: SplitDir, gutter: u32) -> LayoutNode {
                 node: Box::new(LayoutNode::Pane { 
                     id: 0,
                     renderer: Box::new(
-                        TextPane::new("Pane 0: Left/Top\n\nYou can click and drag to select text within this pane.\n\nThe selection will be highlighted and stays within the pane boundaries.\n\nPress 'q' or ESC to quit")
+                        TextPane::new("Pane 0: Left/Top\n\nClick and drag to select text. Double-click to select words. Triple-click to select lines.\n\nPress Ctrl+C (or Cmd+C on macOS) to copy selected text to clipboard.\n\nPress 'q' or ESC to quit")
                             .with_style(Style::new().fg(Color::Red))
                     ),
                 }),
@@ -29,7 +29,7 @@ pub fn create_test_layout(dir: SplitDir, gutter: u32) -> LayoutNode {
                 node: Box::new(LayoutNode::Pane { 
                     id: 1,
                     renderer: Box::new(
-                        TextPane::new("Pane 1: Middle\n\nThis pane demonstrates text selection with mouse support.\n\nClick and drag to select any text here. The selection is independent per pane.")
+                        TextPane::new("Pane 1: Middle\n\nEach pane has independent text selection.\n\nTry different click types:\n• Single: character selection\n• Double: word selection  \n• Triple: line selection")
                             .with_style(Style::new().fg(Color::Green))
                     ),
                 }),
