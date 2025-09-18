@@ -5,7 +5,8 @@
 //!
 //! # Example
 //! ```ignore
-//! use tui::layout::{LayoutNode, SplitDir, Child, Size, Rect};
+//! use tui::layout::{LayoutNode, SplitDir, Child, Size};
+//! use tui::geom::Rect;
 //! use tui::text_pane::TextPane;
 //! 
 //! let layout = LayoutNode::Split {
@@ -36,27 +37,6 @@ pub enum SplitDir {
     Vertical,
 }
 
-/// A rectangular area with position and dimensions.
-#[derive(Debug, Clone, Copy)]
-pub struct Rect {
-    /// X coordinate (column)
-    pub x: u32,
-    /// Y coordinate (row)
-    pub y: u32,
-    /// Width in cells
-    pub w: u32,
-    /// Height in cells
-    pub h: u32,
-}
-
-impl Rect {
-    /// Check if the given position is within this rectangle.
-    pub fn contains(&self, point: Point) -> bool {
-        let x = point.x() as u32;
-        let y = point.y() as u32;
-        x >= self.x && x < self.x + self.w && y >= self.y && y < self.y + self.h
-    }
-}
 
 /// Size configuration for a child in a split layout.
 ///
@@ -83,7 +63,7 @@ pub struct Child {
 }
 
 use super::render::PaneRenderer;
-use super::point::Point;
+use super::geom::Rect;
 
 /// A layout node that can either be a split container or a leaf pane.
 pub enum LayoutNode {

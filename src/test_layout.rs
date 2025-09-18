@@ -1,5 +1,6 @@
 use crate::tui::buffer::Buffer;
-use crate::tui::layout::{Child, LayoutNode, Rect, Size, SplitDir};
+use crate::tui::layout::{Child, LayoutNode, Size, SplitDir};
+use crate::tui::geom::Rect;
 use crate::tui::render::RenderContext;
 use crate::tui::text_pane::TextPane;
 use crate::tui::screen::Screen;

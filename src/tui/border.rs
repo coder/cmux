@@ -1,7 +1,7 @@
 //! Border styling for terminal UI components.
 
 use std::fmt;
-use super::layout::Rect;
+use super::geom::Rect;
 
 /// Characters used for drawing box borders.
 #[derive(Debug, Clone, Copy)]

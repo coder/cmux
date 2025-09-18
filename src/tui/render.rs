@@ -1,7 +1,6 @@
 //! Rendering system for panes.
 
 use super::buffer::Buffer;
-use super::layout::Rect;
 
 /// Context passed to pane renderers.
 #[derive(Debug, Clone)]
@@ -116,7 +115,7 @@ impl From<MouseEvent> for Point {
 }
 
 use super::layout::LayoutNode;
-use super::point::Point;
+use super::geom::{Point, Rect};
 use std::collections::{HashSet, HashMap};
 
 /// Context for rendering a layout tree.

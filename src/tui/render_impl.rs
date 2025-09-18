@@ -15,7 +15,7 @@ impl PaneRenderer for NoopRenderer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use super::super::layout::Rect;
+    use super::super::geom::Rect;
 
     #[test]
     fn test_noop_renderer() {

@@ -2,7 +2,7 @@ pub mod layout;
 pub mod buffer;
 pub mod style;
 pub mod border;
-pub mod point;
+pub mod geom;
 pub mod render;
 pub mod render_impl;
 pub mod text_pane;

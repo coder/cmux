@@ -4,7 +4,7 @@ use super::buffer::Buffer;
 use super::render::{PaneRenderer, PaneContext, Event, EventResult, MouseEventKind, MouseButton, KeyCode};
 use super::style::{Style, Color};
 use super::border::BorderStyle;
-use super::point::Point;
+use super::geom::Point;
 use arboard::Clipboard;
 
 /// A text pane that supports mouse-based text selection.
@@ -305,8 +305,7 @@ impl PaneRenderer for TextPane {
                 }
                 
                 // Convert to text-area-relative coordinates
-                let text_rect_origin = Point::new(text_rect.x as u16, text_rect.y as u16);
-                let local_point = mouse_point - text_rect_origin;
+                let local_point = mouse_point - text_rect.into();
                 
                 match mouse.kind {
                     MouseEventKind::Down(MouseButton::Left) => {

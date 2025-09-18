@@ -1,6 +1,6 @@
 //! Buffer for terminal rendering.
 
-use super::layout::Rect;
+use super::geom::Rect;
 use super::style::Style;
 use super::border::BorderStyle;
 
