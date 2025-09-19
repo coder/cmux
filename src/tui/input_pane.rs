@@ -7,7 +7,6 @@ use super::border::BorderStyle;
 use super::geom::Point;
 use super::text_buffer::{TextBuffer, TextBufferView, ViewportState};
 use arboard::Clipboard;
-use std::time::{Duration, Instant};
 
 /// A multi-line input pane using TextBuffer for efficient text storage.
 pub struct InputPane {
@@ -25,10 +24,6 @@ pub struct InputPane {
     placeholder: Option<String>,
     /// Selection range (start, end) in buffer character indices.
     selection: Option<(usize, usize)>,
-    /// Last time cursor was toggled for blinking effect.
-    last_cursor_toggle: Instant,
-    /// Whether cursor is currently visible (for blinking).
-    cursor_visible: bool,
 }
 
 impl InputPane {
@@ -42,8 +37,6 @@ impl InputPane {
             focused_border: BorderStyle::Thick,
             placeholder: None,
             selection: None,
-            last_cursor_toggle: Instant::now(),
-            cursor_visible: true,
         }
     }
     
@@ -60,8 +53,6 @@ impl InputPane {
             focused_border: BorderStyle::Thick,
             placeholder: None,
             selection: None,
-            last_cursor_toggle: Instant::now(),
-            cursor_visible: true,
         }
     }
     
@@ -382,21 +373,46 @@ impl PaneRenderer for InputPane {
                 }
             }
             
-            // Render cursor if focused and visible
-            if ctx.focused && self.cursor_visible {
-                if let Some((cursor_display_line, cursor_display_col)) = view.char_to_display(self.cursor_pos) {
-                    let cursor_x = text_rect.x + cursor_display_col as u32;
-                    let cursor_y = text_rect.y + cursor_display_line as u32;
-                    
-                    // Get character at cursor position
-                    let cursor_char = self.buffer.char_at(self.cursor_pos).unwrap_or(' ');
-                    
-                    // Show cursor as reversed character
-                    let cursor_style = Style::new()
-                        .fg(self.style.bg.unwrap_or(Color::Black))
-                        .bg(self.style.fg.unwrap_or(Color::White));
-                    
-                    buffer.set_char(cursor_x as u16, cursor_y as u16, cursor_char, cursor_style);
+            // Render cursor if focused
+            if ctx.focused {
+                // For cursor at end of text, we need to handle specially
+                let (cursor_line, cursor_col) = self.buffer.char_to_line_col(self.cursor_pos);
+                
+                // Try to map the cursor position to display coordinates
+                // This handles both cursor in text and cursor at end of line
+                let viewport = ViewportState::new(text_rect.w as usize, text_rect.h as usize);
+                let mut temp_view = TextBufferView::new(&self.buffer, viewport);
+                temp_view.scroll_to_char(self.cursor_pos);
+                
+                // Calculate display position for cursor
+                let visible_lines = temp_view.visible_lines().collect::<Vec<_>>();
+                for (display_line_idx, display_line) in visible_lines.iter().enumerate() {
+                    if display_line.logical_line_index == cursor_line {
+                        // Check if cursor is within this display line's range
+                        let line_start_col = display_line.logical_col_start;
+                        let line_end_col = line_start_col + display_line.content.len();
+                        
+                        if cursor_col >= line_start_col && cursor_col <= line_end_col {
+                            let display_col = cursor_col - line_start_col;
+                            let cursor_x = text_rect.x + display_col as u32;
+                            let cursor_y = text_rect.y + display_line_idx as u32;
+                            
+                            // Determine cursor character and style based on position
+                            let (cursor_char, cursor_style) = if cursor_col < line_end_col {
+                                // Cursor is over existing text - show reversed character
+                                let ch = display_line.content.chars().nth(display_col).unwrap_or(' ');
+                                (ch, Style::new()
+                                    .fg(self.style.bg.unwrap_or(Color::Black))
+                                    .bg(self.style.fg.unwrap_or(Color::White)))
+                            } else {
+                                // Cursor is at end of line - show solid box
+                                ('█', self.style)
+                            };
+                            
+                            buffer.set_char(cursor_x as u16, cursor_y as u16, cursor_char, cursor_style);
+                            break;
+                        }
+                    }
                 }
             }
         }
@@ -535,16 +551,7 @@ impl PaneRenderer for InputPane {
                 EventResult::Render
             }
             Event::Animation => {
-                // Update cursor blink state only if focused
-                if ctx.focused {
-                    const CURSOR_BLINK_INTERVAL: Duration = Duration::from_millis(530);
-                    let now = Instant::now();
-                    if now.duration_since(self.last_cursor_toggle) >= CURSOR_BLINK_INTERVAL {
-                        self.cursor_visible = !self.cursor_visible;
-                        self.last_cursor_toggle = now;
-                        return EventResult::Render;  // Only render when visibility changes
-                    }
-                }
+                // No longer need to handle animation for cursor
                 EventResult::None
             }
             _ => EventResult::None,
@@ -562,10 +569,9 @@ impl InputPane {
         }
     }
     
-    /// Reset cursor blink to visible state.
+    /// Reset cursor (no longer needed for blinking, kept for compatibility).
     fn reset_cursor_blink(&mut self) {
-        self.cursor_visible = true;
-        self.last_cursor_toggle = Instant::now();
+        // No-op now that cursor doesn't blink
     }
 }
 
