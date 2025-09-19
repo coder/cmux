@@ -215,6 +215,20 @@ impl Screen {
                 ProcessedEvent::Quit => {
                     break;
                 }
+                ProcessedEvent::Animation => {
+                    // Forward animation event to all panes
+                    let screen_rect = self.buffer.area();
+                    let needs_render = self.render_context.forward_event(
+                        &mut self.layout, 
+                        &RenderEvent::Animation, 
+                        screen_rect
+                    );
+                    
+                    // Re-render if any pane requested it
+                    if needs_render {
+                        self.render()?;
+                    }
+                }
                 ProcessedEvent::Render(render_event) => {
                     let mut needs_render = false;
                     let screen_rect = self.buffer.area();

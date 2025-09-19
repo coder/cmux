@@ -3,6 +3,7 @@ use crate::tui::layout::{Child, LayoutNode, Size, SplitDir};
 use crate::tui::geom::Rect;
 use crate::tui::render::RenderContext;
 use crate::tui::text_pane::TextPane;
+use crate::tui::input_pane::InputPane;
 use crate::tui::screen::Screen;
 use crate::tui::style::{Style, Color};
 
@@ -29,8 +30,9 @@ pub fn create_test_layout(dir: SplitDir, gutter: u32) -> LayoutNode {
                 node: Box::new(LayoutNode::Pane { 
                     id: 1,
                     renderer: Box::new(
-                        TextPane::new("Pane 1: Middle\n\nEach pane has independent text selection.\n\nTry different click types:\n• Single: character selection\n• Double: word selection  \n• Triple: line selection")
+                        InputPane::new()
                             .with_style(Style::new().fg(Color::Green))
+                            .with_placeholder("Type here... (Ctrl+A: select all, Ctrl+C: copy, Ctrl+V: paste, Ctrl+X: cut)")
                     ),
                 }),
                 size: Size {

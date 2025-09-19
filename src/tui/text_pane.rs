@@ -1,52 +1,40 @@
-//! Text pane with mouse-based text selection support.
+//! Text pane reimplemented with TextBuffer/TextBufferView architecture for proper data/view separation.
 
 use super::buffer::Buffer;
 use super::render::{PaneRenderer, PaneContext, Event, EventResult, MouseEventKind, MouseButton, KeyCode};
 use super::style::{Style, Color};
 use super::border::BorderStyle;
 use super::geom::Point;
+use super::text_buffer::{TextBuffer, TextBufferView, ViewportState};
 use arboard::Clipboard;
 
-/// A text pane that supports mouse-based text selection.
+/// A text pane that supports mouse-based text selection using TextBuffer for efficient storage.
 pub struct TextPane {
-    /// The text content to display.
-    pub text: String,
+    /// The underlying text buffer using rope for efficient operations.
+    buffer: TextBuffer,
     /// Base text style.
     pub style: Style,
     /// Border style when not focused.
     pub border: BorderStyle,
     /// Border style when focused.
     pub focused_border: BorderStyle,
-    
-    // Selection state
-    selection_start: Option<Point>,  // Point within pane content area
-    selection_end: Option<Point>,
+    /// Selection range (start, end) in buffer character indices.
+    selection: Option<(usize, usize)>,
+    /// Whether selection is currently in progress.
     is_selecting: bool,
-    selected_text: String,
-    
-    // Cached text layout
-    wrapped_lines: Vec<String>,
-    line_starts: Vec<usize>,  // Character index where each line starts in original text
 }
 
 impl TextPane {
     /// Create a new text pane with the given text.
     pub fn new(text: impl Into<String>) -> Self {
-        let text = text.into();
-        let mut pane = Self {
-            text: text.clone(),
+        Self {
+            buffer: TextBuffer::from(text.into()),
             style: Style::default(),
             border: BorderStyle::Single,
             focused_border: BorderStyle::Thick,
-            selection_start: None,
-            selection_end: None,
+            selection: None,
             is_selecting: false,
-            selected_text: String::new(),
-            wrapped_lines: Vec::new(),
-            line_starts: Vec::new(),
-        };
-        pane.update_wrapped_lines(&text, 80); // Default width, will be updated on render
-        pane
+        }
     }
     
     /// Set the text style.
@@ -67,108 +55,103 @@ impl TextPane {
         self
     }
     
-    /// Update the wrapped lines cache based on available width.
-    fn update_wrapped_lines(&mut self, text: &str, width: u16) {
-        self.wrapped_lines.clear();
-        self.line_starts.clear();
-        
-        if width == 0 {
-            return;
-        }
-        
-        let mut char_index = 0;
-        for line in text.lines() {
-            if line.is_empty() {
-                self.wrapped_lines.push(String::new());
-                self.line_starts.push(char_index);
-                char_index += 1; // Account for newline
-                continue;
+    /// Get the current text content.
+    pub fn text(&self) -> String {
+        self.buffer.to_string()
+    }
+    
+    /// Check if there's an active selection.
+    fn has_selection(&self) -> bool {
+        self.selection.map_or(false, |(start, end)| start != end)
+    }
+    
+    /// Get the normalized selection range (start <= end).
+    fn get_selection_range(&self) -> Option<(usize, usize)> {
+        self.selection.map(|(start, end)| {
+            if start <= end {
+                (start, end)
+            } else {
+                (end, start)
             }
-            
-            let mut current_line = String::new();
-            let mut current_width = 0;
-            let line_start = char_index;
-            
-            for word in line.split_whitespace() {
-                let word_len = word.len() as u16;
-                
-                if current_width > 0 && current_width + word_len + 1 > width {
-                    // Word doesn't fit, start new line
-                    self.wrapped_lines.push(current_line.clone());
-                    self.line_starts.push(line_start + current_line.len() - current_line.matches(' ').count());
-                    current_line.clear();
-                    current_width = 0;
-                }
-                
-                if current_width > 0 {
-                    current_line.push(' ');
-                    current_width += 1;
-                }
-                
-                current_line.push_str(word);
-                current_width += word_len;
-            }
-            
-            if !current_line.is_empty() {
-                self.wrapped_lines.push(current_line);
-                self.line_starts.push(line_start);
-            }
-            
-            char_index += line.len() + 1; // +1 for newline
+        })
+    }
+    
+    /// Get the currently selected text.
+    pub fn get_selected_text(&self) -> String {
+        if let Some((start, end)) = self.get_selection_range() {
+            self.buffer.substr(start..end)
+        } else {
+            String::new()
         }
     }
     
-    /// Convert pane-relative coordinates to text character position.
-    fn coords_to_text_pos(&self, x: u16, y: u16) -> Option<usize> {
-        let line_idx = y as usize;
-        if line_idx >= self.wrapped_lines.len() {
-            return None;
-        }
-        
-        let col_idx = x as usize;
-        let line = &self.wrapped_lines[line_idx];
-        if col_idx > line.len() {
-            return None;
-        }
-        
-        Some(self.line_starts[line_idx] + col_idx.min(line.len()))
+    /// Start a new selection at the given buffer character position.
+    fn start_selection(&mut self, char_pos: usize) {
+        self.selection = Some((char_pos, char_pos));
+        self.is_selecting = true;
     }
     
-    /// Find word boundaries at the given position and return (start_point, end_point).
-    fn find_word_at_position(&self, point: Point) -> Option<(Point, Point)> {
-        let line_idx = point.y() as usize;
-        if line_idx >= self.wrapped_lines.len() {
+    /// Update the selection end point.
+    fn update_selection(&mut self, char_pos: usize) {
+        if self.is_selecting {
+            if let Some((start, _)) = self.selection {
+                self.selection = Some((start, char_pos));
+            }
+        }
+    }
+    
+    /// Finalize the current selection.
+    fn finalize_selection(&mut self) {
+        self.is_selecting = false;
+    }
+    
+    /// Clear the selection.
+    fn clear_selection(&mut self) {
+        self.selection = None;
+        self.is_selecting = false;
+    }
+    
+    /// Check if a character at the given buffer position is selected.
+    fn is_char_selected(&self, char_pos: usize) -> bool {
+        if let Some((start, end)) = self.get_selection_range() {
+            char_pos >= start && char_pos < end
+        } else {
+            false
+        }
+    }
+    
+    /// Find word boundaries at the given buffer character position.
+    fn find_word_at_position(&self, char_pos: usize) -> Option<(usize, usize)> {
+        if char_pos >= self.buffer.len_chars() {
             return None;
         }
         
-        let line = &self.wrapped_lines[line_idx];
-        let col_idx = point.x() as usize;
-        if col_idx >= line.len() {
+        let text = self.buffer.to_string();
+        let chars: Vec<char> = text.chars().collect();
+        
+        if char_pos >= chars.len() {
             return None;
         }
         
         // Check if the character at this position is a word character
-        let char_at_pos = line.chars().nth(col_idx).unwrap_or(' ');
+        let char_at_pos = chars[char_pos];
         if !Self::is_word_char(char_at_pos) {
             return None;
         }
         
-        // Find word start (move left while we're in a word character)
-        let mut start_col = col_idx;
-        while start_col > 0 && Self::is_word_char(line.chars().nth(start_col - 1).unwrap_or(' ')) {
-            start_col -= 1;
+        // Find word start
+        let mut start = char_pos;
+        while start > 0 && Self::is_word_char(chars[start - 1]) {
+            start -= 1;
         }
         
-        // Find word end (move right while we're in a word character)
-        let mut end_col = col_idx + 1;
-        while end_col < line.len() && Self::is_word_char(line.chars().nth(end_col).unwrap_or(' ')) {
-            end_col += 1;
+        // Find word end
+        let mut end = char_pos + 1;
+        while end < chars.len() && Self::is_word_char(chars[end]) {
+            end += 1;
         }
         
-        Some((
-            Point::new(start_col as u16, line_idx as u16),
-            Point::new(end_col as u16, line_idx as u16),
-        ))
+        Some((start, end))
     }
     
     /// Check if a character is considered part of a word (alphanumeric or underscore).
@@ -176,108 +159,18 @@ impl TextPane {
         ch.is_alphanumeric() || ch == '_'
     }
     
-    /// Start a new selection at the given position.
-    fn start_selection(&mut self, point: Point) {
-        self.selection_start = Some(point);
-        self.selection_end = Some(point);
-        self.is_selecting = true;
-        self.selected_text.clear();
-    }
-    
-    /// Update the selection end point.
-    fn update_selection(&mut self, point: Point) {
-        if self.is_selecting {
-            self.selection_end = Some(point);
-            self.update_selected_text();
-        }
-    }
-    
-    /// Finalize the current selection.
-    fn finalize_selection(&mut self) {
-        self.is_selecting = false;
-        self.update_selected_text();
-    }
-    
-    /// Clear the selection.
-    fn clear_selection(&mut self) {
-        self.selection_start = None;
-        self.selection_end = None;
-        self.is_selecting = false;
-        self.selected_text.clear();
-    }
-    
-    /// Update the selected text based on current selection.
-    fn update_selected_text(&mut self) {
-        self.selected_text.clear();
-        
-        let (start, end) = match (self.selection_start, self.selection_end) {
-            (Some(s), Some(e)) => {
-                // Normalize selection (start should be before end)
-                if s.y() < e.y() || (s.y() == e.y() && s.x() <= e.x()) {
-                    (s, e)
-                } else {
-                    (e, s)
-                }
+    /// Copy selected text to clipboard.
+    fn copy_to_clipboard(&self) -> bool {
+        let selected_text = self.get_selected_text();
+        if !selected_text.is_empty() {
+            if let Ok(mut clipboard) = Clipboard::new() {
+                clipboard.set_text(&selected_text).is_ok()
+            } else {
+                false
             }
-            _ => return,
-        };
-        
-        // Extract text between start and end positions
-        for y in start.y()..=end.y() {
-            let line_idx = y as usize;
-            if line_idx >= self.wrapped_lines.len() {
-                break;
-            }
-            
-            let line = &self.wrapped_lines[line_idx];
-            let start_col = if y == start.y() { start.x() as usize } else { 0 };
-            let end_col = if y == end.y() { end.x() as usize } else { line.len() };
-            
-            if start_col < line.len() {
-                self.selected_text.push_str(&line[start_col..end_col.min(line.len())]);
-                if y < end.y() {
-                    self.selected_text.push('\n');
-                }
-            }
-        }
-    }
-    
-    /// Check if a character at the given position is selected.
-    fn is_char_selected(&self, x: u16, y: u16) -> bool {
-        let (start, end) = match (self.selection_start, self.selection_end) {
-            (Some(s), Some(e)) => {
-                // Normalize selection
-                if s.y() < e.y() || (s.y() == e.y() && s.x() <= e.x()) {
-                    (s, e)
-                } else {
-                    (e, s)
-                }
-            }
-            _ => return false,
-        };
-        
-        if y < start.y() || y > end.y() {
-            return false;
-        }
-        
-        if y == start.y() && y == end.y() {
-            // Selection on single line
-            x >= start.x() && x < end.x()
-        } else if y == start.y() {
-            // First line of selection
-            x >= start.x()
-        } else if y == end.y() {
-            // Last line of selection
-            x < end.x()
         } else {
-            // Middle lines are fully selected
-            true
+            false
         }
-    }
-    
-    /// Get the currently selected text.
-    pub fn get_selected_text(&self) -> &str {
-        &self.selected_text
     }
 }
 
@@ -298,38 +191,40 @@ impl PaneRenderer for TextPane {
         // Calculate text area (inside border if present)
         let text_rect = border_style.content_rect(ctx.rect);
         
-        // Update wrapped lines if width changed
-        let text = self.text.clone();
-        self.update_wrapped_lines(&text, text_rect.w as u16);
+        if text_rect.w == 0 || text_rect.h == 0 {
+            return;
+        }
         
-        // Render text with selection highlighting
-        if text_rect.w > 0 && text_rect.h > 0 {
-            for (line_idx, line) in self.wrapped_lines.iter().enumerate() {
-                if line_idx >= text_rect.h as usize {
+        // Create viewport for this text area  
+        let viewport = ViewportState::new(text_rect.w as usize, text_rect.h as usize);
+        let view = TextBufferView::new(&self.buffer, viewport);
+        
+        // Render text using TextBufferView
+        for (display_line_idx, display_line) in view.visible_lines().enumerate() {
+            let y = text_rect.y + display_line_idx as u32;
+            
+            for (col, ch) in display_line.content.chars().enumerate() {
+                if col >= text_rect.w as usize {
                     break;
                 }
                 
-                let y = text_rect.y + line_idx as u32;
+                let x = text_rect.x + col as u32;
+                let char_pos = self.buffer.line_col_to_char(
+                    display_line.logical_line_index,
+                    display_line.logical_col_start + col,
+                );
                 
-                for (col_idx, ch) in line.chars().enumerate() {
-                    if col_idx >= text_rect.w as usize {
-                        break;
-                    }
-                    
-                    let x = text_rect.x + col_idx as u32;
-                    
-                    // Check if this character is selected and pane is focused
-                    let style = if ctx.focused && self.is_char_selected(col_idx as u16, line_idx as u16) {
-                        // Highlight selected text with reversed colors
-                        Style::new()
-                            .fg(self.style.bg.unwrap_or(Color::Black))
-                            .bg(self.style.fg.unwrap_or(Color::White))
-                    } else {
-                        self.style
-                    };
-                    
-                    buffer.set_char(x as u16, y as u16, ch, style);
-                }
+                // Check if character is selected and pane is focused
+                let style = if ctx.focused && self.is_char_selected(char_pos) {
+                    // Highlight selected text with reversed colors
+                    Style::new()
+                        .fg(self.style.bg.unwrap_or(Color::Black))
+                        .bg(self.style.fg.unwrap_or(Color::White))
+                } else {
+                    self.style
+                };
+                
+                buffer.set_char(x as u16, y as u16, ch, style);
             }
         }
     }
@@ -351,11 +246,22 @@ impl PaneRenderer for TextPane {
                 
                 match mouse.kind {
                     MouseEventKind::Down(MouseButton::Left) => {
-                        self.start_selection(local_point);
+                        // Create temporary view to convert display coordinates to buffer position
+                        let viewport = ViewportState::new(text_rect.w as usize, text_rect.h as usize);
+                        let view = TextBufferView::new(&self.buffer, viewport);
+                        
+                        if let Some(char_pos) = view.display_to_char(local_point.y() as usize, local_point.x() as usize) {
+                            self.start_selection(char_pos);
+                        }
                         EventResult::Render
                     }
                     MouseEventKind::Drag(MouseButton::Left) if self.is_selecting => {
-                        self.update_selection(local_point);
+                        let viewport = ViewportState::new(text_rect.w as usize, text_rect.h as usize);
+                        let view = TextBufferView::new(&self.buffer, viewport);
+                        
+                        if let Some(char_pos) = view.display_to_char(local_point.y() as usize, local_point.x() as usize) {
+                            self.update_selection(char_pos);
+                        }
                         EventResult::Render
                     }
                     MouseEventKind::Up(MouseButton::Left) if self.is_selecting => {
@@ -363,24 +269,30 @@ impl PaneRenderer for TextPane {
                         EventResult::Render
                     }
                     MouseEventKind::DoubleClick(MouseButton::Left) => {
-                        // On double-click, select the word at the click position
-                        if let Some((start, end)) = self.find_word_at_position(local_point) {
-                            self.selection_start = Some(start);
-                            self.selection_end = Some(end);
-                            self.is_selecting = false;
-                            self.update_selected_text();
-                            return EventResult::Render;
+                        // Select word at click position
+                        let viewport = ViewportState::new(text_rect.w as usize, text_rect.h as usize);
+                        let view = TextBufferView::new(&self.buffer, viewport);
+                        
+                        if let Some(char_pos) = view.display_to_char(local_point.y() as usize, local_point.x() as usize) {
+                            if let Some((start, end)) = self.find_word_at_position(char_pos) {
+                                self.selection = Some((start, end));
+                                self.is_selecting = false;
+                                return EventResult::Render;
+                            }
                         }
                         EventResult::None
                     }
                     MouseEventKind::TripleClick(MouseButton::Left) => {
-                        // On triple-click, select the entire line
-                        if (local_point.y() as usize) < self.wrapped_lines.len() {
-                            let line_idx = local_point.y() as usize;
-                            self.selection_start = Some(Point::new(0, line_idx as u16));
-                            self.selection_end = Some(Point::new(self.wrapped_lines[line_idx].len() as u16, line_idx as u16));
+                        // Select entire line
+                        let viewport = ViewportState::new(text_rect.w as usize, text_rect.h as usize);
+                        let view = TextBufferView::new(&self.buffer, viewport);
+                        
+                        if let Some(char_pos) = view.display_to_char(local_point.y() as usize, local_point.x() as usize) {
+                            let (line, _) = self.buffer.char_to_line_col(char_pos);
+                            let line_start = self.buffer.line_to_char(line);
+                            let line_end = self.buffer.line_end_char(line);
+                            self.selection = Some((line_start, line_end));
                             self.is_selecting = false;
-                            self.update_selected_text();
                             return EventResult::Render;
                         }
                         EventResult::None
@@ -390,22 +302,15 @@ impl PaneRenderer for TextPane {
             }
             Event::Key(key) => {
                 // Handle copy command: Ctrl+C (Windows/Linux) or Cmd+C (macOS)
-                // On macOS, crossterm typically maps Cmd to ALT modifier, but this can vary by terminal
-                // Also support Ctrl+C on macOS as a fallback since some terminal emulators use it
                 let is_copy_command = key.code == KeyCode::Char('c') && 
                     (key.modifiers.ctrl || key.modifiers.alt) && 
-                    !self.selected_text.is_empty();
+                    self.has_selection();
                 
                 if is_copy_command {
-                    match Clipboard::new().and_then(|mut clipboard| clipboard.set_text(&self.selected_text)) {
-                        Ok(()) => {
-                            // Successfully copied to clipboard
-                            EventResult::None
-                        }
-                        Err(_) => {
-                            // Clipboard operation failed - silently ignore for now
-                            EventResult::None
-                        }
+                    if self.copy_to_clipboard() {
+                        EventResult::None
+                    } else {
+                        EventResult::None
                     }
                 } else {
                     EventResult::None
@@ -428,26 +333,30 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_text_pane_creation() {
+        let pane = TextPane::new("Hello World");
+        assert_eq!(pane.text(), "Hello World");
+        assert!(!pane.has_selection());
+    }
+    
+    #[test]
     fn test_word_finding() {
-        let mut text_pane = TextPane::new("Hello world! This is a test.");
+        let pane = TextPane::new("Hello world! This is a test.");
         
-        // Need to initialize wrapped lines first
-        text_pane.update_wrapped_lines(&text_pane.text.clone(), 80);
-        
-        // Test finding word "Hello" at the beginning (position 2 is inside "Hello")
-        let word = text_pane.find_word_at_position(Point::new(2, 0));
-        assert_eq!(word, Some((Point::new(0, 0), Point::new(5, 0))));
+        // Test finding word "Hello" (position 2 is inside "Hello")
+        let word = pane.find_word_at_position(2);
+        assert_eq!(word, Some((0, 5)));
         
         // Test finding word "world" (position 8 is inside "world")
-        let word = text_pane.find_word_at_position(Point::new(8, 0));
-        assert_eq!(word, Some((Point::new(6, 0), Point::new(11, 0))));
+        let word = pane.find_word_at_position(8);
+        assert_eq!(word, Some((6, 11)));
         
-        // Test clicking on non-word character (space at position 5) - should return None
-        let word = text_pane.find_word_at_position(Point::new(5, 0));
+        // Test clicking on non-word character (space) - should return None
+        let word = pane.find_word_at_position(5);
         assert_eq!(word, None);
         
         // Test clicking on punctuation
-        let word = text_pane.find_word_at_position(Point::new(11, 0));
+        let word = pane.find_word_at_position(11);
         assert_eq!(word, None);
     }
     
@@ -466,57 +375,43 @@ mod tests {
 
     #[test]
     fn test_word_selection_with_underscores() {
-        let mut text_pane = TextPane::new("my_variable_name = 42");
-        
-        // Need to initialize wrapped lines first
-        text_pane.update_wrapped_lines(&text_pane.text.clone(), 80);
+        let pane = TextPane::new("my_variable_name = 42");
         
         // Test selecting the entire variable name with underscores
-        let word = text_pane.find_word_at_position(Point::new(8, 0));
-        assert_eq!(word, Some((Point::new(0, 0), Point::new(16, 0))));
+        let word = pane.find_word_at_position(8);
+        assert_eq!(word, Some((0, 16)));
     }
 
     #[test]
-    fn test_copy_key_detection() {
-        use super::super::render::{KeyEvent, KeyCode, KeyModifiers};
-        use super::super::geom::Rect;
+    fn test_selection_operations() {
+        let mut pane = TextPane::new("Hello World");
         
-        let mut text_pane = TextPane::new("Hello World");
-        text_pane.update_wrapped_lines(&text_pane.text.clone(), 80);
+        // Test selection
+        pane.selection = Some((0, 5));
+        assert!(pane.has_selection());
+        assert_eq!(pane.get_selected_text(), "Hello");
         
-        // Set up some selected text
-        text_pane.selection_start = Some(Point::new(0, 0));
-        text_pane.selection_end = Some(Point::new(5, 0));
-        text_pane.update_selected_text();
+        // Test char selection
+        assert!(pane.is_char_selected(0));
+        assert!(pane.is_char_selected(4));
+        assert!(!pane.is_char_selected(5));
+        assert!(!pane.is_char_selected(6));
         
-        let ctx = PaneContext {
-            id: 0,
-            rect: Rect { x: 0, y: 0, w: 20, h: 10 },
-            focused: true,
-        };
+        // Test clear selection
+        pane.clear_selection();
+        assert!(!pane.has_selection());
+        assert_eq!(pane.get_selected_text(), "");
+    }
+    
+    #[test]
+    fn test_multiline_text() {
+        let pane = TextPane::new("Line 1\nLine 2\nLine 3");
+        assert_eq!(pane.text(), "Line 1\nLine 2\nLine 3");
         
-        // Test Ctrl+C (Windows/Linux)
-        let ctrl_c = Event::Key(KeyEvent {
-            code: KeyCode::Char('c'),
-            modifiers: KeyModifiers { shift: false, ctrl: true, alt: false },
-        });
-        let result = text_pane.handle_event(&ctx, &ctrl_c);
-        assert_eq!(result, EventResult::None); // Copy operation should complete
-        
-        // Test Alt+C (should work for macOS Cmd+C)
-        let alt_c = Event::Key(KeyEvent {
-            code: KeyCode::Char('c'),
-            modifiers: KeyModifiers { shift: false, ctrl: false, alt: true },
-        });
-        let result = text_pane.handle_event(&ctx, &alt_c);
-        assert_eq!(result, EventResult::None); // Copy operation should complete
-        
-        // Test regular 'c' (should not trigger copy)
-        let regular_c = Event::Key(KeyEvent {
-            code: KeyCode::Char('c'),
-            modifiers: KeyModifiers { shift: false, ctrl: false, alt: false },
-        });
-        let result = text_pane.handle_event(&ctx, &regular_c);
-        assert_eq!(result, EventResult::None); // Should not copy
+        // Test line-based operations work with buffer
+        assert_eq!(pane.buffer.line_count(), 3);
+        assert_eq!(pane.buffer.line_len(0), 6); // "Line 1"
+        assert_eq!(pane.buffer.line_len(1), 6); // "Line 2"  
+        assert_eq!(pane.buffer.line_len(2), 6); // "Line 3"
     }
 }

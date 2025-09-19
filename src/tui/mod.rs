@@ -6,6 +6,8 @@ pub mod geom;
 pub mod render;
 pub mod render_impl;
 pub mod text_pane;
+pub mod input_pane;
 pub mod screen;
 pub mod ansi;
 pub mod event_loop;
+pub mod text_buffer;

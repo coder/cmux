@@ -16,6 +16,8 @@ const MAX_DOUBLE_CLICK_DISTANCE: u16 = 3; // pixels
 pub enum ProcessedEvent {
     /// A render event to forward to panes
     Render(RenderEvent),
+    /// Animation tick for periodic updates (cursor blink, etc.)
+    Animation,
     /// Request to quit the application
     Quit,
 }
@@ -180,19 +182,28 @@ impl EventProcessor {
 pub struct EventLoopHandle {
     _task_handle: tokio::task::JoinHandle<()>,
     receiver: mpsc::UnboundedReceiver<ProcessedEvent>,
+    shutdown_sender: mpsc::UnboundedSender<()>,
 }
 
 impl EventLoopHandle {
     /// Start the event loop in a background task.
     pub fn start() -> io::Result<Self> {
         let (sender, receiver) = mpsc::unbounded_channel();
+        let (shutdown_sender, mut shutdown_receiver) = mpsc::unbounded_channel();
         
         let task_handle = tokio::task::spawn_blocking(move || {
             let mut processor = EventProcessor::new();
+            let mut last_animation = Instant::now();
+            const ANIMATION_INTERVAL: Duration = Duration::from_millis(100);
             
             loop {
-                // Poll for events with a small timeout to allow graceful shutdown
-                match event::poll(Duration::from_millis(100)) {
+                // Check for shutdown signal
+                if shutdown_receiver.try_recv().is_ok() {
+                    break;
+                }
+                
+                // Poll for events with a small timeout
+                match event::poll(Duration::from_millis(50)) {
                     Ok(true) => {
                         match event::read() {
                             Ok(event) => {
@@ -211,8 +222,15 @@ impl EventLoopHandle {
                         }
                     }
                     Ok(false) => {
-                        // No event available, continue polling
-                        continue;
+                        // No event available, check if we need to send animation tick
+                        let now = Instant::now();
+                        if now.duration_since(last_animation) >= ANIMATION_INTERVAL {
+                            last_animation = now;
+                            if sender.send(ProcessedEvent::Animation).is_err() {
+                                // Receiver dropped, time to exit
+                                return;
+                            }
+                        }
                     }
                     Err(_) => {
                         // Error polling, continue
@@ -225,12 +243,26 @@ impl EventLoopHandle {
         Ok(Self {
             _task_handle: task_handle,
             receiver,
+            shutdown_sender,
         })
     }
 
     /// Receive the next processed event.
     pub async fn recv(&mut self) -> Option<ProcessedEvent> {
         self.receiver.recv().await
+    }
+    
+    /// Shutdown the event loop.
+    pub fn shutdown(&self) {
+        let _ = self.shutdown_sender.send(());
+    }
+}
+
+impl Drop for EventLoopHandle {
+    fn drop(&mut self) {
+        // Send shutdown signal
+        self.shutdown();
+        // The task should exit gracefully when it receives the shutdown signal
     }
 }
 

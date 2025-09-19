@@ -44,6 +44,8 @@ pub enum Event {
     Resize(u16, u16),
     /// Focus state changed.
     Focus { focused: bool },
+    /// Animation tick for periodic updates (cursor blink, etc.).
+    Animation,
 }
 
 /// A keyboard event.
