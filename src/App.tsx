@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import styled from '@emotion/styled';
 import { Global, css } from '@emotion/react';
 import ProjectSidebar, { ProjectConfig } from './components/ProjectSidebar';
@@ -115,6 +115,21 @@ declare global {
         createWorktree: (projectPath: string, branchName: string) => Promise<{ success: boolean; path?: string; error?: string }>;
         removeWorktree: (workspacePath: string) => Promise<{ success: boolean; error?: string }>;
       };
+      claude: {
+        launch: (workspacePath: string, projectPath: string, branch: string) => 
+          Promise<{ success: boolean; pid?: number; error?: string; alreadyRunning?: boolean }>;
+        check: (projectName: string, branch: string) => 
+          Promise<{ pid: number; startTime: number; workspacePath: string } | null>;
+        terminate: (projectName: string, branch: string) => Promise<boolean>;
+        listAll: () => Promise<Array<{
+          pid: number;
+          command: string;
+          workspacePath: string;
+          startTime: number;
+          projectName: string;
+          branch: string;
+        }>>;
+      };
     };
   }
 }
@@ -134,15 +149,7 @@ function App() {
     try {
       const config = await window.api.config.load();
       if (config && Array.isArray(config.projects)) {
-        const projectsMap = new Map<string, ProjectConfig>();
-        config.projects.forEach(([path, projectConfig]) => {
-          // Handle migration from old format
-          if (typeof projectConfig === 'string') {
-            projectsMap.set(path, { path, workspaces: [] });
-          } else {
-            projectsMap.set(path, projectConfig);
-          }
-        });
+        const projectsMap = new Map<string, ProjectConfig>(config.projects);
         setProjects(projectsMap);
       } else {
         setProjects(new Map());

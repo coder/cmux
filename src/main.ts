@@ -2,6 +2,24 @@ import { app, BrowserWindow, ipcMain, dialog, Menu } from 'electron';
 import * as path from 'path';
 import { load_config_or_default, save_config, Config } from './config';
 import { createWorktree, removeWorktree } from './git';
+import claudeLauncher from './claudeLauncher';
+
+// Single instance lock
+const gotTheLock = app.requestSingleInstanceLock();
+
+if (!gotTheLock) {
+  // Another instance is already running, quit this one
+  app.quit();
+} else {
+  // This is the primary instance
+  app.on('second-instance', (event, commandLine, workingDirectory) => {
+    // Someone tried to run a second instance, focus our window instead
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+    }
+  });
+}
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -41,6 +59,23 @@ ipcMain.handle('git:createWorktree', async (event, projectPath: string, branchNa
 
 ipcMain.handle('git:removeWorktree', async (event, workspacePath: string) => {
   return await removeWorktree(workspacePath);
+});
+
+// Claude Code management handlers
+ipcMain.handle('claude:launch', async (event, workspacePath: string, projectPath: string, branch: string) => {
+  return await claudeLauncher.launchClaudeCode(workspacePath, projectPath, branch);
+});
+
+ipcMain.handle('claude:check', async (event, projectName: string, branch: string) => {
+  return await claudeLauncher.checkExisting(projectName, branch);
+});
+
+ipcMain.handle('claude:terminate', async (event, projectName: string, branch: string) => {
+  return await claudeLauncher.terminateProcess(projectName, branch);
+});
+
+ipcMain.handle('claude:listAll', async () => {
+  return await claudeLauncher.getAllRunningClaudes();
 });
 
 function createMenu() {
@@ -126,19 +161,25 @@ function createWindow() {
   });
 }
 
-app.whenReady().then(() => {
-  createMenu();
-  createWindow();
-});
-
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit();
-  }
-});
-
-app.on('activate', () => {
-  if (mainWindow === null) {
+// Only setup app handlers if we got the lock
+if (gotTheLock) {
+  app.whenReady().then(async () => {
+    // Clean up stale locks on startup
+    await claudeLauncher.cleanupStaleLocks();
+    
+    createMenu();
     createWindow();
-  }
-});
+  });
+
+  app.on('window-all-closed', () => {
+    if (process.platform !== 'darwin') {
+      app.quit();
+    }
+  });
+
+  app.on('activate', () => {
+    if (mainWindow === null) {
+      createWindow();
+    }
+  });
+}

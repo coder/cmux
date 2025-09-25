@@ -25,18 +25,8 @@ export function load_config_or_default(): Config {
       const data = fs.readFileSync(CONFIG_FILE, 'utf-8');
       const parsed = JSON.parse(data);
       
-      // Handle migration from old format
-      if (Array.isArray(parsed.projects)) {
-        // Old format: array of strings
-        const projectsMap = new Map<string, ProjectConfig>();
-        parsed.projects.forEach((path: string) => {
-          if (typeof path === 'string') {
-            projectsMap.set(path, { path, workspaces: [] });
-          }
-        });
-        return { projects: projectsMap };
-      } else if (parsed.projects) {
-        // New format: array of [path, config] pairs
+      // Config is stored as array of [path, config] pairs
+      if (parsed.projects && Array.isArray(parsed.projects)) {
         return {
           projects: new Map(parsed.projects)
         };

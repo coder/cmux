@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styled from '@emotion/styled';
 import { css } from '@emotion/react';
 
@@ -216,6 +216,48 @@ const AddWorkspaceBtn = styled.button`
   }
 `;
 
+const StatusIndicator = styled.div<{ active?: boolean }>`
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: ${props => props.active ? '#50fa7b' : '#6e6e6e'};
+  margin-right: 8px;
+  flex-shrink: 0;
+`;
+
+const WorkspaceActions = styled.div`
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+  opacity: 0;
+  transition: opacity 0.2s;
+`;
+
+const ActionBtn = styled.button`
+  width: 20px;
+  height: 20px;
+  background: transparent;
+  color: #6e6e6e;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  
+  &:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #cccccc;
+  }
+  
+  &.terminate:hover {
+    color: #ff5555;
+    background: rgba(255, 85, 85, 0.1);
+  }
+`;
+
 const WorkspaceItem = styled.div<{ selected?: boolean }>`
   padding: 6px 12px 6px 24px;
   cursor: pointer;
@@ -234,6 +276,10 @@ const WorkspaceItem = styled.div<{ selected?: boolean }>`
     background: #2a2a2b;
     
     button {
+      opacity: 1;
+    }
+    
+    .workspace-actions {
       opacity: 1;
     }
   }
@@ -286,6 +332,7 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
   onRemoveWorkspace
 }) => {
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
+  const [claudeStatuses, setClaudeStatuses] = useState<Map<string, boolean>>(new Map());
 
   const getProjectName = (path: string) => {
     if (!path || typeof path !== 'string') {
@@ -302,6 +349,66 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
       newExpanded.add(projectPath);
     }
     setExpandedProjects(newExpanded);
+  };
+  
+  // Check Claude status for all workspaces
+  useEffect(() => {
+    const checkStatuses = async () => {
+      const statuses = new Map<string, boolean>();
+      
+      for (const [projectPath, config] of projects.entries()) {
+        const projectName = getProjectName(projectPath);
+        for (const workspace of config.workspaces) {
+          const key = `${projectName}-${workspace.branch}`;
+          const status = await window.api.claude.check(projectName, workspace.branch);
+          statuses.set(key, status !== null);
+        }
+      }
+      
+      setClaudeStatuses(statuses);
+    };
+    
+    checkStatuses();
+    // Check every 5 seconds
+    const interval = setInterval(checkStatuses, 5000);
+    
+    return () => clearInterval(interval);
+  }, [projects]);
+  
+  const handleLaunchClaude = async (e: React.MouseEvent, workspacePath: string, projectPath: string, branch: string) => {
+    e.stopPropagation();
+    const projectName = getProjectName(projectPath);
+    
+    try {
+      const result = await window.api.claude.launch(workspacePath, projectPath, branch);
+      
+      if (result.alreadyRunning) {
+        alert(`Claude Code is already running for this workspace`);
+      } else if (!result.success) {
+        alert(`Failed to launch Claude Code: ${result.error}`);
+      }
+      
+      // Refresh status
+      const key = `${projectName}-${branch}`;
+      setClaudeStatuses(prev => new Map(prev).set(key, true));
+    } catch (error: any) {
+      alert(`Error launching Claude Code: ${error.message}`);
+    }
+  };
+  
+  const handleTerminateClaude = async (e: React.MouseEvent, projectPath: string, branch: string) => {
+    e.stopPropagation();
+    const projectName = getProjectName(projectPath);
+    
+    if (confirm(`Terminate Claude Code for ${projectName}/${branch}?`)) {
+      const terminated = await window.api.claude.terminate(projectName, branch);
+      if (terminated) {
+        const key = `${projectName}-${branch}`;
+        setClaudeStatuses(prev => new Map(prev).set(key, false));
+      } else {
+        alert('Failed to terminate Claude Code');
+      }
+    }
   };
 
   return (
@@ -357,25 +464,50 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                       + New Workspace
                     </AddWorkspaceBtn>
                   </WorkspaceHeader>
-                  {config.workspaces.map((workspace) => (
-                    <WorkspaceItem
-                      key={workspace.path}
-                      selected={selectedWorkspace === workspace.path}
-                      onClick={() => onSelectWorkspace(workspace.path)}
-                    >
-                      <BranchIcon>⎇</BranchIcon>
-                      <WorkspaceName>{workspace.branch}</WorkspaceName>
-                      <WorkspaceRemoveBtn
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onRemoveWorkspace(workspace.path);
-                        }}
-                        title="Remove workspace"
+                  {config.workspaces.map((workspace) => {
+                    const projectName = getProjectName(projectPath);
+                    const key = `${projectName}-${workspace.branch}`;
+                    const isActive = claudeStatuses.get(key) || false;
+                    
+                    return (
+                      <WorkspaceItem
+                        key={workspace.path}
+                        selected={selectedWorkspace === workspace.path}
+                        onClick={() => onSelectWorkspace(workspace.path)}
                       >
-                        ×
-                      </WorkspaceRemoveBtn>
-                    </WorkspaceItem>
-                  ))}
+                        <StatusIndicator active={isActive} title={isActive ? 'Claude Code running' : 'Claude Code not running'} />
+                        <BranchIcon>⎇</BranchIcon>
+                        <WorkspaceName>{workspace.branch}</WorkspaceName>
+                        <WorkspaceActions className="workspace-actions">
+                          {!isActive ? (
+                            <ActionBtn
+                              onClick={(e) => handleLaunchClaude(e, workspace.path, projectPath, workspace.branch)}
+                              title="Launch Claude Code"
+                            >
+                              ▶
+                            </ActionBtn>
+                          ) : (
+                            <ActionBtn
+                              className="terminate"
+                              onClick={(e) => handleTerminateClaude(e, projectPath, workspace.branch)}
+                              title="Terminate Claude Code"
+                            >
+                              ■
+                            </ActionBtn>
+                          )}
+                        </WorkspaceActions>
+                        <WorkspaceRemoveBtn
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onRemoveWorkspace(workspace.path);
+                          }}
+                          title="Remove workspace"
+                        >
+                          ×
+                        </WorkspaceRemoveBtn>
+                      </WorkspaceItem>
+                    );
+                  })}
                 </WorkspacesContainer>
               )}
             </ProjectGroup>
