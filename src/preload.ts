@@ -13,5 +13,11 @@ contextBridge.exposeInMainWorld('api', {
   },
   dialog: {
     selectDirectory: () => ipcRenderer.invoke('dialog:selectDirectory')
+  },
+  git: {
+    createWorktree: (projectPath: string, branchName: string) => 
+      ipcRenderer.invoke('git:createWorktree', projectPath, branchName),
+    removeWorktree: (workspacePath: string) => 
+      ipcRenderer.invoke('git:removeWorktree', workspacePath)
   }
 });

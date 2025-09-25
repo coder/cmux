@@ -1,0 +1,29 @@
+# CLAUDE.md - Project Notes for AI Assistants
+
+## Project Context
+- **cmux** - Coding Agent Multiplexer
+- Electron + React desktop application
+- No existing users - migration code is not needed when changing data structures
+
+## Project Structure
+- `src/main.ts` - Main Electron process
+- `src/preload.ts` - Preload script for IPC
+- `src/App.tsx` - Main React component
+- `src/config.ts` - Configuration management
+- `~/.cmux/config.json` - User configuration file
+- `~/.cmux/<project_name>/<branch>` - Workspace directories for git worktrees
+
+## Key Features
+- Projects sidebar (left panel)
+- Workspaces using git worktrees
+- Configuration persisted to `~/.cmux/config.json`
+
+## Development Commands
+- `bun dev` - Start development server (Vite + TypeScript watcher)
+- `bun start` - Start Electron app
+- `bun build` - Build the application
+- `bun typecheck` - Run TypeScript type checking for renderer
+- `bun typecheck:main` - Run TypeScript type checking for main process
+
+## Testing
+- Always run `bun typecheck` and `bun typecheck:main` after making changes to verify types
