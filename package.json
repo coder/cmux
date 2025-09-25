@@ -1,0 +1,53 @@
+{
+  "name": "cmux",
+  "version": "0.0.1",
+  "description": "Coding Agent Multiplexer",
+  "main": "dist/main.js",
+  "scripts": {
+    "dev": "concurrently -k \"npm run dev:main\" \"npm run dev:renderer\"",
+    "dev:main": "tsc -w -p tsconfig.main.json",
+    "dev:renderer": "vite",
+    "build": "npm run build:renderer && npm run build:main",
+    "build:main": "tsc -p tsconfig.main.json",
+    "build:renderer": "vite build",
+    "start": "electron .",
+    "dist": "npm run build && electron-builder",
+    "dist:mac": "npm run build && electron-builder --mac",
+    "dist:win": "npm run build && electron-builder --win",
+    "dist:linux": "npm run build && electron-builder --linux"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "@vitejs/plugin-react": "^4.0.0",
+    "concurrently": "^8.2.0",
+    "electron": "^27.0.0",
+    "electron-builder": "^24.6.0",
+    "typescript": "^5.1.3",
+    "vite": "^4.4.0"
+  },
+  "build": {
+    "appId": "com.cmux.app",
+    "productName": "Cmux",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*"
+    ],
+    "mac": {
+      "category": "public.app-category.developer-tools"
+    },
+    "linux": {
+      "target": "AppImage",
+      "category": "Development"
+    },
+    "win": {
+      "target": "nsis"
+    }
+  }
+}
