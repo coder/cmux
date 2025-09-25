@@ -1,13 +1,29 @@
 import { UIMessage, StreamingContext } from "../types/claude";
 
+/**
+ * StreamingMessageAggregator - Pure Data Layer
+ * 
+ * PURPOSE:
+ * This class is responsible ONLY for aggregating raw SDK messages into a 
+ * structured format. It manages streaming state and message ordering.
+ * 
+ * RULES - DO NOT VIOLATE:
+ * 1. NO FORMATTING: Do not add emojis, format text, or create display strings
+ * 2. NO PRESENTATION LOGIC: Do not make decisions about how messages should look
+ * 3. RAW DATA ONLY: Store messages as close to their original format as possible
+ * 4. STRUCTURE ONLY: Only transform data structure (e.g., streaming to final messages)
+ * 
+ * All formatting, styling, and presentation decisions belong in the component layer:
+ * - MessageRenderer decides which component to use
+ * - Individual message components handle their own formatting
+ * - Components own all display logic
+ */
 export class StreamingMessageAggregator {
   private uiMessages: Map<string, UIMessage> = new Map();
   private activeStreams: Map<string, StreamingContext> = new Map();
+  private toolUseMap: Map<string, UIMessage> = new Map();  // Track pending tool uses by ID
   private sequenceCounter: number = 0;
   private availableCommands: string[] = [];
-
-  // IMPORTANT: This method MUST handle ALL message types from the SDK
-  // and display them using the best available UI component.
   // Any unhandled message types will be silently lost.
   processSDKMessage(sdkMessage: any): void {
     switch (sdkMessage.type) {
@@ -30,6 +46,10 @@ export class StreamingMessageAggregator {
       case "result":
         this.addResultBreadcrumb(sdkMessage);
         break;
+        
+      case "tool_result":
+        this.handleToolResult(sdkMessage);
+        break;
     }
   }
 
@@ -40,6 +60,18 @@ export class StreamingMessageAggregator {
   }
 
   private addUserMessage(sdkMessage: any): void {
+    // Check if this is a tool_result wrapped in a user message
+    const content = sdkMessage.message?.content;
+    if (Array.isArray(content) && content.length > 0) {
+      const firstBlock = content[0];
+      if (firstBlock.type === 'tool_result') {
+        // This is a tool result, process it accordingly
+        this.handleToolResultFromUser(sdkMessage, firstBlock);
+        return;
+      }
+    }
+    
+    // Regular user message
     const userMessage: UIMessage = {
       id: sdkMessage.uuid || `user-${Date.now()}`,
       type: "user",
@@ -50,38 +82,55 @@ export class StreamingMessageAggregator {
     };
     this.uiMessages.set(userMessage.id, userMessage);
   }
-
-  private addSystemMessage(sdkMessage: any): void {
-    let content: string;
+  
+  private handleToolResultFromUser(sdkMessage: any, toolResultBlock: any): void {
+    // Extract tool result data from the user message
+    const toolUseId = toolResultBlock.tool_use_id;
+    const content = toolResultBlock.content;
+    const isError = toolResultBlock.is_error || false;
     
-    // Handle different system message subtypes
-    switch (sdkMessage.subtype) {
-      case 'init':
-        // Extract available commands from system/init messages
-        if (sdkMessage.slash_commands) {
-          this.availableCommands = sdkMessage.slash_commands;
-        }
-        content = `Session initialized - Model: ${sdkMessage.model || "unknown"} - Tools: ${sdkMessage.tools?.length || 0} available`;
-        break;
-        
-      case 'compact_boundary':
-        const metadata = sdkMessage.compact_metadata || {};
-        const trigger = metadata.trigger === 'manual' ? 'Manual' : 'Automatic';
-        const preTokens = metadata.pre_tokens || 0;
-        content = `📦 ${trigger} compaction completed - Compressed ${preTokens.toLocaleString()} tokens`;
-        break;
-        
-      default:
-        // Fallback for any other system messages
-        content = sdkMessage.content || `System message: ${sdkMessage.subtype || 'unknown'}`;
-        break;
+    // Look up the corresponding tool_use message
+    const toolUseMessage = toolUseId ? this.toolUseMap.get(toolUseId) : null;
+    
+    // Create tool_result message with association
+    const resultMessage: UIMessage = {
+      id: sdkMessage.uuid || `tool-result-${Date.now()}`,
+      type: "tool_result" as any,
+      content: content,
+      toolUseId: toolUseId,
+      toolResult: {
+        content: content,
+        is_error: isError
+      },
+      sequenceNumber: sdkMessage._sequenceNumber || this.sequenceCounter++,
+      timestamp: sdkMessage.timestamp || Date.now(),
+      metadata: {
+        originalSDKMessage: sdkMessage
+      }
+    };
+    
+    // Add associated tool use data if found
+    if (toolUseMessage) {
+      resultMessage.associatedToolUse = {
+        name: toolUseMessage.metadata?.toolName || 'unknown',
+        input: toolUseMessage.metadata?.toolInput
+      };
     }
     
+    this.uiMessages.set(resultMessage.id, resultMessage);
+  }
+
+  private addSystemMessage(sdkMessage: any): void {
+    // Extract available commands from system/init messages
+    if (sdkMessage.subtype === 'init' && sdkMessage.slash_commands) {
+      this.availableCommands = sdkMessage.slash_commands;
+    }
+    
+    // Store raw system message without formatting
     const systemMessage: UIMessage = {
       id: sdkMessage.uuid || `system-${Date.now()}`,
       type: "system",
-      content,
-      isBreadcrumb: true,
+      content: sdkMessage.content || sdkMessage, // Store raw content or entire message
       sequenceNumber: sdkMessage._sequenceNumber || this.sequenceCounter++,
       timestamp: Date.now(),
       metadata: { originalSDKMessage: sdkMessage },
@@ -90,11 +139,11 @@ export class StreamingMessageAggregator {
   }
 
   private addResultBreadcrumb(sdkMessage: any): void {
+    // Store raw result message without formatting
     const resultMessage: UIMessage = {
       id: sdkMessage.uuid || `result-${Date.now()}`,
       type: "result",
-      content: sdkMessage.result || "Success",
-      isBreadcrumb: true,
+      content: sdkMessage.result || sdkMessage, // Raw result or entire message
       sequenceNumber: sdkMessage._sequenceNumber || this.sequenceCounter++,
       timestamp: Date.now(),
       metadata: { 
@@ -175,7 +224,7 @@ export class StreamingMessageAggregator {
     }
   }
 
-  private finishStreamingMessage(sdkMessage: any): void {
+  private finishStreamingMessage(_sdkMessage: any): void {
     const streamingId = this.findStreamingIdFromEvent();
     if (!streamingId) return;
 
@@ -196,6 +245,12 @@ export class StreamingMessageAggregator {
   }
 
   private handleAssistantMessage(sdkMessage: any): void {
+    // Check if this is a tool_use message
+    if (this.isToolUseMessage(sdkMessage)) {
+      this.addToolUseBreadcrumb(sdkMessage);
+      return;
+    }
+
     // Find active streaming context to replace
     const activeStreams = Array.from(this.activeStreams.values());
     
@@ -238,6 +293,46 @@ export class StreamingMessageAggregator {
     }
   }
 
+  private isToolUseMessage(sdkMessage: any): boolean {
+    if (!sdkMessage.message?.content || !Array.isArray(sdkMessage.message.content)) {
+      return false;
+    }
+    
+    // Check if all content blocks are tool_use
+    return sdkMessage.message.content.every((block: any) => block.type === 'tool_use');
+  }
+
+  private addToolUseBreadcrumb(sdkMessage: any): void {
+    const content = sdkMessage.message?.content;
+    if (!content || !Array.isArray(content)) return;
+
+    // Process each tool_use block
+    content.forEach((block: any) => {
+      if (block.type !== 'tool_use') return;
+      
+      // Create a clean tool_use message without formatting
+      const toolMessage: UIMessage = {
+        id: block.id || `tool-${Date.now()}-${Math.random()}`,
+        type: "tool_use" as any, // Will be handled by MessageRenderer
+        content: block, // Store the raw tool block
+        toolUseId: block.id,  // Store the tool use ID for result association
+        sequenceNumber: sdkMessage._sequenceNumber || this.sequenceCounter++,
+        timestamp: Date.now(),
+        metadata: { 
+          originalSDKMessage: sdkMessage,
+          toolName: block.name,
+          toolInput: block.input
+        },
+      };
+      
+      // Store in both maps for lookup
+      this.uiMessages.set(toolMessage.id, toolMessage);
+      if (block.id) {
+        this.toolUseMap.set(block.id, toolMessage);
+      }
+    });
+  }
+
   private extractAssistantContent(sdkMessage: any): string {
     if (sdkMessage.message?.content) {
       const content = sdkMessage.message.content;
@@ -275,9 +370,47 @@ export class StreamingMessageAggregator {
     return recentStreams.length > 0 ? recentStreams[recentStreams.length - 1] : null;
   }
 
+  private handleToolResult(sdkMessage: any): void {
+    // Extract tool result data
+    const toolUseId = sdkMessage.tool_use_id;
+    const content = sdkMessage.content;
+    const isError = sdkMessage.is_error || false;
+    
+    // Look up the corresponding tool_use message
+    const toolUseMessage = toolUseId ? this.toolUseMap.get(toolUseId) : null;
+    
+    // Create tool_result message with association
+    const resultMessage: UIMessage = {
+      id: sdkMessage.uuid || `tool-result-${Date.now()}`,
+      type: "tool_result" as any,
+      content: content,
+      toolUseId: toolUseId,
+      toolResult: {
+        content: content,
+        is_error: isError
+      },
+      sequenceNumber: sdkMessage._sequenceNumber || this.sequenceCounter++,
+      timestamp: Date.now(),
+      metadata: {
+        originalSDKMessage: sdkMessage
+      }
+    };
+    
+    // Add associated tool use data if found
+    if (toolUseMessage) {
+      resultMessage.associatedToolUse = {
+        name: toolUseMessage.metadata?.toolName || 'unknown',
+        input: toolUseMessage.metadata?.toolInput
+      };
+    }
+    
+    this.uiMessages.set(resultMessage.id, resultMessage);
+  }
+
   clear() {
     this.uiMessages.clear();
     this.activeStreams.clear();
+    this.toolUseMap.clear();
     this.sequenceCounter = 0;
     this.availableCommands = [];
   }

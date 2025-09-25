@@ -6,8 +6,7 @@ import React, {
   useMemo,
 } from "react";
 import styled from "@emotion/styled";
-import { ClaudeMessage } from "./ClaudeMessage";
-import { Breadcrumb } from "./ClaudeMessage/Breadcrumb";
+import { MessageRenderer } from "./Messages/MessageRenderer";
 import { CommandSuggestions, COMMAND_SUGGESTION_KEYS } from "./CommandSuggestions";
 import { UIMessage } from "../types/claude";
 import { StreamingMessageAggregator } from "../utils/StreamingMessageAggregator";
@@ -70,8 +69,35 @@ const InputSection = styled.div`
   background: #252526;
   border-top: 1px solid #3e3e42;
   display: flex;
+  flex-direction: column;
+  gap: 8px;
+`;
+
+const InputControls = styled.div`
+  display: flex;
   gap: 10px;
   align-items: flex-end;
+`;
+
+const DebugModeToggle = styled.label`
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  color: #606060;
+  cursor: pointer;
+  user-select: none;
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+  
+  input {
+    cursor: pointer;
+    transform: scale(0.9);
+  }
+  
+  &:hover {
+    opacity: 1;
+  }
 `;
 
 const InputField = styled.textarea`
@@ -159,6 +185,7 @@ export const ClaudeView: React.FC<ClaudeViewProps> = ({
   const [isCompacting, setIsCompacting] = useState(false);
   const [availableCommands, setAvailableCommands] = useState<string[]>([]);
   const [showCommandSuggestions, setShowCommandSuggestions] = useState(false);
+  const [debugMode, setDebugMode] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const aggregatorRef = useRef<StreamingMessageAggregator>(
@@ -418,13 +445,9 @@ export const ClaudeView: React.FC<ClaudeViewProps> = ({
             <p>Send a message below to start interacting with Claude</p>
           </EmptyState>
         ) : (
-          messages.map((msg) => 
-            msg.isBreadcrumb ? (
-              <Breadcrumb key={msg.id} message={msg} />
-            ) : (
-              <ClaudeMessage key={msg.id} message={msg} />
-            )
-          )
+          messages.map((msg) => (
+            <MessageRenderer key={msg.id} message={msg} debugMode={debugMode} />
+          ))
         )}
       </OutputContent>
 
@@ -436,27 +459,37 @@ export const ClaudeView: React.FC<ClaudeViewProps> = ({
           onDismiss={() => setShowCommandSuggestions(false)}
           isVisible={showCommandSuggestions}
         />
-        <InputField
-          ref={inputRef}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder={
-            isCompacting
-              ? "Compacting conversation..."
-              : isActive
-              ? "Type your message... (Enter to send, Shift+Enter for newline)"
-              : "Start workspace to send messages"
-          }
-          disabled={!isActive || isSending || isCompacting}
-          rows={1}
-        />
-        <SendButton
-          onClick={handleSend}
-          disabled={!input.trim() || !isActive || isSending || isCompacting}
-        >
-          {isCompacting ? "Compacting..." : isSending ? "Sending..." : "Send"}
-        </SendButton>
+        <InputControls>
+          <InputField
+            ref={inputRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={
+              isCompacting
+                ? "Compacting conversation..."
+                : isActive
+                ? "Type your message... (Enter to send, Shift+Enter for newline)"
+                : "Start workspace to send messages"
+            }
+            disabled={!isActive || isSending || isCompacting}
+            rows={1}
+          />
+          <SendButton
+            onClick={handleSend}
+            disabled={!input.trim() || !isActive || isSending || isCompacting}
+          >
+            {isCompacting ? "Compacting..." : isSending ? "Sending..." : "Send"}
+          </SendButton>
+        </InputControls>
+        <DebugModeToggle>
+          <input
+            type="checkbox"
+            checked={debugMode}
+            onChange={(e) => setDebugMode(e.target.checked)}
+          />
+          Debug Mode
+        </DebugModeToggle>
       </InputSection>
     </ViewContainer>
   );

@@ -39,8 +39,28 @@ export async function uiMessagesCommand(workspaceKey?: string, dropLast: number 
     
     uiMessages.forEach((msg, i) => {
       const streamingInfo = msg.isStreaming ? ' [STREAMING]' : '';
-      const preview = msg.content.slice(0, 60).replace(/\n/g, '\\n');
-      console.log(`${i + 1}. [${msg.type}]${streamingInfo} ${preview}${msg.content.length > 60 ? '...' : ''}`);
+      
+      // Handle different content types
+      let preview = '';
+      if (typeof msg.content === 'string') {
+        preview = msg.content.slice(0, 60).replace(/\n/g, '\\n');
+        if (msg.content.length > 60) preview += '...';
+      } else if (msg.type === 'tool_use') {
+        preview = `${msg.metadata?.toolName || 'unknown'}: ${JSON.stringify(msg.metadata?.toolInput || {}).slice(0, 50)}...`;
+      } else if (msg.type === 'tool_result') {
+        const toolName = msg.associatedToolUse?.name || 'unknown';
+        const isError = msg.toolResult?.is_error ? '[ERROR]' : '[SUCCESS]';
+        const contentPreview = typeof msg.content === 'string' 
+          ? msg.content.slice(0, 30).replace(/\n/g, '\\n') 
+          : JSON.stringify(msg.content).slice(0, 30);
+        preview = `${toolName} ${isError} (id: ${msg.toolUseId?.slice(0, 8) || 'none'}) -> ${contentPreview}...`;
+      } else if (msg.content) {
+        preview = JSON.stringify(msg.content).slice(0, 60) + '...';
+      } else {
+        preview = '(no content)';
+      }
+      
+      console.log(`${i + 1}. [${msg.type}]${streamingInfo} ${preview}`);
     });
     
     console.log('\n');
