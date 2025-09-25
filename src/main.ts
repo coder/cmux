@@ -89,6 +89,10 @@ ipcMain.handle('claude:listActive', async () => {
   return claudeService.getActiveWorkspaces();
 });
 
+ipcMain.handle('claude:sendMessage', async (event, projectName: string, branch: string, message: string) => {
+  return await claudeService.sendMessage(projectName, branch, message);
+});
+
 // Listen for output events and forward to renderer
 claudeService.on('output', (data) => {
   if (mainWindow) {

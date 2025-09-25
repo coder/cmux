@@ -20,6 +20,45 @@ interface WorkspaceSession {
   query: Query | null;
   isActive: boolean;
   output: SDKMessage[];
+  messageController: MessageController | null;
+}
+
+class MessageController {
+  private resolveNext: ((value: any) => void) | null = null;
+  private messageQueue: any[] = [];
+  private isDone: boolean = false;
+
+  async *getAsyncIterable() {
+    while (!this.isDone) {
+      if (this.messageQueue.length > 0) {
+        yield this.messageQueue.shift();
+      } else {
+        // Wait for the next message
+        await new Promise<void>((resolve) => {
+          this.resolveNext = resolve;
+        });
+        if (this.messageQueue.length > 0) {
+          yield this.messageQueue.shift();
+        }
+      }
+    }
+  }
+
+  sendMessage(message: any) {
+    this.messageQueue.push(message);
+    if (this.resolveNext) {
+      this.resolveNext(undefined);
+      this.resolveNext = null;
+    }
+  }
+
+  close() {
+    this.isDone = true;
+    if (this.resolveNext) {
+      this.resolveNext(undefined);
+      this.resolveNext = null;
+    }
+  }
 }
 
 interface SessionData {
@@ -103,6 +142,9 @@ export class ClaudeService extends EventEmitter {
       const sessions = await this.loadSessions();
       const existingSessionId = sessions[key];
 
+      // Create message controller for streaming input
+      const messageController = new MessageController();
+
       const session: WorkspaceSession = {
         projectName,
         branch,
@@ -110,7 +152,8 @@ export class ClaudeService extends EventEmitter {
         sessionId: existingSessionId || crypto.randomUUID(),
         query: null,
         isActive: true,
-        output: []
+        output: [],
+        messageController
       };
 
       // Configure options for the SDK
@@ -119,16 +162,32 @@ export class ClaudeService extends EventEmitter {
         permissionMode: 'default',
         // Use resume for existing sessions
         resume: existingSessionId,
-        continue: !!existingSessionId
+        continue: !!existingSessionId,
+        // Enable partial messages for streaming
+        includePartialMessages: true
       };
 
-      // Create prompt based on whether we're resuming
-      const prompt = existingSessionId 
-        ? `Resuming session in ${projectName} on branch ${branch}. I'm here to help with your coding tasks.`
-        : `Starting new session in ${projectName} on branch ${branch}. I'm ready to help with your coding tasks.`;
+      // Create initial message based on whether we're resuming
+      const initialMessage = {
+        type: 'user',
+        session_id: session.sessionId,
+        message: {
+          role: 'user',
+          content: existingSessionId 
+            ? `Resuming session in ${projectName} on branch ${branch}. I'm here to help with your coding tasks.`
+            : `Starting new session in ${projectName} on branch ${branch}. I'm ready to help with your coding tasks.`
+        },
+        parent_tool_use_id: null
+      };
 
-      // Start the query using the dynamically loaded function
-      session.query = queryFunction({ prompt, options });
+      // Start with initial message, then use streaming input
+      messageController.sendMessage(initialMessage);
+
+      // Start the query using streaming input mode
+      session.query = queryFunction({ 
+        prompt: messageController.getAsyncIterable(), 
+        options 
+      });
       
       this.workspaces.set(key, session);
 
@@ -180,6 +239,12 @@ export class ClaudeService extends EventEmitter {
     if (session) {
       session.isActive = false;
       
+      // Close message controller
+      if (session.messageController) {
+        session.messageController.close();
+        session.messageController = null;
+      }
+      
       // Interrupt the query if possible
       if (session.query?.interrupt) {
         try {
@@ -190,6 +255,36 @@ export class ClaudeService extends EventEmitter {
       }
       
       session.query = null;
+    }
+  }
+
+  async sendMessage(projectName: string, branch: string, message: string): Promise<boolean> {
+    const key = this.getWorkspaceKey(projectName, branch);
+    const session = this.workspaces.get(key);
+    
+    if (!session || !session.isActive || !session.messageController) {
+      console.error(`Cannot send message: workspace ${key} is not active`);
+      return false;
+    }
+
+    try {
+      // Create SDK user message
+      const userMessage = {
+        type: 'user',
+        session_id: session.sessionId,
+        message: {
+          role: 'user',
+          content: message
+        },
+        parent_tool_use_id: null
+      };
+
+      // Send message through the controller
+      session.messageController.sendMessage(userMessage);
+      return true;
+    } catch (error) {
+      console.error(`Failed to send message to ${key}:`, error);
+      return false;
     }
   }
 

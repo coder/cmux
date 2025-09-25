@@ -30,5 +30,11 @@
 - `bun typecheck` - Run TypeScript type checking for renderer
 - `bun typecheck:main` - Run TypeScript type checking for main process
 
+## Claude Code SDK
+- Use `./docs/sdk-typescript.md` for Claude Code SDK information and reference
+
+## Refactoring
+- When refactoring, use `git mv` to preserve file history instead of rewriting files from scratch
+
 ## Testing
 - Always run `bun typecheck` and `bun typecheck:main` after making changes to verify types

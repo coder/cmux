@@ -24,6 +24,7 @@ declare global {
         isActive: (projectName: string, branch: string) => Promise<boolean>;
         getOutput: (projectName: string, branch: string) => Promise<any[]>;
         listActive: () => Promise<Array<{ projectName: string; branch: string }>>;
+        sendMessage: (projectName: string, branch: string, message: string) => Promise<boolean>;
         onOutput: (callback: (data: any) => void) => () => void;
       };
     };

@@ -30,6 +30,8 @@ contextBridge.exposeInMainWorld('api', {
     getOutput: (projectName: string, branch: string) => 
       ipcRenderer.invoke('claude:getOutput', projectName, branch),
     listActive: () => ipcRenderer.invoke('claude:listActive'),
+    sendMessage: (projectName: string, branch: string, message: string) =>
+      ipcRenderer.invoke('claude:sendMessage', projectName, branch, message),
     onOutput: (callback: (data: any) => void) => {
       ipcRenderer.on('claude:output', (event, data) => callback(data));
     }

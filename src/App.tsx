@@ -3,7 +3,7 @@ import styled from '@emotion/styled';
 import { Global, css } from '@emotion/react';
 import ProjectSidebar, { ProjectConfig } from './components/ProjectSidebar';
 import NewWorkspaceModal from './components/NewWorkspaceModal';
-import { ClaudeOutputView } from './components/ClaudeOutputView';
+import { ClaudeView } from './components/ClaudeView';
 
 // Global Styles with nice fonts
 const globalStyles = css`
@@ -247,7 +247,7 @@ function App() {
                   const projectName = pathParts[cmuxIndex + 1];
                   const branch = pathParts[cmuxIndex + 2];
                   return (
-                    <ClaudeOutputView 
+                    <ClaudeView 
                       projectName={projectName}
                       branch={branch}
                     />
