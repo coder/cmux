@@ -3,6 +3,7 @@ export interface UIMessage {
   type: 'user' | 'assistant' | 'system' | 'result';
   content: string;
   isStreaming?: boolean;
+  isBreadcrumb?: boolean;
   metadata?: {
     originalSDKMessage?: any;
     streamingId?: string;

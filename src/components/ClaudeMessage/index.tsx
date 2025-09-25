@@ -1,29 +1,43 @@
-import React, { useState } from 'react';
-import styled from '@emotion/styled';
-import { UIMessage } from '../../types/claude';
+import React, { useState } from "react";
+import styled from "@emotion/styled";
+import { UIMessage } from "../../types/claude";
 
 const MessageBlock = styled.div<{ type: string; isError?: boolean }>`
   margin-bottom: 15px;
-  background: ${props => {
-    switch(props.type) {
-      case 'user': return '#2d2d30';
-      case 'assistant': return '#1e1e1e';
-      case 'system': return '#1a1d29';
-      case 'result': return props.isError ? '#3c1f1f' : '#1f3c1f';
-      case 'stream_event': return '#1a1d29';
-      default: return '#1e1e1e';
+  margin-top: 15px;
+  background: ${(props) => {
+    switch (props.type) {
+      case "user":
+        return "#2d2d30";
+      case "assistant":
+        return "#1e1e1e";
+      case "system":
+        return "#1a1d29";
+      case "result":
+        return props.isError ? "#3c1f1f" : "#1f3c1f";
+      case "stream_event":
+        return "#1a1d29";
+      default:
+        return "#1e1e1e";
     }
   }};
-  border-left: 3px solid ${props => {
-    switch(props.type) {
-      case 'user': return '#569cd6';
-      case 'assistant': return '#4ec9b0';
-      case 'system': return '#808080';
-      case 'result': return props.isError ? '#f48771' : '#b5cea8';
-      case 'stream_event': return '#d4a853';
-      default: return '#3e3e42';
-    }
-  }};
+  border-left: 3px solid
+    ${(props) => {
+      switch (props.type) {
+        case "user":
+          return "#569cd6";
+        case "assistant":
+          return "#4ec9b0";
+        case "system":
+          return "#808080";
+        case "result":
+          return props.isError ? "#f48771" : "#b5cea8";
+        case "stream_event":
+          return "#d4a853";
+        default:
+          return "#3e3e42";
+      }
+    }};
   border-radius: 3px;
   overflow: hidden;
 `;
@@ -54,12 +68,12 @@ const ToggleButton = styled.button`
   cursor: pointer;
   font-size: 10px;
   transition: all 0.2s ease;
-  
+
   &:hover {
     background: rgba(255, 255, 255, 0.1);
     border-color: rgba(255, 255, 255, 0.3);
   }
-  
+
   &:active {
     background: rgba(255, 255, 255, 0.15);
   }
@@ -71,7 +85,7 @@ const MessageContent = styled.div`
 
 const FormattedContent = styled.pre`
   margin: 0;
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
   font-size: 12px;
   line-height: 1.5;
   white-space: pre-wrap;
@@ -80,7 +94,7 @@ const FormattedContent = styled.pre`
 
 const JsonContent = styled.pre`
   margin: 0;
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
   font-size: 11px;
   line-height: 1.4;
   white-space: pre-wrap;
@@ -101,10 +115,16 @@ const PartialIndicator = styled.div`
 const StreamingCursor = styled.span`
   color: #4ec9b0;
   animation: blink 1s infinite;
-  
+
   @keyframes blink {
-    0%, 50% { opacity: 1; }
-    51%, 100% { opacity: 0; }
+    0%,
+    50% {
+      opacity: 1;
+    }
+    51%,
+    100% {
+      opacity: 0;
+    }
   }
 `;
 
@@ -113,9 +133,12 @@ interface ClaudeMessageProps {
   className?: string;
 }
 
-export const ClaudeMessage: React.FC<ClaudeMessageProps> = ({ message, className }) => {
+export const ClaudeMessage: React.FC<ClaudeMessageProps> = ({
+  message,
+  className,
+}) => {
   const [showJson, setShowJson] = useState(false);
-  
+
   const getHeaderText = (): string => {
     const originalMsg = message.metadata?.originalSDKMessage;
     if (originalMsg?.subtype && message.type !== originalMsg.subtype) {
@@ -123,26 +146,30 @@ export const ClaudeMessage: React.FC<ClaudeMessageProps> = ({ message, className
     }
     return message.type;
   };
-  
+
   const headerText = getHeaderText();
   const isStreaming = message.isStreaming || false;
-  
+
   return (
     <MessageBlock type={message.type} className={className}>
       <MessageHeader>
         <MessageTypeLabel>{headerText}</MessageTypeLabel>
         <ToggleButton onClick={() => setShowJson(!showJson)}>
-          {showJson ? 'Hide JSON' : 'Show JSON'}
+          {showJson ? "Hide JSON" : "Show JSON"}
         </ToggleButton>
       </MessageHeader>
-      
+
       <MessageContent>
-        {isStreaming && (
-          <PartialIndicator>streaming...</PartialIndicator>
-        )}
-        
+        {isStreaming && <PartialIndicator>streaming...</PartialIndicator>}
+
         {showJson ? (
-          <JsonContent>{JSON.stringify(message.metadata?.originalSDKMessage || message, null, 2)}</JsonContent>
+          <JsonContent>
+            {JSON.stringify(
+              message.metadata?.originalSDKMessage || message,
+              null,
+              2
+            )}
+          </JsonContent>
         ) : (
           <FormattedContent>
             {message.content}

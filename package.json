@@ -13,6 +13,7 @@
     "start": "electron .",
     "typecheck": "tsc --noEmit",
     "typecheck:main": "tsc --noEmit -p tsconfig.main.json",
+    "debug": "bun src/debug/index.ts",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
