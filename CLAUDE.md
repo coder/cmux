@@ -18,6 +18,11 @@
 - Workspaces using git worktrees
 - Configuration persisted to `~/.cmux/config.json`
 
+## Package Manager
+- **Using bun** - All dependencies are managed with bun (not npm)
+- Install dependencies: `bun install`
+- Add packages: `bun add <package>`
+
 ## Development Commands
 - `bun dev` - Start development server (Vite + TypeScript watcher)
 - `bun start` - Start Electron app

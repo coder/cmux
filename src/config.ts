@@ -27,8 +27,9 @@ export function load_config_or_default(): Config {
       
       // Config is stored as array of [path, config] pairs
       if (parsed.projects && Array.isArray(parsed.projects)) {
+        const projectsMap = new Map<string, ProjectConfig>(parsed.projects);
         return {
-          projects: new Map(parsed.projects)
+          projects: projectsMap
         };
       }
     }

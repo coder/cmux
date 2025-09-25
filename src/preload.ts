@@ -21,12 +21,17 @@ contextBridge.exposeInMainWorld('api', {
       ipcRenderer.invoke('git:removeWorktree', workspacePath)
   },
   claude: {
-    launch: (workspacePath: string, projectPath: string, branch: string) => 
-      ipcRenderer.invoke('claude:launch', workspacePath, projectPath, branch),
-    check: (projectName: string, branch: string) => 
-      ipcRenderer.invoke('claude:check', projectName, branch),
-    terminate: (projectName: string, branch: string) => 
-      ipcRenderer.invoke('claude:terminate', projectName, branch),
-    listAll: () => ipcRenderer.invoke('claude:listAll')
+    start: (workspacePath: string, projectName: string, branch: string) => 
+      ipcRenderer.invoke('claude:start', workspacePath, projectName, branch),
+    stop: (projectName: string, branch: string) => 
+      ipcRenderer.invoke('claude:stop', projectName, branch),
+    isActive: (projectName: string, branch: string) => 
+      ipcRenderer.invoke('claude:isActive', projectName, branch),
+    getOutput: (projectName: string, branch: string) => 
+      ipcRenderer.invoke('claude:getOutput', projectName, branch),
+    listActive: () => ipcRenderer.invoke('claude:listActive'),
+    onOutput: (callback: (data: any) => void) => {
+      ipcRenderer.on('claude:output', (event, data) => callback(data));
+    }
   }
 });

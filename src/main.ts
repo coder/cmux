@@ -2,18 +2,24 @@ import { app, BrowserWindow, ipcMain, dialog, Menu } from 'electron';
 import * as path from 'path';
 import { load_config_or_default, save_config, Config } from './config';
 import { createWorktree, removeWorktree } from './git';
-import claudeLauncher from './claudeLauncher';
+import claudeService from './services/claudeService';
+
+console.log('Main process starting...');
 
 // Single instance lock
 const gotTheLock = app.requestSingleInstanceLock();
+console.log('Single instance lock acquired:', gotTheLock);
 
 if (!gotTheLock) {
   // Another instance is already running, quit this one
+  console.log('Another instance is already running, quitting...');
   app.quit();
 } else {
   // This is the primary instance
+  console.log('This is the primary instance');
   app.on('second-instance', (event, commandLine, workingDirectory) => {
     // Someone tried to run a second instance, focus our window instead
+    console.log('Second instance attempted to start');
     if (mainWindow) {
       if (mainWindow.isMinimized()) mainWindow.restore();
       mainWindow.focus();
@@ -61,21 +67,33 @@ ipcMain.handle('git:removeWorktree', async (event, workspacePath: string) => {
   return await removeWorktree(workspacePath);
 });
 
-// Claude Code management handlers
-ipcMain.handle('claude:launch', async (event, workspacePath: string, projectPath: string, branch: string) => {
-  return await claudeLauncher.launchClaudeCode(workspacePath, projectPath, branch);
+// Claude Code management handlers using SDK
+ipcMain.handle('claude:start', async (event, workspacePath: string, projectName: string, branch: string) => {
+  return await claudeService.startWorkspace(workspacePath, projectName, branch);
 });
 
-ipcMain.handle('claude:check', async (event, projectName: string, branch: string) => {
-  return await claudeLauncher.checkExisting(projectName, branch);
+ipcMain.handle('claude:stop', async (event, projectName: string, branch: string) => {
+  await claudeService.stopWorkspace(projectName, branch);
+  return true;
 });
 
-ipcMain.handle('claude:terminate', async (event, projectName: string, branch: string) => {
-  return await claudeLauncher.terminateProcess(projectName, branch);
+ipcMain.handle('claude:isActive', async (event, projectName: string, branch: string) => {
+  return claudeService.isWorkspaceActive(projectName, branch);
 });
 
-ipcMain.handle('claude:listAll', async () => {
-  return await claudeLauncher.getAllRunningClaudes();
+ipcMain.handle('claude:getOutput', async (event, projectName: string, branch: string) => {
+  return claudeService.getWorkspaceOutput(projectName, branch);
+});
+
+ipcMain.handle('claude:listActive', async () => {
+  return claudeService.getActiveWorkspaces();
+});
+
+// Listen for output events and forward to renderer
+claudeService.on('output', (data) => {
+  if (mainWindow) {
+    mainWindow.webContents.send('claude:output', data);
+  }
 });
 
 function createMenu() {
@@ -164,14 +182,25 @@ function createWindow() {
 // Only setup app handlers if we got the lock
 if (gotTheLock) {
   app.whenReady().then(async () => {
-    // Clean up stale locks on startup
-    await claudeLauncher.cleanupStaleLocks();
-    
+    console.log('App ready, creating window...');
     createMenu();
     createWindow();
+    
+    // Auto-start all workspaces after window is ready
+    try {
+      console.log('Auto-starting workspaces...');
+      const config = load_config_or_default();
+      await claudeService.autoStartAllWorkspaces(config.projects);
+      console.log('Workspaces auto-start complete');
+    } catch (error) {
+      console.error('Failed to auto-start workspaces:', error);
+    }
   });
 
-  app.on('window-all-closed', () => {
+  app.on('window-all-closed', async () => {
+    // Stop all workspaces before quitting
+    await claudeService.stopAllWorkspaces();
+    
     if (process.platform !== 'darwin') {
       app.quit();
     }
@@ -181,5 +210,10 @@ if (gotTheLock) {
     if (mainWindow === null) {
       createWindow();
     }
+  });
+  
+  // Clean shutdown on app quit
+  app.on('before-quit', async () => {
+    await claudeService.stopAllWorkspaces();
   });
 }

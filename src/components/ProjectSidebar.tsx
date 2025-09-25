@@ -360,8 +360,8 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
         const projectName = getProjectName(projectPath);
         for (const workspace of config.workspaces) {
           const key = `${projectName}-${workspace.branch}`;
-          const status = await window.api.claude.check(projectName, workspace.branch);
-          statuses.set(key, status !== null);
+          const isActive = await window.api.claude.isActive(projectName, workspace.branch);
+          statuses.set(key, isActive);
         }
       }
       
@@ -380,12 +380,10 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
     const projectName = getProjectName(projectPath);
     
     try {
-      const result = await window.api.claude.launch(workspacePath, projectPath, branch);
+      const result = await window.api.claude.start(workspacePath, projectName, branch);
       
-      if (result.alreadyRunning) {
-        alert(`Claude Code is already running for this workspace`);
-      } else if (!result.success) {
-        alert(`Failed to launch Claude Code: ${result.error}`);
+      if (!result) {
+        alert(`Failed to start Claude Code for this workspace`);
       }
       
       // Refresh status
@@ -401,7 +399,7 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
     const projectName = getProjectName(projectPath);
     
     if (confirm(`Terminate Claude Code for ${projectName}/${branch}?`)) {
-      const terminated = await window.api.claude.terminate(projectName, branch);
+      const terminated = await window.api.claude.stop(projectName, branch);
       if (terminated) {
         const key = `${projectName}-${branch}`;
         setClaudeStatuses(prev => new Map(prev).set(key, false));

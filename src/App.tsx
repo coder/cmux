@@ -3,6 +3,7 @@ import styled from '@emotion/styled';
 import { Global, css } from '@emotion/react';
 import ProjectSidebar, { ProjectConfig } from './components/ProjectSidebar';
 import NewWorkspaceModal from './components/NewWorkspaceModal';
+import { ClaudeOutputView } from './components/ClaudeOutputView';
 
 // Global Styles with nice fonts
 const globalStyles = css`
@@ -60,8 +61,8 @@ const AppHeader = styled.header`
 
 const ContentArea = styled.div`
   flex: 1;
-  padding: 40px;
-  overflow-y: auto;
+  display: flex;
+  overflow: hidden;
 `;
 
 const ProjectView = styled.div`
@@ -100,39 +101,6 @@ const WelcomeView = styled.div`
   }
 `;
 
-declare global {
-  interface Window {
-    api: {
-      platform: string;
-      config: {
-        load: () => Promise<{ projects: Array<[string, ProjectConfig]> }>;
-        save: (config: { projects: Array<[string, ProjectConfig]> }) => Promise<boolean>;
-      };
-      dialog: {
-        selectDirectory: () => Promise<string | null>;
-      };
-      git: {
-        createWorktree: (projectPath: string, branchName: string) => Promise<{ success: boolean; path?: string; error?: string }>;
-        removeWorktree: (workspacePath: string) => Promise<{ success: boolean; error?: string }>;
-      };
-      claude: {
-        launch: (workspacePath: string, projectPath: string, branch: string) => 
-          Promise<{ success: boolean; pid?: number; error?: string; alreadyRunning?: boolean }>;
-        check: (projectName: string, branch: string) => 
-          Promise<{ pid: number; startTime: number; workspacePath: string } | null>;
-        terminate: (projectName: string, branch: string) => Promise<boolean>;
-        listAll: () => Promise<Array<{
-          pid: number;
-          command: string;
-          workspacePath: string;
-          startTime: number;
-          projectName: string;
-          branch: string;
-        }>>;
-      };
-    };
-  }
-}
 
 function App() {
   const [projects, setProjects] = useState<Map<string, ProjectConfig>>(new Map());
@@ -147,11 +115,17 @@ function App() {
 
   const loadProjects = async () => {
     try {
+      console.log('Loading projects from config...');
       const config = await window.api.config.load();
+      console.log('Received config:', config);
+      
       if (config && Array.isArray(config.projects)) {
+        console.log('Projects array length:', config.projects.length);
         const projectsMap = new Map<string, ProjectConfig>(config.projects);
+        console.log('Created projects map, size:', projectsMap.size);
         setProjects(projectsMap);
       } else {
+        console.log('No projects or invalid format');
         setProjects(new Map());
       }
     } catch (error) {
@@ -264,11 +238,35 @@ function App() {
             <h1>Cmux - Coding Agent Multiplexer</h1>
           </AppHeader>
           <ContentArea>
-            {selectedProject ? (
+            {selectedWorkspace ? (
+              (() => {
+                // Parse the workspace path to get project name and branch
+                const pathParts = selectedWorkspace.split('/');
+                const cmuxIndex = pathParts.indexOf('.cmux');
+                if (cmuxIndex !== -1 && cmuxIndex + 2 < pathParts.length) {
+                  const projectName = pathParts[cmuxIndex + 1];
+                  const branch = pathParts[cmuxIndex + 2];
+                  return (
+                    <ClaudeOutputView 
+                      projectName={projectName}
+                      branch={branch}
+                    />
+                  );
+                }
+                return (
+                  <WelcomeView>
+                    <h2>Invalid Workspace</h2>
+                    <p>Unable to parse workspace information.</p>
+                  </WelcomeView>
+                );
+              })()
+            ) : selectedProject ? (
               <ProjectView>
                 <h2>Project: {selectedProject.split('/').pop()}</h2>
                 <ProjectFullPath>{selectedProject}</ProjectFullPath>
-                {/* Project content will go here */}
+                <p style={{ color: '#888', marginTop: '20px' }}>
+                  Select a workspace from the sidebar to view Claude Code output.
+                </p>
               </ProjectView>
             ) : (
               <WelcomeView>
