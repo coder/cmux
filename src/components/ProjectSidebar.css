@@ -1,0 +1,165 @@
+.project-sidebar {
+  width: 280px;
+  height: 100vh;
+  background: #252526;
+  border-right: 1px solid #1e1e1e;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.sidebar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  border-bottom: 1px solid #1e1e1e;
+}
+
+.sidebar-header h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #cccccc;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.sidebar-header .add-project-btn {
+  width: 24px;
+  height: 24px;
+  background: transparent;
+  color: #cccccc;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: all 0.2s;
+}
+
+.sidebar-header .add-project-btn:hover {
+  background: #2a2a2b;
+  border-color: #3c3c3c;
+}
+
+.projects-list {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.empty-state {
+  padding: 32px 16px;
+  text-align: center;
+}
+
+.empty-state p {
+  color: #888;
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+
+.add-first-project {
+  background: #007acc;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.add-first-project:hover {
+  background: #005a9e;
+}
+
+.project-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-left: 3px solid transparent;
+  transition: all 0.15s;
+}
+
+.project-item:hover {
+  background: #2a2a2b;
+}
+
+.project-item.selected {
+  background: #2a2a2b;
+  border-left-color: #007acc;
+}
+
+.project-info {
+  flex: 1;
+  min-width: 0;
+  padding-right: 8px;
+}
+
+.project-name {
+  color: #cccccc;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.project-path {
+  color: #6e6e6e;
+  font-size: 11px;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.project-item .remove-btn {
+  width: 20px;
+  height: 20px;
+  background: transparent;
+  color: #6e6e6e;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  opacity: 0;
+  flex-shrink: 0;
+}
+
+.project-item:hover .remove-btn {
+  opacity: 1;
+}
+
+.project-item .remove-btn:hover {
+  color: #ff5555;
+  background: rgba(255, 85, 85, 0.1);
+}
+
+/* Scrollbar styling */
+.projects-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.projects-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.projects-list::-webkit-scrollbar-thumb {
+  background: #424242;
+  border-radius: 4px;
+}
+
+.projects-list::-webkit-scrollbar-thumb:hover {
+  background: #4e4e4e;
+}

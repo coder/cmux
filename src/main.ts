@@ -1,7 +1,38 @@
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog } from 'electron';
 import * as path from 'path';
+import { load_config_or_default, save_config, Config } from './config';
 
 let mainWindow: BrowserWindow | null = null;
+
+// Register IPC handlers before creating window
+ipcMain.handle('config:load', async () => {
+  const config = load_config_or_default();
+  return {
+    projects: Array.from(config.projects)
+  };
+});
+
+ipcMain.handle('config:save', async (event, configData: any) => {
+  const config: Config = {
+    projects: new Set(configData.projects)
+  };
+  save_config(config);
+  return true;
+});
+
+ipcMain.handle('dialog:selectDirectory', async () => {
+  if (!mainWindow) return null;
+  
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openDirectory']
+  });
+  
+  if (result.canceled) {
+    return null;
+  }
+  
+  return result.filePaths[0];
+});
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -15,12 +46,9 @@ function createWindow() {
     title: 'Cmux - Coding Agent Multiplexer'
   });
 
-  if (process.env.NODE_ENV === 'development') {
-    mainWindow.loadURL('http://localhost:5173');
-    mainWindow.webContents.openDevTools();
-  } else {
-    mainWindow.loadFile(path.join(__dirname, '../index.html'));
-  }
+  // Always load from dev server for now
+  mainWindow.loadURL('http://localhost:5173');
+  mainWindow.webContents.openDevTools();
 
   mainWindow.on('closed', () => {
     mainWindow = null;

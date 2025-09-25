@@ -55,3 +55,4 @@ yarn-error.log
 
 # Bun
 bun.lockb
+dist
