@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import styled from '@emotion/styled';
+import { UIMessage } from '../../types/claude';
 
 const MessageBlock = styled.div<{ type: string; isError?: boolean }>`
   margin-bottom: 15px;
@@ -97,138 +98,56 @@ const PartialIndicator = styled.div`
   font-style: italic;
 `;
 
+const StreamingCursor = styled.span`
+  color: #4ec9b0;
+  animation: blink 1s infinite;
+  
+  @keyframes blink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0; }
+  }
+`;
+
 interface ClaudeMessageProps {
-  message: any;
+  message: UIMessage;
   className?: string;
 }
 
 export const ClaudeMessage: React.FC<ClaudeMessageProps> = ({ message, className }) => {
   const [showJson, setShowJson] = useState(false);
   
-  const getMessageType = (msg: any): string => {
-    if (msg.type) return msg.type;
-    if (msg.role) return msg.role;
-    if (msg.subtype) return msg.subtype;
-    return 'unknown';
+  const getHeaderText = (): string => {
+    const originalMsg = message.metadata?.originalSDKMessage;
+    if (originalMsg?.subtype && message.type !== originalMsg.subtype) {
+      return `${message.type} / ${originalMsg.subtype}`;
+    }
+    return message.type;
   };
   
-  const getMessageSubtype = (msg: any): string | undefined => {
-    return msg.subtype;
-  };
-  
-  const getHeaderText = (msg: any): string => {
-    const type = getMessageType(msg);
-    const subtype = getMessageSubtype(msg);
-    
-    if (subtype && type !== subtype) {
-      return `${type} / ${subtype}`;
-    }
-    return type;
-  };
-  
-  const formatMessageContent = (msg: any): string => {
-    if (typeof msg === 'string') {
-      return msg;
-    }
-    
-    // Handle SDK assistant messages
-    if (msg.type === 'assistant' && msg.message?.content) {
-      if (Array.isArray(msg.message.content)) {
-        return msg.message.content.map((c: any) => c.text || JSON.stringify(c, null, 2)).join('\n');
-      }
-      return typeof msg.message.content === 'string' 
-        ? msg.message.content 
-        : JSON.stringify(msg.message.content, null, 2);
-    }
-    
-    // Handle SDK user messages
-    if (msg.type === 'user' && msg.message?.content) {
-      return typeof msg.message.content === 'string' 
-        ? msg.message.content 
-        : JSON.stringify(msg.message.content, null, 2);
-    }
-    
-    // Handle stream events
-    if (msg.type === 'stream_event' && msg.event) {
-      if (msg.event.type === 'content_block_delta' && msg.event.delta?.text) {
-        return msg.event.delta.text;
-      }
-      if (msg.event.type === 'content_block_start' && msg.event.content_block?.text) {
-        return msg.event.content_block.text;
-      }
-    }
-    
-    // Handle system messages
-    if (msg.type === 'system') {
-      if (msg.subtype === 'init') {
-        return `Session initialized in ${msg.cwd}\nModel: ${msg.model}\nTools: ${msg.tools?.join(', ') || 'none'}`;
-      }
-      if (msg.subtype === 'compact_boundary') {
-        return `Conversation compacted (${msg.compact_metadata?.trigger || 'unknown'} trigger)`;
-      }
-    }
-    
-    // Handle result messages
-    if (msg.type === 'result') {
-      if (msg.subtype === 'success' && msg.result) {
-        return msg.result;
-      }
-      if (msg.subtype === 'error_max_turns') {
-        return 'Maximum number of conversation turns reached';
-      }
-      if (msg.subtype === 'error_during_execution') {
-        return 'Error occurred during execution';
-      }
-    }
-    
-    // Handle direct content property
-    if (msg.content) {
-      if (Array.isArray(msg.content)) {
-        return msg.content.map((c: any) => c.text || JSON.stringify(c, null, 2)).join('\n');
-      }
-      return typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content, null, 2);
-    }
-    
-    // Default: show formatted JSON
-    return JSON.stringify(msg, null, 2);
-  };
-  
-  const isPartialMessage = (msg: any): boolean => {
-    return msg.type === 'stream_event' || 
-           (msg.event && ['content_block_delta', 'content_block_start'].includes(msg.event.type));
-  };
-  
-  const hasFormattableContent = (msg: any): boolean => {
-    const type = getMessageType(msg);
-    return ['assistant', 'user', 'system', 'result', 'stream_event'].includes(type) ||
-           msg.content || msg.message?.content;
-  };
-  
-  const type = getMessageType(message);
-  const headerText = getHeaderText(message);
-  const formattedContent = formatMessageContent(message);
-  const canFormat = hasFormattableContent(message);
+  const headerText = getHeaderText();
+  const isStreaming = message.isStreaming || false;
   
   return (
-    <MessageBlock type={type} isError={message.error} className={className}>
+    <MessageBlock type={message.type} className={className}>
       <MessageHeader>
         <MessageTypeLabel>{headerText}</MessageTypeLabel>
-        {canFormat && (
-          <ToggleButton onClick={() => setShowJson(!showJson)}>
-            {showJson ? 'Hide JSON' : 'Show JSON'}
-          </ToggleButton>
-        )}
+        <ToggleButton onClick={() => setShowJson(!showJson)}>
+          {showJson ? 'Hide JSON' : 'Show JSON'}
+        </ToggleButton>
       </MessageHeader>
       
       <MessageContent>
-        {isPartialMessage(message) && (
+        {isStreaming && (
           <PartialIndicator>streaming...</PartialIndicator>
         )}
         
         {showJson ? (
-          <JsonContent>{JSON.stringify(message, null, 2)}</JsonContent>
+          <JsonContent>{JSON.stringify(message.metadata?.originalSDKMessage || message, null, 2)}</JsonContent>
         ) : (
-          <FormattedContent>{formattedContent}</FormattedContent>
+          <FormattedContent>
+            {message.content}
+            {isStreaming && <StreamingCursor>▋</StreamingCursor>}
+          </FormattedContent>
         )}
       </MessageContent>
     </MessageBlock>

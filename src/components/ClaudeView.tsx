@@ -1,6 +1,217 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import styled from '@emotion/styled';
 import { ClaudeMessage } from './ClaudeMessage';
+import { UIMessage, StreamingContext } from '../types/claude';
+
+class StreamingMessageAggregator {
+  private activeStreams: Map<string, StreamingContext> = new Map();
+  private sequenceCounter: number = 0;
+
+  processSDKMessage(sdkMessage: any): UIMessage[] {
+    const results: UIMessage[] = [];
+
+    switch (sdkMessage.type) {
+      case 'user':
+        results.push(this.createUserMessage(sdkMessage));
+        break;
+        
+      case 'system':
+        if (sdkMessage.subtype === 'init') {
+          results.push(this.createSystemMessage(sdkMessage));
+        }
+        break;
+        
+      case 'stream_event':
+        const streamResult = this.handleStreamEvent(sdkMessage);
+        if (streamResult) results.push(streamResult);
+        break;
+        
+      case 'assistant':
+        const assistantResult = this.handleAssistantMessage(sdkMessage);
+        if (assistantResult) results.push(assistantResult);
+        break;
+        
+      case 'result':
+        results.push(this.createResultMessage(sdkMessage));
+        break;
+    }
+
+    return results;
+  }
+
+  private createUserMessage(sdkMessage: any): UIMessage {
+    return {
+      id: sdkMessage.uuid || `user-${Date.now()}`,
+      type: 'user',
+      content: sdkMessage.message?.content || '',
+      sequenceNumber: sdkMessage._sequenceNumber || this.sequenceCounter++,
+      timestamp: sdkMessage.timestamp || Date.now(),
+      metadata: { originalSDKMessage: sdkMessage }
+    };
+  }
+
+  private createSystemMessage(sdkMessage: any): UIMessage {
+    return {
+      id: sdkMessage.uuid || `system-${Date.now()}`,
+      type: 'system',
+      content: `Session initialized\nModel: ${sdkMessage.model || 'unknown'}\nTools: ${sdkMessage.tools?.length || 0} available`,
+      sequenceNumber: sdkMessage._sequenceNumber || this.sequenceCounter++,
+      timestamp: Date.now(),
+      metadata: { originalSDKMessage: sdkMessage }
+    };
+  }
+
+  private handleStreamEvent(sdkMessage: any): UIMessage | null {
+    const event = sdkMessage.event;
+    if (!event) return null;
+
+    switch (event.type) {
+      case 'message_start':
+        return this.startStreamingMessage(sdkMessage);
+      case 'content_block_delta':
+        return this.updateStreamingMessage(sdkMessage);
+      case 'message_stop':
+        return this.finishStreamingMessage(sdkMessage);
+      default:
+        return null;
+    }
+  }
+
+  private startStreamingMessage(sdkMessage: any): UIMessage {
+    const streamingId = sdkMessage.event.message?.id || `stream-${Date.now()}`;
+    const messageId = `streaming-${streamingId}`;
+    
+    const context: StreamingContext = {
+      streamingId,
+      messageId,
+      contentParts: [],
+      startTime: Date.now(),
+      isComplete: false
+    };
+    
+    this.activeStreams.set(streamingId, context);
+
+    return {
+      id: messageId,
+      type: 'assistant',
+      content: '',
+      isStreaming: true,
+      sequenceNumber: sdkMessage._sequenceNumber || this.sequenceCounter++,
+      timestamp: Date.now(),
+      metadata: { streamingId, originalSDKMessage: sdkMessage }
+    };
+  }
+
+  private updateStreamingMessage(sdkMessage: any): UIMessage | null {
+    const streamingId = this.findStreamingIdFromEvent(sdkMessage);
+    if (!streamingId) return null;
+
+    const context = this.activeStreams.get(streamingId);
+    if (!context) return null;
+
+    const deltaText = sdkMessage.event.delta?.text || '';
+    context.contentParts.push(deltaText);
+
+    return {
+      id: context.messageId,
+      type: 'assistant',
+      content: context.contentParts.join(''),
+      isStreaming: true,
+      sequenceNumber: sdkMessage._sequenceNumber || this.sequenceCounter++,
+      timestamp: context.startTime,
+      metadata: { streamingId, originalSDKMessage: sdkMessage }
+    };
+  }
+
+  private finishStreamingMessage(sdkMessage: any): UIMessage | null {
+    const streamingId = this.findStreamingIdFromEvent(sdkMessage);
+    if (!streamingId) return null;
+
+    const context = this.activeStreams.get(streamingId);
+    if (!context) return null;
+
+    context.isComplete = true;
+    
+    return {
+      id: context.messageId,
+      type: 'assistant',
+      content: context.contentParts.join(''),
+      isStreaming: false,
+      sequenceNumber: sdkMessage._sequenceNumber || this.sequenceCounter++,
+      timestamp: context.startTime,
+      metadata: { streamingId, originalSDKMessage: sdkMessage }
+    };
+  }
+
+  private handleAssistantMessage(sdkMessage: any): UIMessage | null {
+    // Replace streaming message with final assistant message
+    const messageId = sdkMessage.event?.message?.id || sdkMessage.uuid;
+    const streamingContext = Array.from(this.activeStreams.values())
+      .find(ctx => ctx.streamingId === messageId);
+
+    if (streamingContext) {
+      // Clean up streaming context
+      this.activeStreams.delete(streamingContext.streamingId);
+      
+      return {
+        id: streamingContext.messageId,
+        type: 'assistant',
+        content: this.extractAssistantContent(sdkMessage),
+        isStreaming: false,
+        sequenceNumber: sdkMessage._sequenceNumber || this.sequenceCounter++,
+        timestamp: streamingContext.startTime,
+        metadata: { originalSDKMessage: sdkMessage }
+      };
+    }
+
+    // Standalone assistant message
+    return {
+      id: sdkMessage.uuid || `assistant-${Date.now()}`,
+      type: 'assistant',
+      content: this.extractAssistantContent(sdkMessage),
+      sequenceNumber: sdkMessage._sequenceNumber || this.sequenceCounter++,
+      timestamp: Date.now(),
+      metadata: { originalSDKMessage: sdkMessage }
+    };
+  }
+
+  private createResultMessage(sdkMessage: any): UIMessage {
+    return {
+      id: sdkMessage.uuid || `result-${Date.now()}`,
+      type: 'result',
+      content: `${sdkMessage.subtype || 'completed'}: ${sdkMessage.result || 'Success'}`,
+      sequenceNumber: sdkMessage._sequenceNumber || this.sequenceCounter++,
+      timestamp: Date.now(),
+      metadata: { 
+        originalSDKMessage: sdkMessage,
+        cost: sdkMessage.total_cost_usd,
+        duration: sdkMessage.duration_ms
+      }
+    };
+  }
+
+  private extractAssistantContent(sdkMessage: any): string {
+    if (sdkMessage.message?.content) {
+      if (Array.isArray(sdkMessage.message.content)) {
+        return sdkMessage.message.content.map((c: any) => c.text || '').join('');
+      }
+      return sdkMessage.message.content;
+    }
+    return '(No content)';
+  }
+
+  private findStreamingIdFromEvent(sdkMessage: any): string | null {
+    // Try to find streaming ID from session context
+    // This is a heuristic since stream events don't always have direct message ID references
+    const recentStreams = Array.from(this.activeStreams.keys());
+    return recentStreams.length > 0 ? recentStreams[recentStreams.length - 1] : null;
+  }
+
+  clear() {
+    this.activeStreams.clear();
+    this.sequenceCounter = 0;
+  }
+}
 
 const ViewContainer = styled.div`
   flex: 1;
@@ -138,19 +349,23 @@ export const ClaudeView: React.FC<ClaudeViewProps> = ({
   branch,
   className
 }) => {
-  const [messageMap, setMessageMap] = useState<Map<string, any>>(new Map());
+  const [uiMessageMap, setUIMessageMap] = useState<Map<string, UIMessage>>(new Map());
   const [isActive, setIsActive] = useState(false);
   const [input, setInput] = useState('');
   const [isSending, setIsSending] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const aggregatorRef = useRef<StreamingMessageAggregator>(new StreamingMessageAggregator());
 
-  // Unified message addition function - makes duplicates structurally impossible
-  const addMessage = useCallback((message: any) => {
-    const key = message.uuid || `temp-${Date.now()}-${Math.random()}`;
-    setMessageMap(prev => {
+  // Process SDK message and convert to UI messages
+  const processSDKMessage = useCallback((sdkMessage: any) => {
+    const uiMessages = aggregatorRef.current.processSDKMessage(sdkMessage);
+    
+    setUIMessageMap(prev => {
       const newMap = new Map(prev);
-      newMap.set(key, { ...message, _addedAt: Date.now() });
+      uiMessages.forEach(uiMessage => {
+        newMap.set(uiMessage.id, uiMessage);
+      });
       return newMap;
     });
   }, []);
@@ -161,10 +376,14 @@ export const ClaudeView: React.FC<ClaudeViewProps> = ({
     
     try {
       const output = await window.api.claude.getOutput(projectName, branch);
-      const messagesArray = output || [];
+      const sdkMessages = output || [];
       
-      // Add all messages using unified function - deduplication is automatic
-      messagesArray.forEach(addMessage);
+      // Clear existing messages and aggregator
+      setUIMessageMap(new Map());
+      aggregatorRef.current.clear();
+      
+      // Process all SDK messages through aggregator
+      sdkMessages.forEach(processSDKMessage);
       
       // Auto-scroll to bottom after loading
       setTimeout(() => {
@@ -175,23 +394,21 @@ export const ClaudeView: React.FC<ClaudeViewProps> = ({
     } catch (error) {
       console.error('Failed to load output:', error);
     }
-  }, [projectName, branch, addMessage]);
+  }, [projectName, branch, processSDKMessage]);
 
-  // Computed messages array derived from messageMap
+  // Computed UI messages array derived from uiMessageMap
   const messages = useMemo(() => {
-    return Array.from(messageMap.values()).sort((a, b) => {
-      // Sort by original timestamp if available, otherwise by when added
-      const aTime = a.timestamp || a._addedAt || 0;
-      const bTime = b.timestamp || b._addedAt || 0;
-      return aTime - bTime;
+    return Array.from(uiMessageMap.values()).sort((a, b) => {
+      return a.sequenceNumber - b.sequenceNumber;
     });
-  }, [messageMap]);
+  }, [uiMessageMap]);
   
   useEffect(() => {
     if (!projectName || !branch) return;
     
     // Clear messages when switching workspaces
-    setMessageMap(new Map());
+    setUIMessageMap(new Map());
+    aggregatorRef.current.clear();
     
     // Load initial output
     loadOutput();
@@ -202,7 +419,7 @@ export const ClaudeView: React.FC<ClaudeViewProps> = ({
     // Subscribe to output updates
     const unsubscribe = window.api.claude.onOutput((data: any) => {
       if (data.projectName === projectName && data.branch === branch) {
-        addMessage(data.message);
+        processSDKMessage(data.message);
         
         // Auto-scroll to bottom
         setTimeout(() => {
@@ -222,7 +439,7 @@ export const ClaudeView: React.FC<ClaudeViewProps> = ({
       }
       clearInterval(statusInterval);
     };
-  }, [projectName, branch, loadOutput]);
+  }, [projectName, branch, loadOutput, processSDKMessage]);
   
   const checkStatus = async () => {
     if (!projectName || !branch) return;

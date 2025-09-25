@@ -61,19 +61,19 @@ class MessageController {
   }
 }
 
-interface SessionData {
-  [key: string]: string; // workspace key -> session ID
+interface WorkspaceData {
+  sessionId: string;
+  history: SDKMessage[];
 }
 
 export class ClaudeService extends EventEmitter {
   private workspaces: Map<string, WorkspaceSession> = new Map();
-  private sessionFile: string;
+  private configDir: string;
   private sdkLoaded: boolean = false;
 
   constructor() {
     super();
-    const configDir = path.join(os.homedir(), '.cmux');
-    this.sessionFile = path.join(configDir, 'sessions.json');
+    this.configDir = path.join(os.homedir(), '.cmux');
     // Load SDK asynchronously without blocking constructor
     this.loadSDK().catch(error => {
       console.error('Failed to initialize Claude SDK:', error);
@@ -100,20 +100,48 @@ export class ClaudeService extends EventEmitter {
     return `${projectName}-${branch}`;
   }
 
-  private async loadSessions(): Promise<SessionData> {
+  private getWorkspaceDir(workspaceKey: string): string {
+    return path.join(this.configDir, 'workspaces', workspaceKey);
+  }
+
+  private getWorkspaceFile(workspaceKey: string): string {
+    return path.join(this.getWorkspaceDir(workspaceKey), 'session.json');
+  }
+
+  private async loadWorkspaceData(workspaceKey: string): Promise<WorkspaceData> {
     try {
-      const data = await fs.readFile(this.sessionFile, 'utf-8');
-      return JSON.parse(data);
+      const workspaceFile = this.getWorkspaceFile(workspaceKey);
+      const data = await fs.readFile(workspaceFile, 'utf-8');
+      const parsed = JSON.parse(data);
+      
+      // Validate the loaded data
+      if (parsed.sessionId && Array.isArray(parsed.history)) {
+        return parsed;
+      }
+      
+      // Invalid data, fall through to create new
     } catch {
-      return {};
+      // File doesn't exist or can't be read, create new
+    }
+    
+    // Create new workspace data only if file doesn't exist or is invalid
+    return {
+      sessionId: crypto.randomUUID(),
+      history: []
+    };
+  }
+
+  private async saveWorkspaceData(workspaceKey: string, data: WorkspaceData): Promise<void> {
+    try {
+      const workspaceFile = this.getWorkspaceFile(workspaceKey);
+      const dir = path.dirname(workspaceFile);
+      await fs.mkdir(dir, { recursive: true });
+      await fs.writeFile(workspaceFile, JSON.stringify(data, null, 2));
+    } catch (error) {
+      console.error(`Failed to save workspace data for ${workspaceKey}:`, error);
     }
   }
 
-  private async saveSessions(sessions: SessionData): Promise<void> {
-    const dir = path.dirname(this.sessionFile);
-    await fs.mkdir(dir, { recursive: true });
-    await fs.writeFile(this.sessionFile, JSON.stringify(sessions, null, 2));
-  }
 
   async startWorkspace(
     workspacePath: string,
@@ -138,9 +166,13 @@ export class ClaudeService extends EventEmitter {
     }
 
     try {
-      // Load saved session IDs
-      const sessions = await this.loadSessions();
-      const existingSessionId = sessions[key];
+      // Load workspace data (session ID + history)
+      const workspaceData = await this.loadWorkspaceData(key);
+      console.log(`[${key}] Loaded workspace data:`, {
+        sessionId: workspaceData.sessionId,
+        historyLength: workspaceData.history.length,
+        isResuming: workspaceData.history.length > 0
+      });
 
       // Create message controller for streaming input
       const messageController = new MessageController();
@@ -149,10 +181,10 @@ export class ClaudeService extends EventEmitter {
         projectName,
         branch,
         workspacePath,
-        sessionId: existingSessionId || crypto.randomUUID(),
+        sessionId: workspaceData.sessionId,
         query: null,
         isActive: true,
-        output: [],
+        output: [...workspaceData.history], // Restore previous conversation history
         messageController
       };
 
@@ -161,29 +193,13 @@ export class ClaudeService extends EventEmitter {
         cwd: workspacePath,
         permissionMode: 'default',
         // Use resume for existing sessions
-        resume: existingSessionId,
-        continue: !!existingSessionId,
+        resume: workspaceData.history.length > 0 ? workspaceData.sessionId : undefined,
+        continue: workspaceData.history.length > 0,
         // Enable partial messages for streaming
         includePartialMessages: true
       };
 
-      // Create initial message based on whether we're resuming
-      const initialMessage = {
-        type: 'user',
-        session_id: session.sessionId,
-        message: {
-          role: 'user',
-          content: existingSessionId 
-            ? `Resuming session in ${projectName} on branch ${branch}. I'm here to help with your coding tasks.`
-            : `Starting new session in ${projectName} on branch ${branch}. I'm ready to help with your coding tasks.`
-        },
-        parent_tool_use_id: null
-      };
-
-      // Start with initial message, then use streaming input
-      messageController.sendMessage(initialMessage);
-
-      // Start the query using streaming input mode
+      // Start the query using streaming input mode (no initial message)
       session.query = queryFunction({ 
         prompt: messageController.getAsyncIterable(), 
         options 
@@ -191,9 +207,11 @@ export class ClaudeService extends EventEmitter {
       
       this.workspaces.set(key, session);
 
-      // Save session ID for future restarts
-      sessions[key] = session.sessionId;
-      await this.saveSessions(sessions);
+      // Save workspace data (session ID + history) for future restarts
+      await this.saveWorkspaceData(key, {
+        sessionId: session.sessionId,
+        history: session.output
+      });
 
       // Stream output in the background
       this.streamOutput(key, session);
@@ -215,13 +233,38 @@ export class ClaudeService extends EventEmitter {
           break;
         }
 
-        // Store output
-        session.output.push(message);
+        // Add sequence number for ordering and store output
+        const messageWithSequence = {
+          ...message,
+          _sequenceNumber: session.output.length
+        };
+        session.output.push(messageWithSequence);
+        
+        // If this is the first system/init message, use Claude's session ID for future resumes
+        if (message.type === 'system' && message.subtype === 'init' && message.session_id) {
+          session.sessionId = message.session_id;
+          console.log(`[${key}] Updated session ID to Claude's ID:`, message.session_id);
+        }
+        
+        // Save conversation history to disk
+        await this.saveWorkspaceData(key, {
+          sessionId: session.sessionId,
+          history: session.output
+        });
+        
+        // Debug logging to see what messages we're receiving
+        console.log(`[${key}] Received message:`, {
+          type: message.type,
+          subtype: message.subtype,
+          uuid: message.uuid,
+          hasMessage: !!message.message,
+          messageRole: message.message?.role
+        });
 
         // Emit output event
         this.emit('output', {
           workspace: key,
-          message,
+          message: messageWithSequence,
           projectName: session.projectName,
           branch: session.branch
         });
@@ -268,7 +311,7 @@ export class ClaudeService extends EventEmitter {
     }
 
     try {
-      // Create SDK user message
+      // Create SDK user message with sequence-based ordering
       const userMessage = {
         type: 'user',
         session_id: session.sessionId,
@@ -276,11 +319,33 @@ export class ClaudeService extends EventEmitter {
           role: 'user',
           content: message
         },
-        parent_tool_use_id: null
+        parent_tool_use_id: null,
+        uuid: `user-${Date.now()}-${Math.random()}`, // Generate UUID for deduplication
+        _sequenceNumber: session.output.length, // Use current length as sequence for ordering
+        timestamp: Date.now()
       };
 
       // Send message through the controller
+      console.log(`[${key}] Sending user message:`, userMessage);
       session.messageController.sendMessage(userMessage);
+      
+      // Also store the user message in our local output for persistence
+      session.output.push(userMessage);
+      
+      // Save conversation history to disk
+      await this.saveWorkspaceData(key, {
+        sessionId: session.sessionId,
+        history: session.output
+      });
+      
+      // Emit the user message locally so it appears in UI immediately
+      this.emit('output', {
+        workspace: key,
+        message: userMessage,
+        projectName: session.projectName,
+        branch: session.branch
+      });
+      
       return true;
     } catch (error) {
       console.error(`Failed to send message to ${key}:`, error);
