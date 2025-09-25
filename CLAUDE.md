@@ -38,3 +38,8 @@
 
 ## Testing
 - Always run `bun typecheck` and `bun typecheck:main` after making changes to verify types
+
+## Debugging
+- `bun debug ui-messages --workspace <workspace-name>` - Show UI messages for a workspace
+- `bun debug ui-messages --workspace <workspace-name> --drop <n>` - Show messages with last n dropped
+- Workspace names can be found in `~/.cmux/workspaces/`

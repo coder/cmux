@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import styled from "@emotion/styled";
 import { Global, css } from "@emotion/react";
-import ProjectSidebar, { ProjectConfig } from "./components/ProjectSidebar";
+import ProjectSidebar, { ProjectConfig, WorkspaceSelection } from "./components/ProjectSidebar";
 import NewWorkspaceModal from "./components/NewWorkspaceModal";
 import { ClaudeView } from "./components/ClaudeView";
 import { ErrorBoundary } from "./components/ErrorBoundary";
@@ -113,7 +113,7 @@ function App() {
     new Map()
   );
   const [selectedProject, setSelectedProject] = useState<string | null>(null);
-  const [selectedWorkspace, setSelectedWorkspace] = useState<string | null>(
+  const [selectedWorkspace, setSelectedWorkspace] = useState<WorkspaceSelection | null>(
     null
   );
   const [workspaceModalOpen, setWorkspaceModalOpen] = useState(false);
@@ -226,7 +226,7 @@ function App() {
       }
       setProjects(newProjects);
 
-      if (selectedWorkspace === workspacePath) {
+      if (selectedWorkspace?.workspacePath === workspacePath) {
         setSelectedWorkspace(null);
       }
 
@@ -259,26 +259,12 @@ function App() {
           </AppHeader>
           <ContentArea>
             {selectedWorkspace ? (
-              (() => {
-                // Parse the workspace path to get project name and branch
-                const pathParts = selectedWorkspace.split("/");
-                const cmuxIndex = pathParts.indexOf(".cmux");
-                if (cmuxIndex !== -1 && cmuxIndex + 2 < pathParts.length) {
-                  const projectName = pathParts[cmuxIndex + 1];
-                  const branch = pathParts[cmuxIndex + 2];
-                  return (
-                    <ErrorBoundary workspaceInfo={`${projectName}/${branch}`}>
-                      <ClaudeView projectName={projectName} branch={branch} />
-                    </ErrorBoundary>
-                  );
-                }
-                return (
-                  <WelcomeView>
-                    <h2>Invalid Workspace</h2>
-                    <p>Unable to parse workspace information.</p>
-                  </WelcomeView>
-                );
-              })()
+              <ErrorBoundary workspaceInfo={`${selectedWorkspace.projectName}/${selectedWorkspace.branch}`}>
+                <ClaudeView 
+                  projectName={selectedWorkspace.projectName} 
+                  branch={selectedWorkspace.branch} 
+                />
+              </ErrorBoundary>
             ) : selectedProject ? (
               <ProjectView>
                 <h2>Project: {selectedProject.split("/").pop()}</h2>

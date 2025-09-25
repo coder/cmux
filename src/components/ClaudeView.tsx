@@ -9,260 +9,10 @@ import styled from "@emotion/styled";
 import { ClaudeMessage } from "./ClaudeMessage";
 import { Breadcrumb } from "./ClaudeMessage/Breadcrumb";
 import { CommandSuggestions, COMMAND_SUGGESTION_KEYS } from "./CommandSuggestions";
-import { UIMessage, StreamingContext } from "../types/claude";
+import { UIMessage } from "../types/claude";
+import { StreamingMessageAggregator } from "../utils/StreamingMessageAggregator";
 
-class StreamingMessageAggregator {
-  private uiMessages: Map<string, UIMessage> = new Map();
-  private activeStreams: Map<string, StreamingContext> = new Map();
-  private sequenceCounter: number = 0;
-
-  processSDKMessage(sdkMessage: any): void {
-    switch (sdkMessage.type) {
-      case "user":
-        this.addUserMessage(sdkMessage);
-        break;
-
-      case "system":
-        if (sdkMessage.subtype === "init") {
-          this.addSystemMessage(sdkMessage);
-        }
-        break;
-
-      case "stream_event":
-        this.handleStreamEvent(sdkMessage);
-        break;
-
-      case "assistant":
-        this.handleAssistantMessage(sdkMessage);
-        break;
-
-      case "result":
-        this.addResultBreadcrumb(sdkMessage);
-        break;
-    }
-  }
-
-  getAllMessages(): UIMessage[] {
-    return Array.from(this.uiMessages.values()).sort((a, b) => {
-      return a.sequenceNumber - b.sequenceNumber;
-    });
-  }
-
-  private addUserMessage(sdkMessage: any): void {
-    const userMessage: UIMessage = {
-      id: sdkMessage.uuid || `user-${Date.now()}`,
-      type: "user",
-      content: sdkMessage.message?.content || "",
-      sequenceNumber: sdkMessage._sequenceNumber || this.sequenceCounter++,
-      timestamp: sdkMessage.timestamp || Date.now(),
-      metadata: { originalSDKMessage: sdkMessage },
-    };
-    this.uiMessages.set(userMessage.id, userMessage);
-  }
-
-  private addSystemMessage(sdkMessage: any): void {
-    const systemMessage: UIMessage = {
-      id: sdkMessage.uuid || `system-${Date.now()}`,
-      type: "system",
-      content: `Session initialized - Model: ${sdkMessage.model || "unknown"} - Tools: ${sdkMessage.tools?.length || 0} available`,
-      isBreadcrumb: true,
-      sequenceNumber: sdkMessage._sequenceNumber || this.sequenceCounter++,
-      timestamp: Date.now(),
-      metadata: { originalSDKMessage: sdkMessage },
-    };
-    this.uiMessages.set(systemMessage.id, systemMessage);
-  }
-
-  private addResultBreadcrumb(sdkMessage: any): void {
-    const resultMessage: UIMessage = {
-      id: sdkMessage.uuid || `result-${Date.now()}`,
-      type: "result",
-      content: sdkMessage.result || "Success",
-      isBreadcrumb: true,
-      sequenceNumber: sdkMessage._sequenceNumber || this.sequenceCounter++,
-      timestamp: Date.now(),
-      metadata: { 
-        originalSDKMessage: sdkMessage,
-        cost: sdkMessage.total_cost_usd,
-        duration: sdkMessage.duration_ms
-      },
-    };
-    this.uiMessages.set(resultMessage.id, resultMessage);
-  }
-
-  private handleStreamEvent(sdkMessage: any): void {
-    const event = sdkMessage.event;
-    if (!event) return;
-
-    switch (event.type) {
-      case "message_start":
-        this.startStreamingMessage(sdkMessage);
-        break;
-      case "content_block_delta":
-        this.updateStreamingMessage(sdkMessage);
-        break;
-      case "message_stop":
-        this.finishStreamingMessage(sdkMessage);
-        break;
-      default:
-        break;
-    }
-  }
-
-  private startStreamingMessage(sdkMessage: any): void {
-    const streamingId = sdkMessage.event.message?.id || `stream-${Date.now()}`;
-    const messageId = `streaming-${streamingId}`;
-
-    const context: StreamingContext = {
-      streamingId,
-      messageId,
-      contentParts: [],
-      startTime: Date.now(),
-      isComplete: false,
-    };
-
-    this.activeStreams.set(streamingId, context);
-
-    const streamingMessage: UIMessage = {
-      id: messageId,
-      type: "assistant",
-      content: "",
-      contentDeltas: [],
-      isStreaming: true,
-      sequenceNumber: sdkMessage._sequenceNumber || this.sequenceCounter++,
-      timestamp: Date.now(),
-      metadata: { streamingId, originalSDKMessage: sdkMessage },
-    };
-    
-    this.uiMessages.set(messageId, streamingMessage);
-  }
-
-  private updateStreamingMessage(sdkMessage: any): void {
-    const streamingId = this.findStreamingIdFromEvent();
-    if (!streamingId) return;
-
-    const context = this.activeStreams.get(streamingId);
-    if (!context) return;
-
-    const deltaText = sdkMessage.event.delta?.text || "";
-    context.contentParts.push(deltaText);
-
-    // Update existing message in Map with raw deltas
-    const existingMessage = this.uiMessages.get(context.messageId);
-    if (existingMessage) {
-      this.uiMessages.set(context.messageId, {
-        ...existingMessage,
-        content: context.contentParts.join(""), // Keep for completed messages
-        contentDeltas: [...context.contentParts], // Pass raw deltas for TypewriterText
-        isStreaming: true,
-        metadata: { ...existingMessage.metadata, originalSDKMessage: sdkMessage },
-      });
-    }
-  }
-
-  private finishStreamingMessage(sdkMessage: any): void {
-    const streamingId = this.findStreamingIdFromEvent();
-    if (!streamingId) return;
-
-    const context = this.activeStreams.get(streamingId);
-    if (!context) return;
-
-    context.isComplete = true;
-
-    // Update existing streaming message to mark as complete
-    const existingMessage = this.uiMessages.get(context.messageId);
-    if (existingMessage) {
-      this.uiMessages.set(context.messageId, {
-        ...existingMessage,
-        isStreaming: false,
-        metadata: { ...existingMessage.metadata, originalSDKMessage: sdkMessage },
-      });
-    }
-  }
-
-  private handleAssistantMessage(sdkMessage: any): void {
-    // Use the UUID as the canonical ID for assistant messages
-    const messageId = sdkMessage.uuid || `assistant-${Date.now()}`;
-    
-    // Check if we already have this message (avoid duplicates)
-    if (this.uiMessages.has(messageId)) {
-      return; // Message already exists, skip
-    }
-    
-    // Find active streaming context to replace
-    const activeStreams = Array.from(this.activeStreams.values());
-    
-    if (activeStreams.length > 0) {
-      // Replace most recent streaming message with final assistant content
-      const context = activeStreams[activeStreams.length - 1];
-      
-      // Delete the old streaming message
-      this.uiMessages.delete(context.messageId);
-      
-      // Add the final assistant message with its proper UUID
-      const finalMessage: UIMessage = {
-        id: messageId,
-        type: "assistant",
-        content: this.extractAssistantContent(sdkMessage),
-        isStreaming: false,
-        sequenceNumber: sdkMessage._sequenceNumber || this.sequenceCounter++,
-        timestamp: context.startTime,
-        metadata: { originalSDKMessage: sdkMessage },
-      };
-      
-      this.uiMessages.set(messageId, finalMessage);
-      this.activeStreams.delete(context.streamingId);
-    } else {
-      // Standalone assistant message (no streaming context)
-      const assistantMessage: UIMessage = {
-        id: messageId,
-        type: "assistant",
-        content: this.extractAssistantContent(sdkMessage),
-        sequenceNumber: sdkMessage._sequenceNumber || this.sequenceCounter++,
-        timestamp: Date.now(),
-        metadata: { originalSDKMessage: sdkMessage },
-      };
-      
-      this.uiMessages.set(messageId, assistantMessage);
-    }
-  }
-
-
-  private extractAssistantContent(sdkMessage: any): string {
-    if (sdkMessage.message?.content) {
-      if (Array.isArray(sdkMessage.message.content)) {
-        return sdkMessage.message.content
-          .map((c: any) => {
-            if (typeof c === 'string') return c;
-            if (c.text) return c.text;
-            if (c.type === 'tool_use') return `[Tool: ${c.name || 'unknown'}]`;
-            return "";
-          })
-          .join("");
-      }
-      if (typeof sdkMessage.message.content === 'string') {
-        return sdkMessage.message.content;
-      }
-      // If content is an object, stringify it
-      return JSON.stringify(sdkMessage.message.content);
-    }
-    return "(No content)";
-  }
-
-  private findStreamingIdFromEvent(): string | null {
-    // Find the most recent active stream
-    const recentStreams = Array.from(this.activeStreams.keys());
-    return recentStreams.length > 0
-      ? recentStreams[recentStreams.length - 1]
-      : null;
-  }
-
-  clear() {
-    this.uiMessages.clear();
-    this.activeStreams.clear();
-    this.sequenceCounter = 0;
-  }
-}
+// StreamingMessageAggregator is now imported from utils
 
 const ViewContainer = styled.div`
   flex: 1;
@@ -406,6 +156,7 @@ export const ClaudeView: React.FC<ClaudeViewProps> = ({
   const [isActive, setIsActive] = useState(false);
   const [input, setInput] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const [isCompacting, setIsCompacting] = useState(false);
   const [availableCommands, setAvailableCommands] = useState<string[]>([]);
   const [showCommandSuggestions, setShowCommandSuggestions] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -416,14 +167,11 @@ export const ClaudeView: React.FC<ClaudeViewProps> = ({
 
   // Process SDK message and trigger UI update
   const processSDKMessage = useCallback((sdkMessage: any) => {
-    // Extract commands from system/init messages
-    if (sdkMessage.type === 'system' && sdkMessage.subtype === 'init' && sdkMessage.slash_commands) {
-      setAvailableCommands(sdkMessage.slash_commands);
-    }
-    
     aggregatorRef.current.processSDKMessage(sdkMessage);
     // Force re-render by setting messages directly from aggregator
     setUIMessageMap(new Map(aggregatorRef.current.getAllMessages().map(msg => [msg.id, msg])));
+    // Update available commands from aggregator
+    setAvailableCommands(aggregatorRef.current.getAvailableCommands());
   }, []);
 
   // Load output function
@@ -442,6 +190,9 @@ export const ClaudeView: React.FC<ClaudeViewProps> = ({
       
       // Update UI with aggregated messages
       setUIMessageMap(new Map(aggregatorRef.current.getAllMessages().map(msg => [msg.id, msg])));
+      
+      // Update available commands from aggregator
+      setAvailableCommands(aggregatorRef.current.getAvailableCommands());
 
       // Auto-scroll to bottom after loading
       setTimeout(() => {
@@ -496,6 +247,17 @@ export const ClaudeView: React.FC<ClaudeViewProps> = ({
         aggregatorRef.current.clear();
       }
     });
+    
+    // Subscribe to compaction-complete events
+    const unsubscribeCompaction = window.api.claude.onCompactionComplete((data: any) => {
+      if (data.projectName === projectName && data.branch === branch) {
+        setIsCompacting(false);
+        // Clear aggregator and reload from session file
+        aggregatorRef.current.clear();
+        setUIMessageMap(new Map());
+        loadOutput(); // This reloads from session file
+      }
+    });
 
     // Poll status periodically
     const statusInterval = setInterval(checkStatus, 5000);
@@ -506,6 +268,9 @@ export const ClaudeView: React.FC<ClaudeViewProps> = ({
       }
       if (typeof unsubscribeClear === "function") {
         unsubscribeClear();
+      }
+      if (typeof unsubscribeCompaction === "function") {
+        unsubscribeCompaction();
       }
       clearInterval(statusInterval);
     };
@@ -549,6 +314,11 @@ export const ClaudeView: React.FC<ClaudeViewProps> = ({
       // Check if this is a slash command
       if (messageText.startsWith('/')) {
         const command = messageText.toLowerCase();
+        
+        // Track compaction state
+        if (command === '/compact') {
+          setIsCompacting(true);
+        }
         
         // Handle /clear locally for immediate UI feedback
         if (command === '/clear') {
@@ -672,18 +442,20 @@ export const ClaudeView: React.FC<ClaudeViewProps> = ({
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={
-            isActive
+            isCompacting
+              ? "Compacting conversation..."
+              : isActive
               ? "Type your message... (Enter to send, Shift+Enter for newline)"
               : "Start workspace to send messages"
           }
-          disabled={!isActive || isSending}
+          disabled={!isActive || isSending || isCompacting}
           rows={1}
         />
         <SendButton
           onClick={handleSend}
-          disabled={!input.trim() || !isActive || isSending}
+          disabled={!input.trim() || !isActive || isSending || isCompacting}
         >
-          {isSending ? "Sending..." : "Send"}
+          {isCompacting ? "Compacting..." : isSending ? "Sending..." : "Send"}
         </SendButton>
       </InputSection>
     </ViewContainer>

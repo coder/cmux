@@ -65,5 +65,5 @@ export function getProjectName(projectPath: string): string {
 
 export function getWorkspacePath(projectPath: string, branch: string): string {
   const projectName = getProjectName(projectPath);
-  return path.join(CONFIG_DIR, projectName, branch);
+  return path.join(CONFIG_DIR, 'src', projectName, branch);
 }

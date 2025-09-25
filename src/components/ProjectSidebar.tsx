@@ -316,12 +316,19 @@ export interface ProjectConfig {
   workspaces: Array<{ branch: string; path: string }>;
 }
 
+export interface WorkspaceSelection {
+  projectPath: string;
+  projectName: string;
+  branch: string;
+  workspacePath: string;
+}
+
 interface ProjectSidebarProps {
   projects: Map<string, ProjectConfig>;
   selectedProject: string | null;
-  selectedWorkspace: string | null;
+  selectedWorkspace: WorkspaceSelection | null;
   onSelectProject: (path: string) => void;
-  onSelectWorkspace: (workspacePath: string) => void;
+  onSelectWorkspace: (selection: WorkspaceSelection) => void;
   onAddProject: () => void;
   onAddWorkspace: (projectPath: string) => void;
   onRemoveProject: (path: string) => void;
@@ -390,52 +397,7 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
     return () => clearInterval(interval);
   }, [projects]);
 
-  const handleLaunchClaude = async (
-    e: React.MouseEvent,
-    workspacePath: string,
-    projectPath: string,
-    branch: string
-  ) => {
-    e.stopPropagation();
-    const projectName = getProjectName(projectPath);
 
-    try {
-      const result = await window.api.claude.start(
-        workspacePath,
-        projectName,
-        branch
-      );
-
-      if (!result) {
-        alert(`Failed to start Claude Code for this workspace`);
-      }
-
-      // Refresh status
-      const key = `${projectName}-${branch}`;
-      setClaudeStatuses((prev) => new Map(prev).set(key, true));
-    } catch (error: any) {
-      alert(`Error launching Claude Code: ${error.message}`);
-    }
-  };
-
-  const handleTerminateClaude = async (
-    e: React.MouseEvent,
-    projectPath: string,
-    branch: string
-  ) => {
-    e.stopPropagation();
-    const projectName = getProjectName(projectPath);
-
-    if (confirm(`Terminate Claude Code for ${projectName}/${branch}?`)) {
-      const terminated = await window.api.claude.stop(projectName, branch);
-      if (terminated) {
-        const key = `${projectName}-${branch}`;
-        setClaudeStatuses((prev) => new Map(prev).set(key, false));
-      } else {
-        alert("Failed to terminate Claude Code");
-      }
-    }
-  };
 
   return (
     <SidebarContainer>
@@ -498,8 +460,13 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                     return (
                       <WorkspaceItem
                         key={workspace.path}
-                        selected={selectedWorkspace === workspace.path}
-                        onClick={() => onSelectWorkspace(workspace.path)}
+                        selected={selectedWorkspace?.workspacePath === workspace.path}
+                        onClick={() => onSelectWorkspace({
+                          projectPath,
+                          projectName,
+                          branch: workspace.branch,
+                          workspacePath: workspace.path
+                        })}
                       >
                         <StatusIndicator
                           active={isActive}
@@ -511,37 +478,6 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                         />
                         <BranchIcon>⎇</BranchIcon>
                         <WorkspaceName>{workspace.branch}</WorkspaceName>
-                        <WorkspaceActions className="workspace-actions">
-                          {!isActive ? (
-                            <ActionBtn
-                              onClick={(e) =>
-                                handleLaunchClaude(
-                                  e,
-                                  workspace.path,
-                                  projectPath,
-                                  workspace.branch
-                                )
-                              }
-                              title="Launch Claude Code"
-                            >
-                              ▶
-                            </ActionBtn>
-                          ) : (
-                            <ActionBtn
-                              className="terminate"
-                              onClick={(e) =>
-                                handleTerminateClaude(
-                                  e,
-                                  projectPath,
-                                  workspace.branch
-                                )
-                              }
-                              title="Terminate Claude Code"
-                            >
-                              ■
-                            </ActionBtn>
-                          )}
-                        </WorkspaceActions>
                         <WorkspaceRemoveBtn
                           onClick={(e) => {
                             e.stopPropagation();

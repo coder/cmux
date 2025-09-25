@@ -23,8 +23,6 @@ contextBridge.exposeInMainWorld('api', {
   claude: {
     start: (workspacePath: string, projectName: string, branch: string) => 
       ipcRenderer.invoke('claude:start', workspacePath, projectName, branch),
-    stop: (projectName: string, branch: string) => 
-      ipcRenderer.invoke('claude:stop', projectName, branch),
     isActive: (projectName: string, branch: string) => 
       ipcRenderer.invoke('claude:isActive', projectName, branch),
     getOutput: (projectName: string, branch: string) => 
@@ -43,6 +41,11 @@ contextBridge.exposeInMainWorld('api', {
       ipcRenderer.on('claude:clear', (event, data) => callback(data));
       // Return unsubscribe function
       return () => ipcRenderer.removeAllListeners('claude:clear');
+    },
+    onCompactionComplete: (callback: (data: any) => void) => {
+      ipcRenderer.on('claude:compaction-complete', (event, data) => callback(data));
+      // Return unsubscribe function
+      return () => ipcRenderer.removeAllListeners('claude:compaction-complete');
     }
   }
 });

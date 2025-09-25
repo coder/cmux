@@ -73,20 +73,12 @@ ipcMain.handle("git:removeWorktree", async (event, workspacePath: string) => {
 // Claude Code management handlers using SDK
 ipcMain.handle(
   "claude:start",
-  async (event, workspacePath: string, projectName: string, branch: string) => {
+  async (event, srcPath: string, projectName: string, branch: string) => {
     return await claudeService.startWorkspace(
-      workspacePath,
+      srcPath,  // Git worktree path
       projectName,
       branch
     );
-  }
-);
-
-ipcMain.handle(
-  "claude:stop",
-  async (event, projectName: string, branch: string) => {
-    await claudeService.stopWorkspace(projectName, branch);
-    return true;
   }
 );
 
@@ -133,6 +125,13 @@ claudeService.on("output", (data) => {
 claudeService.on("clear", (data) => {
   if (mainWindow) {
     mainWindow.webContents.send("claude:clear", data);
+  }
+});
+
+// Listen for compaction-complete events and forward to renderer
+claudeService.on("compaction-complete", (data) => {
+  if (mainWindow) {
+    mainWindow.webContents.send("claude:compaction-complete", data);
   }
 });
 
@@ -234,10 +233,7 @@ if (gotTheLock) {
     }
   });
 
-  app.on("window-all-closed", async () => {
-    // Stop all workspaces before quitting
-    await claudeService.stopAllWorkspaces();
-
+  app.on("window-all-closed", () => {
     if (process.platform !== "darwin") {
       app.quit();
     }
@@ -249,8 +245,4 @@ if (gotTheLock) {
     }
   });
 
-  // Clean shutdown on app quit
-  app.on("before-quit", async () => {
-    await claudeService.stopAllWorkspaces();
-  });
 }

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import styled from '@emotion/styled';
 
 // Export the keys that CommandSuggestions handles
-export const COMMAND_SUGGESTION_KEYS = ['Enter', 'Tab', 'ArrowUp', 'ArrowDown', 'Escape'];
+export const COMMAND_SUGGESTION_KEYS = ['Tab', 'ArrowUp', 'ArrowDown', 'Escape'];
 
 // Props interface
 interface CommandSuggestionsProps {
@@ -27,13 +27,19 @@ const PopoverContainer = styled.div`
   max-height: 200px;
   overflow-y: auto;
   z-index: 100;
+  display: flex;
+  flex-direction: column;
 `;
 
 const CommandItem = styled.div<{ selected: boolean }>`
-  padding: 8px 12px;
+  padding: 6px 10px;
   cursor: pointer;
   background: ${props => props.selected ? '#094771' : 'transparent'};
   transition: background 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   
   &:hover {
     background: #094771;
@@ -43,13 +49,32 @@ const CommandItem = styled.div<{ selected: boolean }>`
 const CommandText = styled.div`
   color: #569cd6;
   font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
-  font-size: 13px;
+  font-size: 12px;
+  flex-shrink: 0;
 `;
 
 const CommandDescription = styled.div`
   color: #969696;
-  font-size: 12px;
-  margin-top: 2px;
+  font-size: 11px;
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+`;
+
+const HelperText = styled.div`
+  padding: 4px 10px;
+  border-top: 1px solid #3e3e42;
+  background: #1e1e1e;
+  color: #6b6b6b;
+  font-size: 10px;
+  text-align: center;
+  flex-shrink: 0;
+  
+  span {
+    color: #969696;
+    font-weight: 500;
+  }
 `;
 
 // Main component
@@ -106,7 +131,6 @@ export const CommandSuggestions: React.FC<CommandSuggestionsProps> = ({
           setSelectedIndex(i => (i - 1 + filteredCommands.length) % filteredCommands.length);
           break;
         case 'Tab':
-        case 'Enter':
           if (!e.shiftKey && filteredCommands.length > 0) {
             e.preventDefault();
             onSelectCommand(filteredCommands[selectedIndex]);
@@ -155,6 +179,9 @@ export const CommandSuggestions: React.FC<CommandSuggestionsProps> = ({
           <CommandDescription>{getDescription(cmd)}</CommandDescription>
         </CommandItem>
       ))}
+      <HelperText>
+        <span>Tab</span> to complete • <span>↑↓</span> to navigate • <span>Esc</span> to dismiss
+      </HelperText>
     </PopoverContainer>
   );
 };

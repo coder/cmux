@@ -20,7 +20,6 @@ declare global {
       };
       claude: {
         start: (workspacePath: string, projectName: string, branch: string) => Promise<boolean>;
-        stop: (projectName: string, branch: string) => Promise<boolean>;
         isActive: (projectName: string, branch: string) => Promise<boolean>;
         getOutput: (projectName: string, branch: string) => Promise<any[]>;
         listActive: () => Promise<Array<{ projectName: string; branch: string }>>;
@@ -28,6 +27,7 @@ declare global {
         handleSlashCommand: (projectName: string, branch: string, command: string) => Promise<boolean>;
         onOutput: (callback: (data: any) => void) => () => void;
         onClear: (callback: (data: any) => void) => () => void;
+        onCompactionComplete: (callback: (data: any) => void) => () => void;
       };
     };
   }

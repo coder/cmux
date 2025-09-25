@@ -67,7 +67,8 @@ function safeError(...args: any[]): void {
 interface WorkspaceSession {
   projectName: string;
   branch: string;
-  workspacePath: string;
+  srcPath: string;  // Path to the git worktree (source code)
+  sessionPath: string;  // Path to the session data directory
   sessionId: string;
   query: Query | null;
   isActive: boolean;
@@ -196,7 +197,7 @@ export class ClaudeService extends EventEmitter {
 
 
   async startWorkspace(
-    workspacePath: string,
+    srcPath: string,  // This is the git worktree path
     projectName: string,
     branch: string
   ): Promise<boolean> {
@@ -229,10 +230,14 @@ export class ClaudeService extends EventEmitter {
       // Create message controller for streaming input
       const messageController = new MessageController();
 
+      // Calculate session path for storing session.json
+      const sessionPath = path.join(this.configDir, 'workspaces', key);
+      
       const session: WorkspaceSession = {
         projectName,
         branch,
-        workspacePath,
+        srcPath,  // Git worktree path (source code)
+        sessionPath,  // Session data directory
         sessionId: workspaceData.sessionId,
         query: null,
         isActive: true,
@@ -242,7 +247,7 @@ export class ClaudeService extends EventEmitter {
 
       // Configure options for the SDK
       const options: Options = {
-        cwd: workspacePath,
+        cwd: srcPath,  // Use source path as working directory
         permissionMode: 'default',
         // Use resume for existing sessions
         resume: workspaceData.history.length > 0 ? workspaceData.sessionId : undefined,
@@ -258,6 +263,7 @@ export class ClaudeService extends EventEmitter {
       });
       
       this.workspaces.set(key, session);
+      safeLog(`[${key}] Workspace started successfully and added to map`);
 
       // Save workspace data (session ID + history) for future restarts
       await this.saveWorkspaceData(key, {
@@ -298,11 +304,45 @@ export class ClaudeService extends EventEmitter {
           safeLog(`[${key}] Updated session ID to Claude's ID:`, message.session_id);
         }
         
-        // Save conversation history to disk
-        await this.saveWorkspaceData(key, {
-          sessionId: session.sessionId,
-          history: session.output
-        });
+        // Check for compaction completion message
+        if (message.type === 'user' && 
+            message.message?.content && 
+            typeof message.message.content === 'string' &&
+            message.message.content.includes('<local-command-stdout>Compacted</local-command-stdout>')) {
+          
+          safeLog(`[${key}] Detected compaction completion, clearing history`);
+          
+          // Find the index of this compacted message
+          const compactedMsgIndex = session.output.findIndex(m => m.uuid === message.uuid);
+          
+          // Keep only messages from compacted message onwards
+          if (compactedMsgIndex >= 0) {
+            session.output = session.output.slice(compactedMsgIndex);
+            // Reset sequence numbers
+            session.output.forEach((msg, index) => {
+              msg._sequenceNumber = index;
+            });
+          }
+          
+          // Save cleaned history
+          await this.saveWorkspaceData(key, {
+            sessionId: session.sessionId,
+            history: session.output
+          });
+          
+          // Emit compaction-complete event
+          this.emit('compaction-complete', {
+            workspace: key,
+            projectName: session.projectName,
+            branch: session.branch
+          });
+        } else {
+          // Normal save for non-compaction messages
+          await this.saveWorkspaceData(key, {
+            sessionId: session.sessionId,
+            history: session.output
+          });
+        }
         
         // Debug logging to see what messages we're receiving
         safeLog(`[${key}] Received message:`, {
@@ -324,32 +364,6 @@ export class ClaudeService extends EventEmitter {
     } catch (error) {
       safeError(`Error streaming output for ${key}:`, error);
       session.isActive = false;
-    }
-  }
-
-  async stopWorkspace(projectName: string, branch: string): Promise<void> {
-    const key = this.getWorkspaceKey(projectName, branch);
-    const session = this.workspaces.get(key);
-    
-    if (session) {
-      session.isActive = false;
-      
-      // Close message controller
-      if (session.messageController) {
-        session.messageController.close();
-        session.messageController = null;
-      }
-      
-      // Interrupt the query if possible
-      if (session.query?.interrupt) {
-        try {
-          await session.query.interrupt();
-        } catch (error) {
-          safeError(`Error interrupting query for ${key}:`, error);
-        }
-      }
-      
-      session.query = null;
     }
   }
 
@@ -409,37 +423,40 @@ export class ClaudeService extends EventEmitter {
     const key = this.getWorkspaceKey(projectName, branch);
     const commandLower = command.toLowerCase().trim();
     
-    // Handle /clear command specially
+    // Handle /clear command specially - just clear the session data
     if (commandLower === '/clear') {
       try {
         safeLog(`[${key}] Executing /clear command`);
         
-        // Stop the current workspace
-        await this.stopWorkspace(projectName, branch);
+        // Get the current workspace session
+        const currentSession = this.workspaces.get(key);
+        if (!currentSession) {
+          safeError(`No workspace session found for ${key}`);
+          return false;
+        }
+        
+        // Clear the session's output history
+        currentSession.output = [];
+        
+        // Generate new session ID for a fresh start
+        const newSessionId = crypto.randomUUID();
+        currentSession.sessionId = newSessionId;
         
         // Clear the persisted history
-        const newSessionId = crypto.randomUUID();
         await this.saveWorkspaceData(key, {
           sessionId: newSessionId,
           history: []
         });
         
-        // Get workspace path
-        const workspacePath = path.join(this.configDir, 'workspaces', key);
+        // Emit a clear event so UI can update
+        this.emit('clear', {
+          workspace: key,
+          projectName,
+          branch
+        });
         
-        // Start a fresh workspace session
-        const startSuccess = await this.startWorkspace(workspacePath, projectName, branch);
-        
-        if (startSuccess) {
-          // Emit a clear event so UI can update
-          this.emit('clear', {
-            workspace: key,
-            projectName,
-            branch
-          });
-        }
-        
-        return startSuccess;
+        safeLog(`[${key}] Session cleared successfully`);
+        return true;
       } catch (error) {
         safeError(`Failed to execute /clear for ${key}:`, error);
         return false;
@@ -451,18 +468,6 @@ export class ClaudeService extends EventEmitter {
     return this.sendMessage(projectName, branch, command);
   }
 
-  async stopAllWorkspaces(): Promise<void> {
-    const stopPromises = [];
-    
-    for (const [_, session] of this.workspaces) {
-      if (session.isActive) {
-        stopPromises.push(this.stopWorkspace(session.projectName, session.branch));
-      }
-    }
-    
-    await Promise.all(stopPromises);
-  }
-
   getWorkspaceOutput(projectName: string, branch: string): SDKMessage[] {
     const key = this.getWorkspaceKey(projectName, branch);
     const session = this.workspaces.get(key);
@@ -472,7 +477,9 @@ export class ClaudeService extends EventEmitter {
   isWorkspaceActive(projectName: string, branch: string): boolean {
     const key = this.getWorkspaceKey(projectName, branch);
     const session = this.workspaces.get(key);
-    return session?.isActive || false;
+    const isActive = session?.isActive || false;
+    safeLog(`[${key}] isWorkspaceActive check: found=${!!session}, isActive=${isActive}`);
+    return isActive;
   }
 
   getActiveWorkspaces(): Array<{ projectName: string; branch: string }> {
