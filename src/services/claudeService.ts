@@ -12,6 +12,58 @@ type Options = any;
 // We'll load the actual query function dynamically
 let queryFunction: any = null;
 
+// Safe console.log wrapper that catches EPIPE errors
+function safeLog(...args: any[]): void {
+  try {
+    // Convert objects to simple strings to avoid serialization issues
+    const safeArgs = args.map(arg => {
+      if (typeof arg === 'object' && arg !== null) {
+        // For objects, only log type and key properties
+        if (arg.type) return `[${arg.type}${arg.subtype ? '/' + arg.subtype : ''}]`;
+        if (arg.message) return '[Message Object]';
+        return '[Object]';
+      }
+      return arg;
+    });
+    console.log(...safeArgs);
+  } catch (error: any) {
+    // Silently ignore EPIPE and other console errors
+    if (error.code !== 'EPIPE') {
+      // Only log non-EPIPE errors to stderr as a last resort
+      try {
+        process.stderr.write(`Console error: ${error.message}\n`);
+      } catch {
+        // Even stderr might fail, just ignore
+      }
+    }
+  }
+}
+
+// Safe safeError wrapper
+function safeError(...args: any[]): void {
+  try {
+    const safeArgs = args.map(arg => {
+      if (typeof arg === 'object' && arg !== null) {
+        // For errors, try to get the message
+        if (arg instanceof Error) return `Error: ${arg.message}`;
+        if (arg.type) return `[${arg.type}${arg.subtype ? '/' + arg.subtype : ''}]`;
+        return '[Object]';
+      }
+      return arg;
+    });
+    safeError(...safeArgs);
+  } catch (error: any) {
+    // Silently ignore EPIPE and other console errors
+    if (error.code !== 'EPIPE') {
+      try {
+        process.stderr.write(`Console error: ${error.message}\n`);
+      } catch {
+        // Even stderr might fail, just ignore
+      }
+    }
+  }
+}
+
 interface WorkspaceSession {
   projectName: string;
   branch: string;
@@ -76,7 +128,7 @@ export class ClaudeService extends EventEmitter {
     this.configDir = path.join(os.homedir(), '.cmux');
     // Load SDK asynchronously without blocking constructor
     this.loadSDK().catch(error => {
-      console.error('Failed to initialize Claude SDK:', error);
+      safeError('Failed to initialize Claude SDK:', error);
     });
   }
 
@@ -89,9 +141,9 @@ export class ClaudeService extends EventEmitter {
       const claudeModule = await dynamicImport('@anthropic-ai/claude-code');
       queryFunction = claudeModule.query;
       this.sdkLoaded = true;
-      console.log('Claude Code SDK loaded successfully');
+      safeLog('Claude Code SDK loaded successfully');
     } catch (error) {
-      console.error('Failed to load Claude Code SDK:', error);
+      safeError('Failed to load Claude Code SDK:', error);
       throw error;
     }
   }
@@ -138,7 +190,7 @@ export class ClaudeService extends EventEmitter {
       await fs.mkdir(dir, { recursive: true });
       await fs.writeFile(workspaceFile, JSON.stringify(data, null, 2));
     } catch (error) {
-      console.error(`Failed to save workspace data for ${workspaceKey}:`, error);
+      safeError(`Failed to save workspace data for ${workspaceKey}:`, error);
     }
   }
 
@@ -152,7 +204,7 @@ export class ClaudeService extends EventEmitter {
     await this.loadSDK();
     
     if (!queryFunction) {
-      console.error('Claude Code SDK not loaded');
+      safeError('Claude Code SDK not loaded');
       return false;
     }
     
@@ -161,14 +213,14 @@ export class ClaudeService extends EventEmitter {
     // Check if already running
     const existing = this.workspaces.get(key);
     if (existing?.isActive) {
-      console.log(`Workspace ${key} is already active`);
+      safeLog(`Workspace ${key} is already active`);
       return false;
     }
 
     try {
       // Load workspace data (session ID + history)
       const workspaceData = await this.loadWorkspaceData(key);
-      console.log(`[${key}] Loaded workspace data:`, {
+      safeLog(`[${key}] Loaded workspace data:`, {
         sessionId: workspaceData.sessionId,
         historyLength: workspaceData.history.length,
         isResuming: workspaceData.history.length > 0
@@ -218,7 +270,7 @@ export class ClaudeService extends EventEmitter {
 
       return true;
     } catch (error) {
-      console.error(`Failed to start workspace ${key}:`, error);
+      safeError(`Failed to start workspace ${key}:`, error);
       return false;
     }
   }
@@ -243,7 +295,7 @@ export class ClaudeService extends EventEmitter {
         // If this is the first system/init message, use Claude's session ID for future resumes
         if (message.type === 'system' && message.subtype === 'init' && message.session_id) {
           session.sessionId = message.session_id;
-          console.log(`[${key}] Updated session ID to Claude's ID:`, message.session_id);
+          safeLog(`[${key}] Updated session ID to Claude's ID:`, message.session_id);
         }
         
         // Save conversation history to disk
@@ -253,7 +305,7 @@ export class ClaudeService extends EventEmitter {
         });
         
         // Debug logging to see what messages we're receiving
-        console.log(`[${key}] Received message:`, {
+        safeLog(`[${key}] Received message:`, {
           type: message.type,
           subtype: message.subtype,
           uuid: message.uuid,
@@ -270,7 +322,7 @@ export class ClaudeService extends EventEmitter {
         });
       }
     } catch (error) {
-      console.error(`Error streaming output for ${key}:`, error);
+      safeError(`Error streaming output for ${key}:`, error);
       session.isActive = false;
     }
   }
@@ -293,7 +345,7 @@ export class ClaudeService extends EventEmitter {
         try {
           await session.query.interrupt();
         } catch (error) {
-          console.error(`Error interrupting query for ${key}:`, error);
+          safeError(`Error interrupting query for ${key}:`, error);
         }
       }
       
@@ -306,7 +358,7 @@ export class ClaudeService extends EventEmitter {
     const session = this.workspaces.get(key);
     
     if (!session || !session.isActive || !session.messageController) {
-      console.error(`Cannot send message: workspace ${key} is not active`);
+      safeError(`Cannot send message: workspace ${key} is not active`);
       return false;
     }
 
@@ -326,7 +378,7 @@ export class ClaudeService extends EventEmitter {
       };
 
       // Send message through the controller
-      console.log(`[${key}] Sending user message:`, userMessage);
+      // Avoid safeLog of large objects to prevent EPIPE errors
       session.messageController.sendMessage(userMessage);
       
       // Also store the user message in our local output for persistence
@@ -348,9 +400,55 @@ export class ClaudeService extends EventEmitter {
       
       return true;
     } catch (error) {
-      console.error(`Failed to send message to ${key}:`, error);
+      safeError(`Failed to send message to ${key}:`, error);
       return false;
     }
+  }
+
+  async handleSlashCommand(projectName: string, branch: string, command: string): Promise<boolean> {
+    const key = this.getWorkspaceKey(projectName, branch);
+    const commandLower = command.toLowerCase().trim();
+    
+    // Handle /clear command specially
+    if (commandLower === '/clear') {
+      try {
+        safeLog(`[${key}] Executing /clear command`);
+        
+        // Stop the current workspace
+        await this.stopWorkspace(projectName, branch);
+        
+        // Clear the persisted history
+        const newSessionId = crypto.randomUUID();
+        await this.saveWorkspaceData(key, {
+          sessionId: newSessionId,
+          history: []
+        });
+        
+        // Get workspace path
+        const workspacePath = path.join(this.configDir, 'workspaces', key);
+        
+        // Start a fresh workspace session
+        const startSuccess = await this.startWorkspace(workspacePath, projectName, branch);
+        
+        if (startSuccess) {
+          // Emit a clear event so UI can update
+          this.emit('clear', {
+            workspace: key,
+            projectName,
+            branch
+          });
+        }
+        
+        return startSuccess;
+      } catch (error) {
+        safeError(`Failed to execute /clear for ${key}:`, error);
+        return false;
+      }
+    }
+    
+    // For other slash commands, pass them through to the SDK
+    // The SDK will handle them internally
+    return this.sendMessage(projectName, branch, command);
   }
 
   async stopAllWorkspaces(): Promise<void> {
@@ -410,7 +508,7 @@ export class ClaudeService extends EventEmitter {
     const results = await Promise.all(startPromises);
     const successCount = results.filter(r => r === true).length;
     
-    console.log(`Started ${successCount} out of ${startPromises.length} workspaces`);
+    safeLog(`Started ${successCount} out of ${startPromises.length} workspaces`);
   }
 }
 

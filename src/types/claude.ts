@@ -2,6 +2,7 @@ export interface UIMessage {
   id: string;
   type: 'user' | 'assistant' | 'system' | 'result';
   content: string;
+  contentDeltas?: string[];  // Raw delta array for streaming messages
   isStreaming?: boolean;
   isBreadcrumb?: boolean;
   metadata?: {

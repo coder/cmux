@@ -32,8 +32,17 @@ contextBridge.exposeInMainWorld('api', {
     listActive: () => ipcRenderer.invoke('claude:listActive'),
     sendMessage: (projectName: string, branch: string, message: string) =>
       ipcRenderer.invoke('claude:sendMessage', projectName, branch, message),
+    handleSlashCommand: (projectName: string, branch: string, command: string) =>
+      ipcRenderer.invoke('claude:handleSlashCommand', projectName, branch, command),
     onOutput: (callback: (data: any) => void) => {
       ipcRenderer.on('claude:output', (event, data) => callback(data));
+      // Return unsubscribe function
+      return () => ipcRenderer.removeAllListeners('claude:output');
+    },
+    onClear: (callback: (data: any) => void) => {
+      ipcRenderer.on('claude:clear', (event, data) => callback(data));
+      // Return unsubscribe function
+      return () => ipcRenderer.removeAllListeners('claude:clear');
     }
   }
 });

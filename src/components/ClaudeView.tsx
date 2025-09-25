@@ -8,6 +8,7 @@ import React, {
 import styled from "@emotion/styled";
 import { ClaudeMessage } from "./ClaudeMessage";
 import { Breadcrumb } from "./ClaudeMessage/Breadcrumb";
+import { CommandSuggestions, COMMAND_SUGGESTION_KEYS } from "./CommandSuggestions";
 import { UIMessage, StreamingContext } from "../types/claude";
 
 class StreamingMessageAggregator {
@@ -126,6 +127,7 @@ class StreamingMessageAggregator {
       id: messageId,
       type: "assistant",
       content: "",
+      contentDeltas: [],
       isStreaming: true,
       sequenceNumber: sdkMessage._sequenceNumber || this.sequenceCounter++,
       timestamp: Date.now(),
@@ -145,12 +147,13 @@ class StreamingMessageAggregator {
     const deltaText = sdkMessage.event.delta?.text || "";
     context.contentParts.push(deltaText);
 
-    // Update existing message in Map
+    // Update existing message in Map with raw deltas
     const existingMessage = this.uiMessages.get(context.messageId);
     if (existingMessage) {
       this.uiMessages.set(context.messageId, {
         ...existingMessage,
-        content: context.contentParts.join(""),
+        content: context.contentParts.join(""), // Keep for completed messages
+        contentDeltas: [...context.contentParts], // Pass raw deltas for TypewriterText
         isStreaming: true,
         metadata: { ...existingMessage.metadata, originalSDKMessage: sdkMessage },
       });
@@ -178,6 +181,14 @@ class StreamingMessageAggregator {
   }
 
   private handleAssistantMessage(sdkMessage: any): void {
+    // Use the UUID as the canonical ID for assistant messages
+    const messageId = sdkMessage.uuid || `assistant-${Date.now()}`;
+    
+    // Check if we already have this message (avoid duplicates)
+    if (this.uiMessages.has(messageId)) {
+      return; // Message already exists, skip
+    }
+    
     // Find active streaming context to replace
     const activeStreams = Array.from(this.activeStreams.values());
     
@@ -185,8 +196,12 @@ class StreamingMessageAggregator {
       // Replace most recent streaming message with final assistant content
       const context = activeStreams[activeStreams.length - 1];
       
+      // Delete the old streaming message
+      this.uiMessages.delete(context.messageId);
+      
+      // Add the final assistant message with its proper UUID
       const finalMessage: UIMessage = {
-        id: context.messageId,
+        id: messageId,
         type: "assistant",
         content: this.extractAssistantContent(sdkMessage),
         isStreaming: false,
@@ -195,12 +210,12 @@ class StreamingMessageAggregator {
         metadata: { originalSDKMessage: sdkMessage },
       };
       
-      this.uiMessages.set(context.messageId, finalMessage);
+      this.uiMessages.set(messageId, finalMessage);
       this.activeStreams.delete(context.streamingId);
     } else {
       // Standalone assistant message (no streaming context)
       const assistantMessage: UIMessage = {
-        id: sdkMessage.uuid || `assistant-${Date.now()}`,
+        id: messageId,
         type: "assistant",
         content: this.extractAssistantContent(sdkMessage),
         sequenceNumber: sdkMessage._sequenceNumber || this.sequenceCounter++,
@@ -208,7 +223,7 @@ class StreamingMessageAggregator {
         metadata: { originalSDKMessage: sdkMessage },
       };
       
-      this.uiMessages.set(assistantMessage.id, assistantMessage);
+      this.uiMessages.set(messageId, assistantMessage);
     }
   }
 
@@ -217,10 +232,19 @@ class StreamingMessageAggregator {
     if (sdkMessage.message?.content) {
       if (Array.isArray(sdkMessage.message.content)) {
         return sdkMessage.message.content
-          .map((c: any) => c.text || "")
+          .map((c: any) => {
+            if (typeof c === 'string') return c;
+            if (c.text) return c.text;
+            if (c.type === 'tool_use') return `[Tool: ${c.name || 'unknown'}]`;
+            return "";
+          })
           .join("");
       }
-      return sdkMessage.message.content;
+      if (typeof sdkMessage.message.content === 'string') {
+        return sdkMessage.message.content;
+      }
+      // If content is an object, stringify it
+      return JSON.stringify(sdkMessage.message.content);
     }
     return "(No content)";
   }
@@ -291,6 +315,7 @@ const OutputContent = styled.div`
 `;
 
 const InputSection = styled.div`
+  position: relative;
   padding: 15px;
   background: #252526;
   border-top: 1px solid #3e3e42;
@@ -381,6 +406,8 @@ export const ClaudeView: React.FC<ClaudeViewProps> = ({
   const [isActive, setIsActive] = useState(false);
   const [input, setInput] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const [availableCommands, setAvailableCommands] = useState<string[]>([]);
+  const [showCommandSuggestions, setShowCommandSuggestions] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const aggregatorRef = useRef<StreamingMessageAggregator>(
@@ -389,6 +416,11 @@ export const ClaudeView: React.FC<ClaudeViewProps> = ({
 
   // Process SDK message and trigger UI update
   const processSDKMessage = useCallback((sdkMessage: any) => {
+    // Extract commands from system/init messages
+    if (sdkMessage.type === 'system' && sdkMessage.subtype === 'init' && sdkMessage.slash_commands) {
+      setAvailableCommands(sdkMessage.slash_commands);
+    }
+    
     aggregatorRef.current.processSDKMessage(sdkMessage);
     // Force re-render by setting messages directly from aggregator
     setUIMessageMap(new Map(aggregatorRef.current.getAllMessages().map(msg => [msg.id, msg])));
@@ -443,7 +475,7 @@ export const ClaudeView: React.FC<ClaudeViewProps> = ({
     checkStatus();
 
     // Subscribe to output updates
-    const unsubscribe = window.api.claude.onOutput((data: any) => {
+    const unsubscribeOutput = window.api.claude.onOutput((data: any) => {
       if (data.projectName === projectName && data.branch === branch) {
         processSDKMessage(data.message);
 
@@ -456,16 +488,44 @@ export const ClaudeView: React.FC<ClaudeViewProps> = ({
       }
     });
 
+    // Subscribe to clear events
+    const unsubscribeClear = window.api.claude.onClear((data: any) => {
+      if (data.projectName === projectName && data.branch === branch) {
+        // Clear the UI when we receive a clear event
+        setUIMessageMap(new Map());
+        aggregatorRef.current.clear();
+      }
+    });
+
     // Poll status periodically
     const statusInterval = setInterval(checkStatus, 5000);
 
     return () => {
-      if (typeof unsubscribe === "function") {
-        unsubscribe();
+      if (typeof unsubscribeOutput === "function") {
+        unsubscribeOutput();
+      }
+      if (typeof unsubscribeClear === "function") {
+        unsubscribeClear();
       }
       clearInterval(statusInterval);
     };
   }, [projectName, branch, loadOutput, processSDKMessage]);
+
+  // Watch input for slash commands
+  useEffect(() => {
+    setShowCommandSuggestions(
+      input.startsWith('/') && 
+      availableCommands.length > 0 &&
+      isActive
+    );
+  }, [input, availableCommands, isActive]);
+
+  // Handle command selection
+  const handleCommandSelect = useCallback((command: string) => {
+    setInput(`/${command} `);
+    setShowCommandSuggestions(false);
+    inputRef.current?.focus();
+  }, []);
 
   const checkStatus = async () => {
     if (!projectName || !branch) return;
@@ -486,7 +546,36 @@ export const ClaudeView: React.FC<ClaudeViewProps> = ({
       const messageText = input.trim();
       setInput(""); // Clear input immediately for better UX
 
-      // Send message to Claude workspace
+      // Check if this is a slash command
+      if (messageText.startsWith('/')) {
+        const command = messageText.toLowerCase();
+        
+        // Handle /clear locally for immediate UI feedback
+        if (command === '/clear') {
+          // Clear UI immediately
+          setUIMessageMap(new Map());
+          aggregatorRef.current.clear();
+          
+          // Send clear command to backend
+          const success = await window.api.claude.handleSlashCommand(
+            projectName,
+            branch,
+            messageText
+          );
+          
+          if (!success) {
+            console.error("Failed to execute /clear command");
+            // Reload messages on error
+            loadOutput();
+          }
+          return;
+        }
+        
+        // For other slash commands, pass them through to the SDK
+        // The SDK will handle them internally
+      }
+
+      // Send message to Claude workspace (including slash commands)
       const success = await window.api.claude.sendMessage(
         projectName,
         branch,
@@ -511,6 +600,11 @@ export const ClaudeView: React.FC<ClaudeViewProps> = ({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // Don't handle keys if command suggestions are visible
+    if (showCommandSuggestions && COMMAND_SUGGESTION_KEYS.includes(e.key)) {
+      return; // Let CommandSuggestions handle it
+    }
+    
     if (e.key === "Enter") {
       if (e.shiftKey) {
         // Shift+Enter: allow newline (default behavior)
@@ -554,7 +648,7 @@ export const ClaudeView: React.FC<ClaudeViewProps> = ({
             <p>Send a message below to start interacting with Claude</p>
           </EmptyState>
         ) : (
-          messages.map((msg, index) => 
+          messages.map((msg) => 
             msg.isBreadcrumb ? (
               <Breadcrumb key={msg.id} message={msg} />
             ) : (
@@ -565,6 +659,13 @@ export const ClaudeView: React.FC<ClaudeViewProps> = ({
       </OutputContent>
 
       <InputSection>
+        <CommandSuggestions
+          input={input}
+          availableCommands={availableCommands}
+          onSelectCommand={handleCommandSelect}
+          onDismiss={() => setShowCommandSuggestions(false)}
+          isVisible={showCommandSuggestions}
+        />
         <InputField
           ref={inputRef}
           value={input}

@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import styled from '@emotion/styled';
-import { css } from '@emotion/react';
+import React, { useState, useEffect } from "react";
+import styled from "@emotion/styled";
+import { css } from "@emotion/react";
 
 // Styled Components
 const SidebarContainer = styled.div`
@@ -11,7 +11,8 @@ const SidebarContainer = styled.div`
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Segoe UI Variable', system-ui, Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
+    "Segoe UI Variable", system-ui, Roboto, "Helvetica Neue", Arial, sans-serif;
 `;
 
 const SidebarHeader = styled.div`
@@ -20,7 +21,7 @@ const SidebarHeader = styled.div`
   align-items: center;
   padding: 16px;
   border-bottom: 1px solid #1e1e1e;
-  
+
   h2 {
     margin: 0;
     font-size: 13px;
@@ -45,7 +46,7 @@ const AddProjectBtn = styled.button`
   justify-content: center;
   padding: 0;
   transition: all 0.2s;
-  
+
   &:hover {
     background: #2a2a2b;
     border-color: #3c3c3c;
@@ -55,20 +56,20 @@ const AddProjectBtn = styled.button`
 const ProjectsList = styled.div`
   flex: 1;
   overflow-y: auto;
-  
+
   &::-webkit-scrollbar {
     width: 8px;
   }
-  
+
   &::-webkit-scrollbar-track {
     background: transparent;
   }
-  
+
   &::-webkit-scrollbar-thumb {
     background: #424242;
     border-radius: 4px;
   }
-  
+
   &::-webkit-scrollbar-thumb:hover {
     background: #4e4e4e;
   }
@@ -77,7 +78,7 @@ const ProjectsList = styled.div`
 const EmptyState = styled.div`
   padding: 32px 16px;
   text-align: center;
-  
+
   p {
     color: #888;
     font-size: 13px;
@@ -94,7 +95,7 @@ const AddFirstProjectBtn = styled.button`
   font-size: 13px;
   cursor: pointer;
   transition: background 0.2s;
-  
+
   &:hover {
     background: #005a9e;
   }
@@ -111,15 +112,17 @@ const ProjectItem = styled.div<{ selected?: boolean }>`
   align-items: center;
   border-left: 3px solid transparent;
   transition: all 0.15s;
-  
-  ${props => props.selected && css`
-    background: #2a2a2b;
-    border-left-color: #007acc;
-  `}
-  
+
+  ${(props) =>
+    props.selected &&
+    css`
+      background: #2a2a2b;
+      border-left-color: #007acc;
+    `}
+
   &:hover {
     background: #2a2a2b;
-    
+
     button {
       opacity: 1;
     }
@@ -132,10 +135,12 @@ const ExpandIcon = styled.span<{ expanded?: boolean }>`
   margin-right: 8px;
   transition: transform 0.2s;
   flex-shrink: 0;
-  
-  ${props => props.expanded && css`
-    transform: rotate(90deg);
-  `}
+
+  ${(props) =>
+    props.expanded &&
+    css`
+      transform: rotate(90deg);
+    `}
 `;
 
 const ProjectInfo = styled.div`
@@ -161,7 +166,8 @@ const ProjectPath = styled.div`
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+  font-family: "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas,
+    "Courier New", monospace;
 `;
 
 const RemoveBtn = styled.button`
@@ -179,7 +185,7 @@ const RemoveBtn = styled.button`
   transition: all 0.2s;
   opacity: 0;
   flex-shrink: 0;
-  
+
   &:hover {
     color: #ff5555;
     background: rgba(255, 85, 85, 0.1);
@@ -189,7 +195,7 @@ const RemoveBtn = styled.button`
 const WorkspacesContainer = styled.div`
   background: #1a1a1a;
   border-left: 1px solid #2a2a2b;
-  margin-left: 20px;
+  margin-left: 10px;
 `;
 
 const WorkspaceHeader = styled.div`
@@ -208,7 +214,7 @@ const AddWorkspaceBtn = styled.button`
   font-size: 13px;
   transition: all 0.2s;
   text-align: left;
-  
+
   &:hover {
     background: #2a2a2b;
     border-color: #555;
@@ -220,7 +226,7 @@ const StatusIndicator = styled.div<{ active?: boolean }>`
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: ${props => props.active ? '#50fa7b' : '#6e6e6e'};
+  background: ${(props) => (props.active ? "#50fa7b" : "#6e6e6e")};
   margin-right: 8px;
   flex-shrink: 0;
 `;
@@ -246,12 +252,12 @@ const ActionBtn = styled.button`
   align-items: center;
   justify-content: center;
   transition: all 0.2s;
-  
+
   &:hover {
     background: rgba(255, 255, 255, 0.1);
     color: #cccccc;
   }
-  
+
   &.terminate:hover {
     color: #ff5555;
     background: rgba(255, 85, 85, 0.1);
@@ -266,19 +272,21 @@ const WorkspaceItem = styled.div<{ selected?: boolean }>`
   border-left: 3px solid transparent;
   transition: all 0.15s;
   font-size: 13px;
-  
-  ${props => props.selected && css`
-    background: #2a2a2b;
-    border-left-color: #569cd6;
-  `}
-  
+
+  ${(props) =>
+    props.selected &&
+    css`
+      background: #2a2a2b;
+      border-left-color: #569cd6;
+    `}
+
   &:hover {
     background: #2a2a2b;
-    
+
     button {
       opacity: 1;
     }
-    
+
     .workspace-actions {
       opacity: 1;
     }
@@ -329,16 +337,20 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
   onAddProject,
   onAddWorkspace,
   onRemoveProject,
-  onRemoveWorkspace
+  onRemoveWorkspace,
 }) => {
-  const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
-  const [claudeStatuses, setClaudeStatuses] = useState<Map<string, boolean>>(new Map());
+  const [expandedProjects, setExpandedProjects] = useState<Set<string>>(
+    new Set()
+  );
+  const [claudeStatuses, setClaudeStatuses] = useState<Map<string, boolean>>(
+    new Map()
+  );
 
   const getProjectName = (path: string) => {
-    if (!path || typeof path !== 'string') {
-      return 'Unknown';
+    if (!path || typeof path !== "string") {
+      return "Unknown";
     }
-    return path.split('/').pop() || path.split('\\').pop() || path;
+    return path.split("/").pop() || path.split("\\").pop() || path;
   };
 
   const toggleProject = (projectPath: string) => {
@@ -350,61 +362,77 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
     }
     setExpandedProjects(newExpanded);
   };
-  
+
   // Check Claude status for all workspaces
   useEffect(() => {
     const checkStatuses = async () => {
       const statuses = new Map<string, boolean>();
-      
+
       for (const [projectPath, config] of projects.entries()) {
         const projectName = getProjectName(projectPath);
         for (const workspace of config.workspaces) {
           const key = `${projectName}-${workspace.branch}`;
-          const isActive = await window.api.claude.isActive(projectName, workspace.branch);
+          const isActive = await window.api.claude.isActive(
+            projectName,
+            workspace.branch
+          );
           statuses.set(key, isActive);
         }
       }
-      
+
       setClaudeStatuses(statuses);
     };
-    
+
     checkStatuses();
     // Check every 5 seconds
     const interval = setInterval(checkStatuses, 5000);
-    
+
     return () => clearInterval(interval);
   }, [projects]);
-  
-  const handleLaunchClaude = async (e: React.MouseEvent, workspacePath: string, projectPath: string, branch: string) => {
+
+  const handleLaunchClaude = async (
+    e: React.MouseEvent,
+    workspacePath: string,
+    projectPath: string,
+    branch: string
+  ) => {
     e.stopPropagation();
     const projectName = getProjectName(projectPath);
-    
+
     try {
-      const result = await window.api.claude.start(workspacePath, projectName, branch);
-      
+      const result = await window.api.claude.start(
+        workspacePath,
+        projectName,
+        branch
+      );
+
       if (!result) {
         alert(`Failed to start Claude Code for this workspace`);
       }
-      
+
       // Refresh status
       const key = `${projectName}-${branch}`;
-      setClaudeStatuses(prev => new Map(prev).set(key, true));
+      setClaudeStatuses((prev) => new Map(prev).set(key, true));
     } catch (error: any) {
       alert(`Error launching Claude Code: ${error.message}`);
     }
   };
-  
-  const handleTerminateClaude = async (e: React.MouseEvent, projectPath: string, branch: string) => {
+
+  const handleTerminateClaude = async (
+    e: React.MouseEvent,
+    projectPath: string,
+    branch: string
+  ) => {
     e.stopPropagation();
     const projectName = getProjectName(projectPath);
-    
+
     if (confirm(`Terminate Claude Code for ${projectName}/${branch}?`)) {
       const terminated = await window.api.claude.stop(projectName, branch);
       if (terminated) {
         const key = `${projectName}-${branch}`;
-        setClaudeStatuses(prev => new Map(prev).set(key, false));
+        setClaudeStatuses((prev) => new Map(prev).set(key, false));
       } else {
-        alert('Failed to terminate Claude Code');
+        alert("Failed to terminate Claude Code");
       }
     }
   };
@@ -452,7 +480,7 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                   ×
                 </RemoveBtn>
               </ProjectItem>
-              
+
               {expandedProjects.has(projectPath) && (
                 <WorkspacesContainer>
                   <WorkspaceHeader>
@@ -466,20 +494,34 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                     const projectName = getProjectName(projectPath);
                     const key = `${projectName}-${workspace.branch}`;
                     const isActive = claudeStatuses.get(key) || false;
-                    
+
                     return (
                       <WorkspaceItem
                         key={workspace.path}
                         selected={selectedWorkspace === workspace.path}
                         onClick={() => onSelectWorkspace(workspace.path)}
                       >
-                        <StatusIndicator active={isActive} title={isActive ? 'Claude Code running' : 'Claude Code not running'} />
+                        <StatusIndicator
+                          active={isActive}
+                          title={
+                            isActive
+                              ? "Claude Code running"
+                              : "Claude Code not running"
+                          }
+                        />
                         <BranchIcon>⎇</BranchIcon>
                         <WorkspaceName>{workspace.branch}</WorkspaceName>
                         <WorkspaceActions className="workspace-actions">
                           {!isActive ? (
                             <ActionBtn
-                              onClick={(e) => handleLaunchClaude(e, workspace.path, projectPath, workspace.branch)}
+                              onClick={(e) =>
+                                handleLaunchClaude(
+                                  e,
+                                  workspace.path,
+                                  projectPath,
+                                  workspace.branch
+                                )
+                              }
                               title="Launch Claude Code"
                             >
                               ▶
@@ -487,7 +529,13 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                           ) : (
                             <ActionBtn
                               className="terminate"
-                              onClick={(e) => handleTerminateClaude(e, projectPath, workspace.branch)}
+                              onClick={(e) =>
+                                handleTerminateClaude(
+                                  e,
+                                  projectPath,
+                                  workspace.branch
+                                )
+                              }
                               title="Terminate Claude Code"
                             >
                               ■

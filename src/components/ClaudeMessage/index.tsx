@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import styled from "@emotion/styled";
 import { UIMessage } from "../../types/claude";
+import { TypewriterText } from "./TypewriterText";
 
 const MessageBlock = styled.div<{ type: string; isError?: boolean }>`
   margin-bottom: 15px;
@@ -112,21 +113,6 @@ const PartialIndicator = styled.div`
   font-style: italic;
 `;
 
-const StreamingCursor = styled.span`
-  color: #4ec9b0;
-  animation: blink 1s infinite;
-
-  @keyframes blink {
-    0%,
-    50% {
-      opacity: 1;
-    }
-    51%,
-    100% {
-      opacity: 0;
-    }
-  }
-`;
 
 interface ClaudeMessageProps {
   message: UIMessage;
@@ -171,10 +157,21 @@ export const ClaudeMessage: React.FC<ClaudeMessageProps> = ({
             )}
           </JsonContent>
         ) : (
-          <FormattedContent>
-            {message.content}
-            {isStreaming && <StreamingCursor>▋</StreamingCursor>}
-          </FormattedContent>
+          <>
+            {isStreaming && message.contentDeltas ? (
+              <TypewriterText 
+                deltas={message.contentDeltas} 
+                isComplete={!isStreaming}
+                speed={50}
+              />
+            ) : (
+              <FormattedContent>
+                {typeof message.content === 'string' 
+                  ? message.content 
+                  : JSON.stringify(message.content, null, 2)}
+              </FormattedContent>
+            )}
+          </>
         )}
       </MessageContent>
     </MessageBlock>

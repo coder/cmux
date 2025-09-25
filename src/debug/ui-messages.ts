@@ -198,7 +198,7 @@ class StreamingMessageAggregator {
   }
 }
 
-export async function uiMessagesCommand(workspaceKey?: string) {
+export async function uiMessagesCommand(workspaceKey?: string, dropLast: number = 0) {
   if (!workspaceKey) {
     console.error('Error: --workspace required');
     process.exit(1);
@@ -209,10 +209,15 @@ export async function uiMessagesCommand(workspaceKey?: string) {
     const workspaceFile = join(homedir(), '.cmux', 'workspaces', workspaceKey, 'session.json');
     const data = JSON.parse(await readFile(workspaceFile, 'utf-8'));
     
+    // Drop last N messages if requested
+    const messagesToProcess = dropLast > 0 
+      ? data.history.slice(0, -dropLast)
+      : data.history;
+    
     // Process through same aggregator as UI
     const aggregator = new StreamingMessageAggregator();
     
-    data.history.forEach((sdkMsg: any) => {
+    messagesToProcess.forEach((sdkMsg: any) => {
       aggregator.processSDKMessage(sdkMsg);
     });
     
@@ -221,6 +226,9 @@ export async function uiMessagesCommand(workspaceKey?: string) {
     // Display clean summary
     console.log(`\nUI Messages for workspace: ${workspaceKey}`);
     console.log(`Total SDK messages: ${data.history.length}`);
+    if (dropLast > 0) {
+      console.log(`Processed SDK messages: ${messagesToProcess.length} (dropped last ${dropLast})`);
+    }
     console.log(`Total UI messages: ${uiMessages.length}`);
     console.log('---\n');
     

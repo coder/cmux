@@ -118,7 +118,10 @@ export const Breadcrumb: React.FC<BreadcrumbProps> = ({ message, className }) =>
         const durationStr = duration ? ` • ${formatDuration(duration)}` : '';
         return `Completed${costStr}${durationStr}`;
       default:
-        return message.content.slice(0, 50);
+        const content = typeof message.content === 'string' 
+          ? message.content 
+          : JSON.stringify(message.content);
+        return content.slice(0, 50);
     }
   };
   

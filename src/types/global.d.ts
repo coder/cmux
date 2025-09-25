@@ -25,7 +25,9 @@ declare global {
         getOutput: (projectName: string, branch: string) => Promise<any[]>;
         listActive: () => Promise<Array<{ projectName: string; branch: string }>>;
         sendMessage: (projectName: string, branch: string, message: string) => Promise<boolean>;
+        handleSlashCommand: (projectName: string, branch: string, command: string) => Promise<boolean>;
         onOutput: (callback: (data: any) => void) => () => void;
+        onClear: (callback: (data: any) => void) => () => void;
       };
     };
   }

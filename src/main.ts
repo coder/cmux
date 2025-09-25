@@ -1,25 +1,25 @@
-import { app, BrowserWindow, ipcMain, dialog, Menu } from 'electron';
-import * as path from 'path';
-import { load_config_or_default, save_config, Config } from './config';
-import { createWorktree, removeWorktree } from './git';
-import claudeService from './services/claudeService';
+import { app, BrowserWindow, ipcMain, dialog, Menu } from "electron";
+import * as path from "path";
+import { load_config_or_default, save_config, Config } from "./config";
+import { createWorktree, removeWorktree } from "./git";
+import claudeService from "./services/claudeService";
 
-console.log('Main process starting...');
+console.log("Main process starting...");
 
 // Single instance lock
 const gotTheLock = app.requestSingleInstanceLock();
-console.log('Single instance lock acquired:', gotTheLock);
+console.log("Single instance lock acquired:", gotTheLock);
 
 if (!gotTheLock) {
   // Another instance is already running, quit this one
-  console.log('Another instance is already running, quitting...');
+  console.log("Another instance is already running, quitting...");
   app.quit();
 } else {
   // This is the primary instance
-  console.log('This is the primary instance');
-  app.on('second-instance', (event, commandLine, workingDirectory) => {
+  console.log("This is the primary instance");
+  app.on("second-instance", (event, commandLine, workingDirectory) => {
     // Someone tried to run a second instance, focus our window instead
-    console.log('Second instance attempted to start');
+    console.log("Second instance attempted to start");
     if (mainWindow) {
       if (mainWindow.isMinimized()) mainWindow.restore();
       mainWindow.focus();
@@ -30,127 +30,160 @@ if (!gotTheLock) {
 let mainWindow: BrowserWindow | null = null;
 
 // Register IPC handlers before creating window
-ipcMain.handle('config:load', async () => {
+ipcMain.handle("config:load", async () => {
   const config = load_config_or_default();
   return {
-    projects: Array.from(config.projects.entries())
+    projects: Array.from(config.projects.entries()),
   };
 });
 
-ipcMain.handle('config:save', async (event, configData: any) => {
+ipcMain.handle("config:save", async (event, configData: any) => {
   const config: Config = {
-    projects: new Map(configData.projects)
+    projects: new Map(configData.projects),
   };
   save_config(config);
   return true;
 });
 
-ipcMain.handle('dialog:selectDirectory', async () => {
+ipcMain.handle("dialog:selectDirectory", async () => {
   if (!mainWindow) return null;
-  
+
   const result = await dialog.showOpenDialog(mainWindow, {
-    properties: ['openDirectory']
+    properties: ["openDirectory"],
   });
-  
+
   if (result.canceled) {
     return null;
   }
-  
+
   return result.filePaths[0];
 });
 
-ipcMain.handle('git:createWorktree', async (event, projectPath: string, branchName: string) => {
-  return await createWorktree(projectPath, branchName);
-});
+ipcMain.handle(
+  "git:createWorktree",
+  async (event, projectPath: string, branchName: string) => {
+    return await createWorktree(projectPath, branchName);
+  }
+);
 
-ipcMain.handle('git:removeWorktree', async (event, workspacePath: string) => {
+ipcMain.handle("git:removeWorktree", async (event, workspacePath: string) => {
   return await removeWorktree(workspacePath);
 });
 
 // Claude Code management handlers using SDK
-ipcMain.handle('claude:start', async (event, workspacePath: string, projectName: string, branch: string) => {
-  return await claudeService.startWorkspace(workspacePath, projectName, branch);
-});
+ipcMain.handle(
+  "claude:start",
+  async (event, workspacePath: string, projectName: string, branch: string) => {
+    return await claudeService.startWorkspace(
+      workspacePath,
+      projectName,
+      branch
+    );
+  }
+);
 
-ipcMain.handle('claude:stop', async (event, projectName: string, branch: string) => {
-  await claudeService.stopWorkspace(projectName, branch);
-  return true;
-});
+ipcMain.handle(
+  "claude:stop",
+  async (event, projectName: string, branch: string) => {
+    await claudeService.stopWorkspace(projectName, branch);
+    return true;
+  }
+);
 
-ipcMain.handle('claude:isActive', async (event, projectName: string, branch: string) => {
-  return claudeService.isWorkspaceActive(projectName, branch);
-});
+ipcMain.handle(
+  "claude:isActive",
+  async (event, projectName: string, branch: string) => {
+    return claudeService.isWorkspaceActive(projectName, branch);
+  }
+);
 
-ipcMain.handle('claude:getOutput', async (event, projectName: string, branch: string) => {
-  return claudeService.getWorkspaceOutput(projectName, branch);
-});
+ipcMain.handle(
+  "claude:getOutput",
+  async (event, projectName: string, branch: string) => {
+    return claudeService.getWorkspaceOutput(projectName, branch);
+  }
+);
 
-ipcMain.handle('claude:listActive', async () => {
+ipcMain.handle("claude:listActive", async () => {
   return claudeService.getActiveWorkspaces();
 });
 
-ipcMain.handle('claude:sendMessage', async (event, projectName: string, branch: string, message: string) => {
-  return await claudeService.sendMessage(projectName, branch, message);
-});
+ipcMain.handle(
+  "claude:sendMessage",
+  async (event, projectName: string, branch: string, message: string) => {
+    return await claudeService.sendMessage(projectName, branch, message);
+  }
+);
+
+ipcMain.handle(
+  "claude:handleSlashCommand",
+  async (event, projectName: string, branch: string, command: string) => {
+    return await claudeService.handleSlashCommand(projectName, branch, command);
+  }
+);
 
 // Listen for output events and forward to renderer
-claudeService.on('output', (data) => {
+claudeService.on("output", (data) => {
   if (mainWindow) {
-    mainWindow.webContents.send('claude:output', data);
+    mainWindow.webContents.send("claude:output", data);
+  }
+});
+
+// Listen for clear events and forward to renderer
+claudeService.on("clear", (data) => {
+  if (mainWindow) {
+    mainWindow.webContents.send("claude:clear", data);
   }
 });
 
 function createMenu() {
   const template: any[] = [
     {
-      label: 'Edit',
+      label: "Edit",
       submenu: [
-        { role: 'undo' },
-        { role: 'redo' },
-        { type: 'separator' },
-        { role: 'cut' },
-        { role: 'copy' },
-        { role: 'paste' },
-        { role: 'selectAll' }
-      ]
+        { role: "undo" },
+        { role: "redo" },
+        { type: "separator" },
+        { role: "cut" },
+        { role: "copy" },
+        { role: "paste" },
+        { role: "selectAll" },
+      ],
     },
     {
-      label: 'View',
+      label: "View",
       submenu: [
-        { role: 'reload' },
-        { role: 'forceReload' },
-        { role: 'toggleDevTools' },
-        { type: 'separator' },
-        { role: 'resetZoom' },
-        { role: 'zoomIn' },
-        { role: 'zoomOut' },
-        { type: 'separator' },
-        { role: 'togglefullscreen' }
-      ]
+        { role: "reload" },
+        { role: "forceReload" },
+        { role: "toggleDevTools" },
+        { type: "separator" },
+        { role: "resetZoom" },
+        { role: "zoomIn" },
+        { role: "zoomOut" },
+        { type: "separator" },
+        { role: "togglefullscreen" },
+      ],
     },
     {
-      label: 'Window',
-      submenu: [
-        { role: 'minimize' },
-        { role: 'close' }
-      ]
-    }
+      label: "Window",
+      submenu: [{ role: "minimize" }, { role: "close" }],
+    },
   ];
 
-  if (process.platform === 'darwin') {
+  if (process.platform === "darwin") {
     template.unshift({
       label: app.getName(),
       submenu: [
-        { role: 'about' },
-        { type: 'separator' },
-        { role: 'services', submenu: [] },
-        { type: 'separator' },
-        { role: 'hide' },
-        { role: 'hideOthers' },
-        { role: 'unhide' },
-        { type: 'separator' },
-        { role: 'quit' }
-      ]
+        { role: "about" },
+        { type: "separator" },
+        { role: "services", submenu: [] },
+        { type: "separator" },
+        { role: "hide" },
+        { role: "hideOthers" },
+        { role: "unhide" },
+        { type: "separator" },
+        { role: "quit" },
+      ],
     });
   }
 
@@ -165,20 +198,20 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: path.join(__dirname, 'preload.js')
+      preload: path.join(__dirname, "preload.js"),
     },
-    title: 'Cmux - Coding Agent Multiplexer'
+    title: "cmux - coder multiplexer",
   });
 
   // Always load from dev server for now
-  mainWindow.loadURL('http://localhost:5173');
-  
+  mainWindow.loadURL("http://localhost:5173");
+
   // Open DevTools in development
-  if (process.env.NODE_ENV !== 'production') {
+  if (process.env.NODE_ENV !== "production") {
     mainWindow.webContents.openDevTools();
   }
 
-  mainWindow.on('closed', () => {
+  mainWindow.on("closed", () => {
     mainWindow = null;
   });
 }
@@ -186,38 +219,38 @@ function createWindow() {
 // Only setup app handlers if we got the lock
 if (gotTheLock) {
   app.whenReady().then(async () => {
-    console.log('App ready, creating window...');
+    console.log("App ready, creating window...");
     createMenu();
     createWindow();
-    
+
     // Auto-start all workspaces after window is ready
     try {
-      console.log('Auto-starting workspaces...');
+      console.log("Auto-starting workspaces...");
       const config = load_config_or_default();
       await claudeService.autoStartAllWorkspaces(config.projects);
-      console.log('Workspaces auto-start complete');
+      console.log("Workspaces auto-start complete");
     } catch (error) {
-      console.error('Failed to auto-start workspaces:', error);
+      console.error("Failed to auto-start workspaces:", error);
     }
   });
 
-  app.on('window-all-closed', async () => {
+  app.on("window-all-closed", async () => {
     // Stop all workspaces before quitting
     await claudeService.stopAllWorkspaces();
-    
-    if (process.platform !== 'darwin') {
+
+    if (process.platform !== "darwin") {
       app.quit();
     }
   });
 
-  app.on('activate', () => {
+  app.on("activate", () => {
     if (mainWindow === null) {
       createWindow();
     }
   });
-  
+
   // Clean shutdown on app quit
-  app.on('before-quit', async () => {
+  app.on("before-quit", async () => {
     await claudeService.stopAllWorkspaces();
   });
 }

@@ -4,6 +4,7 @@ import { Global, css } from "@emotion/react";
 import ProjectSidebar, { ProjectConfig } from "./components/ProjectSidebar";
 import NewWorkspaceModal from "./components/NewWorkspaceModal";
 import { ClaudeView } from "./components/ClaudeView";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 
 // Global Styles with nice fonts
 const globalStyles = css`
@@ -266,7 +267,9 @@ function App() {
                   const projectName = pathParts[cmuxIndex + 1];
                   const branch = pathParts[cmuxIndex + 2];
                   return (
-                    <ClaudeView projectName={projectName} branch={branch} />
+                    <ErrorBoundary workspaceInfo={`${projectName}/${branch}`}>
+                      <ClaudeView projectName={projectName} branch={branch} />
+                    </ErrorBoundary>
                   );
                 }
                 return (
