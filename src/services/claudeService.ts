@@ -137,6 +137,17 @@ interface ActiveQuery {
   messageQueue: MessageQueue;
   sessionId: string;
   permissionMode: UIPermissionMode;
+  sequenceCounter: number;  // Track next sequence number for messages
+}
+
+// Message type that guarantees cmuxMeta is present
+interface MessageWithCmuxMeta extends SDKMessage {
+  metadata: {
+    cmuxMeta: {
+      permissionMode: UIPermissionMode;
+      sequenceNumber: number;
+    };
+  };
 }
 
 export class ClaudeService extends EventEmitter {
@@ -190,6 +201,7 @@ export class ClaudeService extends EventEmitter {
     projectName?: string;
     branch?: string;
     workspacePath?: string;
+    nextSequenceNumber?: number;
   }> {
     try {
       const metadataFile = this.getMetadataFile(workspaceId);
@@ -201,23 +213,48 @@ export class ClaudeService extends EventEmitter {
     }
   }
 
-  private async saveMetadata(
+  private async updateMetadata(
     workspaceId: string,
-    metadata: {
+    updater: (metadata: {
       sessionId: string;
       permissionMode?: UIPermissionMode;
       projectName?: string;
       branch?: string;
       workspacePath?: string;
-    }
+      nextSequenceNumber?: number;
+    }) => void
   ): Promise<void> {
     try {
+      // Load existing metadata or create default
+      let metadata: {
+        sessionId: string;
+        permissionMode?: UIPermissionMode;
+        projectName?: string;
+        branch?: string;
+        workspacePath?: string;
+        nextSequenceNumber?: number;
+      };
+      
+      try {
+        metadata = await this.loadMetadata(workspaceId);
+      } catch {
+        // If metadata doesn't exist, start with minimal defaults
+        metadata = {
+          sessionId: crypto.randomUUID(),
+          permissionMode: 'plan'
+        };
+      }
+      
+      // Apply the update
+      updater(metadata);
+      
+      // Save the updated metadata
       const metadataFile = this.getMetadataFile(workspaceId);
       const dir = path.dirname(metadataFile);
       await fs.mkdir(dir, { recursive: true });
       await fs.writeFile(metadataFile, JSON.stringify(metadata, null, 2));
     } catch (error) {
-      safeError(`Failed to save metadata for ${workspaceId}:`, error);
+      safeError(`Failed to update metadata for ${workspaceId}:`, error);
     }
   }
 
@@ -228,18 +265,20 @@ export class ClaudeService extends EventEmitter {
     branch: string,
     workspacePath: string
   ): Promise<void> {
-    await this.saveMetadata(workspaceId, {
-      sessionId: crypto.randomUUID(),
-      permissionMode: 'plan',
-      projectName,
-      branch,
-      workspacePath
+    await this.updateMetadata(workspaceId, (metadata) => {
+      // Set all required fields for a new workspace
+      metadata.sessionId = crypto.randomUUID();
+      metadata.permissionMode = 'plan';
+      metadata.projectName = projectName;
+      metadata.branch = branch;
+      metadata.workspacePath = workspacePath;
+      metadata.nextSequenceNumber = 0;  // Start sequence numbering at 0
     });
   }
 
   private async appendMessage(
     workspaceId: string,
-    message: SDKMessage
+    message: MessageWithCmuxMeta
   ): Promise<void> {
     try {
       const historyFile = this.getHistoryFile(workspaceId);
@@ -311,16 +350,31 @@ export class ClaudeService extends EventEmitter {
       throw new Error("Claude Code SDK not loaded");
     }
 
+    // CRITICAL: Check again after await - another call might have created it
+    activeQuery = this.queries.get(workspaceId);
+    if (activeQuery) {
+      return activeQuery;
+    }
+
     // Load complete metadata (includes workspacePath)
     const metadata = await this.loadMetadata(workspaceId);
     if (!metadata.workspacePath) {
       throw new Error(`Workspace ${workspaceId} not properly initialized - missing workspacePath`);
     }
     
+    // Check once more after loading metadata
+    activeQuery = this.queries.get(workspaceId);
+    if (activeQuery) {
+      return activeQuery;
+    }
+    
     const permissionMode = metadata.permissionMode ?? 'plan';
     
     // Load recent history for SDK resume
     const recentHistory = await this.loadRecentHistory(workspaceId, 100);
+    
+    // Use persisted sequence number from metadata (or 0 if not set)
+    const startingSequence = metadata.nextSequenceNumber ?? 0;
 
     // Create message queue for streaming input
     const messageQueue = new MessageQueue();
@@ -349,6 +403,7 @@ export class ClaudeService extends EventEmitter {
       messageQueue,
       sessionId: metadata.sessionId,
       permissionMode,
+      sequenceCounter: startingSequence,  // Continue from last message
     };
 
     this.queries.set(workspaceId, activeQuery);
@@ -362,16 +417,33 @@ export class ClaudeService extends EventEmitter {
 
   private async streamOutput(workspaceId: string, activeQuery: ActiveQuery): Promise<void> {
     try {
-      let sequenceNumber = 0;
       for await (const message of activeQuery.query) {
-        // Add sequence number for ordering
-        const messageWithSequence = {
+        // Get next sequence number and increment counter
+        const sequenceNumber = activeQuery.sequenceCounter++;
+        
+        // Add sequence number and cmuxMeta for ordering and permission tracking
+        const messageWithMetadata: MessageWithCmuxMeta = {
           ...message,
-          _sequenceNumber: sequenceNumber++,
+          // Keep SDK's _sequenceNumber unchanged
+          metadata: {
+            ...message.metadata,
+            cmuxMeta: {
+              permissionMode: activeQuery.permissionMode,
+              sequenceNumber: sequenceNumber
+            }
+          }
         };
 
         // Append to NDJSON file
-        await this.appendMessage(workspaceId, messageWithSequence);
+        await this.appendMessage(workspaceId, messageWithMetadata);
+        
+        // CRITICAL: Always persist the updated sequence counter
+        // The metadata file is small and writes are cheap.
+        // This ensures we NEVER lose sequence numbers, even on crashes.
+        // Without this, concurrent operations could duplicate sequences.
+        await this.updateMetadata(workspaceId, (metadata) => {
+          metadata.nextSequenceNumber = activeQuery.sequenceCounter;
+        });
 
         // If this is the first system/init message, use Claude's session ID for future resumes
         if (
@@ -385,12 +457,10 @@ export class ClaudeService extends EventEmitter {
             message.session_id
           );
           
-          // Update metadata with new session ID (preserving all existing fields)
-          const metadata = await this.loadMetadata(workspaceId);
-          await this.saveMetadata(workspaceId, {
-            ...metadata,
-            sessionId: activeQuery.sessionId,
-            permissionMode: activeQuery.permissionMode,
+          // Update metadata with new session ID
+          await this.updateMetadata(workspaceId, (metadata) => {
+            metadata.sessionId = activeQuery.sessionId;
+            metadata.permissionMode = activeQuery.permissionMode;
           });
         }
 
@@ -405,11 +475,26 @@ export class ClaudeService extends EventEmitter {
 
         // Emit output event on workspace-specific channel
         this.emit("workspace-output", workspaceId, {
-          message: messageWithSequence
+          message: messageWithMetadata
         });
       }
+      
+      // Always persist the final sequence counter when stream ends
+      await this.updateMetadata(workspaceId, (metadata) => {
+        metadata.nextSequenceNumber = activeQuery.sequenceCounter;
+      });
     } catch (error) {
       safeError(`Error streaming output for ${workspaceId}:`, error);
+      
+      // Try to persist the current sequence counter even on error
+      try {
+        await this.updateMetadata(workspaceId, (metadata) => {
+          metadata.nextSequenceNumber = activeQuery.sequenceCounter;
+        });
+      } catch {
+        // Ignore metadata update errors during error handling
+      }
+      
       // Remove the query on error
       this.queries.delete(workspaceId);
     }
@@ -422,13 +507,12 @@ export class ClaudeService extends EventEmitter {
     try {
       // Get or create query for this workspace
       const activeQuery = await this.getOrCreateQuery(workspaceId);
+      
+      // Get next sequence number and increment counter
+      const sequenceNumber = activeQuery.sequenceCounter++;
 
-      // Get next sequence number from history
-      const history = await this.loadRecentHistory(workspaceId, 1);
-      const sequenceNumber = history.length;
-
-      // Create SDK user message
-      const userMessage = {
+      // Create SDK user message with cmuxMeta
+      const userMessage: MessageWithCmuxMeta = {
         type: "user",
         session_id: activeQuery.sessionId,
         message: {
@@ -437,15 +521,27 @@ export class ClaudeService extends EventEmitter {
         },
         parent_tool_use_id: null,
         uuid: `user-${Date.now()}-${Math.random()}`,
-        _sequenceNumber: sequenceNumber,
+        // Don't set _sequenceNumber - let SDK handle it
         timestamp: Date.now(),
+        metadata: {
+          cmuxMeta: {
+            permissionMode: activeQuery.permissionMode,
+            sequenceNumber: sequenceNumber
+          }
+        }
       };
 
-      // Send message through the queue
-      activeQuery.messageQueue.sendMessage(userMessage);
+      // Send message through the queue (without metadata for SDK)
+      const { metadata, ...sdkMessage } = userMessage;
+      activeQuery.messageQueue.sendMessage(sdkMessage);
 
-      // Append to NDJSON history
+      // Append to NDJSON history (with metadata)
       await this.appendMessage(workspaceId, userMessage);
+      
+      // Persist the updated sequence counter for user messages
+      await this.updateMetadata(workspaceId, (metadata) => {
+        metadata.nextSequenceNumber = activeQuery.sequenceCounter;
+      });
 
       // Emit the user message locally so it appears in UI immediately
       this.emit("workspace-output", workspaceId, {
@@ -486,13 +582,10 @@ export class ClaudeService extends EventEmitter {
         // Clear the NDJSON history file
         await this.clearHistory(workspaceId);
         
-        // Load current metadata to preserve permission mode
-        const metadata = await this.loadMetadata(workspaceId);
-        
-        // Update metadata with new session ID (preserving all fields)
-        await this.saveMetadata(workspaceId, {
-          ...metadata,
-          sessionId: newSessionId,
+        // Update metadata with new session ID and reset sequence counter
+        await this.updateMetadata(workspaceId, (metadata) => {
+          metadata.sessionId = newSessionId;
+          metadata.nextSequenceNumber = 0;  // Reset sequence counter on clear
         });
 
         // Emit a clear event on workspace-specific channel
@@ -578,11 +671,9 @@ export class ClaudeService extends EventEmitter {
       safeLog(`[${workspaceId}] No active query, permission mode will be saved to disk only`);
     }
 
-    // Always persist to metadata (preserving all existing fields)
-    const metadata = await this.loadMetadata(workspaceId);
-    await this.saveMetadata(workspaceId, {
-      ...metadata,  // Preserve all existing fields
-      permissionMode  // Update only the permission mode
+    // Always persist to metadata
+    await this.updateMetadata(workspaceId, (metadata) => {
+      metadata.permissionMode = permissionMode;
     });
   }
 

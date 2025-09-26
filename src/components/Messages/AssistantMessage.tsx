@@ -3,6 +3,7 @@ import styled from '@emotion/styled';
 import { UIMessage } from '../../types/claude';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { MessageWindow, ButtonConfig } from './MessageWindow';
+import { getModeConfig } from '../../constants/permissionModes';
 
 const RawContent = styled.pre`
   font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
@@ -27,6 +28,10 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({ message, cla
   const [copied, setCopied] = useState(false);
   
   const content = extractContent(message);
+  
+  // Get permission mode from message metadata
+  const permissionMode = message.metadata?.cmuxMeta?.permissionMode;
+  const modeConfig = getModeConfig(permissionMode);
   
   const handleCopy = async () => {
     try {
@@ -53,7 +58,7 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({ message, cla
   return (
     <MessageWindow
       label="ASSISTANT"
-      borderColor="#4ec9b0"
+      borderColor={modeConfig.borderColor}
       message={message}
       buttons={buttons}
       className={className}

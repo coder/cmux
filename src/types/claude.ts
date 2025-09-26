@@ -1,3 +1,11 @@
+import type { UIPermissionMode } from './global';
+
+// Cmux-specific metadata added to SDK messages
+export interface CmuxMetadata {
+  permissionMode: UIPermissionMode;
+  sequenceNumber: number;  // Our own sequence counter for proper message ordering
+}
+
 // Clean data model without presentation concerns
 export interface Message {
   id: string;
@@ -14,6 +22,7 @@ export interface Message {
     toolName?: string;  // For tool_use messages
     toolInput?: any;    // For tool_use messages
     eventType?: string; // For stream_event messages
+    cmuxMeta?: CmuxMetadata;  // Our custom metadata
   };
   sequenceNumber: number;
   timestamp: number;

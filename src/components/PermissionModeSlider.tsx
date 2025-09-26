@@ -1,6 +1,7 @@
 import React from 'react';
 import styled from '@emotion/styled';
 import type { UIPermissionMode } from '../types/global';
+import { PERMISSION_MODE_CONFIG } from '../constants/permissionModes';
 
 const SliderContainer = styled.div`
   display: flex;
@@ -62,14 +63,7 @@ const SliderHighlight = styled.div<{ position: number; mode: UIPermissionMode }>
   top: 0;
   bottom: 0;
   width: calc(100% / 3);
-  background: ${props => {
-    switch(props.mode) {
-      case 'plan': return 'var(--color-plan-mode)';
-      case 'edit': return 'var(--color-edit-mode)';
-      case 'yolo': return 'var(--color-yolo-mode)';
-      default: return 'var(--color-plan-mode)';
-    }
-  }};
+  background: ${props => PERMISSION_MODE_CONFIG[props.mode].color};
   border-radius: 3px;
   transform: translateX(${props => props.position * 100}%);
   transition: transform 0.2s ease, background 0.2s ease;
@@ -84,12 +78,6 @@ interface PermissionModeSliderProps {
 }
 
 const modes: UIPermissionMode[] = ['plan', 'edit', 'yolo'] as const;
-
-const modeDescriptions: Record<UIPermissionMode, string> = {
-  'plan': 'Plans only, no execution',
-  'edit': 'Auto-accept file edits',
-  'yolo': 'Bypass all permissions'
-};
 
 export const PermissionModeSlider: React.FC<PermissionModeSliderProps> = ({ 
   value, 
@@ -110,7 +98,7 @@ export const PermissionModeSlider: React.FC<PermissionModeSliderProps> = ({
               console.log('Slider clicked:', mode);
               onChange(mode);
             }}
-            data-tooltip={modeDescriptions[mode]}
+            data-tooltip={PERMISSION_MODE_CONFIG[mode].description}
           >
             {mode}
           </SliderOption>

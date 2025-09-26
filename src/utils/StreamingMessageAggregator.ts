@@ -76,7 +76,9 @@ export class StreamingMessageAggregator {
       id: sdkMessage.uuid || `user-${Date.now()}`,
       type: "user",
       content: sdkMessage.message?.content || "",
-      sequenceNumber: sdkMessage._sequenceNumber || this.sequenceCounter++,
+      sequenceNumber: sdkMessage.metadata?.cmuxMeta?.sequenceNumber ?? 
+                      sdkMessage._sequenceNumber ?? 
+                      this.sequenceCounter++,
       timestamp: sdkMessage.timestamp || Date.now(),
       metadata: { originalSDKMessage: sdkMessage },
     };
@@ -102,7 +104,9 @@ export class StreamingMessageAggregator {
         content: content,
         is_error: isError
       },
-      sequenceNumber: sdkMessage._sequenceNumber || this.sequenceCounter++,
+      sequenceNumber: sdkMessage.metadata?.cmuxMeta?.sequenceNumber ?? 
+                      sdkMessage._sequenceNumber ?? 
+                      this.sequenceCounter++,
       timestamp: sdkMessage.timestamp || Date.now(),
       metadata: {
         originalSDKMessage: sdkMessage
@@ -131,7 +135,9 @@ export class StreamingMessageAggregator {
       id: sdkMessage.uuid || `system-${Date.now()}`,
       type: "system",
       content: sdkMessage.content || sdkMessage, // Store raw content or entire message
-      sequenceNumber: sdkMessage._sequenceNumber || this.sequenceCounter++,
+      sequenceNumber: sdkMessage.metadata?.cmuxMeta?.sequenceNumber ?? 
+                      sdkMessage._sequenceNumber ?? 
+                      this.sequenceCounter++,
       timestamp: Date.now(),
       metadata: { originalSDKMessage: sdkMessage },
     };
@@ -144,7 +150,9 @@ export class StreamingMessageAggregator {
       id: sdkMessage.uuid || `result-${Date.now()}`,
       type: "result",
       content: sdkMessage.result || sdkMessage, // Raw result or entire message
-      sequenceNumber: sdkMessage._sequenceNumber || this.sequenceCounter++,
+      sequenceNumber: sdkMessage.metadata?.cmuxMeta?.sequenceNumber ?? 
+                      sdkMessage._sequenceNumber ?? 
+                      this.sequenceCounter++,
       timestamp: Date.now(),
       metadata: { 
         originalSDKMessage: sdkMessage,
@@ -164,7 +172,9 @@ export class StreamingMessageAggregator {
       id: `stream-event-${Date.now()}-${Math.random()}`,
       type: "stream_event" as any,
       content: sdkMessage,
-      sequenceNumber: sdkMessage._sequenceNumber || this.sequenceCounter++,
+      sequenceNumber: sdkMessage.metadata?.cmuxMeta?.sequenceNumber ?? 
+                      sdkMessage._sequenceNumber ?? 
+                      this.sequenceCounter++,
       timestamp: Date.now(),
       metadata: { 
         originalSDKMessage: sdkMessage,
@@ -220,7 +230,9 @@ export class StreamingMessageAggregator {
       content: "",
       contentDeltas: [],
       isStreaming: true,
-      sequenceNumber: sdkMessage._sequenceNumber || this.sequenceCounter++,
+      sequenceNumber: sdkMessage.metadata?.cmuxMeta?.sequenceNumber ?? 
+                      sdkMessage._sequenceNumber ?? 
+                      this.sequenceCounter++,
       timestamp: Date.now(),
       metadata: { streamingId, originalSDKMessage: sdkMessage },
     };
@@ -295,7 +307,9 @@ export class StreamingMessageAggregator {
         type: "assistant",
         content: this.extractAssistantContent(sdkMessage),
         isStreaming: false,
-        sequenceNumber: sdkMessage._sequenceNumber || this.sequenceCounter++,
+        sequenceNumber: sdkMessage.metadata?.cmuxMeta?.sequenceNumber ?? 
+                      sdkMessage._sequenceNumber ?? 
+                      this.sequenceCounter++,
         timestamp: sdkMessage.timestamp || Date.now(),
         metadata: { 
           originalSDKMessage: sdkMessage,
@@ -310,7 +324,9 @@ export class StreamingMessageAggregator {
         id: sdkMessage.uuid || `assistant-${Date.now()}`,
         type: "assistant",
         content: this.extractAssistantContent(sdkMessage),
-        sequenceNumber: sdkMessage._sequenceNumber || this.sequenceCounter++,
+        sequenceNumber: sdkMessage.metadata?.cmuxMeta?.sequenceNumber ?? 
+                      sdkMessage._sequenceNumber ?? 
+                      this.sequenceCounter++,
         timestamp: sdkMessage.timestamp || Date.now(),
         metadata: { originalSDKMessage: sdkMessage },
       };
@@ -342,7 +358,9 @@ export class StreamingMessageAggregator {
         type: "tool_use" as any, // Will be handled by MessageRenderer
         content: block, // Store the raw tool block
         toolUseId: block.id,  // Store the tool use ID for result association
-        sequenceNumber: sdkMessage._sequenceNumber || this.sequenceCounter++,
+        sequenceNumber: sdkMessage.metadata?.cmuxMeta?.sequenceNumber ?? 
+                      sdkMessage._sequenceNumber ?? 
+                      this.sequenceCounter++,
         timestamp: Date.now(),
         metadata: { 
           originalSDKMessage: sdkMessage,
@@ -415,7 +433,9 @@ export class StreamingMessageAggregator {
         content: content,
         is_error: isError
       },
-      sequenceNumber: sdkMessage._sequenceNumber || this.sequenceCounter++,
+      sequenceNumber: sdkMessage.metadata?.cmuxMeta?.sequenceNumber ?? 
+                      sdkMessage._sequenceNumber ?? 
+                      this.sequenceCounter++,
       timestamp: Date.now(),
       metadata: {
         originalSDKMessage: sdkMessage

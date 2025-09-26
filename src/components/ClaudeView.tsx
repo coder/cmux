@@ -473,9 +473,7 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
       <ViewHeader>
         <WorkspaceTitle>
           {projectName} / {branch}
-          <PermissionModeBadge mode={permissionMode}>
-            {MODE_LABELS[permissionMode]}
-          </PermissionModeBadge>
+          <PermissionModeBadge mode={permissionMode} />
         </WorkspaceTitle>
       </ViewHeader>
 
