@@ -5,6 +5,7 @@ import * as crypto from "crypto";
 import { EventEmitter } from "events";
 import { findWorkspacePath } from "../config";
 import { Result, Ok, Err } from "../types/result";
+import { UIPermissionMode, SDKPermissionMode } from "../types/global";
 
 // Import types for TypeScript
 type Query = any;
@@ -72,7 +73,7 @@ function safeError(...args: any[]): void {
 export interface WorkspaceData {
   sessionId: string;
   history: SDKMessage[];
-  planMode?: boolean;
+  permissionMode?: UIPermissionMode;
 }
 
 // Workspace is the in-memory representation with runtime associations
@@ -85,7 +86,7 @@ export interface Workspace extends WorkspaceData {
   query: Query | null;
   isActive: boolean;
   messageController: MessageController | null;
-  // Inherited from WorkspaceData: sessionId, history, planMode
+  // Inherited from WorkspaceData: sessionId, history, permissionMode
 }
 
 class MessageController {
@@ -123,6 +124,20 @@ class MessageController {
       this.resolveNext(undefined);
       this.resolveNext = null;
     }
+  }
+}
+
+// Helper functions for permission mode conversion
+function uiToSDKPermissionMode(mode: UIPermissionMode): SDKPermissionMode {
+  switch (mode) {
+    case 'plan':
+      return 'plan';
+    case 'edit':
+      return 'acceptEdits';
+    case 'yolo':
+      return 'bypassPermissions';
+    default:
+      return 'default';
   }
 }
 
@@ -228,7 +243,7 @@ export class ClaudeService extends EventEmitter {
     srcPath: string, // This is the git worktree path
     projectName: string,
     branch: string,
-    planMode?: boolean
+    permissionMode?: UIPermissionMode
   ): Promise<boolean> {
     // Ensure SDK is loaded
     await this.loadSDK();
@@ -252,7 +267,7 @@ export class ClaudeService extends EventEmitter {
       const workspaceData = await this.loadWorkspaceData(key);
 
       // Use stored plan mode if not explicitly provided
-      const effectivePlanMode = planMode ?? workspaceData.planMode ?? false;
+      const effectivePermissionMode = permissionMode ?? workspaceData.permissionMode ?? 'plan';
       safeLog(`[${key}] Loaded workspace data:`, {
         sessionId: workspaceData.sessionId,
         historyLength: workspaceData.history.length,
@@ -273,16 +288,19 @@ export class ClaudeService extends EventEmitter {
         sessionPath, // Session data directory
         sessionId: workspaceData.sessionId,
         history: [...workspaceData.history], // Restore previous conversation history
-        planMode: effectivePlanMode,
+        permissionMode: effectivePermissionMode,
         query: null,
         isActive: true,
         messageController,
       };
 
       // Configure options for the SDK
+      const sdkPermissionMode = uiToSDKPermissionMode(effectivePermissionMode);
+      safeLog(`[${key}] Starting workspace with permission mode: UI=${effectivePermissionMode}, SDK=${sdkPermissionMode}`);
+      
       const options: Options = {
         cwd: srcPath, // Use source path as working directory
-        permissionMode: effectivePlanMode ? "plan" : "bypassPermissions",
+        permissionMode: sdkPermissionMode,
         // Use resume for existing sessions
         resume:
           workspaceData.history.length > 0
@@ -302,11 +320,11 @@ export class ClaudeService extends EventEmitter {
       this.workspaces.set(key, session);
       safeLog(`[${key}] Workspace started successfully and added to map`);
 
-      // Save workspace data (session ID + history + planMode) for future restarts
+      // Save workspace data (session ID + history + permissionMode) for future restarts
       await this.saveWorkspaceData(key, {
         sessionId: session.sessionId,
         history: session.history,
-        planMode: effectivePlanMode,
+        permissionMode: effectivePermissionMode,
       });
 
       // Stream output in the background
@@ -378,7 +396,7 @@ export class ClaudeService extends EventEmitter {
           await this.saveWorkspaceData(key, {
             sessionId: session.sessionId,
             history: session.history,
-            planMode: session.planMode,
+            permissionMode: session.permissionMode,
           });
 
           // Emit compaction-complete event
@@ -392,7 +410,7 @@ export class ClaudeService extends EventEmitter {
           await this.saveWorkspaceData(key, {
             sessionId: session.sessionId,
             history: session.history,
-            planMode: session.planMode,
+            permissionMode: session.permissionMode,
           });
         }
 
@@ -490,7 +508,7 @@ export class ClaudeService extends EventEmitter {
       await this.saveWorkspaceData(key, {
         sessionId: session.sessionId,
         history: session.history,
-        planMode: session.planMode,
+        permissionMode: session.permissionMode,
       });
 
       // Emit the user message locally so it appears in UI immediately
@@ -549,11 +567,11 @@ export class ClaudeService extends EventEmitter {
         const newSessionId = crypto.randomUUID();
         currentSession.sessionId = newSessionId;
 
-        // Clear the persisted history but keep planMode
+        // Clear the persisted history but keep permissionMode
         await this.saveWorkspaceData(key, {
           sessionId: newSessionId,
           history: [],
-          planMode: currentSession.planMode,
+          permissionMode: currentSession.permissionMode,
         });
 
         // Emit a clear event so UI can update
@@ -588,46 +606,61 @@ export class ClaudeService extends EventEmitter {
   async getWorkspaceInfo(
     projectName: string,
     branch: string
-  ): Promise<{ planMode: boolean }> {
+  ): Promise<{ permissionMode: UIPermissionMode }> {
     const key = this.getWorkspaceId(projectName, branch);
     const session = this.workspaces.get(key);
 
     // If session exists in memory, return its plan mode
     if (session) {
-      return { planMode: session.planMode ?? false };
+      return { permissionMode: session.permissionMode ?? 'plan' };
     }
 
     // Otherwise, load from disk
     try {
       const workspaceData = await this.loadWorkspaceData(key);
-      return { planMode: workspaceData.planMode ?? false };
+      return { permissionMode: workspaceData.permissionMode ?? 'plan' };
     } catch {
-      return { planMode: false };
+      return { permissionMode: 'plan' };
     }
   }
 
-  async setPlanMode(
+  async setPermissionMode(
     projectName: string,
     branch: string,
-    planMode: boolean
+    permissionMode: UIPermissionMode
   ): Promise<void> {
     const key = this.getWorkspaceId(projectName, branch);
+    safeLog(`[${key}] setPermissionMode called with: ${permissionMode}`);
     const session = this.workspaces.get(key);
 
     // Update in-memory session if it exists
     if (session) {
-      session.planMode = planMode;
+      session.permissionMode = permissionMode;
 
       // Update SDK permission mode if query is active
       if (session.query) {
-        await session.query.setPermissionMode(planMode ? "plan" : "default");
+        const sdkMode = uiToSDKPermissionMode(permissionMode);
+        safeLog(`[${key}] Attempting to update permission mode: UI=${permissionMode}, SDK=${sdkMode}`);
+        
+        if (typeof session.query.setPermissionMode === 'function') {
+          try {
+            await session.query.setPermissionMode(sdkMode);
+            safeLog(`[${key}] Successfully updated permission mode to ${permissionMode} (${sdkMode})`);
+          } catch (error) {
+            safeError(`[${key}] Failed to update permission mode:`, error);
+          }
+        } else {
+          safeLog(`[${key}] Warning: setPermissionMode method not available on query object. Permission mode saved but may not take effect until restart.`);
+        }
+      } else {
+        safeLog(`[${key}] No active query, permission mode saved to disk only`);
       }
+    } else {
+      safeLog(`[${key}] No session found, permission mode will be saved to disk only`);
     }
 
     // Always persist to disk (efficiently, without rewriting history)
-    await this.updateWorkspaceData(key, { planMode });
-
-    safeLog(`[${key}] Plan mode updated to ${planMode}`);
+    await this.updateWorkspaceData(key, { permissionMode });
   }
 
   isWorkspaceActive(projectName: string, branch: string): boolean {
@@ -652,7 +685,7 @@ export class ClaudeService extends EventEmitter {
         srcPath: session.srcPath,
         sessionPath: session.sessionPath,
         sessionId: session.sessionId,
-        planMode: session.planMode,
+        permissionMode: session.permissionMode,
         isActive: session.isActive,
       });
     }

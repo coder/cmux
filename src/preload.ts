@@ -30,8 +30,8 @@ contextBridge.exposeInMainWorld('api', {
     list: () => ipcRenderer.invoke('claude:list'),
     getWorkspaceInfo: (projectName: string, branch: string) =>
       ipcRenderer.invoke('claude:getWorkspaceInfo', projectName, branch),
-    setPlanMode: (projectName: string, branch: string, planMode: boolean) =>
-      ipcRenderer.invoke('claude:setPlanMode', projectName, branch, planMode),
+    setPermissionMode: (projectName: string, branch: string, permissionMode: import('./types/global').UIPermissionMode) =>
+      ipcRenderer.invoke('claude:setPermissionMode', projectName, branch, permissionMode),
     sendMessage: (projectName: string, branch: string, message: string) =>
       ipcRenderer.invoke('claude:sendMessage', projectName, branch, message),
     handleSlashCommand: (projectName: string, branch: string, command: string) =>

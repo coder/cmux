@@ -11,6 +11,27 @@ import { CommandSuggestions, COMMAND_SUGGESTION_KEYS } from "./CommandSuggestion
 import { UIMessage } from "../types/claude";
 import { StreamingMessageAggregator } from "../utils/StreamingMessageAggregator";
 import { DebugProvider, useDebugMode } from "../contexts/DebugContext";
+import { PermissionModeSlider } from "./PermissionModeSlider";
+
+// Type-safe mode display mappings
+const MODE_LABELS: Record<UIPermissionMode, string> = {
+  'plan': 'Plan',
+  'edit': 'Edit', 
+  'yolo': 'YOLO'
+};
+
+const MODE_PLACEHOLDERS: Record<UIPermissionMode, string> = {
+  'plan': 'Plan Mode: Claude will plan but not execute actions (Enter to send)',
+  'edit': 'Edit Mode: Claude will auto-accept file edits (Enter to send)',
+  'yolo': 'YOLO Mode: Claude bypasses all permissions (Enter to send)'
+};
+
+const MODE_COLORS: Record<UIPermissionMode, string> = {
+  'plan': 'var(--color-plan-mode)',
+  'edit': 'var(--color-edit-mode)',
+  'yolo': 'var(--color-yolo-mode)'
+};
+import type { UIPermissionMode } from "../types/global";
 
 // StreamingMessageAggregator is now imported from utils
 
@@ -42,8 +63,8 @@ const WorkspaceTitle = styled.div`
   gap: 8px;
 `;
 
-const PlanModeBadge = styled.span`
-  background: var(--color-plan-mode);
+const PermissionModeBadge = styled.span<{ mode: UIPermissionMode }>`
+  background: ${props => MODE_COLORS[props.mode]};
   color: white;
   padding: 2px 6px;
   border-radius: 3px;
@@ -98,32 +119,6 @@ const DebugModeToggle = styled.label`
   }
 `;
 
-const PlanModeToggle = styled.label<{ active?: boolean }>`
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 10px;
-  color: ${props => props.active ? '#ffffff' : '#606060'};
-  background: ${props => props.active ? 'var(--color-plan-mode)' : 'transparent'};
-  padding: 2px 6px;
-  border-radius: 3px;
-  cursor: pointer;
-  user-select: none;
-  opacity: ${props => props.active ? '1' : '0.7'};
-  transition: all 0.2s ease;
-  margin-right: 8px;
-  
-  input {
-    cursor: pointer;
-    transform: scale(0.9);
-  }
-  
-  &:hover {
-    opacity: 1;
-    background: ${props => props.active ? 'var(--color-plan-mode-hover)' : 'var(--color-plan-mode-alpha)'};
-  }
-`;
-
 const ModeToggles = styled.div`
   display: flex;
   align-items: center;
@@ -138,8 +133,10 @@ const InputField = styled.textarea`
   border-radius: 4px;
   font-family: inherit;
   font-size: 13px;
-  resize: vertical;
+  resize: none;
   min-height: 36px;
+  max-height: 200px;
+  overflow-y: auto;
   max-height: 120px;
 
   &:focus {
@@ -215,7 +212,7 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
   const [availableCommands, setAvailableCommands] = useState<string[]>([]);
   const [showCommandSuggestions, setShowCommandSuggestions] = useState(false);
   const { debugMode, setDebugMode } = useDebugMode(); // Use context instead of local state
-  const [planMode, setPlanMode] = useState(false);
+  const [permissionMode, setPermissionMode] = useState<UIPermissionMode>('plan');
   const [autoScroll, setAutoScroll] = useState(true);
   const contentRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -301,8 +298,8 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
     setUIMessageMap(new Map());
     aggregatorRef.current.clear();
 
-    // Reset Plan Mode state immediately when switching workspaces
-    setPlanMode(false);
+    // Reset Permission Mode state immediately when switching workspaces
+    setPermissionMode('plan');
     
     // Enable auto-scroll when switching workspaces
     setAutoScroll(true);
@@ -310,12 +307,12 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
     // Load initial output
     loadOutput();
     
-    // Load workspace-specific plan mode
+    // Load workspace-specific permission mode
     window.api.claude.getWorkspaceInfo(projectName, branch).then((info) => {
-      setPlanMode(info.planMode || false);
+      setPermissionMode(info.permissionMode || 'plan');
     }).catch((error) => {
       console.error("Failed to load workspace info:", error);
-      setPlanMode(false);
+      setPermissionMode('plan');
     });
 
     // No need to check status - workspaces are always active
@@ -387,6 +384,10 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
     try {
       const messageText = input.trim();
       setInput(""); // Clear input immediately for better UX
+      // Reset textarea height
+      if (inputRef.current) {
+        inputRef.current.style.height = '36px';
+      }
 
       // Check if this is a slash command
       if (messageText.startsWith('/')) {
@@ -489,7 +490,9 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
       <ViewHeader>
         <WorkspaceTitle>
           {projectName} / {branch}
-          {planMode && <PlanModeBadge>Plan Mode</PlanModeBadge>}
+          <PermissionModeBadge mode={permissionMode}>
+            {MODE_LABELS[permissionMode]}
+          </PermissionModeBadge>
         </WorkspaceTitle>
       </ViewHeader>
 
@@ -542,17 +545,19 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
           <InputField
             ref={inputRef}
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={(e) => {
+              setInput(e.target.value);
+              // Auto-resize textarea
+              e.target.style.height = 'auto';
+              e.target.style.height = Math.min(e.target.scrollHeight, 200) + 'px';
+            }}
             onKeyDown={handleKeyDown}
             placeholder={
               isCompacting
                 ? "Compacting conversation..."
-                : planMode
-                ? "Plan Mode: Claude will plan but not execute actions (Enter to send)"
-                : "Type your message... (Enter to send, Shift+Enter for newline)"
+                : MODE_PLACEHOLDERS[permissionMode]
             }
             disabled={isSending || isCompacting}
-            rows={1}
           />
           <SendButton
             onClick={handleSend}
@@ -562,21 +567,22 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
           </SendButton>
         </InputControls>
         <ModeToggles>
-          <PlanModeToggle active={planMode}>
-            <input
-              type="checkbox"
-              checked={planMode}
-              onChange={async (e) => {
-                const newValue = e.target.checked;
-                setPlanMode(newValue);
-                // Persist to backend immediately
-                if (projectName && branch) {
-                  await window.api.claude.setPlanMode(projectName, branch, newValue);
+          <PermissionModeSlider 
+            value={permissionMode}
+            onChange={async (mode) => {
+              console.log('Permission mode changing to:', mode);
+              setPermissionMode(mode);
+              // Persist to backend immediately
+              if (projectName && branch) {
+                try {
+                  await window.api.claude.setPermissionMode(projectName, branch, mode);
+                  console.log('Permission mode successfully set to:', mode);
+                } catch (error) {
+                  console.error('Failed to set permission mode:', error);
                 }
-              }}
-            />
-            Plan Mode
-          </PlanModeToggle>
+              }
+            }}
+          />
           <DebugModeToggle>
             <input
               type="checkbox"

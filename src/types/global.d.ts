@@ -1,3 +1,9 @@
+// Our simplified permission modes for UI
+export type UIPermissionMode = 'plan' | 'edit' | 'yolo';
+
+// Claude SDK permission modes
+export type SDKPermissionMode = 'default' | 'acceptEdits' | 'bypassPermissions' | 'plan';
+
 declare global {
   interface Window {
     api: {
@@ -23,8 +29,8 @@ declare global {
         isActive: (projectName: string, branch: string) => Promise<boolean>;
         getOutput: (projectName: string, branch: string) => Promise<any[]>;
         list: () => Promise<Array<any>>; // Returns Partial<Workspace> from claudeService
-        getWorkspaceInfo: (projectName: string, branch: string) => Promise<{ planMode: boolean }>;
-        setPlanMode: (projectName: string, branch: string, planMode: boolean) => Promise<void>;
+        getWorkspaceInfo: (projectName: string, branch: string) => Promise<{ permissionMode: UIPermissionMode }>;
+        setPermissionMode: (projectName: string, branch: string, permissionMode: UIPermissionMode) => Promise<void>;
         sendMessage: (projectName: string, branch: string, message: string) => Promise<import('./result').Result<void, string>>;
         handleSlashCommand: (projectName: string, branch: string, command: string) => Promise<import('./result').Result<void, string>>;
         onOutput: (callback: (data: any) => void) => () => void;

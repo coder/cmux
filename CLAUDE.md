@@ -43,6 +43,24 @@
 - Colors are centralized as CSS variables in `src/App.tsx` (in the `:root` selector)
 - Use CSS variables (e.g., `var(--color-plan-mode)`) instead of hardcoded colors
 
+## TypeScript Best Practices
+- **Use `Record<EnumType, ValueType>` for exhaustive mappings** - When mapping enum values to strings, colors, or other values, use `Record` types instead of switch statements or if/else chains. This ensures TypeScript catches missing or invalid cases at compile time.
+  ```typescript
+  // ✅ Good - TypeScript ensures all modes are handled
+  const MODE_COLORS: Record<UIPermissionMode, string> = {
+    'plan': 'var(--color-plan-mode)',
+    'edit': 'var(--color-edit-mode)',
+    'yolo': 'var(--color-yolo-mode)'
+  };
+  
+  // ❌ Avoid - Can miss cases, typos won't be caught
+  switch(mode) {
+    case 'plan': return 'blue';
+    case 'edits': return 'green'; // Typo won't be caught!
+  }
+  ```
+- This pattern maximizes type safety and prevents runtime errors from typos or missing cases
+
 ## Debugging
 - `bun debug ui-messages --workspace <workspace-name>` - Show UI messages for a workspace
 - `bun debug ui-messages --workspace <workspace-name> --drop <n>` - Show messages with last n dropped

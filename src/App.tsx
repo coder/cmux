@@ -22,6 +22,20 @@ const globalStyles = css`
     --color-plan-mode-alpha: hsl(210 70% 40% / 0.1);
     --color-plan-mode-alpha-hover: hsl(210 70% 40% / 0.15);
     
+    /* Edit Mode Colors */
+    --color-edit-mode: hsl(120 50% 35% / 1);
+    --color-edit-mode-hover: hsl(120 50% 45% / 1);
+    --color-edit-mode-light: color-mix(in srgb, var(--color-edit-mode) 60%, white);
+    --color-edit-mode-alpha: hsl(120 50% 35% / 0.1);
+    --color-edit-mode-alpha-hover: hsl(120 50% 35% / 0.15);
+    
+    /* Yolo Mode Colors */
+    --color-yolo-mode: hsl(0 70% 45% / 1);
+    --color-yolo-mode-hover: hsl(0 70% 55% / 1);
+    --color-yolo-mode-light: color-mix(in srgb, var(--color-yolo-mode) 60%, white);
+    --color-yolo-mode-alpha: hsl(0 70% 45% / 0.1);
+    --color-yolo-mode-alpha-hover: hsl(0 70% 45% / 0.15);
+    
     /* Debug Mode Colors */
     --color-debug: #4a9eff;
     --color-debug-light: #6bb1ff;

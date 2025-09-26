@@ -108,9 +108,9 @@ ipcMain.handle(
 );
 
 ipcMain.handle(
-  "claude:setPlanMode",
-  async (event, projectName: string, branch: string, planMode: boolean) => {
-    return await claudeService.setPlanMode(projectName, branch, planMode);
+  "claude:setPermissionMode",
+  async (event, projectName: string, branch: string, permissionMode: import('./types/global').UIPermissionMode) => {
+    return await claudeService.setPermissionMode(projectName, branch, permissionMode);
   }
 );
 

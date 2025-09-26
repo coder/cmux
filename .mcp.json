@@ -1,14 +1,3 @@
 {
-  "mcpServers": {
-    "chrome-devtools": {
-      "type": "stdio",
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-chrome-devtools",
-        "--headless=true",
-        "--isolated=true"
-      ]
-    }
-  }
+  "mcpServers": {}
 }
