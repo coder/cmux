@@ -257,9 +257,9 @@ function App() {
                 workspaceInfo={`${selectedWorkspace.projectName}/${selectedWorkspace.branch}`}
               >
                 <ClaudeView
+                  workspaceId={selectedWorkspace.workspaceId}
                   projectName={selectedWorkspace.projectName}
                   branch={selectedWorkspace.branch}
-                  workspaceId={selectedWorkspace.workspaceId}
                 />
               </ErrorBoundary>
             ) : selectedProject ? (

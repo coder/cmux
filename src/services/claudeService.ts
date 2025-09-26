@@ -5,6 +5,7 @@ import * as crypto from "crypto";
 import { EventEmitter } from "events";
 import { Result, Ok, Err } from "../types/result";
 import { UIPermissionMode, SDKPermissionMode } from "../types/global";
+import { WorkspaceMetadata } from "../types/workspace";
 
 // Import types for TypeScript
 type Query = any;
@@ -64,16 +65,6 @@ function safeError(...args: any[]): void {
       }
     }
   }
-}
-
-// Simple interface for workspace info returned to frontend
-export interface WorkspaceInfo {
-  id: string;
-  projectName: string;
-  branch: string;
-  srcPath: string;
-  permissionMode?: UIPermissionMode;
-  isActive?: boolean;
 }
 
 // Message queue for streaming input to Claude
@@ -152,6 +143,7 @@ export class ClaudeService extends EventEmitter {
   private queries: Map<string, ActiveQuery> = new Map();
   private configDir: string;
   private sdkLoaded: boolean = false;
+  private workspaceMetadataCache: Map<string, WorkspaceMetadata> = new Map();
 
   constructor() {
     super();
@@ -196,7 +188,7 @@ export class ClaudeService extends EventEmitter {
 
   private async loadMetadata(workspaceId: string): Promise<{
     sessionId: string;
-    permissionMode?: UIPermissionMode;
+    permissionMode: UIPermissionMode;
     projectName?: string;
     branch?: string;
     workspacePath?: string;
@@ -205,7 +197,12 @@ export class ClaudeService extends EventEmitter {
     try {
       const metadataFile = this.getMetadataFile(workspaceId);
       const data = await fs.readFile(metadataFile, "utf-8");
-      return JSON.parse(data);
+      const metadata = JSON.parse(data);
+      // Ensure permissionMode always has a value
+      if (!metadata.permissionMode) {
+        metadata.permissionMode = "plan";
+      }
+      return metadata;
     } catch {
       // File doesn't exist, workspace not initialized
       throw new Error(`Workspace ${workspaceId} not initialized. Metadata file not found.`);
@@ -216,7 +213,7 @@ export class ClaudeService extends EventEmitter {
     workspaceId: string,
     updater: (metadata: {
       sessionId: string;
-      permissionMode?: UIPermissionMode;
+      permissionMode: UIPermissionMode;
       projectName?: string;
       branch?: string;
       workspacePath?: string;
@@ -240,18 +237,27 @@ export class ClaudeService extends EventEmitter {
         // If metadata doesn't exist, start with minimal defaults
         metadata = {
           sessionId: crypto.randomUUID(),
-          permissionMode: "plan",
+          permissionMode: "plan" as UIPermissionMode,
+          nextSequenceNumber: 0,
         };
       }
 
       // Apply the update
-      updater(metadata);
+      updater(metadata as any);
+
+      // Ensure permission mode is always set
+      if (!metadata.permissionMode) {
+        metadata.permissionMode = "plan";
+      }
 
       // Save the updated metadata
       const metadataFile = this.getMetadataFile(workspaceId);
       const dir = path.dirname(metadataFile);
       await fs.mkdir(dir, { recursive: true });
       await fs.writeFile(metadataFile, JSON.stringify(metadata, null, 2));
+
+      // Update cache and emit metadata change
+      await this.refreshWorkspaceMetadata(workspaceId);
     } catch (error) {
       safeError(`Failed to update metadata for ${workspaceId}:`, error);
     }
@@ -689,8 +695,8 @@ export class ClaudeService extends EventEmitter {
     });
   }
 
-  async list(): Promise<Array<WorkspaceInfo>> {
-    const workspaces: WorkspaceInfo[] = [];
+  async list(): Promise<Array<WorkspaceMetadata>> {
+    const workspaces: WorkspaceMetadata[] = [];
     const workspacesDir = this.getSessionDir();
 
     try {
@@ -718,9 +724,11 @@ export class ClaudeService extends EventEmitter {
             id: workspaceId,
             projectName: metadata.projectName,
             branch: metadata.branch,
-            srcPath: metadata.workspacePath,
-            permissionMode: metadata.permissionMode ?? "plan",
+            workspacePath: metadata.workspacePath,
+            permissionMode: metadata.permissionMode,
             isActive,
+            sessionId: metadata.sessionId,
+            nextSequenceNumber: metadata.nextSequenceNumber ?? 0,
           });
         } catch (error) {
           // Skip workspace directories without valid metadata
@@ -735,6 +743,51 @@ export class ClaudeService extends EventEmitter {
     return workspaces;
   }
 
+  // Refresh workspace metadata and emit changes
+  private async refreshWorkspaceMetadata(workspaceId: string): Promise<void> {
+    try {
+      const metadata = await this.loadMetadata(workspaceId);
+      if (!metadata.projectName || !metadata.branch || !metadata.workspacePath) {
+        return; // Skip incomplete workspaces
+      }
+
+      const isActive = this.queries.has(workspaceId);
+
+      const workspaceMetadata: WorkspaceMetadata = {
+        id: workspaceId,
+        projectName: metadata.projectName,
+        branch: metadata.branch,
+        workspacePath: metadata.workspacePath,
+        permissionMode: metadata.permissionMode,
+        isActive,
+        sessionId: metadata.sessionId,
+        nextSequenceNumber: metadata.nextSequenceNumber ?? 0,
+      };
+
+      // Update cache
+      this.workspaceMetadataCache.set(workspaceId, workspaceMetadata);
+
+      // Emit metadata update
+      this.emit("workspace-metadata", workspaceId, workspaceMetadata);
+    } catch (error) {
+      safeLog(`Failed to refresh metadata for ${workspaceId}:`, error);
+    }
+  }
+
+  // Stream all workspace metadata
+  async streamAllWorkspaceMetadata(): Promise<void> {
+    const workspaces = await this.list();
+    for (const workspace of workspaces) {
+      this.workspaceMetadataCache.set(workspace.id, workspace);
+      this.emit("workspace-metadata", workspace.id, workspace);
+    }
+  }
+
+  // Get cached workspace metadata
+  getWorkspaceMetadata(workspaceId: string): WorkspaceMetadata | undefined {
+    return this.workspaceMetadataCache.get(workspaceId);
+  }
+
   // Method to clean up a query when a workspace is removed
   async removeWorkspace(workspaceId: string): Promise<void> {
     const activeQuery = this.queries.get(workspaceId);
@@ -743,6 +796,9 @@ export class ClaudeService extends EventEmitter {
       this.queries.delete(workspaceId);
       safeLog(`[${workspaceId}] Query removed`);
     }
+
+    // Remove from cache
+    this.workspaceMetadataCache.delete(workspaceId);
   }
 }
 

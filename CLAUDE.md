@@ -75,6 +75,32 @@
   }
   ```
 
+- **Leverage TypeScript's utility types for UI-specific data** - Use `Omit`, `Pick`, and other utility types to create UI-specific versions of backend types. This prevents unnecessary re-renders and clearly separates concerns.
+
+  ```typescript
+  // Backend type with all fields
+  export interface WorkspaceMetadata {
+    id: string;
+    projectName: string;
+    permissionMode: UIPermissionMode;
+    nextSequenceNumber: number; // Backend bookkeeping
+  }
+
+  // UI type excludes backend-only fields
+  export type WorkspaceMetadataUI = Omit<WorkspaceMetadata, "nextSequenceNumber">;
+  ```
+
+  This pattern ensures:
+  - UI components don't re-render on backend-only changes
+  - Clear separation between UI and backend concerns
+  - Type safety - compiler catches if you try to access excluded fields
+  - Self-documenting code - types clearly show what data UI needs
+
+- **Prefer type-driven development** - Let TypeScript guide your architecture. When types become complex or you need many runtime checks, it often indicates a design issue. Simplify by:
+  - Creating focused types for specific contexts (UI vs backend)
+  - Using discriminated unions for state variations
+  - Leveraging the compiler to catch errors at build time
+
 - This pattern maximizes type safety and prevents runtime errors from typos or missing cases
 
 ## Debugging

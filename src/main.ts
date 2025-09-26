@@ -3,6 +3,7 @@ import * as path from "path";
 import { load_config_or_default, save_config, Config } from "./config";
 import { createWorktree, removeWorktree } from "./git";
 import claudeService from "./services/claudeService";
+import { WorkspaceMetadata } from "./types/workspace";
 
 console.log("Main process starting...");
 
@@ -111,6 +112,10 @@ ipcMain.handle("claude:streamHistory", async (event, workspaceId: string) => {
   return await claudeService.streamWorkspaceHistoryById(workspaceId);
 });
 
+ipcMain.handle("claude:streamWorkspaceMeta", async () => {
+  return await claudeService.streamAllWorkspaceMetadata();
+});
+
 // Listen for workspace-specific output events and forward to renderer
 // The EventEmitter doesn't support wildcard listeners, so we'll modify claudeService
 // to emit a generic 'workspace-output' event with the workspace ID
@@ -124,6 +129,13 @@ claudeService.on("workspace-output", (workspaceId: string, data: any) => {
 claudeService.on("workspace-clear", (workspaceId: string, data: any) => {
   if (mainWindow) {
     mainWindow.webContents.send(`claude:clear:${workspaceId}`, data);
+  }
+});
+
+// Listen for workspace metadata updates and forward to renderer
+claudeService.on("workspace-metadata", (workspaceId: string, metadata: WorkspaceMetadata) => {
+  if (mainWindow) {
+    mainWindow.webContents.send("claude:metadata", { workspaceId, metadata });
   }
 });
 

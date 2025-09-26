@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import styled from "@emotion/styled";
 import { css } from "@emotion/react";
+import { WorkspaceMetadataUI } from "../types/workspace";
 
 // Styled Components
 const SidebarContainer = styled.div`
@@ -349,8 +350,9 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
   onRemoveWorkspace,
 }) => {
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
-  const [claudeStatuses, setClaudeStatuses] = useState<Map<string, boolean>>(new Map());
-  const [workspaceInfoMap, setWorkspaceInfoMap] = useState<Map<string, { id: string }>>(new Map());
+  const [workspaceMetadataMap, setWorkspaceMetadataMap] = useState<
+    Map<string, WorkspaceMetadataUI>
+  >(new Map());
 
   const getProjectName = (path: string) => {
     if (!path || typeof path !== "string") {
@@ -369,34 +371,39 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
     setExpandedProjects(newExpanded);
   };
 
-  // Check Claude status for all workspaces and get workspace info
+  // Subscribe to workspace metadata stream
   useEffect(() => {
-    const checkStatuses = async () => {
-      // Get all workspace info from backend
-      const workspaces = await window.api.claude.list();
-
-      const statuses = new Map<string, boolean>();
-      const infoMap = new Map<string, { id: string }>();
-
-      // Build maps from backend data
-      for (const workspace of workspaces) {
-        if (workspace.id && workspace.projectName && workspace.branch) {
-          const key = `${workspace.projectName}-${workspace.branch}`;
-          statuses.set(key, workspace.isActive || false);
-          infoMap.set(key, { id: workspace.id });
-        }
-      }
-
-      setClaudeStatuses(statuses);
-      setWorkspaceInfoMap(infoMap);
+    // Initial load and stream setup
+    const setupStream = async () => {
+      // Request the metadata stream
+      await window.api.claude.streamWorkspaceMeta();
     };
 
-    checkStatuses();
-    // Check every 5 seconds
-    const interval = setInterval(checkStatuses, 5000);
+    // Subscribe to metadata updates
+    const unsubscribe = window.api.claude.onMetadata((data) => {
+      const { workspaceId, metadata } = data;
+      // Strip sequence number to prevent unnecessary re-renders
+      const { nextSequenceNumber, ...metadataWithoutSeq } = metadata;
+      setWorkspaceMetadataMap((prev) => {
+        // Only update if actually changed
+        const existing = prev.get(workspaceId);
+        if (JSON.stringify(existing) !== JSON.stringify(metadataWithoutSeq)) {
+          const newMap = new Map(prev);
+          newMap.set(workspaceId, metadataWithoutSeq);
+          return newMap;
+        }
+        return prev; // No change, return same reference
+      });
+    });
 
-    return () => clearInterval(interval);
-  }, [projects]);
+    setupStream();
+
+    return () => {
+      if (typeof unsubscribe === "function") {
+        unsubscribe();
+      }
+    };
+  }, []);
 
   return (
     <SidebarContainer>
@@ -447,10 +454,9 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                   </WorkspaceHeader>
                   {config.workspaces.map((workspace) => {
                     const projectName = getProjectName(projectPath);
-                    const key = `${projectName}-${workspace.branch}`;
-                    const isActive = claudeStatuses.get(key) || false;
-                    const workspaceInfo = workspaceInfoMap.get(key);
-                    const workspaceId = workspaceInfo?.id || key; // Use backend ID or fallback
+                    const workspaceId = `${projectName}-${workspace.branch}`;
+                    const metadata = workspaceMetadataMap.get(workspaceId);
+                    const isActive = metadata?.isActive || false;
 
                     return (
                       <WorkspaceItem

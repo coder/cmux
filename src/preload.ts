@@ -22,8 +22,7 @@ contextBridge.exposeInMainWorld("api", {
   },
   claude: {
     list: () => ipcRenderer.invoke("claude:list"),
-    getWorkspaceInfo: (workspaceId: string) =>
-      ipcRenderer.invoke("claude:getWorkspaceInfo", workspaceId),
+    streamWorkspaceMeta: () => ipcRenderer.invoke("claude:streamWorkspaceMeta"),
     setPermissionMode: (
       workspaceId: string,
       permissionMode: import("./types/global").UIPermissionMode
@@ -46,6 +45,17 @@ contextBridge.exposeInMainWorld("api", {
       ipcRenderer.on(channel, handler);
       // Return unsubscribe function
       return () => ipcRenderer.removeListener(channel, handler);
+    },
+    onMetadata: (
+      callback: (data: {
+        workspaceId: string;
+        metadata: import("./types/workspace").WorkspaceMetadata;
+      }) => void
+    ) => {
+      const handler = (event: any, data: any) => callback(data);
+      ipcRenderer.on("claude:metadata", handler);
+      // Return unsubscribe function
+      return () => ipcRenderer.removeListener("claude:metadata", handler);
     },
     removeWorkspace: (workspaceId: string) =>
       ipcRenderer.invoke("claude:removeWorkspace", workspaceId),

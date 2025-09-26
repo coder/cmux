@@ -26,6 +26,7 @@ const MODE_COLORS: Record<UIPermissionMode, string> = {
   yolo: "var(--color-yolo-mode)",
 };
 import type { UIPermissionMode } from "../types/global";
+import { WorkspaceMetadataUI } from "../types/workspace";
 
 // StreamingMessageAggregator is now imported from utils
 
@@ -186,16 +187,16 @@ const EmptyState = styled.div`
 `;
 
 interface ClaudeViewProps {
-  projectName?: string;
-  branch?: string;
-  workspaceId?: string;
+  workspaceId: string;
+  projectName: string;
+  branch: string;
   className?: string;
 }
 
 const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
+  workspaceId,
   projectName,
   branch,
-  workspaceId = "",
   className,
 }) => {
   const [uiMessageMap, setUIMessageMap] = useState<Map<string, UIMessage>>(new Map());
@@ -206,8 +207,9 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
   const [availableCommands, setAvailableCommands] = useState<string[]>([]);
   const [showCommandSuggestions, setShowCommandSuggestions] = useState(false);
   const { debugMode, setDebugMode } = useDebugMode(); // Use context instead of local state
-  // Permission mode is derived from the latest message metadata
-  const [currentPermissionMode, setCurrentPermissionMode] = useState<UIPermissionMode>("plan");
+  const [workspaceMetadata, setWorkspaceMetadata] = useState<WorkspaceMetadataUI | null>(null);
+  // Permission mode comes from metadata stream
+  const currentPermissionMode = workspaceMetadata?.permissionMode ?? "plan";
   const [autoScroll, setAutoScroll] = useState(true);
   const contentRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -257,6 +259,40 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
     });
   }, [uiMessageMap]);
 
+  // Subscribe to metadata stream for this workspace
+  useEffect(() => {
+    if (!workspaceId) return;
+
+    // Request metadata stream
+    const setupStream = async () => {
+      await window.api.claude.streamWorkspaceMeta();
+    };
+
+    // Subscribe to metadata updates
+    const unsubscribe = window.api.claude.onMetadata((data) => {
+      const { workspaceId: metaWorkspaceId, metadata } = data;
+      if (metaWorkspaceId === workspaceId) {
+        // Strip sequence number to prevent unnecessary re-renders
+        const { nextSequenceNumber, ...metadataWithoutSeq } = metadata;
+        setWorkspaceMetadata((prev) => {
+          // Only update if actually changed
+          if (JSON.stringify(prev) !== JSON.stringify(metadataWithoutSeq)) {
+            return metadataWithoutSeq;
+          }
+          return prev;
+        });
+      }
+    });
+
+    setupStream();
+
+    return () => {
+      if (typeof unsubscribe === "function") {
+        unsubscribe();
+      }
+    };
+  }, [workspaceId]);
+
   useEffect(() => {
     if (!projectName || !branch || !workspaceId) return;
 
@@ -265,9 +301,6 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
     // Clear messages when switching workspaces
     setUIMessageMap(new Map());
     aggregatorRef.current.clear();
-
-    // Reset Permission Mode state immediately when switching workspaces
-    setCurrentPermissionMode("plan");
 
     // Enable auto-scroll when switching workspaces
     setAutoScroll(true);
@@ -298,14 +331,7 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
       }
       const message = data.message;
 
-      // Update permission mode from message metadata if available
-      if (message?.metadata?.cmuxMeta?.permissionMode) {
-        console.log(
-          "Updating permission mode from message:",
-          message.metadata.cmuxMeta.permissionMode
-        );
-        setCurrentPermissionMode(message.metadata.cmuxMeta.permissionMode);
-      }
+      // Permission mode now comes from metadata stream, not from messages
 
       processSDKMessage(message);
 
@@ -545,20 +571,12 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
             value={currentPermissionMode}
             onChange={async (mode) => {
               console.log("Permission mode changing to:", mode);
-              // Optimistically update UI immediately for better UX
-              setCurrentPermissionMode(mode);
-
-              // Then update backend
-              if (projectName && branch) {
-                try {
-                  await window.api.claude.setPermissionMode(workspaceId, mode);
-                  console.log("Permission mode successfully set to:", mode);
-                  // Backend will confirm via next message
-                } catch (error) {
-                  console.error("Failed to set permission mode:", error);
-                  // On error, revert to previous mode (we'll get the correct mode from next message)
-                  // For now, just log - the next message will correct the UI state
-                }
+              // No optimistic update - wait for metadata stream to update
+              try {
+                await window.api.claude.setPermissionMode(workspaceId, mode);
+                console.log("Permission mode successfully set to:", mode);
+              } catch (error) {
+                console.error("Failed to set permission mode:", error);
               }
             }}
           />

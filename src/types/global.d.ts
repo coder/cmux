@@ -28,8 +28,8 @@ declare global {
         removeWorktree: (workspacePath: string) => Promise<{ success: boolean; error?: string }>;
       };
       claude: {
-        list: () => Promise<Array<any>>; // Returns WorkspaceInfo from claudeService
-        getWorkspaceInfo: (workspaceId: string) => Promise<{ permissionMode: UIPermissionMode }>;
+        list: () => Promise<Array<import("./workspace").WorkspaceMetadata>>;
+        streamWorkspaceMeta: () => Promise<void>;
         setPermissionMode: (workspaceId: string, permissionMode: UIPermissionMode) => Promise<void>;
         sendMessage: (
           workspaceId: string,
@@ -42,6 +42,12 @@ declare global {
         streamHistory: (workspaceId: string) => Promise<void>;
         onOutput: (workspaceId: string, callback: (data: any) => void) => () => void;
         onClear: (workspaceId: string, callback: (data: any) => void) => () => void;
+        onMetadata: (
+          callback: (data: {
+            workspaceId: string;
+            metadata: import("./workspace").WorkspaceMetadata;
+          }) => void
+        ) => () => void;
         removeWorkspace: (workspaceId: string) => Promise<void>;
       };
     };
