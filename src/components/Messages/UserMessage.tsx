@@ -1,36 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import styled from '@emotion/styled';
-import { Message } from '../../types/claude';
-
-const MessageBlock = styled.div`
-  margin-bottom: 15px;
-  margin-top: 15px;
-  background: #2d2d30;
-  border-left: 3px solid #569cd6;
-  border-radius: 3px;
-  overflow: hidden;
-`;
-
-const MessageHeader = styled.div`
-  padding: 8px 12px;
-  background: rgba(255, 255, 255, 0.05);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 11px;
-  color: #cccccc;
-  font-weight: 500;
-`;
-
-const MessageTypeLabel = styled.div`
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-`;
-
-const MessageContent = styled.div`
-  padding: 12px;
-`;
+import { UIMessage } from '../../types/claude';
+import { MessageWindow, ButtonConfig } from './MessageWindow';
 
 const FormattedContent = styled.pre`
   margin: 0;
@@ -43,23 +14,43 @@ const FormattedContent = styled.pre`
 `;
 
 interface UserMessageProps {
-  message: Message;
+  message: UIMessage;
   className?: string;
 }
 
 export const UserMessage: React.FC<UserMessageProps> = ({ message, className }) => {
+  const [copied, setCopied] = useState(false);
+  
   const content = typeof message.content === 'string' 
     ? message.content 
     : JSON.stringify(message.content, null, 2);
   
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy:", err);
+    }
+  };
+  
+  const buttons: ButtonConfig[] = [
+    {
+      label: copied ? "✓ Copied" : "Copy Text",
+      onClick: handleCopy
+    }
+  ];
+  
   return (
-    <MessageBlock className={className}>
-      <MessageHeader>
-        <MessageTypeLabel>USER</MessageTypeLabel>
-      </MessageHeader>
-      <MessageContent>
-        <FormattedContent>{content}</FormattedContent>
-      </MessageContent>
-    </MessageBlock>
+    <MessageWindow
+      label="USER"
+      borderColor="#569cd6"
+      message={message}
+      buttons={buttons}
+      className={className}
+    >
+      <FormattedContent>{content}</FormattedContent>
+    </MessageWindow>
   );
 };

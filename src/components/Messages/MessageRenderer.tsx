@@ -9,28 +9,46 @@ import { StreamingMessage } from './StreamingMessage';
 import { BashResultMessage } from './BashResultMessage';
 import { ToolResultMessage } from './ToolResultMessage';
 import { DebugMessage } from './DebugMessage';
+import { PlanMessage } from './PlanMessage';
 
 interface MessageRendererProps {
   message: UIMessage;
   className?: string;
-  debugMode?: boolean;
 }
 
-export const MessageRenderer: React.FC<MessageRendererProps> = ({ message, className, debugMode = false }) => {
+export const MessageRenderer: React.FC<MessageRendererProps> = ({ message, className }) => {
   // Handle streaming messages
   if (message.isStreaming) {
     return <StreamingMessage message={message} className={className} />;
   }
   
+  // Check if this is a Plan message (ExitPlanMode tool invocation with plan content)
+  const isPlanMessage = () => {
+    // Only show as PlanMessage if it has the actual plan content
+    return message.metadata?.toolName === 'ExitPlanMode' && 
+           message.metadata?.toolInput?.plan;
+  };
+  
   // Check if this should be shown as a debug message
   const shouldShowAsDebug = () => {
+    const original = message.metadata?.originalSDKMessage;
+    
+    // System init messages
+    if (message.type === 'system' && original?.subtype === 'init') {
+      return true;
+    }
+    
     // Empty assistant messages
     if (message.type === 'assistant' && (!message.content || message.content === '')) {
       return true;
     }
     
+    // ExitPlanMode tool invocations (the tool use itself, not the plan content)
+    if (message.metadata?.toolName === 'ExitPlanMode' && !message.metadata?.toolInput?.plan) {
+      return true;
+    }
+    
     // Stream event messages that leaked through
-    const original = message.metadata?.originalSDKMessage;
     if (original?.type === 'stream_event' && original?.event?.type === 'message_start') {
       return true;
     }
@@ -38,14 +56,14 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({ message, class
     return false;
   };
   
-  // Show debug message if in debug mode and it's a debug-type message
-  if (debugMode && shouldShowAsDebug()) {
-    return <DebugMessage message={message} className={className} />;
+  // Show plan message for ExitPlanMode tool invocations
+  if (isPlanMessage()) {
+    return <PlanMessage message={message} className={className} />;
   }
   
-  // Hide debug messages when not in debug mode
-  if (!debugMode && shouldShowAsDebug()) {
-    return null;
+  // Show debug message for debug-type messages (DebugMessage handles visibility based on context)
+  if (shouldShowAsDebug()) {
+    return <DebugMessage message={message} className={className} />;
   }
 
   // Route based on message type
@@ -64,6 +82,10 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({ message, class
       return <ToolUseMessage message={message} className={className} />;
     
     case 'tool_result':
+      // Check if this is an ExitPlanMode result - show as debug message
+      if (message.associatedToolUse?.name === 'ExitPlanMode') {
+        return <DebugMessage message={message} className={className} />;
+      }
       // Route to specific component based on tool name
       if (message.associatedToolUse?.name === 'Bash') {
         return <BashResultMessage message={message} className={className} />;

@@ -14,6 +14,33 @@ const globalStyles = css`
     box-sizing: border-box;
   }
 
+  :root {
+    /* Plan Mode Colors */
+    --color-plan-mode: #ff6b35;
+    --color-plan-mode-hover: #ff8555;
+    --color-plan-mode-light: color-mix(in srgb, #ff6b35 60%, white);
+    --color-plan-mode-alpha: rgba(255, 107, 53, 0.1);
+    --color-plan-mode-alpha-hover: rgba(255, 107, 53, 0.15);
+    
+    /* Debug Mode Colors */
+    --color-debug: #4a9eff;
+    --color-debug-light: #6bb1ff;
+    --color-debug-alpha: rgba(74, 158, 255, 0.1);
+    --color-debug-text: #89c4ff;
+    
+    /* Other Theme Colors */
+    --color-background: #1e1e1e;
+    --color-background-secondary: #252526;
+    --color-border: #3e3e42;
+    --color-text: #d4d4d4;
+    --color-text-secondary: #6b6b6b;
+    
+    /* Button Colors */
+    --color-button-bg: #3c3c3c;
+    --color-button-text: #cccccc;
+    --color-button-hover-bg: #484848;
+  }
+
   html,
   body,
   #root {

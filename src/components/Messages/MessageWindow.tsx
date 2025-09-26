@@ -1,0 +1,132 @@
+import React, { useState, ReactNode } from 'react';
+import styled from '@emotion/styled';
+import { UIMessage } from '../../types/claude';
+
+const MessageBlock = styled.div<{ borderColor: string }>`
+  margin-bottom: 15px;
+  margin-top: 15px;
+  background: #1e1e1e;
+  border-left: 3px solid ${props => props.borderColor};
+  border-radius: 3px;
+  overflow: hidden;
+`;
+
+const MessageHeader = styled.div`
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  color: #cccccc;
+  font-weight: 500;
+`;
+
+const MessageTypeLabel = styled.div`
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+`;
+
+const ButtonGroup = styled.div`
+  display: flex;
+  gap: 6px;
+`;
+
+const HeaderButton = styled.button<{ active?: boolean }>`
+  background: ${props => props.active ? 'rgba(255, 255, 255, 0.1)' : 'none'};
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #cccccc;
+  padding: 2px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 10px;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.3);
+  }
+`;
+
+const MessageContent = styled.div`
+  padding: 12px;
+`;
+
+const JsonContent = styled.pre`
+  margin: 0;
+  font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  color: #d4d4d4;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 8px;
+  border-radius: 3px;
+  overflow-x: auto;
+`;
+
+export interface ButtonConfig {
+  label: string;
+  onClick: () => void;
+  active?: boolean;
+}
+
+interface MessageWindowProps {
+  label: string;
+  borderColor: string;
+  message: UIMessage;
+  buttons?: ButtonConfig[];
+  children: ReactNode;
+  className?: string;
+}
+
+export const MessageWindow: React.FC<MessageWindowProps> = ({
+  label,
+  borderColor,
+  message,
+  buttons = [],
+  children,
+  className
+}) => {
+  const [showJson, setShowJson] = useState(false);
+
+  return (
+    <MessageBlock borderColor={borderColor} className={className}>
+      <MessageHeader>
+        <MessageTypeLabel>{label}</MessageTypeLabel>
+        <ButtonGroup>
+          {buttons.map((button, index) => (
+            <HeaderButton
+              key={index}
+              active={button.active}
+              onClick={button.onClick}
+            >
+              {button.label}
+            </HeaderButton>
+          ))}
+          <HeaderButton 
+            active={showJson}
+            onClick={() => setShowJson(!showJson)}
+          >
+            {showJson ? "Hide JSON" : "Show JSON"}
+          </HeaderButton>
+        </ButtonGroup>
+      </MessageHeader>
+      <MessageContent>
+        {showJson ? (
+          <JsonContent>
+            {JSON.stringify(
+              message.metadata?.originalSDKMessage || message,
+              null,
+              2
+            )}
+          </JsonContent>
+        ) : (
+          children
+        )}
+      </MessageContent>
+    </MessageBlock>
+  );
+};

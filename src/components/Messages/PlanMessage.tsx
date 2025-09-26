@@ -2,57 +2,19 @@ import React, { useState } from 'react';
 import styled from '@emotion/styled';
 import { UIMessage } from '../../types/claude';
 import { PlanMarkdownRenderer } from './MarkdownRenderer';
+import { MessageWindow, ButtonConfig } from './MessageWindow';
 
-const PlanContainer = styled.div<{ expanded: boolean }>`
-  margin: 8px 0;
-  background: var(--color-plan-mode-alpha);
-  border: 1px solid var(--color-plan-mode);
-  border-radius: 6px;
-  overflow: hidden;
-`;
-
-const PlanHeader = styled.div`
-  display: flex;
-  align-items: center;
-  padding: 10px 14px;
-  cursor: pointer;
-  user-select: none;
-  gap: 8px;
-`;
-
-const PlanIcon = styled.span`
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  background: var(--color-plan-mode);
-  color: white;
-  border-radius: 3px;
-  font-size: 11px;
-  font-weight: bold;
-  flex-shrink: 0;
-`;
-
-const PlanTitle = styled.span`
-  color: var(--color-plan-mode);
-  font-weight: 600;
+const RawContent = styled.pre`
+  font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
   font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  flex: 1;
-`;
-
-const ExpandIcon = styled.span<{ expanded: boolean }>`
-  color: var(--color-plan-mode);
-  font-size: 10px;
-  transform: rotate(${props => props.expanded ? '90deg' : '0deg'});
-  transition: transform 0.2s ease;
-  opacity: 0.8;
-`;
-
-const PlanContent = styled.div`
-  padding: 0 14px 14px 14px;
+  line-height: 1.4;
+  color: var(--color-text);
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
 `;
 
 interface PlanMessageProps {
@@ -61,7 +23,8 @@ interface PlanMessageProps {
 }
 
 export const PlanMessage: React.FC<PlanMessageProps> = ({ message, className }) => {
-  const [expanded, setExpanded] = useState(true);
+  const [showRaw, setShowRaw] = useState(false);
+  const [copied, setCopied] = useState(false);
   
   // Extract the plan content from the tool input
   const getPlanContent = () => {
@@ -101,21 +64,41 @@ export const PlanMessage: React.FC<PlanMessageProps> = ({ message, className }) 
   
   const planContent = getPlanContent();
   
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(planContent);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy:", err);
+    }
+  };
+  
+  const buttons: ButtonConfig[] = [
+    {
+      label: copied ? "✓ Copied" : "Copy Text",
+      onClick: handleCopy
+    },
+    {
+      label: showRaw ? "Show Markdown" : "Show Text",
+      onClick: () => setShowRaw(!showRaw),
+      active: showRaw
+    }
+  ];
+  
   return (
-    <div className={className}>
-      <PlanContainer expanded={expanded}>
-        <PlanHeader onClick={() => setExpanded(!expanded)}>
-          <PlanIcon>P</PlanIcon>
-          <PlanTitle>Plan</PlanTitle>
-          <ExpandIcon expanded={expanded}>▶</ExpandIcon>
-        </PlanHeader>
-        
-        {expanded && (
-          <PlanContent>
-            <PlanMarkdownRenderer content={planContent} />
-          </PlanContent>
-        )}
-      </PlanContainer>
-    </div>
+    <MessageWindow
+      label="PLAN"
+      borderColor="var(--color-plan-mode)"
+      message={message}
+      buttons={buttons}
+      className={className}
+    >
+      {showRaw ? (
+        <RawContent>{planContent}</RawContent>
+      ) : (
+        <PlanMarkdownRenderer content={planContent} />
+      )}
+    </MessageWindow>
   );
 };
