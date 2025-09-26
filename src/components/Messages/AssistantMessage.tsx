@@ -29,8 +29,8 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({ message, cla
   
   const content = extractContent(message);
   
-  // Get permission mode from message metadata
-  const permissionMode = message.metadata?.cmuxMeta?.permissionMode;
+  // Get permission mode from message metadata (stored in originalSDKMessage)
+  const permissionMode = message.metadata?.originalSDKMessage?.metadata?.cmuxMeta?.permissionMode;
   const modeConfig = getModeConfig(permissionMode);
   
   const handleCopy = async () => {
