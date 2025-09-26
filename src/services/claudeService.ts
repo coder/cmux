@@ -120,14 +120,14 @@ class MessageQueue {
 // Helper functions for permission mode conversion
 function uiToSDKPermissionMode(mode: UIPermissionMode): SDKPermissionMode {
   switch (mode) {
-    case 'plan':
-      return 'plan';
-    case 'edit':
-      return 'acceptEdits';
-    case 'yolo':
-      return 'bypassPermissions';
+    case "plan":
+      return "plan";
+    case "edit":
+      return "acceptEdits";
+    case "yolo":
+      return "bypassPermissions";
     default:
-      return 'default';
+      return "default";
   }
 }
 
@@ -137,7 +137,7 @@ interface ActiveQuery {
   messageQueue: MessageQueue;
   sessionId: string;
   permissionMode: UIPermissionMode;
-  sequenceCounter: number;  // Track next sequence number for messages
+  sequenceCounter: number; // Track next sequence number for messages
 }
 
 // Message type that guarantees cmuxMeta is present
@@ -183,16 +183,23 @@ export class ClaudeService extends EventEmitter {
     }
   }
 
-  private getWorkspaceDir(workspaceId: string): string {
-    return path.join(this.configDir, "workspaces", workspaceId);
+  private getSessionDir(): string {
+    return path.join(this.configDir, "sessions");
+  }
+
+  private getWorkspaceSessionDir(workspaceId: string): string {
+    return path.join(this.getSessionDir(), workspaceId);
   }
 
   private getMetadataFile(workspaceId: string): string {
-    return path.join(this.getWorkspaceDir(workspaceId), "metadata.json");
+    return path.join(this.getWorkspaceSessionDir(workspaceId), "metadata.json");
   }
 
   private getHistoryFile(workspaceId: string): string {
-    return path.join(this.getWorkspaceDir(workspaceId), "chat_history.ndjson");
+    return path.join(
+      this.getWorkspaceSessionDir(workspaceId),
+      "chat_history.ndjson"
+    );
   }
 
   private async loadMetadata(workspaceId: string): Promise<{
@@ -209,7 +216,9 @@ export class ClaudeService extends EventEmitter {
       return JSON.parse(data);
     } catch {
       // File doesn't exist, workspace not initialized
-      throw new Error(`Workspace ${workspaceId} not initialized. Metadata file not found.`);
+      throw new Error(
+        `Workspace ${workspaceId} not initialized. Metadata file not found.`
+      );
     }
   }
 
@@ -234,20 +243,20 @@ export class ClaudeService extends EventEmitter {
         workspacePath?: string;
         nextSequenceNumber?: number;
       };
-      
+
       try {
         metadata = await this.loadMetadata(workspaceId);
       } catch {
         // If metadata doesn't exist, start with minimal defaults
         metadata = {
           sessionId: crypto.randomUUID(),
-          permissionMode: 'plan'
+          permissionMode: "plan",
         };
       }
-      
+
       // Apply the update
       updater(metadata);
-      
+
       // Save the updated metadata
       const metadataFile = this.getMetadataFile(workspaceId);
       const dir = path.dirname(metadataFile);
@@ -268,11 +277,11 @@ export class ClaudeService extends EventEmitter {
     await this.updateMetadata(workspaceId, (metadata) => {
       // Set all required fields for a new workspace
       metadata.sessionId = crypto.randomUUID();
-      metadata.permissionMode = 'plan';
+      metadata.permissionMode = "plan";
       metadata.projectName = projectName;
       metadata.branch = branch;
       metadata.workspacePath = workspacePath;
-      metadata.nextSequenceNumber = 0;  // Start sequence numbering at 0
+      metadata.nextSequenceNumber = 0; // Start sequence numbering at 0
     });
   }
 
@@ -298,9 +307,9 @@ export class ClaudeService extends EventEmitter {
       const historyFile = this.getHistoryFile(workspaceId);
       safeLog(`[${workspaceId}] Reading history from: ${historyFile}`);
       const content = await fs.readFile(historyFile, "utf-8");
-      const lines = content.split("\n").filter(line => line.trim());
+      const lines = content.split("\n").filter((line) => line.trim());
       safeLog(`[${workspaceId}] Found ${lines.length} lines in history file`);
-      
+
       for (const line of lines) {
         try {
           yield JSON.parse(line);
@@ -309,7 +318,9 @@ export class ClaudeService extends EventEmitter {
         }
       }
     } catch (error) {
-      safeLog(`[${workspaceId}] No history file found or error reading: ${error}`);
+      safeLog(
+        `[${workspaceId}] No history file found or error reading: ${error}`
+      );
     }
   }
 
@@ -335,9 +346,7 @@ export class ClaudeService extends EventEmitter {
   }
 
   // Get or create a query for the workspace
-  private async getOrCreateQuery(
-    workspaceId: string
-  ): Promise<ActiveQuery> {
+  private async getOrCreateQuery(workspaceId: string): Promise<ActiveQuery> {
     // Check if query already exists
     let activeQuery = this.queries.get(workspaceId);
     if (activeQuery) {
@@ -359,20 +368,22 @@ export class ClaudeService extends EventEmitter {
     // Load complete metadata (includes workspacePath)
     const metadata = await this.loadMetadata(workspaceId);
     if (!metadata.workspacePath) {
-      throw new Error(`Workspace ${workspaceId} not properly initialized - missing workspacePath`);
+      throw new Error(
+        `Workspace ${workspaceId} not properly initialized - missing workspacePath`
+      );
     }
-    
+
     // Check once more after loading metadata
     activeQuery = this.queries.get(workspaceId);
     if (activeQuery) {
       return activeQuery;
     }
-    
-    const permissionMode = metadata.permissionMode ?? 'plan';
-    
+
+    const permissionMode = metadata.permissionMode ?? "plan";
+
     // Load recent history for SDK resume
     const recentHistory = await this.loadRecentHistory(workspaceId, 100);
-    
+
     // Use persisted sequence number from metadata (or 0 if not set)
     const startingSequence = metadata.nextSequenceNumber ?? 0;
 
@@ -381,8 +392,10 @@ export class ClaudeService extends EventEmitter {
 
     // Configure options for the SDK
     const sdkPermissionMode = uiToSDKPermissionMode(permissionMode);
-    safeLog(`[${workspaceId}] Creating query with permission mode: UI=${permissionMode}, SDK=${sdkPermissionMode}`);
-    
+    safeLog(
+      `[${workspaceId}] Creating query with permission mode: UI=${permissionMode}, SDK=${sdkPermissionMode}`
+    );
+
     const options: Options = {
       cwd: metadata.workspacePath,
       permissionMode: sdkPermissionMode,
@@ -403,7 +416,7 @@ export class ClaudeService extends EventEmitter {
       messageQueue,
       sessionId: metadata.sessionId,
       permissionMode,
-      sequenceCounter: startingSequence,  // Continue from last message
+      sequenceCounter: startingSequence, // Continue from last message
     };
 
     this.queries.set(workspaceId, activeQuery);
@@ -415,12 +428,15 @@ export class ClaudeService extends EventEmitter {
     return activeQuery;
   }
 
-  private async streamOutput(workspaceId: string, activeQuery: ActiveQuery): Promise<void> {
+  private async streamOutput(
+    workspaceId: string,
+    activeQuery: ActiveQuery
+  ): Promise<void> {
     try {
       for await (const message of activeQuery.query) {
         // Get next sequence number and increment counter
         const sequenceNumber = activeQuery.sequenceCounter++;
-        
+
         // Add sequence number and cmuxMeta for ordering and permission tracking
         const messageWithMetadata: MessageWithCmuxMeta = {
           ...message,
@@ -429,14 +445,14 @@ export class ClaudeService extends EventEmitter {
             ...message.metadata,
             cmuxMeta: {
               permissionMode: activeQuery.permissionMode,
-              sequenceNumber: sequenceNumber
-            }
-          }
+              sequenceNumber: sequenceNumber,
+            },
+          },
         };
 
         // Append to NDJSON file
         await this.appendMessage(workspaceId, messageWithMetadata);
-        
+
         // CRITICAL: Always persist the updated sequence counter
         // The metadata file is small and writes are cheap.
         // This ensures we NEVER lose sequence numbers, even on crashes.
@@ -456,7 +472,7 @@ export class ClaudeService extends EventEmitter {
             `[${workspaceId}] Updated session ID to Claude's ID:`,
             message.session_id
           );
-          
+
           // Update metadata with new session ID
           await this.updateMetadata(workspaceId, (metadata) => {
             metadata.sessionId = activeQuery.sessionId;
@@ -475,17 +491,17 @@ export class ClaudeService extends EventEmitter {
 
         // Emit output event on workspace-specific channel
         this.emit("workspace-output", workspaceId, {
-          message: messageWithMetadata
+          message: messageWithMetadata,
         });
       }
-      
+
       // Always persist the final sequence counter when stream ends
       await this.updateMetadata(workspaceId, (metadata) => {
         metadata.nextSequenceNumber = activeQuery.sequenceCounter;
       });
     } catch (error) {
       safeError(`Error streaming output for ${workspaceId}:`, error);
-      
+
       // Try to persist the current sequence counter even on error
       try {
         await this.updateMetadata(workspaceId, (metadata) => {
@@ -494,7 +510,7 @@ export class ClaudeService extends EventEmitter {
       } catch {
         // Ignore metadata update errors during error handling
       }
-      
+
       // Remove the query on error
       this.queries.delete(workspaceId);
     }
@@ -507,7 +523,7 @@ export class ClaudeService extends EventEmitter {
     try {
       // Get or create query for this workspace
       const activeQuery = await this.getOrCreateQuery(workspaceId);
-      
+
       // Get next sequence number and increment counter
       const sequenceNumber = activeQuery.sequenceCounter++;
 
@@ -526,9 +542,9 @@ export class ClaudeService extends EventEmitter {
         metadata: {
           cmuxMeta: {
             permissionMode: activeQuery.permissionMode,
-            sequenceNumber: sequenceNumber
-          }
-        }
+            sequenceNumber: sequenceNumber,
+          },
+        },
       };
 
       // Send message through the queue (without metadata for SDK)
@@ -537,7 +553,7 @@ export class ClaudeService extends EventEmitter {
 
       // Append to NDJSON history (with metadata)
       await this.appendMessage(workspaceId, userMessage);
-      
+
       // Persist the updated sequence counter for user messages
       await this.updateMetadata(workspaceId, (metadata) => {
         metadata.nextSequenceNumber = activeQuery.sequenceCounter;
@@ -545,7 +561,7 @@ export class ClaudeService extends EventEmitter {
 
       // Emit the user message locally so it appears in UI immediately
       this.emit("workspace-output", workspaceId, {
-        message: userMessage
+        message: userMessage,
       });
 
       return Ok(undefined);
@@ -581,11 +597,11 @@ export class ClaudeService extends EventEmitter {
 
         // Clear the NDJSON history file
         await this.clearHistory(workspaceId);
-        
+
         // Update metadata with new session ID and reset sequence counter
         await this.updateMetadata(workspaceId, (metadata) => {
           metadata.sessionId = newSessionId;
-          metadata.nextSequenceNumber = 0;  // Reset sequence counter on clear
+          metadata.nextSequenceNumber = 0; // Reset sequence counter on clear
         });
 
         // Emit a clear event on workspace-specific channel
@@ -606,7 +622,6 @@ export class ClaudeService extends EventEmitter {
     return this.sendMessageById(workspaceId, command);
   }
 
-
   async getWorkspaceInfoById(
     workspaceId: string
   ): Promise<{ permissionMode: UIPermissionMode }> {
@@ -619,9 +634,9 @@ export class ClaudeService extends EventEmitter {
     // Otherwise, load from metadata
     try {
       const metadata = await this.loadMetadata(workspaceId);
-      return { permissionMode: metadata.permissionMode ?? 'plan' };
+      return { permissionMode: metadata.permissionMode ?? "plan" };
     } catch {
-      return { permissionMode: 'plan' };
+      return { permissionMode: "plan" };
     }
   }
 
@@ -629,8 +644,10 @@ export class ClaudeService extends EventEmitter {
     workspaceId: string,
     permissionMode: UIPermissionMode
   ): Promise<void> {
-    safeLog(`[${workspaceId}] setPermissionMode called with: ${permissionMode}`);
-    
+    safeLog(
+      `[${workspaceId}] setPermissionMode called with: ${permissionMode}`
+    );
+
     // Update active query if it exists
     const activeQuery = this.queries.get(workspaceId);
     if (activeQuery) {
@@ -638,21 +655,31 @@ export class ClaudeService extends EventEmitter {
 
       // Update SDK permission mode
       const sdkMode = uiToSDKPermissionMode(permissionMode);
-      safeLog(`[${workspaceId}] Attempting to update permission mode: UI=${permissionMode}, SDK=${sdkMode}`);
-      
+      safeLog(
+        `[${workspaceId}] Attempting to update permission mode: UI=${permissionMode}, SDK=${sdkMode}`
+      );
+
       // Check if setPermissionMode is available
       safeLog(`[${workspaceId}] Checking setPermissionMode availability...`);
       safeLog(`[${workspaceId}] query type: ${typeof activeQuery.query}`);
-      safeLog(`[${workspaceId}] setPermissionMode type: ${typeof activeQuery.query.setPermissionMode}`);
-      
-      if (typeof activeQuery.query.setPermissionMode === 'function') {
+      safeLog(
+        `[${workspaceId}] setPermissionMode type: ${typeof activeQuery.query
+          .setPermissionMode}`
+      );
+
+      if (typeof activeQuery.query.setPermissionMode === "function") {
         try {
           safeLog(`[${workspaceId}] Calling setPermissionMode(${sdkMode})...`);
           const result = await activeQuery.query.setPermissionMode(sdkMode);
           safeLog(`[${workspaceId}] setPermissionMode result:`, result);
-          safeLog(`[${workspaceId}] Successfully updated permission mode to ${permissionMode} (${sdkMode})`);
+          safeLog(
+            `[${workspaceId}] Successfully updated permission mode to ${permissionMode} (${sdkMode})`
+          );
         } catch (error) {
-          safeError(`[${workspaceId}] Failed to update permission mode:`, error);
+          safeError(
+            `[${workspaceId}] Failed to update permission mode:`,
+            error
+          );
           // Log more details about the error
           if (error instanceof Error) {
             safeError(`[${workspaceId}] Error message: ${error.message}`);
@@ -660,15 +687,21 @@ export class ClaudeService extends EventEmitter {
           }
         }
       } else {
-        safeLog(`[${workspaceId}] Warning: setPermissionMode method not available on query object.`);
+        safeLog(
+          `[${workspaceId}] Warning: setPermissionMode method not available on query object.`
+        );
         // Log available methods on the query object
-        const methods = Object.getOwnPropertyNames(Object.getPrototypeOf(activeQuery.query)).filter(
-          prop => typeof (activeQuery.query as any)[prop] === 'function'
+        const methods = Object.getOwnPropertyNames(
+          Object.getPrototypeOf(activeQuery.query)
+        ).filter(
+          (prop) => typeof (activeQuery.query as any)[prop] === "function"
         );
         safeLog(`[${workspaceId}] Available methods on query:`, methods);
       }
     } else {
-      safeLog(`[${workspaceId}] No active query, permission mode will be saved to disk only`);
+      safeLog(
+        `[${workspaceId}] No active query, permission mode will be saved to disk only`
+      );
     }
 
     // Always persist to metadata
@@ -686,60 +719,61 @@ export class ClaudeService extends EventEmitter {
 
   async streamWorkspaceHistoryById(workspaceId: string): Promise<void> {
     safeLog(`[${workspaceId}] Starting to stream workspace history`);
-    
+
     let messageCount = 0;
     // Stream historical messages to frontend
     for await (const message of this.streamHistoricalMessages(workspaceId)) {
       messageCount++;
       this.emit("workspace-output", workspaceId, {
         message,
-        historical: true
+        historical: true,
       });
     }
-    
+
     safeLog(`[${workspaceId}] Streamed ${messageCount} historical messages`);
 
     // Send caught-up signal
     this.emit("workspace-output", workspaceId, {
-      caughtUp: true
+      caughtUp: true,
     });
   }
 
-
-
-
   async list(): Promise<Array<WorkspaceInfo>> {
     const workspaces: WorkspaceInfo[] = [];
-    const workspacesDir = path.join(this.configDir, "workspaces");
-    
+    const workspacesDir = this.getSessionDir();
+
     try {
       // Check if workspaces directory exists
       await fs.access(workspacesDir);
-      
+
       // Read all workspace directories
       const dirs = await fs.readdir(workspacesDir);
-      
+
       for (const workspaceId of dirs) {
         try {
           // Load complete metadata
           const metadata = await this.loadMetadata(workspaceId);
-          
+
           // Skip if metadata is incomplete
-          if (!metadata.projectName || !metadata.branch || !metadata.workspacePath) {
+          if (
+            !metadata.projectName ||
+            !metadata.branch ||
+            !metadata.workspacePath
+          ) {
             safeLog(`Skipping incomplete workspace: ${workspaceId}`);
             continue;
           }
-          
+
           // Check if query is active
           const isActive = this.queries.has(workspaceId);
-          
+
           workspaces.push({
             id: workspaceId,
             projectName: metadata.projectName,
             branch: metadata.branch,
             srcPath: metadata.workspacePath,
-            permissionMode: metadata.permissionMode ?? 'plan',
-            isActive
+            permissionMode: metadata.permissionMode ?? "plan",
+            isActive,
           });
         } catch (error) {
           // Skip workspace directories without valid metadata
@@ -750,7 +784,7 @@ export class ClaudeService extends EventEmitter {
       // Workspaces directory doesn't exist yet
       safeLog("Workspaces directory not found");
     }
-    
+
     return workspaces;
   }
 
