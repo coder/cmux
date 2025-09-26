@@ -39,6 +39,10 @@
 ## Testing
 - Always run `bun typecheck` and `bun typecheck:main` after making changes to verify types
 
+## Styling
+- Colors are centralized as CSS variables in `src/App.tsx` (in the `:root` selector)
+- Use CSS variables (e.g., `var(--color-plan-mode)`) instead of hardcoded colors
+
 ## Debugging
 - `bun debug ui-messages --workspace <workspace-name>` - Show UI messages for a workspace
 - `bun debug ui-messages --workspace <workspace-name> --drop <n>` - Show messages with last n dropped

@@ -96,9 +96,23 @@ ipcMain.handle(
   }
 );
 
-ipcMain.handle("claude:listActive", async () => {
-  return claudeService.getActiveWorkspaces();
+ipcMain.handle("claude:list", async () => {
+  return claudeService.list();
 });
+
+ipcMain.handle(
+  "claude:getWorkspaceInfo",
+  async (event, projectName: string, branch: string) => {
+    return await claudeService.getWorkspaceInfo(projectName, branch);
+  }
+);
+
+ipcMain.handle(
+  "claude:setPlanMode",
+  async (event, projectName: string, branch: string, planMode: boolean) => {
+    return await claudeService.setPlanMode(projectName, branch, planMode);
+  }
+);
 
 ipcMain.handle(
   "claude:sendMessage",

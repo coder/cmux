@@ -22,9 +22,11 @@ declare global {
         start: (workspacePath: string, projectName: string, branch: string) => Promise<boolean>;
         isActive: (projectName: string, branch: string) => Promise<boolean>;
         getOutput: (projectName: string, branch: string) => Promise<any[]>;
-        listActive: () => Promise<Array<{ projectName: string; branch: string }>>;
-        sendMessage: (projectName: string, branch: string, message: string) => Promise<boolean>;
-        handleSlashCommand: (projectName: string, branch: string, command: string) => Promise<boolean>;
+        list: () => Promise<Array<any>>; // Returns Partial<Workspace> from claudeService
+        getWorkspaceInfo: (projectName: string, branch: string) => Promise<{ planMode: boolean }>;
+        setPlanMode: (projectName: string, branch: string, planMode: boolean) => Promise<void>;
+        sendMessage: (projectName: string, branch: string, message: string) => Promise<import('./result').Result<void, string>>;
+        handleSlashCommand: (projectName: string, branch: string, command: string) => Promise<import('./result').Result<void, string>>;
         onOutput: (callback: (data: any) => void) => () => void;
         onClear: (callback: (data: any) => void) => () => void;
         onCompactionComplete: (callback: (data: any) => void) => () => void;

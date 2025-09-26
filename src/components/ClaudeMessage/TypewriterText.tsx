@@ -85,18 +85,23 @@ export const TypewriterText: React.FC<TypewriterTextProps> = ({
         clearTimeout(animationRef.current);
       }
     };
-  }, [targetContent, speed, isComplete, displayedContent]);
+  }, [targetContent, speed, isComplete]);
 
-  // Cursor blinking effect
+  // Cursor blinking effect - only depends on isComplete to avoid infinite loops
   useEffect(() => {
-    if (!showCursor) return;
+    if (isComplete) {
+      setShowCursor(false);
+      return;
+    }
 
+    // Start blinking cursor
+    setShowCursor(true);
     const interval = setInterval(() => {
       setShowCursor(prev => !prev);
     }, 500);
 
     return () => clearInterval(interval);
-  }, [showCursor]);
+  }, [isComplete]);
 
   return (
     <TypewriterContainer ref={containerRef}>

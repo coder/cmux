@@ -223,6 +223,12 @@ function formatToolDisplay(toolName: string, toolInput: any): { icon: string; de
         description: <span>{`Updating todo list (${toolInput?.todos?.length || 0} items)`}</span>
       };
     
+    case 'ExitPlanMode':
+      return {
+        icon: 'P',
+        description: <span style={{ color: 'var(--color-plan-mode)' }}>Creating plan...</span>
+      };
+    
     default:
       return {
         icon: '•',

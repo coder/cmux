@@ -10,6 +10,7 @@ import { MessageRenderer } from "./Messages/MessageRenderer";
 import { CommandSuggestions, COMMAND_SUGGESTION_KEYS } from "./CommandSuggestions";
 import { UIMessage } from "../types/claude";
 import { StreamingMessageAggregator } from "../utils/StreamingMessageAggregator";
+import { DebugProvider, useDebugMode } from "../contexts/DebugContext";
 
 // StreamingMessageAggregator is now imported from utils
 
@@ -36,22 +37,19 @@ const ViewHeader = styled.div`
 const WorkspaceTitle = styled.div`
   font-weight: 600;
   color: #cccccc;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 `;
 
-const StatusIndicator = styled.div<{ active: boolean }>`
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 11px;
-  color: ${(props) => (props.active ? "#4ec9b0" : "#6b6b6b")};
-
-  &::before {
-    content: "";
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: ${(props) => (props.active ? "#4ec9b0" : "#6b6b6b")};
-  }
+const PlanModeBadge = styled.span`
+  background: var(--color-plan-mode);
+  color: white;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
 `;
 
 const OutputContent = styled.div`
@@ -98,6 +96,37 @@ const DebugModeToggle = styled.label`
   &:hover {
     opacity: 1;
   }
+`;
+
+const PlanModeToggle = styled.label<{ active?: boolean }>`
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  color: ${props => props.active ? '#ffffff' : '#606060'};
+  background: ${props => props.active ? 'var(--color-plan-mode)' : 'transparent'};
+  padding: 2px 6px;
+  border-radius: 3px;
+  cursor: pointer;
+  user-select: none;
+  opacity: ${props => props.active ? '1' : '0.7'};
+  transition: all 0.2s ease;
+  margin-right: 8px;
+  
+  input {
+    cursor: pointer;
+    transform: scale(0.9);
+  }
+  
+  &:hover {
+    opacity: 1;
+    background: ${props => props.active ? 'var(--color-plan-mode-hover)' : 'var(--color-plan-mode-alpha)'};
+  }
+`;
+
+const ModeToggles = styled.div`
+  display: flex;
+  align-items: center;
 `;
 
 const InputField = styled.textarea`
@@ -171,7 +200,7 @@ interface ClaudeViewProps {
   className?: string;
 }
 
-export const ClaudeView: React.FC<ClaudeViewProps> = ({
+const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
   projectName,
   branch,
   className,
@@ -179,13 +208,14 @@ export const ClaudeView: React.FC<ClaudeViewProps> = ({
   const [uiMessageMap, setUIMessageMap] = useState<Map<string, UIMessage>>(
     new Map()
   );
-  const [isActive, setIsActive] = useState(false);
+  // Workspaces are always active - no need to track status
   const [input, setInput] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [isCompacting, setIsCompacting] = useState(false);
   const [availableCommands, setAvailableCommands] = useState<string[]>([]);
   const [showCommandSuggestions, setShowCommandSuggestions] = useState(false);
-  const [debugMode, setDebugMode] = useState(false);
+  const { debugMode, setDebugMode } = useDebugMode(); // Use context instead of local state
+  const [planMode, setPlanMode] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const aggregatorRef = useRef<StreamingMessageAggregator>(
@@ -246,11 +276,21 @@ export const ClaudeView: React.FC<ClaudeViewProps> = ({
     setUIMessageMap(new Map());
     aggregatorRef.current.clear();
 
+    // Reset Plan Mode state immediately when switching workspaces
+    setPlanMode(false);
+
     // Load initial output
     loadOutput();
+    
+    // Load workspace-specific plan mode
+    window.api.claude.getWorkspaceInfo(projectName, branch).then((info) => {
+      setPlanMode(info.planMode || false);
+    }).catch((error) => {
+      console.error("Failed to load workspace info:", error);
+      setPlanMode(false);
+    });
 
-    // Check if workspace is active
-    checkStatus();
+    // No need to check status - workspaces are always active
 
     // Subscribe to output updates
     const unsubscribeOutput = window.api.claude.onOutput((data: any) => {
@@ -286,8 +326,7 @@ export const ClaudeView: React.FC<ClaudeViewProps> = ({
       }
     });
 
-    // Poll status periodically
-    const statusInterval = setInterval(checkStatus, 5000);
+    // No polling needed - workspaces are always active
 
     return () => {
       if (typeof unsubscribeOutput === "function") {
@@ -299,7 +338,7 @@ export const ClaudeView: React.FC<ClaudeViewProps> = ({
       if (typeof unsubscribeCompaction === "function") {
         unsubscribeCompaction();
       }
-      clearInterval(statusInterval);
+      // No interval to clear
     };
   }, [projectName, branch, loadOutput, processSDKMessage]);
 
@@ -307,10 +346,9 @@ export const ClaudeView: React.FC<ClaudeViewProps> = ({
   useEffect(() => {
     setShowCommandSuggestions(
       input.startsWith('/') && 
-      availableCommands.length > 0 &&
-      isActive
+      availableCommands.length > 0
     );
-  }, [input, availableCommands, isActive]);
+  }, [input, availableCommands]);
 
   // Handle command selection
   const handleCommandSelect = useCallback((command: string) => {
@@ -319,19 +357,9 @@ export const ClaudeView: React.FC<ClaudeViewProps> = ({
     inputRef.current?.focus();
   }, []);
 
-  const checkStatus = async () => {
-    if (!projectName || !branch) return;
-
-    try {
-      const active = await window.api.claude.isActive(projectName, branch);
-      setIsActive(active);
-    } catch (error) {
-      console.error("Failed to check status:", error);
-    }
-  };
 
   const handleSend = async () => {
-    if (!input.trim() || !projectName || !branch || isSending) return;
+    if (!input.trim() || !projectName || !branch || isSending || isCompacting) return;
 
     setIsSending(true);
     try {
@@ -354,15 +382,16 @@ export const ClaudeView: React.FC<ClaudeViewProps> = ({
           aggregatorRef.current.clear();
           
           // Send clear command to backend
-          const success = await window.api.claude.handleSlashCommand(
+          const result = await window.api.claude.handleSlashCommand(
             projectName,
             branch,
             messageText
           );
           
-          if (!success) {
-            console.error("Failed to execute /clear command");
-            // Reload messages on error
+          if (!result.success) {
+            console.error("Failed to execute /clear command:", result.error);
+            // Show error to user and reload messages
+            alert(`Failed to clear messages: ${result.error}`);
             loadOutput();
           }
           return;
@@ -373,15 +402,16 @@ export const ClaudeView: React.FC<ClaudeViewProps> = ({
       }
 
       // Send message to Claude workspace (including slash commands)
-      const success = await window.api.claude.sendMessage(
+      const result = await window.api.claude.sendMessage(
         projectName,
         branch,
         messageText
       );
 
-      if (!success) {
-        console.error("Failed to send message to Claude workspace");
-        // Optionally restore the input or show an error message
+      if (!result.success) {
+        console.error("Failed to send message to Claude workspace:", result.error);
+        // Show the detailed error to the user and restore input
+        alert(`Failed to send message: ${result.error}`);
         setInput(messageText);
         return;
       }
@@ -432,10 +462,8 @@ export const ClaudeView: React.FC<ClaudeViewProps> = ({
       <ViewHeader>
         <WorkspaceTitle>
           {projectName} / {branch}
+          {planMode && <PlanModeBadge>Plan Mode</PlanModeBadge>}
         </WorkspaceTitle>
-        <StatusIndicator active={isActive}>
-          {isActive ? "Active" : "Inactive"}
-        </StatusIndicator>
       </ViewHeader>
 
       <OutputContent ref={contentRef}>
@@ -446,7 +474,7 @@ export const ClaudeView: React.FC<ClaudeViewProps> = ({
           </EmptyState>
         ) : (
           messages.map((msg) => (
-            <MessageRenderer key={msg.id} message={msg} debugMode={debugMode} />
+            <MessageRenderer key={msg.id} message={msg} />
           ))
         )}
       </OutputContent>
@@ -468,29 +496,55 @@ export const ClaudeView: React.FC<ClaudeViewProps> = ({
             placeholder={
               isCompacting
                 ? "Compacting conversation..."
-                : isActive
-                ? "Type your message... (Enter to send, Shift+Enter for newline)"
-                : "Start workspace to send messages"
+                : planMode
+                ? "Plan Mode: Claude will plan but not execute actions (Enter to send)"
+                : "Type your message... (Enter to send, Shift+Enter for newline)"
             }
-            disabled={!isActive || isSending || isCompacting}
+            disabled={isSending || isCompacting}
             rows={1}
           />
           <SendButton
             onClick={handleSend}
-            disabled={!input.trim() || !isActive || isSending || isCompacting}
+            disabled={!input.trim() || isSending || isCompacting}
           >
             {isCompacting ? "Compacting..." : isSending ? "Sending..." : "Send"}
           </SendButton>
         </InputControls>
-        <DebugModeToggle>
-          <input
-            type="checkbox"
-            checked={debugMode}
-            onChange={(e) => setDebugMode(e.target.checked)}
-          />
-          Debug Mode
-        </DebugModeToggle>
+        <ModeToggles>
+          <PlanModeToggle active={planMode}>
+            <input
+              type="checkbox"
+              checked={planMode}
+              onChange={async (e) => {
+                const newValue = e.target.checked;
+                setPlanMode(newValue);
+                // Persist to backend immediately
+                if (projectName && branch) {
+                  await window.api.claude.setPlanMode(projectName, branch, newValue);
+                }
+              }}
+            />
+            Plan Mode
+          </PlanModeToggle>
+          <DebugModeToggle>
+            <input
+              type="checkbox"
+              checked={debugMode}
+              onChange={(e) => setDebugMode(e.target.checked)}
+            />
+            Debug Mode
+          </DebugModeToggle>
+        </ModeToggles>
       </InputSection>
     </ViewContainer>
+  );
+};
+
+// Wrapper component that provides the debug context
+export const ClaudeView: React.FC<ClaudeViewProps> = (props) => {
+  return (
+    <DebugProvider>
+      <ClaudeViewInner {...props} />
+    </DebugProvider>
   );
 };

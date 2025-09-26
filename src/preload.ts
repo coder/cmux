@@ -27,7 +27,11 @@ contextBridge.exposeInMainWorld('api', {
       ipcRenderer.invoke('claude:isActive', projectName, branch),
     getOutput: (projectName: string, branch: string) => 
       ipcRenderer.invoke('claude:getOutput', projectName, branch),
-    listActive: () => ipcRenderer.invoke('claude:listActive'),
+    list: () => ipcRenderer.invoke('claude:list'),
+    getWorkspaceInfo: (projectName: string, branch: string) =>
+      ipcRenderer.invoke('claude:getWorkspaceInfo', projectName, branch),
+    setPlanMode: (projectName: string, branch: string, planMode: boolean) =>
+      ipcRenderer.invoke('claude:setPlanMode', projectName, branch, planMode),
     sendMessage: (projectName: string, branch: string, message: string) =>
       ipcRenderer.invoke('claude:sendMessage', projectName, branch, message),
     handleSlashCommand: (projectName: string, branch: string, command: string) =>
