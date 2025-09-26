@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import styled from "@emotion/styled";
 import { Global, css } from "@emotion/react";
+import { GlobalColors } from "./styles/colors";
 import ProjectSidebar, { ProjectConfig, WorkspaceSelection } from "./components/ProjectSidebar";
 import NewWorkspaceModal from "./components/NewWorkspaceModal";
 import { ClaudeView } from "./components/ClaudeView";
@@ -12,47 +13,6 @@ const globalStyles = css`
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-  }
-
-  :root {
-    /* Plan Mode Colors */
-    --color-plan-mode: hsl(210 70% 40% / 1);
-    --color-plan-mode-hover: hsl(210 70% 50% / 1);
-    --color-plan-mode-light: color-mix(in srgb, var(--color-plan-mode) 60%, white);
-    --color-plan-mode-alpha: hsl(210 70% 40% / 0.1);
-    --color-plan-mode-alpha-hover: hsl(210 70% 40% / 0.15);
-    
-    /* Edit Mode Colors */
-    --color-edit-mode: hsl(120 50% 35% / 1);
-    --color-edit-mode-hover: hsl(120 50% 45% / 1);
-    --color-edit-mode-light: color-mix(in srgb, var(--color-edit-mode) 60%, white);
-    --color-edit-mode-alpha: hsl(120 50% 35% / 0.1);
-    --color-edit-mode-alpha-hover: hsl(120 50% 35% / 0.15);
-    
-    /* Yolo Mode Colors */
-    --color-yolo-mode: hsl(0 70% 45% / 1);
-    --color-yolo-mode-hover: hsl(0 70% 55% / 1);
-    --color-yolo-mode-light: color-mix(in srgb, var(--color-yolo-mode) 60%, white);
-    --color-yolo-mode-alpha: hsl(0 70% 45% / 0.1);
-    --color-yolo-mode-alpha-hover: hsl(0 70% 45% / 0.15);
-    
-    /* Debug Mode Colors */
-    --color-debug: #4a9eff;
-    --color-debug-light: #6bb1ff;
-    --color-debug-alpha: rgba(74, 158, 255, 0.1);
-    --color-debug-text: #89c4ff;
-    
-    /* Other Theme Colors */
-    --color-background: #1e1e1e;
-    --color-background-secondary: #252526;
-    --color-border: #3e3e42;
-    --color-text: #d4d4d4;
-    --color-text-secondary: #6b6b6b;
-    
-    /* Button Colors */
-    --color-button-bg: #3c3c3c;
-    --color-button-text: #cccccc;
-    --color-button-hover-bg: #484848;
   }
 
   html,
@@ -284,6 +244,7 @@ function App() {
 
   return (
     <>
+      <GlobalColors />
       <Global styles={globalStyles} />
       <AppContainer>
         <ProjectSidebar

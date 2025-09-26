@@ -46,7 +46,7 @@ export const UserMessage: React.FC<UserMessageProps> = ({ message, className }) 
   return (
     <MessageWindow
       label="USER"
-      borderColor="#569cd6"
+      borderColor="var(--color-user-border)"
       message={message}
       buttons={buttons}
       className={className}

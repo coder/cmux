@@ -40,7 +40,7 @@
 - Always run `bun typecheck` and `bun typecheck:main` after making changes to verify types
 
 ## Styling
-- Colors are centralized as CSS variables in `src/App.tsx` (in the `:root` selector)
+- Colors are centralized as CSS variables in `src/styles/colors.tsx`
 - Use CSS variables (e.g., `var(--color-plan-mode)`) instead of hardcoded colors
 
 ## TypeScript Best Practices
