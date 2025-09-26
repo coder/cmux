@@ -1,7 +1,7 @@
 import React from "react";
 import styled from "@emotion/styled";
 import { Message } from "../../types/claude";
-import { TypewriterMarkdown } from "../ClaudeMessage/TypewriterMarkdown";
+import { TypewriterMarkdown } from "./TypewriterMarkdown";
 
 const MessageBlock = styled.div`
   margin-bottom: 15px;
