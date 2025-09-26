@@ -8,24 +8,17 @@ const MarkdownContainer = styled.div`
   ${markdownStyles}
 `;
 
-
-
 interface MarkdownRendererProps {
   content: string;
   className?: string;
 }
 
-export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
-  content,
-  className,
-}) => {
+export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, className }) => {
   const normalizedContent = normalizeMarkdown(content);
 
   return (
     <MarkdownContainer className={className}>
-      <ReactMarkdown components={markdownComponents}>
-        {normalizedContent}
-      </ReactMarkdown>
+      <ReactMarkdown components={markdownComponents}>{normalizedContent}</ReactMarkdown>
     </MarkdownContainer>
   );
 };
@@ -33,7 +26,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
 // For plan-specific styling
 export const PlanMarkdownContainer = styled.div`
   ${markdownStyles}
-  
+
   blockquote {
     border-left-color: var(--color-plan-mode);
   }
@@ -56,9 +49,7 @@ export const PlanMarkdownRenderer: React.FC<PlanMarkdownRendererProps> = ({
 
   return (
     <PlanMarkdownContainer className={className}>
-      <ReactMarkdown components={markdownComponents}>
-        {normalizedContent}
-      </ReactMarkdown>
+      <ReactMarkdown components={markdownComponents}>{normalizedContent}</ReactMarkdown>
     </PlanMarkdownContainer>
   );
 };

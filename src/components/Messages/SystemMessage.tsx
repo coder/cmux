@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import styled from '@emotion/styled';
-import { Message } from '../../types/claude';
+import React, { useState } from "react";
+import styled from "@emotion/styled";
+import { Message } from "../../types/claude";
 
 const SystemContainer = styled.div`
   margin: 4px 0;
@@ -48,7 +48,7 @@ const ToggleButton = styled.button`
   cursor: pointer;
   font-size: 8px;
   transition: all 0.2s ease;
-  
+
   &:hover {
     background: rgba(255, 255, 255, 0.05);
     border-color: rgba(255, 255, 255, 0.2);
@@ -57,7 +57,7 @@ const ToggleButton = styled.button`
 
 const JsonContent = styled.pre`
   margin: 4px 0 0 0;
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
   font-size: 9px;
   line-height: 1.3;
   color: #d4d4d4;
@@ -76,9 +76,9 @@ interface SystemMessageProps {
 
 export const SystemMessage: React.FC<SystemMessageProps> = ({ message, className }) => {
   const [showJson, setShowJson] = useState(false);
-  
+
   const displayText = formatSystemMessage(message);
-  
+
   return (
     <div className={className}>
       <SystemContainer>
@@ -87,11 +87,9 @@ export const SystemMessage: React.FC<SystemMessageProps> = ({ message, className
           <SystemText>SYSTEM</SystemText>
           <SystemDetails>{displayText}</SystemDetails>
         </SystemContent>
-        <ToggleButton onClick={() => setShowJson(!showJson)}>
-          {showJson ? '−' : '+'}
-        </ToggleButton>
+        <ToggleButton onClick={() => setShowJson(!showJson)}>{showJson ? "−" : "+"}</ToggleButton>
       </SystemContainer>
-      
+
       {showJson && (
         <JsonContent>
           {JSON.stringify(message.metadata?.originalSDKMessage || message, null, 2)}
@@ -103,25 +101,25 @@ export const SystemMessage: React.FC<SystemMessageProps> = ({ message, className
 
 function formatSystemMessage(message: Message): string {
   const original = message.metadata?.originalSDKMessage;
-  
+
   // Check for specific system message subtypes
-  if (original?.subtype === 'init') {
-    const model = original.model || 'unknown';
+  if (original?.subtype === "init") {
+    const model = original.model || "unknown";
     const tools = original.tools?.length || 0;
     return `Session initialized • ${model} • ${tools} tools available`;
   }
-  
-  if (original?.subtype === 'compact_boundary') {
+
+  if (original?.subtype === "compact_boundary") {
     const metadata = original.compact_metadata || {};
-    const trigger = metadata.trigger === 'manual' ? 'Manual' : 'Automatic';
+    const trigger = metadata.trigger === "manual" ? "Manual" : "Automatic";
     const preTokens = metadata.pre_tokens || 0;
     return `📦 ${trigger} compaction completed • Compressed ${preTokens.toLocaleString()} tokens`;
   }
-  
+
   // Default formatting
-  if (typeof message.content === 'string') {
+  if (typeof message.content === "string") {
     return message.content;
   }
-  
-  return original?.subtype || 'System message';
+
+  return original?.subtype || "System message";
 }

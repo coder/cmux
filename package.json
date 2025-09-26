@@ -14,6 +14,8 @@
     "typecheck": "tsc --noEmit",
     "typecheck:main": "tsc --noEmit -p tsconfig.main.json",
     "debug": "bun src/debug/index.ts",
+    "fmt": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json}\" \"*.{json,md}\"",
+    "fmt:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,json}\" \"*.{json,md}\"",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
@@ -41,6 +43,7 @@
     "electron": "^27.0.0",
     "electron-builder": "^24.6.0",
     "jest": "^30.1.3",
+    "prettier": "^3.6.2",
     "ts-jest": "^29.4.4",
     "typescript": "^5.1.3",
     "vite": "^4.4.0"

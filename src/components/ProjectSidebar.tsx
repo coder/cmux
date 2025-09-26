@@ -11,8 +11,9 @@ const SidebarContainer = styled.div`
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
-    "Segoe UI Variable", system-ui, Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", "Segoe UI Variable", system-ui, Roboto,
+    "Helvetica Neue", Arial, sans-serif;
 `;
 
 const SidebarHeader = styled.div`
@@ -166,8 +167,8 @@ const ProjectPath = styled.div`
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-family: "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas,
-    "Courier New", monospace;
+  font-family:
+    "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace;
 `;
 
 const RemoveBtn = styled.button`
@@ -347,15 +348,9 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
   onRemoveProject,
   onRemoveWorkspace,
 }) => {
-  const [expandedProjects, setExpandedProjects] = useState<Set<string>>(
-    new Set()
-  );
-  const [claudeStatuses, setClaudeStatuses] = useState<Map<string, boolean>>(
-    new Map()
-  );
-  const [workspaceInfoMap, setWorkspaceInfoMap] = useState<Map<string, { id: string }>>(
-    new Map()
-  );
+  const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
+  const [claudeStatuses, setClaudeStatuses] = useState<Map<string, boolean>>(new Map());
+  const [workspaceInfoMap, setWorkspaceInfoMap] = useState<Map<string, { id: string }>>(new Map());
 
   const getProjectName = (path: string) => {
     if (!path || typeof path !== "string") {
@@ -379,7 +374,7 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
     const checkStatuses = async () => {
       // Get all workspace info from backend
       const workspaces = await window.api.claude.list();
-      
+
       const statuses = new Map<string, boolean>();
       const infoMap = new Map<string, { id: string }>();
 
@@ -403,8 +398,6 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
     return () => clearInterval(interval);
   }, [projects]);
 
-
-
   return (
     <SidebarContainer>
       <SidebarHeader>
@@ -417,9 +410,7 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
         {projects.size === 0 ? (
           <EmptyState>
             <p>No projects</p>
-            <AddFirstProjectBtn onClick={onAddProject}>
-              Add Project
-            </AddFirstProjectBtn>
+            <AddFirstProjectBtn onClick={onAddProject}>Add Project</AddFirstProjectBtn>
           </EmptyState>
         ) : (
           Array.from(projects.entries()).map(([projectPath, config]) => (
@@ -431,9 +422,7 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                   toggleProject(projectPath);
                 }}
               >
-                <ExpandIcon expanded={expandedProjects.has(projectPath)}>
-                  ▶
-                </ExpandIcon>
+                <ExpandIcon expanded={expandedProjects.has(projectPath)}>▶</ExpandIcon>
                 <ProjectInfo>
                   <ProjectName>{getProjectName(projectPath)}</ProjectName>
                   <ProjectPath>{projectPath}</ProjectPath>
@@ -452,9 +441,7 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
               {expandedProjects.has(projectPath) && (
                 <WorkspacesContainer>
                   <WorkspaceHeader>
-                    <AddWorkspaceBtn
-                      onClick={() => onAddWorkspace(projectPath)}
-                    >
+                    <AddWorkspaceBtn onClick={() => onAddWorkspace(projectPath)}>
                       + New Workspace
                     </AddWorkspaceBtn>
                   </WorkspaceHeader>
@@ -469,21 +456,19 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                       <WorkspaceItem
                         key={workspace.path}
                         selected={selectedWorkspace?.workspacePath === workspace.path}
-                        onClick={() => onSelectWorkspace({
-                          projectPath,
-                          projectName,
-                          branch: workspace.branch,
-                          workspacePath: workspace.path,
-                          workspaceId
-                        })}
+                        onClick={() =>
+                          onSelectWorkspace({
+                            projectPath,
+                            projectName,
+                            branch: workspace.branch,
+                            workspacePath: workspace.path,
+                            workspaceId,
+                          })
+                        }
                       >
                         <StatusIndicator
                           active={isActive}
-                          title={
-                            isActive
-                              ? "Claude Code running"
-                              : "Claude Code not running"
-                          }
+                          title={isActive ? "Claude Code running" : "Claude Code not running"}
                         />
                         <BranchIcon>⎇</BranchIcon>
                         <WorkspaceName>{workspace.branch}</WorkspaceName>

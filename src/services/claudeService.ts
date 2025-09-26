@@ -21,8 +21,7 @@ function safeLog(...args: any[]): void {
     const safeArgs = args.map((arg) => {
       if (typeof arg === "object" && arg !== null) {
         // For objects, only log type and key properties
-        if (arg.type)
-          return `[${arg.type}${arg.subtype ? "/" + arg.subtype : ""}]`;
+        if (arg.type) return `[${arg.type}${arg.subtype ? "/" + arg.subtype : ""}]`;
         if (arg.message) return "[Message Object]";
         return "[Object]";
       }
@@ -49,8 +48,7 @@ function safeError(...args: any[]): void {
       if (typeof arg === "object" && arg !== null) {
         // For errors, try to get the message
         if (arg instanceof Error) return `Error: ${arg.message}`;
-        if (arg.type)
-          return `[${arg.type}${arg.subtype ? "/" + arg.subtype : ""}]`;
+        if (arg.type) return `[${arg.type}${arg.subtype ? "/" + arg.subtype : ""}]`;
         return "[Object]";
       }
       return arg;
@@ -169,10 +167,7 @@ export class ClaudeService extends EventEmitter {
 
     try {
       // Use Function constructor to ensure true dynamic import
-      const dynamicImport = new Function(
-        "specifier",
-        "return import(specifier)"
-      );
+      const dynamicImport = new Function("specifier", "return import(specifier)");
       const claudeModule = await dynamicImport("@anthropic-ai/claude-code");
       queryFunction = claudeModule.query;
       this.sdkLoaded = true;
@@ -196,10 +191,7 @@ export class ClaudeService extends EventEmitter {
   }
 
   private getHistoryFile(workspaceId: string): string {
-    return path.join(
-      this.getWorkspaceSessionDir(workspaceId),
-      "chat_history.ndjson"
-    );
+    return path.join(this.getWorkspaceSessionDir(workspaceId), "chat_history.ndjson");
   }
 
   private async loadMetadata(workspaceId: string): Promise<{
@@ -216,9 +208,7 @@ export class ClaudeService extends EventEmitter {
       return JSON.parse(data);
     } catch {
       // File doesn't exist, workspace not initialized
-      throw new Error(
-        `Workspace ${workspaceId} not initialized. Metadata file not found.`
-      );
+      throw new Error(`Workspace ${workspaceId} not initialized. Metadata file not found.`);
     }
   }
 
@@ -285,10 +275,7 @@ export class ClaudeService extends EventEmitter {
     });
   }
 
-  private async appendMessage(
-    workspaceId: string,
-    message: MessageWithCmuxMeta
-  ): Promise<void> {
+  private async appendMessage(workspaceId: string, message: MessageWithCmuxMeta): Promise<void> {
     try {
       const historyFile = this.getHistoryFile(workspaceId);
       const dir = path.dirname(historyFile);
@@ -300,9 +287,7 @@ export class ClaudeService extends EventEmitter {
     }
   }
 
-  private async *streamHistoricalMessages(
-    workspaceId: string
-  ): AsyncIterable<SDKMessage> {
+  private async *streamHistoricalMessages(workspaceId: string): AsyncIterable<SDKMessage> {
     try {
       const historyFile = this.getHistoryFile(workspaceId);
       safeLog(`[${workspaceId}] Reading history from: ${historyFile}`);
@@ -318,9 +303,7 @@ export class ClaudeService extends EventEmitter {
         }
       }
     } catch (error) {
-      safeLog(
-        `[${workspaceId}] No history file found or error reading: ${error}`
-      );
+      safeLog(`[${workspaceId}] No history file found or error reading: ${error}`);
     }
   }
 
@@ -333,10 +316,7 @@ export class ClaudeService extends EventEmitter {
     }
   }
 
-  private async loadRecentHistory(
-    workspaceId: string,
-    limit: number = 100
-  ): Promise<SDKMessage[]> {
+  private async loadRecentHistory(workspaceId: string, limit: number = 100): Promise<SDKMessage[]> {
     const messages: SDKMessage[] = [];
     for await (const message of this.streamHistoricalMessages(workspaceId)) {
       messages.push(message);
@@ -368,9 +348,7 @@ export class ClaudeService extends EventEmitter {
     // Load complete metadata (includes workspacePath)
     const metadata = await this.loadMetadata(workspaceId);
     if (!metadata.workspacePath) {
-      throw new Error(
-        `Workspace ${workspaceId} not properly initialized - missing workspacePath`
-      );
+      throw new Error(`Workspace ${workspaceId} not properly initialized - missing workspacePath`);
     }
 
     // Check once more after loading metadata
@@ -428,10 +406,7 @@ export class ClaudeService extends EventEmitter {
     return activeQuery;
   }
 
-  private async streamOutput(
-    workspaceId: string,
-    activeQuery: ActiveQuery
-  ): Promise<void> {
+  private async streamOutput(workspaceId: string, activeQuery: ActiveQuery): Promise<void> {
     try {
       for await (const message of activeQuery.query) {
         // Get next sequence number and increment counter
@@ -462,16 +437,9 @@ export class ClaudeService extends EventEmitter {
         });
 
         // If this is the first system/init message, use Claude's session ID for future resumes
-        if (
-          message.type === "system" &&
-          message.subtype === "init" &&
-          message.session_id
-        ) {
+        if (message.type === "system" && message.subtype === "init" && message.session_id) {
           activeQuery.sessionId = message.session_id;
-          safeLog(
-            `[${workspaceId}] Updated session ID to Claude's ID:`,
-            message.session_id
-          );
+          safeLog(`[${workspaceId}] Updated session ID to Claude's ID:`, message.session_id);
 
           // Update metadata with new session ID
           await this.updateMetadata(workspaceId, (metadata) => {
@@ -516,10 +484,7 @@ export class ClaudeService extends EventEmitter {
     }
   }
 
-  async sendMessageById(
-    workspaceId: string,
-    message: string
-  ): Promise<Result<void, string>> {
+  async sendMessageById(workspaceId: string, message: string): Promise<Result<void, string>> {
     try {
       // Get or create query for this workspace
       const activeQuery = await this.getOrCreateQuery(workspaceId);
@@ -566,8 +531,7 @@ export class ClaudeService extends EventEmitter {
 
       return Ok(undefined);
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
       const detailedError = `Failed to send message to workspace ${workspaceId}: ${errorMessage}`;
       safeError(`Failed to send message to ${workspaceId}:`, error);
       return Err(detailedError);
@@ -610,8 +574,7 @@ export class ClaudeService extends EventEmitter {
         safeLog(`[${workspaceId}] Session cleared successfully`);
         return Ok(undefined);
       } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : String(error);
+        const errorMessage = error instanceof Error ? error.message : String(error);
         const detailedError = `Failed to execute /clear command for workspace ${workspaceId}: ${errorMessage}`;
         safeError(`Failed to execute /clear for ${workspaceId}:`, error);
         return Err(detailedError);
@@ -622,9 +585,7 @@ export class ClaudeService extends EventEmitter {
     return this.sendMessageById(workspaceId, command);
   }
 
-  async getWorkspaceInfoById(
-    workspaceId: string
-  ): Promise<{ permissionMode: UIPermissionMode }> {
+  async getWorkspaceInfoById(workspaceId: string): Promise<{ permissionMode: UIPermissionMode }> {
     // Check if query exists and has current permission mode
     const activeQuery = this.queries.get(workspaceId);
     if (activeQuery) {
@@ -644,9 +605,7 @@ export class ClaudeService extends EventEmitter {
     workspaceId: string,
     permissionMode: UIPermissionMode
   ): Promise<void> {
-    safeLog(
-      `[${workspaceId}] setPermissionMode called with: ${permissionMode}`
-    );
+    safeLog(`[${workspaceId}] setPermissionMode called with: ${permissionMode}`);
 
     // Update active query if it exists
     const activeQuery = this.queries.get(workspaceId);
@@ -663,8 +622,7 @@ export class ClaudeService extends EventEmitter {
       safeLog(`[${workspaceId}] Checking setPermissionMode availability...`);
       safeLog(`[${workspaceId}] query type: ${typeof activeQuery.query}`);
       safeLog(
-        `[${workspaceId}] setPermissionMode type: ${typeof activeQuery.query
-          .setPermissionMode}`
+        `[${workspaceId}] setPermissionMode type: ${typeof activeQuery.query.setPermissionMode}`
       );
 
       if (typeof activeQuery.query.setPermissionMode === "function") {
@@ -676,10 +634,7 @@ export class ClaudeService extends EventEmitter {
             `[${workspaceId}] Successfully updated permission mode to ${permissionMode} (${sdkMode})`
           );
         } catch (error) {
-          safeError(
-            `[${workspaceId}] Failed to update permission mode:`,
-            error
-          );
+          safeError(`[${workspaceId}] Failed to update permission mode:`, error);
           // Log more details about the error
           if (error instanceof Error) {
             safeError(`[${workspaceId}] Error message: ${error.message}`);
@@ -691,17 +646,13 @@ export class ClaudeService extends EventEmitter {
           `[${workspaceId}] Warning: setPermissionMode method not available on query object.`
         );
         // Log available methods on the query object
-        const methods = Object.getOwnPropertyNames(
-          Object.getPrototypeOf(activeQuery.query)
-        ).filter(
+        const methods = Object.getOwnPropertyNames(Object.getPrototypeOf(activeQuery.query)).filter(
           (prop) => typeof (activeQuery.query as any)[prop] === "function"
         );
         safeLog(`[${workspaceId}] Available methods on query:`, methods);
       }
     } else {
-      safeLog(
-        `[${workspaceId}] No active query, permission mode will be saved to disk only`
-      );
+      safeLog(`[${workspaceId}] No active query, permission mode will be saved to disk only`);
     }
 
     // Always persist to metadata
@@ -755,11 +706,7 @@ export class ClaudeService extends EventEmitter {
           const metadata = await this.loadMetadata(workspaceId);
 
           // Skip if metadata is incomplete
-          if (
-            !metadata.projectName ||
-            !metadata.branch ||
-            !metadata.workspacePath
-          ) {
+          if (!metadata.projectName || !metadata.branch || !metadata.workspacePath) {
             safeLog(`Skipping incomplete workspace: ${workspaceId}`);
             continue;
           }

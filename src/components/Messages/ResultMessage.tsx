@@ -1,15 +1,15 @@
-import React, { useState } from 'react';
-import styled from '@emotion/styled';
-import { Message } from '../../types/claude';
+import React, { useState } from "react";
+import styled from "@emotion/styled";
+import { Message } from "../../types/claude";
 
 const ResultContainer = styled.div<{ isError?: boolean }>`
   margin: 4px 0;
   padding: 4px 8px;
-  background: ${props => props.isError ? '#3c1f1f' : '#1f3c1f'};
-  border-left: 2px solid ${props => props.isError ? '#f48771' : '#b5cea8'};
+  background: ${(props) => (props.isError ? "#3c1f1f" : "#1f3c1f")};
+  border-left: 2px solid ${(props) => (props.isError ? "#f48771" : "#b5cea8")};
   border-radius: 2px;
   font-size: 10px;
-  color: ${props => props.isError ? '#f48771' : '#b5cea8'};
+  color: ${(props) => (props.isError ? "#f48771" : "#b5cea8")};
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -48,7 +48,7 @@ const ToggleButton = styled.button`
   cursor: pointer;
   font-size: 8px;
   transition: all 0.2s ease;
-  
+
   &:hover {
     background: rgba(255, 255, 255, 0.05);
     border-color: rgba(255, 255, 255, 0.2);
@@ -57,7 +57,7 @@ const ToggleButton = styled.button`
 
 const JsonContent = styled.pre`
   margin: 4px 0 0 0;
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
   font-size: 9px;
   line-height: 1.3;
   color: #d4d4d4;
@@ -76,10 +76,10 @@ interface ResultMessageProps {
 
 export const ResultMessage: React.FC<ResultMessageProps> = ({ message, className }) => {
   const [showJson, setShowJson] = useState(false);
-  
+
   const isError = checkIfError(message);
   const { icon, details } = formatResultMessage(message, isError);
-  
+
   return (
     <div className={className}>
       <ResultContainer isError={isError}>
@@ -88,11 +88,9 @@ export const ResultMessage: React.FC<ResultMessageProps> = ({ message, className
           <ResultText>RESULT</ResultText>
           <ResultDetails>{details}</ResultDetails>
         </ResultContent>
-        <ToggleButton onClick={() => setShowJson(!showJson)}>
-          {showJson ? '−' : '+'}
-        </ToggleButton>
+        <ToggleButton onClick={() => setShowJson(!showJson)}>{showJson ? "−" : "+"}</ToggleButton>
       </ResultContainer>
-      
+
       {showJson && (
         <JsonContent>
           {JSON.stringify(message.metadata?.originalSDKMessage || message, null, 2)}
@@ -108,32 +106,35 @@ function checkIfError(message: Message): boolean {
   if (originalMessage?.is_error !== undefined) {
     return originalMessage.is_error;
   }
-  
+
   // Fallback to checking content for error keywords
   const result = message.content || originalMessage?.result;
-  if (typeof result === 'string') {
-    return result.toLowerCase().includes('error') || result.toLowerCase().includes('failed');
+  if (typeof result === "string") {
+    return result.toLowerCase().includes("error") || result.toLowerCase().includes("failed");
   }
   return false;
 }
 
-function formatResultMessage(message: Message, isError: boolean): { icon: string; details: string } {
+function formatResultMessage(
+  message: Message,
+  isError: boolean
+): { icon: string; details: string } {
   const cost = message.metadata?.cost;
   const duration = message.metadata?.duration;
-  
-  let details = isError ? 'Failed' : 'Completed';
-  
+
+  let details = isError ? "Failed" : "Completed";
+
   if (cost) {
     details += ` • $${cost.toFixed(5)}`;
   }
-  
+
   if (duration) {
     details += ` • ${formatDuration(duration)}`;
   }
-  
+
   return {
-    icon: isError ? '✗' : '✓',
-    details
+    icon: isError ? "✗" : "✓",
+    details,
   };
 }
 

@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import styled from '@emotion/styled';
-import { UIMessage } from '../../types/claude';
-import { useDebugMode } from '../../contexts/DebugContext';
+import React, { useState } from "react";
+import styled from "@emotion/styled";
+import { UIMessage } from "../../types/claude";
+import { useDebugMode } from "../../contexts/DebugContext";
 
 const DebugContainer = styled.div`
   margin: 2px 0;
@@ -10,10 +10,10 @@ const DebugContainer = styled.div`
   border-left: 2px solid var(--color-debug);
   font-size: 10px;
   color: var(--color-debug-text);
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
   cursor: pointer;
   transition: all 0.2s ease;
-  
+
   &:hover {
     background: rgba(74, 158, 255, 0.15);
     border-left-color: var(--color-debug-light);
@@ -67,78 +67,78 @@ interface DebugMessageProps {
 export const DebugMessage: React.FC<DebugMessageProps> = ({ message, className }) => {
   const [expanded, setExpanded] = useState(false);
   const { debugMode } = useDebugMode();
-  
+
   // Determine what kind of debug message this is
   const getDebugInfo = () => {
     const original = message.metadata?.originalSDKMessage;
-    
+
     // System init messages
-    if (message.type === 'system' && original?.subtype === 'init') {
-      const model = original.model || 'unknown';
+    if (message.type === "system" && original?.subtype === "init") {
+      const model = original.model || "unknown";
       const tools = original.tools?.length || 0;
       return {
-        label: 'INIT',
-        info: `${model} • ${tools} tools`
+        label: "INIT",
+        info: `${model} • ${tools} tools`,
       };
     }
-    
+
     // Stream event messages
-    if (original?.type === 'stream_event') {
-      const eventType = original.event?.type || 'unknown';
+    if (original?.type === "stream_event") {
+      const eventType = original.event?.type || "unknown";
       return {
-        label: 'STREAM',
-        info: eventType
+        label: "STREAM",
+        info: eventType,
       };
     }
-    
+
     // Tool invocation messages - check for ExitPlanMode
-    if (message.metadata?.toolName === 'ExitPlanMode') {
+    if (message.metadata?.toolName === "ExitPlanMode") {
       return {
-        label: 'TOOL',
-        info: 'ExitPlanMode invocation'
+        label: "TOOL",
+        info: "ExitPlanMode invocation",
       };
     }
-    
+
     // Tool result messages - check for ExitPlanMode result
-    if (message.type === 'tool_result' && message.associatedToolUse?.name === 'ExitPlanMode') {
+    if (message.type === "tool_result" && message.associatedToolUse?.name === "ExitPlanMode") {
       return {
-        label: 'RESULT',
-        info: 'ExitPlanMode result'
+        label: "RESULT",
+        info: "ExitPlanMode result",
       };
     }
-    
+
     // Empty assistant messages
-    if (message.type === 'assistant' && (!message.content || message.content === '')) {
+    if (message.type === "assistant" && (!message.content || message.content === "")) {
       return {
-        label: 'EMPTY',
-        info: 'assistant message'
+        label: "EMPTY",
+        info: "assistant message",
       };
     }
-    
+
     // Default debug info
     return {
-      label: 'DEBUG',
-      info: `${message.type} #${message.sequenceNumber}`
+      label: "DEBUG",
+      info: `${message.type} #${message.sequenceNumber}`,
     };
   };
-  
+
   const { label, info } = getDebugInfo();
-  
+
   // Only show debug messages when debug mode is enabled
   if (!debugMode) {
     return null;
   }
-  
+
   return (
     <div className={className}>
       <DebugContainer onClick={() => setExpanded(!expanded)}>
         <DebugHeader>
-          <DebugIcon>{expanded ? '▼' : '▶'}</DebugIcon>
+          <DebugIcon>{expanded ? "▼" : "▶"}</DebugIcon>
           <DebugLabel>{label}</DebugLabel>
           <DebugInfo>{info}</DebugInfo>
         </DebugHeader>
       </DebugContainer>
-      
+
       {expanded && (
         <JsonContent>
           {JSON.stringify(message.metadata?.originalSDKMessage || message, null, 2)}

@@ -59,21 +59,18 @@ ipcMain.handle("dialog:selectDirectory", async () => {
   return result.filePaths[0];
 });
 
-ipcMain.handle(
-  "git:createWorktree",
-  async (event, projectPath: string, branchName: string) => {
-    const result = await createWorktree(projectPath, branchName);
-    
-    // If worktree creation was successful, initialize the workspace metadata
-    if (result.success && result.path) {
-      const projectName = projectPath.split('/').pop() || projectPath.split('\\').pop() || 'unknown';
-      const workspaceId = `${projectName}-${branchName}`;
-      await claudeService.initializeWorkspace(workspaceId, projectName, branchName, result.path);
-    }
-    
-    return result;
+ipcMain.handle("git:createWorktree", async (event, projectPath: string, branchName: string) => {
+  const result = await createWorktree(projectPath, branchName);
+
+  // If worktree creation was successful, initialize the workspace metadata
+  if (result.success && result.path) {
+    const projectName = projectPath.split("/").pop() || projectPath.split("\\").pop() || "unknown";
+    const workspaceId = `${projectName}-${branchName}`;
+    await claudeService.initializeWorkspace(workspaceId, projectName, branchName, result.path);
   }
-);
+
+  return result;
+});
 
 ipcMain.handle("git:removeWorktree", async (event, workspacePath: string) => {
   return await removeWorktree(workspacePath);
@@ -91,40 +88,28 @@ ipcMain.handle("claude:list", async () => {
   return claudeService.list();
 });
 
-ipcMain.handle(
-  "claude:getWorkspaceInfo",
-  async (event, workspaceId: string) => {
-    return await claudeService.getWorkspaceInfoById(workspaceId);
-  }
-);
+ipcMain.handle("claude:getWorkspaceInfo", async (event, workspaceId: string) => {
+  return await claudeService.getWorkspaceInfoById(workspaceId);
+});
 
 ipcMain.handle(
   "claude:setPermissionMode",
-  async (event, workspaceId: string, permissionMode: import('./types/global').UIPermissionMode) => {
+  async (event, workspaceId: string, permissionMode: import("./types/global").UIPermissionMode) => {
     return await claudeService.setPermissionModeById(workspaceId, permissionMode);
   }
 );
 
-ipcMain.handle(
-  "claude:sendMessage",
-  async (event, workspaceId: string, message: string) => {
-    return await claudeService.sendMessageById(workspaceId, message);
-  }
-);
+ipcMain.handle("claude:sendMessage", async (event, workspaceId: string, message: string) => {
+  return await claudeService.sendMessageById(workspaceId, message);
+});
 
-ipcMain.handle(
-  "claude:handleSlashCommand",
-  async (event, workspaceId: string, command: string) => {
-    return await claudeService.handleSlashCommandById(workspaceId, command);
-  }
-);
+ipcMain.handle("claude:handleSlashCommand", async (event, workspaceId: string, command: string) => {
+  return await claudeService.handleSlashCommandById(workspaceId, command);
+});
 
-ipcMain.handle(
-  "claude:streamHistory",
-  async (event, workspaceId: string) => {
-    return await claudeService.streamWorkspaceHistoryById(workspaceId);
-  }
-);
+ipcMain.handle("claude:streamHistory", async (event, workspaceId: string) => {
+  return await claudeService.streamWorkspaceHistoryById(workspaceId);
+});
 
 // Listen for workspace-specific output events and forward to renderer
 // The EventEmitter doesn't support wildcard listeners, so we'll modify claudeService
@@ -135,7 +120,7 @@ claudeService.on("workspace-output", (workspaceId: string, data: any) => {
   }
 });
 
-// Listen for workspace-specific clear events and forward to renderer  
+// Listen for workspace-specific clear events and forward to renderer
 claudeService.on("workspace-clear", (workspaceId: string, data: any) => {
   if (mainWindow) {
     mainWindow.webContents.send(`claude:clear:${workspaceId}`, data);
@@ -242,5 +227,4 @@ if (gotTheLock) {
       createWindow();
     }
   });
-
 }

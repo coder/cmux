@@ -1,7 +1,7 @@
-import React from 'react';
-import styled from '@emotion/styled';
-import { Message } from '../../types/claude';
-import { TypewriterMarkdown } from '../ClaudeMessage/TypewriterMarkdown';
+import React from "react";
+import styled from "@emotion/styled";
+import { Message } from "../../types/claude";
+import { TypewriterMarkdown } from "../ClaudeMessage/TypewriterMarkdown";
 
 const MessageBlock = styled.div`
   margin-bottom: 15px;
@@ -34,10 +34,15 @@ const StreamingIndicator = styled.span`
   color: #d4a853;
   font-style: italic;
   animation: pulse 1.5s ease-in-out infinite;
-  
+
   @keyframes pulse {
-    0%, 100% { opacity: 0.6; }
-    50% { opacity: 1; }
+    0%,
+    100% {
+      opacity: 0.6;
+    }
+    50% {
+      opacity: 1;
+    }
   }
 `;
 
@@ -59,7 +64,7 @@ interface StreamingMessageProps {
 
 export const StreamingMessage: React.FC<StreamingMessageProps> = ({ message, className }) => {
   const hasDeltas = message.contentDeltas && message.contentDeltas.length > 0;
-  
+
   return (
     <MessageBlock className={className}>
       <MessageHeader>
@@ -68,10 +73,7 @@ export const StreamingMessage: React.FC<StreamingMessageProps> = ({ message, cla
       </MessageHeader>
       <MessageContent>
         {hasDeltas ? (
-          <TypewriterMarkdown
-            deltas={message.contentDeltas!} 
-            isComplete={false}
-          />
+          <TypewriterMarkdown deltas={message.contentDeltas!} isComplete={false} />
         ) : (
           <WaitingMessage>Waiting for response...</WaitingMessage>
         )}

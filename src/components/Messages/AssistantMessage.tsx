@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
-import styled from '@emotion/styled';
-import { UIMessage } from '../../types/claude';
-import { MarkdownRenderer } from './MarkdownRenderer';
-import { MessageWindow, ButtonConfig } from './MessageWindow';
-import { getModeConfig } from '../../constants/permissionModes';
+import React, { useState } from "react";
+import styled from "@emotion/styled";
+import { UIMessage } from "../../types/claude";
+import { MarkdownRenderer } from "./MarkdownRenderer";
+import { MessageWindow, ButtonConfig } from "./MessageWindow";
+import { getModeConfig } from "../../constants/permissionModes";
 
 const RawContent = styled.pre`
   font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
@@ -26,13 +26,13 @@ interface AssistantMessageProps {
 export const AssistantMessage: React.FC<AssistantMessageProps> = ({ message, className }) => {
   const [showRaw, setShowRaw] = useState(false);
   const [copied, setCopied] = useState(false);
-  
+
   const content = extractContent(message);
-  
+
   // Get permission mode from message metadata (stored in originalSDKMessage)
   const permissionMode = message.metadata?.originalSDKMessage?.metadata?.cmuxMeta?.permissionMode;
   const modeConfig = getModeConfig(permissionMode);
-  
+
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(content);
@@ -42,19 +42,19 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({ message, cla
       console.error("Failed to copy:", err);
     }
   };
-  
+
   const buttons: ButtonConfig[] = [
     {
       label: copied ? "✓ Copied" : "Copy Text",
-      onClick: handleCopy
+      onClick: handleCopy,
     },
     {
       label: showRaw ? "Show Markdown" : "Show Text",
       onClick: () => setShowRaw(!showRaw),
-      active: showRaw
-    }
+      active: showRaw,
+    },
   ];
-  
+
   return (
     <MessageWindow
       label="ASSISTANT"
@@ -63,36 +63,32 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({ message, cla
       buttons={buttons}
       className={className}
     >
-      {showRaw ? (
-        <RawContent>{content}</RawContent>
-      ) : (
-        <MarkdownRenderer content={content} />
-      )}
+      {showRaw ? <RawContent>{content}</RawContent> : <MarkdownRenderer content={content} />}
     </MessageWindow>
   );
 };
 
 function extractContent(message: UIMessage): string {
-  if (typeof message.content === 'string') {
+  if (typeof message.content === "string") {
     return message.content;
   }
-  
+
   if (Array.isArray(message.content)) {
     // Handle array of content blocks
     return message.content
       .map((block: any) => {
-        if (typeof block === 'string') {
+        if (typeof block === "string") {
           return block;
         } else if (block.text) {
           return block.text;
-        } else if (block.type === 'text' && block.content) {
+        } else if (block.type === "text" && block.content) {
           return block.content;
         }
-        return '';
+        return "";
       })
       .filter(Boolean)
-      .join('');
+      .join("");
   }
-  
+
   return JSON.stringify(message.content, null, 2);
 }

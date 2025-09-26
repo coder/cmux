@@ -1,7 +1,7 @@
-import React from 'react';
-import styled from '@emotion/styled';
-import type { UIPermissionMode } from '../types/global';
-import { PERMISSION_MODE_CONFIG } from '../constants/permissionModes';
+import React from "react";
+import styled from "@emotion/styled";
+import type { UIPermissionMode } from "../types/global";
+import { PERMISSION_MODE_CONFIG } from "../constants/permissionModes";
 
 const SliderContainer = styled.div`
   display: flex;
@@ -26,7 +26,7 @@ const SliderOption = styled.div<{ isActive: boolean }>`
   padding: 3px 8px;
   font-size: 9px;
   font-weight: 500;
-  color: ${props => props.isActive ? '#ffffff' : '#808080'};
+  color: ${(props) => (props.isActive ? "#ffffff" : "#808080")};
   cursor: pointer;
   position: relative;
   z-index: 2;
@@ -35,7 +35,7 @@ const SliderOption = styled.div<{ isActive: boolean }>`
   letter-spacing: 0.3px;
 
   &:hover {
-    color: ${props => props.isActive ? '#ffffff' : '#a0a0a0'};
+    color: ${(props) => (props.isActive ? "#ffffff" : "#a0a0a0")};
   }
 
   &:hover::after {
@@ -63,13 +63,14 @@ const SliderHighlight = styled.div<{ position: number; mode: UIPermissionMode }>
   top: 0;
   bottom: 0;
   width: calc(100% / 3);
-  background: ${props => PERMISSION_MODE_CONFIG[props.mode].color};
+  background: ${(props) => PERMISSION_MODE_CONFIG[props.mode].color};
   border-radius: 3px;
-  transform: translateX(${props => props.position * 100}%);
-  transition: transform 0.2s ease, background 0.2s ease;
+  transform: translateX(${(props) => props.position * 100}%);
+  transition:
+    transform 0.2s ease,
+    background 0.2s ease;
   z-index: 1;
 `;
-
 
 interface PermissionModeSliderProps {
   value: UIPermissionMode;
@@ -77,12 +78,12 @@ interface PermissionModeSliderProps {
   className?: string;
 }
 
-const modes: UIPermissionMode[] = ['plan', 'edit', 'yolo'] as const;
+const modes: UIPermissionMode[] = ["plan", "edit", "yolo"] as const;
 
-export const PermissionModeSlider: React.FC<PermissionModeSliderProps> = ({ 
-  value, 
-  onChange, 
-  className 
+export const PermissionModeSlider: React.FC<PermissionModeSliderProps> = ({
+  value,
+  onChange,
+  className,
 }) => {
   const currentIndex = modes.indexOf(value);
 
@@ -95,7 +96,7 @@ export const PermissionModeSlider: React.FC<PermissionModeSliderProps> = ({
             key={mode}
             isActive={mode === value}
             onClick={() => {
-              console.log('Slider clicked:', mode);
+              console.log("Slider clicked:", mode);
               onChange(mode);
             }}
             data-tooltip={PERMISSION_MODE_CONFIG[mode].description}

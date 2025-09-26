@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import styled from '@emotion/styled';
+import React, { useState } from "react";
+import styled from "@emotion/styled";
 
 // Styled Components
 const ModalOverlay = styled.div`
@@ -23,7 +23,7 @@ const ModalContent = styled.div`
   max-width: 500px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
   border: 1px solid #333;
-  
+
   h2 {
     margin-top: 0;
     margin-bottom: 8px;
@@ -39,14 +39,14 @@ const ModalSubtitle = styled.p`
 
 const FormGroup = styled.div`
   margin-bottom: 20px;
-  
+
   label {
     display: block;
     margin-bottom: 8px;
     color: #ccc;
     font-size: 14px;
   }
-  
+
   input {
     width: 100%;
     padding: 8px 12px;
@@ -55,12 +55,12 @@ const FormGroup = styled.div`
     border-radius: 4px;
     color: #fff;
     font-size: 14px;
-    
+
     &:focus {
       outline: none;
       border-color: #007acc;
     }
-    
+
     &:disabled {
       opacity: 0.6;
       cursor: not-allowed;
@@ -80,17 +80,17 @@ const ModalInfo = styled.div`
   border-radius: 4px;
   padding: 12px;
   margin-bottom: 20px;
-  
+
   p {
     margin: 0 0 8px 0;
     color: #888;
     font-size: 13px;
   }
-  
+
   code {
     display: block;
     color: #569cd6;
-    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-family: "Consolas", "Monaco", "Courier New", monospace;
     font-size: 13px;
     word-break: break-all;
   }
@@ -111,7 +111,7 @@ const Button = styled.button`
   font-size: 14px;
   font-weight: 500;
   transition: all 0.2s;
-  
+
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -121,7 +121,7 @@ const Button = styled.button`
 const CancelBtn = styled(Button)`
   background: #444;
   color: #ccc;
-  
+
   &:hover:not(:disabled) {
     background: #555;
   }
@@ -130,7 +130,7 @@ const CancelBtn = styled(Button)`
 const SubmitBtn = styled(Button)`
   background: #007acc;
   color: white;
-  
+
   &:hover:not(:disabled) {
     background: #005a9e;
   }
@@ -143,8 +143,13 @@ interface NewWorkspaceModalProps {
   onAdd: (branchName: string) => Promise<void>;
 }
 
-const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({ isOpen, projectPath, onClose, onAdd }) => {
-  const [branchName, setBranchName] = useState('');
+const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
+  isOpen,
+  projectPath,
+  onClose,
+  onAdd,
+}) => {
+  const [branchName, setBranchName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -153,7 +158,7 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({ isOpen, projectPa
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!branchName.trim()) {
-      setError('Branch name is required');
+      setError("Branch name is required");
       return;
     }
 
@@ -162,29 +167,29 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({ isOpen, projectPa
 
     try {
       await onAdd(branchName.trim());
-      setBranchName('');
+      setBranchName("");
       onClose();
     } catch (err: any) {
-      setError(err.message || 'Failed to create workspace');
+      setError(err.message || "Failed to create workspace");
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleCancel = () => {
-    setBranchName('');
+    setBranchName("");
     setError(null);
     onClose();
   };
 
-  const projectName = projectPath.split('/').pop() || projectPath.split('\\').pop() || 'project';
+  const projectName = projectPath.split("/").pop() || projectPath.split("\\").pop() || "project";
 
   return (
     <ModalOverlay onClick={handleCancel}>
       <ModalContent onClick={(e) => e.stopPropagation()}>
         <h2>New Workspace</h2>
         <ModalSubtitle>Create a new workspace for {projectName}</ModalSubtitle>
-        
+
         <form onSubmit={handleSubmit}>
           <FormGroup>
             <label htmlFor="branchName">Branch Name:</label>
@@ -203,25 +208,20 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({ isOpen, projectPa
             />
             {error && <ErrorMessage>{error}</ErrorMessage>}
           </FormGroup>
-          
+
           <ModalInfo>
             <p>This will create a git worktree at:</p>
-            <code>~/.cmux/{projectName}/{branchName || '<branch-name>'}</code>
+            <code>
+              ~/.cmux/{projectName}/{branchName || "<branch-name>"}
+            </code>
           </ModalInfo>
-          
+
           <ModalActions>
-            <CancelBtn
-              type="button" 
-              onClick={handleCancel} 
-              disabled={isLoading}
-            >
+            <CancelBtn type="button" onClick={handleCancel} disabled={isLoading}>
               Cancel
             </CancelBtn>
-            <SubmitBtn
-              type="submit" 
-              disabled={isLoading || !branchName.trim()}
-            >
-              {isLoading ? 'Creating...' : 'Create Workspace'}
+            <SubmitBtn type="submit" disabled={isLoading || !branchName.trim()}>
+              {isLoading ? "Creating..." : "Create Workspace"}
             </SubmitBtn>
           </ModalActions>
         </form>

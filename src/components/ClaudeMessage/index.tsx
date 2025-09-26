@@ -113,16 +113,12 @@ const PartialIndicator = styled.div`
   font-style: italic;
 `;
 
-
 interface ClaudeMessageProps {
   message: UIMessage;
   className?: string;
 }
 
-export const ClaudeMessage: React.FC<ClaudeMessageProps> = ({
-  message,
-  className,
-}) => {
+export const ClaudeMessage: React.FC<ClaudeMessageProps> = ({ message, className }) => {
   const [showJson, setShowJson] = useState(false);
 
   const getHeaderText = (): string => {
@@ -150,24 +146,16 @@ export const ClaudeMessage: React.FC<ClaudeMessageProps> = ({
 
         {showJson ? (
           <JsonContent>
-            {JSON.stringify(
-              message.metadata?.originalSDKMessage || message,
-              null,
-              2
-            )}
+            {JSON.stringify(message.metadata?.originalSDKMessage || message, null, 2)}
           </JsonContent>
         ) : (
           <>
             {isStreaming && message.contentDeltas ? (
-              <TypewriterText 
-                deltas={message.contentDeltas} 
-                isComplete={!isStreaming}
-                speed={50}
-              />
+              <TypewriterText deltas={message.contentDeltas} isComplete={!isStreaming} speed={50} />
             ) : (
               <FormattedContent>
-                {typeof message.content === 'string' 
-                  ? message.content 
+                {typeof message.content === "string"
+                  ? message.content
                   : JSON.stringify(message.content, null, 2)}
               </FormattedContent>
             )}

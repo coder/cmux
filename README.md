@@ -3,6 +3,7 @@
 A cross-platform desktop application for managing multiple coding agents.
 
 ## Tech Stack
+
 - Electron
 - React
 - TypeScript
@@ -26,10 +27,11 @@ bun start
 
 # Package for distribution
 bun run dist        # All platforms
-bun run dist:mac    # macOS only  
+bun run dist:mac    # macOS only
 bun run dist:win    # Windows only
 bun run dist:linux  # Linux only
 ```
 
 ## Current Status
+
 Basic "Hello World" Electron + React desktop app with TypeScript.

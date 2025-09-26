@@ -1,5 +1,5 @@
-import React, { Component, ReactNode } from 'react';
-import styled from '@emotion/styled';
+import React, { Component, ReactNode } from "react";
+import styled from "@emotion/styled";
 
 const ErrorContainer = styled.div`
   padding: 20px;
@@ -33,7 +33,7 @@ const ResetButton = styled.button`
   border-radius: 3px;
   cursor: pointer;
   font-size: 14px;
-  
+
   &:hover {
     background: #ff9980;
   }
@@ -62,10 +62,10 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('ErrorBoundary caught an error:', error, errorInfo);
+    console.error("ErrorBoundary caught an error:", error, errorInfo);
     this.setState({
       error,
-      errorInfo
+      errorInfo,
     });
   }
 
@@ -81,10 +81,10 @@ export class ErrorBoundary extends Component<Props, State> {
 
       return (
         <ErrorContainer>
-          <ErrorTitle>Something went wrong{this.props.workspaceInfo && ` in ${this.props.workspaceInfo}`}</ErrorTitle>
-          {this.state.error && (
-            <ErrorDetails>{this.state.error.toString()}</ErrorDetails>
-          )}
+          <ErrorTitle>
+            Something went wrong{this.props.workspaceInfo && ` in ${this.props.workspaceInfo}`}
+          </ErrorTitle>
+          {this.state.error && <ErrorDetails>{this.state.error.toString()}</ErrorDetails>}
           {this.state.errorInfo && (
             <ErrorDetails>{this.state.errorInfo.componentStack}</ErrorDetails>
           )}

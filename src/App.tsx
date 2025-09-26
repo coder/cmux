@@ -22,9 +22,9 @@ const globalStyles = css`
     overflow: hidden;
     background: #1e1e1e;
     color: #fff;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
-      "Segoe UI Variable", system-ui, Roboto, "Helvetica Neue", Arial,
-      sans-serif;
+    font-family:
+      -apple-system, BlinkMacSystemFont, "Segoe UI", "Segoe UI Variable", system-ui, Roboto,
+      "Helvetica Neue", Arial, sans-serif;
     font-size: 14px;
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
@@ -32,8 +32,8 @@ const globalStyles = css`
   }
 
   code {
-    font-family: "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas,
-      "Courier New", monospace;
+    font-family:
+      "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace;
   }
 `;
 
@@ -86,8 +86,8 @@ const ProjectFullPath = styled.p`
   color: #888;
   font-size: 14px;
   margin: 0 0 32px 0;
-  font-family: "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas,
-    "Courier New", monospace;
+  font-family:
+    "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace;
 `;
 
 const WelcomeView = styled.div`
@@ -110,17 +110,11 @@ const WelcomeView = styled.div`
 `;
 
 function App() {
-  const [projects, setProjects] = useState<Map<string, ProjectConfig>>(
-    new Map()
-  );
+  const [projects, setProjects] = useState<Map<string, ProjectConfig>>(new Map());
   const [selectedProject, setSelectedProject] = useState<string | null>(null);
-  const [selectedWorkspace, setSelectedWorkspace] = useState<WorkspaceSelection | null>(
-    null
-  );
+  const [selectedWorkspace, setSelectedWorkspace] = useState<WorkspaceSelection | null>(null);
   const [workspaceModalOpen, setWorkspaceModalOpen] = useState(false);
-  const [workspaceModalProject, setWorkspaceModalProject] = useState<
-    string | null
-  >(null);
+  const [workspaceModalProject, setWorkspaceModalProject] = useState<string | null>(null);
 
   useEffect(() => {
     loadProjects();
@@ -191,10 +185,7 @@ function App() {
   const handleCreateWorkspace = async (branchName: string) => {
     if (!workspaceModalProject) return;
 
-    const result = await window.api.git.createWorktree(
-      workspaceModalProject,
-      branchName
-    );
+    const result = await window.api.git.createWorktree(workspaceModalProject, branchName);
     if (result.success && result.path) {
       // Update the project config with the new workspace
       const newProjects = new Map(projects);
@@ -220,13 +211,11 @@ function App() {
     if (result.success) {
       // Remove any active Claude query for this workspace
       await window.api.claude.removeWorkspace(workspaceId);
-      
+
       // Update the project config to remove the workspace
       const newProjects = new Map(projects);
       for (const [_, config] of newProjects.entries()) {
-        config.workspaces = config.workspaces.filter(
-          (w) => w.path !== workspacePath
-        );
+        config.workspaces = config.workspaces.filter((w) => w.path !== workspacePath);
       }
       setProjects(newProjects);
 
@@ -264,9 +253,11 @@ function App() {
           </AppHeader>
           <ContentArea>
             {selectedWorkspace ? (
-              <ErrorBoundary workspaceInfo={`${selectedWorkspace.projectName}/${selectedWorkspace.branch}`}>
-                <ClaudeView 
-                  projectName={selectedWorkspace.projectName} 
+              <ErrorBoundary
+                workspaceInfo={`${selectedWorkspace.projectName}/${selectedWorkspace.branch}`}
+              >
+                <ClaudeView
+                  projectName={selectedWorkspace.projectName}
                   branch={selectedWorkspace.branch}
                   workspaceId={selectedWorkspace.workspaceId}
                 />
@@ -276,17 +267,13 @@ function App() {
                 <h2>Project: {selectedProject.split("/").pop()}</h2>
                 <ProjectFullPath>{selectedProject}</ProjectFullPath>
                 <p style={{ color: "#888", marginTop: "20px" }}>
-                  Select a workspace from the sidebar to view Claude Code
-                  output.
+                  Select a workspace from the sidebar to view Claude Code output.
                 </p>
               </ProjectView>
             ) : (
               <WelcomeView>
                 <h2>Welcome to Cmux</h2>
-                <p>
-                  Select a project from the sidebar or add a new one to get
-                  started.
-                </p>
+                <p>Select a project from the sidebar or add a new one to get started.</p>
               </WelcomeView>
             )}
           </ContentArea>

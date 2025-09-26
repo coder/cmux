@@ -1,10 +1,10 @@
-import React from 'react';
-import styled from '@emotion/styled';
-import type { UIPermissionMode } from '../types/global';
-import { PERMISSION_MODE_CONFIG } from '../constants/permissionModes';
+import React from "react";
+import styled from "@emotion/styled";
+import type { UIPermissionMode } from "../types/global";
+import { PERMISSION_MODE_CONFIG } from "../constants/permissionModes";
 
 const Badge = styled.span<{ mode: UIPermissionMode }>`
-  background: ${props => PERMISSION_MODE_CONFIG[props.mode].color};
+  background: ${(props) => PERMISSION_MODE_CONFIG[props.mode].color};
   color: white;
   padding: 2px 6px;
   border-radius: 3px;

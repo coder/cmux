@@ -1,12 +1,12 @@
-import React, { useState, ReactNode } from 'react';
-import styled from '@emotion/styled';
-import { UIMessage } from '../../types/claude';
+import React, { useState, ReactNode } from "react";
+import styled from "@emotion/styled";
+import { UIMessage } from "../../types/claude";
 
 const MessageBlock = styled.div<{ borderColor: string; backgroundColor?: string }>`
   margin-bottom: 15px;
   margin-top: 15px;
-  background: ${props => props.backgroundColor || '#1e1e1e'};
-  border-left: 3px solid ${props => props.borderColor};
+  background: ${(props) => props.backgroundColor || "#1e1e1e"};
+  border-left: 3px solid ${(props) => props.borderColor};
   border-radius: 3px;
   overflow: hidden;
 `;
@@ -34,7 +34,7 @@ const ButtonGroup = styled.div`
 `;
 
 const HeaderButton = styled.button<{ active?: boolean }>`
-  background: ${props => props.active ? 'rgba(255, 255, 255, 0.1)' : 'none'};
+  background: ${(props) => (props.active ? "rgba(255, 255, 255, 0.1)" : "none")};
   border: 1px solid rgba(255, 255, 255, 0.2);
   color: #cccccc;
   padding: 2px 8px;
@@ -90,7 +90,7 @@ export const MessageWindow: React.FC<MessageWindowProps> = ({
   message,
   buttons = [],
   children,
-  className
+  className,
 }) => {
   const [showJson, setShowJson] = useState(false);
 
@@ -100,18 +100,11 @@ export const MessageWindow: React.FC<MessageWindowProps> = ({
         <MessageTypeLabel>{label}</MessageTypeLabel>
         <ButtonGroup>
           {buttons.map((button, index) => (
-            <HeaderButton
-              key={index}
-              active={button.active}
-              onClick={button.onClick}
-            >
+            <HeaderButton key={index} active={button.active} onClick={button.onClick}>
               {button.label}
             </HeaderButton>
           ))}
-          <HeaderButton 
-            active={showJson}
-            onClick={() => setShowJson(!showJson)}
-          >
+          <HeaderButton active={showJson} onClick={() => setShowJson(!showJson)}>
             {showJson ? "Hide JSON" : "Show JSON"}
           </HeaderButton>
         </ButtonGroup>
@@ -119,11 +112,7 @@ export const MessageWindow: React.FC<MessageWindowProps> = ({
       <MessageContent>
         {showJson ? (
           <JsonContent>
-            {JSON.stringify(
-              message.metadata?.originalSDKMessage || message,
-              null,
-              2
-            )}
+            {JSON.stringify(message.metadata?.originalSDKMessage || message, null, 2)}
           </JsonContent>
         ) : (
           children

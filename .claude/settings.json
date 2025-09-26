@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|MultiEdit|Write|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bunx prettier --write \"$1\" 2>/dev/null || true",
+            "description": "Format edited files with Prettier"
+          }
+        ]
+      }
+    ]
+  }
+}

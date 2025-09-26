@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 
 // Custom components for markdown rendering
 export const markdownComponents = {

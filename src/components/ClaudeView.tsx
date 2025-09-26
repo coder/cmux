@@ -1,10 +1,4 @@
-import React, {
-  useState,
-  useEffect,
-  useRef,
-  useCallback,
-  useMemo,
-} from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import styled from "@emotion/styled";
 import { MessageRenderer } from "./Messages/MessageRenderer";
 import { CommandSuggestions, COMMAND_SUGGESTION_KEYS } from "./CommandSuggestions";
@@ -15,21 +9,21 @@ import { PermissionModeSlider } from "./PermissionModeSlider";
 
 // Type-safe mode display mappings
 const MODE_LABELS: Record<UIPermissionMode, string> = {
-  'plan': 'Plan',
-  'edit': 'Edit', 
-  'yolo': 'YOLO'
+  plan: "Plan",
+  edit: "Edit",
+  yolo: "YOLO",
 };
 
 const MODE_PLACEHOLDERS: Record<UIPermissionMode, string> = {
-  'plan': 'Plan Mode: Claude will plan but not execute actions (Enter to send)',
-  'edit': 'Edit Mode: Claude will auto-accept file edits (Enter to send)',
-  'yolo': 'YOLO Mode: Claude bypasses all permissions (Enter to send)'
+  plan: "Plan Mode: Claude will plan but not execute actions (Enter to send)",
+  edit: "Edit Mode: Claude will auto-accept file edits (Enter to send)",
+  yolo: "YOLO Mode: Claude bypasses all permissions (Enter to send)",
 };
 
 const MODE_COLORS: Record<UIPermissionMode, string> = {
-  'plan': 'var(--color-plan-mode)',
-  'edit': 'var(--color-edit-mode)',
-  'yolo': 'var(--color-yolo-mode)'
+  plan: "var(--color-plan-mode)",
+  edit: "var(--color-edit-mode)",
+  yolo: "var(--color-yolo-mode)",
 };
 import type { UIPermissionMode } from "../types/global";
 
@@ -64,7 +58,7 @@ const WorkspaceTitle = styled.div`
 `;
 
 const PermissionModeBadge = styled.span<{ mode: UIPermissionMode }>`
-  background: ${props => MODE_COLORS[props.mode]};
+  background: ${(props) => MODE_COLORS[props.mode]};
   color: white;
   padding: 2px 6px;
   border-radius: 3px;
@@ -108,12 +102,12 @@ const DebugModeToggle = styled.label`
   user-select: none;
   opacity: 0.7;
   transition: opacity 0.2s ease;
-  
+
   input {
     cursor: pointer;
     transform: scale(0.9);
   }
-  
+
   &:hover {
     opacity: 1;
   }
@@ -201,13 +195,10 @@ interface ClaudeViewProps {
 const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
   projectName,
   branch,
-  workspaceId = '',
+  workspaceId = "",
   className,
 }) => {
-  
-  const [uiMessageMap, setUIMessageMap] = useState<Map<string, UIMessage>>(
-    new Map()
-  );
+  const [uiMessageMap, setUIMessageMap] = useState<Map<string, UIMessage>>(new Map());
   // Workspaces are always active - no need to track status
   const [input, setInput] = useState("");
   const [isSending, setIsSending] = useState(false);
@@ -216,7 +207,7 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
   const [showCommandSuggestions, setShowCommandSuggestions] = useState(false);
   const { debugMode, setDebugMode } = useDebugMode(); // Use context instead of local state
   // Permission mode is derived from the latest message metadata
-  const [currentPermissionMode, setCurrentPermissionMode] = useState<UIPermissionMode>('plan');
+  const [currentPermissionMode, setCurrentPermissionMode] = useState<UIPermissionMode>("plan");
   const [autoScroll, setAutoScroll] = useState(true);
   const contentRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -224,9 +215,7 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
   // Ref to avoid stale closures in async callbacks - always holds current autoScroll value
   const autoScrollRef = useRef<boolean>(true);
   const lastUserInteractionRef = useRef<number>(0);
-  const aggregatorRef = useRef<StreamingMessageAggregator>(
-    new StreamingMessageAggregator()
-  );
+  const aggregatorRef = useRef<StreamingMessageAggregator>(new StreamingMessageAggregator());
 
   // Sync ref with state to ensure callbacks always have latest value
   useEffect(() => {
@@ -235,7 +224,7 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
 
   const performAutoScroll = useCallback(() => {
     if (!contentRef.current) return;
-    
+
     requestAnimationFrame(() => {
       // Check ref.current not state - avoids race condition where queued frames
       // execute after user scrolls up but still see old autoScroll=true
@@ -245,17 +234,19 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
     });
   }, []); // No deps - ref ensures we always check current value
 
-
   // Process SDK message and trigger UI update
-  const processSDKMessage = useCallback((sdkMessage: any) => {
-    aggregatorRef.current.processSDKMessage(sdkMessage);
-    // Force re-render by setting messages directly from aggregator
-    setUIMessageMap(new Map(aggregatorRef.current.getAllMessages().map(msg => [msg.id, msg])));
-    // Update available commands from aggregator
-    setAvailableCommands(aggregatorRef.current.getAvailableCommands());
-    // Auto-scroll if enabled
-    performAutoScroll();
-  }, [performAutoScroll]);
+  const processSDKMessage = useCallback(
+    (sdkMessage: any) => {
+      aggregatorRef.current.processSDKMessage(sdkMessage);
+      // Force re-render by setting messages directly from aggregator
+      setUIMessageMap(new Map(aggregatorRef.current.getAllMessages().map((msg) => [msg.id, msg])));
+      // Update available commands from aggregator
+      setAvailableCommands(aggregatorRef.current.getAvailableCommands());
+      // Auto-scroll if enabled
+      performAutoScroll();
+    },
+    [performAutoScroll]
+  );
 
   const [loading, setLoading] = useState(false);
 
@@ -265,7 +256,6 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
       return a.sequenceNumber - b.sequenceNumber;
     });
   }, [uiMessageMap]);
-
 
   useEffect(() => {
     if (!projectName || !branch || !workspaceId) return;
@@ -277,20 +267,20 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
     aggregatorRef.current.clear();
 
     // Reset Permission Mode state immediately when switching workspaces
-    setCurrentPermissionMode('plan');
-    
+    setCurrentPermissionMode("plan");
+
     // Enable auto-scroll when switching workspaces
     setAutoScroll(true);
-    
+
     // Show loading state until caught up
     setLoading(true);
-    
+
     // Request historical messages to be streamed
     window.api.claude.streamHistory(workspaceId).catch((error) => {
       console.error("Failed to stream history:", error);
       setLoading(false);
     });
-    
+
     // Permission mode will be loaded from messages
 
     // Subscribe to workspace-specific output channel
@@ -307,15 +297,18 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
         return;
       }
       const message = data.message;
-      
+
       // Update permission mode from message metadata if available
       if (message?.metadata?.cmuxMeta?.permissionMode) {
-        console.log('Updating permission mode from message:', message.metadata.cmuxMeta.permissionMode);
+        console.log(
+          "Updating permission mode from message:",
+          message.metadata.cmuxMeta.permissionMode
+        );
         setCurrentPermissionMode(message.metadata.cmuxMeta.permissionMode);
       }
-      
+
       processSDKMessage(message);
-      
+
       // Only auto-scroll for new messages after caught up
       if (isCaughtUp && !data.historical) {
         performAutoScroll();
@@ -341,10 +334,7 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
 
   // Watch input for slash commands
   useEffect(() => {
-    setShowCommandSuggestions(
-      input.startsWith('/') && 
-      availableCommands.length > 0
-    );
+    setShowCommandSuggestions(input.startsWith("/") && availableCommands.length > 0);
   }, [input, availableCommands]);
 
   // Handle command selection
@@ -353,7 +343,6 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
     setShowCommandSuggestions(false);
     inputRef.current?.focus();
   }, []);
-
 
   const handleSend = async () => {
     if (!input.trim() || !projectName || !branch || isSending || isCompacting) return;
@@ -364,33 +353,30 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
       setInput(""); // Clear input immediately for better UX
       // Reset textarea height
       if (inputRef.current) {
-        inputRef.current.style.height = '36px';
+        inputRef.current.style.height = "36px";
       }
 
       // Check if this is a slash command
-      if (messageText.startsWith('/')) {
+      if (messageText.startsWith("/")) {
         const command = messageText.toLowerCase();
-        
+
         // Track compaction state
-        if (command === '/compact') {
+        if (command === "/compact") {
           setIsCompacting(true);
         }
-        
+
         // Handle /clear locally for immediate UI feedback
-        if (command === '/clear') {
+        if (command === "/clear") {
           // Clear UI immediately
           setUIMessageMap(new Map());
           aggregatorRef.current.clear();
-          
+
           // Enable auto-scroll after clearing
           setAutoScroll(true);
-          
+
           // Send clear command to backend
-          const result = await window.api.claude.handleSlashCommand(
-            workspaceId,
-            messageText
-          );
-          
+          const result = await window.api.claude.handleSlashCommand(workspaceId, messageText);
+
           if (!result.success) {
             console.error("Failed to execute /clear command:", result.error);
             // Show error to user
@@ -398,16 +384,13 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
           }
           return;
         }
-        
+
         // For other slash commands, pass them through to the SDK
         // The SDK will handle them internally
       }
 
       // Send message to Claude workspace (including slash commands)
-      const result = await window.api.claude.sendMessage(
-        workspaceId,
-        messageText
-      );
+      const result = await window.api.claude.sendMessage(workspaceId, messageText);
 
       if (!result.success) {
         console.error("Failed to send message to Claude workspace:", result.error);
@@ -434,7 +417,7 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
     if (showCommandSuggestions && COMMAND_SUGGESTION_KEYS.includes(e.key)) {
       return; // Let CommandSuggestions handle it
     }
-    
+
     if (e.key === "Enter") {
       if (e.shiftKey) {
         // Shift+Enter: allow newline (default behavior)
@@ -462,9 +445,7 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
       <ViewContainer className={className}>
         <EmptyState>
           <h3>No Workspace Selected</h3>
-          <p>
-            Select a workspace from the sidebar to view and interact with Claude
-          </p>
+          <p>Select a workspace from the sidebar to view and interact with Claude</p>
         </EmptyState>
       </ViewContainer>
     );
@@ -481,28 +462,33 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
         </WorkspaceTitle>
       </ViewHeader>
 
-      <OutputContent 
+      <OutputContent
         ref={contentRef}
-        onWheel={() => { lastUserInteractionRef.current = Date.now(); }}
-        onTouchMove={() => { lastUserInteractionRef.current = Date.now(); }}
+        onWheel={() => {
+          lastUserInteractionRef.current = Date.now();
+        }}
+        onTouchMove={() => {
+          lastUserInteractionRef.current = Date.now();
+        }}
         onScroll={(e) => {
           const element = e.currentTarget;
           const currentScrollTop = element.scrollTop;
           const threshold = 100;
-          const isAtBottom = element.scrollHeight - currentScrollTop - element.clientHeight < threshold;
-          
+          const isAtBottom =
+            element.scrollHeight - currentScrollTop - element.clientHeight < threshold;
+
           // Only process user-initiated scrolls (within 100ms of interaction)
           const isUserScroll = Date.now() - lastUserInteractionRef.current < 100;
-          
+
           if (!isUserScroll) {
             lastScrollTopRef.current = currentScrollTop;
             return; // Ignore programmatic scrolls
           }
-          
+
           // Detect scroll direction
           const isScrollingUp = currentScrollTop < lastScrollTopRef.current;
           const isScrollingDown = currentScrollTop > lastScrollTopRef.current;
-          
+
           if (isScrollingUp) {
             // Always disable auto-scroll when scrolling up
             setAutoScroll(false);
@@ -511,7 +497,7 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
             setAutoScroll(true);
           }
           // If scrolling down but not at bottom, auto-scroll remains disabled
-          
+
           // Update last scroll position
           lastScrollTopRef.current = currentScrollTop;
         }}
@@ -522,9 +508,7 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
             <p>Send a message below to start interacting with Claude</p>
           </EmptyState>
         ) : (
-          messages.map((msg) => (
-            <MessageRenderer key={msg.id} message={msg} />
-          ))
+          messages.map((msg) => <MessageRenderer key={msg.id} message={msg} />)
         )}
       </OutputContent>
 
@@ -543,40 +527,35 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
             onChange={(e) => {
               setInput(e.target.value);
               // Auto-resize textarea
-              e.target.style.height = 'auto';
-              e.target.style.height = Math.min(e.target.scrollHeight, 200) + 'px';
+              e.target.style.height = "auto";
+              e.target.style.height = Math.min(e.target.scrollHeight, 200) + "px";
             }}
             onKeyDown={handleKeyDown}
             placeholder={
-              isCompacting
-                ? "Compacting conversation..."
-                : MODE_PLACEHOLDERS[currentPermissionMode]
+              isCompacting ? "Compacting conversation..." : MODE_PLACEHOLDERS[currentPermissionMode]
             }
             disabled={isSending || isCompacting}
           />
-          <SendButton
-            onClick={handleSend}
-            disabled={!input.trim() || isSending || isCompacting}
-          >
+          <SendButton onClick={handleSend} disabled={!input.trim() || isSending || isCompacting}>
             {isCompacting ? "Compacting..." : isSending ? "Sending..." : "Send"}
           </SendButton>
         </InputControls>
         <ModeToggles>
-          <PermissionModeSlider 
+          <PermissionModeSlider
             value={currentPermissionMode}
             onChange={async (mode) => {
-              console.log('Permission mode changing to:', mode);
+              console.log("Permission mode changing to:", mode);
               // Optimistically update UI immediately for better UX
               setCurrentPermissionMode(mode);
-              
+
               // Then update backend
               if (projectName && branch) {
                 try {
                   await window.api.claude.setPermissionMode(workspaceId, mode);
-                  console.log('Permission mode successfully set to:', mode);
+                  console.log("Permission mode successfully set to:", mode);
                   // Backend will confirm via next message
                 } catch (error) {
-                  console.error('Failed to set permission mode:', error);
+                  console.error("Failed to set permission mode:", error);
                   // On error, revert to previous mode (we'll get the correct mode from next message)
                   // For now, just log - the next message will correct the UI state
                 }

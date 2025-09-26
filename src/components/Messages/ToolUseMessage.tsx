@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import styled from '@emotion/styled';
-import { Message } from '../../types/claude';
+import React, { useState } from "react";
+import styled from "@emotion/styled";
+import { Message } from "../../types/claude";
 
 const ToolContainer = styled.div`
   margin: 6px 0;
@@ -16,7 +16,7 @@ const ToolContainer = styled.div`
   transition: all 0.15s ease;
   opacity: 0.8;
   cursor: pointer;
-  
+
   &:hover {
     opacity: 1;
     background: rgba(255, 255, 255, 0.02);
@@ -46,22 +46,21 @@ const ToolDescription = styled.span`
   color: #b0b0b0;
   font-weight: normal;
   margin-left: 6px;
-  
+
   .command {
-    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
     color: #d4d4d4;
   }
-  
+
   .comment {
     color: #808080;
     margin-left: 8px;
   }
 `;
 
-
 const InputDetails = styled.pre`
   margin: 4px 0 0 18px;
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
   font-size: 10px;
   line-height: 1.4;
   color: #707070;
@@ -81,13 +80,13 @@ interface ToolUseMessageProps {
 
 export const ToolUseMessage: React.FC<ToolUseMessageProps> = ({ message, className }) => {
   const [showDetails, setShowDetails] = useState(false);
-  
+
   // Extract tool information
   const toolName = message.metadata?.toolName || extractToolName(message);
   const toolInput = message.metadata?.toolInput || extractToolInput(message);
-  
+
   const { icon, description } = formatToolDisplay(toolName, toolInput);
-  
+
   return (
     <div className={className}>
       <ToolContainer onClick={() => toolInput && setShowDetails(!showDetails)}>
@@ -97,11 +96,9 @@ export const ToolUseMessage: React.FC<ToolUseMessageProps> = ({ message, classNa
           <ToolDescription>{description}</ToolDescription>
         </ToolContent>
       </ToolContainer>
-      
+
       {showDetails && toolInput && (
-        <InputDetails>
-          {JSON.stringify(toolInput, null, 2)}
-        </InputDetails>
+        <InputDetails>{JSON.stringify(toolInput, null, 2)}</InputDetails>
       )}
     </div>
   );
@@ -111,128 +108,135 @@ export const ToolUseMessage: React.FC<ToolUseMessageProps> = ({ message, classNa
 function extractToolName(message: Message): string {
   // Check if content has tool_use blocks
   if (message.content && Array.isArray(message.content)) {
-    const toolBlock = message.content.find((block: any) => block.type === 'tool_use');
+    const toolBlock = message.content.find((block: any) => block.type === "tool_use");
     if (toolBlock) return toolBlock.name;
   }
-  
+
   // Check metadata
   if (message.metadata?.originalSDKMessage?.message?.content) {
     const content = message.metadata.originalSDKMessage.message.content;
     if (Array.isArray(content)) {
-      const toolBlock = content.find((block: any) => block.type === 'tool_use');
+      const toolBlock = content.find((block: any) => block.type === "tool_use");
       if (toolBlock) return toolBlock.name;
     }
   }
-  
-  return 'Unknown Tool';
+
+  return "Unknown Tool";
 }
 
 function extractToolInput(message: Message): any {
   // Check if content has tool_use blocks
   if (message.content && Array.isArray(message.content)) {
-    const toolBlock = message.content.find((block: any) => block.type === 'tool_use');
+    const toolBlock = message.content.find((block: any) => block.type === "tool_use");
     if (toolBlock) return toolBlock.input;
   }
-  
+
   // Check metadata
   if (message.metadata?.originalSDKMessage?.message?.content) {
     const content = message.metadata.originalSDKMessage.message.content;
     if (Array.isArray(content)) {
-      const toolBlock = content.find((block: any) => block.type === 'tool_use');
+      const toolBlock = content.find((block: any) => block.type === "tool_use");
       if (toolBlock) return toolBlock.input;
     }
   }
-  
+
   return null;
 }
 
-function formatToolDisplay(toolName: string, toolInput: any): { icon: string; description: React.ReactNode } {
+function formatToolDisplay(
+  toolName: string,
+  toolInput: any
+): { icon: string; description: React.ReactNode } {
   switch (toolName) {
-    case 'Bash':
+    case "Bash":
       return {
-        icon: '›',
+        icon: "›",
         description: toolInput?.command ? (
           <span className="command">
             {toolInput.command}
-            {toolInput.description && (
-              <span className="comment"># {toolInput.description}</span>
-            )}
+            {toolInput.description && <span className="comment"># {toolInput.description}</span>}
           </span>
         ) : (
-          'Running command'
-        )
+          "Running command"
+        ),
       };
-    
-    case 'Read':
+
+    case "Read":
       return {
-        icon: '◉',
-        description: <span>{toolInput?.file_path || 'Reading file'}</span>
+        icon: "◉",
+        description: <span>{toolInput?.file_path || "Reading file"}</span>,
       };
-    
-    case 'Edit':
+
+    case "Edit":
       return {
-        icon: '✎',
-        description: <span>{toolInput?.file_path || 'Editing file'}</span>
+        icon: "✎",
+        description: <span>{toolInput?.file_path || "Editing file"}</span>,
       };
-    
-    case 'Write':
+
+    case "Write":
       return {
-        icon: '✎',
-        description: <span>{toolInput?.file_path || 'Writing file'}</span>
+        icon: "✎",
+        description: <span>{toolInput?.file_path || "Writing file"}</span>,
       };
-    
-    case 'MultiEdit':
+
+    case "MultiEdit":
       return {
-        icon: '✎',
-        description: <span>{`${toolInput?.edits?.length || 0} edits to ${toolInput?.file_path || 'file'}`}</span>
+        icon: "✎",
+        description: (
+          <span>{`${toolInput?.edits?.length || 0} edits to ${toolInput?.file_path || "file"}`}</span>
+        ),
       };
-    
-    case 'Grep':
+
+    case "Grep":
       return {
-        icon: '◎',
-        description: <span>{`Searching for: ${toolInput?.pattern || 'pattern'}`}</span>
+        icon: "◎",
+        description: <span>{`Searching for: ${toolInput?.pattern || "pattern"}`}</span>,
       };
-    
-    case 'Glob':
+
+    case "Glob":
       return {
-        icon: '◈',
-        description: <span>{`Matching: ${toolInput?.pattern || 'pattern'}`}</span>
+        icon: "◈",
+        description: <span>{`Matching: ${toolInput?.pattern || "pattern"}`}</span>,
       };
-    
-    case 'WebSearch':
+
+    case "WebSearch":
       return {
-        icon: '◈',
-        description: <span>{toolInput?.query || 'Searching web'}</span>
+        icon: "◈",
+        description: <span>{toolInput?.query || "Searching web"}</span>,
       };
-    
-    case 'WebFetch':
+
+    case "WebFetch":
       return {
-        icon: '◈',
-        description: <span>{toolInput?.url ? `Fetching: ${new URL(toolInput.url).hostname}` : 'Fetching URL'}</span>
+        icon: "◈",
+        description: (
+          <span>
+            {toolInput?.url ? `Fetching: ${new URL(toolInput.url).hostname}` : "Fetching URL"}
+          </span>
+        ),
       };
-    
-    case 'Task':
+
+    case "Task":
       return {
-        icon: '◆',
-        description: <span>{toolInput?.description || 'Running agent task'}</span>
+        icon: "◆",
+        description: <span>{toolInput?.description || "Running agent task"}</span>,
       };
-    
-    case 'TodoWrite':
+
+    case "TodoWrite":
       return {
-        icon: '☐',
-        description: <span>{`Updating todo list (${toolInput?.todos?.length || 0} items)`}</span>
+        icon: "☐",
+        description: <span>{`Updating todo list (${toolInput?.todos?.length || 0} items)`}</span>,
       };
-    
-    case 'ExitPlanMode':
+
+    case "ExitPlanMode":
       return {
-        icon: 'P',
-        description: <span style={{ color: 'var(--color-plan-mode)' }}>Creating plan...</span>
+        icon: "P",
+        description: <span style={{ color: "var(--color-plan-mode)" }}>Creating plan...</span>,
       };
-    
+
     default:
       return {
-        icon: '•',
-        description: <span>Tool invocation</span>
+        icon: "•",
+        description: <span>Tool invocation</span>,
       };
   }
 }

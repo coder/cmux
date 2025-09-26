@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import styled from '@emotion/styled';
+import React, { useState, useEffect } from "react";
+import styled from "@emotion/styled";
 
 // Export the keys that CommandSuggestions handles
-export const COMMAND_SUGGESTION_KEYS = ['Tab', 'ArrowUp', 'ArrowDown', 'Escape'];
+export const COMMAND_SUGGESTION_KEYS = ["Tab", "ArrowUp", "ArrowDown", "Escape"];
 
 // Props interface
 interface CommandSuggestionsProps {
@@ -34,13 +34,13 @@ const PopoverContainer = styled.div`
 const CommandItem = styled.div<{ selected: boolean }>`
   padding: 6px 10px;
   cursor: pointer;
-  background: ${props => props.selected ? '#094771' : 'transparent'};
+  background: ${(props) => (props.selected ? "#094771" : "transparent")};
   transition: background 0.15s ease;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  
+
   &:hover {
     background: #094771;
   }
@@ -48,7 +48,7 @@ const CommandItem = styled.div<{ selected: boolean }>`
 
 const CommandText = styled.div`
   color: #569cd6;
-  font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+  font-family: "Monaco", "Menlo", "Courier New", monospace;
   font-size: 12px;
   flex-shrink: 0;
 `;
@@ -70,7 +70,7 @@ const HelperText = styled.div`
   font-size: 10px;
   text-align: center;
   flex-shrink: 0;
-  
+
   span {
     color: #969696;
     font-weight: 500;
@@ -83,7 +83,7 @@ export const CommandSuggestions: React.FC<CommandSuggestionsProps> = ({
   availableCommands,
   onSelectCommand,
   onDismiss,
-  isVisible
+  isVisible,
 }) => {
   const [filteredCommands, setFilteredCommands] = useState<string[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -91,26 +91,26 @@ export const CommandSuggestions: React.FC<CommandSuggestionsProps> = ({
   // Command descriptions for built-in commands
   const getDescription = (cmd: string): string => {
     const descriptions: Record<string, string> = {
-      'clear': 'Clear conversation and start fresh',
-      'compact': 'Compress conversation history',
-      'context': 'Show context usage information',
-      'cost': 'Show token usage and costs',
-      'init': 'Initialize or reinitialize session',
-      'model': 'Switch AI model',
-      'help': 'Show available commands',
+      clear: "Clear conversation and start fresh",
+      compact: "Compress conversation history",
+      context: "Show context usage information",
+      cost: "Show token usage and costs",
+      init: "Initialize or reinitialize session",
+      model: "Switch AI model",
+      help: "Show available commands",
     };
-    
+
     return descriptions[cmd] || `/${cmd}`;
   };
 
   // Filter commands based on input
   useEffect(() => {
-    if (input.startsWith('/')) {
+    if (input.startsWith("/")) {
       const searchTerm = input.slice(1).toLowerCase();
       const filtered = availableCommands
-        .filter(cmd => cmd.toLowerCase().startsWith(searchTerm))
+        .filter((cmd) => cmd.toLowerCase().startsWith(searchTerm))
         .slice(0, 10);
-      
+
       setFilteredCommands(filtered);
       setSelectedIndex(0);
     }
@@ -121,30 +121,30 @@ export const CommandSuggestions: React.FC<CommandSuggestionsProps> = ({
     if (!isVisible) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      switch(e.key) {
-        case 'ArrowDown':
+      switch (e.key) {
+        case "ArrowDown":
           e.preventDefault();
-          setSelectedIndex(i => (i + 1) % filteredCommands.length);
+          setSelectedIndex((i) => (i + 1) % filteredCommands.length);
           break;
-        case 'ArrowUp':
+        case "ArrowUp":
           e.preventDefault();
-          setSelectedIndex(i => (i - 1 + filteredCommands.length) % filteredCommands.length);
+          setSelectedIndex((i) => (i - 1 + filteredCommands.length) % filteredCommands.length);
           break;
-        case 'Tab':
+        case "Tab":
           if (!e.shiftKey && filteredCommands.length > 0) {
             e.preventDefault();
             onSelectCommand(filteredCommands[selectedIndex]);
           }
           break;
-        case 'Escape':
+        case "Escape":
           e.preventDefault();
           onDismiss();
           break;
       }
     };
 
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
   }, [isVisible, filteredCommands, selectedIndex, onSelectCommand, onDismiss]);
 
   // Click outside handler
@@ -153,13 +153,13 @@ export const CommandSuggestions: React.FC<CommandSuggestionsProps> = ({
 
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      if (!target.closest('[data-command-suggestions]')) {
+      if (!target.closest("[data-command-suggestions]")) {
         onDismiss();
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isVisible, onDismiss]);
 
   if (!isVisible || filteredCommands.length === 0) {

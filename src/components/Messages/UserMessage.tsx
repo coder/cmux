@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import styled from '@emotion/styled';
-import { UIMessage } from '../../types/claude';
-import { MessageWindow, ButtonConfig } from './MessageWindow';
+import React, { useState } from "react";
+import styled from "@emotion/styled";
+import { UIMessage } from "../../types/claude";
+import { MessageWindow, ButtonConfig } from "./MessageWindow";
 
 const FormattedContent = styled.pre`
   margin: 0;
@@ -21,11 +21,12 @@ interface UserMessageProps {
 
 export const UserMessage: React.FC<UserMessageProps> = ({ message, className }) => {
   const [copied, setCopied] = useState(false);
-  
-  const content = typeof message.content === 'string' 
-    ? message.content 
-    : JSON.stringify(message.content, null, 2);
-  
+
+  const content =
+    typeof message.content === "string"
+      ? message.content
+      : JSON.stringify(message.content, null, 2);
+
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(content);
@@ -35,14 +36,14 @@ export const UserMessage: React.FC<UserMessageProps> = ({ message, className }) 
       console.error("Failed to copy:", err);
     }
   };
-  
+
   const buttons: ButtonConfig[] = [
     {
       label: copied ? "✓ Copied" : "Copy Text",
-      onClick: handleCopy
-    }
+      onClick: handleCopy,
+    },
   ];
-  
+
   return (
     <MessageWindow
       label="USER"
