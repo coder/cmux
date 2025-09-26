@@ -71,7 +71,6 @@ export const StreamingMessage: React.FC<StreamingMessageProps> = ({ message, cla
           <TypewriterMarkdown
             deltas={message.contentDeltas!} 
             isComplete={false}
-            speed={50}
           />
         ) : (
           <WaitingMessage>Waiting for response...</WaitingMessage>

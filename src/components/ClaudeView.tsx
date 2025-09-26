@@ -216,56 +216,33 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
   const [showCommandSuggestions, setShowCommandSuggestions] = useState(false);
   const { debugMode, setDebugMode } = useDebugMode(); // Use context instead of local state
   const [planMode, setPlanMode] = useState(false);
+  const [autoScroll, setAutoScroll] = useState(true); // Default to auto-scrolling
   const contentRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const lastScrollTopRef = useRef<number>(0);
+  const autoScrollRef = useRef<boolean>(true); // Track current autoScroll value to avoid closure issues
   const aggregatorRef = useRef<StreamingMessageAggregator>(
     new StreamingMessageAggregator()
   );
-  const isUserScrollingRef = useRef(false);
-  const scrollDebounceRef = useRef<NodeJS.Timeout>();
-  const justSentMessageRef = useRef(false);
 
-  // Smart auto-scroll function
-  const smartAutoScroll = useCallback(() => {
+  // Keep autoScrollRef in sync with autoScroll state
+  useEffect(() => {
+    autoScrollRef.current = autoScroll;
+  }, [autoScroll]);
+
+  // Auto-scroll function
+  const performAutoScroll = useCallback(() => {
     if (!contentRef.current) return;
     
-    // Always scroll if user just sent a message
-    if (justSentMessageRef.current) {
-      justSentMessageRef.current = false; // Clear the flag
-      isUserScrollingRef.current = false; // Reset scrolling state
-      requestAnimationFrame(() => {
-        if (contentRef.current) {
-          contentRef.current.scrollTop = contentRef.current.scrollHeight;
-        }
-      });
-      return;
-    }
-    
-    // Otherwise, use smart scrolling
-    if (isUserScrollingRef.current) return;
-    
-    const element = contentRef.current;
-    const threshold = 100; // pixels from bottom to consider "at bottom"
-    const isAtBottom = element.scrollHeight - element.scrollTop - element.clientHeight < threshold;
-    
-    // Only auto-scroll if user was already at the bottom
-    if (isAtBottom) {
-      // Use requestAnimationFrame for smooth scrolling
-      requestAnimationFrame(() => {
-        if (contentRef.current) {
-          contentRef.current.scrollTop = contentRef.current.scrollHeight;
-        }
-      });
-    }
-  }, []);
+    // Use requestAnimationFrame for smooth scrolling
+    requestAnimationFrame(() => {
+      // Check the ref for current value to avoid stale closure issues
+      if (contentRef.current && autoScrollRef.current) {
+        contentRef.current.scrollTop = contentRef.current.scrollHeight;
+      }
+    });
+  }, []); // No dependencies - we use ref instead
 
-  // Debounced scroll function
-  const debouncedScroll = useCallback(() => {
-    if (scrollDebounceRef.current) {
-      clearTimeout(scrollDebounceRef.current);
-    }
-    scrollDebounceRef.current = setTimeout(smartAutoScroll, 100);
-  }, [smartAutoScroll]);
 
   // Process SDK message and trigger UI update
   const processSDKMessage = useCallback((sdkMessage: any) => {
@@ -274,9 +251,9 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
     setUIMessageMap(new Map(aggregatorRef.current.getAllMessages().map(msg => [msg.id, msg])));
     // Update available commands from aggregator
     setAvailableCommands(aggregatorRef.current.getAvailableCommands());
-    // Trigger debounced smart scroll
-    debouncedScroll();
-  }, [debouncedScroll]);
+    // Auto-scroll if enabled
+    performAutoScroll();
+  }, [performAutoScroll]);
 
   // Load output function
   const loadOutput = useCallback(async () => {
@@ -298,7 +275,8 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
       // Update available commands from aggregator
       setAvailableCommands(aggregatorRef.current.getAvailableCommands());
 
-      // Auto-scroll to bottom after loading (immediate, not debounced)
+      // Enable auto-scroll and scroll to bottom after loading
+      setAutoScroll(true);
       requestAnimationFrame(() => {
         if (contentRef.current) {
           contentRef.current.scrollTop = contentRef.current.scrollHeight;
@@ -325,6 +303,9 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
 
     // Reset Plan Mode state immediately when switching workspaces
     setPlanMode(false);
+    
+    // Enable auto-scroll when switching workspaces
+    setAutoScroll(true);
 
     // Load initial output
     loadOutput();
@@ -422,6 +403,9 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
           setUIMessageMap(new Map());
           aggregatorRef.current.clear();
           
+          // Enable auto-scroll after clearing
+          setAutoScroll(true);
+          
           // Send clear command to backend
           const result = await window.api.claude.handleSlashCommand(
             projectName,
@@ -458,8 +442,8 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
       }
 
       console.log("Message sent successfully:", messageText);
-      // Set flag to force scroll when the message appears
-      justSentMessageRef.current = true;
+      // Enable auto-scroll when user sends a message
+      setAutoScroll(true);
     } catch (error) {
       console.error("Failed to send message:", error);
       // Restore the input on error
@@ -513,24 +497,25 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
         ref={contentRef}
         onScroll={(e) => {
           const element = e.currentTarget;
+          const currentScrollTop = element.scrollTop;
           const threshold = 100;
-          const isAtBottom = element.scrollHeight - element.scrollTop - element.clientHeight < threshold;
+          const isAtBottom = element.scrollHeight - currentScrollTop - element.clientHeight < threshold;
           
-          // Track if user is manually scrolling
-          isUserScrollingRef.current = !isAtBottom;
-        }}
-        onWheel={() => {
-          // User is definitely scrolling manually
-          isUserScrollingRef.current = true;
-          // Reset after a delay
-          setTimeout(() => {
-            if (contentRef.current) {
-              const element = contentRef.current;
-              const threshold = 100;
-              const isAtBottom = element.scrollHeight - element.scrollTop - element.clientHeight < threshold;
-              isUserScrollingRef.current = !isAtBottom;
-            }
-          }, 1000);
+          // Detect scroll direction
+          const isScrollingUp = currentScrollTop < lastScrollTopRef.current;
+          const isScrollingDown = currentScrollTop > lastScrollTopRef.current;
+          
+          if (isScrollingUp) {
+            // Always disable auto-scroll when scrolling up
+            setAutoScroll(false);
+          } else if (isScrollingDown && isAtBottom) {
+            // Only enable auto-scroll if scrolling down AND reached the bottom
+            setAutoScroll(true);
+          }
+          // If scrolling down but not at bottom, auto-scroll remains disabled
+          
+          // Update last scroll position
+          lastScrollTopRef.current = currentScrollTop;
         }}
       >
         {messages.length === 0 ? (
