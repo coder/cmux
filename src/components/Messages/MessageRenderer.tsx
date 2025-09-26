@@ -5,7 +5,7 @@ import { AssistantMessage } from "./AssistantMessage";
 import { ToolUseMessage } from "./ToolUseMessage";
 import { SystemMessage } from "./SystemMessage";
 import { ResultMessage } from "./ResultMessage";
-import { StreamingMessage } from "./StreamingMessage";
+import { StreamingAssistantMessage } from "./StreamingAssistantMessage";
 import { BashResultMessage } from "./BashResultMessage";
 import { ToolResultMessage } from "./ToolResultMessage";
 import { DebugMessage } from "./DebugMessage";
@@ -29,7 +29,7 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({ message, class
 
   // Handle streaming messages with content
   if (message.isStreaming) {
-    return <StreamingMessage message={message} className={className} />;
+    return <StreamingAssistantMessage message={message} className={className} />;
   }
 
   // Check if this is a Plan message (ExitPlanMode tool invocation with plan content)

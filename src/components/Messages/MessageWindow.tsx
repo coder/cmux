@@ -81,6 +81,7 @@ interface MessageWindowProps {
   buttons?: ButtonConfig[];
   children: ReactNode;
   className?: string;
+  rightLabel?: ReactNode;
 }
 
 export const MessageWindow: React.FC<MessageWindowProps> = ({
@@ -91,6 +92,7 @@ export const MessageWindow: React.FC<MessageWindowProps> = ({
   buttons = [],
   children,
   className,
+  rightLabel,
 }) => {
   const [showJson, setShowJson] = useState(false);
 
@@ -99,6 +101,7 @@ export const MessageWindow: React.FC<MessageWindowProps> = ({
       <MessageHeader>
         <MessageTypeLabel>{label}</MessageTypeLabel>
         <ButtonGroup>
+          {rightLabel}
           {buttons.map((button, index) => (
             <HeaderButton key={index} active={button.active} onClick={button.onClick}>
               {button.label}
