@@ -159,17 +159,43 @@ export class StreamingMessageAggregator {
     const event = sdkMessage.event;
     if (!event) return;
 
+    // Pass through all stream events as debug messages
+    const streamEventMessage: UIMessage = {
+      id: `stream-event-${Date.now()}-${Math.random()}`,
+      type: "stream_event" as any,
+      content: sdkMessage,
+      sequenceNumber: sdkMessage._sequenceNumber || this.sequenceCounter++,
+      timestamp: Date.now(),
+      metadata: { 
+        originalSDKMessage: sdkMessage,
+        eventType: event.type
+      },
+    };
+    this.uiMessages.set(streamEventMessage.id, streamEventMessage);
+
+    // Also handle specific events for streaming functionality
     switch (event.type) {
       case "message_start":
         this.startStreamingMessage(sdkMessage);
         break;
+      case "content_block_start":
+        // Initialize content block - handled by message_start for now
+        break;
       case "content_block_delta":
         this.updateStreamingMessage(sdkMessage);
+        break;
+      case "content_block_stop":
+        // Content block finished - no action needed as we track by message
+        break;
+      case "message_delta":
+        // Message metadata update - could be used for stop_reason, usage, etc.
         break;
       case "message_stop":
         this.finishStreamingMessage(sdkMessage);
         break;
       default:
+        // Log unknown event types for debugging
+        console.debug(`Unknown stream event type: ${event.type}`);
         break;
     }
   }

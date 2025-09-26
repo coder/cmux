@@ -17,7 +17,12 @@ interface MessageRendererProps {
 }
 
 export const MessageRenderer: React.FC<MessageRendererProps> = ({ message, className }) => {
-  // Handle streaming messages
+  // Skip empty assistant messages that are streaming
+  if (message.isStreaming && message.type === 'assistant' && !message.content && (!message.contentDeltas || message.contentDeltas.length === 0)) {
+    return null;
+  }
+  
+  // Handle streaming messages with content
   if (message.isStreaming) {
     return <StreamingMessage message={message} className={className} />;
   }
@@ -38,8 +43,8 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({ message, class
       return true;
     }
     
-    // Empty assistant messages
-    if (message.type === 'assistant' && (!message.content || message.content === '')) {
+    // Empty assistant messages (non-streaming)
+    if (message.type === 'assistant' && !message.isStreaming && (!message.content || message.content === '')) {
       return true;
     }
     
@@ -48,8 +53,13 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({ message, class
       return true;
     }
     
-    // Stream event messages that leaked through
-    if (original?.type === 'stream_event' && original?.event?.type === 'message_start') {
+    // All stream_event type messages
+    if (message.type === 'stream_event' as any) {
+      return true;
+    }
+    
+    // Stream event messages that leaked through from original SDK message
+    if (original?.type === 'stream_event') {
       return true;
     }
     

@@ -13,6 +13,7 @@ export interface Message {
     duration?: number;
     toolName?: string;  // For tool_use messages
     toolInput?: any;    // For tool_use messages
+    eventType?: string; // For stream_event messages
   };
   sequenceNumber: number;
   timestamp: number;
