@@ -13,7 +13,7 @@ export const markdownStyles = css`
   h4,
   h5,
   h6 {
-    margin: 0.8em 0 0.5em 0;
+    margin: 1.2em 0 0.6em 0;
     font-weight: 600;
     line-height: 1.25;
   }
@@ -36,7 +36,7 @@ export const markdownStyles = css`
   }
 
   p {
-    margin: 0.5em 0;
+    margin: 0.8em 0;
   }
 
   /* Remove default margins on first and last elements */
@@ -50,12 +50,12 @@ export const markdownStyles = css`
 
   ul,
   ol {
-    margin: 0.5em 0;
+    margin: 0.8em 0;
     padding-left: 20px;
   }
 
   li {
-    margin: 0.25em 0;
+    margin: 0.4em 0;
   }
 
   code {
@@ -69,10 +69,10 @@ export const markdownStyles = css`
 
   pre {
     background: rgba(0, 0, 0, 0.3);
-    padding: 10px;
+    padding: 12px;
     border-radius: 4px;
     overflow-x: auto;
-    margin: 0.8em 0;
+    margin: 1em 0;
 
     code {
       background: none;
@@ -84,7 +84,7 @@ export const markdownStyles = css`
   blockquote {
     border-left: 3px solid var(--color-border);
     padding-left: 12px;
-    margin: 0.8em 0;
+    margin: 1em 0;
     color: var(--color-text-secondary);
     font-style: italic;
   }
@@ -100,7 +100,7 @@ export const markdownStyles = css`
   hr {
     border: none;
     border-top: 1px solid var(--color-border);
-    margin: 1em 0;
+    margin: 1.4em 0;
   }
 
   a {
@@ -115,7 +115,7 @@ export const markdownStyles = css`
   table {
     border-collapse: collapse;
     width: 100%;
-    margin: 0.8em 0;
+    margin: 1em 0;
 
     th,
     td {

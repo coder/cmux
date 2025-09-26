@@ -4,6 +4,7 @@ import * as os from 'os';
 
 const CONFIG_DIR = path.join(os.homedir(), '.cmux');
 const CONFIG_FILE = path.join(CONFIG_DIR, 'config.json');
+export const SESSIONS_DIR = path.join(CONFIG_DIR, 'sessions');
 
 export interface Workspace {
   branch: string;
@@ -66,4 +67,25 @@ export function getProjectName(projectPath: string): string {
 export function getWorkspacePath(projectPath: string, branch: string): string {
   const projectName = getProjectName(projectPath);
   return path.join(CONFIG_DIR, 'src', projectName, branch);
+}
+
+/**
+ * Find a workspace path by project name and branch
+ * @returns The workspace path or null if not found
+ */
+export function findWorkspacePath(projectName: string, branch: string): string | null {
+  const config = load_config_or_default();
+  
+  for (const [projectPath, project] of config.projects) {
+    const currentProjectName = path.basename(projectPath);
+    
+    if (currentProjectName === projectName) {
+      const workspace = project.workspaces.find((w: Workspace) => w.branch === branch);
+      if (workspace) {
+        return workspace.path;
+      }
+    }
+  }
+  
+  return null;
 }

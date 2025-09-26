@@ -1,7 +1,7 @@
 import { readFile } from 'fs/promises';
 import { join } from 'path';
-import { homedir } from 'os';
 import { StreamingMessageAggregator } from '../utils/StreamingMessageAggregator';
+import { SESSIONS_DIR } from '../config';
 
 export async function uiMessagesCommand(workspaceKey?: string, dropLast: number = 0) {
   if (!workspaceKey) {
@@ -11,7 +11,7 @@ export async function uiMessagesCommand(workspaceKey?: string, dropLast: number 
 
   try {
     // Load workspace data
-    const workspaceFile = join(homedir(), '.cmux', 'workspaces', workspaceKey, 'session.json');
+    const workspaceFile = join(SESSIONS_DIR, workspaceKey, 'session.json');
     const data = JSON.parse(await readFile(workspaceFile, 'utf-8'));
     
     // Drop last N messages if requested

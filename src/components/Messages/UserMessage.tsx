@@ -10,7 +10,8 @@ const FormattedContent = styled.pre`
   line-height: 1.5;
   white-space: pre-wrap;
   word-break: break-word;
-  color: #cccccc;
+  color: #999999;
+  opacity: 0.9;
 `;
 
 interface UserMessageProps {

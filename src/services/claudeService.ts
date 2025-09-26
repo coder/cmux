@@ -3,7 +3,7 @@ import * as path from 'path';
 import * as os from 'os';
 import * as crypto from 'crypto';
 import { EventEmitter } from 'events';
-import { load_config_or_default } from '../config';
+import { findWorkspacePath } from '../config';
 import { Result, Ok, Err } from '../types/result';
 
 // Import types for TypeScript
@@ -404,24 +404,7 @@ export class ClaudeService extends EventEmitter {
       safeLog(`Auto-starting workspace ${key}...`);
       
       // Get workspace path from config
-      const config = load_config_or_default();
-      let srcPath: string | null = null;
-      
-      for (const [, projectData] of config.projects) {
-        // projectData is an array: [projectPath, projectObject]
-        if (Array.isArray(projectData) && projectData.length === 2) {
-          const [projectPath, project] = projectData;
-          const currentProjectName = path.basename(projectPath);
-          
-          if (currentProjectName === projectName) {
-            const workspace = project.workspaces.find((w: any) => w.branch === branch);
-            if (workspace) {
-              srcPath = workspace.path;
-              break;
-            }
-          }
-        }
-      }
+      const srcPath = findWorkspacePath(projectName, branch);
       
       if (!srcPath) {
         const error = `Cannot find workspace path for ${key}. Workspace not configured in ~/.cmux/config.json`;

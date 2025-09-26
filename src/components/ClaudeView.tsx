@@ -221,6 +221,51 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
   const aggregatorRef = useRef<StreamingMessageAggregator>(
     new StreamingMessageAggregator()
   );
+  const isUserScrollingRef = useRef(false);
+  const scrollDebounceRef = useRef<NodeJS.Timeout>();
+  const justSentMessageRef = useRef(false);
+
+  // Smart auto-scroll function
+  const smartAutoScroll = useCallback(() => {
+    if (!contentRef.current) return;
+    
+    // Always scroll if user just sent a message
+    if (justSentMessageRef.current) {
+      justSentMessageRef.current = false; // Clear the flag
+      isUserScrollingRef.current = false; // Reset scrolling state
+      requestAnimationFrame(() => {
+        if (contentRef.current) {
+          contentRef.current.scrollTop = contentRef.current.scrollHeight;
+        }
+      });
+      return;
+    }
+    
+    // Otherwise, use smart scrolling
+    if (isUserScrollingRef.current) return;
+    
+    const element = contentRef.current;
+    const threshold = 100; // pixels from bottom to consider "at bottom"
+    const isAtBottom = element.scrollHeight - element.scrollTop - element.clientHeight < threshold;
+    
+    // Only auto-scroll if user was already at the bottom
+    if (isAtBottom) {
+      // Use requestAnimationFrame for smooth scrolling
+      requestAnimationFrame(() => {
+        if (contentRef.current) {
+          contentRef.current.scrollTop = contentRef.current.scrollHeight;
+        }
+      });
+    }
+  }, []);
+
+  // Debounced scroll function
+  const debouncedScroll = useCallback(() => {
+    if (scrollDebounceRef.current) {
+      clearTimeout(scrollDebounceRef.current);
+    }
+    scrollDebounceRef.current = setTimeout(smartAutoScroll, 100);
+  }, [smartAutoScroll]);
 
   // Process SDK message and trigger UI update
   const processSDKMessage = useCallback((sdkMessage: any) => {
@@ -229,7 +274,9 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
     setUIMessageMap(new Map(aggregatorRef.current.getAllMessages().map(msg => [msg.id, msg])));
     // Update available commands from aggregator
     setAvailableCommands(aggregatorRef.current.getAvailableCommands());
-  }, []);
+    // Trigger debounced smart scroll
+    debouncedScroll();
+  }, [debouncedScroll]);
 
   // Load output function
   const loadOutput = useCallback(async () => {
@@ -251,12 +298,12 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
       // Update available commands from aggregator
       setAvailableCommands(aggregatorRef.current.getAvailableCommands());
 
-      // Auto-scroll to bottom after loading
-      setTimeout(() => {
+      // Auto-scroll to bottom after loading (immediate, not debounced)
+      requestAnimationFrame(() => {
         if (contentRef.current) {
           contentRef.current.scrollTop = contentRef.current.scrollHeight;
         }
-      }, 50);
+      });
     } catch (error) {
       console.error("Failed to load output:", error);
     }
@@ -296,13 +343,7 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
     const unsubscribeOutput = window.api.claude.onOutput((data: any) => {
       if (data.projectName === projectName && data.branch === branch) {
         processSDKMessage(data.message);
-
-        // Auto-scroll to bottom
-        setTimeout(() => {
-          if (contentRef.current) {
-            contentRef.current.scrollTop = contentRef.current.scrollHeight;
-          }
-        }, 50);
+        // Auto-scroll is now handled by processSDKMessage via debouncedScroll
       }
     });
 
@@ -417,6 +458,8 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
       }
 
       console.log("Message sent successfully:", messageText);
+      // Set flag to force scroll when the message appears
+      justSentMessageRef.current = true;
     } catch (error) {
       console.error("Failed to send message:", error);
       // Restore the input on error
@@ -466,7 +509,30 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
         </WorkspaceTitle>
       </ViewHeader>
 
-      <OutputContent ref={contentRef}>
+      <OutputContent 
+        ref={contentRef}
+        onScroll={(e) => {
+          const element = e.currentTarget;
+          const threshold = 100;
+          const isAtBottom = element.scrollHeight - element.scrollTop - element.clientHeight < threshold;
+          
+          // Track if user is manually scrolling
+          isUserScrollingRef.current = !isAtBottom;
+        }}
+        onWheel={() => {
+          // User is definitely scrolling manually
+          isUserScrollingRef.current = true;
+          // Reset after a delay
+          setTimeout(() => {
+            if (contentRef.current) {
+              const element = contentRef.current;
+              const threshold = 100;
+              const isAtBottom = element.scrollHeight - element.scrollTop - element.clientHeight < threshold;
+              isUserScrollingRef.current = !isAtBottom;
+            }
+          }, 1000);
+        }}
+      >
         {messages.length === 0 ? (
           <EmptyState>
             <h3>No Messages Yet</h3>
