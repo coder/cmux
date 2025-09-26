@@ -1,7 +1,7 @@
 import React from 'react';
 import styled from '@emotion/styled';
 import { Message } from '../../types/claude';
-import { TypewriterText } from '../ClaudeMessage/TypewriterText';
+import { TypewriterMarkdown } from '../ClaudeMessage/TypewriterMarkdown';
 
 const MessageBlock = styled.div`
   margin-bottom: 15px;
@@ -45,14 +45,11 @@ const MessageContent = styled.div`
   padding: 12px;
 `;
 
-const FormattedContent = styled.div`
-  margin: 0;
-  font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
-  font-size: 12px;
-  line-height: 1.5;
-  white-space: pre-wrap;
-  word-break: break-word;
-  color: #d4d4d4;
+const WaitingMessage = styled.div`
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  font-style: italic;
 `;
 
 interface StreamingMessageProps {
@@ -70,17 +67,15 @@ export const StreamingMessage: React.FC<StreamingMessageProps> = ({ message, cla
         <StreamingIndicator>streaming...</StreamingIndicator>
       </MessageHeader>
       <MessageContent>
-        <FormattedContent>
-          {hasDeltas ? (
-            <TypewriterText 
-              deltas={message.contentDeltas!} 
-              isComplete={false}
-              speed={50}
-            />
-          ) : (
-            <span>Waiting for response...</span>
-          )}
-        </FormattedContent>
+        {hasDeltas ? (
+          <TypewriterMarkdown
+            deltas={message.contentDeltas!} 
+            isComplete={false}
+            speed={50}
+          />
+        ) : (
+          <WaitingMessage>Waiting for response...</WaitingMessage>
+        )}
       </MessageContent>
     </MessageBlock>
   );

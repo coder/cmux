@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import styled from '@emotion/styled';
 import { Message } from '../../types/claude';
+import { MarkdownRenderer } from './MarkdownRenderer';
 
 const MessageBlock = styled.div`
   margin-bottom: 15px;
@@ -48,15 +49,6 @@ const MessageContent = styled.div`
   padding: 12px;
 `;
 
-const FormattedContent = styled.pre`
-  margin: 0;
-  font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
-  font-size: 12px;
-  line-height: 1.5;
-  white-space: pre-wrap;
-  word-break: break-word;
-  color: #d4d4d4;
-`;
 
 const JsonContent = styled.pre`
   margin: 0;
@@ -99,7 +91,7 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({ message, cla
             )}
           </JsonContent>
         ) : (
-          <FormattedContent>{content}</FormattedContent>
+          <MarkdownRenderer content={content} />
         )}
       </MessageContent>
     </MessageBlock>
