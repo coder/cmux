@@ -281,13 +281,13 @@ export class ClaudeService extends EventEmitter {
     projectName: string,
     branch: string,
     permissionMode?: UIPermissionMode
-  ): Promise<boolean> {
+  ): Promise<{ success: boolean; workspaceId?: string }> {
     // Ensure SDK is loaded
     await this.loadSDK();
 
     if (!queryFunction) {
       safeError("Claude Code SDK not loaded");
-      return false;
+      return { success: false };
     }
 
     const key = this.getWorkspaceId(projectName, branch);
@@ -296,7 +296,7 @@ export class ClaudeService extends EventEmitter {
     const existing = this.workspaces.get(key);
     if (existing?.isActive) {
       safeLog(`Workspace ${key} is already active`);
-      return false;
+      return { success: true, workspaceId: key };
     }
 
     try {
@@ -369,10 +369,10 @@ export class ClaudeService extends EventEmitter {
       // Stream output in the background
       this.streamOutput(key, session);
 
-      return true;
+      return { success: true, workspaceId: key };
     } catch (error) {
       safeError(`Failed to start workspace ${key}:`, error);
-      return false;
+      return { success: false };
     }
   }
 
@@ -463,8 +463,8 @@ export class ClaudeService extends EventEmitter {
       }
 
       // Start the workspace (will use saved plan mode)
-      const started = await this.startWorkspace(srcPath, projectName, branch);
-      if (!started) {
+      const result = await this.startWorkspace(srcPath, projectName, branch);
+      if (!result.success) {
         const error = `Failed to auto-start workspace ${key}. Check that Claude Code SDK is installed and the workspace path is valid`;
         safeError(error);
         return Err(error);
@@ -693,6 +693,50 @@ export class ClaudeService extends EventEmitter {
     });
   }
 
+  // Helper method to parse workspaceId into projectName and branch
+  private parseWorkspaceId(workspaceId: string): { projectName: string; branch: string } {
+    const lastDashIndex = workspaceId.lastIndexOf('-');
+    if (lastDashIndex === -1) {
+      throw new Error(`Invalid workspaceId format: ${workspaceId}`);
+    }
+    return {
+      projectName: workspaceId.substring(0, lastDashIndex),
+      branch: workspaceId.substring(lastDashIndex + 1)
+    };
+  }
+
+
+  // New methods that accept workspaceId directly
+  async sendMessageById(workspaceId: string, message: string): Promise<Result<void, string>> {
+    const { projectName, branch } = this.parseWorkspaceId(workspaceId);
+    return this.sendMessage(projectName, branch, message);
+  }
+
+  async handleSlashCommandById(workspaceId: string, command: string): Promise<Result<void, string>> {
+    const { projectName, branch } = this.parseWorkspaceId(workspaceId);
+    return this.handleSlashCommand(projectName, branch, command);
+  }
+
+  async getWorkspaceInfoById(workspaceId: string): Promise<{ permissionMode: UIPermissionMode }> {
+    const { projectName, branch } = this.parseWorkspaceId(workspaceId);
+    return this.getWorkspaceInfo(projectName, branch);
+  }
+
+  async setPermissionModeById(workspaceId: string, permissionMode: UIPermissionMode): Promise<void> {
+    const { projectName, branch } = this.parseWorkspaceId(workspaceId);
+    return this.setPermissionMode(projectName, branch, permissionMode);
+  }
+
+  isWorkspaceActiveById(workspaceId: string): boolean {
+    const { projectName, branch } = this.parseWorkspaceId(workspaceId);
+    return this.isWorkspaceActive(projectName, branch);
+  }
+
+  async streamWorkspaceHistoryById(workspaceId: string): Promise<void> {
+    const { projectName, branch } = this.parseWorkspaceId(workspaceId);
+    return this.streamWorkspaceHistory(projectName, branch);
+  }
+
   list(): Array<Partial<Workspace>> {
     const workspaces = [];
 
@@ -735,7 +779,7 @@ export class ClaudeService extends EventEmitter {
     }
 
     const results = await Promise.all(startPromises);
-    const successCount = results.filter((r) => r === true).length;
+    const successCount = results.filter((r) => r.success).length;
 
     safeLog(
       `Started ${successCount} out of ${startPromises.length} workspaces`

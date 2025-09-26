@@ -321,6 +321,7 @@ export interface WorkspaceSelection {
   projectName: string;
   branch: string;
   workspacePath: string;
+  workspaceId: string;
 }
 
 interface ProjectSidebarProps {
@@ -352,6 +353,9 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
   const [claudeStatuses, setClaudeStatuses] = useState<Map<string, boolean>>(
     new Map()
   );
+  const [workspaceInfoMap, setWorkspaceInfoMap] = useState<Map<string, { id: string }>>(
+    new Map()
+  );
 
   const getProjectName = (path: string) => {
     if (!path || typeof path !== "string") {
@@ -370,24 +374,26 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
     setExpandedProjects(newExpanded);
   };
 
-  // Check Claude status for all workspaces
+  // Check Claude status for all workspaces and get workspace info
   useEffect(() => {
     const checkStatuses = async () => {
+      // Get all workspace info from backend
+      const workspaces = await window.api.claude.list();
+      
       const statuses = new Map<string, boolean>();
+      const infoMap = new Map<string, { id: string }>();
 
-      for (const [projectPath, config] of projects.entries()) {
-        const projectName = getProjectName(projectPath);
-        for (const workspace of config.workspaces) {
-          const key = `${projectName}-${workspace.branch}`;
-          const isActive = await window.api.claude.isActive(
-            projectName,
-            workspace.branch
-          );
-          statuses.set(key, isActive);
+      // Build maps from backend data
+      for (const workspace of workspaces) {
+        if (workspace.id && workspace.projectName && workspace.branch) {
+          const key = `${workspace.projectName}-${workspace.branch}`;
+          statuses.set(key, workspace.isActive || false);
+          infoMap.set(key, { id: workspace.id });
         }
       }
 
       setClaudeStatuses(statuses);
+      setWorkspaceInfoMap(infoMap);
     };
 
     checkStatuses();
@@ -456,6 +462,8 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                     const projectName = getProjectName(projectPath);
                     const key = `${projectName}-${workspace.branch}`;
                     const isActive = claudeStatuses.get(key) || false;
+                    const workspaceInfo = workspaceInfoMap.get(key);
+                    const workspaceId = workspaceInfo?.id || key; // Use backend ID or fallback
 
                     return (
                       <WorkspaceItem
@@ -465,7 +473,8 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                           projectPath,
                           projectName,
                           branch: workspace.branch,
-                          workspacePath: workspace.path
+                          workspacePath: workspace.path,
+                          workspaceId
                         })}
                       >
                         <StatusIndicator

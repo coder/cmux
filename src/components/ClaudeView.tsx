@@ -194,14 +194,17 @@ const EmptyState = styled.div`
 interface ClaudeViewProps {
   projectName?: string;
   branch?: string;
+  workspaceId?: string;
   className?: string;
 }
 
 const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
   projectName,
   branch,
+  workspaceId = '',
   className,
 }) => {
+  
   const [uiMessageMap, setUIMessageMap] = useState<Map<string, UIMessage>>(
     new Map()
   );
@@ -262,10 +265,10 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
     });
   }, [uiMessageMap]);
 
-  useEffect(() => {
-    if (!projectName || !branch) return;
 
-    const workspaceId = `${projectName}-${branch}`;
+  useEffect(() => {
+    if (!projectName || !branch || !workspaceId) return;
+
     let isCaughtUp = false;
 
     // Clear messages when switching workspaces
@@ -282,13 +285,13 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
     setLoading(true);
     
     // Request historical messages to be streamed
-    window.api.claude.streamHistory(projectName, branch).catch((error) => {
+    window.api.claude.streamHistory(workspaceId).catch((error) => {
       console.error("Failed to stream history:", error);
       setLoading(false);
     });
     
     // Load workspace-specific permission mode
-    window.api.claude.getWorkspaceInfo(projectName, branch).then((info) => {
+    window.api.claude.getWorkspaceInfo(workspaceId).then((info) => {
       setPermissionMode(info.permissionMode || 'plan');
     }).catch((error) => {
       console.error("Failed to load workspace info:", error);
@@ -332,7 +335,7 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
         unsubscribeClear();
       }
     };
-  }, [projectName, branch, processSDKMessage, performAutoScroll]);
+  }, [projectName, branch, workspaceId, processSDKMessage, performAutoScroll]);
 
   // Watch input for slash commands
   useEffect(() => {
@@ -382,8 +385,7 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
           
           // Send clear command to backend
           const result = await window.api.claude.handleSlashCommand(
-            projectName,
-            branch,
+            workspaceId,
             messageText
           );
           
@@ -401,8 +403,7 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
 
       // Send message to Claude workspace (including slash commands)
       const result = await window.api.claude.sendMessage(
-        projectName,
-        branch,
+        workspaceId,
         messageText
       );
 
@@ -567,7 +568,7 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
               // Persist to backend immediately
               if (projectName && branch) {
                 try {
-                  await window.api.claude.setPermissionMode(projectName, branch, mode);
+                  await window.api.claude.setPermissionMode(workspaceId, mode);
                   console.log('Permission mode successfully set to:', mode);
                 } catch (error) {
                   console.error('Failed to set permission mode:', error);

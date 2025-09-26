@@ -25,14 +25,14 @@ declare global {
         removeWorktree: (workspacePath: string) => Promise<{ success: boolean; error?: string }>;
       };
       claude: {
-        start: (workspacePath: string, projectName: string, branch: string) => Promise<boolean>;
-        isActive: (projectName: string, branch: string) => Promise<boolean>;
+        start: (workspacePath: string, projectName: string, branch: string) => Promise<{ success: boolean; workspaceId?: string }>;
+        isActive: (workspaceId: string) => Promise<boolean>;
         list: () => Promise<Array<any>>; // Returns Partial<Workspace> from claudeService
-        getWorkspaceInfo: (projectName: string, branch: string) => Promise<{ permissionMode: UIPermissionMode }>;
-        setPermissionMode: (projectName: string, branch: string, permissionMode: UIPermissionMode) => Promise<void>;
-        sendMessage: (projectName: string, branch: string, message: string) => Promise<import('./result').Result<void, string>>;
-        handleSlashCommand: (projectName: string, branch: string, command: string) => Promise<import('./result').Result<void, string>>;
-        streamHistory: (projectName: string, branch: string) => Promise<void>;
+        getWorkspaceInfo: (workspaceId: string) => Promise<{ permissionMode: UIPermissionMode }>;
+        setPermissionMode: (workspaceId: string, permissionMode: UIPermissionMode) => Promise<void>;
+        sendMessage: (workspaceId: string, message: string) => Promise<import('./result').Result<void, string>>;
+        handleSlashCommand: (workspaceId: string, command: string) => Promise<import('./result').Result<void, string>>;
+        streamHistory: (workspaceId: string) => Promise<void>;
         onOutput: (workspaceId: string, callback: (data: any) => void) => () => void;
         onClear: (workspaceId: string, callback: (data: any) => void) => () => void;
       };

@@ -23,19 +23,19 @@ contextBridge.exposeInMainWorld('api', {
   claude: {
     start: (workspacePath: string, projectName: string, branch: string) => 
       ipcRenderer.invoke('claude:start', workspacePath, projectName, branch),
-    isActive: (projectName: string, branch: string) => 
-      ipcRenderer.invoke('claude:isActive', projectName, branch),
+    isActive: (workspaceId: string) => 
+      ipcRenderer.invoke('claude:isActive', workspaceId),
     list: () => ipcRenderer.invoke('claude:list'),
-    getWorkspaceInfo: (projectName: string, branch: string) =>
-      ipcRenderer.invoke('claude:getWorkspaceInfo', projectName, branch),
-    setPermissionMode: (projectName: string, branch: string, permissionMode: import('./types/global').UIPermissionMode) =>
-      ipcRenderer.invoke('claude:setPermissionMode', projectName, branch, permissionMode),
-    sendMessage: (projectName: string, branch: string, message: string) =>
-      ipcRenderer.invoke('claude:sendMessage', projectName, branch, message),
-    handleSlashCommand: (projectName: string, branch: string, command: string) =>
-      ipcRenderer.invoke('claude:handleSlashCommand', projectName, branch, command),
-    streamHistory: (projectName: string, branch: string) =>
-      ipcRenderer.invoke('claude:streamHistory', projectName, branch),
+    getWorkspaceInfo: (workspaceId: string) =>
+      ipcRenderer.invoke('claude:getWorkspaceInfo', workspaceId),
+    setPermissionMode: (workspaceId: string, permissionMode: import('./types/global').UIPermissionMode) =>
+      ipcRenderer.invoke('claude:setPermissionMode', workspaceId, permissionMode),
+    sendMessage: (workspaceId: string, message: string) =>
+      ipcRenderer.invoke('claude:sendMessage', workspaceId, message),
+    handleSlashCommand: (workspaceId: string, command: string) =>
+      ipcRenderer.invoke('claude:handleSlashCommand', workspaceId, command),
+    streamHistory: (workspaceId: string) =>
+      ipcRenderer.invoke('claude:streamHistory', workspaceId),
     onOutput: (workspaceId: string, callback: (data: any) => void) => {
       const channel = `claude:output:${workspaceId}`;
       const handler = (event: any, data: any) => callback(data);

@@ -84,8 +84,8 @@ ipcMain.handle(
 
 ipcMain.handle(
   "claude:isActive",
-  async (event, projectName: string, branch: string) => {
-    return claudeService.isWorkspaceActive(projectName, branch);
+  async (event, workspaceId: string) => {
+    return claudeService.isWorkspaceActiveById(workspaceId);
   }
 );
 
@@ -97,36 +97,36 @@ ipcMain.handle("claude:list", async () => {
 
 ipcMain.handle(
   "claude:getWorkspaceInfo",
-  async (event, projectName: string, branch: string) => {
-    return await claudeService.getWorkspaceInfo(projectName, branch);
+  async (event, workspaceId: string) => {
+    return await claudeService.getWorkspaceInfoById(workspaceId);
   }
 );
 
 ipcMain.handle(
   "claude:setPermissionMode",
-  async (event, projectName: string, branch: string, permissionMode: import('./types/global').UIPermissionMode) => {
-    return await claudeService.setPermissionMode(projectName, branch, permissionMode);
+  async (event, workspaceId: string, permissionMode: import('./types/global').UIPermissionMode) => {
+    return await claudeService.setPermissionModeById(workspaceId, permissionMode);
   }
 );
 
 ipcMain.handle(
   "claude:sendMessage",
-  async (event, projectName: string, branch: string, message: string) => {
-    return await claudeService.sendMessage(projectName, branch, message);
+  async (event, workspaceId: string, message: string) => {
+    return await claudeService.sendMessageById(workspaceId, message);
   }
 );
 
 ipcMain.handle(
   "claude:handleSlashCommand",
-  async (event, projectName: string, branch: string, command: string) => {
-    return await claudeService.handleSlashCommand(projectName, branch, command);
+  async (event, workspaceId: string, command: string) => {
+    return await claudeService.handleSlashCommandById(workspaceId, command);
   }
 );
 
 ipcMain.handle(
   "claude:streamHistory",
-  async (event, projectName: string, branch: string) => {
-    return await claudeService.streamWorkspaceHistory(projectName, branch);
+  async (event, workspaceId: string) => {
+    return await claudeService.streamWorkspaceHistoryById(workspaceId);
   }
 );
 
