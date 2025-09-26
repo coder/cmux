@@ -219,6 +219,7 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
   const lastScrollTopRef = useRef<number>(0);
   // Ref to avoid stale closures in async callbacks - always holds current autoScroll value
   const autoScrollRef = useRef<boolean>(true);
+  const lastUserInteractionRef = useRef<number>(0);
   const aggregatorRef = useRef<StreamingMessageAggregator>(
     new StreamingMessageAggregator()
   );
@@ -498,11 +499,21 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
 
       <OutputContent 
         ref={contentRef}
+        onWheel={() => { lastUserInteractionRef.current = Date.now(); }}
+        onTouchMove={() => { lastUserInteractionRef.current = Date.now(); }}
         onScroll={(e) => {
           const element = e.currentTarget;
           const currentScrollTop = element.scrollTop;
           const threshold = 100;
           const isAtBottom = element.scrollHeight - currentScrollTop - element.clientHeight < threshold;
+          
+          // Only process user-initiated scrolls (within 100ms of interaction)
+          const isUserScroll = Date.now() - lastUserInteractionRef.current < 100;
+          
+          if (!isUserScroll) {
+            lastScrollTopRef.current = currentScrollTop;
+            return; // Ignore programmatic scrolls
+          }
           
           // Detect scroll direction
           const isScrollingUp = currentScrollTop < lastScrollTopRef.current;
