@@ -1,16 +1,15 @@
-import * as fs from 'fs/promises';
-import * as path from 'path';
-import * as os from 'os';
-import * as crypto from 'crypto';
-import { EventEmitter } from 'events';
-import { findWorkspacePath } from '../config';
-import { Result, Ok, Err } from '../types/result';
+import * as fs from "fs/promises";
+import * as path from "path";
+import * as os from "os";
+import * as crypto from "crypto";
+import { EventEmitter } from "events";
+import { findWorkspacePath } from "../config";
+import { Result, Ok, Err } from "../types/result";
 
 // Import types for TypeScript
 type Query = any;
 type SDKMessage = any;
 type Options = any;
-
 
 // We'll load the actual query function dynamically
 let queryFunction: any = null;
@@ -19,19 +18,20 @@ let queryFunction: any = null;
 function safeLog(...args: any[]): void {
   try {
     // Convert objects to simple strings to avoid serialization issues
-    const safeArgs = args.map(arg => {
-      if (typeof arg === 'object' && arg !== null) {
+    const safeArgs = args.map((arg) => {
+      if (typeof arg === "object" && arg !== null) {
         // For objects, only log type and key properties
-        if (arg.type) return `[${arg.type}${arg.subtype ? '/' + arg.subtype : ''}]`;
-        if (arg.message) return '[Message Object]';
-        return '[Object]';
+        if (arg.type)
+          return `[${arg.type}${arg.subtype ? "/" + arg.subtype : ""}]`;
+        if (arg.message) return "[Message Object]";
+        return "[Object]";
       }
       return arg;
     });
     console.log(...safeArgs);
   } catch (error: any) {
     // Silently ignore EPIPE and other console errors
-    if (error.code !== 'EPIPE') {
+    if (error.code !== "EPIPE") {
       // Only log non-EPIPE errors to stderr as a last resort
       try {
         process.stderr.write(`Console error: ${error.message}\n`);
@@ -45,19 +45,20 @@ function safeLog(...args: any[]): void {
 // Safe safeError wrapper
 function safeError(...args: any[]): void {
   try {
-    const safeArgs = args.map(arg => {
-      if (typeof arg === 'object' && arg !== null) {
+    const safeArgs = args.map((arg) => {
+      if (typeof arg === "object" && arg !== null) {
         // For errors, try to get the message
         if (arg instanceof Error) return `Error: ${arg.message}`;
-        if (arg.type) return `[${arg.type}${arg.subtype ? '/' + arg.subtype : ''}]`;
-        return '[Object]';
+        if (arg.type)
+          return `[${arg.type}${arg.subtype ? "/" + arg.subtype : ""}]`;
+        return "[Object]";
       }
       return arg;
     });
     safeError(...safeArgs);
   } catch (error: any) {
     // Silently ignore EPIPE and other console errors
-    if (error.code !== 'EPIPE') {
+    if (error.code !== "EPIPE") {
       try {
         process.stderr.write(`Console error: ${error.message}\n`);
       } catch {
@@ -76,11 +77,11 @@ export interface WorkspaceData {
 
 // Workspace is the in-memory representation with runtime associations
 export interface Workspace extends WorkspaceData {
-  id: string;  // Format: <projectName>-<branch>
+  id: string; // Format: <projectName>-<branch>
   projectName: string;
   branch: string;
-  srcPath: string;  // Path to the git worktree (source code)
-  sessionPath: string;  // Path to the session data directory
+  srcPath: string; // Path to the git worktree (source code)
+  sessionPath: string; // Path to the session data directory
   query: Query | null;
   isActive: boolean;
   messageController: MessageController | null;
@@ -132,25 +133,28 @@ export class ClaudeService extends EventEmitter {
 
   constructor() {
     super();
-    this.configDir = path.join(os.homedir(), '.cmux');
+    this.configDir = path.join(os.homedir(), ".cmux");
     // Load SDK asynchronously without blocking constructor
-    this.loadSDK().catch(error => {
-      safeError('Failed to initialize Claude SDK:', error);
+    this.loadSDK().catch((error) => {
+      safeError("Failed to initialize Claude SDK:", error);
     });
   }
 
   private async loadSDK(): Promise<void> {
     if (this.sdkLoaded) return;
-    
+
     try {
       // Use Function constructor to ensure true dynamic import
-      const dynamicImport = new Function('specifier', 'return import(specifier)');
-      const claudeModule = await dynamicImport('@anthropic-ai/claude-code');
+      const dynamicImport = new Function(
+        "specifier",
+        "return import(specifier)"
+      );
+      const claudeModule = await dynamicImport("@anthropic-ai/claude-code");
       queryFunction = claudeModule.query;
       this.sdkLoaded = true;
-      safeLog('Claude Code SDK loaded successfully');
+      safeLog("Claude Code SDK loaded successfully");
     } catch (error) {
-      safeError('Failed to load Claude Code SDK:', error);
+      safeError("Failed to load Claude Code SDK:", error);
       throw error;
     }
   }
@@ -160,37 +164,40 @@ export class ClaudeService extends EventEmitter {
   }
 
   private getWorkspaceDir(workspaceId: string): string {
-    return path.join(this.configDir, 'workspaces', workspaceId);
+    return path.join(this.configDir, "workspaces", workspaceId);
   }
 
   private getWorkspaceFile(workspaceId: string): string {
-    return path.join(this.getWorkspaceDir(workspaceId), 'session.json');
+    return path.join(this.getWorkspaceDir(workspaceId), "session.json");
   }
 
   private async loadWorkspaceData(workspaceId: string): Promise<WorkspaceData> {
     try {
       const workspaceFile = this.getWorkspaceFile(workspaceId);
-      const data = await fs.readFile(workspaceFile, 'utf-8');
+      const data = await fs.readFile(workspaceFile, "utf-8");
       const parsed = JSON.parse(data);
-      
+
       // Validate the loaded data
       if (parsed.sessionId && Array.isArray(parsed.history)) {
         return parsed;
       }
-      
+
       // Invalid data, fall through to create new
     } catch {
       // File doesn't exist or can't be read, create new
     }
-    
+
     // Create new workspace data only if file doesn't exist or is invalid
     return {
       sessionId: crypto.randomUUID(),
-      history: []
+      history: [],
     };
   }
 
-  private async saveWorkspaceData(workspaceId: string, data: WorkspaceData): Promise<void> {
+  private async saveWorkspaceData(
+    workspaceId: string,
+    data: WorkspaceData
+  ): Promise<void> {
     try {
       const workspaceFile = this.getWorkspaceFile(workspaceId);
       const dir = path.dirname(workspaceFile);
@@ -201,7 +208,10 @@ export class ClaudeService extends EventEmitter {
     }
   }
 
-  private async updateWorkspaceData(workspaceId: string, updates: Partial<WorkspaceData>): Promise<void> {
+  private async updateWorkspaceData(
+    workspaceId: string,
+    updates: Partial<WorkspaceData>
+  ): Promise<void> {
     try {
       // Load current data
       const currentData = await this.loadWorkspaceData(workspaceId);
@@ -214,23 +224,22 @@ export class ClaudeService extends EventEmitter {
     }
   }
 
-
   async startWorkspace(
-    srcPath: string,  // This is the git worktree path
+    srcPath: string, // This is the git worktree path
     projectName: string,
     branch: string,
     planMode?: boolean
   ): Promise<boolean> {
     // Ensure SDK is loaded
     await this.loadSDK();
-    
+
     if (!queryFunction) {
-      safeError('Claude Code SDK not loaded');
+      safeError("Claude Code SDK not loaded");
       return false;
     }
-    
+
     const key = this.getWorkspaceId(projectName, branch);
-    
+
     // Check if already running
     const existing = this.workspaces.get(key);
     if (existing?.isActive) {
@@ -241,52 +250,55 @@ export class ClaudeService extends EventEmitter {
     try {
       // Load workspace data (session ID + history)
       const workspaceData = await this.loadWorkspaceData(key);
-      
+
       // Use stored plan mode if not explicitly provided
       const effectivePlanMode = planMode ?? workspaceData.planMode ?? false;
       safeLog(`[${key}] Loaded workspace data:`, {
         sessionId: workspaceData.sessionId,
         historyLength: workspaceData.history.length,
-        isResuming: workspaceData.history.length > 0
+        isResuming: workspaceData.history.length > 0,
       });
 
       // Create message controller for streaming input
       const messageController = new MessageController();
 
       // Calculate session path for storing session.json
-      const sessionPath = path.join(this.configDir, 'workspaces', key);
-      
+      const sessionPath = path.join(this.configDir, "workspaces", key);
+
       const session: Workspace = {
         id: key,
         projectName,
         branch,
-        srcPath,  // Git worktree path (source code)
-        sessionPath,  // Session data directory
+        srcPath, // Git worktree path (source code)
+        sessionPath, // Session data directory
         sessionId: workspaceData.sessionId,
         history: [...workspaceData.history], // Restore previous conversation history
         planMode: effectivePlanMode,
         query: null,
         isActive: true,
-        messageController
+        messageController,
       };
 
       // Configure options for the SDK
       const options: Options = {
-        cwd: srcPath,  // Use source path as working directory
-        permissionMode: effectivePlanMode ? 'plan' : 'default',
+        cwd: srcPath, // Use source path as working directory
+        permissionMode: effectivePlanMode ? "plan" : "bypassPermissions",
         // Use resume for existing sessions
-        resume: workspaceData.history.length > 0 ? workspaceData.sessionId : undefined,
+        resume:
+          workspaceData.history.length > 0
+            ? workspaceData.sessionId
+            : undefined,
         continue: workspaceData.history.length > 0,
         // Enable partial messages for streaming
-        includePartialMessages: true
+        includePartialMessages: true,
       };
 
       // Start the query using streaming input mode (no initial message)
-      session.query = queryFunction({ 
-        prompt: messageController.getAsyncIterable(), 
-        options 
+      session.query = queryFunction({
+        prompt: messageController.getAsyncIterable(),
+        options,
       });
-      
+
       this.workspaces.set(key, session);
       safeLog(`[${key}] Workspace started successfully and added to map`);
 
@@ -294,7 +306,7 @@ export class ClaudeService extends EventEmitter {
       await this.saveWorkspaceData(key, {
         sessionId: session.sessionId,
         history: session.history,
-        planMode: effectivePlanMode
+        planMode: effectivePlanMode,
       });
 
       // Stream output in the background
@@ -320,27 +332,39 @@ export class ClaudeService extends EventEmitter {
         // Add sequence number for ordering and store output
         const messageWithSequence = {
           ...message,
-          _sequenceNumber: session.history.length
+          _sequenceNumber: session.history.length,
         };
         session.history.push(messageWithSequence);
-        
+
         // If this is the first system/init message, use Claude's session ID for future resumes
-        if (message.type === 'system' && message.subtype === 'init' && message.session_id) {
+        if (
+          message.type === "system" &&
+          message.subtype === "init" &&
+          message.session_id
+        ) {
           session.sessionId = message.session_id;
-          safeLog(`[${key}] Updated session ID to Claude's ID:`, message.session_id);
+          safeLog(
+            `[${key}] Updated session ID to Claude's ID:`,
+            message.session_id
+          );
         }
-        
+
         // Check for compaction completion message
-        if (message.type === 'user' && 
-            message.message?.content && 
-            typeof message.message.content === 'string' &&
-            message.message.content.includes('<local-command-stdout>Compacted</local-command-stdout>')) {
-          
+        if (
+          message.type === "user" &&
+          message.message?.content &&
+          typeof message.message.content === "string" &&
+          message.message.content.includes(
+            "<local-command-stdout>Compacted</local-command-stdout>"
+          )
+        ) {
           safeLog(`[${key}] Detected compaction completion, clearing history`);
-          
+
           // Find the index of this compacted message
-          const compactedMsgIndex = session.history.findIndex((m: any) => m.uuid === message.uuid);
-          
+          const compactedMsgIndex = session.history.findIndex(
+            (m: any) => m.uuid === message.uuid
+          );
+
           // Keep only messages from compacted message onwards
           if (compactedMsgIndex >= 0) {
             session.history = session.history.slice(compactedMsgIndex);
@@ -349,44 +373,44 @@ export class ClaudeService extends EventEmitter {
               msg._sequenceNumber = index;
             });
           }
-          
+
           // Save cleaned history
           await this.saveWorkspaceData(key, {
             sessionId: session.sessionId,
             history: session.history,
-            planMode: session.planMode
+            planMode: session.planMode,
           });
-          
+
           // Emit compaction-complete event
-          this.emit('compaction-complete', {
+          this.emit("compaction-complete", {
             workspace: key,
             projectName: session.projectName,
-            branch: session.branch
+            branch: session.branch,
           });
         } else {
           // Normal save for non-compaction messages
           await this.saveWorkspaceData(key, {
             sessionId: session.sessionId,
             history: session.history,
-            planMode: session.planMode
+            planMode: session.planMode,
           });
         }
-        
+
         // Debug logging to see what messages we're receiving
         safeLog(`[${key}] Received message:`, {
           type: message.type,
           subtype: message.subtype,
           uuid: message.uuid,
           hasMessage: !!message.message,
-          messageRole: message.message?.role
+          messageRole: message.message?.role,
         });
 
         // Emit output event
-        this.emit('output', {
+        this.emit("output", {
           workspace: key,
           message: messageWithSequence,
           projectName: session.projectName,
-          branch: session.branch
+          branch: session.branch,
         });
       }
     } catch (error) {
@@ -395,23 +419,27 @@ export class ClaudeService extends EventEmitter {
     }
   }
 
-  async sendMessage(projectName: string, branch: string, message: string): Promise<Result<void, string>> {
+  async sendMessage(
+    projectName: string,
+    branch: string,
+    message: string
+  ): Promise<Result<void, string>> {
     const key = this.getWorkspaceId(projectName, branch);
     let session = this.workspaces.get(key);
-    
+
     // Auto-start workspace if not active
     if (!session || !session.isActive || !session.messageController) {
       safeLog(`Auto-starting workspace ${key}...`);
-      
+
       // Get workspace path from config
       const srcPath = findWorkspacePath(projectName, branch);
-      
+
       if (!srcPath) {
         const error = `Cannot find workspace path for ${key}. Workspace not configured in ~/.cmux/config.json`;
         safeError(error);
         return Err(error);
       }
-      
+
       // Start the workspace (will use saved plan mode)
       const started = await this.startWorkspace(srcPath, projectName, branch);
       if (!started) {
@@ -419,7 +447,7 @@ export class ClaudeService extends EventEmitter {
         safeError(error);
         return Err(error);
       }
-      
+
       // Get the session again after starting
       session = this.workspaces.get(key);
       if (!session) {
@@ -432,16 +460,16 @@ export class ClaudeService extends EventEmitter {
     try {
       // Create SDK user message with sequence-based ordering
       const userMessage = {
-        type: 'user',
+        type: "user",
         session_id: session.sessionId,
         message: {
-          role: 'user',
-          content: message
+          role: "user",
+          content: message,
         },
         parent_tool_use_id: null,
         uuid: `user-${Date.now()}-${Math.random()}`, // Generate UUID for deduplication
         _sequenceNumber: session.history.length, // Use current length as sequence for ordering
-        timestamp: Date.now()
+        timestamp: Date.now(),
       };
 
       // Send message through the controller
@@ -449,34 +477,36 @@ export class ClaudeService extends EventEmitter {
       if (session.messageController) {
         session.messageController.sendMessage(userMessage);
       } else {
-        const error = 'Message controller is null. Workspace may not be properly initialized';
+        const error =
+          "Message controller is null. Workspace may not be properly initialized";
         safeError(error);
         return Err(error);
       }
-      
+
       // Also store the user message in our local output for persistence
       session.history.push(userMessage);
-      
+
       // Save conversation history to disk
       await this.saveWorkspaceData(key, {
         sessionId: session.sessionId,
         history: session.history,
-        planMode: session.planMode
+        planMode: session.planMode,
       });
-      
+
       // Emit the user message locally so it appears in UI immediately
-      this.emit('output', {
+      this.emit("output", {
         workspace: key,
         message: userMessage,
         projectName: session.projectName,
-        branch: session.branch
+        branch: session.branch,
       });
-      
+
       return Ok(undefined);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       const detailedError = `Failed to send message to workspace ${key}: ${errorMessage}. Check workspace status and try again`;
-      
+
       safeError(`Failed to send message to ${key}:`, {
         error,
         key,
@@ -485,21 +515,25 @@ export class ClaudeService extends EventEmitter {
         message,
         sessionExists: !!session,
         sessionActive: session?.isActive,
-        hasController: !!session?.messageController
+        hasController: !!session?.messageController,
       });
       return Err(detailedError);
     }
   }
 
-  async handleSlashCommand(projectName: string, branch: string, command: string): Promise<Result<void, string>> {
+  async handleSlashCommand(
+    projectName: string,
+    branch: string,
+    command: string
+  ): Promise<Result<void, string>> {
     const key = this.getWorkspaceId(projectName, branch);
     const commandLower = command.toLowerCase().trim();
-    
+
     // Handle /clear command specially - just clear the session data
-    if (commandLower === '/clear') {
+    if (commandLower === "/clear") {
       try {
         safeLog(`[${key}] Executing /clear command`);
-        
+
         // Get the current workspace session
         const currentSession = this.workspaces.get(key);
         if (!currentSession) {
@@ -507,38 +541,39 @@ export class ClaudeService extends EventEmitter {
           safeError(error);
           return Err(error);
         }
-        
+
         // Clear the session's output history
         currentSession.history = [];
-        
+
         // Generate new session ID for a fresh start
         const newSessionId = crypto.randomUUID();
         currentSession.sessionId = newSessionId;
-        
+
         // Clear the persisted history but keep planMode
         await this.saveWorkspaceData(key, {
           sessionId: newSessionId,
           history: [],
-          planMode: currentSession.planMode
+          planMode: currentSession.planMode,
         });
-        
+
         // Emit a clear event so UI can update
-        this.emit('clear', {
+        this.emit("clear", {
           workspace: key,
           projectName,
-          branch
+          branch,
         });
-        
+
         safeLog(`[${key}] Session cleared successfully`);
         return Ok(undefined);
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
         const detailedError = `Failed to execute /clear command for workspace ${key}: ${errorMessage}`;
         safeError(`Failed to execute /clear for ${key}:`, error);
         return Err(detailedError);
       }
     }
-    
+
     // For other slash commands, pass them through to the SDK
     // The SDK will handle them internally
     return this.sendMessage(projectName, branch, command);
@@ -550,15 +585,18 @@ export class ClaudeService extends EventEmitter {
     return session?.history || [];
   }
 
-  async getWorkspaceInfo(projectName: string, branch: string): Promise<{ planMode: boolean }> {
+  async getWorkspaceInfo(
+    projectName: string,
+    branch: string
+  ): Promise<{ planMode: boolean }> {
     const key = this.getWorkspaceId(projectName, branch);
     const session = this.workspaces.get(key);
-    
+
     // If session exists in memory, return its plan mode
     if (session) {
       return { planMode: session.planMode ?? false };
     }
-    
+
     // Otherwise, load from disk
     try {
       const workspaceData = await this.loadWorkspaceData(key);
@@ -568,23 +606,27 @@ export class ClaudeService extends EventEmitter {
     }
   }
 
-  async setPlanMode(projectName: string, branch: string, planMode: boolean): Promise<void> {
+  async setPlanMode(
+    projectName: string,
+    branch: string,
+    planMode: boolean
+  ): Promise<void> {
     const key = this.getWorkspaceId(projectName, branch);
     const session = this.workspaces.get(key);
-    
+
     // Update in-memory session if it exists
     if (session) {
       session.planMode = planMode;
-      
+
       // Update SDK permission mode if query is active
       if (session.query) {
-        await session.query.setPermissionMode(planMode ? 'plan' : 'default');
+        await session.query.setPermissionMode(planMode ? "plan" : "default");
       }
     }
-    
+
     // Always persist to disk (efficiently, without rewriting history)
     await this.updateWorkspaceData(key, { planMode });
-    
+
     safeLog(`[${key}] Plan mode updated to ${planMode}`);
   }
 
@@ -592,13 +634,15 @@ export class ClaudeService extends EventEmitter {
     const key = this.getWorkspaceId(projectName, branch);
     const session = this.workspaces.get(key);
     const isActive = session?.isActive || false;
-    safeLog(`[${key}] isWorkspaceActive check: found=${!!session}, isActive=${isActive}`);
+    safeLog(
+      `[${key}] isWorkspaceActive check: found=${!!session}, isActive=${isActive}`
+    );
     return isActive;
   }
 
   list(): Array<Partial<Workspace>> {
     const workspaces = [];
-    
+
     for (const [, session] of this.workspaces) {
       // Return a simplified version without runtime objects like query/messageController
       workspaces.push({
@@ -609,32 +653,40 @@ export class ClaudeService extends EventEmitter {
         sessionPath: session.sessionPath,
         sessionId: session.sessionId,
         planMode: session.planMode,
-        isActive: session.isActive
+        isActive: session.isActive,
       });
     }
-    
+
     return workspaces;
   }
 
   async autoStartAllWorkspaces(
-    projects: Map<string, { path: string; workspaces: Array<{ branch: string; path: string }> }>
+    projects: Map<
+      string,
+      { path: string; workspaces: Array<{ branch: string; path: string }> }
+    >
   ): Promise<void> {
     const startPromises = [];
-    
+
     for (const [projectPath, project] of projects) {
-      const projectName = projectPath.split('/').pop() || projectPath.split('\\').pop() || 'unknown';
-      
+      const projectName =
+        projectPath.split("/").pop() ||
+        projectPath.split("\\").pop() ||
+        "unknown";
+
       for (const workspace of project.workspaces) {
         startPromises.push(
           this.startWorkspace(workspace.path, projectName, workspace.branch)
         );
       }
     }
-    
+
     const results = await Promise.all(startPromises);
-    const successCount = results.filter(r => r === true).length;
-    
-    safeLog(`Started ${successCount} out of ${startPromises.length} workspaces`);
+    const successCount = results.filter((r) => r === true).length;
+
+    safeLog(
+      `Started ${successCount} out of ${startPromises.length} workspaces`
+    );
   }
 }
 

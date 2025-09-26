@@ -103,7 +103,14 @@ export const ResultMessage: React.FC<ResultMessageProps> = ({ message, className
 };
 
 function checkIfError(message: Message): boolean {
-  const result = message.content || message.metadata?.originalSDKMessage?.result;
+  // Check for is_error field in the original SDK message
+  const originalMessage = message.metadata?.originalSDKMessage;
+  if (originalMessage?.is_error !== undefined) {
+    return originalMessage.is_error;
+  }
+  
+  // Fallback to checking content for error keywords
+  const result = message.content || originalMessage?.result;
   if (typeof result === 'string') {
     return result.toLowerCase().includes('error') || result.toLowerCase().includes('failed');
   }

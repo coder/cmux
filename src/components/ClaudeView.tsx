@@ -216,32 +216,32 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
   const [showCommandSuggestions, setShowCommandSuggestions] = useState(false);
   const { debugMode, setDebugMode } = useDebugMode(); // Use context instead of local state
   const [planMode, setPlanMode] = useState(false);
-  const [autoScroll, setAutoScroll] = useState(true); // Default to auto-scrolling
+  const [autoScroll, setAutoScroll] = useState(true);
   const contentRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const lastScrollTopRef = useRef<number>(0);
-  const autoScrollRef = useRef<boolean>(true); // Track current autoScroll value to avoid closure issues
+  // Ref to avoid stale closures in async callbacks - always holds current autoScroll value
+  const autoScrollRef = useRef<boolean>(true);
   const aggregatorRef = useRef<StreamingMessageAggregator>(
     new StreamingMessageAggregator()
   );
 
-  // Keep autoScrollRef in sync with autoScroll state
+  // Sync ref with state to ensure callbacks always have latest value
   useEffect(() => {
     autoScrollRef.current = autoScroll;
   }, [autoScroll]);
 
-  // Auto-scroll function
   const performAutoScroll = useCallback(() => {
     if (!contentRef.current) return;
     
-    // Use requestAnimationFrame for smooth scrolling
     requestAnimationFrame(() => {
-      // Check the ref for current value to avoid stale closure issues
+      // Check ref.current not state - avoids race condition where queued frames
+      // execute after user scrolls up but still see old autoScroll=true
       if (contentRef.current && autoScrollRef.current) {
         contentRef.current.scrollTop = contentRef.current.scrollHeight;
       }
     });
-  }, []); // No dependencies - we use ref instead
+  }, []); // No deps - ref ensures we always check current value
 
 
   // Process SDK message and trigger UI update

@@ -90,6 +90,7 @@ export const PlanMessage: React.FC<PlanMessageProps> = ({ message, className }) 
     <MessageWindow
       label="PLAN"
       borderColor="var(--color-plan-mode)"
+      backgroundColor="var(--color-plan-mode-alpha)"
       message={message}
       buttons={buttons}
       className={className}

@@ -16,11 +16,11 @@ const globalStyles = css`
 
   :root {
     /* Plan Mode Colors */
-    --color-plan-mode: #ff6b35;
-    --color-plan-mode-hover: #ff8555;
-    --color-plan-mode-light: color-mix(in srgb, #ff6b35 60%, white);
-    --color-plan-mode-alpha: rgba(255, 107, 53, 0.1);
-    --color-plan-mode-alpha-hover: rgba(255, 107, 53, 0.15);
+    --color-plan-mode: hsl(210 70% 40% / 1);
+    --color-plan-mode-hover: hsl(210 70% 50% / 1);
+    --color-plan-mode-light: color-mix(in srgb, var(--color-plan-mode) 60%, white);
+    --color-plan-mode-alpha: hsl(210 70% 40% / 0.1);
+    --color-plan-mode-alpha-hover: hsl(210 70% 40% / 0.15);
     
     /* Debug Mode Colors */
     --color-debug: #4a9eff;

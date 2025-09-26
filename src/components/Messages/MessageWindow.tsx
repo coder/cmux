@@ -2,10 +2,10 @@ import React, { useState, ReactNode } from 'react';
 import styled from '@emotion/styled';
 import { UIMessage } from '../../types/claude';
 
-const MessageBlock = styled.div<{ borderColor: string }>`
+const MessageBlock = styled.div<{ borderColor: string; backgroundColor?: string }>`
   margin-bottom: 15px;
   margin-top: 15px;
-  background: #1e1e1e;
+  background: ${props => props.backgroundColor || '#1e1e1e'};
   border-left: 3px solid ${props => props.borderColor};
   border-radius: 3px;
   overflow: hidden;
@@ -76,6 +76,7 @@ export interface ButtonConfig {
 interface MessageWindowProps {
   label: string;
   borderColor: string;
+  backgroundColor?: string;
   message: UIMessage;
   buttons?: ButtonConfig[];
   children: ReactNode;
@@ -85,6 +86,7 @@ interface MessageWindowProps {
 export const MessageWindow: React.FC<MessageWindowProps> = ({
   label,
   borderColor,
+  backgroundColor,
   message,
   buttons = [],
   children,
@@ -93,7 +95,7 @@ export const MessageWindow: React.FC<MessageWindowProps> = ({
   const [showJson, setShowJson] = useState(false);
 
   return (
-    <MessageBlock borderColor={borderColor} className={className}>
+    <MessageBlock borderColor={borderColor} backgroundColor={backgroundColor} className={className}>
       <MessageHeader>
         <MessageTypeLabel>{label}</MessageTypeLabel>
         <ButtonGroup>
