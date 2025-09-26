@@ -182,61 +182,98 @@ export class ClaudeService extends EventEmitter {
     return path.join(this.configDir, "workspaces", workspaceId);
   }
 
-  private getWorkspaceFile(workspaceId: string): string {
-    return path.join(this.getWorkspaceDir(workspaceId), "session.json");
+  private getMetadataFile(workspaceId: string): string {
+    return path.join(this.getWorkspaceDir(workspaceId), "metadata.json");
   }
 
-  private async loadWorkspaceData(workspaceId: string): Promise<WorkspaceData> {
+  private getHistoryFile(workspaceId: string): string {
+    return path.join(this.getWorkspaceDir(workspaceId), "chat_history.ndjson");
+  }
+
+  private async loadMetadata(workspaceId: string): Promise<{ sessionId: string; permissionMode?: UIPermissionMode }> {
     try {
-      const workspaceFile = this.getWorkspaceFile(workspaceId);
-      const data = await fs.readFile(workspaceFile, "utf-8");
-      const parsed = JSON.parse(data);
-
-      // Validate the loaded data
-      if (parsed.sessionId && Array.isArray(parsed.history)) {
-        return parsed;
-      }
-
-      // Invalid data, fall through to create new
+      const metadataFile = this.getMetadataFile(workspaceId);
+      const data = await fs.readFile(metadataFile, "utf-8");
+      return JSON.parse(data);
     } catch {
-      // File doesn't exist or can't be read, create new
+      // File doesn't exist, return defaults
+      return {
+        sessionId: crypto.randomUUID(),
+        permissionMode: 'plan'
+      };
     }
-
-    // Create new workspace data only if file doesn't exist or is invalid
-    return {
-      sessionId: crypto.randomUUID(),
-      history: [],
-    };
   }
 
-  private async saveWorkspaceData(
+  private async saveMetadata(
     workspaceId: string,
-    data: WorkspaceData
+    metadata: { sessionId: string; permissionMode?: UIPermissionMode }
   ): Promise<void> {
     try {
-      const workspaceFile = this.getWorkspaceFile(workspaceId);
-      const dir = path.dirname(workspaceFile);
+      const metadataFile = this.getMetadataFile(workspaceId);
+      const dir = path.dirname(metadataFile);
       await fs.mkdir(dir, { recursive: true });
-      await fs.writeFile(workspaceFile, JSON.stringify(data, null, 2));
+      await fs.writeFile(metadataFile, JSON.stringify(metadata, null, 2));
     } catch (error) {
-      safeError(`Failed to save workspace data for ${workspaceId}:`, error);
+      safeError(`Failed to save metadata for ${workspaceId}:`, error);
     }
   }
 
-  private async updateWorkspaceData(
+  private async appendMessage(
     workspaceId: string,
-    updates: Partial<WorkspaceData>
+    message: SDKMessage
   ): Promise<void> {
     try {
-      // Load current data
-      const currentData = await this.loadWorkspaceData(workspaceId);
-      // Merge updates
-      const updatedData = { ...currentData, ...updates };
-      // Save back
-      await this.saveWorkspaceData(workspaceId, updatedData);
+      const historyFile = this.getHistoryFile(workspaceId);
+      const dir = path.dirname(historyFile);
+      await fs.mkdir(dir, { recursive: true });
+      // Append as NDJSON (newline-delimited JSON)
+      await fs.appendFile(historyFile, JSON.stringify(message) + "\n");
     } catch (error) {
-      safeError(`Failed to update workspace data for ${workspaceId}:`, error);
+      safeError(`Failed to append message for ${workspaceId}:`, error);
     }
+  }
+
+  private async *streamHistoricalMessages(
+    workspaceId: string
+  ): AsyncIterable<SDKMessage> {
+    try {
+      const historyFile = this.getHistoryFile(workspaceId);
+      safeLog(`[${workspaceId}] Reading history from: ${historyFile}`);
+      const content = await fs.readFile(historyFile, "utf-8");
+      const lines = content.split("\n").filter(line => line.trim());
+      safeLog(`[${workspaceId}] Found ${lines.length} lines in history file`);
+      
+      for (const line of lines) {
+        try {
+          yield JSON.parse(line);
+        } catch (error) {
+          safeError(`Failed to parse NDJSON line:`, error);
+        }
+      }
+    } catch (error) {
+      safeLog(`[${workspaceId}] No history file found or error reading: ${error}`);
+    }
+  }
+
+  private async clearHistory(workspaceId: string): Promise<void> {
+    try {
+      const historyFile = this.getHistoryFile(workspaceId);
+      await fs.writeFile(historyFile, "");
+    } catch (error) {
+      safeError(`Failed to clear history for ${workspaceId}:`, error);
+    }
+  }
+
+  private async loadRecentHistory(
+    workspaceId: string,
+    limit: number = 100
+  ): Promise<SDKMessage[]> {
+    const messages: SDKMessage[] = [];
+    for await (const message of this.streamHistoricalMessages(workspaceId)) {
+      messages.push(message);
+    }
+    // Return only the last N messages for SDK resume
+    return messages.slice(-limit);
   }
 
   async startWorkspace(
@@ -263,15 +300,18 @@ export class ClaudeService extends EventEmitter {
     }
 
     try {
-      // Load workspace data (session ID + history)
-      const workspaceData = await this.loadWorkspaceData(key);
+      // Load metadata (session ID + permission mode)
+      const metadata = await this.loadMetadata(key);
+      
+      // Load recent history for SDK resume
+      const recentHistory = await this.loadRecentHistory(key, 100);
 
-      // Use stored plan mode if not explicitly provided
-      const effectivePermissionMode = permissionMode ?? workspaceData.permissionMode ?? 'plan';
+      // Use stored permission mode if not explicitly provided
+      const effectivePermissionMode = permissionMode ?? metadata.permissionMode ?? 'plan';
       safeLog(`[${key}] Loaded workspace data:`, {
-        sessionId: workspaceData.sessionId,
-        historyLength: workspaceData.history.length,
-        isResuming: workspaceData.history.length > 0,
+        sessionId: metadata.sessionId,
+        historyLength: recentHistory.length,
+        isResuming: recentHistory.length > 0,
       });
 
       // Create message controller for streaming input
@@ -286,8 +326,8 @@ export class ClaudeService extends EventEmitter {
         branch,
         srcPath, // Git worktree path (source code)
         sessionPath, // Session data directory
-        sessionId: workspaceData.sessionId,
-        history: [...workspaceData.history], // Restore previous conversation history
+        sessionId: metadata.sessionId,
+        history: [...recentHistory], // Keep recent history for SDK resume
         permissionMode: effectivePermissionMode,
         query: null,
         isActive: true,
@@ -303,10 +343,10 @@ export class ClaudeService extends EventEmitter {
         permissionMode: sdkPermissionMode,
         // Use resume for existing sessions
         resume:
-          workspaceData.history.length > 0
-            ? workspaceData.sessionId
+          recentHistory.length > 0
+            ? metadata.sessionId
             : undefined,
-        continue: workspaceData.history.length > 0,
+        continue: recentHistory.length > 0,
         // Enable partial messages for streaming
         includePartialMessages: true,
       };
@@ -320,10 +360,9 @@ export class ClaudeService extends EventEmitter {
       this.workspaces.set(key, session);
       safeLog(`[${key}] Workspace started successfully and added to map`);
 
-      // Save workspace data (session ID + history + permissionMode) for future restarts
-      await this.saveWorkspaceData(key, {
+      // Save metadata for future restarts
+      await this.saveMetadata(key, {
         sessionId: session.sessionId,
-        history: session.history,
         permissionMode: effectivePermissionMode,
       });
 
@@ -347,12 +386,21 @@ export class ClaudeService extends EventEmitter {
           break;
         }
 
-        // Add sequence number for ordering and store output
+        // Add sequence number for ordering
         const messageWithSequence = {
           ...message,
           _sequenceNumber: session.history.length,
         };
+        
+        // Keep recent messages in memory for SDK resume
         session.history.push(messageWithSequence);
+        // Limit in-memory history to last 100 messages
+        if (session.history.length > 100) {
+          session.history = session.history.slice(-100);
+        }
+
+        // Append to NDJSON file
+        await this.appendMessage(key, messageWithSequence);
 
         // If this is the first system/init message, use Claude's session ID for future resumes
         if (
@@ -365,51 +413,10 @@ export class ClaudeService extends EventEmitter {
             `[${key}] Updated session ID to Claude's ID:`,
             message.session_id
           );
-        }
-
-        // Check for compaction completion message
-        if (
-          message.type === "user" &&
-          message.message?.content &&
-          typeof message.message.content === "string" &&
-          message.message.content.includes(
-            "<local-command-stdout>Compacted</local-command-stdout>"
-          )
-        ) {
-          safeLog(`[${key}] Detected compaction completion, clearing history`);
-
-          // Find the index of this compacted message
-          const compactedMsgIndex = session.history.findIndex(
-            (m: any) => m.uuid === message.uuid
-          );
-
-          // Keep only messages from compacted message onwards
-          if (compactedMsgIndex >= 0) {
-            session.history = session.history.slice(compactedMsgIndex);
-            // Reset sequence numbers
-            session.history.forEach((msg: any, index: number) => {
-              msg._sequenceNumber = index;
-            });
-          }
-
-          // Save cleaned history
-          await this.saveWorkspaceData(key, {
+          
+          // Update metadata with new session ID
+          await this.saveMetadata(key, {
             sessionId: session.sessionId,
-            history: session.history,
-            permissionMode: session.permissionMode,
-          });
-
-          // Emit compaction-complete event
-          this.emit("compaction-complete", {
-            workspace: key,
-            projectName: session.projectName,
-            branch: session.branch,
-          });
-        } else {
-          // Normal save for non-compaction messages
-          await this.saveWorkspaceData(key, {
-            sessionId: session.sessionId,
-            history: session.history,
             permissionMode: session.permissionMode,
           });
         }
@@ -423,12 +430,9 @@ export class ClaudeService extends EventEmitter {
           messageRole: message.message?.role,
         });
 
-        // Emit output event
-        this.emit("output", {
-          workspace: key,
-          message: messageWithSequence,
-          projectName: session.projectName,
-          branch: session.branch,
+        // Emit output event on workspace-specific channel
+        this.emit("workspace-output", key, {
+          message: messageWithSequence
         });
       }
     } catch (error) {
@@ -501,22 +505,19 @@ export class ClaudeService extends EventEmitter {
         return Err(error);
       }
 
-      // Also store the user message in our local output for persistence
+      // Also store the user message in our local history for SDK
       session.history.push(userMessage);
+      // Limit in-memory history to last 100 messages
+      if (session.history.length > 100) {
+        session.history = session.history.slice(-100);
+      }
 
-      // Save conversation history to disk
-      await this.saveWorkspaceData(key, {
-        sessionId: session.sessionId,
-        history: session.history,
-        permissionMode: session.permissionMode,
-      });
+      // Append to NDJSON history
+      await this.appendMessage(key, userMessage);
 
       // Emit the user message locally so it appears in UI immediately
-      this.emit("output", {
-        workspace: key,
-        message: userMessage,
-        projectName: session.projectName,
-        branch: session.branch,
+      this.emit("workspace-output", key, {
+        message: userMessage
       });
 
       return Ok(undefined);
@@ -560,26 +561,24 @@ export class ClaudeService extends EventEmitter {
           return Err(error);
         }
 
-        // Clear the session's output history
+        // Clear the session's in-memory history
         currentSession.history = [];
 
         // Generate new session ID for a fresh start
         const newSessionId = crypto.randomUUID();
         currentSession.sessionId = newSessionId;
 
-        // Clear the persisted history but keep permissionMode
-        await this.saveWorkspaceData(key, {
+        // Clear the NDJSON history file
+        await this.clearHistory(key);
+        
+        // Update metadata with new session ID
+        await this.saveMetadata(key, {
           sessionId: newSessionId,
-          history: [],
           permissionMode: currentSession.permissionMode,
         });
 
-        // Emit a clear event so UI can update
-        this.emit("clear", {
-          workspace: key,
-          projectName,
-          branch,
-        });
+        // Emit a clear event on workspace-specific channel
+        this.emit("workspace-clear", key, {});
 
         safeLog(`[${key}] Session cleared successfully`);
         return Ok(undefined);
@@ -597,11 +596,6 @@ export class ClaudeService extends EventEmitter {
     return this.sendMessage(projectName, branch, command);
   }
 
-  getWorkspaceOutput(projectName: string, branch: string): SDKMessage[] {
-    const key = this.getWorkspaceId(projectName, branch);
-    const session = this.workspaces.get(key);
-    return session?.history || [];
-  }
 
   async getWorkspaceInfo(
     projectName: string,
@@ -610,15 +604,15 @@ export class ClaudeService extends EventEmitter {
     const key = this.getWorkspaceId(projectName, branch);
     const session = this.workspaces.get(key);
 
-    // If session exists in memory, return its plan mode
+    // If session exists in memory, return its permission mode
     if (session) {
       return { permissionMode: session.permissionMode ?? 'plan' };
     }
 
-    // Otherwise, load from disk
+    // Otherwise, load from metadata
     try {
-      const workspaceData = await this.loadWorkspaceData(key);
-      return { permissionMode: workspaceData.permissionMode ?? 'plan' };
+      const metadata = await this.loadMetadata(key);
+      return { permissionMode: metadata.permissionMode ?? 'plan' };
     } catch {
       return { permissionMode: 'plan' };
     }
@@ -659,8 +653,12 @@ export class ClaudeService extends EventEmitter {
       safeLog(`[${key}] No session found, permission mode will be saved to disk only`);
     }
 
-    // Always persist to disk (efficiently, without rewriting history)
-    await this.updateWorkspaceData(key, { permissionMode });
+    // Always persist to metadata (without touching history)
+    const metadata = await this.loadMetadata(key);
+    await this.saveMetadata(key, {
+      sessionId: metadata.sessionId,
+      permissionMode
+    });
   }
 
   isWorkspaceActive(projectName: string, branch: string): boolean {
@@ -671,6 +669,28 @@ export class ClaudeService extends EventEmitter {
       `[${key}] isWorkspaceActive check: found=${!!session}, isActive=${isActive}`
     );
     return isActive;
+  }
+
+  async streamWorkspaceHistory(projectName: string, branch: string): Promise<void> {
+    const key = this.getWorkspaceId(projectName, branch);
+    safeLog(`[${key}] Starting to stream workspace history`);
+    
+    let messageCount = 0;
+    // Stream historical messages to frontend
+    for await (const message of this.streamHistoricalMessages(key)) {
+      messageCount++;
+      this.emit("workspace-output", key, {
+        message,
+        historical: true
+      });
+    }
+    
+    safeLog(`[${key}] Streamed ${messageCount} historical messages`);
+
+    // Send caught-up signal
+    this.emit("workspace-output", key, {
+      caughtUp: true
+    });
   }
 
   list(): Array<Partial<Workspace>> {

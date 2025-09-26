@@ -27,15 +27,14 @@ declare global {
       claude: {
         start: (workspacePath: string, projectName: string, branch: string) => Promise<boolean>;
         isActive: (projectName: string, branch: string) => Promise<boolean>;
-        getOutput: (projectName: string, branch: string) => Promise<any[]>;
         list: () => Promise<Array<any>>; // Returns Partial<Workspace> from claudeService
         getWorkspaceInfo: (projectName: string, branch: string) => Promise<{ permissionMode: UIPermissionMode }>;
         setPermissionMode: (projectName: string, branch: string, permissionMode: UIPermissionMode) => Promise<void>;
         sendMessage: (projectName: string, branch: string, message: string) => Promise<import('./result').Result<void, string>>;
         handleSlashCommand: (projectName: string, branch: string, command: string) => Promise<import('./result').Result<void, string>>;
-        onOutput: (callback: (data: any) => void) => () => void;
-        onClear: (callback: (data: any) => void) => () => void;
-        onCompactionComplete: (callback: (data: any) => void) => () => void;
+        streamHistory: (projectName: string, branch: string) => Promise<void>;
+        onOutput: (workspaceId: string, callback: (data: any) => void) => () => void;
+        onClear: (workspaceId: string, callback: (data: any) => void) => () => void;
       };
     };
   }

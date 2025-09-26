@@ -89,12 +89,7 @@ ipcMain.handle(
   }
 );
 
-ipcMain.handle(
-  "claude:getOutput",
-  async (event, projectName: string, branch: string) => {
-    return claudeService.getWorkspaceOutput(projectName, branch);
-  }
-);
+// Note: claude:getOutput has been removed - frontend now receives messages via events only
 
 ipcMain.handle("claude:list", async () => {
   return claudeService.list();
@@ -128,24 +123,26 @@ ipcMain.handle(
   }
 );
 
-// Listen for output events and forward to renderer
-claudeService.on("output", (data) => {
+ipcMain.handle(
+  "claude:streamHistory",
+  async (event, projectName: string, branch: string) => {
+    return await claudeService.streamWorkspaceHistory(projectName, branch);
+  }
+);
+
+// Listen for workspace-specific output events and forward to renderer
+// The EventEmitter doesn't support wildcard listeners, so we'll modify claudeService
+// to emit a generic 'workspace-output' event with the workspace ID
+claudeService.on("workspace-output", (workspaceId: string, data: any) => {
   if (mainWindow) {
-    mainWindow.webContents.send("claude:output", data);
+    mainWindow.webContents.send(`claude:output:${workspaceId}`, data);
   }
 });
 
-// Listen for clear events and forward to renderer
-claudeService.on("clear", (data) => {
+// Listen for workspace-specific clear events and forward to renderer  
+claudeService.on("workspace-clear", (workspaceId: string, data: any) => {
   if (mainWindow) {
-    mainWindow.webContents.send("claude:clear", data);
-  }
-});
-
-// Listen for compaction-complete events and forward to renderer
-claudeService.on("compaction-complete", (data) => {
-  if (mainWindow) {
-    mainWindow.webContents.send("claude:compaction-complete", data);
+    mainWindow.webContents.send(`claude:clear:${workspaceId}`, data);
   }
 });
 

@@ -253,37 +253,7 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
     performAutoScroll();
   }, [performAutoScroll]);
 
-  // Load output function
-  const loadOutput = useCallback(async () => {
-    if (!projectName || !branch) return;
-
-    try {
-      const output = await window.api.claude.getOutput(projectName, branch);
-      const sdkMessages = output || [];
-
-      // Clear existing messages and aggregator
-      aggregatorRef.current.clear();
-
-      // Process all SDK messages through aggregator
-      sdkMessages.forEach(msg => aggregatorRef.current.processSDKMessage(msg));
-      
-      // Update UI with aggregated messages
-      setUIMessageMap(new Map(aggregatorRef.current.getAllMessages().map(msg => [msg.id, msg])));
-      
-      // Update available commands from aggregator
-      setAvailableCommands(aggregatorRef.current.getAvailableCommands());
-
-      // Enable auto-scroll and scroll to bottom after loading
-      setAutoScroll(true);
-      requestAnimationFrame(() => {
-        if (contentRef.current) {
-          contentRef.current.scrollTop = contentRef.current.scrollHeight;
-        }
-      });
-    } catch (error) {
-      console.error("Failed to load output:", error);
-    }
-  }, [projectName, branch]);
+  const [loading, setLoading] = useState(false);
 
   // Computed UI messages array derived from uiMessageMap
   const messages = useMemo(() => {
@@ -295,6 +265,9 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
   useEffect(() => {
     if (!projectName || !branch) return;
 
+    const workspaceId = `${projectName}-${branch}`;
+    let isCaughtUp = false;
+
     // Clear messages when switching workspaces
     setUIMessageMap(new Map());
     aggregatorRef.current.clear();
@@ -304,9 +277,15 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
     
     // Enable auto-scroll when switching workspaces
     setAutoScroll(true);
-
-    // Load initial output
-    loadOutput();
+    
+    // Show loading state until caught up
+    setLoading(true);
+    
+    // Request historical messages to be streamed
+    window.api.claude.streamHistory(projectName, branch).catch((error) => {
+      console.error("Failed to stream history:", error);
+      setLoading(false);
+    });
     
     // Load workspace-specific permission mode
     window.api.claude.getWorkspaceInfo(projectName, branch).then((info) => {
@@ -316,37 +295,34 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
       setPermissionMode('plan');
     });
 
-    // No need to check status - workspaces are always active
-
-    // Subscribe to output updates
-    const unsubscribeOutput = window.api.claude.onOutput((data: any) => {
-      if (data.projectName === projectName && data.branch === branch) {
-        processSDKMessage(data.message);
-        // Auto-scroll is now handled by processSDKMessage via debouncedScroll
+    // Subscribe to workspace-specific output channel
+    const unsubscribeOutput = window.api.claude.onOutput(workspaceId, (data: any) => {
+      if (data.caughtUp) {
+        isCaughtUp = true;
+        setLoading(false);
+        // Scroll to bottom once caught up
+        requestAnimationFrame(() => {
+          if (contentRef.current) {
+            contentRef.current.scrollTop = contentRef.current.scrollHeight;
+          }
+        });
+        return;
+      }
+      
+      processSDKMessage(data.message);
+      
+      // Only auto-scroll for new messages after caught up
+      if (isCaughtUp && !data.historical) {
+        performAutoScroll();
       }
     });
 
-    // Subscribe to clear events
-    const unsubscribeClear = window.api.claude.onClear((data: any) => {
-      if (data.projectName === projectName && data.branch === branch) {
-        // Clear the UI when we receive a clear event
-        setUIMessageMap(new Map());
-        aggregatorRef.current.clear();
-      }
+    // Subscribe to workspace-specific clear channel
+    const unsubscribeClear = window.api.claude.onClear(workspaceId, () => {
+      // Clear the UI when we receive a clear event
+      setUIMessageMap(new Map());
+      aggregatorRef.current.clear();
     });
-    
-    // Subscribe to compaction-complete events
-    const unsubscribeCompaction = window.api.claude.onCompactionComplete((data: any) => {
-      if (data.projectName === projectName && data.branch === branch) {
-        setIsCompacting(false);
-        // Clear aggregator and reload from session file
-        aggregatorRef.current.clear();
-        setUIMessageMap(new Map());
-        loadOutput(); // This reloads from session file
-      }
-    });
-
-    // No polling needed - workspaces are always active
 
     return () => {
       if (typeof unsubscribeOutput === "function") {
@@ -355,12 +331,8 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
       if (typeof unsubscribeClear === "function") {
         unsubscribeClear();
       }
-      if (typeof unsubscribeCompaction === "function") {
-        unsubscribeCompaction();
-      }
-      // No interval to clear
     };
-  }, [projectName, branch, loadOutput, processSDKMessage]);
+  }, [projectName, branch, processSDKMessage, performAutoScroll]);
 
   // Watch input for slash commands
   useEffect(() => {
@@ -417,9 +389,8 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
           
           if (!result.success) {
             console.error("Failed to execute /clear command:", result.error);
-            // Show error to user and reload messages
+            // Show error to user
             alert(`Failed to clear messages: ${result.error}`);
-            loadOutput();
           }
           return;
         }
@@ -472,6 +443,16 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
       }
     }
   };
+
+  if (loading) {
+    return (
+      <ViewContainer className={className}>
+        <EmptyState>
+          <h3>Loading workspace...</h3>
+        </EmptyState>
+      </ViewContainer>
+    );
+  }
 
   if (!projectName || !branch) {
     return (
