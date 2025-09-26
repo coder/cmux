@@ -71,11 +71,12 @@ export const DebugMessage: React.FC<DebugMessageProps> = ({ message, className }
   // Determine what kind of debug message this is
   const getDebugInfo = () => {
     const original = message.metadata?.originalSDKMessage;
+    const metadata = message.metadata;
 
     // System init messages
-    if (message.type === "system" && original?.subtype === "init") {
-      const model = original.model || "unknown";
-      const tools = original.tools?.length || 0;
+    if (message.type === "system" && metadata?.systemSubtype === "init") {
+      const model = metadata.systemModel || "unknown";
+      const tools = metadata.systemTools?.length || 0;
       return {
         label: "INIT",
         info: `${model} • ${tools} tools`,
@@ -118,7 +119,7 @@ export const DebugMessage: React.FC<DebugMessageProps> = ({ message, className }
     // Default debug info
     return {
       label: "DEBUG",
-      info: `${message.type} #${message.sequenceNumber}`,
+      info: `${message.type} #${message.metadata?.cmuxMeta?.sequenceNumber || "--"}`,
     };
   };
 

@@ -115,7 +115,7 @@ export const Breadcrumb: React.FC<BreadcrumbProps> = ({ message, className }) =>
   const getDisplayText = (): string => {
     switch (message.type) {
       case "system":
-        const model = message.metadata?.originalSDKMessage?.model || "unknown";
+        const model = message.metadata?.systemModel || "unknown";
         return `Session initialized • ${model}`;
       case "result":
         const cost = message.metadata?.cost;

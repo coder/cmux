@@ -100,19 +100,19 @@ export const SystemMessage: React.FC<SystemMessageProps> = ({ message, className
 };
 
 function formatSystemMessage(message: Message): string {
-  const original = message.metadata?.originalSDKMessage;
+  const metadata = message.metadata;
 
   // Check for specific system message subtypes
-  if (original?.subtype === "init") {
-    const model = original.model || "unknown";
-    const tools = original.tools?.length || 0;
+  if (metadata?.systemSubtype === "init") {
+    const model = metadata.systemModel || "unknown";
+    const tools = metadata.systemTools?.length || 0;
     return `Session initialized • ${model} • ${tools} tools available`;
   }
 
-  if (original?.subtype === "compact_boundary") {
-    const metadata = original.compact_metadata || {};
-    const trigger = metadata.trigger === "manual" ? "Manual" : "Automatic";
-    const preTokens = metadata.pre_tokens || 0;
+  if (metadata?.systemSubtype === "compact_boundary") {
+    const compactMeta = metadata.compactMetadata;
+    const trigger = compactMeta?.trigger === "manual" ? "Manual" : "Automatic";
+    const preTokens = compactMeta?.pre_tokens || 0;
     return `📦 ${trigger} compaction completed • Compressed ${preTokens.toLocaleString()} tokens`;
   }
 
@@ -121,5 +121,5 @@ function formatSystemMessage(message: Message): string {
     return message.content;
   }
 
-  return original?.subtype || "System message";
+  return metadata?.systemSubtype || "System message";
 }

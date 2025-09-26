@@ -112,9 +112,10 @@ function extractToolName(message: Message): string {
     if (toolBlock) return toolBlock.name;
   }
 
-  // Check metadata
-  if (message.metadata?.originalSDKMessage?.message?.content) {
-    const content = message.metadata.originalSDKMessage.message.content;
+  // Check metadata (cast to any since tool_use messages come from assistant messages)
+  const original = message.metadata?.originalSDKMessage as any;
+  if (original?.message?.content) {
+    const content = original.message.content;
     if (Array.isArray(content)) {
       const toolBlock = content.find((block: any) => block.type === "tool_use");
       if (toolBlock) return toolBlock.name;
@@ -131,9 +132,10 @@ function extractToolInput(message: Message): any {
     if (toolBlock) return toolBlock.input;
   }
 
-  // Check metadata
-  if (message.metadata?.originalSDKMessage?.message?.content) {
-    const content = message.metadata.originalSDKMessage.message.content;
+  // Check metadata (cast to any since tool_use messages come from assistant messages)
+  const original = message.metadata?.originalSDKMessage as any;
+  if (original?.message?.content) {
+    const content = original.message.content;
     if (Array.isArray(content)) {
       const toolBlock = content.find((block: any) => block.type === "tool_use");
       if (toolBlock) return toolBlock.input;

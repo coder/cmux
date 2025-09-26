@@ -14,12 +14,16 @@ export async function uiMessagesCommand(
   }
 
   try {
-    // Load workspace data
-    const workspaceFile = join(SESSIONS_DIR, workspaceKey, "session.json");
-    const data = JSON.parse(await readFile(workspaceFile, "utf-8"));
+    // Load workspace data from NDJSON file
+    const historyFile = join(SESSIONS_DIR, workspaceKey, "chat_history.ndjson");
+    const ndjson = await readFile(historyFile, "utf-8");
+    const history = ndjson
+      .split("\n")
+      .filter((line) => line.trim())
+      .map((line) => JSON.parse(line));
 
     // Drop last N messages if requested
-    let messagesToProcess = dropLast > 0 ? data.history.slice(0, -dropLast) : data.history;
+    let messagesToProcess = dropLast > 0 ? history.slice(0, -dropLast) : history;
 
     // Limit to most recent messages (default: 64)
     if (limit > 0 && messagesToProcess.length > limit) {
@@ -37,11 +41,11 @@ export async function uiMessagesCommand(
 
     // Display clean summary
     console.log(`\nUI Messages for workspace: ${workspaceKey}`);
-    console.log(`Total SDK messages: ${data.history.length}`);
+    console.log(`Total SDK messages: ${history.length}`);
     if (dropLast > 0) {
       console.log(`Dropped last: ${dropLast}`);
     }
-    if (limit > 0 && data.history.length > limit) {
+    if (limit > 0 && history.length > limit) {
       console.log(`Showing most recent: ${limit}`);
     }
     console.log(`Processed SDK messages: ${messagesToProcess.length}`);
@@ -52,6 +56,10 @@ export async function uiMessagesCommand(
       const streamingInfo = msg.isStreaming ? " [STREAMING]" : "";
       const hasDeltas = msg.contentDeltas && msg.contentDeltas.length > 0;
       const deltaInfo = hasDeltas ? ` [${msg.contentDeltas!.length} deltas]` : "";
+
+      // Show permission mode info
+      const permissionMode = msg.metadata?.cmuxMeta?.permissionMode || "none";
+      const modeInfo = ` [${permissionMode}]`;
 
       // Handle different content types
       let preview = "";
@@ -77,10 +85,15 @@ export async function uiMessagesCommand(
         preview = "(no content)";
       }
 
-      console.log(`${i + 1}. [${msg.type}]${streamingInfo}${deltaInfo} ${preview}`);
+      console.log(`${i + 1}. [${msg.type}]${modeInfo}${streamingInfo}${deltaInfo} ${preview}`);
     });
 
     console.log("\n");
+
+    // Output as JSON for debugging if requested
+    if (process.env.JSON_OUTPUT === "true") {
+      console.log(JSON.stringify(uiMessages, null, 2));
+    }
   } catch (error) {
     console.error(
       `Error reading workspace ${workspaceKey}:`,

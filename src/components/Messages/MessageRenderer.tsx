@@ -41,9 +41,10 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({ message, class
   // Check if this should be shown as a debug message
   const shouldShowAsDebug = () => {
     const original = message.metadata?.originalSDKMessage;
+    const metadata = message.metadata;
 
     // System init messages
-    if (message.type === "system" && original?.subtype === "init") {
+    if (message.type === "system" && metadata?.systemSubtype === "init") {
       return true;
     }
 

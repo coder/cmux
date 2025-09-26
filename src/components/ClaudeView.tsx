@@ -255,7 +255,10 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
   // Computed UI messages array derived from uiMessageMap
   const messages = useMemo(() => {
     return Array.from(uiMessageMap.values()).sort((a, b) => {
-      return a.sequenceNumber - b.sequenceNumber;
+      // Handle missing cmuxMeta gracefully for backward compatibility
+      const aSeq = a.metadata?.cmuxMeta?.sequenceNumber ?? 0;
+      const bSeq = b.metadata?.cmuxMeta?.sequenceNumber ?? 0;
+      return aSeq - bSeq;
     });
   }, [uiMessageMap]);
 

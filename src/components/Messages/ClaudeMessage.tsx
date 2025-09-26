@@ -122,9 +122,11 @@ export const ClaudeMessage: React.FC<ClaudeMessageProps> = ({ message, className
   const [showJson, setShowJson] = useState(false);
 
   const getHeaderText = (): string => {
-    const originalMsg = message.metadata?.originalSDKMessage;
-    if (originalMsg?.subtype && message.type !== originalMsg.subtype) {
-      return `${message.type} / ${originalMsg.subtype}`;
+    // Check for system or result subtypes in extracted metadata
+    const metadata = message.metadata;
+    const subtype = metadata?.systemSubtype || metadata?.resultSubtype;
+    if (subtype && message.type !== subtype) {
+      return `${message.type} / ${subtype}`;
     }
     return message.type;
   };

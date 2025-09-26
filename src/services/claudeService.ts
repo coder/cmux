@@ -6,10 +6,10 @@ import { EventEmitter } from "events";
 import { Result, Ok, Err } from "../types/result";
 import { UIPermissionMode, SDKPermissionMode } from "../types/global";
 import { WorkspaceMetadata } from "../types/workspace";
+import type { HistoryMessage } from "../types/claude";
 
 // Import types for TypeScript
 type Query = any;
-type SDKMessage = any;
 type Options = any;
 
 // We'll load the actual query function dynamically
@@ -129,15 +129,8 @@ interface ActiveQuery {
   sequenceCounter: number; // Track next sequence number for messages
 }
 
-// Message type that guarantees cmuxMeta is present
-interface MessageWithCmuxMeta extends SDKMessage {
-  metadata: {
-    cmuxMeta: {
-      permissionMode: UIPermissionMode;
-      sequenceNumber: number;
-    };
-  };
-}
+// Type for SDK messages coming from the Claude SDK
+type SDKMessage = any;
 
 export class ClaudeService extends EventEmitter {
   private queries: Map<string, ActiveQuery> = new Map();
@@ -281,7 +274,7 @@ export class ClaudeService extends EventEmitter {
     });
   }
 
-  private async appendMessage(workspaceId: string, message: MessageWithCmuxMeta): Promise<void> {
+  private async appendMessage(workspaceId: string, message: HistoryMessage): Promise<void> {
     try {
       const historyFile = this.getHistoryFile(workspaceId);
       const dir = path.dirname(historyFile);
@@ -419,17 +412,13 @@ export class ClaudeService extends EventEmitter {
         const sequenceNumber = activeQuery.sequenceCounter++;
 
         // Add sequence number and cmuxMeta for ordering and permission tracking
-        const messageWithMetadata: MessageWithCmuxMeta = {
+        const messageWithMetadata: HistoryMessage = {
           ...message,
-          // Keep SDK's _sequenceNumber unchanged
-          metadata: {
-            ...message.metadata,
-            cmuxMeta: {
-              permissionMode: activeQuery.permissionMode,
-              sequenceNumber: sequenceNumber,
-            },
+          cmuxMeta: {
+            permissionMode: activeQuery.permissionMode,
+            sequenceNumber: sequenceNumber,
           },
-        };
+        } as HistoryMessage;
 
         // Append to NDJSON file
         await this.appendMessage(workspaceId, messageWithMetadata);
@@ -499,7 +488,7 @@ export class ClaudeService extends EventEmitter {
       const sequenceNumber = activeQuery.sequenceCounter++;
 
       // Create SDK user message with cmuxMeta
-      const userMessage: MessageWithCmuxMeta = {
+      const userMessage: HistoryMessage = {
         type: "user",
         session_id: activeQuery.sessionId,
         message: {
@@ -510,16 +499,14 @@ export class ClaudeService extends EventEmitter {
         uuid: `user-${Date.now()}-${Math.random()}`,
         // Don't set _sequenceNumber - let SDK handle it
         timestamp: Date.now(),
-        metadata: {
-          cmuxMeta: {
-            permissionMode: activeQuery.permissionMode,
-            sequenceNumber: sequenceNumber,
-          },
+        cmuxMeta: {
+          permissionMode: activeQuery.permissionMode,
+          sequenceNumber: sequenceNumber,
         },
-      };
+      } as HistoryMessage;
 
-      // Send message through the queue (without metadata for SDK)
-      const { metadata, ...sdkMessage } = userMessage;
+      // Send message through the queue (without cmuxMeta for SDK)
+      const { cmuxMeta, ...sdkMessage } = userMessage;
       activeQuery.messageQueue.sendMessage(sdkMessage);
 
       // Append to NDJSON history (with metadata)

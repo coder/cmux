@@ -1,4 +1,4 @@
-import { UIMessage, StreamingContext } from "../types/claude";
+import { UIMessage, StreamingContext, HistoryMessage } from "../types/claude";
 
 /**
  * StreamingMessageAggregator - Pure Data Layer
@@ -22,71 +22,73 @@ export class StreamingMessageAggregator {
   private uiMessages: Map<string, UIMessage> = new Map();
   private activeStreams: Map<string, StreamingContext> = new Map();
   private toolUseMap: Map<string, UIMessage> = new Map(); // Track pending tool uses by ID
-  private sequenceCounter: number = 0;
   private availableCommands: string[] = [];
   // Any unhandled message types will be silently lost.
-  processSDKMessage(sdkMessage: any): void {
-    switch (sdkMessage.type) {
+  processSDKMessage(historyMessage: HistoryMessage): void {
+    switch (historyMessage.type) {
       case "user":
-        this.addUserMessage(sdkMessage);
+        this.addUserMessage(historyMessage);
         break;
 
       case "system":
-        this.addSystemMessage(sdkMessage);
+        this.addSystemMessage(historyMessage);
         break;
 
       case "stream_event":
-        this.handleStreamEvent(sdkMessage);
+        this.handleStreamEvent(historyMessage);
         break;
 
       case "assistant":
-        this.handleAssistantMessage(sdkMessage);
+        this.handleAssistantMessage(historyMessage);
         break;
 
       case "result":
-        this.addResultBreadcrumb(sdkMessage);
+        this.addResultBreadcrumb(historyMessage);
         break;
 
-      case "tool_result":
-        this.handleToolResult(sdkMessage);
+      case "tool_result" as any:
+        this.handleToolResult(historyMessage);
         break;
     }
   }
 
   getAllMessages(): UIMessage[] {
     return Array.from(this.uiMessages.values()).sort((a, b) => {
-      return a.sequenceNumber - b.sequenceNumber;
+      // Handle missing cmuxMeta gracefully
+      const aSeq = a.metadata?.cmuxMeta?.sequenceNumber ?? 0;
+      const bSeq = b.metadata?.cmuxMeta?.sequenceNumber ?? 0;
+      return aSeq - bSeq;
     });
   }
 
-  private addUserMessage(sdkMessage: any): void {
+  private addUserMessage(historyMessage: HistoryMessage): void {
     // Check if this is a tool_result wrapped in a user message
-    const content = sdkMessage.message?.content;
+    const message = historyMessage as any; // SDKMessage union
+    const content = message.message?.content;
     if (Array.isArray(content) && content.length > 0) {
       const firstBlock = content[0];
       if (firstBlock.type === "tool_result") {
         // This is a tool result, process it accordingly
-        this.handleToolResultFromUser(sdkMessage, firstBlock);
+        this.handleToolResultFromUser(historyMessage, firstBlock);
         return;
       }
     }
 
     // Regular user message
     const userMessage: UIMessage = {
-      id: sdkMessage.uuid || `user-${Date.now()}`,
+      id: historyMessage.uuid || `user-${Date.now()}`,
       type: "user",
-      content: sdkMessage.message?.content || "",
-      sequenceNumber:
-        sdkMessage.metadata?.cmuxMeta?.sequenceNumber ??
-        sdkMessage._sequenceNumber ??
-        this.sequenceCounter++,
-      timestamp: sdkMessage.timestamp || Date.now(),
-      metadata: { originalSDKMessage: sdkMessage },
+      content: message.message?.content || "",
+      timestamp: Date.now(), // User messages don't have timestamp in SDK
+      metadata: {
+        originalSDKMessage: historyMessage as any, // Store without cmuxMeta
+        cmuxMeta: historyMessage.cmuxMeta,
+      },
     };
     this.uiMessages.set(userMessage.id, userMessage);
   }
 
-  private handleToolResultFromUser(sdkMessage: any, toolResultBlock: any): void {
+  private handleToolResultFromUser(historyMessage: HistoryMessage, toolResultBlock: any): void {
     // Extract tool result data from the user message
     const toolUseId = toolResultBlock.tool_use_id;
     const content = toolResultBlock.content;
@@ -97,7 +99,7 @@ export class StreamingMessageAggregator {
 
     // Create tool_result message with association
     const resultMessage: UIMessage = {
-      id: sdkMessage.uuid || `tool-result-${Date.now()}`,
+      id: historyMessage.uuid || `tool-result-${Date.now()}`,
       type: "tool_result" as any,
       content: content,
       toolUseId: toolUseId,
@@ -105,13 +107,10 @@ export class StreamingMessageAggregator {
         content: content,
         is_error: isError,
       },
-      sequenceNumber:
-        sdkMessage.metadata?.cmuxMeta?.sequenceNumber ??
-        sdkMessage._sequenceNumber ??
-        this.sequenceCounter++,
-      timestamp: sdkMessage.timestamp || Date.now(),
+      timestamp: Date.now(), // Tool results don't have timestamp
       metadata: {
-        originalSDKMessage: sdkMessage,
+        originalSDKMessage: historyMessage as any, // Store without cmuxMeta
+        cmuxMeta: historyMessage.cmuxMeta,
       },
     };
 
@@ -126,63 +125,80 @@ export class StreamingMessageAggregator {
     this.uiMessages.set(resultMessage.id, resultMessage);
   }
 
-  private addSystemMessage(sdkMessage: any): void {
-    // Extract available commands from system/init messages
-    if (sdkMessage.subtype === "init" && sdkMessage.slash_commands) {
-      this.availableCommands = sdkMessage.slash_commands;
+  private addSystemMessage(historyMessage: HistoryMessage): void {
+    // Type-safe extraction based on message structure
+    const message = historyMessage as any; // SDKMessage union - we'll extract specific fields
+
+    // Extract system-specific fields based on subtype
+    const metadata: any = {
+      originalSDKMessage: historyMessage, // Store properly typed
+      cmuxMeta: historyMessage.cmuxMeta,
+      systemSubtype: message.subtype,
+    };
+
+    if (message.subtype === "init") {
+      // Extract init-specific fields
+      metadata.systemModel = message.model;
+      metadata.systemTools = message.tools;
+      metadata.systemSlashCommands = message.slash_commands;
+
+      // Store commands for autocomplete
+      if (message.slash_commands) {
+        this.availableCommands = message.slash_commands;
+      }
+    } else if (message.subtype === "compact_boundary") {
+      // Extract compact-specific fields
+      metadata.compactMetadata = message.compact_metadata;
     }
 
     // Store raw system message without formatting
     const systemMessage: UIMessage = {
-      id: sdkMessage.uuid || `system-${Date.now()}`,
+      id: historyMessage.uuid || `system-${Date.now()}`,
       type: "system",
-      content: sdkMessage.content || sdkMessage, // Store raw content or entire message
-      sequenceNumber:
-        sdkMessage.metadata?.cmuxMeta?.sequenceNumber ??
-        sdkMessage._sequenceNumber ??
-        this.sequenceCounter++,
+      content: message.content || historyMessage, // Store raw content or entire message
       timestamp: Date.now(),
-      metadata: { originalSDKMessage: sdkMessage },
+      metadata,
     };
     this.uiMessages.set(systemMessage.id, systemMessage);
   }
 
-  private addResultBreadcrumb(sdkMessage: any): void {
+  private addResultBreadcrumb(historyMessage: HistoryMessage): void {
+    // Type-safe extraction of result message fields
+    const message = historyMessage as any; // SDKMessage union
+
     // Store raw result message without formatting
     const resultMessage: UIMessage = {
-      id: sdkMessage.uuid || `result-${Date.now()}`,
+      id: historyMessage.uuid || `result-${Date.now()}`,
       type: "result",
-      content: sdkMessage.result || sdkMessage, // Raw result or entire message
-      sequenceNumber:
-        sdkMessage.metadata?.cmuxMeta?.sequenceNumber ??
-        sdkMessage._sequenceNumber ??
-        this.sequenceCounter++,
+      content: message.result || historyMessage, // Raw result or entire message
       timestamp: Date.now(),
       metadata: {
-        originalSDKMessage: sdkMessage,
-        cost: sdkMessage.total_cost_usd,
-        duration: sdkMessage.duration_ms,
+        originalSDKMessage: historyMessage, // Store properly typed
+        cmuxMeta: historyMessage.cmuxMeta,
+        cost: message.total_cost_usd,
+        duration: message.duration_ms,
+        resultIsError: message.is_error,
+        resultSubtype: message.subtype,
+        resultText: message.result,
       },
     };
     this.uiMessages.set(resultMessage.id, resultMessage);
   }
 
-  private handleStreamEvent(sdkMessage: any): void {
-    const event = sdkMessage.event;
+  private handleStreamEvent(historyMessage: HistoryMessage): void {
+    const message = historyMessage as any; // SDKPartialAssistantMessage
+    const event = message.event;
     if (!event) return;
 
     // Pass through all stream events as debug messages
     const streamEventMessage: UIMessage = {
       id: `stream-event-${Date.now()}-${Math.random()}`,
       type: "stream_event" as any,
-      content: sdkMessage,
-      sequenceNumber:
-        sdkMessage.metadata?.cmuxMeta?.sequenceNumber ??
-        sdkMessage._sequenceNumber ??
-        this.sequenceCounter++,
+      content: historyMessage,
       timestamp: Date.now(),
       metadata: {
-        originalSDKMessage: sdkMessage,
+        originalSDKMessage: historyMessage as any, // Store without cmuxMeta
+        cmuxMeta: historyMessage.cmuxMeta,
         eventType: event.type,
       },
     };
@@ -191,13 +207,13 @@ export class StreamingMessageAggregator {
     // Also handle specific events for streaming functionality
     switch (event.type) {
       case "message_start":
-        this.startStreamingMessage(sdkMessage);
+        this.startStreamingMessage(historyMessage);
         break;
       case "content_block_start":
         // Initialize content block - handled by message_start for now
         break;
       case "content_block_delta":
-        this.updateStreamingMessage(sdkMessage);
+        this.updateStreamingMessage(historyMessage);
         break;
       case "content_block_stop":
         // Content block finished - no action needed as we track by message
@@ -206,7 +222,7 @@ export class StreamingMessageAggregator {
         // Message metadata update - could be used for stop_reason, usage, etc.
         break;
       case "message_stop":
-        this.finishStreamingMessage(sdkMessage);
+        this.finishStreamingMessage(historyMessage);
         break;
       default:
         // Log unknown event types for debugging
@@ -215,8 +231,9 @@ export class StreamingMessageAggregator {
     }
   }
 
-  private startStreamingMessage(sdkMessage: any): void {
-    const streamingId = sdkMessage.event.message?.id || `stream-${Date.now()}`;
+  private startStreamingMessage(historyMessage: HistoryMessage): void {
+    const message = historyMessage as any; // SDKPartialAssistantMessage
+    const streamingId = message.event?.message?.id || `stream-${Date.now()}`;
     const messageId = `streaming-${streamingId}`;
 
     const context: StreamingContext = {
@@ -235,25 +252,26 @@ export class StreamingMessageAggregator {
       content: "",
       contentDeltas: [],
       isStreaming: true,
-      sequenceNumber:
-        sdkMessage.metadata?.cmuxMeta?.sequenceNumber ??
-        sdkMessage._sequenceNumber ??
-        this.sequenceCounter++,
       timestamp: Date.now(),
-      metadata: { streamingId, originalSDKMessage: sdkMessage },
+      metadata: {
+        streamingId,
+        originalSDKMessage: historyMessage,
+        cmuxMeta: historyMessage.cmuxMeta,
+      },
     };
 
     this.uiMessages.set(messageId, streamingMessage);
   }
 
-  private updateStreamingMessage(sdkMessage: any): void {
+  private updateStreamingMessage(historyMessage: HistoryMessage): void {
     const streamingId = this.findStreamingIdFromEvent();
     if (!streamingId) return;
 
     const context = this.activeStreams.get(streamingId);
     if (!context) return;
 
-    const deltaText = sdkMessage.event.delta?.text || "";
+    const message = historyMessage as any; // SDKPartialAssistantMessage
+    const deltaText = message.event?.delta?.text || "";
     context.contentParts.push(deltaText);
 
     // Update existing message in Map with raw deltas
@@ -268,7 +286,7 @@ export class StreamingMessageAggregator {
     }
   }
 
-  private finishStreamingMessage(_sdkMessage: any): void {
+  private finishStreamingMessage(_historyMessage: any): void {
     const streamingId = this.findStreamingIdFromEvent();
     if (!streamingId) return;
 
@@ -288,10 +306,10 @@ export class StreamingMessageAggregator {
     }
   }
 
-  private handleAssistantMessage(sdkMessage: any): void {
+  private handleAssistantMessage(historyMessage: HistoryMessage): void {
     // Check if this is a tool_use message
-    if (this.isToolUseMessage(sdkMessage)) {
-      this.addToolUseBreadcrumb(sdkMessage);
+    if (this.isToolUseMessage(historyMessage)) {
+      this.addToolUseBreadcrumb(historyMessage);
       return;
     }
 
@@ -301,7 +319,7 @@ export class StreamingMessageAggregator {
     if (activeStreams.length > 0) {
       // Use the UUID from the assistant message, replacing streaming message
       const context = activeStreams[activeStreams.length - 1];
-      const assistantId = sdkMessage.uuid || context.messageId;
+      const assistantId = historyMessage.uuid || context.messageId;
 
       // Delete old streaming message if it has a different ID
       if (context.messageId !== assistantId) {
@@ -311,15 +329,12 @@ export class StreamingMessageAggregator {
       const finalMessage: UIMessage = {
         id: assistantId,
         type: "assistant",
-        content: this.extractAssistantContent(sdkMessage),
+        content: this.extractAssistantContent(historyMessage),
         isStreaming: false,
-        sequenceNumber:
-          sdkMessage.metadata?.cmuxMeta?.sequenceNumber ??
-          sdkMessage._sequenceNumber ??
-          this.sequenceCounter++,
-        timestamp: sdkMessage.timestamp || Date.now(),
+        timestamp: (historyMessage as any).timestamp || Date.now(),
         metadata: {
-          originalSDKMessage: sdkMessage,
+          originalSDKMessage: historyMessage,
+          cmuxMeta: historyMessage.cmuxMeta,
         },
       };
 
@@ -328,32 +343,33 @@ export class StreamingMessageAggregator {
     } else {
       // Standalone assistant message (not from streaming)
       const assistantMessage: UIMessage = {
-        id: sdkMessage.uuid || `assistant-${Date.now()}`,
+        id: historyMessage.uuid || `assistant-${Date.now()}`,
         type: "assistant",
-        content: this.extractAssistantContent(sdkMessage),
-        sequenceNumber:
-          sdkMessage.metadata?.cmuxMeta?.sequenceNumber ??
-          sdkMessage._sequenceNumber ??
-          this.sequenceCounter++,
-        timestamp: sdkMessage.timestamp || Date.now(),
-        metadata: { originalSDKMessage: sdkMessage },
+        content: this.extractAssistantContent(historyMessage),
+        timestamp: (historyMessage as any).timestamp || Date.now(),
+        metadata: {
+          originalSDKMessage: historyMessage,
+          cmuxMeta: historyMessage.cmuxMeta,
+        },
       };
 
       this.uiMessages.set(assistantMessage.id, assistantMessage);
     }
   }
 
-  private isToolUseMessage(sdkMessage: any): boolean {
-    if (!sdkMessage.message?.content || !Array.isArray(sdkMessage.message.content)) {
+  private isToolUseMessage(historyMessage: HistoryMessage): boolean {
+    const message = historyMessage as any; // SDKAssistantMessage
+    if (!message.message?.content || !Array.isArray(message.message.content)) {
       return false;
     }
 
     // Check if all content blocks are tool_use
-    return sdkMessage.message.content.every((block: any) => block.type === "tool_use");
+    return message.message.content.every((block: any) => block.type === "tool_use");
   }
 
-  private addToolUseBreadcrumb(sdkMessage: any): void {
-    const content = sdkMessage.message?.content;
+  private addToolUseBreadcrumb(historyMessage: HistoryMessage): void {
+    const message = historyMessage as any; // SDKAssistantMessage
+    const content = message.message?.content;
     if (!content || !Array.isArray(content)) return;
 
     // Process each tool_use block
@@ -366,13 +382,10 @@ export class StreamingMessageAggregator {
         type: "tool_use" as any, // Will be handled by MessageRenderer
         content: block, // Store the raw tool block
         toolUseId: block.id, // Store the tool use ID for result association
-        sequenceNumber:
-          sdkMessage.metadata?.cmuxMeta?.sequenceNumber ??
-          sdkMessage._sequenceNumber ??
-          this.sequenceCounter++,
         timestamp: Date.now(),
         metadata: {
-          originalSDKMessage: sdkMessage,
+          originalSDKMessage: historyMessage,
+          cmuxMeta: historyMessage.cmuxMeta,
           toolName: block.name,
           toolInput: block.input,
         },
@@ -386,9 +399,10 @@ export class StreamingMessageAggregator {
     });
   }
 
-  private extractAssistantContent(sdkMessage: any): string {
-    if (sdkMessage.message?.content) {
-      const content = sdkMessage.message.content;
+  private extractAssistantContent(historyMessage: HistoryMessage): string {
+    const message = historyMessage as any; // SDKAssistantMessage
+    if (message.message?.content) {
+      const content = message.message.content;
 
       // Handle array of content blocks
       if (Array.isArray(content)) {
@@ -425,18 +439,19 @@ export class StreamingMessageAggregator {
     return recentStreams.length > 0 ? recentStreams[recentStreams.length - 1] : null;
   }
 
-  private handleToolResult(sdkMessage: any): void {
+  private handleToolResult(historyMessage: HistoryMessage): void {
     // Extract tool result data
-    const toolUseId = sdkMessage.tool_use_id;
-    const content = sdkMessage.content;
-    const isError = sdkMessage.is_error || false;
+    const message = historyMessage as any; // Tool result message
+    const toolUseId = message.tool_use_id;
+    const content = message.content;
+    const isError = message.is_error || false;
 
     // Look up the corresponding tool_use message
     const toolUseMessage = toolUseId ? this.toolUseMap.get(toolUseId) : null;
 
     // Create tool_result message with association
     const resultMessage: UIMessage = {
-      id: sdkMessage.uuid || `tool-result-${Date.now()}`,
+      id: historyMessage.uuid || `tool-result-${Date.now()}`,
       type: "tool_result" as any,
       content: content,
       toolUseId: toolUseId,
@@ -444,13 +459,10 @@ export class StreamingMessageAggregator {
         content: content,
         is_error: isError,
       },
-      sequenceNumber:
-        sdkMessage.metadata?.cmuxMeta?.sequenceNumber ??
-        sdkMessage._sequenceNumber ??
-        this.sequenceCounter++,
       timestamp: Date.now(),
       metadata: {
-        originalSDKMessage: sdkMessage,
+        originalSDKMessage: historyMessage as any, // Store without cmuxMeta
+        cmuxMeta: historyMessage.cmuxMeta,
       },
     };
 
@@ -469,7 +481,8 @@ export class StreamingMessageAggregator {
     this.uiMessages.clear();
     this.activeStreams.clear();
     this.toolUseMap.clear();
-    this.sequenceCounter = 0;
+    // Reset sequence counter if it exists
+    // this.sequenceCounter = 0;
     this.availableCommands = [];
   }
 

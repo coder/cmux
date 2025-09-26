@@ -43,8 +43,8 @@ export const PlanMessage: React.FC<PlanMessageProps> = ({ message, className }) 
       }
     }
 
-    // Check in original SDK message
-    const original = message.metadata?.originalSDKMessage;
+    // Check in original SDK message (cast to any since we know this is an assistant message with tool use)
+    const original = message.metadata?.originalSDKMessage as any;
     if (original?.message?.content && Array.isArray(original.message.content)) {
       const toolBlock = original.message.content.find(
         (block: any) => block.type === "tool_use" && block.name === "ExitPlanMode"

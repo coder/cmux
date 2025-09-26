@@ -42,7 +42,7 @@ export const StreamingAssistantMessage: React.FC<StreamingAssistantMessageProps>
   const hasDeltas = message.contentDeltas && message.contentDeltas.length > 0;
 
   // Get permission mode from message metadata
-  const permissionMode = message.metadata?.cmuxMeta?.permissionMode;
+  const permissionMode = message.metadata.cmuxMeta.permissionMode;
   const modeConfig = getModeConfig(permissionMode);
 
   return (
