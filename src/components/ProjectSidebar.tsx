@@ -333,7 +333,7 @@ interface ProjectSidebarProps {
   onAddProject: () => void;
   onAddWorkspace: (projectPath: string) => void;
   onRemoveProject: (path: string) => void;
-  onRemoveWorkspace: (workspacePath: string) => void;
+  onRemoveWorkspace: (workspaceId: string, workspacePath: string) => void;
 }
 
 const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
@@ -490,7 +490,7 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                         <WorkspaceRemoveBtn
                           onClick={(e) => {
                             e.stopPropagation();
-                            onRemoveWorkspace(workspace.path);
+                            onRemoveWorkspace(workspaceId, workspace.path);
                           }}
                           title="Remove workspace"
                         >

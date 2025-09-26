@@ -21,10 +21,6 @@ contextBridge.exposeInMainWorld('api', {
       ipcRenderer.invoke('git:removeWorktree', workspacePath)
   },
   claude: {
-    start: (workspacePath: string, projectName: string, branch: string) => 
-      ipcRenderer.invoke('claude:start', workspacePath, projectName, branch),
-    isActive: (workspaceId: string) => 
-      ipcRenderer.invoke('claude:isActive', workspaceId),
     list: () => ipcRenderer.invoke('claude:list'),
     getWorkspaceInfo: (workspaceId: string) =>
       ipcRenderer.invoke('claude:getWorkspaceInfo', workspaceId),
@@ -49,6 +45,8 @@ contextBridge.exposeInMainWorld('api', {
       ipcRenderer.on(channel, handler);
       // Return unsubscribe function
       return () => ipcRenderer.removeListener(channel, handler);
-    }
+    },
+    removeWorkspace: (workspaceId: string) =>
+      ipcRenderer.invoke('claude:removeWorkspace', workspaceId)
   }
 });

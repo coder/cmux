@@ -255,9 +255,12 @@ function App() {
     }
   };
 
-  const handleRemoveWorkspace = async (workspacePath: string) => {
+  const handleRemoveWorkspace = async (workspaceId: string, workspacePath: string) => {
     const result = await window.api.git.removeWorktree(workspacePath);
     if (result.success) {
+      // Remove any active Claude query for this workspace
+      await window.api.claude.removeWorkspace(workspaceId);
+      
       // Update the project config to remove the workspace
       const newProjects = new Map(projects);
       for (const [_, config] of newProjects.entries()) {

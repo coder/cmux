@@ -25,9 +25,7 @@ declare global {
         removeWorktree: (workspacePath: string) => Promise<{ success: boolean; error?: string }>;
       };
       claude: {
-        start: (workspacePath: string, projectName: string, branch: string) => Promise<{ success: boolean; workspaceId?: string }>;
-        isActive: (workspaceId: string) => Promise<boolean>;
-        list: () => Promise<Array<any>>; // Returns Partial<Workspace> from claudeService
+        list: () => Promise<Array<any>>; // Returns WorkspaceInfo from claudeService
         getWorkspaceInfo: (workspaceId: string) => Promise<{ permissionMode: UIPermissionMode }>;
         setPermissionMode: (workspaceId: string, permissionMode: UIPermissionMode) => Promise<void>;
         sendMessage: (workspaceId: string, message: string) => Promise<import('./result').Result<void, string>>;
@@ -35,6 +33,7 @@ declare global {
         streamHistory: (workspaceId: string) => Promise<void>;
         onOutput: (workspaceId: string, callback: (data: any) => void) => () => void;
         onClear: (workspaceId: string, callback: (data: any) => void) => () => void;
+        removeWorkspace: (workspaceId: string) => Promise<void>;
       };
     };
   }

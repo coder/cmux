@@ -62,7 +62,16 @@ ipcMain.handle("dialog:selectDirectory", async () => {
 ipcMain.handle(
   "git:createWorktree",
   async (event, projectPath: string, branchName: string) => {
-    return await createWorktree(projectPath, branchName);
+    const result = await createWorktree(projectPath, branchName);
+    
+    // If worktree creation was successful, initialize the workspace metadata
+    if (result.success && result.path) {
+      const projectName = projectPath.split('/').pop() || projectPath.split('\\').pop() || 'unknown';
+      const workspaceId = `${projectName}-${branchName}`;
+      await claudeService.initializeWorkspace(workspaceId, projectName, branchName, result.path);
+    }
+    
+    return result;
   }
 );
 
@@ -70,26 +79,13 @@ ipcMain.handle("git:removeWorktree", async (event, workspacePath: string) => {
   return await removeWorktree(workspacePath);
 });
 
+ipcMain.handle("claude:removeWorkspace", async (event, workspaceId: string) => {
+  return await claudeService.removeWorkspace(workspaceId);
+});
+
 // Claude Code management handlers using SDK
-ipcMain.handle(
-  "claude:start",
-  async (event, srcPath: string, projectName: string, branch: string) => {
-    return await claudeService.startWorkspace(
-      srcPath,  // Git worktree path
-      projectName,
-      branch
-    );
-  }
-);
-
-ipcMain.handle(
-  "claude:isActive",
-  async (event, workspaceId: string) => {
-    return claudeService.isWorkspaceActiveById(workspaceId);
-  }
-);
-
-// Note: claude:getOutput has been removed - frontend now receives messages via events only
+// Note: Workspaces are now started automatically on demand when sending messages
+// No need for explicit start or isActive handlers
 
 ipcMain.handle("claude:list", async () => {
   return claudeService.list();
@@ -232,16 +228,7 @@ if (gotTheLock) {
     console.log("App ready, creating window...");
     createMenu();
     createWindow();
-
-    // Auto-start all workspaces after window is ready
-    try {
-      console.log("Auto-starting workspaces...");
-      const config = load_config_or_default();
-      await claudeService.autoStartAllWorkspaces(config.projects);
-      console.log("Workspaces auto-start complete");
-    } catch (error) {
-      console.error("Failed to auto-start workspaces:", error);
-    }
+    // No need to auto-start workspaces anymore - they start on demand
   });
 
   app.on("window-all-closed", () => {
