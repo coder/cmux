@@ -215,7 +215,8 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
   const [availableCommands, setAvailableCommands] = useState<string[]>([]);
   const [showCommandSuggestions, setShowCommandSuggestions] = useState(false);
   const { debugMode, setDebugMode } = useDebugMode(); // Use context instead of local state
-  const [permissionMode, setPermissionMode] = useState<UIPermissionMode>('plan');
+  // Permission mode is derived from the latest message metadata
+  const [currentPermissionMode, setCurrentPermissionMode] = useState<UIPermissionMode>('plan');
   const [autoScroll, setAutoScroll] = useState(true);
   const contentRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -276,7 +277,7 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
     aggregatorRef.current.clear();
 
     // Reset Permission Mode state immediately when switching workspaces
-    setPermissionMode('plan');
+    setCurrentPermissionMode('plan');
     
     // Enable auto-scroll when switching workspaces
     setAutoScroll(true);
@@ -290,13 +291,7 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
       setLoading(false);
     });
     
-    // Load workspace-specific permission mode
-    window.api.claude.getWorkspaceInfo(workspaceId).then((info) => {
-      setPermissionMode(info.permissionMode || 'plan');
-    }).catch((error) => {
-      console.error("Failed to load workspace info:", error);
-      setPermissionMode('plan');
-    });
+    // Permission mode will be loaded from messages
 
     // Subscribe to workspace-specific output channel
     const unsubscribeOutput = window.api.claude.onOutput(workspaceId, (data: any) => {
@@ -311,8 +306,15 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
         });
         return;
       }
+      const message = data.message;
       
-      processSDKMessage(data.message);
+      // Update permission mode from message metadata if available
+      if (message?.metadata?.cmuxMeta?.permissionMode) {
+        console.log('Updating permission mode from message:', message.metadata.cmuxMeta.permissionMode);
+        setCurrentPermissionMode(message.metadata.cmuxMeta.permissionMode);
+      }
+      
+      processSDKMessage(message);
       
       // Only auto-scroll for new messages after caught up
       if (isCaughtUp && !data.historical) {
@@ -473,7 +475,7 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
       <ViewHeader>
         <WorkspaceTitle>
           {projectName} / {branch}
-          <PermissionModeBadge mode={permissionMode} />
+          <PermissionModeBadge mode={currentPermissionMode} />
         </WorkspaceTitle>
       </ViewHeader>
 
@@ -546,7 +548,7 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
             placeholder={
               isCompacting
                 ? "Compacting conversation..."
-                : MODE_PLACEHOLDERS[permissionMode]
+                : MODE_PLACEHOLDERS[currentPermissionMode]
             }
             disabled={isSending || isCompacting}
           />
@@ -559,17 +561,22 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
         </InputControls>
         <ModeToggles>
           <PermissionModeSlider 
-            value={permissionMode}
+            value={currentPermissionMode}
             onChange={async (mode) => {
               console.log('Permission mode changing to:', mode);
-              setPermissionMode(mode);
-              // Persist to backend immediately
+              // Optimistically update UI immediately for better UX
+              setCurrentPermissionMode(mode);
+              
+              // Then update backend
               if (projectName && branch) {
                 try {
                   await window.api.claude.setPermissionMode(workspaceId, mode);
                   console.log('Permission mode successfully set to:', mode);
+                  // Backend will confirm via next message
                 } catch (error) {
                   console.error('Failed to set permission mode:', error);
+                  // On error, revert to previous mode (we'll get the correct mode from next message)
+                  // For now, just log - the next message will correct the UI state
                 }
               }
             }}
