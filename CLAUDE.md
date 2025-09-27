@@ -56,6 +56,12 @@
 
 ## TypeScript Best Practices
 
+- **Avoid `as any` in all contexts** - Never use `as any` casts. Instead:
+  - Use proper type narrowing with discriminated unions
+  - Leverage TypeScript's type guards and the compiler's type checking
+  - Import and reuse existing types from dependencies rather than creating anonymous clones
+  - If a type is truly complex, create a proper type definition or interface
+
 - **Use `Record<EnumType, ValueType>` for exhaustive mappings** - When mapping enum values to strings, colors, or other values, use `Record` types instead of switch statements or if/else chains. This ensures TypeScript catches missing or invalid cases at compile time.
 
   ```typescript

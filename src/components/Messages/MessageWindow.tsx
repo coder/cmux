@@ -74,7 +74,7 @@ export interface ButtonConfig {
 }
 
 interface MessageWindowProps {
-  label: string;
+  label: ReactNode;
   borderColor: string;
   backgroundColor?: string;
   message: UIMessage;

@@ -1,9 +1,10 @@
 import React from "react";
 import styled from "@emotion/styled";
-import { Message } from "../../types/claude";
+import { UIMessage } from "../../types/claude";
 import { TypewriterMarkdown } from "./TypewriterMarkdown";
 import { MessageWindow } from "./MessageWindow";
 import { getModeConfig } from "../../constants/permissionModes";
+import { formatAssistantLabel } from "./assistantHelpers";
 
 const StreamingIndicator = styled.span`
   font-size: 10px;
@@ -31,7 +32,7 @@ const WaitingMessage = styled.div`
 `;
 
 interface StreamingAssistantMessageProps {
-  message: Message;
+  message: UIMessage;
   className?: string;
 }
 
@@ -47,7 +48,7 @@ export const StreamingAssistantMessage: React.FC<StreamingAssistantMessageProps>
 
   return (
     <MessageWindow
-      label="ASSISTANT"
+      label={formatAssistantLabel(message.model)}
       borderColor={modeConfig.borderColor}
       message={message}
       buttons={[]}

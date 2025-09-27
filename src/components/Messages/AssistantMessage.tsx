@@ -4,6 +4,7 @@ import { UIMessage } from "../../types/claude";
 import { MarkdownRenderer } from "./MarkdownRenderer";
 import { MessageWindow, ButtonConfig } from "./MessageWindow";
 import { getModeConfig } from "../../constants/permissionModes";
+import { formatAssistantLabel } from "./assistantHelpers";
 
 const RawContent = styled.pre`
   font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
@@ -57,7 +58,7 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({ message, cla
 
   return (
     <MessageWindow
-      label="ASSISTANT"
+      label={formatAssistantLabel(message.model)}
       borderColor={modeConfig.borderColor}
       message={message}
       buttons={buttons}

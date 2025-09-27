@@ -1,4 +1,5 @@
 import { UIMessage, StreamingContext, HistoryMessage } from "../types/claude";
+import type { SDKPartialAssistantMessage } from "@anthropic-ai/claude-code";
 
 /**
  * StreamingMessageAggregator - Pure Data Layer
@@ -23,6 +24,7 @@ export class StreamingMessageAggregator {
   private activeStreams: Map<string, StreamingContext> = new Map();
   private toolUseMap: Map<string, UIMessage> = new Map(); // Track pending tool uses by ID
   private availableCommands: string[] = [];
+  private currentModel: string | undefined; // Track the latest model from assistant messages
   // Any unhandled message types will be silently lost.
   processSDKMessage(historyMessage: HistoryMessage): void {
     switch (historyMessage.type) {
@@ -171,6 +173,7 @@ export class StreamingMessageAggregator {
       id: historyMessage.uuid || `result-${Date.now()}`,
       type: "result",
       content: message.result || historyMessage, // Raw result or entire message
+      model: this.currentModel, // Include current model for result messages
       timestamp: Date.now(),
       metadata: {
         originalSDKMessage: historyMessage, // Store properly typed
@@ -186,26 +189,35 @@ export class StreamingMessageAggregator {
   }
 
   private handleStreamEvent(historyMessage: HistoryMessage): void {
-    const message = historyMessage as any; // SDKPartialAssistantMessage
-    const event = message.event;
+    // Type narrow using discriminated union
+    if (historyMessage.type !== "stream_event") return;
+
+    // Cast to SDKPartialAssistantMessage which we know it is after type check
+    const streamMessage = historyMessage as SDKPartialAssistantMessage & {
+      cmuxMeta: typeof historyMessage.cmuxMeta;
+    };
+    const event = streamMessage.event;
     if (!event) return;
+
+    // The event is a union type, so we check for type property existence
+    const eventType = "type" in event ? event.type : null;
 
     // Pass through all stream events as debug messages
     const streamEventMessage: UIMessage = {
       id: `stream-event-${Date.now()}-${Math.random()}`,
-      type: "stream_event" as any,
+      type: "stream_event" as UIMessage["type"] & "stream_event",
       content: historyMessage,
       timestamp: Date.now(),
       metadata: {
-        originalSDKMessage: historyMessage as any, // Store without cmuxMeta
+        originalSDKMessage: historyMessage, // Store the full message
         cmuxMeta: historyMessage.cmuxMeta,
-        eventType: event.type,
+        eventType: eventType || "unknown",
       },
     };
     this.uiMessages.set(streamEventMessage.id, streamEventMessage);
 
     // Also handle specific events for streaming functionality
-    switch (event.type) {
+    switch (eventType) {
       case "message_start":
         this.startStreamingMessage(historyMessage);
         break;
@@ -226,14 +238,30 @@ export class StreamingMessageAggregator {
         break;
       default:
         // Log unknown event types for debugging
-        console.debug(`Unknown stream event type: ${event.type}`);
+        if (eventType) {
+          console.debug(`Unknown stream event type: ${eventType}`);
+        }
         break;
     }
   }
 
   private startStreamingMessage(historyMessage: HistoryMessage): void {
-    const message = historyMessage as any; // SDKPartialAssistantMessage
-    const streamingId = message.event?.message?.id || `stream-${Date.now()}`;
+    if (historyMessage.type !== "stream_event") return;
+
+    const streamMessage = historyMessage as SDKPartialAssistantMessage & {
+      cmuxMeta: typeof historyMessage.cmuxMeta;
+    };
+    const event = streamMessage.event;
+
+    // Check if this is a message_start event which has the message property
+    let streamingId = `stream-${Date.now()}`;
+    if (event && "message" in event && event.message) {
+      streamingId = event.message.id || streamingId;
+      // Extract model from message_start event
+      if ("model" in event.message) {
+        this.currentModel = event.message.model;
+      }
+    }
     const messageId = `streaming-${streamingId}`;
 
     const context: StreamingContext = {
@@ -252,6 +280,7 @@ export class StreamingMessageAggregator {
       content: "",
       contentDeltas: [],
       isStreaming: true,
+      model: this.currentModel,
       timestamp: Date.now(),
       metadata: {
         streamingId,
@@ -270,8 +299,21 @@ export class StreamingMessageAggregator {
     const context = this.activeStreams.get(streamingId);
     if (!context) return;
 
-    const message = historyMessage as any; // SDKPartialAssistantMessage
-    const deltaText = message.event?.delta?.text || "";
+    if (historyMessage.type !== "stream_event") return;
+
+    const streamMessage = historyMessage as SDKPartialAssistantMessage & {
+      cmuxMeta: typeof historyMessage.cmuxMeta;
+    };
+    const event = streamMessage.event;
+
+    // Check if event has delta property and it's a text_delta
+    if (!event || !("delta" in event) || !event.delta) return;
+
+    // Check the delta type - it could be different types in the union
+    const delta = event.delta;
+    if (!("type" in delta) || delta.type !== "text_delta") return;
+
+    const deltaText = ("text" in delta ? delta.text : "") || "";
     context.contentParts.push(deltaText);
 
     // Update existing message in Map with raw deltas
@@ -331,6 +373,7 @@ export class StreamingMessageAggregator {
         type: "assistant",
         content: this.extractAssistantContent(historyMessage),
         isStreaming: false,
+        model: this.currentModel,
         timestamp: (historyMessage as any).timestamp || Date.now(),
         metadata: {
           originalSDKMessage: historyMessage,
@@ -346,6 +389,7 @@ export class StreamingMessageAggregator {
         id: historyMessage.uuid || `assistant-${Date.now()}`,
         type: "assistant",
         content: this.extractAssistantContent(historyMessage),
+        model: this.currentModel,
         timestamp: (historyMessage as any).timestamp || Date.now(),
         metadata: {
           originalSDKMessage: historyMessage,

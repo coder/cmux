@@ -53,6 +53,8 @@ export interface Message {
 
 // Enhanced interface for UI layer with additional associations
 export interface UIMessage extends Message {
+  // Model tracking for display (e.g., "claude-opus-4-1-20250805")
+  model?: string;
   // Tool result association fields
   toolUseId?: string; // Links tool_result to its corresponding tool_use
   toolResult?: {

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import styled from "@emotion/styled";
-import { Message } from "../../types/claude";
+import { UIMessage } from "../../types/claude";
 
 const ResultContainer = styled.div<{ isError?: boolean }>`
   margin: 4px 0;
@@ -70,7 +70,7 @@ const JsonContent = styled.pre`
 `;
 
 interface ResultMessageProps {
-  message: Message;
+  message: UIMessage;
   className?: string;
 }
 
@@ -100,7 +100,7 @@ export const ResultMessage: React.FC<ResultMessageProps> = ({ message, className
   );
 };
 
-function checkIfError(message: Message): boolean {
+function checkIfError(message: UIMessage): boolean {
   // Check for is_error field in the extracted metadata
   if (message.metadata?.resultIsError !== undefined) {
     return message.metadata.resultIsError;
@@ -115,16 +115,40 @@ function checkIfError(message: Message): boolean {
 }
 
 function formatResultMessage(
-  message: Message,
+  message: UIMessage,
   isError: boolean
 ): { icon: string; details: string } {
   const cost = message.metadata?.cost;
   const duration = message.metadata?.duration;
+  const originalSDKMessage = message.metadata?.originalSDKMessage as any;
 
   let details = isError ? "Failed" : "Completed";
 
   if (cost) {
     details += ` • $${cost.toFixed(5)}`;
+  }
+
+  // Calculate and display context usage if modelUsage exists
+  if (
+    originalSDKMessage?.modelUsage &&
+    message.model &&
+    originalSDKMessage.modelUsage[message.model]
+  ) {
+    const modelData = originalSDKMessage.modelUsage[message.model];
+    const usage = originalSDKMessage.usage;
+
+    if (usage && modelData.contextWindow) {
+      // Calculate total context tokens used
+      const contextTokens =
+        (usage.input_tokens || 0) +
+        (usage.cache_read_input_tokens || 0) +
+        (usage.cache_creation_input_tokens || 0);
+
+      if (contextTokens > 0) {
+        const percentage = ((contextTokens / modelData.contextWindow) * 100).toFixed(0);
+        details += ` • ${formatTokens(contextTokens)}/${formatTokens(modelData.contextWindow)} (${percentage}%)`;
+      }
+    }
   }
 
   if (duration) {
@@ -147,4 +171,16 @@ function formatDuration(ms: number): string {
     const seconds = ((ms % 60000) / 1000).toFixed(1);
     return `${minutes}m ${seconds}s`;
   }
+}
+
+function formatTokens(tokens: number): string {
+  if (tokens >= 1000) {
+    const k = tokens / 1000;
+    // Use one decimal place if less than 10k, otherwise round
+    if (k < 10) {
+      return `${k.toFixed(1)}k`;
+    }
+    return `${Math.round(k)}k`;
+  }
+  return `${tokens}`;
 }
