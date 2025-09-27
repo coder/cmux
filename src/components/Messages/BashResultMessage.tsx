@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import styled from "@emotion/styled";
 import { UIMessage } from "../../types/claude";
+import { TerminalOutput } from "./TerminalOutput";
 
 const ResultContainer = styled.div<{ isError?: boolean }>`
   margin: 8px 0;
@@ -35,22 +36,6 @@ const CommandIcon = styled.span`
 const CommandText = styled.span`
   font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
   color: #4ec9b0;
-`;
-
-const ResultOutput = styled.pre<{ isError?: boolean }>`
-  margin: 0;
-  padding: 8px;
-  background: rgba(0, 0, 0, 0.3);
-  border-radius: 2px;
-  font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
-  font-size: 11px;
-  line-height: 1.4;
-  color: ${(props) => (props.isError ? "#f48771" : "#d4d4d4")};
-  overflow-x: auto;
-  max-height: 300px;
-  overflow-y: auto;
-  white-space: pre-wrap;
-  word-break: break-all;
 `;
 
 const JsonDetails = styled.pre`
@@ -93,7 +78,7 @@ export const BashResultMessage: React.FC<BashResultMessageProps> = ({ message, c
           </CommandText>
         </CommandHeader>
 
-        <ResultOutput isError={isError}>{output}</ResultOutput>
+        <TerminalOutput output={output} isError={isError} />
 
         {showJson && (
           <JsonDetails>

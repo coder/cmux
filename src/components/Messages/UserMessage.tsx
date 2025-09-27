@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import styled from "@emotion/styled";
 import { UIMessage } from "../../types/claude";
 import { MessageWindow, ButtonConfig } from "./MessageWindow";
+import { TerminalOutput } from "./TerminalOutput";
 
 const FormattedContent = styled.pre`
   margin: 0;
@@ -27,6 +28,15 @@ export const UserMessage: React.FC<UserMessageProps> = ({ message, className }) 
       ? message.content
       : JSON.stringify(message.content, null, 2);
 
+  // Check if this is a local command output
+  const isLocalCommandOutput =
+    content.startsWith("<local-command-stdout>") && content.endsWith("</local-command-stdout>");
+
+  // Extract the actual output if it's a local command
+  const extractedOutput = isLocalCommandOutput
+    ? content.slice("<local-command-stdout>".length, -"</local-command-stdout>".length).trim()
+    : "";
+
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(content);
@@ -44,6 +54,22 @@ export const UserMessage: React.FC<UserMessageProps> = ({ message, className }) 
     },
   ];
 
+  // If it's a local command output, render with TerminalOutput
+  if (isLocalCommandOutput) {
+    return (
+      <MessageWindow
+        label="USER"
+        borderColor="var(--color-user-border)"
+        message={message}
+        buttons={buttons}
+        className={className}
+      >
+        <TerminalOutput output={extractedOutput} isError={false} />
+      </MessageWindow>
+    );
+  }
+
+  // Otherwise, render as normal user message
   return (
     <MessageWindow
       label="USER"
