@@ -4,11 +4,11 @@
   "description": "Coding Agent Multiplexer",
   "main": "dist/main.js",
   "scripts": {
-    "dev": "concurrently -k \"npm run dev:main\" \"npm run dev:renderer\"",
+    "dev": "npm run build:main && concurrently -k \"npm run dev:main\" \"npm run dev:renderer\"",
     "dev:main": "tsc -w -p tsconfig.main.json",
     "dev:renderer": "vite",
     "build": "npm run build:renderer && npm run build:main",
-    "build:main": "tsc -p tsconfig.main.json",
+    "build:main": "tsc -p tsconfig.main.json && node scripts/inline-preload-constants.js",
     "build:renderer": "vite build",
     "start": "electron .",
     "typecheck": "tsc --noEmit",

@@ -4,6 +4,9 @@ import { load_config_or_default, save_config, Config } from "./config";
 import { createWorktree, removeWorktree } from "./git";
 import claudeService from "./services/claudeService";
 import { WorkspaceMetadata } from "./types/workspace";
+// @ts-ignore - Allow importing JS file
+import { IPC_CHANNELS, getOutputChannel, getClearChannel } from "./constants/ipc-constants.js";
+import type { UIPermissionMode } from "./types/global";
 
 console.log("Main process starting...");
 
@@ -31,14 +34,14 @@ if (!gotTheLock) {
 let mainWindow: BrowserWindow | null = null;
 
 // Register IPC handlers before creating window
-ipcMain.handle("config:load", async () => {
+ipcMain.handle(IPC_CHANNELS.CONFIG_LOAD, async () => {
   const config = load_config_or_default();
   return {
     projects: Array.from(config.projects.entries()),
   };
 });
 
-ipcMain.handle("config:save", async (event, configData: any) => {
+ipcMain.handle(IPC_CHANNELS.CONFIG_SAVE, async (event, configData: any) => {
   const config: Config = {
     projects: new Map(configData.projects),
   };
@@ -46,7 +49,7 @@ ipcMain.handle("config:save", async (event, configData: any) => {
   return true;
 });
 
-ipcMain.handle("dialog:selectDirectory", async () => {
+ipcMain.handle(IPC_CHANNELS.DIALOG_SELECT_DIR, async () => {
   if (!mainWindow) return null;
 
   const result = await dialog.showOpenDialog(mainWindow, {
@@ -60,24 +63,28 @@ ipcMain.handle("dialog:selectDirectory", async () => {
   return result.filePaths[0];
 });
 
-ipcMain.handle("git:createWorktree", async (event, projectPath: string, branchName: string) => {
-  const result = await createWorktree(projectPath, branchName);
+ipcMain.handle(
+  IPC_CHANNELS.GIT_CREATE_WORKTREE,
+  async (event, projectPath: string, branchName: string) => {
+    const result = await createWorktree(projectPath, branchName);
 
-  // If worktree creation was successful, initialize the workspace metadata
-  if (result.success && result.path) {
-    const projectName = projectPath.split("/").pop() || projectPath.split("\\").pop() || "unknown";
-    const workspaceId = `${projectName}-${branchName}`;
-    await claudeService.initializeWorkspace(workspaceId, projectName, branchName, result.path);
+    // If worktree creation was successful, initialize the workspace metadata
+    if (result.success && result.path) {
+      const projectName =
+        projectPath.split("/").pop() || projectPath.split("\\").pop() || "unknown";
+      const workspaceId = `${projectName}-${branchName}`;
+      await claudeService.initializeWorkspace(workspaceId, projectName, branchName, result.path);
+    }
+
+    return result;
   }
+);
 
-  return result;
-});
-
-ipcMain.handle("git:removeWorktree", async (event, workspacePath: string) => {
+ipcMain.handle(IPC_CHANNELS.GIT_REMOVE_WORKTREE, async (event, workspacePath: string) => {
   return await removeWorktree(workspacePath);
 });
 
-ipcMain.handle("claude:removeWorkspace", async (event, workspaceId: string) => {
+ipcMain.handle(IPC_CHANNELS.CLAUDE_REMOVE_WORKSPACE, async (event, workspaceId: string) => {
   return await claudeService.removeWorkspace(workspaceId);
 });
 
@@ -85,34 +92,40 @@ ipcMain.handle("claude:removeWorkspace", async (event, workspaceId: string) => {
 // Note: Workspaces are now started automatically on demand when sending messages
 // No need for explicit start or isActive handlers
 
-ipcMain.handle("claude:list", async () => {
+ipcMain.handle(IPC_CHANNELS.CLAUDE_LIST, async () => {
   return claudeService.list();
 });
 
-ipcMain.handle("claude:getWorkspaceInfo", async (event, workspaceId: string) => {
+ipcMain.handle(IPC_CHANNELS.CLAUDE_GET_WORKSPACE_INFO, async (event, workspaceId: string) => {
   return await claudeService.getWorkspaceInfoById(workspaceId);
 });
 
 ipcMain.handle(
-  "claude:setPermissionMode",
-  async (event, workspaceId: string, permissionMode: import("./types/global").UIPermissionMode) => {
+  IPC_CHANNELS.CLAUDE_SET_PERMISSION,
+  async (event, workspaceId: string, permissionMode: UIPermissionMode) => {
     return await claudeService.setPermissionModeById(workspaceId, permissionMode);
   }
 );
 
-ipcMain.handle("claude:sendMessage", async (event, workspaceId: string, message: string) => {
-  return await claudeService.sendMessageById(workspaceId, message);
-});
+ipcMain.handle(
+  IPC_CHANNELS.CLAUDE_SEND_MESSAGE,
+  async (event, workspaceId: string, message: string) => {
+    return await claudeService.sendMessageById(workspaceId, message);
+  }
+);
 
-ipcMain.handle("claude:handleSlashCommand", async (event, workspaceId: string, command: string) => {
-  return await claudeService.handleSlashCommandById(workspaceId, command);
-});
+ipcMain.handle(
+  IPC_CHANNELS.CLAUDE_HANDLE_SLASH,
+  async (event, workspaceId: string, command: string) => {
+    return await claudeService.handleSlashCommandById(workspaceId, command);
+  }
+);
 
-ipcMain.handle("claude:streamHistory", async (event, workspaceId: string) => {
+ipcMain.handle(IPC_CHANNELS.CLAUDE_STREAM_HISTORY, async (event, workspaceId: string) => {
   return await claudeService.streamWorkspaceHistoryById(workspaceId);
 });
 
-ipcMain.handle("claude:streamWorkspaceMeta", async () => {
+ipcMain.handle(IPC_CHANNELS.CLAUDE_STREAM_META, async () => {
   return await claudeService.streamAllWorkspaceMetadata();
 });
 
@@ -121,21 +134,21 @@ ipcMain.handle("claude:streamWorkspaceMeta", async () => {
 // to emit a generic 'workspace-output' event with the workspace ID
 claudeService.on("workspace-output", (workspaceId: string, data: any) => {
   if (mainWindow) {
-    mainWindow.webContents.send(`claude:output:${workspaceId}`, data);
+    mainWindow.webContents.send(getOutputChannel(workspaceId), data);
   }
 });
 
 // Listen for workspace-specific clear events and forward to renderer
 claudeService.on("workspace-clear", (workspaceId: string, data: any) => {
   if (mainWindow) {
-    mainWindow.webContents.send(`claude:clear:${workspaceId}`, data);
+    mainWindow.webContents.send(getClearChannel(workspaceId), data);
   }
 });
 
 // Listen for workspace metadata updates and forward to renderer
 claudeService.on("workspace-metadata", (workspaceId: string, metadata: WorkspaceMetadata) => {
   if (mainWindow) {
-    mainWindow.webContents.send("claude:metadata", { workspaceId, metadata });
+    mainWindow.webContents.send(IPC_CHANNELS.CLAUDE_METADATA, { workspaceId, metadata });
   }
 });
 
