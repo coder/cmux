@@ -1,6 +1,12 @@
 import { app, BrowserWindow, ipcMain, dialog, Menu, MenuItemConstructorOptions } from "electron";
 import * as path from "path";
-import { load_config_or_default, save_config, Config, ProjectConfig } from "./config";
+import {
+  load_config_or_default,
+  save_config,
+  Config,
+  ProjectConfig,
+  getAllWorkspaceMetadata,
+} from "./config";
 import { createWorktree, removeWorktree } from "./git";
 import { AIService } from "./services/aiService";
 import { createCmuxMessage } from "./types/message";
@@ -86,9 +92,16 @@ ipcMain.handle(
 
       // Initialize the workspace metadata
       // Initialize workspace metadata
-      await aiService.saveWorkspaceMetadata(workspaceId, {
+      const metadata = {
         id: workspaceId,
         projectName,
+      };
+      await aiService.saveWorkspaceMetadata(workspaceId, metadata);
+
+      // Emit metadata event for new workspace
+      mainWindow?.webContents.send(IPC_CHANNELS.WORKSPACE_METADATA, {
+        workspaceId,
+        metadata,
       });
 
       return { success: true, workspaceId, path: result.path };
@@ -144,6 +157,12 @@ ipcMain.handle(IPC_CHANNELS.WORKSPACE_REMOVE, async (_event, workspaceId: string
       }
     }
 
+    // Emit metadata event for workspace removal (with null metadata to indicate deletion)
+    mainWindow?.webContents.send(IPC_CHANNELS.WORKSPACE_METADATA, {
+      workspaceId,
+      metadata: null, // null indicates workspace was deleted
+    });
+
     return { success: true };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -156,8 +175,13 @@ ipcMain.handle(IPC_CHANNELS.WORKSPACE_REMOVE, async (_event, workspaceId: string
 // No need for explicit start or isActive handlers
 
 ipcMain.handle(IPC_CHANNELS.WORKSPACE_LIST, async () => {
-  // For now, return empty list - would need to scan all workspace directories
-  return [];
+  try {
+    const workspaceData = await getAllWorkspaceMetadata();
+    return workspaceData.map(({ metadata }) => metadata);
+  } catch (error) {
+    console.error("Failed to list workspaces:", error);
+    return [];
+  }
 });
 
 ipcMain.handle(IPC_CHANNELS.WORKSPACE_GET_INFO, async (_event, workspaceId: string) => {
@@ -165,32 +189,77 @@ ipcMain.handle(IPC_CHANNELS.WORKSPACE_GET_INFO, async (_event, workspaceId: stri
   return result.success ? result.data : null;
 });
 
-ipcMain.handle(IPC_CHANNELS.WORKSPACE_SEND_MESSAGE, async () => {
-  // For simple implementation, just echo back success
-  return { success: true };
-});
+ipcMain.handle(
+  IPC_CHANNELS.WORKSPACE_SEND_MESSAGE,
+  async (_event, workspaceId: string, message: string) => {
+    try {
+      // Create user message
+      const messageId = `user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const userMessage = createCmuxMessage(messageId, "user", message, {
+        sequenceNumber: 0, // Will be properly set by aiService
+        timestamp: Date.now(),
+      });
+
+      // Append user message to history
+      const appendResult = await aiService.appendToHistory(workspaceId, userMessage);
+      if (!appendResult.success) {
+        return appendResult; // Return the error
+      }
+
+      // Get full conversation history
+      const historyResult = await aiService.getHistory(workspaceId);
+      if (!historyResult.success) {
+        return historyResult; // Return the error
+      }
+
+      // Stream the AI response
+      const streamResult = await aiService.streamMessage(historyResult.data, workspaceId);
+      return streamResult;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return { success: false, error: `Failed to send message: ${errorMessage}` };
+    }
+  }
+);
 
 ipcMain.handle(IPC_CHANNELS.WORKSPACE_CLEAR_HISTORY, async (_event, workspaceId: string) => {
   return await aiService.clearHistory(workspaceId);
 });
 
-ipcMain.handle(IPC_CHANNELS.WORKSPACE_STREAM_HISTORY, async (_event, workspaceId: string) => {
-  // Stream history to renderer
-  const history = await aiService.getHistory(workspaceId);
-  if (history.success) {
-    history.data.forEach((msg) => {
-      const channel = getOutputChannel(workspaceId);
-      // Send the CmuxMessage directly
-      mainWindow?.webContents.send(channel, msg);
-    });
-  }
-  // Send caught-up message with proper type
-  mainWindow?.webContents.send(getOutputChannel(workspaceId), { type: "caught-up" });
-});
+// Handle subscription events for chat history
+ipcMain.on(
+  `${IPC_CHANNELS.WORKSPACE_OUTPUT_PREFIX}:subscribe`,
+  async (_event, workspaceId: string) => {
+    const outputChannel = getOutputChannel(workspaceId);
 
-ipcMain.handle(IPC_CHANNELS.WORKSPACE_STREAM_META, async () => {
-  // Stream metadata for all workspaces - simplified version
-  return;
+    // Emit current chat history immediately
+    const history = await aiService.getHistory(workspaceId);
+    if (history.success) {
+      history.data.forEach((msg) => {
+        mainWindow?.webContents.send(outputChannel, msg);
+      });
+    }
+
+    // Send caught-up signal
+    mainWindow?.webContents.send(outputChannel, { type: "caught-up" });
+  }
+);
+
+// Handle subscription events for metadata
+ipcMain.on(`${IPC_CHANNELS.WORKSPACE_METADATA}:subscribe`, async () => {
+  try {
+    const workspaceData = await getAllWorkspaceMetadata();
+
+    // Emit current metadata for each workspace
+    for (const { workspaceId, metadata } of workspaceData) {
+      mainWindow?.webContents.send(IPC_CHANNELS.WORKSPACE_METADATA, {
+        workspaceId,
+        metadata,
+      });
+    }
+  } catch (error) {
+    console.error("Failed to emit current metadata:", error);
+  }
 });
 
 // Set up event listeners for AI service
@@ -232,7 +301,20 @@ aiService.on("stream-end", (data: StreamEndEvent) => {
 
 aiService.on("error", (data: ErrorEvent) => {
   if (mainWindow) {
-    mainWindow.webContents.send(getOutputChannel(data.workspaceId), { error: data.error });
+    mainWindow.webContents.send(getOutputChannel(data.workspaceId), {
+      error: data.error,
+      errorType: data.errorType || "unknown",
+    });
+  }
+});
+
+// Handle stream abort events
+aiService.on("stream-abort", (data: { type: string; workspaceId: string }) => {
+  if (mainWindow) {
+    mainWindow.webContents.send(getOutputChannel(data.workspaceId), {
+      type: "stream-abort",
+      workspaceId: data.workspaceId,
+    });
   }
 });
 

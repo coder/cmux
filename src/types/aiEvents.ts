@@ -29,6 +29,7 @@ export interface ErrorEvent {
   type: "error";
   workspaceId: string;
   error: string;
+  errorType?: string;
 }
 
 export type AIServiceEvent = StreamStartEvent | StreamDeltaEvent | StreamEndEvent | ErrorEvent;

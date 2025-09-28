@@ -1,6 +1,8 @@
 import * as fs from "fs";
+import * as fsPromises from "fs/promises";
 import * as path from "path";
 import * as os from "os";
+import type { WorkspaceMetadata } from "./types/workspace";
 
 const CONFIG_DIR = path.join(os.homedir(), ".cmux");
 const CONFIG_FILE = path.join(CONFIG_DIR, "config.json");
@@ -90,4 +92,44 @@ export function findWorkspacePath(projectName: string, branch: string): string |
   }
 
   return null;
+}
+
+/**
+ * Get the session directory for a specific workspace
+ */
+export function getSessionDir(workspaceId: string): string {
+  return path.join(SESSIONS_DIR, workspaceId);
+}
+
+/**
+ * Get all workspace metadata by scanning sessions directory and loading metadata files
+ * This centralizes the logic for workspace discovery and metadata loading
+ */
+export async function getAllWorkspaceMetadata(): Promise<
+  Array<{ workspaceId: string; metadata: WorkspaceMetadata }>
+> {
+  try {
+    // Scan sessions directory for workspace directories
+    await fsPromises.access(SESSIONS_DIR);
+    const entries = await fsPromises.readdir(SESSIONS_DIR, { withFileTypes: true });
+    const workspaceIds = entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name);
+
+    const workspaceMetadata: Array<{ workspaceId: string; metadata: WorkspaceMetadata }> = [];
+
+    for (const workspaceId of workspaceIds) {
+      try {
+        const metadataPath = path.join(getSessionDir(workspaceId), "metadata.json");
+        const data = await fsPromises.readFile(metadataPath, "utf-8");
+        const metadata = JSON.parse(data) as WorkspaceMetadata;
+        workspaceMetadata.push({ workspaceId, metadata });
+      } catch (error) {
+        // Skip workspaces with missing or invalid metadata
+        console.warn(`Failed to load metadata for workspace ${workspaceId}:`, error);
+      }
+    }
+
+    return workspaceMetadata;
+  } catch {
+    return []; // Sessions directory doesn't exist yet
+  }
 }

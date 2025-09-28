@@ -42,14 +42,15 @@ export interface IPCApi {
       branchName: string
     ): Promise<{ success: boolean; workspaceId?: string; path?: string; error?: string }>;
     remove(workspaceId: string): Promise<{ success: boolean; error?: string }>;
-    streamMeta(): Promise<void>;
     sendMessage(workspaceId: string, message: string): Promise<Result<void, string>>;
     clearHistory(workspaceId: string): Promise<Result<void, string>>;
-    streamHistory(workspaceId: string): Promise<void>;
     getInfo(workspaceId: string): Promise<WorkspaceMetadata | null>;
 
     // Event subscriptions (renderer-only)
-    onOutput(workspaceId: string, callback: (data: WorkspaceOutputMessage) => void): () => void;
+    onChatHistory(
+      workspaceId: string,
+      callback: (data: WorkspaceOutputMessage) => void
+    ): () => void;
     onClear(workspaceId: string, callback: (data: unknown) => void): () => void;
     onMetadata(
       callback: (data: { workspaceId: string; metadata: WorkspaceMetadata }) => void

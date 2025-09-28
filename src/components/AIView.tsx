@@ -236,16 +236,9 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
     // Show loading state until caught up
     setLoading(true);
 
-    // Request historical messages to be streamed
-    window.api.workspace.streamHistory(workspaceId).catch((error) => {
-      console.error("Failed to stream history:", error);
-      setLoading(false);
-    });
-
-    // Permission mode will be loaded from messages
-
-    // Subscribe to workspace-specific output channel
-    const unsubscribeOutput = window.api.workspace.onOutput(
+    // Subscribe to workspace-specific chat history channel
+    // This will automatically send historical messages then stream new ones
+    const unsubscribeOutput = window.api.workspace.onChatHistory(
       workspaceId,
       (data: WorkspaceOutputMessage) => {
         if (isCaughtUpMessage(data)) {

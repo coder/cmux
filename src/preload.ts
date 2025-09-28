@@ -18,20 +18,29 @@ const api: IPCApi = {
     create: (projectPath, branchName) =>
       ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_CREATE, projectPath, branchName),
     remove: (workspaceId: string) => ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, workspaceId),
-    streamMeta: () => ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_STREAM_META),
     sendMessage: (workspaceId, message) =>
       ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_SEND_MESSAGE, workspaceId, message),
     clearHistory: (workspaceId) =>
       ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_CLEAR_HISTORY, workspaceId),
-    streamHistory: (workspaceId) =>
-      ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_STREAM_HISTORY, workspaceId),
     getInfo: (workspaceId) => ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_GET_INFO, workspaceId),
 
-    onOutput: (workspaceId, callback) => {
+    onChatHistory: (workspaceId, callback) => {
       const channel = getOutputChannel(workspaceId);
-      const handler = (_event: unknown, data: WorkspaceOutputMessage) => callback(data);
+      const handler = (_event: unknown, data: WorkspaceOutputMessage) => {
+        callback(data);
+      };
+
+      // Subscribe to the channel
       ipcRenderer.on(channel, handler);
-      return () => ipcRenderer.removeListener(channel, handler);
+
+      // Immediately request historical data by sending a signal to main process
+      // We'll use a special event to request history
+      ipcRenderer.send(`${channel}:subscribe`);
+
+      return () => {
+        ipcRenderer.removeListener(channel, handler);
+        ipcRenderer.send(`${channel}:unsubscribe`);
+      };
     },
     onClear: (workspaceId, callback) => {
       const channel = getClearChannel(workspaceId);
@@ -46,8 +55,17 @@ const api: IPCApi = {
         _event: unknown,
         data: { workspaceId: string; metadata: WorkspaceMetadata }
       ) => callback(data);
+
+      // Subscribe to metadata events
       ipcRenderer.on(IPC_CHANNELS.WORKSPACE_METADATA, handler);
-      return () => ipcRenderer.removeListener(IPC_CHANNELS.WORKSPACE_METADATA, handler);
+
+      // Request current metadata state
+      ipcRenderer.send(`${IPC_CHANNELS.WORKSPACE_METADATA}:subscribe`);
+
+      return () => {
+        ipcRenderer.removeListener(IPC_CHANNELS.WORKSPACE_METADATA, handler);
+        ipcRenderer.send(`${IPC_CHANNELS.WORKSPACE_METADATA}:unsubscribe`);
+      };
     },
   },
 };

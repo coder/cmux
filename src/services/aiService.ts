@@ -1,12 +1,13 @@
 import * as fs from "fs/promises";
 import * as path from "path";
-import * as os from "os";
 import { EventEmitter } from "events";
-import { anthropic } from "@ai-sdk/anthropic";
-import { streamText, convertToModelMessages } from "ai";
+import { convertToModelMessages } from "ai";
 import { Result, Ok, Err } from "../types/result";
 import { WorkspaceMetadata } from "../types/workspace";
 import { CmuxMessage, createCmuxMessage } from "../types/message";
+import { SESSIONS_DIR, getSessionDir } from "../config";
+import { StreamManager } from "./streamManager";
+import type { StreamEndEvent } from "../types/aiEvents";
 
 // Pipe-safe console.error wrapper
 function safeLogError(...args: unknown[]): void {
@@ -32,36 +33,41 @@ function safeLogError(...args: unknown[]): void {
 }
 
 export class AIService extends EventEmitter {
-  private sessionsDir: string;
   private readonly CHAT_FILE = "chat.jsonl";
   private readonly METADATA_FILE = "metadata.json";
-  private model = anthropic("claude-opus-4-1");
-  private activeStreams = new Map<string, Awaited<ReturnType<typeof streamText>>>();
+  private streamManager = new StreamManager();
 
   constructor() {
     super();
-    this.sessionsDir = path.join(os.homedir(), ".cmux", "sessions");
     this.ensureSessionsDir();
+    this.setupStreamEventForwarding();
+  }
+
+  /**
+   * Forward all stream events from StreamManager to AIService consumers
+   */
+  private setupStreamEventForwarding(): void {
+    this.streamManager.on("stream-start", (data) => this.emit("stream-start", data));
+    this.streamManager.on("stream-delta", (data) => this.emit("stream-delta", data));
+    this.streamManager.on("stream-end", (data) => this.emit("stream-end", data));
+    this.streamManager.on("stream-abort", (data) => this.emit("stream-abort", data));
+    this.streamManager.on("error", (data) => this.emit("error", data));
   }
 
   private async ensureSessionsDir(): Promise<void> {
     try {
-      await fs.mkdir(this.sessionsDir, { recursive: true });
+      await fs.mkdir(SESSIONS_DIR, { recursive: true });
     } catch (error) {
       safeLogError("Failed to create sessions directory:", error);
     }
   }
 
-  private getWorkspaceDir(workspaceId: string): string {
-    return path.join(this.sessionsDir, workspaceId);
-  }
-
   private getChatHistoryPath(workspaceId: string): string {
-    return path.join(this.getWorkspaceDir(workspaceId), this.CHAT_FILE);
+    return path.join(getSessionDir(workspaceId), this.CHAT_FILE);
   }
 
   private getMetadataPath(workspaceId: string): string {
-    return path.join(this.getWorkspaceDir(workspaceId), this.METADATA_FILE);
+    return path.join(getSessionDir(workspaceId), this.METADATA_FILE);
   }
 
   async getWorkspaceMetadata(workspaceId: string): Promise<Result<WorkspaceMetadata>> {
@@ -89,7 +95,7 @@ export class AIService extends EventEmitter {
     metadata: WorkspaceMetadata
   ): Promise<Result<void>> {
     try {
-      const workspaceDir = this.getWorkspaceDir(workspaceId);
+      const workspaceDir = getSessionDir(workspaceId);
       await fs.mkdir(workspaceDir, { recursive: true });
       const metadataPath = this.getMetadataPath(workspaceId);
       await fs.writeFile(metadataPath, JSON.stringify(metadata, null, 2));
@@ -120,7 +126,7 @@ export class AIService extends EventEmitter {
 
   async appendToHistory(workspaceId: string, message: CmuxMessage): Promise<Result<void>> {
     try {
-      const workspaceDir = this.getWorkspaceDir(workspaceId);
+      const workspaceDir = getSessionDir(workspaceId);
       await fs.mkdir(workspaceDir, { recursive: true });
       const historyPath = this.getChatHistoryPath(workspaceId);
 
@@ -168,129 +174,64 @@ export class AIService extends EventEmitter {
       // Convert CmuxMessage to ModelMessage format using Vercel AI SDK utility
       const modelMessages = convertToModelMessages(messages);
 
-      // Start streaming
-      const result = streamText({
-        model: this.model,
-        messages: modelMessages,
-        abortSignal,
-      });
-
-      // Store the stream for this workspace
-      this.activeStreams.set(workspaceId, result);
-
-      // Create message ID for the assistant response
-      const messageId = `assistant-${Date.now()}`;
-
-      // Emit stream start event
-      this.emit("stream-start", {
-        type: "stream-start",
+      // Delegate to StreamManager (handles all safety and lifecycle)
+      const streamResult = await this.streamManager.startStream(
         workspaceId,
-        messageId,
-      });
+        modelMessages,
+        abortSignal
+      );
 
-      // Stream the text
-      let fullContent = "";
-      for await (const chunk of result.textStream) {
-        fullContent += chunk;
-        this.emit("stream-delta", {
-          type: "stream-delta",
-          workspaceId,
-          messageId,
-          delta: chunk,
-        });
+      if (!streamResult.success) {
+        return streamResult;
       }
 
-      // Get usage information
-      const usage = await result.usage;
+      // Listen for stream-end events to save messages to history
+      this.streamManager.once("stream-end", async (data: StreamEndEvent) => {
+        if (data.workspaceId === workspaceId) {
+          const assistantMessage = createCmuxMessage(
+            data.messageId,
+            "assistant",
+            data.content || "",
+            {
+              sequenceNumber: messages.length,
+              tokens: data.usage?.totalTokens,
+              timestamp: Date.now(),
+            }
+          );
 
-      // Emit stream end event
-      this.emit("stream-end", {
-        type: "stream-end",
-        workspaceId,
-        messageId,
-        content: fullContent,
-        usage,
+          await this.appendToHistory(workspaceId, assistantMessage);
+        }
       });
-
-      // Save the complete message to history
-      const assistantMessage = createCmuxMessage(messageId, "assistant", fullContent, {
-        sequenceNumber: messages.length,
-        tokens: usage?.totalTokens,
-        timestamp: Date.now(),
-      });
-
-      await this.appendToHistory(workspaceId, assistantMessage);
-
-      // Clean up stream
-      this.activeStreams.delete(workspaceId);
 
       return Ok(undefined);
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
       safeLogError("Stream message error:", error);
-
-      // Clean up stream on error
-      this.activeStreams.delete(workspaceId);
-
-      // Categorize error types for better handling
-      let errorType = "unknown";
-      let errorMessage = "Unknown error occurred";
-
-      if (error instanceof Error) {
-        errorMessage = error.message;
-
-        // Categorize common error types
-        if (error.name === "AbortError" || errorMessage.includes("abort")) {
-          errorType = "aborted";
-          errorMessage = "Stream was aborted";
-        } else if (errorMessage.includes("network") || errorMessage.includes("fetch")) {
-          errorType = "network";
-          errorMessage = "Network error while streaming";
-        } else if (errorMessage.includes("token") || errorMessage.includes("limit")) {
-          errorType = "quota";
-          errorMessage = "Token limit or quota exceeded";
-        } else if (errorMessage.includes("auth") || errorMessage.includes("key")) {
-          errorType = "authentication";
-          errorMessage = "Authentication failed";
-        } else {
-          errorType = "api";
-        }
-      }
-
-      this.emit("error", {
-        type: "error",
-        workspaceId,
-        error: errorMessage,
-        errorType,
-      });
-
       return Err(`Failed to stream message: ${errorMessage}`);
     }
   }
 
   async stopStream(workspaceId: string): Promise<Result<void>> {
-    try {
-      const stream = this.activeStreams.get(workspaceId);
-      if (stream) {
-        // The stream will be aborted via the AbortSignal passed to streamText
-        // We just need to clean up our reference
-        this.activeStreams.delete(workspaceId);
+    return this.streamManager.stopStream(workspaceId);
+  }
 
-        // Emit an abort event for consistency
-        this.emit("stream-abort", {
-          type: "stream-abort",
-          workspaceId,
-        });
-      }
-      return Ok(undefined);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      return Err(`Failed to stop stream: ${message}`);
-    }
+  /**
+   * Check if a workspace is currently streaming
+   */
+  isStreaming(workspaceId: string): boolean {
+    return this.streamManager.isStreaming(workspaceId);
+  }
+
+  /**
+   * Get the current stream state for a workspace
+   */
+  getStreamState(workspaceId: string): string {
+    return this.streamManager.getStreamState(workspaceId);
   }
 
   async deleteWorkspace(workspaceId: string): Promise<Result<void>> {
     try {
-      const workspaceDir = this.getWorkspaceDir(workspaceId);
+      const workspaceDir = getSessionDir(workspaceId);
       await fs.rm(workspaceDir, { recursive: true, force: true });
       return Ok(undefined);
     } catch (error) {
