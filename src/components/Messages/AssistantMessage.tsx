@@ -1,10 +1,9 @@
 import React, { useState } from "react";
 import styled from "@emotion/styled";
-import { UIMessage } from "../../types/claude";
+import { CmuxMessage } from "../../types/message";
+import { extractTextContent } from "../../utils/messageUtils";
 import { MarkdownRenderer } from "./MarkdownRenderer";
 import { MessageWindow, ButtonConfig } from "./MessageWindow";
-import { getModeConfig } from "../../constants/permissionModes";
-import { formatAssistantLabel } from "./assistantHelpers";
 
 const RawContent = styled.pre`
   font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
@@ -20,7 +19,7 @@ const RawContent = styled.pre`
 `;
 
 interface AssistantMessageProps {
-  message: UIMessage;
+  message: CmuxMessage;
   className?: string;
 }
 
@@ -28,11 +27,7 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({ message, cla
   const [showRaw, setShowRaw] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const content = extractContent(message);
-
-  // Get permission mode from message metadata
-  const permissionMode = message.metadata.cmuxMeta.permissionMode;
-  const modeConfig = getModeConfig(permissionMode);
+  const content = extractTextContent(message);
 
   const handleCopy = async () => {
     try {
@@ -58,8 +53,8 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({ message, cla
 
   return (
     <MessageWindow
-      label={formatAssistantLabel(message.model)}
-      borderColor={modeConfig.borderColor}
+      label="ASSISTANT"
+      borderColor="var(--color-assistant-border)"
       message={message}
       buttons={buttons}
       className={className}
@@ -68,28 +63,3 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({ message, cla
     </MessageWindow>
   );
 };
-
-function extractContent(message: UIMessage): string {
-  if (typeof message.content === "string") {
-    return message.content;
-  }
-
-  if (Array.isArray(message.content)) {
-    // Handle array of content blocks
-    return message.content
-      .map((block: any) => {
-        if (typeof block === "string") {
-          return block;
-        } else if (block.text) {
-          return block.text;
-        } else if (block.type === "text" && block.content) {
-          return block.content;
-        }
-        return "";
-      })
-      .filter(Boolean)
-      .join("");
-  }
-
-  return JSON.stringify(message.content, null, 2);
-}

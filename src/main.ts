@@ -1,12 +1,18 @@
-import { app, BrowserWindow, ipcMain, dialog, Menu } from "electron";
+import { app, BrowserWindow, ipcMain, dialog, Menu, MenuItemConstructorOptions } from "electron";
 import * as path from "path";
-import { load_config_or_default, save_config, Config } from "./config";
+import { load_config_or_default, save_config, Config, ProjectConfig } from "./config";
 import { createWorktree, removeWorktree } from "./git";
-import claudeService from "./services/claudeService";
-import { WorkspaceMetadata } from "./types/workspace";
-// @ts-ignore - Allow importing JS file
-import { IPC_CHANNELS, getOutputChannel, getClearChannel } from "./constants/ipc-constants.js";
-import type { UIPermissionMode } from "./types/global";
+import { AIService } from "./services/aiService";
+import { createCmuxMessage } from "./types/message";
+import type {
+  StreamStartEvent,
+  StreamDeltaEvent,
+  StreamEndEvent,
+  ErrorEvent,
+} from "./types/aiEvents";
+import { IPC_CHANNELS, getOutputChannel } from "./constants/ipc-constants.js";
+
+const aiService = new AIService();
 
 console.log("Main process starting...");
 
@@ -21,7 +27,7 @@ if (!gotTheLock) {
 } else {
   // This is the primary instance
   console.log("This is the primary instance");
-  app.on("second-instance", (event, commandLine, workingDirectory) => {
+  app.on("second-instance", () => {
     // Someone tried to run a second instance, focus our window instead
     console.log("Second instance attempted to start");
     if (mainWindow) {
@@ -41,13 +47,16 @@ ipcMain.handle(IPC_CHANNELS.CONFIG_LOAD, async () => {
   };
 });
 
-ipcMain.handle(IPC_CHANNELS.CONFIG_SAVE, async (event, configData: any) => {
-  const config: Config = {
-    projects: new Map(configData.projects),
-  };
-  save_config(config);
-  return true;
-});
+ipcMain.handle(
+  IPC_CHANNELS.CONFIG_SAVE,
+  async (_event, configData: { projects: Array<[string, ProjectConfig]> }) => {
+    const config: Config = {
+      projects: new Map(configData.projects),
+    };
+    save_config(config);
+    return true;
+  }
+);
 
 ipcMain.handle(IPC_CHANNELS.DIALOG_SELECT_DIR, async () => {
   if (!mainWindow) return null;
@@ -66,7 +75,7 @@ ipcMain.handle(IPC_CHANNELS.DIALOG_SELECT_DIR, async () => {
 // Workspace handlers
 ipcMain.handle(
   IPC_CHANNELS.WORKSPACE_CREATE,
-  async (event, projectPath: string, branchName: string) => {
+  async (_event, projectPath: string, branchName: string) => {
     // First create the git worktree
     const result = await createWorktree(projectPath, branchName);
 
@@ -76,7 +85,11 @@ ipcMain.handle(
       const workspaceId = `${projectName}-${branchName}`;
 
       // Initialize the workspace metadata
-      await claudeService.initializeWorkspace(workspaceId, projectName, branchName, result.path);
+      // Initialize workspace metadata
+      await aiService.saveWorkspaceMetadata(workspaceId, {
+        id: workspaceId,
+        projectName,
+      });
 
       return { success: true, workspaceId, path: result.path };
     }
@@ -85,22 +98,57 @@ ipcMain.handle(
   }
 );
 
-ipcMain.handle(IPC_CHANNELS.WORKSPACE_REMOVE, async (event, workspaceId: string) => {
-  // Get the full workspace metadata to find the path
-  const workspaces = await claudeService.list();
-  const workspace = workspaces.find((w) => w.id === workspaceId);
+ipcMain.handle(IPC_CHANNELS.WORKSPACE_REMOVE, async (_event, workspaceId: string) => {
+  try {
+    // Load current config
+    const config = load_config_or_default();
 
-  if (workspace && workspace.workspacePath) {
-    // Remove the git worktree
-    const gitResult = await removeWorktree(workspace.workspacePath);
-    if (!gitResult.success) {
-      return gitResult;
+    // Find workspace path from config
+    let workspacePath: string | null = null;
+    let foundProjectPath: string | null = null;
+
+    for (const [projectPath, projectConfig] of config.projects.entries()) {
+      const workspace = projectConfig.workspaces.find((w) => {
+        const projectName = path.basename(projectPath);
+        const wsId = `${projectName}-${w.branch}`;
+        return wsId === workspaceId;
+      });
+
+      if (workspace) {
+        workspacePath = workspace.path;
+        foundProjectPath = projectPath;
+        break;
+      }
     }
-  }
 
-  // Remove the workspace from Claude service
-  await claudeService.removeWorkspace(workspaceId);
-  return { success: true };
+    // Remove git worktree if we found the path
+    if (workspacePath) {
+      const gitResult = await removeWorktree(workspacePath, { force: false });
+      if (!gitResult.success) {
+        return gitResult;
+      }
+    }
+
+    // Remove the workspace from AI service
+    const aiResult = await aiService.deleteWorkspace(workspaceId);
+    if (!aiResult.success) {
+      return { success: false, error: aiResult.error };
+    }
+
+    // Update config to remove the workspace
+    if (foundProjectPath && workspacePath) {
+      const projectConfig = config.projects.get(foundProjectPath);
+      if (projectConfig) {
+        projectConfig.workspaces = projectConfig.workspaces.filter((w) => w.path !== workspacePath);
+        save_config(config);
+      }
+    }
+
+    return { success: true };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return { success: false, error: `Failed to remove workspace: ${message}` };
+  }
 });
 
 // Claude Code management handlers using SDK
@@ -108,67 +156,90 @@ ipcMain.handle(IPC_CHANNELS.WORKSPACE_REMOVE, async (event, workspaceId: string)
 // No need for explicit start or isActive handlers
 
 ipcMain.handle(IPC_CHANNELS.WORKSPACE_LIST, async () => {
-  return claudeService.list();
+  // For now, return empty list - would need to scan all workspace directories
+  return [];
 });
 
-ipcMain.handle(IPC_CHANNELS.WORKSPACE_GET_INFO, async (event, workspaceId: string) => {
-  return await claudeService.getWorkspaceInfoById(workspaceId);
+ipcMain.handle(IPC_CHANNELS.WORKSPACE_GET_INFO, async (_event, workspaceId: string) => {
+  const result = await aiService.getWorkspaceMetadata(workspaceId);
+  return result.success ? result.data : null;
 });
 
-ipcMain.handle(
-  IPC_CHANNELS.WORKSPACE_SET_PERMISSION,
-  async (event, workspaceId: string, permissionMode: UIPermissionMode) => {
-    return await claudeService.setPermissionModeById(workspaceId, permissionMode);
-  }
-);
+// Permission mode no longer supported - removed
 
-ipcMain.handle(
-  IPC_CHANNELS.WORKSPACE_SEND_MESSAGE,
-  async (event, workspaceId: string, message: string) => {
-    return await claudeService.sendMessageById(workspaceId, message);
-  }
-);
+ipcMain.handle(IPC_CHANNELS.WORKSPACE_SEND_MESSAGE, async () => {
+  // For simple implementation, just echo back success
+  return { success: true };
+});
 
-ipcMain.handle(
-  IPC_CHANNELS.WORKSPACE_HANDLE_SLASH,
-  async (event, workspaceId: string, command: string) => {
-    return await claudeService.handleSlashCommandById(workspaceId, command);
-  }
-);
+ipcMain.handle(IPC_CHANNELS.WORKSPACE_CLEAR_HISTORY, async (_event, workspaceId: string) => {
+  return await aiService.clearHistory(workspaceId);
+});
 
-ipcMain.handle(IPC_CHANNELS.WORKSPACE_STREAM_HISTORY, async (event, workspaceId: string) => {
-  return await claudeService.streamWorkspaceHistoryById(workspaceId);
+ipcMain.handle(IPC_CHANNELS.WORKSPACE_STREAM_HISTORY, async (_event, workspaceId: string) => {
+  // Stream history to renderer
+  const history = await aiService.getHistory(workspaceId);
+  if (history.success) {
+    history.data.forEach((msg) => {
+      const channel = getOutputChannel(workspaceId);
+      // Send the CmuxMessage directly
+      mainWindow?.webContents.send(channel, msg);
+    });
+  }
+  // Send caught-up message with proper type
+  mainWindow?.webContents.send(getOutputChannel(workspaceId), { type: "caught-up" });
 });
 
 ipcMain.handle(IPC_CHANNELS.WORKSPACE_STREAM_META, async () => {
-  return await claudeService.streamAllWorkspaceMetadata();
+  // Stream metadata for all workspaces - simplified version
+  return;
 });
 
-// Listen for workspace-specific output events and forward to renderer
-// The EventEmitter doesn't support wildcard listeners, so we'll modify claudeService
-// to emit a generic 'workspace-output' event with the workspace ID
-claudeService.on("workspace-output", (workspaceId: string, data: any) => {
+// Set up event listeners for AI service
+aiService.on("stream-start", (data: StreamStartEvent) => {
   if (mainWindow) {
-    mainWindow.webContents.send(getOutputChannel(workspaceId), data);
+    // Create a streaming CmuxMessage
+    const msg = createCmuxMessage(data.messageId, "assistant", "", {
+      streamingId: data.messageId,
+      sequenceNumber: 0,
+    });
+    // Update the message state to streaming
+    msg.parts[0] = { type: "text", text: "", state: "streaming" };
+    mainWindow.webContents.send(getOutputChannel(data.workspaceId), msg);
   }
 });
 
-// Listen for workspace-specific clear events and forward to renderer
-claudeService.on("workspace-clear", (workspaceId: string, data: any) => {
+aiService.on("stream-delta", (data: StreamDeltaEvent) => {
   if (mainWindow) {
-    mainWindow.webContents.send(getClearChannel(workspaceId), data);
+    // Send delta as a streaming CmuxMessage
+    const msg = createCmuxMessage(data.messageId, "assistant", data.delta || "", {
+      streamingId: data.messageId,
+      sequenceNumber: 0,
+    });
+    msg.parts[0] = { type: "text", text: data.delta || "", state: "streaming" };
+    mainWindow.webContents.send(getOutputChannel(data.workspaceId), msg);
   }
 });
 
-// Listen for workspace metadata updates and forward to renderer
-claudeService.on("workspace-metadata", (workspaceId: string, metadata: WorkspaceMetadata) => {
+aiService.on("stream-end", (data: StreamEndEvent) => {
   if (mainWindow) {
-    mainWindow.webContents.send(IPC_CHANNELS.WORKSPACE_METADATA, { workspaceId, metadata });
+    // Send final complete message
+    const msg = createCmuxMessage(data.messageId, "assistant", data.content || "", {
+      sequenceNumber: 0,
+      tokens: data.usage?.totalTokens,
+    });
+    mainWindow.webContents.send(getOutputChannel(data.workspaceId), msg);
+  }
+});
+
+aiService.on("error", (data: ErrorEvent) => {
+  if (mainWindow) {
+    mainWindow.webContents.send(getOutputChannel(data.workspaceId), { error: data.error });
   }
 });
 
 function createMenu() {
-  const template: any[] = [
+  const template: MenuItemConstructorOptions[] = [
     {
       label: "Edit",
       submenu: [

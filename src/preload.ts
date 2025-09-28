@@ -1,9 +1,8 @@
 import { contextBridge, ipcRenderer } from "electron";
-// Use require for the JS constants file (works in preload context)
-const { IPC_CHANNELS, getOutputChannel, getClearChannel } = require("./constants/ipc-constants.js");
-import type { IPCApi } from "./types/ipc";
-import type { UIPermissionMode } from "./types/global";
+import type { IPCApi, WorkspaceOutputMessage } from "./types/ipc";
 import type { WorkspaceMetadata } from "./types/workspace";
+// Import JS constants with proper typing
+import { IPC_CHANNELS, getOutputChannel, getClearChannel } from "./constants/ipc-constants.js";
 
 // Build the API implementation using the shared interface
 const api: IPCApi = {
@@ -18,34 +17,35 @@ const api: IPCApi = {
     list: () => ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_LIST),
     create: (projectPath, branchName) =>
       ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_CREATE, projectPath, branchName),
-    remove: (workspaceId) => ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, workspaceId),
+    remove: (workspaceId: string) => ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, workspaceId),
     streamMeta: () => ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_STREAM_META),
-    setPermission: (workspaceId: string, permissionMode: UIPermissionMode) =>
-      ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_SET_PERMISSION, workspaceId, permissionMode),
     sendMessage: (workspaceId, message) =>
       ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_SEND_MESSAGE, workspaceId, message),
-    handleSlash: (workspaceId, command) =>
-      ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_HANDLE_SLASH, workspaceId, command),
+    clearHistory: (workspaceId) =>
+      ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_CLEAR_HISTORY, workspaceId),
     streamHistory: (workspaceId) =>
       ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_STREAM_HISTORY, workspaceId),
     getInfo: (workspaceId) => ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_GET_INFO, workspaceId),
 
     onOutput: (workspaceId, callback) => {
       const channel = getOutputChannel(workspaceId);
-      const handler = (event: any, data: any) => callback(data);
+      const handler = (_event: unknown, data: WorkspaceOutputMessage) => callback(data);
       ipcRenderer.on(channel, handler);
       return () => ipcRenderer.removeListener(channel, handler);
     },
     onClear: (workspaceId, callback) => {
       const channel = getClearChannel(workspaceId);
-      const handler = (event: any, data: any) => callback(data);
+      const handler = (_event: unknown, data: unknown) => callback(data);
       ipcRenderer.on(channel, handler);
       return () => ipcRenderer.removeListener(channel, handler);
     },
     onMetadata: (
       callback: (data: { workspaceId: string; metadata: WorkspaceMetadata }) => void
     ) => {
-      const handler = (event: any, data: any) => callback(data);
+      const handler = (
+        _event: unknown,
+        data: { workspaceId: string; metadata: WorkspaceMetadata }
+      ) => callback(data);
       ipcRenderer.on(IPC_CHANNELS.WORKSPACE_METADATA, handler);
       return () => ipcRenderer.removeListener(IPC_CHANNELS.WORKSPACE_METADATA, handler);
     },

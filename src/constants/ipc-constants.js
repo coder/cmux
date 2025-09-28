@@ -18,9 +18,8 @@ const IPC_CHANNELS = {
   WORKSPACE_CREATE: "workspace:create",
   WORKSPACE_REMOVE: "workspace:remove",
   WORKSPACE_STREAM_META: "workspace:streamMeta",
-  WORKSPACE_SET_PERMISSION: "workspace:setPermission",
   WORKSPACE_SEND_MESSAGE: "workspace:sendMessage",
-  WORKSPACE_HANDLE_SLASH: "workspace:handleSlash",
+  WORKSPACE_CLEAR_HISTORY: "workspace:clearHistory",
   WORKSPACE_STREAM_HISTORY: "workspace:streamHistory",
   WORKSPACE_GET_INFO: "workspace:getInfo",
 

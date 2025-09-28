@@ -52,18 +52,23 @@ export async function createWorktree(
     }
 
     return { success: true, path: workspacePath };
-  } catch (error: any) {
-    return { success: false, error: error.message };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return { success: false, error: message };
   }
 }
 
-export async function removeWorktree(workspacePath: string): Promise<WorktreeResult> {
+export async function removeWorktree(
+  workspacePath: string,
+  options: { force: boolean } = { force: false }
+): Promise<WorktreeResult> {
   try {
     // Remove the worktree
-    await execAsync(`git worktree remove "${workspacePath}" --force`);
+    await execAsync(`git worktree remove "${workspacePath}" ${options.force ? "--force" : ""}`);
     return { success: true };
-  } catch (error: any) {
-    return { success: false, error: error.message };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return { success: false, error: message };
   }
 }
 

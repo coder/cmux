@@ -31,22 +31,24 @@ interface TypewriterMarkdownProps {
 }
 
 // Use React.memo to prevent unnecessary re-renders from parent
-export const TypewriterMarkdown = React.memo<TypewriterMarkdownProps>(
-  ({ deltas, isComplete, className }) => {
-    // Simply join all deltas - no artificial delays or character-by-character rendering
-    const content = deltas.join("");
+export const TypewriterMarkdown = React.memo<TypewriterMarkdownProps>(function TypewriterMarkdown({
+  deltas,
+  isComplete,
+  className,
+}) {
+  // Simply join all deltas - no artificial delays or character-by-character rendering
+  const content = deltas.join("");
 
-    // Memoize the normalized content to avoid recalculating on every render
-    const normalizedContent = useMemo(() => normalizeMarkdown(content), [content]);
+  // Memoize the normalized content to avoid recalculating on every render
+  const normalizedContent = useMemo(() => normalizeMarkdown(content), [content]);
 
-    // Show cursor only when streaming (not complete)
-    const showCursor = !isComplete && content.length > 0;
+  // Show cursor only when streaming (not complete)
+  const showCursor = !isComplete && content.length > 0;
 
-    return (
-      <MarkdownContainer className={className}>
-        <ReactMarkdown components={markdownComponents}>{normalizedContent}</ReactMarkdown>
-        <CursorSpan show={showCursor}>▊</CursorSpan>
-      </MarkdownContainer>
-    );
-  }
-);
+  return (
+    <MarkdownContainer className={className}>
+      <ReactMarkdown components={markdownComponents}>{normalizedContent}</ReactMarkdown>
+      <CursorSpan show={showCursor}>▊</CursorSpan>
+    </MarkdownContainer>
+  );
+});

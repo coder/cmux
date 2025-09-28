@@ -4,7 +4,7 @@ import { Global, css } from "@emotion/react";
 import { GlobalColors } from "./styles/colors";
 import ProjectSidebar, { ProjectConfig, WorkspaceSelection } from "./components/ProjectSidebar";
 import NewWorkspaceModal from "./components/NewWorkspaceModal";
-import { ClaudeView } from "./components/ClaudeView";
+import { AIView } from "./components/AIView";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 
 // Global Styles with nice fonts
@@ -206,23 +206,18 @@ function App() {
     }
   };
 
-  const handleRemoveWorkspace = async (workspaceId: string, workspacePath: string) => {
+  const handleRemoveWorkspace = async (workspaceId: string) => {
     const result = await window.api.workspace.remove(workspaceId);
     if (result.success) {
-      // Update the project config to remove the workspace
-      const newProjects = new Map(projects);
-      for (const [_, config] of newProjects.entries()) {
-        config.workspaces = config.workspaces.filter((w) => w.path !== workspacePath);
-      }
-      setProjects(newProjects);
+      // Reload config since backend has updated it
+      const config = await window.api.config.load();
+      const loadedProjects = new Map(config.projects);
+      setProjects(loadedProjects);
 
-      if (selectedWorkspace?.workspacePath === workspacePath) {
+      // Clear selected workspace if it was removed
+      if (selectedWorkspace?.workspaceId === workspaceId) {
         setSelectedWorkspace(null);
       }
-
-      await window.api.config.save({
-        projects: Array.from(newProjects.entries()),
-      });
     } else {
       console.error("Failed to remove workspace:", result.error);
     }
@@ -253,7 +248,7 @@ function App() {
               <ErrorBoundary
                 workspaceInfo={`${selectedWorkspace.projectName}/${selectedWorkspace.branch}`}
               >
-                <ClaudeView
+                <AIView
                   workspaceId={selectedWorkspace.workspaceId}
                   projectName={selectedWorkspace.projectName}
                   branch={selectedWorkspace.branch}
@@ -264,7 +259,7 @@ function App() {
                 <h2>Project: {selectedProject.split("/").pop()}</h2>
                 <ProjectFullPath>{selectedProject}</ProjectFullPath>
                 <p style={{ color: "#888", marginTop: "20px" }}>
-                  Select a workspace from the sidebar to view Claude Code output.
+                  Select a workspace from the sidebar to view AI output.
                 </p>
               </ProjectView>
             ) : (

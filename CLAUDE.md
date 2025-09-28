@@ -12,8 +12,11 @@
 - `src/preload.ts` - Preload script for IPC
 - `src/App.tsx` - Main React component
 - `src/config.ts` - Configuration management
+- `src/docs/vercel/**.mdx` - Vercel AI SDK documentation
+  - generate with `./scripts/update_vercel_docs.sh` if it doesn't exist
 - `~/.cmux/config.json` - User configuration file
-- `~/.cmux/<project_name>/<branch>` - Workspace directories for git worktrees
+- `~/.cmux/src/<project_name>/<branch>` - Workspace directories for git worktrees
+- `~/.cmux/sessions/<workspace_id>/chat.jsonl` - Session chat histories
 
 ## Key Features
 
@@ -32,14 +35,9 @@
 - `bun dev` - Start development server (Vite + TypeScript watcher)
 - `bun start` - Start Electron app
 - `bun build` - Build the application
-- `bun typecheck` - Run TypeScript type checking for renderer
-- `bun typecheck:main` - Run TypeScript type checking for main process
+- `bun lint` - Run ESLint & typecheck (also: `bun lint:fix`)
 - `bun fmt` - Format all source files with Prettier
 - `bun fmt:check` - Check if files are formatted correctly
-
-## Claude Code SDK
-
-- Use `./docs/sdk-typescript.md` for Claude Code SDK information and reference
 
 ## Refactoring
 
@@ -114,3 +112,8 @@
 - `bun debug ui-messages --workspace <workspace-name>` - Show UI messages for a workspace
 - `bun debug ui-messages --workspace <workspace-name> --drop <n>` - Show messages with last n dropped
 - Workspace names can be found in `~/.cmux/sessions/`
+
+## DRY
+
+Notice when you've made the same change many times, refactor to create a shared function
+or component, update all the duplicated code, and then continue on with the original work.

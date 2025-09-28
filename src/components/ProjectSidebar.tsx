@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import styled from "@emotion/styled";
 import { css } from "@emotion/react";
-import { WorkspaceMetadataUI } from "../types/workspace";
 
 // Styled Components
 const SidebarContainer = styled.div`
@@ -233,39 +232,6 @@ const StatusIndicator = styled.div<{ active?: boolean }>`
   flex-shrink: 0;
 `;
 
-const WorkspaceActions = styled.div`
-  display: flex;
-  gap: 4px;
-  margin-left: auto;
-  opacity: 0;
-  transition: opacity 0.2s;
-`;
-
-const ActionBtn = styled.button`
-  width: 20px;
-  height: 20px;
-  background: transparent;
-  color: #6e6e6e;
-  border: none;
-  border-radius: 3px;
-  cursor: pointer;
-  font-size: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.1);
-    color: #cccccc;
-  }
-
-  &.terminate:hover {
-    color: #ff5555;
-    background: rgba(255, 85, 85, 0.1);
-  }
-`;
-
 const WorkspaceItem = styled.div<{ selected?: boolean }>`
   padding: 6px 12px 6px 24px;
   cursor: pointer;
@@ -286,10 +252,6 @@ const WorkspaceItem = styled.div<{ selected?: boolean }>`
     background: #2a2a2b;
 
     button {
-      opacity: 1;
-    }
-
-    .workspace-actions {
       opacity: 1;
     }
   }
@@ -335,7 +297,7 @@ interface ProjectSidebarProps {
   onAddProject: () => void;
   onAddWorkspace: (projectPath: string) => void;
   onRemoveProject: (path: string) => void;
-  onRemoveWorkspace: (workspaceId: string, workspacePath: string) => void;
+  onRemoveWorkspace: (workspaceId: string) => void;
 }
 
 const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
@@ -350,9 +312,6 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
   onRemoveWorkspace,
 }) => {
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
-  const [workspaceMetadataMap, setWorkspaceMetadataMap] = useState<
-    Map<string, WorkspaceMetadataUI>
-  >(new Map());
 
   const getProjectName = (path: string) => {
     if (!path || typeof path !== "string") {
@@ -370,40 +329,6 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
     }
     setExpandedProjects(newExpanded);
   };
-
-  // Subscribe to workspace metadata stream
-  useEffect(() => {
-    // Initial load and stream setup
-    const setupStream = async () => {
-      // Request the metadata stream
-      await window.api.workspace.streamMeta();
-    };
-
-    // Subscribe to metadata updates
-    const unsubscribe = window.api.workspace.onMetadata((data) => {
-      const { workspaceId, metadata } = data;
-      // Strip sequence number to prevent unnecessary re-renders
-      const { nextSequenceNumber, ...metadataWithoutSeq } = metadata;
-      setWorkspaceMetadataMap((prev) => {
-        // Only update if actually changed
-        const existing = prev.get(workspaceId);
-        if (JSON.stringify(existing) !== JSON.stringify(metadataWithoutSeq)) {
-          const newMap = new Map(prev);
-          newMap.set(workspaceId, metadataWithoutSeq);
-          return newMap;
-        }
-        return prev; // No change, return same reference
-      });
-    });
-
-    setupStream();
-
-    return () => {
-      if (typeof unsubscribe === "function") {
-        unsubscribe();
-      }
-    };
-  }, []);
 
   return (
     <SidebarContainer>
@@ -455,8 +380,7 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                   {config.workspaces.map((workspace) => {
                     const projectName = getProjectName(projectPath);
                     const workspaceId = `${projectName}-${workspace.branch}`;
-                    const metadata = workspaceMetadataMap.get(workspaceId);
-                    const isActive = metadata?.isActive || false;
+                    const isActive = false; // Simplified - no active state tracking
 
                     return (
                       <WorkspaceItem
@@ -472,16 +396,13 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                           })
                         }
                       >
-                        <StatusIndicator
-                          active={isActive}
-                          title={isActive ? "Claude Code running" : "Claude Code not running"}
-                        />
+                        <StatusIndicator active={isActive} title="AI Assistant" />
                         <BranchIcon>⎇</BranchIcon>
                         <WorkspaceName>{workspace.branch}</WorkspaceName>
                         <WorkspaceRemoveBtn
                           onClick={(e) => {
                             e.stopPropagation();
-                            onRemoveWorkspace(workspaceId, workspace.path);
+                            onRemoveWorkspace(workspaceId);
                           }}
                           title="Remove workspace"
                         >

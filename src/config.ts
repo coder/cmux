@@ -24,11 +24,13 @@ export function load_config_or_default(): Config {
   try {
     if (fs.existsSync(CONFIG_FILE)) {
       const data = fs.readFileSync(CONFIG_FILE, "utf-8");
-      const parsed = JSON.parse(data);
+      const parsed = JSON.parse(data) as { projects?: unknown };
 
       // Config is stored as array of [path, config] pairs
       if (parsed.projects && Array.isArray(parsed.projects)) {
-        const projectsMap = new Map<string, ProjectConfig>(parsed.projects);
+        const projectsMap = new Map<string, ProjectConfig>(
+          parsed.projects as Array<[string, ProjectConfig]>
+        );
         return {
           projects: projectsMap,
         };

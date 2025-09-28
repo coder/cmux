@@ -1,9 +1,16 @@
-import React from "react";
+import React, { ReactNode } from "react";
+
+interface CodeProps {
+  node?: unknown;
+  inline?: boolean;
+  className?: string;
+  children?: ReactNode;
+}
 
 // Custom components for markdown rendering
 export const markdownComponents = {
   // Custom code block renderer
-  code: ({ node, inline, className, children, ...props }: any) => {
+  code: ({ inline, className, children, ...props }: CodeProps) => {
     const match = /language-(\w+)/.exec(className || "");
     const language = match ? match[1] : "";
 

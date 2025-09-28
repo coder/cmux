@@ -2,31 +2,10 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import styled from "@emotion/styled";
 import { MessageRenderer } from "./Messages/MessageRenderer";
 import { CommandSuggestions, COMMAND_SUGGESTION_KEYS } from "./CommandSuggestions";
-import { UIMessage } from "../types/claude";
+import { CmuxMessage } from "../types/message";
 import { StreamingMessageAggregator } from "../utils/StreamingMessageAggregator";
 import { DebugProvider, useDebugMode } from "../contexts/DebugContext";
-import { PermissionModeSlider } from "./PermissionModeSlider";
-
-// Type-safe mode display mappings
-const MODE_LABELS: Record<UIPermissionMode, string> = {
-  plan: "Plan",
-  edit: "Edit",
-  yolo: "YOLO",
-};
-
-const MODE_PLACEHOLDERS: Record<UIPermissionMode, string> = {
-  plan: "Plan Mode: Claude will plan but not execute actions (Enter to send)",
-  edit: "Edit Mode: Claude will auto-accept file edits (Enter to send)",
-  yolo: "YOLO Mode: Claude bypasses all permissions (Enter to send)",
-};
-
-const MODE_COLORS: Record<UIPermissionMode, string> = {
-  plan: "var(--color-plan-mode)",
-  edit: "var(--color-edit-mode)",
-  yolo: "var(--color-yolo-mode)",
-};
-import type { UIPermissionMode } from "../types/global";
-import { WorkspaceMetadataUI } from "../types/workspace";
+import { WorkspaceOutputMessage, isCaughtUpMessage } from "../types/ipc";
 
 // StreamingMessageAggregator is now imported from utils
 
@@ -56,16 +35,6 @@ const WorkspaceTitle = styled.div`
   display: flex;
   align-items: center;
   gap: 8px;
-`;
-
-const PermissionModeBadge = styled.span<{ mode: UIPermissionMode }>`
-  background: ${(props) => MODE_COLORS[props.mode]};
-  color: white;
-  padding: 2px 6px;
-  border-radius: 3px;
-  font-size: 10px;
-  font-weight: 500;
-  text-transform: uppercase;
 `;
 
 const OutputContent = styled.div`
@@ -186,30 +155,22 @@ const EmptyState = styled.div`
   }
 `;
 
-interface ClaudeViewProps {
+interface AIViewProps {
   workspaceId: string;
   projectName: string;
   branch: string;
   className?: string;
 }
 
-const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
-  workspaceId,
-  projectName,
-  branch,
-  className,
-}) => {
-  const [uiMessageMap, setUIMessageMap] = useState<Map<string, UIMessage>>(new Map());
+const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, className }) => {
+  const [uiMessageMap, setUIMessageMap] = useState<Map<string, CmuxMessage>>(new Map());
   // Workspaces are always active - no need to track status
   const [input, setInput] = useState("");
   const [isSending, setIsSending] = useState(false);
-  const [isCompacting, setIsCompacting] = useState(false);
-  const [availableCommands, setAvailableCommands] = useState<string[]>([]);
+  const [isCompacting] = useState(false);
+  const [availableCommands] = useState<string[]>([]);
   const [showCommandSuggestions, setShowCommandSuggestions] = useState(false);
   const { debugMode, setDebugMode } = useDebugMode(); // Use context instead of local state
-  const [workspaceMetadata, setWorkspaceMetadata] = useState<WorkspaceMetadataUI | null>(null);
-  // Permission mode comes from metadata stream
-  const currentPermissionMode = workspaceMetadata?.permissionMode ?? "plan";
   const [autoScroll, setAutoScroll] = useState(true);
   const contentRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -236,14 +197,12 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
     });
   }, []); // No deps - ref ensures we always check current value
 
-  // Process SDK message and trigger UI update
-  const processSDKMessage = useCallback(
-    (sdkMessage: any) => {
-      aggregatorRef.current.processSDKMessage(sdkMessage);
+  // Process message and trigger UI update
+  const processMessage = useCallback(
+    (message: CmuxMessage) => {
+      aggregatorRef.current.addMessage(message);
       // Force re-render by setting messages directly from aggregator
       setUIMessageMap(new Map(aggregatorRef.current.getAllMessages().map((msg) => [msg.id, msg])));
-      // Update available commands from aggregator
-      setAvailableCommands(aggregatorRef.current.getAvailableCommands());
       // Auto-scroll if enabled
       performAutoScroll();
     },
@@ -256,45 +215,11 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
   const messages = useMemo(() => {
     return Array.from(uiMessageMap.values()).sort((a, b) => {
       // Handle missing cmuxMeta gracefully for backward compatibility
-      const aSeq = a.metadata?.cmuxMeta?.sequenceNumber ?? 0;
-      const bSeq = b.metadata?.cmuxMeta?.sequenceNumber ?? 0;
+      const aSeq = a.metadata?.sequenceNumber ?? 0;
+      const bSeq = b.metadata?.sequenceNumber ?? 0;
       return aSeq - bSeq;
     });
   }, [uiMessageMap]);
-
-  // Subscribe to metadata stream for this workspace
-  useEffect(() => {
-    if (!workspaceId) return;
-
-    // Request metadata stream
-    const setupStream = async () => {
-      await window.api.workspace.streamMeta();
-    };
-
-    // Subscribe to metadata updates
-    const unsubscribe = window.api.workspace.onMetadata((data) => {
-      const { workspaceId: metaWorkspaceId, metadata } = data;
-      if (metaWorkspaceId === workspaceId) {
-        // Strip sequence number to prevent unnecessary re-renders
-        const { nextSequenceNumber, ...metadataWithoutSeq } = metadata;
-        setWorkspaceMetadata((prev) => {
-          // Only update if actually changed
-          if (JSON.stringify(prev) !== JSON.stringify(metadataWithoutSeq)) {
-            return metadataWithoutSeq;
-          }
-          return prev;
-        });
-      }
-    });
-
-    setupStream();
-
-    return () => {
-      if (typeof unsubscribe === "function") {
-        unsubscribe();
-      }
-    };
-  }, [workspaceId]);
 
   useEffect(() => {
     if (!projectName || !branch || !workspaceId) return;
@@ -320,29 +245,30 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
     // Permission mode will be loaded from messages
 
     // Subscribe to workspace-specific output channel
-    const unsubscribeOutput = window.api.workspace.onOutput(workspaceId, (data: any) => {
-      if (data.caughtUp) {
-        isCaughtUp = true;
-        setLoading(false);
-        // Scroll to bottom once caught up
-        requestAnimationFrame(() => {
-          if (contentRef.current) {
-            contentRef.current.scrollTop = contentRef.current.scrollHeight;
-          }
-        });
-        return;
+    const unsubscribeOutput = window.api.workspace.onOutput(
+      workspaceId,
+      (data: WorkspaceOutputMessage) => {
+        if (isCaughtUpMessage(data)) {
+          isCaughtUp = true;
+          setLoading(false);
+          // Scroll to bottom once caught up
+          requestAnimationFrame(() => {
+            if (contentRef.current) {
+              contentRef.current.scrollTop = contentRef.current.scrollHeight;
+            }
+          });
+          return;
+        }
+
+        // data is now a CmuxMessage - use it directly!
+        processMessage(data);
+
+        // Only auto-scroll for new messages after caught up
+        if (isCaughtUp) {
+          performAutoScroll();
+        }
       }
-      const message = data.message;
-
-      // Permission mode now comes from metadata stream, not from messages
-
-      processSDKMessage(message);
-
-      // Only auto-scroll for new messages after caught up
-      if (isCaughtUp && !data.historical) {
-        performAutoScroll();
-      }
-    });
+    );
 
     // Subscribe to workspace-specific clear channel
     const unsubscribeClear = window.api.workspace.onClear(workspaceId, () => {
@@ -359,7 +285,7 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
         unsubscribeClear();
       }
     };
-  }, [projectName, branch, workspaceId, processSDKMessage, performAutoScroll]);
+  }, [projectName, branch, workspaceId, processMessage, performAutoScroll]);
 
   // Watch input for slash commands
   useEffect(() => {
@@ -385,40 +311,21 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
         inputRef.current.style.height = "36px";
       }
 
-      // Check if this is a slash command
-      if (messageText.startsWith("/")) {
-        const command = messageText.toLowerCase();
+      // Handle /clear command locally
+      if (messageText === "/clear") {
+        // Clear UI immediately
+        setUIMessageMap(new Map());
+        aggregatorRef.current.clear();
 
-        // Track compaction state
-        if (command === "/compact") {
-          setIsCompacting(true);
-        }
+        // Enable auto-scroll after clearing
+        setAutoScroll(true);
 
-        // Handle /clear locally for immediate UI feedback
-        if (command === "/clear") {
-          // Clear UI immediately
-          setUIMessageMap(new Map());
-          aggregatorRef.current.clear();
-
-          // Enable auto-scroll after clearing
-          setAutoScroll(true);
-
-          // Send clear command to backend
-          const result = await window.api.workspace.handleSlash(workspaceId, messageText);
-
-          if (!result.success) {
-            console.error("Failed to execute /clear command:", result.error);
-            // Show error to user
-            alert(`Failed to clear messages: ${result.error}`);
-          }
-          return;
-        }
-
-        // For other slash commands, pass them through to the SDK
-        // The SDK will handle them internally
+        // Clear history in backend
+        await window.api.workspace.clearHistory(workspaceId);
+        return;
       }
 
-      // Send message to Claude workspace (including slash commands)
+      // Send message to AI backend
       const result = await window.api.workspace.sendMessage(workspaceId, messageText);
 
       if (!result.success) {
@@ -485,9 +392,6 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
       <ViewHeader>
         <WorkspaceTitle>
           {projectName} / {branch}
-          <PermissionModeBadge mode={currentPermissionMode}>
-            {MODE_LABELS[currentPermissionMode]}
-          </PermissionModeBadge>
         </WorkspaceTitle>
       </ViewHeader>
 
@@ -561,7 +465,7 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
             }}
             onKeyDown={handleKeyDown}
             placeholder={
-              isCompacting ? "Compacting conversation..." : MODE_PLACEHOLDERS[currentPermissionMode]
+              isCompacting ? "Compacting conversation..." : "Type a message... (Enter to send)"
             }
             disabled={isSending || isCompacting}
           />
@@ -570,19 +474,6 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
           </SendButton>
         </InputControls>
         <ModeToggles>
-          <PermissionModeSlider
-            value={currentPermissionMode}
-            onChange={async (mode) => {
-              console.log("Permission mode changing to:", mode);
-              // No optimistic update - wait for metadata stream to update
-              try {
-                await window.api.workspace.setPermission(workspaceId, mode);
-                console.log("Permission mode successfully set to:", mode);
-              } catch (error) {
-                console.error("Failed to set permission mode:", error);
-              }
-            }}
-          />
           <DebugModeToggle>
             <input
               type="checkbox"
@@ -598,10 +489,10 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
 };
 
 // Wrapper component that provides the debug context
-export const ClaudeView: React.FC<ClaudeViewProps> = (props) => {
+export const AIView: React.FC<AIViewProps> = (props) => {
   return (
     <DebugProvider>
-      <ClaudeViewInner {...props} />
+      <AIViewInner {...props} />
     </DebugProvider>
   );
 };

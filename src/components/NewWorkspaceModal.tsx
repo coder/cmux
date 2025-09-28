@@ -169,8 +169,9 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
       await onAdd(branchName.trim());
       setBranchName("");
       onClose();
-    } catch (err: any) {
-      setError(err.message || "Failed to create workspace");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to create workspace";
+      setError(message);
     } finally {
       setIsLoading(false);
     }

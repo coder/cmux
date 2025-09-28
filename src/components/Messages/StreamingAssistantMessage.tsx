@@ -1,10 +1,9 @@
 import React from "react";
 import styled from "@emotion/styled";
-import { UIMessage } from "../../types/claude";
+import { CmuxMessage } from "../../types/message";
+import { extractTextContent } from "../../utils/messageUtils";
 import { TypewriterMarkdown } from "./TypewriterMarkdown";
 import { MessageWindow } from "./MessageWindow";
-import { getModeConfig } from "../../constants/permissionModes";
-import { formatAssistantLabel } from "./assistantHelpers";
 
 const StreamingIndicator = styled.span`
   font-size: 10px;
@@ -32,7 +31,7 @@ const WaitingMessage = styled.div`
 `;
 
 interface StreamingAssistantMessageProps {
-  message: UIMessage;
+  message: CmuxMessage;
   className?: string;
 }
 
@@ -40,23 +39,21 @@ export const StreamingAssistantMessage: React.FC<StreamingAssistantMessageProps>
   message,
   className,
 }) => {
-  const hasDeltas = message.contentDeltas && message.contentDeltas.length > 0;
+  const content = extractTextContent(message);
 
-  // Get permission mode from message metadata
-  const permissionMode = message.metadata.cmuxMeta.permissionMode;
-  const modeConfig = getModeConfig(permissionMode);
+  const hasDeltas = content && content.length > 0;
 
   return (
     <MessageWindow
-      label={formatAssistantLabel(message.model)}
-      borderColor={modeConfig.borderColor}
+      label="ASSISTANT"
+      borderColor="var(--color-assistant-border)"
       message={message}
       buttons={[]}
       className={className}
       rightLabel={<StreamingIndicator>streaming...</StreamingIndicator>}
     >
       {hasDeltas ? (
-        <TypewriterMarkdown deltas={message.contentDeltas!} isComplete={false} />
+        <TypewriterMarkdown deltas={[content]} isComplete={false} />
       ) : (
         <WaitingMessage>Waiting for response...</WaitingMessage>
       )}

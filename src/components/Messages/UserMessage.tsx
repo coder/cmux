@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import styled from "@emotion/styled";
-import { UIMessage } from "../../types/claude";
+import { CmuxMessage } from "../../types/message";
+import { extractTextContent } from "../../utils/messageUtils";
 import { MessageWindow, ButtonConfig } from "./MessageWindow";
 import { TerminalOutput } from "./TerminalOutput";
 
@@ -16,17 +17,14 @@ const FormattedContent = styled.pre`
 `;
 
 interface UserMessageProps {
-  message: UIMessage;
+  message: CmuxMessage;
   className?: string;
 }
 
 export const UserMessage: React.FC<UserMessageProps> = ({ message, className }) => {
   const [copied, setCopied] = useState(false);
 
-  const content =
-    typeof message.content === "string"
-      ? message.content
-      : JSON.stringify(message.content, null, 2);
+  const content = extractTextContent(message);
 
   // Check if this is a local command output
   const isLocalCommandOutput =

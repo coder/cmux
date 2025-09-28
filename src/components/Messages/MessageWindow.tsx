@@ -1,6 +1,6 @@
 import React, { useState, ReactNode } from "react";
 import styled from "@emotion/styled";
-import { UIMessage } from "../../types/claude";
+import { CmuxMessage } from "../../types/message";
 
 const MessageBlock = styled.div<{ borderColor: string; backgroundColor?: string }>`
   margin-bottom: 15px;
@@ -77,7 +77,7 @@ interface MessageWindowProps {
   label: ReactNode;
   borderColor: string;
   backgroundColor?: string;
-  message: UIMessage;
+  message: CmuxMessage;
   buttons?: ButtonConfig[];
   children: ReactNode;
   className?: string;
@@ -113,13 +113,7 @@ export const MessageWindow: React.FC<MessageWindowProps> = ({
         </ButtonGroup>
       </MessageHeader>
       <MessageContent>
-        {showJson ? (
-          <JsonContent>
-            {JSON.stringify(message.metadata?.originalSDKMessage || message, null, 2)}
-          </JsonContent>
-        ) : (
-          children
-        )}
+        {showJson ? <JsonContent>{JSON.stringify(message, null, 2)}</JsonContent> : children}
       </MessageContent>
     </MessageBlock>
   );

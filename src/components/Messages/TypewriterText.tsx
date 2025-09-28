@@ -85,6 +85,7 @@ export const TypewriterText: React.FC<TypewriterTextProps> = ({
         clearTimeout(animationRef.current);
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [targetContent, speed, isComplete]);
 
   // Cursor blinking effect - only depends on isComplete to avoid infinite loops
