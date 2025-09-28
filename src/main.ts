@@ -63,69 +63,84 @@ ipcMain.handle(IPC_CHANNELS.DIALOG_SELECT_DIR, async () => {
   return result.filePaths[0];
 });
 
+// Workspace handlers
 ipcMain.handle(
-  IPC_CHANNELS.GIT_CREATE_WORKTREE,
+  IPC_CHANNELS.WORKSPACE_CREATE,
   async (event, projectPath: string, branchName: string) => {
+    // First create the git worktree
     const result = await createWorktree(projectPath, branchName);
 
-    // If worktree creation was successful, initialize the workspace metadata
     if (result.success && result.path) {
       const projectName =
         projectPath.split("/").pop() || projectPath.split("\\").pop() || "unknown";
       const workspaceId = `${projectName}-${branchName}`;
+
+      // Initialize the workspace metadata
       await claudeService.initializeWorkspace(workspaceId, projectName, branchName, result.path);
+
+      return { success: true, workspaceId, path: result.path };
     }
 
     return result;
   }
 );
 
-ipcMain.handle(IPC_CHANNELS.GIT_REMOVE_WORKTREE, async (event, workspacePath: string) => {
-  return await removeWorktree(workspacePath);
-});
+ipcMain.handle(IPC_CHANNELS.WORKSPACE_REMOVE, async (event, workspaceId: string) => {
+  // Get the full workspace metadata to find the path
+  const workspaces = await claudeService.list();
+  const workspace = workspaces.find((w) => w.id === workspaceId);
 
-ipcMain.handle(IPC_CHANNELS.CLAUDE_REMOVE_WORKSPACE, async (event, workspaceId: string) => {
-  return await claudeService.removeWorkspace(workspaceId);
+  if (workspace && workspace.workspacePath) {
+    // Remove the git worktree
+    const gitResult = await removeWorktree(workspace.workspacePath);
+    if (!gitResult.success) {
+      return gitResult;
+    }
+  }
+
+  // Remove the workspace from Claude service
+  await claudeService.removeWorkspace(workspaceId);
+  return { success: true };
 });
 
 // Claude Code management handlers using SDK
 // Note: Workspaces are now started automatically on demand when sending messages
 // No need for explicit start or isActive handlers
 
-ipcMain.handle(IPC_CHANNELS.CLAUDE_LIST, async () => {
+ipcMain.handle(IPC_CHANNELS.WORKSPACE_LIST, async () => {
   return claudeService.list();
 });
 
-ipcMain.handle(IPC_CHANNELS.CLAUDE_GET_WORKSPACE_INFO, async (event, workspaceId: string) => {
+ipcMain.handle(IPC_CHANNELS.WORKSPACE_GET_INFO, async (event, workspaceId: string) => {
   return await claudeService.getWorkspaceInfoById(workspaceId);
 });
 
 ipcMain.handle(
-  IPC_CHANNELS.CLAUDE_SET_PERMISSION,
+  IPC_CHANNELS.WORKSPACE_SET_PERMISSION,
   async (event, workspaceId: string, permissionMode: UIPermissionMode) => {
     return await claudeService.setPermissionModeById(workspaceId, permissionMode);
   }
 );
 
 ipcMain.handle(
-  IPC_CHANNELS.CLAUDE_SEND_MESSAGE,
+  IPC_CHANNELS.WORKSPACE_SEND_MESSAGE,
   async (event, workspaceId: string, message: string) => {
     return await claudeService.sendMessageById(workspaceId, message);
   }
 );
 
 ipcMain.handle(
-  IPC_CHANNELS.CLAUDE_HANDLE_SLASH,
+  IPC_CHANNELS.WORKSPACE_HANDLE_SLASH,
   async (event, workspaceId: string, command: string) => {
     return await claudeService.handleSlashCommandById(workspaceId, command);
   }
 );
 
-ipcMain.handle(IPC_CHANNELS.CLAUDE_STREAM_HISTORY, async (event, workspaceId: string) => {
+ipcMain.handle(IPC_CHANNELS.WORKSPACE_STREAM_HISTORY, async (event, workspaceId: string) => {
   return await claudeService.streamWorkspaceHistoryById(workspaceId);
 });
 
-ipcMain.handle(IPC_CHANNELS.CLAUDE_STREAM_META, async () => {
+ipcMain.handle(IPC_CHANNELS.WORKSPACE_STREAM_META, async () => {
   return await claudeService.streamAllWorkspaceMetadata();
 });
 
@@ -148,7 +163,7 @@ claudeService.on("workspace-clear", (workspaceId: string, data: any) => {
 // Listen for workspace metadata updates and forward to renderer
 claudeService.on("workspace-metadata", (workspaceId: string, metadata: WorkspaceMetadata) => {
   if (mainWindow) {
-    mainWindow.webContents.send(IPC_CHANNELS.CLAUDE_METADATA, { workspaceId, metadata });
+    mainWindow.webContents.send(IPC_CHANNELS.WORKSPACE_METADATA, { workspaceId, metadata });
   }
 });
 

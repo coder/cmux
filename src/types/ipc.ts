@@ -22,21 +22,19 @@ export interface IPCApi {
   dialog: {
     selectDirectory(): Promise<string | null>;
   };
-  git: {
-    createWorktree(
+  workspace: {
+    list(): Promise<WorkspaceMetadata[]>;
+    create(
       projectPath: string,
       branchName: string
-    ): Promise<{ success: boolean; path?: string; error?: string }>;
-    removeWorktree(workspacePath: string): Promise<{ success: boolean; error?: string }>;
-  };
-  claude: {
-    list(): Promise<WorkspaceMetadata[]>;
-    streamWorkspaceMeta(): Promise<void>;
-    setPermissionMode(workspaceId: string, permissionMode: UIPermissionMode): Promise<void>;
+    ): Promise<{ success: boolean; workspaceId?: string; path?: string; error?: string }>;
+    remove(workspaceId: string): Promise<{ success: boolean; error?: string }>;
+    streamMeta(): Promise<void>;
+    setPermission(workspaceId: string, permissionMode: UIPermissionMode): Promise<void>;
     sendMessage(workspaceId: string, message: string): Promise<Result<void, string>>;
-    handleSlashCommand(workspaceId: string, command: string): Promise<Result<void, string>>;
+    handleSlash(workspaceId: string, command: string): Promise<Result<void, string>>;
     streamHistory(workspaceId: string): Promise<void>;
-    removeWorkspace(workspaceId: string): Promise<void>;
+    getInfo(workspaceId: string): Promise<WorkspaceMetadata | null>;
 
     // Event subscriptions (renderer-only)
     onOutput(workspaceId: string, callback: (data: any) => void): () => void;

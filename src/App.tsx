@@ -185,7 +185,7 @@ function App() {
   const handleCreateWorkspace = async (branchName: string) => {
     if (!workspaceModalProject) return;
 
-    const result = await window.api.git.createWorktree(workspaceModalProject, branchName);
+    const result = await window.api.workspace.create(workspaceModalProject, branchName);
     if (result.success && result.path) {
       // Update the project config with the new workspace
       const newProjects = new Map(projects);
@@ -207,11 +207,8 @@ function App() {
   };
 
   const handleRemoveWorkspace = async (workspaceId: string, workspacePath: string) => {
-    const result = await window.api.git.removeWorktree(workspacePath);
+    const result = await window.api.workspace.remove(workspaceId);
     if (result.success) {
-      // Remove any active Claude query for this workspace
-      await window.api.claude.removeWorkspace(workspaceId);
-
       // Update the project config to remove the workspace
       const newProjects = new Map(projects);
       for (const [_, config] of newProjects.entries()) {

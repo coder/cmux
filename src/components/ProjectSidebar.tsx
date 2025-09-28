@@ -376,11 +376,11 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
     // Initial load and stream setup
     const setupStream = async () => {
       // Request the metadata stream
-      await window.api.claude.streamWorkspaceMeta();
+      await window.api.workspace.streamMeta();
     };
 
     // Subscribe to metadata updates
-    const unsubscribe = window.api.claude.onMetadata((data) => {
+    const unsubscribe = window.api.workspace.onMetadata((data) => {
       const { workspaceId, metadata } = data;
       // Strip sequence number to prevent unnecessary re-renders
       const { nextSequenceNumber, ...metadataWithoutSeq } = metadata;

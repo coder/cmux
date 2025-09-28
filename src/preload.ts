@@ -14,25 +14,21 @@ const api: IPCApi = {
   dialog: {
     selectDirectory: () => ipcRenderer.invoke(IPC_CHANNELS.DIALOG_SELECT_DIR),
   },
-  git: {
-    createWorktree: (projectPath, branchName) =>
-      ipcRenderer.invoke(IPC_CHANNELS.GIT_CREATE_WORKTREE, projectPath, branchName),
-    removeWorktree: (workspacePath) =>
-      ipcRenderer.invoke(IPC_CHANNELS.GIT_REMOVE_WORKTREE, workspacePath),
-  },
-  claude: {
-    list: () => ipcRenderer.invoke(IPC_CHANNELS.CLAUDE_LIST),
-    streamWorkspaceMeta: () => ipcRenderer.invoke(IPC_CHANNELS.CLAUDE_STREAM_META),
-    setPermissionMode: (workspaceId: string, permissionMode: UIPermissionMode) =>
-      ipcRenderer.invoke(IPC_CHANNELS.CLAUDE_SET_PERMISSION, workspaceId, permissionMode),
+  workspace: {
+    list: () => ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_LIST),
+    create: (projectPath, branchName) =>
+      ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_CREATE, projectPath, branchName),
+    remove: (workspaceId) => ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, workspaceId),
+    streamMeta: () => ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_STREAM_META),
+    setPermission: (workspaceId: string, permissionMode: UIPermissionMode) =>
+      ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_SET_PERMISSION, workspaceId, permissionMode),
     sendMessage: (workspaceId, message) =>
-      ipcRenderer.invoke(IPC_CHANNELS.CLAUDE_SEND_MESSAGE, workspaceId, message),
-    handleSlashCommand: (workspaceId, command) =>
-      ipcRenderer.invoke(IPC_CHANNELS.CLAUDE_HANDLE_SLASH, workspaceId, command),
+      ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_SEND_MESSAGE, workspaceId, message),
+    handleSlash: (workspaceId, command) =>
+      ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_HANDLE_SLASH, workspaceId, command),
     streamHistory: (workspaceId) =>
-      ipcRenderer.invoke(IPC_CHANNELS.CLAUDE_STREAM_HISTORY, workspaceId),
-    removeWorkspace: (workspaceId) =>
-      ipcRenderer.invoke(IPC_CHANNELS.CLAUDE_REMOVE_WORKSPACE, workspaceId),
+      ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_STREAM_HISTORY, workspaceId),
+    getInfo: (workspaceId) => ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_GET_INFO, workspaceId),
 
     onOutput: (workspaceId, callback) => {
       const channel = getOutputChannel(workspaceId);
@@ -50,8 +46,8 @@ const api: IPCApi = {
       callback: (data: { workspaceId: string; metadata: WorkspaceMetadata }) => void
     ) => {
       const handler = (event: any, data: any) => callback(data);
-      ipcRenderer.on(IPC_CHANNELS.CLAUDE_METADATA, handler);
-      return () => ipcRenderer.removeListener(IPC_CHANNELS.CLAUDE_METADATA, handler);
+      ipcRenderer.on(IPC_CHANNELS.WORKSPACE_METADATA, handler);
+      return () => ipcRenderer.removeListener(IPC_CHANNELS.WORKSPACE_METADATA, handler);
     },
   },
 };

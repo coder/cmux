@@ -268,11 +268,11 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
 
     // Request metadata stream
     const setupStream = async () => {
-      await window.api.claude.streamWorkspaceMeta();
+      await window.api.workspace.streamMeta();
     };
 
     // Subscribe to metadata updates
-    const unsubscribe = window.api.claude.onMetadata((data) => {
+    const unsubscribe = window.api.workspace.onMetadata((data) => {
       const { workspaceId: metaWorkspaceId, metadata } = data;
       if (metaWorkspaceId === workspaceId) {
         // Strip sequence number to prevent unnecessary re-renders
@@ -312,7 +312,7 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
     setLoading(true);
 
     // Request historical messages to be streamed
-    window.api.claude.streamHistory(workspaceId).catch((error) => {
+    window.api.workspace.streamHistory(workspaceId).catch((error) => {
       console.error("Failed to stream history:", error);
       setLoading(false);
     });
@@ -320,7 +320,7 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
     // Permission mode will be loaded from messages
 
     // Subscribe to workspace-specific output channel
-    const unsubscribeOutput = window.api.claude.onOutput(workspaceId, (data: any) => {
+    const unsubscribeOutput = window.api.workspace.onOutput(workspaceId, (data: any) => {
       if (data.caughtUp) {
         isCaughtUp = true;
         setLoading(false);
@@ -345,7 +345,7 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
     });
 
     // Subscribe to workspace-specific clear channel
-    const unsubscribeClear = window.api.claude.onClear(workspaceId, () => {
+    const unsubscribeClear = window.api.workspace.onClear(workspaceId, () => {
       // Clear the UI when we receive a clear event
       setUIMessageMap(new Map());
       aggregatorRef.current.clear();
@@ -404,7 +404,7 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
           setAutoScroll(true);
 
           // Send clear command to backend
-          const result = await window.api.claude.handleSlashCommand(workspaceId, messageText);
+          const result = await window.api.workspace.handleSlash(workspaceId, messageText);
 
           if (!result.success) {
             console.error("Failed to execute /clear command:", result.error);
@@ -419,7 +419,7 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
       }
 
       // Send message to Claude workspace (including slash commands)
-      const result = await window.api.claude.sendMessage(workspaceId, messageText);
+      const result = await window.api.workspace.sendMessage(workspaceId, messageText);
 
       if (!result.success) {
         console.error("Failed to send message to Claude workspace:", result.error);
@@ -576,7 +576,7 @@ const ClaudeViewInner: React.FC<ClaudeViewProps> = ({
               console.log("Permission mode changing to:", mode);
               // No optimistic update - wait for metadata stream to update
               try {
-                await window.api.claude.setPermissionMode(workspaceId, mode);
+                await window.api.workspace.setPermission(workspaceId, mode);
                 console.log("Permission mode successfully set to:", mode);
               } catch (error) {
                 console.error("Failed to set permission mode:", error);
