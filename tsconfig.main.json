@@ -5,6 +5,6 @@
     "outDir": "dist",
     "noEmit": false
   },
-  "include": ["src/main.ts", "src/preload.ts"],
+  "include": ["src/main.ts", "src/constants/**/*"],
   "exclude": ["src/App.tsx", "src/main.tsx"]
 }

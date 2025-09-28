@@ -3,9 +3,8 @@ import { WorkspaceMetadata } from "./workspace";
 import type { CmuxMessage } from "./message";
 import type { ProjectConfig } from "../config";
 
-// Import constants from the JavaScript file
-// TypeScript can import JS modules and will infer types
-import { IPC_CHANNELS, getOutputChannel, getClearChannel } from "../constants/ipc-constants.js";
+// Import constants from constants module (single source of truth)
+import { IPC_CHANNELS, getOutputChannel, getClearChannel } from "../constants/ipc-constants";
 
 // Re-export for TypeScript consumers
 export { IPC_CHANNELS, getOutputChannel, getClearChannel };

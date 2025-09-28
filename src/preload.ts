@@ -1,8 +1,7 @@
 import { contextBridge, ipcRenderer } from "electron";
 import type { IPCApi, WorkspaceOutputMessage } from "./types/ipc";
 import type { WorkspaceMetadata } from "./types/workspace";
-// Import JS constants with proper typing
-import { IPC_CHANNELS, getOutputChannel, getClearChannel } from "./constants/ipc-constants.js";
+import { IPC_CHANNELS, getOutputChannel, getClearChannel } from "./constants/ipc-constants";
 
 // Build the API implementation using the shared interface
 const api: IPCApi = {

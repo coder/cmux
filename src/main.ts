@@ -16,7 +16,7 @@ import type {
   StreamEndEvent,
   ErrorEvent,
 } from "./types/aiEvents";
-import { IPC_CHANNELS, getOutputChannel } from "./constants/ipc-constants.js";
+import { IPC_CHANNELS, getOutputChannel } from "./constants/ipc-constants";
 
 const aiService = new AIService();
 
