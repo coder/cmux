@@ -1,4 +1,12 @@
-import { CmuxMessage, StreamingContext, createCmuxMessage } from "../types/message";
+import { CmuxMessage, createCmuxMessage } from "../types/message";
+
+interface StreamingContext {
+  streamingId: string;
+  messageId: string;
+  contentParts: string[];
+  startTime: number;
+  isComplete: boolean;
+}
 
 /**
  * StreamingMessageAggregator - Simplified for User/Assistant Messages Only

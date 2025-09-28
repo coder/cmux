@@ -28,11 +28,3 @@ export function createCmuxMessage(
     parts: [{ type: "text", text: content, state: "done" }],
   };
 }
-
-export interface StreamingContext {
-  streamingId: string;
-  messageId: string;
-  contentParts: string[];
-  startTime: number;
-  isComplete: boolean;
-}

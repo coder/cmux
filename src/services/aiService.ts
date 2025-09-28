@@ -3,7 +3,7 @@ import * as path from "path";
 import * as os from "os";
 import { EventEmitter } from "events";
 import { anthropic } from "@ai-sdk/anthropic";
-import { streamText } from "ai";
+import { streamText, convertToModelMessages } from "ai";
 import { Result, Ok, Err } from "../types/result";
 import { WorkspaceMetadata } from "../types/workspace";
 import { CmuxMessage, createCmuxMessage } from "../types/message";
@@ -152,22 +152,27 @@ export class AIService extends EventEmitter {
     }
   }
 
-  async streamMessage(messages: CmuxMessage[], workspaceId: string): Promise<Result<void>> {
+  /**
+   * Stream a message conversation to the AI model
+   * @param messages Array of conversation messages
+   * @param workspaceId Unique identifier for the workspace
+   * @param abortSignal Optional signal to abort the stream
+   * @returns Promise that resolves when streaming completes or fails
+   */
+  async streamMessage(
+    messages: CmuxMessage[],
+    workspaceId: string,
+    abortSignal?: AbortSignal
+  ): Promise<Result<void>> {
     try {
-      // Convert CmuxMessage to Vercel AI SDK format
-      // Extract text content from parts
-      const formattedMessages = messages.map((msg) => ({
-        role: msg.role as "user" | "assistant",
-        content: msg.parts
-          .filter((p): p is { type: "text"; text: string } => p.type === "text")
-          .map((p) => p.text)
-          .join(""),
-      }));
+      // Convert CmuxMessage to ModelMessage format using Vercel AI SDK utility
+      const modelMessages = convertToModelMessages(messages);
 
       // Start streaming
       const result = streamText({
         model: this.model,
-        messages: formattedMessages,
+        messages: modelMessages,
+        abortSignal,
       });
 
       // Store the stream for this workspace
@@ -222,27 +227,59 @@ export class AIService extends EventEmitter {
       return Ok(undefined);
     } catch (error) {
       safeLogError("Stream message error:", error);
-      this.emit("error", {
-        type: "error",
-        workspaceId,
-        error: error instanceof Error ? error.message : String(error),
-      });
 
       // Clean up stream on error
       this.activeStreams.delete(workspaceId);
 
-      const message = error instanceof Error ? error.message : String(error);
-      return Err(`Failed to stream message: ${message}`);
+      // Categorize error types for better handling
+      let errorType = "unknown";
+      let errorMessage = "Unknown error occurred";
+
+      if (error instanceof Error) {
+        errorMessage = error.message;
+
+        // Categorize common error types
+        if (error.name === "AbortError" || errorMessage.includes("abort")) {
+          errorType = "aborted";
+          errorMessage = "Stream was aborted";
+        } else if (errorMessage.includes("network") || errorMessage.includes("fetch")) {
+          errorType = "network";
+          errorMessage = "Network error while streaming";
+        } else if (errorMessage.includes("token") || errorMessage.includes("limit")) {
+          errorType = "quota";
+          errorMessage = "Token limit or quota exceeded";
+        } else if (errorMessage.includes("auth") || errorMessage.includes("key")) {
+          errorType = "authentication";
+          errorMessage = "Authentication failed";
+        } else {
+          errorType = "api";
+        }
+      }
+
+      this.emit("error", {
+        type: "error",
+        workspaceId,
+        error: errorMessage,
+        errorType,
+      });
+
+      return Err(`Failed to stream message: ${errorMessage}`);
     }
   }
 
   async stopStream(workspaceId: string): Promise<Result<void>> {
     try {
-      // Check if stream exists and remove it
-      if (this.activeStreams.has(workspaceId)) {
-        // StreamTextResult doesn't have a built-in abort method
-        // Just remove from active streams
+      const stream = this.activeStreams.get(workspaceId);
+      if (stream) {
+        // The stream will be aborted via the AbortSignal passed to streamText
+        // We just need to clean up our reference
         this.activeStreams.delete(workspaceId);
+
+        // Emit an abort event for consistency
+        this.emit("stream-abort", {
+          type: "stream-abort",
+          workspaceId,
+        });
       }
       return Ok(undefined);
     } catch (error) {

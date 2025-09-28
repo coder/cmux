@@ -165,8 +165,6 @@ ipcMain.handle(IPC_CHANNELS.WORKSPACE_GET_INFO, async (_event, workspaceId: stri
   return result.success ? result.data : null;
 });
 
-// Permission mode no longer supported - removed
-
 ipcMain.handle(IPC_CHANNELS.WORKSPACE_SEND_MESSAGE, async () => {
   // For simple implementation, just echo back success
   return { success: true };
