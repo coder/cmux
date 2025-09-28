@@ -1,3 +1,23 @@
+/**
+ * Electron Preload Script with Bundled Constants
+ *
+ * This file demonstrates a sophisticated solution to a complex problem in Electron development:
+ * how to share constants between main and preload processes while respecting Electron's security
+ * sandbox restrictions. The challenge is that preload scripts run in a heavily sandboxed environment
+ * where they cannot import custom modules using standard Node.js `require()` or ES6 `import` syntax.
+ *
+ * Our solution uses Bun's bundler with the `--external=electron` flag to create a hybrid approach:
+ * 1) Constants from `./constants/ipc-constants.ts` are inlined directly into this compiled script
+ * 2) The `electron` module remains external and is safely required at runtime by Electron's sandbox
+ * 3) This gives us a single source of truth for IPC constants while avoiding the fragile text
+ *    parsing and complex inline replacement scripts that other approaches require.
+ *
+ * The build command `bun build src/preload.ts --format=cjs --target=node --external=electron --outfile=dist/preload.js`
+ * produces a self-contained script where IPC_CHANNELS, getOutputChannel, and getClearChannel are
+ * literal values with no runtime imports needed, while contextBridge and ipcRenderer remain as
+ * clean `require("electron")` calls that work perfectly in the sandbox environment.
+ */
+
 import { contextBridge, ipcRenderer } from "electron";
 import type { IPCApi, WorkspaceOutputMessage } from "./types/ipc";
 import type { WorkspaceMetadata } from "./types/workspace";
