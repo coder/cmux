@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback } from "react";
+import React, { useEffect, useCallback, ReactNode } from "react";
 import styled from "@emotion/styled";
 import { keyframes, css } from "@emotion/react";
 
@@ -100,11 +100,47 @@ const ToastMessage = styled.div`
   opacity: 0.9;
 `;
 
+// Rich error styling from SendMessageError
+const ErrorContainer = styled.div`
+  background: #2d1f1f;
+  border: 1px solid #5a2c2c;
+  border-radius: 4px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: #f48771;
+  animation: ${slideIn} 0.2s ease-out;
+`;
+
+const ErrorDetails = styled.div`
+  color: #d4d4d4;
+  line-height: 1.4;
+  margin-top: 6px;
+`;
+
+const ErrorSolution = styled.div`
+  background: #1e1e1e;
+  border-radius: 3px;
+  padding: 6px 8px;
+  margin-top: 8px;
+  font-family: "Monaco", "Menlo", monospace;
+  font-size: 11px;
+  color: #9cdcfe;
+`;
+
+export const SolutionLabel = styled.div`
+  color: #808080;
+  font-size: 10px;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+`;
+
 export interface Toast {
   id: string;
   type: "success" | "error";
   title?: string;
   message: string;
+  solution?: ReactNode;
   duration?: number;
 }
 
@@ -144,6 +180,28 @@ export const ChatInputToast: React.FC<ChatInputToastProps> = ({ toast, onDismiss
 
   if (!toast) return null;
 
+  // Use rich error style when there's a title or solution
+  const isRichError = toast.type === "error" && (toast.title || toast.solution);
+
+  if (isRichError) {
+    return (
+      <ErrorContainer>
+        <div style={{ display: "flex", alignItems: "flex-start", gap: "6px" }}>
+          <ToastIcon>⚠</ToastIcon>
+          <div style={{ flex: 1 }}>
+            {toast.title && (
+              <div style={{ fontWeight: 600, marginBottom: "6px" }}>{toast.title}</div>
+            )}
+            <ErrorDetails>{toast.message}</ErrorDetails>
+            {toast.solution && <ErrorSolution>{toast.solution}</ErrorSolution>}
+          </div>
+          <CloseButton onClick={handleDismiss}>×</CloseButton>
+        </div>
+      </ErrorContainer>
+    );
+  }
+
+  // Regular toast for simple messages and success
   return (
     <ToastContainer type={toast.type} isLeaving={isLeaving}>
       <ToastIcon>{toast.type === "success" ? "✓" : "⚠"}</ToastIcon>

@@ -1,11 +1,9 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import styled from "@emotion/styled";
 import { CommandSuggestions, COMMAND_SUGGESTION_KEYS } from "./CommandSuggestions";
-import { ChatInputToast, Toast } from "./ChatInputToast";
-import { SendMessageError } from "./SendMessageError";
-import { parseAndProcessCommand } from "../utils/commandProcessor";
+import { ChatInputToast, Toast, SolutionLabel } from "./ChatInputToast";
+import { parseCommand, ParsedCommand } from "../utils/commandParser";
 import { SendMessageError as SendMessageErrorType } from "../types/errors";
-import { usePersistedState } from "../hooks/usePersistedState";
 
 const InputSection = styled.div`
   position: relative;
@@ -106,6 +104,137 @@ export interface ChatInputProps {
   isCompacting?: boolean;
 }
 
+// Helper function to convert parsed command to display toast
+const createCommandToast = (parsed: ParsedCommand): Toast | null => {
+  if (!parsed) return null;
+
+  switch (parsed.type) {
+    case "providers-help":
+      return {
+        id: Date.now().toString(),
+        type: "error",
+        title: "Providers Command",
+        message: "Configure AI provider settings",
+        solution: (
+          <>
+            <SolutionLabel>Usage:</SolutionLabel>
+            /providers set &lt;provider&gt; &lt;key&gt; &lt;value&gt;
+            <br />
+            <br />
+            <SolutionLabel>Example:</SolutionLabel>
+            /providers set anthropic apiKey YOUR_API_KEY
+          </>
+        ),
+      };
+
+    case "providers-missing-args": {
+      const missing =
+        parsed.argCount === 0
+          ? "provider, key, and value"
+          : parsed.argCount === 1
+            ? "key and value"
+            : parsed.argCount === 2
+              ? "value"
+              : "";
+
+      return {
+        id: Date.now().toString(),
+        type: "error",
+        title: "Missing Arguments",
+        message: `Missing ${missing} for /providers set`,
+        solution: (
+          <>
+            <SolutionLabel>Usage:</SolutionLabel>
+            /providers set &lt;provider&gt; &lt;key&gt; &lt;value&gt;
+          </>
+        ),
+      };
+    }
+
+    case "providers-invalid-subcommand":
+      return {
+        id: Date.now().toString(),
+        type: "error",
+        title: "Invalid Subcommand",
+        message: `Invalid subcommand '${parsed.subcommand}'`,
+        solution: (
+          <>
+            <SolutionLabel>Available Commands:</SolutionLabel>
+            /providers set - Configure provider settings
+          </>
+        ),
+      };
+
+    case "unknown-command": {
+      const cmd = "/" + parsed.command + (parsed.subcommand ? " " + parsed.subcommand : "");
+      return {
+        id: Date.now().toString(),
+        type: "error",
+        message: `Unknown command: ${cmd}`,
+      };
+    }
+
+    default:
+      return null;
+  }
+};
+
+// Helper function to convert SendMessageError to Toast
+const createErrorToast = (error: SendMessageErrorType): Toast => {
+  switch (error.type) {
+    case "api_key_not_found":
+      return {
+        id: Date.now().toString(),
+        type: "error",
+        title: "API Key Not Found",
+        message: `The ${error.provider} provider requires an API key to function.`,
+        solution: (
+          <>
+            <SolutionLabel>Quick Fix:</SolutionLabel>
+            /providers set {error.provider} apiKey YOUR_API_KEY
+          </>
+        ),
+      };
+
+    case "provider_not_configured":
+      return {
+        id: Date.now().toString(),
+        type: "error",
+        title: "Provider Not Configured",
+        message: `The ${error.provider} provider needs to be configured before use.`,
+        solution: (
+          <>
+            <SolutionLabel>Configure Provider:</SolutionLabel>
+            /providers set {error.provider} apiKey YOUR_API_KEY
+          </>
+        ),
+      };
+
+    case "invalid_model_string":
+      return {
+        id: Date.now().toString(),
+        type: "error",
+        title: "Invalid Model Format",
+        message: error.message,
+        solution: (
+          <>
+            <SolutionLabel>Expected Format:</SolutionLabel>
+            provider:model-name (e.g., anthropic:claude-opus-4-1)
+          </>
+        ),
+      };
+
+    case "unknown":
+    default:
+      return {
+        id: Date.now().toString(),
+        type: "error",
+        title: "Message Send Failed",
+        message: error.raw || "An unexpected error occurred while sending your message.",
+      };
+  }
+};
+
 export const ChatInput: React.FC<ChatInputProps> = ({
   workspaceId,
   onMessageSent,
@@ -121,10 +250,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const [showCommandSuggestions, setShowCommandSuggestions] = useState(false);
   const [availableCommands] = useState<string[]>([]); // Will be populated in future
   const [toast, setToast] = useState<Toast | null>(null);
-  const [sendError, setSendError] = usePersistedState<SendMessageErrorType | null>(
-    `sendMessageError_${workspaceId}`,
-    null
-  );
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   // Watch input for slash commands
@@ -144,101 +269,97 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
     const messageText = input.trim();
 
-    // Check for special commands
-    const command = parseAndProcessCommand(messageText);
+    try {
+      // Parse command
+      const parsed = parseCommand(messageText);
 
-    if (command) {
-      if (command.type === "providers-set" && onProviderConfig) {
-        setIsSending(true);
-        setInput(""); // Clear input immediately
-
-        try {
-          await onProviderConfig(command.provider, command.keyPath, command.value);
-          // Success - show toast
+      if (parsed) {
+        // Handle /clear command
+        if (parsed.type === "clear") {
+          setInput("");
+          if (inputRef.current) {
+            inputRef.current.style.height = "36px";
+          }
+          await onClearHistory();
           setToast({
             id: Date.now().toString(),
             type: "success",
-            message: `Provider ${command.provider} updated`,
+            message: "Chat history cleared",
           });
-        } catch (error) {
-          setToast({
-            id: Date.now().toString(),
-            type: "error",
-            message: error instanceof Error ? error.message : "Failed to update provider",
-          });
-          setInput(messageText); // Restore input on error
-        } finally {
-          setIsSending(false);
+          return;
         }
-        return;
+
+        // Handle /providers set command
+        if (parsed.type === "providers-set" && onProviderConfig) {
+          setIsSending(true);
+          setInput(""); // Clear input immediately
+
+          try {
+            await onProviderConfig(parsed.provider, parsed.keyPath, parsed.value);
+            // Success - show toast
+            setToast({
+              id: Date.now().toString(),
+              type: "success",
+              message: `Provider ${parsed.provider} updated`,
+            });
+          } catch (error) {
+            setToast({
+              id: Date.now().toString(),
+              type: "error",
+              message: error instanceof Error ? error.message : "Failed to update provider",
+            });
+            setInput(messageText); // Restore input on error
+          } finally {
+            setIsSending(false);
+          }
+          return;
+        }
+
+        // Handle all other commands - show display toast
+        const commandToast = createCommandToast(parsed);
+        if (commandToast) {
+          setToast(commandToast);
+          return;
+        }
       }
 
-      // Handle invalid syntax
-      if (command.type === "invalid-syntax") {
-        setToast({
-          id: Date.now().toString(),
-          type: "error",
-          message: command.message,
-        });
-        return;
-      }
+      // Regular message - send directly via API
+      setIsSending(true);
 
-      // Handle other command types or unknown commands
-      if (command.type === "unknown") {
-        setToast({
-          id: Date.now().toString(),
-          type: "error",
-          message: `Unknown command: ${command.raw}`,
-        });
-        return;
-      }
-    }
+      try {
+        const result = await window.api.workspace.sendMessage(workspaceId, messageText);
 
-    // Handle /clear command
-    if (messageText === "/clear") {
-      setInput("");
-      if (inputRef.current) {
-        inputRef.current.style.height = "36px";
-      }
-      await onClearHistory();
-      setToast({
-        id: Date.now().toString(),
-        type: "success",
-        message: "Chat history cleared",
-      });
-      return;
-    }
-
-    // Regular message - send directly via API
-    setIsSending(true);
-
-    try {
-      const result = await window.api.workspace.sendMessage(workspaceId, messageText);
-
-      if (!result.success) {
-        // Show error using SendMessageError component
-        setSendError(result.error);
-        // Restore input on error so user can try again
+        if (!result.success) {
+          // Show error using enhanced toast
+          setToast(createErrorToast(result.error));
+          // Restore input on error so user can try again
+          setInput(messageText);
+        } else {
+          // Success - clear input
+          setInput("");
+          // Reset textarea height
+          if (inputRef.current) {
+            inputRef.current.style.height = "36px";
+          }
+          onMessageSent?.();
+        }
+      } catch (error) {
+        // Handle unexpected errors
+        setToast(
+          createErrorToast({
+            type: "unknown",
+            raw: error instanceof Error ? error.message : "Failed to send message",
+          })
+        );
         setInput(messageText);
-      } else {
-        // Success - clear input and errors
-        setInput("");
-        // Reset textarea height
-        if (inputRef.current) {
-          inputRef.current.style.height = "36px";
-        }
-        setSendError(null);
-        onMessageSent?.();
+      } finally {
+        setIsSending(false);
       }
-    } catch (error) {
-      // Handle unexpected errors
-      setSendError({
-        type: "unknown",
-        raw: error instanceof Error ? error.message : "Failed to send message",
-      });
-      setInput(messageText);
     } finally {
-      setIsSending(false);
+      // Always restore focus at the end
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 0);
     }
   };
 
@@ -263,7 +384,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   return (
     <InputSection>
       <ChatInputToast toast={toast} onDismiss={() => setToast(null)} />
-      {sendError && <SendMessageError error={sendError} />}
       <CommandSuggestions
         input={input}
         availableCommands={availableCommands}
@@ -282,10 +402,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             e.target.style.height = "auto";
             e.target.style.height = Math.min(e.target.scrollHeight, 200) + "px";
 
-            // Clear error when user starts typing (but not when restoring input after error)
-            if (sendError && newValue !== input) {
-              setSendError(null);
-            }
+            // Don't clear toast when typing - let user dismiss it manually or it auto-dismisses
           }}
           onKeyDown={handleKeyDown}
           placeholder={
