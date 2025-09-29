@@ -3,6 +3,7 @@ import { WorkspaceMetadata } from "./workspace";
 import type { CmuxMessage } from "./message";
 import type { ProjectConfig } from "../config";
 import type { SendMessageError } from "./errors";
+import type { StreamStartEvent, StreamDeltaEvent, StreamEndEvent } from "./aiEvents";
 
 // Import constants from constants module (single source of truth)
 import { IPC_CHANNELS, getChatChannel, getClearChannel } from "../constants/ipc-constants";
@@ -26,7 +27,13 @@ export interface StreamErrorMessage {
 }
 
 // Union type for workspace chat messages
-export type WorkspaceChatMessage = CmuxMessage | CaughtUpMessage | StreamErrorMessage;
+export type WorkspaceChatMessage =
+  | CmuxMessage
+  | CaughtUpMessage
+  | StreamErrorMessage
+  | StreamStartEvent
+  | StreamDeltaEvent
+  | StreamEndEvent;
 
 // Type guard for caught up messages
 export function isCaughtUpMessage(msg: WorkspaceChatMessage): msg is CaughtUpMessage {
@@ -36,6 +43,21 @@ export function isCaughtUpMessage(msg: WorkspaceChatMessage): msg is CaughtUpMes
 // Type guard for stream error messages
 export function isStreamError(msg: WorkspaceChatMessage): msg is StreamErrorMessage {
   return "type" in msg && msg.type === "stream-error";
+}
+
+// Type guard for stream start events
+export function isStreamStart(msg: WorkspaceChatMessage): msg is StreamStartEvent {
+  return "type" in msg && msg.type === "stream-start";
+}
+
+// Type guard for stream delta events
+export function isStreamDelta(msg: WorkspaceChatMessage): msg is StreamDeltaEvent {
+  return "type" in msg && msg.type === "stream-delta";
+}
+
+// Type guard for stream end events
+export function isStreamEnd(msg: WorkspaceChatMessage): msg is StreamEndEvent {
+  return "type" in msg && msg.type === "stream-end";
 }
 
 // API method signatures (shared between main and preload)

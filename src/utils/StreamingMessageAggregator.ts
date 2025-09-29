@@ -73,7 +73,7 @@ export class StreamingMessageAggregator {
     }
   }
 
-  finishStreaming(streamingId: string): void {
+  finishStreaming(streamingId: string, finalContent?: string): void {
     const context = this.activeStreams.get(streamingId);
     if (!context) return;
 
@@ -82,7 +82,9 @@ export class StreamingMessageAggregator {
     // Mark message as no longer streaming
     const message = this.messages.get(context.messageId);
     if (message && message.parts[0]?.type === "text") {
-      message.parts[0].state = "done";
+      // Use finalContent if provided, otherwise use accumulated content
+      const content = finalContent !== undefined ? finalContent : context.contentParts.join("");
+      message.parts[0] = { type: "text", text: content, state: "done" };
 
       // Update duration if we have start time
       if (message.metadata) {

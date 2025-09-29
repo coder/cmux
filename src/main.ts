@@ -211,6 +211,11 @@ ipcMain.handle(
         return appendResult; // Return the error
       }
 
+      // Broadcast the user message immediately to the frontend
+      if (mainWindow) {
+        mainWindow.webContents.send(getChatChannel(workspaceId), userMessage);
+      }
+
       // Get full conversation history
       const historyResult = await aiService.getHistory(workspaceId);
       if (!historyResult.success) {
@@ -311,37 +316,22 @@ ipcMain.on(`workspace:metadata:subscribe`, async () => {
 // Set up event listeners for AI service
 aiService.on("stream-start", (data: StreamStartEvent) => {
   if (mainWindow) {
-    // Create a streaming CmuxMessage
-    const msg = createCmuxMessage(data.messageId, "assistant", "", {
-      streamingId: data.messageId,
-      sequenceNumber: 0,
-    });
-    // Update the message state to streaming
-    msg.parts[0] = { type: "text", text: "", state: "streaming" };
-    mainWindow.webContents.send(getChatChannel(data.workspaceId), msg);
+    // Send the actual stream-start event
+    mainWindow.webContents.send(getChatChannel(data.workspaceId), data);
   }
 });
 
 aiService.on("stream-delta", (data: StreamDeltaEvent) => {
   if (mainWindow) {
-    // Send delta as a streaming CmuxMessage
-    const msg = createCmuxMessage(data.messageId, "assistant", data.delta || "", {
-      streamingId: data.messageId,
-      sequenceNumber: 0,
-    });
-    msg.parts[0] = { type: "text", text: data.delta || "", state: "streaming" };
-    mainWindow.webContents.send(getChatChannel(data.workspaceId), msg);
+    // Send ONLY the delta event - efficient IPC usage
+    mainWindow.webContents.send(getChatChannel(data.workspaceId), data);
   }
 });
 
 aiService.on("stream-end", (data: StreamEndEvent) => {
   if (mainWindow) {
-    // Send final complete message
-    const msg = createCmuxMessage(data.messageId, "assistant", data.content || "", {
-      sequenceNumber: 0,
-      tokens: data.usage?.totalTokens,
-    });
-    mainWindow.webContents.send(getChatChannel(data.workspaceId), msg);
+    // Send the stream-end event with final content and metadata
+    mainWindow.webContents.send(getChatChannel(data.workspaceId), data);
   }
 });
 
@@ -358,11 +348,13 @@ aiService.on("error", (data: ErrorEvent) => {
 });
 
 // Handle stream abort events
-aiService.on("stream-abort", (data: { type: string; workspaceId: string }) => {
+aiService.on("stream-abort", (data: { type: string; workspaceId: string; messageId?: string }) => {
   if (mainWindow) {
+    // Send the stream-abort event to frontend
     mainWindow.webContents.send(getChatChannel(data.workspaceId), {
       type: "stream-abort",
       workspaceId: data.workspaceId,
+      messageId: data.messageId,
     });
   }
 });

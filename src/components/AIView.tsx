@@ -6,7 +6,15 @@ import { ErrorMessage } from "./ErrorMessage";
 import { CmuxMessage } from "../types/message";
 import { StreamingMessageAggregator } from "../utils/StreamingMessageAggregator";
 import { DebugProvider, useDebugMode } from "../contexts/DebugContext";
-import { WorkspaceChatMessage, isCaughtUpMessage, isStreamError } from "../types/ipc";
+import {
+  WorkspaceChatMessage,
+  isCaughtUpMessage,
+  isStreamError,
+  isStreamStart,
+  isStreamDelta,
+  isStreamEnd,
+} from "../types/ipc";
+import { createCmuxMessage } from "../types/message";
 
 // StreamingMessageAggregator is now imported from utils
 
@@ -186,7 +194,64 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
           return;
         }
 
-        // data is now a CmuxMessage - use it directly!
+        // Handle streaming events
+        if (isStreamStart(data)) {
+          aggregatorRef.current.startStreaming(data.messageId);
+          // Force re-render with updated messages
+          setUIMessageMap(
+            new Map(aggregatorRef.current.getAllMessages().map((msg) => [msg.id, msg]))
+          );
+          performAutoScroll();
+          return;
+        }
+
+        if (isStreamDelta(data)) {
+          // Find the active stream for this messageId
+          const activeStream = aggregatorRef.current
+            .getActiveStreams()
+            .find((s) => s.messageId === data.messageId);
+          if (activeStream) {
+            aggregatorRef.current.updateStreaming(activeStream.streamingId, data.delta);
+            // Force re-render with updated messages
+            setUIMessageMap(
+              new Map(aggregatorRef.current.getAllMessages().map((msg) => [msg.id, msg]))
+            );
+            performAutoScroll();
+          }
+          return;
+        }
+
+        if (isStreamEnd(data)) {
+          // Find and finish the active stream
+          const activeStream = aggregatorRef.current
+            .getActiveStreams()
+            .find((s) => s.messageId === data.messageId);
+          if (activeStream) {
+            // Finish streaming with the final content from backend
+            aggregatorRef.current.finishStreaming(activeStream.streamingId, data.content);
+          } else {
+            // If no active stream (e.g., reconnection), create the final message directly
+            const finalMessage = createCmuxMessage(
+              data.messageId,
+              "assistant",
+              data.content || "",
+              {
+                sequenceNumber: 0,
+                tokens: data.usage?.totalTokens,
+              }
+            );
+            aggregatorRef.current.addMessage(finalMessage);
+          }
+
+          // Force re-render with updated messages
+          setUIMessageMap(
+            new Map(aggregatorRef.current.getAllMessages().map((msg) => [msg.id, msg]))
+          );
+          performAutoScroll();
+          return;
+        }
+
+        // Regular messages (user messages, historical messages)
         processMessage(data);
 
         // Only auto-scroll for new messages after caught up
