@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useCallback } from "react";
 import styled from "@emotion/styled";
 import { keyframes, css } from "@emotion/react";
 
@@ -116,6 +116,11 @@ interface ChatInputToastProps {
 export const ChatInputToast: React.FC<ChatInputToastProps> = ({ toast, onDismiss }) => {
   const [isLeaving, setIsLeaving] = React.useState(false);
 
+  const handleDismiss = useCallback(() => {
+    setIsLeaving(true);
+    setTimeout(onDismiss, 200); // Wait for fade animation
+  }, [onDismiss]);
+
   useEffect(() => {
     if (!toast) return;
 
@@ -135,12 +140,7 @@ export const ChatInputToast: React.FC<ChatInputToastProps> = ({ toast, onDismiss
     return () => {
       setIsLeaving(false);
     };
-  }, [toast]);
-
-  const handleDismiss = () => {
-    setIsLeaving(true);
-    setTimeout(onDismiss, 200); // Wait for fade animation
-  };
+  }, [toast, handleDismiss]);
 
   if (!toast) return null;
 

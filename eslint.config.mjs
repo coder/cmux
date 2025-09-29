@@ -101,7 +101,7 @@ export default [
 
       // Warn on TODO comments
       "no-warning-comments": [
-        "warn",
+        "off",
         {
           terms: ["TODO", "FIXME", "XXX", "HACK"],
           location: "start",

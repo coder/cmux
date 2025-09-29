@@ -5,6 +5,7 @@ import { ChatInputToast, Toast } from "./ChatInputToast";
 import { SendMessageError } from "./SendMessageError";
 import { parseAndProcessCommand } from "../utils/commandProcessor";
 import { SendMessageError as SendMessageErrorType } from "../types/errors";
+import { usePersistedState } from "../hooks/usePersistedState";
 
 const InputSection = styled.div`
   position: relative;
@@ -120,7 +121,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const [showCommandSuggestions, setShowCommandSuggestions] = useState(false);
   const [availableCommands] = useState<string[]>([]); // Will be populated in future
   const [toast, setToast] = useState<Toast | null>(null);
-  const [sendError, setSendError] = useState<SendMessageErrorType | null>(null);
+  const [sendError, setSendError] = usePersistedState<SendMessageErrorType | null>(
+    `sendMessageError_${workspaceId}`,
+    null
+  );
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   // Watch input for slash commands
@@ -272,10 +276,16 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           ref={inputRef}
           value={input}
           onChange={(e) => {
-            setInput(e.target.value);
+            const newValue = e.target.value;
+            setInput(newValue);
             // Auto-resize textarea
             e.target.style.height = "auto";
             e.target.style.height = Math.min(e.target.scrollHeight, 200) + "px";
+
+            // Clear error when user starts typing (but not when restoring input after error)
+            if (sendError && newValue !== input) {
+              setSendError(null);
+            }
           }}
           onKeyDown={handleKeyDown}
           placeholder={
