@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import styled from "@emotion/styled";
-import { CmuxMessage } from "../../types/message";
-import { extractTextContent } from "../../utils/messageUtils";
+import { DisplayedMessage } from "../../types/message";
 import { MessageWindow, ButtonConfig } from "./MessageWindow";
 import { TerminalOutput } from "./TerminalOutput";
 
@@ -17,14 +16,14 @@ const FormattedContent = styled.pre`
 `;
 
 interface UserMessageProps {
-  message: CmuxMessage;
+  message: DisplayedMessage & { type: "user" };
   className?: string;
 }
 
 export const UserMessage: React.FC<UserMessageProps> = ({ message, className }) => {
   const [copied, setCopied] = useState(false);
 
-  const content = extractTextContent(message);
+  const content = message.content;
 
   // Check if this is a local command output
   const isLocalCommandOutput =
@@ -58,7 +57,7 @@ export const UserMessage: React.FC<UserMessageProps> = ({ message, className }) 
       <MessageWindow
         label="USER"
         borderColor="var(--color-user-border)"
-        message={message}
+        message={message as any}
         buttons={buttons}
         className={className}
       >
@@ -72,7 +71,7 @@ export const UserMessage: React.FC<UserMessageProps> = ({ message, className }) 
     <MessageWindow
       label="USER"
       borderColor="var(--color-user-border)"
-      message={message}
+      message={message as any}
       buttons={buttons}
       className={className}
     >

@@ -3,7 +3,7 @@ import styled from "@emotion/styled";
 import { MessageRenderer } from "./Messages/MessageRenderer";
 import { ChatInput } from "./ChatInput";
 import { ErrorMessage } from "./ErrorMessage";
-import { CmuxMessage } from "../types/message";
+import { DisplayedMessage } from "../types/message";
 import { StreamingMessageAggregator } from "../utils/StreamingMessageAggregator";
 import { DebugProvider, useDebugMode } from "../contexts/DebugContext";
 import {
@@ -13,8 +13,10 @@ import {
   isStreamStart,
   isStreamDelta,
   isStreamEnd,
+  isToolCallStart,
+  isToolCallDelta,
+  isToolCallEnd,
 } from "../types/ipc";
-import { createCmuxMessage } from "../types/message";
 
 // StreamingMessageAggregator is now imported from utils
 
@@ -84,7 +86,7 @@ interface AIViewProps {
 }
 
 const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, className }) => {
-  const [uiMessageMap, setUIMessageMap] = useState<Map<string, CmuxMessage>>(new Map());
+  const [displayedMessages, setDisplayedMessages] = useState<DisplayedMessage[]>([]);
   const [isCompacting] = useState(false);
   const { debugMode, setDebugMode } = useDebugMode(); // Use context instead of local state
   const [autoScroll, setAutoScroll] = useState(true);
@@ -118,28 +120,17 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
   }, []); // No deps - ref ensures we always check current value
 
   // Process message and trigger UI update
-  const processMessage = useCallback(
-    (message: CmuxMessage) => {
-      aggregatorRef.current.addMessage(message);
-      // Force re-render by setting messages directly from aggregator
-      setUIMessageMap(new Map(aggregatorRef.current.getAllMessages().map((msg) => [msg.id, msg])));
-      // Auto-scroll if enabled
-      performAutoScroll();
-    },
-    [performAutoScroll]
-  );
+  // Unified UI update function - single point of UI synchronization
+  // All event handlers delegate to the aggregator then call this
+  const updateUIAndScroll = useCallback(() => {
+    setDisplayedMessages(aggregatorRef.current.getDisplayedMessages());
+    performAutoScroll();
+  }, [performAutoScroll]);
 
   const [loading, setLoading] = useState(false);
 
-  // Computed UI messages array derived from uiMessageMap
-  const messages = useMemo(() => {
-    return Array.from(uiMessageMap.values()).sort((a, b) => {
-      // Handle missing cmuxMeta gracefully for backward compatibility
-      const aSeq = a.metadata?.sequenceNumber ?? 0;
-      const bSeq = b.metadata?.sequenceNumber ?? 0;
-      return aSeq - bSeq;
-    });
-  }, [uiMessageMap]);
+  // Messages are already sorted by sequenceNumber from getDisplayedMessages
+  const messages = displayedMessages;
 
   useEffect(() => {
     if (!projectName || !branch || !workspaceId) return;
@@ -147,7 +138,7 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
     let isCaughtUp = false;
 
     // Clear messages when switching workspaces
-    setUIMessageMap(new Map());
+    setDisplayedMessages([]);
     aggregatorRef.current.clear();
 
     // Enable auto-scroll when switching workspaces
@@ -194,73 +185,60 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
           return;
         }
 
-        // Handle streaming events
+        // SIMPLIFIED EVENT HANDLING
+        // All complex logic lives in StreamingMessageAggregator
+        // AIView only handles UI updates - separation of concerns
+
+        // Handle streaming events with simplified delegation
         if (isStreamStart(data)) {
-          aggregatorRef.current.startStreaming(data.messageId);
-          // Force re-render with updated messages
-          setUIMessageMap(
-            new Map(aggregatorRef.current.getAllMessages().map((msg) => [msg.id, msg]))
-          );
-          performAutoScroll();
+          aggregatorRef.current.handleStreamStart(data);
+          updateUIAndScroll();
           return;
         }
 
         if (isStreamDelta(data)) {
-          // Find the active stream for this messageId
-          const activeStream = aggregatorRef.current
-            .getActiveStreams()
-            .find((s) => s.messageId === data.messageId);
-          if (activeStream) {
-            aggregatorRef.current.updateStreaming(activeStream.streamingId, data.delta);
-            // Force re-render with updated messages
-            setUIMessageMap(
-              new Map(aggregatorRef.current.getAllMessages().map((msg) => [msg.id, msg]))
-            );
-            performAutoScroll();
-          }
+          aggregatorRef.current.handleStreamDelta(data);
+          updateUIAndScroll();
           return;
         }
 
         if (isStreamEnd(data)) {
-          // Find and finish the active stream
-          const activeStream = aggregatorRef.current
-            .getActiveStreams()
-            .find((s) => s.messageId === data.messageId);
-          if (activeStream) {
-            // Finish streaming with the final content from backend and metadata
-            aggregatorRef.current.finishStreaming(activeStream.streamingId, data.content, {
-              tokens: data.usage?.totalTokens,
-              model: data.model,
-            });
-          } else {
-            // If no active stream (e.g., reconnection), create the final message directly
-            const finalMessage = createCmuxMessage(
-              data.messageId,
-              "assistant",
-              data.content || "",
-              {
-                sequenceNumber: 0,
-                tokens: data.usage?.totalTokens,
-                model: data.model,
-              }
-            );
-            aggregatorRef.current.addMessage(finalMessage);
-          }
+          // Aggregator handles both active streams and reconnection cases
+          aggregatorRef.current.handleStreamEnd(data);
+          updateUIAndScroll();
+          return;
+        }
 
-          // Force re-render with updated messages
-          setUIMessageMap(
-            new Map(aggregatorRef.current.getAllMessages().map((msg) => [msg.id, msg]))
-          );
-          performAutoScroll();
+        // Handle tool call events with simplified delegation
+        if (isToolCallStart(data)) {
+          aggregatorRef.current.handleToolCallStart(data);
+          updateUIAndScroll();
+          return;
+        }
+
+        if (isToolCallDelta(data)) {
+          aggregatorRef.current.handleToolCallDelta(data);
+          updateUIAndScroll();
+          return;
+        }
+
+        if (isToolCallEnd(data)) {
+          aggregatorRef.current.handleToolCallEnd(data);
+          updateUIAndScroll();
           return;
         }
 
         // Regular messages (user messages, historical messages)
-        processMessage(data);
+        aggregatorRef.current.handleMessage(data);
+        updateUIAndScroll();
 
         // Only auto-scroll for new messages after caught up
         if (isCaughtUp) {
-          performAutoScroll();
+          // Needs to call perform scroll directly, not through updateUIAndScroll
+          // to avoid stale closure issues during reconnection
+          if (contentRef.current) {
+            contentRef.current.scrollTop = contentRef.current.scrollHeight;
+          }
         }
       }
     );
@@ -268,7 +246,7 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
     // Subscribe to workspace-specific clear channel
     const unsubscribeClear = window.api.workspace.onClear(workspaceId, () => {
       // Clear the UI when we receive a clear event
-      setUIMessageMap(new Map());
+      setDisplayedMessages([]);
       aggregatorRef.current.clear();
     });
 
@@ -280,7 +258,7 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
         unsubscribeClear();
       }
     };
-  }, [projectName, branch, workspaceId, processMessage, performAutoScroll]);
+  }, [projectName, branch, workspaceId, updateUIAndScroll]);
 
   const handleMessageSent = useCallback(() => {
     // Enable auto-scroll when user sends a message
@@ -289,7 +267,7 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
 
   const handleClearHistory = useCallback(async () => {
     // Clear UI immediately
-    setUIMessageMap(new Map());
+    setDisplayedMessages([]);
     aggregatorRef.current.clear();
 
     // Enable auto-scroll after clearing

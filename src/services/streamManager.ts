@@ -2,8 +2,10 @@ import { EventEmitter } from "events";
 import { randomUUID } from "crypto";
 import {
   streamText,
+  stepCountIs,
   type ModelMessage,
   type LanguageModel,
+  type Tool,
   LoadAPIKeyError,
   APICallError,
   RetryError,
@@ -14,6 +16,8 @@ import type {
   StreamDeltaEvent,
   StreamEndEvent,
   ErrorEvent,
+  ToolCallStartEvent,
+  ToolCallEndEvent,
 } from "../types/aiEvents";
 import type { SendMessageError } from "../types/errors";
 
@@ -104,7 +108,8 @@ export class StreamManager extends EventEmitter {
     messages: ModelMessage[],
     model: LanguageModel,
     modelString: string,
-    abortSignal: AbortSignal
+    abortSignal: AbortSignal,
+    tools?: Record<string, Tool>
   ): Promise<WorkspaceStreamInfo> {
     // Create abort controller for this specific stream
     const abortController = new AbortController();
@@ -121,6 +126,8 @@ export class StreamManager extends EventEmitter {
         model,
         messages,
         abortSignal: abortController.signal,
+        tools,
+        stopWhen: stepCountIs(1000), // Allow up to 1000 steps (effectively unlimited)
       });
     } catch (error) {
       // Clean up abort controller if stream creation fails
@@ -166,21 +173,73 @@ export class StreamManager extends EventEmitter {
         model: streamInfo.model,
       } as StreamStartEvent);
 
-      // Stream the text
+      // Use fullStream to capture all events including tool calls
       let fullContent = "";
-      for await (const chunk of streamInfo.streamResult.textStream) {
+      const toolCalls = new Map<
+        string,
+        { toolCallId: string; toolName: string; input: unknown; output?: unknown }
+      >();
+
+      for await (const part of streamInfo.streamResult.fullStream) {
         // Check if stream was cancelled
         if (streamInfo.abortController.signal.aborted) {
           break;
         }
 
-        fullContent += chunk;
-        this.emit("stream-delta", {
-          type: "stream-delta",
-          workspaceId: workspaceId as string,
-          messageId: streamInfo.messageId,
-          delta: chunk,
-        } as StreamDeltaEvent);
+        switch (part.type) {
+          case "text-delta":
+            fullContent += part.text;
+            this.emit("stream-delta", {
+              type: "stream-delta",
+              workspaceId: workspaceId as string,
+              messageId: streamInfo.messageId,
+              delta: part.text,
+            } as StreamDeltaEvent);
+            break;
+
+          case "tool-call":
+            // Tool call started
+            toolCalls.set(part.toolCallId, {
+              toolCallId: part.toolCallId,
+              toolName: part.toolName,
+              input: part.input,
+            });
+            this.emit("tool-call-start", {
+              type: "tool-call-start",
+              workspaceId: workspaceId as string,
+              messageId: streamInfo.messageId,
+              toolCallId: part.toolCallId,
+              toolName: part.toolName,
+              args: part.input,
+            } as ToolCallStartEvent);
+            break;
+
+          case "tool-result": {
+            // Tool call completed
+            const toolCall = toolCalls.get(part.toolCallId);
+            if (toolCall) {
+              toolCall.output = part.output;
+              this.emit("tool-call-end", {
+                type: "tool-call-end",
+                workspaceId: workspaceId as string,
+                messageId: streamInfo.messageId,
+                toolCallId: part.toolCallId,
+                toolName: part.toolName,
+                result: part.output,
+              } as ToolCallEndEvent);
+            }
+            break;
+          }
+
+          // Handle other event types as needed
+          case "start":
+          case "start-step":
+          case "text-start":
+          case "finish":
+          case "finish-step":
+            // These events can be logged or handled if needed
+            break;
+        }
       }
 
       // Check if stream completed successfully
@@ -188,7 +247,7 @@ export class StreamManager extends EventEmitter {
         // Get usage information
         const usage = await streamInfo.streamResult.usage;
 
-        // Emit stream end event
+        // Emit stream end event with tool calls included
         this.emit("stream-end", {
           type: "stream-end",
           workspaceId: workspaceId as string,
@@ -196,6 +255,7 @@ export class StreamManager extends EventEmitter {
           content: fullContent,
           usage,
           model: streamInfo.model,
+          toolCalls: Array.from(toolCalls.values()),
         } as StreamEndEvent);
       }
     } catch (error) {
@@ -302,7 +362,8 @@ export class StreamManager extends EventEmitter {
     messages: ModelMessage[],
     model: LanguageModel,
     modelString: string,
-    abortSignal?: AbortSignal
+    abortSignal?: AbortSignal,
+    tools?: Record<string, Tool>
   ): Promise<Result<StreamToken, SendMessageError>> {
     const typedWorkspaceId = workspaceId as WorkspaceId;
 
@@ -317,7 +378,8 @@ export class StreamManager extends EventEmitter {
         messages,
         model,
         modelString,
-        abortSignal || new AbortController().signal
+        abortSignal || new AbortController().signal,
+        tools
       );
 
       // Step 3: Process stream with guaranteed cleanup (runs in background)

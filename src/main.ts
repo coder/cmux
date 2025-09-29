@@ -18,6 +18,9 @@ import type {
   StreamDeltaEvent,
   StreamEndEvent,
   ErrorEvent,
+  ToolCallStartEvent,
+  ToolCallDeltaEvent,
+  ToolCallEndEvent,
 } from "./types/aiEvents";
 import { IPC_CHANNELS, getChatChannel } from "./constants/ipc-constants";
 import type { SendMessageError } from "./types/errors";
@@ -331,6 +334,25 @@ aiService.on("stream-delta", (data: StreamDeltaEvent) => {
 aiService.on("stream-end", (data: StreamEndEvent) => {
   if (mainWindow) {
     // Send the stream-end event with final content and metadata
+    mainWindow.webContents.send(getChatChannel(data.workspaceId), data);
+  }
+});
+
+// Forward tool events to renderer
+aiService.on("tool-call-start", (data: ToolCallStartEvent) => {
+  if (mainWindow) {
+    mainWindow.webContents.send(getChatChannel(data.workspaceId), data);
+  }
+});
+
+aiService.on("tool-call-delta", (data: ToolCallDeltaEvent) => {
+  if (mainWindow) {
+    mainWindow.webContents.send(getChatChannel(data.workspaceId), data);
+  }
+});
+
+aiService.on("tool-call-end", (data: ToolCallEndEvent) => {
+  if (mainWindow) {
     mainWindow.webContents.send(getChatChannel(data.workspaceId), data);
   }
 });

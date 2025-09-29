@@ -63,6 +63,7 @@ Generate them with `./scripts/update_vercel_docs.sh` if they don't exist.
 
 - Colors are centralized as CSS variables in `src/styles/colors.tsx`
 - Use CSS variables (e.g., `var(--color-plan-mode)`) instead of hardcoded colors
+- Fonts are centralized as CSS variables in `src/styles/fonts.tsx`
 
 ## TypeScript Best Practices
 

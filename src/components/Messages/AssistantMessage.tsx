@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import styled from "@emotion/styled";
-import { CmuxMessage } from "../../types/message";
-import { extractTextContent, isStreamingMessage } from "../../utils/messageUtils";
+import { DisplayedMessage } from "../../types/message";
 import { MarkdownRenderer } from "./MarkdownRenderer";
 import { TypewriterMarkdown } from "./TypewriterMarkdown";
 import { MessageWindow, ButtonConfig } from "./MessageWindow";
@@ -58,7 +57,7 @@ const ModelName = styled.span`
 `;
 
 interface AssistantMessageProps {
-  message: CmuxMessage;
+  message: DisplayedMessage & { type: "assistant" };
   className?: string;
 }
 
@@ -66,8 +65,8 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({ message, cla
   const [showRaw, setShowRaw] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const content = extractTextContent(message);
-  const isStreaming = isStreamingMessage(message);
+  const content = message.content;
+  const isStreaming = message.isStreaming;
 
   const handleCopy = async () => {
     try {
@@ -106,18 +105,24 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({ message, cla
       return <WaitingMessage>Waiting for response...</WaitingMessage>;
     }
 
-    // Streaming with content
+    // Streaming text gets typewriter effect
     if (isStreaming) {
       return <TypewriterMarkdown deltas={[content]} isComplete={false} />;
     }
 
-    // Completed message
-    return showRaw ? <RawContent>{content}</RawContent> : <MarkdownRenderer content={content} />;
+    // Completed text renders as static content
+    return content ? (
+      showRaw ? (
+        <RawContent>{content}</RawContent>
+      ) : (
+        <MarkdownRenderer content={content} />
+      )
+    ) : null;
   };
 
   // Create label with model name if available
   const renderLabel = () => {
-    const modelName = message.metadata?.model;
+    const modelName = message.model;
     if (modelName) {
       return (
         <LabelContainer>
@@ -133,7 +138,7 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({ message, cla
     <MessageWindow
       label={renderLabel()}
       borderColor="var(--color-assistant-border)"
-      message={message}
+      message={message as any}
       buttons={buttons}
       rightLabel={rightLabel}
       className={className}

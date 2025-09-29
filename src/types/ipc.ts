@@ -3,7 +3,14 @@ import { WorkspaceMetadata } from "./workspace";
 import type { CmuxMessage } from "./message";
 import type { ProjectConfig } from "../config";
 import type { SendMessageError } from "./errors";
-import type { StreamStartEvent, StreamDeltaEvent, StreamEndEvent } from "./aiEvents";
+import type {
+  StreamStartEvent,
+  StreamDeltaEvent,
+  StreamEndEvent,
+  ToolCallStartEvent,
+  ToolCallDeltaEvent,
+  ToolCallEndEvent,
+} from "./aiEvents";
 
 // Import constants from constants module (single source of truth)
 import { IPC_CHANNELS, getChatChannel, getClearChannel } from "../constants/ipc-constants";
@@ -33,7 +40,10 @@ export type WorkspaceChatMessage =
   | StreamErrorMessage
   | StreamStartEvent
   | StreamDeltaEvent
-  | StreamEndEvent;
+  | StreamEndEvent
+  | ToolCallStartEvent
+  | ToolCallDeltaEvent
+  | ToolCallEndEvent;
 
 // Type guard for caught up messages
 export function isCaughtUpMessage(msg: WorkspaceChatMessage): msg is CaughtUpMessage {
@@ -58,6 +68,21 @@ export function isStreamDelta(msg: WorkspaceChatMessage): msg is StreamDeltaEven
 // Type guard for stream end events
 export function isStreamEnd(msg: WorkspaceChatMessage): msg is StreamEndEvent {
   return "type" in msg && msg.type === "stream-end";
+}
+
+// Type guard for tool call start events
+export function isToolCallStart(msg: WorkspaceChatMessage): msg is ToolCallStartEvent {
+  return "type" in msg && msg.type === "tool-call-start";
+}
+
+// Type guard for tool call delta events
+export function isToolCallDelta(msg: WorkspaceChatMessage): msg is ToolCallDeltaEvent {
+  return "type" in msg && msg.type === "tool-call-delta";
+}
+
+// Type guard for tool call end events
+export function isToolCallEnd(msg: WorkspaceChatMessage): msg is ToolCallEndEvent {
+  return "type" in msg && msg.type === "tool-call-end";
 }
 
 // API method signatures (shared between main and preload)

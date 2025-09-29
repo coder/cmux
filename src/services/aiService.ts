@@ -1,7 +1,7 @@
 import * as fs from "fs/promises";
 import * as path from "path";
 import { EventEmitter } from "events";
-import { convertToModelMessages, type LanguageModel } from "ai";
+import { convertToModelMessages, type LanguageModel, type Tool } from "ai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { Result, Ok, Err } from "../types/result";
 import { WorkspaceMetadata } from "../types/workspace";
@@ -10,6 +10,7 @@ import { SESSIONS_DIR, getSessionDir, loadProvidersConfig } from "../config";
 import { StreamManager } from "./streamManager";
 import type { StreamEndEvent } from "../types/aiEvents";
 import type { SendMessageError } from "../types/errors";
+import { readFileTool } from "./tools/readFileTool";
 
 // Pipe-safe console.error wrapper
 function safeLogError(...args: unknown[]): void {
@@ -55,6 +56,10 @@ export class AIService extends EventEmitter {
     this.streamManager.on("stream-end", (data) => this.emit("stream-end", data));
     this.streamManager.on("stream-abort", (data) => this.emit("stream-abort", data));
     this.streamManager.on("error", (data) => this.emit("error", data));
+    // Forward tool events
+    this.streamManager.on("tool-call-start", (data) => this.emit("tool-call-start", data));
+    this.streamManager.on("tool-call-delta", (data) => this.emit("tool-call-delta", data));
+    this.streamManager.on("tool-call-end", (data) => this.emit("tool-call-end", data));
   }
 
   private async ensureSessionsDir(): Promise<void> {
@@ -245,13 +250,19 @@ export class AIService extends EventEmitter {
       // Convert CmuxMessage to ModelMessage format using Vercel AI SDK utility
       const modelMessages = convertToModelMessages(messages);
 
-      // Delegate to StreamManager with model instance
+      // Define available tools with proper typing
+      const tools: Record<string, Tool> = {
+        readFile: readFileTool,
+      };
+
+      // Delegate to StreamManager with model instance and tools
       const streamResult = await this.streamManager.startStream(
         workspaceId,
         modelMessages,
         modelResult.data,
         this.defaultModel,
-        abortSignal
+        abortSignal,
+        tools
       );
 
       if (!streamResult.success) {
@@ -262,6 +273,18 @@ export class AIService extends EventEmitter {
       // Listen for stream-end events to save messages to history
       this.streamManager.once("stream-end", async (data: StreamEndEvent) => {
         if (data.workspaceId === workspaceId) {
+          // Create dynamic tool parts if there are tool calls
+          const toolParts =
+            data.toolCalls?.map((toolCall) => ({
+              type: "dynamic-tool" as const,
+              toolCallId: toolCall.toolCallId,
+              toolName: toolCall.toolName,
+              state: "output-available" as const,
+              input: toolCall.input,
+              output: toolCall.output || undefined,
+            })) || [];
+
+          // Create the assistant message with both text and tool parts
           const assistantMessage = createCmuxMessage(
             data.messageId,
             "assistant",
@@ -271,10 +294,14 @@ export class AIService extends EventEmitter {
               tokens: data.usage?.totalTokens,
               timestamp: Date.now(),
               model: data.model,
-            }
+            },
+            toolParts
           );
 
-          await this.appendToHistory(workspaceId, assistantMessage);
+          // Only save if there's content (either text or tool calls)
+          if (data.content || (toolParts && toolParts.length > 0)) {
+            await this.appendToHistory(workspaceId, assistantMessage);
+          }
         }
       });
 

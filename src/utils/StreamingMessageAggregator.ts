@@ -1,9 +1,23 @@
-import { CmuxMessage, CmuxMetadata, createCmuxMessage } from "../types/message";
+import { CmuxMessage, CmuxMetadata, createCmuxMessage, DisplayedMessage } from "../types/message";
+import type {
+  StreamStartEvent,
+  StreamDeltaEvent,
+  StreamEndEvent,
+  ToolCallStartEvent,
+  ToolCallDeltaEvent,
+  ToolCallEndEvent,
+} from "../types/aiEvents";
+import type { WorkspaceChatMessage } from "../types/ipc";
+import type {
+  DynamicToolPart,
+  DynamicToolPartPending,
+  DynamicToolPartAvailable,
+} from "../types/toolParts";
+import { isDynamicToolPart } from "../types/toolParts";
 
 interface StreamingContext {
   streamingId: string;
   messageId: string;
-  contentParts: string[];
   startTime: number;
   isComplete: boolean;
 }
@@ -39,20 +53,19 @@ export class StreamingMessageAggregator {
     const context: StreamingContext = {
       streamingId: `stream-${Date.now()}-${Math.random()}`,
       messageId,
-      contentParts: [],
       startTime: Date.now(),
       isComplete: false,
     };
 
     this.activeStreams.set(context.streamingId, context);
 
-    // Create initial streaming message
+    // Create initial streaming message with empty streaming text part
     const streamingMessage = createCmuxMessage(messageId, "assistant", "", {
       sequenceNumber: this.sequenceCounter++,
       streamingId: context.streamingId,
       timestamp: Date.now(),
     });
-    // Mark as streaming
+    // Start with a single streaming text part
     streamingMessage.parts[0] = { type: "text", text: "", state: "streaming" };
 
     this.messages.set(messageId, streamingMessage);
@@ -63,13 +76,32 @@ export class StreamingMessageAggregator {
     const context = this.activeStreams.get(streamingId);
     if (!context) return;
 
-    context.contentParts.push(delta);
-
-    // Update the message content
     const message = this.messages.get(context.messageId);
-    if (message && message.parts[0]?.type === "text") {
-      const newContent = context.contentParts.join("");
-      message.parts[0] = { type: "text", text: newContent, state: "streaming" };
+    if (!message) return;
+
+    // Find the last text part that's still streaming
+    let streamingPartIndex = -1;
+    for (let i = message.parts.length - 1; i >= 0; i--) {
+      const part = message.parts[i];
+      if (part.type === "text" && part.state === "streaming") {
+        streamingPartIndex = i;
+        break;
+      }
+    }
+
+    // If no streaming part found, create one
+    if (streamingPartIndex === -1) {
+      message.parts.push({ type: "text", text: delta, state: "streaming" });
+    } else {
+      // Append delta to the streaming text part
+      const part = message.parts[streamingPartIndex];
+      if (part.type === "text") {
+        message.parts[streamingPartIndex] = {
+          type: "text",
+          text: part.text + delta,
+          state: "streaming",
+        };
+      }
     }
   }
 
@@ -83,21 +115,27 @@ export class StreamingMessageAggregator {
 
     context.isComplete = true;
 
-    // Mark message as no longer streaming
     const message = this.messages.get(context.messageId);
-    if (message && message.parts[0]?.type === "text") {
-      // Use finalContent if provided, otherwise use accumulated content
-      const content = finalContent !== undefined ? finalContent : context.contentParts.join("");
-      message.parts[0] = { type: "text", text: content, state: "done" };
+    if (!message) {
+      this.activeStreams.delete(streamingId);
+      return;
+    }
 
-      // Update metadata with duration and any additional metadata
-      if (message.metadata) {
-        message.metadata = {
-          ...message.metadata,
-          duration: Date.now() - context.startTime,
-          ...additionalMetadata,
-        };
+    // Simply mark all streaming parts as done
+    for (let i = 0; i < message.parts.length; i++) {
+      const part = message.parts[i];
+      if (part.type === "text" && part.state === "streaming") {
+        message.parts[i] = { ...part, state: "done" };
       }
+    }
+
+    // Update metadata with duration and any additional metadata
+    if (message.metadata) {
+      message.metadata = {
+        ...message.metadata,
+        duration: Date.now() - context.startTime,
+        ...additionalMetadata,
+      };
     }
 
     // Clean up active stream
@@ -118,5 +156,248 @@ export class StreamingMessageAggregator {
     this.messages.clear();
     this.activeStreams.clear();
     this.sequenceCounter = 0;
+  }
+
+  // Unified event handlers that encapsulate all complex logic
+  handleStreamStart(data: StreamStartEvent): void {
+    const context: StreamingContext = {
+      streamingId: `stream-${Date.now()}-${Math.random()}`,
+      messageId: data.messageId,
+      startTime: Date.now(),
+      isComplete: false,
+    };
+
+    this.activeStreams.set(context.streamingId, context);
+
+    // Create initial streaming message
+    const streamingMessage = createCmuxMessage(data.messageId, "assistant", "", {
+      sequenceNumber: this.sequenceCounter++,
+      streamingId: context.streamingId,
+      timestamp: Date.now(),
+      model: data.model,
+    });
+    // Mark as streaming
+    streamingMessage.parts[0] = { type: "text", text: "", state: "streaming" };
+
+    this.messages.set(data.messageId, streamingMessage);
+  }
+
+  handleStreamDelta(data: StreamDeltaEvent): void {
+    // Find the active stream for this messageId
+    const activeStream = this.getActiveStreams().find((s) => s.messageId === data.messageId);
+    if (activeStream) {
+      this.updateStreaming(activeStream.streamingId, data.delta);
+    }
+  }
+
+  handleStreamEnd(data: StreamEndEvent): void {
+    // Find active stream if exists
+    const activeStream = this.getActiveStreams().find((s) => s.messageId === data.messageId);
+
+    if (activeStream) {
+      // Normal streaming case: we've been tracking this stream from the start
+      // Just mark streaming parts as done
+      this.finishStreaming(activeStream.streamingId, undefined, {
+        tokens: data.usage?.totalTokens,
+        model: data.model,
+      });
+
+      // Update tool parts with their results if provided
+      if (data.toolCalls && data.toolCalls.length > 0) {
+        const message = this.messages.get(data.messageId);
+        if (message) {
+          for (const toolCall of data.toolCalls) {
+            // Find and update existing tool part
+            const toolPart = message.parts.find(
+              (part): part is DynamicToolPart =>
+                part.type === "dynamic-tool" &&
+                (part as DynamicToolPart).toolCallId === toolCall.toolCallId
+            );
+            if (toolPart) {
+              // Update with result
+              (toolPart as DynamicToolPartAvailable).output = toolCall.output;
+              (toolPart as DynamicToolPartAvailable).state = "output-available";
+            }
+          }
+        }
+      }
+    } else {
+      // Reconnection case: user reconnected after stream completed
+      // We need to reconstruct the entire message from the stream-end event
+      // The backend sends us the final state with all parts
+      const parts: CmuxMessage["parts"] = [];
+
+      // Add text part if present
+      if (data.content) {
+        parts.push({ type: "text", text: data.content, state: "done" });
+      }
+
+      // Add tool parts in the order they occurred
+      // NOTE: Currently we append all tools after text, but if the backend
+      // provides ordering info, we should interleave them properly
+      if (data.toolCalls && data.toolCalls.length > 0) {
+        for (const toolCall of data.toolCalls) {
+          const toolPart: DynamicToolPartAvailable = {
+            type: "dynamic-tool",
+            toolCallId: toolCall.toolCallId,
+            toolName: toolCall.toolName,
+            state: "output-available",
+            input: toolCall.input,
+            output: toolCall.output || undefined,
+          };
+          parts.push(toolPart as never);
+        }
+      }
+
+      // Create the complete message
+      const message: CmuxMessage = {
+        id: data.messageId,
+        role: "assistant",
+        metadata: {
+          sequenceNumber: this.sequenceCounter++,
+          tokens: data.usage?.totalTokens,
+          model: data.model,
+          timestamp: Date.now(),
+        },
+        parts,
+      };
+
+      this.messages.set(data.messageId, message);
+    }
+  }
+
+  handleToolCallStart(data: ToolCallStartEvent): void {
+    const message = this.messages.get(data.messageId);
+    if (!message) return;
+
+    // Check if this tool call already exists to prevent duplicates
+    const existingToolPart = message.parts.find(
+      (part): part is DynamicToolPart =>
+        part.type === "dynamic-tool" && (part as DynamicToolPart).toolCallId === data.toolCallId
+    );
+
+    if (existingToolPart) {
+      console.warn(`Tool call ${data.toolCallId} already exists, skipping duplicate`);
+      return;
+    }
+
+    // Mark current streaming text as done
+    for (let i = 0; i < message.parts.length; i++) {
+      const part = message.parts[i];
+      if (part.type === "text" && part.state === "streaming") {
+        message.parts[i] = { ...part, state: "done" };
+      }
+    }
+
+    // Add tool part to maintain temporal order
+    const toolPart: DynamicToolPartPending = {
+      type: "dynamic-tool",
+      toolCallId: data.toolCallId,
+      toolName: data.toolName,
+      state: "input-available",
+      input: data.args,
+    };
+    message.parts.push(toolPart as never);
+
+    // Add new streaming text part for content after the tool
+    message.parts.push({ type: "text", text: "", state: "streaming" });
+  }
+
+  handleToolCallDelta(_data: ToolCallDeltaEvent): void {
+    // Tool deltas could be handled here if needed for streaming tool results
+    // For now, we wait for the complete result in handleToolCallEnd
+  }
+
+  handleToolCallEnd(data: ToolCallEndEvent): void {
+    const message = this.messages.get(data.messageId);
+    if (message) {
+      // Find the specific tool part by its ID and update it with the result
+      // We don't move it - it stays in its original temporal position
+      const toolPart = message.parts.find(
+        (part): part is DynamicToolPart =>
+          part.type === "dynamic-tool" && (part as DynamicToolPart).toolCallId === data.toolCallId
+      ) as DynamicToolPart | undefined;
+      if (toolPart) {
+        // Type assertion needed because TypeScript can't narrow the discriminated union
+        (toolPart as DynamicToolPartAvailable).state = "output-available";
+        (toolPart as DynamicToolPartAvailable).output = data.result;
+      }
+    }
+  }
+
+  handleMessage(data: WorkspaceChatMessage): void {
+    // Handle regular messages (user messages, historical messages)
+    // Check if it's a CmuxMessage (has role property but no type)
+    if ("role" in data && !("type" in data)) {
+      this.addMessage(data as CmuxMessage);
+    }
+  }
+
+  /**
+   * Transform CmuxMessages into DisplayedMessages for UI consumption
+   * This splits complex messages with multiple parts into separate UI blocks
+   * while preserving temporal ordering through sequence numbers
+   */
+  getDisplayedMessages(): DisplayedMessage[] {
+    const displayedMessages: DisplayedMessage[] = [];
+    let displaySequenceCounter = 0;
+
+    for (const message of this.getAllMessages()) {
+      const baseTimestamp = message.metadata?.timestamp;
+
+      if (message.role === "user") {
+        // User messages: combine all text parts into single block
+        const content = message.parts
+          .filter((p) => p.type === "text")
+          .map((p) => p.text)
+          .join("");
+
+        displayedMessages.push({
+          type: "user",
+          id: `${message.id}-user`,
+          content,
+          sequenceNumber: displaySequenceCounter++,
+          timestamp: baseTimestamp,
+        });
+      } else if (message.role === "assistant") {
+        // Assistant messages: each part becomes a separate DisplayedMessage
+        message.parts.forEach((part, partIndex) => {
+          if (part.type === "text" && part.text) {
+            // Skip empty text parts
+            displayedMessages.push({
+              type: "assistant",
+              id: `${message.id}-${partIndex}`,
+              content: part.text,
+              sequenceNumber: displaySequenceCounter++,
+              isStreaming: part.state === "streaming",
+              model: message.metadata?.model,
+              timestamp: baseTimestamp,
+              tokens: message.metadata?.tokens,
+            });
+          } else if (isDynamicToolPart(part)) {
+            const status =
+              part.state === "output-available"
+                ? "completed"
+                : part.state === "input-available"
+                  ? "executing"
+                  : "pending";
+
+            displayedMessages.push({
+              type: "tool",
+              id: `${message.id}-${partIndex}`,
+              toolCallId: part.toolCallId,
+              toolName: part.toolName,
+              args: part.input,
+              result: part.state === "output-available" ? part.output : undefined,
+              status,
+              sequenceNumber: displaySequenceCounter++,
+              timestamp: baseTimestamp,
+            });
+          }
+        });
+      }
+    }
+
+    return displayedMessages;
   }
 }
