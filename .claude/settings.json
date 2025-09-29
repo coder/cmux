@@ -6,8 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bunx prettier --write \"$1\" 2>/dev/null || true",
-            "description": "Format edited files with Prettier"
+            "command": "bunx prettier --write \"$1\" 1>/dev/null 2>/dev/null || true"
           }
         ]
       }

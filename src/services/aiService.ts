@@ -2,7 +2,9 @@ import * as fs from "fs/promises";
 import * as path from "path";
 import { EventEmitter } from "events";
 import { convertToModelMessages, type LanguageModel, type Tool } from "ai";
-import { createAnthropic } from "@ai-sdk/anthropic";
+import { createAnthropic, anthropic } from "@ai-sdk/anthropic";
+import { openai } from "@ai-sdk/openai";
+import { google } from "@ai-sdk/google";
 import { Result, Ok, Err } from "../types/result";
 import { WorkspaceMetadata } from "../types/workspace";
 import { CmuxMessage } from "../types/message";
@@ -11,29 +13,8 @@ import { StreamManager } from "./streamManager";
 import type { StreamEndEvent } from "../types/aiEvents";
 import type { SendMessageError } from "../types/errors";
 import { readFileTool } from "./tools/readFileTool";
-
-// Pipe-safe console.error wrapper
-function safeLogError(...args: unknown[]): void {
-  try {
-    console.error(...args);
-  } catch (error) {
-    // Silently ignore EPIPE and other console errors
-    const errorCode =
-      error && typeof error === "object" && "code" in error ? error.code : undefined;
-    const errorMessage =
-      error && typeof error === "object" && "message" in error
-        ? String(error.message)
-        : "Unknown error";
-
-    if (errorCode !== "EPIPE") {
-      try {
-        process.stderr.write(`Console error: ${errorMessage}\n`);
-      } catch {
-        // Even stderr might fail, just ignore
-      }
-    }
-  }
-}
+import { splitToolCallsAndResults } from "../utils/messageTransform";
+import { log } from "./log";
 
 export class AIService extends EventEmitter {
   private readonly CHAT_FILE = "chat.jsonl";
@@ -66,7 +47,7 @@ export class AIService extends EventEmitter {
     try {
       await fs.mkdir(SESSIONS_DIR, { recursive: true });
     } catch (error) {
-      safeLogError("Failed to create sessions directory:", error);
+      log.error("Failed to create sessions directory:", error);
     }
   }
 
@@ -167,6 +148,56 @@ export class AIService extends EventEmitter {
   }
 
   /**
+   * Get tools for a model based on the provider and model ID.
+   * This method progressively enhances base tools with provider-specific capabilities
+   * like web search when available, without breaking support for unknown providers.
+   *
+   * @param modelString The model string in format "provider:model-id"
+   * @returns Record of tools available for the model
+   */
+  private getToolsForModel(modelString: string): Record<string, Tool> {
+    const [provider, modelId] = modelString.split(":");
+
+    // Base tools available for all models
+    const baseTools: Record<string, Tool> = {
+      readFile: readFileTool,
+    };
+
+    // Try to add provider-specific web search tools if available
+    // This doesn't break if the provider isn't recognized
+    try {
+      switch (provider) {
+        case "anthropic":
+          return {
+            ...baseTools,
+            web_search: anthropic.tools.webSearch_20250305({ maxUses: 10 }),
+          };
+
+        case "openai":
+          // Only add web search for models that support it
+          if (modelId.includes("gpt-5") || modelId.includes("gpt-4")) {
+            return {
+              ...baseTools,
+              web_search: openai.tools.webSearch({}),
+            };
+          }
+          break;
+
+        case "google":
+          return {
+            ...baseTools,
+            google_search: google.tools.googleSearch({}),
+          };
+      }
+    } catch (error) {
+      // If tools aren't available, just return base tools
+      log.error(`No web search tools available for ${provider}:`, error);
+    }
+
+    return baseTools;
+  }
+
+  /**
    * Create an AI SDK model from a model string (e.g., "anthropic:claude-opus-4-1")
    *
    * IMPORTANT: We ONLY use providers.jsonc as the single source of truth for provider configuration.
@@ -247,13 +278,14 @@ export class AIService extends EventEmitter {
         return Err(modelResult.error);
       }
 
-      // Convert CmuxMessage to ModelMessage format using Vercel AI SDK utility
-      const modelMessages = convertToModelMessages(messages);
+      // Transform messages to handle text after tool calls
+      const transformedMessages = splitToolCallsAndResults(messages, this.defaultModel);
 
-      // Define available tools with proper typing
-      const tools: Record<string, Tool> = {
-        readFile: readFileTool,
-      };
+      // Convert CmuxMessage to ModelMessage format using Vercel AI SDK utility
+      const modelMessages = convertToModelMessages(transformedMessages);
+
+      // Get model-specific tools (including provider-specific web search if available)
+      const tools = this.getToolsForModel(this.defaultModel);
 
       // Delegate to StreamManager with model instance and tools
       const streamResult = await this.streamManager.startStream(
@@ -296,7 +328,7 @@ export class AIService extends EventEmitter {
       return Ok(undefined);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      safeLogError("Stream message error:", error);
+      log.error("Stream message error:", error);
       // Return as unknown error type
       return Err({ type: "unknown", raw: `Failed to stream message: ${errorMessage}` });
     }
