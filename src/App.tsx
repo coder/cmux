@@ -7,6 +7,7 @@ import ProjectSidebar, { ProjectConfig, WorkspaceSelection } from "./components/
 import NewWorkspaceModal from "./components/NewWorkspaceModal";
 import { AIView } from "./components/AIView";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { usePersistedState } from "./hooks/usePersistedState";
 
 // Global Styles with nice fonts
 const globalStyles = css`
@@ -109,7 +110,10 @@ const WelcomeView = styled.div`
 function App() {
   const [projects, setProjects] = useState<Map<string, ProjectConfig>>(new Map());
   const [selectedProject, setSelectedProject] = useState<string | null>(null);
-  const [selectedWorkspace, setSelectedWorkspace] = useState<WorkspaceSelection | null>(null);
+  const [selectedWorkspace, setSelectedWorkspace] = usePersistedState<WorkspaceSelection | null>(
+    "selectedWorkspace",
+    null
+  );
   const [workspaceModalOpen, setWorkspaceModalOpen] = useState(false);
   const [workspaceModalProject, setWorkspaceModalProject] = useState<string | null>(null);
 
