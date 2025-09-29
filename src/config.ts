@@ -2,10 +2,12 @@ import * as fs from "fs";
 import * as fsPromises from "fs/promises";
 import * as path from "path";
 import * as os from "os";
+import * as jsonc from "jsonc-parser";
 import type { WorkspaceMetadata } from "./types/workspace";
 
 const CONFIG_DIR = path.join(os.homedir(), ".cmux");
 const CONFIG_FILE = path.join(CONFIG_DIR, "config.json");
+const PROVIDERS_FILE = path.join(CONFIG_DIR, "providers.jsonc");
 export const SESSIONS_DIR = path.join(CONFIG_DIR, "sessions");
 
 export interface Workspace {
@@ -20,6 +22,16 @@ export interface ProjectConfig {
 
 export interface Config {
   projects: Map<string, ProjectConfig>;
+}
+
+export interface ProviderConfig {
+  apiKey?: string;
+  baseUrl?: string;
+  [key: string]: unknown;
+}
+
+export interface ProvidersConfig {
+  [providerName: string]: ProviderConfig;
 }
 
 export function load_config_or_default(): Config {
@@ -131,5 +143,54 @@ export async function getAllWorkspaceMetadata(): Promise<
     return workspaceMetadata;
   } catch {
     return []; // Sessions directory doesn't exist yet
+  }
+}
+
+/**
+ * Load providers configuration from JSONC file
+ * Supports comments in JSONC format
+ */
+export function loadProvidersConfig(): ProvidersConfig | null {
+  try {
+    if (fs.existsSync(PROVIDERS_FILE)) {
+      const data = fs.readFileSync(PROVIDERS_FILE, "utf-8");
+      return jsonc.parse(data) as ProvidersConfig;
+    }
+  } catch (error) {
+    console.error("Error loading providers config:", error);
+  }
+
+  return null;
+}
+
+/**
+ * Save providers configuration to JSONC file
+ * @param config The providers configuration to save
+ */
+export function saveProvidersConfig(config: ProvidersConfig): void {
+  try {
+    if (!fs.existsSync(CONFIG_DIR)) {
+      fs.mkdirSync(CONFIG_DIR, { recursive: true });
+    }
+
+    // Format with 2-space indentation for readability
+    const jsonString = JSON.stringify(config, null, 2);
+
+    // Add a comment header to the file
+    const contentWithComments = `// Providers configuration for cmux
+// Configure your AI providers here
+// Example:
+// {
+//   "anthropic": {
+//     "apiKey": "sk-...",
+//     "baseUrl": "https://api.anthropic.com"
+//   }
+// }
+${jsonString}`;
+
+    fs.writeFileSync(PROVIDERS_FILE, contentWithComments);
+  } catch (error) {
+    console.error("Error saving providers config:", error);
+    throw error; // Re-throw to let caller handle
   }
 }

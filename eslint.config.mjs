@@ -125,6 +125,23 @@ export default [
     },
   },
   {
+    // Test file configuration
+    files: ["**/*.test.ts", "**/*.test.tsx"],
+    languageOptions: {
+      globals: {
+        describe: "readonly",
+        it: "readonly",
+        test: "readonly",
+        expect: "readonly",
+        jest: "readonly",
+        beforeEach: "readonly",
+        afterEach: "readonly",
+        beforeAll: "readonly",
+        afterAll: "readonly",
+      },
+    },
+  },
+  {
     ignores: [
       "dist/",
       "build/",

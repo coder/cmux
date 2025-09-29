@@ -84,9 +84,16 @@ export class ErrorBoundary extends Component<Props, State> {
           <ErrorTitle>
             Something went wrong{this.props.workspaceInfo && ` in ${this.props.workspaceInfo}`}
           </ErrorTitle>
-          {this.state.error && <ErrorDetails>{this.state.error.toString()}</ErrorDetails>}
-          {this.state.errorInfo && (
-            <ErrorDetails>{this.state.errorInfo.componentStack}</ErrorDetails>
+          {this.state.error && (
+            <ErrorDetails>
+              {this.state.error.toString()}
+              {this.state.errorInfo && (
+                <>
+                  <br />
+                  {this.state.errorInfo.componentStack}
+                </>
+              )}
+            </ErrorDetails>
           )}
           <ResetButton onClick={this.handleReset}>Reset</ResetButton>
         </ErrorContainer>

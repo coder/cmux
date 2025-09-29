@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import styled from "@emotion/styled";
 import { MessageRenderer } from "./Messages/MessageRenderer";
-import { CommandSuggestions, COMMAND_SUGGESTION_KEYS } from "./CommandSuggestions";
+import { ChatInput } from "./ChatInput";
+import { ErrorMessage } from "./ErrorMessage";
 import { CmuxMessage } from "../types/message";
 import { StreamingMessageAggregator } from "../utils/StreamingMessageAggregator";
 import { DebugProvider, useDebugMode } from "../contexts/DebugContext";
-import { WorkspaceOutputMessage, isCaughtUpMessage } from "../types/ipc";
+import { WorkspaceChatMessage, isCaughtUpMessage, isStreamError } from "../types/ipc";
 
 // StreamingMessageAggregator is now imported from utils
 
@@ -46,94 +47,6 @@ const OutputContent = styled.div`
   line-height: 1.5;
 `;
 
-const InputSection = styled.div`
-  position: relative;
-  padding: 15px;
-  background: #252526;
-  border-top: 1px solid #3e3e42;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-`;
-
-const InputControls = styled.div`
-  display: flex;
-  gap: 10px;
-  align-items: flex-end;
-`;
-
-const DebugModeToggle = styled.label`
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 10px;
-  color: #606060;
-  cursor: pointer;
-  user-select: none;
-  opacity: 0.7;
-  transition: opacity 0.2s ease;
-
-  input {
-    cursor: pointer;
-    transform: scale(0.9);
-  }
-
-  &:hover {
-    opacity: 1;
-  }
-`;
-
-const ModeToggles = styled.div`
-  display: flex;
-  align-items: center;
-`;
-
-const InputField = styled.textarea`
-  flex: 1;
-  background: #1e1e1e;
-  border: 1px solid #3e3e42;
-  color: #d4d4d4;
-  padding: 8px 12px;
-  border-radius: 4px;
-  font-family: inherit;
-  font-size: 13px;
-  resize: none;
-  min-height: 36px;
-  max-height: 200px;
-  overflow-y: auto;
-  max-height: 120px;
-
-  &:focus {
-    outline: none;
-    border-color: #569cd6;
-  }
-
-  &::placeholder {
-    color: #6b6b6b;
-  }
-`;
-
-const SendButton = styled.button`
-  background: #0e639c;
-  border: none;
-  color: white;
-  padding: 8px 16px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 500;
-
-  &:hover {
-    background: #1177bb;
-  }
-
-  &:disabled {
-    background: #3e3e42;
-    cursor: not-allowed;
-    color: #6b6b6b;
-  }
-`;
-
 const EmptyState = styled.div`
   display: flex;
   flex-direction: column;
@@ -164,16 +77,15 @@ interface AIViewProps {
 
 const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, className }) => {
   const [uiMessageMap, setUIMessageMap] = useState<Map<string, CmuxMessage>>(new Map());
-  // Workspaces are always active - no need to track status
-  const [input, setInput] = useState("");
-  const [isSending, setIsSending] = useState(false);
   const [isCompacting] = useState(false);
-  const [availableCommands] = useState<string[]>([]);
-  const [showCommandSuggestions, setShowCommandSuggestions] = useState(false);
   const { debugMode, setDebugMode } = useDebugMode(); // Use context instead of local state
   const [autoScroll, setAutoScroll] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<{
+    title?: string;
+    message: string;
+    details?: string;
+  } | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
   const lastScrollTopRef = useRef<number>(0);
   // Ref to avoid stale closures in async callbacks - always holds current autoScroll value
   const autoScrollRef = useRef<boolean>(true);
@@ -236,11 +148,11 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
     // Show loading state until caught up
     setLoading(true);
 
-    // Subscribe to workspace-specific chat history channel
+    // Subscribe to workspace-specific chat channel
     // This will automatically send historical messages then stream new ones
-    const unsubscribeOutput = window.api.workspace.onChatHistory(
+    const unsubscribeChat = window.api.workspace.onChat(
       workspaceId,
-      (data: WorkspaceOutputMessage) => {
+      (data: WorkspaceChatMessage) => {
         if (isCaughtUpMessage(data)) {
           isCaughtUp = true;
           setLoading(false);
@@ -250,6 +162,27 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
               contentRef.current.scrollTop = contentRef.current.scrollHeight;
             }
           });
+          return;
+        }
+
+        // Handle stream errors
+        if (isStreamError(data)) {
+          // Display error in UI instead of console
+          if (data.errorType === "authentication") {
+            setErrorMessage({
+              title: "Authentication Error",
+              message: "Authentication error during streaming!",
+              details: "Please check your ANTHROPIC_API_KEY environment variable.",
+            });
+          } else {
+            setErrorMessage({
+              title: "Stream Error",
+              message: data.error,
+              details: `Error type: ${data.errorType}`,
+            });
+          }
+
+          // Don't try to render this as a message
           return;
         }
 
@@ -271,8 +204,8 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
     });
 
     return () => {
-      if (typeof unsubscribeOutput === "function") {
-        unsubscribeOutput();
+      if (typeof unsubscribeChat === "function") {
+        unsubscribeChat();
       }
       if (typeof unsubscribeClear === "function") {
         unsubscribeClear();
@@ -280,84 +213,32 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
     };
   }, [projectName, branch, workspaceId, processMessage, performAutoScroll]);
 
-  // Watch input for slash commands
-  useEffect(() => {
-    setShowCommandSuggestions(input.startsWith("/") && availableCommands.length > 0);
-  }, [input, availableCommands]);
-
-  // Handle command selection
-  const handleCommandSelect = useCallback((command: string) => {
-    setInput(`/${command} `);
-    setShowCommandSuggestions(false);
-    inputRef.current?.focus();
+  const handleMessageSent = useCallback(() => {
+    // Enable auto-scroll when user sends a message
+    setAutoScroll(true);
   }, []);
 
-  const handleSend = async () => {
-    if (!input.trim() || !projectName || !branch || isSending || isCompacting) return;
+  const handleClearHistory = useCallback(async () => {
+    // Clear UI immediately
+    setUIMessageMap(new Map());
+    aggregatorRef.current.clear();
 
-    setIsSending(true);
-    try {
-      const messageText = input.trim();
-      setInput(""); // Clear input immediately for better UX
-      // Reset textarea height
-      if (inputRef.current) {
-        inputRef.current.style.height = "36px";
-      }
+    // Enable auto-scroll after clearing
+    setAutoScroll(true);
 
-      // Handle /clear command locally
-      if (messageText === "/clear") {
-        // Clear UI immediately
-        setUIMessageMap(new Map());
-        aggregatorRef.current.clear();
+    // Clear history in backend
+    await window.api.workspace.clearHistory(workspaceId);
+  }, [workspaceId]);
 
-        // Enable auto-scroll after clearing
-        setAutoScroll(true);
-
-        // Clear history in backend
-        await window.api.workspace.clearHistory(workspaceId);
-        return;
-      }
-
-      // Send message to AI backend
-      const result = await window.api.workspace.sendMessage(workspaceId, messageText);
-
+  const handleProviderConfig = useCallback(
+    async (provider: string, keyPath: string[], value: string) => {
+      const result = await window.api.providers.setProviderConfig(provider, keyPath, value);
       if (!result.success) {
-        console.error("Failed to send message to Claude workspace:", result.error);
-        // Show the detailed error to the user and restore input
-        alert(`Failed to send message: ${result.error}`);
-        setInput(messageText);
-        return;
+        throw new Error(result.error);
       }
-
-      console.log("Message sent successfully:", messageText);
-      // Enable auto-scroll when user sends a message
-      setAutoScroll(true);
-    } catch (error) {
-      console.error("Failed to send message:", error);
-      // Restore the input on error
-      setInput(input);
-    } finally {
-      setIsSending(false);
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    // Don't handle keys if command suggestions are visible
-    if (showCommandSuggestions && COMMAND_SUGGESTION_KEYS.includes(e.key)) {
-      return; // Let CommandSuggestions handle it
-    }
-
-    if (e.key === "Enter") {
-      if (e.shiftKey) {
-        // Shift+Enter: allow newline (default behavior)
-        return;
-      } else {
-        // Enter: send message
-        e.preventDefault();
-        handleSend();
-      }
-    }
-  };
+    },
+    []
+  );
 
   if (loading) {
     return (
@@ -431,52 +312,30 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
         {messages.length === 0 ? (
           <EmptyState>
             <h3>No Messages Yet</h3>
-            <p>Send a message below to start interacting with Claude</p>
+            <p>Send a message below to begin</p>
           </EmptyState>
         ) : (
           messages.map((msg) => <MessageRenderer key={msg.id} message={msg} />)
         )}
+        {errorMessage && (
+          <ErrorMessage
+            title={errorMessage.title}
+            message={errorMessage.message}
+            details={errorMessage.details}
+          />
+        )}
       </OutputContent>
 
-      <InputSection>
-        <CommandSuggestions
-          input={input}
-          availableCommands={availableCommands}
-          onSelectCommand={handleCommandSelect}
-          onDismiss={() => setShowCommandSuggestions(false)}
-          isVisible={showCommandSuggestions}
-        />
-        <InputControls>
-          <InputField
-            ref={inputRef}
-            value={input}
-            onChange={(e) => {
-              setInput(e.target.value);
-              // Auto-resize textarea
-              e.target.style.height = "auto";
-              e.target.style.height = Math.min(e.target.scrollHeight, 200) + "px";
-            }}
-            onKeyDown={handleKeyDown}
-            placeholder={
-              isCompacting ? "Compacting conversation..." : "Type a message... (Enter to send)"
-            }
-            disabled={isSending || isCompacting}
-          />
-          <SendButton onClick={handleSend} disabled={!input.trim() || isSending || isCompacting}>
-            {isCompacting ? "Compacting..." : isSending ? "Sending..." : "Send"}
-          </SendButton>
-        </InputControls>
-        <ModeToggles>
-          <DebugModeToggle>
-            <input
-              type="checkbox"
-              checked={debugMode}
-              onChange={(e) => setDebugMode(e.target.checked)}
-            />
-            Debug Mode
-          </DebugModeToggle>
-        </ModeToggles>
-      </InputSection>
+      <ChatInput
+        workspaceId={workspaceId}
+        onMessageSent={handleMessageSent}
+        onClearHistory={handleClearHistory}
+        onProviderConfig={handleProviderConfig}
+        debugMode={debugMode}
+        onDebugModeChange={setDebugMode}
+        disabled={!projectName || !branch}
+        isCompacting={isCompacting}
+      />
     </ViewContainer>
   );
 };

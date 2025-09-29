@@ -12,11 +12,15 @@
 - `src/preload.ts` - Preload script for IPC
 - `src/App.tsx` - Main React component
 - `src/config.ts` - Configuration management
-- `src/docs/vercel/**.mdx` - Vercel AI SDK documentation
-  - generate with `./scripts/update_vercel_docs.sh` if it doesn't exist
 - `~/.cmux/config.json` - User configuration file
 - `~/.cmux/src/<project_name>/<branch>` - Workspace directories for git worktrees
 - `~/.cmux/sessions/<workspace_id>/chat.jsonl` - Session chat histories
+
+## Docs
+
+Important: Vercel AI SDK documentation is stored in `src/docs/vercel/**.mdx`. These are copied
+from the main Vercel AI SDK repository.
+Generate them with `./scripts/update_vercel_docs.sh` if they don't exist.
 
 ## Key Features
 
@@ -27,8 +31,11 @@
 ## Package Manager
 
 - **Using bun** - All dependencies are managed with bun (not npm)
-- Install dependencies: `bun install`
-- Add packages: `bun add <package>`
+- Use bun over npm whenever possible, including to:
+  - Install dependencies: `bun install`
+  - Add packages: `bun add <package>`
+  - Run scripts: `bun run <script>`
+  - etc.
 
 ## Development Commands
 
@@ -46,6 +53,11 @@
 ## Testing
 
 - Always run `bun typecheck` and `bun typecheck:main` after making changes to verify types
+- **Unit tests should be colocated with their business logic** - Place unit test files (\*.test.ts) in the same directory as the code they test (e.g., `aiService.test.ts` next to `aiService.ts`)
+- E2E and integration tests may live in `./tests/` directory, but unit tests must be colocated
+- Strive to decompose complex logic away from the components and into `.src/utils/`
+  - utils should be either pure functions or easily isolated (e.g. if they operate on the FS they accept
+    a path). Testing them should not require complex mocks or setup.
 
 ## Styling
 
@@ -112,6 +124,26 @@
 - `bun debug ui-messages --workspace <workspace-name>` - Show UI messages for a workspace
 - `bun debug ui-messages --workspace <workspace-name> --drop <n>` - Show messages with last n dropped
 - Workspace names can be found in `~/.cmux/sessions/`
+
+## UX Guidelines
+
+- **DO NOT add UX complexity without permission** - Keep interfaces simple and predictable. Do not add features like auto-dismiss, animations, tooltips, or other UX enhancements unless explicitly requested by the user.
+
+  Example of adding unwanted complexity:
+
+  ```typescript
+  // ❌ BAD - Added auto-dismiss without being asked
+  useEffect(() => {
+    if (errorMessage) {
+      const timer = setTimeout(() => {
+        setErrorMessage(null);
+      }, 10000);
+      return () => clearTimeout(timer);
+    }
+  }, [errorMessage]);
+  ```
+
+  Instead, implement the simplest solution that meets the requirement.
 
 ## DRY
 

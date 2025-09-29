@@ -11,6 +11,9 @@ export const IPC_CHANNELS = {
   // Dialog channels
   DIALOG_SELECT_DIR: "dialog:selectDirectory",
 
+  // Provider channels
+  PROVIDERS_SET_CONFIG: "providers:setConfig",
+
   // Workspace channels
   WORKSPACE_LIST: "workspace:list",
   WORKSPACE_CREATE: "workspace:create",
@@ -22,14 +25,14 @@ export const IPC_CHANNELS = {
   WORKSPACE_GET_INFO: "workspace:getInfo",
 
   // Dynamic channel prefixes
-  WORKSPACE_OUTPUT_PREFIX: "workspace:output:",
+  WORKSPACE_CHAT_PREFIX: "workspace:chat:",
   WORKSPACE_CLEAR_PREFIX: "workspace:clear:",
   WORKSPACE_METADATA: "workspace:metadata",
 } as const;
 
 // Helper functions for dynamic channels
-export const getOutputChannel = (workspaceId: string): string =>
-  `${IPC_CHANNELS.WORKSPACE_OUTPUT_PREFIX}${workspaceId}`;
+export const getChatChannel = (workspaceId: string): string =>
+  `${IPC_CHANNELS.WORKSPACE_CHAT_PREFIX}${workspaceId}`;
 
 export const getClearChannel = (workspaceId: string): string =>
   `${IPC_CHANNELS.WORKSPACE_CLEAR_PREFIX}${workspaceId}`;

@@ -6,6 +6,9 @@ import {
   Config,
   ProjectConfig,
   getAllWorkspaceMetadata,
+  loadProvidersConfig,
+  saveProvidersConfig,
+  ProvidersConfig,
 } from "./config";
 import { createWorktree, removeWorktree } from "./git";
 import { AIService } from "./services/aiService";
@@ -16,7 +19,9 @@ import type {
   StreamEndEvent,
   ErrorEvent,
 } from "./types/aiEvents";
-import { IPC_CHANNELS, getOutputChannel } from "./constants/ipc-constants";
+import { IPC_CHANNELS, getChatChannel } from "./constants/ipc-constants";
+import type { SendMessageError } from "./types/errors";
+import type { StreamErrorMessage } from "./types/ipc";
 
 const aiService = new AIService();
 
@@ -216,8 +221,13 @@ ipcMain.handle(
       const streamResult = await aiService.streamMessage(historyResult.data, workspaceId);
       return streamResult;
     } catch (error) {
+      // Convert to SendMessageError for typed error handling
       const errorMessage = error instanceof Error ? error.message : String(error);
-      return { success: false, error: `Failed to send message: ${errorMessage}` };
+      const sendError: SendMessageError = {
+        type: "unknown",
+        raw: `Failed to send message: ${errorMessage}`,
+      };
+      return { success: false, error: sendError };
     }
   }
 );
@@ -226,27 +236,63 @@ ipcMain.handle(IPC_CHANNELS.WORKSPACE_CLEAR_HISTORY, async (_event, workspaceId:
   return await aiService.clearHistory(workspaceId);
 });
 
-// Handle subscription events for chat history
-ipcMain.on(
-  `${IPC_CHANNELS.WORKSPACE_OUTPUT_PREFIX}:subscribe`,
-  async (_event, workspaceId: string) => {
-    const outputChannel = getOutputChannel(workspaceId);
+// Provider configuration handlers
+ipcMain.handle(
+  IPC_CHANNELS.PROVIDERS_SET_CONFIG,
+  async (_event, provider: string, keyPath: string[], value: string) => {
+    try {
+      // Load current providers config or create empty
+      const config = loadProvidersConfig() || {};
 
-    // Emit current chat history immediately
-    const history = await aiService.getHistory(workspaceId);
-    if (history.success) {
-      history.data.forEach((msg) => {
-        mainWindow?.webContents.send(outputChannel, msg);
-      });
+      // Ensure provider exists
+      if (!config[provider]) {
+        config[provider] = {};
+      }
+
+      // Set nested property value
+      let current = config[provider] as Record<string, unknown>;
+      for (let i = 0; i < keyPath.length - 1; i++) {
+        const key = keyPath[i];
+        if (!(key in current) || typeof current[key] !== "object" || current[key] === null) {
+          current[key] = {};
+        }
+        current = current[key] as Record<string, unknown>;
+      }
+
+      // Set the final value
+      if (keyPath.length > 0) {
+        current[keyPath[keyPath.length - 1]] = value;
+      }
+
+      // Save updated config
+      saveProvidersConfig(config as ProvidersConfig);
+
+      return { success: true, data: undefined };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return { success: false, error: `Failed to set provider config: ${message}` };
     }
-
-    // Send caught-up signal
-    mainWindow?.webContents.send(outputChannel, { type: "caught-up" });
   }
 );
 
+// Handle subscription events for chat history
+ipcMain.on(`workspace:chat:subscribe`, async (_event, workspaceId: string) => {
+  const chatChannel = getChatChannel(workspaceId);
+
+  // Emit current chat history immediately
+  const history = await aiService.getHistory(workspaceId);
+  if (history.success) {
+    history.data.forEach((msg) => {
+      mainWindow?.webContents.send(chatChannel, msg);
+    });
+  }
+
+  // Send caught-up signal
+  mainWindow?.webContents.send(chatChannel, { type: "caught-up" });
+});
+
 // Handle subscription events for metadata
-ipcMain.on(`${IPC_CHANNELS.WORKSPACE_METADATA}:subscribe`, async () => {
+ipcMain.on(`workspace:metadata:subscribe`, async () => {
   try {
     const workspaceData = await getAllWorkspaceMetadata();
 
@@ -272,7 +318,7 @@ aiService.on("stream-start", (data: StreamStartEvent) => {
     });
     // Update the message state to streaming
     msg.parts[0] = { type: "text", text: "", state: "streaming" };
-    mainWindow.webContents.send(getOutputChannel(data.workspaceId), msg);
+    mainWindow.webContents.send(getChatChannel(data.workspaceId), msg);
   }
 });
 
@@ -284,7 +330,7 @@ aiService.on("stream-delta", (data: StreamDeltaEvent) => {
       sequenceNumber: 0,
     });
     msg.parts[0] = { type: "text", text: data.delta || "", state: "streaming" };
-    mainWindow.webContents.send(getOutputChannel(data.workspaceId), msg);
+    mainWindow.webContents.send(getChatChannel(data.workspaceId), msg);
   }
 });
 
@@ -295,23 +341,26 @@ aiService.on("stream-end", (data: StreamEndEvent) => {
       sequenceNumber: 0,
       tokens: data.usage?.totalTokens,
     });
-    mainWindow.webContents.send(getOutputChannel(data.workspaceId), msg);
+    mainWindow.webContents.send(getChatChannel(data.workspaceId), msg);
   }
 });
 
 aiService.on("error", (data: ErrorEvent) => {
   if (mainWindow) {
-    mainWindow.webContents.send(getOutputChannel(data.workspaceId), {
+    // Send properly typed StreamErrorMessage
+    const errorMessage: StreamErrorMessage = {
+      type: "stream-error",
       error: data.error,
       errorType: data.errorType || "unknown",
-    });
+    };
+    mainWindow.webContents.send(getChatChannel(data.workspaceId), errorMessage);
   }
 });
 
 // Handle stream abort events
 aiService.on("stream-abort", (data: { type: string; workspaceId: string }) => {
   if (mainWindow) {
-    mainWindow.webContents.send(getOutputChannel(data.workspaceId), {
+    mainWindow.webContents.send(getChatChannel(data.workspaceId), {
       type: "stream-abort",
       workspaceId: data.workspaceId,
     });

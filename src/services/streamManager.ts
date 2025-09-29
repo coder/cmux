@@ -1,7 +1,13 @@
 import { EventEmitter } from "events";
 import { randomUUID } from "crypto";
-import { anthropic } from "@ai-sdk/anthropic";
-import { streamText, type ModelMessage } from "ai";
+import {
+  streamText,
+  type ModelMessage,
+  type LanguageModel,
+  LoadAPIKeyError,
+  APICallError,
+  RetryError,
+} from "ai";
 import { Result, Ok, Err } from "../types/result";
 import type {
   StreamStartEvent,
@@ -9,6 +15,7 @@ import type {
   StreamEndEvent,
   ErrorEvent,
 } from "../types/aiEvents";
+import type { SendMessageError } from "../types/errors";
 
 // Branded types for compile-time safety
 type WorkspaceId = string & { __brand: "WorkspaceId" };
@@ -43,7 +50,6 @@ interface WorkspaceStreamInfo {
  */
 export class StreamManager extends EventEmitter {
   private workspaceStreams = new Map<WorkspaceId, WorkspaceStreamInfo>();
-  private model = anthropic("claude-opus-4-1");
 
   /**
    * Atomically ensures stream safety by cancelling any existing stream
@@ -95,6 +101,7 @@ export class StreamManager extends EventEmitter {
     workspaceId: WorkspaceId,
     streamToken: StreamToken,
     messages: ModelMessage[],
+    model: LanguageModel,
     abortSignal: AbortSignal
   ): Promise<WorkspaceStreamInfo> {
     // Create abort controller for this specific stream
@@ -105,12 +112,20 @@ export class StreamManager extends EventEmitter {
       abortSignal.addEventListener("abort", () => abortController.abort());
     }
 
-    // Start streaming
-    const streamResult = streamText({
-      model: this.model,
-      messages,
-      abortSignal: abortController.signal,
-    });
+    // Start streaming - this can throw immediately if API key is missing
+    let streamResult;
+    try {
+      streamResult = streamText({
+        model,
+        messages,
+        abortSignal: abortController.signal,
+      });
+    } catch (error) {
+      // Clean up abort controller if stream creation fails
+      abortController.abort();
+      // Re-throw the error to be caught by startStream
+      throw error;
+    }
 
     const messageId = `assistant-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
@@ -181,12 +196,28 @@ export class StreamManager extends EventEmitter {
     } catch (error) {
       streamInfo.state = StreamState.ERROR;
 
+      // Log the actual error for debugging
+      console.error("Stream processing error:", error);
+
+      // Check if this is actually a LoadAPIKeyError wrapped in another error
+      let errorMessage = error instanceof Error ? error.message : String(error);
+      let errorType = this.categorizeError(error);
+
+      // If we detect API key issues in the error message, override the type
+      if (
+        errorMessage.toLowerCase().includes("api key") ||
+        errorMessage.toLowerCase().includes("api_key") ||
+        errorMessage.toLowerCase().includes("anthropic_api_key")
+      ) {
+        errorType = "authentication";
+      }
+
       // Emit error event
       this.emit("error", {
         type: "error",
         workspaceId: workspaceId as string,
-        error: error instanceof Error ? error.message : String(error),
-        errorType: this.categorizeError(error),
+        error: errorMessage,
+        errorType: errorType,
       } as ErrorEvent);
     } finally {
       // Guaranteed cleanup in all code paths
@@ -195,9 +226,50 @@ export class StreamManager extends EventEmitter {
   }
 
   /**
-   * Categorizes errors for better error handling
+   * Converts errors to strongly-typed SendMessageError
+   */
+  private convertToSendMessageError(error: unknown): SendMessageError {
+    // Check for specific AI SDK errors using type guards
+    if (LoadAPIKeyError.isInstance(error)) {
+      return {
+        type: "api_key_not_found",
+        provider: "anthropic", // We can infer this from LoadAPIKeyError context
+      };
+    }
+
+    // TODO: Add more specific error types as needed
+    // if (APICallError.isInstance(error)) {
+    //   if (error.statusCode === 401) return { type: "authentication", ... };
+    //   if (error.statusCode === 429) return { type: "rate_limit", ... };
+    // }
+    // if (RetryError.isInstance(error)) {
+    //   return { type: "retry_failed", ... };
+    // }
+
+    // Fallback for unknown errors
+    const message = error instanceof Error ? error.message : String(error);
+    return { type: "unknown", raw: message };
+  }
+
+  /**
+   * Categorizes errors for better error handling (used for event emission)
    */
   private categorizeError(error: unknown): string {
+    // Use AI SDK error type guards first
+    if (LoadAPIKeyError.isInstance(error)) {
+      return "authentication";
+    }
+    if (APICallError.isInstance(error)) {
+      if (error.statusCode === 401) return "authentication";
+      if (error.statusCode === 429) return "rate_limit";
+      if (error.statusCode && error.statusCode >= 500) return "server_error";
+      return "api";
+    }
+    if (RetryError.isInstance(error)) {
+      return "retry_failed";
+    }
+
+    // Fall back to string matching for other errors
     if (error instanceof Error) {
       const message = error.message.toLowerCase();
 
@@ -223,8 +295,9 @@ export class StreamManager extends EventEmitter {
   async startStream(
     workspaceId: string,
     messages: ModelMessage[],
+    model: LanguageModel,
     abortSignal?: AbortSignal
-  ): Promise<Result<StreamToken>> {
+  ): Promise<Result<StreamToken, SendMessageError>> {
     const typedWorkspaceId = workspaceId as WorkspaceId;
 
     try {
@@ -236,6 +309,7 @@ export class StreamManager extends EventEmitter {
         typedWorkspaceId,
         streamToken,
         messages,
+        model,
         abortSignal || new AbortController().signal
       );
 
@@ -248,8 +322,8 @@ export class StreamManager extends EventEmitter {
     } catch (error) {
       // Guaranteed cleanup on any failure
       this.workspaceStreams.delete(typedWorkspaceId);
-      const message = error instanceof Error ? error.message : String(error);
-      return Err(`Failed to start stream: ${message}`);
+      // Convert to strongly-typed error
+      return Err(this.convertToSendMessageError(error));
     }
   }
 

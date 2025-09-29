@@ -1,0 +1,161 @@
+import React, { useEffect } from "react";
+import styled from "@emotion/styled";
+import { keyframes, css } from "@emotion/react";
+
+const slideIn = keyframes`
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+`;
+
+const fadeOut = keyframes`
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+`;
+
+interface ToastContainerProps {
+  type: "success" | "error";
+  isLeaving?: boolean;
+}
+
+const ToastContainer = styled.div<ToastContainerProps>`
+  padding: 6px 12px;
+  margin-bottom: 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  animation: ${slideIn} 0.2s ease-out;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  ${(props) =>
+    props.isLeaving &&
+    css`
+      animation: ${fadeOut} 0.2s ease-out forwards;
+    `}
+
+  ${(props) =>
+    props.type === "success" &&
+    css`
+      background: #0e639c20;
+      border: 1px solid #0e639c;
+      color: #3794ff;
+    `}
+
+  ${(props) =>
+    props.type === "error" &&
+    css`
+      background: #f1483620;
+      border: 1px solid #f14836;
+      color: #f14836;
+    `}
+`;
+
+const ToastIcon = styled.span`
+  font-size: 14px;
+  line-height: 1;
+`;
+
+const ToastContent = styled.div`
+  flex: 1;
+`;
+
+const CloseButton = styled.button`
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  padding: 0;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  line-height: 1;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+
+  &:hover {
+    opacity: 1;
+  }
+`;
+
+const ToastTitle = styled.div`
+  font-weight: 600;
+  margin-bottom: 1px;
+  font-size: 11px;
+`;
+
+const ToastMessage = styled.div`
+  opacity: 0.9;
+`;
+
+export interface Toast {
+  id: string;
+  type: "success" | "error";
+  title?: string;
+  message: string;
+  duration?: number;
+}
+
+interface ChatInputToastProps {
+  toast: Toast | null;
+  onDismiss: () => void;
+}
+
+export const ChatInputToast: React.FC<ChatInputToastProps> = ({ toast, onDismiss }) => {
+  const [isLeaving, setIsLeaving] = React.useState(false);
+
+  useEffect(() => {
+    if (!toast) return;
+
+    // Only auto-dismiss success toasts
+    if (toast.type === "success") {
+      const duration = toast.duration ?? 3000;
+      const timer = setTimeout(() => {
+        handleDismiss();
+      }, duration);
+
+      return () => {
+        clearTimeout(timer);
+      };
+    }
+
+    // Error toasts stay until manually dismissed
+    return () => {
+      setIsLeaving(false);
+    };
+  }, [toast]);
+
+  const handleDismiss = () => {
+    setIsLeaving(true);
+    setTimeout(onDismiss, 200); // Wait for fade animation
+  };
+
+  if (!toast) return null;
+
+  return (
+    <ToastContainer type={toast.type} isLeaving={isLeaving}>
+      <ToastIcon>{toast.type === "success" ? "✓" : "⚠"}</ToastIcon>
+      <ToastContent>
+        {toast.title && <ToastTitle>{toast.title}</ToastTitle>}
+        <ToastMessage>{toast.message}</ToastMessage>
+      </ToastContent>
+      {toast.type === "error" && (
+        <CloseButton onClick={handleDismiss} aria-label="Dismiss">
+          ×
+        </CloseButton>
+      )}
+    </ToastContainer>
+  );
+};

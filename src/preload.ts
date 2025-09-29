@@ -19,9 +19,9 @@
  */
 
 import { contextBridge, ipcRenderer } from "electron";
-import type { IPCApi, WorkspaceOutputMessage } from "./types/ipc";
+import type { IPCApi, WorkspaceChatMessage } from "./types/ipc";
 import type { WorkspaceMetadata } from "./types/workspace";
-import { IPC_CHANNELS, getOutputChannel, getClearChannel } from "./constants/ipc-constants";
+import { IPC_CHANNELS, getChatChannel, getClearChannel } from "./constants/ipc-constants";
 
 // Build the API implementation using the shared interface
 const api: IPCApi = {
@@ -31,6 +31,10 @@ const api: IPCApi = {
   },
   dialog: {
     selectDirectory: () => ipcRenderer.invoke(IPC_CHANNELS.DIALOG_SELECT_DIR),
+  },
+  providers: {
+    setProviderConfig: (provider, keyPath, value) =>
+      ipcRenderer.invoke(IPC_CHANNELS.PROVIDERS_SET_CONFIG, provider, keyPath, value),
   },
   workspace: {
     list: () => ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_LIST),
@@ -43,22 +47,22 @@ const api: IPCApi = {
       ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_CLEAR_HISTORY, workspaceId),
     getInfo: (workspaceId) => ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_GET_INFO, workspaceId),
 
-    onChatHistory: (workspaceId, callback) => {
-      const channel = getOutputChannel(workspaceId);
-      const handler = (_event: unknown, data: WorkspaceOutputMessage) => {
+    onChat: (workspaceId, callback) => {
+      const channel = getChatChannel(workspaceId);
+      const handler = (_event: unknown, data: WorkspaceChatMessage) => {
         callback(data);
       };
 
       // Subscribe to the channel
       ipcRenderer.on(channel, handler);
 
-      // Immediately request historical data by sending a signal to main process
-      // We'll use a special event to request history
-      ipcRenderer.send(`${channel}:subscribe`);
+      // Send subscription request with workspace ID as parameter
+      // This allows main process to fetch history for the specific workspace
+      ipcRenderer.send(`workspace:chat:subscribe`, workspaceId);
 
       return () => {
         ipcRenderer.removeListener(channel, handler);
-        ipcRenderer.send(`${channel}:unsubscribe`);
+        ipcRenderer.send(`workspace:chat:unsubscribe`, workspaceId);
       };
     },
     onClear: (workspaceId, callback) => {
@@ -78,12 +82,12 @@ const api: IPCApi = {
       // Subscribe to metadata events
       ipcRenderer.on(IPC_CHANNELS.WORKSPACE_METADATA, handler);
 
-      // Request current metadata state
-      ipcRenderer.send(`${IPC_CHANNELS.WORKSPACE_METADATA}:subscribe`);
+      // Request current metadata state - consistent subscription pattern
+      ipcRenderer.send(`workspace:metadata:subscribe`);
 
       return () => {
         ipcRenderer.removeListener(IPC_CHANNELS.WORKSPACE_METADATA, handler);
-        ipcRenderer.send(`${IPC_CHANNELS.WORKSPACE_METADATA}:unsubscribe`);
+        ipcRenderer.send(`workspace:metadata:unsubscribe`);
       };
     },
   },

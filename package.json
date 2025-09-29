@@ -33,6 +33,7 @@
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "ai": "^5.0.56",
+    "jsonc-parser": "^3.3.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-markdown": "^10.1.0"
@@ -40,6 +41,7 @@
   "devDependencies": {
     "@eslint/js": "^9.36.0",
     "@testing-library/react": "^16.3.0",
+    "@types/bun": "^1.2.23",
     "@types/jest": "^30.0.0",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
