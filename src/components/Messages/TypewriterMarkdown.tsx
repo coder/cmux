@@ -1,8 +1,7 @@
-import React, { useMemo } from "react";
+import React from "react";
 import styled from "@emotion/styled";
-import ReactMarkdown from "react-markdown";
-import { markdownStyles, normalizeMarkdown } from "../Messages/MarkdownStyles";
-import { markdownComponents } from "../Messages/MarkdownComponents";
+import { markdownStyles } from "../Messages/MarkdownStyles";
+import { MarkdownCore } from "./MarkdownCore";
 
 const MarkdownContainer = styled.div`
   ${markdownStyles}
@@ -39,16 +38,14 @@ export const TypewriterMarkdown = React.memo<TypewriterMarkdownProps>(function T
   // Simply join all deltas - no artificial delays or character-by-character rendering
   const content = deltas.join("");
 
-  // Memoize the normalized content to avoid recalculating on every render
-  const normalizedContent = useMemo(() => normalizeMarkdown(content), [content]);
-
   // Show cursor only when streaming (not complete)
   const showCursor = !isComplete && content.length > 0;
 
   return (
     <MarkdownContainer className={className}>
-      <ReactMarkdown components={markdownComponents}>{normalizedContent}</ReactMarkdown>
-      <CursorSpan show={showCursor}>▊</CursorSpan>
+      <MarkdownCore content={content}>
+        <CursorSpan show={showCursor}>▊</CursorSpan>
+      </MarkdownCore>
     </MarkdownContainer>
   );
 });

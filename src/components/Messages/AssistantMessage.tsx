@@ -1,8 +1,9 @@
 import React, { useState } from "react";
 import styled from "@emotion/styled";
 import { CmuxMessage } from "../../types/message";
-import { extractTextContent } from "../../utils/messageUtils";
+import { extractTextContent, isStreamingMessage } from "../../utils/messageUtils";
 import { MarkdownRenderer } from "./MarkdownRenderer";
+import { TypewriterMarkdown } from "./TypewriterMarkdown";
 import { MessageWindow, ButtonConfig } from "./MessageWindow";
 
 const RawContent = styled.pre`
@@ -18,6 +19,31 @@ const RawContent = styled.pre`
   border-radius: 3px;
 `;
 
+const StreamingIndicator = styled.span`
+  font-size: 10px;
+  color: var(--color-plan-mode);
+  font-style: italic;
+  margin-right: 8px;
+  animation: pulse 1.5s ease-in-out infinite;
+
+  @keyframes pulse {
+    0%,
+    100% {
+      opacity: 0.6;
+    }
+    50% {
+      opacity: 1;
+    }
+  }
+`;
+
+const WaitingMessage = styled.div`
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  font-style: italic;
+`;
+
 interface AssistantMessageProps {
   message: CmuxMessage;
   className?: string;
@@ -28,6 +54,7 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({ message, cla
   const [copied, setCopied] = useState(false);
 
   const content = extractTextContent(message);
+  const isStreaming = isStreamingMessage(message);
 
   const handleCopy = async () => {
     try {
@@ -39,17 +66,41 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({ message, cla
     }
   };
 
-  const buttons: ButtonConfig[] = [
-    {
-      label: copied ? "✓ Copied" : "Copy Text",
-      onClick: handleCopy,
-    },
-    {
-      label: showRaw ? "Show Markdown" : "Show Text",
-      onClick: () => setShowRaw(!showRaw),
-      active: showRaw,
-    },
-  ];
+  // Buttons only when not streaming
+  const buttons: ButtonConfig[] = isStreaming
+    ? []
+    : [
+        {
+          label: copied ? "✓ Copied" : "Copy Text",
+          onClick: handleCopy,
+        },
+        {
+          label: showRaw ? "Show Markdown" : "Show Text",
+          onClick: () => setShowRaw(!showRaw),
+          active: showRaw,
+        },
+      ];
+
+  // Streaming indicator in right label
+  const rightLabel = isStreaming ? (
+    <StreamingIndicator>streaming...</StreamingIndicator>
+  ) : undefined;
+
+  // Render appropriate content based on state
+  const renderContent = () => {
+    // Empty streaming state
+    if (isStreaming && !content) {
+      return <WaitingMessage>Waiting for response...</WaitingMessage>;
+    }
+
+    // Streaming with content
+    if (isStreaming) {
+      return <TypewriterMarkdown deltas={[content]} isComplete={false} />;
+    }
+
+    // Completed message
+    return showRaw ? <RawContent>{content}</RawContent> : <MarkdownRenderer content={content} />;
+  };
 
   return (
     <MessageWindow
@@ -57,9 +108,10 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({ message, cla
       borderColor="var(--color-assistant-border)"
       message={message}
       buttons={buttons}
+      rightLabel={rightLabel}
       className={className}
     >
-      {showRaw ? <RawContent>{content}</RawContent> : <MarkdownRenderer content={content} />}
+      {renderContent()}
     </MessageWindow>
   );
 };
