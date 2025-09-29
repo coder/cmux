@@ -20,17 +20,22 @@ export interface StreamEndEvent {
   type: "stream-end";
   workspaceId: string;
   messageId: string;
-  content: string;
   usage?: {
     totalTokens: number;
   };
   model: string;
-  toolCalls?: Array<{
-    toolCallId: string;
-    toolName: string;
-    input: unknown;
-    output?: unknown;
-  }>;
+  // Parts array preserves temporal ordering of text and tool calls
+  parts: Array<
+    | { type: "text"; text: string; state: "done" }
+    | {
+        type: "dynamic-tool";
+        toolCallId: string;
+        toolName: string;
+        state: "output-available";
+        input: unknown;
+        output?: unknown;
+      }
+  >;
 }
 
 export interface ErrorEvent {

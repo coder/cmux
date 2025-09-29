@@ -173,8 +173,21 @@ export class StreamManager extends EventEmitter {
         model: streamInfo.model,
       } as StreamStartEvent);
 
+      // Track the temporal structure of parts as they occur
+      const parts: Array<
+        | { type: "text"; text: string; state: "done" }
+        | {
+            type: "dynamic-tool";
+            toolCallId: string;
+            toolName: string;
+            state: "output-available";
+            input: unknown;
+            output?: unknown;
+          }
+      > = [];
+      let currentTextBuffer = "";
+
       // Use fullStream to capture all events including tool calls
-      let fullContent = "";
       const toolCalls = new Map<
         string,
         { toolCallId: string; toolName: string; input: unknown; output?: unknown }
@@ -188,7 +201,7 @@ export class StreamManager extends EventEmitter {
 
         switch (part.type) {
           case "text-delta":
-            fullContent += part.text;
+            currentTextBuffer += part.text;
             this.emit("stream-delta", {
               type: "stream-delta",
               workspaceId: workspaceId as string,
@@ -198,6 +211,12 @@ export class StreamManager extends EventEmitter {
             break;
 
           case "tool-call":
+            // Save any accumulated text before the tool call
+            if (currentTextBuffer) {
+              parts.push({ type: "text", text: currentTextBuffer, state: "done" });
+              currentTextBuffer = "";
+            }
+
             // Tool call started
             toolCalls.set(part.toolCallId, {
               toolCallId: part.toolCallId,
@@ -219,6 +238,15 @@ export class StreamManager extends EventEmitter {
             const toolCall = toolCalls.get(part.toolCallId);
             if (toolCall) {
               toolCall.output = part.output;
+              // Add tool part to parts array
+              parts.push({
+                type: "dynamic-tool",
+                toolCallId: part.toolCallId,
+                toolName: part.toolName,
+                state: "output-available",
+                input: toolCall.input,
+                output: part.output,
+              });
               this.emit("tool-call-end", {
                 type: "tool-call-end",
                 workspaceId: workspaceId as string,
@@ -242,20 +270,24 @@ export class StreamManager extends EventEmitter {
         }
       }
 
+      // Save any remaining text after the last tool call
+      if (currentTextBuffer) {
+        parts.push({ type: "text", text: currentTextBuffer, state: "done" });
+      }
+
       // Check if stream completed successfully
       if (!streamInfo.abortController.signal.aborted) {
         // Get usage information
         const usage = await streamInfo.streamResult.usage;
 
-        // Emit stream end event with tool calls included
+        // Emit stream end event with parts preserved in temporal order
         this.emit("stream-end", {
           type: "stream-end",
           workspaceId: workspaceId as string,
           messageId: streamInfo.messageId,
-          content: fullContent,
+          parts, // Parts array with temporal ordering
           usage,
           model: streamInfo.model,
-          toolCalls: Array.from(toolCalls.values()),
         } as StreamEndEvent);
       }
     } catch (error) {

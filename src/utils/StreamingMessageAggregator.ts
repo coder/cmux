@@ -203,19 +203,20 @@ export class StreamingMessageAggregator {
       });
 
       // Update tool parts with their results if provided
-      if (data.toolCalls && data.toolCalls.length > 0) {
-        const message = this.messages.get(data.messageId);
-        if (message) {
-          for (const toolCall of data.toolCalls) {
+      const message = this.messages.get(data.messageId);
+      if (message && data.parts) {
+        // Sync up the tool results from the backend's parts array
+        for (const backendPart of data.parts) {
+          if (backendPart.type === "dynamic-tool") {
             // Find and update existing tool part
             const toolPart = message.parts.find(
               (part): part is DynamicToolPart =>
                 part.type === "dynamic-tool" &&
-                (part as DynamicToolPart).toolCallId === toolCall.toolCallId
+                (part as DynamicToolPart).toolCallId === backendPart.toolCallId
             );
             if (toolPart) {
-              // Update with result
-              (toolPart as DynamicToolPartAvailable).output = toolCall.output;
+              // Update with result from backend
+              (toolPart as DynamicToolPartAvailable).output = backendPart.output;
               (toolPart as DynamicToolPartAvailable).state = "output-available";
             }
           }
@@ -223,31 +224,8 @@ export class StreamingMessageAggregator {
       }
     } else {
       // Reconnection case: user reconnected after stream completed
-      // We need to reconstruct the entire message from the stream-end event
-      // The backend sends us the final state with all parts
-      const parts: CmuxMessage["parts"] = [];
-
-      // Add text part if present
-      if (data.content) {
-        parts.push({ type: "text", text: data.content, state: "done" });
-      }
-
-      // Add tool parts in the order they occurred
-      // NOTE: Currently we append all tools after text, but if the backend
-      // provides ordering info, we should interleave them properly
-      if (data.toolCalls && data.toolCalls.length > 0) {
-        for (const toolCall of data.toolCalls) {
-          const toolPart: DynamicToolPartAvailable = {
-            type: "dynamic-tool",
-            toolCallId: toolCall.toolCallId,
-            toolName: toolCall.toolName,
-            state: "output-available",
-            input: toolCall.input,
-            output: toolCall.output || undefined,
-          };
-          parts.push(toolPart as never);
-        }
-      }
+      // We reconstruct the entire message from the stream-end event
+      // The backend now sends us the parts array with proper temporal ordering
 
       // Create the complete message
       const message: CmuxMessage = {
@@ -259,7 +237,7 @@ export class StreamingMessageAggregator {
           model: data.model,
           timestamp: Date.now(),
         },
-        parts,
+        parts: data.parts,
       };
 
       this.messages.set(data.messageId, message);

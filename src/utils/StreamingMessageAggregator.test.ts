@@ -12,12 +12,14 @@ describe("StreamingMessageAggregator", () => {
       type: "stream-end",
       workspaceId: "test-ws",
       messageId: "msg-1",
-      content: "Let me check the weather for you.",
       model: "claude-3",
-      toolCalls: [
+      parts: [
+        { type: "text", text: "Let me check the weather for you.", state: "done" },
         {
+          type: "dynamic-tool",
           toolCallId: "tool-1",
           toolName: "getWeather",
+          state: "output-available",
           input: { city: "SF" },
           output: { temp: 72 },
         },
@@ -61,12 +63,14 @@ describe("StreamingMessageAggregator", () => {
       type: "stream-end",
       workspaceId: "test-ws",
       messageId: "assistant-1",
-      content: "I'll help you with that.",
       model: "claude-3",
-      toolCalls: [
+      parts: [
+        { type: "text", text: "I'll help you with that.", state: "done" },
         {
+          type: "dynamic-tool",
           toolCallId: "tool-1",
           toolName: "searchFiles",
+          state: "output-available",
           input: { pattern: "*.ts" },
           output: ["file1.ts", "file2.ts"],
         },
@@ -251,15 +255,18 @@ describe("StreamingMessageAggregator", () => {
       type: "stream-end",
       workspaceId: "test-ws",
       messageId: "msg-end-test",
-      content: "First part. Second part after tool.", // Full content
       model: "claude-3",
-      toolCalls: [
+      parts: [
+        { type: "text", text: "First part. ", state: "done" },
         {
+          type: "dynamic-tool",
           toolCallId: "tool-1",
           toolName: "readFile",
+          state: "output-available",
           input: { file: "test.ts" },
           output: "file contents",
         },
+        { type: "text", text: "Second part after tool.", state: "done" },
       ],
     });
 
@@ -326,8 +333,8 @@ describe("StreamingMessageAggregator", () => {
       type: "stream-end",
       workspaceId: "test-ws",
       messageId: "msg-2",
-      content: "Hello, world!",
       model: "claude-3",
+      parts: [{ type: "text", text: "Hello, world!", state: "done" }],
     });
 
     // Verify the message content

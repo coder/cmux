@@ -5,7 +5,7 @@ import { convertToModelMessages, type LanguageModel, type Tool } from "ai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { Result, Ok, Err } from "../types/result";
 import { WorkspaceMetadata } from "../types/workspace";
-import { CmuxMessage, createCmuxMessage } from "../types/message";
+import { CmuxMessage } from "../types/message";
 import { SESSIONS_DIR, getSessionDir, loadProvidersConfig } from "../config";
 import { StreamManager } from "./streamManager";
 import type { StreamEndEvent } from "../types/aiEvents";
@@ -273,33 +273,21 @@ export class AIService extends EventEmitter {
       // Listen for stream-end events to save messages to history
       this.streamManager.once("stream-end", async (data: StreamEndEvent) => {
         if (data.workspaceId === workspaceId) {
-          // Create dynamic tool parts if there are tool calls
-          const toolParts =
-            data.toolCalls?.map((toolCall) => ({
-              type: "dynamic-tool" as const,
-              toolCallId: toolCall.toolCallId,
-              toolName: toolCall.toolName,
-              state: "output-available" as const,
-              input: toolCall.input,
-              output: toolCall.output || undefined,
-            })) || [];
-
-          // Create the assistant message with both text and tool parts
-          const assistantMessage = createCmuxMessage(
-            data.messageId,
-            "assistant",
-            data.content || "",
-            {
+          // Create assistant message with parts array preserving temporal ordering
+          const assistantMessage: CmuxMessage = {
+            id: data.messageId,
+            role: "assistant",
+            metadata: {
               sequenceNumber: messages.length,
               tokens: data.usage?.totalTokens,
               timestamp: Date.now(),
               model: data.model,
             },
-            toolParts
-          );
+            parts: data.parts,
+          };
 
-          // Only save if there's content (either text or tool calls)
-          if (data.content || (toolParts && toolParts.length > 0)) {
+          // Only save if there are parts (text or tool calls)
+          if (data.parts && data.parts.length > 0) {
             await this.appendToHistory(workspaceId, assistantMessage);
           }
         }
