@@ -1,4 +1,4 @@
-import { CmuxMessage, createCmuxMessage } from "../types/message";
+import { CmuxMessage, CmuxMetadata, createCmuxMessage } from "../types/message";
 
 interface StreamingContext {
   streamingId: string;
@@ -73,7 +73,11 @@ export class StreamingMessageAggregator {
     }
   }
 
-  finishStreaming(streamingId: string, finalContent?: string): void {
+  finishStreaming(
+    streamingId: string,
+    finalContent?: string,
+    additionalMetadata?: Partial<CmuxMetadata>
+  ): void {
     const context = this.activeStreams.get(streamingId);
     if (!context) return;
 
@@ -86,9 +90,13 @@ export class StreamingMessageAggregator {
       const content = finalContent !== undefined ? finalContent : context.contentParts.join("");
       message.parts[0] = { type: "text", text: content, state: "done" };
 
-      // Update duration if we have start time
+      // Update metadata with duration and any additional metadata
       if (message.metadata) {
-        message.metadata.duration = Date.now() - context.startTime;
+        message.metadata = {
+          ...message.metadata,
+          duration: Date.now() - context.startTime,
+          ...additionalMetadata,
+        };
       }
     }
 

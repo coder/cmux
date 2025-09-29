@@ -123,7 +123,7 @@ const ErrorSolution = styled.div`
   border-radius: 3px;
   padding: 6px 8px;
   margin-top: 8px;
-  font-family: "Monaco", "Menlo", monospace;
+  font-family: var(--font-monospace);
   font-size: 11px;
   color: #9cdcfe;
 `;

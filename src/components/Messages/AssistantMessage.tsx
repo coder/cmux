@@ -7,7 +7,7 @@ import { TypewriterMarkdown } from "./TypewriterMarkdown";
 import { MessageWindow, ButtonConfig } from "./MessageWindow";
 
 const RawContent = styled.pre`
-  font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
+  font-family: var(--font-monospace);
   font-size: 12px;
   line-height: 1.4;
   color: var(--color-text);
@@ -38,10 +38,23 @@ const StreamingIndicator = styled.span`
 `;
 
 const WaitingMessage = styled.div`
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: var(--font-primary);
   font-size: 13px;
   color: var(--color-text-secondary);
   font-style: italic;
+`;
+
+const LabelContainer = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+`;
+
+const ModelName = styled.span`
+  color: var(--color-text-secondary);
+  font-weight: normal;
+  text-transform: lowercase;
+  font-size: 10px;
 `;
 
 interface AssistantMessageProps {
@@ -102,9 +115,23 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({ message, cla
     return showRaw ? <RawContent>{content}</RawContent> : <MarkdownRenderer content={content} />;
   };
 
+  // Create label with model name if available
+  const renderLabel = () => {
+    const modelName = message.metadata?.model;
+    if (modelName) {
+      return (
+        <LabelContainer>
+          <span>ASSISTANT</span>
+          <ModelName>{modelName.toLowerCase()}</ModelName>
+        </LabelContainer>
+      );
+    }
+    return "ASSISTANT";
+  };
+
   return (
     <MessageWindow
-      label="ASSISTANT"
+      label={renderLabel()}
       borderColor="var(--color-assistant-border)"
       message={message}
       buttons={buttons}

@@ -38,6 +38,7 @@ interface WorkspaceStreamInfo {
   messageId: string;
   token: StreamToken;
   startTime: number;
+  model: string;
 }
 
 /**
@@ -102,6 +103,7 @@ export class StreamManager extends EventEmitter {
     streamToken: StreamToken,
     messages: ModelMessage[],
     model: LanguageModel,
+    modelString: string,
     abortSignal: AbortSignal
   ): Promise<WorkspaceStreamInfo> {
     // Create abort controller for this specific stream
@@ -136,6 +138,7 @@ export class StreamManager extends EventEmitter {
       messageId,
       token: streamToken,
       startTime: Date.now(),
+      model: modelString,
     };
 
     // Atomically register the stream
@@ -160,6 +163,7 @@ export class StreamManager extends EventEmitter {
         type: "stream-start",
         workspaceId: workspaceId as string,
         messageId: streamInfo.messageId,
+        model: streamInfo.model,
       } as StreamStartEvent);
 
       // Stream the text
@@ -191,6 +195,7 @@ export class StreamManager extends EventEmitter {
           messageId: streamInfo.messageId,
           content: fullContent,
           usage,
+          model: streamInfo.model,
         } as StreamEndEvent);
       }
     } catch (error) {
@@ -296,6 +301,7 @@ export class StreamManager extends EventEmitter {
     workspaceId: string,
     messages: ModelMessage[],
     model: LanguageModel,
+    modelString: string,
     abortSignal?: AbortSignal
   ): Promise<Result<StreamToken, SendMessageError>> {
     const typedWorkspaceId = workspaceId as WorkspaceId;
@@ -310,6 +316,7 @@ export class StreamManager extends EventEmitter {
         streamToken,
         messages,
         model,
+        modelString,
         abortSignal || new AbortController().signal
       );
 

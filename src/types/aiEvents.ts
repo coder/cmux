@@ -6,6 +6,7 @@ export interface StreamStartEvent {
   type: "stream-start";
   workspaceId: string;
   messageId: string;
+  model: string;
 }
 
 export interface StreamDeltaEvent {
@@ -23,6 +24,7 @@ export interface StreamEndEvent {
   usage?: {
     totalTokens: number;
   };
+  model: string;
 }
 
 export interface ErrorEvent {

@@ -24,7 +24,7 @@ const ViewContainer = styled.div`
   flex-direction: column;
   background: #1e1e1e;
   color: #d4d4d4;
-  font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
+  font-family: var(--font-monospace);
   font-size: 12px;
   overflow: hidden;
 `;
@@ -227,8 +227,11 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
             .getActiveStreams()
             .find((s) => s.messageId === data.messageId);
           if (activeStream) {
-            // Finish streaming with the final content from backend
-            aggregatorRef.current.finishStreaming(activeStream.streamingId, data.content);
+            // Finish streaming with the final content from backend and metadata
+            aggregatorRef.current.finishStreaming(activeStream.streamingId, data.content, {
+              tokens: data.usage?.totalTokens,
+              model: data.model,
+            });
           } else {
             // If no active stream (e.g., reconnection), create the final message directly
             const finalMessage = createCmuxMessage(
@@ -238,6 +241,7 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
               {
                 sequenceNumber: 0,
                 tokens: data.usage?.totalTokens,
+                model: data.model,
               }
             );
             aggregatorRef.current.addMessage(finalMessage);

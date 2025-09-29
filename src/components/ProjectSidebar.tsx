@@ -11,9 +11,7 @@ const SidebarContainer = styled.div`
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
-  font-family:
-    -apple-system, BlinkMacSystemFont, "Segoe UI", "Segoe UI Variable", system-ui, Roboto,
-    "Helvetica Neue", Arial, sans-serif;
+  font-family: var(--font-primary);
 `;
 
 const SidebarHeader = styled.div`
@@ -167,8 +165,7 @@ const ProjectPath = styled.div`
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-family:
-    "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace;
+  font-family: var(--font-monospace);
 `;
 
 const RemoveBtn = styled.button`

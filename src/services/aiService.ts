@@ -250,6 +250,7 @@ export class AIService extends EventEmitter {
         workspaceId,
         modelMessages,
         modelResult.data,
+        this.defaultModel,
         abortSignal
       );
 
@@ -269,6 +270,7 @@ export class AIService extends EventEmitter {
               sequenceNumber: messages.length,
               tokens: data.usage?.totalTokens,
               timestamp: Date.now(),
+              model: data.model,
             }
           );
 

@@ -56,7 +56,7 @@ const MessageContent = styled.div`
 
 const JsonContent = styled.pre`
   margin: 0;
-  font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
+  font-family: var(--font-monospace);
   font-size: 11px;
   line-height: 1.4;
   white-space: pre-wrap;

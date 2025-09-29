@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import styled from "@emotion/styled";
 import { Global, css } from "@emotion/react";
 import { GlobalColors } from "./styles/colors";
+import { GlobalFonts } from "./styles/fonts";
 import ProjectSidebar, { ProjectConfig, WorkspaceSelection } from "./components/ProjectSidebar";
 import NewWorkspaceModal from "./components/NewWorkspaceModal";
 import { AIView } from "./components/AIView";
@@ -22,9 +23,7 @@ const globalStyles = css`
     overflow: hidden;
     background: #1e1e1e;
     color: #fff;
-    font-family:
-      -apple-system, BlinkMacSystemFont, "Segoe UI", "Segoe UI Variable", system-ui, Roboto,
-      "Helvetica Neue", Arial, sans-serif;
+    font-family: var(--font-primary);
     font-size: 14px;
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
@@ -32,8 +31,7 @@ const globalStyles = css`
   }
 
   code {
-    font-family:
-      "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace;
+    font-family: var(--font-monospace);
   }
 `;
 
@@ -86,8 +84,7 @@ const ProjectFullPath = styled.p`
   color: #888;
   font-size: 14px;
   margin: 0 0 32px 0;
-  font-family:
-    "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace;
+  font-family: var(--font-monospace);
 `;
 
 const WelcomeView = styled.div`
@@ -226,6 +223,7 @@ function App() {
   return (
     <>
       <GlobalColors />
+      <GlobalFonts />
       <Global styles={globalStyles} />
       <AppContainer>
         <ProjectSidebar

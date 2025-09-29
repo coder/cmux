@@ -90,7 +90,7 @@ const ModalInfo = styled.div`
   code {
     display: block;
     color: #569cd6;
-    font-family: "Consolas", "Monaco", "Courier New", monospace;
+    font-family: var(--font-monospace);
     font-size: 13px;
     word-break: break-all;
   }

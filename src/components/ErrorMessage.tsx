@@ -8,7 +8,7 @@ const ErrorContainer = styled.div`
   border-radius: 4px;
   padding: 12px;
   margin: 8px 0;
-  font-family: monospace;
+  font-family: var(--font-monospace);
   font-size: 14px;
   line-height: 1.4;
   white-space: pre-wrap;

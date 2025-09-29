@@ -8,6 +8,7 @@ export interface CmuxMetadata {
   tokens?: number;
   duration?: number;
   timestamp?: number;
+  model?: string;
 }
 
 // CmuxMessage extends UIMessage with our metadata

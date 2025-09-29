@@ -1,7 +1,7 @@
 import { css } from "@emotion/react";
 
 export const markdownStyles = css`
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: var(--font-primary);
   font-size: 13px;
   line-height: 1.4;
   color: var(--color-text);
@@ -62,7 +62,7 @@ export const markdownStyles = css`
     background: rgba(0, 0, 0, 0.2);
     padding: 2px 4px;
     border-radius: 3px;
-    font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
+    font-family: var(--font-monospace);
     font-size: 12px;
     color: #d19a66;
   }

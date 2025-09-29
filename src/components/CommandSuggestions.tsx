@@ -48,7 +48,7 @@ const CommandItem = styled.div<{ selected: boolean }>`
 
 const CommandText = styled.div`
   color: #569cd6;
-  font-family: "Monaco", "Menlo", "Courier New", monospace;
+  font-family: var(--font-monospace);
   font-size: 12px;
   flex-shrink: 0;
 `;

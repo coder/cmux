@@ -7,7 +7,7 @@ import { TerminalOutput } from "./TerminalOutput";
 
 const FormattedContent = styled.pre`
   margin: 0;
-  font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
+  font-family: var(--font-monospace);
   font-size: 12px;
   line-height: 1.5;
   white-space: pre-wrap;

@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import styled from "@emotion/styled";
 
 const TypewriterContainer = styled.div`
-  font-family: "SF Mono", Monaco, "Inconsolata", "Roboto Mono", "Source Code Pro", monospace;
+  font-family: var(--font-monospace);
   white-space: pre-wrap;
   word-wrap: break-word;
   line-height: 1.5;

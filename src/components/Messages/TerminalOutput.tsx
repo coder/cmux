@@ -6,7 +6,7 @@ const ResultOutput = styled.pre<{ isError?: boolean }>`
   padding: 8px;
   background: rgba(0, 0, 0, 0.3);
   border-radius: 2px;
-  font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
+  font-family: var(--font-monospace);
   font-size: 11px;
   line-height: 1.4;
   color: ${(props) => (props.isError ? "#f48771" : "#d4d4d4")};
