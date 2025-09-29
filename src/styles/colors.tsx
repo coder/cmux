@@ -55,6 +55,14 @@ export const GlobalColors = () => (
         /* User Message Colors */
         --color-user-border: hsl(0 0% 38%);
         --color-user-border-hover: color-mix(in srgb, var(--color-user-border), white 10%);
+
+        /* Assistant Message Colors */
+        --color-assistant-border: hsl(207 89% 46%);
+        --color-assistant-border-hover: color-mix(
+          in srgb,
+          var(--color-assistant-border),
+          white 15%
+        );
       }
     `}
   />

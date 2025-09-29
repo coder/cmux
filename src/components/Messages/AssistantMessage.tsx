@@ -21,7 +21,7 @@ const RawContent = styled.pre`
 
 const StreamingIndicator = styled.span`
   font-size: 10px;
-  color: var(--color-plan-mode);
+  color: var(--color-assistant-border);
   font-style: italic;
   margin-right: 8px;
   animation: pulse 1.5s ease-in-out infinite;
