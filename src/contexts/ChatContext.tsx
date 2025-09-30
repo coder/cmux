@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from "react";
 import { CmuxMessage, DisplayedMessage } from "../types/message";
 import { ChatStats } from "../types/chatStats";
 import { calculateTokenStats } from "../utils/tokenStatsCalculator";
@@ -26,6 +26,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({
 }) => {
   const [stats, setStats] = useState<ChatStats | null>(null);
   const [isCalculating, setIsCalculating] = useState(false);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -57,10 +58,21 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({
       }
     }
 
-    calculateStats();
+    // Clear any existing timer
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    // Set up new debounced calculation
+    debounceTimerRef.current = setTimeout(() => {
+      calculateStats();
+    }, 1000); // 1 second debounce
 
     return () => {
       cancelled = true;
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
     };
   }, [cmuxMessages, model]);
 

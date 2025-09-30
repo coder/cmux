@@ -63,6 +63,20 @@ export const GlobalColors = () => (
           var(--color-assistant-border),
           white 15%
         );
+
+        /* Token Usage Colors */
+        --color-token-prompt: hsl(0 0% 40%);
+        --color-token-completion: linear-gradient(
+          90deg,
+          hsl(207 100% 40%) 0%,
+          hsl(207 100% 31%) 100%
+        );
+        --color-token-variable: linear-gradient(
+          90deg,
+          hsl(207 100% 40%) 0%,
+          hsl(207 100% 31%) 100%
+        );
+        --color-token-fixed: hsl(0 0% 40%);
       }
     `}
   />

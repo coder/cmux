@@ -2,6 +2,7 @@ import React from "react";
 import styled from "@emotion/styled";
 import { useChatContext } from "../../contexts/ChatContext";
 import { Tooltip, TooltipWrapper } from "../Tooltip";
+import { getMaxTokensForModel } from "../../utils/modelTokenLimits";
 
 const Container = styled.div`
   color: #d4d4d4;
@@ -38,8 +39,8 @@ const InfoNote = styled.div`
 `;
 
 const TotalTokens = styled.div`
-  font-size: 24px;
-  font-weight: 700;
+  font-size: 16px;
+  font-weight: 400;
   color: #ffffff;
   margin-bottom: 8px;
 `;
@@ -119,14 +120,28 @@ interface SegmentProps {
 const FixedSegment = styled.div<SegmentProps>`
   height: 100%;
   width: ${(props) => props.percentage}%;
-  background: #666666;
+  background: var(--color-token-fixed);
   transition: width 0.3s ease;
 `;
 
 const VariableSegment = styled.div<SegmentProps>`
   height: 100%;
   width: ${(props) => props.percentage}%;
-  background: linear-gradient(90deg, #007acc 0%, #005a9e 100%);
+  background: var(--color-token-variable);
+  transition: width 0.3s ease;
+`;
+
+const PromptSegment = styled.div<SegmentProps>`
+  height: 100%;
+  width: ${(props) => props.percentage}%;
+  background: var(--color-token-prompt);
+  transition: width 0.3s ease;
+`;
+
+const CompletionSegment = styled.div<SegmentProps>`
+  height: 100%;
+  width: ${(props) => props.percentage}%;
+  background: var(--color-token-completion);
   transition: width 0.3s ease;
 `;
 
@@ -137,7 +152,7 @@ interface PercentageFillProps {
 const PercentageFill = styled.div<PercentageFillProps>`
   height: 100%;
   width: ${(props) => props.percentage}%;
-  background: linear-gradient(90deg, #007acc 0%, #005a9e 100%);
+  background: var(--color-token-completion);
   transition: width 0.3s ease;
 `;
 
@@ -151,6 +166,17 @@ const EmptyState = styled.div`
   text-align: center;
   padding: 40px 20px;
 `;
+
+const ModelWarning = styled.div`
+  color: #999999;
+  font-size: 11px;
+  margin-top: 8px;
+  font-style: italic;
+`;
+
+// Format token display - show k for thousands with 1 decimal
+const formatTokens = (tokens: number) =>
+  tokens >= 1000 ? `${(tokens / 1000).toFixed(1)}k` : tokens.toLocaleString();
 
 export const CostsTab: React.FC = () => {
   const { stats, isCalculating } = useChatContext();
@@ -180,24 +206,62 @@ export const CostsTab: React.FC = () => {
         <Section>
           <SectionTitle>Last API Response</SectionTitle>
           <ConsumerList>
-            <ConsumerRow>
-              <ConsumerHeader>
-                <ConsumerName>Prompt Tokens</ConsumerName>
-                <ConsumerTokens>{stats.lastUsage.promptTokens.toLocaleString()}</ConsumerTokens>
-              </ConsumerHeader>
-            </ConsumerRow>
-            <ConsumerRow>
-              <ConsumerHeader>
-                <ConsumerName>Completion Tokens</ConsumerName>
-                <ConsumerTokens>{stats.lastUsage.completionTokens.toLocaleString()}</ConsumerTokens>
-              </ConsumerHeader>
-            </ConsumerRow>
-            <ConsumerRow>
-              <ConsumerHeader>
-                <ConsumerName>Total Tokens</ConsumerName>
-                <ConsumerTokens>{stats.lastUsage.totalTokens.toLocaleString()}</ConsumerTokens>
-              </ConsumerHeader>
-            </ConsumerRow>
+            {(() => {
+              // Get max tokens for the model
+              const maxTokens = getMaxTokensForModel(stats.model);
+              const totalUsed = stats.lastUsage.totalTokens;
+
+              // Calculate percentages
+              let promptPercentage: number;
+              let completionPercentage: number;
+              let showWarning = false;
+              let totalPercentage: number;
+
+              if (maxTokens) {
+                // We know the model's max tokens
+                promptPercentage = (stats.lastUsage.promptTokens / maxTokens) * 100;
+                completionPercentage = (stats.lastUsage.completionTokens / maxTokens) * 100;
+                totalPercentage = (totalUsed / maxTokens) * 100;
+              } else {
+                // Unknown model - scale to total tokens used
+                promptPercentage = (stats.lastUsage.promptTokens / totalUsed) * 100;
+                completionPercentage = (stats.lastUsage.completionTokens / totalUsed) * 100;
+                totalPercentage = 100;
+                showWarning = true;
+              }
+
+              const totalDisplay = formatTokens(totalUsed);
+              const maxDisplay = maxTokens ? ` / ${formatTokens(maxTokens)}` : "";
+
+              return (
+                <>
+                  <ConsumerRow>
+                    <ConsumerHeader>
+                      <ConsumerName>Token Usage</ConsumerName>
+                      <ConsumerTokens>
+                        {totalDisplay}
+                        {maxDisplay} ({totalPercentage.toFixed(1)}%)
+                      </ConsumerTokens>
+                    </ConsumerHeader>
+                    <PercentageBarWrapper>
+                      <PercentageBar>
+                        <PromptSegment percentage={promptPercentage} />
+                        <CompletionSegment percentage={completionPercentage} />
+                      </PercentageBar>
+                      <Tooltip className="tooltip" align="center" width="wide">
+                        <div>Prompt: {formatTokens(stats.lastUsage.promptTokens)} tokens</div>
+                        <div>
+                          Completion: {formatTokens(stats.lastUsage.completionTokens)} tokens
+                        </div>
+                      </Tooltip>
+                    </PercentageBarWrapper>
+                  </ConsumerRow>
+                  {showWarning && (
+                    <ModelWarning>Unknown model limits - showing relative usage only</ModelWarning>
+                  )}
+                </>
+              );
+            })()}
           </ConsumerList>
         </Section>
       )}
@@ -223,11 +287,7 @@ export const CostsTab: React.FC = () => {
               ? (consumer.variableTokens / stats.totalTokens) * 100
               : 0;
 
-            // Format the token display - show k for thousands with 1 decimal
-            const tokenDisplay =
-              consumer.tokens >= 1000
-                ? `${(consumer.tokens / 1000).toFixed(1)}k`
-                : consumer.tokens.toLocaleString();
+            const tokenDisplay = formatTokens(consumer.tokens);
 
             return (
               <ConsumerRow key={consumer.name}>
@@ -260,9 +320,14 @@ export const CostsTab: React.FC = () => {
                     )}
                   </PercentageBar>
                   <Tooltip className="tooltip" align="center">
-                    {consumer.fixedTokens && consumer.variableTokens
-                      ? `Tool definition: ${consumer.fixedTokens.toLocaleString()} | Usage: ${consumer.variableTokens.toLocaleString()} tokens`
-                      : `${consumer.tokens.toLocaleString()} tokens`}
+                    {consumer.fixedTokens && consumer.variableTokens ? (
+                      <>
+                        <div>Tool definition: {consumer.fixedTokens.toLocaleString()} tokens</div>
+                        <div>Usage: {consumer.variableTokens.toLocaleString()} tokens</div>
+                      </>
+                    ) : (
+                      <div>{consumer.tokens.toLocaleString()} tokens</div>
+                    )}
                   </Tooltip>
                 </PercentageBarWrapper>
               </ConsumerRow>
