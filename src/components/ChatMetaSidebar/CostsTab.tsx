@@ -190,7 +190,8 @@ const formatTokens = (tokens: number) =>
 export const CostsTab: React.FC = () => {
   const { stats, isCalculating } = useChatContext();
 
-  if (isCalculating) {
+  // Only show loading if we don't have any stats yet
+  if (isCalculating && !stats) {
     return (
       <Container>
         <LoadingState>Calculating token usage...</LoadingState>
