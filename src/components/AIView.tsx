@@ -3,6 +3,7 @@ import styled from "@emotion/styled";
 import { MessageRenderer } from "./Messages/MessageRenderer";
 import { ChatInput } from "./ChatInput";
 import { ErrorMessage } from "./ErrorMessage";
+import { ChatMetaSidebar } from "./ChatMetaSidebar";
 import { DisplayedMessage } from "../types/message";
 import { StreamingMessageAggregator } from "../utils/StreamingMessageAggregator";
 import { DebugProvider, useDebugMode } from "../contexts/DebugContext";
@@ -23,11 +24,19 @@ import {
 const ViewContainer = styled.div`
   flex: 1;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   background: #1e1e1e;
   color: #d4d4d4;
   font-family: var(--font-monospace);
   font-size: 12px;
+  overflow: hidden;
+`;
+
+const ChatArea = styled.div`
+  flex: 1;
+  min-width: 750px;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
 `;
 
@@ -310,79 +319,83 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
 
   return (
     <ViewContainer className={className}>
-      <ViewHeader>
-        <WorkspaceTitle>
-          {projectName} / {branch}
-        </WorkspaceTitle>
-      </ViewHeader>
+      <ChatArea>
+        <ViewHeader>
+          <WorkspaceTitle>
+            {projectName} / {branch}
+          </WorkspaceTitle>
+        </ViewHeader>
 
-      <OutputContent
-        ref={contentRef}
-        onWheel={() => {
-          lastUserInteractionRef.current = Date.now();
-        }}
-        onTouchMove={() => {
-          lastUserInteractionRef.current = Date.now();
-        }}
-        onScroll={(e) => {
-          const element = e.currentTarget;
-          const currentScrollTop = element.scrollTop;
-          const threshold = 100;
-          const isAtBottom =
-            element.scrollHeight - currentScrollTop - element.clientHeight < threshold;
+        <OutputContent
+          ref={contentRef}
+          onWheel={() => {
+            lastUserInteractionRef.current = Date.now();
+          }}
+          onTouchMove={() => {
+            lastUserInteractionRef.current = Date.now();
+          }}
+          onScroll={(e) => {
+            const element = e.currentTarget;
+            const currentScrollTop = element.scrollTop;
+            const threshold = 100;
+            const isAtBottom =
+              element.scrollHeight - currentScrollTop - element.clientHeight < threshold;
 
-          // Only process user-initiated scrolls (within 100ms of interaction)
-          const isUserScroll = Date.now() - lastUserInteractionRef.current < 100;
+            // Only process user-initiated scrolls (within 100ms of interaction)
+            const isUserScroll = Date.now() - lastUserInteractionRef.current < 100;
 
-          if (!isUserScroll) {
+            if (!isUserScroll) {
+              lastScrollTopRef.current = currentScrollTop;
+              return; // Ignore programmatic scrolls
+            }
+
+            // Detect scroll direction
+            const isScrollingUp = currentScrollTop < lastScrollTopRef.current;
+            const isScrollingDown = currentScrollTop > lastScrollTopRef.current;
+
+            if (isScrollingUp) {
+              // Always disable auto-scroll when scrolling up
+              setAutoScroll(false);
+            } else if (isScrollingDown && isAtBottom) {
+              // Only enable auto-scroll if scrolling down AND reached the bottom
+              setAutoScroll(true);
+            }
+            // If scrolling down but not at bottom, auto-scroll remains disabled
+
+            // Update last scroll position
             lastScrollTopRef.current = currentScrollTop;
-            return; // Ignore programmatic scrolls
-          }
+          }}
+        >
+          {messages.length === 0 ? (
+            <EmptyState>
+              <h3>No Messages Yet</h3>
+              <p>Send a message below to begin</p>
+            </EmptyState>
+          ) : (
+            messages.map((msg) => <MessageRenderer key={msg.id} message={msg} />)
+          )}
+          {errorMessage && (
+            <ErrorMessage
+              title={errorMessage.title}
+              message={errorMessage.message}
+              details={errorMessage.details}
+            />
+          )}
+        </OutputContent>
 
-          // Detect scroll direction
-          const isScrollingUp = currentScrollTop < lastScrollTopRef.current;
-          const isScrollingDown = currentScrollTop > lastScrollTopRef.current;
+        <ChatInput
+          workspaceId={workspaceId}
+          onMessageSent={handleMessageSent}
+          onClearHistory={handleClearHistory}
+          onProviderConfig={handleProviderConfig}
+          debugMode={debugMode}
+          onDebugModeChange={setDebugMode}
+          disabled={!projectName || !branch}
+          isCompacting={isCompacting}
+        />
+      </ChatArea>
 
-          if (isScrollingUp) {
-            // Always disable auto-scroll when scrolling up
-            setAutoScroll(false);
-          } else if (isScrollingDown && isAtBottom) {
-            // Only enable auto-scroll if scrolling down AND reached the bottom
-            setAutoScroll(true);
-          }
-          // If scrolling down but not at bottom, auto-scroll remains disabled
-
-          // Update last scroll position
-          lastScrollTopRef.current = currentScrollTop;
-        }}
-      >
-        {messages.length === 0 ? (
-          <EmptyState>
-            <h3>No Messages Yet</h3>
-            <p>Send a message below to begin</p>
-          </EmptyState>
-        ) : (
-          messages.map((msg) => <MessageRenderer key={msg.id} message={msg} />)
-        )}
-        {errorMessage && (
-          <ErrorMessage
-            title={errorMessage.title}
-            message={errorMessage.message}
-            details={errorMessage.details}
-          />
-        )}
-      </OutputContent>
-
-      <ChatInput
-        workspaceId={workspaceId}
-        onMessageSent={handleMessageSent}
-        onClearHistory={handleClearHistory}
-        onProviderConfig={handleProviderConfig}
-        debugMode={debugMode}
-        onDebugModeChange={setDebugMode}
-        disabled={!projectName || !branch}
-        isCompacting={isCompacting}
-      />
+      <ChatMetaSidebar workspaceId={workspaceId} />
     </ViewContainer>
   );
 };

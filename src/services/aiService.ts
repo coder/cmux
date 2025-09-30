@@ -12,7 +12,8 @@ import { SESSIONS_DIR, getSessionDir, loadProvidersConfig } from "../config";
 import { StreamManager } from "./streamManager";
 import type { StreamEndEvent } from "../types/aiEvents";
 import type { SendMessageError } from "../types/errors";
-import { readFileTool } from "./tools/readFileTool";
+import { readFileTool } from "./tools/readFile";
+import { bashTool } from "./tools/bash";
 import { splitToolCallsAndResults } from "../utils/messageTransform";
 import { log } from "./log";
 
@@ -160,7 +161,9 @@ export class AIService extends EventEmitter {
 
     // Base tools available for all models
     const baseTools: Record<string, Tool> = {
-      readFile: readFileTool,
+      // Use snake_case for tool names to match what seems to be the convention.
+      read_file: readFileTool,
+      bash: bashTool,
     };
 
     // Try to add provider-specific web search tools if available

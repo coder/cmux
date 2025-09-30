@@ -2,6 +2,7 @@ import { tool } from "ai";
 import { z } from "zod";
 import * as fs from "fs/promises";
 import * as path from "path";
+import type { ReadFileToolArgs, ReadFileToolResult } from "../../types/tools";
 
 /**
  * Read-file tool for AI assistant
@@ -16,8 +17,8 @@ export const readFileTool = tool({
       .optional()
       .default("utf-8")
       .describe("The encoding to use when reading the file"),
-  }),
-  execute: async ({ filePath, encoding }) => {
+  }) satisfies z.ZodType<ReadFileToolArgs>,
+  execute: async ({ filePath, encoding }): Promise<ReadFileToolResult> => {
     try {
       // Resolve relative paths from current working directory
       const resolvedPath = path.isAbsolute(filePath)
