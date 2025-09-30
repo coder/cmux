@@ -17,6 +17,52 @@ import {
 } from "./tokenCalculation";
 
 /**
+ * Enhanced usage type for display that includes provider-specific cache stats
+ */
+export interface ChatUsageDisplay {
+  tokens: {
+    // Input is the part of the input was not cached. So,
+    // totalInput = input + cached
+    input: number;
+    cached: number;
+
+    // Output is the part of the output excluding reasoning, so
+    // totalOutput = output + reasoning
+    output: number;
+    reasoning: number;
+  };
+}
+
+/**
+ * Create a display-friendly usage object from standard LanguageModelV2Usage
+ */
+export function createDisplayUsage(
+  usage: LanguageModelV2Usage | undefined
+): ChatUsageDisplay | undefined {
+  if (!usage) return undefined;
+
+  // For Anthropic (and likely other providers), inputTokens already excludes cached tokens
+  // cachedInputTokens is a standard field that reports cached token usage
+  const inputTokens = usage.inputTokens ?? 0;
+  const cachedTokens = usage.cachedInputTokens ?? 0;
+
+  // Calculate output tokens excluding reasoning
+  const outputWithoutReasoning = Math.max(
+    0,
+    (usage.outputTokens ?? 0) - (usage.reasoningTokens ?? 0)
+  );
+
+  return {
+    tokens: {
+      input: inputTokens,
+      cached: cachedTokens,
+      output: outputWithoutReasoning,
+      reasoning: usage.reasoningTokens ?? 0,
+    },
+  };
+}
+
+/**
  * Calculate token statistics from raw CmuxMessages
  * This is the single source of truth for token counting
  *
@@ -40,7 +86,7 @@ export async function calculateTokenStats(
   const tokenizer = getTokenizerForModel(model);
   const consumerMap = new Map<string, { fixed: number; variable: number }>();
   const toolsWithDefinitions = new Set<string>(); // Track which tools have definitions included
-  let lastUsage: LanguageModelV2Usage | undefined;
+  let lastUsage: ChatUsageDisplay | undefined;
 
   // Calculate tokens by content producer (User, Assistant, individual tools)
   // This shows what activities are consuming tokens, useful for debugging costs
@@ -58,7 +104,7 @@ export async function calculateTokenStats(
     } else if (message.role === "assistant") {
       // Store last usage for comparison with estimates
       if (message.metadata?.usage) {
-        lastUsage = message.metadata.usage;
+        lastUsage = createDisplayUsage(message.metadata.usage);
       }
 
       // Count assistant text separately from tools

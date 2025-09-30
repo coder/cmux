@@ -1,6 +1,15 @@
 import type { UIMessage, ToolUIPart } from "ai";
 import type { LanguageModelV2Usage } from "@ai-sdk/provider";
 
+// Shared provider metadata type for cache statistics and other provider-specific data
+export interface ProviderMetadata {
+  anthropic?: {
+    cacheCreationInputTokens?: number;
+    cacheReadInputTokens?: number;
+  };
+  [provider: string]: unknown;
+}
+
 // Our custom metadata type
 export interface CmuxMetadata {
   sequenceNumber: number;
@@ -11,6 +20,7 @@ export interface CmuxMetadata {
   duration?: number;
   timestamp?: number;
   model?: string;
+  providerMetadata?: ProviderMetadata;
 }
 
 // CmuxMessage extends UIMessage with our metadata

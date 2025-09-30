@@ -280,6 +280,9 @@ export class StreamManager extends EventEmitter {
         // Get usage information from the stream result
         const usage = await streamInfo.streamResult.usage;
 
+        // Get provider metadata which contains cache statistics
+        const providerMetadata = await streamInfo.streamResult.providerMetadata;
+
         // Emit stream end event with parts preserved in temporal order
         // Metadata is structured for direct merging with CmuxMetadata
         this.emit("stream-end", {
@@ -290,6 +293,7 @@ export class StreamManager extends EventEmitter {
             usage,
             tokens: usage?.totalTokens,
             model: streamInfo.model,
+            providerMetadata,
           },
           parts, // Parts array with temporal ordering
         } as StreamEndEvent);

@@ -77,6 +77,9 @@ export const GlobalColors = () => (
           hsl(207 100% 31%) 100%
         );
         --color-token-fixed: hsl(0 0% 40%);
+        --color-token-input: hsl(120 40% 35%);
+        --color-token-output: hsl(207 100% 40%);
+        --color-token-cached: hsl(0 0% 50%);
       }
     `}
   />

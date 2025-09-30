@@ -16,6 +16,7 @@ import {
   transformModelMessages,
   validateAnthropicCompliance,
 } from "../utils/modelMessageTransform";
+import { applyCacheControl } from "../utils/cacheStrategy";
 
 // Export a standalone version of getToolsForModel for use in backend
 
@@ -241,7 +242,10 @@ export class AIService extends EventEmitter {
       log.debug_obj(`${workspaceId}/2_model_messages.json`, modelMessages);
 
       // Apply ModelMessage transforms to ensure Anthropic API compliance
-      const finalMessages = transformModelMessages(modelMessages);
+      const transformedMessages = transformModelMessages(modelMessages);
+
+      // Apply cache control for Anthropic models AFTER transformation
+      const finalMessages = applyCacheControl(transformedMessages, this.defaultModel);
 
       log.debug_obj(`${workspaceId}/3_final_messages.json`, finalMessages);
 

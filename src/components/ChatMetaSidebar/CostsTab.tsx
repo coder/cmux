@@ -1,7 +1,7 @@
 import React from "react";
 import styled from "@emotion/styled";
 import { useChatContext } from "../../contexts/ChatContext";
-import { Tooltip, TooltipWrapper } from "../Tooltip";
+import { TooltipWrapper, Tooltip } from "../Tooltip";
 import { getMaxTokensForModel } from "../../utils/modelTokenLimits";
 
 const Container = styled.div`
@@ -96,11 +96,6 @@ const ConsumerTokens = styled.span`
 const PercentageBarWrapper = styled.div`
   position: relative;
   width: 100%;
-
-  &:hover .tooltip {
-    visibility: visible;
-    opacity: 1;
-  }
 `;
 
 const PercentageBar = styled.div`
@@ -110,7 +105,6 @@ const PercentageBar = styled.div`
   border-radius: 3px;
   overflow: hidden;
   display: flex;
-  cursor: help;
 `;
 
 interface SegmentProps {
@@ -131,17 +125,24 @@ const VariableSegment = styled.div<SegmentProps>`
   transition: width 0.3s ease;
 `;
 
-const PromptSegment = styled.div<SegmentProps>`
+const InputSegment = styled.div<SegmentProps>`
   height: 100%;
   width: ${(props) => props.percentage}%;
-  background: var(--color-token-prompt);
+  background: var(--color-token-input);
   transition: width 0.3s ease;
 `;
 
-const CompletionSegment = styled.div<SegmentProps>`
+const OutputSegment = styled.div<SegmentProps>`
   height: 100%;
   width: ${(props) => props.percentage}%;
-  background: var(--color-token-completion);
+  background: var(--color-token-output);
+  transition: width 0.3s ease;
+`;
+
+const CachedSegment = styled.div<SegmentProps>`
+  height: 100%;
+  width: ${(props) => props.percentage}%;
+  background: var(--color-token-cached);
   transition: width 0.3s ease;
 `;
 
@@ -172,6 +173,14 @@ const ModelWarning = styled.div`
   font-size: 11px;
   margin-top: 8px;
   font-style: italic;
+`;
+
+const TokenDetails = styled.div`
+  color: #888888;
+  font-size: 11px;
+  margin-top: 6px;
+  padding-left: 4px;
+  line-height: 1.4;
 `;
 
 // Format token display - show k for thousands with 1 decimal
@@ -209,23 +218,33 @@ export const CostsTab: React.FC = () => {
             {(() => {
               // Get max tokens for the model
               const maxTokens = getMaxTokensForModel(stats.model);
-              const totalUsed = stats.lastUsage.totalTokens ?? 0;
+              const totalUsed =
+                stats.lastUsage.tokens.input +
+                stats.lastUsage.tokens.cached +
+                stats.lastUsage.tokens.output +
+                stats.lastUsage.tokens.reasoning;
 
               // Calculate percentages
-              let promptPercentage: number;
-              let completionPercentage: number;
+              let inputPercentage: number;
+              let outputPercentage: number;
+              let cachedPercentage: number;
               let showWarning = false;
               let totalPercentage: number;
 
               if (maxTokens) {
                 // We know the model's max tokens
-                promptPercentage = ((stats.lastUsage.inputTokens ?? 0) / maxTokens) * 100;
-                completionPercentage = ((stats.lastUsage.outputTokens ?? 0) / maxTokens) * 100;
+                inputPercentage = (stats.lastUsage.tokens.input / maxTokens) * 100;
+                outputPercentage = (stats.lastUsage.tokens.output / maxTokens) * 100;
+                cachedPercentage = (stats.lastUsage.tokens.cached / maxTokens) * 100;
                 totalPercentage = (totalUsed / maxTokens) * 100;
               } else {
                 // Unknown model - scale to total tokens used
-                promptPercentage = ((stats.lastUsage.inputTokens ?? 0) / totalUsed) * 100;
-                completionPercentage = ((stats.lastUsage.outputTokens ?? 0) / totalUsed) * 100;
+                inputPercentage =
+                  totalUsed > 0 ? (stats.lastUsage.tokens.input / totalUsed) * 100 : 0;
+                outputPercentage =
+                  totalUsed > 0 ? (stats.lastUsage.tokens.output / totalUsed) * 100 : 0;
+                cachedPercentage =
+                  totalUsed > 0 ? (stats.lastUsage.tokens.cached / totalUsed) * 100 : 0;
                 totalPercentage = 100;
                 showWarning = true;
               }
@@ -245,25 +264,20 @@ export const CostsTab: React.FC = () => {
                     </ConsumerHeader>
                     <PercentageBarWrapper>
                       <PercentageBar>
-                        <PromptSegment percentage={promptPercentage} />
-                        <CompletionSegment percentage={completionPercentage} />
+                        {cachedPercentage > 0 && <CachedSegment percentage={cachedPercentage} />}
+                        <InputSegment percentage={inputPercentage} />
+                        <OutputSegment percentage={outputPercentage} />
                       </PercentageBar>
-                      <Tooltip className="tooltip" align="center" width="wide">
-                        <div>Input: {formatTokens(stats.lastUsage.inputTokens ?? 0)} tokens</div>
-                        <div>Output: {formatTokens(stats.lastUsage.outputTokens ?? 0)} tokens</div>
-                        {stats.lastUsage.reasoningTokens !== undefined &&
-                          stats.lastUsage.reasoningTokens > 0 && (
-                            <div>
-                              Reasoning: {formatTokens(stats.lastUsage.reasoningTokens)} tokens
-                            </div>
-                          )}
-                        {stats.lastUsage.cachedInputTokens !== undefined &&
-                          stats.lastUsage.cachedInputTokens > 0 && (
-                            <div>
-                              Cached: {formatTokens(stats.lastUsage.cachedInputTokens)} tokens
-                            </div>
-                          )}
-                      </Tooltip>
+                      <TokenDetails>
+                        {stats.lastUsage.tokens.cached > 0 && (
+                          <>Cached: {formatTokens(stats.lastUsage.tokens.cached)} • </>
+                        )}
+                        Input: {formatTokens(stats.lastUsage.tokens.input)} • Output:{" "}
+                        {formatTokens(stats.lastUsage.tokens.output)}
+                        {stats.lastUsage.tokens.reasoning > 0 && (
+                          <> • Reasoning: {formatTokens(stats.lastUsage.tokens.reasoning)}</>
+                        )}
+                      </TokenDetails>
                     </PercentageBarWrapper>
                   </ConsumerRow>
                   {showWarning && (
@@ -329,16 +343,12 @@ export const CostsTab: React.FC = () => {
                       <PercentageFill percentage={consumer.percentage} />
                     )}
                   </PercentageBar>
-                  <Tooltip className="tooltip" align="center">
-                    {consumer.fixedTokens && consumer.variableTokens ? (
-                      <>
-                        <div>Tool definition: {consumer.fixedTokens.toLocaleString()} tokens</div>
-                        <div>Usage: {consumer.variableTokens.toLocaleString()} tokens</div>
-                      </>
-                    ) : (
-                      <div>{consumer.tokens.toLocaleString()} tokens</div>
-                    )}
-                  </Tooltip>
+                  {consumer.fixedTokens && consumer.variableTokens && (
+                    <TokenDetails>
+                      Tool definition: {formatTokens(consumer.fixedTokens)} • Usage:{" "}
+                      {formatTokens(consumer.variableTokens)}
+                    </TokenDetails>
+                  )}
                 </PercentageBarWrapper>
               </ConsumerRow>
             );

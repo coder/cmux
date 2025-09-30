@@ -3,6 +3,7 @@
  */
 
 import type { LanguageModelV2Usage } from "@ai-sdk/provider";
+import type { ProviderMetadata } from "./message";
 
 export interface StreamStartEvent {
   type: "stream-start";
@@ -27,6 +28,7 @@ export interface StreamEndEvent {
     usage?: LanguageModelV2Usage;
     tokens?: number;
     model: string;
+    providerMetadata?: ProviderMetadata;
   };
   // Parts array preserves temporal ordering of text and tool calls
   parts: Array<

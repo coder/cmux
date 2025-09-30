@@ -1,4 +1,4 @@
-import type { LanguageModelV2Usage } from "@ai-sdk/provider";
+import type { ChatUsageDisplay } from "../utils/tokenStatsCalculator";
 
 export interface TokenConsumer {
   name: string; // "User", "Assistant", "bash", "readFile", etc.
@@ -13,5 +13,5 @@ export interface ChatStats {
   totalTokens: number;
   model: string;
   tokenizerName: string; // e.g., "Anthropic Claude", "OpenAI GPT-4"
-  lastUsage?: LanguageModelV2Usage; // Last actual usage statistics from API
+  lastUsage?: ChatUsageDisplay; // Last actual usage statistics from API with provider-specific fields
 }
