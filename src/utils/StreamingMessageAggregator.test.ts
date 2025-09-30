@@ -12,7 +12,9 @@ describe("StreamingMessageAggregator", () => {
       type: "stream-end",
       workspaceId: "test-ws",
       messageId: "msg-1",
-      model: "claude-3",
+      metadata: {
+        model: "claude-3",
+      },
       parts: [
         { type: "text", text: "Let me check the weather for you.", state: "done" },
         {
@@ -63,7 +65,9 @@ describe("StreamingMessageAggregator", () => {
       type: "stream-end",
       workspaceId: "test-ws",
       messageId: "assistant-1",
-      model: "claude-3",
+      metadata: {
+        model: "claude-3",
+      },
       parts: [
         { type: "text", text: "I'll help you with that.", state: "done" },
         {
@@ -255,7 +259,9 @@ describe("StreamingMessageAggregator", () => {
       type: "stream-end",
       workspaceId: "test-ws",
       messageId: "msg-end-test",
-      model: "claude-3",
+      metadata: {
+        model: "claude-3",
+      },
       parts: [
         { type: "text", text: "First part. ", state: "done" },
         {
@@ -333,7 +339,9 @@ describe("StreamingMessageAggregator", () => {
       type: "stream-end",
       workspaceId: "test-ws",
       messageId: "msg-2",
-      model: "claude-3",
+      metadata: {
+        model: "claude-3",
+      },
       parts: [{ type: "text", text: "Hello, world!", state: "done" }],
     });
 

@@ -333,15 +333,14 @@ export class AIService extends EventEmitter {
       this.streamManager.once("stream-end", async (data: StreamEndEvent) => {
         if (data.workspaceId === workspaceId) {
           // Create assistant message with parts array preserving temporal ordering
+          // Metadata flows transparently from backend event
           const assistantMessage: CmuxMessage = {
             id: data.messageId,
             role: "assistant",
             metadata: {
               sequenceNumber: messages.length,
-              tokens: data.usage?.totalTokens,
-              usage: data.usage,
+              ...data.metadata,
               timestamp: Date.now(),
-              model: data.model,
             },
             parts: data.parts,
           };

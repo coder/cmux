@@ -290,14 +290,17 @@ export class StreamManager extends EventEmitter {
           : undefined;
 
         // Emit stream end event with parts preserved in temporal order
-        // convertToModelMessages will handle splitting for provider-specific formats
+        // Metadata is structured for direct merging with CmuxMetadata
         this.emit("stream-end", {
           type: "stream-end",
           workspaceId: workspaceId as string,
           messageId: streamInfo.messageId,
+          metadata: {
+            usage,
+            tokens: usage?.totalTokens,
+            model: streamInfo.model,
+          },
           parts, // Parts array with temporal ordering
-          usage,
-          model: streamInfo.model,
         } as StreamEndEvent);
       }
     } catch (error) {

@@ -20,12 +20,16 @@ export interface StreamEndEvent {
   type: "stream-end";
   workspaceId: string;
   messageId: string;
-  usage?: {
-    promptTokens: number;
-    completionTokens: number;
-    totalTokens: number;
+  // Structured metadata from backend - directly mergeable with CmuxMetadata
+  metadata: {
+    usage?: {
+      promptTokens: number;
+      completionTokens: number;
+      totalTokens: number;
+    };
+    tokens?: number;
+    model: string;
   };
-  model: string;
   // Parts array preserves temporal ordering of text and tool calls
   parts: Array<
     | { type: "text"; text: string; state: "done" }

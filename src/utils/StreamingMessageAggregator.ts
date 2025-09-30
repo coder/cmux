@@ -196,32 +196,46 @@ export class StreamingMessageAggregator {
 
     if (activeStream) {
       // Normal streaming case: we've been tracking this stream from the start
-      // Just mark streaming parts as done
-      this.finishStreaming(activeStream.streamingId, undefined, {
-        tokens: data.usage?.totalTokens,
-        model: data.model,
-      });
-
-      // Update tool parts with their results if provided
       const message = this.messages.get(data.messageId);
-      if (message && data.parts) {
-        // Sync up the tool results from the backend's parts array
-        for (const backendPart of data.parts) {
-          if (backendPart.type === "dynamic-tool") {
-            // Find and update existing tool part
-            const toolPart = message.parts.find(
-              (part): part is DynamicToolPart =>
-                part.type === "dynamic-tool" &&
-                (part as DynamicToolPart).toolCallId === backendPart.toolCallId
-            );
-            if (toolPart) {
-              // Update with result from backend
-              (toolPart as DynamicToolPartAvailable).output = backendPart.output;
-              (toolPart as DynamicToolPartAvailable).state = "output-available";
+      if (message?.metadata) {
+        // Transparent metadata merge - backend fields flow through automatically
+        message.metadata = {
+          ...message.metadata,
+          ...data.metadata,
+          duration: Date.now() - activeStream.startTime,
+        } as CmuxMetadata;
+
+        // Mark streaming parts as done
+        for (let i = 0; i < message.parts.length; i++) {
+          const part = message.parts[i];
+          if (part.type === "text" && part.state === "streaming") {
+            message.parts[i] = { ...part, state: "done" };
+          }
+        }
+
+        // Update tool parts with their results if provided
+        if (data.parts) {
+          // Sync up the tool results from the backend's parts array
+          for (const backendPart of data.parts) {
+            if (backendPart.type === "dynamic-tool") {
+              // Find and update existing tool part
+              const toolPart = message.parts.find(
+                (part): part is DynamicToolPart =>
+                  part.type === "dynamic-tool" &&
+                  (part as DynamicToolPart).toolCallId === backendPart.toolCallId
+              );
+              if (toolPart) {
+                // Update with result from backend
+                (toolPart as DynamicToolPartAvailable).output = backendPart.output;
+                (toolPart as DynamicToolPartAvailable).state = "output-available";
+              }
             }
           }
         }
       }
+
+      // Clean up active stream
+      this.activeStreams.delete(activeStream.streamingId);
     } else {
       // Reconnection case: user reconnected after stream completed
       // We reconstruct the entire message from the stream-end event
@@ -233,8 +247,7 @@ export class StreamingMessageAggregator {
         role: "assistant",
         metadata: {
           sequenceNumber: this.sequenceCounter++,
-          tokens: data.usage?.totalTokens,
-          model: data.model,
+          ...data.metadata,
           timestamp: Date.now(),
         },
         parts: data.parts,
