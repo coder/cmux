@@ -68,3 +68,51 @@ export async function countTokensForData(data: unknown, tokenizer: Tokenizer): P
   const serialized = JSON.stringify(data);
   return tokenizer.countTokens(serialized);
 }
+
+/**
+ * Get estimated token count for tool definitions
+ * These are the schemas sent to the API for each tool
+ *
+ * @param toolName The name of the tool (bash, read_file, web_search, etc.)
+ * @param modelString The model string to get accurate tool definitions
+ * @returns Promise<number> Estimated token count for the tool definition
+ */
+export async function getToolDefinitionTokens(
+  toolName: string,
+  modelString: string
+): Promise<number> {
+  // Import the frontend-safe tool definitions
+  const { getToolSchemas, getAvailableTools } = await import("./toolDefinitions");
+
+  try {
+    // Check if this tool is available for this model
+    const availableTools = getAvailableTools(modelString);
+    if (!availableTools.includes(toolName)) {
+      // Tool not available for this model
+      return 0;
+    }
+
+    // Get the tool schema
+    const toolSchemas = getToolSchemas();
+    const toolSchema = toolSchemas[toolName];
+
+    if (!toolSchema) {
+      // Tool not found, return a default estimate
+      return 40;
+    }
+
+    // Serialize the tool definition to estimate tokens
+    const serialized = JSON.stringify(toolSchema);
+    const tokenizer = getTokenizerForModel(modelString);
+    return tokenizer.countTokens(serialized);
+  } catch (error) {
+    // Fallback to estimates if we can't get the actual definition
+    const fallbackSizes: Record<string, number> = {
+      bash: 65,
+      read_file: 45,
+      web_search: 50,
+      google_search: 50,
+    };
+    return fallbackSizes[toolName] || 40;
+  }
+}

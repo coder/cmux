@@ -51,14 +51,29 @@ export async function costsCommand(workspaceId: string) {
 
   for (const consumer of stats.consumers) {
     const namepadded = consumer.name.padEnd(maxNameLength);
-    const tokensFormatted = consumer.tokens.toLocaleString().padStart(8);
+
+    // Format token display - show k for thousands with 1 decimal, include breakdown in separate columns
+    const tokenDisplay =
+      consumer.tokens >= 1000
+        ? `${(consumer.tokens / 1000).toFixed(1)}k`
+        : consumer.tokens.toString();
+
+    const tokensFormatted = tokenDisplay.padStart(7);
     const percentageFormatted = `(${consumer.percentage.toFixed(1)}%)`.padStart(8);
+
+    // Add breakdown info if both fixed and variable exist
+    const breakdownInfo =
+      consumer.fixedTokens && consumer.variableTokens
+        ? ` [${consumer.fixedTokens} def + ${consumer.variableTokens} usage]`
+        : "";
 
     // Create simple bar chart (each █ = 2%)
     const barLength = Math.round(consumer.percentage / 2);
     const bar = "█".repeat(barLength);
 
-    console.log(`  ${namepadded}  ${tokensFormatted} ${percentageFormatted} ${bar}`);
+    console.log(
+      `  ${namepadded}  ${tokensFormatted} ${percentageFormatted} ${bar}${breakdownInfo}`
+    );
   }
 
   // Display last actual usage from API if available

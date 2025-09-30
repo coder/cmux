@@ -15,6 +15,52 @@ import type { SendMessageError } from "../types/errors";
 import { readFileTool } from "./tools/readFile";
 import { bashTool } from "./tools/bash";
 import { log } from "./log";
+import { getAvailableTools } from "../utils/toolDefinitions";
+
+// Export a standalone version of getToolsForModel for use in backend
+export function getToolsForModel(modelString: string): Record<string, Tool> {
+  const [provider, modelId] = modelString.split(":");
+
+  // Base tools available for all models
+  const baseTools: Record<string, Tool> = {
+    // Use snake_case for tool names to match what seems to be the convention.
+    read_file: readFileTool,
+    bash: bashTool,
+  };
+
+  // Try to add provider-specific web search tools if available
+  // This doesn't break if the provider isn't recognized
+  try {
+    switch (provider) {
+      case "anthropic":
+        return {
+          ...baseTools,
+          web_search: anthropic.tools.webSearch_20250305({ maxUses: 10 }),
+        };
+
+      case "openai":
+        // Only add web search for models that support it
+        if (modelId.includes("gpt-5") || modelId.includes("gpt-4")) {
+          return {
+            ...baseTools,
+            web_search: openai.tools.webSearch({}),
+          };
+        }
+        break;
+
+      case "google":
+        return {
+          ...baseTools,
+          google_search: google.tools.googleSearch({}),
+        };
+    }
+  } catch (error) {
+    // If tools aren't available, just return base tools
+    log.error(`No web search tools available for ${provider}:`, error);
+  }
+
+  return baseTools;
+}
 
 export class AIService extends EventEmitter {
   private readonly CHAT_FILE = "chat.jsonl";
@@ -149,54 +195,13 @@ export class AIService extends EventEmitter {
 
   /**
    * Get tools for a model based on the provider and model ID.
-   * This method progressively enhances base tools with provider-specific capabilities
-   * like web search when available, without breaking support for unknown providers.
+   * This method delegates to the standalone function for consistency.
    *
    * @param modelString The model string in format "provider:model-id"
    * @returns Record of tools available for the model
    */
   private getToolsForModel(modelString: string): Record<string, Tool> {
-    const [provider, modelId] = modelString.split(":");
-
-    // Base tools available for all models
-    const baseTools: Record<string, Tool> = {
-      // Use snake_case for tool names to match what seems to be the convention.
-      read_file: readFileTool,
-      bash: bashTool,
-    };
-
-    // Try to add provider-specific web search tools if available
-    // This doesn't break if the provider isn't recognized
-    try {
-      switch (provider) {
-        case "anthropic":
-          return {
-            ...baseTools,
-            web_search: anthropic.tools.webSearch_20250305({ maxUses: 10 }),
-          };
-
-        case "openai":
-          // Only add web search for models that support it
-          if (modelId.includes("gpt-5") || modelId.includes("gpt-4")) {
-            return {
-              ...baseTools,
-              web_search: openai.tools.webSearch({}),
-            };
-          }
-          break;
-
-        case "google":
-          return {
-            ...baseTools,
-            google_search: google.tools.googleSearch({}),
-          };
-      }
-    } catch (error) {
-      // If tools aren't available, just return base tools
-      log.error(`No web search tools available for ${provider}:`, error);
-    }
-
-    return baseTools;
+    return getToolsForModel(modelString);
   }
 
   /**

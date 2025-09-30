@@ -77,6 +77,26 @@ const PercentageBar = styled.div`
   background: #3e3e42;
   border-radius: 3px;
   overflow: hidden;
+  display: flex;
+  position: relative;
+`;
+
+interface SegmentProps {
+  percentage: number;
+}
+
+const FixedSegment = styled.div<SegmentProps>`
+  height: 100%;
+  width: ${(props) => props.percentage}%;
+  background: #666666;
+  transition: width 0.3s ease;
+`;
+
+const VariableSegment = styled.div<SegmentProps>`
+  height: 100%;
+  width: ${(props) => props.percentage}%;
+  background: linear-gradient(90deg, #007acc 0%, #005a9e 100%);
+  transition: width 0.3s ease;
 `;
 
 interface PercentageFillProps {
@@ -137,19 +157,49 @@ export const CostsTab: React.FC = () => {
       <Section>
         <SectionTitle>Breakdown by Consumer</SectionTitle>
         <ConsumerList>
-          {stats.consumers.map((consumer) => (
-            <ConsumerRow key={consumer.name}>
-              <ConsumerHeader>
-                <ConsumerName>{consumer.name}</ConsumerName>
-                <ConsumerTokens>
-                  {consumer.tokens.toLocaleString()} ({consumer.percentage.toFixed(1)}%)
-                </ConsumerTokens>
-              </ConsumerHeader>
-              <PercentageBar>
-                <PercentageFill percentage={consumer.percentage} />
-              </PercentageBar>
-            </ConsumerRow>
-          ))}
+          {stats.consumers.map((consumer) => {
+            // Calculate percentages for fixed and variable segments
+            const fixedPercentage = consumer.fixedTokens
+              ? (consumer.fixedTokens / stats.totalTokens) * 100
+              : 0;
+            const variablePercentage = consumer.variableTokens
+              ? (consumer.variableTokens / stats.totalTokens) * 100
+              : 0;
+
+            // Format the token display - show k for thousands with 1 decimal
+            const tokenDisplay =
+              consumer.tokens >= 1000
+                ? `${(consumer.tokens / 1000).toFixed(1)}k`
+                : consumer.tokens.toLocaleString();
+
+            return (
+              <ConsumerRow
+                key={consumer.name}
+                title={
+                  consumer.fixedTokens && consumer.variableTokens
+                    ? `${consumer.fixedTokens} tokens for tool definition + ${consumer.variableTokens} tokens for usage`
+                    : undefined
+                }
+              >
+                <ConsumerHeader>
+                  <ConsumerName>{consumer.name}</ConsumerName>
+                  <ConsumerTokens>
+                    {tokenDisplay} ({consumer.percentage.toFixed(1)}%)
+                  </ConsumerTokens>
+                </ConsumerHeader>
+                <PercentageBar>
+                  {consumer.fixedTokens && consumer.variableTokens ? (
+                    <>
+                      <FixedSegment percentage={fixedPercentage} />
+                      <VariableSegment percentage={variablePercentage} />
+                    </>
+                  ) : (
+                    <PercentageFill percentage={consumer.percentage} />
+                  )}
+                </PercentageBar>
+              </ConsumerRow>
+            );
+          })}
         </ConsumerList>
       </Section>
 

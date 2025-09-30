@@ -9,7 +9,11 @@
 
 import { CmuxMessage } from "../types/message";
 import { ChatStats, TokenConsumer, UsageStats } from "../types/chatStats";
-import { getTokenizerForModel, countTokensForData } from "./tokenCalculation";
+import {
+  getTokenizerForModel,
+  countTokensForData,
+  getToolDefinitionTokens,
+} from "./tokenCalculation";
 
 /**
  * Calculate token statistics from raw CmuxMessages
@@ -33,74 +37,82 @@ export async function calculateTokenStats(
   }
 
   const tokenizer = getTokenizerForModel(model);
-  const consumerMap = new Map<string, number>();
+  const consumerMap = new Map<string, { fixed: number; variable: number }>();
+  const toolsWithDefinitions = new Set<string>(); // Track which tools have definitions included
   let lastUsage: UsageStats | undefined;
 
-  // Calculate tokens for each message
+  // Calculate tokens by content producer (User, Assistant, individual tools)
+  // This shows what activities are consuming tokens, useful for debugging costs
   for (const message of messages) {
     if (message.role === "user") {
-      // Count all text parts for user messages
+      // User message text
       let userTokens = 0;
       for (const part of message.parts) {
         if (part.type === "text") {
           userTokens += await tokenizer.countTokens(part.text);
         }
       }
-      consumerMap.set("User", (consumerMap.get("User") || 0) + userTokens);
+      const existing = consumerMap.get("User") || { fixed: 0, variable: 0 };
+      consumerMap.set("User", { fixed: 0, variable: existing.variable + userTokens });
     } else if (message.role === "assistant") {
-      // For assistant messages:
-      // 1. Use actual token count from metadata if available (from API response)
-      // 2. Otherwise estimate by counting text parts
-      let assistantTokens = 0;
-
-      if (message.metadata?.tokens) {
-        // Use actual token count from API
-        assistantTokens = message.metadata.tokens;
-
-        // Store the last actual usage statistics from API
-        if (message.metadata.usage) {
-          lastUsage = message.metadata.usage;
-        }
-      } else {
-        // Estimate from text content
-        for (const part of message.parts) {
-          if (part.type === "text") {
-            assistantTokens += await tokenizer.countTokens(part.text);
-          }
-        }
+      // Store last usage for comparison with estimates
+      if (message.metadata?.usage) {
+        lastUsage = message.metadata.usage;
       }
 
-      consumerMap.set("Assistant", (consumerMap.get("Assistant") || 0) + assistantTokens);
-
-      // Count tool calls separately by tool name
+      // Count assistant text separately from tools
       for (const part of message.parts) {
-        if (part.type === "dynamic-tool") {
-          // Count tokens for tool args
+        if (part.type === "text") {
+          const textTokens = await tokenizer.countTokens(part.text);
+          const existing = consumerMap.get("Assistant") || { fixed: 0, variable: 0 };
+          consumerMap.set("Assistant", { fixed: 0, variable: existing.variable + textTokens });
+        } else if (part.type === "dynamic-tool") {
+          // Count tool arguments
           const argsTokens = await countTokensForData(part.input, tokenizer);
 
-          // Count tokens for tool results if present
+          // Count tool results if available
           const resultTokens =
             part.state === "output-available" && part.output
               ? await countTokensForData(part.output, tokenizer)
               : 0;
 
-          const totalToolTokens = argsTokens + resultTokens;
-          consumerMap.set(part.toolName, (consumerMap.get(part.toolName) || 0) + totalToolTokens);
+          // Get existing or create new consumer for this tool
+          const existing = consumerMap.get(part.toolName) || { fixed: 0, variable: 0 };
+
+          // Add tool definition tokens if this is the first time we see this tool
+          let fixedTokens = existing.fixed;
+          if (!toolsWithDefinitions.has(part.toolName)) {
+            fixedTokens += await getToolDefinitionTokens(part.toolName, model);
+            toolsWithDefinitions.add(part.toolName);
+          }
+
+          // Add variable tokens (args + results)
+          const variableTokens = existing.variable + argsTokens + resultTokens;
+
+          consumerMap.set(part.toolName, { fixed: fixedTokens, variable: variableTokens });
         }
       }
     }
   }
 
   // Calculate total tokens
-  const totalTokens = Array.from(consumerMap.values()).reduce((sum, val) => sum + val, 0);
+  const totalTokens = Array.from(consumerMap.values()).reduce(
+    (sum, val) => sum + val.fixed + val.variable,
+    0
+  );
 
   // Create sorted consumer array (descending by token count)
   const consumers: TokenConsumer[] = Array.from(consumerMap.entries())
-    .map(([name, tokens]) => ({
-      name,
-      tokens,
-      percentage: totalTokens > 0 ? (tokens / totalTokens) * 100 : 0,
-    }))
+    .map(([name, counts]) => {
+      const total = counts.fixed + counts.variable;
+      return {
+        name,
+        tokens: total,
+        percentage: totalTokens > 0 ? (total / totalTokens) * 100 : 0,
+        fixedTokens: counts.fixed > 0 ? counts.fixed : undefined,
+        variableTokens: counts.variable > 0 ? counts.variable : undefined,
+      };
+    })
     .sort((a, b) => b.tokens - a.tokens);
 
   return {
