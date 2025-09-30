@@ -1,0 +1,61 @@
+import styled from "@emotion/styled";
+
+// Centralized Tooltip components
+interface TooltipWrapperProps {
+  inline?: boolean;
+}
+
+export const TooltipWrapper = styled.span<TooltipWrapperProps>`
+  position: relative;
+  display: ${(props) => (props.inline ? "inline-block" : "block")};
+
+  &:hover .tooltip {
+    visibility: visible;
+    opacity: 1;
+  }
+`;
+
+interface TooltipProps {
+  align?: "left" | "center" | "right";
+  width?: "auto" | "wide";
+}
+
+export const Tooltip = styled.span<TooltipProps>`
+  visibility: hidden;
+  opacity: 0;
+  background-color: #2d2d30;
+  color: #cccccc;
+  text-align: ${(props) => props.align || "left"};
+  border-radius: 4px;
+  padding: 6px 10px;
+  position: absolute;
+  z-index: 1000;
+  bottom: 125%;
+  ${(props) => {
+    if (props.align === "right") return "right: 0;";
+    if (props.align === "left") return "left: 0;";
+    return "left: 50%; transform: translateX(-50%);";
+  }}
+  white-space: ${(props) => (props.width === "wide" ? "normal" : "nowrap")};
+  ${(props) => props.width === "wide" && "width: 200px;"}
+  font-size: 11px;
+  font-weight: normal;
+  border: 1px solid #464647;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  transition: opacity 0.2s;
+  pointer-events: none;
+
+  &::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    ${(props) => {
+      if (props.align === "right") return "right: 10px;";
+      if (props.align === "left") return "left: 10px;";
+      return "left: 50%; transform: translateX(-50%);";
+    }}
+    border-width: 5px;
+    border-style: solid;
+    border-color: #2d2d30 transparent transparent transparent;
+  }
+`;

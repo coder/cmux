@@ -46,11 +46,21 @@ export async function costsCommand(workspaceId: string) {
   console.log(`\nContent Tokens (Estimated): ${stats.totalTokens.toLocaleString()}`);
   console.log(`(Actual API costs include system overhead)\n`);
 
+  // Display last actual usage from API if available
+  if (stats.lastUsage) {
+    console.log(`Last API Response:`);
+    console.log(`  Prompt Tokens:     ${stats.lastUsage.promptTokens.toLocaleString()}`);
+    console.log(`  Completion Tokens: ${stats.lastUsage.completionTokens.toLocaleString()}`);
+    console.log(`  Total Tokens:      ${stats.lastUsage.totalTokens.toLocaleString()}\n`);
+  }
+
   console.log("Breakdown by Consumer:");
   const maxNameLength = Math.max(...stats.consumers.map((c) => c.name.length), 10);
 
   for (const consumer of stats.consumers) {
-    const namepadded = consumer.name.padEnd(maxNameLength);
+    // Add indicator for web_search to show it's approximate
+    const displayName = consumer.name === "web_search" ? `${consumer.name} ⓘ` : consumer.name;
+    const namepadded = displayName.padEnd(maxNameLength + (consumer.name === "web_search" ? 2 : 0));
 
     // Format token display - show k for thousands with 1 decimal, include breakdown in separate columns
     const tokenDisplay =
@@ -76,12 +86,9 @@ export async function costsCommand(workspaceId: string) {
     );
   }
 
-  // Display last actual usage from API if available
-  if (stats.lastUsage) {
-    console.log(`\nLast API Response:`);
-    console.log(`  Prompt Tokens:     ${stats.lastUsage.promptTokens.toLocaleString()}`);
-    console.log(`  Completion Tokens: ${stats.lastUsage.completionTokens.toLocaleString()}`);
-    console.log(`  Total Tokens:      ${stats.lastUsage.totalTokens.toLocaleString()}`);
+  // Add note about web_search approximation if it's present
+  if (stats.consumers.some((c) => c.name === "web_search")) {
+    console.log("\n  ⓘ web_search tokens are approximate (encrypted content)");
   }
 
   // Display message breakdown

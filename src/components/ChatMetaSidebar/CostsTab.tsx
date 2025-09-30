@@ -1,6 +1,7 @@
 import React from "react";
 import styled from "@emotion/styled";
 import { useChatContext } from "../../contexts/ChatContext";
+import { Tooltip, TooltipWrapper } from "../Tooltip";
 
 const Container = styled.div`
   color: #d4d4d4;
@@ -13,8 +14,8 @@ const Section = styled.div`
   margin-bottom: 24px;
 `;
 
-const SectionTitle = styled.h3`
-  color: #cccccc;
+const SectionTitle = styled.h3<{ dimmed?: boolean }>`
+  color: ${(props) => (props.dimmed ? "#999999" : "#cccccc")};
   font-size: 14px;
   font-weight: 600;
   margin: 0 0 12px 0;
@@ -53,6 +54,8 @@ const ConsumerRow = styled.div`
   display: flex;
   flex-direction: column;
   gap: 4px;
+  margin-bottom: 8px;
+  position: relative;
 `;
 
 const ConsumerHeader = styled.div`
@@ -64,11 +67,39 @@ const ConsumerHeader = styled.div`
 const ConsumerName = styled.span`
   color: #cccccc;
   font-weight: 500;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+`;
+
+const HelpIndicator = styled.span`
+  color: #666666;
+  font-size: 8px;
+  cursor: help;
+  display: inline-block;
+  vertical-align: baseline;
+  border: 1px solid #666666;
+  border-radius: 50%;
+  width: 11px;
+  height: 11px;
+  line-height: 9px;
+  text-align: center;
+  font-weight: bold;
 `;
 
 const ConsumerTokens = styled.span`
   color: #888888;
   font-size: 12px;
+`;
+
+const PercentageBarWrapper = styled.div`
+  position: relative;
+  width: 100%;
+
+  &:hover .tooltip {
+    visibility: visible;
+    opacity: 1;
+  }
 `;
 
 const PercentageBar = styled.div`
@@ -78,7 +109,7 @@ const PercentageBar = styled.div`
   border-radius: 3px;
   overflow: hidden;
   display: flex;
-  position: relative;
+  cursor: help;
 `;
 
 interface SegmentProps {
@@ -145,64 +176,6 @@ export const CostsTab: React.FC = () => {
 
   return (
     <Container>
-      <Section>
-        <SectionTitle>Content Tokens</SectionTitle>
-        <TokenizerInfo>Estimated using {stats.tokenizerName}</TokenizerInfo>
-        <TotalTokens>{stats.totalTokens.toLocaleString()} tokens</TotalTokens>
-        <InfoNote>
-          Actual API costs include system overhead (prompts, tool definitions, etc.)
-        </InfoNote>
-      </Section>
-
-      <Section>
-        <SectionTitle>Breakdown by Consumer</SectionTitle>
-        <ConsumerList>
-          {stats.consumers.map((consumer) => {
-            // Calculate percentages for fixed and variable segments
-            const fixedPercentage = consumer.fixedTokens
-              ? (consumer.fixedTokens / stats.totalTokens) * 100
-              : 0;
-            const variablePercentage = consumer.variableTokens
-              ? (consumer.variableTokens / stats.totalTokens) * 100
-              : 0;
-
-            // Format the token display - show k for thousands with 1 decimal
-            const tokenDisplay =
-              consumer.tokens >= 1000
-                ? `${(consumer.tokens / 1000).toFixed(1)}k`
-                : consumer.tokens.toLocaleString();
-
-            return (
-              <ConsumerRow
-                key={consumer.name}
-                title={
-                  consumer.fixedTokens && consumer.variableTokens
-                    ? `${consumer.fixedTokens} tokens for tool definition + ${consumer.variableTokens} tokens for usage`
-                    : undefined
-                }
-              >
-                <ConsumerHeader>
-                  <ConsumerName>{consumer.name}</ConsumerName>
-                  <ConsumerTokens>
-                    {tokenDisplay} ({consumer.percentage.toFixed(1)}%)
-                  </ConsumerTokens>
-                </ConsumerHeader>
-                <PercentageBar>
-                  {consumer.fixedTokens && consumer.variableTokens ? (
-                    <>
-                      <FixedSegment percentage={fixedPercentage} />
-                      <VariableSegment percentage={variablePercentage} />
-                    </>
-                  ) : (
-                    <PercentageFill percentage={consumer.percentage} />
-                  )}
-                </PercentageBar>
-              </ConsumerRow>
-            );
-          })}
-        </ConsumerList>
-      </Section>
-
       {stats.lastUsage && (
         <Section>
           <SectionTitle>Last API Response</SectionTitle>
@@ -228,6 +201,75 @@ export const CostsTab: React.FC = () => {
           </ConsumerList>
         </Section>
       )}
+
+      <Section>
+        <SectionTitle dimmed>Content Tokens</SectionTitle>
+        <TokenizerInfo>Estimated using {stats.tokenizerName}</TokenizerInfo>
+        <TotalTokens>{stats.totalTokens.toLocaleString()} tokens</TotalTokens>
+        <InfoNote>
+          Actual API costs include system overhead (prompts, tool definitions, etc.)
+        </InfoNote>
+      </Section>
+
+      <Section>
+        <SectionTitle dimmed>Breakdown by Consumer</SectionTitle>
+        <ConsumerList>
+          {stats.consumers.map((consumer) => {
+            // Calculate percentages for fixed and variable segments
+            const fixedPercentage = consumer.fixedTokens
+              ? (consumer.fixedTokens / stats.totalTokens) * 100
+              : 0;
+            const variablePercentage = consumer.variableTokens
+              ? (consumer.variableTokens / stats.totalTokens) * 100
+              : 0;
+
+            // Format the token display - show k for thousands with 1 decimal
+            const tokenDisplay =
+              consumer.tokens >= 1000
+                ? `${(consumer.tokens / 1000).toFixed(1)}k`
+                : consumer.tokens.toLocaleString();
+
+            return (
+              <ConsumerRow key={consumer.name}>
+                <ConsumerHeader>
+                  <ConsumerName>
+                    {consumer.name}
+                    {consumer.name === "web_search" && (
+                      <TooltipWrapper inline>
+                        <HelpIndicator>?</HelpIndicator>
+                        <Tooltip className="tooltip" align="center" width="wide">
+                          Web search results are encrypted and decrypted server-side. This estimate
+                          is approximate.
+                        </Tooltip>
+                      </TooltipWrapper>
+                    )}
+                  </ConsumerName>
+                  <ConsumerTokens>
+                    {tokenDisplay} ({consumer.percentage.toFixed(1)}%)
+                  </ConsumerTokens>
+                </ConsumerHeader>
+                <PercentageBarWrapper>
+                  <PercentageBar>
+                    {consumer.fixedTokens && consumer.variableTokens ? (
+                      <>
+                        <FixedSegment percentage={fixedPercentage} />
+                        <VariableSegment percentage={variablePercentage} />
+                      </>
+                    ) : (
+                      <PercentageFill percentage={consumer.percentage} />
+                    )}
+                  </PercentageBar>
+                  <Tooltip className="tooltip" align="center">
+                    {consumer.fixedTokens && consumer.variableTokens
+                      ? `Tool definition: ${consumer.fixedTokens.toLocaleString()} | Usage: ${consumer.variableTokens.toLocaleString()} tokens`
+                      : `${consumer.tokens.toLocaleString()} tokens`}
+                  </Tooltip>
+                </PercentageBarWrapper>
+              </ConsumerRow>
+            );
+          })}
+        </ConsumerList>
+      </Section>
     </Container>
   );
 };

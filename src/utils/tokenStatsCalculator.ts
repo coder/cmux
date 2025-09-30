@@ -79,7 +79,36 @@ export async function calculateTokenStats(
               typeof part.output === "object" && part.output !== null && "value" in part.output
                 ? part.output.value
                 : part.output;
-            resultTokens = await countTokensForData(outputData, tokenizer);
+
+            // Special handling for web_search encrypted content
+            if (part.toolName === "web_search" && Array.isArray(outputData)) {
+              // Check if this is encrypted web search results
+              const hasEncryptedContent = outputData.some(
+                (item: any) => item && typeof item === "object" && "encryptedContent" in item
+              );
+
+              if (hasEncryptedContent) {
+                // Calculate tokens for encrypted content with heuristic
+                // Encrypted content is base64 encoded and then encrypted/compressed
+                // Apply reduction factors:
+                // 1. Remove base64 overhead (multiply by 0.75)
+                // 2. Apply an estimated token reduction factor of 4
+                let encryptedChars = 0;
+                for (const item of outputData) {
+                  if (item?.encryptedContent) {
+                    encryptedChars += item.encryptedContent.length;
+                  }
+                }
+                // Use heuristic: encrypted chars / 40 for token estimation
+                resultTokens = Math.ceil(encryptedChars * 0.75);
+              } else {
+                // Normal web search results without encryption
+                resultTokens = await countTokensForData(outputData, tokenizer);
+              }
+            } else {
+              // Normal tool results
+              resultTokens = await countTokensForData(outputData, tokenizer);
+            }
           }
 
           // Get existing or create new consumer for this tool
