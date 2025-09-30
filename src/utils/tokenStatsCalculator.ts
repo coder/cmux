@@ -71,10 +71,16 @@ export async function calculateTokenStats(
           const argsTokens = await countTokensForData(part.input, tokenizer);
 
           // Count tool results if available
-          const resultTokens =
-            part.state === "output-available" && part.output
-              ? await countTokensForData(part.output, tokenizer)
-              : 0;
+          // Tool results have nested structure: { type: "json", value: {...} }
+          let resultTokens = 0;
+          if (part.state === "output-available" && part.output) {
+            // Extract the actual data from the nested output structure
+            const outputData =
+              typeof part.output === "object" && part.output !== null && "value" in part.output
+                ? part.output.value
+                : part.output;
+            resultTokens = await countTokensForData(outputData, tokenizer);
+          }
 
           // Get existing or create new consumer for this tool
           const existing = consumerMap.get(part.toolName) || { fixed: 0, variable: 0 };

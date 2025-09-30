@@ -5,7 +5,7 @@ import * as os from "os";
 import * as jsonc from "jsonc-parser";
 import type { WorkspaceMetadata } from "./types/workspace";
 
-const CONFIG_DIR = path.join(os.homedir(), ".cmux");
+export const CONFIG_DIR = path.join(os.homedir(), ".cmux");
 const CONFIG_FILE = path.join(CONFIG_DIR, "config.json");
 const PROVIDERS_FILE = path.join(CONFIG_DIR, "providers.jsonc");
 export const SESSIONS_DIR = path.join(CONFIG_DIR, "sessions");

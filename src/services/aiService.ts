@@ -15,7 +15,10 @@ import type { SendMessageError } from "../types/errors";
 import { readFileTool } from "./tools/readFile";
 import { bashTool } from "./tools/bash";
 import { log } from "./log";
-import { getAvailableTools } from "../utils/toolDefinitions";
+import {
+  transformModelMessages,
+  validateAnthropicCompliance,
+} from "../utils/modelMessageTransform";
 
 // Export a standalone version of getToolsForModel for use in backend
 export function getToolsForModel(modelString: string): Record<string, Tool> {
@@ -205,71 +208,7 @@ export class AIService extends EventEmitter {
   }
 
   /**
-   * Split assistant messages that have text after tool calls.
-   *
-   * Anthropic's API requires that tool_result blocks immediately follow tool_use blocks.
-   * When an assistant message has text after a tool call, convertToModelMessages places
-   * the tool result after ALL the assistant content, violating this requirement.
-   *
-   * This transform splits such messages into:
-   * 1. Assistant message with text-before + tool calls
-   * 2. Assistant continuation message with text-after
-   *
-   * This ensures the converted format will be:
-   * - Assistant: [text, tool-call]
-   * - Tool: [tool-result]  <- immediately after tool-call
-   * - Assistant: [text-after]  <- continuation in separate message
-   */
-  private splitTextAfterTools(messages: CmuxMessage[]): CmuxMessage[] {
-    const result: CmuxMessage[] = [];
-
-    for (const msg of messages) {
-      if (msg.role !== "assistant") {
-        result.push(msg);
-        continue;
-      }
-
-      // Find last tool index
-      let lastToolIndex = -1;
-      for (let i = msg.parts.length - 1; i >= 0; i--) {
-        if (msg.parts[i].type === "dynamic-tool") {
-          lastToolIndex = i;
-          break;
-        }
-      }
-
-      // If no tools or no text after tools, keep as-is
-      if (lastToolIndex === -1 || lastToolIndex === msg.parts.length - 1) {
-        result.push(msg);
-        continue;
-      }
-
-      // Check if there's actually text content after the last tool
-      const partsAfter = msg.parts.slice(lastToolIndex + 1);
-      const hasTextAfter = partsAfter.some(
-        (p) => p.type === "text" && p.text && p.text.trim().length > 0
-      );
-
-      if (!hasTextAfter) {
-        result.push(msg);
-        continue;
-      }
-
-      // Split: message with text+tools, then continuation with text-after
-      result.push({
-        ...msg,
-        parts: msg.parts.slice(0, lastToolIndex + 1),
-      });
-
-      result.push({
-        ...msg,
-        id: msg.id + "-continuation",
-        parts: partsAfter,
-      });
-    }
-
-    return result;
-  }
+   * Split assistant messages that have text after tool calls with results.
 
   /**
    * Create an AI SDK model from a model string (e.g., "anthropic:claude-opus-4-1")
@@ -352,12 +291,25 @@ export class AIService extends EventEmitter {
         return Err(modelResult.error);
       }
 
-      // Transform messages to handle Anthropic's requirement that tool results
-      // must immediately follow tool calls (no text between them)
-      const transformedMessages = this.splitTextAfterTools(messages);
+      // Dump original messages for debugging
+      log.debug_obj(`${workspaceId}/1_original_messages.json`, messages);
 
       // Convert CmuxMessage to ModelMessage format using Vercel AI SDK utility
-      const modelMessages = convertToModelMessages(transformedMessages);
+      const modelMessages = convertToModelMessages(messages);
+
+      log.debug_obj(`${workspaceId}/2_model_messages.json`, modelMessages);
+
+      // Apply ModelMessage transforms to ensure Anthropic API compliance
+      const finalMessages = transformModelMessages(modelMessages);
+
+      log.debug_obj(`${workspaceId}/3_final_messages.json`, finalMessages);
+
+      // Validate the messages meet Anthropic requirements
+      const validation = validateAnthropicCompliance(finalMessages);
+      if (!validation.valid) {
+        log.error(`Anthropic compliance validation failed: ${validation.error}`);
+        // Continue anyway, as the API might be more lenient
+      }
 
       // Get model-specific tools (including provider-specific web search if available)
       const tools = this.getToolsForModel(this.defaultModel);
@@ -365,7 +317,7 @@ export class AIService extends EventEmitter {
       // Delegate to StreamManager with model instance and tools
       const streamResult = await this.streamManager.startStream(
         workspaceId,
-        modelMessages,
+        finalMessages,
         modelResult.data,
         this.defaultModel,
         abortSignal,
