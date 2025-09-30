@@ -1,0 +1,65 @@
+import modelsData from "./models.json";
+
+export interface ModelStats {
+  max_input_tokens: number;
+  input_cost_per_token: number;
+  output_cost_per_token: number;
+  cache_creation_input_token_cost?: number;
+  cache_read_input_token_cost?: number;
+}
+
+interface RawModelData {
+  max_input_tokens?: number | string;
+  input_cost_per_token?: number;
+  output_cost_per_token?: number;
+  cache_creation_input_token_cost?: number;
+  cache_read_input_token_cost?: number;
+  [key: string]: unknown;
+}
+
+/**
+ * Extracts the model name from a Vercel AI SDK model string
+ * @param modelString - Format: "provider:model-name" or just "model-name"
+ * @returns The model name without the provider prefix
+ */
+function extractModelName(modelString: string): string {
+  const parts = modelString.split(":");
+  return parts.length > 1 ? parts[1] : parts[0];
+}
+
+/**
+ * Gets model statistics for a given Vercel AI SDK model string
+ * @param modelString - Format: "provider:model-name" (e.g., "anthropic:claude-opus-4-1")
+ * @returns ModelStats or null if model not found
+ */
+export function getModelStats(modelString: string): ModelStats | null {
+  const modelName = extractModelName(modelString);
+  const data = (modelsData as Record<string, RawModelData>)[modelName];
+
+  if (!data) {
+    return null;
+  }
+
+  // Validate that we have required fields and correct types
+  if (
+    typeof data.max_input_tokens !== "number" ||
+    typeof data.input_cost_per_token !== "number" ||
+    typeof data.output_cost_per_token !== "number"
+  ) {
+    return null;
+  }
+
+  return {
+    max_input_tokens: data.max_input_tokens,
+    input_cost_per_token: data.input_cost_per_token,
+    output_cost_per_token: data.output_cost_per_token,
+    cache_creation_input_token_cost:
+      typeof data.cache_creation_input_token_cost === "number"
+        ? data.cache_creation_input_token_cost
+        : undefined,
+    cache_read_input_token_cost:
+      typeof data.cache_read_input_token_cost === "number"
+        ? data.cache_read_input_token_cost
+        : undefined,
+  };
+}

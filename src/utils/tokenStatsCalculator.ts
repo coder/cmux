@@ -15,29 +15,34 @@ import {
   countTokensForData,
   getToolDefinitionTokens,
 } from "./tokenCalculation";
+import { getModelStats } from "./modelStats";
+
+export interface ChatUsageComponent {
+  tokens: number;
+  cost_usd: number;
+}
 
 /**
  * Enhanced usage type for display that includes provider-specific cache stats
  */
 export interface ChatUsageDisplay {
-  tokens: {
-    // Input is the part of the input was not cached. So,
-    // totalInput = input + cached
-    input: number;
-    cached: number;
+  // Input is the part of the input was not cached. So,
+  // totalInput = input + cached
+  input: ChatUsageComponent;
+  cached: ChatUsageComponent;
 
-    // Output is the part of the output excluding reasoning, so
-    // totalOutput = output + reasoning
-    output: number;
-    reasoning: number;
-  };
+  // Output is the part of the output excluding reasoning, so
+  // totalOutput = output + reasoning
+  output: ChatUsageComponent;
+  reasoning: ChatUsageComponent;
 }
 
 /**
  * Create a display-friendly usage object from standard LanguageModelV2Usage
  */
 export function createDisplayUsage(
-  usage: LanguageModelV2Usage | undefined
+  usage: LanguageModelV2Usage | undefined,
+  model: string
 ): ChatUsageDisplay | undefined {
   if (!usage) return undefined;
 
@@ -52,12 +57,38 @@ export function createDisplayUsage(
     (usage.outputTokens ?? 0) - (usage.reasoningTokens ?? 0)
   );
 
+  // Get model stats for cost calculation
+  const modelStats = getModelStats(model);
+
+  // Calculate costs based on model stats
+  let inputCost = 0;
+  let cachedCost = 0;
+  let outputCost = 0;
+  let reasoningCost = 0;
+
+  if (modelStats) {
+    inputCost = inputTokens * modelStats.input_cost_per_token;
+    cachedCost = cachedTokens * (modelStats.cache_read_input_token_cost ?? 0);
+    outputCost = outputWithoutReasoning * modelStats.output_cost_per_token;
+    reasoningCost = (usage.reasoningTokens ?? 0) * modelStats.output_cost_per_token;
+  }
+
   return {
-    tokens: {
-      input: inputTokens,
-      cached: cachedTokens,
-      output: outputWithoutReasoning,
-      reasoning: usage.reasoningTokens ?? 0,
+    input: {
+      tokens: inputTokens,
+      cost_usd: inputCost,
+    },
+    cached: {
+      tokens: cachedTokens,
+      cost_usd: cachedCost,
+    },
+    output: {
+      tokens: outputWithoutReasoning,
+      cost_usd: outputCost,
+    },
+    reasoning: {
+      tokens: usage.reasoningTokens ?? 0,
+      cost_usd: reasoningCost,
     },
   };
 }
@@ -104,7 +135,7 @@ export async function calculateTokenStats(
     } else if (message.role === "assistant") {
       // Store last usage for comparison with estimates
       if (message.metadata?.usage) {
-        lastUsage = createDisplayUsage(message.metadata.usage);
+        lastUsage = createDisplayUsage(message.metadata.usage, model);
       }
 
       // Count assistant text separately from tools

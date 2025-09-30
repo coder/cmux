@@ -183,9 +183,79 @@ const TokenDetails = styled.div`
   line-height: 1.4;
 `;
 
+const DetailsTable = styled.table`
+  width: 100%;
+  margin-top: 4px;
+  border-collapse: collapse;
+  font-size: 11px;
+`;
+
+const DetailsHeaderRow = styled.tr`
+  border-bottom: 1px solid #3e3e42;
+`;
+
+const DetailsHeader = styled.th`
+  text-align: left;
+  color: #888888;
+  font-weight: 500;
+  padding: 4px 8px 4px 0;
+
+  &:last-child {
+    text-align: right;
+    padding-right: 0;
+  }
+`;
+
+const DetailsRow = styled.tr``;
+
+const DetailsCell = styled.td`
+  padding: 4px 8px 4px 0;
+  color: #cccccc;
+
+  &:last-child {
+    text-align: right;
+    padding-right: 0;
+  }
+`;
+
+const ComponentName = styled.div<{ color: string }>`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  &::before {
+    content: "";
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+    background: ${(props) => props.color};
+    flex-shrink: 0;
+  }
+`;
+
+const DimmedCost = styled.span`
+  color: #666666;
+  font-style: italic;
+`;
+
 // Format token display - show k for thousands with 1 decimal
 const formatTokens = (tokens: number) =>
   tokens >= 1000 ? `${(tokens / 1000).toFixed(1)}k` : tokens.toLocaleString();
+
+// Format cost display - show "<$0.01" for very small values, otherwise fixed precision
+const formatCost = (cost: number): string => {
+  if (cost === 0) return "0.00";
+  if (cost >= 0.01) return cost.toFixed(2);
+  // For values < 0.01, show as "<$0.01" (without $ prefix when used)
+  return "<0.01";
+};
+
+// Format cost with dollar sign
+const formatCostWithDollar = (cost: number): string => {
+  if (cost > 0 && cost < 0.01) return "~$0.00";
+  return `$${formatCost(cost)}`;
+};
 
 export const CostsTab: React.FC = () => {
   const { stats, isCalculating } = useChatContext();
@@ -220,10 +290,10 @@ export const CostsTab: React.FC = () => {
               // Get max tokens for the model
               const maxTokens = getMaxTokensForModel(stats.model);
               const totalUsed =
-                stats.lastUsage.tokens.input +
-                stats.lastUsage.tokens.cached +
-                stats.lastUsage.tokens.output +
-                stats.lastUsage.tokens.reasoning;
+                stats.lastUsage.input.tokens +
+                stats.lastUsage.cached.tokens +
+                stats.lastUsage.output.tokens +
+                stats.lastUsage.reasoning.tokens;
 
               // Calculate percentages
               let inputPercentage: number;
@@ -234,24 +304,72 @@ export const CostsTab: React.FC = () => {
 
               if (maxTokens) {
                 // We know the model's max tokens
-                inputPercentage = (stats.lastUsage.tokens.input / maxTokens) * 100;
-                outputPercentage = (stats.lastUsage.tokens.output / maxTokens) * 100;
-                cachedPercentage = (stats.lastUsage.tokens.cached / maxTokens) * 100;
+                inputPercentage = (stats.lastUsage.input.tokens / maxTokens) * 100;
+                outputPercentage = (stats.lastUsage.output.tokens / maxTokens) * 100;
+                cachedPercentage = (stats.lastUsage.cached.tokens / maxTokens) * 100;
                 totalPercentage = (totalUsed / maxTokens) * 100;
               } else {
                 // Unknown model - scale to total tokens used
                 inputPercentage =
-                  totalUsed > 0 ? (stats.lastUsage.tokens.input / totalUsed) * 100 : 0;
+                  totalUsed > 0 ? (stats.lastUsage.input.tokens / totalUsed) * 100 : 0;
                 outputPercentage =
-                  totalUsed > 0 ? (stats.lastUsage.tokens.output / totalUsed) * 100 : 0;
+                  totalUsed > 0 ? (stats.lastUsage.output.tokens / totalUsed) * 100 : 0;
                 cachedPercentage =
-                  totalUsed > 0 ? (stats.lastUsage.tokens.cached / totalUsed) * 100 : 0;
+                  totalUsed > 0 ? (stats.lastUsage.cached.tokens / totalUsed) * 100 : 0;
                 totalPercentage = 100;
                 showWarning = true;
               }
 
               const totalDisplay = formatTokens(totalUsed);
               const maxDisplay = maxTokens ? ` / ${formatTokens(maxTokens)}` : "";
+
+              // Calculate cost percentages
+              const totalCost =
+                stats.lastUsage.input.cost_usd +
+                stats.lastUsage.cached.cost_usd +
+                stats.lastUsage.output.cost_usd +
+                stats.lastUsage.reasoning.cost_usd;
+
+              const inputCostPercentage =
+                totalCost > 0 ? (stats.lastUsage.input.cost_usd / totalCost) * 100 : 0;
+              const cachedCostPercentage =
+                totalCost > 0 ? (stats.lastUsage.cached.cost_usd / totalCost) * 100 : 0;
+              const outputCostPercentage =
+                totalCost > 0 ? (stats.lastUsage.output.cost_usd / totalCost) * 100 : 0;
+              const reasoningCostPercentage =
+                totalCost > 0 ? (stats.lastUsage.reasoning.cost_usd / totalCost) * 100 : 0;
+
+              // Build component data for table
+              const components = [
+                {
+                  name: "Cached",
+                  tokens: stats.lastUsage.cached.tokens,
+                  cost: stats.lastUsage.cached.cost_usd,
+                  color: "var(--color-token-cached)",
+                  show: stats.lastUsage.cached.tokens > 0,
+                },
+                {
+                  name: "Input",
+                  tokens: stats.lastUsage.input.tokens,
+                  cost: stats.lastUsage.input.cost_usd,
+                  color: "var(--color-token-input)",
+                  show: true,
+                },
+                {
+                  name: "Output",
+                  tokens: stats.lastUsage.output.tokens,
+                  cost: stats.lastUsage.output.cost_usd,
+                  color: "var(--color-token-output)",
+                  show: true,
+                },
+                {
+                  name: "Reasoning",
+                  tokens: stats.lastUsage.reasoning.tokens,
+                  cost: stats.lastUsage.reasoning.cost_usd,
+                  color: "var(--color-token-output)",
+                  show: stats.lastUsage.reasoning.tokens > 0,
+                },
+              ].filter((c) => c.show);
 
               return (
                 <>
@@ -269,18 +387,57 @@ export const CostsTab: React.FC = () => {
                         <InputSegment percentage={inputPercentage} />
                         <OutputSegment percentage={outputPercentage} />
                       </PercentageBar>
-                      <TokenDetails>
-                        {stats.lastUsage.tokens.cached > 0 && (
-                          <>Cached: {formatTokens(stats.lastUsage.tokens.cached)} • </>
-                        )}
-                        Input: {formatTokens(stats.lastUsage.tokens.input)} • Output:{" "}
-                        {formatTokens(stats.lastUsage.tokens.output)}
-                        {stats.lastUsage.tokens.reasoning > 0 && (
-                          <> • Reasoning: {formatTokens(stats.lastUsage.tokens.reasoning)}</>
-                        )}
-                      </TokenDetails>
                     </PercentageBarWrapper>
                   </ConsumerRow>
+                  {totalCost > 0 && (
+                    <ConsumerRow>
+                      <ConsumerHeader>
+                        <ConsumerName>Cost</ConsumerName>
+                        <ConsumerTokens>{formatCostWithDollar(totalCost)}</ConsumerTokens>
+                      </ConsumerHeader>
+                      <PercentageBarWrapper>
+                        <PercentageBar>
+                          {cachedCostPercentage > 0 && (
+                            <CachedSegment percentage={cachedCostPercentage} />
+                          )}
+                          <InputSegment percentage={inputCostPercentage} />
+                          <OutputSegment percentage={outputCostPercentage} />
+                          {reasoningCostPercentage > 0 && (
+                            <OutputSegment percentage={reasoningCostPercentage} />
+                          )}
+                        </PercentageBar>
+                      </PercentageBarWrapper>
+                    </ConsumerRow>
+                  )}
+                  <DetailsTable>
+                    <thead>
+                      <DetailsHeaderRow>
+                        <DetailsHeader>Component</DetailsHeader>
+                        <DetailsHeader>Tokens</DetailsHeader>
+                        <DetailsHeader>Cost</DetailsHeader>
+                      </DetailsHeaderRow>
+                    </thead>
+                    <tbody>
+                      {components.map((component) => {
+                        const costDisplay = formatCostWithDollar(component.cost);
+                        const isNegligible = component.cost > 0 && component.cost < 0.01;
+
+                        return (
+                          <DetailsRow key={component.name}>
+                            <DetailsCell>
+                              <ComponentName color={component.color}>
+                                {component.name}
+                              </ComponentName>
+                            </DetailsCell>
+                            <DetailsCell>{formatTokens(component.tokens)}</DetailsCell>
+                            <DetailsCell>
+                              {isNegligible ? <DimmedCost>{costDisplay}</DimmedCost> : costDisplay}
+                            </DetailsCell>
+                          </DetailsRow>
+                        );
+                      })}
+                    </tbody>
+                  </DetailsTable>
                   {showWarning && (
                     <ModelWarning>Unknown model limits - showing relative usage only</ModelWarning>
                   )}
