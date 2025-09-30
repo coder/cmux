@@ -327,6 +327,7 @@ export const CostsTab: React.FC = () => {
               const totalCost =
                 stats.lastUsage.input.cost_usd +
                 stats.lastUsage.cached.cost_usd +
+                stats.lastUsage.cacheCreate.cost_usd +
                 stats.lastUsage.output.cost_usd +
                 stats.lastUsage.reasoning.cost_usd;
 
@@ -334,6 +335,8 @@ export const CostsTab: React.FC = () => {
                 totalCost > 0 ? (stats.lastUsage.input.cost_usd / totalCost) * 100 : 0;
               const cachedCostPercentage =
                 totalCost > 0 ? (stats.lastUsage.cached.cost_usd / totalCost) * 100 : 0;
+              const cacheCreateCostPercentage =
+                totalCost > 0 ? (stats.lastUsage.cacheCreate.cost_usd / totalCost) * 100 : 0;
               const outputCostPercentage =
                 totalCost > 0 ? (stats.lastUsage.output.cost_usd / totalCost) * 100 : 0;
               const reasoningCostPercentage =
@@ -342,11 +345,18 @@ export const CostsTab: React.FC = () => {
               // Build component data for table
               const components = [
                 {
-                  name: "Cached",
+                  name: "Cache Read",
                   tokens: stats.lastUsage.cached.tokens,
                   cost: stats.lastUsage.cached.cost_usd,
                   color: "var(--color-token-cached)",
                   show: stats.lastUsage.cached.tokens > 0,
+                },
+                {
+                  name: "Cache Create",
+                  tokens: stats.lastUsage.cacheCreate.tokens,
+                  cost: stats.lastUsage.cacheCreate.cost_usd,
+                  color: "var(--color-token-cached)",
+                  show: stats.lastUsage.cacheCreate.tokens > 0,
                 },
                 {
                   name: "Input",
@@ -383,6 +393,8 @@ export const CostsTab: React.FC = () => {
                     </ConsumerHeader>
                     <PercentageBarWrapper>
                       <PercentageBar>
+                        {/* Cache create is excluded from token usage bar since it's a separate
+                            billing concept and doesn't count toward the context window limit */}
                         {cachedPercentage > 0 && <CachedSegment percentage={cachedPercentage} />}
                         <InputSegment percentage={inputPercentage} />
                         <OutputSegment percentage={outputPercentage} />
@@ -399,6 +411,9 @@ export const CostsTab: React.FC = () => {
                         <PercentageBar>
                           {cachedCostPercentage > 0 && (
                             <CachedSegment percentage={cachedCostPercentage} />
+                          )}
+                          {cacheCreateCostPercentage > 0 && (
+                            <CachedSegment percentage={cacheCreateCostPercentage} />
                           )}
                           <InputSegment percentage={inputCostPercentage} />
                           <OutputSegment percentage={outputCostPercentage} />
