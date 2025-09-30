@@ -105,7 +105,7 @@ export async function getToolDefinitionTokens(
     const serialized = JSON.stringify(toolSchema);
     const tokenizer = getTokenizerForModel(modelString);
     return tokenizer.countTokens(serialized);
-  } catch (error) {
+  } catch {
     // Fallback to estimates if we can't get the actual definition
     const fallbackSizes: Record<string, number> = {
       bash: 65,

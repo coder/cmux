@@ -259,11 +259,14 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   }, [input, availableCommands]);
 
   // Handle command selection
-  const handleCommandSelect = useCallback((command: string) => {
-    setInput(`/${command} `);
-    setShowCommandSuggestions(false);
-    inputRef.current?.focus();
-  }, []);
+  const handleCommandSelect = useCallback(
+    (command: string) => {
+      setInput(`/${command} `);
+      setShowCommandSuggestions(false);
+      inputRef.current?.focus();
+    },
+    [setInput]
+  );
 
   const handleSend = async () => {
     if (!input.trim() || disabled || isSending || isCompacting) return;

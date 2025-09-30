@@ -57,7 +57,7 @@ export const UserMessage: React.FC<UserMessageProps> = ({ message, className }) 
       <MessageWindow
         label="USER"
         borderColor="var(--color-user-border)"
-        message={message as any}
+        message={message}
         buttons={buttons}
         className={className}
       >
@@ -71,7 +71,7 @@ export const UserMessage: React.FC<UserMessageProps> = ({ message, className }) 
     <MessageWindow
       label="USER"
       borderColor="var(--color-user-border)"
-      message={message as any}
+      message={message}
       buttons={buttons}
       className={className}
     >

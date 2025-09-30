@@ -1,6 +1,6 @@
 import React, { useState, ReactNode } from "react";
 import styled from "@emotion/styled";
-import { CmuxMessage } from "../../types/message";
+import { CmuxMessage, DisplayedMessage } from "../../types/message";
 
 const MessageBlock = styled.div<{ borderColor: string; backgroundColor?: string }>`
   margin-bottom: 15px;
@@ -77,7 +77,7 @@ interface MessageWindowProps {
   label: ReactNode;
   borderColor: string;
   backgroundColor?: string;
-  message: CmuxMessage;
+  message: CmuxMessage | DisplayedMessage;
   buttons?: ButtonConfig[];
   children: ReactNode;
   className?: string;

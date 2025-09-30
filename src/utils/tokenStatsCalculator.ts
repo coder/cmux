@@ -84,7 +84,11 @@ export async function calculateTokenStats(
             if (part.toolName === "web_search" && Array.isArray(outputData)) {
               // Check if this is encrypted web search results
               const hasEncryptedContent = outputData.some(
-                (item: any) => item && typeof item === "object" && "encryptedContent" in item
+                (item: unknown): item is { encryptedContent: string } =>
+                  item !== null &&
+                  typeof item === "object" &&
+                  "encryptedContent" in item &&
+                  typeof (item as Record<string, unknown>).encryptedContent === "string"
               );
 
               if (hasEncryptedContent) {
@@ -95,8 +99,14 @@ export async function calculateTokenStats(
                 // 2. Apply an estimated token reduction factor of 4
                 let encryptedChars = 0;
                 for (const item of outputData) {
-                  if (item?.encryptedContent) {
-                    encryptedChars += item.encryptedContent.length;
+                  if (
+                    item !== null &&
+                    typeof item === "object" &&
+                    "encryptedContent" in item &&
+                    typeof (item as Record<string, unknown>).encryptedContent === "string"
+                  ) {
+                    encryptedChars += (item as { encryptedContent: string }).encryptedContent
+                      .length;
                   }
                 }
                 // Use heuristic: encrypted chars / 40 for token estimation

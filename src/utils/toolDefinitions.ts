@@ -6,13 +6,23 @@
  * modules or backend-specific code to remain browser-compatible.
  */
 
+interface ToolSchema {
+  name: string;
+  description: string;
+  inputSchema: {
+    type: string;
+    properties: Record<string, unknown>;
+    required: string[];
+  };
+}
+
 /**
  * Get tool definition schemas for token counting
  * These represent the approximate structure sent to the API
  *
  * @returns Record of tool name to approximate schema
  */
-export function getToolSchemas(): Record<string, any> {
+export function getToolSchemas(): Record<string, ToolSchema> {
   return {
     bash: {
       name: "bash",

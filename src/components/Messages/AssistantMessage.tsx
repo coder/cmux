@@ -138,7 +138,7 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({ message, cla
     <MessageWindow
       label={renderLabel()}
       borderColor="var(--color-assistant-border)"
-      message={message as any}
+      message={message}
       buttons={buttons}
       rightLabel={rightLabel}
       className={className}

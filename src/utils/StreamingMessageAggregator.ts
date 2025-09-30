@@ -199,11 +199,12 @@ export class StreamingMessageAggregator {
       const message = this.messages.get(data.messageId);
       if (message?.metadata) {
         // Transparent metadata merge - backend fields flow through automatically
-        message.metadata = {
+        const updatedMetadata: CmuxMetadata = {
           ...message.metadata,
           ...data.metadata,
           duration: Date.now() - activeStream.startTime,
-        } as CmuxMetadata;
+        };
+        message.metadata = updatedMetadata;
 
         // Mark streaming parts as done
         for (let i = 0; i < message.parts.length; i++) {
