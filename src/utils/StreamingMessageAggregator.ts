@@ -40,6 +40,19 @@ export class StreamingMessageAggregator {
   private activeStreams: Map<string, StreamingContext> = new Map();
   private sequenceCounter: number = 0;
 
+  // Display version tracking for efficient React updates
+  private displayVersion: number = 0;
+
+  // Increment version on any mutation
+  private incrementDisplayVersion(): void {
+    this.displayVersion++;
+  }
+
+  // Public method to get current display version
+  getDisplayVersion(): number {
+    return this.displayVersion;
+  }
+
   addMessage(message: CmuxMessage): void {
     // Assign sequence number for ordering
     message.metadata = {
@@ -47,6 +60,7 @@ export class StreamingMessageAggregator {
       sequenceNumber: this.sequenceCounter++,
     };
     this.messages.set(message.id, message);
+    this.incrementDisplayVersion();
   }
 
   startStreaming(messageId: string): StreamingContext {
@@ -69,6 +83,7 @@ export class StreamingMessageAggregator {
     streamingMessage.parts[0] = { type: "text", text: "", state: "streaming" };
 
     this.messages.set(messageId, streamingMessage);
+    this.incrementDisplayVersion();
     return context;
   }
 
@@ -103,6 +118,7 @@ export class StreamingMessageAggregator {
         };
       }
     }
+    this.incrementDisplayVersion();
   }
 
   finishStreaming(
@@ -140,6 +156,7 @@ export class StreamingMessageAggregator {
 
     // Clean up active stream
     this.activeStreams.delete(streamingId);
+    this.incrementDisplayVersion();
   }
 
   getAllMessages(): CmuxMessage[] {
@@ -156,6 +173,7 @@ export class StreamingMessageAggregator {
     this.messages.clear();
     this.activeStreams.clear();
     this.sequenceCounter = 0;
+    this.incrementDisplayVersion();
   }
 
   // Unified event handlers that encapsulate all complex logic
@@ -180,6 +198,7 @@ export class StreamingMessageAggregator {
     streamingMessage.parts[0] = { type: "text", text: "", state: "streaming" };
 
     this.messages.set(data.messageId, streamingMessage);
+    this.incrementDisplayVersion();
   }
 
   handleStreamDelta(data: StreamDeltaEvent): void {
@@ -256,6 +275,7 @@ export class StreamingMessageAggregator {
 
       this.messages.set(data.messageId, message);
     }
+    this.incrementDisplayVersion();
   }
 
   handleToolCallStart(data: ToolCallStartEvent): void {
@@ -293,6 +313,7 @@ export class StreamingMessageAggregator {
 
     // Add new streaming text part for content after the tool
     message.parts.push({ type: "text", text: "", state: "streaming" });
+    this.incrementDisplayVersion();
   }
 
   handleToolCallDelta(_data: ToolCallDeltaEvent): void {
@@ -314,6 +335,7 @@ export class StreamingMessageAggregator {
         (toolPart as DynamicToolPartAvailable).state = "output-available";
         (toolPart as DynamicToolPartAvailable).output = data.result;
       }
+      this.incrementDisplayVersion();
     }
   }
 

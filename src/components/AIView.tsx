@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import styled from "@emotion/styled";
 import { MessageRenderer } from "./Messages/MessageRenderer";
 import { ChatInput } from "./ChatInput";
@@ -111,7 +111,16 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
   // Ref to avoid stale closures in async callbacks - always holds current autoScroll value
   const autoScrollRef = useRef<boolean>(true);
   const lastUserInteractionRef = useRef<number>(0);
-  const aggregatorRef = useRef<StreamingMessageAggregator>(new StreamingMessageAggregator());
+  // Use a Map to maintain separate aggregators per workspace
+  const aggregatorsMapRef = useRef<Map<string, StreamingMessageAggregator>>(new Map());
+
+  // Helper to get or create aggregator for current workspace
+  const getAggregator = useCallback((wsId: string): StreamingMessageAggregator => {
+    if (!aggregatorsMapRef.current.has(wsId)) {
+      aggregatorsMapRef.current.set(wsId, new StreamingMessageAggregator());
+    }
+    return aggregatorsMapRef.current.get(wsId)!;
+  }, []);
 
   // Sync ref with state to ensure callbacks always have latest value
   useEffect(() => {
@@ -134,9 +143,10 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
   // Unified UI update function - single point of UI synchronization
   // All event handlers delegate to the aggregator then call this
   const updateUIAndScroll = useCallback(() => {
-    setDisplayedMessages(aggregatorRef.current.getDisplayedMessages());
+    const aggregator = getAggregator(workspaceId);
+    setDisplayedMessages(aggregator.getDisplayedMessages());
     performAutoScroll();
-  }, [performAutoScroll]);
+  }, [performAutoScroll, workspaceId, getAggregator]);
 
   const [loading, setLoading] = useState(false);
 
@@ -148,9 +158,11 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
 
     let isCaughtUp = false;
 
-    // Clear messages when switching workspaces
-    setDisplayedMessages([]);
-    aggregatorRef.current.clear();
+    // Get the aggregator for this workspace
+    const aggregator = getAggregator(workspaceId);
+
+    // Load existing messages for this workspace
+    setDisplayedMessages(aggregator.getDisplayedMessages());
 
     // Enable auto-scroll when switching workspaces
     setAutoScroll(true);
@@ -202,46 +214,46 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
 
         // Handle streaming events with simplified delegation
         if (isStreamStart(data)) {
-          aggregatorRef.current.handleStreamStart(data);
+          aggregator.handleStreamStart(data);
           setCurrentModel(data.model);
           updateUIAndScroll();
           return;
         }
 
         if (isStreamDelta(data)) {
-          aggregatorRef.current.handleStreamDelta(data);
+          aggregator.handleStreamDelta(data);
           updateUIAndScroll();
           return;
         }
 
         if (isStreamEnd(data)) {
           // Aggregator handles both active streams and reconnection cases
-          aggregatorRef.current.handleStreamEnd(data);
+          aggregator.handleStreamEnd(data);
           updateUIAndScroll();
           return;
         }
 
         // Handle tool call events with simplified delegation
         if (isToolCallStart(data)) {
-          aggregatorRef.current.handleToolCallStart(data);
+          aggregator.handleToolCallStart(data);
           updateUIAndScroll();
           return;
         }
 
         if (isToolCallDelta(data)) {
-          aggregatorRef.current.handleToolCallDelta(data);
+          aggregator.handleToolCallDelta(data);
           updateUIAndScroll();
           return;
         }
 
         if (isToolCallEnd(data)) {
-          aggregatorRef.current.handleToolCallEnd(data);
+          aggregator.handleToolCallEnd(data);
           updateUIAndScroll();
           return;
         }
 
         // Regular messages (user messages, historical messages)
-        aggregatorRef.current.handleMessage(data);
+        aggregator.handleMessage(data);
         updateUIAndScroll();
 
         // Only auto-scroll for new messages after caught up
@@ -259,7 +271,7 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
     const unsubscribeClear = window.api.workspace.onClear(workspaceId, () => {
       // Clear the UI when we receive a clear event
       setDisplayedMessages([]);
-      aggregatorRef.current.clear();
+      aggregator.clear();
     });
 
     return () => {
@@ -270,7 +282,7 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
         unsubscribeClear();
       }
     };
-  }, [projectName, branch, workspaceId, updateUIAndScroll]);
+  }, [projectName, branch, workspaceId, updateUIAndScroll, getAggregator]);
 
   const handleMessageSent = useCallback(() => {
     // Enable auto-scroll when user sends a message
@@ -280,14 +292,15 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
   const handleClearHistory = useCallback(async () => {
     // Clear UI immediately
     setDisplayedMessages([]);
-    aggregatorRef.current.clear();
+    const aggregator = getAggregator(workspaceId);
+    aggregator.clear();
 
     // Enable auto-scroll after clearing
     setAutoScroll(true);
 
     // Clear history in backend
     await window.api.workspace.clearHistory(workspaceId);
-  }, [workspaceId]);
+  }, [workspaceId, getAggregator]);
 
   const handleProviderConfig = useCallback(
     async (provider: string, keyPath: string[], value: string) => {
@@ -297,6 +310,13 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
       }
     },
     []
+  );
+
+  // Memoize cmuxMessages to only recalculate when displayVersion changes
+  // Must be before early returns to respect React hooks rules
+  const cmuxMessages = useMemo(
+    () => getAggregator(workspaceId).getAllMessages(),
+    [workspaceId, getAggregator(workspaceId).getDisplayVersion()]
   );
 
   if (loading) {
@@ -321,11 +341,7 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
   }
 
   return (
-    <ChatProvider
-      messages={messages}
-      cmuxMessages={aggregatorRef.current.getAllMessages()}
-      model={currentModel}
-    >
+    <ChatProvider messages={messages} cmuxMessages={cmuxMessages} model={currentModel}>
       <ViewContainer className={className}>
         <ChatArea>
           <ViewHeader>
