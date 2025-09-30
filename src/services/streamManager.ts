@@ -159,7 +159,8 @@ export class StreamManager extends EventEmitter {
    */
   private async processStreamWithCleanup(
     workspaceId: WorkspaceId,
-    streamInfo: WorkspaceStreamInfo
+    streamInfo: WorkspaceStreamInfo,
+    historySequence: number
   ): Promise<void> {
     try {
       // Update state to streaming
@@ -171,6 +172,7 @@ export class StreamManager extends EventEmitter {
         workspaceId: workspaceId as string,
         messageId: streamInfo.messageId,
         model: streamInfo.model,
+        historySequence,
       } as StreamStartEvent);
 
       // Track the temporal structure of parts as they occur
@@ -402,6 +404,7 @@ export class StreamManager extends EventEmitter {
     messages: ModelMessage[],
     model: LanguageModel,
     modelString: string,
+    historySequence: number,
     abortSignal?: AbortSignal,
     tools?: Record<string, Tool>
   ): Promise<Result<StreamToken, SendMessageError>> {
@@ -423,9 +426,11 @@ export class StreamManager extends EventEmitter {
       );
 
       // Step 3: Process stream with guaranteed cleanup (runs in background)
-      this.processStreamWithCleanup(typedWorkspaceId, streamInfo).catch((error) => {
-        console.error("Unexpected error in stream processing:", error);
-      });
+      this.processStreamWithCleanup(typedWorkspaceId, streamInfo, historySequence).catch(
+        (error) => {
+          console.error("Unexpected error in stream processing:", error);
+        }
+      );
 
       return Ok(streamToken);
     } catch (error) {

@@ -10,6 +10,7 @@ export interface StreamStartEvent {
   workspaceId: string;
   messageId: string;
   model: string;
+  historySequence: number; // Backend assigns global message ordering
 }
 
 export interface StreamDeltaEvent {

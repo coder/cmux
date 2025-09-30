@@ -4,7 +4,7 @@ import { MessageRenderer } from "./Messages/MessageRenderer";
 import { ChatInput } from "./ChatInput";
 import { ErrorMessage } from "./ErrorMessage";
 import { ChatMetaSidebar } from "./ChatMetaSidebar";
-import { DisplayedMessage } from "../types/message";
+import { DisplayedMessage, CmuxMessage } from "../types/message";
 import { StreamingMessageAggregator } from "../utils/StreamingMessageAggregator";
 import { DebugProvider, useDebugMode } from "../contexts/DebugContext";
 import { ChatProvider } from "../contexts/ChatContext";
@@ -157,6 +157,7 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
     if (!projectName || !branch || !workspaceId) return;
 
     let isCaughtUp = false;
+    const historicalMessages: CmuxMessage[] = [];
 
     // Get the aggregator for this workspace
     const aggregator = getAggregator(workspaceId);
@@ -167,8 +168,13 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
     // Enable auto-scroll when switching workspaces
     setAutoScroll(true);
 
-    // Show loading state until caught up
-    setLoading(true);
+    // Set loading state based on whether we have messages
+    // This preserves streaming state when switching workspaces
+    if (aggregator.hasMessages()) {
+      setLoading(false); // Clear loading if we have messages
+    } else {
+      setLoading(true); // Show loading only if empty
+    }
 
     // Subscribe to workspace-specific chat channel
     // This will automatically send historical messages then stream new ones
@@ -176,6 +182,11 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
       workspaceId,
       (data: WorkspaceChatMessage) => {
         if (isCaughtUpMessage(data)) {
+          // Batch-load all historical messages at once for efficiency
+          if (historicalMessages.length > 0) {
+            aggregator.loadHistoricalMessages(historicalMessages);
+            updateUIAndScroll();
+          }
           isCaughtUp = true;
           setLoading(false);
           // Scroll to bottom once caught up
@@ -253,13 +264,18 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
         }
 
         // Regular messages (user messages, historical messages)
-        aggregator.handleMessage(data);
-        updateUIAndScroll();
+        if (!isCaughtUp) {
+          // Before caught-up: collect historical messages for batch loading
+          // Check if it's a CmuxMessage (has role property but no type)
+          if ("role" in data && !("type" in data)) {
+            historicalMessages.push(data as CmuxMessage);
+          }
+        } else {
+          // After caught-up: handle messages normally
+          aggregator.handleMessage(data);
+          updateUIAndScroll();
 
-        // Only auto-scroll for new messages after caught up
-        if (isCaughtUp) {
-          // Needs to call perform scroll directly, not through updateUIAndScroll
-          // to avoid stale closure issues during reconnection
+          // Auto-scroll for new messages after caught up
           if (contentRef.current) {
             contentRef.current.scrollTop = contentRef.current.scrollHeight;
           }

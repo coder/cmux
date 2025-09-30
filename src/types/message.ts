@@ -12,7 +12,7 @@ export interface ProviderMetadata {
 
 // Our custom metadata type
 export interface CmuxMetadata {
-  sequenceNumber: number;
+  historySequence?: number; // Assigned by backend for global message ordering (required when writing to history)
   streamingId?: string;
   cost?: number;
   tokens?: number;
@@ -34,14 +34,15 @@ export type DisplayedMessage =
       type: "user";
       id: string;
       content: string;
-      sequenceNumber: number;
+      historySequence: number; // Global ordering across all messages
       timestamp?: number;
     }
   | {
       type: "assistant";
       id: string;
       content: string;
-      sequenceNumber: number;
+      historySequence: number; // Global ordering across all messages
+      streamSequence?: number; // Local ordering within this assistant message
       isStreaming: boolean;
       model?: string;
       timestamp?: number;
@@ -55,7 +56,8 @@ export type DisplayedMessage =
       args: unknown;
       result?: unknown;
       status: "pending" | "executing" | "completed" | "failed";
-      sequenceNumber: number;
+      historySequence: number; // Global ordering across all messages
+      streamSequence?: number; // Local ordering within this assistant message
       timestamp?: number;
     };
 

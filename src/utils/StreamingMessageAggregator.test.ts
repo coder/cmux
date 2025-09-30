@@ -57,7 +57,7 @@ describe("StreamingMessageAggregator", () => {
       id: "user-1",
       role: "user",
       parts: [{ type: "text", text: "Hello world", state: "done" }],
-      metadata: { sequenceNumber: 0 },
+      metadata: { historySequence: 0 },
     });
 
     // Add an assistant message with text and tool
@@ -120,6 +120,7 @@ describe("StreamingMessageAggregator", () => {
       workspaceId: "test-ws",
       messageId: "msg-interleaved",
       model: "claude-3",
+      historySequence: 0,
     });
 
     // Stream first part of text
@@ -226,6 +227,7 @@ describe("StreamingMessageAggregator", () => {
       workspaceId: "test-ws",
       messageId: "msg-end-test",
       model: "claude-3",
+      historySequence: 0,
     });
 
     // Stream first text
@@ -317,6 +319,7 @@ describe("StreamingMessageAggregator", () => {
       workspaceId: "test-ws",
       messageId: "msg-2",
       model: "claude-3",
+      historySequence: 0,
     });
 
     // Add some content
@@ -354,5 +357,104 @@ describe("StreamingMessageAggregator", () => {
       expect(firstPart.text).toBe("Hello, world!");
       expect(firstPart.state).toBe("done");
     }
+  });
+
+  it("should preserve sequence numbers when loading historical messages", () => {
+    const aggregator = new StreamingMessageAggregator();
+
+    // Simulate historical messages with existing history sequences
+    const historicalMessages = [
+      {
+        id: "hist-1",
+        role: "user" as const,
+        parts: [{ type: "text" as const, text: "First message", state: "done" as const }],
+        metadata: { historySequence: 0 },
+      },
+      {
+        id: "hist-2",
+        role: "assistant" as const,
+        parts: [{ type: "text" as const, text: "Second message", state: "done" as const }],
+        metadata: { historySequence: 1 },
+      },
+      {
+        id: "hist-3",
+        role: "user" as const,
+        parts: [{ type: "text" as const, text: "Third message", state: "done" as const }],
+        metadata: { historySequence: 2 },
+      },
+    ];
+
+    // Load historical messages in batch
+    aggregator.loadHistoricalMessages(historicalMessages);
+
+    // Verify all messages retained their history sequences
+    const messages = aggregator.getAllMessages();
+    expect(messages).toHaveLength(3);
+    expect(messages[0].metadata?.historySequence).toBe(0);
+    expect(messages[1].metadata?.historySequence).toBe(1);
+    expect(messages[2].metadata?.historySequence).toBe(2);
+
+    // Now add a new streaming message - backend must provide historySequence
+    aggregator.handleStreamStart({
+      type: "stream-start",
+      workspaceId: "test-ws",
+      messageId: "new-msg",
+      model: "claude-3",
+      historySequence: 3, // Backend assigns this
+    });
+
+    // Add some content so it appears in DisplayedMessages
+    aggregator.handleStreamDelta({
+      type: "stream-delta",
+      workspaceId: "test-ws",
+      messageId: "new-msg",
+      delta: "New streaming content",
+    });
+
+    // Verify new message has correct history sequence (from backend)
+    const updatedMessages = aggregator.getAllMessages();
+    expect(updatedMessages).toHaveLength(4);
+    expect(updatedMessages[3].metadata?.historySequence).toBe(3);
+
+    // Verify temporal ordering in DisplayedMessages
+    const displayedMessages = aggregator.getDisplayedMessages();
+    expect(displayedMessages).toHaveLength(4);
+    expect(displayedMessages[0].historySequence).toBe(0);
+    expect(displayedMessages[1].historySequence).toBe(1);
+    expect(displayedMessages[2].historySequence).toBe(2);
+    expect(displayedMessages[3].historySequence).toBe(3);
+  });
+
+  it("should handle addMessage() storing messages as-is", () => {
+    const aggregator = new StreamingMessageAggregator();
+
+    // Add a message with history sequence from backend
+    const messageWithSeq = {
+      id: "msg-with-seq",
+      role: "user" as const,
+      parts: [{ type: "text" as const, text: "Has history sequence", state: "done" as const }],
+      metadata: { historySequence: 5 },
+    };
+
+    aggregator.addMessage(messageWithSeq);
+
+    // Verify history sequence was preserved
+    const messages = aggregator.getAllMessages();
+    expect(messages[0].metadata?.historySequence).toBe(5);
+
+    // Add another message with different history sequence
+    const anotherMessage = {
+      id: "msg-2",
+      role: "user" as const,
+      parts: [{ type: "text" as const, text: "Another message", state: "done" as const }],
+      metadata: { historySequence: 10 },
+    };
+
+    aggregator.addMessage(anotherMessage);
+
+    // Verify both messages retained their backend-assigned sequences
+    const updatedMessages = aggregator.getAllMessages();
+    expect(updatedMessages[0].metadata?.historySequence).toBe(5);
+    expect(updatedMessages[1].metadata?.historySequence).toBe(10);
   });
 });

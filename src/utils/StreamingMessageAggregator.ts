@@ -38,7 +38,7 @@ interface StreamingContext {
 export class StreamingMessageAggregator {
   private messages: Map<string, CmuxMessage> = new Map();
   private activeStreams: Map<string, StreamingContext> = new Map();
-  private sequenceCounter: number = 0;
+  private streamSequenceCounter: number = 0; // For ordering parts within a streaming message
 
   // Display version tracking for efficient React updates
   private displayVersion: number = 0;
@@ -54,16 +54,23 @@ export class StreamingMessageAggregator {
   }
 
   addMessage(message: CmuxMessage): void {
-    // Assign sequence number for ordering
-    message.metadata = {
-      ...message.metadata,
-      sequenceNumber: this.sequenceCounter++,
-    };
+    // Just store the message - backend assigns historySequence
     this.messages.set(message.id, message);
     this.incrementDisplayVersion();
   }
 
-  startStreaming(messageId: string): StreamingContext {
+  /**
+   * Load historical messages in batch, preserving their historySequence numbers.
+   * This is more efficient than calling addMessage() repeatedly.
+   */
+  loadHistoricalMessages(messages: CmuxMessage[]): void {
+    for (const message of messages) {
+      this.messages.set(message.id, message);
+    }
+    this.incrementDisplayVersion();
+  }
+
+  startStreaming(messageId: string, historySequence: number): StreamingContext {
     const context: StreamingContext = {
       streamingId: `stream-${Date.now()}-${Math.random()}`,
       messageId,
@@ -75,7 +82,7 @@ export class StreamingMessageAggregator {
 
     // Create initial streaming message with empty streaming text part
     const streamingMessage = createCmuxMessage(messageId, "assistant", "", {
-      sequenceNumber: this.sequenceCounter++,
+      historySequence,
       streamingId: context.streamingId,
       timestamp: Date.now(),
     });
@@ -161,8 +168,17 @@ export class StreamingMessageAggregator {
 
   getAllMessages(): CmuxMessage[] {
     return Array.from(this.messages.values()).sort(
-      (a, b) => (a.metadata?.sequenceNumber ?? 0) - (b.metadata?.sequenceNumber ?? 0)
+      (a, b) => (a.metadata?.historySequence ?? 0) - (b.metadata?.historySequence ?? 0)
     );
+  }
+
+  // Efficient methods to check message state without creating arrays
+  getMessageCount(): number {
+    return this.messages.size;
+  }
+
+  hasMessages(): boolean {
+    return this.messages.size > 0;
   }
 
   getActiveStreams(): StreamingContext[] {
@@ -172,7 +188,7 @@ export class StreamingMessageAggregator {
   clear(): void {
     this.messages.clear();
     this.activeStreams.clear();
-    this.sequenceCounter = 0;
+    this.streamSequenceCounter = 0;
     this.incrementDisplayVersion();
   }
 
@@ -189,7 +205,7 @@ export class StreamingMessageAggregator {
 
     // Create initial streaming message
     const streamingMessage = createCmuxMessage(data.messageId, "assistant", "", {
-      sequenceNumber: this.sequenceCounter++,
+      historySequence: data.historySequence,
       streamingId: context.streamingId,
       timestamp: Date.now(),
       model: data.model,
@@ -260,16 +276,16 @@ export class StreamingMessageAggregator {
       // Reconnection case: user reconnected after stream completed
       // We reconstruct the entire message from the stream-end event
       // The backend now sends us the parts array with proper temporal ordering
+      // Backend MUST provide historySequence in metadata
 
       // Create the complete message
       const message: CmuxMessage = {
         id: data.messageId,
         role: "assistant",
         metadata: {
-          sequenceNumber: this.sequenceCounter++,
           ...data.metadata,
           timestamp: Date.now(),
-        },
+        } as CmuxMetadata, // Backend must include historySequence
         parts: data.parts,
       };
 
@@ -354,10 +370,11 @@ export class StreamingMessageAggregator {
    */
   getDisplayedMessages(): DisplayedMessage[] {
     const displayedMessages: DisplayedMessage[] = [];
-    let displaySequenceCounter = 0;
 
     for (const message of this.getAllMessages()) {
       const baseTimestamp = message.metadata?.timestamp;
+      // Get historySequence from backend (required field)
+      const historySequence = message.metadata?.historySequence ?? 0;
 
       if (message.role === "user") {
         // User messages: combine all text parts into single block
@@ -370,11 +387,13 @@ export class StreamingMessageAggregator {
           type: "user",
           id: `${message.id}-user`,
           content,
-          sequenceNumber: displaySequenceCounter++,
+          historySequence,
           timestamp: baseTimestamp,
         });
       } else if (message.role === "assistant") {
         // Assistant messages: each part becomes a separate DisplayedMessage
+        // Use streamSequence to order parts within this message
+        let streamSeq = 0;
         message.parts.forEach((part, partIndex) => {
           if (part.type === "text" && part.text) {
             // Skip empty text parts
@@ -382,7 +401,8 @@ export class StreamingMessageAggregator {
               type: "assistant",
               id: `${message.id}-${partIndex}`,
               content: part.text,
-              sequenceNumber: displaySequenceCounter++,
+              historySequence,
+              streamSequence: streamSeq++,
               isStreaming: part.state === "streaming",
               model: message.metadata?.model,
               timestamp: baseTimestamp,
@@ -404,7 +424,8 @@ export class StreamingMessageAggregator {
               args: part.input,
               result: part.state === "output-available" ? part.output : undefined,
               status,
-              sequenceNumber: displaySequenceCounter++,
+              historySequence,
+              streamSequence: streamSeq++,
               timestamp: baseTimestamp,
             });
           }

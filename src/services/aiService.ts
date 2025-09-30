@@ -5,7 +5,7 @@ import { convertToModelMessages, type LanguageModel } from "ai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { Result, Ok, Err } from "../types/result";
 import { WorkspaceMetadata } from "../types/workspace";
-import { CmuxMessage } from "../types/message";
+import { CmuxMessage, createCmuxMessage } from "../types/message";
 import { SESSIONS_DIR, getSessionDir, loadProvidersConfig } from "../config";
 import { StreamManager } from "./streamManager";
 import type { StreamEndEvent } from "../types/aiEvents";
@@ -17,14 +17,15 @@ import {
   validateAnthropicCompliance,
 } from "../utils/modelMessageTransform";
 import { applyCacheControl } from "../utils/cacheStrategy";
+import { HistoryService } from "./historyService";
 
 // Export a standalone version of getToolsForModel for use in backend
 
 export class AIService extends EventEmitter {
-  private readonly CHAT_FILE = "chat.jsonl";
   private readonly METADATA_FILE = "metadata.json";
   private streamManager = new StreamManager();
   private defaultModel = "anthropic:claude-opus-4-1"; // Default model string
+  private historyService = new HistoryService(); // Used internally for stream handling
 
   constructor() {
     super();
@@ -53,10 +54,6 @@ export class AIService extends EventEmitter {
     } catch (error) {
       log.error("Failed to create sessions directory:", error);
     }
-  }
-
-  private getChatHistoryPath(workspaceId: string): string {
-    return path.join(getSessionDir(workspaceId), this.CHAT_FILE);
   }
 
   private getMetadataPath(workspaceId: string): string {
@@ -94,58 +91,6 @@ export class AIService extends EventEmitter {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       return Err(`Failed to save workspace metadata: ${message}`);
-    }
-  }
-
-  async getHistory(workspaceId: string): Promise<Result<CmuxMessage[]>> {
-    try {
-      const historyPath = this.getChatHistoryPath(workspaceId);
-      const data = await fs.readFile(historyPath, "utf-8");
-      const messages = data
-        .split("\n")
-        .filter((line) => line.trim())
-        .map((line) => JSON.parse(line) as CmuxMessage);
-      return Ok(messages);
-    } catch (error) {
-      if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") {
-        return Ok([]); // No history yet
-      }
-      const message = error instanceof Error ? error.message : String(error);
-      return Err(`Failed to read history: ${message}`);
-    }
-  }
-
-  async appendToHistory(workspaceId: string, message: CmuxMessage): Promise<Result<void>> {
-    try {
-      const workspaceDir = getSessionDir(workspaceId);
-      await fs.mkdir(workspaceDir, { recursive: true });
-      const historyPath = this.getChatHistoryPath(workspaceId);
-
-      // Store the message with workspace context
-      const historyEntry = {
-        ...message,
-        workspaceId,
-      };
-
-      await fs.appendFile(historyPath, JSON.stringify(historyEntry) + "\n");
-      return Ok(undefined);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      return Err(`Failed to append to history: ${message}`);
-    }
-  }
-
-  async clearHistory(workspaceId: string): Promise<Result<void>> {
-    try {
-      const historyPath = this.getChatHistoryPath(workspaceId);
-      await fs.unlink(historyPath);
-      return Ok(undefined);
-    } catch (error) {
-      if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") {
-        return Ok(undefined); // Already cleared
-      }
-      const message = error instanceof Error ? error.message : String(error);
-      return Err(`Failed to clear history: ${message}`);
     }
   }
 
@@ -265,12 +210,29 @@ export class AIService extends EventEmitter {
       // Get model-specific tools with workspace path configuration
       const tools = getToolsForModel(this.defaultModel, { cwd: workspacePath });
 
-      // Delegate to StreamManager with model instance and tools
+      // Create assistant message placeholder with historySequence from backend
+      const assistantMessageId = `assistant-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+      const assistantMessage = createCmuxMessage(assistantMessageId, "assistant", "", {
+        timestamp: Date.now(),
+        model: this.defaultModel,
+      });
+
+      // Append to history to get historySequence assigned
+      const appendResult = await this.historyService.appendToHistory(workspaceId, assistantMessage);
+      if (!appendResult.success) {
+        return Err({ type: "unknown", raw: appendResult.error });
+      }
+
+      // Get the assigned historySequence
+      const historySequence = assistantMessage.metadata?.historySequence ?? 0;
+
+      // Delegate to StreamManager with model instance, tools, and historySequence
       const streamResult = await this.streamManager.startStream(
         workspaceId,
         finalMessages,
         modelResult.data,
         this.defaultModel,
+        historySequence,
         abortSignal,
         tools
       );
@@ -289,7 +251,6 @@ export class AIService extends EventEmitter {
             id: data.messageId,
             role: "assistant",
             metadata: {
-              sequenceNumber: messages.length,
               ...data.metadata,
               timestamp: Date.now(),
             },
@@ -298,7 +259,7 @@ export class AIService extends EventEmitter {
 
           // Only save if there are parts (text or tool calls)
           if (data.parts && data.parts.length > 0) {
-            await this.appendToHistory(workspaceId, assistantMessage);
+            await this.historyService.appendToHistory(workspaceId, assistantMessage);
           }
           log.info("stream end usage:", data.metadata.usage);
         }

@@ -12,6 +12,7 @@ import {
 } from "./config";
 import { createWorktree, removeWorktree } from "./git";
 import { AIService } from "./services/aiService";
+import { HistoryService } from "./services/historyService";
 import { createCmuxMessage } from "./types/message";
 import type {
   StreamStartEvent,
@@ -27,6 +28,7 @@ import type { SendMessageError } from "./types/errors";
 import type { StreamErrorMessage } from "./types/ipc";
 
 const aiService = new AIService();
+const historyService = new HistoryService();
 
 console.log("Main process starting...");
 
@@ -203,14 +205,14 @@ ipcMain.handle(
   async (_event, workspaceId: string, message: string) => {
     try {
       // Create user message
-      const messageId = `user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const messageId = `user-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
       const userMessage = createCmuxMessage(messageId, "user", message, {
-        sequenceNumber: 0, // Will be properly set by aiService
+        // historySequence will be assigned by historyService.appendToHistory()
         timestamp: Date.now(),
       });
 
       // Append user message to history
-      const appendResult = await aiService.appendToHistory(workspaceId, userMessage);
+      const appendResult = await historyService.appendToHistory(workspaceId, userMessage);
       if (!appendResult.success) {
         return appendResult; // Return the error
       }
@@ -221,7 +223,7 @@ ipcMain.handle(
       }
 
       // Get full conversation history
-      const historyResult = await aiService.getHistory(workspaceId);
+      const historyResult = await historyService.getHistory(workspaceId);
       if (!historyResult.success) {
         return historyResult; // Return the error
       }
@@ -242,7 +244,7 @@ ipcMain.handle(
 );
 
 ipcMain.handle(IPC_CHANNELS.WORKSPACE_CLEAR_HISTORY, async (_event, workspaceId: string) => {
-  return await aiService.clearHistory(workspaceId);
+  return await historyService.clearHistory(workspaceId);
 });
 
 // Provider configuration handlers
@@ -289,7 +291,7 @@ ipcMain.on(`workspace:chat:subscribe`, async (_event, workspaceId: string) => {
   const chatChannel = getChatChannel(workspaceId);
 
   // Emit current chat history immediately
-  const history = await aiService.getHistory(workspaceId);
+  const history = await historyService.getHistory(workspaceId);
   if (history.success) {
     history.data.forEach((msg) => {
       mainWindow?.webContents.send(chatChannel, msg);
