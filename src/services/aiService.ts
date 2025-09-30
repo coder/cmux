@@ -14,7 +14,6 @@ import type { StreamEndEvent } from "../types/aiEvents";
 import type { SendMessageError } from "../types/errors";
 import { readFileTool } from "./tools/readFile";
 import { bashTool } from "./tools/bash";
-import { splitToolCallsAndResults } from "../utils/messageTransform";
 import { log } from "./log";
 
 export class AIService extends EventEmitter {
@@ -201,6 +200,73 @@ export class AIService extends EventEmitter {
   }
 
   /**
+   * Split assistant messages that have text after tool calls.
+   *
+   * Anthropic's API requires that tool_result blocks immediately follow tool_use blocks.
+   * When an assistant message has text after a tool call, convertToModelMessages places
+   * the tool result after ALL the assistant content, violating this requirement.
+   *
+   * This transform splits such messages into:
+   * 1. Assistant message with text-before + tool calls
+   * 2. Assistant continuation message with text-after
+   *
+   * This ensures the converted format will be:
+   * - Assistant: [text, tool-call]
+   * - Tool: [tool-result]  <- immediately after tool-call
+   * - Assistant: [text-after]  <- continuation in separate message
+   */
+  private splitTextAfterTools(messages: CmuxMessage[]): CmuxMessage[] {
+    const result: CmuxMessage[] = [];
+
+    for (const msg of messages) {
+      if (msg.role !== "assistant") {
+        result.push(msg);
+        continue;
+      }
+
+      // Find last tool index
+      let lastToolIndex = -1;
+      for (let i = msg.parts.length - 1; i >= 0; i--) {
+        if (msg.parts[i].type === "dynamic-tool") {
+          lastToolIndex = i;
+          break;
+        }
+      }
+
+      // If no tools or no text after tools, keep as-is
+      if (lastToolIndex === -1 || lastToolIndex === msg.parts.length - 1) {
+        result.push(msg);
+        continue;
+      }
+
+      // Check if there's actually text content after the last tool
+      const partsAfter = msg.parts.slice(lastToolIndex + 1);
+      const hasTextAfter = partsAfter.some(
+        (p) => p.type === "text" && p.text && p.text.trim().length > 0
+      );
+
+      if (!hasTextAfter) {
+        result.push(msg);
+        continue;
+      }
+
+      // Split: message with text+tools, then continuation with text-after
+      result.push({
+        ...msg,
+        parts: msg.parts.slice(0, lastToolIndex + 1),
+      });
+
+      result.push({
+        ...msg,
+        id: msg.id + "-continuation",
+        parts: partsAfter,
+      });
+    }
+
+    return result;
+  }
+
+  /**
    * Create an AI SDK model from a model string (e.g., "anthropic:claude-opus-4-1")
    *
    * IMPORTANT: We ONLY use providers.jsonc as the single source of truth for provider configuration.
@@ -281,8 +347,9 @@ export class AIService extends EventEmitter {
         return Err(modelResult.error);
       }
 
-      // Transform messages to handle text after tool calls
-      const transformedMessages = splitToolCallsAndResults(messages, this.defaultModel);
+      // Transform messages to handle Anthropic's requirement that tool results
+      // must immediately follow tool calls (no text between them)
+      const transformedMessages = this.splitTextAfterTools(messages);
 
       // Convert CmuxMessage to ModelMessage format using Vercel AI SDK utility
       const modelMessages = convertToModelMessages(transformedMessages);

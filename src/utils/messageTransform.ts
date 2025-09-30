@@ -96,9 +96,9 @@ export function splitToolCallsAndResults(
  * Anthropic requires tool_use blocks in assistant message to be followed
  * immediately by a separate tool message with tool_result blocks.
  *
- * This function only splits text that comes AFTER tool calls into a separate message.
- * The dynamic-tool parts remain unchanged (with both input & output), allowing
- * convertToModelMessages to properly transform them into tool-call → tool-result sequences.
+ * This function splits text that comes AFTER tool calls into a separate message.
+ * The dynamic-tool parts with both input & output remain in the assistant message,
+ * allowing convertToModelMessages to handle the conversion to Anthropic's format.
  */
 function splitForAnthropic(messages: CmuxMessage[]): CmuxMessage[] {
   const result: CmuxMessage[] = [];
@@ -119,16 +119,20 @@ function splitForAnthropic(messages: CmuxMessage[]): CmuxMessage[] {
       }
     }
 
-    // If no tools, or no text after tools, pass through as-is
+    // If no tools, or no parts after tools, pass through as-is
     if (lastToolIndex === -1 || lastToolIndex === message.parts.length - 1) {
       result.push(message);
       continue;
     }
 
-    // Check if there are text parts after the last tool
-    const hasTextAfterTools = message.parts
-      .slice(lastToolIndex + 1)
-      .some((part) => part.type === "text");
+    // Check if there are non-empty text parts after the last tool
+    const partsAfterTools = message.parts.slice(lastToolIndex + 1);
+    const hasTextAfterTools = partsAfterTools.some((part) => {
+      if (part.type === "text") {
+        return part.text && part.text.trim().length > 0;
+      }
+      return false; // Only text counts
+    });
 
     if (!hasTextAfterTools) {
       result.push(message);
@@ -137,7 +141,12 @@ function splitForAnthropic(messages: CmuxMessage[]): CmuxMessage[] {
 
     // Split: everything up to and including last tool goes in first message
     const mainParts = message.parts.slice(0, lastToolIndex + 1);
-    const afterParts = message.parts.slice(lastToolIndex + 1);
+    const afterParts = partsAfterTools;
+
+    // Check if any of the main parts have tool results (output-available)
+    const hasToolResults = mainParts.some(
+      (part) => part.type === "dynamic-tool" && part.state === "output-available"
+    );
 
     // 1. Main message with everything up to and including tools
     result.push({
@@ -145,7 +154,20 @@ function splitForAnthropic(messages: CmuxMessage[]): CmuxMessage[] {
       parts: mainParts,
     });
 
-    // 2. Continuation message with text after tools
+    // 2. If there were tool results, add a placeholder user message
+    // This ensures Anthropic sees the tool results as coming "from" the user/environment
+    if (hasToolResults) {
+      result.push({
+        id: `${message.id}-tool-response`,
+        role: "user" as const,
+        parts: [
+          { type: "text" as const, text: "[Tool execution completed]", state: "done" as const },
+        ],
+        metadata: message.metadata,
+      });
+    }
+
+    // 3. Continuation message with content after tools
     result.push({
       id: `${message.id}-continuation`,
       role: "assistant" as const,

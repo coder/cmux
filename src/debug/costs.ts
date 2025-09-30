@@ -43,19 +43,10 @@ export async function costsCommand(workspaceId: string) {
   console.log(`Model: ${stats.model}`);
   console.log(`Tokenizer: ${stats.tokenizerName}`);
   console.log(`\nTotal Messages: ${messages.length}`);
-  console.log(`Total Tokens: ${stats.totalTokens.toLocaleString()}`);
+  console.log(`\nContent Tokens (Estimated): ${stats.totalTokens.toLocaleString()}`);
+  console.log(`(Actual API costs include system overhead)\n`);
 
-  // Display last actual usage from API if available
-  if (stats.lastUsage) {
-    console.log(`\nLast API Response:`);
-    console.log(`  Prompt Tokens:     ${stats.lastUsage.promptTokens.toLocaleString()}`);
-    console.log(`  Completion Tokens: ${stats.lastUsage.completionTokens.toLocaleString()}`);
-    console.log(`  Total Tokens:      ${stats.lastUsage.totalTokens.toLocaleString()}`);
-  }
-
-  console.log();
-
-  console.log("Token Breakdown by Consumer:");
+  console.log("Breakdown by Consumer:");
   const maxNameLength = Math.max(...stats.consumers.map((c) => c.name.length), 10);
 
   for (const consumer of stats.consumers) {
@@ -68,6 +59,14 @@ export async function costsCommand(workspaceId: string) {
     const bar = "█".repeat(barLength);
 
     console.log(`  ${namepadded}  ${tokensFormatted} ${percentageFormatted} ${bar}`);
+  }
+
+  // Display last actual usage from API if available
+  if (stats.lastUsage) {
+    console.log(`\nLast API Response:`);
+    console.log(`  Prompt Tokens:     ${stats.lastUsage.promptTokens.toLocaleString()}`);
+    console.log(`  Completion Tokens: ${stats.lastUsage.completionTokens.toLocaleString()}`);
+    console.log(`  Total Tokens:      ${stats.lastUsage.totalTokens.toLocaleString()}`);
   }
 
   // Display message breakdown

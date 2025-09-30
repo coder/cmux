@@ -29,11 +29,18 @@ const TokenizerInfo = styled.div`
   font-style: italic;
 `;
 
+const InfoNote = styled.div`
+  color: #888888;
+  font-size: 11px;
+  margin-top: 4px;
+  font-style: italic;
+`;
+
 const TotalTokens = styled.div`
   font-size: 24px;
   font-weight: 700;
   color: #ffffff;
-  margin-bottom: 20px;
+  margin-bottom: 8px;
 `;
 
 const ConsumerList = styled.div`
@@ -119,9 +126,31 @@ export const CostsTab: React.FC = () => {
   return (
     <Container>
       <Section>
-        <SectionTitle>Token Usage</SectionTitle>
-        <TokenizerInfo>Using {stats.tokenizerName}</TokenizerInfo>
+        <SectionTitle>Content Tokens</SectionTitle>
+        <TokenizerInfo>Estimated using {stats.tokenizerName}</TokenizerInfo>
         <TotalTokens>{stats.totalTokens.toLocaleString()} tokens</TotalTokens>
+        <InfoNote>
+          Actual API costs include system overhead (prompts, tool definitions, etc.)
+        </InfoNote>
+      </Section>
+
+      <Section>
+        <SectionTitle>Breakdown by Consumer</SectionTitle>
+        <ConsumerList>
+          {stats.consumers.map((consumer) => (
+            <ConsumerRow key={consumer.name}>
+              <ConsumerHeader>
+                <ConsumerName>{consumer.name}</ConsumerName>
+                <ConsumerTokens>
+                  {consumer.tokens.toLocaleString()} ({consumer.percentage.toFixed(1)}%)
+                </ConsumerTokens>
+              </ConsumerHeader>
+              <PercentageBar>
+                <PercentageFill percentage={consumer.percentage} />
+              </PercentageBar>
+            </ConsumerRow>
+          ))}
+        </ConsumerList>
       </Section>
 
       {stats.lastUsage && (
@@ -149,25 +178,6 @@ export const CostsTab: React.FC = () => {
           </ConsumerList>
         </Section>
       )}
-
-      <Section>
-        <SectionTitle>Breakdown by Consumer</SectionTitle>
-        <ConsumerList>
-          {stats.consumers.map((consumer) => (
-            <ConsumerRow key={consumer.name}>
-              <ConsumerHeader>
-                <ConsumerName>{consumer.name}</ConsumerName>
-                <ConsumerTokens>
-                  {consumer.tokens.toLocaleString()} ({consumer.percentage.toFixed(1)}%)
-                </ConsumerTokens>
-              </ConsumerHeader>
-              <PercentageBar>
-                <PercentageFill percentage={consumer.percentage} />
-              </PercentageBar>
-            </ConsumerRow>
-          ))}
-        </ConsumerList>
-      </Section>
     </Container>
   );
 };

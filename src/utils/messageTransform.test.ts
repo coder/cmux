@@ -25,12 +25,14 @@ describe("splitToolCallsAndResults", () => {
 
     const result = splitToolCallsAndResults(messages, "anthropic:claude-opus-4-1");
 
-    expect(result).toHaveLength(2);
+    // Should have 3 messages: main (with tools), placeholder user, continuation
+    expect(result).toHaveLength(3);
     expect(result[0].parts).toHaveLength(2); // text + tool
     expect(result[0].parts[0]).toEqual({ type: "text", text: "Before tool", state: "done" });
-    expect(result[1].id).toBe("msg-1-continuation");
-    expect(result[1].parts).toHaveLength(1);
-    expect(result[1].parts[0]).toEqual({ type: "text", text: "After tool", state: "done" });
+    expect(result[1].role).toBe("user"); // Placeholder user message
+    expect(result[2].id).toBe("msg-1-continuation");
+    expect(result[2].parts).toHaveLength(1);
+    expect(result[2].parts[0]).toEqual({ type: "text", text: "After tool", state: "done" });
   });
 
   test("does not split when no text after tools", () => {
@@ -102,8 +104,10 @@ describe("splitToolCallsAndResults", () => {
 
     const result = splitToolCallsAndResults(messages, "anthropic:claude-opus-4-1");
 
-    expect(result).toHaveLength(2);
+    // Should have 3 messages: main (with tools), placeholder user, continuation
+    expect(result).toHaveLength(3);
     expect(result[0].parts).toHaveLength(2); // both tools
-    expect(result[1].parts).toHaveLength(1); // summary text
+    expect(result[1].role).toBe("user"); // Placeholder
+    expect(result[2].parts).toHaveLength(1); // summary text
   });
 });

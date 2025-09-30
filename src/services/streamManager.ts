@@ -290,6 +290,7 @@ export class StreamManager extends EventEmitter {
           : undefined;
 
         // Emit stream end event with parts preserved in temporal order
+        // convertToModelMessages will handle splitting for provider-specific formats
         this.emit("stream-end", {
           type: "stream-end",
           workspaceId: workspaceId as string,

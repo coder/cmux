@@ -42,16 +42,21 @@ function getCallerLocation(): string {
 
 /**
  * Pipe-safe logging function with caller location prefix
- * @param level - "info" or "error"
+ * @param level - "info", "error", or "debug"
  * @param args - Arguments to log
  */
-function safePipeLog(level: "info" | "error", ...args: unknown[]): void {
+function safePipeLog(level: "info" | "error" | "debug", ...args: unknown[]): void {
   const location = getCallerLocation();
   const prefix = `[${location}]`;
 
   try {
     if (level === "error") {
       console.error(prefix, ...args);
+    } else if (level === "debug") {
+      // Only log debug messages if CMUX_DEBUG is set
+      if (process.env.CMUX_DEBUG) {
+        console.log(prefix, ...args);
+      }
     } else {
       console.log(prefix, ...args);
     }
@@ -93,5 +98,13 @@ export const log = {
    */
   error: (...args: unknown[]): void => {
     safePipeLog("error", ...args);
+  },
+
+  /**
+   * Log a debug message to stdout (only when CMUX_DEBUG is set)
+   * Prefixes output with caller's file path and line number
+   */
+  debug: (...args: unknown[]): void => {
+    safePipeLog("debug", ...args);
   },
 };
