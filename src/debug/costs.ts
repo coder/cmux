@@ -47,19 +47,20 @@ export async function costsCommand(workspaceId: string) {
   console.log(`(Actual API costs include system overhead)\n`);
 
   // Display last actual usage from API if available
-  if (stats.lastUsage) {
+  const lastUsage = stats.usageHistory[stats.usageHistory.length - 1];
+  if (lastUsage) {
     const totalTokens =
-      stats.lastUsage.input.tokens +
-      stats.lastUsage.cached.tokens +
-      stats.lastUsage.output.tokens +
-      stats.lastUsage.reasoning.tokens;
+      lastUsage.input.tokens +
+      lastUsage.cached.tokens +
+      lastUsage.output.tokens +
+      lastUsage.reasoning.tokens;
 
     console.log(`Last API Response:`);
-    console.log(`  Input Tokens:      ${stats.lastUsage.input.tokens.toLocaleString()}`);
-    console.log(`  Cached Tokens:     ${stats.lastUsage.cached.tokens.toLocaleString()}`);
-    console.log(`  Output Tokens:     ${stats.lastUsage.output.tokens.toLocaleString()}`);
-    if (stats.lastUsage.reasoning.tokens > 0) {
-      console.log(`  Reasoning Tokens:  ${stats.lastUsage.reasoning.tokens.toLocaleString()}`);
+    console.log(`  Input Tokens:      ${lastUsage.input.tokens.toLocaleString()}`);
+    console.log(`  Cached Tokens:     ${lastUsage.cached.tokens.toLocaleString()}`);
+    console.log(`  Output Tokens:     ${lastUsage.output.tokens.toLocaleString()}`);
+    if (lastUsage.reasoning.tokens > 0) {
+      console.log(`  Reasoning Tokens:  ${lastUsage.reasoning.tokens.toLocaleString()}`);
     }
     console.log(`  Total Tokens:      ${totalTokens.toLocaleString()}`);
     console.log();

@@ -107,12 +107,38 @@ export function createDisplayUsage(
 }
 
 /**
+ * Sum multiple ChatUsageDisplay objects into a single cumulative display
+ * Used for showing total costs across multiple API responses
+ */
+export function sumUsageHistory(usageHistory: ChatUsageDisplay[]): ChatUsageDisplay | undefined {
+  if (usageHistory.length === 0) return undefined;
+
+  const sum: ChatUsageDisplay = {
+    input: { tokens: 0, cost_usd: 0 },
+    cached: { tokens: 0, cost_usd: 0 },
+    cacheCreate: { tokens: 0, cost_usd: 0 },
+    output: { tokens: 0, cost_usd: 0 },
+    reasoning: { tokens: 0, cost_usd: 0 },
+  };
+
+  for (const usage of usageHistory) {
+    // Iterate over each component and sum tokens and costs
+    for (const key of Object.keys(sum) as Array<keyof ChatUsageDisplay>) {
+      sum[key].tokens += usage[key].tokens;
+      sum[key].cost_usd += usage[key].cost_usd;
+    }
+  }
+
+  return sum;
+}
+
+/**
  * Calculate token statistics from raw CmuxMessages
  * This is the single source of truth for token counting
  *
  * @param messages - Array of CmuxMessages from chat history
  * @param model - Model string (e.g., "anthropic:claude-opus-4-1")
- * @returns ChatStats with token breakdown by consumer and last actual usage
+ * @returns ChatStats with token breakdown by consumer and usage history
  */
 export async function calculateTokenStats(
   messages: CmuxMessage[],
@@ -124,13 +150,14 @@ export async function calculateTokenStats(
       totalTokens: 0,
       model,
       tokenizerName: "No messages",
+      usageHistory: [],
     };
   }
 
   const tokenizer = getTokenizerForModel(model);
   const consumerMap = new Map<string, { fixed: number; variable: number }>();
   const toolsWithDefinitions = new Set<string>(); // Track which tools have definitions included
-  let lastUsage: ChatUsageDisplay | undefined;
+  const usageHistory: ChatUsageDisplay[] = [];
 
   // Calculate tokens by content producer (User, Assistant, individual tools)
   // This shows what activities are consuming tokens, useful for debugging costs
@@ -146,13 +173,16 @@ export async function calculateTokenStats(
       const existing = consumerMap.get("User") || { fixed: 0, variable: 0 };
       consumerMap.set("User", { fixed: 0, variable: existing.variable + userTokens });
     } else if (message.role === "assistant") {
-      // Store last usage for comparison with estimates
+      // Store usage in history for comparison with estimates
       if (message.metadata?.usage) {
-        lastUsage = createDisplayUsage(
+        const usage = createDisplayUsage(
           message.metadata.usage,
           model,
           message.metadata.providerMetadata
         );
+        if (usage) {
+          usageHistory.push(usage);
+        }
       }
 
       // Count assistant text separately from tools
@@ -260,6 +290,6 @@ export async function calculateTokenStats(
     totalTokens,
     model,
     tokenizerName: tokenizer.name,
-    lastUsage,
+    usageHistory,
   };
 }

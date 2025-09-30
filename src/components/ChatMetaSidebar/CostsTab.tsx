@@ -3,6 +3,9 @@ import styled from "@emotion/styled";
 import { useChatContext } from "../../contexts/ChatContext";
 import { TooltipWrapper, Tooltip } from "../Tooltip";
 import { getMaxTokensForModel } from "../../utils/modelTokenLimits";
+import { sumUsageHistory } from "../../utils/tokenStatsCalculator";
+import { usePersistedState } from "../../hooks/usePersistedState";
+import { ToggleGroup, type ToggleOption } from "../ToggleGroup";
 
 const Container = styled.div`
   color: #d4d4d4;
@@ -239,6 +242,13 @@ const DimmedCost = styled.span`
   font-style: italic;
 `;
 
+const SectionHeader = styled.div`
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  margin-bottom: 12px;
+`;
+
 // Format token display - show k for thousands with 1 decimal
 const formatTokens = (tokens: number) =>
   tokens >= 1000 ? `${(tokens / 1000).toFixed(1)}k` : tokens.toLocaleString();
@@ -257,8 +267,16 @@ const formatCostWithDollar = (cost: number): string => {
   return `$${formatCost(cost)}`;
 };
 
+type ViewMode = "last-request" | "session";
+
+const VIEW_MODE_OPTIONS: ToggleOption<ViewMode>[] = [
+  { value: "last-request", label: "Last Request" },
+  { value: "session", label: "Session" },
+];
+
 export const CostsTab: React.FC = () => {
   const { stats, isCalculating } = useChatContext();
+  const [viewMode, setViewMode] = usePersistedState<ViewMode>("costsTab:viewMode", "last-request");
 
   // Only show loading if we don't have any stats yet
   if (isCalculating && !stats) {
@@ -280,20 +298,29 @@ export const CostsTab: React.FC = () => {
     );
   }
 
+  // Compute displayUsage based on view mode
+  const displayUsage =
+    viewMode === "last-request"
+      ? stats.usageHistory[stats.usageHistory.length - 1]
+      : sumUsageHistory(stats.usageHistory);
+
   return (
     <Container>
-      {stats.lastUsage && (
+      {stats.usageHistory.length > 0 && (
         <Section>
-          <SectionTitle>Last API Response</SectionTitle>
+          <SectionHeader>
+            <ToggleGroup options={VIEW_MODE_OPTIONS} value={viewMode} onChange={setViewMode} />
+          </SectionHeader>
           <ConsumerList>
             {(() => {
               // Get max tokens for the model
               const maxTokens = getMaxTokensForModel(stats.model);
-              const totalUsed =
-                stats.lastUsage.input.tokens +
-                stats.lastUsage.cached.tokens +
-                stats.lastUsage.output.tokens +
-                stats.lastUsage.reasoning.tokens;
+              const totalUsed = displayUsage
+                ? displayUsage.input.tokens +
+                  displayUsage.cached.tokens +
+                  displayUsage.output.tokens +
+                  displayUsage.reasoning.tokens
+                : 0;
 
               // Calculate percentages
               let inputPercentage: number;
@@ -302,84 +329,109 @@ export const CostsTab: React.FC = () => {
               let showWarning = false;
               let totalPercentage: number;
 
-              if (maxTokens) {
-                // We know the model's max tokens
-                inputPercentage = (stats.lastUsage.input.tokens / maxTokens) * 100;
-                outputPercentage = (stats.lastUsage.output.tokens / maxTokens) * 100;
-                cachedPercentage = (stats.lastUsage.cached.tokens / maxTokens) * 100;
+              // For session mode, always show bar as full (100%) based on relative token distribution
+              if (viewMode === "session" && displayUsage && totalUsed > 0) {
+                // Scale to total tokens used (bar always full)
+                inputPercentage = (displayUsage.input.tokens / totalUsed) * 100;
+                outputPercentage = (displayUsage.output.tokens / totalUsed) * 100;
+                cachedPercentage = (displayUsage.cached.tokens / totalUsed) * 100;
+                totalPercentage = 100;
+              } else if (maxTokens && displayUsage) {
+                // We know the model's max tokens - show actual context window usage
+                inputPercentage = (displayUsage.input.tokens / maxTokens) * 100;
+                outputPercentage = (displayUsage.output.tokens / maxTokens) * 100;
+                cachedPercentage = (displayUsage.cached.tokens / maxTokens) * 100;
                 totalPercentage = (totalUsed / maxTokens) * 100;
-              } else {
+              } else if (displayUsage) {
                 // Unknown model - scale to total tokens used
-                inputPercentage =
-                  totalUsed > 0 ? (stats.lastUsage.input.tokens / totalUsed) * 100 : 0;
+                inputPercentage = totalUsed > 0 ? (displayUsage.input.tokens / totalUsed) * 100 : 0;
                 outputPercentage =
-                  totalUsed > 0 ? (stats.lastUsage.output.tokens / totalUsed) * 100 : 0;
+                  totalUsed > 0 ? (displayUsage.output.tokens / totalUsed) * 100 : 0;
                 cachedPercentage =
-                  totalUsed > 0 ? (stats.lastUsage.cached.tokens / totalUsed) * 100 : 0;
+                  totalUsed > 0 ? (displayUsage.cached.tokens / totalUsed) * 100 : 0;
                 totalPercentage = 100;
                 showWarning = true;
+              } else {
+                inputPercentage = 0;
+                outputPercentage = 0;
+                cachedPercentage = 0;
+                totalPercentage = 0;
               }
 
               const totalDisplay = formatTokens(totalUsed);
-              const maxDisplay = maxTokens ? ` / ${formatTokens(maxTokens)}` : "";
+              // For session mode, don't show max tokens or percentage
+              const maxDisplay =
+                viewMode === "session" ? "" : maxTokens ? ` / ${formatTokens(maxTokens)}` : "";
+              const showPercentage = viewMode !== "session";
 
               // Calculate cost percentages
-              const totalCost =
-                stats.lastUsage.input.cost_usd +
-                stats.lastUsage.cached.cost_usd +
-                stats.lastUsage.cacheCreate.cost_usd +
-                stats.lastUsage.output.cost_usd +
-                stats.lastUsage.reasoning.cost_usd;
+              const totalCost = displayUsage
+                ? displayUsage.input.cost_usd +
+                  displayUsage.cached.cost_usd +
+                  displayUsage.cacheCreate.cost_usd +
+                  displayUsage.output.cost_usd +
+                  displayUsage.reasoning.cost_usd
+                : 0;
 
               const inputCostPercentage =
-                totalCost > 0 ? (stats.lastUsage.input.cost_usd / totalCost) * 100 : 0;
+                totalCost > 0 && displayUsage ? (displayUsage.input.cost_usd / totalCost) * 100 : 0;
               const cachedCostPercentage =
-                totalCost > 0 ? (stats.lastUsage.cached.cost_usd / totalCost) * 100 : 0;
+                totalCost > 0 && displayUsage
+                  ? (displayUsage.cached.cost_usd / totalCost) * 100
+                  : 0;
               const cacheCreateCostPercentage =
-                totalCost > 0 ? (stats.lastUsage.cacheCreate.cost_usd / totalCost) * 100 : 0;
+                totalCost > 0 && displayUsage
+                  ? (displayUsage.cacheCreate.cost_usd / totalCost) * 100
+                  : 0;
               const outputCostPercentage =
-                totalCost > 0 ? (stats.lastUsage.output.cost_usd / totalCost) * 100 : 0;
+                totalCost > 0 && displayUsage
+                  ? (displayUsage.output.cost_usd / totalCost) * 100
+                  : 0;
               const reasoningCostPercentage =
-                totalCost > 0 ? (stats.lastUsage.reasoning.cost_usd / totalCost) * 100 : 0;
+                totalCost > 0 && displayUsage
+                  ? (displayUsage.reasoning.cost_usd / totalCost) * 100
+                  : 0;
 
               // Build component data for table
-              const components = [
-                {
-                  name: "Cache Read",
-                  tokens: stats.lastUsage.cached.tokens,
-                  cost: stats.lastUsage.cached.cost_usd,
-                  color: "var(--color-token-cached)",
-                  show: stats.lastUsage.cached.tokens > 0,
-                },
-                {
-                  name: "Cache Create",
-                  tokens: stats.lastUsage.cacheCreate.tokens,
-                  cost: stats.lastUsage.cacheCreate.cost_usd,
-                  color: "var(--color-token-cached)",
-                  show: stats.lastUsage.cacheCreate.tokens > 0,
-                },
-                {
-                  name: "Input",
-                  tokens: stats.lastUsage.input.tokens,
-                  cost: stats.lastUsage.input.cost_usd,
-                  color: "var(--color-token-input)",
-                  show: true,
-                },
-                {
-                  name: "Output",
-                  tokens: stats.lastUsage.output.tokens,
-                  cost: stats.lastUsage.output.cost_usd,
-                  color: "var(--color-token-output)",
-                  show: true,
-                },
-                {
-                  name: "Reasoning",
-                  tokens: stats.lastUsage.reasoning.tokens,
-                  cost: stats.lastUsage.reasoning.cost_usd,
-                  color: "var(--color-token-output)",
-                  show: stats.lastUsage.reasoning.tokens > 0,
-                },
-              ].filter((c) => c.show);
+              const components = displayUsage
+                ? [
+                    {
+                      name: "Cache Read",
+                      tokens: displayUsage.cached.tokens,
+                      cost: displayUsage.cached.cost_usd,
+                      color: "var(--color-token-cached)",
+                      show: displayUsage.cached.tokens > 0,
+                    },
+                    {
+                      name: "Cache Create",
+                      tokens: displayUsage.cacheCreate.tokens,
+                      cost: displayUsage.cacheCreate.cost_usd,
+                      color: "var(--color-token-cached)",
+                      show: displayUsage.cacheCreate.tokens > 0,
+                    },
+                    {
+                      name: "Input",
+                      tokens: displayUsage.input.tokens,
+                      cost: displayUsage.input.cost_usd,
+                      color: "var(--color-token-input)",
+                      show: true,
+                    },
+                    {
+                      name: "Output",
+                      tokens: displayUsage.output.tokens,
+                      cost: displayUsage.output.cost_usd,
+                      color: "var(--color-token-output)",
+                      show: true,
+                    },
+                    {
+                      name: "Reasoning",
+                      tokens: displayUsage.reasoning.tokens,
+                      cost: displayUsage.reasoning.cost_usd,
+                      color: "var(--color-token-output)",
+                      show: displayUsage.reasoning.tokens > 0,
+                    },
+                  ].filter((c) => c.show)
+                : [];
 
               return (
                 <>
@@ -388,7 +440,8 @@ export const CostsTab: React.FC = () => {
                       <ConsumerName>Token Usage</ConsumerName>
                       <ConsumerTokens>
                         {totalDisplay}
-                        {maxDisplay} ({totalPercentage.toFixed(1)}%)
+                        {maxDisplay}
+                        {showPercentage && ` (${totalPercentage.toFixed(1)}%)`}
                       </ConsumerTokens>
                     </ConsumerHeader>
                     <PercentageBarWrapper>

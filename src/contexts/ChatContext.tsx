@@ -37,6 +37,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({
           totalTokens: 0,
           model,
           tokenizerName: "No messages",
+          usageHistory: [],
         });
         return;
       }

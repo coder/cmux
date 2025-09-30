@@ -13,5 +13,5 @@ export interface ChatStats {
   totalTokens: number;
   model: string;
   tokenizerName: string; // e.g., "Anthropic Claude", "OpenAI GPT-4"
-  lastUsage?: ChatUsageDisplay; // Last actual usage statistics from API with provider-specific fields
+  usageHistory: ChatUsageDisplay[]; // Ordered array of actual usage statistics from API responses
 }

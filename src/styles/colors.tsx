@@ -80,6 +80,14 @@ export const GlobalColors = () => (
         --color-token-input: hsl(120 40% 35%);
         --color-token-output: hsl(207 100% 40%);
         --color-token-cached: hsl(0 0% 50%);
+
+        /* Toggle Group Colors */
+        --color-toggle-bg: hsl(0 0% 16.5%);
+        --color-toggle-active: hsl(0 0% 22.7%);
+        --color-toggle-hover: hsl(0 0% 17.6%);
+        --color-toggle-text: hsl(0 0% 53.3%);
+        --color-toggle-text-active: hsl(0 0% 100%);
+        --color-toggle-text-hover: hsl(0 0% 66.7%);
       }
     `}
   />
