@@ -107,6 +107,20 @@ export function findWorkspacePath(projectName: string, branch: string): string |
 }
 
 /**
+ * WARNING: Never try to derive workspace path from workspace ID!
+ * This is a code smell that leads to bugs.
+ *
+ * The workspace path should always:
+ * 1. Be stored in WorkspaceMetadata when the workspace is created
+ * 2. Be retrieved from WorkspaceMetadata when needed
+ * 3. Be passed through the call stack explicitly
+ *
+ * Parsing workspaceId strings to derive paths is fragile and error-prone.
+ * The workspace path is established when the git worktree is created,
+ * and that canonical path should be preserved and used throughout.
+ */
+
+/**
  * Get the session directory for a specific workspace
  */
 export function getSessionDir(workspaceId: string): string {

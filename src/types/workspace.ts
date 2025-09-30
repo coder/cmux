@@ -8,6 +8,9 @@ export interface WorkspaceMetadata {
 
   /** Project name extracted from project path */
   projectName: string;
+
+  /** Absolute path to the workspace worktree directory */
+  workspacePath: string;
 }
 
 /**

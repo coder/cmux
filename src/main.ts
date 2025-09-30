@@ -103,6 +103,7 @@ ipcMain.handle(
       const metadata = {
         id: workspaceId,
         projectName,
+        workspacePath: result.path,
       };
       await aiService.saveWorkspaceMetadata(workspaceId, metadata);
 

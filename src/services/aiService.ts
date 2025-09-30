@@ -1,10 +1,8 @@
 import * as fs from "fs/promises";
 import * as path from "path";
 import { EventEmitter } from "events";
-import { convertToModelMessages, type LanguageModel, type Tool } from "ai";
-import { createAnthropic, anthropic } from "@ai-sdk/anthropic";
-import { openai } from "@ai-sdk/openai";
-import { google } from "@ai-sdk/google";
+import { convertToModelMessages, type LanguageModel } from "ai";
+import { createAnthropic } from "@ai-sdk/anthropic";
 import { Result, Ok, Err } from "../types/result";
 import { WorkspaceMetadata } from "../types/workspace";
 import { CmuxMessage } from "../types/message";
@@ -12,8 +10,7 @@ import { SESSIONS_DIR, getSessionDir, loadProvidersConfig } from "../config";
 import { StreamManager } from "./streamManager";
 import type { StreamEndEvent } from "../types/aiEvents";
 import type { SendMessageError } from "../types/errors";
-import { readFileTool } from "./tools/readFile";
-import { bashTool } from "./tools/bash";
+import { getToolsForModel } from "../utils/tools";
 import { log } from "./log";
 import {
   transformModelMessages,
@@ -21,49 +18,6 @@ import {
 } from "../utils/modelMessageTransform";
 
 // Export a standalone version of getToolsForModel for use in backend
-export function getToolsForModel(modelString: string): Record<string, Tool> {
-  const [provider, modelId] = modelString.split(":");
-
-  // Base tools available for all models
-  const baseTools: Record<string, Tool> = {
-    // Use snake_case for tool names to match what seems to be the convention.
-    read_file: readFileTool,
-    bash: bashTool,
-  };
-
-  // Try to add provider-specific web search tools if available
-  // This doesn't break if the provider isn't recognized
-  try {
-    switch (provider) {
-      case "anthropic":
-        return {
-          ...baseTools,
-          web_search: anthropic.tools.webSearch_20250305({ maxUses: 10 }),
-        };
-
-      case "openai":
-        // Only add web search for models that support it
-        if (modelId.includes("gpt-5") || modelId.includes("gpt-4")) {
-          return {
-            ...baseTools,
-            web_search: openai.tools.webSearch({}),
-          };
-        }
-        break;
-
-      case "google":
-        return {
-          ...baseTools,
-          google_search: google.tools.googleSearch({}),
-        };
-    }
-  } catch (error) {
-    // If tools aren't available, just return base tools
-    log.error(`No web search tools available for ${provider}:`, error);
-  }
-
-  return baseTools;
-}
 
 export class AIService extends EventEmitter {
   private readonly CHAT_FILE = "chat.jsonl";
@@ -115,13 +69,11 @@ export class AIService extends EventEmitter {
       return Ok(JSON.parse(data));
     } catch (error) {
       if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") {
-        // Create default metadata if it doesn't exist
-        const defaultMetadata: WorkspaceMetadata = {
-          id: workspaceId,
-          projectName: workspaceId.split("-")[0] || "unknown",
-        };
-        await this.saveWorkspaceMetadata(workspaceId, defaultMetadata);
-        return Ok(defaultMetadata);
+        // If metadata doesn't exist, we cannot create valid defaults without the workspace path
+        // The workspace path must be provided when the workspace is created
+        return Err(
+          `Workspace metadata not found for ${workspaceId}. Workspace may not be properly initialized.`
+        );
       }
       const message = error instanceof Error ? error.message : String(error);
       return Err(`Failed to read workspace metadata: ${message}`);
@@ -194,17 +146,6 @@ export class AIService extends EventEmitter {
       const message = error instanceof Error ? error.message : String(error);
       return Err(`Failed to clear history: ${message}`);
     }
-  }
-
-  /**
-   * Get tools for a model based on the provider and model ID.
-   * This method delegates to the standalone function for consistency.
-   *
-   * @param modelString The model string in format "provider:model-id"
-   * @returns Record of tools available for the model
-   */
-  private getToolsForModel(modelString: string): Record<string, Tool> {
-    return getToolsForModel(modelString);
   }
 
   /**
@@ -311,8 +252,14 @@ export class AIService extends EventEmitter {
         // Continue anyway, as the API might be more lenient
       }
 
-      // Get model-specific tools (including provider-specific web search if available)
-      const tools = this.getToolsForModel(this.defaultModel);
+      // Get workspace metadata to retrieve workspace path
+      const metadataResult = await this.getWorkspaceMetadata(workspaceId);
+      const workspacePath = metadataResult.success
+        ? metadataResult.data.workspacePath
+        : process.cwd(); // Fallback to current working directory if metadata is missing
+
+      // Get model-specific tools with workspace path configuration
+      const tools = getToolsForModel(this.defaultModel, { cwd: workspacePath });
 
       // Delegate to StreamManager with model instance and tools
       const streamResult = await this.streamManager.startStream(
