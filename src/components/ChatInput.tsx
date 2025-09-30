@@ -4,6 +4,7 @@ import { CommandSuggestions, COMMAND_SUGGESTION_KEYS } from "./CommandSuggestion
 import { ChatInputToast, Toast, SolutionLabel } from "./ChatInputToast";
 import { parseCommand, ParsedCommand } from "../utils/commandParser";
 import { SendMessageError as SendMessageErrorType } from "../types/errors";
+import { usePersistedState } from "../hooks/usePersistedState";
 
 const InputSection = styled.div`
   position: relative;
@@ -245,7 +246,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   disabled = false,
   isCompacting = false,
 }) => {
-  const [input, setInput] = useState("");
+  const [input, setInput] = usePersistedState("input:" + workspaceId, "");
   const [isSending, setIsSending] = useState(false);
   const [showCommandSuggestions, setShowCommandSuggestions] = useState(false);
   const [availableCommands] = useState<string[]>([]); // Will be populated in future

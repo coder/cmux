@@ -7,6 +7,7 @@ import { ChatMetaSidebar } from "./ChatMetaSidebar";
 import { DisplayedMessage } from "../types/message";
 import { StreamingMessageAggregator } from "../utils/StreamingMessageAggregator";
 import { DebugProvider, useDebugMode } from "../contexts/DebugContext";
+import { ChatProvider } from "../contexts/ChatContext";
 import {
   WorkspaceChatMessage,
   isCaughtUpMessage,
@@ -104,6 +105,7 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
     message: string;
     details?: string;
   } | null>(null);
+  const [currentModel, setCurrentModel] = useState<string>("anthropic:claude-opus-4-1");
   const contentRef = useRef<HTMLDivElement>(null);
   const lastScrollTopRef = useRef<number>(0);
   // Ref to avoid stale closures in async callbacks - always holds current autoScroll value
@@ -201,6 +203,7 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
         // Handle streaming events with simplified delegation
         if (isStreamStart(data)) {
           aggregatorRef.current.handleStreamStart(data);
+          setCurrentModel(data.model);
           updateUIAndScroll();
           return;
         }
@@ -318,85 +321,91 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
   }
 
   return (
-    <ViewContainer className={className}>
-      <ChatArea>
-        <ViewHeader>
-          <WorkspaceTitle>
-            {projectName} / {branch}
-          </WorkspaceTitle>
-        </ViewHeader>
+    <ChatProvider
+      messages={messages}
+      cmuxMessages={aggregatorRef.current.getAllMessages()}
+      model={currentModel}
+    >
+      <ViewContainer className={className}>
+        <ChatArea>
+          <ViewHeader>
+            <WorkspaceTitle>
+              {projectName} / {branch}
+            </WorkspaceTitle>
+          </ViewHeader>
 
-        <OutputContent
-          ref={contentRef}
-          onWheel={() => {
-            lastUserInteractionRef.current = Date.now();
-          }}
-          onTouchMove={() => {
-            lastUserInteractionRef.current = Date.now();
-          }}
-          onScroll={(e) => {
-            const element = e.currentTarget;
-            const currentScrollTop = element.scrollTop;
-            const threshold = 100;
-            const isAtBottom =
-              element.scrollHeight - currentScrollTop - element.clientHeight < threshold;
+          <OutputContent
+            ref={contentRef}
+            onWheel={() => {
+              lastUserInteractionRef.current = Date.now();
+            }}
+            onTouchMove={() => {
+              lastUserInteractionRef.current = Date.now();
+            }}
+            onScroll={(e) => {
+              const element = e.currentTarget;
+              const currentScrollTop = element.scrollTop;
+              const threshold = 100;
+              const isAtBottom =
+                element.scrollHeight - currentScrollTop - element.clientHeight < threshold;
 
-            // Only process user-initiated scrolls (within 100ms of interaction)
-            const isUserScroll = Date.now() - lastUserInteractionRef.current < 100;
+              // Only process user-initiated scrolls (within 100ms of interaction)
+              const isUserScroll = Date.now() - lastUserInteractionRef.current < 100;
 
-            if (!isUserScroll) {
+              if (!isUserScroll) {
+                lastScrollTopRef.current = currentScrollTop;
+                return; // Ignore programmatic scrolls
+              }
+
+              // Detect scroll direction
+              const isScrollingUp = currentScrollTop < lastScrollTopRef.current;
+              const isScrollingDown = currentScrollTop > lastScrollTopRef.current;
+
+              if (isScrollingUp) {
+                // Always disable auto-scroll when scrolling up
+                setAutoScroll(false);
+              } else if (isScrollingDown && isAtBottom) {
+                // Only enable auto-scroll if scrolling down AND reached the bottom
+                setAutoScroll(true);
+              }
+              // If scrolling down but not at bottom, auto-scroll remains disabled
+
+              // Update last scroll position
               lastScrollTopRef.current = currentScrollTop;
-              return; // Ignore programmatic scrolls
-            }
+            }}
+          >
+            {messages.length === 0 ? (
+              <EmptyState>
+                <h3>No Messages Yet</h3>
+                <p>Send a message below to begin</p>
+              </EmptyState>
+            ) : (
+              messages.map((msg) => <MessageRenderer key={msg.id} message={msg} />)
+            )}
+            {errorMessage && (
+              <ErrorMessage
+                title={errorMessage.title}
+                message={errorMessage.message}
+                details={errorMessage.details}
+              />
+            )}
+          </OutputContent>
 
-            // Detect scroll direction
-            const isScrollingUp = currentScrollTop < lastScrollTopRef.current;
-            const isScrollingDown = currentScrollTop > lastScrollTopRef.current;
+          <ChatInput
+            workspaceId={workspaceId}
+            onMessageSent={handleMessageSent}
+            onClearHistory={handleClearHistory}
+            onProviderConfig={handleProviderConfig}
+            debugMode={debugMode}
+            onDebugModeChange={setDebugMode}
+            disabled={!projectName || !branch}
+            isCompacting={isCompacting}
+          />
+        </ChatArea>
 
-            if (isScrollingUp) {
-              // Always disable auto-scroll when scrolling up
-              setAutoScroll(false);
-            } else if (isScrollingDown && isAtBottom) {
-              // Only enable auto-scroll if scrolling down AND reached the bottom
-              setAutoScroll(true);
-            }
-            // If scrolling down but not at bottom, auto-scroll remains disabled
-
-            // Update last scroll position
-            lastScrollTopRef.current = currentScrollTop;
-          }}
-        >
-          {messages.length === 0 ? (
-            <EmptyState>
-              <h3>No Messages Yet</h3>
-              <p>Send a message below to begin</p>
-            </EmptyState>
-          ) : (
-            messages.map((msg) => <MessageRenderer key={msg.id} message={msg} />)
-          )}
-          {errorMessage && (
-            <ErrorMessage
-              title={errorMessage.title}
-              message={errorMessage.message}
-              details={errorMessage.details}
-            />
-          )}
-        </OutputContent>
-
-        <ChatInput
-          workspaceId={workspaceId}
-          onMessageSent={handleMessageSent}
-          onClearHistory={handleClearHistory}
-          onProviderConfig={handleProviderConfig}
-          debugMode={debugMode}
-          onDebugModeChange={setDebugMode}
-          disabled={!projectName || !branch}
-          isCompacting={isCompacting}
-        />
-      </ChatArea>
-
-      <ChatMetaSidebar workspaceId={workspaceId} />
-    </ViewContainer>
+        <ChatMetaSidebar workspaceId={workspaceId} />
+      </ViewContainer>
+    </ChatProvider>
   );
 };
 

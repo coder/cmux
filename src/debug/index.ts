@@ -2,6 +2,7 @@
 
 import { parseArgs } from "util";
 import { listWorkspacesCommand } from "./list-workspaces";
+import { costsCommand } from "./costs";
 
 const { positionals } = parseArgs({
   args: process.argv.slice(2),
@@ -20,8 +21,19 @@ switch (command) {
   case "list-workspaces":
     await listWorkspacesCommand();
     break;
+  case "costs": {
+    const workspaceId = positionals[1];
+    if (!workspaceId) {
+      console.error("Error: workspace ID required");
+      console.log("Usage: bun debug costs <workspace-id>");
+      process.exit(1);
+    }
+    await costsCommand(workspaceId);
+    break;
+  }
   default:
     console.log("Usage:");
     console.log("  bun debug list-workspaces");
+    console.log("  bun debug costs <workspace-id>");
     process.exit(1);
 }

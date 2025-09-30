@@ -21,6 +21,8 @@ export interface StreamEndEvent {
   workspaceId: string;
   messageId: string;
   usage?: {
+    promptTokens: number;
+    completionTokens: number;
     totalTokens: number;
   };
   model: string;

@@ -277,8 +277,17 @@ export class StreamManager extends EventEmitter {
 
       // Check if stream completed successfully
       if (!streamInfo.abortController.signal.aborted) {
-        // Get usage information
-        const usage = await streamInfo.streamResult.usage;
+        // Get usage information from the stream result
+        const rawUsage = await streamInfo.streamResult.usage;
+
+        // Convert AI SDK usage format to our format
+        const usage = rawUsage
+          ? {
+              promptTokens: rawUsage.inputTokens ?? 0,
+              completionTokens: rawUsage.outputTokens ?? 0,
+              totalTokens: rawUsage.totalTokens ?? 0,
+            }
+          : undefined;
 
         // Emit stream end event with parts preserved in temporal order
         this.emit("stream-end", {

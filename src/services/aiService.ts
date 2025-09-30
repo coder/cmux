@@ -315,6 +315,7 @@ export class AIService extends EventEmitter {
             metadata: {
               sequenceNumber: messages.length,
               tokens: data.usage?.totalTokens,
+              usage: data.usage,
               timestamp: Date.now(),
               model: data.model,
             },

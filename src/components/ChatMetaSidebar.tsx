@@ -1,7 +1,7 @@
 import React from "react";
 import styled from "@emotion/styled";
 import { usePersistedState } from "../hooks/usePersistedState";
-import { ContextTab } from "./ChatMetaSidebar/ContextTab";
+import { CostsTab } from "./ChatMetaSidebar/CostsTab";
 import { ToolsTab } from "./ChatMetaSidebar/ToolsTab";
 
 const SidebarContainer = styled.div`
@@ -48,7 +48,7 @@ const TabContent = styled.div`
   padding: 15px;
 `;
 
-type TabType = "context" | "tools";
+type TabType = "costs" | "tools";
 
 interface ChatMetaSidebarProps {
   workspaceId: string;
@@ -57,21 +57,21 @@ interface ChatMetaSidebarProps {
 export const ChatMetaSidebar: React.FC<ChatMetaSidebarProps> = ({ workspaceId }) => {
   const [selectedTab, setSelectedTab] = usePersistedState<TabType>(
     `chat-meta-sidebar-tab:${workspaceId}`,
-    "context"
+    "costs"
   );
 
   return (
     <SidebarContainer>
       <TabBar>
-        <TabButton active={selectedTab === "context"} onClick={() => setSelectedTab("context")}>
-          Context
+        <TabButton active={selectedTab === "costs"} onClick={() => setSelectedTab("costs")}>
+          Costs
         </TabButton>
         <TabButton active={selectedTab === "tools"} onClick={() => setSelectedTab("tools")}>
           Tools
         </TabButton>
       </TabBar>
       <TabContent>
-        {selectedTab === "context" && <ContextTab />}
+        {selectedTab === "costs" && <CostsTab />}
         {selectedTab === "tools" && <ToolsTab />}
       </TabContent>
     </SidebarContainer>

@@ -6,6 +6,11 @@ export interface CmuxMetadata {
   streamingId?: string;
   cost?: number;
   tokens?: number;
+  usage?: {
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+  };
   duration?: number;
   timestamp?: number;
   model?: string;
