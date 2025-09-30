@@ -242,24 +242,27 @@ export class AIService extends EventEmitter {
         return Err(streamResult.error);
       }
 
-      // Listen for stream-end events to save messages to history
+      // Listen for stream-end events to update placeholder with final message
+      // Note: We UPDATE the placeholder (line 221) instead of appending to avoid duplicates
       this.streamManager.once("stream-end", async (data: StreamEndEvent) => {
         if (data.workspaceId === workspaceId) {
           // Create assistant message with parts array preserving temporal ordering
           // Metadata flows transparently from backend event
-          const assistantMessage: CmuxMessage = {
+          const finalAssistantMessage: CmuxMessage = {
             id: data.messageId,
             role: "assistant",
             metadata: {
               ...data.metadata,
+              historySequence, // Reuse sequence number from placeholder to maintain message order
               timestamp: Date.now(),
             },
             parts: data.parts,
           };
 
-          // Only save if there are parts (text or tool calls)
+          // Only update if there are parts (text or tool calls)
           if (data.parts && data.parts.length > 0) {
-            await this.historyService.appendToHistory(workspaceId, assistantMessage);
+            // UPDATE replaces placeholder in place, preventing duplicate sequence numbers
+            await this.historyService.updateHistory(workspaceId, finalAssistantMessage);
           }
           log.info("stream end usage:", data.metadata.usage);
         }

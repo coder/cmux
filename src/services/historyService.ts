@@ -118,6 +118,61 @@ export class HistoryService {
     }
   }
 
+  /**
+   * Update an existing message in history by historySequence
+   * Reads entire history, replaces the matching message, and rewrites the file
+   */
+  async updateHistory(workspaceId: string, message: CmuxMessage): Promise<Result<void>> {
+    try {
+      const historyPath = this.getChatHistoryPath(workspaceId);
+
+      // Read all messages
+      const historyResult = await this.getHistory(workspaceId);
+      if (!historyResult.success) {
+        return historyResult; // Return the error
+      }
+
+      const messages = historyResult.data;
+      const targetSequence = message.metadata?.historySequence;
+
+      if (targetSequence === undefined) {
+        return Err("Cannot update message without historySequence");
+      }
+
+      // Find and replace the message with matching historySequence
+      let found = false;
+      for (let i = 0; i < messages.length; i++) {
+        if (messages[i].metadata?.historySequence === targetSequence) {
+          // Preserve the historySequence, update everything else
+          messages[i] = {
+            ...message,
+            metadata: {
+              ...message.metadata,
+              historySequence: targetSequence,
+            },
+          };
+          found = true;
+          break;
+        }
+      }
+
+      if (!found) {
+        return Err(`No message found with historySequence ${targetSequence}`);
+      }
+
+      // Rewrite entire file
+      const historyEntries = messages
+        .map((msg) => JSON.stringify({ ...msg, workspaceId }) + "\n")
+        .join("");
+
+      await fs.writeFile(historyPath, historyEntries);
+      return Ok(undefined);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return Err(`Failed to update history: ${message}`);
+    }
+  }
+
   async clearHistory(workspaceId: string): Promise<Result<void>> {
     try {
       const historyPath = this.getChatHistoryPath(workspaceId);
