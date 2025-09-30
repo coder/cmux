@@ -8,7 +8,8 @@
  */
 
 import { CmuxMessage } from "../types/message";
-import { ChatStats, TokenConsumer, UsageStats } from "../types/chatStats";
+import { ChatStats, TokenConsumer } from "../types/chatStats";
+import type { LanguageModelV2Usage } from "@ai-sdk/provider";
 import {
   getTokenizerForModel,
   countTokensForData,
@@ -39,7 +40,7 @@ export async function calculateTokenStats(
   const tokenizer = getTokenizerForModel(model);
   const consumerMap = new Map<string, { fixed: number; variable: number }>();
   const toolsWithDefinitions = new Set<string>(); // Track which tools have definitions included
-  let lastUsage: UsageStats | undefined;
+  let lastUsage: LanguageModelV2Usage | undefined;
 
   // Calculate tokens by content producer (User, Assistant, individual tools)
   // This shows what activities are consuming tokens, useful for debugging costs

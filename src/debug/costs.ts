@@ -49,9 +49,18 @@ export async function costsCommand(workspaceId: string) {
   // Display last actual usage from API if available
   if (stats.lastUsage) {
     console.log(`Last API Response:`);
-    console.log(`  Prompt Tokens:     ${stats.lastUsage.promptTokens.toLocaleString()}`);
-    console.log(`  Completion Tokens: ${stats.lastUsage.completionTokens.toLocaleString()}`);
-    console.log(`  Total Tokens:      ${stats.lastUsage.totalTokens.toLocaleString()}\n`);
+    console.log(`  Input Tokens:      ${(stats.lastUsage.inputTokens ?? 0).toLocaleString()}`);
+    console.log(`  Output Tokens:     ${(stats.lastUsage.outputTokens ?? 0).toLocaleString()}`);
+    console.log(`  Total Tokens:      ${(stats.lastUsage.totalTokens ?? 0).toLocaleString()}`);
+
+    // Show additional token types if present
+    if (stats.lastUsage.reasoningTokens && stats.lastUsage.reasoningTokens > 0) {
+      console.log(`  Reasoning Tokens:  ${stats.lastUsage.reasoningTokens.toLocaleString()}`);
+    }
+    if (stats.lastUsage.cachedInputTokens && stats.lastUsage.cachedInputTokens > 0) {
+      console.log(`  Cached Tokens:     ${stats.lastUsage.cachedInputTokens.toLocaleString()}`);
+    }
+    console.log();
   }
 
   console.log("Breakdown by Consumer:");

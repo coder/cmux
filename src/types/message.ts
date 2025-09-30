@@ -1,4 +1,5 @@
 import type { UIMessage, ToolUIPart } from "ai";
+import type { LanguageModelV2Usage } from "@ai-sdk/provider";
 
 // Our custom metadata type
 export interface CmuxMetadata {
@@ -6,11 +7,7 @@ export interface CmuxMetadata {
   streamingId?: string;
   cost?: number;
   tokens?: number;
-  usage?: {
-    promptTokens: number;
-    completionTokens: number;
-    totalTokens: number;
-  };
+  usage?: LanguageModelV2Usage;
   duration?: number;
   timestamp?: number;
   model?: string;

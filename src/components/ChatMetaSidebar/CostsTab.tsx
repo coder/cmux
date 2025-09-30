@@ -209,7 +209,7 @@ export const CostsTab: React.FC = () => {
             {(() => {
               // Get max tokens for the model
               const maxTokens = getMaxTokensForModel(stats.model);
-              const totalUsed = stats.lastUsage.totalTokens;
+              const totalUsed = stats.lastUsage.totalTokens ?? 0;
 
               // Calculate percentages
               let promptPercentage: number;
@@ -219,13 +219,13 @@ export const CostsTab: React.FC = () => {
 
               if (maxTokens) {
                 // We know the model's max tokens
-                promptPercentage = (stats.lastUsage.promptTokens / maxTokens) * 100;
-                completionPercentage = (stats.lastUsage.completionTokens / maxTokens) * 100;
+                promptPercentage = ((stats.lastUsage.inputTokens ?? 0) / maxTokens) * 100;
+                completionPercentage = ((stats.lastUsage.outputTokens ?? 0) / maxTokens) * 100;
                 totalPercentage = (totalUsed / maxTokens) * 100;
               } else {
                 // Unknown model - scale to total tokens used
-                promptPercentage = (stats.lastUsage.promptTokens / totalUsed) * 100;
-                completionPercentage = (stats.lastUsage.completionTokens / totalUsed) * 100;
+                promptPercentage = ((stats.lastUsage.inputTokens ?? 0) / totalUsed) * 100;
+                completionPercentage = ((stats.lastUsage.outputTokens ?? 0) / totalUsed) * 100;
                 totalPercentage = 100;
                 showWarning = true;
               }
@@ -249,10 +249,20 @@ export const CostsTab: React.FC = () => {
                         <CompletionSegment percentage={completionPercentage} />
                       </PercentageBar>
                       <Tooltip className="tooltip" align="center" width="wide">
-                        <div>Prompt: {formatTokens(stats.lastUsage.promptTokens)} tokens</div>
-                        <div>
-                          Completion: {formatTokens(stats.lastUsage.completionTokens)} tokens
-                        </div>
+                        <div>Input: {formatTokens(stats.lastUsage.inputTokens ?? 0)} tokens</div>
+                        <div>Output: {formatTokens(stats.lastUsage.outputTokens ?? 0)} tokens</div>
+                        {stats.lastUsage.reasoningTokens !== undefined &&
+                          stats.lastUsage.reasoningTokens > 0 && (
+                            <div>
+                              Reasoning: {formatTokens(stats.lastUsage.reasoningTokens)} tokens
+                            </div>
+                          )}
+                        {stats.lastUsage.cachedInputTokens !== undefined &&
+                          stats.lastUsage.cachedInputTokens > 0 && (
+                            <div>
+                              Cached: {formatTokens(stats.lastUsage.cachedInputTokens)} tokens
+                            </div>
+                          )}
                       </Tooltip>
                     </PercentageBarWrapper>
                   </ConsumerRow>

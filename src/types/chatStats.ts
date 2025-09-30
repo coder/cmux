@@ -1,3 +1,5 @@
+import type { LanguageModelV2Usage } from "@ai-sdk/provider";
+
 export interface TokenConsumer {
   name: string; // "User", "Assistant", "bash", "readFile", etc.
   tokens: number; // Total token count for this consumer
@@ -6,16 +8,10 @@ export interface TokenConsumer {
   variableTokens?: number; // Variable usage (e.g., actual tool calls, text)
 }
 
-export interface UsageStats {
-  promptTokens: number;
-  completionTokens: number;
-  totalTokens: number;
-}
-
 export interface ChatStats {
   consumers: TokenConsumer[]; // Sorted descending by token count
   totalTokens: number;
   model: string;
   tokenizerName: string; // e.g., "Anthropic Claude", "OpenAI GPT-4"
-  lastUsage?: UsageStats; // Last actual usage statistics from API
+  lastUsage?: LanguageModelV2Usage; // Last actual usage statistics from API
 }

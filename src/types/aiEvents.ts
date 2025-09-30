@@ -2,6 +2,8 @@
  * Event types emitted by AIService
  */
 
+import type { LanguageModelV2Usage } from "@ai-sdk/provider";
+
 export interface StreamStartEvent {
   type: "stream-start";
   workspaceId: string;
@@ -22,11 +24,7 @@ export interface StreamEndEvent {
   messageId: string;
   // Structured metadata from backend - directly mergeable with CmuxMetadata
   metadata: {
-    usage?: {
-      promptTokens: number;
-      completionTokens: number;
-      totalTokens: number;
-    };
+    usage?: LanguageModelV2Usage;
     tokens?: number;
     model: string;
   };

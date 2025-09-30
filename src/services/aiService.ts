@@ -296,6 +296,7 @@ export class AIService extends EventEmitter {
           if (data.parts && data.parts.length > 0) {
             await this.appendToHistory(workspaceId, assistantMessage);
           }
+          log.info("stream end usage:", data.metadata.usage);
         }
       });
 
