@@ -312,11 +312,16 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
     []
   );
 
+  // Get current aggregator's display version for memoization
+  const aggregator = getAggregator(workspaceId);
+  const displayVersion = aggregator.getDisplayVersion();
+
   // Memoize cmuxMessages to only recalculate when displayVersion changes
   // Must be before early returns to respect React hooks rules
   const cmuxMessages = useMemo(
-    () => getAggregator(workspaceId).getAllMessages(),
-    [workspaceId, getAggregator(workspaceId).getDisplayVersion()]
+    () => aggregator.getAllMessages(),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [aggregator, displayVersion] // displayVersion is needed to detect internal state changes
   );
 
   if (loading) {
