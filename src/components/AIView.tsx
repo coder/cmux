@@ -88,6 +88,25 @@ const EmptyState = styled.div`
   }
 `;
 
+const EditBarrier = styled.div`
+  margin: 20px 0;
+  padding: 12px 15px;
+  background: var(--color-editing-mode-alpha);
+  border-bottom: 3px solid;
+  border-image: repeating-linear-gradient(
+      45deg,
+      var(--color-editing-mode),
+      var(--color-editing-mode) 10px,
+      transparent 10px,
+      transparent 20px
+    )
+    1;
+  color: var(--color-editing-mode);
+  font-size: 12px;
+  font-weight: 500;
+  text-align: center;
+`;
+
 interface AIViewProps {
   workspaceId: string;
   projectName: string;
@@ -106,6 +125,9 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
     details?: string;
   } | null>(null);
   const [currentModel, setCurrentModel] = useState<string>("anthropic:claude-opus-4-1");
+  const [editingMessage, setEditingMessage] = useState<{ id: string; content: string } | undefined>(
+    undefined
+  );
   const contentRef = useRef<HTMLDivElement>(null);
   const lastScrollTopRef = useRef<number>(0);
   // Ref to avoid stale closures in async callbacks - always holds current autoScroll value
@@ -150,7 +172,25 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
 
   const [loading, setLoading] = useState(false);
 
-  // Messages are already sorted by sequenceNumber from getDisplayedMessages
+  // Handlers for editing messages
+  const handleEditUserMessage = useCallback((messageId: string, content: string) => {
+    setEditingMessage({ id: messageId, content });
+  }, []);
+
+  const handleCancelEdit = useCallback(() => {
+    setEditingMessage(undefined);
+  }, []);
+
+  // When editing, find the cutoff point but show all messages
+  const editCutoffHistoryId = editingMessage
+    ? (() => {
+        const messageBeingEdited = displayedMessages.find(
+          (msg) => msg.historyId === editingMessage.id
+        );
+        return messageBeingEdited?.historyId;
+      })()
+    : undefined;
+
   const messages = displayedMessages;
 
   useEffect(() => {
@@ -285,7 +325,7 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
 
     // Subscribe to workspace-specific clear channel
     const unsubscribeClear = window.api.workspace.onClear(workspaceId, () => {
-      // Clear the UI when we receive a clear event
+      // Full clear (used by /clear command)
       setDisplayedMessages([]);
       aggregator.clear();
     });
@@ -417,7 +457,23 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
                 <p>Send a message below to begin</p>
               </EmptyState>
             ) : (
-              messages.map((msg) => <MessageRenderer key={msg.id} message={msg} />)
+              <>
+                {messages.map((msg, index) => {
+                  const isAtCutoff =
+                    editCutoffHistoryId !== undefined && msg.historyId === editCutoffHistoryId;
+
+                  return (
+                    <React.Fragment key={msg.id}>
+                      <MessageRenderer message={msg} onEditUserMessage={handleEditUserMessage} />
+                      {isAtCutoff && (
+                        <EditBarrier>
+                          ⚠️ Messages below this line will be removed when you submit the edit
+                        </EditBarrier>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </>
             )}
             {errorMessage && (
               <ErrorMessage
@@ -437,6 +493,8 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
             onDebugModeChange={setDebugMode}
             disabled={!projectName || !branch}
             isCompacting={isCompacting}
+            editingMessage={editingMessage}
+            onCancelEdit={handleCancelEdit}
           />
         </ChatArea>
 

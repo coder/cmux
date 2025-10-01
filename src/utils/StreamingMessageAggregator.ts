@@ -359,7 +359,36 @@ export class StreamingMessageAggregator {
     // Handle regular messages (user messages, historical messages)
     // Check if it's a CmuxMessage (has role property but no type)
     if ("role" in data && !("type" in data)) {
-      this.addMessage(data as CmuxMessage);
+      const incomingMessage = data as CmuxMessage;
+
+      // Smart replacement logic for edits:
+      // If a message arrives with a historySequence that already exists,
+      // it means history was truncated (edit operation). Remove the existing
+      // message at that sequence and all subsequent messages, then add the new one.
+      const incomingSequence = incomingMessage.metadata?.historySequence;
+      if (incomingSequence !== undefined) {
+        // Check if there's already a message with this sequence
+        for (const [id, msg] of this.messages.entries()) {
+          const existingSequence = msg.metadata?.historySequence;
+          if (existingSequence !== undefined && existingSequence >= incomingSequence) {
+            // Found a conflict - remove this message and all after it
+            const messagesToRemove: string[] = [];
+            for (const [removeId, removeMsg] of this.messages.entries()) {
+              const removeSeq = removeMsg.metadata?.historySequence;
+              if (removeSeq !== undefined && removeSeq >= incomingSequence) {
+                messagesToRemove.push(removeId);
+              }
+            }
+            for (const removeId of messagesToRemove) {
+              this.messages.delete(removeId);
+            }
+            break; // Found and handled the conflict
+          }
+        }
+      }
+
+      // Now add the new message
+      this.addMessage(incomingMessage);
     }
   }
 
@@ -385,7 +414,8 @@ export class StreamingMessageAggregator {
 
         displayedMessages.push({
           type: "user",
-          id: `${message.id}-user`,
+          id: message.id,
+          historyId: message.id,
           content,
           historySequence,
           timestamp: baseTimestamp,
@@ -400,6 +430,7 @@ export class StreamingMessageAggregator {
             displayedMessages.push({
               type: "assistant",
               id: `${message.id}-${partIndex}`,
+              historyId: message.id,
               content: part.text,
               historySequence,
               streamSequence: streamSeq++,
@@ -419,6 +450,7 @@ export class StreamingMessageAggregator {
             displayedMessages.push({
               type: "tool",
               id: `${message.id}-${partIndex}`,
+              historyId: message.id,
               toolCallId: part.toolCallId,
               toolName: part.toolName,
               args: part.input,

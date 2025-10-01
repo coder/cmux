@@ -33,14 +33,16 @@ export type CmuxMessage = UIMessage<CmuxMetadata, ToolUIPart, never>;
 export type DisplayedMessage =
   | {
       type: "user";
-      id: string;
+      id: string; // Display ID for UI/React keys
+      historyId: string; // Original CmuxMessage ID for history operations
       content: string;
       historySequence: number; // Global ordering across all messages
       timestamp?: number;
     }
   | {
       type: "assistant";
-      id: string;
+      id: string; // Display ID for UI/React keys
+      historyId: string; // Original CmuxMessage ID for history operations
       content: string;
       historySequence: number; // Global ordering across all messages
       streamSequence?: number; // Local ordering within this assistant message
@@ -51,7 +53,8 @@ export type DisplayedMessage =
     }
   | {
       type: "tool";
-      id: string;
+      id: string; // Display ID for UI/React keys
+      historyId: string; // Original CmuxMessage ID for history operations
       toolCallId: string;
       toolName: string;
       args: unknown;

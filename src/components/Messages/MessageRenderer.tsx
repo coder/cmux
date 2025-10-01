@@ -7,13 +7,18 @@ import { ToolMessage } from "./ToolMessage";
 interface MessageRendererProps {
   message: DisplayedMessage;
   className?: string;
+  onEditUserMessage?: (messageId: string, content: string) => void;
 }
 
-export const MessageRenderer: React.FC<MessageRendererProps> = ({ message, className }) => {
+export const MessageRenderer: React.FC<MessageRendererProps> = ({
+  message,
+  className,
+  onEditUserMessage,
+}) => {
   // Route based on message type
   switch (message.type) {
     case "user":
-      return <UserMessage message={message} className={className} />;
+      return <UserMessage message={message} className={className} onEdit={onEditUserMessage} />;
     case "assistant":
       return <AssistantMessage message={message} className={className} />;
     case "tool":

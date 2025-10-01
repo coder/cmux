@@ -18,9 +18,10 @@ const FormattedContent = styled.pre`
 interface UserMessageProps {
   message: DisplayedMessage & { type: "user" };
   className?: string;
+  onEdit?: (messageId: string, content: string) => void;
 }
 
-export const UserMessage: React.FC<UserMessageProps> = ({ message, className }) => {
+export const UserMessage: React.FC<UserMessageProps> = ({ message, className, onEdit }) => {
   const [copied, setCopied] = useState(false);
 
   const content = message.content;
@@ -44,7 +45,21 @@ export const UserMessage: React.FC<UserMessageProps> = ({ message, className }) 
     }
   };
 
+  const handleEdit = () => {
+    if (onEdit && !isLocalCommandOutput) {
+      onEdit(message.historyId, content);
+    }
+  };
+
   const buttons: ButtonConfig[] = [
+    ...(onEdit && !isLocalCommandOutput
+      ? [
+          {
+            label: "Edit",
+            onClick: handleEdit,
+          },
+        ]
+      : []),
     {
       label: copied ? "✓ Copied" : "Copy Text",
       onClick: handleCopy,

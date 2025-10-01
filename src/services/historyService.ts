@@ -173,6 +173,51 @@ export class HistoryService {
     }
   }
 
+  /**
+   * Truncate history after a specific message ID
+   * Removes the message with the given ID and all subsequent messages
+   */
+  async truncateAfterMessage(workspaceId: string, messageId: string): Promise<Result<void>> {
+    try {
+      const historyResult = await this.getHistory(workspaceId);
+      if (!historyResult.success) {
+        return historyResult;
+      }
+
+      const messages = historyResult.data;
+      const messageIndex = messages.findIndex((msg) => msg.id === messageId);
+
+      if (messageIndex === -1) {
+        return Err(`Message with ID ${messageId} not found in history`);
+      }
+
+      // Keep only messages before the target message
+      const truncatedMessages = messages.slice(0, messageIndex);
+
+      // Rewrite the history file with truncated messages
+      const historyPath = this.getChatHistoryPath(workspaceId);
+      const historyEntries = truncatedMessages
+        .map((msg) => JSON.stringify({ ...msg, workspaceId }) + "\n")
+        .join("");
+
+      await fs.writeFile(historyPath, historyEntries);
+
+      // Update sequence counter to continue from where we truncated
+      if (truncatedMessages.length > 0) {
+        const lastMsg = truncatedMessages[truncatedMessages.length - 1];
+        const lastSeq = lastMsg.metadata?.historySequence ?? 0;
+        this.sequenceCounters.set(workspaceId, lastSeq + 1);
+      } else {
+        this.sequenceCounters.set(workspaceId, 0);
+      }
+
+      return Ok(undefined);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return Err(`Failed to truncate history: ${message}`);
+    }
+  }
+
   async clearHistory(workspaceId: string): Promise<Result<void>> {
     try {
       const historyPath = this.getChatHistoryPath(workspaceId);

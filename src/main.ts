@@ -14,6 +14,7 @@ import { createWorktree, removeWorktree } from "./git";
 import { AIService } from "./services/aiService";
 import { HistoryService } from "./services/historyService";
 import { createCmuxMessage } from "./types/message";
+import { log } from "./services/log";
 import type {
   StreamStartEvent,
   StreamDeltaEvent,
@@ -23,7 +24,7 @@ import type {
   ToolCallDeltaEvent,
   ToolCallEndEvent,
 } from "./types/aiEvents";
-import { IPC_CHANNELS, getChatChannel } from "./constants/ipc-constants";
+import { IPC_CHANNELS, getChatChannel, getClearChannel } from "./constants/ipc-constants";
 import type { SendMessageError } from "./types/errors";
 import type { StreamErrorMessage } from "./types/ipc";
 
@@ -202,8 +203,28 @@ ipcMain.handle(IPC_CHANNELS.WORKSPACE_GET_INFO, async (_event, workspaceId: stri
 
 ipcMain.handle(
   IPC_CHANNELS.WORKSPACE_SEND_MESSAGE,
-  async (_event, workspaceId: string, message: string) => {
+  async (_event, workspaceId: string, message: string, editMessageId?: string) => {
     try {
+      // If editing, truncate history after the message being edited
+      if (editMessageId) {
+        const truncateResult = await historyService.truncateAfterMessage(
+          workspaceId,
+          editMessageId
+        );
+        if (!truncateResult.success) {
+          log.error("Failed to truncate history for edit:", truncateResult.error);
+          return {
+            success: false,
+            error: {
+              type: "unknown",
+              raw: truncateResult.error,
+            } as SendMessageError,
+          };
+        }
+        // Note: We don't send a clear event here. The aggregator will handle
+        // replacement automatically when the new message arrives with the same historySequence
+      }
+
       // Create user message
       const messageId = `user-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
       const userMessage = createCmuxMessage(messageId, "user", message, {
@@ -214,7 +235,14 @@ ipcMain.handle(
       // Append user message to history
       const appendResult = await historyService.appendToHistory(workspaceId, userMessage);
       if (!appendResult.success) {
-        return appendResult; // Return the error
+        log.error("Failed to append message to history:", appendResult.error);
+        return {
+          success: false,
+          error: {
+            type: "unknown",
+            raw: appendResult.error,
+          } as SendMessageError,
+        };
       }
 
       // Broadcast the user message immediately to the frontend
@@ -225,7 +253,14 @@ ipcMain.handle(
       // Get full conversation history
       const historyResult = await historyService.getHistory(workspaceId);
       if (!historyResult.success) {
-        return historyResult; // Return the error
+        log.error("Failed to get conversation history:", historyResult.error);
+        return {
+          success: false,
+          error: {
+            type: "unknown",
+            raw: historyResult.error,
+          } as SendMessageError,
+        };
       }
 
       // Stream the AI response
@@ -234,6 +269,7 @@ ipcMain.handle(
     } catch (error) {
       // Convert to SendMessageError for typed error handling
       const errorMessage = error instanceof Error ? error.message : String(error);
+      log.error("Unexpected error in sendMessage handler:", error);
       const sendError: SendMessageError = {
         type: "unknown",
         raw: `Failed to send message: ${errorMessage}`,

@@ -22,10 +22,10 @@ const InputControls = styled.div`
   align-items: flex-end;
 `;
 
-const InputField = styled.textarea`
+const InputField = styled.textarea<{ isEditing?: boolean }>`
   flex: 1;
-  background: #1e1e1e;
-  border: 1px solid #3e3e42;
+  background: ${(props) => (props.isEditing ? "var(--color-editing-mode-alpha)" : "#1e1e1e")};
+  border: 1px solid ${(props) => (props.isEditing ? "var(--color-editing-mode)" : "#3e3e42")};
   color: #d4d4d4;
   padding: 8px 12px;
   border-radius: 4px;
@@ -39,7 +39,7 @@ const InputField = styled.textarea`
 
   &:focus {
     outline: none;
-    border-color: #569cd6;
+    border-color: ${(props) => (props.isEditing ? "var(--color-editing-mode)" : "#569cd6")};
   }
 
   &::placeholder {
@@ -47,28 +47,13 @@ const InputField = styled.textarea`
   }
 `;
 
-const SendButton = styled.button`
-  background: #0e639c;
-  border: none;
-  color: white;
-  padding: 8px 16px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 500;
-
-  &:hover {
-    background: #1177bb;
-  }
-
-  &:disabled {
-    background: #3e3e42;
-    cursor: not-allowed;
-    color: #6b6b6b;
-  }
+const ModeToggles = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 `;
 
-const ModeToggles = styled.div`
+const ModeTogglesRow = styled.div`
   display: flex;
   align-items: center;
 `;
@@ -94,6 +79,12 @@ const DebugModeToggle = styled.label`
   }
 `;
 
+const EditingIndicator = styled.div`
+  font-size: 11px;
+  color: var(--color-editing-mode);
+  font-weight: 500;
+`;
+
 export interface ChatInputProps {
   workspaceId: string;
   onMessageSent?: () => void; // Optional callback after successful send
@@ -103,6 +94,8 @@ export interface ChatInputProps {
   onDebugModeChange: (enabled: boolean) => void;
   disabled?: boolean;
   isCompacting?: boolean;
+  editingMessage?: { id: string; content: string };
+  onCancelEdit?: () => void;
 }
 
 // Helper function to convert parsed command to display toast
@@ -245,6 +238,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   onDebugModeChange,
   disabled = false,
   isCompacting = false,
+  editingMessage,
+  onCancelEdit,
 }) => {
   const [input, setInput] = usePersistedState("input:" + workspaceId, "");
   const [isSending, setIsSending] = useState(false);
@@ -252,6 +247,21 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const [availableCommands] = useState<string[]>([]); // Will be populated in future
   const [toast, setToast] = useState<Toast | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // When entering editing mode, populate input with message content
+  useEffect(() => {
+    if (editingMessage) {
+      setInput(editingMessage.content);
+      // Auto-resize textarea and focus
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.style.height = "auto";
+          inputRef.current.style.height = Math.min(inputRef.current.scrollHeight, 200) + "px";
+          inputRef.current.focus();
+        }
+      }, 0);
+    }
+  }, [editingMessage, setInput]);
 
   // Watch input for slash commands
   useEffect(() => {
@@ -307,6 +317,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
               message: `Provider ${parsed.provider} updated`,
             });
           } catch (error) {
+            console.error("Failed to update provider config:", error);
             setToast({
               id: Date.now().toString(),
               type: "error",
@@ -331,9 +342,15 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       setIsSending(true);
 
       try {
-        const result = await window.api.workspace.sendMessage(workspaceId, messageText);
+        const result = await window.api.workspace.sendMessage(
+          workspaceId,
+          messageText,
+          editingMessage?.id
+        );
 
         if (!result.success) {
+          // Log error for debugging
+          console.error("Failed to send message:", result.error);
           // Show error using enhanced toast
           setToast(createErrorToast(result.error));
           // Restore input on error so user can try again
@@ -345,10 +362,15 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           if (inputRef.current) {
             inputRef.current.style.height = "36px";
           }
+          // Exit editing mode if we were editing
+          if (editingMessage && onCancelEdit) {
+            onCancelEdit();
+          }
           onMessageSent?.();
         }
       } catch (error) {
         // Handle unexpected errors
+        console.error("Unexpected error sending message:", error);
         setToast(
           createErrorToast({
             type: "unknown",
@@ -368,6 +390,13 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // Handle Escape key to cancel editing
+    if (e.key === "Escape" && editingMessage && onCancelEdit) {
+      e.preventDefault();
+      onCancelEdit();
+      return;
+    }
+
     // Don't handle keys if command suggestions are visible
     if (showCommandSuggestions && COMMAND_SUGGESTION_KEYS.includes(e.key)) {
       return; // Let CommandSuggestions handle it
@@ -399,6 +428,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         <InputField
           ref={inputRef}
           value={input}
+          isEditing={!!editingMessage}
           onChange={(e) => {
             const newValue = e.target.value;
             setInput(newValue);
@@ -410,26 +440,27 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           }}
           onKeyDown={handleKeyDown}
           placeholder={
-            isCompacting ? "Compacting conversation..." : "Type a message... (Enter to send)"
+            editingMessage
+              ? "Edit your message... (Esc to cancel, Enter to send)"
+              : isCompacting
+                ? "Compacting conversation..."
+                : "Type a message... (Enter to send, Shift+Enter for newline)"
           }
           disabled={disabled || isSending || isCompacting}
         />
-        <SendButton
-          onClick={handleSend}
-          disabled={!input.trim() || disabled || isSending || isCompacting}
-        >
-          {isCompacting ? "Compacting..." : isSending ? "Sending..." : "Send"}
-        </SendButton>
       </InputControls>
       <ModeToggles>
-        <DebugModeToggle>
-          <input
-            type="checkbox"
-            checked={debugMode}
-            onChange={(e) => onDebugModeChange(e.target.checked)}
-          />
-          Debug Mode
-        </DebugModeToggle>
+        {editingMessage && <EditingIndicator>Editing message (ESC to cancel)</EditingIndicator>}
+        <ModeTogglesRow>
+          <DebugModeToggle>
+            <input
+              type="checkbox"
+              checked={debugMode}
+              onChange={(e) => onDebugModeChange(e.target.checked)}
+            />
+            Debug Mode
+          </DebugModeToggle>
+        </ModeTogglesRow>
       </ModeToggles>
     </InputSection>
   );

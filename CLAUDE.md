@@ -171,3 +171,8 @@ in `./docs/vercel/**.mdx`.
 
 Notice when you've made the same change many times, refactor to create a shared function
 or component, update all the duplicated code, and then continue on with the original work.
+
+## UX Considerations
+
+- For every operation in the frontend, there should be a keyboard shortcut.
+- Buttons, widgets, etc. that have a keybind should display a tooltip for it during hover.

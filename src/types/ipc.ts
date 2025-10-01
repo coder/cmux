@@ -108,7 +108,11 @@ export interface IPCApi {
       branchName: string
     ): Promise<{ success: boolean; workspaceId?: string; path?: string; error?: string }>;
     remove(workspaceId: string): Promise<{ success: boolean; error?: string }>;
-    sendMessage(workspaceId: string, message: string): Promise<Result<void, SendMessageError>>;
+    sendMessage(
+      workspaceId: string,
+      message: string,
+      editMessageId?: string
+    ): Promise<Result<void, SendMessageError>>;
     clearHistory(workspaceId: string): Promise<Result<void, string>>;
     getInfo(workspaceId: string): Promise<WorkspaceMetadata | null>;
 

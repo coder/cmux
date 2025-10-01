@@ -34,6 +34,10 @@ export const GlobalColors = () => (
         --color-yolo-mode-alpha: hsl(from var(--color-yolo-mode) h s l / 0.1);
         --color-yolo-mode-alpha-hover: hsl(from var(--color-yolo-mode) h s l / 0.15);
 
+        /* Editing Mode Colors */
+        --color-editing-mode: hsl(30 100% 50%);
+        --color-editing-mode-alpha: hsl(from var(--color-editing-mode) h s l / 0.1);
+
         /* Debug Mode Colors */
         --color-debug: hsl(214 100% 64%);
         --color-debug-light: color-mix(in srgb, var(--color-debug), white 20%);
