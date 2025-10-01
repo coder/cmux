@@ -22,6 +22,7 @@ import type {
 } from "../types/aiEvents";
 import type { SendMessageError } from "../types/errors";
 import type { CmuxMetadata } from "../types/message";
+import { getTokenizerForModel } from "../utils/tokenizer";
 
 // Branded types for compile-time safety
 type WorkspaceId = string & { __brand: "WorkspaceId" };
@@ -319,7 +320,6 @@ export class StreamManager extends EventEmitter {
 
         // Extract reasoning content if available
         let reasoningText: string | undefined;
-        let reasoningTokens: number | undefined;
         try {
           const reasoning = await streamInfo.streamResult.reasoning;
           if (reasoning && reasoning.length > 0) {
@@ -336,6 +336,34 @@ export class StreamManager extends EventEmitter {
           log.debug("streamManager: No reasoning available or error", err);
         }
 
+        // Determine reasoning tokens: use API-provided value or estimate from text
+        let reasoningTokens = usage?.reasoningTokens;
+        let adjustedUsage = usage;
+        if (reasoningTokens === undefined && reasoningText) {
+          // API didn't provide reasoning tokens (e.g., Anthropic includes them in outputTokens)
+          // Estimate from the reasoning text
+          try {
+            const tokenizer = getTokenizerForModel(streamInfo.model);
+            reasoningTokens = await tokenizer.countTokens(reasoningText);
+            log.debug("streamManager: Estimated reasoning tokens from text", {
+              estimatedTokens: reasoningTokens,
+              textLength: reasoningText.length,
+            });
+
+            // Adjust usage to subtract reasoning tokens from outputTokens
+            // This maintains consistency with how inputTokens excludes cachedInputTokens
+            if (usage && usage.outputTokens !== undefined) {
+              adjustedUsage = {
+                ...usage,
+                outputTokens: Math.max(0, usage.outputTokens - reasoningTokens),
+                reasoningTokens,
+              };
+            }
+          } catch (err) {
+            log.debug("streamManager: Failed to estimate reasoning tokens", err);
+          }
+        }
+
         // Get provider metadata which contains cache statistics
         const providerMetadata = await streamInfo.streamResult.providerMetadata;
 
@@ -347,8 +375,8 @@ export class StreamManager extends EventEmitter {
           messageId: streamInfo.messageId,
           metadata: {
             ...streamInfo.initialMetadata, // AIService-provided metadata (systemMessageTokens, etc)
-            usage,
-            tokens: usage?.totalTokens,
+            usage: adjustedUsage,
+            tokens: adjustedUsage?.totalTokens,
             model: streamInfo.model,
             providerMetadata,
             duration: Date.now() - streamInfo.startTime,

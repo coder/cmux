@@ -360,10 +360,6 @@ export class StreamingMessageAggregator {
   handleReasoningDelta(data: ReasoningDeltaEvent): void {
     const message = this.messages.get(data.messageId);
     if (!message?.metadata) {
-      console.log(
-        "[Aggregator] handleReasoningDelta: No message or metadata found",
-        data.messageId
-      );
       return;
     }
 
@@ -371,17 +367,10 @@ export class StreamingMessageAggregator {
     if (!message.metadata.reasoning) {
       message.metadata.reasoning = "";
       message.metadata.isReasoningStreaming = true;
-      console.log("[Aggregator] handleReasoningDelta: Initialized reasoning for", data.messageId);
     }
 
     // Append delta to reasoning content
     message.metadata.reasoning += data.delta;
-    console.log(
-      "[Aggregator] handleReasoningDelta: Added delta, total length:",
-      message.metadata.reasoning.length,
-      "isStreaming:",
-      message.metadata.isReasoningStreaming
-    );
     this.incrementDisplayVersion();
   }
 

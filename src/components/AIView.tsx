@@ -8,6 +8,7 @@ import { DisplayedMessage, CmuxMessage } from "../types/message";
 import { StreamingMessageAggregator } from "../utils/StreamingMessageAggregator";
 import { DebugProvider, useDebugMode } from "../contexts/DebugContext";
 import { ChatProvider } from "../contexts/ChatContext";
+import { ThinkingProvider } from "../contexts/ThinkingContext";
 import {
   WorkspaceChatMessage,
   isCaughtUpMessage,
@@ -520,11 +521,13 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
   );
 };
 
-// Wrapper component that provides the debug context
+// Wrapper component that provides the debug and thinking contexts
 export const AIView: React.FC<AIViewProps> = (props) => {
   return (
     <DebugProvider>
-      <AIViewInner {...props} />
+      <ThinkingProvider workspaceId={props.workspaceId}>
+        <AIViewInner {...props} />
+      </ThinkingProvider>
     </DebugProvider>
   );
 };

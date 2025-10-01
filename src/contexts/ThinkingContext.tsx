@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, ReactNode } from "react";
+import React, { createContext, useContext, ReactNode } from "react";
 import { ThinkingLevel } from "../types/thinking";
+import { usePersistedState } from "../hooks/usePersistedState";
 
 interface ThinkingContextType {
   thinkingLevel: ThinkingLevel;
@@ -8,8 +9,16 @@ interface ThinkingContextType {
 
 const ThinkingContext = createContext<ThinkingContextType | undefined>(undefined);
 
-export const ThinkingProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [thinkingLevel, setThinkingLevel] = useState<ThinkingLevel>("off");
+interface ThinkingProviderProps {
+  workspaceId: string;
+  children: ReactNode;
+}
+
+export const ThinkingProvider: React.FC<ThinkingProviderProps> = ({ workspaceId, children }) => {
+  const [thinkingLevel, setThinkingLevel] = usePersistedState<ThinkingLevel>(
+    `thinkingLevel:${workspaceId}`,
+    "off"
+  );
 
   return (
     <ThinkingContext.Provider value={{ thinkingLevel, setThinkingLevel }}>

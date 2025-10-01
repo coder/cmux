@@ -1,7 +1,7 @@
 import React from "react";
 import styled from "@emotion/styled";
 import { ThinkingLevel } from "../types/thinking";
-import { usePersistedState } from "../hooks/usePersistedState";
+import { useThinkingLevel } from "../hooks/useThinkingLevel";
 
 const ThinkingSliderContainer = styled.div`
   display: flex;
@@ -16,6 +16,45 @@ const ThinkingLabel = styled.span`
   user-select: none;
 `;
 
+// Subtle consistent glow for active levels
+const GLOW = {
+  track: "0 0 6px 1px hsl(271 76% 53% / 0.3)",
+  thumb: "0 0 4px 1px hsl(271 76% 53% / 0.3)",
+};
+
+const GLOW_INTENSITIES: Record<number, { track: string; thumb: string }> = {
+  0: { track: "none", thumb: "none" },
+  1: GLOW,
+  2: GLOW,
+  3: GLOW,
+};
+
+// Continuous function for text styling based on level (n: 0-3)
+const getTextStyle = (n: number) => {
+  if (n === 0) {
+    return {
+      color: "#606060",
+      fontWeight: 400,
+      textShadow: "none",
+      fontSize: "10px",
+    };
+  }
+
+  // Continuous interpolation for n = 1-3
+  const hue = 271 + (n - 1) * 7; // 271 → 278 → 285
+  const lightness = 65 - (n - 1) * 5; // 65 → 60 → 55
+  const fontWeight = 400 + n * 100; // 500 → 600 → 700
+  const shadowBlur = n * 4; // 4 → 8 → 12
+  const shadowOpacity = 0.3 + n * 0.15; // 0.45 → 0.6 → 0.75
+
+  return {
+    color: `hsl(${hue} 76% ${lightness}%)`,
+    fontWeight,
+    textShadow: `0 0 ${shadowBlur}px hsl(${hue} 76% ${lightness}% / ${shadowOpacity})`,
+    fontSize: "10px",
+  };
+};
+
 const ThinkingSlider = styled.input<{ value: number }>`
   width: 80px;
   height: 4px;
@@ -26,8 +65,8 @@ const ThinkingSlider = styled.input<{ value: number }>`
   border-radius: 2px;
   transition: box-shadow 0.2s ease;
 
-  /* Purple glow that intensifies with value */
-  box-shadow: 0 0 ${(props) => props.value * 4}px hsl(271 76% 53% / ${(props) => props.value * 0.4});
+  /* Purple glow that intensifies with level */
+  box-shadow: ${(props) => GLOW_INTENSITIES[props.value].track};
 
   &::-webkit-slider-thumb {
     -webkit-appearance: none;
@@ -40,7 +79,10 @@ const ThinkingSlider = styled.input<{ value: number }>`
         ? "#606060"
         : `hsl(271 76% ${53 + props.value * 5}%)`}; /* Lighter purple as value increases */
     cursor: pointer;
-    transition: background 0.2s ease;
+    transition:
+      background 0.2s ease,
+      box-shadow 0.2s ease;
+    box-shadow: ${(props) => GLOW_INTENSITIES[props.value].thumb};
   }
 
   &::-moz-range-thumb {
@@ -51,29 +93,48 @@ const ThinkingSlider = styled.input<{ value: number }>`
       props.value === 0 ? "#606060" : `hsl(271 76% ${53 + props.value * 5}%)`};
     cursor: pointer;
     border: none;
-    transition: background 0.2s ease;
+    transition:
+      background 0.2s ease,
+      box-shadow 0.2s ease;
+    box-shadow: ${(props) => GLOW_INTENSITIES[props.value].thumb};
   }
 
   &:hover {
-    box-shadow: 0 0 ${(props) => (props.value + 1) * 4}px
-      hsl(271 76% 53% / ${(props) => (props.value + 1) * 0.4});
+    box-shadow: ${(props) => {
+      const nextValue = Math.min(props.value + 1, 3);
+      return GLOW_INTENSITIES[nextValue].track;
+    }};
+
+    &::-webkit-slider-thumb {
+      box-shadow: ${(props) => {
+        const nextValue = Math.min(props.value + 1, 3);
+        return GLOW_INTENSITIES[nextValue].thumb;
+      }};
+    }
+
+    &::-moz-range-thumb {
+      box-shadow: ${(props) => {
+        const nextValue = Math.min(props.value + 1, 3);
+        return GLOW_INTENSITIES[nextValue].thumb;
+      }};
+    }
   }
 `;
 
-const ThinkingLevelText = styled.span<{ level: string }>`
-  font-size: 10px;
-  font-weight: 500;
+const ThinkingLevelText = styled.span<{ value: number }>`
   min-width: 45px;
-  color: ${(props) =>
-    props.level === "off"
-      ? "#606060"
-      : props.level === "low"
-        ? "hsl(271 76% 65%)"
-        : props.level === "medium"
-          ? "hsl(271 76% 60%)"
-          : "hsl(271 76% 55%)"};
   text-transform: uppercase;
   user-select: none;
+  transition: all 0.2s ease;
+  ${(props) => {
+    const style = getTextStyle(props.value);
+    return `
+      color: ${style.color};
+      font-weight: ${style.fontWeight};
+      text-shadow: ${style.textShadow};
+      font-size: ${style.fontSize};
+    `;
+  }}
 `;
 
 // Helper functions to map between slider value and ThinkingLevel
@@ -87,15 +148,10 @@ const valueToThinkingLevel = (value: number): ThinkingLevel => {
   return THINKING_LEVELS[value] || "off";
 };
 
-interface ThinkingSliderProps {
-  workspaceId: string;
-}
+export const ThinkingSliderComponent: React.FC = () => {
+  const [thinkingLevel, setThinkingLevel] = useThinkingLevel();
 
-export const ThinkingSliderComponent: React.FC<ThinkingSliderProps> = ({ workspaceId }) => {
-  const [thinkingLevel, setThinkingLevel] = usePersistedState<ThinkingLevel>(
-    `thinkingLevel:${workspaceId}`,
-    "off"
-  );
+  const value = thinkingLevelToValue(thinkingLevel);
 
   return (
     <ThinkingSliderContainer>
@@ -105,10 +161,10 @@ export const ThinkingSliderComponent: React.FC<ThinkingSliderProps> = ({ workspa
         min="0"
         max="3"
         step="1"
-        value={thinkingLevelToValue(thinkingLevel)}
+        value={value}
         onChange={(e) => setThinkingLevel(valueToThinkingLevel(parseInt(e.target.value)))}
       />
-      <ThinkingLevelText level={thinkingLevel}>{thinkingLevel}</ThinkingLevelText>
+      <ThinkingLevelText value={value}>{thinkingLevel}</ThinkingLevelText>
     </ThinkingSliderContainer>
   );
 };

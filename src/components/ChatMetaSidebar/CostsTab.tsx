@@ -100,6 +100,14 @@ interface SegmentProps {
   percentage: number;
 }
 
+// Component color mapping - single source of truth for all cost component colors
+const COMPONENT_COLORS = {
+  cached: "var(--color-token-cached)",
+  input: "var(--color-token-input)",
+  output: "var(--color-token-output)",
+  thinking: "var(--color-thinking-mode)",
+} as const;
+
 const FixedSegment = styled.div<SegmentProps>`
   height: 100%;
   width: ${(props) => props.percentage}%;
@@ -117,21 +125,28 @@ const VariableSegment = styled.div<SegmentProps>`
 const InputSegment = styled.div<SegmentProps>`
   height: 100%;
   width: ${(props) => props.percentage}%;
-  background: var(--color-token-input);
+  background: ${COMPONENT_COLORS.input};
   transition: width 0.3s ease;
 `;
 
 const OutputSegment = styled.div<SegmentProps>`
   height: 100%;
   width: ${(props) => props.percentage}%;
-  background: var(--color-token-output);
+  background: ${COMPONENT_COLORS.output};
+  transition: width 0.3s ease;
+`;
+
+const ThinkingSegment = styled.div<SegmentProps>`
+  height: 100%;
+  width: ${(props) => props.percentage}%;
+  background: ${COMPONENT_COLORS.thinking};
   transition: width 0.3s ease;
 `;
 
 const CachedSegment = styled.div<SegmentProps>`
   height: 100%;
   width: ${(props) => props.percentage}%;
-  background: var(--color-token-cached);
+  background: ${COMPONENT_COLORS.cached};
   transition: width 0.3s ease;
 `;
 
@@ -312,6 +327,7 @@ export const CostsTab: React.FC = () => {
               let inputPercentage: number;
               let outputPercentage: number;
               let cachedPercentage: number;
+              let reasoningPercentage: number;
               let showWarning = false;
               let totalPercentage: number;
 
@@ -321,12 +337,14 @@ export const CostsTab: React.FC = () => {
                 inputPercentage = (displayUsage.input.tokens / totalUsed) * 100;
                 outputPercentage = (displayUsage.output.tokens / totalUsed) * 100;
                 cachedPercentage = (displayUsage.cached.tokens / totalUsed) * 100;
+                reasoningPercentage = (displayUsage.reasoning.tokens / totalUsed) * 100;
                 totalPercentage = 100;
               } else if (maxTokens && displayUsage) {
                 // We know the model's max tokens - show actual context window usage
                 inputPercentage = (displayUsage.input.tokens / maxTokens) * 100;
                 outputPercentage = (displayUsage.output.tokens / maxTokens) * 100;
                 cachedPercentage = (displayUsage.cached.tokens / maxTokens) * 100;
+                reasoningPercentage = (displayUsage.reasoning.tokens / maxTokens) * 100;
                 totalPercentage = (totalUsed / maxTokens) * 100;
               } else if (displayUsage) {
                 // Unknown model - scale to total tokens used
@@ -335,12 +353,15 @@ export const CostsTab: React.FC = () => {
                   totalUsed > 0 ? (displayUsage.output.tokens / totalUsed) * 100 : 0;
                 cachedPercentage =
                   totalUsed > 0 ? (displayUsage.cached.tokens / totalUsed) * 100 : 0;
+                reasoningPercentage =
+                  totalUsed > 0 ? (displayUsage.reasoning.tokens / totalUsed) * 100 : 0;
                 totalPercentage = 100;
                 showWarning = true;
               } else {
                 inputPercentage = 0;
                 outputPercentage = 0;
                 cachedPercentage = 0;
+                reasoningPercentage = 0;
                 totalPercentage = 0;
               }
 
@@ -385,35 +406,35 @@ export const CostsTab: React.FC = () => {
                       name: "Cache Read",
                       tokens: displayUsage.cached.tokens,
                       cost: displayUsage.cached.cost_usd,
-                      color: "var(--color-token-cached)",
+                      color: COMPONENT_COLORS.cached,
                       show: displayUsage.cached.tokens > 0,
                     },
                     {
                       name: "Cache Create",
                       tokens: displayUsage.cacheCreate.tokens,
                       cost: displayUsage.cacheCreate.cost_usd,
-                      color: "var(--color-token-cached)",
+                      color: COMPONENT_COLORS.cached,
                       show: displayUsage.cacheCreate.tokens > 0,
                     },
                     {
                       name: "Input",
                       tokens: displayUsage.input.tokens,
                       cost: displayUsage.input.cost_usd,
-                      color: "var(--color-token-input)",
+                      color: COMPONENT_COLORS.input,
                       show: true,
                     },
                     {
                       name: "Output",
                       tokens: displayUsage.output.tokens,
                       cost: displayUsage.output.cost_usd,
-                      color: "var(--color-token-output)",
+                      color: COMPONENT_COLORS.output,
                       show: true,
                     },
                     {
-                      name: "Reasoning",
+                      name: "Thinking",
                       tokens: displayUsage.reasoning.tokens,
                       cost: displayUsage.reasoning.cost_usd,
-                      color: "var(--color-token-output)",
+                      color: COMPONENT_COLORS.thinking,
                       show: displayUsage.reasoning.tokens > 0,
                     },
                   ].filter((c) => c.show)
@@ -437,6 +458,9 @@ export const CostsTab: React.FC = () => {
                         {cachedPercentage > 0 && <CachedSegment percentage={cachedPercentage} />}
                         <InputSegment percentage={inputPercentage} />
                         <OutputSegment percentage={outputPercentage} />
+                        {reasoningPercentage > 0 && (
+                          <ThinkingSegment percentage={reasoningPercentage} />
+                        )}
                       </PercentageBar>
                     </PercentageBarWrapper>
                   </ConsumerRow>
@@ -457,7 +481,7 @@ export const CostsTab: React.FC = () => {
                           <InputSegment percentage={inputCostPercentage} />
                           <OutputSegment percentage={outputCostPercentage} />
                           {reasoningCostPercentage > 0 && (
-                            <OutputSegment percentage={reasoningCostPercentage} />
+                            <ThinkingSegment percentage={reasoningCostPercentage} />
                           )}
                         </PercentageBar>
                       </PercentageBarWrapper>

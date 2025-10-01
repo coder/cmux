@@ -6,7 +6,7 @@ import { parseCommand, ParsedCommand } from "../utils/commandParser";
 import { SendMessageError as SendMessageErrorType } from "../types/errors";
 import { usePersistedState } from "../hooks/usePersistedState";
 import { ThinkingSliderComponent } from "./ThinkingSlider";
-import { ThinkingLevel } from "../types/thinking";
+import { useThinkingLevel } from "../hooks/useThinkingLevel";
 
 const InputSection = styled.div`
   position: relative;
@@ -249,7 +249,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const [availableCommands] = useState<string[]>([]); // Will be populated in future
   const [toast, setToast] = useState<Toast | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const [thinkingLevel] = usePersistedState<ThinkingLevel>(`thinkingLevel:${workspaceId}`, "off");
+  const [thinkingLevel] = useThinkingLevel();
 
   // When entering editing mode, populate input with message content
   useEffect(() => {
@@ -464,7 +464,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             />
             Debug Mode
           </DebugModeToggle>
-          <ThinkingSliderComponent workspaceId={workspaceId} />
+          <ThinkingSliderComponent />
         </ModeTogglesRow>
       </ModeToggles>
     </InputSection>
