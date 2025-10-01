@@ -40,7 +40,7 @@ function getCallerLocation(): string {
     const callerLine = stack[4];
     // Extract file path and line number from the stack trace
     // Format: "    at FunctionName (path/to/file.ts:123:45)"
-    const match = callerLine.match(/\((.+):(\d+):\d+\)/) || callerLine.match(/at (.+):(\d+):\d+/);
+    const match = /\((.+):(\d+):\d+\)/.exec(callerLine) || /at (.+):(\d+):\d+/.exec(callerLine);
 
     if (match) {
       const [, filePath, lineNum] = match;

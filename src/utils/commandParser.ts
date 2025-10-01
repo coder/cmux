@@ -11,6 +11,93 @@ export type ParsedCommand =
   | { type: "unknown-command"; command: string; subcommand?: string }
   | null;
 
+export interface SlashCommandDefinition {
+  key: string;
+  description: string;
+  appendSpace?: boolean;
+  handler?: SlashCommandHandler;
+  children?: ReadonlyArray<SlashCommandDefinition>;
+}
+
+interface SlashCommandHandlerArgs {
+  definition: SlashCommandDefinition;
+  path: ReadonlyArray<SlashCommandDefinition>;
+  remainingTokens: string[];
+  cleanRemainingTokens: string[];
+}
+
+type SlashCommandHandler = (input: SlashCommandHandlerArgs) => ParsedCommand;
+
+const clearCommandDefinition: SlashCommandDefinition = {
+  key: "clear",
+  description: "Clear conversation history",
+  appendSpace: false,
+  handler: ({ cleanRemainingTokens }) => {
+    if (cleanRemainingTokens.length > 0) {
+      return {
+        type: "unknown-command",
+        command: "clear",
+        subcommand: cleanRemainingTokens[0],
+      };
+    }
+
+    return { type: "clear" };
+  },
+};
+
+const providersSetCommandDefinition: SlashCommandDefinition = {
+  key: "set",
+  description: "Set a provider configuration value",
+  handler: ({ cleanRemainingTokens }) => {
+    if (cleanRemainingTokens.length < 3) {
+      return {
+        type: "providers-missing-args",
+        subcommand: "set",
+        argCount: cleanRemainingTokens.length,
+      };
+    }
+
+    const [provider, key, ...valueParts] = cleanRemainingTokens;
+    const value = valueParts.join(" ");
+    const keyPath = key.split(".");
+
+    return {
+      type: "providers-set",
+      provider,
+      keyPath,
+      value,
+    };
+  },
+};
+
+const providersCommandDefinition: SlashCommandDefinition = {
+  key: "providers",
+  description: "Configure AI provider settings",
+  handler: ({ cleanRemainingTokens }) => {
+    if (cleanRemainingTokens.length === 0) {
+      return { type: "providers-help" };
+    }
+
+    return {
+      type: "providers-invalid-subcommand",
+      subcommand: cleanRemainingTokens[0] ?? "",
+    };
+  },
+  children: [providersSetCommandDefinition],
+};
+const SLASH_COMMAND_DEFINITIONS: ReadonlyArray<SlashCommandDefinition> = [
+  clearCommandDefinition,
+  providersCommandDefinition,
+];
+
+const SLASH_COMMAND_DEFINITION_MAP = new Map(
+  SLASH_COMMAND_DEFINITIONS.map((definition) => [definition.key, definition])
+);
+
+export function getSlashCommandDefinitions(): ReadonlyArray<SlashCommandDefinition> {
+  return SLASH_COMMAND_DEFINITIONS;
+}
+
 /**
  * Parse a raw command string into a structured command
  * @param input The raw command string (e.g., "/providers set anthropic apiKey sk-xxx")
@@ -23,62 +110,59 @@ export function parseCommand(input: string): ParsedCommand {
   }
 
   // Remove leading slash and split by spaces (respecting quotes)
-  const parts = trimmed.substring(1).match(/(?:[^\s"]+|"[^"]*")+/g) || [];
+  const parts = (trimmed.substring(1).match(/(?:[^\s"]+|"[^"]*")+/g) || []) as string[];
   if (parts.length === 0) {
     return null;
   }
 
-  const [command, subcommand, ...args] = parts;
-  const cleanArgs = args.map((arg) => arg.replace(/^"(.*)"$/, "$1")); // Remove surrounding quotes
+  const [commandKey, ...restTokens] = parts;
+  const definition = SLASH_COMMAND_DEFINITION_MAP.get(commandKey);
 
-  // Handle /clear command
-  if (command === "clear" && !subcommand) {
-    return { type: "clear" };
-  }
-
-  // Handle /providers commands
-  if (command === "providers") {
-    // No subcommand - show help
-    if (!subcommand) {
-      return { type: "providers-help" };
-    }
-
-    // Invalid subcommand
-    if (subcommand !== "set") {
-      return {
-        type: "providers-invalid-subcommand",
-        subcommand,
-      };
-    }
-
-    // /providers set - check arguments
-    if (cleanArgs.length < 3) {
-      return {
-        type: "providers-missing-args",
-        subcommand: "set",
-        argCount: cleanArgs.length,
-      };
-    }
-
-    // Valid /providers set command
-    const [provider, key, ...valueParts] = cleanArgs;
-    const value = valueParts.join(" "); // Join remaining parts as value (handles spaces)
-    const keyPath = key.split("."); // Split key by dots for nested path
-
+  if (!definition) {
     return {
-      type: "providers-set",
-      provider,
-      keyPath,
-      value,
+      type: "unknown-command",
+      command: commandKey || "",
+      subcommand: restTokens[0],
     };
   }
 
-  // Unknown command
-  return {
-    type: "unknown-command",
-    command: command || "",
-    subcommand,
-  };
+  const path: SlashCommandDefinition[] = [definition];
+  let remainingTokens = restTokens;
+
+  while (remainingTokens.length > 0) {
+    const currentDefinition = path[path.length - 1];
+    const children = currentDefinition.children ?? [];
+    const nextToken = remainingTokens[0];
+    const nextDefinition = children.find((child) => child.key === nextToken);
+
+    if (!nextDefinition) {
+      break;
+    }
+
+    path.push(nextDefinition);
+    remainingTokens = remainingTokens.slice(1);
+  }
+
+  const targetDefinition = path[path.length - 1];
+
+  if (!targetDefinition.handler) {
+    return {
+      type: "unknown-command",
+      command: commandKey || "",
+      subcommand: remainingTokens[0],
+    };
+  }
+
+  const cleanRemainingTokens = remainingTokens.map((token) =>
+    token.replace(/^"(.*)"$/, "$1")
+  );
+
+  return targetDefinition.handler({
+    definition: targetDefinition,
+    path,
+    remainingTokens,
+    cleanRemainingTokens,
+  });
 }
 
 /**
@@ -96,7 +180,7 @@ export function setNestedProperty(
     return;
   }
 
-  let current = obj as Record<string, unknown>;
+  let current = obj;
   for (let i = 0; i < keyPath.length - 1; i++) {
     const key = keyPath[i];
     if (!(key in current) || typeof current[key] !== "object" || current[key] === null) {

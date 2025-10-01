@@ -26,7 +26,7 @@ export function transformModelMessages(messages: ModelMessage[]): ModelMessage[]
       continue;
     }
 
-    const assistantMsg = msg as AssistantModelMessage;
+    const assistantMsg = msg;
 
     // AssistantContent can be string or array, handle both cases
     if (typeof assistantMsg.content === "string") {
@@ -52,7 +52,7 @@ export function transformModelMessages(messages: ModelMessage[]): ModelMessage[]
     // If we have tool calls that will be followed by results,
     // we need to ensure no text appears between them
     if (hasToolResults) {
-      const toolMsg = nextMsg as ToolModelMessage;
+      const toolMsg = nextMsg;
 
       // Find positions of text and tool calls in content array
       const contentWithPositions = assistantMsg.content.map((c, idx) => ({
@@ -62,7 +62,7 @@ export function transformModelMessages(messages: ModelMessage[]): ModelMessage[]
 
       // Group consecutive parts by type
       type ContentArray = Exclude<typeof assistantMsg.content, string>;
-      const groups: Array<{ type: "text" | "tool-call"; parts: ContentArray }> = [];
+      const groups: { type: "text" | "tool-call"; parts: ContentArray }[] = [];
       let currentGroup: { type: "text" | "tool-call"; parts: ContentArray } | null = null;
 
       for (const item of contentWithPositions) {
@@ -166,7 +166,7 @@ export function validateAnthropicCompliance(messages: ModelMessage[]): {
     const msg = messages[i];
 
     if (msg.role === "assistant") {
-      const assistantMsg = msg as AssistantModelMessage;
+      const assistantMsg = msg;
 
       // Skip if content is just a string
       if (typeof assistantMsg.content === "string") {
@@ -195,7 +195,7 @@ export function validateAnthropicCompliance(messages: ModelMessage[]): {
         }
       }
     } else if (msg.role === "tool") {
-      const toolMsg = msg as ToolModelMessage;
+      const toolMsg = msg;
 
       // Process tool results and clear pending calls
       for (const content of toolMsg.content) {

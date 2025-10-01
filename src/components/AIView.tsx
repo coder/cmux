@@ -325,7 +325,7 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
           // Before caught-up: collect historical messages for batch loading
           // Check if it's a CmuxMessage (has role property but no type)
           if ("role" in data && !("type" in data)) {
-            historicalMessages.push(data as CmuxMessage);
+            historicalMessages.push(data);
           }
         } else {
           // After caught-up: handle messages normally

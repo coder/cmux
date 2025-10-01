@@ -23,7 +23,7 @@ const CUSTOM_INSTRUCTION_FILES = ["AGENTS.md", "AGENT.md", "CLAUDE.md"];
  */
 export async function buildSystemMessage(metadata: WorkspaceMetadata): Promise<string> {
   // Validate metadata early
-  if (!metadata || !metadata.workspacePath) {
+  if (!metadata?.workspacePath) {
     throw new Error("Invalid workspace metadata: workspacePath is required");
   }
 

@@ -352,7 +352,7 @@ export class StreamManager extends EventEmitter {
 
             // Adjust usage to subtract reasoning tokens from outputTokens
             // This maintains consistency with how inputTokens excludes cachedInputTokens
-            if (usage && usage.outputTokens !== undefined) {
+            if (usage?.outputTokens !== undefined) {
               adjustedUsage = {
                 ...usage,
                 outputTokens: Math.max(0, usage.outputTokens - reasoningTokens),
@@ -394,7 +394,7 @@ export class StreamManager extends EventEmitter {
       console.error("Stream processing error:", error);
 
       // Check if this is actually a LoadAPIKeyError wrapped in another error
-      let errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
       let errorType = this.categorizeError(error);
 
       // If we detect API key issues in the error message, override the type

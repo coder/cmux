@@ -38,12 +38,12 @@ interface StreamingContext {
  * 4. STRUCTURE ONLY: Only transform data structure (e.g., streaming to final messages)
  */
 export class StreamingMessageAggregator {
-  private messages: Map<string, CmuxMessage> = new Map();
-  private activeStreams: Map<string, StreamingContext> = new Map();
-  private streamSequenceCounter: number = 0; // For ordering parts within a streaming message
+  private messages = new Map<string, CmuxMessage>();
+  private activeStreams = new Map<string, StreamingContext>();
+  private streamSequenceCounter = 0; // For ordering parts within a streaming message
 
   // Display version tracking for efficient React updates
-  private displayVersion: number = 0;
+  private displayVersion = 0;
 
   // Increment version on any mutation
   private incrementDisplayVersion(): void {
@@ -347,7 +347,7 @@ export class StreamingMessageAggregator {
       const toolPart = message.parts.find(
         (part): part is DynamicToolPart =>
           part.type === "dynamic-tool" && (part as DynamicToolPart).toolCallId === data.toolCallId
-      ) as DynamicToolPart | undefined;
+      );
       if (toolPart) {
         // Type assertion needed because TypeScript can't narrow the discriminated union
         (toolPart as DynamicToolPartAvailable).state = "output-available";
@@ -386,7 +386,7 @@ export class StreamingMessageAggregator {
     // Handle regular messages (user messages, historical messages)
     // Check if it's a CmuxMessage (has role property but no type)
     if ("role" in data && !("type" in data)) {
-      const incomingMessage = data as CmuxMessage;
+      const incomingMessage = data;
 
       // Smart replacement logic for edits:
       // If a message arrives with a historySequence that already exists,
