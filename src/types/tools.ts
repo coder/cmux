@@ -28,15 +28,17 @@ export type BashToolResult =
 export interface ReadFileToolArgs {
   filePath: string;
   encoding?: "utf-8" | "ascii" | "base64" | "hex" | "binary";
+  start: number;
+  end: number;
 }
 
 export type ReadFileToolResult =
   | {
       success: true;
-      filePath: string;
       size: number;
       modifiedTime: string;
       encoding: string;
+      bytes_read: number;
       content: string;
     }
   | {
