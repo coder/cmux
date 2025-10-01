@@ -20,6 +20,7 @@ import type {
   ToolCallEndEvent,
 } from "../types/aiEvents";
 import type { SendMessageError } from "../types/errors";
+import type { CmuxMetadata } from "../types/message";
 
 // Branded types for compile-time safety
 type WorkspaceId = string & { __brand: "WorkspaceId" };
@@ -43,6 +44,7 @@ interface WorkspaceStreamInfo {
   token: StreamToken;
   startTime: number;
   model: string;
+  initialMetadata?: Partial<CmuxMetadata>;
 }
 
 /**
@@ -110,7 +112,8 @@ export class StreamManager extends EventEmitter {
     modelString: string,
     abortSignal: AbortSignal,
     system: string,
-    tools?: Record<string, Tool>
+    tools?: Record<string, Tool>,
+    initialMetadata?: Partial<CmuxMetadata>
   ): Promise<WorkspaceStreamInfo> {
     // Create abort controller for this specific stream
     const abortController = new AbortController();
@@ -148,6 +151,7 @@ export class StreamManager extends EventEmitter {
       token: streamToken,
       startTime: Date.now(),
       model: modelString,
+      initialMetadata,
     };
 
     // Atomically register the stream
@@ -288,16 +292,18 @@ export class StreamManager extends EventEmitter {
         const providerMetadata = await streamInfo.streamResult.providerMetadata;
 
         // Emit stream end event with parts preserved in temporal order
-        // Metadata is structured for direct merging with CmuxMetadata
+        // Merge initialMetadata with runtime metadata for complete picture
         this.emit("stream-end", {
           type: "stream-end",
           workspaceId: workspaceId as string,
           messageId: streamInfo.messageId,
           metadata: {
+            ...streamInfo.initialMetadata, // AIService-provided metadata (systemMessageTokens, etc)
             usage,
             tokens: usage?.totalTokens,
             model: streamInfo.model,
             providerMetadata,
+            duration: Date.now() - streamInfo.startTime,
           },
           parts, // Parts array with temporal ordering
         } as StreamEndEvent);
@@ -409,7 +415,8 @@ export class StreamManager extends EventEmitter {
     historySequence: number,
     system: string,
     abortSignal?: AbortSignal,
-    tools?: Record<string, Tool>
+    tools?: Record<string, Tool>,
+    initialMetadata?: Partial<CmuxMetadata>
   ): Promise<Result<StreamToken, SendMessageError>> {
     const typedWorkspaceId = workspaceId as WorkspaceId;
 
@@ -426,7 +433,8 @@ export class StreamManager extends EventEmitter {
         modelString,
         abortSignal || new AbortController().signal,
         system,
-        tools
+        tools,
+        initialMetadata
       );
 
       // Step 3: Process stream with guaranteed cleanup (runs in background)

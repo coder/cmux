@@ -21,6 +21,7 @@ export interface CmuxMetadata {
   timestamp?: number;
   model?: string;
   providerMetadata?: ProviderMetadata;
+  systemMessageTokens?: number; // Token count for system message sent with this request
 }
 
 // CmuxMessage extends UIMessage with our metadata

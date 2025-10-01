@@ -1,25 +1,31 @@
 import js from "@eslint/js";
-import typescript from "@typescript-eslint/eslint-plugin";
-import typescriptParser from "@typescript-eslint/parser";
+import tseslint from "typescript-eslint";
 import react from "eslint-plugin-react";
 import reactHooks from "eslint-plugin-react-hooks";
 
-export default [
+export default tseslint.config(
   js.configs.recommended,
+  ...tseslint.configs.recommendedTypeChecked,
+  ...tseslint.configs.stylisticTypeChecked,
   {
-    ignores: ["src/main.tsx"],
+    ignores: [
+      "dist/",
+      "build/",
+      "node_modules/",
+      "*.js",
+      "*.cjs",
+      "*.mjs",
+      "!eslint.config.mjs",
+      "vite.config.ts",
+      "electron.vite.config.ts",
+    ],
   },
   {
     files: ["src/**/*.{ts,tsx}"],
     languageOptions: {
-      parser: typescriptParser,
       parserOptions: {
-        ecmaVersion: 2020,
-        sourceType: "module",
-        ecmaFeatures: {
-          jsx: true,
-        },
-        project: "./tsconfig.json",
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
       },
       globals: {
         console: "readonly",
@@ -43,7 +49,6 @@ export default [
       },
     },
     plugins: {
-      "@typescript-eslint": typescript,
       react: react,
       "react-hooks": reactHooks,
     },
@@ -53,7 +58,6 @@ export default [
       },
     },
     rules: {
-      ...typescript.configs.recommended.rules,
       ...react.configs.recommended.rules,
       ...reactHooks.configs.recommended.rules,
 
@@ -140,18 +144,5 @@ export default [
         afterAll: "readonly",
       },
     },
-  },
-  {
-    ignores: [
-      "dist/",
-      "build/",
-      "node_modules/",
-      "*.js",
-      "*.cjs",
-      "*.mjs",
-      "!eslint.config.mjs",
-      "vite.config.ts",
-      "electron.vite.config.ts",
-    ],
-  },
-];
+  }
+);

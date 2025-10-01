@@ -34,20 +34,6 @@ const TokenizerInfo = styled.div`
   font-style: italic;
 `;
 
-const InfoNote = styled.div`
-  color: #888888;
-  font-size: 11px;
-  margin-top: 4px;
-  font-style: italic;
-`;
-
-const TotalTokens = styled.div`
-  font-size: 16px;
-  font-weight: 400;
-  color: #ffffff;
-  margin-bottom: 8px;
-`;
-
 const ConsumerList = styled.div`
   display: flex;
   flex-direction: column;
@@ -517,16 +503,8 @@ export const CostsTab: React.FC = () => {
       )}
 
       <Section>
-        <SectionTitle dimmed>Content Tokens</SectionTitle>
-        <TokenizerInfo>Estimated using {stats.tokenizerName}</TokenizerInfo>
-        <TotalTokens>{stats.totalTokens.toLocaleString()} tokens</TotalTokens>
-        <InfoNote>
-          Actual API costs include system overhead (prompts, tool definitions, etc.)
-        </InfoNote>
-      </Section>
-
-      <Section>
         <SectionTitle dimmed>Breakdown by Consumer</SectionTitle>
+        <TokenizerInfo>Estimated using {stats.tokenizerName}</TokenizerInfo>
         <ConsumerList>
           {stats.consumers.map((consumer) => {
             // Calculate percentages for fixed and variable segments

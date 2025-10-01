@@ -10,11 +10,7 @@
 import { CmuxMessage } from "../types/message";
 import { ChatStats, TokenConsumer } from "../types/chatStats";
 import type { LanguageModelV2Usage } from "@ai-sdk/provider";
-import {
-  getTokenizerForModel,
-  countTokensForData,
-  getToolDefinitionTokens,
-} from "./tokenCalculation";
+import { getTokenizerForModel, countTokensForData, getToolDefinitionTokens } from "./tokenizer";
 import { getModelStats } from "./modelStats";
 
 export interface ChatUsageComponent {
@@ -158,6 +154,7 @@ export async function calculateTokenStats(
   const consumerMap = new Map<string, { fixed: number; variable: number }>();
   const toolsWithDefinitions = new Set<string>(); // Track which tools have definitions included
   const usageHistory: ChatUsageDisplay[] = [];
+  let systemMessageTokens = 0; // Accumulate system message tokens across all requests
 
   // Calculate tokens by content producer (User, Assistant, individual tools)
   // This shows what activities are consuming tokens, useful for debugging costs
@@ -173,6 +170,11 @@ export async function calculateTokenStats(
       const existing = consumerMap.get("User") || { fixed: 0, variable: 0 };
       consumerMap.set("User", { fixed: 0, variable: existing.variable + userTokens });
     } else if (message.role === "assistant") {
+      // Accumulate system message tokens from this request
+      if (message.metadata?.systemMessageTokens) {
+        systemMessageTokens += message.metadata.systemMessageTokens;
+      }
+
       // Store usage in history for comparison with estimates
       if (message.metadata?.usage) {
         const usage = createDisplayUsage(
@@ -263,6 +265,11 @@ export async function calculateTokenStats(
         }
       }
     }
+  }
+
+  // Add system message tokens as a consumer if present
+  if (systemMessageTokens > 0) {
+    consumerMap.set("System", { fixed: 0, variable: systemMessageTokens });
   }
 
   // Calculate total tokens

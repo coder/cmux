@@ -16,20 +16,20 @@ export interface Tokenizer {
 export function getTokenizerForModel(modelString: string): Tokenizer {
   const provider = modelString.split(":")[0]?.toLowerCase();
 
+  const anthropicTokenizer = {
+    name: "Anthropic",
+    countTokens: async (text: string) => {
+      return Math.ceil(text.length / 4);
+    },
+  };
+
   switch (provider) {
     case "anthropic":
-      return {
-        name: "Anthropic Claude Tokenizer",
-        countTokens: async (text: string) => {
-          // TODO: Integrate @anthropic-ai/sdk countTokens()
-          // For now, rough approximation: ~4 chars per token
-          return Math.ceil(text.length / 4);
-        },
-      };
+      return anthropicTokenizer;
 
     case "openai":
       return {
-        name: "OpenAI Tokenizer",
+        name: "OpenAI",
         countTokens: async (text: string) => {
           // TODO: Integrate tiktoken for OpenAI models
           // For now, rough approximation: ~4 chars per token
@@ -39,7 +39,7 @@ export function getTokenizerForModel(modelString: string): Tokenizer {
 
     case "google":
       return {
-        name: "Google Gemini Tokenizer",
+        name: "Google Gemini",
         countTokens: async (text: string) => {
           // TODO: Integrate Google tokenizer
           // For now, rough approximation: ~4 chars per token
@@ -49,14 +49,9 @@ export function getTokenizerForModel(modelString: string): Tokenizer {
 
     default:
       // Default to Anthropic tokenizer for unknown models
-      console.warn(`Unknown model provider "${provider}", defaulting to Anthropic tokenizer`);
       return {
-        name: "Anthropic Claude Tokenizer (default)",
-        countTokens: async (text: string) => {
-          // TODO: Integrate @anthropic-ai/sdk countTokens()
-          // For now, rough approximation: ~4 chars per token
-          return Math.ceil(text.length / 4);
-        },
+        ...anthropicTokenizer,
+        name: "Unknown model, using Anthropic",
       };
   }
 }

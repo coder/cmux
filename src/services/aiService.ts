@@ -19,6 +19,7 @@ import {
 import { applyCacheControl } from "../utils/cacheStrategy";
 import { HistoryService } from "./historyService";
 import { buildSystemMessage } from "./systemMessage";
+import { getTokenizerForModel } from "../utils/tokenizer";
 
 // Export a standalone version of getToolsForModel for use in backend
 
@@ -216,6 +217,10 @@ export class AIService extends EventEmitter {
       // Build system message from workspace metadata
       const systemMessage = await buildSystemMessage(metadataResult.data);
 
+      // Count system message tokens for cost tracking
+      const tokenizer = getTokenizerForModel(this.defaultModel);
+      const systemMessageTokens = await tokenizer.countTokens(systemMessage);
+
       const workspacePath = metadataResult.data.workspacePath;
 
       // Get model-specific tools with workspace path configuration
@@ -226,6 +231,7 @@ export class AIService extends EventEmitter {
       const assistantMessage = createCmuxMessage(assistantMessageId, "assistant", "", {
         timestamp: Date.now(),
         model: this.defaultModel,
+        systemMessageTokens,
       });
 
       // Append to history to get historySequence assigned
@@ -237,7 +243,7 @@ export class AIService extends EventEmitter {
       // Get the assigned historySequence
       const historySequence = assistantMessage.metadata?.historySequence ?? 0;
 
-      // Delegate to StreamManager with model instance, system message, tools, and historySequence
+      // Delegate to StreamManager with model instance, system message, tools, historySequence, and initial metadata
       const streamResult = await this.streamManager.startStream(
         workspaceId,
         finalMessages,
@@ -246,7 +252,11 @@ export class AIService extends EventEmitter {
         historySequence,
         systemMessage,
         abortSignal,
-        tools
+        tools,
+        {
+          systemMessageTokens,
+          timestamp: Date.now(),
+        }
       );
 
       if (!streamResult.success) {
@@ -259,14 +269,13 @@ export class AIService extends EventEmitter {
       this.streamManager.once("stream-end", async (data: StreamEndEvent) => {
         if (data.workspaceId === workspaceId) {
           // Create assistant message with parts array preserving temporal ordering
-          // Metadata flows transparently from backend event
+          // Metadata is complete from StreamManager (includes systemMessageTokens, usage, etc)
           const finalAssistantMessage: CmuxMessage = {
             id: data.messageId,
             role: "assistant",
             metadata: {
               ...data.metadata,
               historySequence, // Reuse sequence number from placeholder to maintain message order
-              timestamp: Date.now(),
             },
             parts: data.parts,
           };

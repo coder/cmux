@@ -285,7 +285,7 @@ export class StreamingMessageAggregator {
         metadata: {
           ...data.metadata,
           timestamp: Date.now(),
-        } as CmuxMetadata, // Backend must include historySequence
+        },
         parts: data.parts,
       };
 

@@ -121,6 +121,26 @@ in `./docs/vercel/**.mdx`.
 
 - This pattern maximizes type safety and prevents runtime errors from typos or missing cases
 
+## Module Imports
+
+- **NEVER use dynamic imports** - Always use static `import` statements at the top of files. Dynamic imports (`await import()`) are a code smell that indicates improper module structure.
+
+  ```typescript
+  // ❌ BAD - Dynamic import hides circular dependency
+  const { getTokenizerForModel } = await import("../utils/tokenizer");
+
+  // ✅ GOOD - Static import at top of file
+  import { getTokenizerForModel } from "../utils/tokenizer";
+  ```
+
+- **If you encounter circular dependencies** - Restructure the code to eliminate them. Common solutions:
+  - Extract shared types/interfaces into a separate file
+  - Move shared utilities into a common module
+  - Invert the dependency relationship
+  - Use dependency injection instead of direct imports
+
+  Dynamic imports are NOT an acceptable workaround for circular dependencies.
+
 ## Debugging
 
 - `bun debug ui-messages --workspace <workspace-name>` - Show UI messages for a workspace
