@@ -203,7 +203,19 @@ ipcMain.handle(IPC_CHANNELS.WORKSPACE_GET_INFO, async (_event, workspaceId: stri
 
 ipcMain.handle(
   IPC_CHANNELS.WORKSPACE_SEND_MESSAGE,
-  async (_event, workspaceId: string, message: string, editMessageId?: string) => {
+  async (
+    _event,
+    workspaceId: string,
+    message: string,
+    editMessageId?: string,
+    thinkingLevel?: string
+  ) => {
+    log.debug("sendMessage handler: Received", {
+      workspaceId,
+      messagePreview: message.substring(0, 50),
+      editMessageId,
+      thinkingLevel,
+    });
     try {
       // If editing, truncate history after the message being edited
       if (editMessageId) {
@@ -264,7 +276,15 @@ ipcMain.handle(
       }
 
       // Stream the AI response
-      const streamResult = await aiService.streamMessage(historyResult.data, workspaceId);
+      log.debug("sendMessage handler: Calling aiService.streamMessage with thinkingLevel", {
+        thinkingLevel,
+      });
+      const streamResult = await aiService.streamMessage(
+        historyResult.data,
+        workspaceId,
+        thinkingLevel as any // Cast to ThinkingLevel - validated by TypeScript in frontend
+      );
+      log.debug("sendMessage handler: Stream completed");
       return streamResult;
     } catch (error) {
       // Convert to SendMessageError for typed error handling
@@ -391,6 +411,22 @@ aiService.on("tool-call-delta", (data: ToolCallDeltaEvent) => {
 });
 
 aiService.on("tool-call-end", (data: ToolCallEndEvent) => {
+  if (mainWindow) {
+    mainWindow.webContents.send(getChatChannel(data.workspaceId), data);
+  }
+});
+
+// Forward reasoning events to renderer
+aiService.on(
+  "reasoning-delta",
+  (data: { type: string; workspaceId: string; messageId: string; delta: string }) => {
+    if (mainWindow) {
+      mainWindow.webContents.send(getChatChannel(data.workspaceId), data);
+    }
+  }
+);
+
+aiService.on("reasoning-end", (data: { type: string; workspaceId: string; messageId: string }) => {
   if (mainWindow) {
     mainWindow.webContents.send(getChatChannel(data.workspaceId), data);
   }

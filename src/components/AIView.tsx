@@ -18,6 +18,8 @@ import {
   isToolCallStart,
   isToolCallDelta,
   isToolCallEnd,
+  isReasoningDelta,
+  isReasoningEnd,
 } from "../types/ipc";
 
 // StreamingMessageAggregator is now imported from utils
@@ -299,6 +301,20 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
 
         if (isToolCallEnd(data)) {
           aggregator.handleToolCallEnd(data);
+          updateUIAndScroll();
+          return;
+        }
+
+        // Handle reasoning events
+        if (isReasoningDelta(data)) {
+          console.log("[AIView] Received reasoning-delta", data);
+          aggregator.handleReasoningDelta(data);
+          updateUIAndScroll();
+          return;
+        }
+
+        if (isReasoningEnd(data)) {
+          aggregator.handleReasoningEnd(data);
           updateUIAndScroll();
           return;
         }

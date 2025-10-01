@@ -80,6 +80,26 @@ export interface ToolCallEndEvent {
   result: unknown;
 }
 
+// Reasoning events
+export interface ReasoningStartEvent {
+  type: "reasoning-start";
+  workspaceId: string;
+  messageId: string;
+}
+
+export interface ReasoningDeltaEvent {
+  type: "reasoning-delta";
+  workspaceId: string;
+  messageId: string;
+  delta: string;
+}
+
+export interface ReasoningEndEvent {
+  type: "reasoning-end";
+  workspaceId: string;
+  messageId: string;
+}
+
 export type AIServiceEvent =
   | StreamStartEvent
   | StreamDeltaEvent
@@ -87,4 +107,7 @@ export type AIServiceEvent =
   | ErrorEvent
   | ToolCallStartEvent
   | ToolCallDeltaEvent
-  | ToolCallEndEvent;
+  | ToolCallEndEvent
+  | ReasoningStartEvent
+  | ReasoningDeltaEvent
+  | ReasoningEndEvent;

@@ -44,6 +44,12 @@ export const GlobalColors = () => (
         --color-debug-alpha: hsl(from var(--color-debug) h s l / 0.1);
         --color-debug-text: color-mix(in srgb, var(--color-debug), white 30%);
 
+        /* Thinking Mode Colors */
+        --color-thinking-mode: hsl(271 76% 53%); /* BlueViolet purple */
+        --color-thinking-mode-light: color-mix(in srgb, var(--color-thinking-mode), white 20%);
+        --color-thinking-mode-alpha: hsl(from var(--color-thinking-mode) h s l / 0.1);
+        --color-thinking-border: var(--color-thinking-mode);
+
         /* Background & Layout Colors */
         --color-background: hsl(0 0% 12%);
         --color-background-secondary: hsl(60 1% 15%);

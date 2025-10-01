@@ -20,6 +20,8 @@ import { applyCacheControl } from "../utils/cacheStrategy";
 import { HistoryService } from "./historyService";
 import { buildSystemMessage } from "./systemMessage";
 import { getTokenizerForModel } from "../utils/tokenizer";
+import { buildProviderOptions } from "../utils/providerOptions";
+import { ThinkingLevel } from "../types/thinking";
 
 // Export a standalone version of getToolsForModel for use in backend
 
@@ -49,6 +51,9 @@ export class AIService extends EventEmitter {
     this.streamManager.on("tool-call-start", (data) => this.emit("tool-call-start", data));
     this.streamManager.on("tool-call-delta", (data) => this.emit("tool-call-delta", data));
     this.streamManager.on("tool-call-end", (data) => this.emit("tool-call-end", data));
+    // Forward reasoning events
+    this.streamManager.on("reasoning-delta", (data) => this.emit("reasoning-delta", data));
+    this.streamManager.on("reasoning-end", (data) => this.emit("reasoning-end", data));
   }
 
   private async ensureSessionsDir(): Promise<void> {
@@ -170,12 +175,14 @@ export class AIService extends EventEmitter {
    * Stream a message conversation to the AI model
    * @param messages Array of conversation messages
    * @param workspaceId Unique identifier for the workspace
+   * @param thinkingLevel Optional thinking/reasoning level for AI models
    * @param abortSignal Optional signal to abort the stream
    * @returns Promise that resolves when streaming completes or fails
    */
   async streamMessage(
     messages: CmuxMessage[],
     workspaceId: string,
+    thinkingLevel?: ThinkingLevel,
     abortSignal?: AbortSignal
   ): Promise<Result<void, SendMessageError>> {
     try {
@@ -243,6 +250,9 @@ export class AIService extends EventEmitter {
       // Get the assigned historySequence
       const historySequence = assistantMessage.metadata?.historySequence ?? 0;
 
+      // Build provider options based on thinking level
+      const providerOptions = buildProviderOptions(this.defaultModel, thinkingLevel || "off");
+
       // Delegate to StreamManager with model instance, system message, tools, historySequence, and initial metadata
       const streamResult = await this.streamManager.startStream(
         workspaceId,
@@ -256,7 +266,8 @@ export class AIService extends EventEmitter {
         {
           systemMessageTokens,
           timestamp: Date.now(),
-        }
+        },
+        providerOptions
       );
 
       if (!streamResult.success) {

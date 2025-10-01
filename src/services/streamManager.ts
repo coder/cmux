@@ -11,6 +11,7 @@ import {
   RetryError,
 } from "ai";
 import { Result, Ok, Err } from "../types/result";
+import { log } from "./log";
 import type {
   StreamStartEvent,
   StreamDeltaEvent,
@@ -113,7 +114,8 @@ export class StreamManager extends EventEmitter {
     abortSignal: AbortSignal,
     system: string,
     tools?: Record<string, Tool>,
-    initialMetadata?: Partial<CmuxMetadata>
+    initialMetadata?: Partial<CmuxMetadata>,
+    providerOptions?: Record<string, unknown>
   ): Promise<WorkspaceStreamInfo> {
     // Create abort controller for this specific stream
     const abortController = new AbortController();
@@ -133,6 +135,7 @@ export class StreamManager extends EventEmitter {
         abortSignal: abortController.signal,
         tools,
         stopWhen: stepCountIs(1000), // Allow up to 1000 steps (effectively unlimited)
+        providerOptions: providerOptions as any, // Pass provider-specific options (thinking/reasoning config)
       });
     } catch (error) {
       // Clean up abort controller if stream creation fails
@@ -207,6 +210,13 @@ export class StreamManager extends EventEmitter {
           break;
         }
 
+        // Log all stream parts to debug reasoning
+        log.debug("streamManager: Stream part", {
+          type: part.type,
+          hasText: "text" in part,
+          preview: "text" in part ? (part as any).text?.substring(0, 50) : undefined,
+        });
+
         switch (part.type) {
           case "text-delta":
             currentTextBuffer += part.text;
@@ -216,6 +226,25 @@ export class StreamManager extends EventEmitter {
               messageId: streamInfo.messageId,
               delta: part.text,
             } as StreamDeltaEvent);
+            break;
+
+          case "reasoning-delta":
+            // Emit reasoning delta to frontend
+            this.emit("reasoning-delta", {
+              type: "reasoning-delta",
+              workspaceId: workspaceId as string,
+              messageId: streamInfo.messageId,
+              delta: (part as any).text || "",
+            });
+            break;
+
+          case "reasoning-end":
+            // Emit reasoning end event
+            this.emit("reasoning-end", {
+              type: "reasoning-end",
+              workspaceId: workspaceId as string,
+              messageId: streamInfo.messageId,
+            });
             break;
 
           case "tool-call":
@@ -288,6 +317,25 @@ export class StreamManager extends EventEmitter {
         // Get usage information from the stream result
         const usage = await streamInfo.streamResult.usage;
 
+        // Extract reasoning content if available
+        let reasoningText: string | undefined;
+        let reasoningTokens: number | undefined;
+        try {
+          const reasoning = await streamInfo.streamResult.reasoning;
+          if (reasoning && reasoning.length > 0) {
+            // Combine all reasoning items into a single text
+            reasoningText = reasoning.map((item) => item.text).join("");
+            log.info("streamManager: Reasoning extracted", {
+              hasReasoning: true,
+              reasoningLength: reasoning.length,
+              textLength: reasoningText.length,
+              reasoningPreview: reasoningText.substring(0, 100),
+            });
+          }
+        } catch (err) {
+          log.debug("streamManager: No reasoning available or error", err);
+        }
+
         // Get provider metadata which contains cache statistics
         const providerMetadata = await streamInfo.streamResult.providerMetadata;
 
@@ -304,6 +352,9 @@ export class StreamManager extends EventEmitter {
             model: streamInfo.model,
             providerMetadata,
             duration: Date.now() - streamInfo.startTime,
+            reasoning: reasoningText,
+            reasoningTokens,
+            isReasoningStreaming: false,
           },
           parts, // Parts array with temporal ordering
         } as StreamEndEvent);
@@ -416,7 +467,8 @@ export class StreamManager extends EventEmitter {
     system: string,
     abortSignal?: AbortSignal,
     tools?: Record<string, Tool>,
-    initialMetadata?: Partial<CmuxMetadata>
+    initialMetadata?: Partial<CmuxMetadata>,
+    providerOptions?: Record<string, unknown>
   ): Promise<Result<StreamToken, SendMessageError>> {
     const typedWorkspaceId = workspaceId as WorkspaceId;
 
@@ -434,7 +486,8 @@ export class StreamManager extends EventEmitter {
         abortSignal || new AbortController().signal,
         system,
         tools,
-        initialMetadata
+        initialMetadata,
+        providerOptions
       );
 
       // Step 3: Process stream with guaranteed cleanup (runs in background)

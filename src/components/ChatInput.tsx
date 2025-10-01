@@ -5,6 +5,8 @@ import { ChatInputToast, Toast, SolutionLabel } from "./ChatInputToast";
 import { parseCommand, ParsedCommand } from "../utils/commandParser";
 import { SendMessageError as SendMessageErrorType } from "../types/errors";
 import { usePersistedState } from "../hooks/usePersistedState";
+import { ThinkingSliderComponent } from "./ThinkingSlider";
+import { ThinkingLevel } from "../types/thinking";
 
 const InputSection = styled.div`
   position: relative;
@@ -247,6 +249,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const [availableCommands] = useState<string[]>([]); // Will be populated in future
   const [toast, setToast] = useState<Toast | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const [thinkingLevel] = usePersistedState<ThinkingLevel>(`thinkingLevel:${workspaceId}`, "off");
 
   // When entering editing mode, populate input with message content
   useEffect(() => {
@@ -345,7 +348,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         const result = await window.api.workspace.sendMessage(
           workspaceId,
           messageText,
-          editingMessage?.id
+          editingMessage?.id,
+          thinkingLevel
         );
 
         if (!result.success) {
@@ -460,6 +464,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             />
             Debug Mode
           </DebugModeToggle>
+          <ThinkingSliderComponent workspaceId={workspaceId} />
         </ModeTogglesRow>
       </ModeToggles>
     </InputSection>

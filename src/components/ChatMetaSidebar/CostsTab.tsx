@@ -504,7 +504,9 @@ export const CostsTab: React.FC = () => {
 
       <Section>
         <SectionTitle dimmed>Breakdown by Consumer</SectionTitle>
-        <TokenizerInfo>Estimated using {stats.tokenizerName}</TokenizerInfo>
+        <TokenizerInfo>
+          Estimated using tokenizer: <span>{stats.tokenizerName}</span>
+        </TokenizerInfo>
         <ConsumerList>
           {stats.consumers.map((consumer) => {
             // Calculate percentages for fixed and variable segments

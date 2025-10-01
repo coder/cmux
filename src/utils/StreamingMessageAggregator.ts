@@ -6,6 +6,8 @@ import type {
   ToolCallStartEvent,
   ToolCallDeltaEvent,
   ToolCallEndEvent,
+  ReasoningDeltaEvent,
+  ReasoningEndEvent,
 } from "../types/aiEvents";
 import type { WorkspaceChatMessage } from "../types/ipc";
 import type {
@@ -355,6 +357,42 @@ export class StreamingMessageAggregator {
     }
   }
 
+  handleReasoningDelta(data: ReasoningDeltaEvent): void {
+    const message = this.messages.get(data.messageId);
+    if (!message?.metadata) {
+      console.log(
+        "[Aggregator] handleReasoningDelta: No message or metadata found",
+        data.messageId
+      );
+      return;
+    }
+
+    // Initialize reasoning if not present
+    if (!message.metadata.reasoning) {
+      message.metadata.reasoning = "";
+      message.metadata.isReasoningStreaming = true;
+      console.log("[Aggregator] handleReasoningDelta: Initialized reasoning for", data.messageId);
+    }
+
+    // Append delta to reasoning content
+    message.metadata.reasoning += data.delta;
+    console.log(
+      "[Aggregator] handleReasoningDelta: Added delta, total length:",
+      message.metadata.reasoning.length,
+      "isStreaming:",
+      message.metadata.isReasoningStreaming
+    );
+    this.incrementDisplayVersion();
+  }
+
+  handleReasoningEnd(data: ReasoningEndEvent): void {
+    const message = this.messages.get(data.messageId);
+    if (message?.metadata) {
+      message.metadata.isReasoningStreaming = false;
+      this.incrementDisplayVersion();
+    }
+  }
+
   handleMessage(data: WorkspaceChatMessage): void {
     // Handle regular messages (user messages, historical messages)
     // Check if it's a CmuxMessage (has role property but no type)
@@ -424,6 +462,23 @@ export class StreamingMessageAggregator {
         // Assistant messages: each part becomes a separate DisplayedMessage
         // Use streamSequence to order parts within this message
         let streamSeq = 0;
+
+        // Add reasoning first if present (shows before assistant response)
+        // Check for reasoning being set (even if empty string) by checking isReasoningStreaming or reasoning !== undefined
+        if (message.metadata?.isReasoningStreaming || message.metadata?.reasoning !== undefined) {
+          displayedMessages.push({
+            type: "reasoning",
+            id: `${message.id}-reasoning`,
+            historyId: message.id,
+            content: message.metadata.reasoning || "",
+            historySequence,
+            streamSequence: streamSeq++,
+            isStreaming: message.metadata.isReasoningStreaming ?? false,
+            timestamp: baseTimestamp,
+            tokens: message.metadata.reasoningTokens,
+          });
+        }
+
         message.parts.forEach((part, partIndex) => {
           if (part.type === "text" && part.text) {
             // Skip empty text parts

@@ -22,6 +22,9 @@ export interface CmuxMetadata {
   model?: string;
   providerMetadata?: ProviderMetadata;
   systemMessageTokens?: number; // Token count for system message sent with this request
+  reasoning?: string; // Extended thinking/reasoning content
+  reasoningTokens?: number; // Token count for reasoning
+  isReasoningStreaming?: boolean; // Whether reasoning is currently streaming
 }
 
 // CmuxMessage extends UIMessage with our metadata
@@ -63,6 +66,17 @@ export type DisplayedMessage =
       historySequence: number; // Global ordering across all messages
       streamSequence?: number; // Local ordering within this assistant message
       timestamp?: number;
+    }
+  | {
+      type: "reasoning";
+      id: string; // Display ID for UI/React keys
+      historyId: string; // Original CmuxMessage ID for history operations
+      content: string;
+      historySequence: number; // Global ordering across all messages
+      streamSequence?: number; // Local ordering within this assistant message
+      isStreaming: boolean;
+      timestamp?: number;
+      tokens?: number; // Reasoning tokens if available
     };
 
 // Helper to create a simple text message

@@ -3,6 +3,7 @@ import { WorkspaceMetadata } from "./workspace";
 import type { CmuxMessage } from "./message";
 import type { ProjectConfig } from "../config";
 import type { SendMessageError } from "./errors";
+import type { ThinkingLevel } from "./thinking";
 import type {
   StreamStartEvent,
   StreamDeltaEvent,
@@ -10,6 +11,8 @@ import type {
   ToolCallStartEvent,
   ToolCallDeltaEvent,
   ToolCallEndEvent,
+  ReasoningDeltaEvent,
+  ReasoningEndEvent,
 } from "./aiEvents";
 
 // Import constants from constants module (single source of truth)
@@ -43,7 +46,9 @@ export type WorkspaceChatMessage =
   | StreamEndEvent
   | ToolCallStartEvent
   | ToolCallDeltaEvent
-  | ToolCallEndEvent;
+  | ToolCallEndEvent
+  | ReasoningDeltaEvent
+  | ReasoningEndEvent;
 
 // Type guard for caught up messages
 export function isCaughtUpMessage(msg: WorkspaceChatMessage): msg is CaughtUpMessage {
@@ -85,6 +90,16 @@ export function isToolCallEnd(msg: WorkspaceChatMessage): msg is ToolCallEndEven
   return "type" in msg && msg.type === "tool-call-end";
 }
 
+// Type guard for reasoning delta events
+export function isReasoningDelta(msg: WorkspaceChatMessage): msg is ReasoningDeltaEvent {
+  return "type" in msg && msg.type === "reasoning-delta";
+}
+
+// Type guard for reasoning end events
+export function isReasoningEnd(msg: WorkspaceChatMessage): msg is ReasoningEndEvent {
+  return "type" in msg && msg.type === "reasoning-end";
+}
+
 // API method signatures (shared between main and preload)
 export interface IPCApi {
   config: {
@@ -111,7 +126,8 @@ export interface IPCApi {
     sendMessage(
       workspaceId: string,
       message: string,
-      editMessageId?: string
+      editMessageId?: string,
+      thinkingLevel?: ThinkingLevel
     ): Promise<Result<void, SendMessageError>>;
     clearHistory(workspaceId: string): Promise<Result<void, string>>;
     getInfo(workspaceId: string): Promise<WorkspaceMetadata | null>;
