@@ -15,9 +15,11 @@ import { log } from "./log";
 import {
   transformModelMessages,
   validateAnthropicCompliance,
+  addInterruptedSentinel,
 } from "../utils/modelMessageTransform";
 import { applyCacheControl } from "../utils/cacheStrategy";
 import { HistoryService } from "./historyService";
+import { PartialService } from "./partialService";
 import { buildSystemMessage } from "./systemMessage";
 import { getTokenizerForModel } from "../utils/tokenizer";
 import { buildProviderOptions } from "../utils/providerOptions";
@@ -27,13 +29,16 @@ import { ThinkingLevel } from "../types/thinking";
 
 export class AIService extends EventEmitter {
   private readonly METADATA_FILE = "metadata.json";
-  private streamManager = new StreamManager();
+  private streamManager: StreamManager;
   private defaultModel = "anthropic:claude-opus-4-1"; // Default model string
   private historyService: HistoryService;
+  private partialService: PartialService;
 
-  constructor(historyService: HistoryService) {
+  constructor(historyService: HistoryService, partialService: PartialService) {
     super();
     this.historyService = historyService;
+    this.partialService = partialService;
+    this.streamManager = new StreamManager(historyService, partialService);
     this.ensureSessionsDir();
     this.setupStreamEventForwarding();
   }
@@ -186,6 +191,10 @@ export class AIService extends EventEmitter {
     abortSignal?: AbortSignal
   ): Promise<Result<void, SendMessageError>> {
     try {
+      // Before starting a new stream, commit any existing partial to history
+      // This is idempotent - won't double-commit if already in chat.jsonl
+      await this.partialService.commitToHistory(workspaceId);
+
       // Create model instance with early API key validation
       const modelResult = await this.createModel(this.defaultModel);
       if (!modelResult.success) {
@@ -195,8 +204,12 @@ export class AIService extends EventEmitter {
       // Dump original messages for debugging
       log.debug_obj(`${workspaceId}/1_original_messages.json`, messages);
 
+      // Add [INTERRUPTED] sentinel to partial messages (for model context)
+      const messagesWithSentinel = addInterruptedSentinel(messages);
+
       // Convert CmuxMessage to ModelMessage format using Vercel AI SDK utility
-      const modelMessages = convertToModelMessages(messages);
+      // Type assertion needed because CmuxMessage has custom tool parts for interrupted tools
+      const modelMessages = convertToModelMessages(messagesWithSentinel as any);
 
       log.debug_obj(`${workspaceId}/2_model_messages.json`, modelMessages);
 
@@ -275,31 +288,8 @@ export class AIService extends EventEmitter {
         return Err(streamResult.error);
       }
 
-      // Listen for stream-end events to update placeholder with final message
-      // Note: We UPDATE the placeholder (line 221) instead of appending to avoid duplicates
-      this.streamManager.once("stream-end", async (data: StreamEndEvent) => {
-        if (data.workspaceId === workspaceId) {
-          // Create assistant message with parts array preserving temporal ordering
-          // Metadata is complete from StreamManager (includes systemMessageTokens, usage, etc)
-          const finalAssistantMessage: CmuxMessage = {
-            id: data.messageId,
-            role: "assistant",
-            metadata: {
-              ...data.metadata,
-              historySequence, // Reuse sequence number from placeholder to maintain message order
-            },
-            parts: data.parts,
-          };
-
-          // Only update if there are parts (text or tool calls)
-          if (data.parts && data.parts.length > 0) {
-            // UPDATE replaces placeholder in place, preventing duplicate sequence numbers
-            await this.historyService.updateHistory(workspaceId, finalAssistantMessage);
-          }
-          log.info("stream end usage:", data.metadata.usage);
-        }
-      });
-
+      // StreamManager now handles history updates directly on stream-end
+      // No need for event listener here
       return Ok(undefined);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);

@@ -1,13 +1,46 @@
-import type { CmuxMessage } from "../types/message";
+import type { CmuxMessage, CmuxTextPart, DisplayedMessage } from "../types/message";
 
 /**
  * Extracts text content from message parts
  */
 export function extractTextContent(message: CmuxMessage): string {
   return message.parts
-    .filter((p): p is { type: "text"; text: string } => p.type === "text")
+    .filter((p): p is CmuxTextPart => p.type === "text")
     .map((p) => p.text || "")
     .join("");
+}
+
+/**
+ * Determines if the interrupted barrier should be shown for a DisplayedMessage.
+ *
+ * The barrier should show when:
+ * - Assistant messages: Was interrupted (isPartial) AND not currently streaming
+ * - Tool messages: Parent message was interrupted (isPartial)
+ *
+ * The barrier should NOT show during active streaming.
+ */
+export function shouldShowInterruptedBarrier(msg: DisplayedMessage): boolean {
+  // User messages never show interrupted barrier
+  if (msg.type === "user" || msg.type === "reasoning") {
+    return false;
+  }
+
+  // Only show on the last part of multi-part messages
+  if (!msg.isLastPartOfMessage) {
+    return false;
+  }
+
+  if (msg.type === "assistant") {
+    // Show only if message was interrupted and is no longer streaming
+    return msg.isPartial && !msg.isStreaming;
+  }
+
+  if (msg.type === "tool") {
+    // Show if parent message was interrupted, regardless of individual tool status
+    return msg.isPartial;
+  }
+
+  return false;
 }
 
 /**

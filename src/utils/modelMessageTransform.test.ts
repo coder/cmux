@@ -39,7 +39,7 @@ describe("modelMessageTransform", () => {
       expect(result).toEqual(messages);
     });
 
-    it("should split assistant messages with mixed text and tool calls without results", () => {
+    it("should strip tool calls without results (interrupted)", () => {
       const assistantMsg: AssistantModelMessage = {
         role: "assistant",
         content: [
@@ -51,15 +51,92 @@ describe("modelMessageTransform", () => {
 
       const result = transformModelMessages(messages);
 
-      expect(result).toHaveLength(2);
+      // Should only keep text, strip interrupted tool calls
+      expect(result).toHaveLength(1);
       expect(result[0].role).toBe("assistant");
       expect((result[0] as AssistantModelMessage).content).toEqual([
         { type: "text", text: "Let me check that for you." },
       ]);
-      expect(result[1].role).toBe("assistant");
-      expect((result[1] as AssistantModelMessage).content).toEqual([
-        { type: "tool-call", toolCallId: "call1", toolName: "bash", input: { script: "ls" } },
+    });
+
+    it("should handle partial results (some tool calls interrupted)", () => {
+      // Assistant makes 3 tool calls, but only 2 have results (3rd was interrupted)
+      const assistantMsg: AssistantModelMessage = {
+        role: "assistant",
+        content: [
+          { type: "text", text: "Let me check a few things." },
+          { type: "tool-call", toolCallId: "call1", toolName: "bash", input: { script: "pwd" } },
+          { type: "tool-call", toolCallId: "call2", toolName: "bash", input: { script: "ls" } },
+          { type: "tool-call", toolCallId: "call3", toolName: "bash", input: { script: "date" } },
+        ],
+      };
+      const toolMsg: ToolModelMessage = {
+        role: "tool",
+        content: [
+          {
+            type: "tool-result",
+            toolCallId: "call1",
+            toolName: "bash",
+            output: { type: "json", value: { stdout: "/home/user" } },
+          },
+          {
+            type: "tool-result",
+            toolCallId: "call2",
+            toolName: "bash",
+            output: { type: "json", value: { stdout: "file1 file2" } },
+          },
+          // call3 has no result (interrupted)
+        ],
+      };
+      const messages: ModelMessage[] = [assistantMsg, toolMsg];
+
+      const result = transformModelMessages(messages);
+
+      // Should have: text message, tool calls (only call1 & call2), tool results
+      expect(result).toHaveLength(3);
+
+      // First: text
+      expect(result[0].role).toBe("assistant");
+      expect((result[0] as AssistantModelMessage).content).toEqual([
+        { type: "text", text: "Let me check a few things." },
       ]);
+
+      // Second: only tool calls with results (call1, call2), NOT call3
+      expect(result[1].role).toBe("assistant");
+      const toolCallContent = (result[1] as AssistantModelMessage).content;
+      expect(Array.isArray(toolCallContent)).toBe(true);
+      if (Array.isArray(toolCallContent)) {
+        expect(toolCallContent).toHaveLength(2);
+        expect(toolCallContent[0]).toEqual({
+          type: "tool-call",
+          toolCallId: "call1",
+          toolName: "bash",
+          input: { script: "pwd" },
+        });
+        expect(toolCallContent[1]).toEqual({
+          type: "tool-call",
+          toolCallId: "call2",
+          toolName: "bash",
+          input: { script: "ls" },
+        });
+      }
+
+      // Third: tool results (only for call1 & call2)
+      expect(result[2].role).toBe("tool");
+      const toolResultContent = (result[2] as ToolModelMessage).content;
+      expect(toolResultContent).toHaveLength(2);
+      expect(toolResultContent[0]).toEqual({
+        type: "tool-result",
+        toolCallId: "call1",
+        toolName: "bash",
+        output: { type: "json", value: { stdout: "/home/user" } },
+      });
+      expect(toolResultContent[1]).toEqual({
+        type: "tool-result",
+        toolCallId: "call2",
+        toolName: "bash",
+        output: { type: "json", value: { stdout: "file1 file2" } },
+      });
     });
 
     it("should handle mixed content with tool results properly", () => {

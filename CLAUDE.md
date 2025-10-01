@@ -176,3 +176,8 @@ or component, update all the duplicated code, and then continue on with the orig
 
 - For every operation in the frontend, there should be a keyboard shortcut.
 - Buttons, widgets, etc. that have a keybind should display a tooltip for it during hover.
+
+## Logging
+
+In the backend, use the `log` class from `log.ts` to log messages. Particularly spammy messages
+should go through `log.debug()`.

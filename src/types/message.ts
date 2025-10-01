@@ -1,4 +1,4 @@
-import type { UIMessage, ToolUIPart } from "ai";
+import type { UIMessage, UIMessagePart, UITool, UIToolInvocation } from "ai";
 import type { LanguageModelV2Usage } from "@ai-sdk/provider";
 
 // Shared provider metadata type for cache statistics and other provider-specific data
@@ -25,11 +25,32 @@ export interface CmuxMetadata {
   reasoning?: string; // Extended thinking/reasoning content
   reasoningTokens?: number; // Token count for reasoning
   isReasoningStreaming?: boolean; // Whether reasoning is currently streaming
+  partial?: boolean; // Whether this message was interrupted and is incomplete
 }
 
-// CmuxMessage extends UIMessage with our metadata
-// Supports text parts and tool parts (for tool calls and results)
-export type CmuxMessage = UIMessage<CmuxMetadata, ToolUIPart, never>;
+// Extended tool part type that supports interrupted tool calls (input-available state)
+// Standard AI SDK ToolUIPart only supports output-available (completed tools)
+export type CmuxToolPart = {
+  type: "dynamic-tool";
+  toolCallId: string;
+  toolName: string;
+  state: "input-available" | "output-available";
+  input: unknown;
+  output?: unknown;
+};
+
+// Text part type that supports both streaming and completed states
+export type CmuxTextPart = {
+  type: "text";
+  text: string;
+  state: "done" | "streaming";
+};
+
+// CmuxMessage extends UIMessage with our metadata and custom tool parts
+// Supports text parts and tool parts (including interrupted tool calls)
+export type CmuxMessage = Omit<UIMessage<CmuxMetadata, never, never>, "parts"> & {
+  parts: (CmuxTextPart | CmuxToolPart)[];
+};
 
 // DisplayedMessage represents a single UI message block
 // This is what the UI components consume, splitting complex messages into separate visual blocks
@@ -50,6 +71,8 @@ export type DisplayedMessage =
       historySequence: number; // Global ordering across all messages
       streamSequence?: number; // Local ordering within this assistant message
       isStreaming: boolean;
+      isPartial: boolean; // Whether this message was interrupted
+      isLastPartOfMessage?: boolean; // True if this is the last part of a multi-part message
       model?: string;
       timestamp?: number;
       tokens?: number;
@@ -62,9 +85,11 @@ export type DisplayedMessage =
       toolName: string;
       args: unknown;
       result?: unknown;
-      status: "pending" | "executing" | "completed" | "failed";
+      status: "pending" | "executing" | "completed" | "failed" | "interrupted";
+      isPartial: boolean; // Whether the parent message was interrupted
       historySequence: number; // Global ordering across all messages
       streamSequence?: number; // Local ordering within this assistant message
+      isLastPartOfMessage?: boolean; // True if this is the last part of a multi-part message
       timestamp?: number;
     }
   | {

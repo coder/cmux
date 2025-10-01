@@ -13,6 +13,7 @@ import {
 import { createWorktree, removeWorktree } from "./git";
 import { AIService } from "./services/aiService";
 import { HistoryService } from "./services/historyService";
+import { PartialService } from "./services/partialService";
 import { createCmuxMessage } from "./types/message";
 import { log } from "./services/log";
 import type {
@@ -29,7 +30,8 @@ import type { SendMessageError } from "./types/errors";
 import type { StreamErrorMessage } from "./types/ipc";
 
 const historyService = new HistoryService();
-const aiService = new AIService(historyService);
+const partialService = new PartialService(historyService);
+const aiService = new AIService(historyService, partialService);
 
 console.log("Main process starting...");
 
@@ -262,6 +264,10 @@ ipcMain.handle(
         mainWindow.webContents.send(getChatChannel(workspaceId), userMessage);
       }
 
+      // Commit any existing partial to history BEFORE loading
+      // This ensures interrupted messages are included in the AI's context
+      await partialService.commitToHistory(workspaceId);
+
       // Get full conversation history
       const historyResult = await historyService.getHistory(workspaceId);
       if (!historyResult.success) {
@@ -349,9 +355,18 @@ ipcMain.on(`workspace:chat:subscribe`, async (_event, workspaceId: string) => {
   // Emit current chat history immediately
   const history = await historyService.getHistory(workspaceId);
   if (history.success) {
+    // Merge partial.json with chat history for complete message list
+    const partial = await partialService.readPartial(workspaceId);
+
+    // Send all history messages
     history.data.forEach((msg) => {
       mainWindow?.webContents.send(chatChannel, msg);
     });
+
+    // If there's a partial message (interrupted stream), send it after history
+    if (partial) {
+      mainWindow?.webContents.send(chatChannel, partial);
+    }
   }
 
   // Send caught-up signal

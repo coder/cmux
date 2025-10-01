@@ -51,6 +51,8 @@ export const StatusIndicator = styled.span<{ status: string }>`
         return "#4caf50";
       case "failed":
         return "#f44336";
+      case "interrupted":
+        return "var(--color-warning, #f59e0b)";
       default:
         return "#9e9e9e";
     }

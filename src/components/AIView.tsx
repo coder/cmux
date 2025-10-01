@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import styled from "@emotion/styled";
 import { MessageRenderer } from "./Messages/MessageRenderer";
+import { InterruptedBarrier } from "./Messages/InterruptedBarrier";
 import { ChatInput } from "./ChatInput";
 import { ErrorMessage } from "./ErrorMessage";
 import { ChatMetaSidebar } from "./ChatMetaSidebar";
 import { DisplayedMessage, CmuxMessage } from "../types/message";
 import { StreamingMessageAggregator } from "../utils/StreamingMessageAggregator";
+import { shouldShowInterruptedBarrier } from "../utils/messageUtils";
 import { DebugProvider, useDebugMode } from "../contexts/DebugContext";
 import { ChatProvider } from "../contexts/ChatContext";
 import { ThinkingProvider } from "../contexts/ThinkingContext";
@@ -16,6 +18,7 @@ import {
   isStreamStart,
   isStreamDelta,
   isStreamEnd,
+  isStreamAbort,
   isToolCallStart,
   isToolCallDelta,
   isToolCallEnd,
@@ -287,6 +290,13 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
           return;
         }
 
+        if (isStreamAbort(data)) {
+          // Stream was interrupted - mark message as partial
+          aggregator.handleStreamAbort(data);
+          updateUIAndScroll();
+          return;
+        }
+
         // Handle tool call events with simplified delegation
         if (isToolCallStart(data)) {
           aggregator.handleToolCallStart(data);
@@ -487,6 +497,7 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
                           ⚠️ Messages below this line will be removed when you submit the edit
                         </EditBarrier>
                       )}
+                      {shouldShowInterruptedBarrier(msg) && <InterruptedBarrier />}
                     </React.Fragment>
                   );
                 })}

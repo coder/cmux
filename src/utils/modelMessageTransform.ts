@@ -4,6 +4,40 @@
  */
 
 import type { ModelMessage, AssistantModelMessage, ToolModelMessage } from "ai";
+import type { CmuxMessage } from "../types/message";
+
+/**
+ * Add [INTERRUPTED] sentinel to partial messages.
+ * This helps the model understand that a message was interrupted and incomplete.
+ * The sentinel is ONLY for model context, not shown in UI.
+ */
+export function addInterruptedSentinel(messages: CmuxMessage[]): CmuxMessage[] {
+  return messages.map((msg) => {
+    // Only process assistant messages with partial flag
+    if (msg.role !== "assistant" || !msg.metadata?.partial) {
+      return msg;
+    }
+
+    // Find the last text part
+    const parts = [...msg.parts];
+    for (let i = parts.length - 1; i >= 0; i--) {
+      const part = parts[i];
+      if (part.type === "text" && part.text) {
+        // Append sentinel to last text part
+        parts[i] = {
+          ...part,
+          text: part.text + "\n\n[INTERRUPTED]",
+        };
+        break;
+      }
+    }
+
+    return {
+      ...msg,
+      parts,
+    };
+  });
+}
 
 /**
  * Ensure Anthropic API compliance by fixing message sequences where:
@@ -83,34 +117,54 @@ export function transformModelMessages(messages: ModelMessage[]): ModelMessage[]
         // Process each group
         for (const group of groups) {
           if (group.parts.length > 0) {
-            const newAssistantMsg: AssistantModelMessage = {
-              role: "assistant",
-              content: group.parts,
-            };
-            result.push(newAssistantMsg);
+            let partsToInclude = group.parts;
 
-            // If this group has tool calls that need results,
-            // add the tool results right after
+            // If this is a tool-call group, filter to only include tool calls that have results
             if (group.type === "tool-call" && hasToolResults) {
-              // Get the tool call IDs from this group
-              const toolCallIds = new Set(
-                group.parts
-                  .filter((p) => p.type === "tool-call")
-                  .map((p) => (p.type === "tool-call" ? p.toolCallId : ""))
-                  .filter(Boolean)
+              // Get the IDs of tool calls that have results
+              const resultIds = new Set(
+                toolMsg.content
+                  .filter((r) => r.type === "tool-result")
+                  .map((r) => (r.type === "tool-result" ? r.toolCallId : ""))
               );
 
-              // Filter the tool results to only include those for these tool calls
-              const relevantResults = toolMsg.content.filter(
-                (r) => r.type === "tool-result" && toolCallIds.has(r.toolCallId)
+              // Only include tool calls that have corresponding results
+              partsToInclude = group.parts.filter(
+                (p) => p.type === "tool-call" && resultIds.has(p.toolCallId)
               );
+            }
 
-              if (relevantResults.length > 0) {
-                const newToolMsg: ToolModelMessage = {
-                  role: "tool",
-                  content: relevantResults,
-                };
-                result.push(newToolMsg);
+            // Only create assistant message if there are parts to include
+            if (partsToInclude.length > 0) {
+              const newAssistantMsg: AssistantModelMessage = {
+                role: "assistant",
+                content: partsToInclude,
+              };
+              result.push(newAssistantMsg);
+
+              // If this group has tool calls that need results,
+              // add the tool results right after
+              if (group.type === "tool-call" && hasToolResults) {
+                // Get the tool call IDs from filtered parts
+                const toolCallIds = new Set(
+                  partsToInclude
+                    .filter((p) => p.type === "tool-call")
+                    .map((p) => (p.type === "tool-call" ? p.toolCallId : ""))
+                    .filter(Boolean)
+                );
+
+                // Filter the tool results to only include those for these tool calls
+                const relevantResults = toolMsg.content.filter(
+                  (r) => r.type === "tool-result" && toolCallIds.has(r.toolCallId)
+                );
+
+                if (relevantResults.length > 0) {
+                  const newToolMsg: ToolModelMessage = {
+                    role: "tool",
+                    content: relevantResults,
+                  };
+                  result.push(newToolMsg);
+                }
               }
             }
           }
@@ -125,10 +179,12 @@ export function transformModelMessages(messages: ModelMessage[]): ModelMessage[]
         result.push(msg);
       }
     } else {
-      // No tool results follow, so we can keep text and tool calls together
-      // But let's still separate them for cleaner API calls
+      // No tool results follow, which means these tool calls were interrupted
+      // Anthropic API requires EVERY tool_use to have a tool_result, so we must
+      // strip out interrupted tool calls entirely. The text content with
+      // [INTERRUPTED] sentinel gives the model enough context.
 
-      // First, all text parts
+      // Only include text parts (strip out interrupted tool calls)
       if (textParts.length > 0) {
         const textMsg: AssistantModelMessage = {
           role: "assistant",
@@ -137,14 +193,9 @@ export function transformModelMessages(messages: ModelMessage[]): ModelMessage[]
         result.push(textMsg);
       }
 
-      // Then, all tool calls
-      if (toolCallParts.length > 0) {
-        const toolCallMsg: AssistantModelMessage = {
-          role: "assistant",
-          content: toolCallParts,
-        };
-        result.push(toolCallMsg);
-      }
+      // DO NOT include tool calls without results - they violate Anthropic API requirements
+      // The interrupted tool calls are preserved in chat.jsonl for UI display, but
+      // excluded from API calls since they have no results
     }
   }
 

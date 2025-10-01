@@ -19,10 +19,13 @@ import type {
   ErrorEvent,
   ToolCallStartEvent,
   ToolCallEndEvent,
+  CompletedMessagePart,
 } from "../types/aiEvents";
 import type { SendMessageError } from "../types/errors";
-import type { CmuxMetadata } from "../types/message";
+import type { CmuxMetadata, CmuxMessage } from "../types/message";
 import { getTokenizerForModel } from "../utils/tokenizer";
+import type { PartialService } from "./partialService";
+import type { HistoryService } from "./historyService";
 
 // Branded types for compile-time safety
 type WorkspaceId = string & { __brand: "WorkspaceId" };
@@ -47,6 +50,15 @@ interface WorkspaceStreamInfo {
   startTime: number;
   model: string;
   initialMetadata?: Partial<CmuxMetadata>;
+  historySequence: number;
+  // Track accumulated parts for partial message
+  parts: CompletedMessagePart[];
+  // Track last partial write time for throttling
+  lastPartialWriteTime: number;
+  // Throttle timer for partial writes
+  partialWriteTimer?: NodeJS.Timeout;
+  // Track in-flight write to serialize writes
+  partialWritePromise?: Promise<void>;
 }
 
 /**
@@ -59,6 +71,92 @@ interface WorkspaceStreamInfo {
  */
 export class StreamManager extends EventEmitter {
   private workspaceStreams = new Map<WorkspaceId, WorkspaceStreamInfo>();
+  private readonly PARTIAL_WRITE_THROTTLE_MS = 500;
+  private readonly historyService: HistoryService;
+  private readonly partialService: PartialService;
+
+  constructor(historyService: HistoryService, partialService: PartialService) {
+    super();
+    this.historyService = historyService;
+    this.partialService = partialService;
+  }
+
+  /**
+   * Write the current partial message to disk (throttled by mtime)
+   * Ensures writes happen during rapid streaming (crash-resilient)
+   */
+  private async schedulePartialWrite(
+    workspaceId: WorkspaceId,
+    streamInfo: WorkspaceStreamInfo
+  ): Promise<void> {
+    const now = Date.now();
+    const timeSinceLastWrite = now - streamInfo.lastPartialWriteTime;
+
+    // If enough time has passed, write immediately
+    if (timeSinceLastWrite >= this.PARTIAL_WRITE_THROTTLE_MS) {
+      await this.flushPartialWrite(workspaceId, streamInfo);
+      return;
+    }
+
+    // Otherwise, schedule write for remaining time (fire-and-forget for scheduled writes)
+    if (streamInfo.partialWriteTimer) {
+      clearTimeout(streamInfo.partialWriteTimer);
+    }
+
+    const remainingTime = this.PARTIAL_WRITE_THROTTLE_MS - timeSinceLastWrite;
+    streamInfo.partialWriteTimer = setTimeout(() => {
+      void this.flushPartialWrite(workspaceId, streamInfo);
+    }, remainingTime);
+  }
+
+  /**
+   * Flush any pending partial write and write immediately
+   * Serializes writes to prevent races - waits for any in-flight write before starting new one
+   */
+  private async flushPartialWrite(
+    workspaceId: WorkspaceId,
+    streamInfo: WorkspaceStreamInfo
+  ): Promise<void> {
+    // Wait for any in-flight write to complete first (serialization)
+    if (streamInfo.partialWritePromise) {
+      await streamInfo.partialWritePromise;
+    }
+
+    // Clear throttle timer
+    if (streamInfo.partialWriteTimer) {
+      clearTimeout(streamInfo.partialWriteTimer);
+      streamInfo.partialWriteTimer = undefined;
+    }
+
+    // Start new write and track the promise
+    streamInfo.partialWritePromise = (async () => {
+      try {
+        const partialMessage: CmuxMessage = {
+          id: streamInfo.messageId,
+          role: "assistant",
+          metadata: {
+            historySequence: streamInfo.historySequence,
+            timestamp: streamInfo.startTime,
+            model: streamInfo.model,
+            partial: true, // Always true - this method only writes partial messages
+            ...streamInfo.initialMetadata,
+          },
+          parts: streamInfo.parts.length > 0 ? streamInfo.parts : [],
+        };
+
+        await this.partialService.writePartial(workspaceId as string, partialMessage);
+        streamInfo.lastPartialWriteTime = Date.now();
+      } catch (error) {
+        log.error("Failed to write partial message:", error);
+      } finally {
+        // Clear promise when write completes
+        streamInfo.partialWritePromise = undefined;
+      }
+    })();
+
+    // Wait for this write to complete
+    await streamInfo.partialWritePromise;
+  }
 
   /**
    * Atomically ensures stream safety by cancelling any existing stream
@@ -85,6 +183,10 @@ export class StreamManager extends EventEmitter {
   ): Promise<void> {
     try {
       streamInfo.state = StreamState.STOPPING;
+
+      // Flush any pending partial write immediately (preserves work on interruption)
+      await this.flushPartialWrite(workspaceId, streamInfo);
+
       streamInfo.abortController.abort();
 
       // Emit abort event
@@ -114,6 +216,7 @@ export class StreamManager extends EventEmitter {
     modelString: string,
     abortSignal: AbortSignal,
     system: string,
+    historySequence: number,
     tools?: Record<string, Tool>,
     initialMetadata?: Partial<CmuxMetadata>,
     providerOptions?: Record<string, unknown>
@@ -156,6 +259,10 @@ export class StreamManager extends EventEmitter {
       startTime: Date.now(),
       model: modelString,
       initialMetadata,
+      historySequence,
+      parts: [], // Initialize empty parts array
+      lastPartialWriteTime: 0, // Initialize to 0 to allow immediate first write
+      partialWritePromise: undefined, // No write in flight initially
     };
 
     // Atomically register the stream
@@ -185,18 +292,6 @@ export class StreamManager extends EventEmitter {
         historySequence,
       } as StreamStartEvent);
 
-      // Track the temporal structure of parts as they occur
-      const parts: Array<
-        | { type: "text"; text: string; state: "done" }
-        | {
-            type: "dynamic-tool";
-            toolCallId: string;
-            toolName: string;
-            state: "output-available";
-            input: unknown;
-            output?: unknown;
-          }
-      > = [];
       let currentTextBuffer = "";
 
       // Use fullStream to capture all events including tool calls
@@ -227,6 +322,29 @@ export class StreamManager extends EventEmitter {
               messageId: streamInfo.messageId,
               delta: part.text,
             } as StreamDeltaEvent);
+
+            // Update parts array for partial message
+            if (
+              streamInfo.parts.length > 0 &&
+              streamInfo.parts[streamInfo.parts.length - 1].type === "text"
+            ) {
+              // Update existing text part
+              streamInfo.parts[streamInfo.parts.length - 1] = {
+                type: "text",
+                text: currentTextBuffer,
+                state: "done",
+              };
+            } else {
+              // Add new text part
+              streamInfo.parts.push({
+                type: "text",
+                text: currentTextBuffer,
+                state: "done",
+              });
+            }
+
+            // Schedule partial write (throttled, fire-and-forget to not block stream)
+            void this.schedulePartialWrite(workspaceId, streamInfo);
             break;
 
           case "reasoning-delta":
@@ -249,18 +367,28 @@ export class StreamManager extends EventEmitter {
             break;
 
           case "tool-call":
-            // Save any accumulated text before the tool call
-            if (currentTextBuffer) {
-              parts.push({ type: "text", text: currentTextBuffer, state: "done" });
-              currentTextBuffer = "";
-            }
+            // Reset text buffer to separate text segments (text is already in parts from text-delta handler)
+            // We don't push here because text-delta already maintains parts array
+            currentTextBuffer = "";
 
-            // Tool call started
+            // Tool call started - store in map for later lookup
             toolCalls.set(part.toolCallId, {
               toolCallId: part.toolCallId,
               toolName: part.toolName,
               input: part.input,
             });
+
+            // IMPORTANT: Add tool part to streamInfo.parts immediately (not just on completion)
+            // This ensures in-progress tool calls are saved to partial.json if stream is interrupted
+            const toolPart = {
+              type: "dynamic-tool" as const,
+              toolCallId: part.toolCallId,
+              toolName: part.toolName,
+              state: "input-available" as const,
+              input: part.input,
+            };
+            streamInfo.parts.push(toolPart);
+
             this.emit("tool-call-start", {
               type: "tool-call-start",
               workspaceId: workspaceId as string,
@@ -272,19 +400,38 @@ export class StreamManager extends EventEmitter {
             break;
 
           case "tool-result": {
-            // Tool call completed
+            // Tool call completed - update the existing tool part with output
             const toolCall = toolCalls.get(part.toolCallId);
             if (toolCall) {
               toolCall.output = part.output;
-              // Add tool part to parts array
-              parts.push({
-                type: "dynamic-tool",
-                toolCallId: part.toolCallId,
-                toolName: part.toolName,
-                state: "output-available",
-                input: toolCall.input,
-                output: part.output,
-              });
+
+              // Find and update the existing tool part (added during tool-call)
+              const existingPartIndex = streamInfo.parts.findIndex(
+                (p) => p.type === "dynamic-tool" && p.toolCallId === part.toolCallId
+              );
+
+              if (existingPartIndex !== -1) {
+                // Update existing part with output
+                const existingPart = streamInfo.parts[existingPartIndex];
+                if (existingPart.type === "dynamic-tool") {
+                  streamInfo.parts[existingPartIndex] = {
+                    ...existingPart,
+                    state: "output-available" as const,
+                    output: part.output,
+                  };
+                }
+              } else {
+                // Fallback: part not found (shouldn't happen), add it
+                streamInfo.parts.push({
+                  type: "dynamic-tool" as const,
+                  toolCallId: part.toolCallId,
+                  toolName: part.toolName,
+                  state: "output-available" as const,
+                  input: toolCall.input,
+                  output: part.output,
+                });
+              }
+
               this.emit("tool-call-end", {
                 type: "tool-call-end",
                 workspaceId: workspaceId as string,
@@ -293,6 +440,9 @@ export class StreamManager extends EventEmitter {
                 toolName: part.toolName,
                 result: part.output,
               } as ToolCallEndEvent);
+
+              // Schedule partial write after tool result (throttled, fire-and-forget)
+              void this.schedulePartialWrite(workspaceId, streamInfo);
             }
             break;
           }
@@ -308,10 +458,14 @@ export class StreamManager extends EventEmitter {
         }
       }
 
-      // Save any remaining text after the last tool call
-      if (currentTextBuffer) {
-        parts.push({ type: "text", text: currentTextBuffer, state: "done" });
-      }
+      // No need to save remaining text - text-delta handler already maintains parts array
+      // (Removed duplicate push that was causing double text parts)
+
+      // Flush final state to partial.json for crash resilience
+      // This happens regardless of abort status to ensure the final state is persisted to disk
+      // On abort: second flush after cancelStreamSafely, ensures all streamed content is saved
+      // On normal completion: provides crash resilience before AIService writes to chat.jsonl
+      await this.flushPartialWrite(workspaceId, streamInfo);
 
       // Check if stream completed successfully
       if (!streamInfo.abortController.signal.aborted) {
@@ -369,7 +523,7 @@ export class StreamManager extends EventEmitter {
 
         // Emit stream end event with parts preserved in temporal order
         // Merge initialMetadata with runtime metadata for complete picture
-        this.emit("stream-end", {
+        const streamEndEvent = {
           type: "stream-end",
           workspaceId: workspaceId as string,
           messageId: streamInfo.messageId,
@@ -384,8 +538,30 @@ export class StreamManager extends EventEmitter {
             reasoningTokens,
             isReasoningStreaming: false,
           },
-          parts, // Parts array with temporal ordering
-        } as StreamEndEvent);
+          parts: streamInfo.parts, // Parts array with temporal ordering
+        } as StreamEndEvent;
+
+        this.emit("stream-end", streamEndEvent);
+
+        // Update history with final message (only if there are parts)
+        if (streamInfo.parts && streamInfo.parts.length > 0) {
+          const finalAssistantMessage: CmuxMessage = {
+            id: streamInfo.messageId,
+            role: "assistant",
+            metadata: {
+              ...streamEndEvent.metadata,
+              historySequence: streamInfo.historySequence,
+            },
+            parts: streamInfo.parts,
+          };
+
+          // CRITICAL: Delete partial.json before updating chat.jsonl
+          // On successful completion, partial.json becomes stale and must be removed
+          await this.partialService.deletePartial(workspaceId as string);
+
+          // Update the placeholder message in chat.jsonl with final content
+          await this.historyService.updateHistory(workspaceId as string, finalAssistantMessage);
+        }
       }
     } catch (error) {
       streamInfo.state = StreamState.ERROR;
@@ -513,6 +689,7 @@ export class StreamManager extends EventEmitter {
         modelString,
         abortSignal || new AbortController().signal,
         system,
+        historySequence,
         tools,
         initialMetadata,
         providerOptions

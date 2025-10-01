@@ -3,6 +3,7 @@ import * as path from "path";
 import { Result, Ok, Err } from "../types/result";
 import { CmuxMessage } from "../types/message";
 import { getSessionDir } from "../config";
+import { MutexMap } from "../utils/mutexMap";
 
 /**
  * HistoryService - Manages chat history persistence and sequence numbering
@@ -16,24 +17,56 @@ export class HistoryService {
   private readonly CHAT_FILE = "chat.jsonl";
   // Track next sequence number per workspace in memory
   private sequenceCounters = new Map<string, number>();
+  // File operation locks per workspace to prevent race conditions
+  private fileLocks = new MutexMap<string>();
 
   private getChatHistoryPath(workspaceId: string): string {
     return path.join(getSessionDir(workspaceId), this.CHAT_FILE);
   }
 
-  async getHistory(workspaceId: string): Promise<Result<CmuxMessage[]>> {
+  /**
+   * Read raw messages from chat.jsonl (does not include partial.json)
+   * Returns empty array if file doesn't exist
+   * Skips malformed JSON lines to prevent data loss from corruption
+   */
+  private async readChatHistory(workspaceId: string): Promise<CmuxMessage[]> {
     try {
-      const historyPath = this.getChatHistoryPath(workspaceId);
-      const data = await fs.readFile(historyPath, "utf-8");
-      const messages = data
-        .split("\n")
-        .filter((line) => line.trim())
-        .map((line) => JSON.parse(line) as CmuxMessage);
-      return Ok(messages);
+      const chatHistoryPath = this.getChatHistoryPath(workspaceId);
+      const data = await fs.readFile(chatHistoryPath, "utf-8");
+      const lines = data.split("\n").filter((line) => line.trim());
+      const messages: CmuxMessage[] = [];
+
+      for (let i = 0; i < lines.length; i++) {
+        try {
+          const message = JSON.parse(lines[i]) as CmuxMessage;
+          messages.push(message);
+        } catch (parseError) {
+          // Skip malformed lines but log error for debugging
+          console.error(
+            `[HistoryService] Skipping malformed JSON at line ${i + 1} in ${workspaceId}/chat.jsonl:`,
+            parseError instanceof Error ? parseError.message : String(parseError),
+            "\nLine content:",
+            lines[i].substring(0, 100) + (lines[i].length > 100 ? "..." : "")
+          );
+        }
+      }
+
+      return messages;
     } catch (error) {
       if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") {
-        return Ok([]); // No history yet
+        return []; // No history yet
       }
+      throw error; // Re-throw non-ENOENT errors
+    }
+  }
+
+  async getHistory(workspaceId: string): Promise<Result<CmuxMessage[]>> {
+    try {
+      // Read chat history from disk
+      // Note: partial.json is NOT merged here - it's managed by PartialService
+      const messages = await this.readChatHistory(workspaceId);
+      return Ok(messages);
+    } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       return Err(`Failed to read history: ${message}`);
     }
@@ -70,7 +103,14 @@ export class HistoryService {
     return 0;
   }
 
-  async appendToHistory(workspaceId: string, message: CmuxMessage): Promise<Result<void>> {
+  /**
+   * Internal helper for appending to history without acquiring lock
+   * Used by both appendToHistory and commitPartial to avoid deadlock
+   */
+  private async _appendToHistoryUnlocked(
+    workspaceId: string,
+    message: CmuxMessage
+  ): Promise<Result<void>> {
     try {
       const workspaceDir = getSessionDir(workspaceId);
       await fs.mkdir(workspaceDir, { recursive: true });
@@ -118,59 +158,67 @@ export class HistoryService {
     }
   }
 
+  async appendToHistory(workspaceId: string, message: CmuxMessage): Promise<Result<void>> {
+    return this.fileLocks.withLock(workspaceId, async () => {
+      return this._appendToHistoryUnlocked(workspaceId, message);
+    });
+  }
+
   /**
    * Update an existing message in history by historySequence
    * Reads entire history, replaces the matching message, and rewrites the file
    */
   async updateHistory(workspaceId: string, message: CmuxMessage): Promise<Result<void>> {
-    try {
-      const historyPath = this.getChatHistoryPath(workspaceId);
+    return this.fileLocks.withLock(workspaceId, async () => {
+      try {
+        const historyPath = this.getChatHistoryPath(workspaceId);
 
-      // Read all messages
-      const historyResult = await this.getHistory(workspaceId);
-      if (!historyResult.success) {
-        return historyResult; // Return the error
-      }
-
-      const messages = historyResult.data;
-      const targetSequence = message.metadata?.historySequence;
-
-      if (targetSequence === undefined) {
-        return Err("Cannot update message without historySequence");
-      }
-
-      // Find and replace the message with matching historySequence
-      let found = false;
-      for (let i = 0; i < messages.length; i++) {
-        if (messages[i].metadata?.historySequence === targetSequence) {
-          // Preserve the historySequence, update everything else
-          messages[i] = {
-            ...message,
-            metadata: {
-              ...message.metadata,
-              historySequence: targetSequence,
-            },
-          };
-          found = true;
-          break;
+        // Read all messages
+        const historyResult = await this.getHistory(workspaceId);
+        if (!historyResult.success) {
+          return historyResult; // Return the error
         }
+
+        const messages = historyResult.data;
+        const targetSequence = message.metadata?.historySequence;
+
+        if (targetSequence === undefined) {
+          return Err("Cannot update message without historySequence");
+        }
+
+        // Find and replace the message with matching historySequence
+        let found = false;
+        for (let i = 0; i < messages.length; i++) {
+          if (messages[i].metadata?.historySequence === targetSequence) {
+            // Preserve the historySequence, update everything else
+            messages[i] = {
+              ...message,
+              metadata: {
+                ...message.metadata,
+                historySequence: targetSequence,
+              },
+            };
+            found = true;
+            break;
+          }
+        }
+
+        if (!found) {
+          return Err(`No message found with historySequence ${targetSequence}`);
+        }
+
+        // Rewrite entire file
+        const historyEntries = messages
+          .map((msg) => JSON.stringify({ ...msg, workspaceId }) + "\n")
+          .join("");
+
+        await fs.writeFile(historyPath, historyEntries);
+        return Ok(undefined);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        return Err(`Failed to update history: ${message}`);
       }
-
-      if (!found) {
-        return Err(`No message found with historySequence ${targetSequence}`);
-      }
-
-      // Rewrite entire file
-      const historyEntries = messages
-        .map((msg) => JSON.stringify({ ...msg, workspaceId }) + "\n")
-        .join("");
-
-      await fs.writeFile(historyPath, historyEntries);
-      return Ok(undefined);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      return Err(`Failed to update history: ${message}`);
-    }
+    });
   }
 
   /**
@@ -178,61 +226,66 @@ export class HistoryService {
    * Removes the message with the given ID and all subsequent messages
    */
   async truncateAfterMessage(workspaceId: string, messageId: string): Promise<Result<void>> {
-    try {
-      const historyResult = await this.getHistory(workspaceId);
-      if (!historyResult.success) {
-        return historyResult;
+    return this.fileLocks.withLock(workspaceId, async () => {
+      try {
+        const historyResult = await this.getHistory(workspaceId);
+        if (!historyResult.success) {
+          return historyResult;
+        }
+
+        const messages = historyResult.data;
+        const messageIndex = messages.findIndex((msg) => msg.id === messageId);
+
+        if (messageIndex === -1) {
+          return Err(`Message with ID ${messageId} not found in history`);
+        }
+
+        // Keep only messages before the target message
+        const truncatedMessages = messages.slice(0, messageIndex);
+
+        // Rewrite the history file with truncated messages
+        const historyPath = this.getChatHistoryPath(workspaceId);
+        const historyEntries = truncatedMessages
+          .map((msg) => JSON.stringify({ ...msg, workspaceId }) + "\n")
+          .join("");
+
+        await fs.writeFile(historyPath, historyEntries);
+
+        // Update sequence counter to continue from where we truncated
+        if (truncatedMessages.length > 0) {
+          const lastMsg = truncatedMessages[truncatedMessages.length - 1];
+          const lastSeq = lastMsg.metadata?.historySequence ?? 0;
+          this.sequenceCounters.set(workspaceId, lastSeq + 1);
+        } else {
+          this.sequenceCounters.set(workspaceId, 0);
+        }
+
+        return Ok(undefined);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        return Err(`Failed to truncate history: ${message}`);
       }
-
-      const messages = historyResult.data;
-      const messageIndex = messages.findIndex((msg) => msg.id === messageId);
-
-      if (messageIndex === -1) {
-        return Err(`Message with ID ${messageId} not found in history`);
-      }
-
-      // Keep only messages before the target message
-      const truncatedMessages = messages.slice(0, messageIndex);
-
-      // Rewrite the history file with truncated messages
-      const historyPath = this.getChatHistoryPath(workspaceId);
-      const historyEntries = truncatedMessages
-        .map((msg) => JSON.stringify({ ...msg, workspaceId }) + "\n")
-        .join("");
-
-      await fs.writeFile(historyPath, historyEntries);
-
-      // Update sequence counter to continue from where we truncated
-      if (truncatedMessages.length > 0) {
-        const lastMsg = truncatedMessages[truncatedMessages.length - 1];
-        const lastSeq = lastMsg.metadata?.historySequence ?? 0;
-        this.sequenceCounters.set(workspaceId, lastSeq + 1);
-      } else {
-        this.sequenceCounters.set(workspaceId, 0);
-      }
-
-      return Ok(undefined);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      return Err(`Failed to truncate history: ${message}`);
-    }
+    });
   }
 
   async clearHistory(workspaceId: string): Promise<Result<void>> {
-    try {
-      const historyPath = this.getChatHistoryPath(workspaceId);
-      await fs.unlink(historyPath);
-      // Reset sequence counter when clearing history
-      this.sequenceCounters.set(workspaceId, 0);
-      return Ok(undefined);
-    } catch (error) {
-      if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") {
-        // Already cleared, reset counter anyway
+    return this.fileLocks.withLock(workspaceId, async () => {
+      try {
+        const historyPath = this.getChatHistoryPath(workspaceId);
+        await fs.unlink(historyPath);
+        // Reset sequence counter when clearing history
         this.sequenceCounters.set(workspaceId, 0);
+        // Note: partial.json is now managed by PartialService
         return Ok(undefined);
+      } catch (error) {
+        if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") {
+          // Already cleared, reset counter anyway
+          this.sequenceCounters.set(workspaceId, 0);
+          return Ok(undefined);
+        }
+        const message = error instanceof Error ? error.message : String(error);
+        return Err(`Failed to clear history: ${message}`);
       }
-      const message = error instanceof Error ? error.message : String(error);
-      return Err(`Failed to clear history: ${message}`);
-    }
+    });
   }
 }

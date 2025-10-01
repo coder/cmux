@@ -3,6 +3,7 @@ import type {
   StreamStartEvent,
   StreamDeltaEvent,
   StreamEndEvent,
+  StreamAbortEvent,
   ToolCallStartEvent,
   ToolCallDeltaEvent,
   ToolCallEndEvent,
@@ -38,12 +39,12 @@ interface StreamingContext {
  * 4. STRUCTURE ONLY: Only transform data structure (e.g., streaming to final messages)
  */
 export class StreamingMessageAggregator {
-  private messages: Map<string, CmuxMessage> = new Map();
-  private activeStreams: Map<string, StreamingContext> = new Map();
-  private streamSequenceCounter: number = 0; // For ordering parts within a streaming message
+  private messages = new Map<string, CmuxMessage>();
+  private activeStreams = new Map<string, StreamingContext>();
+  private streamSequenceCounter = 0; // For ordering parts within a streaming message
 
   // Display version tracking for efficient React updates
-  private displayVersion: number = 0;
+  private displayVersion = 0;
 
   // Increment version on any mutation
   private incrementDisplayVersion(): void {
@@ -296,6 +297,34 @@ export class StreamingMessageAggregator {
     this.incrementDisplayVersion();
   }
 
+  handleStreamAbort(data: StreamAbortEvent): void {
+    // Find active stream if exists
+    const activeStream = this.getActiveStreams().find((s) => s.messageId === data.messageId);
+
+    if (activeStream) {
+      // Mark the message as interrupted
+      const message = this.messages.get(data.messageId);
+      if (message) {
+        // Mark all streaming text parts as done (freeze current state)
+        for (let i = 0; i < message.parts.length; i++) {
+          const part = message.parts[i];
+          if (part.type === "text" && part.state === "streaming") {
+            message.parts[i] = { ...part, state: "done" };
+          }
+        }
+
+        // Set partial flag to indicate interruption
+        if (message.metadata) {
+          message.metadata.partial = true;
+        }
+      }
+
+      // Clean up active stream
+      this.activeStreams.delete(activeStream.streamingId);
+      this.incrementDisplayVersion();
+    }
+  }
+
   handleToolCallStart(data: ToolCallStartEvent): void {
     const message = this.messages.get(data.messageId);
     if (!message) return;
@@ -346,8 +375,8 @@ export class StreamingMessageAggregator {
       // We don't move it - it stays in its original temporal position
       const toolPart = message.parts.find(
         (part): part is DynamicToolPart =>
-          part.type === "dynamic-tool" && (part as DynamicToolPart).toolCallId === data.toolCallId
-      ) as DynamicToolPart | undefined;
+          part.type === "dynamic-tool" && part.toolCallId === data.toolCallId
+      );
       if (toolPart) {
         // Type assertion needed because TypeScript can't narrow the discriminated union
         (toolPart as DynamicToolPartAvailable).state = "output-available";
@@ -468,7 +497,20 @@ export class StreamingMessageAggregator {
           });
         }
 
+        // Find the last part that will produce a DisplayedMessage
+        // (text parts with content OR tool parts)
+        let lastPartIndex = -1;
+        for (let i = message.parts.length - 1; i >= 0; i--) {
+          const part = message.parts[i];
+          if ((part.type === "text" && part.text) || isDynamicToolPart(part)) {
+            lastPartIndex = i;
+            break;
+          }
+        }
+
         message.parts.forEach((part, partIndex) => {
+          const isLastPart = partIndex === lastPartIndex;
+
           if (part.type === "text" && part.text) {
             // Skip empty text parts
             displayedMessages.push({
@@ -479,6 +521,8 @@ export class StreamingMessageAggregator {
               historySequence,
               streamSequence: streamSeq++,
               isStreaming: part.state === "streaming",
+              isPartial: message.metadata?.partial ?? false,
+              isLastPartOfMessage: isLastPart,
               model: message.metadata?.model,
               timestamp: baseTimestamp,
               tokens: message.metadata?.tokens,
@@ -487,9 +531,11 @@ export class StreamingMessageAggregator {
             const status =
               part.state === "output-available"
                 ? "completed"
-                : part.state === "input-available"
-                  ? "executing"
-                  : "pending";
+                : part.state === "input-available" && message.metadata?.partial
+                  ? "interrupted"
+                  : part.state === "input-available"
+                    ? "executing"
+                    : "pending";
 
             displayedMessages.push({
               type: "tool",
@@ -500,8 +546,10 @@ export class StreamingMessageAggregator {
               args: part.input,
               result: part.state === "output-available" ? part.output : undefined,
               status,
+              isPartial: message.metadata?.partial ?? false,
               historySequence,
               streamSequence: streamSeq++,
+              isLastPartOfMessage: isLastPart,
               timestamp: baseTimestamp,
             });
           }

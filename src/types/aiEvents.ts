@@ -5,6 +5,21 @@
 import type { LanguageModelV2Usage } from "@ai-sdk/provider";
 import type { ProviderMetadata } from "./message";
 
+/**
+ * Completed message part (text or tool) suitable for serialization
+ * Used in StreamEndEvent and partial message storage
+ */
+export type CompletedMessagePart =
+  | { type: "text"; text: string; state: "done" }
+  | {
+      type: "dynamic-tool";
+      toolCallId: string;
+      toolName: string;
+      state: "input-available" | "output-available";
+      input: unknown;
+      output?: unknown;
+    };
+
 export interface StreamStartEvent {
   type: "stream-start";
   workspaceId: string;
@@ -32,17 +47,13 @@ export interface StreamEndEvent {
     providerMetadata?: ProviderMetadata;
   };
   // Parts array preserves temporal ordering of text and tool calls
-  parts: Array<
-    | { type: "text"; text: string; state: "done" }
-    | {
-        type: "dynamic-tool";
-        toolCallId: string;
-        toolName: string;
-        state: "output-available";
-        input: unknown;
-        output?: unknown;
-      }
-  >;
+  parts: CompletedMessagePart[];
+}
+
+export interface StreamAbortEvent {
+  type: "stream-abort";
+  workspaceId: string;
+  messageId: string;
 }
 
 export interface ErrorEvent {
