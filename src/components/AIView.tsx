@@ -22,6 +22,7 @@ import {
   isReasoningDelta,
   isReasoningEnd,
 } from "../types/ipc";
+import { DEFAULT_MODEL } from "../constants/models";
 
 // StreamingMessageAggregator is now imported from utils
 
@@ -127,7 +128,7 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
     message: string;
     details?: string;
   } | null>(null);
-  const [currentModel, setCurrentModel] = useState<string>("anthropic:claude-opus-4-1");
+  const [currentModel, setCurrentModel] = useState<string>(DEFAULT_MODEL);
   const [editingMessage, setEditingMessage] = useState<{ id: string; content: string } | undefined>(
     undefined
   );
@@ -174,6 +175,46 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
   }, [performAutoScroll, workspaceId, getAggregator]);
 
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadMetadata = async () => {
+      try {
+        const metadata = await window.api.workspace.getInfo(workspaceId);
+        if (isMounted) {
+          setCurrentModel(metadata?.model ?? DEFAULT_MODEL);
+        }
+      } catch (error) {
+        console.error("Failed to load workspace metadata:", error);
+        if (isMounted) {
+          setCurrentModel(DEFAULT_MODEL);
+        }
+      }
+    };
+
+    if (workspaceId) {
+      void loadMetadata();
+    }
+
+    return () => {
+      isMounted = false;
+    };
+  }, [workspaceId]);
+
+  useEffect(() => {
+    const unsubscribe = window.api.workspace.onMetadata(({ workspaceId: updatedId, metadata }) => {
+      if (updatedId === workspaceId) {
+        setCurrentModel(metadata?.model ?? DEFAULT_MODEL);
+      }
+    });
+
+    return () => {
+      if (typeof unsubscribe === "function") {
+        unsubscribe();
+      }
+    };
+  }, [workspaceId]);
 
   // Handlers for editing messages
   const handleEditUserMessage = useCallback((messageId: string, content: string) => {
@@ -375,6 +416,17 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
     await window.api.workspace.clearHistory(workspaceId);
   }, [workspaceId, getAggregator]);
 
+  const handleSetModel = useCallback(
+    async (model: string) => {
+      const result = await window.api.workspace.setModel(workspaceId, model);
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+      setCurrentModel(model);
+    },
+    [workspaceId]
+  );
+
   const handleProviderConfig = useCallback(
     async (provider: string, keyPath: string[], value: string) => {
       const result = await window.api.providers.setProviderConfig(provider, keyPath, value);
@@ -506,6 +558,7 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
             onMessageSent={handleMessageSent}
             onClearHistory={handleClearHistory}
             onProviderConfig={handleProviderConfig}
+            onSetModel={handleSetModel}
             debugMode={debugMode}
             onDebugModeChange={setDebugMode}
             disabled={!projectName || !branch}

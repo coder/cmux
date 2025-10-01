@@ -8,6 +8,7 @@ import { usePersistedState } from "../hooks/usePersistedState";
 import { ThinkingSliderComponent } from "./ThinkingSlider";
 import { useThinkingLevel } from "../hooks/useThinkingLevel";
 import { getSlashCommandSuggestions, type SlashSuggestion } from "../utils/slashCommands";
+import { getModelAliasEntries } from "../constants/models";
 
 const InputSection = styled.div`
   position: relative;
@@ -18,6 +19,21 @@ const InputSection = styled.div`
   flex-direction: column;
   gap: 8px;
 `;
+
+const MODEL_ALIAS_ENTRIES = getModelAliasEntries();
+
+const renderAliasList = () => (
+  <>
+    {MODEL_ALIAS_ENTRIES.map(({ alias, model }, index) => (
+      <React.Fragment key={alias}>
+        {alias}
+        {" -> "}
+        {model}
+        {index < MODEL_ALIAS_ENTRIES.length - 1 ? <br /> : null}
+      </React.Fragment>
+    ))}
+  </>
+);
 
 const InputControls = styled.div`
   display: flex;
@@ -93,6 +109,7 @@ export interface ChatInputProps {
   onMessageSent?: () => void; // Optional callback after successful send
   onClearHistory: () => Promise<void>;
   onProviderConfig?: (provider: string, keyPath: string[], value: string) => Promise<void>;
+  onSetModel?: (model: string) => Promise<void>;
   debugMode: boolean;
   onDebugModeChange: (enabled: boolean) => void;
   disabled?: boolean;
@@ -158,6 +175,48 @@ const createCommandToast = (parsed: ParsedCommand): Toast | null => {
           <>
             <SolutionLabel>Available Commands:</SolutionLabel>
             /providers set - Configure provider settings
+          </>
+        ),
+      };
+
+    case "model-help":
+      return {
+        id: Date.now().toString(),
+        type: "error",
+        title: "Model Command",
+        message: "Select the AI model for this workspace.",
+        solution: (
+          <>
+            <SolutionLabel>Usage:</SolutionLabel>
+            /model &lt;provider&gt; &lt;model_name&gt;
+            <br />
+            /model &lt;alias&gt;
+            <br />
+            <br />
+            <SolutionLabel>Aliases:</SolutionLabel>
+            {renderAliasList()}
+          </>
+        ),
+      };
+
+    case "model-invalid-input":
+      return {
+        id: Date.now().toString(),
+        type: "error",
+        title: "Invalid Model Input",
+        message: parsed.input
+          ? `Could not interpret '${parsed.input}' as a model.`
+          : "Model command requires a provider and model or a known alias.",
+        solution: (
+          <>
+            <SolutionLabel>Usage:</SolutionLabel>
+            /model &lt;provider&gt; &lt;model_name&gt;
+            <br />
+            /model &lt;alias&gt;
+            <br />
+            <br />
+            <SolutionLabel>Known Aliases:</SolutionLabel>
+            {renderAliasList()}
           </>
         ),
       };
@@ -237,6 +296,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   onMessageSent,
   onClearHistory,
   onProviderConfig,
+  onSetModel,
   debugMode,
   onDebugModeChange,
   disabled = false,
@@ -353,6 +413,32 @@ export const ChatInput: React.FC<ChatInputProps> = ({
               message: error instanceof Error ? error.message : "Failed to update provider",
             });
             setInput(messageText); // Restore input on error
+          } finally {
+            setIsSending(false);
+          }
+          return;
+        }
+
+        if (parsed.type === "model-set" && onSetModel) {
+          setIsSending(true);
+          setInput("");
+
+          try {
+            await onSetModel(parsed.model);
+            setToast({
+              id: Date.now().toString(),
+              type: "success",
+              title: "Model Updated",
+              message: `Using ${parsed.model}`,
+            });
+          } catch (error) {
+            console.error("Failed to set model:", error);
+            setToast({
+              id: Date.now().toString(),
+              type: "error",
+              message: error instanceof Error ? error.message : "Failed to set model",
+            });
+            setInput(messageText);
           } finally {
             setIsSending(false);
           }

@@ -1,3 +1,5 @@
+import { resolveModelAlias } from "../constants/models";
+
 /**
  * Command parser for parsing chat commands like /providers
  */
@@ -7,6 +9,9 @@ export type ParsedCommand =
   | { type: "providers-help" }
   | { type: "providers-invalid-subcommand"; subcommand: string }
   | { type: "providers-missing-args"; subcommand: string; argCount: number }
+  | { type: "model-set"; model: string; requested: string; source: "alias" | "explicit" | "provider-model" }
+  | { type: "model-help" }
+  | { type: "model-invalid-input"; input?: string }
   | { type: "clear" }
   | { type: "unknown-command"; command: string; subcommand?: string }
   | null;
@@ -85,9 +90,69 @@ const providersCommandDefinition: SlashCommandDefinition = {
   },
   children: [providersSetCommandDefinition],
 };
+
+const modelCommandDefinition: SlashCommandDefinition = {
+  key: "model",
+  description: "Select the AI model",
+  handler: ({ cleanRemainingTokens }) => {
+    if (cleanRemainingTokens.length === 0) {
+      return { type: "model-help" };
+    }
+
+    const [firstToken, ...restTokens] = cleanRemainingTokens;
+
+    if (restTokens.length === 0) {
+      const aliasModel = resolveModelAlias(firstToken);
+      if (aliasModel) {
+        return {
+          type: "model-set",
+          model: aliasModel,
+          requested: firstToken,
+          source: "alias",
+        };
+      }
+
+      if (firstToken.includes(":")) {
+        const [provider, ...modelParts] = firstToken.split(":");
+        const modelName = modelParts.join(":");
+        if (provider && modelName) {
+          return {
+            type: "model-set",
+            model: `${provider}:${modelName}`,
+            requested: firstToken,
+            source: "explicit",
+          };
+        }
+      }
+
+      return {
+        type: "model-invalid-input",
+        input: firstToken,
+      };
+    }
+
+    const provider = firstToken;
+    const modelName = restTokens.join(" ").trim();
+
+    if (!modelName) {
+      return {
+        type: "model-invalid-input",
+        input: provider,
+      };
+    }
+
+    return {
+      type: "model-set",
+      model: `${provider}:${modelName}`,
+      requested: `${provider} ${modelName}`,
+      source: "provider-model",
+    };
+  },
+};
 const SLASH_COMMAND_DEFINITIONS: ReadonlyArray<SlashCommandDefinition> = [
   clearCommandDefinition,
   providersCommandDefinition,
+  modelCommandDefinition,
 ];
 
 const SLASH_COMMAND_DEFINITION_MAP = new Map(

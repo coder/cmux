@@ -132,6 +132,7 @@ export interface IPCApi {
     ): Promise<Result<void, SendMessageError>>;
     clearHistory(workspaceId: string): Promise<Result<void, string>>;
     getInfo(workspaceId: string): Promise<WorkspaceMetadata | null>;
+    setModel(workspaceId: string, model: string): Promise<Result<void, string>>;
 
     // Event subscriptions (renderer-only)
     // These methods are designed to send current state immediately upon subscription,

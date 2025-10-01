@@ -24,6 +24,7 @@ export const IPC_CHANNELS = {
   WORKSPACE_CLEAR_HISTORY: "workspace:clearHistory",
   WORKSPACE_STREAM_HISTORY: "workspace:streamHistory",
   WORKSPACE_GET_INFO: "workspace:getInfo",
+  WORKSPACE_SET_MODEL: "workspace:setModel",
 
   // Dynamic channel prefixes
   WORKSPACE_CHAT_PREFIX: "workspace:chat:",

@@ -53,6 +53,8 @@ const api: IPCApi = {
     clearHistory: (workspaceId) =>
       ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_CLEAR_HISTORY, workspaceId),
     getInfo: (workspaceId) => ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_GET_INFO, workspaceId),
+    setModel: (workspaceId, model) =>
+      ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_SET_MODEL, workspaceId, model),
 
     onChat: (workspaceId, callback) => {
       const channel = getChatChannel(workspaceId);

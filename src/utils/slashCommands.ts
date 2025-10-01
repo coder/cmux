@@ -1,4 +1,6 @@
 import { getSlashCommandDefinitions, type SlashCommandDefinition } from "./commandParser";
+import { getModelAliasEntries } from "../constants/models";
+import { getModelsForProvider } from "./modelCatalog";
 
 export interface SlashSuggestion {
   id: string;
@@ -188,6 +190,85 @@ function buildProviderKeySuggestions(
   }));
 }
 
+function buildModelFirstArgSuggestions(
+  partial: string,
+  providerNames: string[] | undefined
+): SlashSuggestion[] {
+  const normalizedPartial = partial.trim().toLowerCase();
+
+  const aliasSuggestions = getModelAliasEntries()
+    .filter(({ alias }) =>
+      normalizedPartial ? alias.toLowerCase().startsWith(normalizedPartial) : true
+    )
+    .map(({ alias, model }) => ({
+      id: `command:model:alias:${alias}`,
+      display: alias,
+      description: `Alias for ${model}`,
+      replacement: `/model ${alias}`,
+    }));
+
+  const providerDefinitions = dedupeDefinitions([
+    ...(providerNames ?? []).map((name) => ({
+      key: name,
+      description: `${name} provider configuration`,
+    })),
+    ...DEFAULT_PROVIDER_NAMES,
+  ]);
+
+  const providerSuggestions = filterAndMapSuggestions(
+    providerDefinitions,
+    partial,
+    (definition) => ({
+      id: `command:model:provider:${definition.key}`,
+      display: definition.key,
+      description: definition.description,
+      replacement: `/model ${definition.key} `,
+    })
+  );
+
+  return [...aliasSuggestions, ...providerSuggestions];
+}
+
+function buildModelCommandSuggestions(
+  stage: number,
+  partialToken: string,
+  context: SlashSuggestionContext,
+  completedTokens: string[],
+  tokens: string[]
+): SlashSuggestion[] {
+  if (stage === 1) {
+    return buildModelFirstArgSuggestions(partialToken, context.providerNames);
+  }
+
+  if (stage === 2) {
+    const providerName = completedTokens[1] ?? tokens[1];
+    if (!providerName) {
+      return [];
+    }
+
+    const models = getModelsForProvider(providerName);
+    if (models.length === 0) {
+      return [];
+    }
+
+    const normalizedPartial = partialToken.trim().toLowerCase();
+
+    return models
+      .filter((model) =>
+        normalizedPartial ? model.toLowerCase().includes(normalizedPartial) : true
+      )
+      .slice(0, 25)
+      .map((model) => ({
+        id: `command:model:${providerName}:${model}`,
+        display: model,
+        description: `${providerName}:${model}`,
+        replacement: `/model ${providerName} ${model}`,
+      }));
+  }
+
+  return [];
+}
+
 export function getSlashCommandSuggestions(
   input: string,
   context: SlashSuggestionContext = {}
@@ -246,6 +327,10 @@ export function getSlashCommandSuggestions(
       const prefixTokens = completedTokens.slice(0, stage);
       return buildSubcommandSuggestions(definitionForSuggestions, partialToken, prefixTokens);
     }
+  }
+
+  if (definitionPath[0]?.key === "model") {
+    return buildModelCommandSuggestions(stage, partialToken, context, completedTokens, tokens);
   }
 
   if (definitionPath[0]?.key !== "providers") {

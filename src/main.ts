@@ -111,6 +111,7 @@ ipcMain.handle(
         id: workspaceId,
         projectName,
         workspacePath: result.path,
+        model: aiService.getDefaultModel(),
       };
       await aiService.saveWorkspaceMetadata(workspaceId, metadata);
 
@@ -204,6 +205,28 @@ ipcMain.handle(IPC_CHANNELS.WORKSPACE_GET_INFO, async (_event, workspaceId: stri
   const result = await aiService.getWorkspaceMetadata(workspaceId);
   return result.success ? result.data : null;
 });
+
+ipcMain.handle(
+  IPC_CHANNELS.WORKSPACE_SET_MODEL,
+  async (_event, workspaceId: string, model: string) => {
+    const result = await aiService.setWorkspaceModel(workspaceId, model);
+    if (!result.success) {
+      return { success: false, error: result.error };
+    }
+
+    const metadataResult = await aiService.getWorkspaceMetadata(workspaceId);
+    if (metadataResult.success) {
+      mainWindow?.webContents.send(IPC_CHANNELS.WORKSPACE_METADATA, {
+        workspaceId,
+        metadata: metadataResult.data,
+      });
+    } else {
+      log.error("Failed to emit updated metadata:", metadataResult.error);
+    }
+
+    return { success: true, data: undefined };
+  }
+);
 
 ipcMain.handle(
   IPC_CHANNELS.WORKSPACE_SEND_MESSAGE,

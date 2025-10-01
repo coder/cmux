@@ -91,6 +91,49 @@ describe("commandParser", () => {
       });
     });
 
+    it("should show help for /model with no arguments", () => {
+      const result = parseCommand("/model");
+      expect(result).toEqual({ type: "model-help" });
+    });
+
+    it("should resolve model aliases", () => {
+      const result = parseCommand("/model opus");
+      expect(result).toEqual({
+        type: "model-set",
+        model: "anthropic:claude-opus-4-1",
+        requested: "opus",
+        source: "alias",
+      });
+    });
+
+    it("should parse explicit provider and model arguments", () => {
+      const result = parseCommand("/model anthropic claude-sonnet-4");
+      expect(result).toEqual({
+        type: "model-set",
+        model: "anthropic:claude-sonnet-4",
+        requested: "anthropic claude-sonnet-4",
+        source: "provider-model",
+      });
+    });
+
+    it("should parse provider:model syntax", () => {
+      const result = parseCommand("/model anthropic:claude-sonnet-4");
+      expect(result).toEqual({
+        type: "model-set",
+        model: "anthropic:claude-sonnet-4",
+        requested: "anthropic:claude-sonnet-4",
+        source: "explicit",
+      });
+    });
+
+    it("should handle invalid model input", () => {
+      const result = parseCommand("/model anthropic");
+      expect(result).toEqual({
+        type: "model-invalid-input",
+        input: "anthropic",
+      });
+    });
+
     it("should parse unknown commands", () => {
       expect(parseCommand("/foo")).toEqual({
         type: "unknown-command",
