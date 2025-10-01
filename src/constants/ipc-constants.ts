@@ -13,6 +13,7 @@ export const IPC_CHANNELS = {
 
   // Provider channels
   PROVIDERS_SET_CONFIG: "providers:setConfig",
+  PROVIDERS_LIST: "providers:list",
 
   // Workspace channels
   WORKSPACE_LIST: "workspace:list",

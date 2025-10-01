@@ -9,6 +9,7 @@ import type { SendMessageError as SendMessageErrorType } from "../types/errors";
 import { usePersistedState } from "../hooks/usePersistedState";
 import { ThinkingSliderComponent } from "./ThinkingSlider";
 import { useThinkingLevel } from "../hooks/useThinkingLevel";
+import { getSlashCommandSuggestions, type SlashSuggestion } from "../utils/slashCommands";
 
 const InputSection = styled.div`
   position: relative;
@@ -248,7 +249,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const [input, setInput] = usePersistedState("input:" + workspaceId, "");
   const [isSending, setIsSending] = useState(false);
   const [showCommandSuggestions, setShowCommandSuggestions] = useState(false);
-  const [availableCommands] = useState<string[]>([]); // Will be populated in future
+  const [commandSuggestions, setCommandSuggestions] = useState<SlashSuggestion[]>([]);
+  const [providerNames, setProviderNames] = useState<string[]>([]);
   const [toast, setToast] = useState<Toast | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [thinkingLevel] = useThinkingLevel();
@@ -270,13 +272,37 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
   // Watch input for slash commands
   useEffect(() => {
-    setShowCommandSuggestions(input.startsWith("/") && availableCommands.length > 0);
-  }, [input, availableCommands]);
+    const suggestions = getSlashCommandSuggestions(input, { providerNames });
+    setCommandSuggestions(suggestions);
+    setShowCommandSuggestions(suggestions.length > 0);
+  }, [input, providerNames]);
+
+  // Load provider names for suggestions
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadProviders = async () => {
+      try {
+        const names = await window.api.providers.list();
+        if (isMounted && Array.isArray(names)) {
+          setProviderNames(names);
+        }
+      } catch (error) {
+        console.error("Failed to load provider list:", error);
+      }
+    };
+
+    void loadProviders();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Handle command selection
   const handleCommandSelect = useCallback(
-    (command: string) => {
-      setInput(`/${command} `);
+    (suggestion: SlashSuggestion) => {
+      setInput(suggestion.replacement);
       setShowCommandSuggestions(false);
       inputRef.current?.focus();
     },
@@ -404,7 +430,11 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     }
 
     // Don't handle keys if command suggestions are visible
-    if (showCommandSuggestions && COMMAND_SUGGESTION_KEYS.includes(e.key)) {
+    if (
+      showCommandSuggestions &&
+      commandSuggestions.length > 0 &&
+      COMMAND_SUGGESTION_KEYS.includes(e.key)
+    ) {
       return; // Let CommandSuggestions handle it
     }
 
@@ -424,9 +454,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     <InputSection>
       <ChatInputToast toast={toast} onDismiss={() => setToast(null)} />
       <CommandSuggestions
-        input={input}
-        availableCommands={availableCommands}
-        onSelectCommand={handleCommandSelect}
+        suggestions={commandSuggestions}
+        onSelectSuggestion={handleCommandSelect}
         onDismiss={() => setShowCommandSuggestions(false)}
         isVisible={showCommandSuggestions}
       />

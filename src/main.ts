@@ -9,6 +9,7 @@ import {
   loadProvidersConfig,
   saveProvidersConfig,
 } from "./config";
+import type { ProvidersConfig } from "./config";
 import { createWorktree, removeWorktree } from "./git";
 import { AIService } from "./services/aiService";
 import { HistoryService } from "./services/historyService";
@@ -27,6 +28,7 @@ import type {
 import { IPC_CHANNELS, getChatChannel } from "./constants/ipc-constants";
 import type { SendMessageError } from "./types/errors";
 import type { StreamErrorMessage } from "./types/ipc";
+import type { ThinkingLevel } from "./types/thinking";
 
 const historyService = new HistoryService();
 const partialService = new PartialService(historyService);
@@ -56,6 +58,14 @@ if (!gotTheLock) {
 }
 
 let mainWindow: BrowserWindow | null = null;
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
+const createUnknownSendMessageError = (raw: string): SendMessageError => ({
+  type: "unknown",
+  raw,
+});
 
 // Register IPC handlers before creating window
 ipcMain.handle(IPC_CHANNELS.CONFIG_LOAD, () => {
@@ -209,7 +219,7 @@ ipcMain.handle(
     workspaceId: string,
     message: string,
     editMessageId?: string,
-    thinkingLevel?: string
+    thinkingLevel?: ThinkingLevel
   ) => {
     log.debug("sendMessage handler: Received", {
       workspaceId,
@@ -228,10 +238,7 @@ ipcMain.handle(
           log.error("Failed to truncate history for edit:", truncateResult.error);
           return {
             success: false,
-            error: {
-              type: "unknown" as const,
-              raw: truncateResult.error,
-            },
+            error: createUnknownSendMessageError(truncateResult.error),
           };
         }
         // Note: We don't send a clear event here. The aggregator will handle
@@ -251,10 +258,7 @@ ipcMain.handle(
         log.error("Failed to append message to history:", appendResult.error);
         return {
           success: false,
-          error: {
-            type: "unknown" as const,
-            raw: appendResult.error,
-          },
+          error: createUnknownSendMessageError(appendResult.error),
         };
       }
 
@@ -273,10 +277,7 @@ ipcMain.handle(
         log.error("Failed to get conversation history:", historyResult.error);
         return {
           success: false,
-          error: {
-            type: "unknown" as const,
-            raw: historyResult.error,
-          },
+          error: createUnknownSendMessageError(historyResult.error),
         };
       }
 
@@ -287,8 +288,7 @@ ipcMain.handle(
       const streamResult = await aiService.streamMessage(
         historyResult.data,
         workspaceId,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
-        thinkingLevel as any // Cast to ThinkingLevel - validated by TypeScript in frontend
+        thinkingLevel
       );
       log.debug("sendMessage handler: Stream completed");
       return streamResult;
@@ -315,24 +315,31 @@ ipcMain.handle(
   (_event, provider: string, keyPath: string[], value: string) => {
     try {
       // Load current providers config or create empty
-      const config = loadProvidersConfig() ?? {};
+      const config: ProvidersConfig = loadProvidersConfig() ?? {};
 
-      // Ensure provider exists
-      if (!config[provider]) {
+      if (!isRecord(config[provider])) {
         config[provider] = {};
       }
 
-      // Set nested property value
-      let current = config[provider] as Record<string, unknown>;
-      for (let i = 0; i < keyPath.length - 1; i++) {
-        const key = keyPath[i];
-        if (!(key in current) || typeof current[key] !== "object" || current[key] === null) {
-          current[key] = {};
-        }
-        current = current[key] as Record<string, unknown>;
+      const ensuredConfig = config[provider];
+      if (!isRecord(ensuredConfig)) {
+        throw new Error(`Provider config for ${provider} could not be initialized`);
       }
 
-      // Set the final value
+      let current: Record<string, unknown> = ensuredConfig;
+      for (let i = 0; i < keyPath.length - 1; i++) {
+        const key = keyPath[i];
+        const existing = current[key];
+        if (isRecord(existing)) {
+          current = existing;
+          continue;
+        }
+
+        const next: Record<string, unknown> = {};
+        current[key] = next;
+        current = next;
+      }
+
       if (keyPath.length > 0) {
         current[keyPath[keyPath.length - 1]] = value;
       }
@@ -348,55 +355,53 @@ ipcMain.handle(
   }
 );
 
+ipcMain.handle(IPC_CHANNELS.PROVIDERS_LIST, () => {
+  try {
+    const config: ProvidersConfig = loadProvidersConfig() ?? {};
+    return Object.keys(config);
+  } catch (error) {
+    log.error("Failed to list providers config:", error);
+    return [];
+  }
+});
+
 // Handle subscription events for chat history
-ipcMain.on(
-  `workspace:chat:subscribe`,
-  (_event, workspaceId: string) =>
-    void (async () => {
-      const chatChannel = getChatChannel(workspaceId);
+ipcMain.on(`workspace:chat:subscribe`, (_event, workspaceId: string) => {
+  void (async () => {
+    const chatChannel = getChatChannel(workspaceId);
 
-      // Emit current chat history immediately
-      const history = await historyService.getHistory(workspaceId);
-      if (history.success) {
-        // Merge partial.json with chat history for complete message list
-        const partial = await partialService.readPartial(workspaceId);
-
-        // Send all history messages
-        history.data.forEach((msg) => {
-          mainWindow?.webContents.send(chatChannel, msg);
-        });
-
-        // If there's a partial message (interrupted stream), send it after history
-        if (partial) {
-          mainWindow?.webContents.send(chatChannel, partial);
-        }
+    const history = await historyService.getHistory(workspaceId);
+    if (history.success) {
+      for (const msg of history.data) {
+        mainWindow?.webContents.send(chatChannel, msg);
       }
 
-      // Send caught-up signal
-      mainWindow?.webContents.send(chatChannel, { type: "caught-up" });
-    })()
-);
+      const partial = await partialService.readPartial(workspaceId);
+      if (partial) {
+        mainWindow?.webContents.send(chatChannel, partial);
+      }
+    }
+
+    mainWindow?.webContents.send(chatChannel, { type: "caught-up" });
+  })();
+});
 
 // Handle subscription events for metadata
-ipcMain.on(
-  `workspace:metadata:subscribe`,
-  () =>
-    void (async () => {
-      try {
-        const workspaceData = await getAllWorkspaceMetadata();
-
-        // Emit current metadata for each workspace
-        for (const { workspaceId, metadata } of workspaceData) {
-          mainWindow?.webContents.send(IPC_CHANNELS.WORKSPACE_METADATA, {
-            workspaceId,
-            metadata,
-          });
-        }
-      } catch (error) {
-        console.error("Failed to emit current metadata:", error);
+ipcMain.on(`workspace:metadata:subscribe`, () => {
+  void (async () => {
+    try {
+      const workspaceData = await getAllWorkspaceMetadata();
+      for (const { workspaceId, metadata } of workspaceData) {
+        mainWindow?.webContents.send(IPC_CHANNELS.WORKSPACE_METADATA, {
+          workspaceId,
+          metadata,
+        });
       }
-    })()
-);
+    } catch (error) {
+      console.error("Failed to emit current metadata:", error);
+    }
+  })();
+});
 
 // Set up event listeners for AI service
 aiService.on("stream-start", (data: StreamStartEvent) => {

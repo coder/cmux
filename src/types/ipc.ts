@@ -122,6 +122,7 @@ export interface IPCApi {
       keyPath: string[],
       value: string
     ): Promise<Result<void, string>>;
+    list(): Promise<string[]>;
   };
   workspace: {
     list(): Promise<WorkspaceMetadata[]>;

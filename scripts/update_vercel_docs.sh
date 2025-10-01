@@ -18,6 +18,7 @@ cd "$TEMP_DIR"
 git init -q
 git remote add origin https://github.com/vercel/ai.git
 git config core.sparseCheckout true
+mkdir -p .git/info
 echo "content/*" >.git/info/sparse-checkout
 
 git fetch --depth=1 origin main

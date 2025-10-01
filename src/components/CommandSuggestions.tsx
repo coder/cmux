@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from "react";
 import styled from "@emotion/styled";
+import type { SlashSuggestion } from "../utils/slashCommands";
 
 // Export the keys that CommandSuggestions handles
 export const COMMAND_SUGGESTION_KEYS = ["Tab", "ArrowUp", "ArrowDown", "Escape"];
 
 // Props interface
 interface CommandSuggestionsProps {
-  input: string;
-  availableCommands: string[];
-  onSelectCommand: (command: string) => void;
+  suggestions: SlashSuggestion[];
+  onSelectSuggestion: (suggestion: SlashSuggestion) => void;
   onDismiss: () => void;
   isVisible: boolean;
 }
@@ -79,61 +79,36 @@ const HelperText = styled.div`
 
 // Main component
 export const CommandSuggestions: React.FC<CommandSuggestionsProps> = ({
-  input,
-  availableCommands,
-  onSelectCommand,
+  suggestions,
+  onSelectSuggestion,
   onDismiss,
   isVisible,
 }) => {
-  const [filteredCommands, setFilteredCommands] = useState<string[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
 
-  // Command descriptions for built-in commands
-  const getDescription = (cmd: string): string => {
-    const descriptions: Record<string, string> = {
-      clear: "Clear conversation and start fresh",
-      compact: "Compress conversation history",
-      context: "Show context usage information",
-      cost: "Show token usage and costs",
-      init: "Initialize or reinitialize session",
-      model: "Switch AI model",
-      help: "Show available commands",
-    };
-
-    return descriptions[cmd] || `/${cmd}`;
-  };
-
-  // Filter commands based on input
+  // Reset selection whenever suggestions change
   useEffect(() => {
-    if (input.startsWith("/")) {
-      const searchTerm = input.slice(1).toLowerCase();
-      const filtered = availableCommands
-        .filter((cmd) => cmd.toLowerCase().startsWith(searchTerm))
-        .slice(0, 10);
-
-      setFilteredCommands(filtered);
-      setSelectedIndex(0);
-    }
-  }, [input, availableCommands]);
+    setSelectedIndex(0);
+  }, [suggestions]);
 
   // Handle keyboard navigation
   useEffect(() => {
-    if (!isVisible) return;
+    if (!isVisible || suggestions.length === 0) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       switch (e.key) {
         case "ArrowDown":
           e.preventDefault();
-          setSelectedIndex((i) => (i + 1) % filteredCommands.length);
+          setSelectedIndex((i) => (i + 1) % suggestions.length);
           break;
         case "ArrowUp":
           e.preventDefault();
-          setSelectedIndex((i) => (i - 1 + filteredCommands.length) % filteredCommands.length);
+          setSelectedIndex((i) => (i - 1 + suggestions.length) % suggestions.length);
           break;
         case "Tab":
-          if (!e.shiftKey && filteredCommands.length > 0) {
+          if (!e.shiftKey && suggestions.length > 0) {
             e.preventDefault();
-            onSelectCommand(filteredCommands[selectedIndex]);
+            onSelectSuggestion(suggestions[selectedIndex]);
           }
           break;
         case "Escape":
@@ -145,7 +120,7 @@ export const CommandSuggestions: React.FC<CommandSuggestionsProps> = ({
 
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [isVisible, filteredCommands, selectedIndex, onSelectCommand, onDismiss]);
+  }, [isVisible, suggestions, selectedIndex, onSelectSuggestion, onDismiss]);
 
   // Click outside handler
   useEffect(() => {
@@ -162,21 +137,21 @@ export const CommandSuggestions: React.FC<CommandSuggestionsProps> = ({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isVisible, onDismiss]);
 
-  if (!isVisible || filteredCommands.length === 0) {
+  if (!isVisible || suggestions.length === 0) {
     return null;
   }
 
   return (
     <PopoverContainer data-command-suggestions>
-      {filteredCommands.map((cmd, index) => (
+      {suggestions.map((suggestion, index) => (
         <CommandItem
-          key={cmd}
+          key={suggestion.id}
           selected={index === selectedIndex}
           onMouseEnter={() => setSelectedIndex(index)}
-          onClick={() => onSelectCommand(cmd)}
+          onClick={() => onSelectSuggestion(suggestion)}
         >
-          <CommandText>/{cmd}</CommandText>
-          <CommandDescription>{getDescription(cmd)}</CommandDescription>
+          <CommandText>{suggestion.display}</CommandText>
+          <CommandDescription>{suggestion.description}</CommandDescription>
         </CommandItem>
       ))}
       <HelperText>
