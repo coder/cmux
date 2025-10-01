@@ -62,3 +62,7 @@ docs/vercel/
 
 # Secrets
 .env
+
+# Nix
+.envrc
+.direnv
