@@ -4,12 +4,14 @@
 
 import { describe, it, expect, beforeEach } from "bun:test";
 import { AIService } from "./aiService";
+import { HistoryService } from "./historyService";
 
 describe("AIService", () => {
   let service: AIService;
 
   beforeEach(() => {
-    service = new AIService();
+    const historyService = new HistoryService();
+    service = new AIService(historyService);
   });
 
   // Note: These tests are placeholders as Bun doesn't support Jest mocking

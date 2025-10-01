@@ -27,8 +27,8 @@ import { IPC_CHANNELS, getChatChannel } from "./constants/ipc-constants";
 import type { SendMessageError } from "./types/errors";
 import type { StreamErrorMessage } from "./types/ipc";
 
-const aiService = new AIService();
 const historyService = new HistoryService();
+const aiService = new AIService(historyService);
 
 console.log("Main process starting...");
 

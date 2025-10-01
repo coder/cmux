@@ -109,6 +109,7 @@ export class StreamManager extends EventEmitter {
     model: LanguageModel,
     modelString: string,
     abortSignal: AbortSignal,
+    system: string,
     tools?: Record<string, Tool>
   ): Promise<WorkspaceStreamInfo> {
     // Create abort controller for this specific stream
@@ -125,6 +126,7 @@ export class StreamManager extends EventEmitter {
       streamResult = streamText({
         model,
         messages,
+        system,
         abortSignal: abortController.signal,
         tools,
         stopWhen: stepCountIs(1000), // Allow up to 1000 steps (effectively unlimited)
@@ -405,6 +407,7 @@ export class StreamManager extends EventEmitter {
     model: LanguageModel,
     modelString: string,
     historySequence: number,
+    system: string,
     abortSignal?: AbortSignal,
     tools?: Record<string, Tool>
   ): Promise<Result<StreamToken, SendMessageError>> {
@@ -422,6 +425,7 @@ export class StreamManager extends EventEmitter {
         model,
         modelString,
         abortSignal || new AbortController().signal,
+        system,
         tools
       );
 

@@ -18,9 +18,10 @@
 
 ## Docs
 
-Important: Vercel AI SDK documentation is stored in `src/docs/vercel/**.mdx`. These are copied
-from the main Vercel AI SDK repository.
-Generate them with `./scripts/update_vercel_docs.sh` if they don't exist.
+DO NOT visit https://sdk.vercel.ai/docs/ai-sdk-core. All of that content is already
+in `./docs/vercel/**.mdx`.
+
+(Generate them with `./scripts/update_vercel_docs.sh` if they don't exist.)
 
 ## Key Features
 

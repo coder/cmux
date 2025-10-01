@@ -4,7 +4,7 @@ import { EventEmitter } from "events";
 import { convertToModelMessages, type LanguageModel } from "ai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { Result, Ok, Err } from "../types/result";
-import { WorkspaceMetadata } from "../types/workspace";
+import { WorkspaceMetadata, WorkspaceMetadataSchema } from "../types/workspace";
 import { CmuxMessage, createCmuxMessage } from "../types/message";
 import { SESSIONS_DIR, getSessionDir, loadProvidersConfig } from "../config";
 import { StreamManager } from "./streamManager";
@@ -18,6 +18,7 @@ import {
 } from "../utils/modelMessageTransform";
 import { applyCacheControl } from "../utils/cacheStrategy";
 import { HistoryService } from "./historyService";
+import { buildSystemMessage } from "./systemMessage";
 
 // Export a standalone version of getToolsForModel for use in backend
 
@@ -25,10 +26,11 @@ export class AIService extends EventEmitter {
   private readonly METADATA_FILE = "metadata.json";
   private streamManager = new StreamManager();
   private defaultModel = "anthropic:claude-opus-4-1"; // Default model string
-  private historyService = new HistoryService(); // Used internally for stream handling
+  private historyService: HistoryService;
 
-  constructor() {
+  constructor(historyService: HistoryService) {
     super();
+    this.historyService = historyService;
     this.ensureSessionsDir();
     this.setupStreamEventForwarding();
   }
@@ -64,7 +66,11 @@ export class AIService extends EventEmitter {
     try {
       const metadataPath = this.getMetadataPath(workspaceId);
       const data = await fs.readFile(metadataPath, "utf-8");
-      return Ok(JSON.parse(data));
+
+      // Parse and validate with Zod schema (handles any type safely)
+      const validated = WorkspaceMetadataSchema.parse(JSON.parse(data));
+
+      return Ok(validated);
     } catch (error) {
       if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") {
         // If metadata doesn't exist, we cannot create valid defaults without the workspace path
@@ -203,9 +209,14 @@ export class AIService extends EventEmitter {
 
       // Get workspace metadata to retrieve workspace path
       const metadataResult = await this.getWorkspaceMetadata(workspaceId);
-      const workspacePath = metadataResult.success
-        ? metadataResult.data.workspacePath
-        : process.cwd(); // Fallback to current working directory if metadata is missing
+      if (!metadataResult.success) {
+        return Err({ type: "unknown", raw: metadataResult.error });
+      }
+
+      // Build system message from workspace metadata
+      const systemMessage = await buildSystemMessage(metadataResult.data);
+
+      const workspacePath = metadataResult.data.workspacePath;
 
       // Get model-specific tools with workspace path configuration
       const tools = getToolsForModel(this.defaultModel, { cwd: workspacePath });
@@ -226,13 +237,14 @@ export class AIService extends EventEmitter {
       // Get the assigned historySequence
       const historySequence = assistantMessage.metadata?.historySequence ?? 0;
 
-      // Delegate to StreamManager with model instance, tools, and historySequence
+      // Delegate to StreamManager with model instance, system message, tools, and historySequence
       const streamResult = await this.streamManager.startStream(
         workspaceId,
         finalMessages,
         modelResult.data,
         this.defaultModel,
         historySequence,
+        systemMessage,
         abortSignal,
         tools
       );
