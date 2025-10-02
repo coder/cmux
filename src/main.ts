@@ -205,12 +205,13 @@ ipcMain.handle(IPC_CHANNELS.WORKSPACE_GET_INFO, async (_event, workspaceId: stri
 ipcMain.handle(
   IPC_CHANNELS.WORKSPACE_SEND_MESSAGE,
   async (_event, workspaceId: string, message: string, options?: SendMessageOptions) => {
-    const { editMessageId, thinkingLevel } = options ?? {};
+    const { editMessageId, thinkingLevel, model } = options ?? {};
     log.debug("sendMessage handler: Received", {
       workspaceId,
       messagePreview: message.substring(0, 50),
       editMessageId,
       thinkingLevel,
+      model,
     });
     try {
       // Early exit: empty message = either interrupt (if streaming) or invalid input
@@ -289,13 +290,25 @@ ipcMain.handle(
       }
 
       // Stream the AI response
+      if (!model) {
+        log.error("No model provided by frontend");
+        return {
+          success: false,
+          error: createUnknownSendMessageError(
+            "No model specified. Please select a model using /model command."
+          ),
+        };
+      }
       log.debug("sendMessage handler: Calling aiService.streamMessage with thinkingLevel", {
         thinkingLevel,
+        model,
       });
       const streamResult = await aiService.streamMessage(
         historyResult.data,
         workspaceId,
-        thinkingLevel
+        model,
+        thinkingLevel,
+        undefined
       );
       log.debug("sendMessage handler: Stream completed");
       return streamResult;

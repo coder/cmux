@@ -33,7 +33,6 @@ import type { ThinkingLevel } from "../types/thinking";
 export class AIService extends EventEmitter {
   private readonly METADATA_FILE = "metadata.json";
   private readonly streamManager: StreamManager;
-  private defaultModel = "anthropic:claude-opus-4-1"; // Default model string
   private readonly historyService: HistoryService;
   private readonly partialService: PartialService;
   private readonly config: Config;
@@ -185,6 +184,7 @@ export class AIService extends EventEmitter {
    * Stream a message conversation to the AI model
    * @param messages Array of conversation messages
    * @param workspaceId Unique identifier for the workspace
+   * @param modelString Model string (e.g., "anthropic:claude-opus-4-1") - required from frontend
    * @param thinkingLevel Optional thinking/reasoning level for AI models
    * @param abortSignal Optional signal to abort the stream
    * @returns Promise that resolves when streaming completes or fails
@@ -192,6 +192,7 @@ export class AIService extends EventEmitter {
   async streamMessage(
     messages: CmuxMessage[],
     workspaceId: string,
+    modelString: string,
     thinkingLevel?: ThinkingLevel,
     abortSignal?: AbortSignal
   ): Promise<Result<void, SendMessageError>> {
@@ -207,7 +208,7 @@ export class AIService extends EventEmitter {
       await this.partialService.commitToHistory(workspaceId);
 
       // Create model instance with early API key validation
-      const modelResult = this.createModel(this.defaultModel);
+      const modelResult = this.createModel(modelString);
       if (!modelResult.success) {
         return Err(modelResult.error);
       }
@@ -234,7 +235,7 @@ export class AIService extends EventEmitter {
       const transformedMessages = transformModelMessages(modelMessages);
 
       // Apply cache control for Anthropic models AFTER transformation
-      const finalMessages = applyCacheControl(transformedMessages, this.defaultModel);
+      const finalMessages = applyCacheControl(transformedMessages, modelString);
 
       log.debug_obj(`${workspaceId}/3_final_messages.json`, finalMessages);
 
@@ -255,19 +256,19 @@ export class AIService extends EventEmitter {
       const systemMessage = await buildSystemMessage(metadataResult.data);
 
       // Count system message tokens for cost tracking
-      const tokenizer = getTokenizerForModel(this.defaultModel);
+      const tokenizer = getTokenizerForModel(modelString);
       const systemMessageTokens = await tokenizer.countTokens(systemMessage);
 
       const workspacePath = metadataResult.data.workspacePath;
 
       // Get model-specific tools with workspace path configuration
-      const tools = getToolsForModel(this.defaultModel, { cwd: workspacePath });
+      const tools = getToolsForModel(modelString, { cwd: workspacePath });
 
       // Create assistant message placeholder with historySequence from backend
       const assistantMessageId = `assistant-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
       const assistantMessage = createCmuxMessage(assistantMessageId, "assistant", "", {
         timestamp: Date.now(),
-        model: this.defaultModel,
+        model: modelString,
         systemMessageTokens,
       });
 
@@ -281,14 +282,14 @@ export class AIService extends EventEmitter {
       const historySequence = assistantMessage.metadata?.historySequence ?? 0;
 
       // Build provider options based on thinking level
-      const providerOptions = buildProviderOptions(this.defaultModel, thinkingLevel ?? "off");
+      const providerOptions = buildProviderOptions(modelString, thinkingLevel ?? "off");
 
       // Delegate to StreamManager with model instance, system message, tools, historySequence, and initial metadata
       const streamResult = await this.streamManager.startStream(
         workspaceId,
         finalMessages,
         modelResult.data,
-        this.defaultModel,
+        modelString,
         historySequence,
         systemMessage,
         abortSignal,

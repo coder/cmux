@@ -3,13 +3,16 @@ import styled from "@emotion/styled";
 import { CommandSuggestions, COMMAND_SUGGESTION_KEYS } from "./CommandSuggestions";
 import type { Toast } from "./ChatInputToast";
 import { ChatInputToast, SolutionLabel } from "./ChatInputToast";
-import type { ParsedCommand } from "../utils/commandParser";
-import { parseCommand } from "../utils/commandParser";
+import type { ParsedCommand } from "../utils/slashCommands/types";
+import { parseCommand } from "../utils/slashCommands/parser";
 import type { SendMessageError as SendMessageErrorType } from "../types/errors";
 import { usePersistedState } from "../hooks/usePersistedState";
 import { ThinkingSliderComponent } from "./ThinkingSlider";
 import { useThinkingLevel } from "../hooks/useThinkingLevel";
-import { getSlashCommandSuggestions, type SlashSuggestion } from "../utils/slashCommands";
+import {
+  getSlashCommandSuggestions,
+  type SlashSuggestion,
+} from "../utils/slashCommands/suggestions";
 
 const InputSection = styled.div`
   position: relative;
@@ -90,11 +93,19 @@ const EditingIndicator = styled.div`
   font-weight: 500;
 `;
 
+const ModelDisplay = styled.div`
+  font-size: 10px;
+  color: #808080;
+  font-family: var(--font-monospace);
+  margin-right: 12px;
+`;
+
 export interface ChatInputProps {
   workspaceId: string;
   onMessageSent?: () => void; // Optional callback after successful send
   onClearHistory: () => Promise<void>;
   onProviderConfig?: (provider: string, keyPath: string[], value: string) => Promise<void>;
+  onModelChange?: (model: string) => void;
   debugMode: boolean;
   onDebugModeChange: (enabled: boolean) => void;
   disabled?: boolean;
@@ -161,6 +172,26 @@ const createCommandToast = (parsed: ParsedCommand): Toast | null => {
           <>
             <SolutionLabel>Available Commands:</SolutionLabel>
             /providers set - Configure provider settings
+          </>
+        ),
+      };
+
+    case "model-help":
+      return {
+        id: Date.now().toString(),
+        type: "error",
+        title: "Model Command",
+        message: "Select AI model for this session",
+        solution: (
+          <>
+            <SolutionLabel>Usage:</SolutionLabel>
+            /model &lt;abbreviation&gt; or /model &lt;provider:model&gt;
+            <br />
+            <br />
+            <SolutionLabel>Examples:</SolutionLabel>
+            /model sonnet
+            <br />
+            /model anthropic:opus-4-1
           </>
         ),
       };
@@ -240,6 +271,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   onMessageSent,
   onClearHistory,
   onProviderConfig,
+  onModelChange,
   debugMode,
   onDebugModeChange,
   disabled = false,
@@ -249,6 +281,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   canInterrupt = false,
 }) => {
   const [input, setInput] = usePersistedState("input:" + workspaceId, "");
+  const [preferredModel, setPreferredModel] = usePersistedState<string>(
+    "cmux-preferred-model",
+    "anthropic:claude-opus-4-1"
+  );
   const [isSending, setIsSending] = useState(false);
   const [showCommandSuggestions, setShowCommandSuggestions] = useState(false);
   const [commandSuggestions, setCommandSuggestions] = useState<SlashSuggestion[]>([]);
@@ -363,6 +399,19 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           return;
         }
 
+        // Handle /model command
+        if (parsed.type === "model-set") {
+          setInput(""); // Clear input immediately
+          setPreferredModel(parsed.modelString);
+          onModelChange?.(parsed.modelString);
+          setToast({
+            id: Date.now().toString(),
+            type: "success",
+            message: `Model changed to ${parsed.modelString}`,
+          });
+          return;
+        }
+
         // Handle all other commands - show display toast
         const commandToast = createCommandToast(parsed);
         if (commandToast) {
@@ -378,6 +427,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         const result = await window.api.workspace.sendMessage(workspaceId, messageText, {
           editMessageId: editingMessage?.id,
           thinkingLevel,
+          model: preferredModel,
         });
 
         if (!result.success) {
@@ -503,6 +553,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       <ModeToggles>
         {editingMessage && <EditingIndicator>Editing message (ESC to cancel)</EditingIndicator>}
         <ModeTogglesRow>
+          <ModelDisplay>{preferredModel}</ModelDisplay>
           <DebugModeToggle>
             <input
               type="checkbox"

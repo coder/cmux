@@ -1,5 +1,5 @@
 import { describe, it, expect } from "bun:test";
-import { parseCommand, setNestedProperty } from "./commandParser";
+import { parseCommand, setNestedProperty } from "./parser";
 
 describe("commandParser", () => {
   describe("parseCommand", () => {
@@ -124,6 +124,46 @@ describe("commandParser", () => {
         provider: "anthropic",
         keyPath: ["baseUrl"],
         value: "https://api.anthropic.com/v1",
+      });
+    });
+
+    it("should parse /model with abbreviation", () => {
+      const result = parseCommand("/model opus");
+      expect(result).toEqual({
+        type: "model-set",
+        modelString: "anthropic:claude-opus-4-1",
+      });
+    });
+
+    it("should parse /model with full provider:model format", () => {
+      const result = parseCommand("/model anthropic:claude-sonnet-4-5");
+      expect(result).toEqual({
+        type: "model-set",
+        modelString: "anthropic:claude-sonnet-4-5",
+      });
+    });
+
+    it("should parse /model help when no args", () => {
+      const result = parseCommand("/model");
+      expect(result).toEqual({
+        type: "model-help",
+      });
+    });
+
+    it("should handle unknown abbreviation as full model string", () => {
+      const result = parseCommand("/model custom:model-name");
+      expect(result).toEqual({
+        type: "model-set",
+        modelString: "custom:model-name",
+      });
+    });
+
+    it("should reject /model with too many arguments", () => {
+      const result = parseCommand("/model anthropic claude extra");
+      expect(result).toEqual({
+        type: "unknown-command",
+        command: "model",
+        subcommand: "claude",
       });
     });
   });

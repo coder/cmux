@@ -111,6 +111,7 @@ export function isReasoningEnd(msg: WorkspaceChatMessage): msg is ReasoningEndEv
 export interface SendMessageOptions {
   editMessageId?: string;
   thinkingLevel?: ThinkingLevel;
+  model: string;
 }
 
 // API method signatures (shared between main and preload)

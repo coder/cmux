@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import styled from "@emotion/styled";
-import type { SlashSuggestion } from "../utils/slashCommands";
+import type { SlashSuggestion } from "../utils/slashCommands/types";
 
 // Export the keys that CommandSuggestions handles
 export const COMMAND_SUGGESTION_KEYS = ["Tab", "ArrowUp", "ArrowDown", "Escape"];

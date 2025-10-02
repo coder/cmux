@@ -1,5 +1,5 @@
 import { describe, it, expect } from "bun:test";
-import { getSlashCommandSuggestions } from "./slashCommands";
+import { getSlashCommandSuggestions } from "./suggestions";
 
 describe("getSlashCommandSuggestions", () => {
   it("returns empty suggestions for non-commands", () => {
@@ -12,6 +12,7 @@ describe("getSlashCommandSuggestions", () => {
     const labels = suggestions.map((s) => s.display);
 
     expect(labels).toContain("/clear");
+    expect(labels).toContain("/model");
     expect(labels).toContain("/providers");
   });
 
@@ -50,5 +51,19 @@ describe("getSlashCommandSuggestions", () => {
 
     expect(suggestions).toHaveLength(1);
     expect(suggestions[0].display).toBe("apiKey");
+  });
+
+  it("suggests model abbreviations after /model", () => {
+    const suggestions = getSlashCommandSuggestions("/model ");
+    const displays = suggestions.map((s) => s.display);
+
+    expect(displays).toContain("opus");
+    expect(displays).toContain("sonnet");
+  });
+
+  it("filters model suggestions by partial input", () => {
+    const suggestions = getSlashCommandSuggestions("/model op");
+    expect(suggestions).toHaveLength(1);
+    expect(suggestions[0].display).toBe("opus");
   });
 });
