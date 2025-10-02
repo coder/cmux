@@ -119,7 +119,7 @@ export function sumUsageHistory(usageHistory: ChatUsageDisplay[]): ChatUsageDisp
 
   for (const usage of usageHistory) {
     // Iterate over each component and sum tokens and costs
-    for (const key of Object.keys(sum) as Array<keyof ChatUsageDisplay>) {
+    for (const key of Object.keys(sum) as (keyof ChatUsageDisplay)[]) {
       sum[key].tokens += usage[key].tokens;
       sum[key].cost_usd += usage[key].cost_usd;
     }
@@ -167,7 +167,7 @@ export async function calculateTokenStats(
           userTokens += await tokenizer.countTokens(part.text);
         }
       }
-      const existing = consumerMap.get("User") || { fixed: 0, variable: 0 };
+      const existing = consumerMap.get("User") ?? { fixed: 0, variable: 0 };
       consumerMap.set("User", { fixed: 0, variable: existing.variable + userTokens });
     } else if (message.role === "assistant") {
       // Accumulate system message tokens from this request
@@ -191,7 +191,7 @@ export async function calculateTokenStats(
       for (const part of message.parts) {
         if (part.type === "text") {
           const textTokens = await tokenizer.countTokens(part.text);
-          const existing = consumerMap.get("Assistant") || { fixed: 0, variable: 0 };
+          const existing = consumerMap.get("Assistant") ?? { fixed: 0, variable: 0 };
           consumerMap.set("Assistant", { fixed: 0, variable: existing.variable + textTokens });
         } else if (part.type === "dynamic-tool") {
           // Count tool arguments
@@ -249,7 +249,7 @@ export async function calculateTokenStats(
           }
 
           // Get existing or create new consumer for this tool
-          const existing = consumerMap.get(part.toolName) || { fixed: 0, variable: 0 };
+          const existing = consumerMap.get(part.toolName) ?? { fixed: 0, variable: 0 };
 
           // Add tool definition tokens if this is the first time we see this tool
           let fixedTokens = existing.fixed;

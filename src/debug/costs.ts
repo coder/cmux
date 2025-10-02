@@ -34,7 +34,7 @@ export async function costsCommand(workspaceId: string) {
 
   // Detect model from first assistant message
   const firstAssistantMessage = messages.find((msg) => msg.role === "assistant");
-  const model = firstAssistantMessage?.metadata?.model || "anthropic:claude-opus-4-1";
+  const model = firstAssistantMessage?.metadata?.model ?? "anthropic:claude-opus-4-1";
 
   // Calculate stats using shared logic
   const stats = await calculateTokenStats(messages, model);

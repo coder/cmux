@@ -413,7 +413,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       } else {
         // Enter: send message
         e.preventDefault();
-        handleSend();
+        void handleSend();
       }
     }
   };

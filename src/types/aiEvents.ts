@@ -45,6 +45,11 @@ export interface StreamEndEvent {
     tokens?: number;
     model: string;
     providerMetadata?: ProviderMetadata;
+    duration?: number;
+    reasoning?: string;
+    reasoningTokens?: number;
+    isReasoningStreaming?: boolean;
+    systemMessageTokens?: number;
   };
   // Parts array preserves temporal ordering of text and tool calls
   parts: CompletedMessagePart[];

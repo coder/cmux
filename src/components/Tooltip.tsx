@@ -25,7 +25,7 @@ export const Tooltip = styled.span<TooltipProps>`
   opacity: 0;
   background-color: #2d2d30;
   color: #cccccc;
-  text-align: ${(props) => props.align || "left"};
+  text-align: ${(props) => props.align ?? "left"};
   border-radius: 4px;
   padding: 6px 10px;
   position: absolute;

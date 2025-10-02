@@ -1,4 +1,4 @@
-import type { UIMessage, UIMessagePart, UITool, UIToolInvocation } from "ai";
+import type { UIMessage } from "ai";
 import type { LanguageModelV2Usage } from "@ai-sdk/provider";
 
 // Shared provider metadata type for cache statistics and other provider-specific data
@@ -30,21 +30,21 @@ export interface CmuxMetadata {
 
 // Extended tool part type that supports interrupted tool calls (input-available state)
 // Standard AI SDK ToolUIPart only supports output-available (completed tools)
-export type CmuxToolPart = {
+export interface CmuxToolPart {
   type: "dynamic-tool";
   toolCallId: string;
   toolName: string;
   state: "input-available" | "output-available";
   input: unknown;
   output?: unknown;
-};
+}
 
 // Text part type that supports both streaming and completed states
-export type CmuxTextPart = {
+export interface CmuxTextPart {
   type: "text";
   text: string;
   state: "done" | "streaming";
-};
+}
 
 // CmuxMessage extends UIMessage with our metadata and custom tool parts
 // Supports text parts and tool parts (including interrupted tool calls)
@@ -115,7 +115,7 @@ export function createCmuxMessage(
   const textPart = content
     ? [{ type: "text" as const, text: content, state: "done" as const }]
     : [];
-  const parts = [...textPart, ...(additionalParts || [])];
+  const parts = [...textPart, ...(additionalParts ?? [])];
 
   return {
     id,

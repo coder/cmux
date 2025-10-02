@@ -8,7 +8,6 @@ import {
   getAllWorkspaceMetadata,
   loadProvidersConfig,
   saveProvidersConfig,
-  ProvidersConfig,
 } from "./config";
 import { createWorktree, removeWorktree } from "./git";
 import { AIService } from "./services/aiService";
@@ -25,7 +24,7 @@ import type {
   ToolCallDeltaEvent,
   ToolCallEndEvent,
 } from "./types/aiEvents";
-import { IPC_CHANNELS, getChatChannel, getClearChannel } from "./constants/ipc-constants";
+import { IPC_CHANNELS, getChatChannel } from "./constants/ipc-constants";
 import type { SendMessageError } from "./types/errors";
 import type { StreamErrorMessage } from "./types/ipc";
 
@@ -59,7 +58,7 @@ if (!gotTheLock) {
 let mainWindow: BrowserWindow | null = null;
 
 // Register IPC handlers before creating window
-ipcMain.handle(IPC_CHANNELS.CONFIG_LOAD, async () => {
+ipcMain.handle(IPC_CHANNELS.CONFIG_LOAD, () => {
   const config = load_config_or_default();
   return {
     projects: Array.from(config.projects.entries()),
@@ -68,7 +67,7 @@ ipcMain.handle(IPC_CHANNELS.CONFIG_LOAD, async () => {
 
 ipcMain.handle(
   IPC_CHANNELS.CONFIG_SAVE,
-  async (_event, configData: { projects: Array<[string, ProjectConfig]> }) => {
+  (_event, configData: { projects: [string, ProjectConfig][] }) => {
     const config: Config = {
       projects: new Map(configData.projects),
     };
@@ -100,7 +99,7 @@ ipcMain.handle(
 
     if (result.success && result.path) {
       const projectName =
-        projectPath.split("/").pop() || projectPath.split("\\").pop() || "unknown";
+        projectPath.split("/").pop() ?? projectPath.split("\\").pop() ?? "unknown";
       const workspaceId = `${projectName}-${branchName}`;
 
       // Initialize the workspace metadata
@@ -230,9 +229,9 @@ ipcMain.handle(
           return {
             success: false,
             error: {
-              type: "unknown",
+              type: "unknown" as const,
               raw: truncateResult.error,
-            } as SendMessageError,
+            },
           };
         }
         // Note: We don't send a clear event here. The aggregator will handle
@@ -253,9 +252,9 @@ ipcMain.handle(
         return {
           success: false,
           error: {
-            type: "unknown",
+            type: "unknown" as const,
             raw: appendResult.error,
-          } as SendMessageError,
+          },
         };
       }
 
@@ -275,9 +274,9 @@ ipcMain.handle(
         return {
           success: false,
           error: {
-            type: "unknown",
+            type: "unknown" as const,
             raw: historyResult.error,
-          } as SendMessageError,
+          },
         };
       }
 
@@ -288,6 +287,7 @@ ipcMain.handle(
       const streamResult = await aiService.streamMessage(
         historyResult.data,
         workspaceId,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
         thinkingLevel as any // Cast to ThinkingLevel - validated by TypeScript in frontend
       );
       log.debug("sendMessage handler: Stream completed");
@@ -312,10 +312,10 @@ ipcMain.handle(IPC_CHANNELS.WORKSPACE_CLEAR_HISTORY, async (_event, workspaceId:
 // Provider configuration handlers
 ipcMain.handle(
   IPC_CHANNELS.PROVIDERS_SET_CONFIG,
-  async (_event, provider: string, keyPath: string[], value: string) => {
+  (_event, provider: string, keyPath: string[], value: string) => {
     try {
       // Load current providers config or create empty
-      const config = loadProvidersConfig() || {};
+      const config = loadProvidersConfig() ?? {};
 
       // Ensure provider exists
       if (!config[provider]) {
@@ -338,7 +338,7 @@ ipcMain.handle(
       }
 
       // Save updated config
-      saveProvidersConfig(config as ProvidersConfig);
+      saveProvidersConfig(config);
 
       return { success: true, data: undefined };
     } catch (error) {
@@ -349,46 +349,54 @@ ipcMain.handle(
 );
 
 // Handle subscription events for chat history
-ipcMain.on(`workspace:chat:subscribe`, async (_event, workspaceId: string) => {
-  const chatChannel = getChatChannel(workspaceId);
+ipcMain.on(
+  `workspace:chat:subscribe`,
+  (_event, workspaceId: string) =>
+    void (async () => {
+      const chatChannel = getChatChannel(workspaceId);
 
-  // Emit current chat history immediately
-  const history = await historyService.getHistory(workspaceId);
-  if (history.success) {
-    // Merge partial.json with chat history for complete message list
-    const partial = await partialService.readPartial(workspaceId);
+      // Emit current chat history immediately
+      const history = await historyService.getHistory(workspaceId);
+      if (history.success) {
+        // Merge partial.json with chat history for complete message list
+        const partial = await partialService.readPartial(workspaceId);
 
-    // Send all history messages
-    history.data.forEach((msg) => {
-      mainWindow?.webContents.send(chatChannel, msg);
-    });
+        // Send all history messages
+        history.data.forEach((msg) => {
+          mainWindow?.webContents.send(chatChannel, msg);
+        });
 
-    // If there's a partial message (interrupted stream), send it after history
-    if (partial) {
-      mainWindow?.webContents.send(chatChannel, partial);
-    }
-  }
+        // If there's a partial message (interrupted stream), send it after history
+        if (partial) {
+          mainWindow?.webContents.send(chatChannel, partial);
+        }
+      }
 
-  // Send caught-up signal
-  mainWindow?.webContents.send(chatChannel, { type: "caught-up" });
-});
+      // Send caught-up signal
+      mainWindow?.webContents.send(chatChannel, { type: "caught-up" });
+    })()
+);
 
 // Handle subscription events for metadata
-ipcMain.on(`workspace:metadata:subscribe`, async () => {
-  try {
-    const workspaceData = await getAllWorkspaceMetadata();
+ipcMain.on(
+  `workspace:metadata:subscribe`,
+  () =>
+    void (async () => {
+      try {
+        const workspaceData = await getAllWorkspaceMetadata();
 
-    // Emit current metadata for each workspace
-    for (const { workspaceId, metadata } of workspaceData) {
-      mainWindow?.webContents.send(IPC_CHANNELS.WORKSPACE_METADATA, {
-        workspaceId,
-        metadata,
-      });
-    }
-  } catch (error) {
-    console.error("Failed to emit current metadata:", error);
-  }
-});
+        // Emit current metadata for each workspace
+        for (const { workspaceId, metadata } of workspaceData) {
+          mainWindow?.webContents.send(IPC_CHANNELS.WORKSPACE_METADATA, {
+            workspaceId,
+            metadata,
+          });
+        }
+      } catch (error) {
+        console.error("Failed to emit current metadata:", error);
+      }
+    })()
+);
 
 // Set up event listeners for AI service
 aiService.on("stream-start", (data: StreamStartEvent) => {
@@ -453,7 +461,7 @@ aiService.on("error", (data: ErrorEvent) => {
     const errorMessage: StreamErrorMessage = {
       type: "stream-error",
       error: data.error,
-      errorType: data.errorType || "unknown",
+      errorType: data.errorType ?? "unknown",
     };
     mainWindow.webContents.send(getChatChannel(data.workspaceId), errorMessage);
   }
@@ -539,7 +547,7 @@ function createWindow() {
   });
 
   // Always load from dev server for now
-  mainWindow.loadURL("http://localhost:5173");
+  void mainWindow.loadURL("http://localhost:5173");
 
   // Open DevTools in development
   if (process.env.NODE_ENV !== "production") {
@@ -553,7 +561,7 @@ function createWindow() {
 
 // Only setup app handlers if we got the lock
 if (gotTheLock) {
-  app.whenReady().then(async () => {
+  void app.whenReady().then(() => {
     console.log("App ready, creating window...");
     createMenu();
     createWindow();

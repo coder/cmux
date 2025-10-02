@@ -84,7 +84,7 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({ message, cla
     : [
         {
           label: copied ? "✓ Copied" : "Copy Text",
-          onClick: handleCopy,
+          onClick: () => void handleCopy(),
         },
         {
           label: showRaw ? "Show Markdown" : "Show Text",

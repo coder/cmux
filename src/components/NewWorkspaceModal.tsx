@@ -183,7 +183,7 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
     onClose();
   };
 
-  const projectName = projectPath.split("/").pop() || projectPath.split("\\").pop() || "project";
+  const projectName = projectPath.split("/").pop() ?? projectPath.split("\\").pop() ?? "project";
 
   return (
     <ModalOverlay onClick={handleCancel}>
@@ -191,7 +191,7 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
         <h2>New Workspace</h2>
         <ModalSubtitle>Create a new workspace for {projectName}</ModalSubtitle>
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={(e) => void handleSubmit(e)}>
           <FormGroup>
             <label htmlFor="branchName">Branch Name:</label>
             <input

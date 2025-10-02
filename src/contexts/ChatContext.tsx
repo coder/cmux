@@ -58,7 +58,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({
       }
     }
 
-    calculateStats();
+    void calculateStats();
 
     return () => {
       cancelled = true;

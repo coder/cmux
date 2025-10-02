@@ -19,7 +19,7 @@ const command = positionals[0];
 
 switch (command) {
   case "list-workspaces":
-    await listWorkspacesCommand();
+    listWorkspacesCommand();
     break;
   case "costs": {
     const workspaceId = positionals[1];

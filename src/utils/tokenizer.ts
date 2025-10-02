@@ -18,8 +18,8 @@ export function getTokenizerForModel(modelString: string): Tokenizer {
 
   const anthropicTokenizer = {
     name: "Anthropic",
-    countTokens: async (text: string) => {
-      return Math.ceil(text.length / 4);
+    countTokens: (text: string) => {
+      return Promise.resolve(Math.ceil(text.length / 4));
     },
   };
 
@@ -30,20 +30,20 @@ export function getTokenizerForModel(modelString: string): Tokenizer {
     case "openai":
       return {
         name: "OpenAI",
-        countTokens: async (text: string) => {
+        countTokens: (text: string) => {
           // TODO: Integrate tiktoken for OpenAI models
           // For now, rough approximation: ~4 chars per token
-          return Math.ceil(text.length / 4);
+          return Promise.resolve(Math.ceil(text.length / 4));
         },
       };
 
     case "google":
       return {
         name: "Google Gemini",
-        countTokens: async (text: string) => {
+        countTokens: (text: string) => {
           // TODO: Integrate Google tokenizer
           // For now, rough approximation: ~4 chars per token
-          return Math.ceil(text.length / 4);
+          return Promise.resolve(Math.ceil(text.length / 4));
         },
       };
 

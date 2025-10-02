@@ -415,7 +415,7 @@ export class StreamingMessageAggregator {
     // Handle regular messages (user messages, historical messages)
     // Check if it's a CmuxMessage (has role property but no type)
     if ("role" in data && !("type" in data)) {
-      const incomingMessage = data as CmuxMessage;
+      const incomingMessage = data;
 
       // Smart replacement logic for edits:
       // If a message arrives with a historySequence that already exists,
@@ -424,7 +424,7 @@ export class StreamingMessageAggregator {
       const incomingSequence = incomingMessage.metadata?.historySequence;
       if (incomingSequence !== undefined) {
         // Check if there's already a message with this sequence
-        for (const [id, msg] of this.messages.entries()) {
+        for (const [_id, msg] of this.messages.entries()) {
           const existingSequence = msg.metadata?.historySequence;
           if (existingSequence !== undefined && existingSequence >= incomingSequence) {
             // Found a conflict - remove this message and all after it
@@ -488,7 +488,7 @@ export class StreamingMessageAggregator {
             type: "reasoning",
             id: `${message.id}-reasoning`,
             historyId: message.id,
-            content: message.metadata.reasoning || "",
+            content: message.metadata.reasoning ?? "",
             historySequence,
             streamSequence: streamSeq++,
             isStreaming: message.metadata.isReasoningStreaming ?? false,

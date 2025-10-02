@@ -181,7 +181,7 @@ export const ChatInputToast: React.FC<ChatInputToastProps> = ({ toast, onDismiss
   if (!toast) return null;
 
   // Use rich error style when there's a title or solution
-  const isRichError = toast.type === "error" && (toast.title || toast.solution);
+  const isRichError = toast.type === "error" && (toast.title ?? toast.solution);
 
   if (isRichError) {
     return (

@@ -30,9 +30,7 @@ export interface ProviderConfig {
   [key: string]: unknown;
 }
 
-export interface ProvidersConfig {
-  [providerName: string]: ProviderConfig;
-}
+export type ProvidersConfig = Record<string, ProviderConfig>;
 
 export function load_config_or_default(): Config {
   try {
@@ -43,7 +41,7 @@ export function load_config_or_default(): Config {
       // Config is stored as array of [path, config] pairs
       if (parsed.projects && Array.isArray(parsed.projects)) {
         const projectsMap = new Map<string, ProjectConfig>(
-          parsed.projects as Array<[string, ProjectConfig]>
+          parsed.projects as [string, ProjectConfig][]
         );
         return {
           projects: projectsMap,
@@ -77,7 +75,7 @@ export function save_config(config: Config): void {
 }
 
 export function getProjectName(projectPath: string): string {
-  return projectPath.split("/").pop() || projectPath.split("\\").pop() || "unknown";
+  return projectPath.split("/").pop() ?? projectPath.split("\\").pop() ?? "unknown";
 }
 
 export function getWorkspacePath(projectPath: string, branch: string): string {
@@ -132,7 +130,7 @@ export function getSessionDir(workspaceId: string): string {
  * This centralizes the logic for workspace discovery and metadata loading
  */
 export async function getAllWorkspaceMetadata(): Promise<
-  Array<{ workspaceId: string; metadata: WorkspaceMetadata }>
+  { workspaceId: string; metadata: WorkspaceMetadata }[]
 > {
   try {
     // Scan sessions directory for workspace directories
@@ -140,7 +138,7 @@ export async function getAllWorkspaceMetadata(): Promise<
     const entries = await fsPromises.readdir(SESSIONS_DIR, { withFileTypes: true });
     const workspaceIds = entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name);
 
-    const workspaceMetadata: Array<{ workspaceId: string; metadata: WorkspaceMetadata }> = [];
+    const workspaceMetadata: { workspaceId: string; metadata: WorkspaceMetadata }[] = [];
 
     for (const workspaceId of workspaceIds) {
       try {

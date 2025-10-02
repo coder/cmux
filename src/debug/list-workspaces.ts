@@ -2,7 +2,7 @@ import { load_config_or_default, findWorkspacePath } from "../config";
 import * as path from "path";
 import * as fs from "fs";
 
-export async function listWorkspacesCommand() {
+export function listWorkspacesCommand() {
   const config = load_config_or_default();
 
   console.log("\n=== Configuration Debug ===\n");
@@ -43,7 +43,7 @@ export async function listWorkspacesCommand() {
   }
 
   console.log("\n=== Sessions Directory ===\n");
-  const sessionsDir = path.join(process.env.HOME || "", ".cmux", "sessions");
+  const sessionsDir = path.join(process.env.HOME ?? "", ".cmux", "sessions");
   if (fs.existsSync(sessionsDir)) {
     const sessions = fs.readdirSync(sessionsDir);
     console.log(`Sessions in ${sessionsDir}:`);

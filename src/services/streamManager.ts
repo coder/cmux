@@ -27,6 +27,17 @@ import { getTokenizerForModel } from "../utils/tokenizer";
 import type { PartialService } from "./partialService";
 import type { HistoryService } from "./historyService";
 
+// Type definitions for stream parts with extended properties
+interface ReasoningDeltaPart {
+  type: "reasoning-delta";
+  text?: string;
+}
+
+interface StreamPartWithText {
+  type: string;
+  text?: string;
+}
+
 // Branded types for compile-time safety
 type WorkspaceId = string & { __brand: "WorkspaceId" };
 type StreamToken = string & { __brand: "StreamToken" };
@@ -208,7 +219,7 @@ export class StreamManager extends EventEmitter {
   /**
    * Atomically creates a new stream with all necessary setup
    */
-  private async createStreamAtomically(
+  private createStreamAtomically(
     workspaceId: WorkspaceId,
     streamToken: StreamToken,
     messages: ModelMessage[],
@@ -220,7 +231,7 @@ export class StreamManager extends EventEmitter {
     tools?: Record<string, Tool>,
     initialMetadata?: Partial<CmuxMetadata>,
     providerOptions?: Record<string, unknown>
-  ): Promise<WorkspaceStreamInfo> {
+  ): WorkspaceStreamInfo {
     // Create abort controller for this specific stream
     const abortController = new AbortController();
 
@@ -239,6 +250,7 @@ export class StreamManager extends EventEmitter {
         abortSignal: abortController.signal,
         tools,
         stopWhen: stepCountIs(1000), // Allow up to 1000 steps (effectively unlimited)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
         providerOptions: providerOptions as any, // Pass provider-specific options (thinking/reasoning config)
       });
     } catch (error) {
@@ -310,7 +322,7 @@ export class StreamManager extends EventEmitter {
         log.debug("streamManager: Stream part", {
           type: part.type,
           hasText: "text" in part,
-          preview: "text" in part ? (part as any).text?.substring(0, 50) : undefined,
+          preview: "text" in part ? (part as StreamPartWithText).text?.substring(0, 50) : undefined,
         });
 
         switch (part.type) {
@@ -353,7 +365,7 @@ export class StreamManager extends EventEmitter {
               type: "reasoning-delta",
               workspaceId: workspaceId as string,
               messageId: streamInfo.messageId,
-              delta: (part as any).text || "",
+              delta: (part as ReasoningDeltaPart).text ?? "",
             });
             break;
 
@@ -366,7 +378,7 @@ export class StreamManager extends EventEmitter {
             });
             break;
 
-          case "tool-call":
+          case "tool-call": {
             // Reset text buffer to separate text segments (text is already in parts from text-delta handler)
             // We don't push here because text-delta already maintains parts array
             currentTextBuffer = "";
@@ -385,6 +397,7 @@ export class StreamManager extends EventEmitter {
               toolCallId: part.toolCallId,
               toolName: part.toolName,
               state: "input-available" as const,
+              // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
               input: part.input,
             };
             streamInfo.parts.push(toolPart);
@@ -398,6 +411,7 @@ export class StreamManager extends EventEmitter {
               args: part.input,
             } as ToolCallStartEvent);
             break;
+          }
 
           case "tool-result": {
             // Tool call completed - update the existing tool part with output
@@ -506,7 +520,7 @@ export class StreamManager extends EventEmitter {
 
             // Adjust usage to subtract reasoning tokens from outputTokens
             // This maintains consistency with how inputTokens excludes cachedInputTokens
-            if (usage && usage.outputTokens !== undefined) {
+            if (usage?.outputTokens !== undefined) {
               adjustedUsage = {
                 ...usage,
                 outputTokens: Math.max(0, usage.outputTokens - reasoningTokens),
@@ -523,7 +537,7 @@ export class StreamManager extends EventEmitter {
 
         // Emit stream end event with parts preserved in temporal order
         // Merge initialMetadata with runtime metadata for complete picture
-        const streamEndEvent = {
+        const streamEndEvent: StreamEndEvent = {
           type: "stream-end",
           workspaceId: workspaceId as string,
           messageId: streamInfo.messageId,
@@ -539,7 +553,7 @@ export class StreamManager extends EventEmitter {
             isReasoningStreaming: false,
           },
           parts: streamInfo.parts, // Parts array with temporal ordering
-        } as StreamEndEvent;
+        };
 
         this.emit("stream-end", streamEndEvent);
 
@@ -570,7 +584,7 @@ export class StreamManager extends EventEmitter {
       console.error("Stream processing error:", error);
 
       // Check if this is actually a LoadAPIKeyError wrapped in another error
-      let errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
       let errorType = this.categorizeError(error);
 
       // If we detect API key issues in the error message, override the type
@@ -681,13 +695,13 @@ export class StreamManager extends EventEmitter {
       const streamToken = await this.ensureStreamSafety(typedWorkspaceId);
 
       // Step 2: Atomic stream creation and registration
-      const streamInfo = await this.createStreamAtomically(
+      const streamInfo = this.createStreamAtomically(
         typedWorkspaceId,
         streamToken,
         messages,
         model,
         modelString,
-        abortSignal || new AbortController().signal,
+        abortSignal ?? new AbortController().signal,
         system,
         historySequence,
         tools,

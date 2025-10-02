@@ -1,7 +1,7 @@
 {
   "name": "cmux",
   "version": "0.0.1",
-  "description": "Coding Agent Multiplexer",
+  "description": "cmux - coder multiplexer",
   "main": "dist/main.js",
   "scripts": {
     "dev": "bun run build:main && concurrently -k \"bun run dev:main\" \"bun run dev:renderer\"",

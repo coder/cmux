@@ -2,7 +2,6 @@
 
 ## Project Context
 
-- **cmux** - Coding Agent Multiplexer
 - Electron + React desktop application
 - No existing users - migration code is not needed when changing data structures
 

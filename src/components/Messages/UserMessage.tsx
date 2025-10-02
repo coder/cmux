@@ -62,7 +62,7 @@ export const UserMessage: React.FC<UserMessageProps> = ({ message, className, on
       : []),
     {
       label: copied ? "✓ Copied" : "Copy Text",
-      onClick: handleCopy,
+      onClick: () => void handleCopy(),
     },
   ];
 

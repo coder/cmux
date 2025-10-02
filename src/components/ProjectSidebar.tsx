@@ -274,7 +274,7 @@ const WorkspaceRemoveBtn = styled(RemoveBtn)`
 
 export interface ProjectConfig {
   path: string;
-  workspaces: Array<{ branch: string; path: string }>;
+  workspaces: { branch: string; path: string }[];
 }
 
 export interface WorkspaceSelection {
@@ -314,7 +314,7 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
     if (!path || typeof path !== "string") {
       return "Unknown";
     }
-    return path.split("/").pop() || path.split("\\").pop() || path;
+    return path.split("/").pop() ?? path.split("\\").pop() ?? path;
   };
 
   const toggleProject = (projectPath: string) => {

@@ -11,7 +11,7 @@ interface CodeProps {
 export const markdownComponents = {
   // Custom code block renderer
   code: ({ inline, className, children, ...props }: CodeProps) => {
-    const match = /language-(\w+)/.exec(className || "");
+    const match = /language-(\w+)/.exec(className ?? "");
     const language = match ? match[1] : "";
 
     if (!inline && language) {

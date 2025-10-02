@@ -23,7 +23,7 @@ export function parseCommand(input: string): ParsedCommand {
   }
 
   // Remove leading slash and split by spaces (respecting quotes)
-  const parts = trimmed.substring(1).match(/(?:[^\s"]+|"[^"]*")+/g) || [];
+  const parts = trimmed.substring(1).match(/(?:[^\s"]+|"[^"]*")+/g) ?? [];
   if (parts.length === 0) {
     return null;
   }
@@ -76,7 +76,7 @@ export function parseCommand(input: string): ParsedCommand {
   // Unknown command
   return {
     type: "unknown-command",
-    command: command || "",
+    command: command ?? "",
     subcommand,
   };
 }
@@ -96,7 +96,7 @@ export function setNestedProperty(
     return;
   }
 
-  let current = obj as Record<string, unknown>;
+  let current = obj;
   for (let i = 0; i < keyPath.length - 1; i++) {
     const key = keyPath[i];
     if (!(key in current) || typeof current[key] !== "object" || current[key] === null) {

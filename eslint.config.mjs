@@ -18,13 +18,14 @@ export default tseslint.config(
       "!eslint.config.mjs",
       "vite.config.ts",
       "electron.vite.config.ts",
+      "src/main.tsx",
     ],
   },
   {
     files: ["src/**/*.{ts,tsx}"],
     languageOptions: {
       parserOptions: {
-        projectService: true,
+        project: ["./tsconfig.json", "./tsconfig.main.json"],
         tsconfigRootDir: import.meta.dirname,
       },
       globals: {

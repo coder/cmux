@@ -5,7 +5,7 @@ import { CmuxMessage, DisplayedMessage } from "../../types/message";
 const MessageBlock = styled.div<{ borderColor: string; backgroundColor?: string }>`
   margin-bottom: 15px;
   margin-top: 15px;
-  background: ${(props) => props.backgroundColor || "#1e1e1e"};
+  background: ${(props) => props.backgroundColor ?? "#1e1e1e"};
   border-left: 3px solid ${(props) => props.borderColor};
   border-radius: 3px;
   overflow: hidden;

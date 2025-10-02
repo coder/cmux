@@ -8,7 +8,6 @@ import { WorkspaceMetadata, WorkspaceMetadataSchema } from "../types/workspace";
 import { CmuxMessage, createCmuxMessage } from "../types/message";
 import { SESSIONS_DIR, getSessionDir, loadProvidersConfig } from "../config";
 import { StreamManager } from "./streamManager";
-import type { StreamEndEvent } from "../types/aiEvents";
 import type { SendMessageError } from "../types/errors";
 import { getToolsForModel } from "../utils/tools";
 import { log } from "./log";
@@ -39,7 +38,7 @@ export class AIService extends EventEmitter {
     this.historyService = historyService;
     this.partialService = partialService;
     this.streamManager = new StreamManager(historyService, partialService);
-    this.ensureSessionsDir();
+    void this.ensureSessionsDir();
     this.setupStreamEventForwarding();
   }
 
@@ -125,7 +124,7 @@ export class AIService extends EventEmitter {
    * constructor, ensuring automatic parity with Vercel AI SDK - any configuration options
    * supported by the provider will work without modification.
    */
-  private async createModel(modelString: string): Promise<Result<LanguageModel, SendMessageError>> {
+  private createModel(modelString: string): Result<LanguageModel, SendMessageError> {
     try {
       // Parse model string (format: "provider:model-id")
       const [providerName, modelId] = modelString.split(":");
@@ -196,7 +195,7 @@ export class AIService extends EventEmitter {
       await this.partialService.commitToHistory(workspaceId);
 
       // Create model instance with early API key validation
-      const modelResult = await this.createModel(this.defaultModel);
+      const modelResult = this.createModel(this.defaultModel);
       if (!modelResult.success) {
         return Err(modelResult.error);
       }
@@ -209,6 +208,7 @@ export class AIService extends EventEmitter {
 
       // Convert CmuxMessage to ModelMessage format using Vercel AI SDK utility
       // Type assertion needed because CmuxMessage has custom tool parts for interrupted tools
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
       const modelMessages = convertToModelMessages(messagesWithSentinel as any);
 
       log.debug_obj(`${workspaceId}/2_model_messages.json`, modelMessages);
@@ -264,7 +264,7 @@ export class AIService extends EventEmitter {
       const historySequence = assistantMessage.metadata?.historySequence ?? 0;
 
       // Build provider options based on thinking level
-      const providerOptions = buildProviderOptions(this.defaultModel, thinkingLevel || "off");
+      const providerOptions = buildProviderOptions(this.defaultModel, thinkingLevel ?? "off");
 
       // Delegate to StreamManager with model instance, system message, tools, historySequence, and initial metadata
       const streamResult = await this.streamManager.startStream(

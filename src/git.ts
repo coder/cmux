@@ -78,9 +78,9 @@ export async function listWorktrees(projectPath: string): Promise<string[]> {
     const worktrees: string[] = [];
     const lines = stdout.split("\n");
 
-    for (let i = 0; i < lines.length; i++) {
-      if (lines[i].startsWith("worktree ")) {
-        const path = lines[i].substring(9);
+    for (const line of lines) {
+      if (line.startsWith("worktree ")) {
+        const path = line.substring(9);
         if (path !== projectPath) {
           // Exclude main worktree
           worktrees.push(path);

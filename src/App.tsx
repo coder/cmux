@@ -118,7 +118,7 @@ function App() {
   const [workspaceModalProject, setWorkspaceModalProject] = useState<string | null>(null);
 
   useEffect(() => {
-    loadProjects();
+    void loadProjects();
   }, []);
 
   const loadProjects = async () => {
@@ -203,7 +203,7 @@ function App() {
         });
       }
     } else {
-      throw new Error(result.error || "Failed to create workspace");
+      throw new Error(result.error ?? "Failed to create workspace");
     }
   };
 
@@ -236,10 +236,10 @@ function App() {
           selectedWorkspace={selectedWorkspace}
           onSelectProject={setSelectedProject}
           onSelectWorkspace={setSelectedWorkspace}
-          onAddProject={handleAddProject}
-          onAddWorkspace={handleAddWorkspace}
-          onRemoveProject={handleRemoveProject}
-          onRemoveWorkspace={handleRemoveWorkspace}
+          onAddProject={() => void handleAddProject()}
+          onAddWorkspace={(projectPath) => void handleAddWorkspace(projectPath)}
+          onRemoveProject={(path) => void handleRemoveProject(path)}
+          onRemoveWorkspace={(workspaceId) => void handleRemoveWorkspace(workspaceId)}
         />
         <MainContent>
           <AppHeader>
