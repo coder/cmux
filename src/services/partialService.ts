@@ -3,7 +3,7 @@ import * as path from "path";
 import type { Result } from "../types/result";
 import { Ok, Err } from "../types/result";
 import type { CmuxMessage } from "../types/message";
-import { getSessionDir } from "../config";
+import type { Config } from "../config";
 import type { HistoryService } from "./historyService";
 import { MutexMap } from "../utils/mutexMap";
 
@@ -28,13 +28,15 @@ export class PartialService {
   private readonly PARTIAL_FILE = "partial.json";
   private readonly historyService: HistoryService;
   private readonly fileLocks = new MutexMap<string>();
+  private readonly config: Config;
 
-  constructor(historyService: HistoryService) {
+  constructor(config: Config, historyService: HistoryService) {
+    this.config = config;
     this.historyService = historyService;
   }
 
   private getPartialPath(workspaceId: string): string {
-    return path.join(getSessionDir(workspaceId), this.PARTIAL_FILE);
+    return path.join(this.config.getSessionDir(workspaceId), this.PARTIAL_FILE);
   }
 
   /**
@@ -61,7 +63,7 @@ export class PartialService {
   async writePartial(workspaceId: string, message: CmuxMessage): Promise<Result<void>> {
     return this.fileLocks.withLock(workspaceId, async () => {
       try {
-        const workspaceDir = getSessionDir(workspaceId);
+        const workspaceDir = this.config.getSessionDir(workspaceId);
         await fs.mkdir(workspaceDir, { recursive: true });
         const partialPath = this.getPartialPath(workspaceId);
 

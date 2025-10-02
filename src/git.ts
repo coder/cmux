@@ -2,7 +2,7 @@ import { exec } from "child_process";
 import { promisify } from "util";
 import * as fs from "fs";
 import * as path from "path";
-import { getWorkspacePath } from "./config";
+import type { Config } from "./config";
 
 const execAsync = promisify(exec);
 
@@ -13,11 +13,12 @@ export interface WorktreeResult {
 }
 
 export async function createWorktree(
+  config: Config,
   projectPath: string,
   branchName: string
 ): Promise<WorktreeResult> {
   try {
-    const workspacePath = getWorkspacePath(projectPath, branchName);
+    const workspacePath = config.getWorkspacePath(projectPath, branchName);
 
     // Create workspace directory if it doesn't exist
     if (!fs.existsSync(path.dirname(workspacePath))) {

@@ -1,15 +1,8 @@
 import type { MenuItemConstructorOptions } from "electron";
 import { app, BrowserWindow, ipcMain, dialog, Menu } from "electron";
 import * as path from "path";
-import type { Config, ProjectConfig } from "./config";
-import {
-  load_config_or_default,
-  save_config,
-  getAllWorkspaceMetadata,
-  loadProvidersConfig,
-  saveProvidersConfig,
-} from "./config";
-import type { ProvidersConfig } from "./config";
+import type { ProjectConfig, ProjectsConfig } from "./config";
+import { Config } from "./config";
 import { createWorktree, removeWorktree } from "./git";
 import { AIService } from "./services/aiService";
 import { HistoryService } from "./services/historyService";
@@ -30,9 +23,10 @@ import type { SendMessageError } from "./types/errors";
 import type { StreamErrorMessage } from "./types/ipc";
 import type { ThinkingLevel } from "./types/thinking";
 
-const historyService = new HistoryService();
-const partialService = new PartialService(historyService);
-const aiService = new AIService(historyService, partialService);
+const config = new Config();
+const historyService = new HistoryService(config);
+const partialService = new PartialService(config, historyService);
+const aiService = new AIService(config, historyService, partialService);
 
 console.log("Main process starting...");
 
@@ -59,9 +53,6 @@ if (!gotTheLock) {
 
 let mainWindow: BrowserWindow | null = null;
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null;
-
 const createUnknownSendMessageError = (raw: string): SendMessageError => ({
   type: "unknown",
   raw,
@@ -69,19 +60,19 @@ const createUnknownSendMessageError = (raw: string): SendMessageError => ({
 
 // Register IPC handlers before creating window
 ipcMain.handle(IPC_CHANNELS.CONFIG_LOAD, () => {
-  const config = load_config_or_default();
+  const projectsConfig = config.loadConfigOrDefault();
   return {
-    projects: Array.from(config.projects.entries()),
+    projects: Array.from(projectsConfig.projects.entries()),
   };
 });
 
 ipcMain.handle(
   IPC_CHANNELS.CONFIG_SAVE,
   (_event, configData: { projects: Array<[string, ProjectConfig]> }) => {
-    const config: Config = {
+    const projectsConfig: ProjectsConfig = {
       projects: new Map(configData.projects),
     };
-    save_config(config);
+    config.saveConfig(projectsConfig);
     return true;
   }
 );
@@ -105,7 +96,7 @@ ipcMain.handle(
   IPC_CHANNELS.WORKSPACE_CREATE,
   async (_event, projectPath: string, branchName: string) => {
     // First create the git worktree
-    const result = await createWorktree(projectPath, branchName);
+    const result = await createWorktree(config, projectPath, branchName);
 
     if (result.success && result.path) {
       const projectName =
@@ -137,13 +128,13 @@ ipcMain.handle(
 ipcMain.handle(IPC_CHANNELS.WORKSPACE_REMOVE, async (_event, workspaceId: string) => {
   try {
     // Load current config
-    const config = load_config_or_default();
+    const projectsConfig = config.loadConfigOrDefault();
 
     // Find workspace path from config
     let workspacePath: string | null = null;
     let foundProjectPath: string | null = null;
 
-    for (const [projectPath, projectConfig] of config.projects.entries()) {
+    for (const [projectPath, projectConfig] of projectsConfig.projects.entries()) {
       const workspace = projectConfig.workspaces.find((w) => {
         const projectName = path.basename(projectPath);
         const wsId = `${projectName}-${w.branch}`;
@@ -173,10 +164,10 @@ ipcMain.handle(IPC_CHANNELS.WORKSPACE_REMOVE, async (_event, workspaceId: string
 
     // Update config to remove the workspace
     if (foundProjectPath && workspacePath) {
-      const projectConfig = config.projects.get(foundProjectPath);
+      const projectConfig = projectsConfig.projects.get(foundProjectPath);
       if (projectConfig) {
         projectConfig.workspaces = projectConfig.workspaces.filter((w) => w.path !== workspacePath);
-        save_config(config);
+        config.saveConfig(projectsConfig);
       }
     }
 
@@ -199,7 +190,7 @@ ipcMain.handle(IPC_CHANNELS.WORKSPACE_REMOVE, async (_event, workspaceId: string
 
 ipcMain.handle(IPC_CHANNELS.WORKSPACE_LIST, async () => {
   try {
-    const workspaceData = await getAllWorkspaceMetadata();
+    const workspaceData = await config.getAllWorkspaceMetadata();
     return workspaceData.map(({ metadata }) => metadata);
   } catch (error) {
     console.error("Failed to list workspaces:", error);
@@ -315,29 +306,21 @@ ipcMain.handle(
   (_event, provider: string, keyPath: string[], value: string) => {
     try {
       // Load current providers config or create empty
-      const config: ProvidersConfig = loadProvidersConfig() ?? {};
+      const providersConfig = config.loadProvidersConfig() ?? {};
 
-      if (!isRecord(config[provider])) {
-        config[provider] = {};
+      // Ensure provider exists
+      if (!providersConfig[provider]) {
+        providersConfig[provider] = {};
       }
 
-      const ensuredConfig = config[provider];
-      if (!isRecord(ensuredConfig)) {
-        throw new Error(`Provider config for ${provider} could not be initialized`);
-      }
-
-      let current: Record<string, unknown> = ensuredConfig;
+      // Set nested property value
+      let current = providersConfig[provider] as Record<string, unknown>;
       for (let i = 0; i < keyPath.length - 1; i++) {
         const key = keyPath[i];
-        const existing = current[key];
-        if (isRecord(existing)) {
-          current = existing;
-          continue;
+        if (!(key in current) || typeof current[key] !== "object" || current[key] === null) {
+          current[key] = {};
         }
-
-        const next: Record<string, unknown> = {};
-        current[key] = next;
-        current = next;
+        current = current[key] as Record<string, unknown>;
       }
 
       if (keyPath.length > 0) {
@@ -345,7 +328,7 @@ ipcMain.handle(
       }
 
       // Save updated config
-      saveProvidersConfig(config);
+      config.saveProvidersConfig(providersConfig);
 
       return { success: true, data: undefined };
     } catch (error) {
@@ -357,8 +340,8 @@ ipcMain.handle(
 
 ipcMain.handle(IPC_CHANNELS.PROVIDERS_LIST, () => {
   try {
-    const config: ProvidersConfig = loadProvidersConfig() ?? {};
-    return Object.keys(config);
+    const providersConfig = config.loadProvidersConfig() ?? {};
+    return Object.keys(providersConfig);
   } catch (error) {
     log.error("Failed to list providers config:", error);
     return [];
@@ -387,21 +370,25 @@ ipcMain.on(`workspace:chat:subscribe`, (_event, workspaceId: string) => {
 });
 
 // Handle subscription events for metadata
-ipcMain.on(`workspace:metadata:subscribe`, () => {
-  void (async () => {
-    try {
-      const workspaceData = await getAllWorkspaceMetadata();
-      for (const { workspaceId, metadata } of workspaceData) {
-        mainWindow?.webContents.send(IPC_CHANNELS.WORKSPACE_METADATA, {
-          workspaceId,
-          metadata,
-        });
+ipcMain.on(
+  `workspace:metadata:subscribe`,
+  () =>
+    void (async () => {
+      try {
+        const workspaceData = await config.getAllWorkspaceMetadata();
+
+        // Emit current metadata for each workspace
+        for (const { workspaceId, metadata } of workspaceData) {
+          mainWindow?.webContents.send(IPC_CHANNELS.WORKSPACE_METADATA, {
+            workspaceId,
+            metadata,
+          });
+        }
+      } catch (error) {
+        console.error("Failed to emit current metadata:", error);
       }
-    } catch (error) {
-      console.error("Failed to emit current metadata:", error);
-    }
-  })();
-});
+    })()
+);
 
 // Set up event listeners for AI service
 aiService.on("stream-start", (data: StreamStartEvent) => {

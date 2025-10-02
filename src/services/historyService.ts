@@ -3,7 +3,7 @@ import * as path from "path";
 import type { Result } from "../types/result";
 import { Ok, Err } from "../types/result";
 import type { CmuxMessage } from "../types/message";
-import { getSessionDir } from "../config";
+import type { Config } from "../config";
 import { MutexMap } from "../utils/mutexMap";
 
 /**
@@ -20,9 +20,14 @@ export class HistoryService {
   private sequenceCounters = new Map<string, number>();
   // File operation locks per workspace to prevent race conditions
   private fileLocks = new MutexMap<string>();
+  private readonly config: Config;
+
+  constructor(config: Config) {
+    this.config = config;
+  }
 
   private getChatHistoryPath(workspaceId: string): string {
-    return path.join(getSessionDir(workspaceId), this.CHAT_FILE);
+    return path.join(this.config.getSessionDir(workspaceId), this.CHAT_FILE);
   }
 
   /**
@@ -113,7 +118,7 @@ export class HistoryService {
     message: CmuxMessage
   ): Promise<Result<void>> {
     try {
-      const workspaceDir = getSessionDir(workspaceId);
+      const workspaceDir = this.config.getSessionDir(workspaceId);
       await fs.mkdir(workspaceDir, { recursive: true });
       const historyPath = this.getChatHistoryPath(workspaceId);
 

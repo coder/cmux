@@ -1,6 +1,6 @@
 import * as fs from "fs";
 import * as path from "path";
-import { getSessionDir } from "../config";
+import { defaultConfig } from "../config";
 import type { CmuxMessage } from "../types/message";
 import { calculateTokenStats } from "../utils/tokenStatsCalculator";
 
@@ -12,7 +12,7 @@ export async function costsCommand(workspaceId: string) {
   console.log(`\n=== Cost Statistics for workspace: ${workspaceId} ===\n`);
 
   // Load chat history
-  const sessionDir = getSessionDir(workspaceId);
+  const sessionDir = defaultConfig.getSessionDir(workspaceId);
   const chatHistoryPath = path.join(sessionDir, "chat.jsonl");
 
   if (!fs.existsSync(chatHistoryPath)) {
