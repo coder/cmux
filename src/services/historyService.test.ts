@@ -25,7 +25,7 @@ describe("HistoryService", () => {
     // Clean up temp directory
     try {
       await fs.rm(tempDir, { recursive: true, force: true });
-    } catch (error) {
+    } catch {
       // Ignore cleanup errors
     }
   });
@@ -228,7 +228,11 @@ describe("HistoryService", () => {
       const workspaceDir = config.getSessionDir(workspaceId);
       const chatPath = path.join(workspaceDir, "chat.jsonl");
       const content = await fs.readFile(chatPath, "utf-8");
-      const persisted = JSON.parse(content.trim());
+      const persisted = JSON.parse(content.trim()) as {
+        workspaceId: string;
+        id: string;
+        role: string;
+      };
 
       expect(persisted.workspaceId).toBe(workspaceId);
     });
