@@ -13,7 +13,6 @@
     "build:renderer": "vite build",
     "start": "bun build:preload && electron .",
     "typecheck": "./scripts/typecheck.sh",
-    "typecheck:main": "./scripts/typecheck.sh --main",
     "debug": "bun src/debug/index.ts",
     "lint": "./scripts/lint.sh",
     "lint:fix": "./scripts/lint.sh --fix",
