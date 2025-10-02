@@ -4,11 +4,8 @@
  * Converts unified thinking levels to provider-specific options
  */
 
-import {
-  ThinkingLevel,
-  ANTHROPIC_THINKING_BUDGETS,
-  OPENAI_REASONING_EFFORT,
-} from "../types/thinking";
+import type { ThinkingLevel } from "../types/thinking";
+import { ANTHROPIC_THINKING_BUDGETS, OPENAI_REASONING_EFFORT } from "../types/thinking";
 import { log } from "../services/log";
 
 /**

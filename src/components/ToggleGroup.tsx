@@ -35,7 +35,7 @@ export interface ToggleOption<T extends string> {
 }
 
 interface ToggleGroupProps<T extends string> {
-  options: ToggleOption<T>[];
+  options: Array<ToggleOption<T>>;
   value: T;
   onChange: (value: T) => void;
 }

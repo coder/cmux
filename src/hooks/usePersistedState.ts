@@ -1,4 +1,5 @@
-import { useState, useCallback, Dispatch, SetStateAction } from "react";
+import type { Dispatch, SetStateAction } from "react";
+import { useState, useCallback } from "react";
 
 type SetValue<T> = T | ((prev: T) => T);
 

@@ -7,8 +7,8 @@
  * Any changes to token calculation logic should be made here to maintain consistency.
  */
 
-import { CmuxMessage } from "../types/message";
-import { ChatStats, TokenConsumer } from "../types/chatStats";
+import type { CmuxMessage } from "../types/message";
+import type { ChatStats, TokenConsumer } from "../types/chatStats";
 import type { LanguageModelV2Usage } from "@ai-sdk/provider";
 import { getTokenizerForModel, countTokensForData, getToolDefinitionTokens } from "./tokenizer";
 import { getModelStats } from "./modelStats";
@@ -119,7 +119,7 @@ export function sumUsageHistory(usageHistory: ChatUsageDisplay[]): ChatUsageDisp
 
   for (const usage of usageHistory) {
     // Iterate over each component and sum tokens and costs
-    for (const key of Object.keys(sum) as (keyof ChatUsageDisplay)[]) {
+    for (const key of Object.keys(sum) as Array<keyof ChatUsageDisplay>) {
       sum[key].tokens += usage[key].tokens;
       sum[key].cost_usd += usage[key].cost_usd;
     }

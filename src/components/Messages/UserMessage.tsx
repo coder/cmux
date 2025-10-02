@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import styled from "@emotion/styled";
-import { DisplayedMessage } from "../../types/message";
-import { MessageWindow, ButtonConfig } from "./MessageWindow";
+import type { DisplayedMessage } from "../../types/message";
+import type { ButtonConfig } from "./MessageWindow";
+import { MessageWindow } from "./MessageWindow";
 import { TerminalOutput } from "./TerminalOutput";
 
 const FormattedContent = styled.pre`

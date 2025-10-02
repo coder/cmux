@@ -1,9 +1,10 @@
 import React, { useState } from "react";
 import styled from "@emotion/styled";
-import { DisplayedMessage } from "../../types/message";
+import type { DisplayedMessage } from "../../types/message";
 import { MarkdownRenderer } from "./MarkdownRenderer";
 import { TypewriterMarkdown } from "./TypewriterMarkdown";
-import { MessageWindow, ButtonConfig } from "./MessageWindow";
+import type { ButtonConfig } from "./MessageWindow";
+import { MessageWindow } from "./MessageWindow";
 
 const RawContent = styled.pre`
   font-family: var(--font-monospace);

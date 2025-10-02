@@ -1,6 +1,7 @@
-import React, { useState, ReactNode } from "react";
+import type { ReactNode } from "react";
+import React, { useState } from "react";
 import styled from "@emotion/styled";
-import { CmuxMessage, DisplayedMessage } from "../../types/message";
+import type { CmuxMessage, DisplayedMessage } from "../../types/message";
 
 const MessageBlock = styled.div<{ borderColor: string; backgroundColor?: string }>`
   margin-bottom: 15px;

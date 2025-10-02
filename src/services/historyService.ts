@@ -1,7 +1,8 @@
 import * as fs from "fs/promises";
 import * as path from "path";
-import { Result, Ok, Err } from "../types/result";
-import { CmuxMessage } from "../types/message";
+import type { Result } from "../types/result";
+import { Ok, Err } from "../types/result";
+import type { CmuxMessage } from "../types/message";
 import { getSessionDir } from "../config";
 import { MutexMap } from "../utils/mutexMap";
 

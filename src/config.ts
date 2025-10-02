@@ -41,7 +41,7 @@ export function load_config_or_default(): Config {
       // Config is stored as array of [path, config] pairs
       if (parsed.projects && Array.isArray(parsed.projects)) {
         const projectsMap = new Map<string, ProjectConfig>(
-          parsed.projects as [string, ProjectConfig][]
+          parsed.projects as Array<[string, ProjectConfig]>
         );
         return {
           projects: projectsMap,
@@ -130,7 +130,7 @@ export function getSessionDir(workspaceId: string): string {
  * This centralizes the logic for workspace discovery and metadata loading
  */
 export async function getAllWorkspaceMetadata(): Promise<
-  { workspaceId: string; metadata: WorkspaceMetadata }[]
+  Array<{ workspaceId: string; metadata: WorkspaceMetadata }>
 > {
   try {
     // Scan sessions directory for workspace directories
@@ -138,7 +138,7 @@ export async function getAllWorkspaceMetadata(): Promise<
     const entries = await fsPromises.readdir(SESSIONS_DIR, { withFileTypes: true });
     const workspaceIds = entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name);
 
-    const workspaceMetadata: { workspaceId: string; metadata: WorkspaceMetadata }[] = [];
+    const workspaceMetadata: Array<{ workspaceId: string; metadata: WorkspaceMetadata }> = [];
 
     for (const workspaceId of workspaceIds) {
       try {

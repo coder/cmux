@@ -1,10 +1,10 @@
-import { app, BrowserWindow, ipcMain, dialog, Menu, MenuItemConstructorOptions } from "electron";
+import type { MenuItemConstructorOptions } from "electron";
+import { app, BrowserWindow, ipcMain, dialog, Menu } from "electron";
 import * as path from "path";
+import type { Config, ProjectConfig } from "./config";
 import {
   load_config_or_default,
   save_config,
-  Config,
-  ProjectConfig,
   getAllWorkspaceMetadata,
   loadProvidersConfig,
   saveProvidersConfig,
@@ -67,7 +67,7 @@ ipcMain.handle(IPC_CHANNELS.CONFIG_LOAD, () => {
 
 ipcMain.handle(
   IPC_CHANNELS.CONFIG_SAVE,
-  (_event, configData: { projects: [string, ProjectConfig][] }) => {
+  (_event, configData: { projects: Array<[string, ProjectConfig]> }) => {
     const config: Config = {
       projects: new Map(configData.projects),
     };

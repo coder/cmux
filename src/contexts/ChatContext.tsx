@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { CmuxMessage, DisplayedMessage } from "../types/message";
-import { ChatStats } from "../types/chatStats";
+import type { ReactNode } from "react";
+import React, { createContext, useContext, useState, useEffect } from "react";
+import type { CmuxMessage, DisplayedMessage } from "../types/message";
+import type { ChatStats } from "../types/chatStats";
 import { calculateTokenStats } from "../utils/tokenStatsCalculator";
 
 interface ChatContextType {

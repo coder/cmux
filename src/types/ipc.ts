@@ -1,5 +1,5 @@
-import { Result } from "./result";
-import { WorkspaceMetadata } from "./workspace";
+import type { Result } from "./result";
+import type { WorkspaceMetadata } from "./workspace";
 import type { CmuxMessage } from "./message";
 import type { ProjectConfig } from "../config";
 import type { SendMessageError } from "./errors";
@@ -110,8 +110,8 @@ export function isReasoningEnd(msg: WorkspaceChatMessage): msg is ReasoningEndEv
 // API method signatures (shared between main and preload)
 export interface IPCApi {
   config: {
-    load(): Promise<{ projects: [string, ProjectConfig][] }>;
-    save(config: { projects: [string, ProjectConfig][] }): Promise<boolean>;
+    load(): Promise<{ projects: Array<[string, ProjectConfig]> }>;
+    save(config: { projects: Array<[string, ProjectConfig]> }): Promise<boolean>;
   };
   dialog: {
     selectDirectory(): Promise<string | null>;

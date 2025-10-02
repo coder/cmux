@@ -1,4 +1,5 @@
-import React, { Component, ReactNode } from "react";
+import type { ReactNode } from "react";
+import React, { Component } from "react";
 import styled from "@emotion/styled";
 
 const ErrorContainer = styled.div`

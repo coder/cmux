@@ -270,7 +270,7 @@ const formatCostWithDollar = (cost: number): string => {
 
 type ViewMode = "last-request" | "session";
 
-const VIEW_MODE_OPTIONS: ToggleOption<ViewMode>[] = [
+const VIEW_MODE_OPTIONS: Array<ToggleOption<ViewMode>> = [
   { value: "last-request", label: "Last Request" },
   { value: "session", label: "Session" },
 ];

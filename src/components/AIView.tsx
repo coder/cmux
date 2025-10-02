@@ -5,14 +5,14 @@ import { InterruptedBarrier } from "./Messages/InterruptedBarrier";
 import { ChatInput } from "./ChatInput";
 import { ErrorMessage } from "./ErrorMessage";
 import { ChatMetaSidebar } from "./ChatMetaSidebar";
-import { DisplayedMessage, CmuxMessage } from "../types/message";
+import type { DisplayedMessage, CmuxMessage } from "../types/message";
 import { StreamingMessageAggregator } from "../utils/StreamingMessageAggregator";
 import { shouldShowInterruptedBarrier } from "../utils/messageUtils";
 import { DebugProvider, useDebugMode } from "../contexts/DebugContext";
 import { ChatProvider } from "../contexts/ChatContext";
 import { ThinkingProvider } from "../contexts/ThinkingContext";
+import type { WorkspaceChatMessage } from "../types/ipc";
 import {
-  WorkspaceChatMessage,
   isCaughtUpMessage,
   isStreamError,
   isStreamStart,

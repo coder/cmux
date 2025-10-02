@@ -1,7 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import { getSessionDir } from "../config";
-import { CmuxMessage } from "../types/message";
+import type { CmuxMessage } from "../types/message";
 import { calculateTokenStats } from "../utils/tokenStatsCalculator";
 
 /**

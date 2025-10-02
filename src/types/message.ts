@@ -49,7 +49,7 @@ export interface CmuxTextPart {
 // CmuxMessage extends UIMessage with our metadata and custom tool parts
 // Supports text parts and tool parts (including interrupted tool calls)
 export type CmuxMessage = Omit<UIMessage<CmuxMetadata, never, never>, "parts"> & {
-  parts: (CmuxTextPart | CmuxToolPart)[];
+  parts: Array<CmuxTextPart | CmuxToolPart>;
 };
 
 // DisplayedMessage represents a single UI message block
