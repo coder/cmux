@@ -1,6 +1,6 @@
 import { describe, it, expect } from "bun:test";
 import { StreamingMessageAggregator } from "./StreamingMessageAggregator";
-import type { StreamEndEvent } from "../types/aiEvents";
+import type { StreamEndEvent } from "../types/stream";
 import type { DynamicToolPart } from "../types/toolParts";
 
 describe("StreamingMessageAggregator", () => {
@@ -16,7 +16,7 @@ describe("StreamingMessageAggregator", () => {
         model: "claude-3",
       },
       parts: [
-        { type: "text", text: "Let me check the weather for you.", state: "done" },
+        { type: "text", text: "Let me check the weather for you." },
         {
           type: "dynamic-tool",
           toolCallId: "tool-1",
@@ -56,7 +56,7 @@ describe("StreamingMessageAggregator", () => {
     aggregator.handleMessage({
       id: "user-1",
       role: "user",
-      parts: [{ type: "text", text: "Hello world", state: "done" }],
+      parts: [{ type: "text", text: "Hello world" }],
       metadata: { historySequence: 0 },
     });
 
@@ -69,7 +69,7 @@ describe("StreamingMessageAggregator", () => {
         model: "claude-3",
       },
       parts: [
-        { type: "text", text: "I'll help you with that.", state: "done" },
+        { type: "text", text: "I'll help you with that." },
         {
           type: "dynamic-tool",
           toolCallId: "tool-1",
@@ -178,7 +178,6 @@ describe("StreamingMessageAggregator", () => {
     expect(message.parts[0].type).toBe("text");
     if (message.parts[0].type === "text") {
       expect(message.parts[0].text).toBe("Let me search for that. ");
-      expect(message.parts[0].state).toBe("done");
     }
 
     // Tool part in the middle
@@ -191,7 +190,6 @@ describe("StreamingMessageAggregator", () => {
     expect(message.parts[2].type).toBe("text");
     if (message.parts[2].type === "text") {
       expect(message.parts[2].text).toBe("I found the following results: file1.ts and file2.ts");
-      expect(message.parts[2].state).toBe("streaming");
     }
 
     // Test DisplayedMessages split
@@ -265,7 +263,7 @@ describe("StreamingMessageAggregator", () => {
         model: "claude-3",
       },
       parts: [
-        { type: "text", text: "First part. ", state: "done" },
+        { type: "text", text: "First part. " },
         {
           type: "dynamic-tool",
           toolCallId: "tool-1",
@@ -274,7 +272,7 @@ describe("StreamingMessageAggregator", () => {
           input: { file: "test.ts" },
           output: "file contents",
         },
-        { type: "text", text: "Second part after tool.", state: "done" },
+        { type: "text", text: "Second part after tool." },
       ],
     });
 
@@ -289,7 +287,6 @@ describe("StreamingMessageAggregator", () => {
     expect(message.parts[0].type).toBe("text");
     if (message.parts[0].type === "text") {
       expect(message.parts[0].text).toBe("First part. ");
-      expect(message.parts[0].state).toBe("done");
     }
 
     // Tool in the middle
@@ -299,7 +296,6 @@ describe("StreamingMessageAggregator", () => {
     expect(message.parts[2].type).toBe("text");
     if (message.parts[2].type === "text") {
       expect(message.parts[2].text).toBe("Second part after tool.");
-      expect(message.parts[2].state).toBe("done");
     }
 
     // Verify DisplayedMessages also maintains order
@@ -345,7 +341,7 @@ describe("StreamingMessageAggregator", () => {
       metadata: {
         model: "claude-3",
       },
-      parts: [{ type: "text", text: "Hello, world!", state: "done" }],
+      parts: [{ type: "text", text: "Hello, world!" }],
     });
 
     // Verify the message content
@@ -355,7 +351,6 @@ describe("StreamingMessageAggregator", () => {
     const firstPart = messages[0].parts[0];
     if (firstPart.type === "text") {
       expect(firstPart.text).toBe("Hello, world!");
-      expect(firstPart.state).toBe("done");
     }
   });
 
@@ -367,19 +362,19 @@ describe("StreamingMessageAggregator", () => {
       {
         id: "hist-1",
         role: "user" as const,
-        parts: [{ type: "text" as const, text: "First message", state: "done" as const }],
+        parts: [{ type: "text" as const, text: "First message" }],
         metadata: { historySequence: 0 },
       },
       {
         id: "hist-2",
         role: "assistant" as const,
-        parts: [{ type: "text" as const, text: "Second message", state: "done" as const }],
+        parts: [{ type: "text" as const, text: "Second message" }],
         metadata: { historySequence: 1 },
       },
       {
         id: "hist-3",
         role: "user" as const,
-        parts: [{ type: "text" as const, text: "Third message", state: "done" as const }],
+        parts: [{ type: "text" as const, text: "Third message" }],
         metadata: { historySequence: 2 },
       },
     ];
@@ -432,7 +427,7 @@ describe("StreamingMessageAggregator", () => {
     const messageWithSeq = {
       id: "msg-with-seq",
       role: "user" as const,
-      parts: [{ type: "text" as const, text: "Has history sequence", state: "done" as const }],
+      parts: [{ type: "text" as const, text: "Has history sequence" }],
       metadata: { historySequence: 5 },
     };
 
@@ -446,7 +441,7 @@ describe("StreamingMessageAggregator", () => {
     const anotherMessage = {
       id: "msg-2",
       role: "user" as const,
-      parts: [{ type: "text" as const, text: "Another message", state: "done" as const }],
+      parts: [{ type: "text" as const, text: "Another message" }],
       metadata: { historySequence: 10 },
     };
 

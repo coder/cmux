@@ -17,11 +17,10 @@ import type {
   ToolCallStartEvent,
   ToolCallDeltaEvent,
   ToolCallEndEvent,
-} from "./types/aiEvents";
+} from "./types/stream";
 import { IPC_CHANNELS, getChatChannel } from "./constants/ipc-constants";
 import type { SendMessageError } from "./types/errors";
-import type { StreamErrorMessage } from "./types/ipc";
-import type { ThinkingLevel } from "./types/thinking";
+import type { StreamErrorMessage, SendMessageOptions } from "./types/ipc";
 
 const config = new Config();
 const historyService = new HistoryService(config);
@@ -205,13 +204,8 @@ ipcMain.handle(IPC_CHANNELS.WORKSPACE_GET_INFO, async (_event, workspaceId: stri
 
 ipcMain.handle(
   IPC_CHANNELS.WORKSPACE_SEND_MESSAGE,
-  async (
-    _event,
-    workspaceId: string,
-    message: string,
-    editMessageId?: string,
-    thinkingLevel?: ThinkingLevel
-  ) => {
+  async (_event, workspaceId: string, message: string, options?: SendMessageOptions) => {
+    const { editMessageId, thinkingLevel } = options ?? {};
     log.debug("sendMessage handler: Received", {
       workspaceId,
       messagePreview: message.substring(0, 50),
@@ -219,6 +213,21 @@ ipcMain.handle(
       thinkingLevel,
     });
     try {
+      // Early exit: empty message during streaming = interrupt
+      // This allows Esc key to interrupt without creating empty user messages
+      if (!message.trim() && aiService.isStreaming(workspaceId)) {
+        log.debug("sendMessage handler: Empty message during streaming, interrupting");
+        const stopResult = await aiService.stopStream(workspaceId);
+        if (!stopResult.success) {
+          log.error("Failed to stop stream:", stopResult.error);
+          return {
+            success: false,
+            error: createUnknownSendMessageError(stopResult.error),
+          };
+        }
+        return { success: true };
+      }
+
       // If editing, truncate history after the message being edited
       if (editMessageId) {
         const truncateResult = await historyService.truncateAfterMessage(

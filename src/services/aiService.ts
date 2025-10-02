@@ -18,6 +18,7 @@ import {
   transformModelMessages,
   validateAnthropicCompliance,
   addInterruptedSentinel,
+  filterEmptyAssistantMessages,
 } from "../utils/modelMessageTransform";
 import { applyCacheControl } from "../utils/cacheStrategy";
 import type { HistoryService } from "./historyService";
@@ -195,6 +196,12 @@ export class AIService extends EventEmitter {
     abortSignal?: AbortSignal
   ): Promise<Result<void, SendMessageError>> {
     try {
+      // DEBUG: Log streamMessage call
+      const lastMessage = messages[messages.length - 1];
+      log.debug(
+        `[STREAM MESSAGE] workspaceId=${workspaceId} messageCount=${messages.length} lastRole=${lastMessage?.role}`
+      );
+
       // Before starting a new stream, commit any existing partial to history
       // This is idempotent - won't double-commit if already in chat.jsonl
       await this.partialService.commitToHistory(workspaceId);
@@ -208,8 +215,13 @@ export class AIService extends EventEmitter {
       // Dump original messages for debugging
       log.debug_obj(`${workspaceId}/1_original_messages.json`, messages);
 
+      // Filter out assistant messages with only reasoning (no text/tools)
+      const filteredMessages = filterEmptyAssistantMessages(messages);
+      log.debug(`Filtered ${messages.length - filteredMessages.length} empty assistant messages`);
+      log.debug_obj(`${workspaceId}/1a_filtered_messages.json`, filteredMessages);
+
       // Add [INTERRUPTED] sentinel to partial messages (for model context)
-      const messagesWithSentinel = addInterruptedSentinel(messages);
+      const messagesWithSentinel = addInterruptedSentinel(filteredMessages);
 
       // Convert CmuxMessage to ModelMessage format using Vercel AI SDK utility
       // Type assertion needed because CmuxMessage has custom tool parts for interrupted tools

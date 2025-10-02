@@ -98,6 +98,10 @@ export const GlobalColors = () => (
         --color-toggle-text: hsl(0 0% 53.3%);
         --color-toggle-text-active: hsl(0 0% 100%);
         --color-toggle-text-hover: hsl(0 0% 66.7%);
+
+        /* Interrupted/Warning Colors */
+        --color-interrupted: hsl(38 92% 50%); /* #f59e0b */
+        --color-interrupted-alpha: hsl(from var(--color-interrupted) h s l / 0.3);
       }
     `}
   />

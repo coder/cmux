@@ -407,6 +407,9 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
     [aggregator, displayVersion] // displayVersion is needed to detect internal state changes
   );
 
+  // Check if we can interrupt (streaming is active)
+  const canInterrupt = aggregator.getActiveStreams().length > 0;
+
   if (loading) {
     return (
       <ViewContainer className={className}>
@@ -523,6 +526,7 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
             isCompacting={isCompacting}
             editingMessage={editingMessage}
             onCancelEdit={handleCancelEdit}
+            canInterrupt={canInterrupt}
           />
         </ChatArea>
 

@@ -21,7 +21,7 @@ import type {
   ToolCallStartEvent,
   ToolCallEndEvent,
   CompletedMessagePart,
-} from "../types/aiEvents";
+} from "../types/stream";
 import type { SendMessageError } from "../types/errors";
 import type { CmuxMetadata, CmuxMessage } from "../types/message";
 import { getTokenizerForModel } from "../utils/tokenizer";
@@ -31,11 +31,6 @@ import type { HistoryService } from "./historyService";
 // Type definitions for stream parts with extended properties
 interface ReasoningDeltaPart {
   type: "reasoning-delta";
-  text?: string;
-}
-
-interface StreamPartWithText {
-  type: string;
   text?: string;
 }
 
@@ -63,7 +58,7 @@ interface WorkspaceStreamInfo {
   model: string;
   initialMetadata?: Partial<CmuxMetadata>;
   historySequence: number;
-  // Track accumulated parts for partial message
+  // Track accumulated parts for partial message (includes reasoning, text, and tools)
   parts: CompletedMessagePart[];
   // Track last partial write time for throttling
   lastPartialWriteTime: number;
@@ -153,7 +148,7 @@ export class StreamManager extends EventEmitter {
             partial: true, // Always true - this method only writes partial messages
             ...streamInfo.initialMetadata,
           },
-          parts: streamInfo.parts.length > 0 ? streamInfo.parts : [],
+          parts: streamInfo.parts, // Parts array includes reasoning, text, and tools
         };
 
         await this.partialService.writePartial(workspaceId as string, partialMessage);
@@ -319,12 +314,12 @@ export class StreamManager extends EventEmitter {
           break;
         }
 
-        // Log all stream parts to debug reasoning
-        log.debug("streamManager: Stream part", {
-          type: part.type,
-          hasText: "text" in part,
-          preview: "text" in part ? (part as StreamPartWithText).text?.substring(0, 50) : undefined,
-        });
+        // Log all stream parts to debug reasoning (commented out - too spammy)
+        // log.debug("streamManager: Stream part", {
+        //   type: part.type,
+        //   hasText: "text" in part,
+        //   preview: "text" in part ? (part as StreamPartWithText).text?.substring(0, 50) : undefined,
+        // });
 
         switch (part.type) {
           case "text-delta":
@@ -345,14 +340,12 @@ export class StreamManager extends EventEmitter {
               streamInfo.parts[streamInfo.parts.length - 1] = {
                 type: "text",
                 text: currentTextBuffer,
-                state: "done",
               };
             } else {
               // Add new text part
               streamInfo.parts.push({
                 type: "text",
                 text: currentTextBuffer,
-                state: "done",
               });
             }
 
@@ -360,24 +353,44 @@ export class StreamManager extends EventEmitter {
             void this.schedulePartialWrite(workspaceId, streamInfo);
             break;
 
-          case "reasoning-delta":
-            // Emit reasoning delta to frontend
+          case "reasoning-delta": {
+            const delta = (part as ReasoningDeltaPart).text ?? "";
+
+            // Check if last part is reasoning (consistent with text-delta handling)
+            const lastPart = streamInfo.parts[streamInfo.parts.length - 1];
+            if (lastPart?.type === "reasoning") {
+              // Update existing reasoning part
+              streamInfo.parts[streamInfo.parts.length - 1] = {
+                type: "reasoning",
+                text: lastPart.text + delta,
+              };
+            } else {
+              // Push new reasoning part
+              streamInfo.parts.push({
+                type: "reasoning",
+                text: delta,
+              });
+            }
+
             this.emit("reasoning-delta", {
               type: "reasoning-delta",
               workspaceId: workspaceId as string,
               messageId: streamInfo.messageId,
-              delta: (part as ReasoningDeltaPart).text ?? "",
+              delta,
             });
+            void this.schedulePartialWrite(workspaceId, streamInfo);
             break;
+          }
 
-          case "reasoning-end":
-            // Emit reasoning end event
+          case "reasoning-end": {
+            // Reasoning-end is just a signal - no state to update
             this.emit("reasoning-end", {
               type: "reasoning-end",
               workspaceId: workspaceId as string,
               messageId: streamInfo.messageId,
             });
             break;
+          }
 
           case "tool-call": {
             // Reset text buffer to separate text segments (text is already in parts from text-delta handler)
@@ -487,57 +500,38 @@ export class StreamManager extends EventEmitter {
         // Get usage information from the stream result
         const usage = await streamInfo.streamResult.usage;
 
-        // Extract reasoning content if available
-        let reasoningText: string | undefined;
-        try {
-          const reasoning = await streamInfo.streamResult.reasoning;
-          if (reasoning && reasoning.length > 0) {
-            // Combine all reasoning items into a single text
-            reasoningText = reasoning.map((item) => item.text).join("");
-            log.info("streamManager: Reasoning extracted", {
-              hasReasoning: true,
-              reasoningLength: reasoning.length,
-              textLength: reasoningText.length,
-              reasoningPreview: reasoningText.substring(0, 100),
-            });
-          }
-        } catch (err) {
-          log.debug("streamManager: No reasoning available or error", err);
-        }
-
-        // Determine reasoning tokens: use API-provided value or estimate from text
+        // Calculate reasoning tokens from the reasoning part if present
         let reasoningTokens = usage?.reasoningTokens;
-        let adjustedUsage = usage;
-        if (reasoningTokens === undefined && reasoningText) {
+        const reasoningPart = streamInfo.parts.find((p) => p.type === "reasoning");
+        if (reasoningTokens === undefined && reasoningPart?.type === "reasoning") {
           // API didn't provide reasoning tokens (e.g., Anthropic includes them in outputTokens)
-          // Estimate from the reasoning text
+          // Estimate from the reasoning part text
           try {
             const tokenizer = getTokenizerForModel(streamInfo.model);
-            reasoningTokens = await tokenizer.countTokens(reasoningText);
-            log.debug("streamManager: Estimated reasoning tokens from text", {
+            reasoningTokens = await tokenizer.countTokens(reasoningPart.text);
+            log.debug("streamManager: Estimated reasoning tokens from part", {
               estimatedTokens: reasoningTokens,
-              textLength: reasoningText.length,
+              textLength: reasoningPart.text.length,
             });
-
-            // Adjust usage to subtract reasoning tokens from outputTokens
-            // This maintains consistency with how inputTokens excludes cachedInputTokens
-            if (usage?.outputTokens !== undefined) {
-              adjustedUsage = {
-                ...usage,
-                outputTokens: Math.max(0, usage.outputTokens - reasoningTokens),
-                reasoningTokens,
-              };
-            }
           } catch (err) {
             log.debug("streamManager: Failed to estimate reasoning tokens", err);
           }
+        }
+
+        // Adjust usage to subtract reasoning tokens from outputTokens if needed
+        let adjustedUsage = usage;
+        if (reasoningTokens !== undefined && usage?.outputTokens !== undefined) {
+          adjustedUsage = {
+            ...usage,
+            outputTokens: Math.max(0, usage.outputTokens - reasoningTokens),
+            reasoningTokens,
+          };
         }
 
         // Get provider metadata which contains cache statistics
         const providerMetadata = await streamInfo.streamResult.providerMetadata;
 
         // Emit stream end event with parts preserved in temporal order
-        // Merge initialMetadata with runtime metadata for complete picture
         const streamEndEvent: StreamEndEvent = {
           type: "stream-end",
           workspaceId: workspaceId as string,
@@ -549,11 +543,9 @@ export class StreamManager extends EventEmitter {
             model: streamInfo.model,
             providerMetadata,
             duration: Date.now() - streamInfo.startTime,
-            reasoning: reasoningText,
             reasoningTokens,
-            isReasoningStreaming: false,
           },
-          parts: streamInfo.parts, // Parts array with temporal ordering
+          parts: streamInfo.parts, // Parts array with temporal ordering (includes reasoning)
         };
 
         this.emit("stream-end", streamEndEvent);
@@ -692,6 +684,11 @@ export class StreamManager extends EventEmitter {
     const typedWorkspaceId = workspaceId as WorkspaceId;
 
     try {
+      // DEBUG: Log stream start
+      log.debug(
+        `[STREAM START] workspaceId=${workspaceId} historySequence=${historySequence} model=${modelString}`
+      );
+
       // Step 1: Atomic safety check (cancels any existing stream)
       const streamToken = await this.ensureStreamSafety(typedWorkspaceId);
 

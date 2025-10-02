@@ -16,8 +16,8 @@ const BarrierLine = styled.div`
   background: linear-gradient(
     to right,
     transparent,
-    var(--color-warning, #f59e0b) 20%,
-    var(--color-warning, #f59e0b) 80%,
+    var(--color-interrupted) 20%,
+    var(--color-interrupted) 80%,
     transparent
   );
   opacity: 0.3;
@@ -26,7 +26,7 @@ const BarrierLine = styled.div`
 const BarrierText = styled.div`
   font-family: var(--font-monospace);
   font-size: 10px;
-  color: var(--color-warning, #f59e0b);
+  color: var(--color-interrupted);
   text-transform: uppercase;
   letter-spacing: 1px;
   white-space: nowrap;

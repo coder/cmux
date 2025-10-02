@@ -14,7 +14,7 @@ import type {
   ToolCallEndEvent,
   ReasoningDeltaEvent,
   ReasoningEndEvent,
-} from "./aiEvents";
+} from "./stream";
 
 // Import constants from constants module (single source of truth)
 import { IPC_CHANNELS, getChatChannel, getClearChannel } from "../constants/ipc-constants";
@@ -107,7 +107,15 @@ export function isReasoningEnd(msg: WorkspaceChatMessage): msg is ReasoningEndEv
   return "type" in msg && msg.type === "reasoning-end";
 }
 
+// Options for sendMessage
+export interface SendMessageOptions {
+  editMessageId?: string;
+  thinkingLevel?: ThinkingLevel;
+}
+
 // API method signatures (shared between main and preload)
+// We strive to have a small, tight interface between main and the renderer
+// to promote good SoC and testing.
 export interface IPCApi {
   config: {
     load(): Promise<{ projects: Array<[string, ProjectConfig]> }>;
@@ -134,8 +142,7 @@ export interface IPCApi {
     sendMessage(
       workspaceId: string,
       message: string,
-      editMessageId?: string,
-      thinkingLevel?: ThinkingLevel
+      options?: SendMessageOptions
     ): Promise<Result<void, SendMessageError>>;
     clearHistory(workspaceId: string): Promise<Result<void, string>>;
     getInfo(workspaceId: string): Promise<WorkspaceMetadata | null>;

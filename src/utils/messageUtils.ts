@@ -14,33 +14,18 @@ export function extractTextContent(message: CmuxMessage): string {
  * Determines if the interrupted barrier should be shown for a DisplayedMessage.
  *
  * The barrier should show when:
- * - Assistant messages: Was interrupted (isPartial) AND not currently streaming
- * - Tool messages: Parent message was interrupted (isPartial)
- *
- * The barrier should NOT show during active streaming.
+ * - Message was interrupted (isPartial) AND not currently streaming
+ * - For multi-part messages, only show on the last part
  */
 export function shouldShowInterruptedBarrier(msg: DisplayedMessage): boolean {
-  // User messages never show interrupted barrier
-  if (msg.type === "user" || msg.type === "reasoning") {
-    return false;
-  }
+  if (msg.type === "user") return false;
 
   // Only show on the last part of multi-part messages
-  if (!msg.isLastPartOfMessage) {
-    return false;
-  }
+  if (!msg.isLastPartOfMessage) return false;
 
-  if (msg.type === "assistant") {
-    // Show only if message was interrupted and is no longer streaming
-    return msg.isPartial && !msg.isStreaming;
-  }
-
-  if (msg.type === "tool") {
-    // Show if parent message was interrupted, regardless of individual tool status
-    return msg.isPartial;
-  }
-
-  return false;
+  // Show if interrupted and not actively streaming (tools don't have isStreaming property)
+  const isStreaming = "isStreaming" in msg ? msg.isStreaming : false;
+  return msg.isPartial && !isStreaming;
 }
 
 /**

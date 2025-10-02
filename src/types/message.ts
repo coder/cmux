@@ -22,10 +22,9 @@ export interface CmuxMetadata {
   model?: string;
   providerMetadata?: ProviderMetadata;
   systemMessageTokens?: number; // Token count for system message sent with this request
-  reasoning?: string; // Extended thinking/reasoning content
-  reasoningTokens?: number; // Token count for reasoning
-  isReasoningStreaming?: boolean; // Whether reasoning is currently streaming
+  reasoningTokens?: number; // Token count for reasoning (stats only)
   partial?: boolean; // Whether this message was interrupted and is incomplete
+  synthetic?: boolean; // Whether this message was synthetically generated (e.g., [INTERRUPTED] sentinel)
 }
 
 // Extended tool part type that supports interrupted tool calls (input-available state)
@@ -39,17 +38,22 @@ export interface CmuxToolPart {
   output?: unknown;
 }
 
-// Text part type that supports both streaming and completed states
+// Text part type
 export interface CmuxTextPart {
   type: "text";
   text: string;
-  state: "done" | "streaming";
 }
 
-// CmuxMessage extends UIMessage with our metadata and custom tool parts
-// Supports text parts and tool parts (including interrupted tool calls)
+// Reasoning part type for extended thinking content
+export interface CmuxReasoningPart {
+  type: "reasoning";
+  text: string;
+}
+
+// CmuxMessage extends UIMessage with our metadata and custom parts
+// Supports text, reasoning, and tool parts (including interrupted tool calls)
 export type CmuxMessage = Omit<UIMessage<CmuxMetadata, never, never>, "parts"> & {
-  parts: Array<CmuxTextPart | CmuxToolPart>;
+  parts: Array<CmuxTextPart | CmuxReasoningPart | CmuxToolPart>;
 };
 
 // DisplayedMessage represents a single UI message block
@@ -100,6 +104,8 @@ export type DisplayedMessage =
       historySequence: number; // Global ordering across all messages
       streamSequence?: number; // Local ordering within this assistant message
       isStreaming: boolean;
+      isPartial: boolean; // Whether the parent message was interrupted
+      isLastPartOfMessage?: boolean; // True if this is the last part of a multi-part message
       timestamp?: number;
       tokens?: number; // Reasoning tokens if available
     };

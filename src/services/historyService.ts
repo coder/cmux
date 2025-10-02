@@ -5,6 +5,7 @@ import { Ok, Err } from "../types/result";
 import type { CmuxMessage } from "../types/message";
 import type { Config } from "../config";
 import { MutexMap } from "../utils/mutexMap";
+import { log } from "./log";
 
 /**
  * HistoryService - Manages chat history persistence and sequence numbering
@@ -122,6 +123,13 @@ export class HistoryService {
       await fs.mkdir(workspaceDir, { recursive: true });
       const historyPath = this.getChatHistoryPath(workspaceId);
 
+      // DEBUG: Log message append with caller stack trace
+      const stack = new Error().stack?.split("\n").slice(2, 6).join("\n") ?? "no stack";
+      log.debug(
+        `[HISTORY APPEND] workspaceId=${workspaceId} role=${message.role} id=${message.id}`
+      );
+      log.debug(`[HISTORY APPEND] Call stack:\n${stack}`);
+
       // Ensure message has a history sequence number
       if (!message.metadata) {
         // Create metadata with history sequence
@@ -155,6 +163,11 @@ export class HistoryService {
         ...message,
         workspaceId,
       };
+
+      // DEBUG: Log assigned sequence number
+      log.debug(
+        `[HISTORY APPEND] Assigned historySequence=${message.metadata.historySequence} role=${message.role}`
+      );
 
       await fs.appendFile(historyPath, JSON.stringify(historyEntry) + "\n");
       return Ok(undefined);

@@ -7,48 +7,66 @@ import type { ModelMessage, AssistantModelMessage, ToolModelMessage } from "ai";
 import type { CmuxMessage } from "../types/message";
 
 /**
- * Add [INTERRUPTED] sentinel to partial messages.
- * This helps the model understand that a message was interrupted and incomplete.
- * The sentinel is ONLY for model context, not shown in UI.
+ * Filter out assistant messages that only contain reasoning parts (no text or tool parts).
+ * These messages are invalid for the API and provide no value to the model.
+ * This happens when a message is interrupted during thinking before producing any text.
  */
-export function addInterruptedSentinel(messages: CmuxMessage[]): CmuxMessage[] {
-  return messages.map((msg) => {
-    // Only process assistant messages with partial flag
-    if (msg.role !== "assistant" || !msg.metadata?.partial) {
-      return msg;
+export function filterEmptyAssistantMessages(messages: CmuxMessage[]): CmuxMessage[] {
+  return messages.filter((msg) => {
+    // Keep all non-assistant messages
+    if (msg.role !== "assistant") {
+      return true;
     }
 
-    // Find the last text part
-    const parts = [...msg.parts];
-    for (let i = parts.length - 1; i >= 0; i--) {
-      const part = parts[i];
-      if (part.type === "text" && part.text) {
-        // Append sentinel to last text part
-        parts[i] = {
-          ...part,
-          text: part.text + "\n\n[INTERRUPTED]",
-        };
-        break;
-      }
-    }
+    // Keep assistant messages that have at least one text or tool part
+    const hasContent = msg.parts.some(
+      (part) => (part.type === "text" && part.text) || part.type === "dynamic-tool"
+    );
 
-    return {
-      ...msg,
-      parts,
-    };
+    return hasContent;
   });
 }
 
 /**
- * Ensure Anthropic API compliance by fixing message sequences where:
- * - tool_use blocks must be immediately followed by their tool_result blocks
- * - No text or other content can appear between tool_use and tool_result
+ * Add [INTERRUPTED] sentinel to partial messages by inserting a user message.
+ * This helps the model understand that a message was interrupted and incomplete.
+ * The sentinel is ONLY for model context, not shown in UI.
  *
- * This transform specifically handles the case where an assistant message
- * contains both text and tool calls mixed together, which violates Anthropic's
- * requirements when those tool calls don't yet have results.
+ * We insert a separate user message instead of modifying the assistant message
+ * because if the assistant message only has reasoning (no text), it will be
+ * filtered out, and we'd lose the interruption context. A user message always
+ * survives filtering.
  */
-export function transformModelMessages(messages: ModelMessage[]): ModelMessage[] {
+export function addInterruptedSentinel(messages: CmuxMessage[]): CmuxMessage[] {
+  const result: CmuxMessage[] = [];
+
+  for (const msg of messages) {
+    result.push(msg);
+
+    // If this is a partial assistant message, insert [INTERRUPTED] user message after it
+    if (msg.role === "assistant" && msg.metadata?.partial) {
+      result.push({
+        id: `interrupted-${msg.id}`,
+        role: "user",
+        parts: [{ type: "text", text: "[INTERRUPTED]" }],
+        metadata: {
+          timestamp: msg.metadata.timestamp,
+          // Mark as synthetic so it can be identified if needed
+          synthetic: true,
+        },
+      });
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Split assistant messages with mixed text and tool calls into separate messages
+ * to comply with Anthropic's requirement that tool_use blocks must be immediately
+ * followed by their tool_result blocks without intervening text.
+ */
+function splitMixedContentMessages(messages: ModelMessage[]): ModelMessage[] {
   const result: ModelMessage[] = [];
 
   for (let i = 0; i < messages.length; i++) {
@@ -200,6 +218,90 @@ export function transformModelMessages(messages: ModelMessage[]): ModelMessage[]
   }
 
   return result;
+}
+
+/**
+ * Filter out assistant messages that only contain reasoning parts (no text or tool parts).
+ * Anthropic API rejects messages that have reasoning but no actual content.
+ * This happens when a message is interrupted during thinking before producing any text.
+ */
+function filterReasoningOnlyMessages(messages: ModelMessage[]): ModelMessage[] {
+  return messages.filter((msg) => {
+    if (msg.role !== "assistant") {
+      return true;
+    }
+
+    // Check if content is string or array
+    if (typeof msg.content === "string") {
+      return msg.content.trim().length > 0;
+    }
+
+    // For array content, check if there's at least one non-reasoning part
+    const hasNonReasoningContent = msg.content.some((part) => part.type !== "reasoning");
+
+    return hasNonReasoningContent;
+  });
+}
+
+/**
+ * Merge consecutive user messages with newline separators.
+ * When filtering removes assistant messages, we can end up with consecutive user messages.
+ * Anthropic requires alternating user/assistant, so we merge them.
+ */
+function mergeConsecutiveUserMessages(messages: ModelMessage[]): ModelMessage[] {
+  const merged: ModelMessage[] = [];
+
+  for (const msg of messages) {
+    if (msg.role === "user" && merged.length > 0 && merged[merged.length - 1].role === "user") {
+      // Consecutive user message - merge with previous
+      const prevMsg = merged[merged.length - 1];
+
+      // Get text content from both messages
+      const prevText = Array.isArray(prevMsg.content)
+        ? (prevMsg.content.find((c) => c.type === "text")?.text ?? "")
+        : prevMsg.content;
+
+      const currentText = Array.isArray(msg.content)
+        ? (msg.content.find((c) => c.type === "text")?.text ?? "")
+        : typeof msg.content === "string"
+          ? msg.content
+          : "";
+
+      // Merge with newline prefix
+      const mergedText = prevText + "\n" + currentText;
+
+      // Update the previous message
+      merged[merged.length - 1] = {
+        role: "user",
+        content: [{ type: "text", text: mergedText }],
+      };
+    } else {
+      // Not consecutive user message, add as-is
+      merged.push(msg);
+    }
+  }
+
+  return merged;
+}
+
+/**
+ * Transform messages to ensure Anthropic API compliance.
+ * Applies multiple transformation passes:
+ * 1. Split mixed content messages (text + tool calls)
+ * 2. Filter out reasoning-only assistant messages
+ * 3. Merge consecutive user messages
+ */
+export function transformModelMessages(messages: ModelMessage[]): ModelMessage[] {
+  // Pass 1: Split mixed content messages
+  const split = splitMixedContentMessages(messages);
+
+  // Pass 2: Filter out reasoning-only assistant messages
+  const filtered = filterReasoningOnlyMessages(split);
+
+  // Pass 3: Merge consecutive user messages
+  const merged = mergeConsecutiveUserMessages(filtered);
+
+  return merged;
 }
 
 /**

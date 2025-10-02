@@ -27,10 +27,16 @@ const InputControls = styled.div`
   align-items: flex-end;
 `;
 
-const InputField = styled.textarea<{ isEditing?: boolean }>`
+const InputField = styled.textarea<{ isEditing?: boolean; canInterrupt?: boolean }>`
   flex: 1;
   background: ${(props) => (props.isEditing ? "var(--color-editing-mode-alpha)" : "#1e1e1e")};
-  border: 1px solid ${(props) => (props.isEditing ? "var(--color-editing-mode)" : "#3e3e42")};
+  border: 1px solid
+    ${(props) =>
+      props.isEditing
+        ? "var(--color-editing-mode)"
+        : props.canInterrupt
+          ? "var(--color-interrupted)"
+          : "#3e3e42"};
   color: #d4d4d4;
   padding: 8px 12px;
   border-radius: 4px;
@@ -44,7 +50,12 @@ const InputField = styled.textarea<{ isEditing?: boolean }>`
 
   &:focus {
     outline: none;
-    border-color: ${(props) => (props.isEditing ? "var(--color-editing-mode)" : "#569cd6")};
+    border-color: ${(props) =>
+      props.isEditing
+        ? "var(--color-editing-mode)"
+        : props.canInterrupt
+          ? "var(--color-interrupted)"
+          : "#569cd6"};
   }
 
   &::placeholder {
@@ -101,6 +112,7 @@ export interface ChatInputProps {
   isCompacting?: boolean;
   editingMessage?: { id: string; content: string };
   onCancelEdit?: () => void;
+  canInterrupt?: boolean; // Whether Esc can be used to interrupt streaming
 }
 
 // Helper function to convert parsed command to display toast
@@ -245,6 +257,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   isCompacting = false,
   editingMessage,
   onCancelEdit,
+  canInterrupt = false,
 }) => {
   const [input, setInput] = usePersistedState("input:" + workspaceId, "");
   const [isSending, setIsSending] = useState(false);
@@ -373,12 +386,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       setIsSending(true);
 
       try {
-        const result = await window.api.workspace.sendMessage(
-          workspaceId,
-          messageText,
-          editingMessage?.id,
-          thinkingLevel
-        );
+        const result = await window.api.workspace.sendMessage(workspaceId, messageText, {
+          editMessageId: editingMessage?.id,
+          thinkingLevel,
+        });
 
         if (!result.success) {
           // Log error for debugging
@@ -422,10 +433,23 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    // Handle Escape key to cancel editing
-    if (e.key === "Escape" && editingMessage && onCancelEdit) {
+    // Handle Escape key
+    if (e.key === "Escape") {
       e.preventDefault();
-      onCancelEdit();
+
+      // Priority 1: Cancel editing if in edit mode
+      if (editingMessage && onCancelEdit) {
+        onCancelEdit();
+        return;
+      }
+
+      // Priority 2: Interrupt streaming if active
+      if (canInterrupt) {
+        // Send empty message to trigger interrupt
+        void window.api.workspace.sendMessage(workspaceId, "");
+        return;
+      }
+
       return;
     }
 
@@ -479,9 +503,12 @@ export const ChatInput: React.FC<ChatInputProps> = ({
               ? "Edit your message... (Esc to cancel, Enter to send)"
               : isCompacting
                 ? "Compacting conversation..."
-                : "Type a message... (Enter to send, Shift+Enter for newline)"
+                : canInterrupt
+                  ? "Type a message... (Esc to interrupt, Enter to send, Shift+Enter for newline)"
+                  : "Type a message... (Enter to send, Shift+Enter for newline)"
           }
           disabled={disabled || isSending || isCompacting}
+          canInterrupt={canInterrupt}
         />
       </InputControls>
       <ModeToggles>

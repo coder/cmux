@@ -3,22 +3,13 @@
  */
 
 import type { LanguageModelV2Usage } from "@ai-sdk/provider";
-import type { ProviderMetadata } from "./message";
+import type { ProviderMetadata, CmuxReasoningPart, CmuxTextPart, CmuxToolPart } from "./message";
 
 /**
- * Completed message part (text or tool) suitable for serialization
+ * Completed message part (reasoning, text, or tool) suitable for serialization
  * Used in StreamEndEvent and partial message storage
  */
-export type CompletedMessagePart =
-  | { type: "text"; text: string; state: "done" }
-  | {
-      type: "dynamic-tool";
-      toolCallId: string;
-      toolName: string;
-      state: "input-available" | "output-available";
-      input: unknown;
-      output?: unknown;
-    };
+export type CompletedMessagePart = CmuxReasoningPart | CmuxTextPart | CmuxToolPart;
 
 export interface StreamStartEvent {
   type: "stream-start";
@@ -46,12 +37,10 @@ export interface StreamEndEvent {
     model: string;
     providerMetadata?: ProviderMetadata;
     duration?: number;
-    reasoning?: string;
     reasoningTokens?: number;
-    isReasoningStreaming?: boolean;
     systemMessageTokens?: number;
   };
-  // Parts array preserves temporal ordering of text and tool calls
+  // Parts array preserves temporal ordering of reasoning, text, and tool calls
   parts: CompletedMessagePart[];
 }
 

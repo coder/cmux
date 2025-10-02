@@ -1,6 +1,11 @@
 import { describe, it, expect } from "@jest/globals";
 import type { ModelMessage, AssistantModelMessage, ToolModelMessage } from "ai";
-import { transformModelMessages, validateAnthropicCompliance } from "./modelMessageTransform";
+import {
+  transformModelMessages,
+  validateAnthropicCompliance,
+  addInterruptedSentinel,
+} from "./modelMessageTransform";
+import type { CmuxMessage } from "../types/message";
 
 describe("modelMessageTransform", () => {
   describe("transformModelMessages", () => {
@@ -293,6 +298,209 @@ describe("modelMessageTransform", () => {
 
       const result = validateAnthropicCompliance(messages);
       expect(result.valid).toBe(true);
+    });
+  });
+
+  describe("consecutive user messages", () => {
+    it("should keep single user message unchanged", () => {
+      const messages: ModelMessage[] = [
+        {
+          role: "user",
+          content: [{ type: "text", text: "Hello" }],
+        },
+      ];
+
+      const result = transformModelMessages(messages);
+      expect(result).toHaveLength(1);
+      expect(result[0].role).toBe("user");
+      expect((result[0].content as Array<{ type: string; text: string }>)[0].text).toBe("Hello");
+    });
+
+    it("should merge two consecutive user messages with newline", () => {
+      const messages: ModelMessage[] = [
+        {
+          role: "user",
+          content: [{ type: "text", text: "Hello" }],
+        },
+        {
+          role: "user",
+          content: [{ type: "text", text: "World" }],
+        },
+      ];
+
+      const result = transformModelMessages(messages);
+      expect(result).toHaveLength(1);
+      expect(result[0].role).toBe("user");
+      expect((result[0].content as Array<{ type: string; text: string }>)[0].text).toBe(
+        "Hello\nWorld"
+      );
+    });
+
+    it("should merge three consecutive user messages with newlines", () => {
+      const messages: ModelMessage[] = [
+        {
+          role: "user",
+          content: [{ type: "text", text: "First" }],
+        },
+        {
+          role: "user",
+          content: [{ type: "text", text: "Second" }],
+        },
+        {
+          role: "user",
+          content: [{ type: "text", text: "Third" }],
+        },
+      ];
+
+      const result = transformModelMessages(messages);
+      expect(result).toHaveLength(1);
+      expect(result[0].role).toBe("user");
+      expect((result[0].content as Array<{ type: string; text: string }>)[0].text).toBe(
+        "First\nSecond\nThird"
+      );
+    });
+
+    it("should not merge user messages separated by assistant message", () => {
+      const messages: ModelMessage[] = [
+        {
+          role: "user",
+          content: [{ type: "text", text: "Hello" }],
+        },
+        {
+          role: "assistant",
+          content: [{ type: "text", text: "Hi there!" }],
+        },
+        {
+          role: "user",
+          content: [{ type: "text", text: "How are you?" }],
+        },
+      ];
+
+      const result = transformModelMessages(messages);
+      expect(result).toHaveLength(3);
+      expect(result[0].role).toBe("user");
+      expect((result[0].content as Array<{ type: string; text: string }>)[0].text).toBe("Hello");
+      expect(result[1].role).toBe("assistant");
+      expect(result[2].role).toBe("user");
+      expect((result[2].content as Array<{ type: string; text: string }>)[0].text).toBe(
+        "How are you?"
+      );
+    });
+  });
+
+  describe("addInterruptedSentinel", () => {
+    it("should insert user message after partial assistant message", () => {
+      const messages: CmuxMessage[] = [
+        {
+          id: "user-1",
+          role: "user",
+          parts: [{ type: "text", text: "Hello" }],
+          metadata: { timestamp: 1000 },
+        },
+        {
+          id: "assistant-1",
+          role: "assistant",
+          parts: [{ type: "text", text: "Let me help..." }],
+          metadata: { timestamp: 2000, partial: true },
+        },
+      ];
+
+      const result = addInterruptedSentinel(messages);
+
+      // Should have 3 messages: user, assistant, [INTERRUPTED] user
+      expect(result).toHaveLength(3);
+      expect(result[0].id).toBe("user-1");
+      expect(result[1].id).toBe("assistant-1");
+      expect(result[2].id).toBe("interrupted-assistant-1");
+      expect(result[2].role).toBe("user");
+      expect(result[2].parts).toEqual([{ type: "text", text: "[INTERRUPTED]" }]);
+      expect(result[2].metadata?.synthetic).toBe(true);
+      expect(result[2].metadata?.timestamp).toBe(2000);
+    });
+
+    it("should not insert sentinel for non-partial assistant messages", () => {
+      const messages: CmuxMessage[] = [
+        {
+          id: "user-1",
+          role: "user",
+          parts: [{ type: "text", text: "Hello" }],
+          metadata: { timestamp: 1000 },
+        },
+        {
+          id: "assistant-1",
+          role: "assistant",
+          parts: [{ type: "text", text: "Complete response" }],
+          metadata: { timestamp: 2000, partial: false },
+        },
+      ];
+
+      const result = addInterruptedSentinel(messages);
+
+      // Should remain unchanged (no sentinel)
+      expect(result).toHaveLength(2);
+      expect(result).toEqual(messages);
+    });
+
+    it("should insert sentinel for reasoning-only partial messages", () => {
+      const messages: CmuxMessage[] = [
+        {
+          id: "user-1",
+          role: "user",
+          parts: [{ type: "text", text: "Calculate something" }],
+          metadata: { timestamp: 1000 },
+        },
+        {
+          id: "assistant-1",
+          role: "assistant",
+          parts: [{ type: "reasoning", text: "Let me think about this..." }],
+          metadata: { timestamp: 2000, partial: true },
+        },
+      ];
+
+      const result = addInterruptedSentinel(messages);
+
+      // Should have 3 messages: user, assistant (reasoning only), [INTERRUPTED] user
+      expect(result).toHaveLength(3);
+      expect(result[2].role).toBe("user");
+      expect(result[2].parts).toEqual([{ type: "text", text: "[INTERRUPTED]" }]);
+    });
+
+    it("should handle multiple partial messages", () => {
+      const messages: CmuxMessage[] = [
+        {
+          id: "user-1",
+          role: "user",
+          parts: [{ type: "text", text: "First" }],
+          metadata: { timestamp: 1000 },
+        },
+        {
+          id: "assistant-1",
+          role: "assistant",
+          parts: [{ type: "text", text: "Response 1..." }],
+          metadata: { timestamp: 2000, partial: true },
+        },
+        {
+          id: "user-2",
+          role: "user",
+          parts: [{ type: "text", text: "Second" }],
+          metadata: { timestamp: 3000 },
+        },
+        {
+          id: "assistant-2",
+          role: "assistant",
+          parts: [{ type: "text", text: "Response 2..." }],
+          metadata: { timestamp: 4000, partial: true },
+        },
+      ];
+
+      const result = addInterruptedSentinel(messages);
+
+      // Should have 6 messages (4 original + 2 sentinels)
+      expect(result).toHaveLength(6);
+      expect(result[2].id).toBe("interrupted-assistant-1");
+      expect(result[2].role).toBe("user");
+      expect(result[5].id).toBe("interrupted-assistant-2");
+      expect(result[5].role).toBe("user");
     });
   });
 });
