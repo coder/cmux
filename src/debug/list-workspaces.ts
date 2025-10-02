@@ -1,9 +1,9 @@
-import { load_config_or_default, findWorkspacePath } from "../config";
+import { defaultConfig } from "../config";
 import * as path from "path";
 import * as fs from "fs";
 
 export function listWorkspacesCommand() {
-  const config = load_config_or_default();
+  const config = defaultConfig.loadConfigOrDefault();
 
   console.log("\n=== Configuration Debug ===\n");
   console.log("Projects in config:", config.projects.size);
@@ -32,7 +32,7 @@ export function listWorkspacesCommand() {
   ];
 
   for (const test of testCases) {
-    const result = findWorkspacePath(test.project, test.branch);
+    const result = defaultConfig.findWorkspacePath(test.project, test.branch);
     console.log(`findWorkspacePath('${test.project}', '${test.branch}'):`);
     if (result) {
       console.log(`  Found: ${result}`);

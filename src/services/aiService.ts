@@ -6,7 +6,7 @@ import { createAnthropic } from "@ai-sdk/anthropic";
 import { Result, Ok, Err } from "../types/result";
 import { WorkspaceMetadata, WorkspaceMetadataSchema } from "../types/workspace";
 import { CmuxMessage, createCmuxMessage } from "../types/message";
-import { SESSIONS_DIR, getSessionDir, loadProvidersConfig } from "../config";
+import { Config } from "../config";
 import { StreamManager } from "./streamManager";
 import type { SendMessageError } from "../types/errors";
 import { getToolsForModel } from "../utils/tools";
@@ -32,9 +32,11 @@ export class AIService extends EventEmitter {
   private defaultModel = "anthropic:claude-opus-4-1"; // Default model string
   private historyService: HistoryService;
   private partialService: PartialService;
+  private config: Config;
 
-  constructor(historyService: HistoryService, partialService: PartialService) {
+  constructor(config: Config, historyService: HistoryService, partialService: PartialService) {
     super();
+    this.config = config;
     this.historyService = historyService;
     this.partialService = partialService;
     this.streamManager = new StreamManager(historyService, partialService);
@@ -62,14 +64,14 @@ export class AIService extends EventEmitter {
 
   private async ensureSessionsDir(): Promise<void> {
     try {
-      await fs.mkdir(SESSIONS_DIR, { recursive: true });
+      await fs.mkdir(this.config.sessionsDir, { recursive: true });
     } catch (error) {
       log.error("Failed to create sessions directory:", error);
     }
   }
 
   private getMetadataPath(workspaceId: string): string {
-    return path.join(getSessionDir(workspaceId), this.METADATA_FILE);
+    return path.join(this.config.getSessionDir(workspaceId), this.METADATA_FILE);
   }
 
   async getWorkspaceMetadata(workspaceId: string): Promise<Result<WorkspaceMetadata>> {
@@ -99,7 +101,7 @@ export class AIService extends EventEmitter {
     metadata: WorkspaceMetadata
   ): Promise<Result<void>> {
     try {
-      const workspaceDir = getSessionDir(workspaceId);
+      const workspaceDir = this.config.getSessionDir(workspaceId);
       await fs.mkdir(workspaceDir, { recursive: true });
       const metadataPath = this.getMetadataPath(workspaceId);
       await fs.writeFile(metadataPath, JSON.stringify(metadata, null, 2));
@@ -137,7 +139,7 @@ export class AIService extends EventEmitter {
       }
 
       // Load providers configuration - the ONLY source of truth
-      const providersConfig = loadProvidersConfig();
+      const providersConfig = this.config.loadProvidersConfig();
       const providerConfig = providersConfig?.[providerName];
 
       if (!providerConfig) {
@@ -319,7 +321,7 @@ export class AIService extends EventEmitter {
 
   async deleteWorkspace(workspaceId: string): Promise<Result<void>> {
     try {
-      const workspaceDir = getSessionDir(workspaceId);
+      const workspaceDir = this.config.getSessionDir(workspaceId);
       await fs.rm(workspaceDir, { recursive: true, force: true });
       return Ok(undefined);
     } catch (error) {

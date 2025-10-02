@@ -1,14 +1,6 @@
 import { app, BrowserWindow, ipcMain, dialog, Menu, MenuItemConstructorOptions } from "electron";
 import * as path from "path";
-import {
-  load_config_or_default,
-  save_config,
-  Config,
-  ProjectConfig,
-  getAllWorkspaceMetadata,
-  loadProvidersConfig,
-  saveProvidersConfig,
-} from "./config";
+import { Config, ProjectsConfig, ProjectConfig } from "./config";
 import { createWorktree, removeWorktree } from "./git";
 import { AIService } from "./services/aiService";
 import { HistoryService } from "./services/historyService";
@@ -28,9 +20,10 @@ import { IPC_CHANNELS, getChatChannel } from "./constants/ipc-constants";
 import type { SendMessageError } from "./types/errors";
 import type { StreamErrorMessage } from "./types/ipc";
 
-const historyService = new HistoryService();
-const partialService = new PartialService(historyService);
-const aiService = new AIService(historyService, partialService);
+const config = new Config();
+const historyService = new HistoryService(config);
+const partialService = new PartialService(config, historyService);
+const aiService = new AIService(config, historyService, partialService);
 
 console.log("Main process starting...");
 
@@ -59,19 +52,19 @@ let mainWindow: BrowserWindow | null = null;
 
 // Register IPC handlers before creating window
 ipcMain.handle(IPC_CHANNELS.CONFIG_LOAD, () => {
-  const config = load_config_or_default();
+  const projectsConfig = config.loadConfigOrDefault();
   return {
-    projects: Array.from(config.projects.entries()),
+    projects: Array.from(projectsConfig.projects.entries()),
   };
 });
 
 ipcMain.handle(
   IPC_CHANNELS.CONFIG_SAVE,
   (_event, configData: { projects: [string, ProjectConfig][] }) => {
-    const config: Config = {
+    const projectsConfig: ProjectsConfig = {
       projects: new Map(configData.projects),
     };
-    save_config(config);
+    config.saveConfig(projectsConfig);
     return true;
   }
 );
@@ -95,7 +88,7 @@ ipcMain.handle(
   IPC_CHANNELS.WORKSPACE_CREATE,
   async (_event, projectPath: string, branchName: string) => {
     // First create the git worktree
-    const result = await createWorktree(projectPath, branchName);
+    const result = await createWorktree(config, projectPath, branchName);
 
     if (result.success && result.path) {
       const projectName =
@@ -127,13 +120,13 @@ ipcMain.handle(
 ipcMain.handle(IPC_CHANNELS.WORKSPACE_REMOVE, async (_event, workspaceId: string) => {
   try {
     // Load current config
-    const config = load_config_or_default();
+    const projectsConfig = config.loadConfigOrDefault();
 
     // Find workspace path from config
     let workspacePath: string | null = null;
     let foundProjectPath: string | null = null;
 
-    for (const [projectPath, projectConfig] of config.projects.entries()) {
+    for (const [projectPath, projectConfig] of projectsConfig.projects.entries()) {
       const workspace = projectConfig.workspaces.find((w) => {
         const projectName = path.basename(projectPath);
         const wsId = `${projectName}-${w.branch}`;
@@ -163,10 +156,10 @@ ipcMain.handle(IPC_CHANNELS.WORKSPACE_REMOVE, async (_event, workspaceId: string
 
     // Update config to remove the workspace
     if (foundProjectPath && workspacePath) {
-      const projectConfig = config.projects.get(foundProjectPath);
+      const projectConfig = projectsConfig.projects.get(foundProjectPath);
       if (projectConfig) {
         projectConfig.workspaces = projectConfig.workspaces.filter((w) => w.path !== workspacePath);
-        save_config(config);
+        config.saveConfig(projectsConfig);
       }
     }
 
@@ -189,7 +182,7 @@ ipcMain.handle(IPC_CHANNELS.WORKSPACE_REMOVE, async (_event, workspaceId: string
 
 ipcMain.handle(IPC_CHANNELS.WORKSPACE_LIST, async () => {
   try {
-    const workspaceData = await getAllWorkspaceMetadata();
+    const workspaceData = await config.getAllWorkspaceMetadata();
     return workspaceData.map(({ metadata }) => metadata);
   } catch (error) {
     console.error("Failed to list workspaces:", error);
@@ -315,15 +308,15 @@ ipcMain.handle(
   (_event, provider: string, keyPath: string[], value: string) => {
     try {
       // Load current providers config or create empty
-      const config = loadProvidersConfig() ?? {};
+      const providersConfig = config.loadProvidersConfig() ?? {};
 
       // Ensure provider exists
-      if (!config[provider]) {
-        config[provider] = {};
+      if (!providersConfig[provider]) {
+        providersConfig[provider] = {};
       }
 
       // Set nested property value
-      let current = config[provider] as Record<string, unknown>;
+      let current = providersConfig[provider] as Record<string, unknown>;
       for (let i = 0; i < keyPath.length - 1; i++) {
         const key = keyPath[i];
         if (!(key in current) || typeof current[key] !== "object" || current[key] === null) {
@@ -338,7 +331,7 @@ ipcMain.handle(
       }
 
       // Save updated config
-      saveProvidersConfig(config);
+      config.saveProvidersConfig(providersConfig);
 
       return { success: true, data: undefined };
     } catch (error) {
@@ -383,7 +376,7 @@ ipcMain.on(
   () =>
     void (async () => {
       try {
-        const workspaceData = await getAllWorkspaceMetadata();
+        const workspaceData = await config.getAllWorkspaceMetadata();
 
         // Emit current metadata for each workspace
         for (const { workspaceId, metadata } of workspaceData) {

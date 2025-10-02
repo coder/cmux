@@ -10,9 +10,9 @@
 
 import * as fs from "fs";
 import * as path from "path";
-import { CONFIG_DIR } from "../config";
+import { defaultConfig } from "../config";
 
-const DEBUG_OBJ_DIR = path.join(CONFIG_DIR, "debug_obj");
+const DEBUG_OBJ_DIR = path.join(defaultConfig.rootDir, "debug_obj");
 
 /**
  * Check if debug mode is enabled

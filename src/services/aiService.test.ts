@@ -6,14 +6,16 @@ import { describe, it, expect, beforeEach } from "bun:test";
 import { AIService } from "./aiService";
 import { HistoryService } from "./historyService";
 import { PartialService } from "./partialService";
+import { Config } from "../config";
 
 describe("AIService", () => {
   let service: AIService;
 
   beforeEach(() => {
-    const historyService = new HistoryService();
-    const partialService = new PartialService(historyService);
-    service = new AIService(historyService, partialService);
+    const config = new Config();
+    const historyService = new HistoryService(config);
+    const partialService = new PartialService(config, historyService);
+    service = new AIService(config, historyService, partialService);
   });
 
   // Note: These tests are placeholders as Bun doesn't support Jest mocking
