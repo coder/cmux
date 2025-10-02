@@ -3,24 +3,31 @@ import styled from "@emotion/styled";
 import { markdownStyles } from "../Messages/MarkdownStyles";
 import { MarkdownCore } from "./MarkdownCore";
 
-const MarkdownContainer = styled.div`
+const MarkdownContainer = styled.div<{ isStreaming: boolean }>`
   ${markdownStyles}
-`;
 
-const CursorSpan = styled.span<{ show: boolean }>`
-  display: ${(props) => (props.show ? "inline" : "none")};
-  animation: blink 1s step-end infinite;
+  /* Target the last text node's parent when streaming and add blinking cursor */
+  ${(props) =>
+    props.isStreaming &&
+    `
+    p:last-child::after,
+    li:last-child::after,
+    div:last-child::after,
+    span:last-child::after {
+      content: "▊";
+      margin-left: 0.15em;
+      animation: blink 1s step-end infinite;
+    }
 
-  @keyframes blink {
-    0%,
-    50% {
-      opacity: 1;
+    @keyframes blink {
+      0%, 50% {
+        opacity: 1;
+      }
+      51%, 100% {
+        opacity: 0;
+      }
     }
-    51%,
-    100% {
-      opacity: 0;
-    }
-  }
+  `}
 `;
 
 interface TypewriterMarkdownProps {
@@ -39,13 +46,11 @@ export const TypewriterMarkdown = React.memo<TypewriterMarkdownProps>(function T
   const content = deltas.join("");
 
   // Show cursor only when streaming (not complete)
-  const showCursor = !isComplete && content.length > 0;
+  const isStreaming = !isComplete && content.length > 0;
 
   return (
-    <MarkdownContainer className={className}>
-      <MarkdownCore content={content}>
-        <CursorSpan show={showCursor}>▊</CursorSpan>
-      </MarkdownCore>
+    <MarkdownContainer className={className} isStreaming={isStreaming}>
+      <MarkdownCore content={content} />
     </MarkdownContainer>
   );
 });

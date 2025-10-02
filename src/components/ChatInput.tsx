@@ -30,13 +30,7 @@ const InputControls = styled.div`
 const InputField = styled.textarea<{ isEditing?: boolean; canInterrupt?: boolean }>`
   flex: 1;
   background: ${(props) => (props.isEditing ? "var(--color-editing-mode-alpha)" : "#1e1e1e")};
-  border: 1px solid
-    ${(props) =>
-      props.isEditing
-        ? "var(--color-editing-mode)"
-        : props.canInterrupt
-          ? "var(--color-interrupted)"
-          : "#3e3e42"};
+  border: 1px solid ${(props) => (props.isEditing ? "var(--color-editing-mode)" : "#3e3e42")};
   color: #d4d4d4;
   padding: 8px 12px;
   border-radius: 4px;
@@ -50,12 +44,7 @@ const InputField = styled.textarea<{ isEditing?: boolean; canInterrupt?: boolean
 
   &:focus {
     outline: none;
-    border-color: ${(props) =>
-      props.isEditing
-        ? "var(--color-editing-mode)"
-        : props.canInterrupt
-          ? "var(--color-interrupted)"
-          : "#569cd6"};
+    border-color: ${(props) => (props.isEditing ? "var(--color-editing-mode)" : "#569cd6")};
   }
 
   &::placeholder {

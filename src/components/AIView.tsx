@@ -94,6 +94,24 @@ const EmptyState = styled.div`
   }
 `;
 
+const GlobalStreamingIndicator = styled.div`
+  font-size: 10px;
+  color: var(--color-assistant-border);
+  font-style: italic;
+  padding: 8px 0;
+  animation: pulse 1.5s ease-in-out infinite;
+
+  @keyframes pulse {
+    0%,
+    100% {
+      opacity: 0.6;
+    }
+    50% {
+      opacity: 1;
+    }
+  }
+`;
+
 const EditBarrier = styled.div`
   margin: 20px 0;
   padding: 12px 15px;
@@ -505,6 +523,9 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
                   );
                 })}
               </>
+            )}
+            {canInterrupt && (
+              <GlobalStreamingIndicator>streaming... hit Esc to cancel</GlobalStreamingIndicator>
             )}
             {errorMessage && (
               <ErrorMessage

@@ -19,24 +19,6 @@ const RawContent = styled.pre`
   border-radius: 3px;
 `;
 
-const StreamingIndicator = styled.span`
-  font-size: 10px;
-  color: var(--color-assistant-border);
-  font-style: italic;
-  margin-right: 8px;
-  animation: pulse 1.5s ease-in-out infinite;
-
-  @keyframes pulse {
-    0%,
-    100% {
-      opacity: 0.6;
-    }
-    50% {
-      opacity: 1;
-    }
-  }
-`;
-
 const WaitingMessage = styled.div`
   font-family: var(--font-primary);
   font-size: 13px;
@@ -94,11 +76,6 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({ message, cla
         },
       ];
 
-  // Streaming indicator in right label
-  const rightLabel = isStreaming ? (
-    <StreamingIndicator>streaming...</StreamingIndicator>
-  ) : undefined;
-
   // Render appropriate content based on state
   const renderContent = () => {
     // Empty streaming state
@@ -141,7 +118,6 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({ message, cla
       borderColor="var(--color-assistant-border)"
       message={message}
       buttons={buttons}
-      rightLabel={rightLabel}
       className={className}
     >
       {renderContent()}

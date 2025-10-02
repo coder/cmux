@@ -131,7 +131,6 @@ export const ReasoningMessage: React.FC<ReasoningMessageProps> = ({ message, cla
         <HeaderLeft>
           <ThinkingIcon>💭</ThinkingIcon>
           <span>Thinking</span>
-          {isStreaming && <StreamingIndicator>streaming...</StreamingIndicator>}
         </HeaderLeft>
         {!isStreaming && <Caret isExpanded={isExpanded}>▸</Caret>}
       </ReasoningHeader>
