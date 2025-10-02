@@ -1,9 +1,10 @@
 import * as fs from "fs/promises";
 import * as path from "path";
-import { Result, Ok, Err } from "../types/result";
-import { CmuxMessage } from "../types/message";
-import { Config } from "../config";
-import { HistoryService } from "./historyService";
+import type { Result } from "../types/result";
+import { Ok, Err } from "../types/result";
+import type { CmuxMessage } from "../types/message";
+import type { Config } from "../config";
+import type { HistoryService } from "./historyService";
 import { MutexMap } from "../utils/mutexMap";
 
 /**
@@ -27,7 +28,7 @@ export class PartialService {
   private readonly PARTIAL_FILE = "partial.json";
   private readonly historyService: HistoryService;
   private readonly fileLocks = new MutexMap<string>();
-  private config: Config;
+  private readonly config: Config;
 
   constructor(config: Config, historyService: HistoryService) {
     this.config = config;

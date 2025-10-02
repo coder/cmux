@@ -1,9 +1,11 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import styled from "@emotion/styled";
 import { CommandSuggestions, COMMAND_SUGGESTION_KEYS } from "./CommandSuggestions";
-import { ChatInputToast, Toast, SolutionLabel } from "./ChatInputToast";
-import { parseCommand, ParsedCommand } from "../utils/commandParser";
-import { SendMessageError as SendMessageErrorType } from "../types/errors";
+import type { Toast } from "./ChatInputToast";
+import { ChatInputToast, SolutionLabel } from "./ChatInputToast";
+import type { ParsedCommand } from "../utils/commandParser";
+import { parseCommand } from "../utils/commandParser";
+import type { SendMessageError as SendMessageErrorType } from "../types/errors";
 import { usePersistedState } from "../hooks/usePersistedState";
 import { ThinkingSliderComponent } from "./ThinkingSlider";
 import { useThinkingLevel } from "../hooks/useThinkingLevel";

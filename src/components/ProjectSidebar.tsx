@@ -274,7 +274,7 @@ const WorkspaceRemoveBtn = styled(RemoveBtn)`
 
 export interface ProjectConfig {
   path: string;
-  workspaces: { branch: string; path: string }[];
+  workspaces: Array<{ branch: string; path: string }>;
 }
 
 export interface WorkspaceSelection {

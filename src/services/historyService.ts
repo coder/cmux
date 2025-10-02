@@ -1,8 +1,9 @@
 import * as fs from "fs/promises";
 import * as path from "path";
-import { Result, Ok, Err } from "../types/result";
-import { CmuxMessage } from "../types/message";
-import { Config } from "../config";
+import type { Result } from "../types/result";
+import { Ok, Err } from "../types/result";
+import type { CmuxMessage } from "../types/message";
+import type { Config } from "../config";
 import { MutexMap } from "../utils/mutexMap";
 
 /**
@@ -19,7 +20,7 @@ export class HistoryService {
   private sequenceCounters = new Map<string, number>();
   // File operation locks per workspace to prevent race conditions
   private fileLocks = new MutexMap<string>();
-  private config: Config;
+  private readonly config: Config;
 
   constructor(config: Config) {
     this.config = config;

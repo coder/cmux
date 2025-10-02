@@ -3,10 +3,13 @@ import * as path from "path";
 import { EventEmitter } from "events";
 import { convertToModelMessages, type LanguageModel } from "ai";
 import { createAnthropic } from "@ai-sdk/anthropic";
-import { Result, Ok, Err } from "../types/result";
-import { WorkspaceMetadata, WorkspaceMetadataSchema } from "../types/workspace";
-import { CmuxMessage, createCmuxMessage } from "../types/message";
-import { Config } from "../config";
+import type { Result } from "../types/result";
+import { Ok, Err } from "../types/result";
+import type { WorkspaceMetadata } from "../types/workspace";
+import { WorkspaceMetadataSchema } from "../types/workspace";
+import type { CmuxMessage } from "../types/message";
+import { createCmuxMessage } from "../types/message";
+import type { Config } from "../config";
 import { StreamManager } from "./streamManager";
 import type { SendMessageError } from "../types/errors";
 import { getToolsForModel } from "../utils/tools";
@@ -17,22 +20,22 @@ import {
   addInterruptedSentinel,
 } from "../utils/modelMessageTransform";
 import { applyCacheControl } from "../utils/cacheStrategy";
-import { HistoryService } from "./historyService";
-import { PartialService } from "./partialService";
+import type { HistoryService } from "./historyService";
+import type { PartialService } from "./partialService";
 import { buildSystemMessage } from "./systemMessage";
 import { getTokenizerForModel } from "../utils/tokenizer";
 import { buildProviderOptions } from "../utils/providerOptions";
-import { ThinkingLevel } from "../types/thinking";
+import type { ThinkingLevel } from "../types/thinking";
 
 // Export a standalone version of getToolsForModel for use in backend
 
 export class AIService extends EventEmitter {
   private readonly METADATA_FILE = "metadata.json";
-  private streamManager: StreamManager;
+  private readonly streamManager: StreamManager;
   private defaultModel = "anthropic:claude-opus-4-1"; // Default model string
-  private historyService: HistoryService;
-  private partialService: PartialService;
-  private config: Config;
+  private readonly historyService: HistoryService;
+  private readonly partialService: PartialService;
+  private readonly config: Config;
 
   constructor(config: Config, historyService: HistoryService, partialService: PartialService) {
     super();

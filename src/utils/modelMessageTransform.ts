@@ -96,7 +96,7 @@ export function transformModelMessages(messages: ModelMessage[]): ModelMessage[]
 
       // Group consecutive parts by type
       type ContentArray = Exclude<typeof assistantMsg.content, string>;
-      const groups: { type: "text" | "tool-call"; parts: ContentArray }[] = [];
+      const groups: Array<{ type: "text" | "tool-call"; parts: ContentArray }> = [];
       let currentGroup: { type: "text" | "tool-call"; parts: ContentArray } | null = null;
 
       for (const item of contentWithPositions) {

@@ -1,12 +1,10 @@
 import js from "@eslint/js";
-import tseslint from "typescript-eslint";
+import { defineConfig } from "eslint/config";
 import react from "eslint-plugin-react";
 import reactHooks from "eslint-plugin-react-hooks";
+import tseslint from "typescript-eslint";
 
-export default tseslint.config(
-  js.configs.recommended,
-  ...tseslint.configs.recommendedTypeChecked,
-  ...tseslint.configs.stylisticTypeChecked,
+export default defineConfig([
   {
     ignores: [
       "dist/",
@@ -21,6 +19,9 @@ export default tseslint.config(
       "src/main.tsx",
     ],
   },
+  js.configs.recommended,
+  ...tseslint.configs.recommendedTypeChecked,
+  ...tseslint.configs.stylisticTypeChecked,
   {
     files: ["src/**/*.{ts,tsx}"],
     languageOptions: {
@@ -50,7 +51,7 @@ export default tseslint.config(
       },
     },
     plugins: {
-      react: react,
+      react,
       "react-hooks": reactHooks,
     },
     settings: {
@@ -84,6 +85,44 @@ export default tseslint.config(
         {
           assertionStyle: "as",
           objectLiteralTypeAssertions: "allow-as-parameter",
+        },
+      ],
+
+      // Enforce shorthand array notation, e.g. Foo[] instead of Array<Foo>
+      "@typescript-eslint/array-type": [
+        "error",
+        {
+          default: "array-simple",
+          readonly: "array-simple",
+        },
+      ],
+
+      // Keep type-only imports explicit to avoid runtime inclusion
+      "@typescript-eslint/consistent-type-imports": [
+        "error",
+        {
+          prefer: "type-imports",
+          disallowTypeAnnotations: true,
+        },
+      ],
+
+      // Require handling Promises instead of letting them float
+      "@typescript-eslint/no-floating-promises": [
+        "error",
+        {
+          ignoreVoid: true,
+          ignoreIIFE: true,
+        },
+      ],
+
+      // Highlight unnecessary assertions to keep code idiomatic
+      "@typescript-eslint/no-unnecessary-type-assertion": "error",
+
+      // Encourage readonly where possible to surface unintended mutations
+      "@typescript-eslint/prefer-readonly": [
+        "error",
+        {
+          onlyInlineLambdas: true,
         },
       ],
 
@@ -145,5 +184,5 @@ export default tseslint.config(
         afterAll: "readonly",
       },
     },
-  }
-);
+  },
+]);

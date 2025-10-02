@@ -1,4 +1,5 @@
-import { CmuxMessage, CmuxMetadata, createCmuxMessage, DisplayedMessage } from "../types/message";
+import type { CmuxMessage, CmuxMetadata, DisplayedMessage } from "../types/message";
+import { createCmuxMessage } from "../types/message";
 import type {
   StreamStartEvent,
   StreamDeltaEvent,

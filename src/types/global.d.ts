@@ -1,4 +1,4 @@
-import { IPCApi } from "./ipc";
+import type { IPCApi } from "./ipc";
 
 // Our simplified permission modes for UI
 export type UIPermissionMode = "plan" | "edit" | "yolo";

@@ -18,6 +18,7 @@
     "lint": "eslint 'src/**/*.{ts,tsx}' && bun run typecheck && bun run typecheck:main",
     "lint:fix": "eslint 'src/**/*.{ts,tsx}' --fix",
     "fmt": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json}\" \"*.{json,md}\"",
+    "fmt:shell": "shfmt -i 2 -ci -bn -w scripts",
     "fmt:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,json}\" \"*.{json,md}\"",
     "test": "jest",
     "test:watch": "jest --watch",

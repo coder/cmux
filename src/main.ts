@@ -1,6 +1,8 @@
-import { app, BrowserWindow, ipcMain, dialog, Menu, MenuItemConstructorOptions } from "electron";
+import type { MenuItemConstructorOptions } from "electron";
+import { app, BrowserWindow, ipcMain, dialog, Menu } from "electron";
 import * as path from "path";
-import { Config, ProjectsConfig, ProjectConfig } from "./config";
+import type { ProjectConfig, ProjectsConfig } from "./config";
+import { Config } from "./config";
 import { createWorktree, removeWorktree } from "./git";
 import { AIService } from "./services/aiService";
 import { HistoryService } from "./services/historyService";
@@ -60,7 +62,7 @@ ipcMain.handle(IPC_CHANNELS.CONFIG_LOAD, () => {
 
 ipcMain.handle(
   IPC_CHANNELS.CONFIG_SAVE,
-  (_event, configData: { projects: [string, ProjectConfig][] }) => {
+  (_event, configData: { projects: Array<[string, ProjectConfig]> }) => {
     const projectsConfig: ProjectsConfig = {
       projects: new Map(configData.projects),
     };
