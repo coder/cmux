@@ -307,8 +307,10 @@ export class StreamManager extends EventEmitter {
       >();
 
       for await (const part of streamInfo.streamResult.fullStream) {
-        // Check if stream was cancelled
+        // Check if stream was cancelled BEFORE processing any parts
+        // This improves interruption responsiveness by catching aborts earlier
         if (streamInfo.abortController.signal.aborted) {
+          log.debug("streamManager: Stream aborted, breaking from loop");
           break;
         }
 

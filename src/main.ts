@@ -213,19 +213,26 @@ ipcMain.handle(
       thinkingLevel,
     });
     try {
-      // Early exit: empty message during streaming = interrupt
-      // This allows Esc key to interrupt without creating empty user messages
-      if (!message.trim() && aiService.isStreaming(workspaceId)) {
-        log.debug("sendMessage handler: Empty message during streaming, interrupting");
-        const stopResult = await aiService.stopStream(workspaceId);
-        if (!stopResult.success) {
-          log.error("Failed to stop stream:", stopResult.error);
-          return {
-            success: false,
-            error: createUnknownSendMessageError(stopResult.error),
-          };
+      // Early exit: empty message = either interrupt (if streaming) or invalid input
+      // This prevents race conditions where empty messages arrive after streaming stops
+      if (!message.trim()) {
+        // If streaming, this is an interrupt request (from Esc key)
+        if (aiService.isStreaming(workspaceId)) {
+          log.debug("sendMessage handler: Empty message during streaming, interrupting");
+          const stopResult = await aiService.stopStream(workspaceId);
+          if (!stopResult.success) {
+            log.error("Failed to stop stream:", stopResult.error);
+            return {
+              success: false,
+              error: createUnknownSendMessageError(stopResult.error),
+            };
+          }
+          return { success: true };
         }
-        return { success: true };
+
+        // If not streaming, reject empty message to prevent creating empty user messages
+        log.debug("sendMessage handler: Rejected empty message (not streaming)");
+        return { success: true }; // Return success to avoid error notification in UI
       }
 
       // If editing, truncate history after the message being edited
