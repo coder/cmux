@@ -14,7 +14,7 @@ const MarkdownContainer = styled.div<{ isStreaming: boolean }>`
     li:last-child::after,
     div:last-child::after,
     span:last-child::after {
-      content: "▊";
+      content: "▏";
       margin-left: 0.15em;
       animation: blink 1s step-end infinite;
     }
