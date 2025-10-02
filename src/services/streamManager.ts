@@ -300,8 +300,6 @@ export class StreamManager extends EventEmitter {
         historySequence,
       } as StreamStartEvent);
 
-      let currentTextBuffer = "";
-
       // Use fullStream to capture all events including tool calls
       const toolCalls = new Map<
         string,
@@ -323,7 +321,6 @@ export class StreamManager extends EventEmitter {
 
         switch (part.type) {
           case "text-delta":
-            currentTextBuffer += part.text;
             this.emit("stream-delta", {
               type: "stream-delta",
               workspaceId: workspaceId as string,
@@ -331,23 +328,11 @@ export class StreamManager extends EventEmitter {
               delta: part.text,
             } as StreamDeltaEvent);
 
-            // Update parts array for partial message
-            if (
-              streamInfo.parts.length > 0 &&
-              streamInfo.parts[streamInfo.parts.length - 1].type === "text"
-            ) {
-              // Update existing text part
-              streamInfo.parts[streamInfo.parts.length - 1] = {
-                type: "text",
-                text: currentTextBuffer,
-              };
-            } else {
-              // Add new text part
-              streamInfo.parts.push({
-                type: "text",
-                text: currentTextBuffer,
-              });
-            }
+            // Append each delta as a new part (merging happens at display time)
+            streamInfo.parts.push({
+              type: "text",
+              text: part.text,
+            });
 
             // Schedule partial write (throttled, fire-and-forget to not block stream)
             void this.schedulePartialWrite(workspaceId, streamInfo);
@@ -356,21 +341,11 @@ export class StreamManager extends EventEmitter {
           case "reasoning-delta": {
             const delta = (part as ReasoningDeltaPart).text ?? "";
 
-            // Check if last part is reasoning (consistent with text-delta handling)
-            const lastPart = streamInfo.parts[streamInfo.parts.length - 1];
-            if (lastPart?.type === "reasoning") {
-              // Update existing reasoning part
-              streamInfo.parts[streamInfo.parts.length - 1] = {
-                type: "reasoning",
-                text: lastPart.text + delta,
-              };
-            } else {
-              // Push new reasoning part
-              streamInfo.parts.push({
-                type: "reasoning",
-                text: delta,
-              });
-            }
+            // Append each delta as a new part (merging happens at display time)
+            streamInfo.parts.push({
+              type: "reasoning",
+              text: delta,
+            });
 
             this.emit("reasoning-delta", {
               type: "reasoning-delta",
@@ -393,10 +368,6 @@ export class StreamManager extends EventEmitter {
           }
 
           case "tool-call": {
-            // Reset text buffer to separate text segments (text is already in parts from text-delta handler)
-            // We don't push here because text-delta already maintains parts array
-            currentTextBuffer = "";
-
             // Tool call started - store in map for later lookup
             toolCalls.set(part.toolCallId, {
               toolCallId: part.toolCallId,

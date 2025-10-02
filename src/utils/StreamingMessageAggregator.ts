@@ -111,15 +111,13 @@ export class StreamingMessageAggregator {
 
     this.activeStreams.set(context.streamingId, context);
 
-    // Create initial streaming message
+    // Create initial streaming message with empty parts (deltas will append)
     const streamingMessage = createCmuxMessage(data.messageId, "assistant", "", {
       historySequence: data.historySequence,
       streamingId: context.streamingId,
       timestamp: Date.now(),
       model: data.model,
     });
-    // Start with empty text part (streaming status inferred from activeStreams)
-    streamingMessage.parts[0] = { type: "text", text: "" };
 
     this.messages.set(data.messageId, streamingMessage);
     this.incrementDisplayVersion();
@@ -129,21 +127,11 @@ export class StreamingMessageAggregator {
     const message = this.messages.get(data.messageId);
     if (!message) return;
 
-    // Check if last part is text (consistent with text handling in streamManager)
-    const lastPart = message.parts[message.parts.length - 1];
-    if (lastPart?.type === "text") {
-      // Update existing text part
-      message.parts[message.parts.length - 1] = {
-        type: "text",
-        text: lastPart.text + data.delta,
-      };
-    } else {
-      // Push new text part
-      message.parts.push({
-        type: "text",
-        text: data.delta,
-      });
-    }
+    // Append each delta as a new part (merging happens at display time)
+    message.parts.push({
+      type: "text",
+      text: data.delta,
+    });
     this.incrementDisplayVersion();
   }
 
@@ -279,21 +267,11 @@ export class StreamingMessageAggregator {
     const message = this.messages.get(data.messageId);
     if (!message) return;
 
-    // Check if last part is reasoning (consistent with text handling)
-    const lastPart = message.parts[message.parts.length - 1];
-    if (lastPart?.type === "reasoning") {
-      // Update existing reasoning part
-      message.parts[message.parts.length - 1] = {
-        type: "reasoning",
-        text: lastPart.text + data.delta,
-      };
-    } else {
-      // Push new reasoning part
-      message.parts.push({
-        type: "reasoning",
-        text: data.delta,
-      });
-    }
+    // Append each delta as a new part (merging happens at display time)
+    message.parts.push({
+      type: "reasoning",
+      text: data.delta,
+    });
     this.incrementDisplayVersion();
   }
 
@@ -376,11 +354,37 @@ export class StreamingMessageAggregator {
         // Check if this message has an active stream (for inferring streaming status)
         const hasActiveStream = this.getActiveStreams().some((s) => s.messageId === message.id);
 
+        // Merge adjacent parts of same type (text with text, reasoning with reasoning)
+        // This is where all merging happens - streaming just appends raw deltas
+        const mergedParts: typeof message.parts = [];
+        for (let i = 0; i < message.parts.length; i++) {
+          const part = message.parts[i];
+          const lastMerged = mergedParts[mergedParts.length - 1];
+
+          // Try to merge with last part if same type
+          if (lastMerged?.type === "text" && part.type === "text") {
+            // Merge text parts
+            mergedParts[mergedParts.length - 1] = {
+              type: "text",
+              text: lastMerged.text + part.text,
+            };
+          } else if (lastMerged?.type === "reasoning" && part.type === "reasoning") {
+            // Merge reasoning parts
+            mergedParts[mergedParts.length - 1] = {
+              type: "reasoning",
+              text: lastMerged.text + part.text,
+            };
+          } else {
+            // Different type or tool part - add new part
+            mergedParts.push(part);
+          }
+        }
+
         // Find the last part that will produce a DisplayedMessage
         // (reasoning, text parts with content, OR tool parts)
         let lastPartIndex = -1;
-        for (let i = message.parts.length - 1; i >= 0; i--) {
-          const part = message.parts[i];
+        for (let i = mergedParts.length - 1; i >= 0; i--) {
+          const part = mergedParts[i];
           if (
             part.type === "reasoning" ||
             (part.type === "text" && part.text) ||
@@ -391,7 +395,7 @@ export class StreamingMessageAggregator {
           }
         }
 
-        message.parts.forEach((part, partIndex) => {
+        mergedParts.forEach((part, partIndex) => {
           const isLastPart = partIndex === lastPartIndex;
           // Part is streaming if: active stream exists AND this is the last part
           const isStreaming = hasActiveStream && isLastPart;

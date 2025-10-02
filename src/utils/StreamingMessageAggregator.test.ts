@@ -171,8 +171,8 @@ describe("StreamingMessageAggregator", () => {
     expect(messages).toHaveLength(1);
 
     const message = messages[0];
-    // Should have 3 parts: text, tool, text
-    expect(message.parts).toHaveLength(3);
+    // Should have 4 parts: text, tool, text, text (deltas not merged during streaming)
+    expect(message.parts).toHaveLength(4);
 
     // First text part (before tool)
     expect(message.parts[0].type).toBe("text");
@@ -186,10 +186,12 @@ describe("StreamingMessageAggregator", () => {
     expect(toolPart.toolName).toBe("searchFiles");
     expect(toolPart.state).toBe("output-available");
 
-    // Second text part (after tool)
+    // Second and third text parts (after tool) - separate deltas not yet merged
     expect(message.parts[2].type).toBe("text");
-    if (message.parts[2].type === "text") {
-      expect(message.parts[2].text).toBe("I found the following results: file1.ts and file2.ts");
+    expect(message.parts[3].type).toBe("text");
+    if (message.parts[2].type === "text" && message.parts[3].type === "text") {
+      expect(message.parts[2].text).toBe("I found the following results: ");
+      expect(message.parts[3].text).toBe("file1.ts and file2.ts");
     }
 
     // Test DisplayedMessages split
@@ -348,9 +350,18 @@ describe("StreamingMessageAggregator", () => {
     const messages = aggregator.getAllMessages();
     expect(messages).toHaveLength(1);
 
+    // Raw parts are separate deltas (2 parts: "Hello, " and "world!")
+    expect(messages[0].parts).toHaveLength(2);
     const firstPart = messages[0].parts[0];
     if (firstPart.type === "text") {
-      expect(firstPart.text).toBe("Hello, world!");
+      expect(firstPart.text).toBe("Hello, ");
+    }
+
+    // DisplayedMessages should merge them
+    const displayedMessages = aggregator.getDisplayedMessages();
+    expect(displayedMessages).toHaveLength(1);
+    if (displayedMessages[0].type === "assistant") {
+      expect(displayedMessages[0].content).toBe("Hello, world!");
     }
   });
 
