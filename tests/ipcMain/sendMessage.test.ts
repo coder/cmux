@@ -23,9 +23,14 @@ if (shouldRunIntegrationTests()) {
   validateApiKeys(["OPENAI_API_KEY", "ANTHROPIC_API_KEY"]);
 }
 
+// Enable retries in CI for flaky API tests
+if (process.env.CI) {
+  jest.retryTimes(3, { logErrorsBeforeRetry: true });
+}
+
 // Test both providers with their respective models
 const PROVIDER_CONFIGS: Array<[string, string]> = [
-  ["openai", "gpt-5"],
+  ["openai", "gpt-5-codex"],
   ["anthropic", "claude-sonnet-4-5"],
 ];
 
