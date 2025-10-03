@@ -91,15 +91,43 @@ function splitMixedContentMessages(messages: ModelMessage[]): ModelMessage[] {
     const textParts = assistantMsg.content.filter((c) => c.type === "text" && c.text.trim());
     const toolCallParts = assistantMsg.content.filter((c) => c.type === "tool-call");
 
-    // If no tool calls or no text, keep as-is
-    if (toolCallParts.length === 0 || textParts.length === 0) {
+    // Check if the next message is a tool result message
+    const nextMsg = messages[i + 1];
+    const hasToolResults = nextMsg?.role === "tool";
+
+    // If no tool calls, keep as-is
+    if (toolCallParts.length === 0) {
       result.push(msg);
       continue;
     }
 
-    // Check if the next message is a tool result message
-    const nextMsg = messages[i + 1];
-    const hasToolResults = nextMsg?.role === "tool";
+    // If we have tool calls but no text
+    if (textParts.length === 0) {
+      if (hasToolResults) {
+        // Filter tool calls to only include those with results
+        const toolMsg = nextMsg;
+        const resultIds = new Set(
+          toolMsg.content
+            .filter((r) => r.type === "tool-result")
+            .map((r) => (r.type === "tool-result" ? r.toolCallId : ""))
+        );
+
+        const validToolCalls = toolCallParts.filter(
+          (p) => p.type === "tool-call" && resultIds.has(p.toolCallId)
+        );
+
+        if (validToolCalls.length > 0) {
+          // Only include tool calls that have results
+          result.push({
+            role: "assistant",
+            content: validToolCalls,
+          });
+        }
+        // Skip if no valid tool calls remain
+      }
+      // Skip orphaned tool calls - they violate API requirements
+      continue;
+    }
 
     // If we have tool calls that will be followed by results,
     // we need to ensure no text appears between them
@@ -198,8 +226,8 @@ function splitMixedContentMessages(messages: ModelMessage[]): ModelMessage[] {
       }
     } else {
       // No tool results follow, which means these tool calls were interrupted
-      // Anthropic API requires EVERY tool_use to have a tool_result, so we must
-      // strip out interrupted tool calls entirely. The text content with
+      // Both Anthropic and OpenAI APIs require EVERY tool_use to have a tool_result,
+      // so we must strip out interrupted tool calls entirely. The text content with
       // [INTERRUPTED] sentinel gives the model enough context.
 
       // Only include text parts (strip out interrupted tool calls)
@@ -211,7 +239,7 @@ function splitMixedContentMessages(messages: ModelMessage[]): ModelMessage[] {
         result.push(textMsg);
       }
 
-      // DO NOT include tool calls without results - they violate Anthropic API requirements
+      // DO NOT include tool calls without results - they violate API requirements
       // The interrupted tool calls are preserved in chat.jsonl for UI display, but
       // excluded from API calls since they have no results
     }

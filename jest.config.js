@@ -23,4 +23,6 @@ module.exports = {
       },
     ],
   },
+  // Run tests in parallel with 4 workers
+  maxWorkers: 4,
 };

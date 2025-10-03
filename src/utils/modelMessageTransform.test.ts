@@ -27,16 +27,14 @@ describe("modelMessageTransform", () => {
       expect(result).toEqual(messages);
     });
 
-    it("should keep messages without mixed content unchanged", () => {
+    it("should keep text-only messages unchanged", () => {
       const assistantMsg1: AssistantModelMessage = {
         role: "assistant",
         content: [{ type: "text", text: "Let me help you with that." }],
       };
       const assistantMsg2: AssistantModelMessage = {
         role: "assistant",
-        content: [
-          { type: "tool-call", toolCallId: "call1", toolName: "bash", input: { script: "ls" } },
-        ],
+        content: [{ type: "text", text: "Here's the result." }],
       };
       const messages: ModelMessage[] = [assistantMsg1, assistantMsg2];
 
@@ -44,7 +42,7 @@ describe("modelMessageTransform", () => {
       expect(result).toEqual(messages);
     });
 
-    it("should strip tool calls without results (interrupted)", () => {
+    it("should strip tool calls without results (interrupted mixed content)", () => {
       const assistantMsg: AssistantModelMessage = {
         role: "assistant",
         content: [
@@ -62,6 +60,21 @@ describe("modelMessageTransform", () => {
       expect((result[0] as AssistantModelMessage).content).toEqual([
         { type: "text", text: "Let me check that for you." },
       ]);
+    });
+
+    it("should strip tool-only messages without results (orphaned tool calls)", () => {
+      const assistantMsg: AssistantModelMessage = {
+        role: "assistant",
+        content: [
+          { type: "tool-call", toolCallId: "call1", toolName: "bash", input: { script: "ls" } },
+        ],
+      };
+      const messages: ModelMessage[] = [assistantMsg];
+
+      const result = transformModelMessages(messages, "anthropic");
+
+      // Should filter out the entire message since it only has orphaned tool calls
+      expect(result).toHaveLength(0);
     });
 
     it("should handle partial results (some tool calls interrupted)", () => {

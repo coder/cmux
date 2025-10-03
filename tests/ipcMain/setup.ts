@@ -11,7 +11,7 @@ import { config } from "dotenv";
 import { generateBranchName, createWorkspace } from "./helpers";
 
 // Load .env from project root on module import
-config({ path: path.resolve(__dirname, "../../.env") });
+config({ path: path.resolve(__dirname, "../../.env"), quiet: true });
 
 export interface TestEnvironment {
   config: Config;
@@ -168,7 +168,6 @@ export function getApiKey(keyName: string): string {
  * Encapsulates: env creation, provider setup, workspace creation, event clearing
  */
 export async function setupWorkspace(
-  tempGitRepo: string,
   provider: string,
   branchPrefix?: string
 ): Promise<{
@@ -176,7 +175,14 @@ export async function setupWorkspace(
   workspaceId: string;
   workspacePath: string;
   branchName: string;
+  tempGitRepo: string;
+  cleanup: () => Promise<void>;
 }> {
+  const { createTempGitRepo, cleanupTempGitRepo } = await import("./helpers");
+
+  // Create dedicated temp git repo for this test
+  const tempGitRepo = await createTempGitRepo();
+
   const env = await createTestEnvironment();
 
   await setupProviders(env.mockIpcRenderer, {
@@ -189,63 +195,87 @@ export async function setupWorkspace(
   const createResult = await createWorkspace(env.mockIpcRenderer, tempGitRepo, branchName);
 
   if (!createResult.success) {
+    await cleanupTempGitRepo(tempGitRepo);
     throw new Error(`Workspace creation failed: ${createResult.error}`);
   }
 
   if (!createResult.workspaceId) {
+    await cleanupTempGitRepo(tempGitRepo);
     throw new Error("Workspace ID not returned from creation");
   }
 
   if (!createResult.path) {
+    await cleanupTempGitRepo(tempGitRepo);
     throw new Error("Workspace path not returned from creation");
   }
 
   // Clear events from workspace creation
   env.sentEvents.length = 0;
 
+  const cleanup = async () => {
+    await cleanupTestEnvironment(env);
+    await cleanupTempGitRepo(tempGitRepo);
+  };
+
   return {
     env,
     workspaceId: createResult.workspaceId,
     workspacePath: createResult.path,
     branchName,
+    tempGitRepo,
+    cleanup,
   };
 }
 
 /**
  * Setup workspace without provider (for API key error tests)
  */
-export async function setupWorkspaceWithoutProvider(
-  tempGitRepo: string,
-  branchPrefix?: string
-): Promise<{
+export async function setupWorkspaceWithoutProvider(branchPrefix?: string): Promise<{
   env: TestEnvironment;
   workspaceId: string;
   workspacePath: string;
   branchName: string;
+  tempGitRepo: string;
+  cleanup: () => Promise<void>;
 }> {
+  const { createTempGitRepo, cleanupTempGitRepo } = await import("./helpers");
+
+  // Create dedicated temp git repo for this test
+  const tempGitRepo = await createTempGitRepo();
+
   const env = await createTestEnvironment();
 
   const branchName = generateBranchName(branchPrefix || "noapi");
   const createResult = await createWorkspace(env.mockIpcRenderer, tempGitRepo, branchName);
 
   if (!createResult.success) {
+    await cleanupTempGitRepo(tempGitRepo);
     throw new Error(`Workspace creation failed: ${createResult.error}`);
   }
 
   if (!createResult.workspaceId) {
+    await cleanupTempGitRepo(tempGitRepo);
     throw new Error("Workspace ID not returned from creation");
   }
 
   if (!createResult.path) {
+    await cleanupTempGitRepo(tempGitRepo);
     throw new Error("Workspace path not returned from creation");
   }
 
   env.sentEvents.length = 0;
+
+  const cleanup = async () => {
+    await cleanupTestEnvironment(env);
+    await cleanupTempGitRepo(tempGitRepo);
+  };
 
   return {
     env,
     workspaceId: createResult.workspaceId,
     workspacePath: createResult.path,
     branchName,
+    tempGitRepo,
+    cleanup,
   };
 }
