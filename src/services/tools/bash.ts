@@ -20,6 +20,8 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
       timeout_secs: z.number().positive().describe("Timeout in seconds for command execution"),
     }) satisfies z.ZodType<BashToolArgs>,
     execute: async ({ script, timeout_secs }): Promise<BashToolResult> => {
+      const startTime = performance.now();
+
       try {
         const timeoutMs = timeout_secs * 1000;
 
@@ -33,20 +35,25 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
         };
 
         const { stdout, stderr } = await execAsync(script, execOptions);
+        const wall_duration_ms = performance.now() - startTime;
 
         return {
           success: true,
           stdout: stdout.trim(),
           stderr: stderr.trim(),
           exitCode: 0,
+          wall_duration_ms,
         };
       } catch (error) {
+        const wall_duration_ms = performance.now() - startTime;
+
         // Handle timeout errors
         if (error && typeof error === "object" && "killed" in error && error.killed) {
           return {
             success: false,
             error: `Command timed out after ${timeout_secs} seconds`,
             exitCode: -1,
+            wall_duration_ms,
           };
         }
 
@@ -64,6 +71,7 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
             stderr,
             exitCode,
             error: `Command exited with code ${exitCode}`,
+            wall_duration_ms,
           };
         }
 
@@ -73,6 +81,7 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
           success: false,
           error: `Failed to execute command: ${message}`,
           exitCode: -1,
+          wall_duration_ms,
         };
       }
     },

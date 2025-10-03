@@ -9,20 +9,26 @@ export interface BashToolArgs {
   timeout_secs: number;
 }
 
+interface CommonBashFields {
+  // wall_duration_ms is provided to give the agent a sense of how long a command takes which
+  // should inform future timeouts.
+  wall_duration_ms: number;
+}
+
 export type BashToolResult =
-  | {
+  | (CommonBashFields & {
       success: true;
       stdout: string;
       stderr: string;
       exitCode: 0;
-    }
-  | {
+    })
+  | (CommonBashFields & {
       success: false;
       stdout?: string;
       stderr?: string;
       exitCode: number;
       error: string;
-    };
+    });
 
 // Read File Tool Types
 export interface ReadFileToolArgs {

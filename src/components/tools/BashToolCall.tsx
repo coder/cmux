@@ -72,6 +72,13 @@ interface BashToolCallProps {
   status?: ToolStatus;
 }
 
+function formatDuration(ms: number): string {
+  if (ms < 1000) {
+    return `${Math.round(ms)}ms`;
+  }
+  return `${(ms / 1000).toFixed(1)}s`;
+}
+
 export const BashToolCall: React.FC<BashToolCallProps> = ({ args, result, status = "pending" }) => {
   const { expanded, toggleExpanded } = useToolExpansion();
 
@@ -81,7 +88,10 @@ export const BashToolCall: React.FC<BashToolCallProps> = ({ args, result, status
         <ExpandIcon expanded={expanded}>▶</ExpandIcon>
         <ToolName>bash</ToolName>
         <ScriptPreview>{args.script}</ScriptPreview>
-        <TimeoutInfo>timeout: {args.timeout_secs}s</TimeoutInfo>
+        <TimeoutInfo>
+          timeout: {args.timeout_secs}s
+          {result && ` • took ${formatDuration(result.wall_duration_ms)}`}
+        </TimeoutInfo>
         {result && <ExitCodeBadge exitCode={result.exitCode}>exit {result.exitCode}</ExitCodeBadge>}
         <StatusIndicator status={status}>{getStatusDisplay(status)}</StatusIndicator>
       </ToolHeader>
