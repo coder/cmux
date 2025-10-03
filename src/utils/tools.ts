@@ -4,6 +4,7 @@ import { openai } from "@ai-sdk/openai";
 import { google } from "@ai-sdk/google";
 import { createReadFileTool } from "../services/tools/readFile";
 import { createBashTool } from "../services/tools/bash";
+import { createEditFileTool } from "../services/tools/editFile";
 import { log } from "../services/log";
 
 /**
@@ -35,6 +36,7 @@ export function getToolsForModel(
   const baseTools: Record<string, Tool> = {
     // Use snake_case for tool names to match what seems to be the convention.
     read_file: createReadFileTool(config),
+    edit_file: createEditFileTool(config),
     bash: createBashTool(config),
   };
 

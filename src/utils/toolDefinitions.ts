@@ -1,10 +1,12 @@
 /**
  * Tool definitions module - Frontend-safe
  *
- * This module contains tool schema definitions that can be used
- * by both frontend and backend code. It must not import any Node.js
- * modules or backend-specific code to remain browser-compatible.
+ * Single source of truth for all tool definitions.
+ * Zod schemas are defined here and JSON schemas are auto-generated.
  */
+
+import { z } from "zod";
+import { zodToJsonSchema } from "zod-to-json-schema";
 
 interface ToolSchema {
   name: string;
@@ -17,90 +19,87 @@ interface ToolSchema {
 }
 
 /**
+ * Tool definitions: single source of truth
+ * Key = tool name, Value = { description, schema }
+ */
+export const TOOL_DEFINITIONS = {
+  bash: {
+    description: "Execute a bash command with a configurable timeout",
+    schema: z.object({
+      script: z.string().describe("The bash script/command to execute"),
+      timeout_secs: z.number().positive().describe("Timeout in seconds for command execution"),
+    }),
+  },
+  read_file: {
+    description:
+      "Read the contents of a file from the file system. Read as little as possible to complete the task.",
+    schema: z.object({
+      filePath: z.string().describe("The path to the file to read (absolute or relative)"),
+      offset: z
+        .number()
+        .int()
+        .positive()
+        .optional()
+        .describe("1-based starting line number (optional, defaults to 1)"),
+      limit: z
+        .number()
+        .int()
+        .positive()
+        .optional()
+        .describe("Number of lines to return from offset (optional, returns all if not specified)"),
+    }),
+  },
+  edit_file: {
+    description:
+      "Apply one or more edits to a file by replacing exact text matches. All edits are applied sequentially. Each old_string must be unique in the file unless replace_count > 1 or replace_count is -1.",
+    schema: z.object({
+      file_path: z.string().describe("The absolute path to the file to edit"),
+      edits: z
+        .array(
+          z.object({
+            old_string: z
+              .string()
+              .describe(
+                "The exact text to replace (must be unique in file if replace_count is 1). Include enough context (indentation, surrounding lines) to make it unique."
+              ),
+            new_string: z.string().describe("The replacement text"),
+            replace_count: z
+              .number()
+              .int()
+              .optional()
+              .describe(
+                "Number of occurrences to replace (default: 1). Use -1 to replace all occurrences. If 1, old_string must be unique in the file."
+              ),
+          })
+        )
+        .min(1)
+        .describe("Array of edits to apply sequentially"),
+      lease: z
+        .string()
+        .describe(
+          "The lease from the read_file result. Used to prevent edits on stale file state."
+        ),
+    }),
+  },
+} as const;
+
+/**
  * Get tool definition schemas for token counting
- * These represent the approximate structure sent to the API
+ * JSON schemas are auto-generated from zod schemas
  *
- * @returns Record of tool name to approximate schema
+ * @returns Record of tool name to schema
  */
 export function getToolSchemas(): Record<string, ToolSchema> {
-  return {
-    bash: {
-      name: "bash",
-      description: "Execute a bash command with a configurable timeout",
-      inputSchema: {
-        type: "object",
-        properties: {
-          script: {
-            type: "string",
-            description: "The bash script/command to execute",
-          },
-          timeout_secs: {
-            type: "number",
-            description: "Timeout in seconds for command execution",
-          },
-        },
-        required: ["script", "timeout_secs"],
+  return Object.fromEntries(
+    Object.entries(TOOL_DEFINITIONS).map(([name, def]) => [
+      name,
+      {
+        name,
+        description: def.description,
+        inputSchema: zodToJsonSchema(def.schema) as ToolSchema["inputSchema"],
       },
-    },
-    read_file: {
-      name: "read_file",
-      description: "Read the contents of a file from the file system",
-      inputSchema: {
-        type: "object",
-        properties: {
-          filePath: {
-            type: "string",
-            description: "The path to the file to read (absolute or relative)",
-          },
-          encoding: {
-            type: "string",
-            enum: ["utf-8", "ascii", "base64", "hex", "binary"],
-            default: "utf-8",
-            description: "The encoding to use when reading the file",
-          },
-        },
-        required: ["filePath"],
-      },
-    },
-    web_search: {
-      name: "web_search",
-      description: "Search the web and return relevant results",
-      inputSchema: {
-        type: "object",
-        properties: {
-          query: {
-            type: "string",
-            description: "The search query",
-          },
-          maxResults: {
-            type: "number",
-            description: "Maximum number of results to return",
-            default: 5,
-          },
-        },
-        required: ["query"],
-      },
-    },
-    google_search: {
-      name: "google_search",
-      description: "Search using Google and return relevant results",
-      inputSchema: {
-        type: "object",
-        properties: {
-          query: {
-            type: "string",
-            description: "The search query",
-          },
-          maxResults: {
-            type: "number",
-            description: "Maximum number of results to return",
-            default: 5,
-          },
-        },
-        required: ["query"],
-      },
-    },
-  };
+    ])
+  );
 }
 
 /**
@@ -112,7 +111,7 @@ export function getAvailableTools(modelString: string): string[] {
   const [provider] = modelString.split(":");
 
   // Base tools available for all models
-  const baseTools = ["bash", "read_file"];
+  const baseTools = ["bash", "read_file", "edit_file"];
 
   // Add provider-specific tools
   switch (provider) {

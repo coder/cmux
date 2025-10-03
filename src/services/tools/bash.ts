@@ -1,9 +1,9 @@
 import { tool } from "ai";
-import { z } from "zod";
 import { exec } from "child_process";
 import { promisify } from "util";
-import type { BashToolArgs, BashToolResult } from "../../types/tools";
+import type { BashToolResult } from "../../types/tools";
 import type { ToolConfiguration, ToolFactory } from "../../utils/tools";
+import { TOOL_DEFINITIONS } from "../../utils/toolDefinitions";
 
 const execAsync = promisify(exec);
 
@@ -14,11 +14,8 @@ const execAsync = promisify(exec);
  */
 export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
   return tool({
-    description: "Execute a bash command with a configurable timeout",
-    inputSchema: z.object({
-      script: z.string().describe("The bash script/command to execute"),
-      timeout_secs: z.number().positive().describe("Timeout in seconds for command execution"),
-    }) satisfies z.ZodType<BashToolArgs>,
+    description: TOOL_DEFINITIONS.bash.description,
+    inputSchema: TOOL_DEFINITIONS.bash.schema,
     execute: async ({ script, timeout_secs }): Promise<BashToolResult> => {
       const startTime = performance.now();
 

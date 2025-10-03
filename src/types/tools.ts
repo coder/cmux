@@ -33,7 +33,6 @@ export type BashToolResult =
 // Read File Tool Types
 export interface ReadFileToolArgs {
   filePath: string;
-  encoding?: "utf-8" | "ascii" | "base64" | "hex" | "binary";
   offset?: number; // 1-based starting line number (optional)
   limit?: number; // number of lines to return from offset (optional)
 }
@@ -41,11 +40,11 @@ export interface ReadFileToolArgs {
 export type ReadFileToolResult =
   | {
       success: true;
-      size: number;
+      file_size: number;
       modifiedTime: string;
-      encoding: string;
-      bytes_read: number;
+      lines_read: number;
       content: string;
+      lease: string;
     }
   | {
       success: false;
@@ -56,18 +55,20 @@ export type ReadFileToolResult =
 export interface EditFileEdit {
   old_string: string;
   new_string: string;
-  replace_all?: boolean;
+  replace_count?: number; // Default: 1, -1 means replace all
 }
 
 export interface EditFileToolArgs {
   file_path: string;
   edits: EditFileEdit[];
+  lease: string;
 }
 
 export type EditFileToolResult =
   | {
       success: true;
       edits_applied: number;
+      lease: string;
     }
   | {
       success: false;

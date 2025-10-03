@@ -1,9 +1,11 @@
 import { tool } from "ai";
-import { z } from "zod";
 import * as fs from "fs/promises";
 import * as path from "path";
-import type { ReadFileToolArgs, ReadFileToolResult } from "../../types/tools";
+import * as readline from "readline";
+import type { ReadFileToolResult } from "../../types/tools";
 import type { ToolConfiguration, ToolFactory } from "../../utils/tools";
+import { TOOL_DEFINITIONS } from "../../utils/toolDefinitions";
+import { leaseFromStat } from "./fileCommon";
 
 /**
  * Read file tool factory for AI assistant
@@ -12,29 +14,9 @@ import type { ToolConfiguration, ToolFactory } from "../../utils/tools";
  */
 export const createReadFileTool: ToolFactory = (config: ToolConfiguration) => {
   return tool({
-    description:
-      "Read the contents of a file from the file system. Read as little as possible to complete the task.",
-    inputSchema: z.object({
-      filePath: z.string().describe("The path to the file to read (absolute or relative)"),
-      encoding: z
-        .enum(["utf-8", "ascii", "base64", "hex", "binary"])
-        .optional()
-        .default("utf-8")
-        .describe("The encoding to use when reading the file"),
-      offset: z
-        .number()
-        .int()
-        .positive()
-        .optional()
-        .describe("1-based starting line number (optional, defaults to 1)"),
-      limit: z
-        .number()
-        .int()
-        .positive()
-        .optional()
-        .describe("Number of lines to return from offset (optional, returns all if not specified)"),
-    }) satisfies z.ZodType<ReadFileToolArgs>,
-    execute: async ({ filePath, encoding, offset, limit }): Promise<ReadFileToolResult> => {
+    description: TOOL_DEFINITIONS.read_file.description,
+    inputSchema: TOOL_DEFINITIONS.read_file.schema,
+    execute: async ({ filePath, offset, limit }): Promise<ReadFileToolResult> => {
       try {
         // Resolve relative paths from configured working directory
         const resolvedPath = path.isAbsolute(filePath)
@@ -50,52 +32,105 @@ export const createReadFileTool: ToolFactory = (config: ToolConfiguration) => {
           };
         }
 
-        // Read entire file content
-        const fullContent = await fs.readFile(resolvedPath, { encoding });
-        const lines = fullContent.split("\n");
+        // Compute lease for this file state
+        const lease = leaseFromStat(stats);
 
-        // Determine which lines to return
-        let selectedLines: string[];
-        if (offset === undefined && limit === undefined) {
-          // No offset or limit: return entire file
-          selectedLines = lines;
-        } else {
-          // Convert 1-based offset to 0-based index (default to line 1)
-          const startIdx = offset !== undefined ? offset - 1 : 0;
+        const startLineNumber = offset ?? 1;
 
-          if (startIdx < 0) {
-            return {
-              success: false,
-              error: `Offset must be positive (got ${offset})`,
-            };
-          }
-
-          if (startIdx >= lines.length) {
-            return {
-              success: false,
-              error: `Offset ${offset} is beyond file length (${lines.length} lines)`,
-            };
-          }
-
-          // Calculate end index
-          const endIdx = limit !== undefined ? startIdx + limit : lines.length;
-
-          // Extract the selected lines
-          selectedLines = lines.slice(startIdx, endIdx);
+        // Validate offset
+        if (offset !== undefined && offset < 1) {
+          return {
+            success: false,
+            error: `Offset must be positive (got ${offset})`,
+          };
         }
 
-        // Rejoin lines with newlines
-        const content = selectedLines.join("\n");
-        const bytesRead = Buffer.byteLength(content, encoding);
+        // Open file with using for automatic cleanup
+        await using fileHandle = await fs.open(resolvedPath, "r");
+
+        // Create readline interface for line-by-line reading
+        const rl = readline.createInterface({
+          input: fileHandle.createReadStream({ encoding: "utf-8" }),
+          crlfDelay: Infinity,
+        });
+
+        const numberedLines: string[] = [];
+        let currentLineNumber = 1;
+        let totalLinesRead = 0;
+        let totalBytesAccumulated = 0;
+        const MAX_LINE_BYTES = 1024;
+        const MAX_LINES = 1000;
+        const MAX_TOTAL_BYTES = 16 * 1024; // 16KB
+
+        // Iterate through file line by line
+        for await (const line of rl) {
+          // Skip lines before offset
+          if (currentLineNumber < startLineNumber) {
+            currentLineNumber++;
+            continue;
+          }
+
+          // Truncate line if it exceeds max bytes
+          let processedLine = line;
+          const lineBytes = Buffer.byteLength(line, "utf-8");
+          if (lineBytes > MAX_LINE_BYTES) {
+            // Truncate to MAX_LINE_BYTES
+            processedLine = Buffer.from(line, "utf-8")
+              .subarray(0, MAX_LINE_BYTES)
+              .toString("utf-8");
+            processedLine += "... [truncated]";
+          }
+
+          // Format line with number prefix
+          const numberedLine = `${currentLineNumber}\t${processedLine}`;
+          const numberedLineBytes = Buffer.byteLength(numberedLine, "utf-8");
+
+          // Check if adding this line would exceed byte limit
+          if (totalBytesAccumulated + numberedLineBytes > MAX_TOTAL_BYTES) {
+            return {
+              success: false,
+              error: `Output would exceed ${MAX_TOTAL_BYTES} bytes. Please read less at a time using offset and limit parameters.`,
+            };
+          }
+
+          numberedLines.push(numberedLine);
+          totalBytesAccumulated += numberedLineBytes + 1; // +1 for newline
+          totalLinesRead++;
+          currentLineNumber++;
+
+          // Check if we've exceeded max lines
+          if (totalLinesRead > MAX_LINES) {
+            return {
+              success: false,
+              error: `Output would exceed ${MAX_LINES} lines. Please read less at a time using offset and limit parameters.`,
+            };
+          }
+
+          // Stop if we've collected enough lines
+          if (limit !== undefined && totalLinesRead >= limit) {
+            break;
+          }
+        }
+
+        // Check if offset was beyond file length
+        if (offset !== undefined && numberedLines.length === 0) {
+          return {
+            success: false,
+            error: `Offset ${offset} is beyond file length`,
+          };
+        }
+
+        // Join lines with newlines
+        const content = numberedLines.join("\n");
 
         // Return file info and content
         return {
           success: true,
-          size: stats.size,
+          file_size: stats.size,
           modifiedTime: stats.mtime.toISOString(),
-          encoding,
-          bytes_read: bytesRead,
+          lines_read: numberedLines.length,
           content,
+          lease,
         };
       } catch (error) {
         // Handle specific errors
