@@ -449,6 +449,41 @@ export class StreamManager extends EventEmitter {
             break;
           }
 
+          // Handle error parts from the stream (e.g., OpenAI context_length_exceeded)
+          case "error": {
+            // Capture the error and immediately throw to trigger error handling
+            // Error parts are structured errors from the AI SDK
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const errorPart = part as any;
+
+            // Try to extract error message from various possible structures
+            let errorMessage: string | undefined;
+
+            if (errorPart.error instanceof Error) {
+              throw errorPart.error;
+            } else if (typeof errorPart.error === "object" && errorPart.error !== null) {
+              // Check for nested error object with message
+              if (errorPart.error.error && typeof errorPart.error.error === "object") {
+                errorMessage = errorPart.error.error.message;
+              }
+              // Fallback to direct message property
+              if (!errorMessage && errorPart.error.message) {
+                errorMessage = errorPart.error.message;
+              }
+              // Last resort: stringify the error
+              if (!errorMessage) {
+                errorMessage = JSON.stringify(errorPart.error);
+              }
+
+              const error = new Error(errorMessage);
+              // Preserve original error as cause for debugging
+              Object.assign(error, { cause: errorPart.error });
+              throw error;
+            } else {
+              throw new Error(String(errorPart.error));
+            }
+          }
+
           // Handle other event types as needed
           case "start":
           case "start-step":
@@ -550,9 +585,19 @@ export class StreamManager extends EventEmitter {
       // Log the actual error for debugging
       console.error("Stream processing error:", error);
 
-      // Check if this is actually a LoadAPIKeyError wrapped in another error
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      let errorType = this.categorizeError(error);
+      // Extract error message (errors thrown from 'error' parts already have the correct message)
+      let errorMessage: string;
+      let actualError: unknown = error;
+
+      // Use the error message directly (we've already extracted it when throwing from error parts)
+      errorMessage = error instanceof Error ? error.message : String(error);
+
+      // For categorization, use the cause if available (preserves the original error structure)
+      if (error instanceof Error && error.cause) {
+        actualError = error.cause;
+      }
+
+      let errorType = this.categorizeError(actualError);
 
       // If we detect API key issues in the error message, override the type
       if (

@@ -14,6 +14,8 @@ import {
   assertStreamSuccess,
   assertError,
 } from "./helpers";
+import { HistoryService } from "../../src/services/historyService";
+import { createCmuxMessage } from "../../src/types/message";
 
 // Skip all tests if TEST_INTEGRATION is not set
 const describeIntegration = shouldRunIntegrationTests() ? describe : describe.skip;
@@ -403,6 +405,83 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
           await cleanup();
         }
       }
+    );
+  });
+
+  // Token limit error handling tests
+  describe("token limit error handling", () => {
+    test.each(PROVIDER_CONFIGS)(
+      "%s should return error when accumulated history exceeds token limit",
+      async (provider, model) => {
+        const { env, workspaceId, cleanup } = await setupWorkspace(provider);
+        try {
+          // Build up a large conversation history using HistoryService
+          // Use the same config as the test environment to write to the correct location
+          const historyService = new HistoryService(env.config);
+
+          // Create ~50k chars per message
+          const messageSize = 50_000;
+          const largeText = "a".repeat(messageSize);
+
+          // Different providers have different limits:
+          // - Anthropic: 200k tokens → need ~40 messages of 50k chars (2M chars total)
+          // - OpenAI: varies by model, use ~80 messages (4M chars total) to ensure we hit the limit
+          const messageCount = provider === "anthropic" ? 40 : 80;
+
+          // Build conversation history with alternating user/assistant messages
+          for (let i = 0; i < messageCount; i++) {
+            const isUser = i % 2 === 0;
+            const role = isUser ? "user" : "assistant";
+            const message = createCmuxMessage(`history-msg-${i}`, role, largeText, {});
+
+            const result = await historyService.appendToHistory(workspaceId, message);
+            expect(result.success).toBe(true);
+          }
+
+          // Now try to send a new message - should trigger token limit error
+          // due to accumulated history
+          const result = await sendMessageWithModel(
+            env.mockIpcRenderer,
+            workspaceId,
+            "What is the weather?",
+            provider,
+            model
+          );
+
+          // IPC call itself should succeed (errors come through stream events)
+          expect(result.success).toBe(true);
+
+          // Wait for either stream-end or stream-error
+          const collector = createEventCollector(env.sentEvents, workspaceId);
+          await Promise.race([
+            collector.waitForEvent("stream-end", 10000),
+            collector.waitForEvent("stream-error", 10000),
+          ]);
+
+          // Should have received error event with token limit error
+          expect(collector.hasError()).toBe(true);
+
+          // Verify error message mentions token limit or context exceeded
+          const errorEvents = collector
+            .getEvents()
+            .filter((e) => "type" in e && e.type === "stream-error");
+          expect(errorEvents.length).toBeGreaterThan(0);
+
+          const errorEvent = errorEvents[0];
+          if (errorEvent && "error" in errorEvent) {
+            const errorMsg = String(errorEvent.error).toLowerCase();
+            expect(
+              errorMsg.includes("token") ||
+                errorMsg.includes("too long") ||
+                errorMsg.includes("maximum") ||
+                errorMsg.includes("context")
+            ).toBe(true);
+          }
+        } finally {
+          await cleanup();
+        }
+      },
+      30000
     );
   });
 });
