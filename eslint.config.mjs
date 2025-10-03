@@ -169,6 +169,24 @@ export default defineConfig([
     },
   },
   {
+    // Frontend architectural boundary - prevent services imports
+    files: ["src/components/**", "src/contexts/**", "src/hooks/**", "src/App.tsx"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["**/services/**", "../services/**", "../../services/**"],
+              message:
+                "Frontend code cannot import from services/. Use IPC or move shared code to utils/.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     // Test file configuration
     files: ["**/*.test.ts", "**/*.test.tsx"],
     languageOptions: {
