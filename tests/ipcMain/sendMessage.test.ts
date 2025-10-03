@@ -176,6 +176,71 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
       assertStreamSuccess(collector2);
     }, 60000);
 
+    test("should handle message editing during active stream with tool calls", async () => {
+      // Send a message that will trigger a long-running tool call
+      const result1 = await sendMessageWithModel(
+        env.mockIpcRenderer,
+        workspaceId,
+        "Run this bash command: sleep 10 && echo done",
+        provider,
+        model
+      );
+      expect(result1.success).toBe(true);
+
+      // Wait for tool call to start (ensuring it's committed to history)
+      const collector1 = createEventCollector(env.sentEvents, workspaceId);
+      await collector1.waitForEvent("tool-call-start", 10000);
+      const firstUserMessage = collector1.getEvents().find((e) => "role" in e && e.role === "user");
+      expect(firstUserMessage).toBeDefined();
+
+      // First edit: Edit the message while stream is still active
+      env.sentEvents.length = 0;
+      const result2 = await sendMessageWithModel(
+        env.mockIpcRenderer,
+        workspaceId,
+        "Run this bash command: sleep 5 && echo second",
+        provider,
+        model,
+        { editMessageId: (firstUserMessage as { id: string }).id }
+      );
+      expect(result2.success).toBe(true);
+
+      // Wait for first edit to start tool call
+      const collector2 = createEventCollector(env.sentEvents, workspaceId);
+      await collector2.waitForEvent("tool-call-start", 10000);
+      const secondUserMessage = collector2
+        .getEvents()
+        .find((e) => "role" in e && e.role === "user");
+      expect(secondUserMessage).toBeDefined();
+
+      // Second edit: Edit again while second stream is still active
+      // This should trigger the bug with orphaned tool calls
+      env.sentEvents.length = 0;
+      const result3 = await sendMessageWithModel(
+        env.mockIpcRenderer,
+        workspaceId,
+        "Say 'third edit' and nothing else",
+        provider,
+        model,
+        { editMessageId: (secondUserMessage as { id: string }).id }
+      );
+      expect(result3.success).toBe(true);
+
+      // Wait for final stream to complete
+      const collector3 = createEventCollector(env.sentEvents, workspaceId);
+      await collector3.waitForEvent("stream-end", 30000);
+
+      // Should complete successfully without errors
+      assertStreamSuccess(collector3);
+
+      // Verify the response contains the final edited message content
+      const finalMessage = collector3.getFinalMessage();
+      expect(finalMessage).toBeDefined();
+      if (finalMessage && "content" in finalMessage) {
+        expect(finalMessage.content).toContain("third edit");
+      }
+    }, 90000);
+
     test("should handle tool calls and return file contents", async () => {
       // Generate a random string
       const randomString = `test-content-${Date.now()}-${Math.random().toString(36).substring(7)}`;

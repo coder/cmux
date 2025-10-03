@@ -58,6 +58,10 @@ in `./docs/vercel/**.mdx`.
 - Strive to decompose complex logic away from the components and into `.src/utils/`
   - utils should be either pure functions or easily isolated (e.g. if they operate on the FS they accept
     a path). Testing them should not require complex mocks or setup.
+- **Integration tests:**
+  - Run all integration tests: `bun test:integration`
+  - Run specific integration test: `TEST_INTEGRATION=1 bun x jest tests/ipcMain/sendMessage.test.ts -t "test name pattern"`
+  - Prefer running individual integration tests with short timeouts for user flow
 
 ## Styling
 
