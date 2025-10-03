@@ -23,11 +23,6 @@ if (shouldRunIntegrationTests()) {
   validateApiKeys(["OPENAI_API_KEY", "ANTHROPIC_API_KEY"]);
 }
 
-// Enable retries in CI for flaky API tests
-if (process.env.CI) {
-  jest.retryTimes(3, { logErrorsBeforeRetry: true });
-}
-
 // Test both providers with their respective models
 const PROVIDER_CONFIGS: Array<[string, string]> = [
   ["openai", "gpt-5-codex"],
@@ -41,6 +36,10 @@ const PROVIDER_CONFIGS: Array<[string, string]> = [
 // - Test timeout values (in describe/test) should be 2-3x the expected duration
 
 describeIntegration("IpcMain sendMessage integration tests", () => {
+  // Enable retries in CI for flaky API tests (only works with Jest, not Bun test runner)
+  if (process.env.CI && typeof jest !== "undefined" && jest.retryTimes) {
+    jest.retryTimes(3, { logErrorsBeforeRetry: true });
+  }
   // Run tests for each provider concurrently
   describe.each(PROVIDER_CONFIGS)("%s:%s provider tests", (provider, model) => {
     test("should successfully send message and receive response", async () => {
