@@ -272,6 +272,56 @@ function filterReasoningOnlyMessages(messages: ModelMessage[]): ModelMessage[] {
 }
 
 /**
+ * Coalesce consecutive parts of the same type within each message.
+ * Streaming creates many individual text/reasoning parts; merge them for easier debugging.
+ * Also reduces JSON overhead when sending messages to the API.
+ * Tool calls remain atomic (not merged).
+ */
+function coalesceConsecutiveParts(messages: ModelMessage[]): ModelMessage[] {
+  return messages.map((msg) => {
+    // Only process assistant messages with array content
+    if (msg.role !== "assistant") {
+      return msg;
+    }
+
+    const assistantMsg = msg;
+
+    // Skip string content
+    if (typeof assistantMsg.content === "string") {
+      return msg;
+    }
+
+    // Now TypeScript knows content is an array
+    type ContentArray = Exclude<typeof assistantMsg.content, string>;
+    const coalesced: ContentArray = [];
+
+    for (const part of assistantMsg.content) {
+      const lastPart = coalesced[coalesced.length - 1];
+
+      // Merge consecutive text parts
+      if (part.type === "text" && lastPart?.type === "text") {
+        lastPart.text += part.text;
+        continue;
+      }
+
+      // Merge consecutive reasoning parts (extended thinking)
+      if (part.type === "reasoning" && lastPart?.type === "reasoning") {
+        lastPart.text += part.text;
+        continue;
+      }
+
+      // Keep tool calls and first occurrence of each type
+      coalesced.push(part);
+    }
+
+    return {
+      ...assistantMsg,
+      content: coalesced,
+    };
+  });
+}
+
+/**
  * Merge consecutive user messages with newline separators.
  * When filtering removes assistant messages, we can end up with consecutive user messages.
  * Anthropic requires alternating user/assistant, so we merge them.
@@ -315,6 +365,7 @@ function mergeConsecutiveUserMessages(messages: ModelMessage[]): ModelMessage[] 
 /**
  * Transform messages to ensure provider API compliance.
  * Applies multiple transformation passes based on provider requirements:
+ * 0. Coalesce consecutive parts (text/reasoning) - all providers, reduces JSON overhead
  * 1. Split mixed content messages (text + tool calls) - all providers
  * 2. Filter out reasoning-only assistant messages - Anthropic only
  * 3. Merge consecutive user messages - all providers
@@ -323,8 +374,11 @@ function mergeConsecutiveUserMessages(messages: ModelMessage[]): ModelMessage[] 
  * @param provider The provider name (e.g., "anthropic", "openai")
  */
 export function transformModelMessages(messages: ModelMessage[], provider: string): ModelMessage[] {
+  // Pass 0: Coalesce consecutive parts to reduce JSON overhead from streaming (applies to all providers)
+  const coalesced = coalesceConsecutiveParts(messages);
+
   // Pass 1: Split mixed content messages (applies to all providers)
-  const split = splitMixedContentMessages(messages);
+  const split = splitMixedContentMessages(coalesced);
 
   // Pass 2: Filter out reasoning-only assistant messages (Anthropic only)
   // OpenAI Responses API allows reasoning-only messages in conversation history
