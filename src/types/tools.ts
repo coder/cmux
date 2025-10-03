@@ -34,8 +34,8 @@ export type BashToolResult =
 export interface ReadFileToolArgs {
   filePath: string;
   encoding?: "utf-8" | "ascii" | "base64" | "hex" | "binary";
-  start: number;
-  end: number;
+  offset?: number; // 1-based starting line number (optional)
+  limit?: number; // number of lines to return from offset (optional)
 }
 
 export type ReadFileToolResult =
@@ -46,6 +46,28 @@ export type ReadFileToolResult =
       encoding: string;
       bytes_read: number;
       content: string;
+    }
+  | {
+      success: false;
+      error: string;
+    };
+
+// Edit File Tool Types
+export interface EditFileEdit {
+  old_string: string;
+  new_string: string;
+  replace_all?: boolean;
+}
+
+export interface EditFileToolArgs {
+  file_path: string;
+  edits: EditFileEdit[];
+}
+
+export type EditFileToolResult =
+  | {
+      success: true;
+      edits_applied: number;
     }
   | {
       success: false;

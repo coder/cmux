@@ -21,10 +21,20 @@ export const createReadFileTool: ToolFactory = (config: ToolConfiguration) => {
         .optional()
         .default("utf-8")
         .describe("The encoding to use when reading the file"),
-      start: z.number().int().nonnegative().describe("Starting byte offset (inclusive)"),
-      end: z.number().int().positive().describe("Ending byte offset (exclusive)"),
+      offset: z
+        .number()
+        .int()
+        .positive()
+        .optional()
+        .describe("1-based starting line number (optional, defaults to 1)"),
+      limit: z
+        .number()
+        .int()
+        .positive()
+        .optional()
+        .describe("Number of lines to return from offset (optional, returns all if not specified)"),
     }) satisfies z.ZodType<ReadFileToolArgs>,
-    execute: async ({ filePath, encoding, start, end }): Promise<ReadFileToolResult> => {
+    execute: async ({ filePath, encoding, offset, limit }): Promise<ReadFileToolResult> => {
       try {
         // Resolve relative paths from configured working directory
         const resolvedPath = path.isAbsolute(filePath)
@@ -40,38 +50,43 @@ export const createReadFileTool: ToolFactory = (config: ToolConfiguration) => {
           };
         }
 
-        // Validate byte range
-        if (start >= stats.size) {
-          return {
-            success: false,
-            error: `Start offset ${start} is beyond file size ${stats.size}`,
-          };
-        }
-        if (start >= end) {
-          return {
-            success: false,
-            error: `Start offset ${start} must be less than end offset ${end}`,
-          };
+        // Read entire file content
+        const fullContent = await fs.readFile(resolvedPath, { encoding });
+        const lines = fullContent.split("\n");
+
+        // Determine which lines to return
+        let selectedLines: string[];
+        if (offset === undefined && limit === undefined) {
+          // No offset or limit: return entire file
+          selectedLines = lines;
+        } else {
+          // Convert 1-based offset to 0-based index (default to line 1)
+          const startIdx = offset !== undefined ? offset - 1 : 0;
+
+          if (startIdx < 0) {
+            return {
+              success: false,
+              error: `Offset must be positive (got ${offset})`,
+            };
+          }
+
+          if (startIdx >= lines.length) {
+            return {
+              success: false,
+              error: `Offset ${offset} is beyond file length (${lines.length} lines)`,
+            };
+          }
+
+          // Calculate end index
+          const endIdx = limit !== undefined ? startIdx + limit : lines.length;
+
+          // Extract the selected lines
+          selectedLines = lines.slice(startIdx, endIdx);
         }
 
-        // Clamp end offset to file size
-        const effectiveEnd = Math.min(end, stats.size);
-
-        // Use efficient byte range reading
-        const fileHandle = await fs.open(resolvedPath, "r");
-        let content: string;
-        let bytesRead: number;
-        try {
-          const bytesToRead = effectiveEnd - start;
-          const buffer = Buffer.alloc(bytesToRead);
-
-          // Read specific byte range using seek
-          const result = await fileHandle.read(buffer, 0, bytesToRead, start);
-          bytesRead = result.bytesRead;
-          content = buffer.toString(encoding, 0, bytesRead);
-        } finally {
-          await fileHandle.close();
-        }
+        // Rejoin lines with newlines
+        const content = selectedLines.join("\n");
+        const bytesRead = Buffer.byteLength(content, encoding);
 
         // Return file info and content
         return {

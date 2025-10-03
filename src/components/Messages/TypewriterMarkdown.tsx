@@ -10,10 +10,10 @@ const MarkdownContainer = styled.div<{ isStreaming: boolean }>`
   ${(props) =>
     props.isStreaming &&
     `
-    p:last-child::after,
-    li:last-child::after,
-    div:last-child::after,
-    span:last-child::after {
+    p:last-child:not(:has(*:last-child))::after,
+    li:last-child:not(:has(*:last-child))::after,
+    div:last-child:not(:has(*:last-child))::after,
+    span:last-child:not(:has(*:last-child))::after {
       content: "▏";
       margin-left: 0.15em;
       animation: blink 1s step-end infinite;
