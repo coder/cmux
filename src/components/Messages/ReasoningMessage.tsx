@@ -38,24 +38,6 @@ const ThinkingIcon = styled.span`
   font-size: 12px;
 `;
 
-const StreamingIndicator = styled.span`
-  font-style: italic;
-  font-weight: normal;
-  text-transform: none;
-  letter-spacing: normal;
-  animation: pulse 1.5s ease-in-out infinite;
-
-  @keyframes pulse {
-    0%,
-    100% {
-      opacity: 0.5;
-    }
-    50% {
-      opacity: 1;
-    }
-  }
-`;
-
 const Caret = styled.span<{ isExpanded: boolean }>`
   color: var(--color-thinking-mode);
   opacity: 0.6;

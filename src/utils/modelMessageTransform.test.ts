@@ -23,7 +23,7 @@ describe("modelMessageTransform", () => {
         assistantMsg,
       ];
 
-      const result = transformModelMessages(messages);
+      const result = transformModelMessages(messages, "anthropic");
       expect(result).toEqual(messages);
     });
 
@@ -40,7 +40,7 @@ describe("modelMessageTransform", () => {
       };
       const messages: ModelMessage[] = [assistantMsg1, assistantMsg2];
 
-      const result = transformModelMessages(messages);
+      const result = transformModelMessages(messages, "anthropic");
       expect(result).toEqual(messages);
     });
 
@@ -54,7 +54,7 @@ describe("modelMessageTransform", () => {
       };
       const messages: ModelMessage[] = [assistantMsg];
 
-      const result = transformModelMessages(messages);
+      const result = transformModelMessages(messages, "anthropic");
 
       // Should only keep text, strip interrupted tool calls
       expect(result).toHaveLength(1);
@@ -95,7 +95,7 @@ describe("modelMessageTransform", () => {
       };
       const messages: ModelMessage[] = [assistantMsg, toolMsg];
 
-      const result = transformModelMessages(messages);
+      const result = transformModelMessages(messages, "anthropic");
 
       // Should have: text message, tool calls (only call1 & call2), tool results
       expect(result).toHaveLength(3);
@@ -185,7 +185,7 @@ describe("modelMessageTransform", () => {
       };
       const messages: ModelMessage[] = [assistantMsg, toolMsg];
 
-      const result = transformModelMessages(messages);
+      const result = transformModelMessages(messages, "anthropic");
 
       // Should split into multiple messages with tool results properly placed
       expect(result.length).toBeGreaterThan(2);
@@ -310,7 +310,7 @@ describe("modelMessageTransform", () => {
         },
       ];
 
-      const result = transformModelMessages(messages);
+      const result = transformModelMessages(messages, "anthropic");
       expect(result).toHaveLength(1);
       expect(result[0].role).toBe("user");
       expect((result[0].content as Array<{ type: string; text: string }>)[0].text).toBe("Hello");
@@ -328,7 +328,7 @@ describe("modelMessageTransform", () => {
         },
       ];
 
-      const result = transformModelMessages(messages);
+      const result = transformModelMessages(messages, "anthropic");
       expect(result).toHaveLength(1);
       expect(result[0].role).toBe("user");
       expect((result[0].content as Array<{ type: string; text: string }>)[0].text).toBe(
@@ -352,7 +352,7 @@ describe("modelMessageTransform", () => {
         },
       ];
 
-      const result = transformModelMessages(messages);
+      const result = transformModelMessages(messages, "anthropic");
       expect(result).toHaveLength(1);
       expect(result[0].role).toBe("user");
       expect((result[0].content as Array<{ type: string; text: string }>)[0].text).toBe(
@@ -376,7 +376,7 @@ describe("modelMessageTransform", () => {
         },
       ];
 
-      const result = transformModelMessages(messages);
+      const result = transformModelMessages(messages, "anthropic");
       expect(result).toHaveLength(3);
       expect(result[0].role).toBe("user");
       expect((result[0].content as Array<{ type: string; text: string }>)[0].text).toBe("Hello");

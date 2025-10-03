@@ -2,8 +2,8 @@ import { css } from "@emotion/react";
 
 export const markdownStyles = css`
   font-family: var(--font-primary);
-  font-size: 13px;
-  line-height: 1.4;
+  font-size: 14px;
+  line-height: 1.6;
   color: var(--color-text);
   white-space: normal;
 

@@ -4,12 +4,27 @@
  * Converts unified thinking levels to provider-specific options
  */
 
+import type { AnthropicProviderOptions } from "@ai-sdk/anthropic";
+import type { OpenAIResponsesProviderOptions } from "@ai-sdk/openai";
 import type { ThinkingLevel } from "../types/thinking";
 import { ANTHROPIC_THINKING_BUDGETS, OPENAI_REASONING_EFFORT } from "../types/thinking";
 import { log } from "../services/log";
 
 /**
+ * Provider-specific options structure for AI SDK
+ */
+type ProviderOptions =
+  | { anthropic: AnthropicProviderOptions }
+  | { openai: OpenAIResponsesProviderOptions }
+  | Record<string, never>; // Empty object for unsupported providers
+
+/**
  * Build provider-specific options for AI SDK based on thinking level
+ *
+ * This function configures provider-specific options for supported providers:
+ * 1. Enable reasoning traces (transparency into model's thought process)
+ * 2. Set reasoning level (control depth of reasoning based on task complexity)
+ * 3. Enable parallel tool calls (allow concurrent tool execution)
  *
  * @param modelString - Full model string (e.g., "anthropic:claude-opus-4-1")
  * @param thinkingLevel - Unified thinking level
@@ -18,7 +33,7 @@ import { log } from "../services/log";
 export function buildProviderOptions(
   modelString: string,
   thinkingLevel: ThinkingLevel
-): Record<string, unknown> {
+): ProviderOptions {
   // Parse provider from model string
   const [provider] = modelString.split(":");
 
@@ -33,52 +48,55 @@ export function buildProviderOptions(
     return {};
   }
 
-  // Return early if thinking is off
-  if (thinkingLevel === "off") {
-    log.debug("buildProviderOptions: Thinking is off, returning empty");
-    return {};
-  }
-
   // Build Anthropic-specific options
   if (provider === "anthropic") {
     const budgetTokens = ANTHROPIC_THINKING_BUDGETS[thinkingLevel];
-    log.debug("buildProviderOptions: Anthropic thinking config", {
+    log.debug("buildProviderOptions: Anthropic config", {
       budgetTokens,
       thinkingLevel,
     });
-    if (budgetTokens > 0) {
-      const options = {
-        anthropic: {
+
+    const options: ProviderOptions = {
+      anthropic: {
+        disableParallelToolUse: false, // Always enable concurrent tool execution
+        // Conditionally add thinking configuration
+        ...(budgetTokens > 0 && {
           thinking: {
             type: "enabled",
             budgetTokens,
           },
-        },
-      };
-      log.info("buildProviderOptions: Returning Anthropic options", options);
-      return options;
-    }
+        }),
+      },
+    };
+    log.info("buildProviderOptions: Returning Anthropic options", options);
+    return options;
   }
 
   // Build OpenAI-specific options
   if (provider === "openai") {
     const reasoningEffort = OPENAI_REASONING_EFFORT[thinkingLevel];
-    log.debug("buildProviderOptions: OpenAI reasoning config", {
+    log.debug("buildProviderOptions: OpenAI config", {
       reasoningEffort,
       thinkingLevel,
     });
-    if (reasoningEffort) {
-      const options = {
-        openai: {
+
+    const options: ProviderOptions = {
+      openai: {
+        parallelToolCalls: true, // Always enable concurrent tool execution
+        // TODO: allow this to be configured
+        serviceTier: "priority", // Always use priority tier for best performance
+        // Conditionally add reasoning configuration
+        ...(reasoningEffort && {
           reasoningEffort,
-        },
-      };
-      log.info("buildProviderOptions: Returning OpenAI options", options);
-      return options;
-    }
+          reasoningSummary: "detailed", // Enable detailed reasoning summaries
+        }),
+      },
+    };
+    log.info("buildProviderOptions: Returning OpenAI options", options);
+    return options;
   }
 
-  // No thinking support for this provider
-  log.debug("buildProviderOptions: No thinking support for provider", provider);
+  // No provider-specific options for unsupported providers
+  log.debug("buildProviderOptions: Unsupported provider", provider);
   return {};
 }

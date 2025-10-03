@@ -227,16 +227,16 @@ const createErrorToast = (error: SendMessageErrorType): Toast => {
         ),
       };
 
-    case "provider_not_configured":
+    case "provider_not_supported":
       return {
         id: Date.now().toString(),
         type: "error",
-        title: "Provider Not Configured",
-        message: `The ${error.provider} provider needs to be configured before use.`,
+        title: "Provider Not Supported",
+        message: `The ${error.provider} provider is not supported yet.`,
         solution: (
           <>
-            <SolutionLabel>Configure Provider:</SolutionLabel>
-            /providers set {error.provider} apiKey YOUR_API_KEY
+            <SolutionLabel>Try This:</SolutionLabel>
+            Use an available provider from /providers list
           </>
         ),
       };

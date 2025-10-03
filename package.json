@@ -40,6 +40,7 @@
     "react-dom": "^18.2.0",
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1",
+    "js-tiktoken": "^1.0.17",
     "zod": "^4.1.11"
   },
   "devDependencies": {

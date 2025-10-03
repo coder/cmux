@@ -357,8 +357,7 @@ export class StreamingMessageAggregator {
         // Merge adjacent parts of same type (text with text, reasoning with reasoning)
         // This is where all merging happens - streaming just appends raw deltas
         const mergedParts: typeof message.parts = [];
-        for (let i = 0; i < message.parts.length; i++) {
-          const part = message.parts[i];
+        for (const part of message.parts) {
           const lastMerged = mergedParts[mergedParts.length - 1];
 
           // Try to merge with last part if same type

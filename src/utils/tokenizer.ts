@@ -2,9 +2,28 @@
  * Token calculation utilities for chat statistics
  */
 
+import { encodingForModel, type Tiktoken } from "js-tiktoken";
+
 export interface Tokenizer {
   name: string;
   countTokens: (text: string) => Promise<number>;
+}
+
+/**
+ * Module-level cache for tiktoken encoders
+ * Encoders are expensive to construct, so we cache and reuse them
+ */
+const tiktokenEncoderCache = new Map<string, Tiktoken>();
+
+/**
+ * Get or create a cached tiktoken encoder for a given OpenAI model
+ * This implements lazy initialization - encoder is only created on first use
+ */
+function getOrCreateTiktokenEncoder(modelName: "gpt-4o"): Tiktoken {
+  if (!tiktokenEncoderCache.has(modelName)) {
+    tiktokenEncoderCache.set(modelName, encodingForModel(modelName));
+  }
+  return tiktokenEncoderCache.get(modelName)!;
 }
 
 /**
@@ -29,11 +48,22 @@ export function getTokenizerForModel(modelString: string): Tokenizer {
 
     case "openai":
       return {
-        name: "OpenAI",
+        name: "OpenAI (js-tiktoken)",
         countTokens: (text: string) => {
-          // TODO: Integrate tiktoken for OpenAI models
-          // For now, rough approximation: ~4 chars per token
-          return Promise.resolve(Math.ceil(text.length / 4));
+          try {
+            // Use o200k_base encoding for GPT-4o and newer models (GPT-5, o1, etc.)
+            // Encoder is cached and reused for performance
+            const encoder = getOrCreateTiktokenEncoder("gpt-4o");
+            const tokens = encoder.encode(text);
+            return Promise.resolve(tokens.length);
+          } catch (error) {
+            // Log the error and fallback to approximation
+            console.error(
+              "Failed to tokenize with js-tiktoken, falling back to approximation:",
+              error
+            );
+            return Promise.resolve(Math.ceil(text.length / 4));
+          }
         },
       };
 

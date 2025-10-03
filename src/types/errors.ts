@@ -6,11 +6,11 @@
 /**
  * Discriminated union for all possible sendMessage errors
  * The frontend is responsible for language and messaging for api_key_not_found and
- * provider_not_configured errors. Other error types include details needed for display.
+ * provider_not_supported errors. Other error types include details needed for display.
  */
 export type SendMessageError =
   | { type: "api_key_not_found"; provider: string }
-  | { type: "provider_not_configured"; provider: string }
+  | { type: "provider_not_supported"; provider: string }
   | { type: "invalid_model_string"; message: string }
   | { type: "unknown"; raw: string };
 

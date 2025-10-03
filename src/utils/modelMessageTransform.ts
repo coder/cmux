@@ -285,20 +285,24 @@ function mergeConsecutiveUserMessages(messages: ModelMessage[]): ModelMessage[] 
 }
 
 /**
- * Transform messages to ensure Anthropic API compliance.
- * Applies multiple transformation passes:
- * 1. Split mixed content messages (text + tool calls)
- * 2. Filter out reasoning-only assistant messages
- * 3. Merge consecutive user messages
+ * Transform messages to ensure provider API compliance.
+ * Applies multiple transformation passes based on provider requirements:
+ * 1. Split mixed content messages (text + tool calls) - all providers
+ * 2. Filter out reasoning-only assistant messages - Anthropic only
+ * 3. Merge consecutive user messages - all providers
+ *
+ * @param messages The messages to transform
+ * @param provider The provider name (e.g., "anthropic", "openai")
  */
-export function transformModelMessages(messages: ModelMessage[]): ModelMessage[] {
-  // Pass 1: Split mixed content messages
+export function transformModelMessages(messages: ModelMessage[], provider: string): ModelMessage[] {
+  // Pass 1: Split mixed content messages (applies to all providers)
   const split = splitMixedContentMessages(messages);
 
-  // Pass 2: Filter out reasoning-only assistant messages
-  const filtered = filterReasoningOnlyMessages(split);
+  // Pass 2: Filter out reasoning-only assistant messages (Anthropic only)
+  // OpenAI Responses API allows reasoning-only messages in conversation history
+  const filtered = provider === "anthropic" ? filterReasoningOnlyMessages(split) : split;
 
-  // Pass 3: Merge consecutive user messages
+  // Pass 3: Merge consecutive user messages (applies to all providers)
   const merged = mergeConsecutiveUserMessages(filtered);
 
   return merged;

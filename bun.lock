@@ -11,6 +11,7 @@
         "@emotion/react": "^11.14.0",
         "@emotion/styled": "^11.14.1",
         "ai": "^5.0.56",
+        "js-tiktoken": "^1.0.17",
         "jsonc-parser": "^3.3.1",
         "react": "^18.2.0",
         "react-dom": "^18.2.0",
@@ -1095,6 +1096,8 @@
     "jest-watcher": ["jest-watcher@30.1.3", "", { "dependencies": { "@jest/test-result": "30.1.3", "@jest/types": "30.0.5", "@types/node": "*", "ansi-escapes": "^4.3.2", "chalk": "^4.1.2", "emittery": "^0.13.1", "jest-util": "30.0.5", "string-length": "^4.0.2" } }, "sha512-6jQUZCP1BTL2gvG9E4YF06Ytq4yMb4If6YoQGRR6PpjtqOXSP3sKe2kqwB6SQ+H9DezOfZaSLnmka1NtGm3fCQ=="],
 
     "jest-worker": ["jest-worker@30.1.0", "", { "dependencies": { "@types/node": "*", "@ungap/structured-clone": "^1.3.0", "jest-util": "30.0.5", "merge-stream": "^2.0.0", "supports-color": "^8.1.1" } }, "sha512-uvWcSjlwAAgIu133Tt77A05H7RIk3Ho8tZL50bQM2AkvLdluw9NG48lRCl3Dt+MOH719n/0nnb5YxUwcuJiKRA=="],
+
+    "js-tiktoken": ["js-tiktoken@1.0.21", "", { "dependencies": { "base64-js": "^1.5.1" } }, "sha512-biOj/6M5qdgx5TKjDnFT1ymSpM5tbd3ylwDtrQvFQSu0Z7bBYko2dF+W/aUkXUPuk6IVpRxk/3Q2sHOzGlS36g=="],
 
     "js-tokens": ["js-tokens@4.0.0", "", {}, "sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ=="],
 

@@ -2,7 +2,7 @@ import React from "react";
 import styled from "@emotion/styled";
 import { useChatContext } from "../../contexts/ChatContext";
 import { TooltipWrapper, Tooltip } from "../Tooltip";
-import { getMaxTokensForModel } from "../../utils/modelTokenLimits";
+import { getModelStats } from "../../utils/modelStats";
 import { sumUsageHistory } from "../../utils/tokenStatsCalculator";
 import { usePersistedState } from "../../hooks/usePersistedState";
 import { ToggleGroup, type ToggleOption } from "../ToggleGroup";
@@ -314,8 +314,9 @@ export const CostsTab: React.FC = () => {
           </SectionHeader>
           <ConsumerList>
             {(() => {
-              // Get max tokens for the model
-              const maxTokens = getMaxTokensForModel(stats.model);
+              // Get max tokens for the model from the model stats database
+              const modelStats = getModelStats(stats.model);
+              const maxTokens = modelStats?.max_input_tokens;
               const totalUsed = displayUsage
                 ? displayUsage.input.tokens +
                   displayUsage.cached.tokens +

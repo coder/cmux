@@ -9,7 +9,7 @@ import { MessageWindow } from "./MessageWindow";
 const RawContent = styled.pre`
   font-family: var(--font-monospace);
   font-size: 12px;
-  line-height: 1.4;
+  line-height: 1.6;
   color: var(--color-text);
   white-space: pre-wrap;
   word-break: break-word;

@@ -341,6 +341,7 @@ export class StreamManager extends EventEmitter {
             break;
 
           case "reasoning-delta": {
+            // Both Anthropic and OpenAI use reasoning-delta for streaming reasoning content
             const delta = (part as ReasoningDeltaPart).text ?? "";
 
             // Append each delta as a new part (merging happens at display time)

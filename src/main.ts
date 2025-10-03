@@ -369,10 +369,11 @@ ipcMain.handle(
 
 ipcMain.handle(IPC_CHANNELS.PROVIDERS_LIST, () => {
   try {
-    const providersConfig = config.loadProvidersConfig() ?? {};
-    return Object.keys(providersConfig);
+    // Return all supported providers, not just configured ones
+    // This matches the providers defined in the registry
+    return ["anthropic", "openai", "google"];
   } catch (error) {
-    log.error("Failed to list providers config:", error);
+    log.error("Failed to list providers:", error);
     return [];
   }
 });

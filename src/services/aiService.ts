@@ -27,6 +27,7 @@ import { buildSystemMessage } from "./systemMessage";
 import { getTokenizerForModel } from "../utils/tokenizer";
 import { buildProviderOptions } from "../utils/providerOptions";
 import type { ThinkingLevel } from "../types/thinking";
+import { createOpenAI } from "@ai-sdk/openai";
 
 // Export a standalone version of getToolsForModel for use in backend
 
@@ -143,14 +144,7 @@ export class AIService extends EventEmitter {
 
       // Load providers configuration - the ONLY source of truth
       const providersConfig = this.config.loadProvidersConfig();
-      const providerConfig = providersConfig?.[providerName];
-
-      if (!providerConfig) {
-        return Err({
-          type: "provider_not_configured",
-          provider: providerName,
-        });
-      }
+      const providerConfig = providersConfig?.[providerName] ?? {};
 
       // Handle Anthropic provider
       if (providerName === "anthropic") {
@@ -167,11 +161,20 @@ export class AIService extends EventEmitter {
         return Ok(provider(modelId));
       }
 
-      // Add support for other providers here in the future
-      // if (providerName === "openai") { ... }
+      // Handle OpenAI provider
+      if (providerName === "openai") {
+        if (!providerConfig.apiKey) {
+          return Err({
+            type: "api_key_not_found",
+            provider: providerName,
+          });
+        }
+        const provider = createOpenAI(providerConfig);
+        return Ok(provider(modelId));
+      }
 
       return Err({
-        type: "provider_not_configured",
+        type: "provider_not_supported",
         provider: providerName,
       });
     } catch (error) {
@@ -231,19 +234,24 @@ export class AIService extends EventEmitter {
 
       log.debug_obj(`${workspaceId}/2_model_messages.json`, modelMessages);
 
-      // Apply ModelMessage transforms to ensure Anthropic API compliance
-      const transformedMessages = transformModelMessages(modelMessages);
+      // Extract provider name from modelString (e.g., "anthropic:claude-opus-4-1" -> "anthropic")
+      const [providerName] = modelString.split(":");
+
+      // Apply ModelMessage transforms based on provider requirements
+      const transformedMessages = transformModelMessages(modelMessages, providerName);
 
       // Apply cache control for Anthropic models AFTER transformation
       const finalMessages = applyCacheControl(transformedMessages, modelString);
 
       log.debug_obj(`${workspaceId}/3_final_messages.json`, finalMessages);
 
-      // Validate the messages meet Anthropic requirements
-      const validation = validateAnthropicCompliance(finalMessages);
-      if (!validation.valid) {
-        log.error(`Anthropic compliance validation failed: ${validation.error}`);
-        // Continue anyway, as the API might be more lenient
+      // Validate the messages meet Anthropic requirements (Anthropic only)
+      if (providerName === "anthropic") {
+        const validation = validateAnthropicCompliance(finalMessages);
+        if (!validation.valid) {
+          log.error(`Anthropic compliance validation failed: ${validation.error}`);
+          // Continue anyway, as the API might be more lenient
+        }
       }
 
       // Get workspace metadata to retrieve workspace path

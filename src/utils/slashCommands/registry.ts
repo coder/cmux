@@ -13,6 +13,8 @@ import type {
 export const MODEL_ABBREVIATIONS: Record<string, string> = {
   opus: "anthropic:claude-opus-4-1",
   sonnet: "anthropic:claude-sonnet-4-5",
+  "gpt-5": "openai:gpt-5",
+  codex: "openai:gpt-5-codex",
 };
 
 // Provider configuration data
