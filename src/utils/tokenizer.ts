@@ -3,6 +3,7 @@
  */
 
 import { encodingForModel, type Tiktoken } from "js-tiktoken";
+import { getToolSchemas, getAvailableTools } from "./toolDefinitions";
 
 export interface Tokenizer {
   name: string;
@@ -106,9 +107,6 @@ export async function getToolDefinitionTokens(
   toolName: string,
   modelString: string
 ): Promise<number> {
-  // Import the frontend-safe tool definitions
-  const { getToolSchemas, getAvailableTools } = await import("./toolDefinitions");
-
   try {
     // Check if this tool is available for this model
     const availableTools = getAvailableTools(modelString);

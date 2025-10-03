@@ -91,7 +91,8 @@ export class IpcMain {
     ipcMain.handle(IPC_CHANNELS.DIALOG_SELECT_DIR, async () => {
       if (!this.mainWindow) return null;
 
-      // Import dialog only when needed to avoid issues with electron mocks
+      // Dynamic import to avoid issues with electron mocks in tests
+      // eslint-disable-next-line no-restricted-syntax
       const { dialog } = await import("electron");
 
       const result = await dialog.showOpenDialog(this.mainWindow, {

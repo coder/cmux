@@ -166,6 +166,16 @@ export default defineConfig([
           minimumDescriptionLength: 3,
         },
       ],
+
+      // Ban dynamic imports - they hide circular dependencies and should be avoided
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "ImportExpression",
+          message:
+            "Dynamic imports are not allowed. Use static imports at the top of the file instead. Dynamic imports hide circular dependencies and improper module structure.",
+        },
+      ],
     },
   },
   {

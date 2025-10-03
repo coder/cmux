@@ -19,7 +19,7 @@
     "fmt": "./scripts/fmt.sh",
     "fmt:shell": "./scripts/fmt.sh --shell",
     "fmt:check": "./scripts/fmt.sh --check",
-    "test": "./scripts/test.sh",
+    "test": "bun test src",
     "test:watch": "./scripts/test.sh --watch",
     "test:coverage": "./scripts/test.sh --coverage",
     "test:integration": "bun test src && TEST_INTEGRATION=1 jest tests",

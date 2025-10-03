@@ -453,8 +453,7 @@ export class StreamManager extends EventEmitter {
           case "error": {
             // Capture the error and immediately throw to trigger error handling
             // Error parts are structured errors from the AI SDK
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const errorPart = part as any;
+            const errorPart = part as { error: unknown };
 
             // Try to extract error message from various possible structures
             let errorMessage: string | undefined;
@@ -462,22 +461,25 @@ export class StreamManager extends EventEmitter {
             if (errorPart.error instanceof Error) {
               throw errorPart.error;
             } else if (typeof errorPart.error === "object" && errorPart.error !== null) {
-              // Check for nested error object with message
-              if (errorPart.error.error && typeof errorPart.error.error === "object") {
-                errorMessage = errorPart.error.error.message;
+              const errorObj = errorPart.error as Record<string, unknown>;
+
+              // Check for nested error object with message (OpenAI format)
+              if (errorObj.error && typeof errorObj.error === "object" && errorObj.error !== null) {
+                const nestedError = errorObj.error as Record<string, unknown>;
+                if (typeof nestedError.message === "string") {
+                  errorMessage = nestedError.message;
+                }
               }
+
               // Fallback to direct message property
-              if (!errorMessage && errorPart.error.message) {
-                errorMessage = errorPart.error.message;
-              }
+              errorMessage ??= typeof errorObj.message === "string" ? errorObj.message : undefined;
+
               // Last resort: stringify the error
-              if (!errorMessage) {
-                errorMessage = JSON.stringify(errorPart.error);
-              }
+              errorMessage ??= JSON.stringify(errorObj);
 
               const error = new Error(errorMessage);
               // Preserve original error as cause for debugging
-              Object.assign(error, { cause: errorPart.error });
+              Object.assign(error, { cause: errorObj });
               throw error;
             } else {
               throw new Error(String(errorPart.error));
@@ -586,11 +588,8 @@ export class StreamManager extends EventEmitter {
       console.error("Stream processing error:", error);
 
       // Extract error message (errors thrown from 'error' parts already have the correct message)
-      let errorMessage: string;
+      const errorMessage: string = error instanceof Error ? error.message : String(error);
       let actualError: unknown = error;
-
-      // Use the error message directly (we've already extracted it when throwing from error parts)
-      errorMessage = error instanceof Error ? error.message : String(error);
 
       // For categorization, use the cause if available (preserves the original error structure)
       if (error instanceof Error && error.cause) {
