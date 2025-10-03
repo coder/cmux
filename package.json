@@ -22,7 +22,7 @@
     "test": "./scripts/test.sh",
     "test:watch": "./scripts/test.sh --watch",
     "test:coverage": "./scripts/test.sh --coverage",
-    "test:integration": "TEST_INTEGRATION=1 ./scripts/test.sh",
+    "test:integration": "bun test src && TEST_INTEGRATION=1 jest tests",
     "dist": "bun run build && electron-builder",
     "dist:mac": "bun run build && electron-builder --mac",
     "dist:win": "bun run build && electron-builder --win",
