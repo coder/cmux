@@ -13,6 +13,27 @@ const mockToolCallOptions: ToolCallOptions = {
   messages: [],
 };
 
+// Test helpers
+const setupFile = async (filePath: string, content: string): Promise<string> => {
+  await fs.writeFile(filePath, content);
+  const stats = await fs.stat(filePath);
+  return leaseFromStat(stats);
+};
+
+const readFile = async (filePath: string): Promise<string> => {
+  return await fs.readFile(filePath, "utf-8");
+};
+
+const executeReplace = async (
+  tool: ReturnType<typeof createFileEditReplaceTool>,
+  filePath: string,
+  edits: FileEditReplaceToolArgs["edits"],
+  lease: string
+): Promise<FileEditReplaceToolResult> => {
+  const args: FileEditReplaceToolArgs = { file_path: filePath, edits, lease };
+  return (await tool.execute!(args, mockToolCallOptions)) as FileEditReplaceToolResult;
+};
+
 describe("file_edit_replace tool", () => {
   let testDir: string;
   let testFilePath: string;
@@ -29,81 +50,48 @@ describe("file_edit_replace tool", () => {
   });
 
   it("should apply a single edit successfully", async () => {
-    // Setup
-    const initialContent = "Hello world\nThis is a test\nGoodbye world";
-    await fs.writeFile(testFilePath, initialContent);
-
-    // Get lease by reading file stats
-    const stats = await fs.stat(testFilePath);
-    const lease = leaseFromStat(stats);
-
+    const lease = await setupFile(testFilePath, "Hello world\nThis is a test\nGoodbye world");
     const tool = createFileEditReplaceTool({ cwd: testDir });
-    const args: FileEditReplaceToolArgs = {
-      file_path: testFilePath,
-      edits: [
-        {
-          old_string: "Hello world",
-          new_string: "Hello universe",
-        },
-      ],
-      lease,
-    };
 
-    // Execute
-    const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditReplaceToolResult;
+    const result = await executeReplace(
+      tool,
+      testFilePath,
+      [{ old_string: "Hello world", new_string: "Hello universe" }],
+      lease
+    );
 
-    // Assert
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.edits_applied).toBe(1);
       expect(result.lease).toMatch(/^[0-9a-f]{6}$/);
-      expect(result.lease).not.toBe(lease); // New lease should be different
+      expect(result.lease).not.toBe(lease);
     }
 
-    const updatedContent = await fs.readFile(testFilePath, "utf-8");
-    expect(updatedContent).toBe("Hello universe\nThis is a test\nGoodbye world");
+    expect(await readFile(testFilePath)).toBe("Hello universe\nThis is a test\nGoodbye world");
   });
 
   it("should apply multiple edits sequentially", async () => {
-    // Setup
-    const initialContent = "foo bar baz";
-    await fs.writeFile(testFilePath, initialContent);
-
-    const stats = await fs.stat(testFilePath);
-    const lease = leaseFromStat(stats);
-
+    const lease = await setupFile(testFilePath, "foo bar baz");
     const tool = createFileEditReplaceTool({ cwd: testDir });
-    const args: FileEditReplaceToolArgs = {
-      file_path: testFilePath,
-      edits: [
-        {
-          old_string: "foo",
-          new_string: "FOO",
-        },
-        {
-          old_string: "bar",
-          new_string: "BAR",
-        },
-        {
-          old_string: "baz",
-          new_string: "BAZ",
-        },
+
+    const result = await executeReplace(
+      tool,
+      testFilePath,
+      [
+        { old_string: "foo", new_string: "FOO" },
+        { old_string: "bar", new_string: "BAR" },
+        { old_string: "baz", new_string: "BAZ" },
       ],
-      lease,
-    };
+      lease
+    );
 
-    // Execute
-    const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditReplaceToolResult;
-
-    // Assert
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.edits_applied).toBe(3);
       expect(result.lease).toMatch(/^[0-9a-f]{6}$/);
     }
 
-    const updatedContent = await fs.readFile(testFilePath, "utf-8");
-    expect(updatedContent).toBe("FOO BAR BAZ");
+    expect(await readFile(testFilePath)).toBe("FOO BAR BAZ");
   });
 
   it("should rollback if later edit fails (first edit breaks second edit search)", async () => {
