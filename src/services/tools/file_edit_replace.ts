@@ -5,7 +5,7 @@ import writeFileAtomic from "write-file-atomic";
 import type { FileEditReplaceToolResult } from "../../types/tools";
 import type { ToolConfiguration, ToolFactory } from "../../utils/tools";
 import { TOOL_DEFINITIONS } from "../../utils/toolDefinitions";
-import { leaseFromStat } from "./fileCommon";
+import { leaseFromStat, generateDiff } from "./fileCommon";
 
 /**
  * File edit replace tool factory for AI assistant
@@ -42,7 +42,8 @@ export const createFileEditReplaceTool: ToolFactory = (config: ToolConfiguration
         }
 
         // Read file content
-        let content = await fs.readFile(resolvedPath, { encoding: "utf-8" });
+        const originalContent = await fs.readFile(resolvedPath, { encoding: "utf-8" });
+        let content = originalContent;
 
         // Apply each edit sequentially
         // THE KEY INSIGHT: MultiEdit is a state machine where each edit operates on the
@@ -123,10 +124,14 @@ export const createFileEditReplaceTool: ToolFactory = (config: ToolConfiguration
         const newStats = await fs.stat(resolvedPath);
         const newLease = leaseFromStat(newStats);
 
+        // Generate diff
+        const diff = generateDiff(resolvedPath, originalContent, content);
+
         return {
           success: true,
           edits_applied: editsApplied,
           lease: newLease,
+          diff,
         };
       } catch (error) {
         // Handle specific errors

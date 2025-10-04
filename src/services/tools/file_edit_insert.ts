@@ -5,7 +5,7 @@ import writeFileAtomic from "write-file-atomic";
 import type { FileEditInsertToolResult } from "../../types/tools";
 import type { ToolConfiguration, ToolFactory } from "../../utils/tools";
 import { TOOL_DEFINITIONS } from "../../utils/toolDefinitions";
-import { leaseFromStat } from "./fileCommon";
+import { leaseFromStat, generateDiff } from "./fileCommon";
 
 /**
  * File edit insert tool factory for AI assistant
@@ -47,8 +47,8 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
         }
 
         // Read file content
-        const fileContent = await fs.readFile(resolvedPath, { encoding: "utf-8" });
-        const lines = fileContent.split("\n");
+        const originalContent = await fs.readFile(resolvedPath, { encoding: "utf-8" });
+        const lines = originalContent.split("\n");
 
         // Validate line_offset
         if (line_offset < 0) {
@@ -78,9 +78,13 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
         const newStats = await fs.stat(resolvedPath);
         const newLease = leaseFromStat(newStats);
 
+        // Generate diff
+        const diff = generateDiff(resolvedPath, originalContent, newContent);
+
         return {
           success: true,
           lease: newLease,
+          diff,
         };
       } catch (error) {
         // Handle specific errors

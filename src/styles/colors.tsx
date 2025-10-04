@@ -67,7 +67,7 @@ export const GlobalColors = () => (
         --color-user-border-hover: color-mix(in srgb, var(--color-user-border), white 10%);
 
         /* Assistant Message Colors */
-        --color-assistant-border: hsl(207 89% 46%);
+        --color-assistant-border: hsl(207 45% 40%);
         --color-assistant-border-hover: color-mix(
           in srgb,
           var(--color-assistant-border),

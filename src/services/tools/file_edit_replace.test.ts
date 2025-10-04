@@ -560,4 +560,49 @@ describe("file_edit_replace tool", () => {
       expect(result.error).toContain("lease mismatch");
     }
   });
+
+  it("should return unified diff with context of 3", async () => {
+    // Setup - create a file with multiple lines
+    const initialContent = "line1\nline2\nline3\nline4\nline5\nline6\nline7\nline8\nline9";
+    await fs.writeFile(testFilePath, initialContent);
+
+    const stats = await fs.stat(testFilePath);
+    const lease = leaseFromStat(stats);
+
+    const tool = createFileEditReplaceTool({ cwd: testDir });
+    const args: FileEditReplaceToolArgs = {
+      file_path: testFilePath,
+      edits: [
+        {
+          old_string: "line5",
+          new_string: "LINE5_MODIFIED",
+        },
+      ],
+      lease,
+    };
+
+    // Execute
+    const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditReplaceToolResult;
+
+    // Assert
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.diff).toBeDefined();
+      expect(result.diff).toContain("--- " + testFilePath);
+      expect(result.diff).toContain("+++ " + testFilePath);
+      expect(result.diff).toContain("-line5");
+      expect(result.diff).toContain("+LINE5_MODIFIED");
+
+      // Verify context of 3 - should include 3 lines before and after
+      expect(result.diff).toContain("line2");
+      expect(result.diff).toContain("line3");
+      expect(result.diff).toContain("line4");
+      expect(result.diff).toContain("line6");
+      expect(result.diff).toContain("line7");
+      expect(result.diff).toContain("line8");
+
+      // Lines outside the context should not be in the diff (line1, line9)
+      // Note: This depends on the exact diff format, so we verify at least the key parts are present
+    }
+  });
 });

@@ -70,6 +70,7 @@ export type FileEditReplaceToolResult =
       success: true;
       edits_applied: number;
       lease: string;
+      diff: string;
     }
   | {
       success: false;
@@ -88,6 +89,7 @@ export type FileEditInsertToolResult =
   | {
       success: true;
       lease: string;
+      diff: string;
     }
   | {
       success: false;

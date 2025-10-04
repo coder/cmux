@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import React, { useState } from "react";
 import styled from "@emotion/styled";
 import type { CmuxMessage, DisplayedMessage } from "../../types/message";
+import { HeaderButton } from "../tools/shared/ToolPrimitives";
 
 const MessageBlock = styled.div<{ borderColor: string; backgroundColor?: string }>`
   margin-bottom: 15px;
@@ -32,23 +33,6 @@ const MessageTypeLabel = styled.div`
 const ButtonGroup = styled.div`
   display: flex;
   gap: 6px;
-`;
-
-const HeaderButton = styled.button<{ active?: boolean }>`
-  background: ${(props) => (props.active ? "rgba(255, 255, 255, 0.1)" : "none")};
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: #cccccc;
-  padding: 2px 8px;
-  border-radius: 3px;
-  cursor: pointer;
-  font-size: 10px;
-  transition: all 0.2s ease;
-  white-space: nowrap;
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: rgba(255, 255, 255, 0.3);
-  }
 `;
 
 const MessageContent = styled.div`
