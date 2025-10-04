@@ -5,6 +5,15 @@
 - Electron + React desktop application
 - No existing users - migration code is not needed when changing data structures
 
+## AI-Generated Content Attribution
+
+When creating public operations (commits, PRs, issues), always include:
+
+- 🤖 emoji in the title
+- "_Generated with `cmux`_" in the body (if applicable)
+
+This ensures transparency about AI-generated contributions.
+
 ## Project Structure
 
 - `src/main.ts` - Main Electron process
