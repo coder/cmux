@@ -1,5 +1,6 @@
 import type { UIMessage } from "ai";
 import type { LanguageModelV2Usage } from "@ai-sdk/provider";
+import type { StreamErrorType } from "./errors";
 
 // Shared provider metadata type for cache statistics and other provider-specific data
 export interface ProviderMetadata {
@@ -30,7 +31,7 @@ export interface CmuxMetadata {
   partial?: boolean; // Whether this message was interrupted and is incomplete
   synthetic?: boolean; // Whether this message was synthetically generated (e.g., [INTERRUPTED] sentinel)
   error?: string; // Error message if stream failed
-  errorType?: string; // Error type/category if stream failed
+  errorType?: StreamErrorType; // Error type/category if stream failed
 }
 
 // Extended tool part type that supports interrupted tool calls (input-available state)
@@ -120,7 +121,7 @@ export type DisplayedMessage =
       id: string; // Display ID for UI/React keys
       historyId: string; // Original CmuxMessage ID for history operations
       error: string; // Error message
-      errorType: string; // Error type/category
+      errorType: StreamErrorType; // Error type/category
       historySequence: number; // Global ordering across all messages
       timestamp?: number;
       model?: string;

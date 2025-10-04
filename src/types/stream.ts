@@ -4,6 +4,7 @@
 
 import type { LanguageModelV2Usage } from "@ai-sdk/provider";
 import type { ProviderMetadata, CmuxReasoningPart, CmuxTextPart, CmuxToolPart } from "./message";
+import type { StreamErrorType } from "./errors";
 
 /**
  * Completed message part (reasoning, text, or tool) suitable for serialization
@@ -55,7 +56,7 @@ export interface ErrorEvent {
   workspaceId: string;
   messageId: string;
   error: string;
-  errorType?: string;
+  errorType?: StreamErrorType;
 }
 
 // Tool call events

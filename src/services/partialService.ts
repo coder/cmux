@@ -122,6 +122,13 @@ export class PartialService {
         return Ok(undefined); // No partial to commit
       }
 
+      // Don't commit errored partials to chat.jsonl
+      // Errored messages are transient failures, not committed history
+      // This prevents error accumulation when editing messages multiple times
+      if (partial.metadata?.error) {
+        return await this.deletePartial(workspaceId);
+      }
+
       const partialSeq = partial.metadata?.historySequence;
       if (partialSeq === undefined) {
         return Err("Partial message has no historySequence");

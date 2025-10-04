@@ -260,11 +260,7 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
         if (isStreamError(data)) {
           // Notify aggregator to clean up streaming state and mark message with error
           // Error will be displayed inline as a stream-error message
-          aggregator.handleStreamError({
-            messageId: data.messageId,
-            error: data.error,
-            errorType: data.errorType,
-          });
+          aggregator.handleStreamError(data);
           updateUIAndScroll();
           return;
         }

@@ -2,7 +2,7 @@ import type { Result } from "./result";
 import type { WorkspaceMetadata } from "./workspace";
 import type { CmuxMessage } from "./message";
 import type { ProjectConfig } from "../config";
-import type { SendMessageError } from "./errors";
+import type { SendMessageError, StreamErrorType } from "./errors";
 import type { ThinkingLevel } from "./thinking";
 import type {
   StreamStartEvent,
@@ -35,7 +35,7 @@ export interface StreamErrorMessage {
   type: "stream-error";
   messageId: string;
   error: string;
-  errorType: string;
+  errorType: StreamErrorType;
 }
 
 // Union type for workspace chat messages

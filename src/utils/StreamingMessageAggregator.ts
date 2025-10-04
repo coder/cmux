@@ -11,7 +11,7 @@ import type {
   ReasoningDeltaEvent,
   ReasoningEndEvent,
 } from "../types/stream";
-import type { WorkspaceChatMessage } from "../types/ipc";
+import type { WorkspaceChatMessage, StreamErrorMessage } from "../types/ipc";
 import type {
   DynamicToolPart,
   DynamicToolPartPending,
@@ -213,7 +213,7 @@ export class StreamingMessageAggregator {
     }
   }
 
-  handleStreamError(data: { messageId: string; error: string; errorType: string }): void {
+  handleStreamError(data: StreamErrorMessage): void {
     // Find active stream if exists
     const activeStream = this.getActiveStreams().find((s) => s.messageId === data.messageId);
 

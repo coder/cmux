@@ -29,3 +29,20 @@ export function isApiKeyError(
 export function isUnknownError(error: SendMessageError): error is { type: "unknown"; raw: string } {
   return error.type === "unknown";
 }
+
+/**
+ * Stream error types - categorizes errors during AI streaming
+ * Used across backend (StreamManager) and frontend (StreamErrorMessage)
+ */
+export type StreamErrorType =
+  | "authentication" // API key issues, 401 errors
+  | "rate_limit" // 429 rate limiting
+  | "server_error" // 5xx server errors
+  | "api" // Generic API errors
+  | "retry_failed" // Retry exhausted
+  | "aborted" // User aborted
+  | "network" // Network/fetch errors
+  | "context_exceeded" // Context length/token limit exceeded
+  | "quota" // Usage quota/billing limits
+  | "model_not_found" // Model does not exist
+  | "unknown"; // Catch-all

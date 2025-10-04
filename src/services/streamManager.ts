@@ -22,7 +22,7 @@ import type {
   ToolCallEndEvent,
   CompletedMessagePart,
 } from "../types/stream";
-import type { SendMessageError } from "../types/errors";
+import type { SendMessageError, StreamErrorType } from "../types/errors";
 import type { CmuxMetadata, CmuxMessage } from "../types/message";
 import { getTokenizerForModel } from "../utils/tokenizer";
 import type { PartialService } from "./partialService";
@@ -248,6 +248,8 @@ export class StreamManager extends EventEmitter {
         stopWhen: stepCountIs(1000), // Allow up to 1000 steps (effectively unlimited)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
         providerOptions: providerOptions as any, // Pass provider-specific options (thinking/reasoning config)
+        // Uncertain whether this is good to set explicitly...
+        // maxOutputTokens: 32000,
       });
     } catch (error) {
       // Clean up abort controller if stream creation fails
@@ -606,7 +608,7 @@ export class StreamManager extends EventEmitter {
       console.error("Stream processing error:", error);
 
       // Extract error message (errors thrown from 'error' parts already have the correct message)
-      const errorMessage: string = error instanceof Error ? error.message : String(error);
+      let errorMessage: string = error instanceof Error ? error.message : String(error);
       let actualError: unknown = error;
 
       // For categorization, use the cause if available (preserves the original error structure)
@@ -615,6 +617,43 @@ export class StreamManager extends EventEmitter {
       }
 
       let errorType = this.categorizeError(actualError);
+
+      // Detect and enhance model-not-found errors
+      if (APICallError.isInstance(actualError)) {
+        const apiError = actualError;
+
+        // Type guard for error data structure
+        const hasErrorProperty = (
+          data: unknown
+        ): data is { error: { code?: string; type?: string } } => {
+          return (
+            typeof data === "object" &&
+            data !== null &&
+            "error" in data &&
+            typeof data.error === "object" &&
+            data.error !== null
+          );
+        };
+
+        // OpenAI: 400 with error.code === 'model_not_found'
+        const isOpenAIModelError =
+          apiError.statusCode === 400 &&
+          hasErrorProperty(apiError.data) &&
+          apiError.data.error.code === "model_not_found";
+
+        // Anthropic: 404 with error.type === 'not_found_error'
+        const isAnthropicModelError =
+          apiError.statusCode === 404 &&
+          hasErrorProperty(apiError.data) &&
+          apiError.data.error.type === "not_found_error";
+
+        if (isOpenAIModelError || isAnthropicModelError) {
+          errorType = "model_not_found";
+          // Extract model name from model string (e.g., "anthropic:sonnet-1m" -> "sonnet-1m")
+          const [, modelName] = streamInfo.model.split(":");
+          errorMessage = `Model '${modelName || streamInfo.model}' does not exist or is not available. Please check your model selection.`;
+        }
+      }
 
       // If we detect API key issues in the error message, override the type
       if (
@@ -686,7 +725,7 @@ export class StreamManager extends EventEmitter {
   /**
    * Categorizes errors for better error handling (used for event emission)
    */
-  private categorizeError(error: unknown): string {
+  private categorizeError(error: unknown): StreamErrorType {
     // Use AI SDK error type guards first
     if (LoadAPIKeyError.isInstance(error)) {
       return "authentication";
@@ -701,6 +740,28 @@ export class StreamManager extends EventEmitter {
       return "retry_failed";
     }
 
+    // Check for OpenAI/Anthropic structured error format (from error.cause)
+    // Structure: { error: { code: 'context_length_exceeded', type: '...', message: '...' } }
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "error" in error &&
+      typeof error.error === "object" &&
+      error.error !== null
+    ) {
+      const structuredError = error.error as { code?: string; type?: string };
+
+      // OpenAI context length errors have code: 'context_length_exceeded'
+      if (structuredError.code === "context_length_exceeded") {
+        return "context_exceeded";
+      }
+
+      // Check for other specific error codes/types
+      if (structuredError.code === "rate_limit_exceeded") {
+        return "rate_limit";
+      }
+    }
+
     // Fall back to string matching for other errors
     if (error instanceof Error) {
       const message = error.message.toLowerCase();
@@ -709,7 +770,14 @@ export class StreamManager extends EventEmitter {
         return "aborted";
       } else if (message.includes("network") || message.includes("fetch")) {
         return "network";
-      } else if (message.includes("token") || message.includes("limit")) {
+      } else if (
+        message.includes("token") ||
+        message.includes("context") ||
+        message.includes("too long") ||
+        message.includes("maximum")
+      ) {
+        return "context_exceeded";
+      } else if (message.includes("quota") || message.includes("limit")) {
         return "quota";
       } else if (message.includes("auth") || message.includes("key")) {
         return "authentication";

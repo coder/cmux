@@ -198,3 +198,11 @@ or component, update all the duplicated code, and then continue on with the orig
 
 In the backend, use the `log` class from `log.ts` to log messages. Particularly spammy messages
 should go through `log.debug()`.
+
+## Solving Bugs
+
+- When solving a new bug, consider whether there's a solution that simplifies the overall codebase
+  _to_ simplify the bug.
+- If you're fixing via simplifcation, a new test case is generally not necessary.
+- If fixing through additional complexity, add a test case if an existing convenient harness exists.
+  - Otherwise if creating complexity, propose a new test harness to contain the new tests.

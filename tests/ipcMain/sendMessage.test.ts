@@ -485,6 +485,53 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
     );
   });
 
+  // Non-existent model error handling tests
+  describe("non-existent model error handling", () => {
+    test.each(PROVIDER_CONFIGS)(
+      "%s should return stream error when model does not exist",
+      async (provider) => {
+        const { env, workspaceId, cleanup } = await setupWorkspace(provider);
+        try {
+          // Use a clearly non-existent model name
+          const nonExistentModel = "definitely-not-a-real-model-12345";
+          const result = await sendMessageWithModel(
+            env.mockIpcRenderer,
+            workspaceId,
+            "Hello, world!",
+            provider,
+            nonExistentModel
+          );
+
+          // IPC call should succeed (errors come through stream events)
+          expect(result.success).toBe(true);
+
+          // Wait for stream-error event
+          const collector = createEventCollector(env.sentEvents, workspaceId);
+          const errorEvent = await collector.waitForEvent("stream-error", 10000);
+
+          // Should have received a stream-error event
+          expect(errorEvent).toBeDefined();
+          expect(collector.hasError()).toBe(true);
+
+          // Verify error message is the enhanced user-friendly version
+          if (errorEvent && "error" in errorEvent) {
+            const errorMsg = String(errorEvent.error);
+            // Should have the enhanced error message format
+            expect(errorMsg).toContain("definitely-not-a-real-model-12345");
+            expect(errorMsg).toContain("does not exist or is not available");
+          }
+
+          // Verify error type is properly categorized
+          if (errorEvent && "errorType" in errorEvent) {
+            expect(errorEvent.errorType).toBe("model_not_found");
+          }
+        } finally {
+          await cleanup();
+        }
+      }
+    );
+  });
+
   // Token limit error handling tests
   describe("token limit error handling", () => {
     test.each(PROVIDER_CONFIGS)(
@@ -539,21 +586,17 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
           // Should have received error event with token limit error
           expect(collector.hasError()).toBe(true);
 
-          // Verify error message mentions token limit or context exceeded
+          // Verify error is properly categorized as context_exceeded
           const errorEvents = collector
             .getEvents()
             .filter((e) => "type" in e && e.type === "stream-error");
           expect(errorEvents.length).toBeGreaterThan(0);
 
           const errorEvent = errorEvents[0];
-          if (errorEvent && "error" in errorEvent) {
-            const errorMsg = String(errorEvent.error).toLowerCase();
-            expect(
-              errorMsg.includes("token") ||
-                errorMsg.includes("too long") ||
-                errorMsg.includes("maximum") ||
-                errorMsg.includes("context")
-            ).toBe(true);
+
+          // Verify error type is context_exceeded
+          if (errorEvent && "errorType" in errorEvent) {
+            expect(errorEvent.errorType).toBe("context_exceeded");
           }
 
           // NEW: Verify error handling improvements
@@ -603,15 +646,9 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
               expect(partialMessage.metadata.partial).toBe(true);
             }
 
-            // Verify error message mentions token/context limit
-            if ("error" in partialMessage.metadata) {
-              const errorMsg = String(partialMessage.metadata.error).toLowerCase();
-              expect(
-                errorMsg.includes("token") ||
-                  errorMsg.includes("too long") ||
-                  errorMsg.includes("maximum") ||
-                  errorMsg.includes("context")
-              ).toBe(true);
+            // Verify error type is context_exceeded
+            if ("errorType" in partialMessage.metadata) {
+              expect(partialMessage.metadata.errorType).toBe("context_exceeded");
             }
           }
         } finally {
