@@ -30,7 +30,7 @@ class DisposableProcess implements Disposable {
  */
 export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
   return tool({
-    description: TOOL_DEFINITIONS.bash.description + "\ncwd: " + config.cwd,
+    description: TOOL_DEFINITIONS.bash.description + "\nRuns in " + config.cwd + " - no cd needed",
     inputSchema: TOOL_DEFINITIONS.bash.schema,
     execute: async ({ script, timeout_secs, max_lines }): Promise<BashToolResult> => {
       const startTime = performance.now();
