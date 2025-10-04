@@ -33,13 +33,13 @@
     "@ai-sdk/google": "^2.0.17",
     "@ai-sdk/openai": "^2.0.40",
     "@anthropic-ai/sdk": "^0.63.1",
-    "@anthropic-ai/tokenizer": "^0.0.4",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "ai": "^5.0.56",
     "crc-32": "^1.2.2",
     "js-tiktoken": "^1.0.17",
     "jsonc-parser": "^3.3.1",
+    "lru-cache": "^11.2.2",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-markdown": "^10.1.0",
@@ -72,7 +72,9 @@
     "ts-jest": "^29.4.4",
     "typescript": "^5.1.3",
     "typescript-eslint": "^8.45.0",
-    "vite": "^4.4.0"
+    "vite": "^4.4.0",
+    "vite-plugin-top-level-await": "^1.6.0",
+    "vite-plugin-wasm": "^3.5.0"
   },
   "build": {
     "appId": "com.cmux.app",

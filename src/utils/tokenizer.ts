@@ -3,11 +3,13 @@
  */
 
 import { encodingForModel, type Tiktoken } from "js-tiktoken";
+import { LRUCache } from "lru-cache";
+import CRC32 from "crc-32";
 import { getToolSchemas, getAvailableTools } from "./toolDefinitions";
 
 export interface Tokenizer {
   name: string;
-  countTokens: (text: string) => Promise<number>;
+  countTokens: (text: string) => number;
 }
 
 /**
@@ -15,6 +17,20 @@ export interface Tokenizer {
  * Encoders are expensive to construct, so we cache and reuse them
  */
 const tiktokenEncoderCache = new Map<string, Tiktoken>();
+
+/**
+ * LRU cache for token counts by text checksum
+ * Avoids re-tokenizing identical strings (system messages, tool definitions, etc.)
+ * Key: CRC32 checksum of text, Value: token count
+ */
+const tokenCountCache = new LRUCache<number, number>({
+  max: 500000, // Max entries (safety limit)
+  maxSize: 16 * 1024 * 1024, // 16MB total cache size
+  sizeCalculation: () => {
+    // Each entry: ~8 bytes (key) + ~8 bytes (value) + ~32 bytes (LRU overhead) ≈ 48 bytes
+    return 48;
+  },
+});
 
 /**
  * Get or create a cached tiktoken encoder for a given OpenAI model
@@ -28,69 +44,58 @@ function getOrCreateTiktokenEncoder(modelName: "gpt-4o"): Tiktoken {
 }
 
 /**
+ * Count tokens with caching via CRC32 checksum
+ * Wraps the tokenization logic to avoid re-tokenizing identical strings
+ */
+function countTokensCached(text: string, tokenizeFn: () => number): number {
+  const checksum = CRC32.str(text);
+  const cached = tokenCountCache.get(checksum);
+  if (cached !== undefined) {
+    return cached;
+  }
+
+  const count = tokenizeFn();
+  tokenCountCache.set(checksum, count);
+  return count;
+}
+
+/**
  * Get the appropriate tokenizer for a given model string
  *
  * @param modelString - Model identifier (e.g., "anthropic:claude-opus-4-1", "openai:gpt-4")
  * @returns Tokenizer interface with name and countTokens function
  */
-export function getTokenizerForModel(modelString: string): Tokenizer {
-  const provider = modelString.split(":")[0]?.toLowerCase();
+export function getTokenizerForModel(_modelString: string): Tokenizer {
+  // Use GPT-4o tokenizer for Anthropic models - better approximation than char count
+  // Note: Not 100% accurate for Claude 3+, but close enough for cost estimation
 
-  const anthropicTokenizer = {
-    name: "Anthropic",
+  return {
+    name: "tiktoken",
     countTokens: (text: string) => {
-      return Promise.resolve(Math.ceil(text.length / 4));
+      return countTokensCached(text, () => {
+        try {
+          // Use o200k_base encoding for GPT-4o and newer models (GPT-5, o1, etc.)
+          // Encoder is cached and reused for performance
+          const encoder = getOrCreateTiktokenEncoder("gpt-4o");
+          const tokens = encoder.encode(text);
+          return tokens.length;
+        } catch (error) {
+          // Log the error and fallback to approximation
+          console.error(
+            "Failed to tokenize with js-tiktoken, falling back to approximation:",
+            error
+          );
+          return Math.ceil(text.length / 4);
+        }
+      });
     },
   };
-
-  switch (provider) {
-    case "anthropic":
-      return anthropicTokenizer;
-
-    case "openai":
-      return {
-        name: "OpenAI (js-tiktoken)",
-        countTokens: (text: string) => {
-          try {
-            // Use o200k_base encoding for GPT-4o and newer models (GPT-5, o1, etc.)
-            // Encoder is cached and reused for performance
-            const encoder = getOrCreateTiktokenEncoder("gpt-4o");
-            const tokens = encoder.encode(text);
-            return Promise.resolve(tokens.length);
-          } catch (error) {
-            // Log the error and fallback to approximation
-            console.error(
-              "Failed to tokenize with js-tiktoken, falling back to approximation:",
-              error
-            );
-            return Promise.resolve(Math.ceil(text.length / 4));
-          }
-        },
-      };
-
-    case "google":
-      return {
-        name: "Google Gemini",
-        countTokens: (text: string) => {
-          // TODO: Integrate Google tokenizer
-          // For now, rough approximation: ~4 chars per token
-          return Promise.resolve(Math.ceil(text.length / 4));
-        },
-      };
-
-    default:
-      // Default to Anthropic tokenizer for unknown models
-      return {
-        ...anthropicTokenizer,
-        name: "Unknown model, using Anthropic",
-      };
-  }
 }
 
 /**
  * Calculate token counts for serialized data (tool args/results)
  */
-export async function countTokensForData(data: unknown, tokenizer: Tokenizer): Promise<number> {
+export function countTokensForData(data: unknown, tokenizer: Tokenizer): number {
   const serialized = JSON.stringify(data);
   return tokenizer.countTokens(serialized);
 }
@@ -101,12 +106,9 @@ export async function countTokensForData(data: unknown, tokenizer: Tokenizer): P
  *
  * @param toolName The name of the tool (bash, read_file, web_search, etc.)
  * @param modelString The model string to get accurate tool definitions
- * @returns Promise<number> Estimated token count for the tool definition
+ * @returns Estimated token count for the tool definition
  */
-export async function getToolDefinitionTokens(
-  toolName: string,
-  modelString: string
-): Promise<number> {
+export function getToolDefinitionTokens(toolName: string, modelString: string): number {
   try {
     // Check if this tool is available for this model
     const availableTools = getAvailableTools(modelString);
