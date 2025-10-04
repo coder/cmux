@@ -1,6 +1,19 @@
 import { describe, it, expect } from "bun:test";
 import { parseCommand, setNestedProperty } from "./parser";
 
+// Test helpers
+const expectParse = (input: string, expected: ReturnType<typeof parseCommand>) => {
+  expect(parseCommand(input)).toEqual(expected);
+};
+
+const expectProvidersSet = (input: string, provider: string, keyPath: string[], value: string) => {
+  expectParse(input, { type: "providers-set", provider, keyPath, value });
+};
+
+const expectModelSet = (input: string, modelString: string) => {
+  expectParse(input, { type: "model-set", modelString });
+};
+
 describe("commandParser", () => {
   describe("parseCommand", () => {
     it("should return null for non-command input", () => {
@@ -10,95 +23,80 @@ describe("commandParser", () => {
     });
 
     it("should parse /clear command", () => {
-      const result = parseCommand("/clear");
-      expect(result).toEqual({
-        type: "clear",
-      });
+      expectParse("/clear", { type: "clear" });
     });
 
     it("should parse /providers help when no subcommand", () => {
-      const result = parseCommand("/providers");
-      expect(result).toEqual({
-        type: "providers-help",
-      });
+      expectParse("/providers", { type: "providers-help" });
     });
 
     it("should parse /providers with invalid subcommand", () => {
-      const result = parseCommand("/providers invalid");
-      expect(result).toEqual({
+      expectParse("/providers invalid", {
         type: "providers-invalid-subcommand",
         subcommand: "invalid",
       });
     });
 
     it("should parse /providers set with missing args", () => {
-      expect(parseCommand("/providers set")).toEqual({
-        type: "providers-missing-args",
-        subcommand: "set",
-        argCount: 0,
-      });
+      const missingArgsCases = [
+        { input: "/providers set", argCount: 0 },
+        { input: "/providers set anthropic", argCount: 1 },
+        { input: "/providers set anthropic apiKey", argCount: 2 },
+      ];
 
-      expect(parseCommand("/providers set anthropic")).toEqual({
-        type: "providers-missing-args",
-        subcommand: "set",
-        argCount: 1,
-      });
-
-      expect(parseCommand("/providers set anthropic apiKey")).toEqual({
-        type: "providers-missing-args",
-        subcommand: "set",
-        argCount: 2,
+      missingArgsCases.forEach(({ input, argCount }) => {
+        expectParse(input, {
+          type: "providers-missing-args",
+          subcommand: "set",
+          argCount,
+        });
       });
     });
 
     it("should parse /providers set with all arguments", () => {
-      const result = parseCommand("/providers set anthropic apiKey sk-123");
-      expect(result).toEqual({
-        type: "providers-set",
-        provider: "anthropic",
-        keyPath: ["apiKey"],
-        value: "sk-123",
-      });
+      expectProvidersSet(
+        "/providers set anthropic apiKey sk-123",
+        "anthropic",
+        ["apiKey"],
+        "sk-123"
+      );
     });
 
     it("should handle quoted arguments", () => {
-      const result = parseCommand('/providers set anthropic apiKey "my key with spaces"');
-      expect(result).toEqual({
-        type: "providers-set",
-        provider: "anthropic",
-        keyPath: ["apiKey"],
-        value: "my key with spaces",
-      });
+      expectProvidersSet(
+        '/providers set anthropic apiKey "my key with spaces"',
+        "anthropic",
+        ["apiKey"],
+        "my key with spaces"
+      );
     });
 
     it("should handle multiple spaces in value", () => {
-      const result = parseCommand("/providers set anthropic apiKey My Anthropic API");
-      expect(result).toEqual({
-        type: "providers-set",
-        provider: "anthropic",
-        keyPath: ["apiKey"],
-        value: "My Anthropic API",
-      });
+      expectProvidersSet(
+        "/providers set anthropic apiKey My Anthropic API",
+        "anthropic",
+        ["apiKey"],
+        "My Anthropic API"
+      );
     });
 
     it("should handle nested key paths", () => {
-      const result = parseCommand("/providers set anthropic baseUrl.scheme https");
-      expect(result).toEqual({
-        type: "providers-set",
-        provider: "anthropic",
-        keyPath: ["baseUrl", "scheme"],
-        value: "https",
-      });
+      expectProvidersSet(
+        "/providers set anthropic baseUrl.scheme https",
+        "anthropic",
+        ["baseUrl", "scheme"],
+        "https"
+      );
     });
 
     it("should parse unknown commands", () => {
-      expect(parseCommand("/foo")).toEqual({
+      expectParse("/foo", {
         type: "unknown-command",
         command: "foo",
         subcommand: undefined,
       });
 
-      expect(parseCommand("/foo bar")).toEqual({
+      expectParse("/foo bar", {
         type: "unknown-command",
         command: "foo",
         subcommand: "bar",
@@ -106,61 +104,41 @@ describe("commandParser", () => {
     });
 
     it("should handle multiple spaces between arguments", () => {
-      const result = parseCommand("/providers   set   anthropic   apiKey   sk-12345");
-      expect(result).toEqual({
-        type: "providers-set",
-        provider: "anthropic",
-        keyPath: ["apiKey"],
-        value: "sk-12345",
-      });
+      expectProvidersSet(
+        "/providers   set   anthropic   apiKey   sk-12345",
+        "anthropic",
+        ["apiKey"],
+        "sk-12345"
+      );
     });
 
     it("should handle quoted URL values", () => {
-      const result = parseCommand(
-        '/providers set anthropic baseUrl "https://api.anthropic.com/v1"'
+      expectProvidersSet(
+        '/providers set anthropic baseUrl "https://api.anthropic.com/v1"',
+        "anthropic",
+        ["baseUrl"],
+        "https://api.anthropic.com/v1"
       );
-      expect(result).toEqual({
-        type: "providers-set",
-        provider: "anthropic",
-        keyPath: ["baseUrl"],
-        value: "https://api.anthropic.com/v1",
-      });
     });
 
     it("should parse /model with abbreviation", () => {
-      const result = parseCommand("/model opus");
-      expect(result).toEqual({
-        type: "model-set",
-        modelString: "anthropic:claude-opus-4-1",
-      });
+      expectModelSet("/model opus", "anthropic:claude-opus-4-1");
     });
 
     it("should parse /model with full provider:model format", () => {
-      const result = parseCommand("/model anthropic:claude-sonnet-4-5");
-      expect(result).toEqual({
-        type: "model-set",
-        modelString: "anthropic:claude-sonnet-4-5",
-      });
+      expectModelSet("/model anthropic:claude-sonnet-4-5", "anthropic:claude-sonnet-4-5");
     });
 
     it("should parse /model help when no args", () => {
-      const result = parseCommand("/model");
-      expect(result).toEqual({
-        type: "model-help",
-      });
+      expectParse("/model", { type: "model-help" });
     });
 
     it("should handle unknown abbreviation as full model string", () => {
-      const result = parseCommand("/model custom:model-name");
-      expect(result).toEqual({
-        type: "model-set",
-        modelString: "custom:model-name",
-      });
+      expectModelSet("/model custom:model-name", "custom:model-name");
     });
 
     it("should reject /model with too many arguments", () => {
-      const result = parseCommand("/model anthropic claude extra");
-      expect(result).toEqual({
+      expectParse("/model anthropic claude extra", {
         type: "unknown-command",
         command: "model",
         subcommand: "claude",
