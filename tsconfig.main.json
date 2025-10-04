@@ -3,7 +3,8 @@
   "compilerOptions": {
     "module": "CommonJS",
     "outDir": "dist",
-    "noEmit": false
+    "noEmit": false,
+    "sourceMap": true
   },
   "include": ["src/main.ts", "src/constants/**/*"],
   "exclude": ["src/App.tsx", "src/main.tsx"]

@@ -147,6 +147,8 @@ export function calculateTokenStats(messages: CmuxMessage[], model: string): Cha
     };
   }
 
+  performance.mark("calculateTokenStatsStart");
+
   const tokenizer = getTokenizerForModel(model);
   const consumerMap = new Map<string, { fixed: number; variable: number }>();
   const toolsWithDefinitions = new Set<string>(); // Track which tools have definitions included

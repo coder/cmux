@@ -10,6 +10,7 @@ export default defineConfig({
     outDir: "dist",
     assetsDir: ".",
     emptyOutDir: false,
+    sourcemap: true,
   },
   server: {
     port: 5173,

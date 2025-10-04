@@ -28,7 +28,9 @@ switch (command) {
       console.log("Usage: bun debug costs <workspace-id>");
       process.exit(1);
     }
+    console.profile("costs");
     costsCommand(workspaceId);
+    console.profileEnd("costs");
     break;
   }
   default:
