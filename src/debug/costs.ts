@@ -8,7 +8,7 @@ import { calculateTokenStats } from "../utils/tokenStatsCalculator";
  * Debug command to display cost/token statistics for a workspace
  * Usage: bun debug costs <workspace-id>
  */
-export async function costsCommand(workspaceId: string) {
+export function costsCommand(workspaceId: string) {
   console.log(`\n=== Cost Statistics for workspace: ${workspaceId} ===\n`);
 
   // Load chat history
@@ -36,8 +36,8 @@ export async function costsCommand(workspaceId: string) {
   const firstAssistantMessage = messages.find((msg) => msg.role === "assistant");
   const model = firstAssistantMessage?.metadata?.model ?? "anthropic:claude-opus-4-1";
 
-  // Calculate stats using shared logic
-  const stats = await calculateTokenStats(messages, model);
+  // Calculate stats using shared logic (now synchronous)
+  const stats = calculateTokenStats(messages, model);
 
   // Display results
   console.log(`Model: ${stats.model}`);

@@ -30,7 +30,7 @@ class DisposableProcess implements Disposable {
  */
 export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
   return tool({
-    description: TOOL_DEFINITIONS.bash.description,
+    description: TOOL_DEFINITIONS.bash.description + "\ncwd: " + config.cwd,
     inputSchema: TOOL_DEFINITIONS.bash.schema,
     execute: async ({ script, timeout_secs, max_lines }): Promise<BashToolResult> => {
       const startTime = performance.now();
@@ -40,6 +40,7 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
         spawn("bash", ["-c", script], {
           cwd: config.cwd,
           env: process.env,
+          stdio: ["ignore", "pipe", "pipe"], // stdin: ignore, stdout: pipe, stderr: pipe
         })
       );
 
@@ -48,7 +49,6 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
         const lines: string[] = [];
         let truncated = false;
         let exitCode: number | null = null;
-        let timedOut = false;
         let resolved = false;
 
         // Helper to resolve once
@@ -60,31 +60,13 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
           }
         };
 
-        // Set up timeout
+        // Set up timeout - kill process and let close event handle cleanup
         const timeoutHandle = setTimeout(() => {
-          timedOut = true;
-          const wall_duration_ms = performance.now() - startTime;
-          resolveOnce({
-            success: false,
-            error: `Command timed out after ${timeout_secs} seconds`,
-            exitCode: -1,
-            wall_duration_ms,
-            truncated,
-          });
-        }, timeout_secs * 1000);
-
-        // Helper to check if we've exceeded max_lines
-        const checkMaxLines = () => {
-          if (lines.length >= max_lines) {
-            truncated = true;
-            stdoutReader.close();
-            stderrReader.close();
-            // Kill the process to stop generating more output
+          if (!resolved) {
             childProcess.child.kill();
-            return true;
+            // The close event will fire and handle finalization with timeout error
           }
-          return false;
-        };
+        }, timeout_secs * 1000);
 
         // Set up readline for both stdout and stderr to handle line buffering
         const stdoutReader = createInterface({ input: childProcess.child.stdout! });
@@ -93,32 +75,54 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
         stdoutReader.on("line", (line) => {
           if (!truncated && !resolved) {
             lines.push(line);
-            checkMaxLines();
+            // Check if we've exceeded max_lines
+            if (lines.length >= max_lines) {
+              truncated = true;
+              // Close readline interfaces before killing to ensure clean shutdown
+              stdoutReader.close();
+              stderrReader.close();
+              childProcess.child.kill();
+            }
           }
         });
 
         stderrReader.on("line", (line) => {
           if (!truncated && !resolved) {
             lines.push(line);
-            checkMaxLines();
+            // Check if we've exceeded max_lines
+            if (lines.length >= max_lines) {
+              truncated = true;
+              // Close readline interfaces before killing to ensure clean shutdown
+              stdoutReader.close();
+              stderrReader.close();
+              childProcess.child.kill();
+            }
           }
         });
 
-        childProcess.child.on("exit", (code: number | null) => {
-          exitCode = code;
-        });
-
-        // Handle process completion
-        const finalize = () => {
+        // The 'close' event fires when process exits AND all stdio streams are closed
+        // This is our single source of truth - no coordination needed
+        // Previous approaches tried coordinating exit/end events from multiple streams,
+        // which caused hangs in Electron when stream 'end' events didn't fire reliably
+        childProcess.child.on("close", (code: number | null) => {
           if (resolved) return;
 
-          const wall_duration_ms = performance.now() - startTime;
+          // Round to integer to preserve tokens.
+          const wall_duration_ms = Math.round(performance.now() - startTime);
+          exitCode = code;
+
+          // Clean up readline interfaces if still open
+          stdoutReader.close();
+          stderrReader.close();
 
           // Join lines and add truncation marker if needed
           let output = lines.join("\n");
           if (truncated && output.length > 0) {
             output += " [TRUNCATED]";
           }
+
+          // Check if this was a timeout (process killed and no natural exit code)
+          const timedOut = wall_duration_ms >= timeout_secs * 1000 - 10; // 10ms tolerance
 
           if (timedOut) {
             resolveOnce({
@@ -128,10 +132,7 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
               wall_duration_ms,
               truncated,
             });
-            return;
-          }
-
-          if (exitCode === 0 || exitCode === null) {
+          } else if (exitCode === 0 || exitCode === null) {
             resolveOnce({
               success: true,
               output,
@@ -149,39 +150,10 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
               truncated,
             });
           }
-        };
-
-        // Wait for both readers to close and process to exit
-        let stdoutClosed = false;
-        let stderrClosed = false;
-        let processExited = false;
-
-        const checkComplete = () => {
-          if (stdoutClosed && stderrClosed && processExited) {
-            finalize();
-          } else if (truncated && stdoutClosed && stderrClosed) {
-            // If truncated, we can finalize as soon as readers are closed
-            finalize();
-          }
-        };
-
-        stdoutReader.on("close", () => {
-          stdoutClosed = true;
-          checkComplete();
-        });
-
-        stderrReader.on("close", () => {
-          stderrClosed = true;
-          checkComplete();
-        });
-
-        childProcess.child.on("exit", () => {
-          processExited = true;
-          // Give readers a moment to finish
-          setTimeout(checkComplete, 50);
         });
 
         childProcess.child.on("error", (err: Error) => {
+          if (resolved) return;
           const wall_duration_ms = performance.now() - startTime;
           resolveOnce({
             success: false,

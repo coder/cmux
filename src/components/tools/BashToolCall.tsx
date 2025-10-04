@@ -92,7 +92,7 @@ export const BashToolCall: React.FC<BashToolCallProps> = ({ args, result, status
           timeout: {args.timeout_secs}s
           {result && ` • took ${formatDuration(result.wall_duration_ms)}`}
         </TimeoutInfo>
-        {result && <ExitCodeBadge exitCode={result.exitCode}>exit {result.exitCode}</ExitCodeBadge>}
+        {result && <ExitCodeBadge exitCode={result.exitCode}>{result.exitCode}</ExitCodeBadge>}
         <StatusIndicator status={status}>{getStatusDisplay(status)}</StatusIndicator>
       </ToolHeader>
 

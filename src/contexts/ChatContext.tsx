@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useRef } from "react";
 import type { CmuxMessage, DisplayedMessage } from "../types/message";
 import type { ChatStats } from "../types/chatStats";
 import { calculateTokenStats } from "../utils/tokenStatsCalculator";
@@ -27,42 +27,47 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({
 }) => {
   const [stats, setStats] = useState<ChatStats | null>(null);
   const [isCalculating, setIsCalculating] = useState(false);
+  // Track if we've already scheduled a calculation to prevent timer spam
+  const calculationScheduledRef = useRef(false);
 
   useEffect(() => {
-    let cancelled = false;
-
-    async function calculateStats() {
-      if (cmuxMessages.length === 0) {
-        setStats({
-          consumers: [],
-          totalTokens: 0,
-          model,
-          tokenizerName: "No messages",
-          usageHistory: [],
-        });
-        return;
-      }
-
-      setIsCalculating(true);
-
-      try {
-        // Use shared calculator with CmuxMessages
-        const calculatedStats = await calculateTokenStats(cmuxMessages, model);
-
-        if (!cancelled) {
-          setStats(calculatedStats);
-        }
-      } finally {
-        if (!cancelled) {
-          setIsCalculating(false);
-        }
-      }
+    if (cmuxMessages.length === 0) {
+      setStats({
+        consumers: [],
+        totalTokens: 0,
+        model,
+        tokenizerName: "No messages",
+        usageHistory: [],
+      });
+      return;
     }
 
-    void calculateStats();
+    // IMPORTANT: Prevent duplicate timers during rapid events (reasoning deltas)
+    // During message loading, 600+ reasoning-delta events fire rapidly, each triggering
+    // this effect. Without this guard, we'd start 600 timers that all eventually run!
+    if (calculationScheduledRef.current) return;
+
+    calculationScheduledRef.current = true;
+
+    // Debounce calculation by 100ms to avoid blocking on rapid updates
+    const timeoutId = setTimeout(() => {
+      // IMPORTANT: setIsCalculating must be inside the timeout!
+      // If called outside, it triggers immediate re-render which restarts this effect,
+      // creating an infinite loop (100+ calculations for 4 messages = 10s freeze)
+      setIsCalculating(true);
+      try {
+        // Use shared calculator with CmuxMessages (now synchronous with real tokenizer)
+        const calculatedStats = calculateTokenStats(cmuxMessages, model);
+        setStats(calculatedStats);
+      } finally {
+        setIsCalculating(false);
+        calculationScheduledRef.current = false;
+      }
+    }, 100);
 
     return () => {
-      cancelled = true;
+      clearTimeout(timeoutId);
+      calculationScheduledRef.current = false;
     };
   }, [cmuxMessages, model]);
 

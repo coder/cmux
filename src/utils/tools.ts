@@ -47,7 +47,7 @@ export function getToolsForModel(
       case "anthropic":
         return {
           ...baseTools,
-          web_search: anthropic.tools.webSearch_20250305({ maxUses: 10 }),
+          web_search: anthropic.tools.webSearch_20250305({ maxUses: 1000 }),
         };
 
       case "openai":
@@ -55,7 +55,9 @@ export function getToolsForModel(
         if (modelId.includes("gpt-5") || modelId.includes("gpt-4")) {
           return {
             ...baseTools,
-            web_search: openai.tools.webSearch({}),
+            web_search: openai.tools.webSearch({
+              searchContextSize: "high",
+            }),
           };
         }
         break;

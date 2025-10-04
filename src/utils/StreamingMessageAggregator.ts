@@ -44,23 +44,18 @@ export class StreamingMessageAggregator {
   private activeStreams = new Map<string, StreamingContext>();
   private streamSequenceCounter = 0; // For ordering parts within a streaming message
 
-  // Display version tracking for efficient React updates
-  private displayVersion = 0;
+  // Cache for getAllMessages() to maintain stable array references
+  private cachedMessages: CmuxMessage[] | null = null;
 
-  // Increment version on any mutation
-  private incrementDisplayVersion(): void {
-    this.displayVersion++;
-  }
-
-  // Public method to get current display version
-  getDisplayVersion(): number {
-    return this.displayVersion;
+  // Invalidate cache on any mutation
+  private invalidateCache(): void {
+    this.cachedMessages = null;
   }
 
   addMessage(message: CmuxMessage): void {
     // Just store the message - backend assigns historySequence
     this.messages.set(message.id, message);
-    this.incrementDisplayVersion();
+    this.invalidateCache();
   }
 
   /**
@@ -71,13 +66,18 @@ export class StreamingMessageAggregator {
     for (const message of messages) {
       this.messages.set(message.id, message);
     }
-    this.incrementDisplayVersion();
+    this.invalidateCache();
   }
 
   getAllMessages(): CmuxMessage[] {
-    return Array.from(this.messages.values()).sort(
+    if (this.cachedMessages) {
+      return this.cachedMessages;
+    }
+
+    this.cachedMessages = Array.from(this.messages.values()).sort(
       (a, b) => (a.metadata?.historySequence ?? 0) - (b.metadata?.historySequence ?? 0)
     );
+    return this.cachedMessages;
   }
 
   // Efficient methods to check message state without creating arrays
@@ -97,7 +97,7 @@ export class StreamingMessageAggregator {
     this.messages.clear();
     this.activeStreams.clear();
     this.streamSequenceCounter = 0;
-    this.incrementDisplayVersion();
+    this.invalidateCache();
   }
 
   // Unified event handlers that encapsulate all complex logic
@@ -120,7 +120,7 @@ export class StreamingMessageAggregator {
     });
 
     this.messages.set(data.messageId, streamingMessage);
-    this.incrementDisplayVersion();
+    this.invalidateCache();
   }
 
   handleStreamDelta(data: StreamDeltaEvent): void {
@@ -132,7 +132,7 @@ export class StreamingMessageAggregator {
       type: "text",
       text: data.delta,
     });
-    this.incrementDisplayVersion();
+    this.invalidateCache();
   }
 
   handleStreamEnd(data: StreamEndEvent): void {
@@ -193,7 +193,7 @@ export class StreamingMessageAggregator {
 
       this.messages.set(data.messageId, message);
     }
-    this.incrementDisplayVersion();
+    this.invalidateCache();
   }
 
   handleStreamAbort(data: StreamAbortEvent): void {
@@ -209,7 +209,7 @@ export class StreamingMessageAggregator {
 
       // Clean up active stream (streaming status is inferred from this)
       this.activeStreams.delete(activeStream.streamingId);
-      this.incrementDisplayVersion();
+      this.invalidateCache();
     }
   }
 
@@ -228,7 +228,7 @@ export class StreamingMessageAggregator {
 
       // Clean up active stream (streaming status is inferred from this)
       this.activeStreams.delete(activeStream.streamingId);
-      this.incrementDisplayVersion();
+      this.invalidateCache();
     }
   }
 
@@ -256,7 +256,7 @@ export class StreamingMessageAggregator {
       input: data.args,
     };
     message.parts.push(toolPart as never);
-    this.incrementDisplayVersion();
+    this.invalidateCache();
   }
 
   handleToolCallDelta(_data: ToolCallDeltaEvent): void {
@@ -278,7 +278,7 @@ export class StreamingMessageAggregator {
         (toolPart as DynamicToolPartAvailable).state = "output-available";
         (toolPart as DynamicToolPartAvailable).output = data.result;
       }
-      this.incrementDisplayVersion();
+      this.invalidateCache();
     }
   }
 
@@ -291,13 +291,13 @@ export class StreamingMessageAggregator {
       type: "reasoning",
       text: data.delta,
     });
-    this.incrementDisplayVersion();
+    this.invalidateCache();
   }
 
   handleReasoningEnd(_data: ReasoningEndEvent): void {
     // Reasoning-end is just a signal - no state to update
     // Streaming status is inferred from activeStreams in getDisplayedMessages
-    this.incrementDisplayVersion();
+    this.invalidateCache();
   }
 
   handleMessage(data: WorkspaceChatMessage): void {

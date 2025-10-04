@@ -519,7 +519,7 @@ export class StreamManager extends EventEmitter {
           // Estimate from the reasoning part text
           try {
             const tokenizer = getTokenizerForModel(streamInfo.model);
-            reasoningTokens = await tokenizer.countTokens(reasoningPart.text);
+            reasoningTokens = tokenizer.countTokens(reasoningPart.text);
             log.debug("streamManager: Estimated reasoning tokens from part", {
               estimatedTokens: reasoningTokens,
               textLength: reasoningPart.text.length,

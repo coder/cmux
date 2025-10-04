@@ -265,7 +265,7 @@ export class AIService extends EventEmitter {
 
       // Count system message tokens for cost tracking
       const tokenizer = getTokenizerForModel(modelString);
-      const systemMessageTokens = await tokenizer.countTokens(systemMessage);
+      const systemMessageTokens = tokenizer.countTokens(systemMessage);
 
       const workspacePath = metadataResult.data.workspacePath;
 

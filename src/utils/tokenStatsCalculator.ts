@@ -136,10 +136,7 @@ export function sumUsageHistory(usageHistory: ChatUsageDisplay[]): ChatUsageDisp
  * @param model - Model string (e.g., "anthropic:claude-opus-4-1")
  * @returns ChatStats with token breakdown by consumer and usage history
  */
-export async function calculateTokenStats(
-  messages: CmuxMessage[],
-  model: string
-): Promise<ChatStats> {
+export function calculateTokenStats(messages: CmuxMessage[], model: string): ChatStats {
   if (messages.length === 0) {
     return {
       consumers: [],
@@ -164,9 +161,10 @@ export async function calculateTokenStats(
       let userTokens = 0;
       for (const part of message.parts) {
         if (part.type === "text") {
-          userTokens += await tokenizer.countTokens(part.text);
+          userTokens += tokenizer.countTokens(part.text);
         }
       }
+
       const existing = consumerMap.get("User") ?? { fixed: 0, variable: 0 };
       consumerMap.set("User", { fixed: 0, variable: existing.variable + userTokens });
     } else if (message.role === "assistant") {
@@ -188,14 +186,34 @@ export async function calculateTokenStats(
       }
 
       // Count assistant text separately from tools
+      // IMPORTANT: Batch tokenization by type to avoid calling tokenizer for each tiny part
+      // (reasoning messages can have 600+ parts like "I", "'m", " thinking")
+
+      // Group and concatenate parts by type
+      const textParts = message.parts.filter((p) => p.type === "text");
+      const reasoningParts = message.parts.filter((p) => p.type === "reasoning");
+
+      // Tokenize text parts once (not per part!)
+      if (textParts.length > 0) {
+        const allText = textParts.map((p) => p.text).join("");
+        const textTokens = tokenizer.countTokens(allText);
+        const existing = consumerMap.get("Assistant") ?? { fixed: 0, variable: 0 };
+        consumerMap.set("Assistant", { fixed: 0, variable: existing.variable + textTokens });
+      }
+
+      // Tokenize reasoning parts once (not per part!)
+      if (reasoningParts.length > 0) {
+        const allReasoning = reasoningParts.map((p) => p.text).join("");
+        const reasoningTokens = tokenizer.countTokens(allReasoning);
+        const existing = consumerMap.get("Reasoning") ?? { fixed: 0, variable: 0 };
+        consumerMap.set("Reasoning", { fixed: 0, variable: existing.variable + reasoningTokens });
+      }
+
+      // Handle tool parts
       for (const part of message.parts) {
-        if (part.type === "text") {
-          const textTokens = await tokenizer.countTokens(part.text);
-          const existing = consumerMap.get("Assistant") ?? { fixed: 0, variable: 0 };
-          consumerMap.set("Assistant", { fixed: 0, variable: existing.variable + textTokens });
-        } else if (part.type === "dynamic-tool") {
+        if (part.type === "dynamic-tool") {
           // Count tool arguments
-          const argsTokens = await countTokensForData(part.input, tokenizer);
+          const argsTokens = countTokensForData(part.input, tokenizer);
 
           // Count tool results if available
           // Tool results have nested structure: { type: "json", value: {...} }
@@ -240,11 +258,11 @@ export async function calculateTokenStats(
                 resultTokens = Math.ceil(encryptedChars * 0.75);
               } else {
                 // Normal web search results without encryption
-                resultTokens = await countTokensForData(outputData, tokenizer);
+                resultTokens = countTokensForData(outputData, tokenizer);
               }
             } else {
               // Normal tool results
-              resultTokens = await countTokensForData(outputData, tokenizer);
+              resultTokens = countTokensForData(outputData, tokenizer);
             }
           }
 
@@ -254,7 +272,7 @@ export async function calculateTokenStats(
           // Add tool definition tokens if this is the first time we see this tool
           let fixedTokens = existing.fixed;
           if (!toolsWithDefinitions.has(part.toolName)) {
-            fixedTokens += await getToolDefinitionTokens(part.toolName, model);
+            fixedTokens += getToolDefinitionTokens(part.toolName, model);
             toolsWithDefinitions.add(part.toolName);
           }
 

@@ -195,4 +195,53 @@ describe("bash tool", () => {
     // Should complete quickly, not wait for the full command
     expect(duration).toBeLessThan(2000);
   });
+
+  it("should complete instantly for grep-like commands (regression test)", async () => {
+    const tool = createBashTool({ cwd: process.cwd() });
+    const startTime = performance.now();
+
+    // This test catches the bug where readline interface close events
+    // weren't firing, causing commands with minimal output to hang
+    const args: BashToolArgs = {
+      script: "echo 'test:first-child' | grep ':first-child'",
+      timeout_secs: 5,
+      max_lines: 100,
+    };
+
+    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
+    const duration = performance.now() - startTime;
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.output).toContain("first-child");
+      expect(result.exitCode).toBe(0);
+      // Should complete in well under 1 second (give 2s buffer for slow machines)
+      expect(duration).toBeLessThan(2000);
+    }
+  });
+
+  it("should not hang on commands that read from stdin (cat test)", async () => {
+    const tool = createBashTool({ cwd: process.cwd() });
+    const startTime = performance.now();
+
+    // cat without arguments reads from stdin. With stdin properly closed/ignored,
+    // it should fail immediately instead of hanging waiting for input
+    const args: BashToolArgs = {
+      script: "cat",
+      timeout_secs: 5,
+      max_lines: 100,
+    };
+
+    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
+    const duration = performance.now() - startTime;
+
+    // Should complete almost instantly (not wait for timeout)
+    expect(duration).toBeLessThan(2000);
+
+    // cat with no input should succeed with empty output (stdin is closed)
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.output).toBe("");
+    }
+  });
 });

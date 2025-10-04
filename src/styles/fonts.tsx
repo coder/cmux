@@ -14,11 +14,13 @@ export const GlobalFonts = () => (
       :root {
         /* Primary UI Font - System fonts for best native appearance */
         --font-primary:
-          -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Helvetica Neue", Arial,
-          sans-serif;
+          system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Helvetica Neue",
+          Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
 
         /* Monospace Font - Code and technical content */
-        --font-monospace: "Monaco", "Menlo", "Ubuntu Mono", "Consolas", "Courier New", monospace;
+        --font-monospace:
+          "Monaco", "Menlo", "Ubuntu Mono", "Consolas", "Courier New", monospace,
+          "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
       }
     `}
   />

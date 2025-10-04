@@ -59,6 +59,7 @@ export function buildProviderOptions(
     const options: ProviderOptions = {
       anthropic: {
         disableParallelToolUse: false, // Always enable concurrent tool execution
+        sendReasoning: true, // Include reasoning traces in requests sent to the model
         // Conditionally add thinking configuration
         ...(budgetTokens > 0 && {
           thinking: {
