@@ -49,12 +49,11 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({
 
     calculationScheduledRef.current = true;
 
+    // Show calculating state immediately (safe now that aggregator cache provides stable refs)
+    setIsCalculating(true);
+
     // Debounce calculation by 100ms to avoid blocking on rapid updates
     const timeoutId = setTimeout(() => {
-      // IMPORTANT: setIsCalculating must be inside the timeout!
-      // If called outside, it triggers immediate re-render which restarts this effect,
-      // creating an infinite loop (100+ calculations for 4 messages = 10s freeze)
-      setIsCalculating(true);
       try {
         // Use shared calculator with CmuxMessages (now synchronous with real tokenizer)
         const calculatedStats = calculateTokenStats(cmuxMessages, model);
