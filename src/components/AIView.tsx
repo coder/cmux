@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import styled from "@emotion/styled";
 import { MessageRenderer } from "./Messages/MessageRenderer";
 import { InterruptedBarrier } from "./Messages/InterruptedBarrier";
 import { ChatInput } from "./ChatInput";
-import { ErrorMessage } from "./ErrorMessage";
 import { ChatMetaSidebar } from "./ChatMetaSidebar";
 import type { DisplayedMessage, CmuxMessage } from "../types/message";
 import { StreamingMessageAggregator } from "../utils/StreamingMessageAggregator";
@@ -400,17 +399,13 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
     []
   );
 
-  // Get current aggregator's display version for memoization
+  // Get current aggregator
   const aggregator = getAggregator(workspaceId);
-  const displayVersion = aggregator.getDisplayVersion();
 
-  // Memoize cmuxMessages to only recalculate when displayVersion changes
+  // getAllMessages() returns cached array with stable references when state unchanged
+  // The aggregator invalidates its cache on mutations, so we don't need useMemo here
   // Must be before early returns to respect React hooks rules
-  const cmuxMessages = useMemo(
-    () => aggregator.getAllMessages(),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [aggregator, displayVersion] // displayVersion is needed to detect internal state changes
-  );
+  const cmuxMessages = aggregator.getAllMessages();
 
   // Check if we can interrupt (streaming is active)
   const canInterrupt = aggregator.getActiveStreams().length > 0;
