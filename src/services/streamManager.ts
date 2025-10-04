@@ -734,6 +734,12 @@ export class StreamManager extends EventEmitter {
       if (error.statusCode === 401) return "authentication";
       if (error.statusCode === 429) return "rate_limit";
       if (error.statusCode && error.statusCode >= 500) return "server_error";
+
+      // Check for Anthropic context exceeded errors
+      if (error.message.includes("prompt is too long:")) {
+        return "context_exceeded";
+      }
+
       return "api";
     }
     if (RetryError.isInstance(error)) {
