@@ -26,6 +26,7 @@ import type { SendMessageError, StreamErrorType } from "../types/errors";
 import type { CmuxMetadata, CmuxMessage } from "../types/message";
 import type { PartialService } from "./partialService";
 import type { HistoryService } from "./historyService";
+import { AsyncMutex } from "../utils/asyncMutex";
 
 // Type definitions for stream parts with extended properties
 interface ReasoningDeltaPart {
@@ -99,6 +100,8 @@ interface WorkspaceStreamInfo {
   partialWriteTimer?: NodeJS.Timeout;
   // Track in-flight write to serialize writes
   partialWritePromise?: Promise<void>;
+  // Track background processing promise for guaranteed cleanup
+  processingPromise: Promise<void>;
 }
 
 /**
@@ -111,6 +114,7 @@ interface WorkspaceStreamInfo {
  */
 export class StreamManager extends EventEmitter {
   private workspaceStreams = new Map<WorkspaceId, WorkspaceStreamInfo>();
+  private streamLocks = new Map<WorkspaceId, AsyncMutex>();
   private readonly PARTIAL_WRITE_THROTTLE_MS = 500;
   private readonly historyService: HistoryService;
   private readonly partialService: PartialService;
@@ -216,6 +220,10 @@ export class StreamManager extends EventEmitter {
 
   /**
    * Safely cancels an existing stream with proper cleanup
+   *
+   * CRITICAL: Waits for the processing promise to complete before cleanup.
+   * This ensures the old stream fully exits before a new stream can start,
+   * preventing concurrent streams and race conditions.
    */
   private async cancelStreamSafely(
     workspaceId: WorkspaceId,
@@ -228,6 +236,11 @@ export class StreamManager extends EventEmitter {
       await this.flushPartialWrite(workspaceId, streamInfo);
 
       streamInfo.abortController.abort();
+
+      // CRITICAL: Wait for processing to fully complete before cleanup
+      // This prevents race conditions where the old stream is still running
+      // while a new stream starts (e.g., old stream writing to partial.json)
+      await streamInfo.processingPromise;
 
       // Emit abort event
       this.emit("stream-abort", {
@@ -281,8 +294,9 @@ export class StreamManager extends EventEmitter {
         stopWhen: stepCountIs(1000), // Allow up to 1000 steps (effectively unlimited)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
         providerOptions: providerOptions as any, // Pass provider-specific options (thinking/reasoning config)
-        // Uncertain whether this is good to set explicitly...
-        // maxOutputTokens: 32000,
+        // This is at least necessary for Anthropic, which defaults to
+        // 4096 tokens.
+        maxOutputTokens: 32000,
       });
     } catch (error) {
       // Clean up abort controller if stream creation fails
@@ -306,6 +320,7 @@ export class StreamManager extends EventEmitter {
       parts: [], // Initialize empty parts array
       lastPartialWriteTime: 0, // Initialize to 0 to allow immediate first write
       partialWritePromise: undefined, // No write in flight initially
+      processingPromise: Promise.resolve(), // Placeholder, overwritten in startStream
     };
 
     // Atomically register the stream
@@ -776,6 +791,11 @@ export class StreamManager extends EventEmitter {
 
   /**
    * Starts a new stream for a workspace, automatically cancelling any existing stream
+   *
+   * Uses per-workspace mutex to prevent concurrent streams. The mutex ensures:
+   * 1. Only one startStream can execute at a time per workspace
+   * 2. Old stream fully exits before new stream starts
+   * 3. No race conditions in stream registration or cleanup
    */
   async startStream(
     workspaceId: string,
@@ -791,13 +811,23 @@ export class StreamManager extends EventEmitter {
   ): Promise<Result<StreamToken, SendMessageError>> {
     const typedWorkspaceId = workspaceId as WorkspaceId;
 
+    // Get or create mutex for this workspace
+    if (!this.streamLocks.has(typedWorkspaceId)) {
+      this.streamLocks.set(typedWorkspaceId, new AsyncMutex());
+    }
+    const mutex = this.streamLocks.get(typedWorkspaceId)!;
+
     try {
+      // Acquire lock - guarantees only one startStream per workspace
+      // Lock is automatically released when scope exits via Symbol.asyncDispose
+      await using _lock = await mutex.acquire();
+
       // DEBUG: Log stream start
       log.debug(
         `[STREAM START] workspaceId=${workspaceId} historySequence=${historySequence} model=${modelString}`
       );
 
-      // Step 1: Atomic safety check (cancels any existing stream)
+      // Step 1: Atomic safety check (cancels any existing stream and waits for full exit)
       const streamToken = await this.ensureStreamSafety(typedWorkspaceId);
 
       // Step 2: Atomic stream creation and registration
@@ -815,12 +845,15 @@ export class StreamManager extends EventEmitter {
         providerOptions
       );
 
-      // Step 3: Process stream with guaranteed cleanup (runs in background)
-      this.processStreamWithCleanup(typedWorkspaceId, streamInfo, historySequence).catch(
-        (error) => {
-          console.error("Unexpected error in stream processing:", error);
-        }
-      );
+      // Step 3: Track the processing promise for guaranteed cleanup
+      // This allows cancelStreamSafely to wait for full exit
+      streamInfo.processingPromise = this.processStreamWithCleanup(
+        typedWorkspaceId,
+        streamInfo,
+        historySequence
+      ).catch((error) => {
+        console.error("Unexpected error in stream processing:", error);
+      });
 
       return Ok(streamToken);
     } catch (error) {
