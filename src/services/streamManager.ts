@@ -47,6 +47,40 @@ enum StreamState {
   ERROR = "error",
 }
 
+/**
+ * Strip encryptedContent from web search results to reduce token usage.
+ * The encrypted page content can be massive (4000+ chars per result) and isn't
+ * needed for model context. Keep URL, title, and pageAge for reference.
+ */
+function stripEncryptedContent(output: unknown): unknown {
+  // Check if output is JSON with a value array (web search results)
+  if (
+    typeof output === "object" &&
+    output !== null &&
+    "type" in output &&
+    output.type === "json" &&
+    "value" in output &&
+    Array.isArray(output.value)
+  ) {
+    // Strip encryptedContent from each search result
+    const strippedValue = output.value.map((item: unknown) => {
+      if (item && typeof item === "object" && "encryptedContent" in item) {
+        // Remove encryptedContent but keep other fields
+        const { encryptedContent, ...rest } = item as Record<string, unknown>;
+        return rest;
+      }
+      return item;
+    });
+
+    return {
+      ...output,
+      value: strippedValue,
+    };
+  }
+
+  return output;
+}
+
 // Comprehensive stream info
 interface WorkspaceStreamInfo {
   state: StreamState;
@@ -407,7 +441,9 @@ export class StreamManager extends EventEmitter {
             // Tool call completed - update the existing tool part with output
             const toolCall = toolCalls.get(part.toolCallId);
             if (toolCall) {
-              toolCall.output = part.output;
+              // Strip encrypted content from web search results before storing
+              const strippedOutput = stripEncryptedContent(part.output);
+              toolCall.output = strippedOutput;
 
               // Find and update the existing tool part (added during tool-call)
               const existingPartIndex = streamInfo.parts.findIndex(
@@ -421,7 +457,7 @@ export class StreamManager extends EventEmitter {
                   streamInfo.parts[existingPartIndex] = {
                     ...existingPart,
                     state: "output-available" as const,
-                    output: part.output,
+                    output: strippedOutput,
                   };
                 }
               } else {
@@ -432,7 +468,7 @@ export class StreamManager extends EventEmitter {
                   toolName: part.toolName,
                   state: "output-available" as const,
                   input: toolCall.input,
-                  output: part.output,
+                  output: strippedOutput,
                 });
               }
 
@@ -442,7 +478,7 @@ export class StreamManager extends EventEmitter {
                 messageId: streamInfo.messageId,
                 toolCallId: part.toolCallId,
                 toolName: part.toolName,
-                result: part.output,
+                result: strippedOutput,
               } as ToolCallEndEvent);
 
               // Schedule partial write after tool result (throttled, fire-and-forget)
