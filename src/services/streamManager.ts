@@ -542,6 +542,24 @@ export class StreamManager extends EventEmitter {
         // Get provider metadata which contains cache statistics
         const providerMetadata = await streamInfo.streamResult.providerMetadata;
 
+        // Fix cachedInputTokens from Anthropic provider metadata if not properly populated
+        // The AI SDK's Anthropic provider doesn't populate usage.cachedInputTokens from
+        // Anthropic's cache_read_input_tokens field, so we need to extract it manually
+        if (
+          adjustedUsage &&
+          providerMetadata?.anthropic &&
+          typeof providerMetadata.anthropic === "object" &&
+          "usage" in providerMetadata.anthropic
+        ) {
+          const anthropicUsage = providerMetadata.anthropic.usage as Record<string, unknown>;
+          if (typeof anthropicUsage.cache_read_input_tokens === "number") {
+            adjustedUsage = {
+              ...adjustedUsage,
+              cachedInputTokens: anthropicUsage.cache_read_input_tokens,
+            };
+          }
+        }
+
         // Emit stream end event with parts preserved in temporal order
         const streamEndEvent: StreamEndEvent = {
           type: "stream-end",
