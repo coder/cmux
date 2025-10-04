@@ -9,6 +9,7 @@ import type { OpenAIResponsesProviderOptions } from "@ai-sdk/openai";
 import type { ThinkingLevel } from "../types/thinking";
 import { ANTHROPIC_THINKING_BUDGETS, OPENAI_REASONING_EFFORT } from "../types/thinking";
 import { log } from "../services/log";
+import type { CmuxMessage } from "../types/message";
 
 /**
  * Provider-specific options structure for AI SDK
@@ -25,14 +26,17 @@ type ProviderOptions =
  * 1. Enable reasoning traces (transparency into model's thought process)
  * 2. Set reasoning level (control depth of reasoning based on task complexity)
  * 3. Enable parallel tool calls (allow concurrent tool execution)
+ * 4. Extract previousResponseId for OpenAI persistence (when available)
  *
  * @param modelString - Full model string (e.g., "anthropic:claude-opus-4-1")
  * @param thinkingLevel - Unified thinking level
+ * @param messages - Conversation history to extract previousResponseId from
  * @returns Provider options object for AI SDK
  */
 export function buildProviderOptions(
   modelString: string,
-  thinkingLevel: ThinkingLevel
+  thinkingLevel: ThinkingLevel,
+  messages?: CmuxMessage[]
 ): ProviderOptions {
   // Parse provider from model string
   const [provider] = modelString.split(":");
@@ -76,9 +80,26 @@ export function buildProviderOptions(
   // Build OpenAI-specific options
   if (provider === "openai") {
     const reasoningEffort = OPENAI_REASONING_EFFORT[thinkingLevel];
+
+    // Extract previousResponseId from last assistant message for persistence
+    let previousResponseId: string | undefined;
+    if (messages && messages.length > 0) {
+      // Find last assistant message
+      for (let i = messages.length - 1; i >= 0; i--) {
+        if (messages[i].role === "assistant") {
+          previousResponseId = messages[i].metadata?.providerMetadata?.openai?.responseId;
+          if (previousResponseId) {
+            log.debug("buildProviderOptions: Found previousResponseId", { previousResponseId });
+            break;
+          }
+        }
+      }
+    }
+
     log.debug("buildProviderOptions: OpenAI config", {
       reasoningEffort,
       thinkingLevel,
+      previousResponseId,
     });
 
     const options: ProviderOptions = {
@@ -91,6 +112,8 @@ export function buildProviderOptions(
           reasoningEffort,
           reasoningSummary: "detailed", // Enable detailed reasoning summaries
         }),
+        // Include previousResponseId for persistence (Responses API)
+        ...(previousResponseId && { previousResponseId }),
       },
     };
     log.info("buildProviderOptions: Returning OpenAI options", options);

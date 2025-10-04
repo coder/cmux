@@ -300,6 +300,83 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
       }
     }, 20000);
 
+    test("should maintain conversation continuity across messages", async () => {
+      const { env, workspaceId, cleanup } = await setupWorkspace(provider);
+      try {
+        // First message: Ask for a random word
+        const result1 = await sendMessageWithModel(
+          env.mockIpcRenderer,
+          workspaceId,
+          "Generate a random uncommon word and only say that word, nothing else.",
+          provider,
+          model
+        );
+        expect(result1.success).toBe(true);
+
+        // Wait for first stream to complete
+        const collector1 = createEventCollector(env.sentEvents, workspaceId);
+        await collector1.waitForEvent("stream-end", 10000);
+        assertStreamSuccess(collector1);
+
+        // Extract the random word from the response
+        const firstStreamEnd = collector1.getFinalMessage();
+        expect(firstStreamEnd).toBeDefined();
+        expect(firstStreamEnd && "parts" in firstStreamEnd).toBe(true);
+
+        // Extract text from parts
+        let firstContent = "";
+        if (firstStreamEnd && "parts" in firstStreamEnd && Array.isArray(firstStreamEnd.parts)) {
+          firstContent = firstStreamEnd.parts
+            .filter((part) => part.type === "text")
+            .map((part) => (part as { text: string }).text)
+            .join("");
+        }
+
+        const randomWord = firstContent.trim().split(/\s+/)[0]; // Get first word
+        expect(randomWord.length).toBeGreaterThan(0);
+
+        // Clear events for second message
+        env.sentEvents.length = 0;
+
+        // Second message: Ask for the same word (testing conversation memory)
+        const result2 = await sendMessageWithModel(
+          env.mockIpcRenderer,
+          workspaceId,
+          "What was the word you just said? Reply with only that word.",
+          provider,
+          model
+        );
+        expect(result2.success).toBe(true);
+
+        // Wait for second stream to complete
+        const collector2 = createEventCollector(env.sentEvents, workspaceId);
+        await collector2.waitForEvent("stream-end", 10000);
+        assertStreamSuccess(collector2);
+
+        // Verify the second response contains the same word
+        const secondStreamEnd = collector2.getFinalMessage();
+        expect(secondStreamEnd).toBeDefined();
+        expect(secondStreamEnd && "parts" in secondStreamEnd).toBe(true);
+
+        // Extract text from parts
+        let secondContent = "";
+        if (secondStreamEnd && "parts" in secondStreamEnd && Array.isArray(secondStreamEnd.parts)) {
+          secondContent = secondStreamEnd.parts
+            .filter((part) => part.type === "text")
+            .map((part) => (part as { text: string }).text)
+            .join("");
+        }
+
+        const responseWords = secondContent.toLowerCase().trim();
+        const originalWord = randomWord.toLowerCase();
+
+        // Check if the response contains the original word
+        expect(responseWords).toContain(originalWord);
+      } finally {
+        await cleanup();
+      }
+    }, 20000);
+
     test("should return error when model is not provided", async () => {
       const { env, workspaceId, cleanup } = await setupWorkspace(provider);
       try {

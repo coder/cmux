@@ -7,6 +7,10 @@ export interface ProviderMetadata {
     cacheCreationInputTokens?: number;
     cacheReadInputTokens?: number;
   };
+  openai?: {
+    responseId?: string;
+    [key: string]: unknown;
+  };
   [provider: string]: unknown;
 }
 

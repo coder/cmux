@@ -161,7 +161,7 @@ export class AIService extends EventEmitter {
         return Ok(provider(modelId));
       }
 
-      // Handle OpenAI provider
+      // Handle OpenAI provider (using Responses API)
       if (providerName === "openai") {
         if (!providerConfig.apiKey) {
           return Err({
@@ -170,7 +170,8 @@ export class AIService extends EventEmitter {
           });
         }
         const provider = createOpenAI(providerConfig);
-        return Ok(provider(modelId));
+        // Use Responses API for persistence and built-in tools
+        return Ok(provider.responses(modelId));
       }
 
       return Err({
@@ -289,8 +290,13 @@ export class AIService extends EventEmitter {
       // Get the assigned historySequence
       const historySequence = assistantMessage.metadata?.historySequence ?? 0;
 
-      // Build provider options based on thinking level
-      const providerOptions = buildProviderOptions(modelString, thinkingLevel ?? "off");
+      // Build provider options based on thinking level and message history
+      // Pass filtered messages so OpenAI can extract previousResponseId for persistence
+      const providerOptions = buildProviderOptions(
+        modelString,
+        thinkingLevel ?? "off",
+        filteredMessages
+      );
 
       // Delegate to StreamManager with model instance, system message, tools, historySequence, and initial metadata
       const streamResult = await this.streamManager.startStream(
