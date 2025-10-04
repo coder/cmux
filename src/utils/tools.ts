@@ -2,9 +2,10 @@ import { type Tool } from "ai";
 import { anthropic } from "@ai-sdk/anthropic";
 import { openai } from "@ai-sdk/openai";
 import { google } from "@ai-sdk/google";
-import { createReadFileTool } from "../services/tools/readFile";
+import { createFileReadTool } from "../services/tools/file_read";
 import { createBashTool } from "../services/tools/bash";
-import { createEditFileTool } from "../services/tools/editFile";
+import { createFileEditReplaceTool } from "../services/tools/file_edit_replace";
+import { createFileEditInsertTool } from "../services/tools/file_edit_insert";
 import { log } from "../services/log";
 
 /**
@@ -35,8 +36,9 @@ export function getToolsForModel(
   // Base tools available for all models
   const baseTools: Record<string, Tool> = {
     // Use snake_case for tool names to match what seems to be the convention.
-    read_file: createReadFileTool(config),
-    edit_file: createEditFileTool(config),
+    file_read: createFileReadTool(config),
+    file_edit_replace: createFileEditReplaceTool(config),
+    file_edit_insert: createFileEditInsertTool(config),
     bash: createBashTool(config),
   };
 

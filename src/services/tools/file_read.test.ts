@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach, afterEach } from "bun:test";
 import * as fs from "fs/promises";
 import * as path from "path";
 import * as os from "os";
-import { createReadFileTool } from "./readFile";
-import type { ReadFileToolArgs, ReadFileToolResult } from "../../types/tools";
+import { createFileReadTool } from "./file_read";
+import type { FileReadToolArgs, FileReadToolResult } from "../../types/tools";
 import type { ToolCallOptions } from "ai";
 
 // Mock ToolCallOptions for testing
@@ -12,13 +12,13 @@ const mockToolCallOptions: ToolCallOptions = {
   messages: [],
 };
 
-describe("readFile tool", () => {
+describe("file_read tool", () => {
   let testDir: string;
   let testFilePath: string;
 
   beforeEach(async () => {
     // Create a temporary directory for test files
-    testDir = await fs.mkdtemp(path.join(os.tmpdir(), "readFile-test-"));
+    testDir = await fs.mkdtemp(path.join(os.tmpdir(), "fileRead-test-"));
     testFilePath = path.join(testDir, "test.txt");
   });
 
@@ -32,13 +32,13 @@ describe("readFile tool", () => {
     const content = "line one\nline two\nline three";
     await fs.writeFile(testFilePath, content);
 
-    const tool = createReadFileTool({ cwd: testDir });
-    const args: ReadFileToolArgs = {
+    const tool = createFileReadTool({ cwd: testDir });
+    const args: FileReadToolArgs = {
       filePath: testFilePath,
     };
 
     // Execute
-    const result = (await tool.execute!(args, mockToolCallOptions)) as ReadFileToolResult;
+    const result = (await tool.execute!(args, mockToolCallOptions)) as FileReadToolResult;
 
     // Assert
     expect(result.success).toBe(true);
@@ -55,14 +55,14 @@ describe("readFile tool", () => {
     const content = "line1\nline2\nline3\nline4\nline5";
     await fs.writeFile(testFilePath, content);
 
-    const tool = createReadFileTool({ cwd: testDir });
-    const args: ReadFileToolArgs = {
+    const tool = createFileReadTool({ cwd: testDir });
+    const args: FileReadToolArgs = {
       filePath: testFilePath,
       offset: 3, // Start from line 3
     };
 
     // Execute
-    const result = (await tool.execute!(args, mockToolCallOptions)) as ReadFileToolResult;
+    const result = (await tool.execute!(args, mockToolCallOptions)) as FileReadToolResult;
 
     // Assert
     expect(result.success).toBe(true);
@@ -78,14 +78,14 @@ describe("readFile tool", () => {
     const content = "line1\nline2\nline3\nline4\nline5";
     await fs.writeFile(testFilePath, content);
 
-    const tool = createReadFileTool({ cwd: testDir });
-    const args: ReadFileToolArgs = {
+    const tool = createFileReadTool({ cwd: testDir });
+    const args: FileReadToolArgs = {
       filePath: testFilePath,
       limit: 2, // Read only first 2 lines
     };
 
     // Execute
-    const result = (await tool.execute!(args, mockToolCallOptions)) as ReadFileToolResult;
+    const result = (await tool.execute!(args, mockToolCallOptions)) as FileReadToolResult;
 
     // Assert
     expect(result.success).toBe(true);
@@ -101,15 +101,15 @@ describe("readFile tool", () => {
     const content = "line1\nline2\nline3\nline4\nline5";
     await fs.writeFile(testFilePath, content);
 
-    const tool = createReadFileTool({ cwd: testDir });
-    const args: ReadFileToolArgs = {
+    const tool = createFileReadTool({ cwd: testDir });
+    const args: FileReadToolArgs = {
       filePath: testFilePath,
       offset: 2, // Start from line 2
       limit: 2, // Read 2 lines
     };
 
     // Execute
-    const result = (await tool.execute!(args, mockToolCallOptions)) as ReadFileToolResult;
+    const result = (await tool.execute!(args, mockToolCallOptions)) as FileReadToolResult;
 
     // Assert
     expect(result.success).toBe(true);
@@ -125,13 +125,13 @@ describe("readFile tool", () => {
     const content = "single line";
     await fs.writeFile(testFilePath, content);
 
-    const tool = createReadFileTool({ cwd: testDir });
-    const args: ReadFileToolArgs = {
+    const tool = createFileReadTool({ cwd: testDir });
+    const args: FileReadToolArgs = {
       filePath: testFilePath,
     };
 
     // Execute
-    const result = (await tool.execute!(args, mockToolCallOptions)) as ReadFileToolResult;
+    const result = (await tool.execute!(args, mockToolCallOptions)) as FileReadToolResult;
 
     // Assert
     expect(result.success).toBe(true);
@@ -146,13 +146,13 @@ describe("readFile tool", () => {
     // Setup
     await fs.writeFile(testFilePath, "");
 
-    const tool = createReadFileTool({ cwd: testDir });
-    const args: ReadFileToolArgs = {
+    const tool = createFileReadTool({ cwd: testDir });
+    const args: FileReadToolArgs = {
       filePath: testFilePath,
     };
 
     // Execute
-    const result = (await tool.execute!(args, mockToolCallOptions)) as ReadFileToolResult;
+    const result = (await tool.execute!(args, mockToolCallOptions)) as FileReadToolResult;
 
     // Assert
     expect(result.success).toBe(true);
@@ -167,13 +167,13 @@ describe("readFile tool", () => {
     // Setup
     const nonExistentPath = path.join(testDir, "nonexistent.txt");
 
-    const tool = createReadFileTool({ cwd: testDir });
-    const args: ReadFileToolArgs = {
+    const tool = createFileReadTool({ cwd: testDir });
+    const args: FileReadToolArgs = {
       filePath: nonExistentPath,
     };
 
     // Execute
-    const result = (await tool.execute!(args, mockToolCallOptions)) as ReadFileToolResult;
+    const result = (await tool.execute!(args, mockToolCallOptions)) as FileReadToolResult;
 
     // Assert
     expect(result.success).toBe(false);
@@ -187,14 +187,14 @@ describe("readFile tool", () => {
     const content = "line1\nline2";
     await fs.writeFile(testFilePath, content);
 
-    const tool = createReadFileTool({ cwd: testDir });
-    const args: ReadFileToolArgs = {
+    const tool = createFileReadTool({ cwd: testDir });
+    const args: FileReadToolArgs = {
       filePath: testFilePath,
       offset: 10, // Beyond file length
     };
 
     // Execute
-    const result = (await tool.execute!(args, mockToolCallOptions)) as ReadFileToolResult;
+    const result = (await tool.execute!(args, mockToolCallOptions)) as FileReadToolResult;
 
     // Assert
     expect(result.success).toBe(false);
@@ -209,13 +209,13 @@ describe("readFile tool", () => {
     const content = `short line\n${longLine}\nanother short line`;
     await fs.writeFile(testFilePath, content);
 
-    const tool = createReadFileTool({ cwd: testDir });
-    const args: ReadFileToolArgs = {
+    const tool = createFileReadTool({ cwd: testDir });
+    const args: FileReadToolArgs = {
       filePath: testFilePath,
     };
 
     // Execute
-    const result = (await tool.execute!(args, mockToolCallOptions)) as ReadFileToolResult;
+    const result = (await tool.execute!(args, mockToolCallOptions)) as FileReadToolResult;
 
     // Assert
     expect(result.success).toBe(true);
@@ -236,13 +236,13 @@ describe("readFile tool", () => {
     const content = lines.join("\n");
     await fs.writeFile(testFilePath, content);
 
-    const tool = createReadFileTool({ cwd: testDir });
-    const args: ReadFileToolArgs = {
+    const tool = createFileReadTool({ cwd: testDir });
+    const args: FileReadToolArgs = {
       filePath: testFilePath,
     };
 
     // Execute
-    const result = (await tool.execute!(args, mockToolCallOptions)) as ReadFileToolResult;
+    const result = (await tool.execute!(args, mockToolCallOptions)) as FileReadToolResult;
 
     // Assert
     expect(result.success).toBe(false);
@@ -259,13 +259,13 @@ describe("readFile tool", () => {
     const content = lines.join("\n");
     await fs.writeFile(testFilePath, content);
 
-    const tool = createReadFileTool({ cwd: testDir });
-    const args: ReadFileToolArgs = {
+    const tool = createFileReadTool({ cwd: testDir });
+    const args: FileReadToolArgs = {
       filePath: testFilePath,
     };
 
     // Execute
-    const result = (await tool.execute!(args, mockToolCallOptions)) as ReadFileToolResult;
+    const result = (await tool.execute!(args, mockToolCallOptions)) as FileReadToolResult;
 
     // Assert
     expect(result.success).toBe(false);
@@ -281,14 +281,14 @@ describe("readFile tool", () => {
     const content = lines.join("\n");
     await fs.writeFile(testFilePath, content);
 
-    const tool = createReadFileTool({ cwd: testDir });
-    const args: ReadFileToolArgs = {
+    const tool = createFileReadTool({ cwd: testDir });
+    const args: FileReadToolArgs = {
       filePath: testFilePath,
       limit: 500, // Read only 500 lines
     };
 
     // Execute
-    const result = (await tool.execute!(args, mockToolCallOptions)) as ReadFileToolResult;
+    const result = (await tool.execute!(args, mockToolCallOptions)) as FileReadToolResult;
 
     // Assert
     expect(result.success).toBe(true);

@@ -2,21 +2,21 @@ import { tool } from "ai";
 import * as fs from "fs/promises";
 import * as path from "path";
 import * as readline from "readline";
-import type { ReadFileToolResult } from "../../types/tools";
+import type { FileReadToolResult } from "../../types/tools";
 import type { ToolConfiguration, ToolFactory } from "../../utils/tools";
 import { TOOL_DEFINITIONS } from "../../utils/toolDefinitions";
 import { leaseFromStat } from "./fileCommon";
 
 /**
- * Read file tool factory for AI assistant
+ * File read tool factory for AI assistant
  * Creates a tool that allows the AI to read file contents from the file system
  * @param config Required configuration including working directory
  */
-export const createReadFileTool: ToolFactory = (config: ToolConfiguration) => {
+export const createFileReadTool: ToolFactory = (config: ToolConfiguration) => {
   return tool({
-    description: TOOL_DEFINITIONS.read_file.description,
-    inputSchema: TOOL_DEFINITIONS.read_file.schema,
-    execute: async ({ filePath, offset, limit }): Promise<ReadFileToolResult> => {
+    description: TOOL_DEFINITIONS.file_read.description,
+    inputSchema: TOOL_DEFINITIONS.file_read.schema,
+    execute: async ({ filePath, offset, limit }): Promise<FileReadToolResult> => {
       try {
         // Resolve relative paths from configured working directory
         const resolvedPath = path.isAbsolute(filePath)

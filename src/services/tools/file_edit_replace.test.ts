@@ -2,9 +2,9 @@ import { describe, it, expect, beforeEach, afterEach } from "bun:test";
 import * as fs from "fs/promises";
 import * as path from "path";
 import * as os from "os";
-import { createEditFileTool } from "./editFile";
+import { createFileEditReplaceTool } from "./file_edit_replace";
 import { leaseFromStat } from "./fileCommon";
-import type { EditFileToolArgs, EditFileToolResult } from "../../types/tools";
+import type { FileEditReplaceToolArgs, FileEditReplaceToolResult } from "../../types/tools";
 import type { ToolCallOptions } from "ai";
 
 // Mock ToolCallOptions for testing
@@ -13,13 +13,13 @@ const mockToolCallOptions: ToolCallOptions = {
   messages: [],
 };
 
-describe("editFile tool", () => {
+describe("file_edit_replace tool", () => {
   let testDir: string;
   let testFilePath: string;
 
   beforeEach(async () => {
     // Create a temporary directory for test files
-    testDir = await fs.mkdtemp(path.join(os.tmpdir(), "editFile-test-"));
+    testDir = await fs.mkdtemp(path.join(os.tmpdir(), "fileEditReplace-test-"));
     testFilePath = path.join(testDir, "test.txt");
   });
 
@@ -37,8 +37,8 @@ describe("editFile tool", () => {
     const stats = await fs.stat(testFilePath);
     const lease = leaseFromStat(stats);
 
-    const tool = createEditFileTool({ cwd: testDir });
-    const args: EditFileToolArgs = {
+    const tool = createFileEditReplaceTool({ cwd: testDir });
+    const args: FileEditReplaceToolArgs = {
       file_path: testFilePath,
       edits: [
         {
@@ -50,7 +50,7 @@ describe("editFile tool", () => {
     };
 
     // Execute
-    const result = (await tool.execute!(args, mockToolCallOptions)) as EditFileToolResult;
+    const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditReplaceToolResult;
 
     // Assert
     expect(result.success).toBe(true);
@@ -72,8 +72,8 @@ describe("editFile tool", () => {
     const stats = await fs.stat(testFilePath);
     const lease = leaseFromStat(stats);
 
-    const tool = createEditFileTool({ cwd: testDir });
-    const args: EditFileToolArgs = {
+    const tool = createFileEditReplaceTool({ cwd: testDir });
+    const args: FileEditReplaceToolArgs = {
       file_path: testFilePath,
       edits: [
         {
@@ -93,7 +93,7 @@ describe("editFile tool", () => {
     };
 
     // Execute
-    const result = (await tool.execute!(args, mockToolCallOptions)) as EditFileToolResult;
+    const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditReplaceToolResult;
 
     // Assert
     expect(result.success).toBe(true);
@@ -116,8 +116,8 @@ describe("editFile tool", () => {
     const stats = await fs.stat(testFilePath);
     const lease = leaseFromStat(stats);
 
-    const tool = createEditFileTool({ cwd: testDir });
-    const args: EditFileToolArgs = {
+    const tool = createFileEditReplaceTool({ cwd: testDir });
+    const args: FileEditReplaceToolArgs = {
       file_path: testFilePath,
       edits: [
         {
@@ -135,7 +135,7 @@ describe("editFile tool", () => {
     };
 
     // Execute
-    const result = (await tool.execute!(args, mockToolCallOptions)) as EditFileToolResult;
+    const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditReplaceToolResult;
 
     // Assert - The operation should fail
     expect(result.success).toBe(false);
@@ -159,8 +159,8 @@ describe("editFile tool", () => {
     const stats = await fs.stat(testFilePath);
     const lease = leaseFromStat(stats);
 
-    const tool = createEditFileTool({ cwd: testDir });
-    const args: EditFileToolArgs = {
+    const tool = createFileEditReplaceTool({ cwd: testDir });
+    const args: FileEditReplaceToolArgs = {
       file_path: testFilePath,
       edits: [
         {
@@ -173,7 +173,7 @@ describe("editFile tool", () => {
     };
 
     // Execute
-    const result = (await tool.execute!(args, mockToolCallOptions)) as EditFileToolResult;
+    const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditReplaceToolResult;
 
     // Assert
     expect(result.success).toBe(true);
@@ -194,8 +194,8 @@ describe("editFile tool", () => {
     const stats = await fs.stat(testFilePath);
     const lease = leaseFromStat(stats);
 
-    const tool = createEditFileTool({ cwd: testDir });
-    const args: EditFileToolArgs = {
+    const tool = createFileEditReplaceTool({ cwd: testDir });
+    const args: FileEditReplaceToolArgs = {
       file_path: testFilePath,
       edits: [
         {
@@ -208,7 +208,7 @@ describe("editFile tool", () => {
     };
 
     // Execute
-    const result = (await tool.execute!(args, mockToolCallOptions)) as EditFileToolResult;
+    const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditReplaceToolResult;
 
     // Assert
     expect(result.success).toBe(true);
@@ -229,8 +229,8 @@ describe("editFile tool", () => {
     const stats = await fs.stat(testFilePath);
     const lease = leaseFromStat(stats);
 
-    const tool = createEditFileTool({ cwd: testDir });
-    const args: EditFileToolArgs = {
+    const tool = createFileEditReplaceTool({ cwd: testDir });
+    const args: FileEditReplaceToolArgs = {
       file_path: testFilePath,
       edits: [
         {
@@ -242,7 +242,7 @@ describe("editFile tool", () => {
     };
 
     // Execute
-    const result = (await tool.execute!(args, mockToolCallOptions)) as EditFileToolResult;
+    const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditReplaceToolResult;
 
     // Assert
     expect(result.success).toBe(false);
@@ -263,8 +263,8 @@ describe("editFile tool", () => {
     const stats = await fs.stat(testFilePath);
     const lease = leaseFromStat(stats);
 
-    const tool = createEditFileTool({ cwd: testDir });
-    const args: EditFileToolArgs = {
+    const tool = createFileEditReplaceTool({ cwd: testDir });
+    const args: FileEditReplaceToolArgs = {
       file_path: testFilePath,
       edits: [
         {
@@ -277,7 +277,7 @@ describe("editFile tool", () => {
     };
 
     // Execute
-    const result = (await tool.execute!(args, mockToolCallOptions)) as EditFileToolResult;
+    const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditReplaceToolResult;
 
     // Assert
     expect(result.success).toBe(false);
@@ -300,8 +300,8 @@ describe("editFile tool", () => {
     const stats = await fs.stat(testFilePath);
     const lease = leaseFromStat(stats);
 
-    const tool = createEditFileTool({ cwd: testDir });
-    const args: EditFileToolArgs = {
+    const tool = createFileEditReplaceTool({ cwd: testDir });
+    const args: FileEditReplaceToolArgs = {
       file_path: testFilePath,
       edits: [
         {
@@ -314,7 +314,7 @@ describe("editFile tool", () => {
     };
 
     // Execute
-    const result = (await tool.execute!(args, mockToolCallOptions)) as EditFileToolResult;
+    const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditReplaceToolResult;
 
     // Assert
     expect(result.success).toBe(true);
@@ -335,8 +335,8 @@ describe("editFile tool", () => {
     const stats = await fs.stat(testFilePath);
     const lease = leaseFromStat(stats);
 
-    const tool = createEditFileTool({ cwd: testDir });
-    const args: EditFileToolArgs = {
+    const tool = createFileEditReplaceTool({ cwd: testDir });
+    const args: FileEditReplaceToolArgs = {
       file_path: testFilePath,
       edits: [
         {
@@ -349,7 +349,7 @@ describe("editFile tool", () => {
     };
 
     // Execute
-    const result = (await tool.execute!(args, mockToolCallOptions)) as EditFileToolResult;
+    const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditReplaceToolResult;
 
     // Assert
     expect(result.success).toBe(false);
@@ -367,8 +367,8 @@ describe("editFile tool", () => {
     // Setup
     const nonExistentPath = path.join(testDir, "nonexistent.txt");
 
-    const tool = createEditFileTool({ cwd: testDir });
-    const args: EditFileToolArgs = {
+    const tool = createFileEditReplaceTool({ cwd: testDir });
+    const args: FileEditReplaceToolArgs = {
       file_path: nonExistentPath,
       edits: [
         {
@@ -380,7 +380,7 @@ describe("editFile tool", () => {
     };
 
     // Execute
-    const result = (await tool.execute!(args, mockToolCallOptions)) as EditFileToolResult;
+    const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditReplaceToolResult;
 
     // Assert
     expect(result.success).toBe(false);
@@ -397,8 +397,8 @@ describe("editFile tool", () => {
     const stats = await fs.stat(testFilePath);
     const lease = leaseFromStat(stats);
 
-    const tool = createEditFileTool({ cwd: testDir });
-    const args: EditFileToolArgs = {
+    const tool = createFileEditReplaceTool({ cwd: testDir });
+    const args: FileEditReplaceToolArgs = {
       file_path: testFilePath,
       edits: [
         {
@@ -410,7 +410,7 @@ describe("editFile tool", () => {
     };
 
     // Execute
-    const result = (await tool.execute!(args, mockToolCallOptions)) as EditFileToolResult;
+    const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditReplaceToolResult;
 
     // Assert
     expect(result.success).toBe(true);
@@ -431,8 +431,8 @@ describe("editFile tool", () => {
     const stats = await fs.stat(testFilePath);
     const lease = leaseFromStat(stats);
 
-    const tool = createEditFileTool({ cwd: testDir });
-    const args: EditFileToolArgs = {
+    const tool = createFileEditReplaceTool({ cwd: testDir });
+    const args: FileEditReplaceToolArgs = {
       file_path: testFilePath,
       edits: [
         {
@@ -444,7 +444,7 @@ describe("editFile tool", () => {
     };
 
     // Execute
-    const result = (await tool.execute!(args, mockToolCallOptions)) as EditFileToolResult;
+    const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditReplaceToolResult;
 
     // Assert
     expect(result.success).toBe(true);
@@ -465,8 +465,8 @@ describe("editFile tool", () => {
     const stats = await fs.stat(testFilePath);
     const lease = leaseFromStat(stats);
 
-    const tool = createEditFileTool({ cwd: testDir });
-    const args: EditFileToolArgs = {
+    const tool = createFileEditReplaceTool({ cwd: testDir });
+    const args: FileEditReplaceToolArgs = {
       file_path: testFilePath,
       edits: [
         {
@@ -482,7 +482,7 @@ describe("editFile tool", () => {
     };
 
     // Execute
-    const result = (await tool.execute!(args, mockToolCallOptions)) as EditFileToolResult;
+    const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditReplaceToolResult;
 
     // Assert
     expect(result.success).toBe(true);
@@ -500,8 +500,8 @@ describe("editFile tool", () => {
     const initialContent = "Hello world";
     await fs.writeFile(testFilePath, initialContent);
 
-    const tool = createEditFileTool({ cwd: testDir });
-    const args: EditFileToolArgs = {
+    const tool = createFileEditReplaceTool({ cwd: testDir });
+    const args: FileEditReplaceToolArgs = {
       file_path: testFilePath,
       edits: [
         {
@@ -513,7 +513,7 @@ describe("editFile tool", () => {
     };
 
     // Execute
-    const result = (await tool.execute!(args, mockToolCallOptions)) as EditFileToolResult;
+    const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditReplaceToolResult;
 
     // Assert
     expect(result.success).toBe(false);
@@ -539,8 +539,8 @@ describe("editFile tool", () => {
     // Modify file to simulate concurrent edit
     await fs.writeFile(testFilePath, "Modified content");
 
-    const tool = createEditFileTool({ cwd: testDir });
-    const args: EditFileToolArgs = {
+    const tool = createFileEditReplaceTool({ cwd: testDir });
+    const args: FileEditReplaceToolArgs = {
       file_path: testFilePath,
       edits: [
         {
@@ -552,7 +552,7 @@ describe("editFile tool", () => {
     };
 
     // Execute
-    const result = (await tool.execute!(args, mockToolCallOptions)) as EditFileToolResult;
+    const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditReplaceToolResult;
 
     // Assert
     expect(result.success).toBe(false);

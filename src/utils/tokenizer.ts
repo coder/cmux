@@ -104,7 +104,7 @@ export function countTokensForData(data: unknown, tokenizer: Tokenizer): number 
  * Get estimated token count for tool definitions
  * These are the schemas sent to the API for each tool
  *
- * @param toolName The name of the tool (bash, read_file, web_search, etc.)
+ * @param toolName The name of the tool (bash, file_read, web_search, etc.)
  * @param modelString The model string to get accurate tool definitions
  * @returns Estimated token count for the tool definition
  */
@@ -134,7 +134,9 @@ export function getToolDefinitionTokens(toolName: string, modelString: string): 
     // Fallback to estimates if we can't get the actual definition
     const fallbackSizes: Record<string, number> = {
       bash: 65,
-      read_file: 45,
+      file_read: 45,
+      file_edit_replace: 70,
+      file_edit_insert: 50,
       web_search: 50,
       google_search: 50,
     };

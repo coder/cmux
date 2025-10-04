@@ -31,14 +31,14 @@ export type BashToolResult =
       truncated?: boolean;
     });
 
-// Read File Tool Types
-export interface ReadFileToolArgs {
+// File Read Tool Types
+export interface FileReadToolArgs {
   filePath: string;
   offset?: number; // 1-based starting line number (optional)
   limit?: number; // number of lines to return from offset (optional)
 }
 
-export type ReadFileToolResult =
+export type FileReadToolResult =
   | {
       success: true;
       file_size: number;
@@ -52,23 +52,41 @@ export type ReadFileToolResult =
       error: string;
     };
 
-// Edit File Tool Types
-export interface EditFileEdit {
+// File Edit Replace Tool Types
+export interface FileEditReplaceEdit {
   old_string: string;
   new_string: string;
   replace_count?: number; // Default: 1, -1 means replace all
 }
 
-export interface EditFileToolArgs {
+export interface FileEditReplaceToolArgs {
   file_path: string;
-  edits: EditFileEdit[];
+  edits: FileEditReplaceEdit[];
   lease: string;
 }
 
-export type EditFileToolResult =
+export type FileEditReplaceToolResult =
   | {
       success: true;
       edits_applied: number;
+      lease: string;
+    }
+  | {
+      success: false;
+      error: string;
+    };
+
+// File Edit Insert Tool Types
+export interface FileEditInsertToolArgs {
+  file_path: string;
+  line_offset: number; // 1-indexed line position (0 = insert at top, N = insert after line N)
+  content: string;
+  lease: string;
+}
+
+export type FileEditInsertToolResult =
+  | {
+      success: true;
       lease: string;
     }
   | {

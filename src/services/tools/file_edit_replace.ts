@@ -2,21 +2,21 @@ import { tool } from "ai";
 import * as fs from "fs/promises";
 import * as path from "path";
 import writeFileAtomic from "write-file-atomic";
-import type { EditFileToolResult } from "../../types/tools";
+import type { FileEditReplaceToolResult } from "../../types/tools";
 import type { ToolConfiguration, ToolFactory } from "../../utils/tools";
 import { TOOL_DEFINITIONS } from "../../utils/toolDefinitions";
 import { leaseFromStat } from "./fileCommon";
 
 /**
- * Edit file tool factory for AI assistant
+ * File edit replace tool factory for AI assistant
  * Creates a tool that allows the AI to apply multiple edits to a file
  * @param config Required configuration including working directory
  */
-export const createEditFileTool: ToolFactory = (config: ToolConfiguration) => {
+export const createFileEditReplaceTool: ToolFactory = (config: ToolConfiguration) => {
   return tool({
-    description: TOOL_DEFINITIONS.edit_file.description,
-    inputSchema: TOOL_DEFINITIONS.edit_file.schema,
-    execute: async ({ file_path, edits, lease }): Promise<EditFileToolResult> => {
+    description: TOOL_DEFINITIONS.file_edit_replace.description,
+    inputSchema: TOOL_DEFINITIONS.file_edit_replace.schema,
+    execute: async ({ file_path, edits, lease }): Promise<FileEditReplaceToolResult> => {
       try {
         // Resolve path (but expect absolute paths)
         const resolvedPath = path.isAbsolute(file_path)

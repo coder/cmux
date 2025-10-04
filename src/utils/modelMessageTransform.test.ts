@@ -168,7 +168,7 @@ describe("modelMessageTransform", () => {
           {
             type: "tool-call",
             toolCallId: "call3",
-            toolName: "read_file",
+            toolName: "file_read",
             input: { path: "test.txt" },
           },
         ],
@@ -191,7 +191,7 @@ describe("modelMessageTransform", () => {
           {
             type: "tool-result",
             toolCallId: "call3",
-            toolName: "read_file",
+            toolName: "file_read",
             output: { type: "json", value: { content: "test content" } },
           },
         ],
