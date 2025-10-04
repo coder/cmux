@@ -205,7 +205,7 @@ describe("HistoryService", () => {
       const msg = createCmuxMessage("msg1", "user", "Hello", {
         timestamp: 123456,
         model: "claude-opus-4",
-        tokens: 100,
+        providerMetadata: { test: "data" },
       });
 
       await service.appendToHistory(workspaceId, msg);
@@ -214,7 +214,7 @@ describe("HistoryService", () => {
       if (history.success) {
         expect(history.data[0].metadata?.timestamp).toBe(123456);
         expect(history.data[0].metadata?.model).toBe("claude-opus-4");
-        expect(history.data[0].metadata?.tokens).toBe(100);
+        expect(history.data[0].metadata?.providerMetadata).toEqual({ test: "data" });
         expect(history.data[0].metadata?.historySequence).toBeDefined();
       }
     });

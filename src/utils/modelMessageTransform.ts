@@ -370,6 +370,9 @@ function mergeConsecutiveUserMessages(messages: ModelMessage[]): ModelMessage[] 
  * 2. Filter out reasoning-only assistant messages - Anthropic only
  * 3. Merge consecutive user messages - all providers
  *
+ * Note: encryptedContent stripping happens earlier in streamManager when tool results
+ * are first stored, not during message transformation.
+ *
  * @param messages The messages to transform
  * @param provider The provider name (e.g., "anthropic", "openai")
  */

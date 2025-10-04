@@ -15,7 +15,7 @@ import { getModelStats } from "./modelStats";
 
 export interface ChatUsageComponent {
   tokens: number;
-  cost_usd: number;
+  cost_usd?: number; // undefined if model pricing unknown
 }
 
 /**
@@ -35,7 +35,7 @@ export interface ChatUsageDisplay {
 }
 
 /**
- * Create a display-friendly usage object from standard LanguageModelV2Usage
+ * Create a display-friendly usage object from AI SDK usage
  */
 export function createDisplayUsage(
   usage: LanguageModelV2Usage | undefined,
@@ -63,12 +63,12 @@ export function createDisplayUsage(
   // Get model stats for cost calculation
   const modelStats = getModelStats(model);
 
-  // Calculate costs based on model stats
-  let inputCost = 0;
-  let cachedCost = 0;
-  let cacheCreateCost = 0;
-  let outputCost = 0;
-  let reasoningCost = 0;
+  // Calculate costs based on model stats (undefined if model unknown)
+  let inputCost: number | undefined;
+  let cachedCost: number | undefined;
+  let cacheCreateCost: number | undefined;
+  let outputCost: number | undefined;
+  let reasoningCost: number | undefined;
 
   if (modelStats) {
     inputCost = inputTokens * modelStats.input_cost_per_token;
@@ -109,6 +109,9 @@ export function createDisplayUsage(
 export function sumUsageHistory(usageHistory: ChatUsageDisplay[]): ChatUsageDisplay | undefined {
   if (usageHistory.length === 0) return undefined;
 
+  // Track if any costs are undefined (model pricing unknown)
+  let hasUndefinedCosts = false;
+
   const sum: ChatUsageDisplay = {
     input: { tokens: 0, cost_usd: 0 },
     cached: { tokens: 0, cost_usd: 0 },
@@ -121,8 +124,21 @@ export function sumUsageHistory(usageHistory: ChatUsageDisplay[]): ChatUsageDisp
     // Iterate over each component and sum tokens and costs
     for (const key of Object.keys(sum) as Array<keyof ChatUsageDisplay>) {
       sum[key].tokens += usage[key].tokens;
-      sum[key].cost_usd += usage[key].cost_usd;
+      if (usage[key].cost_usd === undefined) {
+        hasUndefinedCosts = true;
+      } else {
+        sum[key].cost_usd = (sum[key].cost_usd ?? 0) + (usage[key].cost_usd ?? 0);
+      }
     }
+  }
+
+  // If any costs were undefined, set all to undefined
+  if (hasUndefinedCosts) {
+    sum.input.cost_usd = undefined;
+    sum.cached.cost_usd = undefined;
+    sum.cacheCreate.cost_usd = undefined;
+    sum.output.cost_usd = undefined;
+    sum.reasoning.cost_usd = undefined;
   }
 
   return sum;

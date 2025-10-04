@@ -431,7 +431,6 @@ export class StreamingMessageAggregator {
               isPartial: message.metadata?.partial ?? false,
               isLastPartOfMessage: isLastPart,
               timestamp: baseTimestamp,
-              tokens: message.metadata?.reasoningTokens,
             });
           } else if (part.type === "text" && part.text) {
             // Skip empty text parts
@@ -447,7 +446,6 @@ export class StreamingMessageAggregator {
               isLastPartOfMessage: isLastPart,
               model: message.metadata?.model,
               timestamp: baseTimestamp,
-              tokens: message.metadata?.tokens,
             });
           } else if (isDynamicToolPart(part)) {
             const status =

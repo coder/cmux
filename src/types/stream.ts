@@ -3,7 +3,7 @@
  */
 
 import type { LanguageModelV2Usage } from "@ai-sdk/provider";
-import type { ProviderMetadata, CmuxReasoningPart, CmuxTextPart, CmuxToolPart } from "./message";
+import type { CmuxReasoningPart, CmuxTextPart, CmuxToolPart } from "./message";
 import type { StreamErrorType } from "./errors";
 
 /**
@@ -33,12 +33,10 @@ export interface StreamEndEvent {
   messageId: string;
   // Structured metadata from backend - directly mergeable with CmuxMetadata
   metadata: {
-    usage?: LanguageModelV2Usage;
-    tokens?: number;
     model: string;
-    providerMetadata?: ProviderMetadata;
+    usage?: LanguageModelV2Usage;
+    providerMetadata?: Record<string, unknown>;
     duration?: number;
-    reasoningTokens?: number;
     systemMessageTokens?: number;
   };
   // Parts array preserves temporal ordering of reasoning, text, and tool calls

@@ -2,32 +2,16 @@ import type { UIMessage } from "ai";
 import type { LanguageModelV2Usage } from "@ai-sdk/provider";
 import type { StreamErrorType } from "./errors";
 
-// Shared provider metadata type for cache statistics and other provider-specific data
-export interface ProviderMetadata {
-  anthropic?: {
-    cacheCreationInputTokens?: number;
-    cacheReadInputTokens?: number;
-  };
-  openai?: {
-    responseId?: string;
-    [key: string]: unknown;
-  };
-  [provider: string]: unknown;
-}
-
 // Our custom metadata type
 export interface CmuxMetadata {
   historySequence?: number; // Assigned by backend for global message ordering (required when writing to history)
   streamingId?: string;
-  cost?: number;
-  tokens?: number;
-  usage?: LanguageModelV2Usage;
   duration?: number;
   timestamp?: number;
   model?: string;
-  providerMetadata?: ProviderMetadata;
-  systemMessageTokens?: number; // Token count for system message sent with this request
-  reasoningTokens?: number; // Token count for reasoning (stats only)
+  usage?: LanguageModelV2Usage; // AI SDK normalized usage (verbatim from streamResult.usage)
+  providerMetadata?: Record<string, unknown>; // Raw AI SDK provider data
+  systemMessageTokens?: number; // Token count for system message sent with this request (calculated by AIService)
   partial?: boolean; // Whether this message was interrupted and is incomplete
   synthetic?: boolean; // Whether this message was synthetically generated (e.g., [INTERRUPTED] sentinel)
   error?: string; // Error message if stream failed

@@ -254,8 +254,9 @@ const SectionHeader = styled.div`
 const formatTokens = (tokens: number) =>
   tokens >= 1000 ? `${(tokens / 1000).toFixed(1)}k` : tokens.toLocaleString();
 
-// Format cost display - show "<$0.01" for very small values, otherwise fixed precision
-const formatCost = (cost: number): string => {
+// Format cost display - show "??" if undefined, "<$0.01" for very small values, otherwise fixed precision
+const formatCost = (cost: number | undefined): string => {
+  if (cost === undefined) return "??";
   if (cost === 0) return "0.00";
   if (cost >= 0.01) return cost.toFixed(2);
   // For values < 0.01, show as "<$0.01" (without $ prefix when used)
@@ -263,7 +264,8 @@ const formatCost = (cost: number): string => {
 };
 
 // Format cost with dollar sign
-const formatCostWithDollar = (cost: number): string => {
+const formatCostWithDollar = (cost: number | undefined): string => {
+  if (cost === undefined) return "??";
   if (cost > 0 && cost < 0.01) return "~$0.00";
   return `$${formatCost(cost)}`;
 };
@@ -317,9 +319,11 @@ export const CostsTab: React.FC = () => {
               // Get max tokens for the model from the model stats database
               const modelStats = getModelStats(stats.model);
               const maxTokens = modelStats?.max_input_tokens;
+              // Total tokens includes cache creation (they're input tokens sent for caching)
               const totalUsed = displayUsage
                 ? displayUsage.input.tokens +
                   displayUsage.cached.tokens +
+                  displayUsage.cacheCreate.tokens +
                   displayUsage.output.tokens +
                   displayUsage.reasoning.tokens
                 : 0;
@@ -328,6 +332,7 @@ export const CostsTab: React.FC = () => {
               let inputPercentage: number;
               let outputPercentage: number;
               let cachedPercentage: number;
+              let cacheCreatePercentage: number;
               let reasoningPercentage: number;
               let showWarning = false;
               let totalPercentage: number;
@@ -338,6 +343,7 @@ export const CostsTab: React.FC = () => {
                 inputPercentage = (displayUsage.input.tokens / totalUsed) * 100;
                 outputPercentage = (displayUsage.output.tokens / totalUsed) * 100;
                 cachedPercentage = (displayUsage.cached.tokens / totalUsed) * 100;
+                cacheCreatePercentage = (displayUsage.cacheCreate.tokens / totalUsed) * 100;
                 reasoningPercentage = (displayUsage.reasoning.tokens / totalUsed) * 100;
                 totalPercentage = 100;
               } else if (maxTokens && displayUsage) {
@@ -345,6 +351,7 @@ export const CostsTab: React.FC = () => {
                 inputPercentage = (displayUsage.input.tokens / maxTokens) * 100;
                 outputPercentage = (displayUsage.output.tokens / maxTokens) * 100;
                 cachedPercentage = (displayUsage.cached.tokens / maxTokens) * 100;
+                cacheCreatePercentage = (displayUsage.cacheCreate.tokens / maxTokens) * 100;
                 reasoningPercentage = (displayUsage.reasoning.tokens / maxTokens) * 100;
                 totalPercentage = (totalUsed / maxTokens) * 100;
               } else if (displayUsage) {
@@ -354,6 +361,8 @@ export const CostsTab: React.FC = () => {
                   totalUsed > 0 ? (displayUsage.output.tokens / totalUsed) * 100 : 0;
                 cachedPercentage =
                   totalUsed > 0 ? (displayUsage.cached.tokens / totalUsed) * 100 : 0;
+                cacheCreatePercentage =
+                  totalUsed > 0 ? (displayUsage.cacheCreate.tokens / totalUsed) * 100 : 0;
                 reasoningPercentage =
                   totalUsed > 0 ? (displayUsage.reasoning.tokens / totalUsed) * 100 : 0;
                 totalPercentage = 100;
@@ -362,6 +371,7 @@ export const CostsTab: React.FC = () => {
                 inputPercentage = 0;
                 outputPercentage = 0;
                 cachedPercentage = 0;
+                cacheCreatePercentage = 0;
                 reasoningPercentage = 0;
                 totalPercentage = 0;
               }
@@ -372,33 +382,46 @@ export const CostsTab: React.FC = () => {
                 viewMode === "session" ? "" : maxTokens ? ` / ${formatTokens(maxTokens)}` : "";
               const showPercentage = viewMode !== "session";
 
-              // Calculate cost percentages
-              const totalCost = displayUsage
-                ? displayUsage.input.cost_usd +
-                  displayUsage.cached.cost_usd +
-                  displayUsage.cacheCreate.cost_usd +
-                  displayUsage.output.cost_usd +
-                  displayUsage.reasoning.cost_usd
-                : 0;
+              // Helper to calculate cost percentage
+              const getCostPercentage = (cost: number | undefined, total: number | undefined) =>
+                total !== undefined && total > 0 && cost !== undefined ? (cost / total) * 100 : 0;
 
-              const inputCostPercentage =
-                totalCost > 0 && displayUsage ? (displayUsage.input.cost_usd / totalCost) * 100 : 0;
-              const cachedCostPercentage =
-                totalCost > 0 && displayUsage
-                  ? (displayUsage.cached.cost_usd / totalCost) * 100
-                  : 0;
-              const cacheCreateCostPercentage =
-                totalCost > 0 && displayUsage
-                  ? (displayUsage.cacheCreate.cost_usd / totalCost) * 100
-                  : 0;
-              const outputCostPercentage =
-                totalCost > 0 && displayUsage
-                  ? (displayUsage.output.cost_usd / totalCost) * 100
-                  : 0;
-              const reasoningCostPercentage =
-                totalCost > 0 && displayUsage
-                  ? (displayUsage.reasoning.cost_usd / totalCost) * 100
-                  : 0;
+              // Calculate total cost (undefined if any cost is unknown)
+              const totalCost: number | undefined = displayUsage
+                ? displayUsage.input.cost_usd !== undefined &&
+                  displayUsage.cached.cost_usd !== undefined &&
+                  displayUsage.cacheCreate.cost_usd !== undefined &&
+                  displayUsage.output.cost_usd !== undefined &&
+                  displayUsage.reasoning.cost_usd !== undefined
+                  ? displayUsage.input.cost_usd +
+                    displayUsage.cached.cost_usd +
+                    displayUsage.cacheCreate.cost_usd +
+                    displayUsage.output.cost_usd +
+                    displayUsage.reasoning.cost_usd
+                  : undefined
+                : undefined;
+
+              // Calculate cost percentages
+              const inputCostPercentage = getCostPercentage(
+                displayUsage?.input.cost_usd,
+                totalCost
+              );
+              const cachedCostPercentage = getCostPercentage(
+                displayUsage?.cached.cost_usd,
+                totalCost
+              );
+              const cacheCreateCostPercentage = getCostPercentage(
+                displayUsage?.cacheCreate.cost_usd,
+                totalCost
+              );
+              const outputCostPercentage = getCostPercentage(
+                displayUsage?.output.cost_usd,
+                totalCost
+              );
+              const reasoningCostPercentage = getCostPercentage(
+                displayUsage?.reasoning.cost_usd,
+                totalCost
+              );
 
               // Build component data for table
               const components = displayUsage
@@ -454,9 +477,10 @@ export const CostsTab: React.FC = () => {
                     </ConsumerHeader>
                     <PercentageBarWrapper>
                       <PercentageBar>
-                        {/* Cache create is excluded from token usage bar since it's a separate
-                            billing concept and doesn't count toward the context window limit */}
                         {cachedPercentage > 0 && <CachedSegment percentage={cachedPercentage} />}
+                        {cacheCreatePercentage > 0 && (
+                          <CachedSegment percentage={cacheCreatePercentage} />
+                        )}
                         <InputSegment percentage={inputPercentage} />
                         <OutputSegment percentage={outputPercentage} />
                         {reasoningPercentage > 0 && (
@@ -465,7 +489,7 @@ export const CostsTab: React.FC = () => {
                       </PercentageBar>
                     </PercentageBarWrapper>
                   </ConsumerRow>
-                  {totalCost > 0 && (
+                  {totalCost !== undefined && totalCost >= 0 && (
                     <ConsumerRow>
                       <ConsumerHeader>
                         <ConsumerName>Cost</ConsumerName>
@@ -499,7 +523,10 @@ export const CostsTab: React.FC = () => {
                     <tbody>
                       {components.map((component) => {
                         const costDisplay = formatCostWithDollar(component.cost);
-                        const isNegligible = component.cost > 0 && component.cost < 0.01;
+                        const isNegligible =
+                          component.cost !== undefined &&
+                          component.cost > 0 &&
+                          component.cost < 0.01;
 
                         return (
                           <DetailsRow key={component.name}>

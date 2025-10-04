@@ -87,7 +87,11 @@ export function buildProviderOptions(
       // Find last assistant message
       for (let i = messages.length - 1; i >= 0; i--) {
         if (messages[i].role === "assistant") {
-          previousResponseId = messages[i].metadata?.providerMetadata?.openai?.responseId;
+          const metadata = messages[i].metadata?.providerMetadata;
+          if (metadata && "openai" in metadata) {
+            const openaiData = metadata.openai as Record<string, unknown> | undefined;
+            previousResponseId = openaiData?.responseId as string | undefined;
+          }
           if (previousResponseId) {
             log.debug("buildProviderOptions: Found previousResponseId", { previousResponseId });
             break;

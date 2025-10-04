@@ -24,7 +24,6 @@ import type {
 } from "../types/stream";
 import type { SendMessageError, StreamErrorType } from "../types/errors";
 import type { CmuxMetadata, CmuxMessage } from "../types/message";
-import { getTokenizerForModel } from "../utils/tokenizer";
 import type { PartialService } from "./partialService";
 import type { HistoryService } from "./historyService";
 
@@ -546,57 +545,9 @@ export class StreamManager extends EventEmitter {
 
       // Check if stream completed successfully
       if (!streamInfo.abortController.signal.aborted) {
-        // Get usage information from the stream result
+        // Get usage and provider metadata from stream result
         const usage = await streamInfo.streamResult.usage;
-
-        // Calculate reasoning tokens from the reasoning part if present
-        let reasoningTokens = usage?.reasoningTokens;
-        const reasoningPart = streamInfo.parts.find((p) => p.type === "reasoning");
-        if (reasoningTokens === undefined && reasoningPart?.type === "reasoning") {
-          // API didn't provide reasoning tokens (e.g., Anthropic includes them in outputTokens)
-          // Estimate from the reasoning part text
-          try {
-            const tokenizer = getTokenizerForModel(streamInfo.model);
-            reasoningTokens = tokenizer.countTokens(reasoningPart.text);
-            log.debug("streamManager: Estimated reasoning tokens from part", {
-              estimatedTokens: reasoningTokens,
-              textLength: reasoningPart.text.length,
-            });
-          } catch (err) {
-            log.debug("streamManager: Failed to estimate reasoning tokens", err);
-          }
-        }
-
-        // Adjust usage to subtract reasoning tokens from outputTokens if needed
-        let adjustedUsage = usage;
-        if (reasoningTokens !== undefined && usage?.outputTokens !== undefined) {
-          adjustedUsage = {
-            ...usage,
-            outputTokens: Math.max(0, usage.outputTokens - reasoningTokens),
-            reasoningTokens,
-          };
-        }
-
-        // Get provider metadata which contains cache statistics
         const providerMetadata = await streamInfo.streamResult.providerMetadata;
-
-        // Fix cachedInputTokens from Anthropic provider metadata if not properly populated
-        // The AI SDK's Anthropic provider doesn't populate usage.cachedInputTokens from
-        // Anthropic's cache_read_input_tokens field, so we need to extract it manually
-        if (
-          adjustedUsage &&
-          providerMetadata?.anthropic &&
-          typeof providerMetadata.anthropic === "object" &&
-          "usage" in providerMetadata.anthropic
-        ) {
-          const anthropicUsage = providerMetadata.anthropic.usage as Record<string, unknown>;
-          if (typeof anthropicUsage.cache_read_input_tokens === "number") {
-            adjustedUsage = {
-              ...adjustedUsage,
-              cachedInputTokens: anthropicUsage.cache_read_input_tokens,
-            };
-          }
-        }
 
         // Emit stream end event with parts preserved in temporal order
         const streamEndEvent: StreamEndEvent = {
@@ -605,12 +556,10 @@ export class StreamManager extends EventEmitter {
           messageId: streamInfo.messageId,
           metadata: {
             ...streamInfo.initialMetadata, // AIService-provided metadata (systemMessageTokens, etc)
-            usage: adjustedUsage,
-            tokens: adjustedUsage?.totalTokens,
             model: streamInfo.model,
-            providerMetadata,
+            usage, // AI SDK normalized usage
+            providerMetadata, // Raw provider metadata
             duration: Date.now() - streamInfo.startTime,
-            reasoningTokens,
           },
           parts: streamInfo.parts, // Parts array with temporal ordering (includes reasoning)
         };
