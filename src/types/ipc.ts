@@ -33,6 +33,7 @@ export interface CaughtUpMessage {
 // Stream error message type (for async streaming errors)
 export interface StreamErrorMessage {
   type: "stream-error";
+  messageId: string;
   error: string;
   errorType: string;
 }

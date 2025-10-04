@@ -25,6 +25,8 @@ export interface CmuxMetadata {
   reasoningTokens?: number; // Token count for reasoning (stats only)
   partial?: boolean; // Whether this message was interrupted and is incomplete
   synthetic?: boolean; // Whether this message was synthetically generated (e.g., [INTERRUPTED] sentinel)
+  error?: string; // Error message if stream failed
+  errorType?: string; // Error type/category if stream failed
 }
 
 // Extended tool part type that supports interrupted tool calls (input-available state)
@@ -108,6 +110,16 @@ export type DisplayedMessage =
       isLastPartOfMessage?: boolean; // True if this is the last part of a multi-part message
       timestamp?: number;
       tokens?: number; // Reasoning tokens if available
+    }
+  | {
+      type: "stream-error";
+      id: string; // Display ID for UI/React keys
+      historyId: string; // Original CmuxMessage ID for history operations
+      error: string; // Error message
+      errorType: string; // Error type/category
+      historySequence: number; // Global ordering across all messages
+      timestamp?: number;
+      model?: string;
     };
 
 // Helper to create a simple text message

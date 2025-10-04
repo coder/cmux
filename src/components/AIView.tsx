@@ -143,11 +143,6 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
   const [isCompacting] = useState(false);
   const { debugMode, setDebugMode } = useDebugMode(); // Use context instead of local state
   const [autoScroll, setAutoScroll] = useState(true);
-  const [errorMessage, setErrorMessage] = useState<{
-    title?: string;
-    message: string;
-    details?: string;
-  } | null>(null);
   const [currentModel, setCurrentModel] = useState<string>("anthropic:claude-opus-4-1");
   const [editingMessage, setEditingMessage] = useState<{ id: string; content: string } | undefined>(
     undefined
@@ -264,22 +259,14 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
 
         // Handle stream errors
         if (isStreamError(data)) {
-          // Display error in UI instead of console
-          if (data.errorType === "authentication") {
-            setErrorMessage({
-              title: "Authentication Error",
-              message: "Authentication error during streaming!",
-              details: "Please check your ANTHROPIC_API_KEY environment variable.",
-            });
-          } else {
-            setErrorMessage({
-              title: "Stream Error",
-              message: data.error,
-              details: `Error type: ${data.errorType}`,
-            });
-          }
-
-          // Don't try to render this as a message
+          // Notify aggregator to clean up streaming state and mark message with error
+          // Error will be displayed inline as a stream-error message
+          aggregator.handleStreamError({
+            messageId: data.messageId,
+            error: data.error,
+            errorType: data.errorType,
+          });
+          updateUIAndScroll();
           return;
         }
 
@@ -526,13 +513,6 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
             )}
             {canInterrupt && (
               <GlobalStreamingIndicator>streaming... hit Esc to cancel</GlobalStreamingIndicator>
-            )}
-            {errorMessage && (
-              <ErrorMessage
-                title={errorMessage.title}
-                message={errorMessage.message}
-                details={errorMessage.details}
-              />
             )}
           </OutputContent>
 

@@ -53,6 +53,7 @@ export interface StreamAbortEvent {
 export interface ErrorEvent {
   type: "error";
   workspaceId: string;
+  messageId: string;
   error: string;
   errorType?: string;
 }

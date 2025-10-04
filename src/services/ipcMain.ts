@@ -340,7 +340,12 @@ export class IpcMain {
     );
 
     ipcMain.handle(IPC_CHANNELS.WORKSPACE_CLEAR_HISTORY, async (_event, workspaceId: string) => {
-      return await this.historyService.clearHistory(workspaceId);
+      // Clear both chat.jsonl and partial.json
+      const historyResult = await this.historyService.clearHistory(workspaceId);
+      if (!historyResult.success) {
+        return historyResult;
+      }
+      return await this.partialService.deletePartial(workspaceId);
     });
   }
 
@@ -504,6 +509,7 @@ export class IpcMain {
         // Send properly typed StreamErrorMessage
         const errorMessage: StreamErrorMessage = {
           type: "stream-error",
+          messageId: data.messageId,
           error: data.error,
           errorType: data.errorType ?? "unknown",
         };

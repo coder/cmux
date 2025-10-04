@@ -61,6 +61,7 @@ in `./docs/vercel/**.mdx`.
 - **Integration tests:**
   - Run specific integration test: `TEST_INTEGRATION=1 bun x jest tests/ipcMain/sendMessage.test.ts -t "test name pattern"`
   - AVOID running all integration tests, that takes a long time!
+  - **NEVER bypass IPC in integration tests** - Integration tests must use the real IPC communication paths (e.g., `mockIpcRenderer.invoke()`, `mockIpcMain.emit()`) even when it's harder. Directly accessing services (HistoryService, PartialService, etc.) or reading files bypasses the integration layer and defeats the purpose of the test. If IPC is hard to test, fix the test infrastructure, don't work around it.
 
 ## Styling
 
@@ -120,6 +121,20 @@ in `./docs/vercel/**.mdx`.
   - Creating focused types for specific contexts (UI vs backend)
   - Using discriminated unions for state variations
   - Leveraging the compiler to catch errors at build time
+
+- **Use `using` for leakable system resources** - Always use explicit resource management (`using` declarations) for resources that need cleanup such as child processes, file handles, database connections, etc. This ensures proper cleanup even when errors occur.
+
+  ```typescript
+  // ✅ Good - Process is automatically cleaned up
+  using process = createDisposableProcess(spawn("command"));
+  const output = await readFromProcess(process);
+  // process.kill() called automatically when going out of scope
+
+  // ❌ Avoid - Process may leak if error occurs before cleanup
+  const process = spawn("command");
+  const output = await readFromProcess(process);
+  process.kill(); // May never be reached if error thrown
+  ```
 
 - This pattern maximizes type safety and prevents runtime errors from typos or missing cases
 

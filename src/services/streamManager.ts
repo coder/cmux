@@ -607,10 +607,29 @@ export class StreamManager extends EventEmitter {
         errorType = "authentication";
       }
 
+      // Write error metadata to partial.json for persistence across reloads
+      const errorPartialMessage: CmuxMessage = {
+        id: streamInfo.messageId,
+        role: "assistant",
+        metadata: {
+          historySequence: streamInfo.historySequence,
+          timestamp: streamInfo.startTime,
+          model: streamInfo.model,
+          partial: true,
+          error: errorMessage,
+          errorType,
+          ...streamInfo.initialMetadata,
+        },
+        parts: streamInfo.parts,
+      };
+      // Write error state to disk (fire-and-forget to not block error emission)
+      void this.partialService.writePartial(workspaceId as string, errorPartialMessage);
+
       // Emit error event
       this.emit("error", {
         type: "error",
         workspaceId: workspaceId as string,
+        messageId: streamInfo.messageId,
         error: errorMessage,
         errorType: errorType,
       } as ErrorEvent);

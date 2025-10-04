@@ -7,6 +7,7 @@
 export interface BashToolArgs {
   script: string;
   timeout_secs: number;
+  max_lines: number;
 }
 
 interface CommonBashFields {
@@ -18,16 +19,16 @@ interface CommonBashFields {
 export type BashToolResult =
   | (CommonBashFields & {
       success: true;
-      stdout: string;
-      stderr: string;
+      output: string;
       exitCode: 0;
+      truncated?: boolean;
     })
   | (CommonBashFields & {
       success: false;
-      stdout?: string;
-      stderr?: string;
+      output?: string;
       exitCode: number;
       error: string;
+      truncated?: boolean;
     });
 
 // Read File Tool Types

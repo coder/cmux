@@ -102,6 +102,11 @@ export const GlobalColors = () => (
         /* Interrupted/Warning Colors */
         --color-interrupted: hsl(38 92% 50%); /* #f59e0b */
         --color-interrupted-alpha: hsl(from var(--color-interrupted) h s l / 0.3);
+
+        /* Error Colors */
+        --color-error: hsl(0 70% 50%); /* Red for errors */
+        --color-error-alpha: hsl(from var(--color-error) h s l / 0.1);
+        --color-error-bg: color-mix(in srgb, var(--color-error) 12%, transparent);
       }
     `}
   />

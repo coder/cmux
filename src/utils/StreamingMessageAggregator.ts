@@ -213,6 +213,25 @@ export class StreamingMessageAggregator {
     }
   }
 
+  handleStreamError(data: { messageId: string; error: string; errorType: string }): void {
+    // Find active stream if exists
+    const activeStream = this.getActiveStreams().find((s) => s.messageId === data.messageId);
+
+    if (activeStream) {
+      // Mark the message with error metadata
+      const message = this.messages.get(data.messageId);
+      if (message?.metadata) {
+        message.metadata.partial = true;
+        message.metadata.error = data.error;
+        message.metadata.errorType = data.errorType;
+      }
+
+      // Clean up active stream (streaming status is inferred from this)
+      this.activeStreams.delete(activeStream.streamingId);
+      this.incrementDisplayVersion();
+    }
+  }
+
   handleToolCallStart(data: ToolCallStartEvent): void {
     const message = this.messages.get(data.messageId);
     if (!message) return;
@@ -457,6 +476,21 @@ export class StreamingMessageAggregator {
             });
           }
         });
+
+        // Create stream-error DisplayedMessage if message has error metadata
+        // This happens after all parts are displayed, so error appears at the end
+        if (message.metadata?.error) {
+          displayedMessages.push({
+            type: "stream-error",
+            id: `${message.id}-error`,
+            historyId: message.id,
+            error: message.metadata.error,
+            errorType: message.metadata.errorType ?? "unknown",
+            historySequence,
+            model: message.metadata.model,
+            timestamp: baseTimestamp,
+          });
+        }
       }
     }
 

@@ -26,12 +26,12 @@ const ScriptPreview = styled.span`
   max-width: 400px;
 `;
 
-const OutputBlock = styled.pre<{ type: "stdout" | "stderr" }>`
+const OutputBlock = styled.pre`
   margin: 0;
   padding: 6px 8px;
   background: rgba(0, 0, 0, 0.2);
   border-radius: 3px;
-  border-left: 2px solid ${(props) => (props.type === "stderr" ? "#f44336" : "#4caf50")};
+  border-left: 2px solid #4caf50;
   font-size: 11px;
   line-height: 1.4;
   white-space: pre-wrap;
@@ -112,17 +112,10 @@ export const BashToolCall: React.FC<BashToolCallProps> = ({ args, result, status
                 </DetailSection>
               )}
 
-              {result.stdout && (
+              {result.output && (
                 <DetailSection>
-                  <DetailLabel>stdout</DetailLabel>
-                  <OutputBlock type="stdout">{result.stdout}</OutputBlock>
-                </DetailSection>
-              )}
-
-              {result.stderr && (
-                <DetailSection>
-                  <DetailLabel>stderr</DetailLabel>
-                  <OutputBlock type="stderr">{result.stderr}</OutputBlock>
+                  <DetailLabel>Output</DetailLabel>
+                  <OutputBlock>{result.output}</OutputBlock>
                 </DetailSection>
               )}
             </>

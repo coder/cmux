@@ -415,8 +415,9 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
       async (provider, model) => {
         const { env, workspaceId, cleanup } = await setupWorkspace(provider);
         try {
-          // Build up a large conversation history using HistoryService
-          // Use the same config as the test environment to write to the correct location
+          // HACK: Build up a large conversation history using HistoryService directly
+          // This is a test-only shortcut to quickly populate history without streaming.
+          // Real application code should NEVER bypass IPC like this.
           const historyService = new HistoryService(env.config);
 
           // Create ~50k chars per message
@@ -476,6 +477,65 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
                 errorMsg.includes("maximum") ||
                 errorMsg.includes("context")
             ).toBe(true);
+          }
+
+          // NEW: Verify error handling improvements
+          // 1. Verify error event includes messageId
+          if (errorEvent && "messageId" in errorEvent) {
+            expect(errorEvent.messageId).toBeDefined();
+            expect(typeof errorEvent.messageId).toBe("string");
+          }
+
+          // 2. Verify error persists across "reload" by simulating page reload via IPC
+          // Clear sentEvents and trigger subscription (simulates what happens on page reload)
+          env.sentEvents.length = 0;
+
+          // Trigger the subscription using ipcRenderer.send() (correct way to trigger ipcMain.on())
+          env.mockIpcRenderer.send(`workspace:chat:subscribe`, workspaceId);
+
+          // Wait for the async subscription handler to complete by polling for caught-up
+          const reloadCollector = createEventCollector(env.sentEvents, workspaceId);
+          const caughtUpMessage = await reloadCollector.waitForEvent("caught-up", 10000);
+          expect(caughtUpMessage).toBeDefined();
+
+          // 3. Find the partial message with error metadata in reloaded messages
+          const reloadedMessages = reloadCollector.getEvents();
+          const partialMessage = reloadedMessages.find(
+            (msg) =>
+              msg &&
+              typeof msg === "object" &&
+              "metadata" in msg &&
+              msg.metadata &&
+              typeof msg.metadata === "object" &&
+              "error" in msg.metadata
+          );
+
+          // 4. Verify partial message has error metadata
+          expect(partialMessage).toBeDefined();
+          if (
+            partialMessage &&
+            typeof partialMessage === "object" &&
+            "metadata" in partialMessage &&
+            partialMessage.metadata &&
+            typeof partialMessage.metadata === "object"
+          ) {
+            expect("error" in partialMessage.metadata).toBe(true);
+            expect("errorType" in partialMessage.metadata).toBe(true);
+            expect("partial" in partialMessage.metadata).toBe(true);
+            if ("partial" in partialMessage.metadata) {
+              expect(partialMessage.metadata.partial).toBe(true);
+            }
+
+            // Verify error message mentions token/context limit
+            if ("error" in partialMessage.metadata) {
+              const errorMsg = String(partialMessage.metadata.error).toLowerCase();
+              expect(
+                errorMsg.includes("token") ||
+                  errorMsg.includes("too long") ||
+                  errorMsg.includes("maximum") ||
+                  errorMsg.includes("context")
+              ).toBe(true);
+            }
           }
         } finally {
           await cleanup();

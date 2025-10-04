@@ -4,6 +4,7 @@ import { UserMessage } from "./UserMessage";
 import { AssistantMessage } from "./AssistantMessage";
 import { ToolMessage } from "./ToolMessage";
 import { ReasoningMessage } from "./ReasoningMessage";
+import { StreamErrorMessage } from "./StreamErrorMessage";
 
 interface MessageRendererProps {
   message: DisplayedMessage;
@@ -26,6 +27,8 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({
       return <ToolMessage message={message} className={className} />;
     case "reasoning":
       return <ReasoningMessage message={message} className={className} />;
+    case "stream-error":
+      return <StreamErrorMessage message={message} className={className} />;
     default:
       console.error("don't know how to render message", message);
       return null;

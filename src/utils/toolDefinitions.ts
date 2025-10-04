@@ -28,6 +28,13 @@ export const TOOL_DEFINITIONS = {
     schema: z.object({
       script: z.string().describe("The bash script/command to execute"),
       timeout_secs: z.number().positive().describe("Timeout in seconds for command execution"),
+      max_lines: z
+        .number()
+        .int()
+        .positive()
+        .describe(
+          "Maximum number of output lines to return. Command will be killed if output exceeds this limit."
+        ),
     }),
   },
   read_file: {
