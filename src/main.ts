@@ -1,5 +1,5 @@
 import type { MenuItemConstructorOptions } from "electron";
-import { app, BrowserWindow, ipcMain as electronIpcMain, Menu } from "electron";
+import { app, BrowserWindow, ipcMain as electronIpcMain, Menu, shell } from "electron";
 import * as path from "path";
 import { Config } from "./config";
 import { IpcMain } from "./services/ipcMain";
@@ -101,6 +101,22 @@ function createWindow() {
 
   // Register IPC handlers with the main window
   ipcMain.register(electronIpcMain, mainWindow);
+
+  // Open all external links in default browser
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    void shell.openExternal(url);
+    return { action: "deny" };
+  });
+
+  mainWindow.webContents.on("will-navigate", (event, url) => {
+    const currentOrigin = new URL(mainWindow!.webContents.getURL()).origin;
+    const targetOrigin = new URL(url).origin;
+    // Prevent navigation away from app origin, open externally instead
+    if (targetOrigin !== currentOrigin) {
+      event.preventDefault();
+      void shell.openExternal(url);
+    }
+  });
 
   // Always load from dev server for now
   void mainWindow.loadURL("http://localhost:5173");
