@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import React, { createContext, useContext, useState, useEffect, useRef } from "react";
 import type { CmuxMessage, DisplayedMessage } from "../types/message";
 import type { ChatStats } from "../types/chatStats";
-import { calculateTokenStats } from "../utils/tokenStatsCalculator";
+import { TokenStatsWorker } from "../utils/TokenStatsWorker";
 
 interface ChatContextType {
   messages: DisplayedMessage[];
@@ -29,6 +29,17 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({
   const [isCalculating, setIsCalculating] = useState(false);
   // Track if we've already scheduled a calculation to prevent timer spam
   const calculationScheduledRef = useRef(false);
+  // Web Worker for off-thread token calculation
+  const workerRef = useRef<TokenStatsWorker | null>(null);
+
+  // Initialize worker once
+  useEffect(() => {
+    workerRef.current = new TokenStatsWorker();
+    return () => {
+      workerRef.current?.terminate();
+      workerRef.current = null;
+    };
+  }, []);
 
   useEffect(() => {
     if (cmuxMessages.length === 0) {
@@ -54,19 +65,25 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({
 
     // Debounce calculation by 100ms to avoid blocking on rapid updates
     const timeoutId = setTimeout(() => {
-      try {
-        // Use shared calculator with CmuxMessages (now synchronous with real tokenizer)
-        const calculatedStats = calculateTokenStats(cmuxMessages, model);
-        setStats(calculatedStats);
-      } finally {
-        setIsCalculating(false);
-        calculationScheduledRef.current = false;
-      }
+      // Calculate stats in Web Worker (off main thread)
+      workerRef.current
+        ?.calculate(cmuxMessages, model)
+        .then((calculatedStats) => {
+          setStats(calculatedStats);
+        })
+        .catch((error) => {
+          console.error("Failed to calculate token stats:", error);
+        })
+        .finally(() => {
+          setIsCalculating(false);
+          calculationScheduledRef.current = false;
+        });
     }, 100);
 
     return () => {
       clearTimeout(timeoutId);
       calculationScheduledRef.current = false;
+      setIsCalculating(false);
     };
   }, [cmuxMessages, model]);
 
