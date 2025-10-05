@@ -45,11 +45,7 @@ switch (command) {
       );
       process.exit(1);
     }
-    await sendMessageCommand(
-      workspaceId,
-      values.edit as string | undefined,
-      values.message as string | undefined
-    );
+    sendMessageCommand(workspaceId, values.edit, values.message);
     break;
   }
   default:
