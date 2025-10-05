@@ -47,6 +47,12 @@ export const TOOL_DEFINITIONS = {
         .describe(
           "Maximum number of output lines to return. Command will be killed if output exceeds this limit."
         ),
+      stdin: z
+        .string()
+        .optional()
+        .describe(
+          "Optional input to provide to the command via stdin. Useful for avoiding shell escaping issues when passing complex data to commands."
+        ),
     }),
   },
   file_read: {

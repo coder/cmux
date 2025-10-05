@@ -271,4 +271,68 @@ describe("bash tool", () => {
     expect(duration).toBeLessThan(2000);
     expect(result).toBeDefined();
   });
+
+  it("should accept stdin input and avoid shell escaping issues", async () => {
+    const tool = createBashTool({ cwd: process.cwd() });
+
+    // Test case: pass JSON data with special characters through stdin
+    // This avoids shell escaping complexity that would occur if passing as argument
+    const complexData = '{"message": "Hello $USER, this has `backticks` and "quotes"!"}';
+
+    const args: BashToolArgs = {
+      script: "cat", // Read from stdin
+      timeout_secs: 5,
+      max_lines: 100,
+      stdin: complexData,
+    };
+
+    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.output).toBe(complexData);
+      expect(result.exitCode).toBe(0);
+    }
+  });
+
+  it("should handle multi-line stdin input", async () => {
+    const tool = createBashTool({ cwd: process.cwd() });
+
+    const multiLineInput = "line1\nline2\nline3\n";
+
+    const args: BashToolArgs = {
+      script: "wc -l", // Count lines from stdin
+      timeout_secs: 5,
+      max_lines: 100,
+      stdin: multiLineInput,
+    };
+
+    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      // wc -l should report 3 lines
+      expect(result.output.trim()).toBe("3");
+      expect(result.exitCode).toBe(0);
+    }
+  });
+
+  it("should work without stdin when not provided (backward compatibility)", async () => {
+    const tool = createBashTool({ cwd: process.cwd() });
+
+    const args: BashToolArgs = {
+      script: "echo test",
+      timeout_secs: 5,
+      max_lines: 100,
+      // stdin not provided
+    };
+
+    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.output).toBe("test");
+      expect(result.exitCode).toBe(0);
+    }
+  });
 });
