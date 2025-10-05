@@ -244,4 +244,31 @@ describe("bash tool", () => {
       expect(result.output).toBe("");
     }
   });
+
+  it("should not hang on git rebase --continue", async () => {
+    const tool = createBashTool({ cwd: process.cwd() });
+    const startTime = performance.now();
+
+    // Extremely minimal case - just enough to trigger rebase --continue
+    const script = `
+      T=$(mktemp -d) && cd "$T"
+      git init && git config user.email "t@t" && git config user.name "T"
+      echo a > f && git add f && git commit -m a
+      git checkout -b b && echo b > f && git commit -am b
+      git checkout main && echo c > f && git commit -am c
+      git rebase b || true
+      echo resolved > f && git add f
+      git rebase --continue
+    `;
+
+    const result = (await tool.execute!(
+      { script, timeout_secs: 2, max_lines: 100 },
+      mockToolCallOptions
+    )) as BashToolResult;
+
+    const duration = performance.now() - startTime;
+
+    expect(duration).toBeLessThan(2000);
+    expect(result).toBeDefined();
+  });
 });

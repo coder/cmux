@@ -8,7 +8,7 @@ import type { SendMessageOptions } from "../types/ipc";
  * Debug command to send a message to a workspace, optionally editing an existing message
  * Usage: bun debug send-message <workspace-id> [--edit <message-id>] [--message <text>]
  */
-export async function sendMessageCommand(
+export function sendMessageCommand(
   workspaceId: string,
   editMessageId?: string,
   messageText?: string
@@ -70,7 +70,7 @@ export async function sendMessageCommand(
   for (const msg of messages) {
     const preview =
       msg.role === "user"
-        ? msg.parts.find((p) => p.type === "text")?.text?.substring(0, 60) || ""
+        ? (msg.parts.find((p) => p.type === "text")?.text?.substring(0, 60) ?? "")
         : `[${msg.parts.length} parts]`;
     const indicator = msg.id === editMessageId ? "👉" : "  ";
     const mismatchIndicator = msg.workspaceId && msg.workspaceId !== workspaceId ? " ℹ️" : "";
@@ -97,7 +97,7 @@ export async function sendMessageCommand(
   }
 
   // Prepare the message text
-  const textToSend = messageText || `[Debug edit test at ${new Date().toISOString()}]`;
+  const textToSend = messageText ?? `[Debug edit test at ${new Date().toISOString()}]`;
   console.log(`\n📤 Message to send: "${textToSend}"`);
 
   // Prepare options
