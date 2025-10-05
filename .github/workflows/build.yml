@@ -2,7 +2,7 @@ name: Build
 
 on:
   push:
-    branches: ["main", "ci-build-artifacts"]  # Add our branch for testing
+    branches: ["main"]
   pull_request:
     branches: ["**"]
   workflow_dispatch:  # Allow manual triggering
