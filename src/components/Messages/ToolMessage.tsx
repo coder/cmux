@@ -3,6 +3,7 @@ import type { DisplayedMessage } from "../../types/message";
 import { GenericToolCall } from "../tools/GenericToolCall";
 import { BashToolCall } from "../tools/BashToolCall";
 import { FileEditToolCall } from "../tools/FileEditToolCall";
+import { ProposePlanToolCall } from "../tools/ProposePlanToolCall";
 import type {
   BashToolArgs,
   BashToolResult,
@@ -10,6 +11,8 @@ import type {
   FileEditInsertToolArgs,
   FileEditReplaceToolResult,
   FileEditInsertToolResult,
+  ProposePlanToolArgs,
+  ProposePlanToolResult,
 } from "../../types/tools";
 
 interface ToolMessageProps {
@@ -53,6 +56,11 @@ function isFileEditInsertTool(toolName: string, args: unknown): args is FileEdit
   );
 }
 
+// Type guard for propose_plan tool
+function isProposePlanTool(toolName: string, args: unknown): args is ProposePlanToolArgs {
+  return toolName === "propose_plan" && typeof args === "object" && args !== null && "plan" in args;
+}
+
 export const ToolMessage: React.FC<ToolMessageProps> = ({ message, className }) => {
   // Route to specialized components based on tool name
   if (isBashTool(message.toolName, message.args)) {
@@ -87,6 +95,18 @@ export const ToolMessage: React.FC<ToolMessageProps> = ({ message, className }) 
           toolName="file_edit_insert"
           args={message.args}
           result={message.result as FileEditInsertToolResult | undefined}
+          status={message.status}
+        />
+      </div>
+    );
+  }
+
+  if (isProposePlanTool(message.toolName, message.args)) {
+    return (
+      <div className={className}>
+        <ProposePlanToolCall
+          args={message.args}
+          result={message.result as ProposePlanToolResult | undefined}
           status={message.status}
         />
       </div>

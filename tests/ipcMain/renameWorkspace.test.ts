@@ -375,9 +375,7 @@ describeIntegration("IpcMain rename workspace integration tests", () => {
           e.data !== null &&
           "role" in e.data
       );
-      const userMessage = chatMessages.find(
-        (e) => (e.data as CmuxMessage).role === "user"
-      );
+      const userMessage = chatMessages.find((e) => (e.data as CmuxMessage).role === "user");
       expect(userMessage).toBeTruthy();
       const userMessageId = (userMessage!.data as CmuxMessage).id;
 

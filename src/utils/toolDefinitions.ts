@@ -110,6 +110,20 @@ export const TOOL_DEFINITIONS = {
       lease: leaseSchema,
     }),
   },
+  propose_plan: {
+    description:
+      "Propose a detailed plan for implementation. The plan will be reviewed by the user before execution. Use this to outline the approach, steps, and considerations before making changes.",
+    schema: z.object({
+      title: z
+        .string()
+        .describe("A short, descriptive title for the plan (e.g., 'Add User Authentication')"),
+      plan: z
+        .string()
+        .describe(
+          "Implementation plan in markdown (start at h2 level). Cover: problem/context, chosen approach with rationale, alternatives considered, step-by-step implementation, edge cases and risks, scope/impact on existing code, testing strategy. Break complex work into phases."
+        ),
+    }),
+  },
 } as const;
 
 /**
@@ -140,7 +154,7 @@ export function getAvailableTools(modelString: string): string[] {
   const [provider] = modelString.split(":");
 
   // Base tools available for all models
-  const baseTools = ["bash", "file_read", "file_edit_replace", "file_edit_insert"];
+  const baseTools = ["bash", "file_read", "file_edit_replace", "file_edit_insert", "propose_plan"];
 
   // Add provider-specific tools
   switch (provider) {

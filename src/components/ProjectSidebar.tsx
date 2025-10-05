@@ -4,6 +4,7 @@ import { css } from "@emotion/react";
 import type { ProjectConfig } from "../config";
 import type { WorkspaceMetadata } from "../types/workspace";
 import { usePersistedState } from "../hooks/usePersistedState";
+import { matchesKeybind, formatKeybind, KEYBINDS } from "../utils/keybinds";
 
 // Styled Components
 const SidebarContainer = styled.div`
@@ -425,8 +426,8 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
   // Handle keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // ctrl+n or cmd+n to create new workspace for the project of the selected workspace
-      if ((e.ctrlKey || e.metaKey) && e.key === "n" && selectedWorkspace) {
+      // Create new workspace for the project of the selected workspace
+      if (matchesKeybind(e, KEYBINDS.NEW_WORKSPACE) && selectedWorkspace) {
         e.preventDefault();
         onAddWorkspace(selectedWorkspace.projectPath);
       }
@@ -475,7 +476,8 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                   <WorkspaceHeader>
                     <AddWorkspaceBtn onClick={() => onAddWorkspace(projectPath)}>
                       + New Workspace
-                      {selectedWorkspace?.projectPath === projectPath && " (Ctrl+N)"}
+                      {selectedWorkspace?.projectPath === projectPath &&
+                        ` (${formatKeybind(KEYBINDS.NEW_WORKSPACE)})`}
                     </AddWorkspaceBtn>
                   </WorkspaceHeader>
                   {config.workspaces.map((workspace) => {

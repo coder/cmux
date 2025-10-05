@@ -1,5 +1,17 @@
 import type { ReactNode } from "react";
+import type { CSSProperties } from "react";
 import React from "react";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
+
+// Create style with colors only (no backgrounds)
+const syntaxStyleNoBackgrounds: Record<string, CSSProperties> = {};
+for (const [key, value] of Object.entries(vscDarkPlus)) {
+  if (typeof value === "object" && value !== null) {
+    const { background, backgroundColor, ...rest } = value as Record<string, unknown>;
+    syntaxStyleNoBackgrounds[key] = rest as CSSProperties;
+  }
+}
 
 interface CodeProps {
   node?: unknown;
@@ -8,21 +20,62 @@ interface CodeProps {
   children?: ReactNode;
 }
 
+interface PreProps {
+  children?: ReactNode;
+}
+
 // Custom components for markdown rendering
 export const markdownComponents = {
-  // Custom code block renderer
-  code: ({ inline, className, children, ...props }: CodeProps) => {
+  // Pass through pre element - let code component handle the wrapping
+  pre: ({ children }: PreProps) => <>{children}</>,
+
+  // Custom code block renderer with syntax highlighting
+  code: ({ inline, className, children, node, ...props }: CodeProps) => {
     const match = /language-(\w+)/.exec(className ?? "");
     const language = match ? match[1] : "";
 
-    if (!inline && language) {
+    // Better inline detection: check for multiline content
+    const childString =
+      typeof children === "string" ? children : Array.isArray(children) ? children.join("") : "";
+    const hasMultipleLines = childString.includes("\n");
+    const isInline = inline ?? !hasMultipleLines;
+
+    if (!isInline && language) {
+      // Code block with language - use syntax highlighter
+      // Extract text content from children (react-markdown passes string or array of strings)
+      const code =
+        typeof children === "string" ? children : Array.isArray(children) ? children.join("") : "";
+
       return (
-        <pre className={className}>
-          <code {...props}>{children}</code>
+        <SyntaxHighlighter
+          style={syntaxStyleNoBackgrounds}
+          language={language}
+          PreTag="pre"
+          customStyle={{
+            background: "rgba(0, 0, 0, 0.3)",
+            margin: "1em 0",
+            borderRadius: "4px",
+            fontSize: "12px",
+            padding: "12px",
+          }}
+        >
+          {code.replace(/\n$/, "")}
+        </SyntaxHighlighter>
+      );
+    }
+
+    if (!isInline) {
+      // Code block without language - plain pre/code
+      return (
+        <pre>
+          <code className={className} {...props}>
+            {children}
+          </code>
         </pre>
       );
     }
 
+    // Inline code (filter out node prop to avoid [object Object])
     return (
       <code className={className} {...props}>
         {children}

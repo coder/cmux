@@ -754,4 +754,105 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
       30000
     );
   });
+
+  // Tool policy tests
+  describe("tool policy", () => {
+    test.each(PROVIDER_CONFIGS)(
+      "%s should respect tool policy that disables bash",
+      async (provider, model) => {
+        const { env, workspaceId, workspacePath, cleanup } = await setupWorkspace(provider);
+        try {
+          // Create a test file in the workspace
+          const testFilePath = path.join(workspacePath, "bash-test-file.txt");
+          await fs.writeFile(testFilePath, "original content", "utf-8");
+
+          // Verify file exists
+          expect(
+            await fs.access(testFilePath).then(
+              () => true,
+              () => false
+            )
+          ).toBe(true);
+
+          // Ask AI to delete the file using bash (which should be disabled)
+          const result = await sendMessageWithModel(
+            env.mockIpcRenderer,
+            workspaceId,
+            "Delete the file bash-test-file.txt using bash rm command",
+            provider,
+            model,
+            {
+              toolPolicy: [{ regex_match: "bash", action: "disable" }],
+            }
+          );
+
+          // IPC call should succeed
+          expect(result.success).toBe(true);
+
+          // Wait for stream to complete
+          const collector = createEventCollector(env.sentEvents, workspaceId);
+          await collector.waitForEvent("stream-end", 10000);
+          assertStreamSuccess(collector);
+
+          // Verify file still exists (bash tool was disabled, so deletion shouldn't have happened)
+          const fileStillExists = await fs.access(testFilePath).then(
+            () => true,
+            () => false
+          );
+          expect(fileStillExists).toBe(true);
+
+          // Verify content unchanged
+          const content = await fs.readFile(testFilePath, "utf-8");
+          expect(content).toBe("original content");
+        } finally {
+          await cleanup();
+        }
+      },
+      15000
+    );
+
+    test.each(PROVIDER_CONFIGS)(
+      "%s should respect tool policy that disables file_edit tools",
+      async (provider, model) => {
+        const { env, workspaceId, workspacePath, cleanup } = await setupWorkspace(provider);
+        try {
+          // Create a test file with known content
+          const testFilePath = path.join(workspacePath, "edit-test-file.txt");
+          const originalContent = "original content line 1\noriginal content line 2";
+          await fs.writeFile(testFilePath, originalContent, "utf-8");
+
+          // Ask AI to edit the file (which should be disabled)
+          // Disable both file_edit tools AND bash to prevent workarounds
+          const result = await sendMessageWithModel(
+            env.mockIpcRenderer,
+            workspaceId,
+            "Edit the file edit-test-file.txt and replace 'original' with 'modified'",
+            provider,
+            model,
+            {
+              toolPolicy: [
+                { regex_match: "file_edit_.*", action: "disable" },
+                { regex_match: "bash", action: "disable" },
+              ],
+            }
+          );
+
+          // IPC call should succeed
+          expect(result.success).toBe(true);
+
+          // Wait for stream to complete
+          const collector = createEventCollector(env.sentEvents, workspaceId);
+          await collector.waitForEvent("stream-end", 10000);
+          assertStreamSuccess(collector);
+
+          // Verify file content unchanged (file_edit tools and bash were disabled)
+          const content = await fs.readFile(testFilePath, "utf-8");
+          expect(content).toBe(originalContent);
+        } finally {
+          await cleanup();
+        }
+      },
+      15000
+    );
+  });
 });

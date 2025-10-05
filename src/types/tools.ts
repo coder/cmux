@@ -95,3 +95,16 @@ export type FileEditInsertToolResult =
       success: false;
       error: string;
     };
+
+// Propose Plan Tool Types
+export interface ProposePlanToolArgs {
+  title: string;
+  plan: string;
+}
+
+export interface ProposePlanToolResult {
+  success: true;
+  title: string;
+  plan: string;
+  message: string;
+}
