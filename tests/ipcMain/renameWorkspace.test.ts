@@ -335,4 +335,94 @@ describeIntegration("IpcMain rename workspace integration tests", () => {
       await cleanup();
     }
   }, 30000);
+
+  test("should support editing messages after rename", async () => {
+    const { env, workspaceId, workspacePath, tempGitRepo, cleanup } =
+      await setupWorkspace("anthropic");
+    try {
+      // Add workspace to config via IPC
+      const projectsConfig = env.config.loadConfigOrDefault();
+      if (!projectsConfig.projects.has(tempGitRepo)) {
+        projectsConfig.projects.set(tempGitRepo, { path: tempGitRepo, workspaces: [] });
+      }
+      const projectConfig = projectsConfig.projects.get(tempGitRepo);
+      projectConfig?.workspaces.push({ path: workspacePath });
+      await env.mockIpcRenderer.invoke(IPC_CHANNELS.CONFIG_SAVE, {
+        projects: Array.from(projectsConfig.projects.entries()),
+      });
+
+      // Send a message to create history before rename
+      env.sentEvents.length = 0;
+      const result = await sendMessageWithModel(
+        env.mockIpcRenderer,
+        workspaceId,
+        "What is 2+2?",
+        "anthropic",
+        "claude-sonnet-4-5"
+      );
+      expect(result.success).toBe(true);
+
+      // Wait for response
+      const collector = createEventCollector(env.sentEvents, workspaceId);
+      await collector.waitForEvent("stream-end", 10000);
+
+      // Get the user message from chat events for later editing
+      const chatMessages = env.sentEvents.filter(
+        (e) => e.channel === `workspace:chat:${workspaceId}` && "role" in e.data
+      );
+      const userMessage = chatMessages.find((e) => e.data.role === "user");
+      expect(userMessage).toBeTruthy();
+      const userMessageId = userMessage!.data.id;
+
+      // Clear events before rename
+      env.sentEvents.length = 0;
+
+      // Rename the workspace
+      const newName = "renamed-edit-test";
+      const renameResult = await env.mockIpcRenderer.invoke(
+        IPC_CHANNELS.WORKSPACE_RENAME,
+        workspaceId,
+        newName
+      );
+      expect(renameResult.success).toBe(true);
+
+      // Get new workspace ID from result
+      const newWorkspaceId = renameResult.data.newWorkspaceId;
+
+      // Clear events before edit
+      env.sentEvents.length = 0;
+
+      // Edit the user message using the new workspace ID
+      // This is the critical test - editing should work after rename
+      const editResult = await sendMessageWithModel(
+        env.mockIpcRenderer,
+        newWorkspaceId,
+        "What is 3+3?",
+        "anthropic",
+        "claude-sonnet-4-5",
+        { editMessageId: userMessageId }
+      );
+      expect(editResult.success).toBe(true);
+
+      // Wait for response
+      const editCollector = createEventCollector(env.sentEvents, newWorkspaceId);
+      const streamEnd = await editCollector.waitForEvent("stream-end", 10000);
+      expect(streamEnd).toBeTruthy();
+
+      // Verify we got the edited user message and a successful response
+      editCollector.collect();
+      const allEvents = editCollector.getEvents();
+
+      const editedUserMessage = allEvents.find(
+        (e) =>
+          "role" in e && e.role === "user" && e.parts?.some((p: any) => p.text?.includes("3+3"))
+      );
+      expect(editedUserMessage).toBeTruthy();
+
+      // Verify stream completed successfully (proves AI responded to edited message)
+      expect(streamEnd).toBeDefined();
+    } finally {
+      await cleanup();
+    }
+  }, 30000);
 });

@@ -280,6 +280,17 @@ export class IpcMain {
           // Rename session directory
           await fsPromises.rename(oldSessionDir, newSessionDir);
 
+          // Migrate workspace IDs in history messages
+          const migrateResult = await this.historyService.migrateWorkspaceId(
+            workspaceId,
+            newWorkspaceId
+          );
+          if (!migrateResult.success) {
+            // Rollback session directory rename
+            await fsPromises.rename(newSessionDir, oldSessionDir);
+            return Err(`Failed to migrate message workspace IDs: ${migrateResult.error}`);
+          }
+
           // Calculate new worktree path
           const oldWorktreePath = oldMetadata.workspacePath;
           const newWorktreePath = path.join(
