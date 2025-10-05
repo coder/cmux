@@ -36,6 +36,16 @@ while true; do
     exit 1
   fi
   
+  if [ "$MERGE_STATE" = "BEHIND" ]; then
+    echo "❌ PR is behind base branch. Rebase needed."
+    echo ""
+    echo "Run:"
+    echo "  git fetch origin"
+    echo "  git rebase origin/main"
+    echo "  git push --force-with-lease"
+    exit 1
+  fi
+  
   # Get check status
   CHECKS=$(gh pr checks "$PR_NUMBER" 2>&1 || echo "pending")
   
@@ -56,14 +66,6 @@ while true; do
       exit 0
     elif [ "$MERGE_STATE" = "BLOCKED" ]; then
       echo "⏳ All checks passed but still blocked (waiting for required checks)..."
-    elif [ "$MERGE_STATE" = "BEHIND" ]; then
-      echo "⚠️  All checks passed but branch is behind base. Rebase needed."
-      echo ""
-      echo "Run:"
-      echo "  git fetch origin"
-      echo "  git rebase origin/main"
-      echo "  git push --force-with-lease"
-      exit 1
     fi
   else
     # Show current status

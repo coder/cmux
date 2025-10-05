@@ -24,6 +24,14 @@ gh pr view <number> --json mergeable,mergeStateStatus | jq '.'
 
 This is especially important with rapid development where branches quickly fall behind.
 
+**Wait for PR checks to complete:**
+
+```bash
+./scripts/wait_pr_checks.sh <pr_number>
+```
+
+This script polls every 5 seconds and fails immediately on CI failure or bad merge status.
+
 **Key status values:**
 
 - `mergeable: "MERGEABLE"` = No conflicts, can merge
