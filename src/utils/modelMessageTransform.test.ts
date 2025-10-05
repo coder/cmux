@@ -626,7 +626,7 @@ describe("modelMessageTransform", () => {
       // Find the assistant message with text
       const textMessage = result.find((msg) => {
         if (msg.role !== "assistant") return false;
-        const content = (msg as AssistantModelMessage).content;
+        const content = (msg).content;
         return Array.isArray(content) && content.some((c) => c.type === "text");
       });
       expect(textMessage).toBeDefined();
@@ -643,7 +643,7 @@ describe("modelMessageTransform", () => {
       // Find the assistant message with tool-call
       const toolCallMessage = result.find((msg) => {
         if (msg.role !== "assistant") return false;
-        const content = (msg as AssistantModelMessage).content;
+        const content = (msg).content;
         return Array.isArray(content) && content.some((c) => c.type === "tool-call");
       });
       expect(toolCallMessage).toBeDefined();
