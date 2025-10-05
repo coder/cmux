@@ -1,6 +1,7 @@
 import { setupWorkspace, shouldRunIntegrationTests, validateApiKeys } from "./setup";
 import { sendMessageWithModel, createEventCollector } from "./helpers";
 import { IPC_CHANNELS } from "../../src/constants/ipc-constants";
+import type { CmuxMessage } from "../../src/types/message";
 import * as fs from "fs/promises";
 
 // Skip all tests if TEST_INTEGRATION is not set
@@ -368,11 +369,17 @@ describeIntegration("IpcMain rename workspace integration tests", () => {
 
       // Get the user message from chat events for later editing
       const chatMessages = env.sentEvents.filter(
-        (e) => e.channel === `workspace:chat:${workspaceId}` && "role" in e.data
+        (e) =>
+          e.channel === `workspace:chat:${workspaceId}` &&
+          typeof e.data === "object" &&
+          e.data !== null &&
+          "role" in e.data
       );
-      const userMessage = chatMessages.find((e) => e.data.role === "user");
+      const userMessage = chatMessages.find(
+        (e) => (e.data as CmuxMessage).role === "user"
+      );
       expect(userMessage).toBeTruthy();
-      const userMessageId = userMessage!.data.id;
+      const userMessageId = (userMessage!.data as CmuxMessage).id;
 
       // Clear events before rename
       env.sentEvents.length = 0;
