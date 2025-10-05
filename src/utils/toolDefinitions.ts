@@ -34,7 +34,12 @@ export const TOOL_DEFINITIONS = {
     description: "Execute a bash command with a configurable timeout",
     schema: z.object({
       script: z.string().describe("The bash script/command to execute"),
-      timeout_secs: z.number().positive().describe("Timeout in seconds for command execution"),
+      timeout_secs: z
+        .number()
+        .positive()
+        .describe(
+          "Timeout (seconds). Start small and increase on retry; avoid large initial values to keep UX responsive"
+        ),
       max_lines: z
         .number()
         .int()
