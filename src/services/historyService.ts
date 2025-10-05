@@ -422,4 +422,52 @@ export class HistoryService {
     }
     return Ok(undefined);
   }
+
+  /**
+   * Migrate all messages in chat.jsonl to use a new workspace ID
+   * This is used during workspace rename to update the workspaceId field in all historical messages
+   * IMPORTANT: Should be called AFTER the session directory has been renamed
+   */
+  async migrateWorkspaceId(oldWorkspaceId: string, newWorkspaceId: string): Promise<Result<void>> {
+    return this.fileLocks.withLock(newWorkspaceId, async () => {
+      try {
+        // Read messages from the NEW workspace location (directory was already renamed)
+        const historyResult = await this.getHistory(newWorkspaceId);
+        if (!historyResult.success) {
+          return historyResult;
+        }
+
+        const messages = historyResult.data;
+        if (messages.length === 0) {
+          // No messages to migrate, just transfer sequence counter
+          const oldCounter = this.sequenceCounters.get(oldWorkspaceId) ?? 0;
+          this.sequenceCounters.set(newWorkspaceId, oldCounter);
+          this.sequenceCounters.delete(oldWorkspaceId);
+          return Ok(undefined);
+        }
+
+        // Rewrite all messages with new workspace ID
+        const newHistoryPath = this.getChatHistoryPath(newWorkspaceId);
+        const historyEntries = messages
+          .map((msg) => JSON.stringify({ ...msg, workspaceId: newWorkspaceId }) + "\n")
+          .join("");
+
+        await fs.writeFile(newHistoryPath, historyEntries);
+
+        // Transfer sequence counter to new workspace ID
+        const oldCounter = this.sequenceCounters.get(oldWorkspaceId) ?? 0;
+        this.sequenceCounters.set(newWorkspaceId, oldCounter);
+        this.sequenceCounters.delete(oldWorkspaceId);
+
+        log.debug(
+          `Migrated ${messages.length} messages from ${oldWorkspaceId} to ${newWorkspaceId}`
+        );
+
+        return Ok(undefined);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        return Err(`Failed to migrate workspace ID: ${message}`);
+      }
+    });
+  }
 }
