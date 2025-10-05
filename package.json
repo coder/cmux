@@ -23,10 +23,10 @@
     "test:watch": "./scripts/test.sh --watch",
     "test:coverage": "./scripts/test.sh --coverage",
     "test:integration": "bun test src && TEST_INTEGRATION=1 jest tests",
-    "dist": "bun run build && electron-builder",
-    "dist:mac": "bun run build && electron-builder --mac",
-    "dist:win": "bun run build && electron-builder --win",
-    "dist:linux": "bun run build && electron-builder --linux"
+    "dist": "bun run build && electron-builder --publish never",
+    "dist:mac": "bun run build && electron-builder --mac --publish never",
+    "dist:win": "bun run build && electron-builder --win --publish never",
+    "dist:linux": "bun run build && electron-builder --linux --publish never"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.20",
@@ -90,11 +90,24 @@
       "dist/**/*"
     ],
     "mac": {
-      "category": "public.app-category.developer-tools"
+      "category": "public.app-category.developer-tools",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "icon": "build/icon.icns",
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
     },
     "linux": {
       "target": "AppImage",
-      "category": "Development"
+      "category": "Development",
+      "icon": "build/icon.png",
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
     },
     "win": {
       "target": "nsis"
