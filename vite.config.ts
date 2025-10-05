@@ -11,6 +11,14 @@ export default defineConfig({
     assetsDir: ".",
     emptyOutDir: false,
     sourcemap: true,
+    rollupOptions: {
+      // External modules that shouldn't be bundled
+      external: [],
+    },
+  },
+  worker: {
+    format: "es",
+    plugins: () => [wasm(), topLevelAwait()],
   },
   server: {
     port: 5173,
