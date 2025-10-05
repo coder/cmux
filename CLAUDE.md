@@ -14,6 +14,41 @@ When creating public operations (commits, PRs, issues), always include:
 
 This ensures transparency about AI-generated contributions.
 
+## PR Management
+
+After submitting or updating PRs, **always check merge status**:
+
+```bash
+gh pr view <number> --json mergeable,mergeStateStatus | jq '.'
+```
+
+This is especially important with rapid development where branches quickly fall behind.
+
+**Wait for PR checks to complete:**
+
+```bash
+./scripts/wait_pr_checks.sh <pr_number>
+```
+
+This script polls every 5 seconds and fails immediately on CI failure or bad merge status.
+
+**Key status values:**
+
+- `mergeable: "MERGEABLE"` = No conflicts, can merge
+- `mergeable: "CONFLICTING"` = Has conflicts, needs resolution
+- `mergeStateStatus: "CLEAN"` = Ready to merge ✅
+- `mergeStateStatus: "BLOCKED"` = Waiting for CI checks
+- `mergeStateStatus: "BEHIND"` = Branch is behind base, rebase needed
+- `mergeStateStatus: "DIRTY"` = Has conflicts
+
+**If branch is behind:**
+
+```bash
+git fetch origin
+git rebase origin/main
+git push --force-with-lease
+```
+
 ## Project Structure
 
 - `src/main.ts` - Main Electron process

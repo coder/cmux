@@ -82,14 +82,25 @@ export async function createTestEnvironment(): Promise<TestEnvironment> {
 }
 
 /**
- * Cleanup test environment (remove temporary directory)
+ * Cleanup test environment (remove temporary directory) with retry logic
  */
 export async function cleanupTestEnvironment(env: TestEnvironment): Promise<void> {
-  try {
-    await fs.rm(env.tempDir, { recursive: true, force: true });
-  } catch (error) {
-    console.warn("Failed to cleanup test environment:", error);
+  const maxRetries = 3;
+  let lastError: unknown;
+
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      await fs.rm(env.tempDir, { recursive: true, force: true });
+      return;
+    } catch (error) {
+      lastError = error;
+      // Wait before retry (files might be locked temporarily)
+      if (i < maxRetries - 1) {
+        await new Promise((resolve) => setTimeout(resolve, 100 * (i + 1)));
+      }
+    }
   }
+  console.warn(`Failed to cleanup test environment after ${maxRetries} attempts:`, lastError);
 }
 
 /**

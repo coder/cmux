@@ -13,6 +13,7 @@ import {
   createEventCollector,
   assertStreamSuccess,
   assertError,
+  waitFor,
 } from "./helpers";
 import { HistoryService } from "../../src/services/historyService";
 import { createCmuxMessage } from "../../src/types/message";
@@ -99,17 +100,20 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
         // Should succeed (interrupt is not an error)
         expect(interruptResult.success).toBe(true);
 
-        // Wait a bit for abort event
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-        collector.collect();
+        // Wait for abort or end event
+        const abortOrEndReceived = await waitFor(
+          () => {
+            collector.collect();
+            const hasAbort = collector
+              .getEvents()
+              .some((e) => "type" in e && e.type === "stream-abort");
+            const hasEnd = collector.hasStreamEnd();
+            return hasAbort || hasEnd;
+          },
+          5000
+        );
 
-        // Should have received stream-abort or stream-end
-        const hasAbort = collector
-          .getEvents()
-          .some((e) => "type" in e && e.type === "stream-abort");
-        const hasEnd = collector.hasStreamEnd();
-
-        expect(hasAbort || hasEnd).toBe(true);
+        expect(abortOrEndReceived).toBe(true);
       } finally {
         await cleanup();
       }
@@ -757,6 +761,11 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
 
   // Tool policy tests
   describe("tool policy", () => {
+    // Retry tool policy tests in CI (they depend on external API behavior)
+    if (process.env.CI && typeof jest !== "undefined" && jest.retryTimes) {
+      jest.retryTimes(2, { logErrorsBeforeRetry: true });
+    }
+
     test.each(PROVIDER_CONFIGS)(
       "%s should respect tool policy that disables bash",
       async (provider, model) => {
@@ -789,9 +798,9 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
           // IPC call should succeed
           expect(result.success).toBe(true);
 
-          // Wait for stream to complete
+          // Wait for stream to complete (longer timeout for tool policy tests)
           const collector = createEventCollector(env.sentEvents, workspaceId);
-          await collector.waitForEvent("stream-end", 10000);
+          await collector.waitForEvent("stream-end", 30000);
           assertStreamSuccess(collector);
 
           // Verify file still exists (bash tool was disabled, so deletion shouldn't have happened)
@@ -808,7 +817,7 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
           await cleanup();
         }
       },
-      15000
+      45000
     );
 
     test.each(PROVIDER_CONFIGS)(
@@ -840,9 +849,9 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
           // IPC call should succeed
           expect(result.success).toBe(true);
 
-          // Wait for stream to complete
+          // Wait for stream to complete (longer timeout for tool policy tests)
           const collector = createEventCollector(env.sentEvents, workspaceId);
-          await collector.waitForEvent("stream-end", 10000);
+          await collector.waitForEvent("stream-end", 30000);
           assertStreamSuccess(collector);
 
           // Verify file content unchanged (file_edit tools and bash were disabled)
@@ -852,7 +861,7 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
           await cleanup();
         }
       },
-      15000
+      45000
     );
   });
 });
