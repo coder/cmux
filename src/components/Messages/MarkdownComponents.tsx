@@ -6,7 +6,7 @@ import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 
 // Create style with colors only (no backgrounds)
 const syntaxStyleNoBackgrounds: Record<string, CSSProperties> = {};
-for (const [key, value] of Object.entries(vscDarkPlus)) {
+for (const [key, value] of Object.entries(vscDarkPlus as Record<string, unknown>)) {
   if (typeof value === "object" && value !== null) {
     const { background, backgroundColor, ...rest } = value as Record<string, unknown>;
     syntaxStyleNoBackgrounds[key] = rest as CSSProperties;
