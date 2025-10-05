@@ -184,10 +184,12 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
   const updateUIAndScroll = useCallback(() => {
     const aggregator = getAggregator(workspaceId);
     setDisplayedMessages(aggregator.getDisplayedMessages());
+    setCanInterrupt(aggregator.getActiveStreams().length > 0);
     performAutoScroll();
   }, [performAutoScroll, workspaceId, getAggregator]);
 
   const [loading, setLoading] = useState(false);
+  const [canInterrupt, setCanInterrupt] = useState(false);
 
   // Handlers for editing messages
   const handleEditUserMessage = useCallback((messageId: string, content: string) => {
@@ -221,6 +223,7 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
 
     // Load existing messages for this workspace
     setDisplayedMessages(aggregator.getDisplayedMessages());
+    setCanInterrupt(aggregator.getActiveStreams().length > 0);
 
     // Enable auto-scroll when switching workspaces
     setAutoScroll(true);
@@ -396,9 +399,6 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
   // The aggregator invalidates its cache on mutations, so we don't need useMemo here
   // Must be before early returns to respect React hooks rules
   const cmuxMessages = aggregator.getAllMessages();
-
-  // Check if we can interrupt (streaming is active)
-  const canInterrupt = aggregator.getActiveStreams().length > 0;
 
   if (loading) {
     return (
