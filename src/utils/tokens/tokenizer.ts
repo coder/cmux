@@ -5,7 +5,7 @@
 import { encoding_for_model, type Tiktoken } from "@dqbd/tiktoken";
 import { LRUCache } from "lru-cache";
 import CRC32 from "crc-32";
-import { getToolSchemas, getAvailableTools } from "./toolDefinitions";
+import { getToolSchemas, getAvailableTools } from "../tools/toolDefinitions";
 
 export interface Tokenizer {
   name: string;
