@@ -38,23 +38,6 @@ export async function sendMessage(
 }
 
 /**
- * Send a message with a provider and model (convenience wrapper)
- */
-export async function sendMessageWithModel(
-  mockIpcRenderer: IpcRenderer,
-  workspaceId: string,
-  message: string,
-  provider: string,
-  model: string,
-  options?: Omit<SendMessageOptions, "model">
-): Promise<Result<void, SendMessageError>> {
-  return sendMessage(mockIpcRenderer, workspaceId, message, {
-    ...options,
-    model: modelString(provider, model),
-  });
-}
-
-/**
  * Create a workspace via IPC
  */
 export async function createWorkspace(

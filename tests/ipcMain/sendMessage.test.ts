@@ -8,8 +8,8 @@ import {
   type TestEnvironment,
 } from "./setup";
 import {
-  sendMessageWithModel,
   sendMessage,
+  modelString,
   createEventCollector,
   assertStreamSuccess,
   assertError,
@@ -44,17 +44,18 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
   }
   // Run tests for each provider concurrently
   describe.each(PROVIDER_CONFIGS)("%s:%s provider tests", (provider, model) => {
+    const modelId = modelString(provider, model);
+
     test("should successfully send message and receive response", async () => {
       // Setup test environment
       const { env, workspaceId, cleanup } = await setupWorkspace(provider);
       try {
         // Send a simple message
-        const result = await sendMessageWithModel(
+        const result = await sendMessage(
           env.mockIpcRenderer,
           workspaceId,
           "Say 'hello' and nothing else",
-          provider,
-          model
+          { model: modelId }
         );
 
         // Verify the IPC call succeeded
@@ -81,19 +82,18 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
       try {
         // Start a long-running stream with a bash command that takes time
         const longMessage = "Run this bash command: sleep 60 && echo done";
-        void sendMessageWithModel(env.mockIpcRenderer, workspaceId, longMessage, provider, model);
+        void sendMessage(env.mockIpcRenderer, workspaceId, longMessage, { model: modelId });
 
         // Wait for stream to start
         const collector = createEventCollector(env.sentEvents, workspaceId);
         await collector.waitForEvent("stream-start", 5000);
 
         // Send empty message to interrupt
-        const interruptResult = await sendMessageWithModel(
+        const interruptResult = await sendMessage(
           env.mockIpcRenderer,
           workspaceId,
           "",
-          provider,
-          model
+          { model: modelId }
         );
 
         // Should succeed (interrupt is not an error)
@@ -119,12 +119,11 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
       const { env, workspaceId, cleanup } = await setupWorkspace(provider);
       try {
         // Send empty message without any active stream
-        const result = await sendMessageWithModel(
+        const result = await sendMessage(
           env.mockIpcRenderer,
           workspaceId,
           "",
-          provider,
-          model
+          { model: modelId }
         );
 
         // Should succeed (no error shown to user)
@@ -147,12 +146,11 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
       const { env, workspaceId, cleanup } = await setupWorkspace(provider);
       try {
         // Send first message
-        const result1 = await sendMessageWithModel(
+        const result1 = await sendMessage(
           env.mockIpcRenderer,
           workspaceId,
           "Say 'first message' and nothing else",
-          provider,
-          model
+          { model: modelId }
         );
         expect(result1.success).toBe(true);
 
@@ -168,13 +166,14 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
         env.sentEvents.length = 0;
 
         // Edit the first message (send new message with editMessageId)
-        const result2 = await sendMessageWithModel(
+        const result2 = await sendMessage(
           env.mockIpcRenderer,
           workspaceId,
           "Say 'edited message' and nothing else",
-          provider,
-          model,
-          { editMessageId: (firstUserMessage as { id: string }).id }
+          {
+            editMessageId: (firstUserMessage as { id: string }).id,
+            model: modelId,
+          }
         );
         expect(result2.success).toBe(true);
 
@@ -191,12 +190,11 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
       const { env, workspaceId, cleanup } = await setupWorkspace(provider);
       try {
         // Send a message that will trigger a long-running tool call
-        const result1 = await sendMessageWithModel(
+        const result1 = await sendMessage(
           env.mockIpcRenderer,
           workspaceId,
           "Run this bash command: sleep 10 && echo done",
-          provider,
-          model
+          { model: modelId }
         );
         expect(result1.success).toBe(true);
 
@@ -210,13 +208,14 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
 
         // First edit: Edit the message while stream is still active
         env.sentEvents.length = 0;
-        const result2 = await sendMessageWithModel(
+        const result2 = await sendMessage(
           env.mockIpcRenderer,
           workspaceId,
           "Run this bash command: sleep 5 && echo second",
-          provider,
-          model,
-          { editMessageId: (firstUserMessage as { id: string }).id }
+          {
+            editMessageId: (firstUserMessage as { id: string }).id,
+            model: modelId,
+          }
         );
         expect(result2.success).toBe(true);
 
@@ -231,13 +230,14 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
         // Second edit: Edit again while second stream is still active
         // This should trigger the bug with orphaned tool calls
         env.sentEvents.length = 0;
-        const result3 = await sendMessageWithModel(
+        const result3 = await sendMessage(
           env.mockIpcRenderer,
           workspaceId,
           "Say 'third edit' and nothing else",
-          provider,
-          model,
-          { editMessageId: (secondUserMessage as { id: string }).id }
+          {
+            editMessageId: (secondUserMessage as { id: string }).id,
+            model: modelId,
+          }
         );
         expect(result3.success).toBe(true);
 
@@ -272,12 +272,11 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
         await fs.writeFile(testFilePath, randomString, "utf-8");
 
         // Ask the model to read the file
-        const result = await sendMessageWithModel(
+        const result = await sendMessage(
           env.mockIpcRenderer,
           workspaceId,
           "Read the file test-file.txt and tell me its contents verbatim. Do not add any extra text.",
-          provider,
-          model
+          { model: modelId }
         );
 
         expect(result.success).toBe(true);
@@ -304,12 +303,11 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
       const { env, workspaceId, cleanup } = await setupWorkspace(provider);
       try {
         // First message: Ask for a random word
-        const result1 = await sendMessageWithModel(
+        const result1 = await sendMessage(
           env.mockIpcRenderer,
           workspaceId,
           "Generate a random uncommon word and only say that word, nothing else.",
-          provider,
-          model
+          { model: modelId }
         );
         expect(result1.success).toBe(true);
 
@@ -339,12 +337,11 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
         env.sentEvents.length = 0;
 
         // Second message: Ask for the same word (testing conversation memory)
-        const result2 = await sendMessageWithModel(
+        const result2 = await sendMessage(
           env.mockIpcRenderer,
           workspaceId,
           "What was the word you just said? Reply with only that word.",
-          provider,
-          model
+          { model: modelId }
         );
         expect(result2.success).toBe(true);
 
@@ -422,14 +419,15 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
       for (const [provider, model] of PROVIDER_CONFIGS) {
         // Create fresh environment with provider setup
         const { env, workspaceId, cleanup } = await setupWorkspace(provider);
+        const modelId = modelString(provider, model);
+
 
         // Send same message to both providers
-        const result = await sendMessageWithModel(
+        const result = await sendMessage(
           env.mockIpcRenderer,
           workspaceId,
           "Say 'parity test' and nothing else",
-          provider,
-          model
+          { model: modelId }
         );
 
         // Collect response
@@ -463,14 +461,14 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
         const { env, workspaceId, cleanup } = await setupWorkspaceWithoutProvider(
           `noapi-${provider}`
         );
+        const modelId = modelString(provider, model);
         try {
           // Try to send message without API key configured
-          const result = await sendMessageWithModel(
+          const result = await sendMessage(
             env.mockIpcRenderer,
             workspaceId,
             "Hello",
-            provider,
-            model
+            { model: modelId }
           );
 
           // Should fail with api_key_not_found error
@@ -494,12 +492,11 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
         try {
           // Use a clearly non-existent model name
           const nonExistentModel = "definitely-not-a-real-model-12345";
-          const result = await sendMessageWithModel(
+          const result = await sendMessage(
             env.mockIpcRenderer,
             workspaceId,
             "Hello, world!",
-            provider,
-            nonExistentModel
+            { model: modelString(provider, nonExistentModel) }
           );
 
           // IPC call should succeed (errors come through stream events)
@@ -539,6 +536,8 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
       async (provider, model) => {
         const { env, workspaceId, cleanup } = await setupWorkspace(provider);
         try {
+          const modelId = modelString(provider, model);
+
           // HACK: Build up a large conversation history using HistoryService directly
           // This is a test-only shortcut to quickly populate history without streaming.
           // Real application code should NEVER bypass IPC like this.
@@ -565,12 +564,11 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
 
           // Now try to send a new message - should trigger token limit error
           // due to accumulated history
-          const result = await sendMessageWithModel(
+          const result = await sendMessage(
             env.mockIpcRenderer,
             workspaceId,
             "What is the weather?",
-            provider,
-            model
+            { model: modelId }
           );
 
           // IPC call itself should succeed (errors come through stream events)
