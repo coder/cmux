@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from "bun:test";
 import { HistoryService } from "./historyService";
 import { Config } from "../config";
-import { createCmuxMessage } from "../types/message";
+import { createCmuxMessage } from "@/types/message";
 import * as fs from "fs/promises";
 import * as path from "path";
 import * as os from "os";

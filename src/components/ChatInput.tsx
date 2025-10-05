@@ -3,22 +3,22 @@ import styled from "@emotion/styled";
 import { CommandSuggestions, COMMAND_SUGGESTION_KEYS } from "./CommandSuggestions";
 import type { Toast } from "./ChatInputToast";
 import { ChatInputToast, SolutionLabel } from "./ChatInputToast";
-import type { ParsedCommand } from "../utils/slashCommands/types";
-import { parseCommand } from "../utils/slashCommands/parser";
-import type { SendMessageError as SendMessageErrorType } from "../types/errors";
-import { usePersistedState } from "../hooks/usePersistedState";
+import type { ParsedCommand } from "@/utils/slashCommands/types";
+import { parseCommand } from "@/utils/slashCommands/parser";
+import type { SendMessageError as SendMessageErrorType } from "@/types/errors";
+import { usePersistedState } from "@/hooks/usePersistedState";
 import { ThinkingSliderComponent } from "./ThinkingSlider";
-import { useThinkingLevel } from "../hooks/useThinkingLevel";
-import { useMode } from "../contexts/ModeContext";
-import { modeToToolPolicy } from "../utils/ui/modeUtils";
+import { useThinkingLevel } from "@/hooks/useThinkingLevel";
+import { useMode } from "@/contexts/ModeContext";
+import { modeToToolPolicy } from "@/utils/ui/modeUtils";
 import { ToggleGroup } from "./ToggleGroup";
-import type { UIMode } from "../types/mode";
+import type { UIMode } from "@/types/mode";
 import {
   getSlashCommandSuggestions,
   type SlashSuggestion,
-} from "../utils/slashCommands/suggestions";
+} from "@/utils/slashCommands/suggestions";
 import { TooltipWrapper, Tooltip, HelpIndicator } from "./Tooltip";
-import { matchesKeybind, formatKeybind, KEYBINDS } from "../utils/ui/keybinds";
+import { matchesKeybind, formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
 
 const InputSection = styled.div`
   position: relative;

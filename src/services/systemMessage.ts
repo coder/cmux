@@ -1,6 +1,6 @@
 import * as fs from "fs/promises";
 import * as path from "path";
-import type { WorkspaceMetadata } from "../types/workspace";
+import type { WorkspaceMetadata } from "@/types/workspace";
 
 const PRELUDE = `
 You are a coding agent.

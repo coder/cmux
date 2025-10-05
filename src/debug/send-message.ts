@@ -1,8 +1,8 @@
 import * as fs from "fs";
 import * as path from "path";
 import { defaultConfig } from "../config";
-import type { CmuxMessage } from "../types/message";
-import type { SendMessageOptions } from "../types/ipc";
+import type { CmuxMessage } from "@/types/message";
+import type { SendMessageOptions } from "@/types/ipc";
 
 /**
  * Debug command to send a message to a workspace, optionally editing an existing message

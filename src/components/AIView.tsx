@@ -4,13 +4,13 @@ import { MessageRenderer } from "./Messages/MessageRenderer";
 import { InterruptedBarrier } from "./Messages/InterruptedBarrier";
 import { ChatInput } from "./ChatInput";
 import { ChatMetaSidebar } from "./ChatMetaSidebar";
-import type { DisplayedMessage, CmuxMessage } from "../types/message";
-import { StreamingMessageAggregator } from "../utils/messages/StreamingMessageAggregator";
-import { shouldShowInterruptedBarrier } from "../utils/messages/messageUtils";
-import { ChatProvider } from "../contexts/ChatContext";
-import { ThinkingProvider } from "../contexts/ThinkingContext";
-import { ModeProvider } from "../contexts/ModeContext";
-import type { WorkspaceChatMessage } from "../types/ipc";
+import type { DisplayedMessage, CmuxMessage } from "@/types/message";
+import { StreamingMessageAggregator } from "@/utils/messages/StreamingMessageAggregator";
+import { shouldShowInterruptedBarrier } from "@/utils/messages/messageUtils";
+import { ChatProvider } from "@/contexts/ChatContext";
+import { ThinkingProvider } from "@/contexts/ThinkingContext";
+import { ModeProvider } from "@/contexts/ModeContext";
+import type { WorkspaceChatMessage } from "@/types/ipc";
 import {
   isCaughtUpMessage,
   isStreamError,
@@ -24,7 +24,7 @@ import {
   isToolCallEnd,
   isReasoningDelta,
   isReasoningEnd,
-} from "../types/ipc";
+} from "@/types/ipc";
 
 // StreamingMessageAggregator is now imported from utils
 

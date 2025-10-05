@@ -3,11 +3,11 @@ import * as path from "path";
 import * as fsPromises from "fs/promises";
 import type { Config, ProjectConfig } from "../config";
 import { createWorktree, removeWorktree, moveWorktree } from "../git";
-import { AIService } from "../services/aiService";
-import { HistoryService } from "../services/historyService";
-import { PartialService } from "../services/partialService";
-import { createCmuxMessage } from "../types/message";
-import { log } from "../services/log";
+import { AIService } from "@/services/aiService";
+import { HistoryService } from "@/services/historyService";
+import { PartialService } from "@/services/partialService";
+import { createCmuxMessage } from "@/types/message";
+import { log } from "@/services/log";
 import type {
   StreamStartEvent,
   StreamDeltaEvent,
@@ -16,12 +16,12 @@ import type {
   ToolCallDeltaEvent,
   ToolCallEndEvent,
   ErrorEvent,
-} from "../types/stream";
-import { IPC_CHANNELS, getChatChannel } from "../constants/ipc-constants";
-import type { SendMessageError } from "../types/errors";
-import type { StreamErrorMessage, SendMessageOptions, DeleteMessage } from "../types/ipc";
-import { Ok, Err } from "../types/result";
-import { validateWorkspaceName } from "../utils/validation/workspaceValidation";
+} from "@/types/stream";
+import { IPC_CHANNELS, getChatChannel } from "@/constants/ipc-constants";
+import type { SendMessageError } from "@/types/errors";
+import type { StreamErrorMessage, SendMessageOptions, DeleteMessage } from "@/types/ipc";
+import { Ok, Err } from "@/types/result";
+import { validateWorkspaceName } from "@/utils/validation/workspaceValidation";
 
 const createUnknownSendMessageError = (raw: string): SendMessageError => ({
   type: "unknown",
