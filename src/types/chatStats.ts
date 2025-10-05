@@ -1,4 +1,4 @@
-import type { ChatUsageDisplay } from "../utils/tokens/tokenStatsCalculator";
+import type { ChatUsageDisplay } from "@/utils/tokens/tokenStatsCalculator";
 
 export interface TokenConsumer {
   name: string; // "User", "Assistant", "bash", "readFile", etc.

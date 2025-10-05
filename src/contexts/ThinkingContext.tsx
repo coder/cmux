@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import React, { createContext, useContext } from "react";
-import type { ThinkingLevel } from "../types/thinking";
-import { usePersistedState } from "../hooks/usePersistedState";
+import type { ThinkingLevel } from "@/types/thinking";
+import { usePersistedState } from "@/hooks/usePersistedState";
 
 interface ThinkingContextType {
   thinkingLevel: ThinkingLevel;

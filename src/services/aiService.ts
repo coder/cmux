@@ -3,33 +3,33 @@ import * as path from "path";
 import { EventEmitter } from "events";
 import { convertToModelMessages, type LanguageModel } from "ai";
 import { createAnthropic } from "@ai-sdk/anthropic";
-import type { Result } from "../types/result";
-import { Ok, Err } from "../types/result";
-import type { WorkspaceMetadata } from "../types/workspace";
-import { WorkspaceMetadataSchema } from "../types/workspace";
-import type { CmuxMessage } from "../types/message";
-import { createCmuxMessage } from "../types/message";
+import type { Result } from "@/types/result";
+import { Ok, Err } from "@/types/result";
+import type { WorkspaceMetadata } from "@/types/workspace";
+import { WorkspaceMetadataSchema } from "@/types/workspace";
+import type { CmuxMessage } from "@/types/message";
+import { createCmuxMessage } from "@/types/message";
 import type { Config } from "../config";
 import { StreamManager } from "./streamManager";
-import type { SendMessageError } from "../types/errors";
-import { getToolsForModel } from "../utils/tools/tools";
+import type { SendMessageError } from "@/types/errors";
+import { getToolsForModel } from "@/utils/tools/tools";
 import { log } from "./log";
 import {
   transformModelMessages,
   validateAnthropicCompliance,
   addInterruptedSentinel,
   filterEmptyAssistantMessages,
-} from "../utils/messages/modelMessageTransform";
-import { applyCacheControl } from "../utils/ai/cacheStrategy";
+} from "@/utils/messages/modelMessageTransform";
+import { applyCacheControl } from "@/utils/ai/cacheStrategy";
 import type { HistoryService } from "./historyService";
 import type { PartialService } from "./partialService";
 import { buildSystemMessage } from "./systemMessage";
-import { getTokenizerForModel } from "../utils/tokens/tokenizer";
-import { buildProviderOptions } from "../utils/ai/providerOptions";
-import type { ThinkingLevel } from "../types/thinking";
+import { getTokenizerForModel } from "@/utils/tokens/tokenizer";
+import { buildProviderOptions } from "@/utils/ai/providerOptions";
+import type { ThinkingLevel } from "@/types/thinking";
 import { createOpenAI } from "@ai-sdk/openai";
-import type { StreamAbortEvent } from "../types/stream";
-import { applyToolPolicy, type ToolPolicy } from "../utils/tools/toolPolicy";
+import type { StreamAbortEvent } from "@/types/stream";
+import { applyToolPolicy, type ToolPolicy } from "@/utils/tools/toolPolicy";
 
 // Export a standalone version of getToolsForModel for use in backend
 
