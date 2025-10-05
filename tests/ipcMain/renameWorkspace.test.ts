@@ -58,6 +58,7 @@ describeIntegration("IpcMain rename workspace integration tests", () => {
       // Get new workspace ID from backend (NEVER construct it in frontend)
       expect(renameResult.data?.newWorkspaceId).toBeDefined();
       const newWorkspaceId = renameResult.data.newWorkspaceId;
+      const projectName = oldMetadataResult.projectName; // Still need this for assertions
 
       // Verify new session directory exists (with retry for timing)
       const newSessionDir = env.config.getSessionDir(newWorkspaceId);
