@@ -39,7 +39,15 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
       using childProcess = new DisposableProcess(
         spawn("bash", ["-c", script], {
           cwd: config.cwd,
-          env: process.env,
+          env: {
+            ...process.env,
+            // Prevent interactive editors from blocking bash execution
+            // This is critical for git operations like rebase/commit that try to open editors
+            GIT_EDITOR: "true", // Git-specific editor (highest priority)
+            GIT_SEQUENCE_EDITOR: "true", // For interactive rebase sequences
+            EDITOR: "true", // General fallback for non-git commands
+            VISUAL: "true", // Another common editor environment variable
+          },
           stdio: ["ignore", "pipe", "pipe"], // stdin: ignore, stdout: pipe, stderr: pipe
         })
       );
