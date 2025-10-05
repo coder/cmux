@@ -291,7 +291,7 @@ export class StreamManager extends EventEmitter {
         system,
         abortSignal: abortController.signal,
         tools,
-        stopWhen: stepCountIs(1000), // Allow up to 1000 steps (effectively unlimited)
+        stopWhen: stepCountIs(100000), // Allow up to 100000 steps (effectively unlimited)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
         providerOptions: providerOptions as any, // Pass provider-specific options (thinking/reasoning config)
         // This is at least necessary for Anthropic, which defaults to
