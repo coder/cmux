@@ -7,8 +7,8 @@
  * Any changes to token calculation logic should be made here to maintain consistency.
  */
 
-import type { CmuxMessage } from "../types/message";
-import type { ChatStats, TokenConsumer } from "../types/chatStats";
+import type { CmuxMessage } from "@/types/message";
+import type { ChatStats, TokenConsumer } from "@/types/chatStats";
 import type { LanguageModelV2Usage } from "@ai-sdk/provider";
 import { getTokenizerForModel, countTokensForData, getToolDefinitionTokens } from "./tokenizer";
 import { getModelStats } from "./modelStats";

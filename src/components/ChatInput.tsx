@@ -10,7 +10,7 @@ import { usePersistedState } from "../hooks/usePersistedState";
 import { ThinkingSliderComponent } from "./ThinkingSlider";
 import { useThinkingLevel } from "../hooks/useThinkingLevel";
 import { useMode } from "../contexts/ModeContext";
-import { modeToToolPolicy } from "../utils/modeUtils";
+import { modeToToolPolicy } from "../utils/ui/modeUtils";
 import { ToggleGroup } from "./ToggleGroup";
 import type { UIMode } from "../types/mode";
 import {
@@ -18,7 +18,7 @@ import {
   type SlashSuggestion,
 } from "../utils/slashCommands/suggestions";
 import { TooltipWrapper, Tooltip, HelpIndicator } from "./Tooltip";
-import { matchesKeybind, formatKeybind, KEYBINDS } from "../utils/keybinds";
+import { matchesKeybind, formatKeybind, KEYBINDS } from "../utils/ui/keybinds";
 
 const InputSection = styled.div`
   position: relative;

@@ -5,7 +5,7 @@ import {
   validateAnthropicCompliance,
   addInterruptedSentinel,
 } from "./modelMessageTransform";
-import type { CmuxMessage } from "../types/message";
+import type { CmuxMessage } from "@/types/message";
 
 describe("modelMessageTransform", () => {
   describe("transformModelMessages", () => {

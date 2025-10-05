@@ -4,9 +4,9 @@ import type { Result } from "../types/result";
 import { Ok, Err } from "../types/result";
 import type { CmuxMessage } from "../types/message";
 import type { Config } from "../config";
-import { MutexMap } from "../utils/mutexMap";
+import { MutexMap } from "../utils/concurrency/mutexMap";
 import { log } from "./log";
-import { getTokenizerForModel } from "../utils/tokenizer";
+import { getTokenizerForModel } from "../utils/tokens/tokenizer";
 
 /**
  * HistoryService - Manages chat history persistence and sequence numbering

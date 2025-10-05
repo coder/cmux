@@ -1,7 +1,7 @@
 import { describe, it, expect } from "bun:test";
 import { StreamingMessageAggregator } from "./StreamingMessageAggregator";
-import type { StreamEndEvent } from "../types/stream";
-import type { DynamicToolPart } from "../types/toolParts";
+import type { StreamEndEvent } from "@/types/stream";
+import type { DynamicToolPart } from "@/types/toolParts";
 
 describe("StreamingMessageAggregator", () => {
   it("should preserve temporal ordering of text and tool parts", () => {

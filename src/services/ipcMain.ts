@@ -21,7 +21,7 @@ import { IPC_CHANNELS, getChatChannel } from "../constants/ipc-constants";
 import type { SendMessageError } from "../types/errors";
 import type { StreamErrorMessage, SendMessageOptions, DeleteMessage } from "../types/ipc";
 import { Ok, Err } from "../types/result";
-import { validateWorkspaceName } from "../utils/workspaceValidation";
+import { validateWorkspaceName } from "../utils/validation/workspaceValidation";
 
 const createUnknownSendMessageError = (raw: string): SendMessageError => ({
   type: "unknown",

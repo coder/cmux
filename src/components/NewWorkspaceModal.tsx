@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import styled from "@emotion/styled";
-import { matchesKeybind, KEYBINDS } from "../utils/keybinds";
+import { matchesKeybind, KEYBINDS } from "../utils/ui/keybinds";
 
 // Styled Components
 const ModalOverlay = styled.div`

@@ -2,9 +2,9 @@ import { tool } from "ai";
 import * as fs from "fs/promises";
 import * as path from "path";
 import writeFileAtomic from "write-file-atomic";
-import type { FileEditReplaceToolResult } from "../../types/tools";
-import type { ToolConfiguration, ToolFactory } from "../../utils/tools";
-import { TOOL_DEFINITIONS } from "../../utils/toolDefinitions";
+import type { FileEditReplaceToolResult } from "@/types/tools";
+import type { ToolConfiguration, ToolFactory } from "@/utils/tools/tools";
+import { TOOL_DEFINITIONS } from "@/utils/tools/toolDefinitions";
 import { leaseFromStat, generateDiff, validatePathInCwd } from "./fileCommon";
 
 /**

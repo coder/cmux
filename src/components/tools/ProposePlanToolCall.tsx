@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import styled from "@emotion/styled";
-import type { ProposePlanToolArgs, ProposePlanToolResult } from "../../types/tools";
+import type { ProposePlanToolArgs, ProposePlanToolResult } from "@/types/tools";
 import {
   ToolContainer,
   ToolHeader,
@@ -11,7 +11,7 @@ import {
 } from "./shared/ToolPrimitives";
 import { useToolExpansion, getStatusDisplay, type ToolStatus } from "./shared/toolUtils";
 import { MarkdownRenderer } from "../Messages/MarkdownRenderer";
-import { formatKeybind, KEYBINDS } from "../../utils/keybinds";
+import { formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
 
 const PlanContainer = styled.div`
   padding: 12px;

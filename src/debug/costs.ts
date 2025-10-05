@@ -2,7 +2,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { defaultConfig } from "../config";
 import type { CmuxMessage } from "../types/message";
-import { calculateTokenStats } from "../utils/tokenStatsCalculator";
+import { calculateTokenStats } from "../utils/tokens/tokenStatsCalculator";
 
 /**
  * Debug command to display cost/token statistics for a workspace

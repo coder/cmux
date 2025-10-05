@@ -3,7 +3,7 @@ import * as fs from "fs/promises";
 import * as path from "path";
 import * as os from "os";
 import { createFileReadTool } from "./file_read";
-import type { FileReadToolArgs, FileReadToolResult } from "../../types/tools";
+import type { FileReadToolArgs, FileReadToolResult } from "@/types/tools";
 import type { ToolCallOptions } from "ai";
 
 // Mock ToolCallOptions for testing

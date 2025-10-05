@@ -1,5 +1,5 @@
-import type { CmuxMessage, CmuxMetadata, DisplayedMessage } from "../types/message";
-import { createCmuxMessage } from "../types/message";
+import type { CmuxMessage, CmuxMetadata, DisplayedMessage } from "@/types/message";
+import { createCmuxMessage } from "@/types/message";
 import type {
   StreamStartEvent,
   StreamDeltaEvent,
@@ -10,14 +10,14 @@ import type {
   ToolCallEndEvent,
   ReasoningDeltaEvent,
   ReasoningEndEvent,
-} from "../types/stream";
-import type { WorkspaceChatMessage, StreamErrorMessage, DeleteMessage } from "../types/ipc";
+} from "@/types/stream";
+import type { WorkspaceChatMessage, StreamErrorMessage, DeleteMessage } from "@/types/ipc";
 import type {
   DynamicToolPart,
   DynamicToolPartPending,
   DynamicToolPartAvailable,
-} from "../types/toolParts";
-import { isDynamicToolPart } from "../types/toolParts";
+} from "@/types/toolParts";
+import { isDynamicToolPart } from "@/types/toolParts";
 
 interface StreamingContext {
   startTime: number;

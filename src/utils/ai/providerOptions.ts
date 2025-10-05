@@ -6,10 +6,10 @@
 
 import type { AnthropicProviderOptions } from "@ai-sdk/anthropic";
 import type { OpenAIResponsesProviderOptions } from "@ai-sdk/openai";
-import type { ThinkingLevel } from "../types/thinking";
-import { ANTHROPIC_THINKING_BUDGETS, OPENAI_REASONING_EFFORT } from "../types/thinking";
-import { log } from "../services/log";
-import type { CmuxMessage } from "../types/message";
+import type { ThinkingLevel } from "@/types/thinking";
+import { ANTHROPIC_THINKING_BUDGETS, OPENAI_REASONING_EFFORT } from "@/types/thinking";
+import { log } from "@/services/log";
+import type { CmuxMessage } from "@/types/message";
 
 /**
  * Provider-specific options structure for AI SDK
