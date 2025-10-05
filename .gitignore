@@ -57,6 +57,9 @@ yarn-error.log
 bun.lockb
 dist
 
+# Electron build output
+release
+
 # Documentation
 docs/vercel/
 
