@@ -1,5 +1,5 @@
 import React from "react";
-import type { DisplayedMessage } from "../../types/message";
+import type { DisplayedMessage } from "@/types/message";
 import { UserMessage } from "./UserMessage";
 import { AssistantMessage } from "./AssistantMessage";
 import { ToolMessage } from "./ToolMessage";

@@ -1,4 +1,4 @@
-import type { UIMode } from "../../types/mode";
+import type { UIMode } from "@/types/mode";
 import type { ToolPolicy } from "../tools/toolPolicy";
 
 /**

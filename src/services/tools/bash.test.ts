@@ -1,6 +1,6 @@
 import { describe, it, expect } from "bun:test";
 import { createBashTool } from "./bash";
-import type { BashToolArgs, BashToolResult } from "../../types/tools";
+import type { BashToolArgs, BashToolResult } from "@/types/tools";
 import type { ToolCallOptions } from "ai";
 
 // Mock ToolCallOptions for testing

@@ -3,8 +3,8 @@
  * This prevents UI blocking during expensive tokenization operations
  */
 
-import type { CmuxMessage } from "../types/message";
-import type { ChatStats } from "../types/chatStats";
+import type { CmuxMessage } from "@/types/message";
+import type { ChatStats } from "@/types/chatStats";
 import { calculateTokenStats } from "./tokenStatsCalculator";
 
 export interface WorkerRequest {

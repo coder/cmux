@@ -1,4 +1,4 @@
-import type { CmuxMessage, CmuxTextPart, DisplayedMessage } from "../types/message";
+import type { CmuxMessage, CmuxTextPart, DisplayedMessage } from "@/types/message";
 
 /**
  * Extracts text content from message parts

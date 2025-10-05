@@ -6,6 +6,6 @@
     "noEmit": false,
     "sourceMap": true
   },
-  "include": ["src/main.ts", "src/constants/**/*"],
-  "exclude": ["src/App.tsx", "src/main.tsx"]
+  "include": ["src/main.ts", "src/constants/**/*", "src/services/**/*", "src/utils/**/*", "src/types/**/*"],
+  "exclude": ["src/App.tsx", "src/main.tsx", "src/utils/tokens/tokenStats.worker.ts", "src/utils/tokens/TokenStatsWorker.ts"]
 }

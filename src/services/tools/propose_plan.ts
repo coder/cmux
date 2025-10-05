@@ -1,6 +1,6 @@
 import { tool } from "ai";
-import type { ToolFactory } from "../../utils/tools/tools";
-import { TOOL_DEFINITIONS } from "../../utils/tools/toolDefinitions";
+import type { ToolFactory } from "@/utils/tools/tools";
+import { TOOL_DEFINITIONS } from "@/utils/tools/toolDefinitions";
 
 /**
  * Propose plan tool factory for AI assistant

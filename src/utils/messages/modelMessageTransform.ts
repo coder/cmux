@@ -4,7 +4,7 @@
  */
 
 import type { ModelMessage, AssistantModelMessage, ToolModelMessage } from "ai";
-import type { CmuxMessage } from "../types/message";
+import type { CmuxMessage } from "@/types/message";
 
 /**
  * Filter out assistant messages that only contain reasoning parts (no text or tool parts).

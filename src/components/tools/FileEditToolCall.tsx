@@ -6,7 +6,7 @@ import type {
   FileEditReplaceToolResult,
   FileEditInsertToolArgs,
   FileEditInsertToolResult,
-} from "../../types/tools";
+} from "@/types/tools";
 import {
   ToolContainer,
   ToolHeader,

@@ -1,5 +1,5 @@
 import React from "react";
-import type { DisplayedMessage } from "../../types/message";
+import type { DisplayedMessage } from "@/types/message";
 import { GenericToolCall } from "../tools/GenericToolCall";
 import { BashToolCall } from "../tools/BashToolCall";
 import { FileEditToolCall } from "../tools/FileEditToolCall";
@@ -13,7 +13,7 @@ import type {
   FileEditInsertToolResult,
   ProposePlanToolArgs,
   ProposePlanToolResult,
-} from "../../types/tools";
+} from "@/types/tools";
 
 interface ToolMessageProps {
   message: DisplayedMessage & { type: "tool" };

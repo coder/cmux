@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import styled from "@emotion/styled";
-import type { BashToolArgs, BashToolResult } from "../../types/tools";
+import type { BashToolArgs, BashToolResult } from "@/types/tools";
 import {
   ToolContainer,
   ToolHeader,

@@ -1,6 +1,6 @@
 import React from "react";
 import styled from "@emotion/styled";
-import type { DisplayedMessage } from "../../types/message";
+import type { DisplayedMessage } from "@/types/message";
 
 const ErrorContainer = styled.div`
   background: var(--color-error-bg);

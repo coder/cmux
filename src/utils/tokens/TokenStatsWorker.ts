@@ -3,8 +3,8 @@
  * Provides a clean async API for calculating stats off the main thread
  */
 
-import type { CmuxMessage } from "../types/message";
-import type { ChatStats } from "../types/chatStats";
+import type { CmuxMessage } from "@/types/message";
+import type { ChatStats } from "@/types/chatStats";
 import type { WorkerRequest, WorkerResponse, WorkerError } from "./tokenStats.worker";
 
 /**

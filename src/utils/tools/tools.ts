@@ -2,12 +2,12 @@ import { type Tool } from "ai";
 import { anthropic } from "@ai-sdk/anthropic";
 import { openai } from "@ai-sdk/openai";
 import { google } from "@ai-sdk/google";
-import { createFileReadTool } from "../services/tools/file_read";
-import { createBashTool } from "../services/tools/bash";
-import { createFileEditReplaceTool } from "../services/tools/file_edit_replace";
-import { createFileEditInsertTool } from "../services/tools/file_edit_insert";
-import { createProposePlanTool } from "../services/tools/propose_plan";
-import { log } from "../services/log";
+import { createFileReadTool } from "@/services/tools/file_read";
+import { createBashTool } from "@/services/tools/bash";
+import { createFileEditReplaceTool } from "@/services/tools/file_edit_replace";
+import { createFileEditInsertTool } from "@/services/tools/file_edit_insert";
+import { createProposePlanTool } from "@/services/tools/propose_plan";
+import { log } from "@/services/log";
 
 /**
  * Configuration for tools that need runtime context
