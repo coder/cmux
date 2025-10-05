@@ -44,10 +44,17 @@ export function createDisplayUsage(
 ): ChatUsageDisplay | undefined {
   if (!usage) return undefined;
 
-  // For Anthropic (and likely other providers), inputTokens already excludes cached tokens
-  // cachedInputTokens is a standard field that reports cached token usage
-  const inputTokens = usage.inputTokens ?? 0;
+  // Provider-specific token handling:
+  // - OpenAI: inputTokens is INCLUSIVE of cachedInputTokens
+  // - Anthropic: inputTokens EXCLUDES cachedInputTokens
   const cachedTokens = usage.cachedInputTokens ?? 0;
+  const rawInputTokens = usage.inputTokens ?? 0;
+
+  // Detect provider from model string
+  const isOpenAI = model.startsWith("openai:");
+
+  // For OpenAI, subtract cached tokens to get uncached input tokens
+  const inputTokens = isOpenAI ? Math.max(0, rawInputTokens - cachedTokens) : rawInputTokens;
 
   // Extract cache creation tokens from provider metadata (Anthropic-specific)
   const cacheCreateTokens =
@@ -195,7 +202,7 @@ export function calculateTokenStats(messages: CmuxMessage[], model: string): Cha
       if (message.metadata?.usage) {
         const usage = createDisplayUsage(
           message.metadata.usage,
-          model,
+          message.metadata.model ?? model, // Use actual model from request, not UI model
           message.metadata.providerMetadata
         );
         if (usage) {
