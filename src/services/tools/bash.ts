@@ -33,7 +33,7 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
     description: TOOL_DEFINITIONS.bash.description + "\nRuns in " + config.cwd + " - no cd needed",
     inputSchema: TOOL_DEFINITIONS.bash.schema,
     execute: async (
-      { script, timeout_secs, max_lines },
+      { script, timeout_secs, max_lines, stdin },
       { abortSignal }
     ): Promise<BashToolResult> => {
       const startTime = performance.now();
@@ -51,9 +51,15 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
             EDITOR: "true", // General fallback for non-git commands
             VISUAL: "true", // Another common editor environment variable
           },
-          stdio: ["ignore", "pipe", "pipe"], // stdin: ignore, stdout: pipe, stderr: pipe
+          stdio: [stdin !== undefined ? "pipe" : "ignore", "pipe", "pipe"], // stdin: pipe if provided, else ignore
         })
       );
+
+      // Write stdin if provided
+      if (stdin !== undefined && childProcess.child.stdin) {
+        childProcess.child.stdin.write(stdin);
+        childProcess.child.stdin.end();
+      }
 
       // Use a promise to wait for completion
       return await new Promise<BashToolResult>((resolve) => {
