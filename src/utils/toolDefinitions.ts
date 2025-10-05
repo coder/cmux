@@ -120,7 +120,7 @@ export const TOOL_DEFINITIONS = {
       plan: z
         .string()
         .describe(
-          "A detailed implementation plan in markdown format. Include: overview, step-by-step approach, potential issues, and testing strategy."
+          "Implementation plan in markdown (start at h2 level). Cover: problem/context, chosen approach with rationale, alternatives considered, step-by-step implementation, edge cases and risks, scope/impact on existing code, testing strategy. Break complex work into phases."
         ),
     }),
   },
