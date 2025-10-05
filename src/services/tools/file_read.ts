@@ -5,7 +5,7 @@ import * as readline from "readline";
 import type { FileReadToolResult } from "../../types/tools";
 import type { ToolConfiguration, ToolFactory } from "../../utils/tools";
 import { TOOL_DEFINITIONS } from "../../utils/toolDefinitions";
-import { leaseFromStat } from "./fileCommon";
+import { leaseFromStat, validatePathInCwd } from "./fileCommon";
 
 /**
  * File read tool factory for AI assistant
@@ -22,6 +22,15 @@ export const createFileReadTool: ToolFactory = (config: ToolConfiguration) => {
     ): Promise<FileReadToolResult> => {
       // Note: abortSignal available but not used - file reads are fast and complete quickly
       try {
+        // Validate that the path is within the working directory
+        const pathValidation = validatePathInCwd(filePath, config.cwd);
+        if (pathValidation) {
+          return {
+            success: false,
+            error: pathValidation.error,
+          };
+        }
+
         // Resolve relative paths from configured working directory
         const resolvedPath = path.isAbsolute(filePath)
           ? filePath
