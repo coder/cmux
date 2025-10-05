@@ -1,5 +1,5 @@
 import { setupWorkspace, shouldRunIntegrationTests, validateApiKeys } from "./setup";
-import { sendMessageWithModel, createEventCollector, assertStreamSuccess } from "./helpers";
+import { sendMessageWithModel, createEventCollector, assertStreamSuccess, waitFor } from "./helpers";
 import { HistoryService } from "../../src/services/historyService";
 import { createCmuxMessage } from "../../src/types/message";
 import type { DeleteMessage } from "../../src/types/ipc";
@@ -53,8 +53,19 @@ describeIntegration("IpcMain truncate integration tests", () => {
       );
       expect(truncateResult.success).toBe(true);
 
-      // Wait a bit for DeleteMessage to be sent
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      // Wait for DeleteMessage to be sent
+      const deleteReceived = await waitFor(
+        () =>
+          env.sentEvents.some(
+            (event) =>
+              event.data &&
+              typeof event.data === "object" &&
+              "type" in event.data &&
+              event.data.type === "delete"
+          ),
+        5000
+      );
+      expect(deleteReceived).toBe(true);
 
       // Verify DeleteMessage was sent
       const deleteMessages = env.sentEvents.filter(
@@ -138,8 +149,19 @@ describeIntegration("IpcMain truncate integration tests", () => {
       );
       expect(truncateResult.success).toBe(true);
 
-      // Wait a bit for DeleteMessage to be sent
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      // Wait for DeleteMessage to be sent
+      const deleteReceived = await waitFor(
+        () =>
+          env.sentEvents.some(
+            (event) =>
+              event.data &&
+              typeof event.data === "object" &&
+              "type" in event.data &&
+              event.data.type === "delete"
+          ),
+        5000
+      );
+      expect(deleteReceived).toBe(true);
 
       // Verify DeleteMessage was sent
       const deleteMessages = env.sentEvents.filter(

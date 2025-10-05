@@ -13,6 +13,7 @@ import {
   createEventCollector,
   assertStreamSuccess,
   assertError,
+  waitFor,
 } from "./helpers";
 import { HistoryService } from "../../src/services/historyService";
 import { createCmuxMessage } from "../../src/types/message";
@@ -99,17 +100,20 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
         // Should succeed (interrupt is not an error)
         expect(interruptResult.success).toBe(true);
 
-        // Wait a bit for abort event
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-        collector.collect();
+        // Wait for abort or end event
+        const abortOrEndReceived = await waitFor(
+          () => {
+            collector.collect();
+            const hasAbort = collector
+              .getEvents()
+              .some((e) => "type" in e && e.type === "stream-abort");
+            const hasEnd = collector.hasStreamEnd();
+            return hasAbort || hasEnd;
+          },
+          5000
+        );
 
-        // Should have received stream-abort or stream-end
-        const hasAbort = collector
-          .getEvents()
-          .some((e) => "type" in e && e.type === "stream-abort");
-        const hasEnd = collector.hasStreamEnd();
-
-        expect(hasAbort || hasEnd).toBe(true);
+        expect(abortOrEndReceived).toBe(true);
       } finally {
         await cleanup();
       }

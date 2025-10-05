@@ -9,9 +9,13 @@ import * as os from "os";
 
 /**
  * Generate a unique branch name
+ * Uses high-resolution time and multiple random components to prevent collisions
  */
 export function generateBranchName(prefix = "test"): string {
-  return `${prefix}-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+  const hrTime = process.hrtime.bigint();
+  const random1 = Math.random().toString(36).substring(2, 10);
+  const random2 = Math.random().toString(36).substring(2, 10);
+  return `${prefix}-${hrTime}-${random1}${random2}`;
 }
 
 /**
@@ -114,10 +118,11 @@ export class EventCollector {
   }
 
   /**
-   * Wait for a specific event type
+   * Wait for a specific event type with exponential backoff
    */
   async waitForEvent(eventType: string, timeoutMs = 30000): Promise<WorkspaceChatMessage | null> {
     const startTime = Date.now();
+    let pollInterval = 50; // Start with 50ms for faster detection
 
     while (Date.now() - startTime < timeoutMs) {
       this.collect();
@@ -125,9 +130,18 @@ export class EventCollector {
       if (event) {
         return event;
       }
-      // Wait a bit before checking again
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      // Exponential backoff with max 500ms
+      await new Promise((resolve) => setTimeout(resolve, pollInterval));
+      pollInterval = Math.min(pollInterval * 1.5, 500);
     }
+
+    // Log diagnostic info on timeout
+    const eventTypes = this.events
+      .filter((e) => "type" in e)
+      .map((e) => (e as { type: string }).type);
+    console.warn(
+      `waitForEvent timeout: Expected "${eventType}" but got events: [${eventTypes.join(", ")}]`
+    );
 
     return null;
   }
@@ -195,6 +209,61 @@ export function assertError(
 }
 
 /**
+ * Poll for a condition with exponential backoff
+ * More robust than fixed sleeps for async operations
+ */
+export async function waitFor(
+  condition: () => boolean | Promise<boolean>,
+  timeoutMs = 5000,
+  pollIntervalMs = 50
+): Promise<boolean> {
+  const startTime = Date.now();
+  let currentInterval = pollIntervalMs;
+
+  while (Date.now() - startTime < timeoutMs) {
+    if (await condition()) {
+      return true;
+    }
+    await new Promise((resolve) => setTimeout(resolve, currentInterval));
+    // Exponential backoff with max 500ms
+    currentInterval = Math.min(currentInterval * 1.5, 500);
+  }
+
+  return false;
+}
+
+/**
+ * Wait for a file to exist with retry logic
+ * Useful for checking file operations that may take time
+ */
+export async function waitForFileExists(filePath: string, timeoutMs = 5000): Promise<boolean> {
+  const fs = await import("fs/promises");
+  return waitFor(async () => {
+    try {
+      await fs.access(filePath);
+      return true;
+    } catch {
+      return false;
+    }
+  }, timeoutMs);
+}
+
+/**
+ * Wait for a file to NOT exist with retry logic
+ */
+export async function waitForFileNotExists(filePath: string, timeoutMs = 5000): Promise<boolean> {
+  const fs = await import("fs/promises");
+  return waitFor(async () => {
+    try {
+      await fs.access(filePath);
+      return false;
+    } catch {
+      return true;
+    }
+  }, timeoutMs);
+}
+
+/**
  * Create a temporary git repository for testing
  */
 export async function createTempGitRepo(): Promise<string> {
@@ -221,13 +290,24 @@ export async function createTempGitRepo(): Promise<string> {
 }
 
 /**
- * Cleanup temporary git repository
+ * Cleanup temporary git repository with retry logic
  */
 export async function cleanupTempGitRepo(repoPath: string): Promise<void> {
   const fs = await import("fs/promises");
-  try {
-    await fs.rm(repoPath, { recursive: true, force: true });
-  } catch (error) {
-    console.warn("Failed to cleanup temp git repo:", error);
+  const maxRetries = 3;
+  let lastError: unknown;
+
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      await fs.rm(repoPath, { recursive: true, force: true });
+      return;
+    } catch (error) {
+      lastError = error;
+      // Wait before retry (files might be locked temporarily)
+      if (i < maxRetries - 1) {
+        await new Promise((resolve) => setTimeout(resolve, 100 * (i + 1)));
+      }
+    }
   }
+  console.warn(`Failed to cleanup temp git repo after ${maxRetries} attempts:`, lastError);
 }

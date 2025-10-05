@@ -1,5 +1,5 @@
 import { setupWorkspace, shouldRunIntegrationTests, validateApiKeys } from "./setup";
-import { sendMessageWithModel, createEventCollector } from "./helpers";
+import { sendMessageWithModel, createEventCollector, waitForFileExists, waitForFileNotExists } from "./helpers";
 import { IPC_CHANNELS } from "../../src/constants/ipc-constants";
 import type { CmuxMessage } from "../../src/types/message";
 import * as fs from "fs/promises";
@@ -36,8 +36,9 @@ describeIntegration("IpcMain rename workspace integration tests", () => {
       expect(oldMetadataResult).toBeTruthy();
       const oldWorkspacePath = oldMetadataResult.workspacePath;
 
-      // Verify old session directory exists
-      await expect(fs.access(oldSessionDir)).resolves.toBeUndefined();
+      // Verify old session directory exists (with retry for timing)
+      const oldDirExists = await waitForFileExists(oldSessionDir);
+      expect(oldDirExists).toBe(true);
 
       // Clear events before rename
       env.sentEvents.length = 0;
@@ -54,16 +55,18 @@ describeIntegration("IpcMain rename workspace integration tests", () => {
       }
       expect(renameResult.success).toBe(true);
 
-      // Calculate new workspace ID
-      const projectName = oldMetadataResult.projectName;
-      const newWorkspaceId = `${projectName}-${newName}`;
+      // Get new workspace ID from backend (NEVER construct it in frontend)
+      expect(renameResult.data?.newWorkspaceId).toBeDefined();
+      const newWorkspaceId = renameResult.data.newWorkspaceId;
 
-      // Verify new session directory exists
+      // Verify new session directory exists (with retry for timing)
       const newSessionDir = env.config.getSessionDir(newWorkspaceId);
-      await expect(fs.access(newSessionDir)).resolves.toBeUndefined();
+      const newDirExists = await waitForFileExists(newSessionDir);
+      expect(newDirExists).toBe(true);
 
-      // Verify old session directory no longer exists
-      await expect(fs.access(oldSessionDir)).rejects.toThrow();
+      // Verify old session directory no longer exists (with retry for timing)
+      const oldDirGone = await waitForFileNotExists(oldSessionDir);
+      expect(oldDirGone).toBe(true);
 
       // Verify metadata was updated
       const newMetadataResult = await env.mockIpcRenderer.invoke(
@@ -323,10 +326,11 @@ describeIntegration("IpcMain rename workspace integration tests", () => {
       // Get new workspace ID from result (don't construct it!)
       const newWorkspaceId = renameResult.data.newWorkspaceId;
 
-      // Verify chat history file was moved
+      // Verify chat history file was moved (with retry for timing)
       const newSessionDir = env.config.getSessionDir(newWorkspaceId);
       const chatHistoryPath = `${newSessionDir}/chat.jsonl`;
-      await expect(fs.access(chatHistoryPath)).resolves.toBeUndefined();
+      const chatHistoryExists = await waitForFileExists(chatHistoryPath);
+      expect(chatHistoryExists).toBe(true);
 
       // Verify we can read the history
       const historyContent = await fs.readFile(chatHistoryPath, "utf-8");
