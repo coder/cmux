@@ -5,6 +5,8 @@ import type { ProjectConfig } from "../config";
 import type { WorkspaceMetadata } from "../types/workspace";
 import { usePersistedState } from "../hooks/usePersistedState";
 import { matchesKeybind, formatKeybind, KEYBINDS } from "../utils/ui/keybinds";
+import { abbreviatePath } from "../utils/ui/pathAbbreviation";
+import { TooltipWrapper, Tooltip } from "./Tooltip";
 
 // Styled Components
 const SidebarContainer = styled.div`
@@ -196,12 +198,10 @@ const RemoveBtn = styled.button`
 
 const WorkspacesContainer = styled.div`
   background: #1a1a1a;
-  border-left: 1px solid #2a2a2b;
-  margin-left: 10px;
 `;
 
 const WorkspaceHeader = styled.div`
-  padding: 8px 12px;
+  padding: 8px 12px 8px 22px;
   border-bottom: 1px solid #2a2a2b;
 `;
 
@@ -234,7 +234,7 @@ const StatusIndicator = styled.div<{ active?: boolean }>`
 `;
 
 const WorkspaceItem = styled.div<{ selected?: boolean }>`
-  padding: 6px 12px 6px 24px;
+  padding: 6px 12px 6px 28px;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -300,7 +300,7 @@ const WorkspaceNameInput = styled.input`
 const RenameErrorContainer = styled.div`
   position: absolute;
   top: 100%;
-  left: 24px;
+  left: 28px;
   right: 32px;
   margin-top: 4px;
   padding: 6px 8px;
@@ -458,7 +458,12 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                 <ExpandIcon expanded={expandedProjects.has(projectPath)}>▶</ExpandIcon>
                 <ProjectInfo>
                   <ProjectName>{getProjectName(projectPath)}</ProjectName>
-                  <ProjectPath>{projectPath}</ProjectPath>
+                  <TooltipWrapper inline>
+                    <ProjectPath>{abbreviatePath(projectPath)}</ProjectPath>
+                    <Tooltip className="tooltip" align="left">
+                      {projectPath}
+                    </Tooltip>
+                  </TooltipWrapper>
                 </ProjectInfo>
                 <RemoveBtn
                   onClick={(e) => {
