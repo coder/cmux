@@ -326,9 +326,7 @@ export interface WorkspaceSelection {
 interface ProjectSidebarProps {
   projects: Map<string, ProjectConfig>;
   workspaceMetadata: Map<string, WorkspaceMetadata>;
-  selectedProject: string | null;
   selectedWorkspace: WorkspaceSelection | null;
-  onSelectProject: (path: string) => void;
   onSelectWorkspace: (selection: WorkspaceSelection) => void;
   onAddProject: () => void;
   onAddWorkspace: (projectPath: string) => void;
@@ -343,9 +341,7 @@ interface ProjectSidebarProps {
 const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
   projects,
   workspaceMetadata,
-  selectedProject,
   selectedWorkspace,
-  onSelectProject,
   onSelectWorkspace,
   onAddProject,
   onAddWorkspace,
@@ -429,16 +425,16 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
   // Handle keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // ctrl+n or cmd+n to create new workspace for selected project
-      if ((e.ctrlKey || e.metaKey) && e.key === "n" && selectedProject) {
+      // ctrl+n or cmd+n to create new workspace for the project of the selected workspace
+      if ((e.ctrlKey || e.metaKey) && e.key === "n" && selectedWorkspace) {
         e.preventDefault();
-        onAddWorkspace(selectedProject);
+        onAddWorkspace(selectedWorkspace.projectPath);
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedProject, onAddWorkspace]);
+  }, [selectedWorkspace, onAddWorkspace]);
 
   return (
     <SidebarContainer>
@@ -457,13 +453,7 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
         ) : (
           Array.from(projects.entries()).map(([projectPath, config]) => (
             <ProjectGroup key={projectPath}>
-              <ProjectItem
-                selected={selectedProject === projectPath}
-                onClick={() => {
-                  onSelectProject(projectPath);
-                  toggleProject(projectPath);
-                }}
-              >
+              <ProjectItem onClick={() => toggleProject(projectPath)}>
                 <ExpandIcon expanded={expandedProjects.has(projectPath)}>▶</ExpandIcon>
                 <ProjectInfo>
                   <ProjectName>{getProjectName(projectPath)}</ProjectName>
@@ -484,7 +474,8 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                 <WorkspacesContainer>
                   <WorkspaceHeader>
                     <AddWorkspaceBtn onClick={() => onAddWorkspace(projectPath)}>
-                      + New Workspace (Ctrl+N)
+                      + New Workspace
+                      {selectedWorkspace?.projectPath === projectPath && " (Ctrl+N)"}
                     </AddWorkspaceBtn>
                   </WorkspaceHeader>
                   {config.workspaces.map((workspace) => {
