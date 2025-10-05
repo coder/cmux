@@ -3,15 +3,9 @@ import type * as fs from "fs";
 import { createPatch } from "diff";
 
 /**
- * Secret salt for lease computation, generated once at module load.
- * Never expose this to the agent - it prevents lease guessability.
- */
-const LEASE_SECRET = crypto.randomBytes(16);
-
-/**
  * Compute a 6-character hexadecimal lease from file stats.
  * The lease changes when file is modified (mtime or size changes).
- * Uses HMAC-SHA256 with secret salt to prevent guessability.
+ * Uses a deterministic hash so leases are consistent across processes.
  *
  * @param stats - File stats from fs.stat()
  * @returns 6-character hexadecimal lease string
@@ -24,7 +18,9 @@ export function leaseFromStat(stats: fs.Stats): string {
   // dated filesystems.
   const data = `${mtime}:${stats.size}`;
 
-  return crypto.createHmac("sha256", LEASE_SECRET).update(data).digest("hex").slice(0, 6);
+  // Use deterministic SHA-256 hash (no secret) so leases are consistent
+  // across processes and restarts
+  return crypto.createHash("sha256").update(data).digest("hex").slice(0, 6);
 }
 
 /**
