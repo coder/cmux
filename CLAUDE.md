@@ -25,6 +25,7 @@ gh pr view <number> --json mergeable,mergeStateStatus | jq '.'
 This is especially important with rapid development where branches quickly fall behind.
 
 **Key status values:**
+
 - `mergeable: "MERGEABLE"` = No conflicts, can merge
 - `mergeable: "CONFLICTING"` = Has conflicts, needs resolution
 - `mergeStateStatus: "CLEAN"` = Ready to merge ✅
@@ -33,6 +34,7 @@ This is especially important with rapid development where branches quickly fall 
 - `mergeStateStatus: "DIRTY"` = Has conflicts
 
 **If branch is behind:**
+
 ```bash
 git fetch origin
 git rebase origin/main
