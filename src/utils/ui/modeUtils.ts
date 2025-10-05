@@ -1,5 +1,5 @@
 import type { UIMode } from "@/types/mode";
-import type { ToolPolicy } from "../tools/toolPolicy";
+import type { ToolPolicy } from "@/utils/tools/toolPolicy";
 
 /**
  * Get the tool policy for a given UI mode

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import styled from "@emotion/styled";
 import { css } from "@emotion/react";
-import type { ProjectConfig } from "../config";
+import type { ProjectConfig } from "@/config";
 import type { WorkspaceMetadata } from "@/types/workspace";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { matchesKeybind, formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";

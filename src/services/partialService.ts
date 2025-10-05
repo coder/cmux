@@ -3,7 +3,7 @@ import * as path from "path";
 import type { Result } from "@/types/result";
 import { Ok, Err } from "@/types/result";
 import type { CmuxMessage } from "@/types/message";
-import type { Config } from "../config";
+import type { Config } from "@/config";
 import type { HistoryService } from "./historyService";
 import { MutexMap } from "@/utils/concurrency/mutexMap";
 

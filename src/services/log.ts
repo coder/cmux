@@ -10,7 +10,7 @@
 
 import * as fs from "fs";
 import * as path from "path";
-import { defaultConfig } from "../config";
+import { defaultConfig } from "@/config";
 
 const DEBUG_OBJ_DIR = path.join(defaultConfig.rootDir, "debug_obj");
 

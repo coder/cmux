@@ -1,6 +1,6 @@
 import * as fs from "fs";
 import * as path from "path";
-import { defaultConfig } from "../config";
+import { defaultConfig } from "@/config";
 import type { CmuxMessage } from "@/types/message";
 import type { SendMessageOptions } from "@/types/ipc";
 

@@ -6,7 +6,7 @@ import { describe, it, expect, beforeEach } from "bun:test";
 import { AIService } from "./aiService";
 import { HistoryService } from "./historyService";
 import { PartialService } from "./partialService";
-import { Config } from "../config";
+import { Config } from "@/config";
 
 describe("AIService", () => {
   let service: AIService;
