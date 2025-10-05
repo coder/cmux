@@ -3,6 +3,7 @@ import { IPC_CHANNELS, getChatChannel } from "../../src/constants/ipc-constants"
 import type { SendMessageOptions, WorkspaceChatMessage } from "../../src/types/ipc";
 import type { Result } from "../../src/types/result";
 import type { SendMessageError } from "../../src/types/errors";
+import type { WorkspaceMetadata } from "../../src/types/workspace";
 import * as path from "path";
 import * as os from "os";
 
@@ -61,13 +62,10 @@ export async function createWorkspace(
   mockIpcRenderer: IpcRenderer,
   projectPath: string,
   branchName: string
-): Promise<{ success: boolean; workspaceId?: string; path?: string; error?: string }> {
-  return (await mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_CREATE, projectPath, branchName)) as {
-    success: boolean;
-    workspaceId?: string;
-    path?: string;
-    error?: string;
-  };
+): Promise<{ success: true; metadata: WorkspaceMetadata } | { success: false; error: string }> {
+  return (await mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_CREATE, projectPath, branchName)) as
+    | { success: true; metadata: WorkspaceMetadata }
+    | { success: false; error: string };
 }
 
 /**

@@ -29,6 +29,7 @@ export const IPC_CHANNELS = {
   // Dynamic channel prefixes
   WORKSPACE_CHAT_PREFIX: "workspace:chat:",
   WORKSPACE_METADATA: "workspace:metadata",
+  WORKSPACE_METADATA_SUBSCRIBE: "workspace:metadata:subscribe",
 } as const;
 
 // Helper functions for dynamic channels

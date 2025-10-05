@@ -22,7 +22,7 @@ describeIntegration("IpcMain rename workspace integration tests", () => {
         projectsConfig.projects.set(tempGitRepo, { path: tempGitRepo, workspaces: [] });
       }
       const projectConfig = projectsConfig.projects.get(tempGitRepo);
-      projectConfig?.workspaces.push({ branch: branchName, path: workspacePath });
+      projectConfig?.workspaces.push({ path: workspacePath });
       // Use IPC to save config instead of direct access
       await env.mockIpcRenderer.invoke(IPC_CHANNELS.CONFIG_SAVE, {
         projects: Array.from(projectsConfig.projects.entries()),
@@ -81,14 +81,15 @@ describeIntegration("IpcMain rename workspace integration tests", () => {
       );
       expect(oldMetadataAfterRename).toBeNull();
 
-      // Verify config was updated
+      // Verify config was updated - workspace path should match new metadata
       const config = env.config.loadConfigOrDefault();
       let foundWorkspace = false;
       for (const [, projectConfig] of config.projects.entries()) {
-        const workspace = projectConfig.workspaces.find((w) => w.branch === newName);
+        const workspace = projectConfig.workspaces.find(
+          (w) => w.path === newMetadataResult.workspacePath
+        );
         if (workspace) {
           foundWorkspace = true;
-          expect(workspace.path).toBe(newMetadataResult.workspacePath);
           break;
         }
       }
@@ -160,7 +161,7 @@ describeIntegration("IpcMain rename workspace integration tests", () => {
         projectsConfig.projects.set(tempGitRepo, { path: tempGitRepo, workspaces: [] });
       }
       const projectConfig = projectsConfig.projects.get(tempGitRepo);
-      projectConfig?.workspaces.push({ branch: branchName, path: workspacePath });
+      projectConfig?.workspaces.push({ path: workspacePath });
       // Use IPC to save config instead of direct access
       await env.mockIpcRenderer.invoke(IPC_CHANNELS.CONFIG_SAVE, {
         projects: Array.from(projectsConfig.projects.entries()),
@@ -289,7 +290,7 @@ describeIntegration("IpcMain rename workspace integration tests", () => {
         projectsConfig.projects.set(tempGitRepo, { path: tempGitRepo, workspaces: [] });
       }
       const projectConfig = projectsConfig.projects.get(tempGitRepo);
-      projectConfig?.workspaces.push({ branch: branchName, path: workspacePath });
+      projectConfig?.workspaces.push({ path: workspacePath });
       // Use IPC to save config instead of direct access
       await env.mockIpcRenderer.invoke(IPC_CHANNELS.CONFIG_SAVE, {
         projects: Array.from(projectsConfig.projects.entries()),

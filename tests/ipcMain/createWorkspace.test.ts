@@ -63,12 +63,13 @@ describeIntegration("IpcMain create workspace integration tests", () => {
           console.error(`Failed to create workspace "${name}":`, createResult.error);
         }
         expect(createResult.success).toBe(true);
-        expect(createResult.workspaceId).toBeDefined();
-        expect(createResult.path).toBeDefined();
+        expect(createResult.metadata.id).toBeDefined();
+        expect(createResult.metadata.workspacePath).toBeDefined();
+        expect(createResult.metadata.projectName).toBeDefined();
 
         // Clean up the workspace
-        if (createResult.workspaceId) {
-          await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, createResult.workspaceId);
+        if (createResult.metadata.id) {
+          await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, createResult.metadata.id);
         }
       }
     } finally {

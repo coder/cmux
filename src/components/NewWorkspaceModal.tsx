@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import styled from "@emotion/styled";
 
 // Styled Components
@@ -153,7 +153,11 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  if (!isOpen) return null;
+  const handleCancel = () => {
+    setBranchName("");
+    setError(null);
+    onClose();
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -177,11 +181,21 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
     }
   };
 
-  const handleCancel = () => {
-    setBranchName("");
-    setError(null);
-    onClose();
-  };
+  // Handle Escape key to close modal
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !isLoading) {
+        handleCancel();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, isLoading, handleCancel]);
+
+  if (!isOpen) return null;
 
   const projectName = projectPath.split("/").pop() ?? projectPath.split("\\").pop() ?? "project";
 

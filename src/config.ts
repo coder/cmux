@@ -1,5 +1,4 @@
 import * as fs from "fs";
-import * as fsPromises from "fs/promises";
 import * as path from "path";
 import * as os from "os";
 import * as jsonc from "jsonc-parser";
@@ -7,8 +6,9 @@ import writeFileAtomic from "write-file-atomic";
 import type { WorkspaceMetadata } from "./types/workspace";
 
 export interface Workspace {
-  branch: string;
-  path: string;
+  path: string; // Absolute path to workspace worktree
+  // NOTE: Workspace ID is NOT stored here - it's generated on-demand from path
+  // using generateWorkspaceId(). This ensures single source of truth for ID format.
 }
 
 export interface ProjectConfig {
@@ -105,25 +105,37 @@ export class Config {
     return projectPath.split("/").pop() ?? projectPath.split("\\").pop() ?? "unknown";
   }
 
+  /**
+   * Generate workspace ID from project and workspace paths.
+   * This is the CENTRAL place for workspace ID generation.
+   * Format: ${projectBasename}-${workspaceBasename}
+   *
+   * NEVER duplicate this logic elsewhere - always call this method.
+   */
+  generateWorkspaceId(projectPath: string, workspacePath: string): string {
+    const projectBasename = this.getProjectName(projectPath);
+    const workspaceBasename =
+      workspacePath.split("/").pop() ?? workspacePath.split("\\").pop() ?? "unknown";
+    return `${projectBasename}-${workspaceBasename}`;
+  }
+
   getWorkspacePath(projectPath: string, branch: string): string {
     const projectName = this.getProjectName(projectPath);
     return path.join(this.srcDir, projectName, branch);
   }
 
   /**
-   * Find a workspace path by project name and branch
-   * @returns The workspace path or null if not found
+   * Find a workspace path and project path by workspace ID
+   * @returns Object with workspace and project paths, or null if not found
    */
-  findWorkspacePath(projectName: string, branch: string): string | null {
+  findWorkspace(workspaceId: string): { workspacePath: string; projectPath: string } | null {
     const config = this.loadConfigOrDefault();
 
     for (const [projectPath, project] of config.projects) {
-      const currentProjectName = path.basename(projectPath);
-
-      if (currentProjectName === projectName) {
-        const workspace = project.workspaces.find((w: Workspace) => w.branch === branch);
-        if (workspace) {
-          return workspace.path;
+      for (const workspace of project.workspaces) {
+        const generatedId = this.generateWorkspaceId(projectPath, workspace.path);
+        if (generatedId === workspaceId) {
+          return { workspacePath: workspace.path, projectPath };
         }
       }
     }
@@ -153,38 +165,31 @@ export class Config {
   }
 
   /**
-   * Get all workspace metadata by scanning sessions directory and loading metadata files
-   * This centralizes the logic for workspace discovery and metadata loading
+   * Get all workspace metadata by loading config and generating IDs.
+   * This is the CENTRAL place for workspace ID generation.
+   *
+   * IDs are generated using the formula: ${projectBasename}-${workspaceBasename}
+   * This ensures single source of truth and makes config format migration-free.
    */
-  async getAllWorkspaceMetadata(): Promise<
-    Array<{ workspaceId: string; metadata: WorkspaceMetadata }>
-  > {
-    try {
-      // Scan sessions directory for workspace directories
-      await fsPromises.access(this.sessionsDir);
-      const entries = await fsPromises.readdir(this.sessionsDir, { withFileTypes: true });
-      const workspaceIds = entries
-        .filter((entry) => entry.isDirectory())
-        .map((entry) => entry.name);
+  getAllWorkspaceMetadata(): WorkspaceMetadata[] {
+    const config = this.loadConfigOrDefault();
+    const workspaceMetadata: WorkspaceMetadata[] = [];
 
-      const workspaceMetadata: Array<{ workspaceId: string; metadata: WorkspaceMetadata }> = [];
+    for (const [projectPath, projectConfig] of config.projects) {
+      const projectName = this.getProjectName(projectPath);
 
-      for (const workspaceId of workspaceIds) {
-        try {
-          const metadataPath = path.join(this.getSessionDir(workspaceId), "metadata.json");
-          const data = await fsPromises.readFile(metadataPath, "utf-8");
-          const metadata = JSON.parse(data) as WorkspaceMetadata;
-          workspaceMetadata.push({ workspaceId, metadata });
-        } catch (error) {
-          // Skip workspaces with missing or invalid metadata
-          console.warn(`Failed to load metadata for workspace ${workspaceId}:`, error);
-        }
+      for (const workspace of projectConfig.workspaces) {
+        const workspaceId = this.generateWorkspaceId(projectPath, workspace.path);
+
+        workspaceMetadata.push({
+          id: workspaceId,
+          projectName,
+          workspacePath: workspace.path,
+        });
       }
-
-      return workspaceMetadata;
-    } catch {
-      return []; // Sessions directory doesn't exist yet
     }
+
+    return workspaceMetadata;
   }
 
   /**

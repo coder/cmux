@@ -231,6 +231,72 @@ in `./docs/vercel/**.mdx`.
 - Frontend must use the returned ID, never construct it
 - Backend is the single source of truth for workspace identity
 
+## IPC Type Boundaries
+
+**Backend types vs Frontend types - Keep them separate.**
+
+The IPC layer is the boundary between backend and frontend. Follow these rules to maintain clean separation:
+
+### Rules:
+
+1. **IPC methods should return backend types** - Use `WorkspaceMetadata`, not custom inline types
+
+   ```typescript
+   // ✅ GOOD - Returns backend type
+   create(): Promise<{ success: true; metadata: WorkspaceMetadata } | { success: false; error: string }>
+
+   // ❌ BAD - Duplicates type definition inline
+   create(): Promise<{ success: true; workspace: { workspaceId: string; projectName: string; ... } }>
+   ```
+
+2. **Frontend types extend backend types with UI context** - Frontend has information backend doesn't
+
+   ```typescript
+   // Backend type (no projectPath - backend doesn't need it)
+   interface WorkspaceMetadata {
+     id: string;
+     projectName: string;
+     workspacePath: string;
+   }
+
+   // Frontend type (adds projectPath and branch for UI)
+   interface WorkspaceSelection extends WorkspaceMetadata {
+     projectPath: string; // Frontend initiated the call, so it has this
+     branch: string; // Frontend tracks this for display
+     workspaceId: string; // Alias for 'id' to match UI conventions
+   }
+   ```
+
+3. **Frontend constructs UI types from backend types + local context**
+
+   ```typescript
+   // ✅ GOOD - Frontend combines backend data with context it already has
+   const result = await window.api.workspace.create(projectPath, branchName);
+   if (result.success) {
+     setSelectedWorkspace({
+       ...result.metadata,
+       projectPath, // Frontend already had this
+       branch: branchName, // Frontend already had this
+       workspaceId: result.metadata.id,
+     });
+   }
+
+   // ❌ BAD - Backend returns frontend-specific data
+   const result = await window.api.workspace.create(projectPath, branchName);
+   if (result.success) {
+     setSelectedWorkspace(result.workspace); // Backend shouldn't know about WorkspaceSelection
+   }
+   ```
+
+4. **Never duplicate type definitions in IPC layer** - Always import and use existing types
+
+### Why this matters:
+
+- **Single source of truth** - Backend types are defined once
+- **Clean boundaries** - Backend doesn't know about UI concerns
+- **Type safety** - Changes to backend types propagate to IPC automatically
+- **Prevents duplication** - No need to keep inline types in sync with source types
+
 ## Debugging
 
 - `bun debug ui-messages --workspace <workspace-name>` - Show UI messages for a workspace

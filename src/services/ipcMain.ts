@@ -126,7 +126,9 @@ export class IpcMain {
         if (result.success && result.path) {
           const projectName =
             projectPath.split("/").pop() ?? projectPath.split("\\").pop() ?? "unknown";
-          const workspaceId = `${projectName}-${branchName}`;
+
+          // Generate workspace ID using central method
+          const workspaceId = this.config.generateWorkspaceId(projectPath, result.path);
 
           // Initialize workspace metadata
           const metadata = {
@@ -142,10 +144,13 @@ export class IpcMain {
             metadata,
           });
 
-          return { success: true, workspaceId, path: result.path };
+          return {
+            success: true,
+            metadata,
+          };
         }
 
-        return result;
+        return { success: false, error: result.error ?? "Failed to create workspace" };
       }
     );
 
@@ -154,22 +159,20 @@ export class IpcMain {
         // Load current config
         const projectsConfig = this.config.loadConfigOrDefault();
 
-        // Find workspace path from config
+        // Find workspace path from config by generating IDs
         let workspacePath: string | null = null;
         let foundProjectPath: string | null = null;
 
         for (const [projectPath, projectConfig] of projectsConfig.projects.entries()) {
-          const workspace = projectConfig.workspaces.find((w) => {
-            const projectName = path.basename(projectPath);
-            const wsId = `${projectName}-${w.branch}`;
-            return wsId === workspaceId;
-          });
-
-          if (workspace) {
-            workspacePath = workspace.path;
-            foundProjectPath = projectPath;
-            break;
+          for (const workspace of projectConfig.workspaces) {
+            const generatedId = this.config.generateWorkspaceId(projectPath, workspace.path);
+            if (generatedId === workspaceId) {
+              workspacePath = workspace.path;
+              foundProjectPath = projectPath;
+              break;
+            }
           }
+          if (workspacePath) break;
         }
 
         // Remove git worktree if we found the path
@@ -259,9 +262,8 @@ export class IpcMain {
 
           for (const [projectPath, projectConfig] of projectsConfig.projects.entries()) {
             const idx = projectConfig.workspaces.findIndex((w) => {
-              const projectName = path.basename(projectPath);
-              const wsId = `${projectName}-${w.branch}`;
-              return wsId === workspaceId;
+              const generatedId = this.config.generateWorkspaceId(projectPath, w.path);
+              return generatedId === workspaceId;
             });
 
             if (idx !== -1) {
@@ -316,7 +318,6 @@ export class IpcMain {
             const projectConfig = config.projects.get(foundProjectPath);
             if (projectConfig && workspaceIndex !== -1) {
               projectConfig.workspaces[workspaceIndex] = {
-                branch: newName,
                 path: newWorktreePath,
               };
             }
@@ -343,10 +344,9 @@ export class IpcMain {
       }
     );
 
-    ipcMain.handle(IPC_CHANNELS.WORKSPACE_LIST, async () => {
+    ipcMain.handle(IPC_CHANNELS.WORKSPACE_LIST, () => {
       try {
-        const workspaceData = await this.config.getAllWorkspaceMetadata();
-        return workspaceData.map(({ metadata }) => metadata);
+        return this.config.getAllWorkspaceMetadata();
       } catch (error) {
         console.error("Failed to list workspaces:", error);
         return [];
@@ -593,25 +593,21 @@ export class IpcMain {
     });
 
     // Handle subscription events for metadata
-    ipcMain.on(
-      `workspace:metadata:subscribe`,
-      () =>
-        void (async () => {
-          try {
-            const workspaceData = await this.config.getAllWorkspaceMetadata();
+    ipcMain.on(IPC_CHANNELS.WORKSPACE_METADATA_SUBSCRIBE, () => {
+      try {
+        const workspaceMetadata = this.config.getAllWorkspaceMetadata();
 
-            // Emit current metadata for each workspace
-            for (const { workspaceId, metadata } of workspaceData) {
-              this.mainWindow?.webContents.send(IPC_CHANNELS.WORKSPACE_METADATA, {
-                workspaceId,
-                metadata,
-              });
-            }
-          } catch (error) {
-            console.error("Failed to emit current metadata:", error);
-          }
-        })()
-    );
+        // Emit current metadata for each workspace
+        for (const metadata of workspaceMetadata) {
+          this.mainWindow?.webContents.send(IPC_CHANNELS.WORKSPACE_METADATA, {
+            workspaceId: metadata.id,
+            metadata,
+          });
+        }
+      } catch (error) {
+        console.error("Failed to emit current metadata:", error);
+      }
+    });
   }
 
   private setupEventForwarding(): void {

@@ -1,6 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import styled from "@emotion/styled";
 import { css } from "@emotion/react";
+import type { ProjectConfig } from "../config";
+import type { WorkspaceMetadata } from "../types/workspace";
+import { usePersistedState } from "../hooks/usePersistedState";
 
 // Styled Components
 const SidebarContainer = styled.div`
@@ -313,21 +316,16 @@ const WorkspaceRemoveBtn = styled(RemoveBtn)`
   opacity: 0;
 `;
 
-export interface ProjectConfig {
-  path: string;
-  workspaces: Array<{ branch: string; path: string }>;
-}
-
 export interface WorkspaceSelection {
   projectPath: string;
   projectName: string;
-  branch: string;
   workspacePath: string;
   workspaceId: string;
 }
 
 interface ProjectSidebarProps {
   projects: Map<string, ProjectConfig>;
+  workspaceMetadata: Map<string, WorkspaceMetadata>;
   selectedProject: string | null;
   selectedWorkspace: WorkspaceSelection | null;
   onSelectProject: (path: string) => void;
@@ -344,6 +342,7 @@ interface ProjectSidebarProps {
 
 const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
   projects,
+  workspaceMetadata,
   selectedProject,
   selectedWorkspace,
   onSelectProject,
@@ -354,7 +353,18 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
   onRemoveWorkspace,
   onRenameWorkspace,
 }) => {
-  const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
+  // Store as array in localStorage, convert to Set for usage
+  const [expandedProjectsArray, setExpandedProjectsArray] = usePersistedState<string[]>(
+    "expandedProjects",
+    []
+  );
+  // Handle corrupted localStorage data (old Set stored as {})
+  const expandedProjects = new Set(
+    Array.isArray(expandedProjectsArray) ? expandedProjectsArray : []
+  );
+  const setExpandedProjects = (projects: Set<string>) => {
+    setExpandedProjectsArray(Array.from(projects));
+  };
   const [editingWorkspaceId, setEditingWorkspaceId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState<string>("");
   const [renameError, setRenameError] = useState<string | null>(null);
@@ -364,6 +374,12 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
       return "Unknown";
     }
     return path.split("/").pop() ?? path.split("\\").pop() ?? path;
+  };
+
+  const getWorkspaceDisplayName = (workspacePath: string) => {
+    // Extract display name from workspace path (e.g., "~/.cmux/src/cmux/main" -> "main")
+    const parts = workspacePath.split("/");
+    return parts[parts.length - 1] ?? workspacePath;
   };
 
   const toggleProject = (projectPath: string) => {
@@ -395,7 +411,7 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
         cancelRenaming();
       } else {
         // Keep field open and show error
-        setRenameError(result.error || "Failed to rename workspace");
+        setRenameError(result.error ?? "Failed to rename workspace");
       }
     }
   };
@@ -409,6 +425,20 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
       cancelRenaming();
     }
   };
+
+  // Handle keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // ctrl+n or cmd+n to create new workspace for selected project
+      if ((e.ctrlKey || e.metaKey) && e.key === "n" && selectedProject) {
+        e.preventDefault();
+        onAddWorkspace(selectedProject);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedProject, onAddWorkspace]);
 
   return (
     <SidebarContainer>
@@ -454,12 +484,16 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                 <WorkspacesContainer>
                   <WorkspaceHeader>
                     <AddWorkspaceBtn onClick={() => onAddWorkspace(projectPath)}>
-                      + New Workspace
+                      + New Workspace (Ctrl+N)
                     </AddWorkspaceBtn>
                   </WorkspaceHeader>
                   {config.workspaces.map((workspace) => {
                     const projectName = getProjectName(projectPath);
-                    const workspaceId = `${projectName}-${workspace.branch}`;
+                    const metadata = workspaceMetadata.get(workspace.path);
+                    if (!metadata) return null; // Skip if metadata not loaded yet
+
+                    const workspaceId = metadata.id;
+                    const displayName = getWorkspaceDisplayName(workspace.path);
                     const isActive = false; // Simplified - no active state tracking
                     const isEditing = editingWorkspaceId === workspaceId;
 
@@ -471,7 +505,6 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                           onSelectWorkspace({
                             projectPath,
                             projectName,
-                            branch: workspace.branch,
                             workspacePath: workspace.path,
                             workspaceId,
                           })
@@ -492,11 +525,11 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                           <WorkspaceName
                             onDoubleClick={(e) => {
                               e.stopPropagation();
-                              startRenaming(workspaceId, workspace.branch);
+                              startRenaming(workspaceId, displayName);
                             }}
                             title="Double-click to rename"
                           >
-                            {workspace.branch}
+                            {displayName}
                           </WorkspaceName>
                         )}
                         <WorkspaceRemoveBtn

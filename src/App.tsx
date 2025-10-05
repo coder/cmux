@@ -3,7 +3,9 @@ import styled from "@emotion/styled";
 import { Global, css } from "@emotion/react";
 import { GlobalColors } from "./styles/colors";
 import { GlobalFonts } from "./styles/fonts";
-import type { ProjectConfig, WorkspaceSelection } from "./components/ProjectSidebar";
+import type { ProjectConfig } from "./config";
+import type { WorkspaceSelection } from "./components/ProjectSidebar";
+import type { WorkspaceMetadata } from "./types/workspace";
 import ProjectSidebar from "./components/ProjectSidebar";
 import NewWorkspaceModal from "./components/NewWorkspaceModal";
 import { AIView } from "./components/AIView";
@@ -34,6 +36,44 @@ const globalStyles = css`
 
   code {
     font-family: var(--font-monospace);
+  }
+
+  /* Enable native tooltips */
+  [title] {
+    position: relative;
+  }
+
+  [title]:hover::after {
+    content: attr(title);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-bottom: 8px;
+    padding: 6px 10px;
+    background: #2d2d30;
+    color: #cccccc;
+    border: 1px solid #464647;
+    border-radius: 4px;
+    font-size: 11px;
+    white-space: nowrap;
+    z-index: 1000;
+    pointer-events: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  }
+
+  [title]:hover::before {
+    content: "";
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-bottom: 3px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: #2d2d30 transparent transparent transparent;
+    z-index: 1000;
+    pointer-events: none;
   }
 `;
 
@@ -110,6 +150,9 @@ const WelcomeView = styled.div`
 
 function App() {
   const [projects, setProjects] = useState<Map<string, ProjectConfig>>(new Map());
+  const [workspaceMetadata, setWorkspaceMetadata] = useState<Map<string, WorkspaceMetadata>>(
+    new Map()
+  );
   const [selectedProject, setSelectedProject] = useState<string | null>(null);
   const [selectedWorkspace, setSelectedWorkspace] = usePersistedState<WorkspaceSelection | null>(
     "selectedWorkspace",
@@ -120,6 +163,7 @@ function App() {
 
   useEffect(() => {
     void loadProjects();
+    void loadWorkspaceMetadata();
   }, []);
 
   const loadProjects = async () => {
@@ -140,6 +184,19 @@ function App() {
     } catch (error) {
       console.error("Failed to load config:", error);
       setProjects(new Map());
+    }
+  };
+
+  const loadWorkspaceMetadata = async () => {
+    try {
+      const metadataList = await window.api.workspace.list();
+      const metadataMap = new Map();
+      for (const metadata of metadataList) {
+        metadataMap.set(metadata.workspacePath, metadata);
+      }
+      setWorkspaceMetadata(metadataMap);
+    } catch (error) {
+      console.error("Failed to load workspace metadata:", error);
     }
   };
 
@@ -188,23 +245,33 @@ function App() {
     if (!workspaceModalProject) return;
 
     const result = await window.api.workspace.create(workspaceModalProject, branchName);
-    if (result.success && result.path) {
+    if (result.success) {
       // Update the project config with the new workspace
       const newProjects = new Map(projects);
       const projectConfig = newProjects.get(workspaceModalProject);
       if (projectConfig) {
         projectConfig.workspaces.push({
-          branch: branchName,
-          path: result.path,
+          path: result.metadata.workspacePath,
         });
         setProjects(newProjects);
 
         await window.api.config.save({
           projects: Array.from(newProjects.entries()),
         });
+
+        // Reload workspace metadata to get the new workspace ID
+        await loadWorkspaceMetadata();
+
+        // Construct WorkspaceSelection from backend metadata + frontend context
+        setSelectedWorkspace({
+          projectPath: workspaceModalProject,
+          projectName: result.metadata.projectName,
+          workspacePath: result.metadata.workspacePath,
+          workspaceId: result.metadata.id,
+        });
       }
     } else {
-      throw new Error(result.error ?? "Failed to create workspace");
+      throw new Error(result.error);
     }
   };
 
@@ -215,6 +282,9 @@ function App() {
       const config = await window.api.config.load();
       const loadedProjects = new Map(config.projects);
       setProjects(loadedProjects);
+
+      // Reload workspace metadata
+      await loadWorkspaceMetadata();
 
       // Clear selected workspace if it was removed
       if (selectedWorkspace?.workspaceId === workspaceId) {
@@ -236,6 +306,9 @@ function App() {
       const loadedProjects = new Map(config.projects);
       setProjects(loadedProjects);
 
+      // Reload workspace metadata
+      await loadWorkspaceMetadata();
+
       // Update selected workspace if it was renamed
       if (selectedWorkspace?.workspaceId === workspaceId) {
         const newWorkspaceId = result.data.newWorkspaceId;
@@ -243,20 +316,12 @@ function App() {
         // Get updated workspace metadata from backend
         const newMetadata = await window.api.workspace.getInfo(newWorkspaceId);
         if (newMetadata) {
-          // Find workspace in config to get the workspace path
-          const projectPath = selectedWorkspace.projectPath;
-          const projectConfig = loadedProjects.get(projectPath);
-          const workspace = projectConfig?.workspaces.find((w) => w.branch === newName);
-
-          if (workspace) {
-            setSelectedWorkspace({
-              projectPath,
-              projectName: newMetadata.projectName,
-              branch: newName,
-              workspacePath: workspace.path,
-              workspaceId: newWorkspaceId,
-            });
-          }
+          setSelectedWorkspace({
+            projectPath: selectedWorkspace.projectPath,
+            projectName: newMetadata.projectName,
+            workspacePath: newMetadata.workspacePath,
+            workspaceId: newWorkspaceId,
+          });
         }
       }
       return { success: true };
@@ -274,6 +339,7 @@ function App() {
       <AppContainer>
         <ProjectSidebar
           projects={projects}
+          workspaceMetadata={workspaceMetadata}
           selectedProject={selectedProject}
           selectedWorkspace={selectedWorkspace}
           onSelectProject={setSelectedProject}
@@ -291,12 +357,12 @@ function App() {
           <ContentArea>
             {selectedWorkspace ? (
               <ErrorBoundary
-                workspaceInfo={`${selectedWorkspace.projectName}/${selectedWorkspace.branch}`}
+                workspaceInfo={`${selectedWorkspace.projectName}/${selectedWorkspace.workspacePath.split("/").pop() ?? ""}`}
               >
                 <AIView
                   workspaceId={selectedWorkspace.workspaceId}
                   projectName={selectedWorkspace.projectName}
-                  branch={selectedWorkspace.branch}
+                  branch={selectedWorkspace.workspacePath.split("/").pop() ?? ""}
                 />
               </ErrorBoundary>
             ) : selectedProject ? (

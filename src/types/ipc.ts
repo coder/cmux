@@ -151,7 +151,7 @@ export interface IPCApi {
     create(
       projectPath: string,
       branchName: string
-    ): Promise<{ success: boolean; workspaceId?: string; path?: string; error?: string }>;
+    ): Promise<{ success: true; metadata: WorkspaceMetadata } | { success: false; error: string }>;
     remove(workspaceId: string): Promise<{ success: boolean; error?: string }>;
     rename(
       workspaceId: string,
