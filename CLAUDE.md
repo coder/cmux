@@ -69,7 +69,8 @@ in `./docs/vercel/**.mdx`.
     a path). Testing them should not require complex mocks or setup.
 - **Integration tests:**
   - Run specific integration test: `TEST_INTEGRATION=1 bun x jest tests/ipcMain/sendMessage.test.ts -t "test name pattern"`
-  - AVOID running all integration tests, that takes a long time!
+  - Run all integration tests: `TEST_INTEGRATION=1 bun x jest tests` (~35 seconds, runs 40 tests)
+  - **Performance**: Tests use `test.concurrent()` to run in parallel within each file
   - **NEVER bypass IPC in integration tests** - Integration tests must use the real IPC communication paths (e.g., `mockIpcRenderer.invoke()`) even when it's harder. Directly accessing services (HistoryService, PartialService, etc.) or manipulating config/state directly bypasses the integration layer and defeats the purpose of the test.
 
   **Examples of bypassing IPC (DON'T DO THIS):**
