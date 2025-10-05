@@ -9,13 +9,12 @@ import * as os from "os";
 
 /**
  * Generate a unique branch name
- * Uses high-resolution time and multiple random components to prevent collisions
+ * Uses high-resolution time (nanosecond precision) to prevent collisions
  */
 export function generateBranchName(prefix = "test"): string {
   const hrTime = process.hrtime.bigint();
-  const random1 = Math.random().toString(36).substring(2, 10);
-  const random2 = Math.random().toString(36).substring(2, 10);
-  return `${prefix}-${hrTime}-${random1}${random2}`;
+  const random = Math.random().toString(36).substring(2, 10);
+  return `${prefix}-${hrTime}-${random}`;
 }
 
 /**
