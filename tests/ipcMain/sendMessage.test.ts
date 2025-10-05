@@ -44,7 +44,7 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
   }
   // Run tests for each provider concurrently
   describe.each(PROVIDER_CONFIGS)("%s:%s provider tests", (provider, model) => {
-    test("should successfully send message and receive response", async () => {
+    test.concurrent("should successfully send message and receive response", async () => {
       // Setup test environment
       const { env, workspaceId, cleanup } = await setupWorkspace(provider);
       try {
@@ -75,7 +75,7 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
       }
     }, 15000);
 
-    test("should handle empty message during streaming (interrupt)", async () => {
+    test.concurrent("should handle empty message during streaming (interrupt)", async () => {
       // Setup test environment
       const { env, workspaceId, cleanup } = await setupWorkspace(provider);
       try {
@@ -115,7 +115,7 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
       }
     }, 15000);
 
-    test("should handle reconnection during active stream", async () => {
+    test.concurrent("should handle reconnection during active stream", async () => {
       // Only test with Anthropic (faster and more reliable for this test)
       if (provider === "openai") {
         return;
@@ -211,7 +211,7 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
       }
     }, 15000);
 
-    test("should reject empty message when not streaming", async () => {
+    test.concurrent("should reject empty message when not streaming", async () => {
       const { env, workspaceId, cleanup } = await setupWorkspace(provider);
       try {
         // Send empty message without any active stream
@@ -239,7 +239,7 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
       }
     });
 
-    test("should handle message editing with history truncation", async () => {
+    test.concurrent("should handle message editing with history truncation", async () => {
       const { env, workspaceId, cleanup } = await setupWorkspace(provider);
       try {
         // Send first message
@@ -283,7 +283,7 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
       }
     }, 20000);
 
-    test("should handle message editing during active stream with tool calls", async () => {
+    test.concurrent("should handle message editing during active stream with tool calls", async () => {
       const { env, workspaceId, cleanup } = await setupWorkspace(provider);
       try {
         // Send a message that will trigger a long-running tool call
@@ -357,7 +357,7 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
       }
     }, 30000);
 
-    test("should handle tool calls and return file contents", async () => {
+    test.concurrent("should handle tool calls and return file contents", async () => {
       const { env, workspaceId, workspacePath, cleanup } = await setupWorkspace(provider);
       try {
         // Generate a random string
@@ -396,7 +396,7 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
       }
     }, 20000);
 
-    test("should maintain conversation continuity across messages", async () => {
+    test.concurrent("should maintain conversation continuity across messages", async () => {
       const { env, workspaceId, cleanup } = await setupWorkspace(provider);
       try {
         // First message: Ask for a random word
@@ -473,7 +473,7 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
       }
     }, 20000);
 
-    test("should return error when model is not provided", async () => {
+    test.concurrent("should return error when model is not provided", async () => {
       const { env, workspaceId, cleanup } = await setupWorkspace(provider);
       try {
         // Send message without model
@@ -494,7 +494,7 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
       }
     });
 
-    test("should return error for invalid model string", async () => {
+    test.concurrent("should return error for invalid model string", async () => {
       const { env, workspaceId, cleanup } = await setupWorkspace(provider);
       try {
         // Send message with invalid model format
@@ -512,7 +512,7 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
 
   // Provider parity tests - ensure both providers handle the same scenarios
   describe("provider parity", () => {
-    test("both providers should handle the same message", async () => {
+    test.concurrent("both providers should handle the same message", async () => {
       const results: Record<string, { success: boolean; responseLength: number }> = {};
 
       for (const [provider, model] of PROVIDER_CONFIGS) {
