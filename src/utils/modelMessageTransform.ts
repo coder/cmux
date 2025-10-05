@@ -272,6 +272,37 @@ function filterReasoningOnlyMessages(messages: ModelMessage[]): ModelMessage[] {
 }
 
 /**
+ * Strip reasoning parts from assistant messages.
+ * OpenAI's Responses API has its own reasoning format (encrypted reasoning items with IDs).
+ * Anthropic's text-based reasoning parts are incompatible and must be removed.
+ * This function removes reasoning parts while preserving text and tool-call parts.
+ */
+function stripReasoningParts(messages: ModelMessage[]): ModelMessage[] {
+  return messages.map((msg) => {
+    // Only process assistant messages with array content
+    if (msg.role !== "assistant") {
+      return msg;
+    }
+
+    const assistantMsg = msg;
+
+    // Skip string content (no reasoning parts to strip)
+    if (typeof assistantMsg.content === "string") {
+      return msg;
+    }
+
+    // Filter out reasoning parts, keep everything else
+    const filteredContent = assistantMsg.content.filter((part) => part.type !== "reasoning");
+
+    // If all content was filtered out, this message will be caught by filterReasoningOnlyMessages
+    return {
+      ...assistantMsg,
+      content: filteredContent,
+    };
+  });
+}
+
+/**
  * Coalesce consecutive parts of the same type within each message.
  * Streaming creates many individual text/reasoning parts; merge them for easier debugging.
  * Also reduces JSON overhead when sending messages to the API.
@@ -367,7 +398,9 @@ function mergeConsecutiveUserMessages(messages: ModelMessage[]): ModelMessage[] 
  * Applies multiple transformation passes based on provider requirements:
  * 0. Coalesce consecutive parts (text/reasoning) - all providers, reduces JSON overhead
  * 1. Split mixed content messages (text + tool calls) - all providers
- * 2. Filter out reasoning-only assistant messages - Anthropic only
+ * 2. Strip/filter reasoning parts:
+ *    - OpenAI: Strip all Anthropic reasoning parts (incompatible format)
+ *    - Anthropic: Filter out reasoning-only messages (API rejects them)
  * 3. Merge consecutive user messages - all providers
  *
  * Note: encryptedContent stripping happens earlier in streamManager when tool results
@@ -383,12 +416,23 @@ export function transformModelMessages(messages: ModelMessage[], provider: strin
   // Pass 1: Split mixed content messages (applies to all providers)
   const split = splitMixedContentMessages(coalesced);
 
-  // Pass 2: Filter out reasoning-only assistant messages (Anthropic only)
-  // OpenAI Responses API allows reasoning-only messages in conversation history
-  const filtered = provider === "anthropic" ? filterReasoningOnlyMessages(split) : split;
+  // Pass 2: Provider-specific reasoning handling
+  let reasoningHandled: ModelMessage[];
+  if (provider === "openai") {
+    // OpenAI: Strip all reasoning parts (Anthropic's text-based reasoning is incompatible with OpenAI's format)
+    reasoningHandled = stripReasoningParts(split);
+    // Then filter out any messages that became empty after stripping
+    reasoningHandled = filterReasoningOnlyMessages(reasoningHandled);
+  } else if (provider === "anthropic") {
+    // Anthropic: Filter out reasoning-only messages (API rejects messages with only reasoning)
+    reasoningHandled = filterReasoningOnlyMessages(split);
+  } else {
+    // Unknown provider: no reasoning handling
+    reasoningHandled = split;
+  }
 
   // Pass 3: Merge consecutive user messages (applies to all providers)
-  const merged = mergeConsecutiveUserMessages(filtered);
+  const merged = mergeConsecutiveUserMessages(reasoningHandled);
 
   return merged;
 }

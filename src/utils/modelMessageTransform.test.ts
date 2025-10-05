@@ -516,4 +516,163 @@ describe("modelMessageTransform", () => {
       expect(result[5].role).toBe("user");
     });
   });
+
+  describe("reasoning part stripping for OpenAI", () => {
+    it("should strip reasoning parts for OpenAI provider", () => {
+      const messages: ModelMessage[] = [
+        {
+          role: "user",
+          content: [{ type: "text", text: "Solve this problem" }],
+        },
+        {
+          role: "assistant",
+          content: [
+            { type: "reasoning", text: "Let me think about this..." },
+            { type: "text", text: "Here's the solution" },
+          ],
+        },
+      ];
+
+      const result = transformModelMessages(messages, "openai");
+
+      // Should have 2 messages, assistant message should only have text
+      expect(result).toHaveLength(2);
+      expect(result[1].role).toBe("assistant");
+      expect((result[1] as AssistantModelMessage).content).toEqual([
+        { type: "text", text: "Here's the solution" },
+      ]);
+    });
+
+    it("should preserve reasoning parts for Anthropic provider", () => {
+      const messages: ModelMessage[] = [
+        {
+          role: "user",
+          content: [{ type: "text", text: "Solve this problem" }],
+        },
+        {
+          role: "assistant",
+          content: [
+            { type: "reasoning", text: "Let me think about this..." },
+            { type: "text", text: "Here's the solution" },
+          ],
+        },
+      ];
+
+      const result = transformModelMessages(messages, "anthropic");
+
+      // Should have 2 messages, assistant message should have both reasoning and text
+      expect(result).toHaveLength(2);
+      expect(result[1].role).toBe("assistant");
+      const content = (result[1] as AssistantModelMessage).content;
+      expect(Array.isArray(content)).toBe(true);
+      if (Array.isArray(content)) {
+        expect(content).toHaveLength(2);
+        expect(content[0]).toEqual({ type: "reasoning", text: "Let me think about this..." });
+        expect(content[1]).toEqual({ type: "text", text: "Here's the solution" });
+      }
+    });
+
+    it("should filter out reasoning-only messages for OpenAI", () => {
+      const messages: ModelMessage[] = [
+        {
+          role: "user",
+          content: [{ type: "text", text: "Calculate something" }],
+        },
+        {
+          role: "assistant",
+          content: [{ type: "reasoning", text: "Let me think..." }],
+        },
+      ];
+
+      const result = transformModelMessages(messages, "openai");
+
+      // Should only have user message, reasoning-only assistant message should be filtered out
+      expect(result).toHaveLength(1);
+      expect(result[0].role).toBe("user");
+    });
+
+    it("should preserve tool calls when stripping reasoning for OpenAI", () => {
+      const messages: ModelMessage[] = [
+        {
+          role: "user",
+          content: [{ type: "text", text: "Run a command" }],
+        },
+        {
+          role: "assistant",
+          content: [
+            { type: "reasoning", text: "I need to check something..." },
+            { type: "text", text: "Let me check" },
+            { type: "tool-call", toolCallId: "call1", toolName: "bash", input: { script: "pwd" } },
+          ],
+        },
+        {
+          role: "tool",
+          content: [
+            {
+              type: "tool-result",
+              toolCallId: "call1",
+              toolName: "bash",
+              output: { type: "json", value: { stdout: "/home/user" } },
+            },
+          ],
+        },
+      ];
+
+      const result = transformModelMessages(messages, "openai");
+
+      // Should have user, text, tool-call, tool-result (no reasoning)
+      expect(result.length).toBeGreaterThan(2);
+
+      // Find the assistant message with text
+      const textMessage = result.find((msg) => {
+        if (msg.role !== "assistant") return false;
+        const content = (msg as AssistantModelMessage).content;
+        return Array.isArray(content) && content.some((c) => c.type === "text");
+      });
+      expect(textMessage).toBeDefined();
+      if (textMessage) {
+        const content = (textMessage as AssistantModelMessage).content;
+        if (Array.isArray(content)) {
+          // Should not have reasoning parts
+          expect(content.some((c) => c.type === "reasoning")).toBe(false);
+          // Should have text
+          expect(content.some((c) => c.type === "text")).toBe(true);
+        }
+      }
+
+      // Find the assistant message with tool-call
+      const toolCallMessage = result.find((msg) => {
+        if (msg.role !== "assistant") return false;
+        const content = (msg as AssistantModelMessage).content;
+        return Array.isArray(content) && content.some((c) => c.type === "tool-call");
+      });
+      expect(toolCallMessage).toBeDefined();
+    });
+
+    it("should handle multiple reasoning parts for OpenAI", () => {
+      const messages: ModelMessage[] = [
+        {
+          role: "user",
+          content: [{ type: "text", text: "Complex task" }],
+        },
+        {
+          role: "assistant",
+          content: [
+            { type: "reasoning", text: "First, I'll consider..." },
+            { type: "reasoning", text: "Then, I'll analyze..." },
+            { type: "text", text: "Final answer" },
+          ],
+        },
+      ];
+
+      const result = transformModelMessages(messages, "openai");
+
+      // Should have 2 messages, assistant should only have text
+      expect(result).toHaveLength(2);
+      expect(result[1].role).toBe("assistant");
+      expect((result[1] as AssistantModelMessage).content).toEqual([
+        { type: "text", text: "Final answer" },
+      ]);
+    });
+  });
 });
