@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import styled from "@emotion/styled";
 
 // Styled Components
@@ -153,11 +153,11 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleCancel = () => {
+  const handleCancel = useCallback(() => {
     setBranchName("");
     setError(null);
     onClose();
-  };
+  }, [onClose]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
