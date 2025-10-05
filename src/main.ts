@@ -118,12 +118,14 @@ function createWindow() {
     }
   });
 
-  // Always load from dev server for now
-  void mainWindow.loadURL("http://localhost:5173");
-
-  // Open DevTools in development
+  // Load from dev server in development, built files in production
   if (process.env.NODE_ENV !== "production") {
+    // Development mode: load from vite dev server
+    void mainWindow.loadURL("http://localhost:5173");
     mainWindow.webContents.openDevTools();
+  } else {
+    // Production mode: load built files
+    void mainWindow.loadFile(path.join(__dirname, "index.html"));
   }
 
   mainWindow.on("closed", () => {
