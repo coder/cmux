@@ -5,7 +5,7 @@ import { Ok, Err } from "../types/result";
 import type { CmuxMessage } from "../types/message";
 import type { Config } from "../config";
 import type { HistoryService } from "./historyService";
-import { MutexMap } from "../utils/mutexMap";
+import { MutexMap } from "../utils/concurrency/mutexMap";
 
 /**
  * PartialService - Manages partial message persistence for interrupted streams

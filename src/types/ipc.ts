@@ -4,7 +4,7 @@ import type { CmuxMessage } from "./message";
 import type { ProjectConfig } from "../config";
 import type { SendMessageError, StreamErrorType } from "./errors";
 import type { ThinkingLevel } from "./thinking";
-import type { ToolPolicy } from "../utils/toolPolicy";
+import type { ToolPolicy } from "../utils/tools/toolPolicy";
 import type {
   StreamStartEvent,
   StreamDeltaEvent,

@@ -2,8 +2,8 @@ import React from "react";
 import styled from "@emotion/styled";
 import { useChatContext } from "../../contexts/ChatContext";
 import { TooltipWrapper, Tooltip, HelpIndicator } from "../Tooltip";
-import { getModelStats } from "../../utils/modelStats";
-import { sumUsageHistory } from "../../utils/tokenStatsCalculator";
+import { getModelStats } from "../../utils/tokens/modelStats";
+import { sumUsageHistory } from "../../utils/tokens/tokenStatsCalculator";
 import { usePersistedState } from "../../hooks/usePersistedState";
 import { ToggleGroup, type ToggleOption } from "../ToggleGroup";
 

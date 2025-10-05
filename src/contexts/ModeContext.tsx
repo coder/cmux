@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import React, { createContext, useContext, useEffect } from "react";
 import type { UIMode } from "../types/mode";
 import { usePersistedState } from "../hooks/usePersistedState";
-import { matchesKeybind, KEYBINDS } from "../utils/keybinds";
+import { matchesKeybind, KEYBINDS } from "../utils/ui/keybinds";
 
 type ModeContextType = [UIMode, (mode: UIMode) => void];
 

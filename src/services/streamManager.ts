@@ -26,7 +26,7 @@ import type { SendMessageError, StreamErrorType } from "../types/errors";
 import type { CmuxMetadata, CmuxMessage } from "../types/message";
 import type { PartialService } from "./partialService";
 import type { HistoryService } from "./historyService";
-import { AsyncMutex } from "../utils/asyncMutex";
+import { AsyncMutex } from "../utils/concurrency/asyncMutex";
 
 // Type definitions for stream parts with extended properties
 interface ReasoningDeltaPart {

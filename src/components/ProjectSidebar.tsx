@@ -4,7 +4,7 @@ import { css } from "@emotion/react";
 import type { ProjectConfig } from "../config";
 import type { WorkspaceMetadata } from "../types/workspace";
 import { usePersistedState } from "../hooks/usePersistedState";
-import { matchesKeybind, formatKeybind, KEYBINDS } from "../utils/keybinds";
+import { matchesKeybind, formatKeybind, KEYBINDS } from "../utils/ui/keybinds";
 
 // Styled Components
 const SidebarContainer = styled.div`

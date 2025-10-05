@@ -3,8 +3,8 @@ import * as fs from "fs/promises";
 import * as path from "path";
 import * as readline from "readline";
 import type { FileReadToolResult } from "../../types/tools";
-import type { ToolConfiguration, ToolFactory } from "../../utils/tools";
-import { TOOL_DEFINITIONS } from "../../utils/toolDefinitions";
+import type { ToolConfiguration, ToolFactory } from "../../utils/tools/tools";
+import { TOOL_DEFINITIONS } from "../../utils/tools/toolDefinitions";
 import { leaseFromStat, validatePathInCwd } from "./fileCommon";
 
 /**

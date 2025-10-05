@@ -3,8 +3,8 @@ import { spawn } from "child_process";
 import type { ChildProcess } from "child_process";
 import { createInterface } from "readline";
 import type { BashToolResult } from "../../types/tools";
-import type { ToolConfiguration, ToolFactory } from "../../utils/tools";
-import { TOOL_DEFINITIONS } from "../../utils/toolDefinitions";
+import type { ToolConfiguration, ToolFactory } from "../../utils/tools/tools";
+import { TOOL_DEFINITIONS } from "../../utils/tools/toolDefinitions";
 
 /**
  * Wraps a ChildProcess to make it disposable for use with `using` statements
