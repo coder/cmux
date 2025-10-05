@@ -118,7 +118,7 @@ export const TOOL_DEFINITIONS = {
   },
   propose_plan: {
     description:
-      "Propose a detailed plan for implementation. The plan will be reviewed by the user before execution. Use this to outline the approach, steps, and considerations before making changes.",
+      "Propose a plan before taking action. The plan should be complete but minimal - cover what needs to be decided or understood, nothing more. Use this tool to get approval before proceeding with implementation.",
     schema: z.object({
       title: z
         .string()
@@ -126,7 +126,7 @@ export const TOOL_DEFINITIONS = {
       plan: z
         .string()
         .describe(
-          "Implementation plan in markdown (start at h2 level). Cover: problem/context, chosen approach with rationale, alternatives considered, step-by-step implementation, edge cases and risks, scope/impact on existing code, testing strategy. Break complex work into phases."
+          "Implementation plan in markdown (start at h2 level). Scale the detail to match the task complexity: for straightforward changes, briefly state what and why; for complex changes, explain approach, key decisions, risks/tradeoffs; for uncertain changes, clarify options and what needs user input. Cover what's necessary to understand and approve the approach. Omit obvious details or ceremony."
         ),
     }),
   },
