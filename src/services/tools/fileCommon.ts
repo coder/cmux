@@ -45,12 +45,11 @@ export function generateDiff(filePath: string, oldContent: string, newContent: s
  * @param cwd - The working directory that file operations are restricted to
  * @returns Error object if invalid, null if valid
  */
-export function validatePathInCwd(
-  filePath: string,
-  cwd: string
-): { error: string } | null {
+export function validatePathInCwd(filePath: string, cwd: string): { error: string } | null {
   // Resolve the path (handles relative paths and normalizes)
-  const resolvedPath = path.isAbsolute(filePath) ? path.resolve(filePath) : path.resolve(cwd, filePath);
+  const resolvedPath = path.isAbsolute(filePath)
+    ? path.resolve(filePath)
+    : path.resolve(cwd, filePath);
   const resolvedCwd = path.resolve(cwd);
 
   // Check if resolved path starts with cwd (accounting for trailing slashes)
