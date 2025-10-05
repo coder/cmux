@@ -4,6 +4,7 @@ import type { CmuxMessage } from "./message";
 import type { ProjectConfig } from "../config";
 import type { SendMessageError, StreamErrorType } from "./errors";
 import type { ThinkingLevel } from "./thinking";
+import type { ToolPolicy } from "../utils/toolPolicy";
 import type {
   StreamStartEvent,
   StreamDeltaEvent,
@@ -125,6 +126,7 @@ export interface SendMessageOptions {
   editMessageId?: string;
   thinkingLevel?: ThinkingLevel;
   model: string;
+  toolPolicy?: ToolPolicy;
 }
 
 // API method signatures (shared between main and preload)
