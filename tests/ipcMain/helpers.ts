@@ -276,10 +276,9 @@ export async function createTempGitRepo(): Promise<string> {
 
   // Batch git commands where possible to reduce overhead
   await execAsync(`git init`, { cwd: tempDir });
-  await execAsync(
-    `git config user.email "test@example.com" && git config user.name "Test User"`,
-    { cwd: tempDir }
-  );
+  await execAsync(`git config user.email "test@example.com" && git config user.name "Test User"`, {
+    cwd: tempDir,
+  });
   await execAsync(
     `echo "test" > README.md && git add . && git commit -m "Initial commit" && git branch test-branch`,
     { cwd: tempDir }

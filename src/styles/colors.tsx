@@ -47,6 +47,9 @@ export const GlobalColors = () => (
         --color-editing-mode: hsl(30 100% 50%);
         --color-editing-mode-alpha: hsl(from var(--color-editing-mode) h s l / 0.1);
 
+        /* Pending Colors */
+        --color-pending: color-mix(in srgb, var(--color-editing-mode), white 40%);
+
         /* Debug Mode Colors */
         --color-debug: hsl(214 100% 64%);
         --color-debug-light: color-mix(in srgb, var(--color-debug), white 20%);

@@ -5,7 +5,7 @@ on:
     branches: ["main"]
   pull_request:
     branches: ["**"]
-  workflow_dispatch:  # Allow manual triggering
+  workflow_dispatch: # Allow manual triggering
 
 jobs:
   build-macos:
