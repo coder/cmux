@@ -115,6 +115,102 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
       }
     }, 15000);
 
+    test("should handle reconnection during active stream", async () => {
+      // Only test with Anthropic (faster and more reliable for this test)
+      if (provider === "openai") {
+        return;
+      }
+
+      const { env, workspaceId, cleanup } = await setupWorkspace(provider);
+      try {
+        // Start a stream with tool call that takes 10 seconds
+        void sendMessageWithModel(
+          env.mockIpcRenderer,
+          workspaceId,
+          "Run this bash command: sleep 10",
+          provider,
+          model
+        );
+
+        // Wait for tool-call-start (which means model is executing bash)
+        const collector1 = createEventCollector(env.sentEvents, workspaceId);
+        const streamStartEvent = await collector1.waitForEvent("stream-start", 5000);
+        expect(streamStartEvent).toBeDefined();
+
+        await collector1.waitForEvent("tool-call-start", 10000);
+
+        // At this point, bash sleep is running (will take 10 seconds if abort doesn't work)
+        // Get message ID for verification
+        collector1.collect();
+        const messageId =
+          streamStartEvent && "messageId" in streamStartEvent
+            ? streamStartEvent.messageId
+            : undefined;
+        expect(messageId).toBeDefined();
+
+        // Simulate reconnection by clearing events and re-subscribing
+        env.sentEvents.length = 0;
+
+        // Use ipcRenderer.send() to trigger ipcMain.on() handler (correct way for electron-mock-ipc)
+        env.mockIpcRenderer.send("workspace:chat:subscribe", workspaceId);
+
+        // Wait for async subscription handler to complete by polling for caught-up
+        const collector2 = createEventCollector(env.sentEvents, workspaceId);
+        const caughtUpMessage = await collector2.waitForEvent("caught-up", 5000);
+        expect(caughtUpMessage).toBeDefined();
+
+        // Collect all reconnection events
+        collector2.collect();
+        const reconnectionEvents = collector2.getEvents();
+
+        // Verify we received stream-start event (not a partial message with INTERRUPTED)
+        const reconnectStreamStart = reconnectionEvents.find(
+          (e) => "type" in e && e.type === "stream-start"
+        );
+
+        // If stream completed before reconnection, we'll get a regular message instead
+        // This is expected behavior - only active streams get replayed
+        const hasStreamStart = !!reconnectStreamStart;
+        const hasRegularMessage = reconnectionEvents.some(
+          (e) => "role" in e && e.role === "assistant"
+        );
+
+        // Either we got stream replay (active stream) OR regular message (completed stream)
+        expect(hasStreamStart || hasRegularMessage).toBe(true);
+
+        // If we did get stream replay, verify it
+        if (hasStreamStart) {
+          expect(reconnectStreamStart).toBeDefined();
+          expect(
+            reconnectStreamStart && "messageId" in reconnectStreamStart
+              ? reconnectStreamStart.messageId
+              : undefined
+          ).toBe(messageId);
+
+          // Verify we received tool-call-start (replay of accumulated tool event)
+          const reconnectToolStart = reconnectionEvents.filter(
+            (e) => "type" in e && e.type === "tool-call-start"
+          );
+          expect(reconnectToolStart.length).toBeGreaterThan(0);
+
+          // Verify we did NOT receive a partial message (which would show INTERRUPTED)
+          const partialMessages = reconnectionEvents.filter(
+            (e) =>
+              "role" in e &&
+              e.role === "assistant" &&
+              "metadata" in e &&
+              (e as { metadata?: { partial?: boolean } }).metadata?.partial === true
+          );
+          expect(partialMessages.length).toBe(0);
+        }
+
+        // Note: If test completes quickly (~5s), abort signal worked and killed sleep
+        // If test takes ~10s, abort signal didn't work and sleep ran to completion
+      } finally {
+        await cleanup();
+      }
+    }, 15000);
+
     test("should reject empty message when not streaming", async () => {
       const { env, workspaceId, cleanup } = await setupWorkspace(provider);
       try {

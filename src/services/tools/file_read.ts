@@ -16,7 +16,11 @@ export const createFileReadTool: ToolFactory = (config: ToolConfiguration) => {
   return tool({
     description: TOOL_DEFINITIONS.file_read.description,
     inputSchema: TOOL_DEFINITIONS.file_read.schema,
-    execute: async ({ filePath, offset, limit }): Promise<FileReadToolResult> => {
+    execute: async (
+      { filePath, offset, limit },
+      { abortSignal: _abortSignal }
+    ): Promise<FileReadToolResult> => {
+      // Note: abortSignal available but not used - file reads are fast and complete quickly
       try {
         // Resolve relative paths from configured working directory
         const resolvedPath = path.isAbsolute(filePath)

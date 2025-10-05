@@ -911,4 +911,101 @@ export class StreamManager extends EventEmitter {
   getActiveStreams(): string[] {
     return Array.from(this.workspaceStreams.keys()).map((id) => id as string);
   }
+
+  /**
+   * Gets the current stream info for a workspace if actively streaming
+   * Returns undefined if no active stream exists
+   * Used to re-establish streaming context on frontend reconnection
+   */
+  getStreamInfo(
+    workspaceId: string
+  ):
+    | { messageId: string; model: string; historySequence: number; parts: CompletedMessagePart[] }
+    | undefined {
+    const typedWorkspaceId = workspaceId as WorkspaceId;
+    const streamInfo = this.workspaceStreams.get(typedWorkspaceId);
+
+    // Only return info if stream is actively running
+    if (
+      streamInfo &&
+      (streamInfo.state === StreamState.STARTING || streamInfo.state === StreamState.STREAMING)
+    ) {
+      return {
+        messageId: streamInfo.messageId,
+        model: streamInfo.model,
+        historySequence: streamInfo.historySequence,
+        parts: streamInfo.parts,
+      };
+    }
+
+    return undefined;
+  }
+
+  /**
+   * Replay stream events
+   * Emits the same events (stream-start, stream-delta, etc.) that would be emitted during live streaming
+   * This allows replay to flow through the same event path as live streaming (no duplication)
+   */
+  replayStream(workspaceId: string): void {
+    const typedWorkspaceId = workspaceId as WorkspaceId;
+    const streamInfo = this.workspaceStreams.get(typedWorkspaceId);
+
+    // Only replay if stream is actively running
+    if (
+      !streamInfo ||
+      (streamInfo.state !== StreamState.STARTING && streamInfo.state !== StreamState.STREAMING)
+    ) {
+      return;
+    }
+
+    // Emit stream-start event
+    this.emit("stream-start", {
+      type: "stream-start",
+      workspaceId,
+      messageId: streamInfo.messageId,
+      model: streamInfo.model,
+      historySequence: streamInfo.historySequence,
+    });
+
+    // Replay accumulated parts as events
+    for (const part of streamInfo.parts) {
+      if (part.type === "text") {
+        this.emit("stream-delta", {
+          type: "stream-delta",
+          workspaceId,
+          messageId: streamInfo.messageId,
+          delta: part.text,
+        });
+      } else if (part.type === "reasoning") {
+        this.emit("reasoning-delta", {
+          type: "reasoning-delta",
+          workspaceId,
+          messageId: streamInfo.messageId,
+          delta: part.text,
+        });
+      } else if (part.type === "dynamic-tool") {
+        // Emit tool-call-start
+        this.emit("tool-call-start", {
+          type: "tool-call-start",
+          workspaceId,
+          messageId: streamInfo.messageId,
+          toolCallId: part.toolCallId,
+          toolName: part.toolName,
+          args: part.input,
+        });
+
+        // If tool has output, emit tool-call-end
+        if (part.state === "output-available") {
+          this.emit("tool-call-end", {
+            type: "tool-call-end",
+            workspaceId,
+            messageId: streamInfo.messageId,
+            toolCallId: part.toolCallId,
+            toolName: part.toolName,
+            result: part.output,
+          });
+        }
+      }
+    }
+  }
 }

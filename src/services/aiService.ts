@@ -363,6 +363,22 @@ export class AIService extends EventEmitter {
     return this.streamManager.getStreamState(workspaceId);
   }
 
+  /**
+   * Get the current stream info for a workspace if actively streaming
+   * Used to re-establish streaming context on frontend reconnection
+   */
+  getStreamInfo(workspaceId: string): ReturnType<typeof this.streamManager.getStreamInfo> {
+    return this.streamManager.getStreamInfo(workspaceId);
+  }
+
+  /**
+   * Replay stream events
+   * Emits the same events that would be emitted during live streaming
+   */
+  replayStream(workspaceId: string): void {
+    this.streamManager.replayStream(workspaceId);
+  }
+
   async deleteWorkspace(workspaceId: string): Promise<Result<void>> {
     try {
       const workspaceDir = this.config.getSessionDir(workspaceId);
