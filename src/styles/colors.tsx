@@ -106,7 +106,13 @@ export const GlobalColors = () => (
         /* Error Colors */
         --color-error: hsl(0 70% 50%); /* Red for errors */
         --color-error-alpha: hsl(from var(--color-error) h s l / 0.1);
-        --color-error-bg: color-mix(in srgb, var(--color-error) 12%, transparent);
+        --color-error-bg: hsl(0 32% 18%); /* Dark red background for error messages */
+
+        /* Input Colors */
+        --color-input-bg: hsl(0 0% 12%);
+        --color-input-text: hsl(0 0% 80%);
+        --color-input-border: hsl(207 51% 59%); /* VS Code blue */
+        --color-input-border-focus: hsl(193 91% 64%); /* Lighter blue on focus */
       }
     `}
   />

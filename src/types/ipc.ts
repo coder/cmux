@@ -153,6 +153,10 @@ export interface IPCApi {
       branchName: string
     ): Promise<{ success: boolean; workspaceId?: string; path?: string; error?: string }>;
     remove(workspaceId: string): Promise<{ success: boolean; error?: string }>;
+    rename(
+      workspaceId: string,
+      newName: string
+    ): Promise<Result<{ newWorkspaceId: string }, string>>;
     sendMessage(
       workspaceId: string,
       message: string,

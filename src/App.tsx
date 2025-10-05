@@ -225,6 +225,47 @@ function App() {
     }
   };
 
+  const handleRenameWorkspace = async (
+    workspaceId: string,
+    newName: string
+  ): Promise<{ success: boolean; error?: string }> => {
+    const result = await window.api.workspace.rename(workspaceId, newName);
+    if (result.success) {
+      // Reload config since backend has updated it
+      const config = await window.api.config.load();
+      const loadedProjects = new Map(config.projects);
+      setProjects(loadedProjects);
+
+      // Update selected workspace if it was renamed
+      if (selectedWorkspace?.workspaceId === workspaceId) {
+        const newWorkspaceId = result.data.newWorkspaceId;
+
+        // Get updated workspace metadata from backend
+        const newMetadata = await window.api.workspace.getInfo(newWorkspaceId);
+        if (newMetadata) {
+          // Find workspace in config to get the workspace path
+          const projectPath = selectedWorkspace.projectPath;
+          const projectConfig = loadedProjects.get(projectPath);
+          const workspace = projectConfig?.workspaces.find((w) => w.branch === newName);
+
+          if (workspace) {
+            setSelectedWorkspace({
+              projectPath,
+              projectName: newMetadata.projectName,
+              branch: newName,
+              workspacePath: workspace.path,
+              workspaceId: newWorkspaceId,
+            });
+          }
+        }
+      }
+      return { success: true };
+    } else {
+      console.error("Failed to rename workspace:", result.error);
+      return { success: false, error: result.error };
+    }
+  };
+
   return (
     <>
       <GlobalColors />
@@ -241,6 +282,7 @@ function App() {
           onAddWorkspace={(projectPath) => void handleAddWorkspace(projectPath)}
           onRemoveProject={(path) => void handleRemoveProject(path)}
           onRemoveWorkspace={(workspaceId) => void handleRemoveWorkspace(workspaceId)}
+          onRenameWorkspace={handleRenameWorkspace}
         />
         <MainContent>
           <AppHeader>

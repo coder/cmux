@@ -1,7 +1,8 @@
 import type { BrowserWindow, IpcMain as ElectronIpcMain } from "electron";
 import * as path from "path";
+import * as fsPromises from "fs/promises";
 import type { Config, ProjectConfig } from "../config";
-import { createWorktree, removeWorktree } from "../git";
+import { createWorktree, removeWorktree, moveWorktree } from "../git";
 import { AIService } from "../services/aiService";
 import { HistoryService } from "../services/historyService";
 import { PartialService } from "../services/partialService";
@@ -19,6 +20,8 @@ import type {
 import { IPC_CHANNELS, getChatChannel } from "../constants/ipc-constants";
 import type { SendMessageError } from "../types/errors";
 import type { StreamErrorMessage, SendMessageOptions, DeleteMessage } from "../types/ipc";
+import { Ok, Err } from "../types/result";
+import { validateWorkspaceName } from "../utils/workspaceValidation";
 
 const createUnknownSendMessageError = (raw: string): SendMessageError => ({
   type: "unknown",
@@ -111,6 +114,12 @@ export class IpcMain {
     ipcMain.handle(
       IPC_CHANNELS.WORKSPACE_CREATE,
       async (_event, projectPath: string, branchName: string) => {
+        // Validate workspace name
+        const validation = validateWorkspaceName(branchName);
+        if (!validation.valid) {
+          return { success: false, error: validation.error };
+        }
+
         // First create the git worktree
         const result = await createWorktree(this.config, projectPath, branchName);
 
@@ -200,6 +209,139 @@ export class IpcMain {
         return { success: false, error: `Failed to remove workspace: ${message}` };
       }
     });
+
+    ipcMain.handle(
+      IPC_CHANNELS.WORKSPACE_RENAME,
+      async (_event, workspaceId: string, newName: string) => {
+        try {
+          // Validate workspace name
+          const validation = validateWorkspaceName(newName);
+          if (!validation.valid) {
+            return Err(validation.error ?? "Invalid workspace name");
+          }
+
+          // Block rename if there's an active stream
+          if (this.aiService.isStreaming(workspaceId)) {
+            return Err(
+              "Cannot rename workspace while stream is active. Press Esc to stop the stream first."
+            );
+          }
+
+          // Get current metadata
+          const metadataResult = await this.aiService.getWorkspaceMetadata(workspaceId);
+          if (!metadataResult.success) {
+            return Err(`Failed to get workspace metadata: ${metadataResult.error}`);
+          }
+          const oldMetadata = metadataResult.data;
+
+          // Calculate new workspace ID
+          const newWorkspaceId = `${oldMetadata.projectName}-${newName}`;
+
+          // If renaming to itself, just return success (no-op)
+          if (newWorkspaceId === workspaceId) {
+            return Ok({ newWorkspaceId });
+          }
+
+          // Check if new workspace ID already exists
+          const existingMetadata = await this.aiService.getWorkspaceMetadata(newWorkspaceId);
+          if (existingMetadata.success) {
+            return Err(`Workspace with name "${newName}" already exists`);
+          }
+
+          // Get old and new session directory paths
+          const oldSessionDir = this.config.getSessionDir(workspaceId);
+          const newSessionDir = this.config.getSessionDir(newWorkspaceId);
+
+          // Find project path from config (needed for git operations)
+          const projectsConfig = this.config.loadConfigOrDefault();
+          let foundProjectPath: string | null = null;
+          let workspaceIndex = -1;
+
+          for (const [projectPath, projectConfig] of projectsConfig.projects.entries()) {
+            const idx = projectConfig.workspaces.findIndex((w) => {
+              const projectName = path.basename(projectPath);
+              const wsId = `${projectName}-${w.branch}`;
+              return wsId === workspaceId;
+            });
+
+            if (idx !== -1) {
+              foundProjectPath = projectPath;
+              workspaceIndex = idx;
+              break;
+            }
+          }
+
+          if (!foundProjectPath) {
+            return Err("Failed to find project path for workspace");
+          }
+
+          // Rename session directory
+          await fsPromises.rename(oldSessionDir, newSessionDir);
+
+          // Calculate new worktree path
+          const oldWorktreePath = oldMetadata.workspacePath;
+          const newWorktreePath = path.join(
+            path.dirname(oldWorktreePath),
+            newName // Use newName as the directory name
+          );
+
+          // Move worktree directory
+          const moveResult = await moveWorktree(foundProjectPath, oldWorktreePath, newWorktreePath);
+          if (!moveResult.success) {
+            // Rollback session directory rename
+            await fsPromises.rename(newSessionDir, oldSessionDir);
+            return Err(`Failed to move worktree: ${moveResult.error}`);
+          }
+
+          // Update metadata with new ID and path
+          const newMetadata = {
+            id: newWorkspaceId,
+            projectName: oldMetadata.projectName,
+            workspacePath: newWorktreePath,
+          };
+
+          const saveResult = await this.aiService.saveWorkspaceMetadata(
+            newWorkspaceId,
+            newMetadata
+          );
+          if (!saveResult.success) {
+            // Rollback worktree and session directory
+            await moveWorktree(foundProjectPath, newWorktreePath, oldWorktreePath);
+            await fsPromises.rename(newSessionDir, oldSessionDir);
+            return Err(`Failed to save new metadata: ${saveResult.error}`);
+          }
+
+          // Update config with new workspace info using atomic edit
+          this.config.editConfig((config) => {
+            const projectConfig = config.projects.get(foundProjectPath);
+            if (projectConfig && workspaceIndex !== -1) {
+              projectConfig.workspaces[workspaceIndex] = {
+                branch: newName,
+                path: newWorktreePath,
+              };
+            }
+            return config;
+          });
+
+          // Emit metadata event for old workspace deletion
+          this.mainWindow?.webContents.send(IPC_CHANNELS.WORKSPACE_METADATA, {
+            workspaceId,
+            metadata: null,
+          });
+
+          // Emit metadata event for new workspace
+          this.mainWindow?.webContents.send(IPC_CHANNELS.WORKSPACE_METADATA, {
+            workspaceId: newWorkspaceId,
+            metadata: newMetadata,
+          });
+
+          return Ok({ newWorkspaceId });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          return Err(`Failed to rename workspace: ${message}`);
+        }
+      }
+    );
 
     ipcMain.handle(IPC_CHANNELS.WORKSPACE_LIST, async () => {
       try {

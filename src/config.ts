@@ -3,6 +3,7 @@ import * as fsPromises from "fs/promises";
 import * as path from "path";
 import * as os from "os";
 import * as jsonc from "jsonc-parser";
+import writeFileAtomic from "write-file-atomic";
 import type { WorkspaceMetadata } from "./types/workspace";
 
 export interface Workspace {
@@ -84,10 +85,20 @@ export class Config {
         projects: Array.from(config.projects.entries()),
       };
 
-      fs.writeFileSync(this.configFile, JSON.stringify(data, null, 2));
+      writeFileAtomic.sync(this.configFile, JSON.stringify(data, null, 2));
     } catch (error) {
       console.error("Error saving config:", error);
     }
+  }
+
+  /**
+   * Edit config atomically using a transformation function
+   * @param fn Function that takes current config and returns modified config
+   */
+  editConfig(fn: (config: ProjectsConfig) => ProjectsConfig): void {
+    const config = this.loadConfigOrDefault();
+    const newConfig = fn(config);
+    this.saveConfig(newConfig);
   }
 
   private getProjectName(projectPath: string): string {

@@ -42,6 +42,8 @@ const api: IPCApi = {
     create: (projectPath, branchName) =>
       ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_CREATE, projectPath, branchName),
     remove: (workspaceId: string) => ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, workspaceId),
+    rename: (workspaceId: string, newName: string) =>
+      ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_RENAME, workspaceId, newName),
     sendMessage: (workspaceId, message, options) =>
       ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_SEND_MESSAGE, workspaceId, message, options),
     truncateHistory: (workspaceId, percentage) =>

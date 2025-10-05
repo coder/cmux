@@ -73,6 +73,35 @@ export async function removeWorktree(
   }
 }
 
+export async function moveWorktree(
+  projectPath: string,
+  oldPath: string,
+  newPath: string
+): Promise<WorktreeResult> {
+  try {
+    // Check if new path already exists
+    if (fs.existsSync(newPath)) {
+      return {
+        success: false,
+        error: `Target path already exists: ${newPath}`,
+      };
+    }
+
+    // Create parent directory for new path if needed
+    const parentDir = path.dirname(newPath);
+    if (!fs.existsSync(parentDir)) {
+      fs.mkdirSync(parentDir, { recursive: true });
+    }
+
+    // Move the worktree using git (from the main repository context)
+    await execAsync(`git -C "${projectPath}" worktree move "${oldPath}" "${newPath}"`);
+    return { success: true, path: newPath };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return { success: false, error: message };
+  }
+}
+
 export async function listWorktrees(projectPath: string): Promise<string[]> {
   try {
     const { stdout } = await execAsync(`git -C "${projectPath}" worktree list --porcelain`);

@@ -70,7 +70,40 @@ in `./docs/vercel/**.mdx`.
 - **Integration tests:**
   - Run specific integration test: `TEST_INTEGRATION=1 bun x jest tests/ipcMain/sendMessage.test.ts -t "test name pattern"`
   - AVOID running all integration tests, that takes a long time!
-  - **NEVER bypass IPC in integration tests** - Integration tests must use the real IPC communication paths (e.g., `mockIpcRenderer.invoke()`, `mockIpcMain.emit()`) even when it's harder. Directly accessing services (HistoryService, PartialService, etc.) or reading files bypasses the integration layer and defeats the purpose of the test. If IPC is hard to test, fix the test infrastructure, don't work around it.
+  - **NEVER bypass IPC in integration tests** - Integration tests must use the real IPC communication paths (e.g., `mockIpcRenderer.invoke()`) even when it's harder. Directly accessing services (HistoryService, PartialService, etc.) or manipulating config/state directly bypasses the integration layer and defeats the purpose of the test.
+
+  **Examples of bypassing IPC (DON'T DO THIS):**
+
+  ```typescript
+  // ❌ BAD - Directly manipulating config
+  const config = env.config.loadConfigOrDefault();
+  config.projects.set(projectPath, { path: projectPath, workspaces: [] });
+  env.config.saveConfig(config);
+
+  // ❌ BAD - Directly accessing services
+  const history = await env.historyService.getHistory(workspaceId);
+  await env.historyService.appendToHistory(workspaceId, message);
+  ```
+
+  **Correct approach (DO THIS):**
+
+  ```typescript
+  // ✅ GOOD - Use IPC to save config
+  await env.mockIpcRenderer.invoke(IPC_CHANNELS.CONFIG_SAVE, {
+    projects: Array.from(projectsConfig.projects.entries()),
+  });
+
+  // ✅ GOOD - Use IPC to interact with services
+  await env.mockIpcRenderer.invoke(IPC_CHANNELS.HISTORY_GET, workspaceId);
+  await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_CREATE, projectPath, branchName);
+  ```
+
+  **Acceptable exceptions:**
+  - Reading context (like `env.config.loadConfigOrDefault()`) to prepare IPC call parameters
+  - Verifying filesystem state (like checking if files exist) after IPC operations complete
+  - Loading existing data to avoid expensive API calls in test setup
+
+  If IPC is hard to test, fix the test infrastructure or IPC layer, don't work around it by bypassing IPC.
 
 ## Styling
 
@@ -166,6 +199,37 @@ in `./docs/vercel/**.mdx`.
   - Use dependency injection instead of direct imports
 
   Dynamic imports are NOT an acceptable workaround for circular dependencies.
+
+## Workspace IDs - NEVER Construct in Frontend
+
+**CRITICAL: Workspace IDs must NEVER be constructed in the frontend.** This is a dangerous form of duplication that makes the codebase brittle.
+
+- ❌ **BAD** - Constructing workspace ID from parts:
+
+  ```typescript
+  const newWorkspaceId = `${projectName}-${newName}`; // WRONG!
+  ```
+
+- ✅ **GOOD** - Get workspace ID from backend:
+  ```typescript
+  const result = await window.api.workspace.rename(workspaceId, newName);
+  if (result.success) {
+    const newWorkspaceId = result.data.newWorkspaceId; // Backend provides it
+  }
+  ```
+
+**Why this matters:**
+
+- Workspace ID format is a backend implementation detail
+- If the backend changes ID format, frontend breaks silently
+- Creates multiple sources of truth
+- Leads to subtle bugs and inconsistencies
+
+**Always:**
+
+- Backend operations that change workspace IDs must return the new ID
+- Frontend must use the returned ID, never construct it
+- Backend is the single source of truth for workspace identity
 
 ## Debugging
 

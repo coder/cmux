@@ -237,6 +237,7 @@ const WorkspaceItem = styled.div<{ selected?: boolean }>`
   border-left: 3px solid transparent;
   transition: all 0.15s;
   font-size: 13px;
+  position: relative;
 
   ${(props) =>
     props.selected &&
@@ -266,6 +267,46 @@ const WorkspaceName = styled.span`
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 3px;
+  transition: background 0.2s;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.05);
+  }
+`;
+
+const WorkspaceNameInput = styled.input`
+  flex: 1;
+  background: var(--color-input-bg);
+  color: var(--color-input-text);
+  border: 1px solid var(--color-input-border);
+  border-radius: 3px;
+  padding: 2px 4px;
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+
+  &:focus {
+    border-color: var(--color-input-border-focus);
+  }
+`;
+
+const RenameErrorContainer = styled.div`
+  position: absolute;
+  top: 100%;
+  left: 24px;
+  right: 32px;
+  margin-top: 4px;
+  padding: 6px 8px;
+  background: var(--color-error-bg);
+  border: 1px solid var(--color-error);
+  border-radius: 3px;
+  color: var(--color-error);
+  font-size: 11px;
+  z-index: 1000;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 `;
 
 const WorkspaceRemoveBtn = styled(RemoveBtn)`
@@ -295,6 +336,10 @@ interface ProjectSidebarProps {
   onAddWorkspace: (projectPath: string) => void;
   onRemoveProject: (path: string) => void;
   onRemoveWorkspace: (workspaceId: string) => void;
+  onRenameWorkspace: (
+    workspaceId: string,
+    newName: string
+  ) => Promise<{ success: boolean; error?: string }>;
 }
 
 const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
@@ -307,8 +352,12 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
   onAddWorkspace,
   onRemoveProject,
   onRemoveWorkspace,
+  onRenameWorkspace,
 }) => {
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
+  const [editingWorkspaceId, setEditingWorkspaceId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState<string>("");
+  const [renameError, setRenameError] = useState<string | null>(null);
 
   const getProjectName = (path: string) => {
     if (!path || typeof path !== "string") {
@@ -325,6 +374,40 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
       newExpanded.add(projectPath);
     }
     setExpandedProjects(newExpanded);
+  };
+
+  const startRenaming = (workspaceId: string, currentName: string) => {
+    setEditingWorkspaceId(workspaceId);
+    setEditingName(currentName);
+    setRenameError(null);
+  };
+
+  const cancelRenaming = () => {
+    setEditingWorkspaceId(null);
+    setEditingName("");
+    setRenameError(null);
+  };
+
+  const confirmRename = async (workspaceId: string) => {
+    if (editingName.trim() && editingName.trim() !== "") {
+      const result = await onRenameWorkspace(workspaceId, editingName.trim());
+      if (result.success) {
+        cancelRenaming();
+      } else {
+        // Keep field open and show error
+        setRenameError(result.error || "Failed to rename workspace");
+      }
+    }
+  };
+
+  const handleRenameKeyDown = (e: React.KeyboardEvent, workspaceId: string) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      void confirmRename(workspaceId);
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      cancelRenaming();
+    }
   };
 
   return (
@@ -378,6 +461,7 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                     const projectName = getProjectName(projectPath);
                     const workspaceId = `${projectName}-${workspace.branch}`;
                     const isActive = false; // Simplified - no active state tracking
+                    const isEditing = editingWorkspaceId === workspaceId;
 
                     return (
                       <WorkspaceItem
@@ -395,7 +479,26 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                       >
                         <StatusIndicator active={isActive} title="AI Assistant" />
                         <BranchIcon>⎇</BranchIcon>
-                        <WorkspaceName>{workspace.branch}</WorkspaceName>
+                        {isEditing ? (
+                          <WorkspaceNameInput
+                            value={editingName}
+                            onChange={(e) => setEditingName(e.target.value)}
+                            onKeyDown={(e) => handleRenameKeyDown(e, workspaceId)}
+                            onBlur={() => void confirmRename(workspaceId)}
+                            autoFocus
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        ) : (
+                          <WorkspaceName
+                            onDoubleClick={(e) => {
+                              e.stopPropagation();
+                              startRenaming(workspaceId, workspace.branch);
+                            }}
+                            title="Double-click to rename"
+                          >
+                            {workspace.branch}
+                          </WorkspaceName>
+                        )}
                         <WorkspaceRemoveBtn
                           onClick={(e) => {
                             e.stopPropagation();
@@ -405,6 +508,9 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                         >
                           ×
                         </WorkspaceRemoveBtn>
+                        {isEditing && renameError && (
+                          <RenameErrorContainer>{renameError}</RenameErrorContainer>
+                        )}
                       </WorkspaceItem>
                     );
                   })}
