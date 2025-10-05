@@ -16,7 +16,11 @@ export const createFileEditReplaceTool: ToolFactory = (config: ToolConfiguration
   return tool({
     description: TOOL_DEFINITIONS.file_edit_replace.description,
     inputSchema: TOOL_DEFINITIONS.file_edit_replace.schema,
-    execute: async ({ file_path, edits, lease }): Promise<FileEditReplaceToolResult> => {
+    execute: async (
+      { file_path, edits, lease },
+      { abortSignal: _abortSignal }
+    ): Promise<FileEditReplaceToolResult> => {
+      // Note: abortSignal available but not used - file operations are fast and complete quickly
       try {
         // Resolve path (but expect absolute paths)
         const resolvedPath = path.isAbsolute(file_path)

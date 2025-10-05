@@ -6,7 +6,7 @@ import { createTempGitRepo, cleanupTempGitRepo } from "./helpers";
 const describeIntegration = shouldRunIntegrationTests() ? describe : describe.skip;
 
 describeIntegration("IpcMain create workspace integration tests", () => {
-  test("should fail to create workspace with invalid name", async () => {
+  test.concurrent("should fail to create workspace with invalid name", async () => {
     const env = await createTestEnvironment();
     const tempGitRepo = await createTempGitRepo();
 
@@ -38,7 +38,7 @@ describeIntegration("IpcMain create workspace integration tests", () => {
     }
   }, 15000);
 
-  test("should successfully create workspace with valid name", async () => {
+  test.concurrent("should successfully create workspace with valid name", async () => {
     const env = await createTestEnvironment();
     const tempGitRepo = await createTempGitRepo();
 

@@ -29,6 +29,7 @@ import { buildProviderOptions } from "../utils/providerOptions";
 import type { ThinkingLevel } from "../types/thinking";
 import { createOpenAI } from "@ai-sdk/openai";
 import type { StreamAbortEvent } from "../types/stream";
+import { applyToolPolicy, type ToolPolicy } from "../utils/toolPolicy";
 
 // Export a standalone version of getToolsForModel for use in backend
 
@@ -204,6 +205,7 @@ export class AIService extends EventEmitter {
    * @param workspaceId Unique identifier for the workspace
    * @param modelString Model string (e.g., "anthropic:claude-opus-4-1") - required from frontend
    * @param thinkingLevel Optional thinking/reasoning level for AI models
+   * @param toolPolicy Optional policy to filter available tools
    * @param abortSignal Optional signal to abort the stream
    * @returns Promise that resolves when streaming completes or fails
    */
@@ -212,6 +214,7 @@ export class AIService extends EventEmitter {
     workspaceId: string,
     modelString: string,
     thinkingLevel?: ThinkingLevel,
+    toolPolicy?: ToolPolicy,
     abortSignal?: AbortSignal
   ): Promise<Result<void, SendMessageError>> {
     try {
@@ -285,7 +288,10 @@ export class AIService extends EventEmitter {
       const workspacePath = metadataResult.data.workspacePath;
 
       // Get model-specific tools with workspace path configuration
-      const tools = getToolsForModel(modelString, { cwd: workspacePath });
+      const allTools = getToolsForModel(modelString, { cwd: workspacePath });
+
+      // Apply tool policy to filter tools (if policy provided)
+      const tools = applyToolPolicy(allTools, toolPolicy);
 
       // Create assistant message placeholder with historySequence from backend
       const assistantMessageId = `assistant-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
@@ -361,6 +367,22 @@ export class AIService extends EventEmitter {
    */
   getStreamState(workspaceId: string): string {
     return this.streamManager.getStreamState(workspaceId);
+  }
+
+  /**
+   * Get the current stream info for a workspace if actively streaming
+   * Used to re-establish streaming context on frontend reconnection
+   */
+  getStreamInfo(workspaceId: string): ReturnType<typeof this.streamManager.getStreamInfo> {
+    return this.streamManager.getStreamInfo(workspaceId);
+  }
+
+  /**
+   * Replay stream events
+   * Emits the same events that would be emitted during live streaming
+   */
+  replayStream(workspaceId: string): void {
+    this.streamManager.replayStream(workspaceId);
   }
 
   async deleteWorkspace(workspaceId: string): Promise<Result<void>> {

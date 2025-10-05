@@ -372,13 +372,14 @@ export class IpcMain {
     ipcMain.handle(
       IPC_CHANNELS.WORKSPACE_SEND_MESSAGE,
       async (_event, workspaceId: string, message: string, options?: SendMessageOptions) => {
-        const { editMessageId, thinkingLevel, model } = options ?? {};
+        const { editMessageId, thinkingLevel, model, toolPolicy } = options ?? {};
         log.debug("sendMessage handler: Received", {
           workspaceId,
           messagePreview: message.substring(0, 50),
           editMessageId,
           thinkingLevel,
           model,
+          toolPolicy,
         });
         try {
           // Early exit: empty message = either interrupt (if streaming) or invalid input
@@ -469,12 +470,14 @@ export class IpcMain {
           log.debug("sendMessage handler: Calling aiService.streamMessage with thinkingLevel", {
             thinkingLevel,
             model,
+            toolPolicy,
           });
           const streamResult = await this.aiService.streamMessage(
             historyResult.data,
             workspaceId,
             model,
             thinkingLevel,
+            toolPolicy,
             undefined
           );
           log.debug("sendMessage handler: Stream completed");
@@ -593,8 +596,18 @@ export class IpcMain {
             this.mainWindow?.webContents.send(chatChannel, msg);
           }
 
+          // Check if there's an active stream or a partial message
+          const streamInfo = this.aiService.getStreamInfo(workspaceId);
           const partial = await this.partialService.readPartial(workspaceId);
-          if (partial) {
+
+          if (streamInfo) {
+            // Stream is actively running - replay events to re-establish streaming context
+            // Events flow: StreamManager → AIService → IpcMain → renderer
+            // This ensures frontend receives stream-start and creates activeStream entry
+            // so that stream-end can properly clean up the streaming indicator
+            this.aiService.replayStream(workspaceId);
+          } else if (partial) {
+            // No active stream but there's a partial - send as regular message (shows INTERRUPTED)
             this.mainWindow?.webContents.send(chatChannel, partial);
           }
         }

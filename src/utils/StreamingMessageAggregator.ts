@@ -20,8 +20,6 @@ import type {
 import { isDynamicToolPart } from "../types/toolParts";
 
 interface StreamingContext {
-  streamingId: string;
-  messageId: string;
   startTime: number;
   isComplete: boolean;
 }
@@ -121,18 +119,17 @@ export class StreamingMessageAggregator {
   // Unified event handlers that encapsulate all complex logic
   handleStreamStart(data: StreamStartEvent): void {
     const context: StreamingContext = {
-      streamingId: `stream-${Date.now()}-${Math.random()}`,
-      messageId: data.messageId,
       startTime: Date.now(),
       isComplete: false,
     };
 
-    this.activeStreams.set(context.streamingId, context);
+    // Use messageId as key - ensures only ONE stream per message
+    // If called twice (e.g., during replay), second call safely overwrites first
+    this.activeStreams.set(data.messageId, context);
 
     // Create initial streaming message with empty parts (deltas will append)
     const streamingMessage = createCmuxMessage(data.messageId, "assistant", "", {
       historySequence: data.historySequence,
-      streamingId: context.streamingId,
       timestamp: Date.now(),
       model: data.model,
     });
@@ -154,8 +151,8 @@ export class StreamingMessageAggregator {
   }
 
   handleStreamEnd(data: StreamEndEvent): void {
-    // Find active stream if exists
-    const activeStream = this.getActiveStreams().find((s) => s.messageId === data.messageId);
+    // Direct lookup by messageId - O(1) instead of O(n) find
+    const activeStream = this.activeStreams.get(data.messageId);
 
     if (activeStream) {
       // Normal streaming case: we've been tracking this stream from the start
@@ -190,8 +187,8 @@ export class StreamingMessageAggregator {
         }
       }
 
-      // Clean up active stream
-      this.activeStreams.delete(activeStream.streamingId);
+      // Clean up active stream - direct delete by messageId
+      this.activeStreams.delete(data.messageId);
     } else {
       // Reconnection case: user reconnected after stream completed
       // We reconstruct the entire message from the stream-end event
@@ -215,8 +212,8 @@ export class StreamingMessageAggregator {
   }
 
   handleStreamAbort(data: StreamAbortEvent): void {
-    // Find active stream if exists
-    const activeStream = this.getActiveStreams().find((s) => s.messageId === data.messageId);
+    // Direct lookup by messageId
+    const activeStream = this.activeStreams.get(data.messageId);
 
     if (activeStream) {
       // Mark the message as interrupted
@@ -225,15 +222,15 @@ export class StreamingMessageAggregator {
         message.metadata.partial = true;
       }
 
-      // Clean up active stream (streaming status is inferred from this)
-      this.activeStreams.delete(activeStream.streamingId);
+      // Clean up active stream - direct delete by messageId
+      this.activeStreams.delete(data.messageId);
       this.invalidateCache();
     }
   }
 
   handleStreamError(data: StreamErrorMessage): void {
-    // Find active stream if exists
-    const activeStream = this.getActiveStreams().find((s) => s.messageId === data.messageId);
+    // Direct lookup by messageId
+    const activeStream = this.activeStreams.get(data.messageId);
 
     if (activeStream) {
       // Mark the message with error metadata
@@ -244,8 +241,8 @@ export class StreamingMessageAggregator {
         message.metadata.errorType = data.errorType;
       }
 
-      // Clean up active stream (streaming status is inferred from this)
-      this.activeStreams.delete(activeStream.streamingId);
+      // Clean up active stream - direct delete by messageId
+      this.activeStreams.delete(data.messageId);
       this.invalidateCache();
     }
   }
@@ -389,7 +386,8 @@ export class StreamingMessageAggregator {
         let streamSeq = 0;
 
         // Check if this message has an active stream (for inferring streaming status)
-        const hasActiveStream = this.getActiveStreams().some((s) => s.messageId === message.id);
+        // Direct Map.has() check - O(1) instead of O(n) iteration
+        const hasActiveStream = this.activeStreams.has(message.id);
 
         // Merge adjacent parts of same type (text with text, reasoning with reasoning)
         // This is where all merging happens - streaming just appends raw deltas

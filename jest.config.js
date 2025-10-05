@@ -23,6 +23,10 @@ module.exports = {
       },
     ],
   },
-  // Run tests in parallel with 4 workers
-  maxWorkers: 4,
+  // Run tests in parallel (use 50% of available cores, or 4 minimum)
+  maxWorkers: "50%",
+  // Force exit after tests complete to avoid hanging on lingering handles
+  forceExit: true,
+  // Detect open handles in development (disabled by default for speed)
+  // detectOpenHandles: true,
 };

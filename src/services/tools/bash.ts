@@ -32,7 +32,10 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
   return tool({
     description: TOOL_DEFINITIONS.bash.description + "\nRuns in " + config.cwd + " - no cd needed",
     inputSchema: TOOL_DEFINITIONS.bash.schema,
-    execute: async ({ script, timeout_secs, max_lines }): Promise<BashToolResult> => {
+    execute: async (
+      { script, timeout_secs, max_lines },
+      { abortSignal }
+    ): Promise<BashToolResult> => {
       const startTime = performance.now();
 
       // Create the process with `using` for automatic cleanup
@@ -64,9 +67,25 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
           if (!resolved) {
             resolved = true;
             clearTimeout(timeoutHandle);
+            // Clean up abort listener if present
+            if (abortSignal && abortListener) {
+              abortSignal.removeEventListener("abort", abortListener);
+            }
             resolve(result);
           }
         };
+
+        // Set up abort signal listener - kill process when stream is cancelled
+        let abortListener: (() => void) | null = null;
+        if (abortSignal) {
+          abortListener = () => {
+            if (!resolved) {
+              childProcess.child.kill();
+              // The close event will fire and handle finalization with abort error
+            }
+          };
+          abortSignal.addEventListener("abort", abortListener);
+        }
 
         // Set up timeout - kill process and let close event handle cleanup
         const timeoutHandle = setTimeout(() => {
@@ -129,10 +148,20 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
             output += " [TRUNCATED]";
           }
 
+          // Check if this was aborted (stream cancelled)
+          const wasAborted = abortSignal?.aborted ?? false;
           // Check if this was a timeout (process killed and no natural exit code)
-          const timedOut = wall_duration_ms >= timeout_secs * 1000 - 10; // 10ms tolerance
+          const timedOut = !wasAborted && wall_duration_ms >= timeout_secs * 1000 - 10; // 10ms tolerance
 
-          if (timedOut) {
+          if (wasAborted) {
+            resolveOnce({
+              success: false,
+              error: "Command aborted due to stream cancellation",
+              exitCode: -2,
+              wall_duration_ms,
+              truncated,
+            });
+          } else if (timedOut) {
             resolveOnce({
               success: false,
               error: `Command timed out after ${timeout_secs} seconds`,

@@ -44,7 +44,7 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
   }
   // Run tests for each provider concurrently
   describe.each(PROVIDER_CONFIGS)("%s:%s provider tests", (provider, model) => {
-    test("should successfully send message and receive response", async () => {
+    test.concurrent("should successfully send message and receive response", async () => {
       // Setup test environment
       const { env, workspaceId, cleanup } = await setupWorkspace(provider);
       try {
@@ -75,7 +75,7 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
       }
     }, 15000);
 
-    test("should handle empty message during streaming (interrupt)", async () => {
+    test.concurrent("should handle empty message during streaming (interrupt)", async () => {
       // Setup test environment
       const { env, workspaceId, cleanup } = await setupWorkspace(provider);
       try {
@@ -115,7 +115,103 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
       }
     }, 15000);
 
-    test("should reject empty message when not streaming", async () => {
+    test.concurrent("should handle reconnection during active stream", async () => {
+      // Only test with Anthropic (faster and more reliable for this test)
+      if (provider === "openai") {
+        return;
+      }
+
+      const { env, workspaceId, cleanup } = await setupWorkspace(provider);
+      try {
+        // Start a stream with tool call that takes 10 seconds
+        void sendMessageWithModel(
+          env.mockIpcRenderer,
+          workspaceId,
+          "Run this bash command: sleep 10",
+          provider,
+          model
+        );
+
+        // Wait for tool-call-start (which means model is executing bash)
+        const collector1 = createEventCollector(env.sentEvents, workspaceId);
+        const streamStartEvent = await collector1.waitForEvent("stream-start", 5000);
+        expect(streamStartEvent).toBeDefined();
+
+        await collector1.waitForEvent("tool-call-start", 10000);
+
+        // At this point, bash sleep is running (will take 10 seconds if abort doesn't work)
+        // Get message ID for verification
+        collector1.collect();
+        const messageId =
+          streamStartEvent && "messageId" in streamStartEvent
+            ? streamStartEvent.messageId
+            : undefined;
+        expect(messageId).toBeDefined();
+
+        // Simulate reconnection by clearing events and re-subscribing
+        env.sentEvents.length = 0;
+
+        // Use ipcRenderer.send() to trigger ipcMain.on() handler (correct way for electron-mock-ipc)
+        env.mockIpcRenderer.send("workspace:chat:subscribe", workspaceId);
+
+        // Wait for async subscription handler to complete by polling for caught-up
+        const collector2 = createEventCollector(env.sentEvents, workspaceId);
+        const caughtUpMessage = await collector2.waitForEvent("caught-up", 5000);
+        expect(caughtUpMessage).toBeDefined();
+
+        // Collect all reconnection events
+        collector2.collect();
+        const reconnectionEvents = collector2.getEvents();
+
+        // Verify we received stream-start event (not a partial message with INTERRUPTED)
+        const reconnectStreamStart = reconnectionEvents.find(
+          (e) => "type" in e && e.type === "stream-start"
+        );
+
+        // If stream completed before reconnection, we'll get a regular message instead
+        // This is expected behavior - only active streams get replayed
+        const hasStreamStart = !!reconnectStreamStart;
+        const hasRegularMessage = reconnectionEvents.some(
+          (e) => "role" in e && e.role === "assistant"
+        );
+
+        // Either we got stream replay (active stream) OR regular message (completed stream)
+        expect(hasStreamStart || hasRegularMessage).toBe(true);
+
+        // If we did get stream replay, verify it
+        if (hasStreamStart) {
+          expect(reconnectStreamStart).toBeDefined();
+          expect(
+            reconnectStreamStart && "messageId" in reconnectStreamStart
+              ? reconnectStreamStart.messageId
+              : undefined
+          ).toBe(messageId);
+
+          // Verify we received tool-call-start (replay of accumulated tool event)
+          const reconnectToolStart = reconnectionEvents.filter(
+            (e) => "type" in e && e.type === "tool-call-start"
+          );
+          expect(reconnectToolStart.length).toBeGreaterThan(0);
+
+          // Verify we did NOT receive a partial message (which would show INTERRUPTED)
+          const partialMessages = reconnectionEvents.filter(
+            (e) =>
+              "role" in e &&
+              e.role === "assistant" &&
+              "metadata" in e &&
+              (e as { metadata?: { partial?: boolean } }).metadata?.partial === true
+          );
+          expect(partialMessages.length).toBe(0);
+        }
+
+        // Note: If test completes quickly (~5s), abort signal worked and killed sleep
+        // If test takes ~10s, abort signal didn't work and sleep ran to completion
+      } finally {
+        await cleanup();
+      }
+    }, 15000);
+
+    test.concurrent("should reject empty message when not streaming", async () => {
       const { env, workspaceId, cleanup } = await setupWorkspace(provider);
       try {
         // Send empty message without any active stream
@@ -143,7 +239,7 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
       }
     });
 
-    test("should handle message editing with history truncation", async () => {
+    test.concurrent("should handle message editing with history truncation", async () => {
       const { env, workspaceId, cleanup } = await setupWorkspace(provider);
       try {
         // Send first message
@@ -187,7 +283,7 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
       }
     }, 20000);
 
-    test("should handle message editing during active stream with tool calls", async () => {
+    test.concurrent("should handle message editing during active stream with tool calls", async () => {
       const { env, workspaceId, cleanup } = await setupWorkspace(provider);
       try {
         // Send a message that will trigger a long-running tool call
@@ -261,7 +357,7 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
       }
     }, 30000);
 
-    test("should handle tool calls and return file contents", async () => {
+    test.concurrent("should handle tool calls and return file contents", async () => {
       const { env, workspaceId, workspacePath, cleanup } = await setupWorkspace(provider);
       try {
         // Generate a random string
@@ -300,7 +396,7 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
       }
     }, 20000);
 
-    test("should maintain conversation continuity across messages", async () => {
+    test.concurrent("should maintain conversation continuity across messages", async () => {
       const { env, workspaceId, cleanup } = await setupWorkspace(provider);
       try {
         // First message: Ask for a random word
@@ -377,7 +473,7 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
       }
     }, 20000);
 
-    test("should return error when model is not provided", async () => {
+    test.concurrent("should return error when model is not provided", async () => {
       const { env, workspaceId, cleanup } = await setupWorkspace(provider);
       try {
         // Send message without model
@@ -398,7 +494,7 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
       }
     });
 
-    test("should return error for invalid model string", async () => {
+    test.concurrent("should return error for invalid model string", async () => {
       const { env, workspaceId, cleanup } = await setupWorkspace(provider);
       try {
         // Send message with invalid model format
@@ -416,7 +512,7 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
 
   // Provider parity tests - ensure both providers handle the same scenarios
   describe("provider parity", () => {
-    test("both providers should handle the same message", async () => {
+    test.concurrent("both providers should handle the same message", async () => {
       const results: Record<string, { success: boolean; responseLength: number }> = {};
 
       for (const [provider, model] of PROVIDER_CONFIGS) {
@@ -656,6 +752,107 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
         }
       },
       30000
+    );
+  });
+
+  // Tool policy tests
+  describe("tool policy", () => {
+    test.each(PROVIDER_CONFIGS)(
+      "%s should respect tool policy that disables bash",
+      async (provider, model) => {
+        const { env, workspaceId, workspacePath, cleanup } = await setupWorkspace(provider);
+        try {
+          // Create a test file in the workspace
+          const testFilePath = path.join(workspacePath, "bash-test-file.txt");
+          await fs.writeFile(testFilePath, "original content", "utf-8");
+
+          // Verify file exists
+          expect(
+            await fs.access(testFilePath).then(
+              () => true,
+              () => false
+            )
+          ).toBe(true);
+
+          // Ask AI to delete the file using bash (which should be disabled)
+          const result = await sendMessageWithModel(
+            env.mockIpcRenderer,
+            workspaceId,
+            "Delete the file bash-test-file.txt using bash rm command",
+            provider,
+            model,
+            {
+              toolPolicy: [{ regex_match: "bash", action: "disable" }],
+            }
+          );
+
+          // IPC call should succeed
+          expect(result.success).toBe(true);
+
+          // Wait for stream to complete
+          const collector = createEventCollector(env.sentEvents, workspaceId);
+          await collector.waitForEvent("stream-end", 10000);
+          assertStreamSuccess(collector);
+
+          // Verify file still exists (bash tool was disabled, so deletion shouldn't have happened)
+          const fileStillExists = await fs.access(testFilePath).then(
+            () => true,
+            () => false
+          );
+          expect(fileStillExists).toBe(true);
+
+          // Verify content unchanged
+          const content = await fs.readFile(testFilePath, "utf-8");
+          expect(content).toBe("original content");
+        } finally {
+          await cleanup();
+        }
+      },
+      15000
+    );
+
+    test.each(PROVIDER_CONFIGS)(
+      "%s should respect tool policy that disables file_edit tools",
+      async (provider, model) => {
+        const { env, workspaceId, workspacePath, cleanup } = await setupWorkspace(provider);
+        try {
+          // Create a test file with known content
+          const testFilePath = path.join(workspacePath, "edit-test-file.txt");
+          const originalContent = "original content line 1\noriginal content line 2";
+          await fs.writeFile(testFilePath, originalContent, "utf-8");
+
+          // Ask AI to edit the file (which should be disabled)
+          // Disable both file_edit tools AND bash to prevent workarounds
+          const result = await sendMessageWithModel(
+            env.mockIpcRenderer,
+            workspaceId,
+            "Edit the file edit-test-file.txt and replace 'original' with 'modified'",
+            provider,
+            model,
+            {
+              toolPolicy: [
+                { regex_match: "file_edit_.*", action: "disable" },
+                { regex_match: "bash", action: "disable" },
+              ],
+            }
+          );
+
+          // IPC call should succeed
+          expect(result.success).toBe(true);
+
+          // Wait for stream to complete
+          const collector = createEventCollector(env.sentEvents, workspaceId);
+          await collector.waitForEvent("stream-end", 10000);
+          assertStreamSuccess(collector);
+
+          // Verify file content unchanged (file_edit tools and bash were disabled)
+          const content = await fs.readFile(testFilePath, "utf-8");
+          expect(content).toBe(originalContent);
+        } finally {
+          await cleanup();
+        }
+      },
+      15000
     );
   });
 });

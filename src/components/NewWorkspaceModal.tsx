@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import styled from "@emotion/styled";
+import { matchesKeybind, KEYBINDS } from "../utils/keybinds";
 
 // Styled Components
 const ModalOverlay = styled.div`
@@ -181,12 +182,12 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
     }
   };
 
-  // Handle Escape key to close modal
+  // Handle cancel keybind to close modal
   useEffect(() => {
     if (!isOpen) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !isLoading) {
+      if (matchesKeybind(e, KEYBINDS.CANCEL) && !isLoading) {
         handleCancel();
       }
     };

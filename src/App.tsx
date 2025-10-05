@@ -112,23 +112,6 @@ const ContentArea = styled.div`
   overflow: hidden;
 `;
 
-const ProjectView = styled.div`
-  h2 {
-    color: #fff;
-    font-size: 28px;
-    margin: 0 0 8px 0;
-    font-weight: 600;
-    letter-spacing: -0.5px;
-  }
-`;
-
-const ProjectFullPath = styled.p`
-  color: #888;
-  font-size: 14px;
-  margin: 0 0 32px 0;
-  font-family: var(--font-monospace);
-`;
-
 const WelcomeView = styled.div`
   text-align: center;
   padding-top: 100px;
@@ -153,7 +136,6 @@ function App() {
   const [workspaceMetadata, setWorkspaceMetadata] = useState<Map<string, WorkspaceMetadata>>(
     new Map()
   );
-  const [selectedProject, setSelectedProject] = useState<string | null>(null);
   const [selectedWorkspace, setSelectedWorkspace] = usePersistedState<WorkspaceSelection | null>(
     "selectedWorkspace",
     null
@@ -222,8 +204,8 @@ function App() {
     newProjects.delete(path);
     setProjects(newProjects);
 
-    if (selectedProject === path) {
-      setSelectedProject(null);
+    // Clear selected workspace if it belongs to the removed project
+    if (selectedWorkspace?.projectPath === path) {
       setSelectedWorkspace(null);
     }
 
@@ -340,9 +322,7 @@ function App() {
         <ProjectSidebar
           projects={projects}
           workspaceMetadata={workspaceMetadata}
-          selectedProject={selectedProject}
           selectedWorkspace={selectedWorkspace}
-          onSelectProject={setSelectedProject}
           onSelectWorkspace={setSelectedWorkspace}
           onAddProject={() => void handleAddProject()}
           onAddWorkspace={(projectPath) => void handleAddWorkspace(projectPath)}
@@ -365,18 +345,10 @@ function App() {
                   branch={selectedWorkspace.workspacePath.split("/").pop() ?? ""}
                 />
               </ErrorBoundary>
-            ) : selectedProject ? (
-              <ProjectView>
-                <h2>Project: {selectedProject.split("/").pop()}</h2>
-                <ProjectFullPath>{selectedProject}</ProjectFullPath>
-                <p style={{ color: "#888", marginTop: "20px" }}>
-                  Select a workspace from the sidebar to view AI output.
-                </p>
-              </ProjectView>
             ) : (
               <WelcomeView>
                 <h2>Welcome to Cmux</h2>
-                <p>Select a project from the sidebar or add a new one to get started.</p>
+                <p>Select a workspace from the sidebar or add a new one to get started.</p>
               </WelcomeView>
             )}
           </ContentArea>

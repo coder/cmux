@@ -19,7 +19,7 @@ describeIntegration("IpcMain truncate integration tests", () => {
     jest.retryTimes(3, { logErrorsBeforeRetry: true });
   }
 
-  test("should truncate 50% of chat history and verify context is updated", async () => {
+  test.concurrent("should truncate 50% of chat history and verify context is updated", async () => {
     const { env, workspaceId, cleanup } = await setupWorkspace("anthropic");
     try {
       const historyService = new HistoryService(env.config);
@@ -107,7 +107,7 @@ describeIntegration("IpcMain truncate integration tests", () => {
     }
   }, 30000);
 
-  test("should truncate 100% of chat history and verify context is cleared", async () => {
+  test.concurrent("should truncate 100% of chat history and verify context is cleared", async () => {
     const { env, workspaceId, cleanup } = await setupWorkspace("anthropic");
     try {
       const historyService = new HistoryService(env.config);
@@ -200,7 +200,7 @@ describeIntegration("IpcMain truncate integration tests", () => {
     }
   }, 30000);
 
-  test("should block truncate during active stream and require Esc first", async () => {
+  test.concurrent("should block truncate during active stream and require Esc first", async () => {
     const { env, workspaceId, cleanup } = await setupWorkspace("anthropic");
     try {
       const historyService = new HistoryService(env.config);

@@ -198,20 +198,24 @@ export function assertError(
  * Create a temporary git repository for testing
  */
 export async function createTempGitRepo(): Promise<string> {
+  const fs = await import("fs/promises");
   const { exec } = await import("child_process");
   const { promisify } = await import("util");
   const execAsync = promisify(exec);
 
-  const tempDir = path.join(os.tmpdir(), `cmux-test-repo-${Date.now()}`);
-  await execAsync(`mkdir -p ${tempDir}`);
+  // Use mkdtemp to avoid race conditions and ensure unique directory
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "cmux-test-repo-"));
+
+  // Batch git commands where possible to reduce overhead
   await execAsync(`git init`, { cwd: tempDir });
-  await execAsync(`git config user.email "test@example.com"`, { cwd: tempDir });
-  await execAsync(`git config user.name "Test User"`, { cwd: tempDir });
-  await execAsync(`echo "test" > README.md`, { cwd: tempDir });
-  await execAsync(`git add .`, { cwd: tempDir });
-  await execAsync(`git commit -m "Initial commit"`, { cwd: tempDir });
-  // Create a test branch that worktrees can be created from
-  await execAsync(`git branch test-branch`, { cwd: tempDir });
+  await execAsync(
+    `git config user.email "test@example.com" && git config user.name "Test User"`,
+    { cwd: tempDir }
+  );
+  await execAsync(
+    `echo "test" > README.md && git add . && git commit -m "Initial commit" && git branch test-branch`,
+    { cwd: tempDir }
+  );
 
   return tempDir;
 }

@@ -1,6 +1,7 @@
 import { setupWorkspace, shouldRunIntegrationTests, validateApiKeys } from "./setup";
 import { sendMessageWithModel, createEventCollector } from "./helpers";
 import { IPC_CHANNELS } from "../../src/constants/ipc-constants";
+import type { CmuxMessage } from "../../src/types/message";
 import * as fs from "fs/promises";
 
 // Skip all tests if TEST_INTEGRATION is not set
@@ -12,7 +13,7 @@ if (shouldRunIntegrationTests()) {
 }
 
 describeIntegration("IpcMain rename workspace integration tests", () => {
-  test("should successfully rename workspace and update all paths", async () => {
+  test.concurrent("should successfully rename workspace and update all paths", async () => {
     const { env, workspaceId, workspacePath, tempGitRepo, branchName, cleanup } =
       await setupWorkspace("anthropic");
     try {
@@ -118,7 +119,7 @@ describeIntegration("IpcMain rename workspace integration tests", () => {
     }
   }, 15000);
 
-  test("should fail to rename if new name conflicts with existing workspace", async () => {
+  test.concurrent("should fail to rename if new name conflicts with existing workspace", async () => {
     const { env, workspaceId, tempGitRepo, cleanup } = await setupWorkspace("anthropic");
     try {
       // Create a second workspace with a different branch
@@ -151,7 +152,7 @@ describeIntegration("IpcMain rename workspace integration tests", () => {
     }
   }, 15000);
 
-  test("should succeed when renaming workspace to itself (no-op)", async () => {
+  test.concurrent("should succeed when renaming workspace to itself (no-op)", async () => {
     const { env, workspaceId, workspacePath, tempGitRepo, branchName, cleanup } =
       await setupWorkspace("anthropic");
     try {
@@ -196,7 +197,7 @@ describeIntegration("IpcMain rename workspace integration tests", () => {
     }
   }, 15000);
 
-  test("should fail to rename if workspace doesn't exist", async () => {
+  test.concurrent("should fail to rename if workspace doesn't exist", async () => {
     const { env, cleanup } = await setupWorkspace("anthropic");
     try {
       const nonExistentWorkspaceId = "nonexistent-workspace";
@@ -212,7 +213,7 @@ describeIntegration("IpcMain rename workspace integration tests", () => {
     }
   }, 15000);
 
-  test("should block rename during active stream and require Esc first", async () => {
+  test.concurrent("should block rename during active stream and require Esc first", async () => {
     const { env, workspaceId, cleanup } = await setupWorkspace("anthropic");
     try {
       // Clear events before starting stream
@@ -245,7 +246,7 @@ describeIntegration("IpcMain rename workspace integration tests", () => {
     }
   }, 15000);
 
-  test("should fail to rename with invalid workspace name", async () => {
+  test.concurrent("should fail to rename with invalid workspace name", async () => {
     const { env, workspaceId, cleanup } = await setupWorkspace("anthropic");
     try {
       // Test various invalid names
@@ -280,7 +281,7 @@ describeIntegration("IpcMain rename workspace integration tests", () => {
     }
   }, 15000);
 
-  test("should preserve chat history after rename", async () => {
+  test.concurrent("should preserve chat history after rename", async () => {
     const { env, workspaceId, workspacePath, tempGitRepo, branchName, cleanup } =
       await setupWorkspace("anthropic");
     try {
@@ -336,7 +337,7 @@ describeIntegration("IpcMain rename workspace integration tests", () => {
     }
   }, 30000);
 
-  test("should support editing messages after rename", async () => {
+  test.concurrent("should support editing messages after rename", async () => {
     const { env, workspaceId, workspacePath, tempGitRepo, cleanup } =
       await setupWorkspace("anthropic");
     try {
@@ -368,11 +369,15 @@ describeIntegration("IpcMain rename workspace integration tests", () => {
 
       // Get the user message from chat events for later editing
       const chatMessages = env.sentEvents.filter(
-        (e) => e.channel === `workspace:chat:${workspaceId}` && "role" in e.data
+        (e) =>
+          e.channel === `workspace:chat:${workspaceId}` &&
+          typeof e.data === "object" &&
+          e.data !== null &&
+          "role" in e.data
       );
-      const userMessage = chatMessages.find((e) => e.data.role === "user");
+      const userMessage = chatMessages.find((e) => (e.data as CmuxMessage).role === "user");
       expect(userMessage).toBeTruthy();
-      const userMessageId = userMessage!.data.id;
+      const userMessageId = (userMessage!.data as CmuxMessage).id;
 
       // Clear events before rename
       env.sentEvents.length = 0;

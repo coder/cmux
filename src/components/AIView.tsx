@@ -7,9 +7,9 @@ import { ChatMetaSidebar } from "./ChatMetaSidebar";
 import type { DisplayedMessage, CmuxMessage } from "../types/message";
 import { StreamingMessageAggregator } from "../utils/StreamingMessageAggregator";
 import { shouldShowInterruptedBarrier } from "../utils/messageUtils";
-import { DebugProvider, useDebugMode } from "../contexts/DebugContext";
 import { ChatProvider } from "../contexts/ChatContext";
 import { ThinkingProvider } from "../contexts/ThinkingContext";
+import { ModeProvider } from "../contexts/ModeContext";
 import type { WorkspaceChatMessage } from "../types/ipc";
 import {
   isCaughtUpMessage,
@@ -44,7 +44,6 @@ const ChatArea = styled.div`
   min-width: 750px;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
 `;
 
 const ViewHeader = styled.div`
@@ -141,7 +140,6 @@ interface AIViewProps {
 const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, className }) => {
   const [displayedMessages, setDisplayedMessages] = useState<DisplayedMessage[]>([]);
   const [isCompacting] = useState(false);
-  const { debugMode, setDebugMode } = useDebugMode(); // Use context instead of local state
   const [autoScroll, setAutoScroll] = useState(true);
   const [currentModel, setCurrentModel] = useState<string>("anthropic:claude-opus-4-1");
   const [editingMessage, setEditingMessage] = useState<{ id: string; content: string } | undefined>(
@@ -508,8 +506,6 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
             onMessageSent={handleMessageSent}
             onTruncateHistory={handleClearHistory}
             onProviderConfig={handleProviderConfig}
-            debugMode={debugMode}
-            onDebugModeChange={setDebugMode}
             disabled={!projectName || !branch}
             isCompacting={isCompacting}
             editingMessage={editingMessage}
@@ -524,13 +520,13 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
   );
 };
 
-// Wrapper component that provides the debug and thinking contexts
+// Wrapper component that provides the mode and thinking contexts
 export const AIView: React.FC<AIViewProps> = (props) => {
   return (
-    <DebugProvider>
+    <ModeProvider workspaceId={props.workspaceId}>
       <ThinkingProvider workspaceId={props.workspaceId}>
         <AIViewInner {...props} />
       </ThinkingProvider>
-    </DebugProvider>
+    </ModeProvider>
   );
 };

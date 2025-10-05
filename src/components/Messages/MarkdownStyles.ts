@@ -59,7 +59,7 @@ export const markdownStyles = css`
   }
 
   code {
-    background: rgba(0, 0, 0, 0.2);
+    background: rgba(0, 0, 0, 0);
     padding: 2px 4px;
     border-radius: 3px;
     font-family: var(--font-monospace);

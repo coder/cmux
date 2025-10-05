@@ -5,7 +5,6 @@ import type { StreamErrorType } from "./errors";
 // Our custom metadata type
 export interface CmuxMetadata {
   historySequence?: number; // Assigned by backend for global message ordering (required when writing to history)
-  streamingId?: string;
   duration?: number;
   timestamp?: number;
   model?: string;
