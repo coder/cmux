@@ -137,13 +137,15 @@ export const createFileReadTool: ToolFactory = (config: ToolConfiguration) => {
         const content = numberedLines.join("\n");
 
         // Return file info and content
+        // IMPORTANT: lease must be last in the return object so it remains fresh in the LLM's context
+        // when it's reading this tool result. The LLM needs the lease value to perform subsequent edits.
         return {
           success: true,
           file_size: stats.size,
           modifiedTime: stats.mtime.toISOString(),
           lines_read: numberedLines.length,
           content,
-          lease,
+          lease, // Must be last - see comment above
         };
       } catch (error) {
         // Handle specific errors
