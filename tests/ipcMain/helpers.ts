@@ -44,8 +44,8 @@ export async function sendMessageWithModel(
   mockIpcRenderer: IpcRenderer,
   workspaceId: string,
   message: string,
-  provider: string,
-  model: string,
+  provider = "anthropic",
+  model = "claude-sonnet-4-5",
   options?: Omit<SendMessageOptions, "model">
 ): Promise<Result<void, SendMessageError>> {
   return sendMessage(mockIpcRenderer, workspaceId, message, {
@@ -78,7 +78,7 @@ export async function clearHistory(
   workspaceId: string
 ): Promise<Result<void, string>> {
   return (await mockIpcRenderer.invoke(
-    IPC_CHANNELS.WORKSPACE_CLEAR_HISTORY,
+    IPC_CHANNELS.WORKSPACE_TRUNCATE_HISTORY,
     workspaceId
   )) as Result<void, string>;
 }

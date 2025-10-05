@@ -6,6 +6,7 @@ import type { CmuxMessage } from "../types/message";
 import type { Config } from "../config";
 import { MutexMap } from "../utils/mutexMap";
 import { log } from "./log";
+import { getTokenizerForModel } from "../utils/tokenizer";
 
 /**
  * HistoryService - Manages chat history persistence and sequence numbering
@@ -287,24 +288,138 @@ export class HistoryService {
     });
   }
 
-  async clearHistory(workspaceId: string): Promise<Result<void>> {
+  /**
+   * Truncate history by removing approximately the given percentage of tokens from the beginning
+   * @param workspaceId The workspace ID
+   * @param percentage Percentage to truncate (0.0 to 1.0). 1.0 = delete all
+   * @returns Result containing array of deleted historySequence numbers
+   */
+  async truncateHistory(
+    workspaceId: string,
+    percentage: number
+  ): Promise<Result<number[], string>> {
     return this.fileLocks.withLock(workspaceId, async () => {
       try {
         const historyPath = this.getChatHistoryPath(workspaceId);
-        await fs.unlink(historyPath);
-        // Reset sequence counter when clearing history
-        this.sequenceCounters.set(workspaceId, 0);
-        // Note: partial.json is now managed by PartialService
-        return Ok(undefined);
-      } catch (error) {
-        if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") {
-          // Already cleared, reset counter anyway
+
+        // Fast path: 100% truncation = delete entire file
+        if (percentage >= 1.0) {
+          const historyResult = await this.getHistory(workspaceId);
+          const deletedSequences = historyResult.success
+            ? historyResult.data
+                .map((msg) => msg.metadata?.historySequence ?? -1)
+                .filter((s) => s >= 0)
+            : [];
+
+          try {
+            await fs.unlink(historyPath);
+          } catch (error) {
+            // Ignore ENOENT - file already deleted
+            if (
+              !(error && typeof error === "object" && "code" in error && error.code === "ENOENT")
+            ) {
+              throw error;
+            }
+          }
+
+          // Reset sequence counter when clearing history
           this.sequenceCounters.set(workspaceId, 0);
-          return Ok(undefined);
+          return Ok(deletedSequences);
         }
+
+        // Read all messages
+        const historyResult = await this.getHistory(workspaceId);
+        if (!historyResult.success) {
+          return Err(historyResult.error);
+        }
+
+        const messages = historyResult.data;
+        if (messages.length === 0) {
+          return Ok([]); // Nothing to truncate
+        }
+
+        // Get tokenizer for counting (use a default model)
+        const tokenizer = getTokenizerForModel("anthropic:claude-sonnet-4-5");
+
+        // Count tokens for each message
+        // We stringify the entire message for simplicity - only relative weights matter
+        const messageTokens: Array<{ message: CmuxMessage; tokens: number }> = messages.map(
+          (msg) => {
+            const tokens = tokenizer.countTokens(JSON.stringify(msg));
+            return { message: msg, tokens };
+          }
+        );
+
+        // Calculate total tokens and target to remove
+        const totalTokens = messageTokens.reduce((sum, mt) => sum + mt.tokens, 0);
+        const tokensToRemove = Math.floor(totalTokens * percentage);
+
+        // Remove messages from beginning until we've removed enough tokens
+        let tokensRemoved = 0;
+        let removeCount = 0;
+        for (const mt of messageTokens) {
+          if (tokensRemoved >= tokensToRemove) {
+            break;
+          }
+          tokensRemoved += mt.tokens;
+          removeCount++;
+        }
+
+        // If we're removing all messages, use fast path
+        if (removeCount >= messages.length) {
+          try {
+            await fs.unlink(historyPath);
+          } catch (error) {
+            // Ignore ENOENT
+            if (
+              !(error && typeof error === "object" && "code" in error && error.code === "ENOENT")
+            ) {
+              throw error;
+            }
+          }
+          this.sequenceCounters.set(workspaceId, 0);
+          const deletedSequences = messages
+            .map((msg) => msg.metadata?.historySequence ?? -1)
+            .filter((s) => s >= 0);
+          return Ok(deletedSequences);
+        }
+
+        // Keep messages after removeCount
+        const remainingMessages = messages.slice(removeCount);
+        const deletedMessages = messages.slice(0, removeCount);
+        const deletedSequences = deletedMessages
+          .map((msg) => msg.metadata?.historySequence ?? -1)
+          .filter((s) => s >= 0);
+
+        // Rewrite the history file with remaining messages
+        const historyEntries = remainingMessages
+          .map((msg) => JSON.stringify({ ...msg, workspaceId }) + "\n")
+          .join("");
+
+        await fs.writeFile(historyPath, historyEntries);
+
+        // Update sequence counter to continue from where we are
+        if (remainingMessages.length > 0) {
+          const lastMsg = remainingMessages[remainingMessages.length - 1];
+          const lastSeq = lastMsg.metadata?.historySequence ?? 0;
+          this.sequenceCounters.set(workspaceId, lastSeq + 1);
+        } else {
+          this.sequenceCounters.set(workspaceId, 0);
+        }
+
+        return Ok(deletedSequences);
+      } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        return Err(`Failed to clear history: ${message}`);
+        return Err(`Failed to truncate history: ${message}`);
       }
     });
+  }
+
+  async clearHistory(workspaceId: string): Promise<Result<void>> {
+    const result = await this.truncateHistory(workspaceId, 1.0);
+    if (!result.success) {
+      return Err(result.error);
+    }
+    return Ok(undefined);
   }
 }

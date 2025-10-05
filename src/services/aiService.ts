@@ -28,6 +28,7 @@ import { getTokenizerForModel } from "../utils/tokenizer";
 import { buildProviderOptions } from "../utils/providerOptions";
 import type { ThinkingLevel } from "../types/thinking";
 import { createOpenAI } from "@ai-sdk/openai";
+import type { StreamAbortEvent } from "../types/stream";
 
 // Export a standalone version of getToolsForModel for use in backend
 
@@ -55,7 +56,20 @@ export class AIService extends EventEmitter {
     this.streamManager.on("stream-start", (data) => this.emit("stream-start", data));
     this.streamManager.on("stream-delta", (data) => this.emit("stream-delta", data));
     this.streamManager.on("stream-end", (data) => this.emit("stream-end", data));
-    this.streamManager.on("stream-abort", (data) => this.emit("stream-abort", data));
+
+    // Handle stream-abort: commit partial to history before forwarding
+    this.streamManager.on("stream-abort", (data: StreamAbortEvent) => {
+      void (async () => {
+        // Commit interrupted message to history with partial:true metadata
+        // This ensures /clear and /truncate can clean up interrupted messages
+        await this.partialService.commitToHistory(data.workspaceId);
+        await this.partialService.deletePartial(data.workspaceId);
+
+        // Forward abort event to consumers
+        this.emit("stream-abort", data);
+      })();
+    });
+
     this.streamManager.on("error", (data) => this.emit("error", data));
     // Forward tool events
     this.streamManager.on("tool-call-start", (data) => this.emit("tool-call-start", data));

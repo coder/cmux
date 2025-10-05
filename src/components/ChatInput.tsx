@@ -103,7 +103,7 @@ const ModelDisplay = styled.div`
 export interface ChatInputProps {
   workspaceId: string;
   onMessageSent?: () => void; // Optional callback after successful send
-  onClearHistory: () => Promise<void>;
+  onTruncateHistory: (percentage?: number) => Promise<void>;
   onProviderConfig?: (provider: string, keyPath: string[], value: string) => Promise<void>;
   onModelChange?: (model: string) => void;
   debugMode: boolean;
@@ -269,7 +269,7 @@ const createErrorToast = (error: SendMessageErrorType): Toast => {
 export const ChatInput: React.FC<ChatInputProps> = ({
   workspaceId,
   onMessageSent,
-  onClearHistory,
+  onTruncateHistory,
   onProviderConfig,
   onModelChange,
   debugMode,
@@ -363,11 +363,26 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           if (inputRef.current) {
             inputRef.current.style.height = "36px";
           }
-          await onClearHistory();
+          await onTruncateHistory(1.0);
           setToast({
             id: Date.now().toString(),
             type: "success",
             message: "Chat history cleared",
+          });
+          return;
+        }
+
+        // Handle /truncate command
+        if (parsed.type === "truncate") {
+          setInput("");
+          if (inputRef.current) {
+            inputRef.current.style.height = "36px";
+          }
+          await onTruncateHistory(parsed.percentage);
+          setToast({
+            id: Date.now().toString(),
+            type: "success",
+            message: `Chat history truncated by ${Math.round(parsed.percentage * 100)}%`,
           });
           return;
         }

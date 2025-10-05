@@ -21,7 +21,7 @@
 import { contextBridge, ipcRenderer } from "electron";
 import type { IPCApi, WorkspaceChatMessage } from "./types/ipc";
 import type { WorkspaceMetadata } from "./types/workspace";
-import { IPC_CHANNELS, getChatChannel, getClearChannel } from "./constants/ipc-constants";
+import { IPC_CHANNELS, getChatChannel } from "./constants/ipc-constants";
 
 // Build the API implementation using the shared interface
 const api: IPCApi = {
@@ -44,8 +44,8 @@ const api: IPCApi = {
     remove: (workspaceId: string) => ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, workspaceId),
     sendMessage: (workspaceId, message, options) =>
       ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_SEND_MESSAGE, workspaceId, message, options),
-    clearHistory: (workspaceId) =>
-      ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_CLEAR_HISTORY, workspaceId),
+    truncateHistory: (workspaceId, percentage) =>
+      ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_TRUNCATE_HISTORY, workspaceId, percentage),
     getInfo: (workspaceId) => ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_GET_INFO, workspaceId),
 
     onChat: (workspaceId, callback) => {
@@ -65,12 +65,6 @@ const api: IPCApi = {
         ipcRenderer.removeListener(channel, handler);
         ipcRenderer.send(`workspace:chat:unsubscribe`, workspaceId);
       };
-    },
-    onClear: (workspaceId, callback) => {
-      const channel = getClearChannel(workspaceId);
-      const handler = (_event: unknown, data: unknown) => callback(data);
-      ipcRenderer.on(channel, handler);
-      return () => ipcRenderer.removeListener(channel, handler);
     },
     onMetadata: (
       callback: (data: { workspaceId: string; metadata: WorkspaceMetadata }) => void

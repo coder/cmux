@@ -11,7 +11,7 @@ import type {
   ReasoningDeltaEvent,
   ReasoningEndEvent,
 } from "../types/stream";
-import type { WorkspaceChatMessage, StreamErrorMessage } from "../types/ipc";
+import type { WorkspaceChatMessage, StreamErrorMessage, DeleteMessage } from "../types/ipc";
 import type {
   DynamicToolPart,
   DynamicToolPartPending,
@@ -97,6 +97,24 @@ export class StreamingMessageAggregator {
     this.messages.clear();
     this.activeStreams.clear();
     this.streamSequenceCounter = 0;
+    this.invalidateCache();
+  }
+
+  /**
+   * Remove messages with specific historySequence numbers
+   * Used when backend truncates history
+   */
+  handleDeleteMessage(deleteMsg: DeleteMessage): void {
+    const sequencesToDelete = new Set(deleteMsg.historySequences);
+
+    // Remove messages that match the historySequence numbers
+    for (const [messageId, message] of this.messages.entries()) {
+      const historySeq = message.metadata?.historySequence;
+      if (historySeq !== undefined && sequencesToDelete.has(historySeq)) {
+        this.messages.delete(messageId);
+      }
+    }
+
     this.invalidateCache();
   }
 

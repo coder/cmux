@@ -14,6 +14,7 @@ import type { WorkspaceChatMessage } from "../types/ipc";
 import {
   isCaughtUpMessage,
   isStreamError,
+  isDeleteMessage,
   isStreamStart,
   isStreamDelta,
   isStreamEnd,
@@ -265,6 +266,13 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
           return;
         }
 
+        // Handle delete messages (from truncate operation)
+        if (isDeleteMessage(data)) {
+          aggregator.handleDeleteMessage(data);
+          updateUIAndScroll();
+          return;
+        }
+
         // SIMPLIFIED EVENT HANDLING
         // All complex logic lives in StreamingMessageAggregator
         // AIView only handles UI updates - separation of concerns
@@ -350,19 +358,9 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
       }
     );
 
-    // Subscribe to workspace-specific clear channel
-    const unsubscribeClear = window.api.workspace.onClear(workspaceId, () => {
-      // Full clear (used by /clear command)
-      setDisplayedMessages([]);
-      aggregator.clear();
-    });
-
     return () => {
       if (typeof unsubscribeChat === "function") {
         unsubscribeChat();
-      }
-      if (typeof unsubscribeClear === "function") {
-        unsubscribeClear();
       }
     };
   }, [projectName, branch, workspaceId, updateUIAndScroll, getAggregator]);
@@ -372,18 +370,16 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
     setAutoScroll(true);
   }, []);
 
-  const handleClearHistory = useCallback(async () => {
-    // Clear UI immediately
-    setDisplayedMessages([]);
-    const aggregator = getAggregator(workspaceId);
-    aggregator.clear();
+  const handleClearHistory = useCallback(
+    async (percentage = 1.0) => {
+      // Enable auto-scroll after clearing
+      setAutoScroll(true);
 
-    // Enable auto-scroll after clearing
-    setAutoScroll(true);
-
-    // Clear history in backend
-    await window.api.workspace.clearHistory(workspaceId);
-  }, [workspaceId, getAggregator]);
+      // Truncate history in backend (which will send DeleteMessage to update UI)
+      await window.api.workspace.truncateHistory(workspaceId, percentage);
+    },
+    [workspaceId]
+  );
 
   const handleProviderConfig = useCallback(
     async (provider: string, keyPath: string[], value: string) => {
@@ -510,7 +506,7 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
           <ChatInput
             workspaceId={workspaceId}
             onMessageSent={handleMessageSent}
-            onClearHistory={handleClearHistory}
+            onTruncateHistory={handleClearHistory}
             onProviderConfig={handleProviderConfig}
             debugMode={debugMode}
             onDebugModeChange={setDebugMode}

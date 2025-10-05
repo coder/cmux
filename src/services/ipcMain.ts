@@ -18,7 +18,7 @@ import type {
 } from "../types/stream";
 import { IPC_CHANNELS, getChatChannel } from "../constants/ipc-constants";
 import type { SendMessageError } from "../types/errors";
-import type { StreamErrorMessage, SendMessageOptions } from "../types/ipc";
+import type { StreamErrorMessage, SendMessageOptions, DeleteMessage } from "../types/ipc";
 
 const createUnknownSendMessageError = (raw: string): SendMessageError => ({
   type: "unknown",
@@ -339,14 +339,43 @@ export class IpcMain {
       }
     );
 
-    ipcMain.handle(IPC_CHANNELS.WORKSPACE_CLEAR_HISTORY, async (_event, workspaceId: string) => {
-      // Clear both chat.jsonl and partial.json
-      const historyResult = await this.historyService.clearHistory(workspaceId);
-      if (!historyResult.success) {
-        return historyResult;
+    ipcMain.handle(
+      IPC_CHANNELS.WORKSPACE_TRUNCATE_HISTORY,
+      async (_event, workspaceId: string, percentage?: number) => {
+        // Block truncate if there's an active stream
+        // User must press Esc first to stop stream and commit partial to history
+        if (this.aiService.isStreaming(workspaceId)) {
+          return {
+            success: false,
+            error:
+              "Cannot truncate history while stream is active. Press Esc to stop the stream first.",
+          };
+        }
+
+        // Truncate chat.jsonl (only operates on committed history)
+        // Note: partial.json is NOT touched here - it has its own lifecycle
+        // Interrupted messages are committed to history by stream-abort handler
+        const truncateResult = await this.historyService.truncateHistory(
+          workspaceId,
+          percentage ?? 1.0
+        );
+        if (!truncateResult.success) {
+          return { success: false, error: truncateResult.error };
+        }
+
+        // Send DeleteMessage event to frontend with deleted historySequence numbers
+        const deletedSequences = truncateResult.data;
+        if (deletedSequences.length > 0 && this.mainWindow) {
+          const deleteMessage: DeleteMessage = {
+            type: "delete",
+            historySequences: deletedSequences,
+          };
+          this.mainWindow.webContents.send(getChatChannel(workspaceId), deleteMessage);
+        }
+
+        return { success: true, data: undefined };
       }
-      return await this.partialService.deletePartial(workspaceId);
-    });
+    );
   }
 
   private registerProviderHandlers(ipcMain: ElectronIpcMain): void {
