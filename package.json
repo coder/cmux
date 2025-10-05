@@ -101,7 +101,8 @@
         }
       ],
       "icon": "build/icon.icns",
-      "artifactName": "${productName}-${version}-${arch}.${ext}"
+      "artifactName": "${productName}-${version}-${arch}.${ext}",
+      "identity": null
     },
     "linux": {
       "target": "AppImage",
