@@ -692,6 +692,11 @@ export class StreamManager extends EventEmitter {
       } as ErrorEvent);
     } finally {
       // Guaranteed cleanup in all code paths
+      // Clear any pending timers to prevent keeping process alive
+      if (streamInfo.partialWriteTimer) {
+        clearTimeout(streamInfo.partialWriteTimer);
+        streamInfo.partialWriteTimer = undefined;
+      }
       this.workspaceStreams.delete(workspaceId);
     }
   }
