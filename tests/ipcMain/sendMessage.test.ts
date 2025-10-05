@@ -761,6 +761,11 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
 
   // Tool policy tests
   describe("tool policy", () => {
+    // Retry tool policy tests in CI (they depend on external API behavior)
+    if (process.env.CI && typeof jest !== "undefined" && jest.retryTimes) {
+      jest.retryTimes(2, { logErrorsBeforeRetry: true });
+    }
+
     test.each(PROVIDER_CONFIGS)(
       "%s should respect tool policy that disables bash",
       async (provider, model) => {
@@ -793,9 +798,9 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
           // IPC call should succeed
           expect(result.success).toBe(true);
 
-          // Wait for stream to complete
+          // Wait for stream to complete (longer timeout for tool policy tests)
           const collector = createEventCollector(env.sentEvents, workspaceId);
-          await collector.waitForEvent("stream-end", 10000);
+          await collector.waitForEvent("stream-end", 30000);
           assertStreamSuccess(collector);
 
           // Verify file still exists (bash tool was disabled, so deletion shouldn't have happened)
@@ -812,7 +817,7 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
           await cleanup();
         }
       },
-      15000
+      45000
     );
 
     test.each(PROVIDER_CONFIGS)(
@@ -844,9 +849,9 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
           // IPC call should succeed
           expect(result.success).toBe(true);
 
-          // Wait for stream to complete
+          // Wait for stream to complete (longer timeout for tool policy tests)
           const collector = createEventCollector(env.sentEvents, workspaceId);
-          await collector.waitForEvent("stream-end", 10000);
+          await collector.waitForEvent("stream-end", 30000);
           assertStreamSuccess(collector);
 
           // Verify file content unchanged (file_edit tools and bash were disabled)
@@ -856,7 +861,7 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
           await cleanup();
         }
       },
-      15000
+      45000
     );
   });
 });
