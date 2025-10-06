@@ -834,34 +834,14 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
           // Wait for stream to complete (longer timeout for tool policy tests)
           const collector = createEventCollector(env.sentEvents, workspaceId);
           
-          // Wait for either stream-end or stream-error to get diagnostic info
+          // Wait for either stream-end or stream-error
+          // (helpers will log diagnostic info on failure)
           await Promise.race([
             collector.waitForEvent("stream-end", 30000),
             collector.waitForEvent("stream-error", 30000),
           ]);
 
-          // Log all events for debugging
-          const allEvents = collector.getEvents();
-          console.log(
-            `[${provider}] Collected events:`,
-            allEvents.map((e) => ("type" in e ? e.type : "unknown"))
-          );
-
-          // If there was an error, log it for debugging
-          if (collector.hasError()) {
-            const errorEvent = allEvents.find((e) => "type" in e && e.type === "stream-error");
-            if (errorEvent && "error" in errorEvent) {
-              console.error(`[${provider}] Stream error:`, errorEvent.error);
-              if ("errorType" in errorEvent) {
-                console.error(`[${provider}] Error type:`, errorEvent.errorType);
-              }
-            }
-            // Fail the test with the actual error message
-            throw new Error(
-              `Stream ended with error instead of completing successfully. Check logs above for details.`
-            );
-          }
-
+          // This will throw with detailed error info if stream didn't complete successfully
           assertStreamSuccess(collector);
 
           // Verify file still exists (bash tool was disabled, so deletion shouldn't have happened)
@@ -913,34 +893,14 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
           // Wait for stream to complete (longer timeout for tool policy tests)
           const collector = createEventCollector(env.sentEvents, workspaceId);
           
-          // Wait for either stream-end or stream-error to get diagnostic info
+          // Wait for either stream-end or stream-error
+          // (helpers will log diagnostic info on failure)
           await Promise.race([
             collector.waitForEvent("stream-end", 30000),
             collector.waitForEvent("stream-error", 30000),
           ]);
 
-          // Log all events for debugging
-          const allEvents = collector.getEvents();
-          console.log(
-            `[${provider}] Collected events:`,
-            allEvents.map((e) => ("type" in e ? e.type : "unknown"))
-          );
-
-          // If there was an error, log it for debugging
-          if (collector.hasError()) {
-            const errorEvent = allEvents.find((e) => "type" in e && e.type === "stream-error");
-            if (errorEvent && "error" in errorEvent) {
-              console.error(`[${provider}] Stream error:`, errorEvent.error);
-              if ("errorType" in errorEvent) {
-                console.error(`[${provider}] Error type:`, errorEvent.errorType);
-              }
-            }
-            // Fail the test with the actual error message
-            throw new Error(
-              `Stream ended with error instead of completing successfully. Check logs above for details.`
-            );
-          }
-
+          // This will throw with detailed error info if stream didn't complete successfully
           assertStreamSuccess(collector);
 
           // Verify file content unchanged (file_edit tools and bash were disabled)
