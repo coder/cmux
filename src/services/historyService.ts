@@ -4,7 +4,7 @@ import type { Result } from "@/types/result";
 import { Ok, Err } from "@/types/result";
 import type { CmuxMessage } from "@/types/message";
 import type { Config } from "@/config";
-import { MutexMap } from "@/utils/concurrency/mutexMap";
+import { workspaceFileLocks } from "@/utils/concurrency/workspaceFileLocks";
 import { log } from "./log";
 import { getTokenizerForModel } from "@/utils/tokens/tokenizer";
 
@@ -20,8 +20,9 @@ export class HistoryService {
   private readonly CHAT_FILE = "chat.jsonl";
   // Track next sequence number per workspace in memory
   private sequenceCounters = new Map<string, number>();
-  // File operation locks per workspace to prevent race conditions
-  private fileLocks = new MutexMap<string>();
+  // Shared file operation lock across all workspace file services
+  // This prevents deadlocks when services call each other (e.g., PartialService → HistoryService)
+  private readonly fileLocks = workspaceFileLocks;
   private readonly config: Config;
 
   constructor(config: Config) {
