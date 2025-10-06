@@ -19,4 +19,4 @@ Key features:
 
 ## Development
 
-See [CLAUDE.md](./CLAUDE.md) for development setup and guidelines.
+See [AGENTS.md](./AGENTS.md) for development setup and guidelines.
