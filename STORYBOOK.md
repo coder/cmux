@@ -27,6 +27,7 @@ The output will be in the `storybook-static` directory.
 Stories are located next to their components with the `.stories.tsx` extension.
 
 Example structure:
+
 ```
 src/components/Messages/
 ├── AssistantMessage.tsx
@@ -71,6 +72,7 @@ export const Default: Story = {
 ## Theme
 
 Storybook is configured with a dark theme to match the application:
+
 - Dark UI chrome (sidebar, toolbar, etc.)
 - Dark documentation pages
 - Dark canvas background (`hsl(0 0% 12%)`) matching the app's `--color-background`
@@ -96,6 +98,7 @@ You'll need a `CHROMATIC_PROJECT_TOKEN` environment variable set.
 ### CI Integration
 
 Chromatic runs automatically in CI via `.github/workflows/chromatic.yml`:
+
 - Runs on all PRs and pushes to main
 - Visual diffs are shown inline in PR comments
 - Won't fail the build on visual changes (for review)
