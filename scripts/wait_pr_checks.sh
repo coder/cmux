@@ -15,11 +15,19 @@ echo ""
 
 while true; do
   # Get PR status
-  STATUS=$(gh pr view "$PR_NUMBER" --json mergeable,mergeStateStatus 2>/dev/null || echo "error")
+  STATUS=$(gh pr view "$PR_NUMBER" --json mergeable,mergeStateStatus,state 2>/dev/null || echo "error")
   
   if [ "$STATUS" = "error" ]; then
     echo "❌ Failed to get PR status. Does PR #$PR_NUMBER exist?"
     exit 1
+  fi
+  
+  PR_STATE=$(echo "$STATUS" | jq -r '.state')
+  
+  # Check if PR is already merged
+  if [ "$PR_STATE" = "MERGED" ]; then
+    echo "✅ PR #$PR_NUMBER has been merged!"
+    exit 0
   fi
   
   MERGEABLE=$(echo "$STATUS" | jq -r '.mergeable')

@@ -6,6 +6,10 @@ on:
     paths:
       - "docs/**"
       - ".github/workflows/docs.yml"
+  pull_request:
+    paths:
+      - "docs/**"
+      - ".github/workflows/docs.yml"
   workflow_dispatch: # Allow manual triggering
 
 # Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
@@ -59,7 +63,16 @@ jobs:
         run: cd docs && mdbook build
 
       - name: Copy CNAME to build output
-        run: cp docs/CNAME docs/book/CNAME
+        run: |
+          cp docs/CNAME docs/book/CNAME
+          echo "✅ CNAME file copied to build output:"
+          cat docs/book/CNAME
+          echo ""
+          echo "📦 Files in build output:"
+          ls -la docs/book/ | head -20
+          echo ""
+          echo "🔍 Checking for index.html:"
+          ls -lh docs/book/index.html || echo "❌ index.html not found!"
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
