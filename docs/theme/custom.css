@@ -85,7 +85,7 @@ pre {
 pre > code {
   background-color: transparent !important;
   color: var(--text-primary) !important;
-  padding: 0;
+  padding: 6px;
 }
 
 /* Tables - LEFT ALIGN ALL CELLS */
