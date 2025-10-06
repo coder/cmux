@@ -1,0 +1,6 @@
+{
+  "buildScriptName": "build-storybook",
+  "onlyChanged": true,
+  "skip": "dependabot/**",
+  "externals": ["**/.storybook/public/**"]
+}

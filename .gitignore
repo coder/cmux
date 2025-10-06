@@ -76,3 +76,8 @@ docs/mermaid.min.js
 # Profiling
 **.cpuprofile
 profile.txt
+
+*storybook.log
+storybook-static
+chromatic-*.log
+build-storybook.log
