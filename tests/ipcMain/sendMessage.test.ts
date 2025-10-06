@@ -897,4 +897,47 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
       45000
     );
   });
+
+  // Additional system instructions tests
+  describe("additional system instructions", () => {
+    test.each(PROVIDER_CONFIGS)(
+      "%s should pass additionalSystemInstructions through to system message",
+      async (provider, model) => {
+        const { env, workspaceId, cleanup } = await setupWorkspace(provider);
+        try {
+          // Send message with custom system instructions that add a distinctive marker
+          const result = await sendMessage(env.mockIpcRenderer, workspaceId, "Say hello", {
+            model: `${provider}:${model}`,
+            additionalSystemInstructions:
+              "IMPORTANT: You must include the word BANANA somewhere in every response.",
+          });
+
+          // IPC call should succeed
+          expect(result.success).toBe(true);
+
+          // Wait for stream to complete
+          const collector = createEventCollector(env.sentEvents, workspaceId);
+          await collector.waitForEvent("stream-end", 10000);
+          assertStreamSuccess(collector);
+
+          // Get the final assistant message
+          const finalMessage = collector.getFinalMessage();
+          expect(finalMessage).toBeDefined();
+
+          // Verify response contains the distinctive marker from additional system instructions
+          if (finalMessage && "parts" in finalMessage && Array.isArray(finalMessage.parts)) {
+            const content = finalMessage.parts
+              .filter((part) => part.type === "text")
+              .map((part) => (part as { text: string }).text)
+              .join("");
+
+            expect(content).toContain("BANANA");
+          }
+        } finally {
+          await cleanup();
+        }
+      },
+      15000
+    );
+  });
 });

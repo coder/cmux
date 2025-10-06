@@ -481,11 +481,18 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       setIsSending(true);
 
       try {
+        // Build additional system instructions for plan mode
+        const additionalSystemInstructions =
+          mode === "plan"
+            ? "You are in Plan Mode. You may use tools to research and understand the task, but you MUST call the propose_plan tool with your findings before completing your response. Do not provide a text response without calling propose_plan."
+            : undefined;
+
         const result = await window.api.workspace.sendMessage(workspaceId, messageText, {
           editMessageId: editingMessage?.id,
           thinkingLevel,
           model: preferredModel,
           toolPolicy: modeToToolPolicy(mode),
+          additionalSystemInstructions,
         });
 
         if (!result.success) {

@@ -207,6 +207,7 @@ export class AIService extends EventEmitter {
    * @param thinkingLevel Optional thinking/reasoning level for AI models
    * @param toolPolicy Optional policy to filter available tools
    * @param abortSignal Optional signal to abort the stream
+   * @param additionalSystemInstructions Optional additional system instructions to append
    * @returns Promise that resolves when streaming completes or fails
    */
   async streamMessage(
@@ -215,7 +216,8 @@ export class AIService extends EventEmitter {
     modelString: string,
     thinkingLevel?: ThinkingLevel,
     toolPolicy?: ToolPolicy,
-    abortSignal?: AbortSignal
+    abortSignal?: AbortSignal,
+    additionalSystemInstructions?: string
   ): Promise<Result<void, SendMessageError>> {
     try {
       // DEBUG: Log streamMessage call
@@ -279,7 +281,10 @@ export class AIService extends EventEmitter {
       }
 
       // Build system message from workspace metadata
-      const systemMessage = await buildSystemMessage(metadataResult.data);
+      const systemMessage = await buildSystemMessage(
+        metadataResult.data,
+        additionalSystemInstructions
+      );
 
       // Count system message tokens for cost tracking
       const tokenizer = getTokenizerForModel(modelString);

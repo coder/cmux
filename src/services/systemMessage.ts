@@ -45,10 +45,14 @@ const CUSTOM_INSTRUCTION_FILES = ["AGENTS.md", "AGENT.md", "CLAUDE.md"];
  * 3. CLAUDE.md
  *
  * @param metadata - Workspace metadata containing the workspace path
- * @returns System message string (placeholder + custom instructions if found)
+ * @param additionalSystemInstructions - Optional additional system instructions to append at the end
+ * @returns System message string (placeholder + custom instructions if found + additional instructions)
  * @throws Error if metadata is invalid or workspace path is missing
  */
-export async function buildSystemMessage(metadata: WorkspaceMetadata): Promise<string> {
+export async function buildSystemMessage(
+  metadata: WorkspaceMetadata,
+  additionalSystemInstructions?: string
+): Promise<string> {
   // Validate metadata early
   if (!metadata?.workspacePath) {
     throw new Error("Invalid workspace metadata: workspacePath is required");
@@ -71,11 +75,19 @@ export async function buildSystemMessage(metadata: WorkspaceMetadata): Promise<s
     }
   }
 
-  // Combine placeholder with custom instructions
+  // Build the final system message
+  const trimmedPrelude = PRELUDE.trim();
+  let systemMessage = `${trimmedPrelude}\n\n${environmentContext}`;
+
+  // Add custom instructions if found
   if (customInstructions) {
-    const trimmedPrelude = PRELUDE.trim();
-    return `${trimmedPrelude}\n\n${environmentContext}\n<custom-instructions>\n${customInstructions}\n</custom-instructions>`;
+    systemMessage += `\n<custom-instructions>\n${customInstructions}\n</custom-instructions>`;
   }
 
-  return `${PRELUDE.trim()}\n\n${environmentContext}`;
+  // Add additional system instructions at the end (highest priority)
+  if (additionalSystemInstructions) {
+    systemMessage += `\n\n<additional-instructions>\n${additionalSystemInstructions}\n</additional-instructions>`;
+  }
+
+  return systemMessage;
 }

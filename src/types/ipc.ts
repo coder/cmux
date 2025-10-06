@@ -127,6 +127,7 @@ export interface SendMessageOptions {
   thinkingLevel?: ThinkingLevel;
   model: string;
   toolPolicy?: ToolPolicy;
+  additionalSystemInstructions?: string;
 }
 
 // API method signatures (shared between main and preload)

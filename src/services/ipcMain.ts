@@ -372,7 +372,8 @@ export class IpcMain {
     ipcMain.handle(
       IPC_CHANNELS.WORKSPACE_SEND_MESSAGE,
       async (_event, workspaceId: string, message: string, options?: SendMessageOptions) => {
-        const { editMessageId, thinkingLevel, model, toolPolicy } = options ?? {};
+        const { editMessageId, thinkingLevel, model, toolPolicy, additionalSystemInstructions } =
+          options ?? {};
         log.debug("sendMessage handler: Received", {
           workspaceId,
           messagePreview: message.substring(0, 50),
@@ -380,6 +381,7 @@ export class IpcMain {
           thinkingLevel,
           model,
           toolPolicy,
+          additionalSystemInstructions,
         });
         try {
           // Early exit: empty message = either interrupt (if streaming) or invalid input
@@ -471,6 +473,7 @@ export class IpcMain {
             thinkingLevel,
             model,
             toolPolicy,
+            additionalSystemInstructions,
           });
           const streamResult = await this.aiService.streamMessage(
             historyResult.data,
@@ -478,7 +481,8 @@ export class IpcMain {
             model,
             thinkingLevel,
             toolPolicy,
-            undefined
+            undefined,
+            additionalSystemInstructions
           );
           log.debug("sendMessage handler: Stream completed");
           return streamResult;
