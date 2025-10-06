@@ -1,9 +1,14 @@
 import type { Preview } from '@storybook/react-vite'
 import { themes } from '@storybook/theming';
 import { Global, css } from '@emotion/react';
+import { CacheProvider } from '@emotion/react';
+import createCache from '@emotion/cache';
 import { GlobalColors } from '../src/styles/colors';
 import { GlobalFonts } from '../src/styles/fonts';
 import React from 'react';
+
+// Create emotion cache for consistent styling
+const emotionCache = createCache({ key: 'cmux' });
 
 // Base styles matching the app
 const globalStyles = css`
@@ -54,12 +59,12 @@ const preview: Preview = {
   },
   decorators: [
     (Story) => (
-      <>
+      <CacheProvider value={emotionCache}>
         <GlobalColors />
         <GlobalFonts />
         <Global styles={globalStyles} />
         <Story />
-      </>
+      </CacheProvider>
     ),
   ],
 };
