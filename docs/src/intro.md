@@ -12,4 +12,3 @@
 ## Quick Links
 
 - [Getting Started](./getting-started.md)
-- [Architecture Overview](./architecture.md)

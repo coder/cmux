@@ -1,6 +1,9 @@
 /**
  * Centralized keybind utilities for consistent keyboard shortcut handling
  * and OS-aware display across the application.
+ *
+ * NOTE: This file is the source of truth for keybind definitions.
+ * When adding/modifying keybinds, also update docs/src/keybinds.md
  */
 
 /**
