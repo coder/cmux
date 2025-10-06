@@ -1,33 +1,11 @@
-import React from "react";
+import React, { useMemo } from "react";
 import styled from "@emotion/styled";
 import { markdownStyles } from "../Messages/MarkdownStyles";
 import { MarkdownCore } from "./MarkdownCore";
+import { StreamingContext } from "./StreamingContext";
 
-const MarkdownContainer = styled.div<{ isStreaming: boolean }>`
+const MarkdownContainer = styled.div`
   ${markdownStyles}
-
-  /* Target the last text node's parent when streaming and add blinking cursor */
-  ${(props) =>
-    props.isStreaming &&
-    `
-    p:last-child:not(:has(*:last-child))::after,
-    li:last-child:not(:has(*:last-child))::after,
-    div:last-child:not(:has(*:last-child))::after,
-    span:last-child:not(:has(*:last-child))::after {
-      content: "▏";
-      margin-left: 0.15em;
-      animation: blink 1s step-end infinite;
-    }
-
-    @keyframes blink {
-      0%, 50% {
-        opacity: 1;
-      }
-      51%, 100% {
-        opacity: 0;
-      }
-    }
-  `}
 `;
 
 interface TypewriterMarkdownProps {
@@ -48,9 +26,13 @@ export const TypewriterMarkdown = React.memo<TypewriterMarkdownProps>(function T
   // Show cursor only when streaming (not complete)
   const isStreaming = !isComplete && content.length > 0;
 
+  const streamingContextValue = useMemo(() => ({ isStreaming }), [isStreaming]);
+
   return (
-    <MarkdownContainer className={className} isStreaming={isStreaming}>
-      <MarkdownCore content={content} />
-    </MarkdownContainer>
+    <StreamingContext.Provider value={streamingContextValue}>
+      <MarkdownContainer className={className}>
+        <MarkdownCore content={content} />
+      </MarkdownContainer>
+    </StreamingContext.Provider>
   );
 });

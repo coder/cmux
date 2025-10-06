@@ -126,7 +126,12 @@ export const TOOL_DEFINITIONS = {
       plan: z
         .string()
         .describe(
-          "Implementation plan in markdown (start at h2 level). Scale the detail to match the task complexity: for straightforward changes, briefly state what and why; for complex changes, explain approach, key decisions, risks/tradeoffs; for uncertain changes, clarify options and what needs user input. Cover what's necessary to understand and approve the approach. Omit obvious details or ceremony."
+          "Implementation plan in markdown (start at h2 level). " +
+            "Scale the detail to match the task complexity: for straightforward changes, briefly state what and why; " +
+            "for complex changes, explain approach, key decisions, risks/tradeoffs; " +
+            "for uncertain changes, clarify options and what needs user input. " +
+            "For highly complex concepts, use mermaid diagrams where they'd clarify better than text. " +
+            "Cover what's necessary to understand and approve the approach. Omit obvious details or ceremony."
         ),
     }),
   },

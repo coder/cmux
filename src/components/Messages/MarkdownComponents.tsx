@@ -3,6 +3,7 @@ import type { CSSProperties } from "react";
 import React from "react";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
+import { Mermaid } from "./Mermaid";
 
 // Create style with colors only (no backgrounds)
 const syntaxStyleNoBackgrounds: Record<string, CSSProperties> = {};
@@ -41,11 +42,16 @@ export const markdownComponents = {
     const isInline = inline ?? !hasMultipleLines;
 
     if (!isInline && language) {
-      // Code block with language - use syntax highlighter
       // Extract text content from children (react-markdown passes string or array of strings)
       const code =
         typeof children === "string" ? children : Array.isArray(children) ? children.join("") : "";
 
+      // Handle mermaid diagrams
+      if (language === "mermaid") {
+        return <Mermaid chart={code} />;
+      }
+
+      // Code block with language - use syntax highlighter
       return (
         <SyntaxHighlighter
           style={syntaxStyleNoBackgrounds}

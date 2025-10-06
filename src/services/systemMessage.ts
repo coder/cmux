@@ -2,8 +2,22 @@ import * as fs from "fs/promises";
 import * as path from "path";
 import type { WorkspaceMetadata } from "@/types/workspace";
 
+// The PRELUDE is intentionally minimal to not conflict with the user's instructions.
+// cmux is designed to be model agnostic, and models have shown large inconsistency in how they
+// follow instructions.
 const PRELUDE = `
+<prelude>
 You are a coding agent.
+  
+Your Assistant messages display in Markdown with extensions for mermaidjs and katex.
+
+When creating mermaid diagrams:
+- Avoid side-by-side subgraphs (they display too wide)
+- For comparisons, use separate diagram blocks or single graph with visual separation
+- When using custom fill colors, include contrasting color property (e.g., "style note fill:#ff6b6b,color:#fff")
+- Make good use of visual space: e.g. use inline commentary
+- Wrap node labels containing brackets or special characters in quotes (e.g., Display["Message[]"] not Display[Message[]])
+</prelude>
 `;
 
 const CUSTOM_INSTRUCTION_FILES = ["AGENTS.md", "AGENT.md", "CLAUDE.md"];
@@ -46,7 +60,7 @@ export async function buildSystemMessage(metadata: WorkspaceMetadata): Promise<s
   // Combine placeholder with custom instructions
   if (customInstructions) {
     const trimmedPrelude = PRELUDE.trim();
-    return `${trimmedPrelude}\n\n${customInstructions}`;
+    return `${trimmedPrelude}\n\n<custom-instructions>\n${customInstructions}\n</custom-instructions>`;
   }
 
   return PRELUDE;

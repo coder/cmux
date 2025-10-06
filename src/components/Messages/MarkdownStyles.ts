@@ -149,6 +149,66 @@ export const markdownStyles = css`
     text-decoration: line-through;
     opacity: 0.6;
   }
+
+  /* Mermaid diagrams */
+  .mermaid-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow-x: auto;
+    max-width: 100%;
+
+    svg {
+      min-width: min-content;
+      max-width: none;
+      max-height: var(--diagram-max-height, 300px);
+      height: auto;
+    }
+  }
+
+  /* Mermaid in modal - allow larger sizing */
+  .mermaid-modal {
+    svg {
+      max-width: none;
+      width: auto;
+      max-height: 80vh;
+    }
+  }
+
+  /* Zoom wrapper for mermaid */
+  .react-transform-wrapper {
+    position: relative;
+    width: 100%;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+    margin: 1em 0;
+  }
+
+  .react-transform-component {
+    width: 100%;
+    height: 100%;
+  }
+
+  /* KaTeX math rendering */
+  .katex {
+    font-size: 1.1em;
+  }
+
+  .katex-display {
+    margin: 1em 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+
+    > .katex {
+      text-align: center;
+    }
+  }
+
+  /* Math inline */
+  p .katex,
+  li .katex {
+    display: inline;
+  }
 `;
 
 // Normalize markdown to remove excess blank lines
