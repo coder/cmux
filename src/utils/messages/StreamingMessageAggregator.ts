@@ -91,6 +91,10 @@ export class StreamingMessageAggregator {
     return Array.from(this.activeStreams.values());
   }
 
+  clearActiveStreams(): void {
+    this.activeStreams.clear();
+  }
+
   clear(): void {
     this.messages.clear();
     this.activeStreams.clear();
