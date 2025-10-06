@@ -297,7 +297,7 @@ const WorkspaceNameInput = styled.input`
   }
 `;
 
-const RenameErrorContainer = styled.div`
+const WorkspaceErrorContainer = styled.div`
   position: absolute;
   top: 100%;
   left: 28px;
@@ -332,7 +332,7 @@ interface ProjectSidebarProps {
   onAddProject: () => void;
   onAddWorkspace: (projectPath: string) => void;
   onRemoveProject: (path: string) => void;
-  onRemoveWorkspace: (workspaceId: string) => void;
+  onRemoveWorkspace: (workspaceId: string) => Promise<{ success: boolean; error?: string }>;
   onRenameWorkspace: (
     workspaceId: string,
     newName: string
@@ -365,6 +365,9 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
   const [editingWorkspaceId, setEditingWorkspaceId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState<string>("");
   const [renameError, setRenameError] = useState<string | null>(null);
+  const [removeError, setRemoveError] = useState<{ workspaceId: string; error: string } | null>(
+    null
+  );
 
   const getProjectName = (path: string) => {
     if (!path || typeof path !== "string") {
@@ -420,6 +423,20 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
     } else if (e.key === "Escape") {
       e.preventDefault();
       cancelRenaming();
+    }
+  };
+
+  const handleRemoveWorkspace = async (workspaceId: string) => {
+    const result = await onRemoveWorkspace(workspaceId);
+    if (!result.success) {
+      setRemoveError({
+        workspaceId,
+        error: result.error ?? "Failed to remove workspace",
+      });
+      // Clear error after 5 seconds
+      setTimeout(() => {
+        setRemoveError(null);
+      }, 5000);
     }
   };
 
@@ -533,14 +550,17 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                         <WorkspaceRemoveBtn
                           onClick={(e) => {
                             e.stopPropagation();
-                            onRemoveWorkspace(workspaceId);
+                            void handleRemoveWorkspace(workspaceId);
                           }}
                           title="Remove workspace"
                         >
                           ×
                         </WorkspaceRemoveBtn>
                         {isEditing && renameError && (
-                          <RenameErrorContainer>{renameError}</RenameErrorContainer>
+                          <WorkspaceErrorContainer>{renameError}</WorkspaceErrorContainer>
+                        )}
+                        {!isEditing && removeError?.workspaceId === workspaceId && (
+                          <WorkspaceErrorContainer>{removeError.error}</WorkspaceErrorContainer>
                         )}
                       </WorkspaceItem>
                     );

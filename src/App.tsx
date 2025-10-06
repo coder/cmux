@@ -257,7 +257,9 @@ function App() {
     }
   };
 
-  const handleRemoveWorkspace = async (workspaceId: string) => {
+  const handleRemoveWorkspace = async (
+    workspaceId: string
+  ): Promise<{ success: boolean; error?: string }> => {
     const result = await window.api.workspace.remove(workspaceId);
     if (result.success) {
       // Reload config since backend has updated it
@@ -272,8 +274,10 @@ function App() {
       if (selectedWorkspace?.workspaceId === workspaceId) {
         setSelectedWorkspace(null);
       }
+      return { success: true };
     } else {
       console.error("Failed to remove workspace:", result.error);
+      return { success: false, error: result.error };
     }
   };
 
@@ -327,7 +331,7 @@ function App() {
           onAddProject={() => void handleAddProject()}
           onAddWorkspace={(projectPath) => void handleAddWorkspace(projectPath)}
           onRemoveProject={(path) => void handleRemoveProject(path)}
-          onRemoveWorkspace={(workspaceId) => void handleRemoveWorkspace(workspaceId)}
+          onRemoveWorkspace={handleRemoveWorkspace}
           onRenameWorkspace={handleRenameWorkspace}
         />
         <MainContent>
