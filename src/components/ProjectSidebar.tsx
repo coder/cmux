@@ -9,8 +9,8 @@ import { abbreviatePath } from "@/utils/ui/pathAbbreviation";
 import { TooltipWrapper, Tooltip } from "./Tooltip";
 
 // Styled Components
-const SidebarContainer = styled.div`
-  width: 280px;
+const SidebarContainer = styled.div<{ collapsed?: boolean }>`
+  width: ${(props) => (props.collapsed ? "32px" : "280px")};
   height: 100vh;
   background: #252526;
   border-right: 1px solid #1e1e1e;
@@ -18,6 +18,8 @@ const SidebarContainer = styled.div`
   flex-direction: column;
   flex-shrink: 0;
   font-family: var(--font-primary);
+  transition: width 0.2s ease;
+  overflow: hidden;
 `;
 
 const SidebarHeader = styled.div`
@@ -55,6 +57,28 @@ const AddProjectBtn = styled.button`
   &:hover {
     background: #2a2a2b;
     border-color: #3c3c3c;
+  }
+`;
+
+const CollapseButton = styled.button`
+  width: 100%;
+  height: 36px;
+  background: transparent;
+  color: #888;
+  border: none;
+  border-top: 1px solid #1e1e1e;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: all 0.2s;
+  margin-top: auto;
+
+  &:hover {
+    background: #2a2a2b;
+    color: #ccc;
   }
 `;
 
@@ -337,6 +361,8 @@ interface ProjectSidebarProps {
     workspaceId: string,
     newName: string
   ) => Promise<{ success: boolean; error?: string }>;
+  collapsed: boolean;
+  onToggleCollapsed: () => void;
 }
 
 const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
@@ -349,6 +375,8 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
   onRemoveProject,
   onRemoveWorkspace,
   onRenameWorkspace,
+  collapsed,
+  onToggleCollapsed,
 }) => {
   // Store as array in localStorage, convert to Set for usage
   const [expandedProjectsArray, setExpandedProjectsArray] = usePersistedState<string[]>(
@@ -455,130 +483,141 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
   }, [selectedWorkspace, onAddWorkspace]);
 
   return (
-    <SidebarContainer>
-      <SidebarHeader>
-        <h2>Projects</h2>
-        <AddProjectBtn onClick={onAddProject} title="Add Project">
-          +
-        </AddProjectBtn>
-      </SidebarHeader>
-      <ProjectsList>
-        {projects.size === 0 ? (
-          <EmptyState>
-            <p>No projects</p>
-            <AddFirstProjectBtn onClick={onAddProject}>Add Project</AddFirstProjectBtn>
-          </EmptyState>
-        ) : (
-          Array.from(projects.entries()).map(([projectPath, config]) => (
-            <ProjectGroup key={projectPath}>
-              <ProjectItem onClick={() => toggleProject(projectPath)}>
-                <ExpandIcon expanded={expandedProjects.has(projectPath)}>▶</ExpandIcon>
-                <ProjectInfo>
-                  <ProjectName>{getProjectName(projectPath)}</ProjectName>
-                  <TooltipWrapper inline>
-                    <ProjectPath>{abbreviatePath(projectPath)}</ProjectPath>
-                    <Tooltip className="tooltip" align="left">
-                      {projectPath}
-                    </Tooltip>
-                  </TooltipWrapper>
-                </ProjectInfo>
-                <TooltipWrapper inline>
-                  <RemoveBtn
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onRemoveProject(projectPath);
-                    }}
-                  >
-                    ×
-                  </RemoveBtn>
-                  <Tooltip className="tooltip" align="right">
-                    Remove project
-                  </Tooltip>
-                </TooltipWrapper>
-              </ProjectItem>
-
-              {expandedProjects.has(projectPath) && (
-                <WorkspacesContainer>
-                  <WorkspaceHeader>
-                    <AddWorkspaceBtn onClick={() => onAddWorkspace(projectPath)}>
-                      + New Workspace
-                      {selectedWorkspace?.projectPath === projectPath &&
-                        ` (${formatKeybind(KEYBINDS.NEW_WORKSPACE)})`}
-                    </AddWorkspaceBtn>
-                  </WorkspaceHeader>
-                  {config.workspaces.map((workspace) => {
-                    const projectName = getProjectName(projectPath);
-                    const metadata = workspaceMetadata.get(workspace.path);
-                    if (!metadata) return null; // Skip if metadata not loaded yet
-
-                    const workspaceId = metadata.id;
-                    const displayName = getWorkspaceDisplayName(workspace.path);
-                    const isActive = false; // Simplified - no active state tracking
-                    const isEditing = editingWorkspaceId === workspaceId;
-
-                    return (
-                      <WorkspaceItem
-                        key={workspace.path}
-                        selected={selectedWorkspace?.workspacePath === workspace.path}
-                        onClick={() =>
-                          onSelectWorkspace({
-                            projectPath,
-                            projectName,
-                            workspacePath: workspace.path,
-                            workspaceId,
-                          })
-                        }
+    <SidebarContainer collapsed={collapsed}>
+      {!collapsed && (
+        <>
+          <SidebarHeader>
+            <h2>Projects</h2>
+            <AddProjectBtn onClick={onAddProject} title="Add Project">
+              +
+            </AddProjectBtn>
+          </SidebarHeader>
+          <ProjectsList>
+            {projects.size === 0 ? (
+              <EmptyState>
+                <p>No projects</p>
+                <AddFirstProjectBtn onClick={onAddProject}>Add Project</AddFirstProjectBtn>
+              </EmptyState>
+            ) : (
+              Array.from(projects.entries()).map(([projectPath, config]) => (
+                <ProjectGroup key={projectPath}>
+                  <ProjectItem onClick={() => toggleProject(projectPath)}>
+                    <ExpandIcon expanded={expandedProjects.has(projectPath)}>▶</ExpandIcon>
+                    <ProjectInfo>
+                      <ProjectName>{getProjectName(projectPath)}</ProjectName>
+                      <TooltipWrapper inline>
+                        <ProjectPath>{abbreviatePath(projectPath)}</ProjectPath>
+                        <Tooltip className="tooltip" align="left">
+                          {projectPath}
+                        </Tooltip>
+                      </TooltipWrapper>
+                    </ProjectInfo>
+                    <TooltipWrapper inline>
+                      <RemoveBtn
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onRemoveProject(projectPath);
+                        }}
                       >
-                        <StatusIndicator active={isActive} title="AI Assistant" />
-                        <BranchIcon>⎇</BranchIcon>
-                        {isEditing ? (
-                          <WorkspaceNameInput
-                            value={editingName}
-                            onChange={(e) => setEditingName(e.target.value)}
-                            onKeyDown={(e) => handleRenameKeyDown(e, workspaceId)}
-                            onBlur={() => void confirmRename(workspaceId)}
-                            autoFocus
-                            onClick={(e) => e.stopPropagation()}
-                          />
-                        ) : (
-                          <WorkspaceName
-                            onDoubleClick={(e) => {
-                              e.stopPropagation();
-                              startRenaming(workspaceId, displayName);
-                            }}
-                            title="Double-click to rename"
+                        ×
+                      </RemoveBtn>
+                      <Tooltip className="tooltip" align="right">
+                        Remove project
+                      </Tooltip>
+                    </TooltipWrapper>
+                  </ProjectItem>
+
+                  {expandedProjects.has(projectPath) && (
+                    <WorkspacesContainer>
+                      <WorkspaceHeader>
+                        <AddWorkspaceBtn onClick={() => onAddWorkspace(projectPath)}>
+                          + New Workspace
+                          {selectedWorkspace?.projectPath === projectPath &&
+                            ` (${formatKeybind(KEYBINDS.NEW_WORKSPACE)})`}
+                        </AddWorkspaceBtn>
+                      </WorkspaceHeader>
+                      {config.workspaces.map((workspace) => {
+                        const projectName = getProjectName(projectPath);
+                        const metadata = workspaceMetadata.get(workspace.path);
+                        if (!metadata) return null; // Skip if metadata not loaded yet
+
+                        const workspaceId = metadata.id;
+                        const displayName = getWorkspaceDisplayName(workspace.path);
+                        const isActive = false; // Simplified - no active state tracking
+                        const isEditing = editingWorkspaceId === workspaceId;
+
+                        return (
+                          <WorkspaceItem
+                            key={workspace.path}
+                            selected={selectedWorkspace?.workspacePath === workspace.path}
+                            onClick={() =>
+                              onSelectWorkspace({
+                                projectPath,
+                                projectName,
+                                workspacePath: workspace.path,
+                                workspaceId,
+                              })
+                            }
                           >
-                            {displayName}
-                          </WorkspaceName>
-                        )}
-                        <TooltipWrapper inline>
-                          <WorkspaceRemoveBtn
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              void handleRemoveWorkspace(workspaceId);
-                            }}
-                          >
-                            ×
-                          </WorkspaceRemoveBtn>
-                          <Tooltip className="tooltip" align="right">
-                            Remove workspace
-                          </Tooltip>
-                        </TooltipWrapper>
-                        {isEditing && renameError && (
-                          <WorkspaceErrorContainer>{renameError}</WorkspaceErrorContainer>
-                        )}
-                        {!isEditing && removeError?.workspaceId === workspaceId && (
-                          <WorkspaceErrorContainer>{removeError.error}</WorkspaceErrorContainer>
-                        )}
-                      </WorkspaceItem>
-                    );
-                  })}
-                </WorkspacesContainer>
-              )}
-            </ProjectGroup>
-          ))
-        )}
-      </ProjectsList>
+                            <StatusIndicator active={isActive} title="AI Assistant" />
+                            <BranchIcon>⎇</BranchIcon>
+                            {isEditing ? (
+                              <WorkspaceNameInput
+                                value={editingName}
+                                onChange={(e) => setEditingName(e.target.value)}
+                                onKeyDown={(e) => handleRenameKeyDown(e, workspaceId)}
+                                onBlur={() => void confirmRename(workspaceId)}
+                                autoFocus
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                            ) : (
+                              <WorkspaceName
+                                onDoubleClick={(e) => {
+                                  e.stopPropagation();
+                                  startRenaming(workspaceId, displayName);
+                                }}
+                                title="Double-click to rename"
+                              >
+                                {displayName}
+                              </WorkspaceName>
+                            )}
+                            <TooltipWrapper inline>
+                              <WorkspaceRemoveBtn
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  void handleRemoveWorkspace(workspaceId);
+                                }}
+                              >
+                                ×
+                              </WorkspaceRemoveBtn>
+                              <Tooltip className="tooltip" align="right">
+                                Remove workspace
+                              </Tooltip>
+                            </TooltipWrapper>
+                            {isEditing && renameError && (
+                              <WorkspaceErrorContainer>{renameError}</WorkspaceErrorContainer>
+                            )}
+                            {!isEditing && removeError?.workspaceId === workspaceId && (
+                              <WorkspaceErrorContainer>{removeError.error}</WorkspaceErrorContainer>
+                            )}
+                          </WorkspaceItem>
+                        );
+                      })}
+                    </WorkspacesContainer>
+                  )}
+                </ProjectGroup>
+              ))
+            )}
+          </ProjectsList>
+        </>
+      )}
+      <TooltipWrapper inline>
+        <CollapseButton onClick={onToggleCollapsed}>{collapsed ? "»" : "«"}</CollapseButton>
+        <Tooltip className="tooltip" align="center">
+          {collapsed ? "Expand sidebar" : "Collapse sidebar"} (
+          {formatKeybind(KEYBINDS.TOGGLE_SIDEBAR)})
+        </Tooltip>
+      </TooltipWrapper>
     </SidebarContainer>
   );
 };

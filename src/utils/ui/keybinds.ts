@@ -132,4 +132,7 @@ export const KEYBINDS = {
 
   /** Navigate to previous workspace in current project */
   PREV_WORKSPACE: { key: "k", ctrl: true },
+
+  /** Toggle sidebar visibility */
+  TOGGLE_SIDEBAR: { key: "P", ctrl: true, shift: true },
 } as const;
