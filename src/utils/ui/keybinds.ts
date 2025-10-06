@@ -1,6 +1,9 @@
 /**
  * Centralized keybind utilities for consistent keyboard shortcut handling
  * and OS-aware display across the application.
+ *
+ * NOTE: This file is the source of truth for keybind definitions.
+ * When adding/modifying keybinds, also update docs/src/keybinds.md
  */
 
 /**
@@ -132,4 +135,7 @@ export const KEYBINDS = {
 
   /** Navigate to previous workspace in current project */
   PREV_WORKSPACE: { key: "k", ctrl: true },
+
+  /** Toggle sidebar visibility */
+  TOGGLE_SIDEBAR: { key: "P", ctrl: true, shift: true },
 } as const;

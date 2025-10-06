@@ -40,6 +40,7 @@ const ViewContainer = styled.div`
   font-family: var(--font-monospace);
   font-size: 12px;
   overflow: hidden;
+  container-type: inline-size;
 `;
 
 const ChatArea = styled.div`
@@ -242,20 +243,16 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
     // Get the aggregator for this workspace
     const aggregator = getAggregator(workspaceId);
 
+    // Clear stale streaming state before subscribing - backend replay is source of truth
+    aggregator.clearActiveStreams();
+
     // Load existing messages for this workspace
     setDisplayedMessages(aggregator.getDisplayedMessages());
-    setCanInterrupt(aggregator.getActiveStreams().length > 0);
-
-    // Enable auto-scroll when switching workspaces
-    setAutoScroll(true);
+    setCanInterrupt(false); // Will be set correctly by replay if stream is active
 
     // Set loading state based on whether we have messages
     // This preserves streaming state when switching workspaces
-    if (aggregator.hasMessages()) {
-      setLoading(false); // Clear loading if we have messages
-    } else {
-      setLoading(true); // Show loading only if empty
-    }
+    setLoading(!aggregator.hasMessages());
 
     // Subscribe to workspace-specific chat channel
     // This will automatically send historical messages then stream new ones
@@ -266,14 +263,20 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
           // Batch-load all historical messages at once for efficiency
           if (historicalMessages.length > 0) {
             aggregator.loadHistoricalMessages(historicalMessages);
-            updateUIAndScroll();
           }
           isCaughtUp = true;
           setLoading(false);
-          // Scroll to bottom once caught up
+          updateUIAndScroll();
+
+          // After rendering, sync autoScroll with actual scroll position
           requestAnimationFrame(() => {
             if (contentRef.current) {
-              contentRef.current.scrollTop = contentRef.current.scrollHeight;
+              const isAtBottom =
+                contentRef.current.scrollHeight -
+                  contentRef.current.scrollTop -
+                  contentRef.current.clientHeight <
+                100;
+              setAutoScroll(isAtBottom);
             }
           });
           return;
@@ -371,11 +374,6 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
           // After caught-up: handle messages normally
           aggregator.handleMessage(data);
           updateUIAndScroll();
-
-          // Auto-scroll for new messages after caught up
-          if (contentRef.current) {
-            contentRef.current.scrollTop = contentRef.current.scrollHeight;
-          }
         }
       }
     );

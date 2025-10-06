@@ -150,6 +150,7 @@ function App() {
   );
   const [workspaceModalOpen, setWorkspaceModalOpen] = useState(false);
   const [workspaceModalProject, setWorkspaceModalProject] = useState<string | null>(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = usePersistedState("sidebarCollapsed", false);
 
   useEffect(() => {
     void loadProjects();
@@ -362,7 +363,7 @@ function App() {
     [selectedWorkspace, projects, workspaceMetadata, setSelectedWorkspace]
   );
 
-  // Handle workspace navigation keyboard shortcuts
+  // Handle keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (matchesKeybind(e, KEYBINDS.NEXT_WORKSPACE)) {
@@ -371,12 +372,15 @@ function App() {
       } else if (matchesKeybind(e, KEYBINDS.PREV_WORKSPACE)) {
         e.preventDefault();
         handleNavigateWorkspace("prev");
+      } else if (matchesKeybind(e, KEYBINDS.TOGGLE_SIDEBAR)) {
+        e.preventDefault();
+        setSidebarCollapsed((prev) => !prev);
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handleNavigateWorkspace]);
+  }, [handleNavigateWorkspace, setSidebarCollapsed]);
 
   return (
     <>
@@ -394,6 +398,8 @@ function App() {
           onRemoveProject={(path) => void handleRemoveProject(path)}
           onRemoveWorkspace={handleRemoveWorkspace}
           onRenameWorkspace={handleRenameWorkspace}
+          collapsed={sidebarCollapsed}
+          onToggleCollapsed={() => setSidebarCollapsed((prev) => !prev)}
         />
         <MainContent>
           <AppHeader>

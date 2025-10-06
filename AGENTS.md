@@ -1,1 +1,1 @@
-CLAUDE.md
+docs/src/AGENTS.md
