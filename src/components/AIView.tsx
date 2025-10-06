@@ -13,7 +13,7 @@ import { ChatProvider } from "@/contexts/ChatContext";
 import { ThinkingProvider } from "@/contexts/ThinkingContext";
 import { ModeProvider } from "@/contexts/ModeContext";
 import type { WorkspaceChatMessage } from "@/types/ipc";
-import { matchesKeybind, formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
+import { matchesKeybind, formatKeybind, KEYBINDS, isEditableElement } from "@/utils/ui/keybinds";
 import {
   isCaughtUpMessage,
   isStreamError,
@@ -423,6 +423,11 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
   // Handle keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't handle shortcuts if user is typing in an input field
+      if (isEditableElement(e.target)) {
+        return;
+      }
+
       if (matchesKeybind(e, KEYBINDS.JUMP_TO_BOTTOM)) {
         e.preventDefault();
         jumpToBottom();

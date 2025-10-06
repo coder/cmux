@@ -57,6 +57,19 @@ export function matchesKeybind(
 }
 
 /**
+ * Check if the event target is an editable element (input, textarea, contentEditable).
+ * Used to prevent global keyboard shortcuts from interfering with text input.
+ */
+export function isEditableElement(target: EventTarget | null): boolean {
+  if (!target || !(target instanceof HTMLElement)) {
+    return false;
+  }
+
+  const tagName = target.tagName.toLowerCase();
+  return tagName === "input" || tagName === "textarea" || target.contentEditable === "true";
+}
+
+/**
  * Format a keybind for display to users.
  * Returns Mac-style symbols on macOS, or Windows-style text elsewhere.
  */
