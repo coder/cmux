@@ -19,6 +19,7 @@ import {
 } from "@/utils/slashCommands/suggestions";
 import { TooltipWrapper, Tooltip, HelpIndicator } from "./Tooltip";
 import { matchesKeybind, formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
+import { defaultModel } from "@/utils/ai/models";
 
 const InputSection = styled.div`
   position: relative;
@@ -133,7 +134,15 @@ const ModelDisplay = styled.div`
   font-size: 10px;
   color: #808080;
   font-family: var(--font-monospace);
+  line-height: 11px;
+`;
+
+const ModelDisplayWrapper = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 4px;
   margin-right: 12px;
+  height: 11px;
 `;
 
 export interface ChatInputProps {
@@ -315,7 +324,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const [input, setInput] = usePersistedState("input:" + workspaceId, "");
   const [preferredModel, setPreferredModel] = usePersistedState<string>(
     "cmux-preferred-model",
-    "anthropic:claude-opus-4-1"
+    defaultModel
   );
   const [isSending, setIsSending] = useState(false);
   const [showCommandSuggestions, setShowCommandSuggestions] = useState(false);
@@ -604,7 +613,27 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       <ModeToggles>
         {editingMessage && <EditingIndicator>Editing message (ESC to cancel)</EditingIndicator>}
         <ModeTogglesRow>
-          <ModelDisplay>{preferredModel}</ModelDisplay>
+          <ModelDisplayWrapper>
+            <ModelDisplay>{preferredModel}</ModelDisplay>
+            <TooltipWrapper inline>
+              <HelpIndicator>?</HelpIndicator>
+              <Tooltip className="tooltip" align="left" width="wide">
+                Change model using <code>/model</code> command
+                <br />
+                <br />
+                <strong>Abbreviations:</strong>
+                <br />• <code>/model opus</code> - Claude Opus 4.1
+                <br />• <code>/model sonnet</code> - Claude Sonnet 4.5
+                <br />
+                <br />
+                <strong>Full format:</strong>
+                <br />
+                <code>/model provider:model-name</code>
+                <br />
+                (e.g., <code>/model anthropic:claude-sonnet-4-5</code>)
+              </Tooltip>
+            </TooltipWrapper>
+          </ModelDisplayWrapper>
           <ThinkingSliderComponent />
           <ModeToggleWrapper>
             <StyledToggleContainer mode={mode}>

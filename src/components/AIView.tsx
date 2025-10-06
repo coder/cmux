@@ -7,6 +7,7 @@ import { ChatMetaSidebar } from "./ChatMetaSidebar";
 import type { DisplayedMessage, CmuxMessage } from "@/types/message";
 import { StreamingMessageAggregator } from "@/utils/messages/StreamingMessageAggregator";
 import { shouldShowInterruptedBarrier } from "@/utils/messages/messageUtils";
+import { defaultModel } from "@/utils/ai/models";
 import { ChatProvider } from "@/contexts/ChatContext";
 import { ThinkingProvider } from "@/contexts/ThinkingContext";
 import { ModeProvider } from "@/contexts/ModeContext";
@@ -178,7 +179,7 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
   const [displayedMessages, setDisplayedMessages] = useState<DisplayedMessage[]>([]);
   const [isCompacting] = useState(false);
   const [autoScroll, setAutoScroll] = useState(true);
-  const [currentModel, setCurrentModel] = useState<string>("anthropic:claude-opus-4-1");
+  const [currentModel, setCurrentModel] = useState<string>(defaultModel);
   const [editingMessage, setEditingMessage] = useState<{ id: string; content: string } | undefined>(
     undefined
   );

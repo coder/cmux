@@ -149,10 +149,7 @@ export default defineConfig([
         {
           patterns: [
             {
-              group: [
-                "../!(tests)*",
-                "../../!(tests)*",
-              ],
+              group: ["../!(tests)*", "../../!(tests)*"],
               message:
                 "Use absolute imports with @/ instead of relative parent imports. Same-directory imports (./foo) are allowed.",
             },

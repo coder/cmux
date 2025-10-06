@@ -37,7 +37,7 @@ export const Tooltip = styled.span<TooltipProps>`
     return "left: 50%; transform: translateX(-50%);";
   }}
   white-space: ${(props) => (props.width === "wide" ? "normal" : "nowrap")};
-  ${(props) => props.width === "wide" && "width: 200px;"}
+  ${(props) => props.width === "wide" && "max-width: 300px; width: max-content;"}
   font-size: 11px;
   font-weight: normal;
   font-family: var(--font-primary);
@@ -74,4 +74,5 @@ export const HelpIndicator = styled.span`
   line-height: 9px;
   text-align: center;
   font-weight: bold;
+  margin-bottom: 2px;
 `;
