@@ -46,7 +46,7 @@ body {
 
 .sidebar .chapter li.chapter-item a.active {
   color: var(--accent-blue) !important;
-  background-color: var(--bg-tertiary) !important;
+  background-color: transparent !important;
 }
 
 .sidebar .chapter li.chapter-item a:hover {
