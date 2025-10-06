@@ -26,7 +26,10 @@
     "dist": "bun run build && electron-builder --publish never",
     "dist:mac": "bun run build && electron-builder --mac --publish never",
     "dist:win": "bun run build && electron-builder --win --publish never",
-    "dist:linux": "bun run build && electron-builder --linux --publish never"
+    "dist:linux": "bun run build && electron-builder --linux --publish never",
+    "docs": "cd docs && mdbook serve --open",
+    "docs:build": "cd docs && mdbook build",
+    "docs:watch": "cd docs && mdbook watch"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.20",

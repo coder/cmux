@@ -62,6 +62,7 @@ release
 
 # Documentation
 docs/vercel/
+docs/book/
 
 # Secrets
 .env
