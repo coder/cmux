@@ -3,7 +3,7 @@ authors = ["Ammar Bandukwala"]
 language = "en"
 multilingual = false
 src = "src"
-title = "cmux Documentation"
+title = "cmux docs"
 
 [build]
 build-dir = "book"
