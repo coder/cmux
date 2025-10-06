@@ -28,8 +28,10 @@ const config: StorybookConfig = {
     });
 
     // Add React plugin with emotion configuration
+    // Force Babel to process all files (not just JSX) to ensure emotion transforms work
     config.plugins.push(
       react({
+        include: '**/*.{jsx,tsx,ts,js}',
         jsxImportSource: '@emotion/react',
         babel: {
           plugins: ['@emotion/babel-plugin'],
