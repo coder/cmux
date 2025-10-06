@@ -482,15 +482,19 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                     </Tooltip>
                   </TooltipWrapper>
                 </ProjectInfo>
-                <RemoveBtn
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onRemoveProject(projectPath);
-                  }}
-                  title="Remove project"
-                >
-                  ×
-                </RemoveBtn>
+                <TooltipWrapper inline>
+                  <RemoveBtn
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onRemoveProject(projectPath);
+                    }}
+                  >
+                    ×
+                  </RemoveBtn>
+                  <Tooltip className="tooltip" align="right">
+                    Remove project
+                  </Tooltip>
+                </TooltipWrapper>
               </ProjectItem>
 
               {expandedProjects.has(projectPath) && (
@@ -547,15 +551,19 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                             {displayName}
                           </WorkspaceName>
                         )}
-                        <WorkspaceRemoveBtn
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            void handleRemoveWorkspace(workspaceId);
-                          }}
-                          title="Remove workspace"
-                        >
-                          ×
-                        </WorkspaceRemoveBtn>
+                        <TooltipWrapper inline>
+                          <WorkspaceRemoveBtn
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void handleRemoveWorkspace(workspaceId);
+                            }}
+                          >
+                            ×
+                          </WorkspaceRemoveBtn>
+                          <Tooltip className="tooltip" align="right">
+                            Remove workspace
+                          </Tooltip>
+                        </TooltipWrapper>
                         {isEditing && renameError && (
                           <WorkspaceErrorContainer>{renameError}</WorkspaceErrorContainer>
                         )}
