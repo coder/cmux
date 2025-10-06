@@ -833,7 +833,15 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
 
           // Wait for stream to complete (longer timeout for tool policy tests)
           const collector = createEventCollector(env.sentEvents, workspaceId);
-          await collector.waitForEvent("stream-end", 30000);
+          
+          // Wait for either stream-end or stream-error
+          // (helpers will log diagnostic info on failure)
+          await Promise.race([
+            collector.waitForEvent("stream-end", 30000),
+            collector.waitForEvent("stream-error", 30000),
+          ]);
+
+          // This will throw with detailed error info if stream didn't complete successfully
           assertStreamSuccess(collector);
 
           // Verify file still exists (bash tool was disabled, so deletion shouldn't have happened)
@@ -884,7 +892,15 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
 
           // Wait for stream to complete (longer timeout for tool policy tests)
           const collector = createEventCollector(env.sentEvents, workspaceId);
-          await collector.waitForEvent("stream-end", 30000);
+          
+          // Wait for either stream-end or stream-error
+          // (helpers will log diagnostic info on failure)
+          await Promise.race([
+            collector.waitForEvent("stream-end", 30000),
+            collector.waitForEvent("stream-error", 30000),
+          ]);
+
+          // This will throw with detailed error info if stream didn't complete successfully
           assertStreamSuccess(collector);
 
           // Verify file content unchanged (file_edit tools and bash were disabled)
