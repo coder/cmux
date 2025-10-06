@@ -41,7 +41,7 @@ export async function createWorktree(
         (b) =>
           b.trim() === branchName ||
           b.trim() === `* ${branchName}` ||
-          b.includes(`remotes/origin/${branchName}`)
+          b.trim() === `remotes/origin/${branchName}`
       );
 
     if (branchExists) {

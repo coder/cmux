@@ -228,7 +228,7 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
           <ModalInfo>
             <p>This will create a git worktree at:</p>
             <code>
-              ~/.cmux/{projectName}/{branchName || "<branch-name>"}
+              ~/.cmux/src/{projectName}/{branchName || "<branch-name>"}
             </code>
           </ModalInfo>
 
