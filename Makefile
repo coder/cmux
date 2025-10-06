@@ -21,7 +21,7 @@
 .PHONY: all build dev start clean help
 .PHONY: build-main build-preload build-renderer
 .PHONY: lint lint-fix fmt fmt-check fmt-shell fmt-shell-check typecheck static-check
-.PHONY: test test-unit test-integration test-watch test-coverage
+.PHONY: test test-unit test-integration test-watch test-coverage test-e2e
 .PHONY: dist dist-mac dist-win dist-linux
 .PHONY: docs docs-build docs-watch
 
@@ -109,6 +109,9 @@ test-watch: ## Run tests in watch mode
 
 test-coverage: ## Run tests with coverage
 	@./scripts/test.sh --coverage
+
+test-e2e: ## Run end-to-end tests
+	@PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 bun x playwright test --project=electron
 
 ## Distribution
 dist: build ## Build distributable packages

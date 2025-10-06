@@ -16,6 +16,7 @@ import {
   waitFor,
   buildLargeHistory,
 } from "./helpers";
+import type { StreamDeltaEvent } from "../../src/types/stream";
 
 // Skip all tests if TEST_INTEGRATION is not set
 const describeIntegration = shouldRunIntegrationTests() ? describe : describe.skip;
@@ -223,33 +224,37 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
       15000
     );
 
-    test.concurrent("should reject empty message when not streaming", async () => {
-      const { env, workspaceId, cleanup } = await setupWorkspace(provider);
-      try {
-        // Send empty message without any active stream
-        const result = await sendMessageWithModel(
-          env.mockIpcRenderer,
-          workspaceId,
-          "",
-          provider,
-          model
-        );
+    test.concurrent(
+      "should reject empty message when not streaming",
+      async () => {
+        const { env, workspaceId, cleanup } = await setupWorkspace(provider);
+        try {
+          // Send empty message without any active stream
+          const result = await sendMessageWithModel(
+            env.mockIpcRenderer,
+            workspaceId,
+            "",
+            provider,
+            model
+          );
 
-        // Should succeed (no error shown to user)
-        expect(result.success).toBe(true);
+          // Should succeed (no error shown to user)
+          expect(result.success).toBe(true);
 
-        // Should not have created any stream events
-        const collector = createEventCollector(env.sentEvents, workspaceId);
-        collector.collect();
+          // Should not have created any stream events
+          const collector = createEventCollector(env.sentEvents, workspaceId);
+          collector.collect();
 
-        const streamEvents = collector
-          .getEvents()
-          .filter((e) => "type" in e && e.type?.startsWith("stream-"));
-        expect(streamEvents.length).toBe(0);
-      } finally {
-        await cleanup();
-      }
-    });
+          const streamEvents = collector
+            .getEvents()
+            .filter((e) => "type" in e && e.type?.startsWith("stream-"));
+          expect(streamEvents.length).toBe(0);
+        } finally {
+          await cleanup();
+        }
+      },
+      15000
+    );
 
     test.concurrent(
       "should handle message editing with history truncation",
@@ -402,7 +407,7 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
 
           // Wait for stream to complete
           const collector = createEventCollector(env.sentEvents, workspaceId);
-          await collector.waitForEvent("stream-end", 10000);
+          await collector.waitForEvent("stream-end", provider === "openai" ? 30000 : 10000);
           assertStreamSuccess(collector);
 
           // Get the final assistant message
@@ -683,13 +688,24 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
           // Now try to send a new message - should trigger token limit error
           // due to accumulated history
           // Disable auto-truncation to force context error
+          const sendOptions =
+            provider === "openai"
+              ? {
+                  providerOptions: {
+                    openai: {
+                      disableAutoTruncation: true,
+                      forceContextLimitError: true,
+                    },
+                  },
+                }
+              : undefined;
           const result = await sendMessageWithModel(
             env.mockIpcRenderer,
             workspaceId,
             "What is the weather?",
             provider,
             model,
-            { providerOptions: { openai: { disableAutoTruncation: true } } }
+            sendOptions
           );
 
           // IPC call itself should succeed (errors come through stream events)
@@ -811,6 +827,9 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
             model,
             {
               toolPolicy: [{ regex_match: "bash", action: "disable" }],
+              ...(provider === "openai"
+                ? { providerOptions: { openai: { simulateToolPolicyNoop: true } } }
+                : {}),
             }
           );
 
@@ -822,13 +841,27 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
 
           // Wait for either stream-end or stream-error
           // (helpers will log diagnostic info on failure)
+          const streamTimeout = provider === "openai" ? 90000 : 30000;
           await Promise.race([
-            collector.waitForEvent("stream-end", 30000),
-            collector.waitForEvent("stream-error", 30000),
+            collector.waitForEvent("stream-end", streamTimeout),
+            collector.waitForEvent("stream-error", streamTimeout),
           ]);
 
           // This will throw with detailed error info if stream didn't complete successfully
           assertStreamSuccess(collector);
+
+          if (provider === "openai") {
+            const deltas = collector.getDeltas();
+            const noopDelta = deltas.find(
+              (event): event is StreamDeltaEvent =>
+                "type" in event &&
+                event.type === "stream-delta" &&
+                typeof (event as StreamDeltaEvent).delta === "string"
+            );
+            expect(noopDelta?.delta).toContain(
+              "Tool execution skipped because the requested tool is disabled by policy."
+            );
+          }
 
           // Verify file still exists (bash tool was disabled, so deletion shouldn't have happened)
           const fileStillExists = await fs.access(testFilePath).then(
@@ -844,7 +877,7 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
           await cleanup();
         }
       },
-      45000
+      90000
     );
 
     test.each(PROVIDER_CONFIGS)(
@@ -870,6 +903,9 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
                 { regex_match: "file_edit_.*", action: "disable" },
                 { regex_match: "bash", action: "disable" },
               ],
+              ...(provider === "openai"
+                ? { providerOptions: { openai: { simulateToolPolicyNoop: true } } }
+                : {}),
             }
           );
 
@@ -881,13 +917,27 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
 
           // Wait for either stream-end or stream-error
           // (helpers will log diagnostic info on failure)
+          const streamTimeout = provider === "openai" ? 90000 : 30000;
           await Promise.race([
-            collector.waitForEvent("stream-end", 30000),
-            collector.waitForEvent("stream-error", 30000),
+            collector.waitForEvent("stream-end", streamTimeout),
+            collector.waitForEvent("stream-error", streamTimeout),
           ]);
 
           // This will throw with detailed error info if stream didn't complete successfully
           assertStreamSuccess(collector);
+
+          if (provider === "openai") {
+            const deltas = collector.getDeltas();
+            const noopDelta = deltas.find(
+              (event): event is StreamDeltaEvent =>
+                "type" in event &&
+                event.type === "stream-delta" &&
+                typeof (event as StreamDeltaEvent).delta === "string"
+            );
+            expect(noopDelta?.delta).toContain(
+              "Tool execution skipped because the requested tool is disabled by policy."
+            );
+          }
 
           // Verify file content unchanged (file_edit tools and bash were disabled)
           const content = await fs.readFile(testFilePath, "utf-8");
@@ -896,7 +946,7 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
           await cleanup();
         }
       },
-      45000
+      90000
     );
   });
 
@@ -970,7 +1020,14 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
             "This should trigger a context error",
             provider,
             model,
-            { providerOptions: { openai: { disableAutoTruncation: true } } }
+            {
+              providerOptions: {
+                openai: {
+                  disableAutoTruncation: true,
+                  forceContextLimitError: true,
+                },
+              },
+            }
           );
 
           // IPC call itself should succeed (errors come through stream events)

@@ -43,6 +43,8 @@ describe("StreamManager - Concurrent Stream Prevention", () => {
     mockHistoryService = createMockHistoryService();
     mockPartialService = createMockPartialService();
     streamManager = new StreamManager(mockHistoryService, mockPartialService);
+    // Suppress error events from bubbling up as uncaught exceptions during tests
+    streamManager.on("error", () => undefined);
   });
 
   // Integration test - requires API key and TEST_INTEGRATION=1
@@ -126,21 +128,132 @@ describe("StreamManager - Concurrent Stream Prevention", () => {
     // Track the order of operations
     const operations: string[] = [];
 
-    // Mock ensureStreamSafety to track when it's called
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
-    const originalEnsure = (streamManager as any).ensureStreamSafety.bind(streamManager);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
-    (streamManager as any).ensureStreamSafety = async (wsId: string) => {
-      operations.push("ensure-start");
-      await new Promise((resolve) => setTimeout(resolve, 50));
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
-      const result = await originalEnsure(wsId);
-      operations.push("ensure-end");
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-      return result;
-    };
-
     // Create a dummy model (won't actually be used since we're mocking the core behavior)
+    const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+    interface WorkspaceStreamInfoStub {
+      state: string;
+      streamResult: {
+        fullStream: AsyncGenerator<unknown, void, unknown>;
+        usage: Promise<unknown>;
+        providerMetadata: Promise<unknown>;
+      };
+      abortController: AbortController;
+      messageId: string;
+      token: string;
+      startTime: number;
+      model: string;
+      initialMetadata?: Record<string, unknown>;
+      historySequence: number;
+      parts: unknown[];
+      lastPartialWriteTime: number;
+      partialWriteTimer?: ReturnType<typeof setTimeout>;
+      partialWritePromise?: Promise<void>;
+      processingPromise: Promise<void>;
+    }
+
+    const ensureStreamSafetyValue = Reflect.get(streamManager, "ensureStreamSafety") as unknown;
+    if (typeof ensureStreamSafetyValue !== "function") {
+      throw new Error("StreamManager.ensureStreamSafety is unavailable for testing");
+    }
+
+    const originalEnsure = (
+      ensureStreamSafetyValue as (workspaceId: string) => Promise<string>
+    ).bind(streamManager);
+
+    const replaceEnsureResult = Reflect.set(
+      streamManager,
+      "ensureStreamSafety",
+      async (wsId: string): Promise<string> => {
+        operations.push("ensure-start");
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        const result = await originalEnsure(wsId);
+        operations.push("ensure-end");
+        return result;
+      }
+    );
+
+    if (!replaceEnsureResult) {
+      throw new Error("Failed to mock StreamManager.ensureStreamSafety");
+    }
+
+    const workspaceStreamsValue = Reflect.get(streamManager, "workspaceStreams") as unknown;
+    if (!(workspaceStreamsValue instanceof Map)) {
+      throw new Error("StreamManager.workspaceStreams is not a Map");
+    }
+    const workspaceStreams = workspaceStreamsValue as Map<string, WorkspaceStreamInfoStub>;
+
+    const replaceCreateResult = Reflect.set(
+      streamManager,
+      "createStreamAtomically",
+      (
+        wsId: string,
+        streamToken: string,
+        messages: unknown,
+        modelArg: unknown,
+        modelString: string,
+        abortSignal: AbortSignal | undefined,
+        system: string,
+        historySequence: number,
+        tools?: Record<string, unknown>,
+        initialMetadata?: Record<string, unknown>,
+        _providerOptions?: Record<string, unknown>,
+        _maxOutputTokens?: number,
+        _toolPolicy?: unknown
+      ): WorkspaceStreamInfoStub => {
+        operations.push("create");
+        const abortController = new AbortController();
+        if (abortSignal) {
+          abortSignal.addEventListener("abort", () => abortController.abort());
+        }
+
+        const streamInfo: WorkspaceStreamInfoStub = {
+          state: "starting",
+          streamResult: {
+            fullStream: (async function* asyncGenerator() {
+              // No-op generator; we only care about synchronization
+            })(),
+            usage: Promise.resolve(undefined),
+            providerMetadata: Promise.resolve(undefined),
+          },
+          abortController,
+          messageId: `test-${Math.random().toString(36).slice(2)}`,
+          token: streamToken,
+          startTime: Date.now(),
+          model: modelString,
+          initialMetadata,
+          historySequence,
+          parts: [],
+          lastPartialWriteTime: 0,
+          partialWriteTimer: undefined,
+          partialWritePromise: undefined,
+          processingPromise: Promise.resolve(),
+        };
+
+        workspaceStreams.set(wsId, streamInfo);
+        return streamInfo;
+      }
+    );
+
+    if (!replaceCreateResult) {
+      throw new Error("Failed to mock StreamManager.createStreamAtomically");
+    }
+
+    const replaceProcessResult = Reflect.set(
+      streamManager,
+      "processStreamWithCleanup",
+      async (_wsId: string, info: WorkspaceStreamInfoStub): Promise<void> => {
+        operations.push("process-start");
+        await sleep(20);
+        info.state = "streaming";
+        operations.push("process-end");
+      }
+    );
+
+    if (!replaceProcessResult) {
+      throw new Error("Failed to mock StreamManager.processStreamWithCleanup");
+    }
+
     const anthropic = createAnthropic({ apiKey: "dummy-key" });
     const model = anthropic("claude-sonnet-4-5");
 
@@ -185,10 +298,10 @@ describe("StreamManager - Concurrent Stream Prevention", () => {
 
     // Verify operations are serialized: each ensure-start should be followed by its ensure-end
     // before the next ensure-start
-    for (let i = 0; i < operations.length - 1; i += 2) {
-      if (operations[i] === "ensure-start") {
-        expect(operations[i + 1]).toBe("ensure-end");
-      }
+    const ensureOperations = operations.filter((op) => op.startsWith("ensure"));
+    for (let i = 0; i < ensureOperations.length - 1; i += 2) {
+      expect(ensureOperations[i]).toBe("ensure-start");
+      expect(ensureOperations[i + 1]).toBe("ensure-end");
     }
   });
 });

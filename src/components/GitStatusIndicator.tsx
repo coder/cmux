@@ -157,9 +157,9 @@ const IndicatorChar = styled.span<{ branch: number }>`
       case 0:
         return "#6bcc6b"; // Green for HEAD
       case 1:
-        return "#b66bcc"; // Purple for origin/<branch>
-      case 2:
         return "#6ba3cc"; // Blue for origin/main
+      case 2:
+        return "#b66bcc"; // Purple for origin/branch
       default:
         return "#6b6b6b"; // Gray fallback
     }
@@ -312,11 +312,11 @@ CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "main")
 PRIMARY_BRANCH=$(git branch -r 2>/dev/null | grep -E 'origin/(main|master)$' | head -1 | sed 's@^.*origin/@@' || echo "main")
 
 # Build refs list for show-branch
-# Order: HEAD, origin/<current-branch> (if exists and different), origin/<primary-branch>
+REFS="HEAD origin/$PRIMARY_BRANCH"
+
+# Check if origin/<current-branch> exists and is different from primary
 if [ "$CURRENT_BRANCH" != "$PRIMARY_BRANCH" ] && git rev-parse --verify "origin/$CURRENT_BRANCH" >/dev/null 2>&1; then
-  REFS="HEAD origin/$CURRENT_BRANCH origin/$PRIMARY_BRANCH"
-else
-  REFS="HEAD origin/$PRIMARY_BRANCH"
+  REFS="$REFS origin/$CURRENT_BRANCH"
 fi
 
 # Store show-branch output to avoid running twice

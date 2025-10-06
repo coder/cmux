@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useId } from "react";
 import styled from "@emotion/styled";
 import type { ThinkingLevel } from "@/types/thinking";
 import { useThinkingLevel } from "@/hooks/useThinkingLevel";
@@ -10,7 +10,7 @@ const ThinkingSliderContainer = styled.div`
   margin-left: 20px;
 `;
 
-const ThinkingLabel = styled.span`
+const ThinkingLabel = styled.label`
   font-size: 10px;
   color: #606060;
   user-select: none;
@@ -152,10 +152,11 @@ export const ThinkingSliderComponent: React.FC = () => {
   const [thinkingLevel, setThinkingLevel] = useThinkingLevel();
 
   const value = thinkingLevelToValue(thinkingLevel);
+  const sliderId = useId();
 
   return (
     <ThinkingSliderContainer>
-      <ThinkingLabel>Thinking:</ThinkingLabel>
+      <ThinkingLabel htmlFor={sliderId}>Thinking:</ThinkingLabel>
       <ThinkingSlider
         type="range"
         min="0"
@@ -163,8 +164,16 @@ export const ThinkingSliderComponent: React.FC = () => {
         step="1"
         value={value}
         onChange={(e) => setThinkingLevel(valueToThinkingLevel(parseInt(e.target.value)))}
+        id={sliderId}
+        role="slider"
+        aria-valuemin={0}
+        aria-valuemax={3}
+        aria-valuenow={value}
+        aria-valuetext={thinkingLevel}
       />
-      <ThinkingLevelText value={value}>{thinkingLevel}</ThinkingLevelText>
+      <ThinkingLevelText value={value} aria-live="polite">
+        {thinkingLevel}
+      </ThinkingLevelText>
     </ThinkingSliderContainer>
   );
 };

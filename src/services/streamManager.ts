@@ -93,6 +93,8 @@ interface WorkspaceStreamInfo {
   model: string;
   initialMetadata?: Partial<CmuxMetadata>;
   historySequence: number;
+  providerName?: string;
+  releaseProviderLock?: () => void;
   // Track accumulated parts for partial message (includes reasoning, text, and tools)
   parts: CompletedMessagePart[];
   // Track last partial write time for throttling
@@ -116,6 +118,7 @@ interface WorkspaceStreamInfo {
 export class StreamManager extends EventEmitter {
   private workspaceStreams = new Map<WorkspaceId, WorkspaceStreamInfo>();
   private streamLocks = new Map<WorkspaceId, AsyncMutex>();
+  private providerLocks = new Map<string, Promise<void>>();
   private readonly PARTIAL_WRITE_THROTTLE_MS = 500;
   private readonly historyService: HistoryService;
   private readonly partialService: PartialService;
@@ -124,6 +127,37 @@ export class StreamManager extends EventEmitter {
     super();
     this.historyService = historyService;
     this.partialService = partialService;
+  }
+
+  /**
+   * Acquire a provider-level lock to throttle concurrent provider streams.
+   * Currently only enforced for OpenAI (provider = "openai").
+   */
+  private async acquireProviderLock(providerName: string): Promise<() => void> {
+    if (providerName !== "openai") {
+      return () => undefined;
+    }
+
+    const previous = this.providerLocks.get(providerName) ?? Promise.resolve();
+
+    let release!: () => void;
+    const current = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const chain = previous.then(() => current);
+    this.providerLocks.set(providerName, chain);
+
+    await previous;
+
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      release();
+      if (this.providerLocks.get(providerName) === chain) {
+        this.providerLocks.delete(providerName);
+      }
+    };
   }
 
   /**
@@ -717,6 +751,10 @@ export class StreamManager extends EventEmitter {
         clearTimeout(streamInfo.partialWriteTimer);
         streamInfo.partialWriteTimer = undefined;
       }
+      if (streamInfo.releaseProviderLock) {
+        streamInfo.releaseProviderLock();
+        streamInfo.releaseProviderLock = undefined;
+      }
       this.workspaceStreams.delete(workspaceId);
     }
   }
@@ -850,6 +888,7 @@ export class StreamManager extends EventEmitter {
     }
     const mutex = this.streamLocks.get(typedWorkspaceId)!;
 
+    let releaseProviderLock: (() => void) | undefined;
     try {
       // Acquire lock - guarantees only one startStream per workspace
       // Lock is automatically released when scope exits via Symbol.asyncDispose
@@ -863,7 +902,11 @@ export class StreamManager extends EventEmitter {
       // Step 1: Atomic safety check (cancels any existing stream and waits for full exit)
       const streamToken = await this.ensureStreamSafety(typedWorkspaceId);
 
-      // Step 2: Atomic stream creation and registration
+      // Step 2: Acquire provider-level lock to prevent overlapping OpenAI streams
+      const providerName = modelString.split(":")[0] ?? "";
+      releaseProviderLock = await this.acquireProviderLock(providerName);
+
+      // Step 3: Atomic stream creation and registration
       const streamInfo = this.createStreamAtomically(
         typedWorkspaceId,
         streamToken,
@@ -879,8 +922,10 @@ export class StreamManager extends EventEmitter {
         maxOutputTokens,
         toolPolicy
       );
+      streamInfo.providerName = providerName;
+      streamInfo.releaseProviderLock = releaseProviderLock;
 
-      // Step 3: Track the processing promise for guaranteed cleanup
+      // Step 4: Track the processing promise for guaranteed cleanup
       // This allows cancelStreamSafely to wait for full exit
       streamInfo.processingPromise = this.processStreamWithCleanup(
         typedWorkspaceId,
@@ -892,6 +937,16 @@ export class StreamManager extends EventEmitter {
 
       return Ok(streamToken);
     } catch (error) {
+      // Release provider lock if acquired before failure
+      if (releaseProviderLock) {
+        releaseProviderLock();
+        releaseProviderLock = undefined;
+      }
+      const existing = this.workspaceStreams.get(typedWorkspaceId);
+      if (existing?.releaseProviderLock) {
+        existing.releaseProviderLock();
+        existing.releaseProviderLock = undefined;
+      }
       // Guaranteed cleanup on any failure
       this.workspaceStreams.delete(typedWorkspaceId);
       // Convert to strongly-typed error
