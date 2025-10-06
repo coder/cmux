@@ -4,6 +4,7 @@ import type { Result } from "@/types/result";
 import { Ok, Err } from "@/types/result";
 import type { CmuxMessage } from "@/types/message";
 import type { Config } from "@/config";
+import type { TruncationTarget } from "@/types/ipc";
 import { workspaceFileLocks } from "@/utils/concurrency/workspaceFileLocks";
 import { log } from "./log";
 import { getTokenizerForModel } from "@/utils/tokens/tokenizer";
@@ -290,43 +291,18 @@ export class HistoryService {
   }
 
   /**
-   * Truncate history by removing approximately the given percentage of tokens from the beginning
+   * Truncate history based on target specification
    * @param workspaceId The workspace ID
-   * @param percentage Percentage to truncate (0.0 to 1.0). 1.0 = delete all
+   * @param target Either percentage-based (by token count) or sequence-based (up to a historySequence)
    * @returns Result containing array of deleted historySequence numbers
    */
   async truncateHistory(
     workspaceId: string,
-    percentage: number
+    target: TruncationTarget
   ): Promise<Result<number[], string>> {
     return this.fileLocks.withLock(workspaceId, async () => {
       try {
         const historyPath = this.getChatHistoryPath(workspaceId);
-
-        // Fast path: 100% truncation = delete entire file
-        if (percentage >= 1.0) {
-          const historyResult = await this.getHistory(workspaceId);
-          const deletedSequences = historyResult.success
-            ? historyResult.data
-                .map((msg) => msg.metadata?.historySequence ?? -1)
-                .filter((s) => s >= 0)
-            : [];
-
-          try {
-            await fs.unlink(historyPath);
-          } catch (error) {
-            // Ignore ENOENT - file already deleted
-            if (
-              !(error && typeof error === "object" && "code" in error && error.code === "ENOENT")
-            ) {
-              throw error;
-            }
-          }
-
-          // Reset sequence counter when clearing history
-          this.sequenceCounters.set(workspaceId, 0);
-          return Ok(deletedSequences);
-        }
 
         // Read all messages
         const historyResult = await this.getHistory(workspaceId);
@@ -339,35 +315,84 @@ export class HistoryService {
           return Ok([]); // Nothing to truncate
         }
 
-        // Get tokenizer for counting (use a default model)
-        const tokenizer = getTokenizerForModel("anthropic:claude-sonnet-4-5");
-
-        // Count tokens for each message
-        // We stringify the entire message for simplicity - only relative weights matter
-        const messageTokens: Array<{ message: CmuxMessage; tokens: number }> = messages.map(
-          (msg) => {
-            const tokens = tokenizer.countTokens(JSON.stringify(msg));
-            return { message: msg, tokens };
-          }
-        );
-
-        // Calculate total tokens and target to remove
-        const totalTokens = messageTokens.reduce((sum, mt) => sum + mt.tokens, 0);
-        const tokensToRemove = Math.floor(totalTokens * percentage);
-
-        // Remove messages from beginning until we've removed enough tokens
-        let tokensRemoved = 0;
         let removeCount = 0;
-        for (const mt of messageTokens) {
-          if (tokensRemoved >= tokensToRemove) {
-            break;
+
+        if (target.type === "percentage") {
+          // Percentage-based truncation: remove by token count
+          const percentage = target.value;
+
+          // Fast path: 100% truncation = delete all
+          if (percentage >= 1.0) {
+            removeCount = messages.length;
+          } else {
+            // Get tokenizer for counting (use a default model)
+            const tokenizer = getTokenizerForModel("anthropic:claude-sonnet-4-5");
+
+            // Count tokens for each message
+            const messageTokens: Array<{ message: CmuxMessage; tokens: number }> = messages.map(
+              (msg) => {
+                const tokens = tokenizer.countTokens(JSON.stringify(msg));
+                return { message: msg, tokens };
+              }
+            );
+
+            // Calculate total tokens and target to remove
+            const totalTokens = messageTokens.reduce((sum, mt) => sum + mt.tokens, 0);
+            const tokensToRemove = Math.floor(totalTokens * percentage);
+
+            // Remove messages from beginning until we've removed enough tokens
+            let tokensRemoved = 0;
+            for (const mt of messageTokens) {
+              if (tokensRemoved >= tokensToRemove) {
+                break;
+              }
+              tokensRemoved += mt.tokens;
+              removeCount++;
+            }
           }
-          tokensRemoved += mt.tokens;
-          removeCount++;
+        } else {
+          // Sequence-based truncation: remove all messages with historySequence < target
+          const targetSequence = target.historySequence;
+          console.log(
+            `[historyService] truncateHistory upTo sequence ${targetSequence}, total messages:`,
+            messages.length
+          );
+
+          // Log all message sequences for debugging
+          const sequences = messages.map((msg, idx) => ({
+            index: idx,
+            id: msg.id,
+            role: msg.role,
+            historySequence: msg.metadata?.historySequence,
+          }));
+          console.log("[historyService] Message sequences:", sequences);
+
+          // Validate that target message exists and has valid historySequence
+          const targetIndex = messages.findIndex(
+            (msg) => msg.metadata?.historySequence === targetSequence
+          );
+
+          console.log(`[historyService] Target found at index:`, targetIndex);
+
+          if (targetIndex === -1) {
+            return Err(
+              `Cannot truncate: no message found with historySequence ${targetSequence}. ` +
+                `This may indicate history contains messages without sequence numbers. ` +
+                `Try using percentage-based truncation instead.`
+            );
+          }
+
+          // Remove all messages before the target (keep target and after)
+          removeCount = targetIndex;
+          console.log(`[historyService] Will remove ${removeCount} messages before target`);
         }
 
         // If we're removing all messages, use fast path
         if (removeCount >= messages.length) {
+          const deletedSequences = messages
+            .map((msg) => msg.metadata?.historySequence ?? -1)
+            .filter((s) => s >= 0);
+
           try {
             await fs.unlink(historyPath);
           } catch (error) {
@@ -378,10 +403,8 @@ export class HistoryService {
               throw error;
             }
           }
+
           this.sequenceCounters.set(workspaceId, 0);
-          const deletedSequences = messages
-            .map((msg) => msg.metadata?.historySequence ?? -1)
-            .filter((s) => s >= 0);
           return Ok(deletedSequences);
         }
 
@@ -417,7 +440,7 @@ export class HistoryService {
   }
 
   async clearHistory(workspaceId: string): Promise<Result<void>> {
-    const result = await this.truncateHistory(workspaceId, 1.0);
+    const result = await this.truncateHistory(workspaceId, { type: "percentage", value: 1.0 });
     if (!result.success) {
       return Err(result.error);
     }

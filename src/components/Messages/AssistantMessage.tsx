@@ -5,6 +5,7 @@ import { MarkdownRenderer } from "./MarkdownRenderer";
 import { TypewriterMarkdown } from "./TypewriterMarkdown";
 import type { ButtonConfig } from "./MessageWindow";
 import { MessageWindow } from "./MessageWindow";
+import { StartHereButton } from "./StartHereButton";
 
 const RawContent = styled.pre`
   font-family: var(--font-monospace);
@@ -42,9 +43,14 @@ const ModelName = styled.span`
 interface AssistantMessageProps {
   message: DisplayedMessage & { type: "assistant" };
   className?: string;
+  onStartHere?: (historySequence: number) => void;
 }
 
-export const AssistantMessage: React.FC<AssistantMessageProps> = ({ message, className }) => {
+export const AssistantMessage: React.FC<AssistantMessageProps> = ({
+  message,
+  className,
+  onStartHere,
+}) => {
   const [showRaw, setShowRaw] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -58,6 +64,16 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({ message, cla
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error("Failed to copy:", err);
+    }
+  };
+
+  const handleStartHereComplete = () => {
+    console.log(
+      "[AssistantMessage] Start Here clicked, message.historySequence:",
+      message.historySequence
+    );
+    if (onStartHere && message.historySequence !== undefined) {
+      void onStartHere(message.historySequence);
     }
   };
 
@@ -75,6 +91,12 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({ message, cla
           active: showRaw,
         },
       ];
+
+  // Start Here button (only when not streaming and onStartHere handler is provided)
+  const startHereButton =
+    !isStreaming && onStartHere && message.historySequence !== undefined ? (
+      <StartHereButton onComplete={handleStartHereComplete} />
+    ) : null;
 
   // Render appropriate content based on state
   const renderContent = () => {
@@ -118,6 +140,7 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({ message, cla
       borderColor="var(--color-assistant-border)"
       message={message}
       buttons={buttons}
+      rightLabel={startHereButton}
       className={className}
     >
       {renderContent()}

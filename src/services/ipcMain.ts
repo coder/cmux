@@ -19,7 +19,12 @@ import type {
 } from "@/types/stream";
 import { IPC_CHANNELS, getChatChannel } from "@/constants/ipc-constants";
 import type { SendMessageError } from "@/types/errors";
-import type { StreamErrorMessage, SendMessageOptions, DeleteMessage } from "@/types/ipc";
+import type {
+  StreamErrorMessage,
+  SendMessageOptions,
+  DeleteMessage,
+  TruncationTarget,
+} from "@/types/ipc";
 import { Ok, Err } from "@/types/result";
 import { validateWorkspaceName } from "@/utils/validation/workspaceValidation";
 import { createBashTool } from "@/services/tools/bash";
@@ -503,7 +508,7 @@ export class IpcMain {
 
     ipcMain.handle(
       IPC_CHANNELS.WORKSPACE_TRUNCATE_HISTORY,
-      async (_event, workspaceId: string, percentage?: number) => {
+      async (_event, workspaceId: string, target: TruncationTarget) => {
         // Block truncate if there's an active stream
         // User must press Esc first to stop stream and commit partial to history
         if (this.aiService.isStreaming(workspaceId)) {
@@ -517,10 +522,7 @@ export class IpcMain {
         // Truncate chat.jsonl (only operates on committed history)
         // Note: partial.json is NOT touched here - it has its own lifecycle
         // Interrupted messages are committed to history by stream-abort handler
-        const truncateResult = await this.historyService.truncateHistory(
-          workspaceId,
-          percentage ?? 1.0
-        );
+        const truncateResult = await this.historyService.truncateHistory(workspaceId, target);
         if (!truncateResult.success) {
           return { success: false, error: truncateResult.error };
         }

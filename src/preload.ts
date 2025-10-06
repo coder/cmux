@@ -46,8 +46,8 @@ const api: IPCApi = {
       ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_RENAME, workspaceId, newName),
     sendMessage: (workspaceId, message, options) =>
       ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_SEND_MESSAGE, workspaceId, message, options),
-    truncateHistory: (workspaceId, percentage) =>
-      ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_TRUNCATE_HISTORY, workspaceId, percentage),
+    truncateHistory: (workspaceId, target) =>
+      ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_TRUNCATE_HISTORY, workspaceId, target),
     getInfo: (workspaceId) => ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_GET_INFO, workspaceId),
     executeBash: (workspaceId, script, options) =>
       ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_EXECUTE_BASH, workspaceId, script, options),

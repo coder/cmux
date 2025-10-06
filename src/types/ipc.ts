@@ -131,6 +131,11 @@ export interface SendMessageOptions {
   additionalSystemInstructions?: string;
 }
 
+// Truncation target - discriminated union for different truncation modes
+export type TruncationTarget =
+  | { type: "percentage"; value: number }
+  | { type: "upTo"; historySequence: number };
+
 // API method signatures (shared between main and preload)
 // We strive to have a small, tight interface between main and the renderer
 // to promote good SoC and testing.
@@ -166,7 +171,7 @@ export interface IPCApi {
       message: string,
       options?: SendMessageOptions
     ): Promise<Result<void, SendMessageError>>;
-    truncateHistory(workspaceId: string, percentage?: number): Promise<Result<void, string>>;
+    truncateHistory(workspaceId: string, target: TruncationTarget): Promise<Result<void, string>>;
     getInfo(workspaceId: string): Promise<WorkspaceMetadata | null>;
     executeBash(
       workspaceId: string,

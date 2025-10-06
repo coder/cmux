@@ -3,6 +3,7 @@ import styled from "@emotion/styled";
 import { MessageRenderer } from "./Messages/MessageRenderer";
 import { InterruptedBarrier } from "./Messages/ChatBarrier/InterruptedBarrier";
 import { StreamingBarrier } from "./Messages/ChatBarrier/StreamingBarrier";
+import { TruncationBarrier } from "./Messages/TruncationBarrier";
 import { ChatInput } from "./ChatInput";
 import { ChatMetaSidebar } from "./ChatMetaSidebar";
 import { shouldShowInterruptedBarrier } from "@/utils/messages/messageUtils";
@@ -84,25 +85,6 @@ const EmptyState = styled.div`
     margin: 0;
     font-size: 13px;
   }
-`;
-
-const EditBarrier = styled.div`
-  margin: 20px 0;
-  padding: 12px 15px;
-  background: var(--color-editing-mode-alpha);
-  border-bottom: 3px solid;
-  border-image: repeating-linear-gradient(
-      45deg,
-      var(--color-editing-mode),
-      var(--color-editing-mode) 10px,
-      transparent 10px,
-      transparent 20px
-    )
-    1;
-  color: var(--color-editing-mode);
-  font-size: 12px;
-  font-weight: 500;
-  text-align: center;
 `;
 
 const JumpToBottomIndicator = styled.div`
@@ -201,7 +183,26 @@ const AIViewInner: React.FC<AIViewProps> = ({
       setAutoScroll(true);
 
       // Truncate history in backend
-      await window.api.workspace.truncateHistory(workspaceId, percentage);
+      await window.api.workspace.truncateHistory(workspaceId, {
+        type: "percentage",
+        value: percentage,
+      });
+    },
+    [workspaceId, setAutoScroll]
+  );
+
+  const handleStartHere = useCallback(
+    (historySequence: number) => {
+      console.log("[AIView] handleStartHere called with historySequence:", historySequence);
+
+      // Enable auto-scroll after truncating
+      setAutoScroll(true);
+
+      // Truncate history up to this message (fire and forget)
+      void window.api.workspace.truncateHistory(workspaceId, {
+        type: "upTo",
+        historySequence,
+      });
     },
     [workspaceId, setAutoScroll]
   );
@@ -300,11 +301,16 @@ const AIViewInner: React.FC<AIViewProps> = ({
 
                     return (
                       <React.Fragment key={msg.id}>
-                        <MessageRenderer message={msg} onEditUserMessage={handleEditUserMessage} />
+                        <MessageRenderer
+                          message={msg}
+                          onEditUserMessage={handleEditUserMessage}
+                          onStartHere={handleStartHere}
+                        />
                         {isAtCutoff && (
-                          <EditBarrier>
-                            ⚠️ Messages below this line will be removed when you submit the edit
-                          </EditBarrier>
+                          <TruncationBarrier
+                            direction="down"
+                            text="⚠️ Messages below this line will be removed when you submit the edit"
+                          />
                         )}
                         {shouldShowInterruptedBarrier(msg) && <InterruptedBarrier />}
                       </React.Fragment>

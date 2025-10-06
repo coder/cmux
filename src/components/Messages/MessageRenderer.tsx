@@ -10,19 +10,21 @@ interface MessageRendererProps {
   message: DisplayedMessage;
   className?: string;
   onEditUserMessage?: (messageId: string, content: string) => void;
+  onStartHere?: (historySequence: number) => void;
 }
 
 export const MessageRenderer: React.FC<MessageRendererProps> = ({
   message,
   className,
   onEditUserMessage,
+  onStartHere,
 }) => {
   // Route based on message type
   switch (message.type) {
     case "user":
       return <UserMessage message={message} className={className} onEdit={onEditUserMessage} />;
     case "assistant":
-      return <AssistantMessage message={message} className={className} />;
+      return <AssistantMessage message={message} className={className} onStartHere={onStartHere} />;
     case "tool":
       return <ToolMessage message={message} className={className} />;
     case "reasoning":
