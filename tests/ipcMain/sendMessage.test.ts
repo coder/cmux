@@ -833,7 +833,7 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
 
           // Wait for stream to complete (longer timeout for tool policy tests)
           const collector = createEventCollector(env.sentEvents, workspaceId);
-          
+
           // Wait for either stream-end or stream-error
           // (helpers will log diagnostic info on failure)
           await Promise.race([
@@ -892,7 +892,7 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
 
           // Wait for stream to complete (longer timeout for tool policy tests)
           const collector = createEventCollector(env.sentEvents, workspaceId);
-          
+
           // Wait for either stream-end or stream-error
           // (helpers will log diagnostic info on failure)
           await Promise.race([

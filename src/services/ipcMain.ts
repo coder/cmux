@@ -22,6 +22,8 @@ import type { SendMessageError } from "@/types/errors";
 import type { StreamErrorMessage, SendMessageOptions, DeleteMessage } from "@/types/ipc";
 import { Ok, Err } from "@/types/result";
 import { validateWorkspaceName } from "@/utils/validation/workspaceValidation";
+import { createBashTool } from "@/services/tools/bash";
+import type { BashToolResult } from "@/types/tools";
 
 const createUnknownSendMessageError = (raw: string): SendMessageError => ({
   type: "unknown",
@@ -534,6 +536,48 @@ export class IpcMain {
         }
 
         return { success: true, data: undefined };
+      }
+    );
+
+    ipcMain.handle(
+      IPC_CHANNELS.WORKSPACE_EXECUTE_BASH,
+      async (
+        _event,
+        workspaceId: string,
+        script: string,
+        options?: { timeout_secs?: number; max_lines?: number; stdin?: string }
+      ) => {
+        try {
+          // Get workspace metadata to find workspacePath
+          const metadataResult = await this.aiService.getWorkspaceMetadata(workspaceId);
+          if (!metadataResult.success) {
+            return Err(`Failed to get workspace metadata: ${metadataResult.error}`);
+          }
+
+          const workspacePath = metadataResult.data.workspacePath;
+
+          // Create bash tool with workspace's cwd
+          const bashTool = createBashTool({ cwd: workspacePath });
+
+          // Execute the script with provided options
+          const result = (await bashTool.execute!(
+            {
+              script,
+              timeout_secs: options?.timeout_secs ?? 120,
+              max_lines: options?.max_lines ?? 1000,
+              stdin: options?.stdin,
+            },
+            {
+              toolCallId: `bash-${Date.now()}`,
+              messages: [],
+            }
+          )) as BashToolResult;
+
+          return Ok(result);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          return Err(`Failed to execute bash command: ${message}`);
+        }
       }
     );
   }

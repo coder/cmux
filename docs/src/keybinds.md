@@ -10,35 +10,36 @@ cmux is designed to be keyboard-driven for maximum efficiency. All major actions
 - **Linux/Windows**: Shortcuts use `Ctrl` as the primary modifier
 
 When documentation shows `Ctrl`, it means:
+
 - `⌘` (Command) on macOS
 - `Ctrl` on Linux/Windows
 
 ## General
 
-| Action | Shortcut |
-|--------|----------|
-| Cancel / Close / Interrupt | `Esc` |
+| Action                     | Shortcut |
+| -------------------------- | -------- |
+| Cancel / Close / Interrupt | `Esc`    |
 
 ## Chat & Messages
 
-| Action | Shortcut |
-|--------|----------|
-| Send message | `Enter` |
-| New line in message | `Shift+Enter` |
-| Jump to bottom of chat | `Shift+G` |
+| Action                 | Shortcut      |
+| ---------------------- | ------------- |
+| Send message           | `Enter`       |
+| New line in message    | `Shift+Enter` |
+| Jump to bottom of chat | `Shift+G`     |
 
 ## Workspaces
 
-| Action | Shortcut |
-|--------|----------|
+| Action               | Shortcut |
+| -------------------- | -------- |
 | Create new workspace | `Ctrl+N` |
-| Next workspace | `Ctrl+J` |
-| Previous workspace | `Ctrl+K` |
+| Next workspace       | `Ctrl+J` |
+| Previous workspace   | `Ctrl+K` |
 
 ## Modes
 
-| Action | Shortcut |
-|--------|----------|
+| Action                             | Shortcut       |
+| ---------------------------------- | -------------- |
 | Toggle between Plan and Exec modes | `Ctrl+Shift+M` |
 
 ## Tips

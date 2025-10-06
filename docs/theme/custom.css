@@ -5,20 +5,20 @@
   --bg-primary: #1e1e1e;
   --bg-secondary: #262626;
   --bg-tertiary: #333333;
-  
+
   --text-primary: #d4d4d4;
   --text-secondary: #6b6b6b;
   --text-muted: #404040;
-  
+
   --accent-blue: #3b7fb5;
   --accent-green: #4a8a5f;
   --accent-yellow: #f59e0b;
   --accent-red: #b54040;
-  
+
   --border-color: #404040;
   --link-color: #4a9eff;
   --link-hover: #6bb0ff;
-  
+
   /* Override mdbook's default variables */
   --bg: var(--bg-primary) !important;
   --table-alternate-bg: var(--bg-secondary) !important; /* Fix blue alternate row background */
@@ -121,7 +121,7 @@ table tbody tr:hover {
 table code {
   background-color: var(--bg-primary) !important;
   color: var(--accent-yellow) !important;
-  font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+  font-family: "Monaco", "Menlo", "Courier New", monospace;
   font-size: 0.9em;
 }
 
@@ -139,7 +139,12 @@ blockquote strong {
 }
 
 /* Headers */
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   color: var(--text-primary) !important;
   border-bottom-color: var(--border-color) !important;
 }
