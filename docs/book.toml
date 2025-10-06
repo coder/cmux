@@ -1,0 +1,28 @@
+[book]
+authors = ["Ammar Bandukwala"]
+language = "en"
+multilingual = false
+src = "src"
+title = "cmux docs"
+
+[build]
+build-dir = "book"
+create-missing = true
+use-default-preprocessors = true
+
+[preprocessor.mermaid]
+command = "mdbook-mermaid"
+
+[output.html]
+git-repository-url = "https://github.com/coder/cmux"
+edit-url-template = "https://github.com/coder/cmux/edit/main/docs/{path}"
+additional-js = ["mermaid.min.js", "mermaid-init.js"]
+additional-css = ["theme/custom.css"]
+default-theme = "navy"
+preferred-dark-theme = "navy"
+
+[output.html.fold]
+enable = true
+level = 0
+
+[output.linkcheck]
