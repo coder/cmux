@@ -37,10 +37,7 @@ function isBashTool(toolName: string, args: unknown): args is BashToolArgs {
 // Type guard for file_read tool
 function isFileReadTool(toolName: string, args: unknown): args is FileReadToolArgs {
   return (
-    toolName === "file_read" &&
-    typeof args === "object" &&
-    args !== null &&
-    "filePath" in args
+    toolName === "file_read" && typeof args === "object" && args !== null && "filePath" in args
   );
 }
 

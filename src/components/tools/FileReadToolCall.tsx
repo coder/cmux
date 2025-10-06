@@ -117,13 +117,16 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
 }
 
-export const FileReadToolCall: React.FC<FileReadToolCallProps> = ({ args, result, status = "pending" }) => {
+export const FileReadToolCall: React.FC<FileReadToolCallProps> = ({
+  args,
+  result,
+  status = "pending",
+}) => {
   const { expanded, toggleExpanded } = useToolExpansion(false);
   const [copied, setCopied] = useState(false);
 
   const filePath = args.filePath;
-  const tokenCount =
-    result?.success ? estimateTokens(result.content) : null;
+  const tokenCount = result?.success ? estimateTokens(result.content) : null;
 
   const handleCopyContent = async () => {
     if (result?.success) {
