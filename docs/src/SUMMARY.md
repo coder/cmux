@@ -1,6 +1,6 @@
 # Summary
 
 - [Introduction](./intro.md)
-- [Getting Started](./getting-started.md)
+- [Install](./install.md)
 - [Keyboard Shortcuts](./keybinds.md)
 - [AGENTS](./AGENTS.md)
