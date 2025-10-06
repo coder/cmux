@@ -11,6 +11,10 @@ const SidebarContainer = styled.div`
   display: flex;
   flex-direction: column;
   overflow: hidden;
+
+  @container (max-width: 949px) {
+    display: none;
+  }
 `;
 
 const TabBar = styled.div`

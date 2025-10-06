@@ -40,6 +40,7 @@ const ViewContainer = styled.div`
   font-family: var(--font-monospace);
   font-size: 12px;
   overflow: hidden;
+  container-type: inline-size;
 `;
 
 const ChatArea = styled.div`
