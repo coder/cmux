@@ -45,7 +45,7 @@ body {
 }
 
 .sidebar .chapter li.chapter-item a {
-  color: var(--text-secondary) !important;
+  color: var(--text-primary) !important;
 }
 
 .sidebar .chapter li.chapter-item a.active {
