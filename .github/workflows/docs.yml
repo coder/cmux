@@ -64,20 +64,20 @@ jobs:
 
       - name: Copy CNAME to build output
         run: |
-          cp docs/CNAME docs/book/CNAME
-          echo "✅ CNAME file copied to build output:"
-          cat docs/book/CNAME
+          cp docs/CNAME docs/book/html/CNAME
+          echo "✅ CNAME file copied to docs/book/html/"
+          cat docs/book/html/CNAME
           echo ""
-          echo "📦 Files in build output:"
-          ls -la docs/book/ | head -20
+          echo "📦 Files in build output (docs/book/html/):"
+          ls -la docs/book/html/ | head -20
           echo ""
           echo "🔍 Checking for index.html:"
-          ls -lh docs/book/index.html || echo "❌ index.html not found!"
+          ls -lh docs/book/html/index.html
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./docs/book
+          path: ./docs/book/html
 
   deploy:
     if: github.event_name != 'pull_request'
