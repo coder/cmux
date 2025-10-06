@@ -3,20 +3,31 @@
 [![CI](https://github.com/coder/cmux/actions/workflows/ci.yml/badge.svg)](https://github.com/coder/cmux/actions/workflows/ci.yml)
 [![Build](https://github.com/coder/cmux/actions/workflows/build.yml/badge.svg)](https://github.com/coder/cmux/actions/workflows/build.yml)
 
-A cross-platform desktop application for managing multiple coding agents.
+A cross-platform desktop application for AI-assisted development with git worktree integration.
 
-Key features:
-- Supports both OpenAI and Anthropic models with consistent interface
-- Workspace isolation with git worktrees
-- Much richer interface than traditional TUIs
-  - E.g., ask the agent for an architecture diagram of your codebase
+## Documentation
 
-## Caveats
+📚 **[Read the full documentation →](https://coder.github.io/cmux)**
 
-- Early stage, Alpha software
-- Built artifacts for macOS and Linux only
-- Majority of testing on `claude-sonnet-4-5`
+- [Installation](https://coder.github.io/cmux/install.html)
+- [Keyboard Shortcuts](https://coder.github.io/cmux/keybinds.html)
+- [Developer Guide](https://coder.github.io/cmux/AGENTS.html)
+
+## Quick Install
+
+Download pre-built binaries from [GitHub Actions artifacts](https://github.com/coder/cmux/actions/workflows/build.yml):
+
+- **macOS**: Universal binary DMG (Intel + Apple Silicon)
+- **Linux**: AppImage
 
 ## Development
 
 See [AGENTS.md](./AGENTS.md) for development setup and guidelines.
+
+## Features
+
+- 🔀 Git worktree integration for multi-branch workflows
+- 🤖 Multiple AI permission modes (plan/edit/yolo)
+- 📦 Multi-project management
+- 💬 Persistent session history
+- ⌨️ Keyboard-first interface
