@@ -36,6 +36,10 @@ body {
   border-right: 1px solid var(--border-color) !important;
 }
 
+.sidebar-resize-handle {
+  background-color: var(--bg-tertiary) !important; /* #333333 - close to #323232 */
+}
+
 .sidebar .chapter li.chapter-item a {
   color: var(--text-secondary) !important;
 }
