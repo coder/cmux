@@ -40,6 +40,7 @@
     "@ai-sdk/openai": "^2.0.40",
     "@anthropic-ai/sdk": "^0.63.1",
     "@dqbd/tiktoken": "^1.0.21",
+    "@emotion/cache": "^11.14.0",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "ai": "^5.0.56",
