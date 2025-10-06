@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import styled from "@emotion/styled";
 import { MessageRenderer } from "./Messages/MessageRenderer";
-import { InterruptedBarrier } from "./Messages/InterruptedBarrier";
+import { InterruptedBarrier } from "./Messages/ChatBarrier/InterruptedBarrier";
+import { StreamingBarrier } from "./Messages/ChatBarrier/StreamingBarrier";
 import { ChatInput } from "./ChatInput";
 import { ChatMetaSidebar } from "./ChatMetaSidebar";
 import type { DisplayedMessage, CmuxMessage } from "@/types/message";
@@ -98,24 +99,6 @@ const EmptyState = styled.div`
   p {
     margin: 0;
     font-size: 13px;
-  }
-`;
-
-const GlobalStreamingIndicator = styled.div`
-  font-size: 10px;
-  color: var(--color-assistant-border);
-  font-style: italic;
-  padding: 8px 0;
-  animation: pulse 1.5s ease-in-out infinite;
-
-  @keyframes pulse {
-    0%,
-    100% {
-      opacity: 0.6;
-    }
-    50% {
-      opacity: 1;
-    }
   }
 `;
 
@@ -555,9 +538,7 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
                   })}
                 </>
               )}
-              {canInterrupt && (
-                <GlobalStreamingIndicator>streaming... hit Esc to cancel</GlobalStreamingIndicator>
-              )}
+              {canInterrupt && <StreamingBarrier />}
             </OutputContent>
             {!autoScroll && (
               <JumpToBottomIndicator onClick={jumpToBottom}>
