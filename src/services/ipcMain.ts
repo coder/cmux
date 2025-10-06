@@ -1,8 +1,8 @@
 import type { BrowserWindow, IpcMain as ElectronIpcMain } from "electron";
 import * as path from "path";
 import * as fsPromises from "fs/promises";
-import type { Config, ProjectConfig } from "../config";
-import { createWorktree, removeWorktree, moveWorktree } from "../git";
+import type { Config, ProjectConfig } from "@/config";
+import { createWorktree, removeWorktree, moveWorktree } from "@/git";
 import { AIService } from "@/services/aiService";
 import { HistoryService } from "@/services/historyService";
 import { PartialService } from "@/services/partialService";

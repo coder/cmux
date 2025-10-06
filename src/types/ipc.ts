@@ -1,7 +1,7 @@
 import type { Result } from "./result";
 import type { WorkspaceMetadata } from "./workspace";
 import type { CmuxMessage } from "./message";
-import type { ProjectConfig } from "../config";
+import type { ProjectConfig } from "@/config";
 import type { SendMessageError, StreamErrorType } from "./errors";
 import type { ThinkingLevel } from "./thinking";
 import type { ToolPolicy } from "@/utils/tools/toolPolicy";

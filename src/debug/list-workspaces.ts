@@ -1,4 +1,4 @@
-import { defaultConfig } from "../config";
+import { defaultConfig } from "@/config";
 import * as path from "path";
 import * as fs from "fs";
 

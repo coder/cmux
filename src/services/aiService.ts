@@ -9,7 +9,7 @@ import type { WorkspaceMetadata } from "@/types/workspace";
 import { WorkspaceMetadataSchema } from "@/types/workspace";
 import type { CmuxMessage } from "@/types/message";
 import { createCmuxMessage } from "@/types/message";
-import type { Config } from "../config";
+import type { Config } from "@/config";
 import { StreamManager } from "./streamManager";
 import type { SendMessageError } from "@/types/errors";
 import { getToolsForModel } from "@/utils/tools/tools";
