@@ -20,7 +20,6 @@ additional-js = ["mermaid.min.js", "mermaid-init.js"]
 additional-css = ["theme/custom.css"]
 default-theme = "navy"
 preferred-dark-theme = "navy"
-theme-toggle = false
 
 [output.html.fold]
 enable = true

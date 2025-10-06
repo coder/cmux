@@ -188,6 +188,12 @@ h2 {
   color: var(--text-primary) !important;
 }
 
+/* Hide theme selector */
+#theme-toggle,
+.theme-popup {
+  display: none !important;
+}
+
 /* Page wrapper */
 .page-wrapper {
   background-color: var(--bg-primary) !important;
