@@ -14,8 +14,8 @@ use-default-preprocessors = true
 command = "mdbook-mermaid"
 
 [output.html]
-git-repository-url = "https://github.com/ammarbandukwala/cmux"
-edit-url-template = "https://github.com/ammarbandukwala/cmux/edit/main/docs/{path}"
+git-repository-url = "https://github.com/coder/cmux"
+edit-url-template = "https://github.com/coder/cmux/edit/main/docs/{path}"
 additional-js = ["mermaid.min.js", "mermaid-init.js"]
 
 [output.html.fold]
