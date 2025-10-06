@@ -1,4 +1,4 @@
-# CLAUDE.md - Project Notes for AI Assistants
+# AGENT INSTRUCTIONS
 
 ## Project Context
 
