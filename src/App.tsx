@@ -5,7 +5,6 @@ import { GlobalColors } from "./styles/colors";
 import { GlobalFonts } from "./styles/fonts";
 import type { ProjectConfig } from "./config";
 import type { WorkspaceSelection } from "./components/ProjectSidebar";
-import type { WorkspaceMetadata } from "./types/workspace";
 import ProjectSidebar from "./components/ProjectSidebar";
 import NewWorkspaceModal from "./components/NewWorkspaceModal";
 import { AIView } from "./components/AIView";
@@ -13,6 +12,9 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import { TipsCarousel } from "./components/TipsCarousel";
 import { usePersistedState } from "./hooks/usePersistedState";
 import { matchesKeybind, KEYBINDS } from "./utils/ui/keybinds";
+import { useProjectManagement } from "./hooks/useProjectManagement";
+import { useWorkspaceManagement } from "./hooks/useWorkspaceManagement";
+import { useWorkspaceAggregators } from "./hooks/useWorkspaceAggregators";
 
 // Global Styles with nice fonts
 const globalStyles = css`
@@ -140,10 +142,6 @@ const WelcomeView = styled.div`
 `;
 
 function App() {
-  const [projects, setProjects] = useState<Map<string, ProjectConfig>>(new Map());
-  const [workspaceMetadata, setWorkspaceMetadata] = useState<Map<string, WorkspaceMetadata>>(
-    new Map()
-  );
   const [selectedWorkspace, setSelectedWorkspace] = usePersistedState<WorkspaceSelection | null>(
     "selectedWorkspace",
     null
@@ -152,79 +150,34 @@ function App() {
   const [workspaceModalProject, setWorkspaceModalProject] = useState<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = usePersistedState("sidebarCollapsed", false);
 
-  useEffect(() => {
-    void loadProjects();
-    void loadWorkspaceMetadata();
-  }, []);
+  // Use custom hooks for project and workspace management
+  const { projects, setProjects, addProject, removeProject } = useProjectManagement();
 
-  const loadProjects = async () => {
-    try {
-      console.log("Loading projects from config...");
-      const config = await window.api.config.load();
-      console.log("Received config:", config);
+  // Workspace management needs to update projects state when workspace operations complete
+  const handleProjectsUpdate = useCallback(
+    (newProjects: Map<string, ProjectConfig>) => {
+      setProjects(newProjects);
+    },
+    [setProjects]
+  );
 
-      if (config && Array.isArray(config.projects)) {
-        console.log("Projects array length:", config.projects.length);
-        const projectsMap = new Map<string, ProjectConfig>(config.projects);
-        console.log("Created projects map, size:", projectsMap.size);
-        setProjects(projectsMap);
-      } else {
-        console.log("No projects or invalid format");
-        setProjects(new Map());
-      }
-    } catch (error) {
-      console.error("Failed to load config:", error);
-      setProjects(new Map());
-    }
-  };
+  const { workspaceMetadata, createWorkspace, removeWorkspace, renameWorkspace } =
+    useWorkspaceManagement({
+      projects,
+      selectedWorkspace,
+      onProjectsUpdate: handleProjectsUpdate,
+      onSelectedWorkspaceUpdate: setSelectedWorkspace,
+    });
 
-  const loadWorkspaceMetadata = async () => {
-    try {
-      const metadataList = await window.api.workspace.list();
-      const metadataMap = new Map();
-      for (const metadata of metadataList) {
-        metadataMap.set(metadata.workspacePath, metadata);
-      }
-      setWorkspaceMetadata(metadataMap);
-    } catch (error) {
-      console.error("Failed to load workspace metadata:", error);
-    }
-  };
-
-  const handleAddProject = async () => {
-    try {
-      const selectedPath = await window.api.dialog.selectDirectory();
-      if (selectedPath && !projects.has(selectedPath)) {
-        const newProjects = new Map(projects);
-        newProjects.set(selectedPath, { path: selectedPath, workspaces: [] });
-        setProjects(newProjects);
-
-        await window.api.config.save({
-          projects: Array.from(newProjects.entries()),
-        });
-      }
-    } catch (error) {
-      console.error("Failed to add project:", error);
-    }
-  };
+  // Use workspace aggregators hook for message state
+  const { getWorkspaceState, streamingStates } = useWorkspaceAggregators(workspaceMetadata);
 
   const handleRemoveProject = async (path: string) => {
-    const newProjects = new Map(projects);
-    newProjects.delete(path);
-    setProjects(newProjects);
-
     // Clear selected workspace if it belongs to the removed project
     if (selectedWorkspace?.projectPath === path) {
       setSelectedWorkspace(null);
     }
-
-    try {
-      await window.api.config.save({
-        projects: Array.from(newProjects.entries()),
-      });
-    } catch (error) {
-      console.error("Failed to save config:", error);
-    }
+    await removeProject(path);
   };
 
   const handleAddWorkspace = (projectPath: string) => {
@@ -235,94 +188,9 @@ function App() {
   const handleCreateWorkspace = async (branchName: string) => {
     if (!workspaceModalProject) return;
 
-    const result = await window.api.workspace.create(workspaceModalProject, branchName);
-    if (result.success) {
-      // Update the project config with the new workspace
-      const newProjects = new Map(projects);
-      const projectConfig = newProjects.get(workspaceModalProject);
-      if (projectConfig) {
-        projectConfig.workspaces.push({
-          path: result.metadata.workspacePath,
-        });
-        setProjects(newProjects);
-
-        await window.api.config.save({
-          projects: Array.from(newProjects.entries()),
-        });
-
-        // Reload workspace metadata to get the new workspace ID
-        await loadWorkspaceMetadata();
-
-        // Construct WorkspaceSelection from backend metadata + frontend context
-        setSelectedWorkspace({
-          projectPath: workspaceModalProject,
-          projectName: result.metadata.projectName,
-          workspacePath: result.metadata.workspacePath,
-          workspaceId: result.metadata.id,
-        });
-      }
-    } else {
-      throw new Error(result.error);
-    }
-  };
-
-  const handleRemoveWorkspace = async (
-    workspaceId: string
-  ): Promise<{ success: boolean; error?: string }> => {
-    const result = await window.api.workspace.remove(workspaceId);
-    if (result.success) {
-      // Reload config since backend has updated it
-      const config = await window.api.config.load();
-      const loadedProjects = new Map(config.projects);
-      setProjects(loadedProjects);
-
-      // Reload workspace metadata
-      await loadWorkspaceMetadata();
-
-      // Clear selected workspace if it was removed
-      if (selectedWorkspace?.workspaceId === workspaceId) {
-        setSelectedWorkspace(null);
-      }
-      return { success: true };
-    } else {
-      console.error("Failed to remove workspace:", result.error);
-      return { success: false, error: result.error };
-    }
-  };
-
-  const handleRenameWorkspace = async (
-    workspaceId: string,
-    newName: string
-  ): Promise<{ success: boolean; error?: string }> => {
-    const result = await window.api.workspace.rename(workspaceId, newName);
-    if (result.success) {
-      // Reload config since backend has updated it
-      const config = await window.api.config.load();
-      const loadedProjects = new Map(config.projects);
-      setProjects(loadedProjects);
-
-      // Reload workspace metadata
-      await loadWorkspaceMetadata();
-
-      // Update selected workspace if it was renamed
-      if (selectedWorkspace?.workspaceId === workspaceId) {
-        const newWorkspaceId = result.data.newWorkspaceId;
-
-        // Get updated workspace metadata from backend
-        const newMetadata = await window.api.workspace.getInfo(newWorkspaceId);
-        if (newMetadata) {
-          setSelectedWorkspace({
-            projectPath: selectedWorkspace.projectPath,
-            projectName: newMetadata.projectName,
-            workspacePath: newMetadata.workspacePath,
-            workspaceId: newWorkspaceId,
-          });
-        }
-      }
-      return { success: true };
-    } else {
-      console.error("Failed to rename workspace:", result.error);
-      return { success: false, error: result.error };
+    const newWorkspace = await createWorkspace(workspaceModalProject, branchName);
+    if (newWorkspace) {
+      setSelectedWorkspace(newWorkspace);
     }
   };
 
@@ -393,11 +261,12 @@ function App() {
           workspaceMetadata={workspaceMetadata}
           selectedWorkspace={selectedWorkspace}
           onSelectWorkspace={setSelectedWorkspace}
-          onAddProject={() => void handleAddProject()}
+          onAddProject={() => void addProject()}
           onAddWorkspace={(projectPath) => void handleAddWorkspace(projectPath)}
           onRemoveProject={(path) => void handleRemoveProject(path)}
-          onRemoveWorkspace={handleRemoveWorkspace}
-          onRenameWorkspace={handleRenameWorkspace}
+          onRemoveWorkspace={removeWorkspace}
+          onRenameWorkspace={renameWorkspace}
+          streamingStates={streamingStates}
           collapsed={sidebarCollapsed}
           onToggleCollapsed={() => setSidebarCollapsed((prev) => !prev)}
         />
@@ -415,6 +284,7 @@ function App() {
                   workspaceId={selectedWorkspace.workspaceId}
                   projectName={selectedWorkspace.projectName}
                   branch={selectedWorkspace.workspacePath.split("/").pop() ?? ""}
+                  workspaceState={getWorkspaceState(selectedWorkspace.workspaceId)}
                 />
               </ErrorBoundary>
             ) : (

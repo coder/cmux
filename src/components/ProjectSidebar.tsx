@@ -7,6 +7,7 @@ import { usePersistedState } from "@/hooks/usePersistedState";
 import { matchesKeybind, formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
 import { abbreviatePath } from "@/utils/ui/pathAbbreviation";
 import { TooltipWrapper, Tooltip } from "./Tooltip";
+import { StatusIndicator } from "./StatusIndicator";
 
 // Styled Components
 const SidebarContainer = styled.div<{ collapsed?: boolean }>`
@@ -248,13 +249,8 @@ const AddWorkspaceBtn = styled.button`
   }
 `;
 
-const StatusIndicator = styled.div<{ active?: boolean }>`
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: ${(props) => (props.active ? "#50fa7b" : "#6e6e6e")};
+const WorkspaceStatusIndicator = styled(StatusIndicator)`
   margin-right: 8px;
-  flex-shrink: 0;
 `;
 
 const WorkspaceItem = styled.div<{ selected?: boolean }>`
@@ -361,6 +357,7 @@ interface ProjectSidebarProps {
     workspaceId: string,
     newName: string
   ) => Promise<{ success: boolean; error?: string }>;
+  streamingStates: Map<string, boolean>;
   collapsed: boolean;
   onToggleCollapsed: () => void;
 }
@@ -375,6 +372,7 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
   onRemoveProject,
   onRemoveWorkspace,
   onRenameWorkspace,
+  streamingStates,
   collapsed,
   onToggleCollapsed,
 }) => {
@@ -543,7 +541,7 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
 
                         const workspaceId = metadata.id;
                         const displayName = getWorkspaceDisplayName(workspace.path);
-                        const isActive = false; // Simplified - no active state tracking
+                        const isStreaming = streamingStates.get(workspaceId) ?? false;
                         const isEditing = editingWorkspaceId === workspaceId;
 
                         return (
@@ -559,7 +557,10 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                               })
                             }
                           >
-                            <StatusIndicator active={isActive} title="AI Assistant" />
+                            <WorkspaceStatusIndicator
+                              streaming={isStreaming}
+                              title={isStreaming ? "Streaming..." : "Idle"}
+                            />
                             <BranchIcon>⎇</BranchIcon>
                             {isEditing ? (
                               <WorkspaceNameInput
