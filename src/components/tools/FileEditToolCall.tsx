@@ -195,7 +195,7 @@ interface FileEditToolCallProps {
 function renderDiff(diff: string): React.ReactNode {
   try {
     const patches = parsePatch(diff);
-    if (patches.length === 0) {
+    if (!patches || patches.length === 0) {
       return (
         <DiffLine type="context">
           <LineContent type="context">No changes</LineContent>
@@ -203,57 +203,77 @@ function renderDiff(diff: string): React.ReactNode {
       );
     }
 
-    return patches.map((patch, patchIdx) => (
-      <React.Fragment key={patchIdx}>
-        {patch.hunks.map((hunk, hunkIdx) => {
-          let oldLineNum = hunk.oldStart;
-          let newLineNum = hunk.newStart;
+    return patches.map((patch, patchIdx) => {
+      if (!patch?.hunks) {
+        return null;
+      }
+      
+      return (
+        <React.Fragment key={patchIdx}>
+          {patch.hunks.map((hunk, hunkIdx) => {
+            if (!hunk?.lines) {
+              return null;
+            }
+            
+            let oldLineNum = hunk.oldStart ?? 0;
+            let newLineNum = hunk.newStart ?? 0;
 
-          return (
-            <React.Fragment key={hunkIdx}>
-              <DiffLine type="header">
-                <DiffIndicator type="header">{/* Empty for alignment */}</DiffIndicator>
-                <LineNumber type="header">{hunkIdx > 0 ? "⋮" : ""}</LineNumber>
-                <LineContent type="header">
-                  @@ -{hunk.oldStart},{hunk.oldLines} +{hunk.newStart},{hunk.newLines} @@
-                </LineContent>
-              </DiffLine>
-              {hunk.lines.map((line, lineIdx) => {
-                const firstChar = line[0];
-                const content = line.slice(1); // Remove the +/- prefix
-                let type: DiffLineType = "context";
-                let lineNumDisplay = "";
+            return (
+              <React.Fragment key={hunkIdx}>
+                <DiffLine type="header">
+                  <DiffIndicator type="header">{/* Empty for alignment */}</DiffIndicator>
+                  <LineNumber type="header">{hunkIdx > 0 ? "⋮" : ""}</LineNumber>
+                  <LineContent type="header">
+                    @@ -{hunk.oldStart ?? 0},{hunk.oldLines ?? 0} +{hunk.newStart ?? 0},{hunk.newLines ?? 0} @@
+                  </LineContent>
+                </DiffLine>
+                {hunk.lines.map((line, lineIdx) => {
+                  if (!line || typeof line !== 'string') {
+                    return null;
+                  }
+                  
+                  const firstChar = line[0];
+                  const content = line.slice(1); // Remove the +/- prefix
+                  let type: DiffLineType = "context";
+                  let lineNumDisplay = "";
 
-                if (firstChar === "+") {
-                  type = "add";
-                  lineNumDisplay = `${newLineNum}`;
-                  newLineNum++;
-                } else if (firstChar === "-") {
-                  type = "remove";
-                  lineNumDisplay = `${oldLineNum}`;
-                  oldLineNum++;
-                } else {
-                  // Context line
-                  lineNumDisplay = `${oldLineNum}`;
-                  oldLineNum++;
-                  newLineNum++;
-                }
+                  if (firstChar === "+") {
+                    type = "add";
+                    lineNumDisplay = `${newLineNum}`;
+                    newLineNum++;
+                  } else if (firstChar === "-") {
+                    type = "remove";
+                    lineNumDisplay = `${oldLineNum}`;
+                    oldLineNum++;
+                  } else {
+                    // Context line
+                    lineNumDisplay = `${oldLineNum}`;
+                    oldLineNum++;
+                    newLineNum++;
+                  }
 
-                return (
-                  <DiffLine key={lineIdx} type={type}>
-                    <DiffIndicator type={type}>{firstChar}</DiffIndicator>
-                    <LineNumber type={type}>{lineNumDisplay}</LineNumber>
-                    <LineContent type={type}>{content}</LineContent>
-                  </DiffLine>
-                );
-              })}
-            </React.Fragment>
-          );
-        })}
-      </React.Fragment>
-    ));
+                  return (
+                    <DiffLine key={lineIdx} type={type}>
+                      <DiffIndicator type={type}>{firstChar}</DiffIndicator>
+                      <LineNumber type={type}>{lineNumDisplay}</LineNumber>
+                      <LineContent type={type}>{content}</LineContent>
+                    </DiffLine>
+                  );
+                })}
+              </React.Fragment>
+            );
+          })}
+        </React.Fragment>
+      );
+    });
   } catch (error) {
-    return <ErrorMessage>Failed to parse diff: {String(error)}</ErrorMessage>;
+    console.error('Failed to parse diff:', error);
+    // Fallback to raw diff display
+    return (
+      <pre style={{ margin: 0, whiteSpace: "pre-wrap", wordBreak: "break-word", fontSize: "11px" }}>
+        {diff}
+      </pre>
+    );
   }
 }
 
