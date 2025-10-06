@@ -19,8 +19,9 @@
   --link-color: #4a9eff;
   --link-hover: #6bb0ff;
   
-  /* Override mdbook's default --bg variable */
+  /* Override mdbook's default variables */
   --bg: var(--bg-primary) !important;
+  --table-alternate-bg: var(--bg-secondary) !important; /* Fix blue alternate row background */
 }
 
 /* Base styles */
