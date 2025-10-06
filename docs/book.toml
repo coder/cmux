@@ -17,6 +17,9 @@ command = "mdbook-mermaid"
 git-repository-url = "https://github.com/coder/cmux"
 edit-url-template = "https://github.com/coder/cmux/edit/main/docs/{path}"
 additional-js = ["mermaid.min.js", "mermaid-init.js"]
+additional-css = ["theme/custom.css"]
+default-theme = "navy"
+preferred-dark-theme = "navy"
 
 [output.html.fold]
 enable = true
