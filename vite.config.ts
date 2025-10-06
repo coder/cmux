@@ -19,10 +19,26 @@ export default defineConfig({
     outDir: "dist",
     assetsDir: ".",
     emptyOutDir: false,
-    sourcemap: true,
+    sourcemap: false, // Disable sourcemaps in production to reduce size
+    minify: "terser",
+    terser: {
+      compress: {
+        drop_console: true, // Remove console.log statements
+        drop_debugger: true,
+      },
+    },
     rollupOptions: {
       // External modules that shouldn't be bundled
       external: [],
+      output: {
+        manualChunks: {
+          // Split vendor chunks for better caching
+          react: ["react", "react-dom"],
+          markdown: ["react-markdown", "remark-gfm", "remark-math", "rehype-katex"],
+          syntax: ["react-syntax-highlighter"],
+          mermaid: ["mermaid"],
+        },
+      },
     },
   },
   worker: {

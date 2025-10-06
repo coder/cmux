@@ -25,6 +25,8 @@
     "test:integration": "bun test src && TEST_INTEGRATION=1 jest tests",
     "dist": "bun run build && electron-builder --publish never",
     "dist:mac": "bun run build && electron-builder --mac --publish never",
+    "dist:mac:arm64": "bun run build && electron-builder --mac --arm64 --publish never",
+    "dist:mac:x64": "bun run build && electron-builder --mac --x64 --publish never",
     "dist:win": "bun run build && electron-builder --win --publish never",
     "dist:linux": "bun run build && electron-builder --linux --publish never"
   },
@@ -77,6 +79,7 @@
     "eslint-plugin-react-hooks": "^5.2.0",
     "jest": "^30.1.3",
     "prettier": "^3.6.2",
+    "terser": "^5.44.0",
     "ts-jest": "^29.4.4",
     "tsc-alias": "^1.8.16",
     "typescript": "^5.1.3",
@@ -92,7 +95,12 @@
       "output": "release"
     },
     "files": [
-      "dist/**/*"
+      "dist/**/*",
+      "!dist/**/*.map",
+      "!**/node_modules/**/*"
+    ],
+    "asarUnpack": [
+      "**/node_modules/@dqbd/tiktoken/**/*"
     ],
     "mac": {
       "category": "public.app-category.developer-tools",
@@ -116,7 +124,11 @@
       "artifactName": "${productName}-${version}-${arch}.${ext}"
     },
     "win": {
-      "target": "nsis"
-    }
+      "target": "nsis",
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
+    },
+    "compression": "maximum",
+    "removePackageScripts": true,
+    "nodeGypRebuild": false
   }
 }
