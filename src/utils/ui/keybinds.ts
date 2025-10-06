@@ -92,6 +92,8 @@ export function formatKeybind(keybind: Keybind): string {
 /**
  * Centralized registry of application keybinds.
  * Single source of truth for all keyboard shortcuts.
+ * In general we try to use shortcuts the user would naturally expect.
+ * We also like vim keybinds.
  */
 export const KEYBINDS = {
   /** Toggle between Plan and Exec modes */
@@ -111,4 +113,10 @@ export const KEYBINDS = {
 
   /** Jump to bottom of chat */
   JUMP_TO_BOTTOM: { key: "G", shift: true },
+
+  /** Navigate to next workspace in current project */
+  NEXT_WORKSPACE: { key: "j", ctrl: true },
+
+  /** Navigate to previous workspace in current project */
+  PREV_WORKSPACE: { key: "k", ctrl: true },
 } as const;

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import styled from "@emotion/styled";
 import { Global, css } from "@emotion/react";
 import { GlobalColors } from "./styles/colors";
@@ -10,7 +10,9 @@ import ProjectSidebar from "./components/ProjectSidebar";
 import NewWorkspaceModal from "./components/NewWorkspaceModal";
 import { AIView } from "./components/AIView";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { TipsCarousel } from "./components/TipsCarousel";
 import { usePersistedState } from "./hooks/usePersistedState";
+import { matchesKeybind, KEYBINDS } from "./utils/ui/keybinds";
 
 // Global Styles with nice fonts
 const globalStyles = css`
@@ -96,6 +98,9 @@ const AppHeader = styled.header`
   padding: 10px 20px;
   background: #2d2d2d;
   border-bottom: 1px solid #444;
+  display: flex;
+  align-items: center;
+  gap: 24px;
 
   h1 {
     color: #fff;
@@ -103,6 +108,9 @@ const AppHeader = styled.header`
     margin: 0;
     font-weight: 600;
     letter-spacing: -0.5px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
   }
 `;
 
@@ -317,6 +325,59 @@ function App() {
     }
   };
 
+  const handleNavigateWorkspace = useCallback(
+    (direction: "next" | "prev") => {
+      if (!selectedWorkspace) return;
+
+      const projectConfig = projects.get(selectedWorkspace.projectPath);
+      if (!projectConfig || projectConfig.workspaces.length <= 1) return;
+
+      // Find current workspace index
+      const currentIndex = projectConfig.workspaces.findIndex(
+        (ws) => ws.path === selectedWorkspace.workspacePath
+      );
+      if (currentIndex === -1) return;
+
+      // Calculate next/prev index with wrapping
+      let targetIndex: number;
+      if (direction === "next") {
+        targetIndex = (currentIndex + 1) % projectConfig.workspaces.length;
+      } else {
+        targetIndex = currentIndex === 0 ? projectConfig.workspaces.length - 1 : currentIndex - 1;
+      }
+
+      const targetWorkspace = projectConfig.workspaces[targetIndex];
+      if (!targetWorkspace) return;
+
+      const metadata = workspaceMetadata.get(targetWorkspace.path);
+      if (!metadata) return;
+
+      setSelectedWorkspace({
+        projectPath: selectedWorkspace.projectPath,
+        projectName: selectedWorkspace.projectName,
+        workspacePath: targetWorkspace.path,
+        workspaceId: metadata.id,
+      });
+    },
+    [selectedWorkspace, projects, workspaceMetadata, setSelectedWorkspace]
+  );
+
+  // Handle workspace navigation keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (matchesKeybind(e, KEYBINDS.NEXT_WORKSPACE)) {
+        e.preventDefault();
+        handleNavigateWorkspace("next");
+      } else if (matchesKeybind(e, KEYBINDS.PREV_WORKSPACE)) {
+        e.preventDefault();
+        handleNavigateWorkspace("prev");
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleNavigateWorkspace]);
+
   return (
     <>
       <GlobalColors />
@@ -337,6 +398,7 @@ function App() {
         <MainContent>
           <AppHeader>
             <h1>coder multiplexer</h1>
+            <TipsCarousel />
           </AppHeader>
           <ContentArea>
             {selectedWorkspace ? (
