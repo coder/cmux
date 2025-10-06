@@ -18,6 +18,9 @@
   --border-color: #404040;
   --link-color: #4a9eff;
   --link-hover: #6bb0ff;
+  
+  /* Override mdbook's default --bg variable */
+  --bg: var(--bg-primary) !important;
 }
 
 /* Base styles */
