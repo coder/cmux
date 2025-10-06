@@ -26,6 +26,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo binaries
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin
+          key: ${{ runner.os }}-cargo-bins-mdbook-mermaid-0.16.0-linkcheck-0.7.7
+          restore-keys: |
+            ${{ runner.os }}-cargo-bins-
+
       - name: Setup mdBook
         uses: peaceiris/actions-mdbook@v2
         with:
@@ -33,11 +44,16 @@ jobs:
 
       - name: Install mdbook-mermaid
         run: |
-          cargo install mdbook-mermaid --version 0.16.0
+          if ! command -v mdbook-mermaid &> /dev/null; then
+            cargo install mdbook-mermaid --version 0.16.0
+          fi
           mdbook-mermaid install docs
 
       - name: Install mdbook-linkcheck
-        run: cargo install mdbook-linkcheck --version 0.7.7
+        run: |
+          if ! command -v mdbook-linkcheck &> /dev/null; then
+            cargo install mdbook-linkcheck --version 0.7.7
+          fi
 
       - name: Build docs
         run: cd docs && mdbook build
