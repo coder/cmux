@@ -335,4 +335,119 @@ describe("bash tool", () => {
       expect(result.exitCode).toBe(0);
     }
   });
+
+  it("should reject redundant cd to working directory with &&", async () => {
+    const cwd = process.cwd();
+    const tool = createBashTool({ cwd });
+
+    const args: BashToolArgs = {
+      script: `cd ${cwd} && echo hello`,
+      timeout_secs: 5,
+      max_lines: 100,
+    };
+
+    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain("Redundant cd to working directory detected");
+      expect(result.error).toContain(cwd);
+      expect(result.exitCode).toBe(-1);
+      expect(result.wall_duration_ms).toBe(0);
+    }
+  });
+
+  it("should reject redundant cd to working directory with semicolon", async () => {
+    const cwd = process.cwd();
+    const tool = createBashTool({ cwd });
+
+    const args: BashToolArgs = {
+      script: `cd ${cwd}; echo hello`,
+      timeout_secs: 5,
+      max_lines: 100,
+    };
+
+    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain("Redundant cd to working directory detected");
+      expect(result.exitCode).toBe(-1);
+    }
+  });
+
+  it("should reject redundant cd with relative path (.)", async () => {
+    const cwd = process.cwd();
+    const tool = createBashTool({ cwd });
+
+    const args: BashToolArgs = {
+      script: "cd . && echo hello",
+      timeout_secs: 5,
+      max_lines: 100,
+    };
+
+    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain("Redundant cd to working directory detected");
+      expect(result.exitCode).toBe(-1);
+    }
+  });
+
+  it("should reject redundant cd with quoted path", async () => {
+    const cwd = process.cwd();
+    const tool = createBashTool({ cwd });
+
+    const args: BashToolArgs = {
+      script: `cd "${cwd}" && echo hello`,
+      timeout_secs: 5,
+      max_lines: 100,
+    };
+
+    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain("Redundant cd to working directory detected");
+      expect(result.exitCode).toBe(-1);
+    }
+  });
+
+  it("should allow cd to a different directory", async () => {
+    const tool = createBashTool({ cwd: process.cwd() });
+
+    const args: BashToolArgs = {
+      script: "cd /tmp && pwd",
+      timeout_secs: 5,
+      max_lines: 100,
+    };
+
+    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.output).toBe("/tmp");
+      expect(result.exitCode).toBe(0);
+    }
+  });
+
+  it("should allow commands that don't start with cd", async () => {
+    const cwd = process.cwd();
+    const tool = createBashTool({ cwd });
+
+    const args: BashToolArgs = {
+      script: `echo ${cwd} && cd /tmp`,
+      timeout_secs: 5,
+      max_lines: 100,
+    };
+
+    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.output).toContain(cwd);
+      expect(result.exitCode).toBe(0);
+    }
+  });
 });

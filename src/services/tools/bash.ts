@@ -2,6 +2,7 @@ import { tool } from "ai";
 import { spawn } from "child_process";
 import type { ChildProcess } from "child_process";
 import { createInterface } from "readline";
+import * as path from "path";
 import type { BashToolResult } from "@/types/tools";
 import type { ToolConfiguration, ToolFactory } from "@/utils/tools/tools";
 import { TOOL_DEFINITIONS } from "@/utils/tools/toolDefinitions";
@@ -37,6 +38,26 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
       { abortSignal }
     ): Promise<BashToolResult> => {
       const startTime = performance.now();
+
+      // Detect redundant cd to working directory
+      // Match patterns like: "cd /path &&", "cd /path;", "cd '/path' &&", "cd \"/path\" &&"
+      const cdPattern = /^\s*cd\s+['"]?([^'";&|]+)['"]?\s*[;&|]/;
+      const match = cdPattern.exec(script);
+      if (match) {
+        const targetPath = match[1].trim();
+        // Normalize paths for comparison (resolve to absolute)
+        const normalizedTarget = path.resolve(config.cwd, targetPath);
+        const normalizedCwd = path.resolve(config.cwd);
+
+        if (normalizedTarget === normalizedCwd) {
+          return {
+            success: false,
+            error: `Redundant cd to working directory detected. The tool already runs in ${config.cwd} - no cd needed. Remove the 'cd ${targetPath}' prefix.`,
+            exitCode: -1,
+            wall_duration_ms: 0,
+          };
+        }
+      }
 
       // Create the process with `using` for automatic cleanup
       using childProcess = new DisposableProcess(
