@@ -14,6 +14,18 @@ When creating public operations (commits, PRs, issues), always include:
 
 This ensures transparency about AI-generated contributions.
 
+## Documentation
+
+**DO NOT create documentation markdown files unless explicitly requested.**
+
+- Commit messages and PR descriptions are sufficient for explaining changes
+- Code should be self-documenting
+- README updates are acceptable when adding user-facing features
+- Do not create files like CHANGES.md, OPTIMIZATION_GUIDE.md, etc.
+- If documentation is truly needed, discuss with the user first
+
+
+
 ## PR Management
 
 After submitting or updating PRs, **always check merge status**:
