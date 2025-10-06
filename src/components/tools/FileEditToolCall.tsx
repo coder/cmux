@@ -207,14 +207,14 @@ function renderDiff(diff: string): React.ReactNode {
       if (!patch?.hunks) {
         return null;
       }
-      
+
       return (
         <React.Fragment key={patchIdx}>
           {patch.hunks.map((hunk, hunkIdx) => {
             if (!hunk?.lines) {
               return null;
             }
-            
+
             let oldLineNum = hunk.oldStart ?? 0;
             let newLineNum = hunk.newStart ?? 0;
 
@@ -224,14 +224,15 @@ function renderDiff(diff: string): React.ReactNode {
                   <DiffIndicator type="header">{/* Empty for alignment */}</DiffIndicator>
                   <LineNumber type="header">{hunkIdx > 0 ? "⋮" : ""}</LineNumber>
                   <LineContent type="header">
-                    @@ -{hunk.oldStart ?? 0},{hunk.oldLines ?? 0} +{hunk.newStart ?? 0},{hunk.newLines ?? 0} @@
+                    @@ -{hunk.oldStart ?? 0},{hunk.oldLines ?? 0} +{hunk.newStart ?? 0},
+                    {hunk.newLines ?? 0} @@
                   </LineContent>
                 </DiffLine>
                 {hunk.lines.map((line, lineIdx) => {
-                  if (!line || typeof line !== 'string') {
+                  if (!line || typeof line !== "string") {
                     return null;
                   }
-                  
+
                   const firstChar = line[0];
                   const content = line.slice(1); // Remove the +/- prefix
                   let type: DiffLineType = "context";
@@ -267,7 +268,7 @@ function renderDiff(diff: string): React.ReactNode {
       );
     });
   } catch (error) {
-    console.error('Failed to parse diff:', error);
+    console.error("Failed to parse diff:", error);
     // Fallback to raw diff display
     return (
       <pre style={{ margin: 0, whiteSpace: "pre-wrap", wordBreak: "break-word", fontSize: "11px" }}>
