@@ -19,7 +19,7 @@ bun docs:watch
 
 - ✅ **Mermaid diagrams** - Add diagrams with ` ```mermaid ` code blocks
 - ✅ **Link checking** - Automatically validates all links during build
-- ✅ **GitHub Pages** - Auto-deploys to https://coder.github.io/cmux on push to main
+- ✅ **GitHub Pages** - Auto-deploys to https://cmux.io on push to main
 
 ## Structure
 

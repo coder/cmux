@@ -1,17 +1,17 @@
-# cmux - Coding Agent Multiplexer
+# cmux - coding agent multiplexer
 
 [![CI](https://github.com/coder/cmux/actions/workflows/ci.yml/badge.svg)](https://github.com/coder/cmux/actions/workflows/ci.yml)
 [![Build](https://github.com/coder/cmux/actions/workflows/build.yml/badge.svg)](https://github.com/coder/cmux/actions/workflows/build.yml)
 
-A cross-platform desktop application for AI-assisted development with git worktree integration.
+A cross-platform desktop application for embarassingly parallel development.
 
 ## Documentation
 
-📚 **[Read the full documentation →](https://coder.github.io/cmux)**
+📚 **[Read the full documentation →](https://cmux.io)**
 
-- [Installation](https://coder.github.io/cmux/install.html)
-- [Keyboard Shortcuts](https://coder.github.io/cmux/keybinds.html)
-- [Developer Guide](https://coder.github.io/cmux/AGENTS.html)
+- [Installation](https://cmux.io/install.html)
+- [Keyboard Shortcuts](https://cmux.io/keybinds.html)
+- [Developer Guide](https://cmux.io/AGENTS.html)
 
 ## Quick Install
 
