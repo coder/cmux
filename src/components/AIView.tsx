@@ -11,6 +11,7 @@ import { ChatProvider } from "@/contexts/ChatContext";
 import { ThinkingProvider } from "@/contexts/ThinkingContext";
 import { ModeProvider } from "@/contexts/ModeContext";
 import type { WorkspaceChatMessage } from "@/types/ipc";
+import { matchesKeybind, formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
 import {
   isCaughtUpMessage,
   isStreamError,
@@ -63,8 +64,14 @@ const WorkspaceTitle = styled.div`
   gap: 8px;
 `;
 
-const OutputContent = styled.div`
+const OutputContainer = styled.div`
   flex: 1;
+  position: relative;
+  overflow: hidden;
+`;
+
+const OutputContent = styled.div`
+  height: 100%;
   overflow-y: auto;
   padding: 15px;
   white-space: pre-wrap;
@@ -128,6 +135,36 @@ const EditBarrier = styled.div`
   font-size: 12px;
   font-weight: 500;
   text-align: center;
+`;
+
+const JumpToBottomIndicator = styled.div`
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 8px;
+  background: hsl(from var(--color-assistant-border) h s l / 0.1);
+  color: white;
+  border: 1px solid hsl(from var(--color-assistant-border) h s l / 0.4);
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 100;
+  font-family: var(--font-primary);
+  backdrop-filter: blur(1px);
+
+  &:hover {
+    background: hsl(from var(--color-assistant-border) h s l / 0.4);
+    border-color: hsl(from var(--color-assistant-border) h s l / 0.6);
+    transform: translateX(-50%) scale(1.05);
+  }
+
+  &:active {
+    transform: translateX(-50%) scale(0.95);
+  }
 `;
 
 interface AIViewProps {
@@ -371,6 +408,13 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
     setAutoScroll(true);
   }, []);
 
+  const jumpToBottom = useCallback(() => {
+    if (contentRef.current) {
+      contentRef.current.scrollTop = contentRef.current.scrollHeight;
+      setAutoScroll(true);
+    }
+  }, []);
+
   const handleClearHistory = useCallback(
     async (percentage = 1.0) => {
       // Enable auto-scroll after clearing
@@ -391,6 +435,19 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
     },
     []
   );
+
+  // Handle keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (matchesKeybind(e, KEYBINDS.JUMP_TO_BOTTOM)) {
+        e.preventDefault();
+        jumpToBottom();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [jumpToBottom]);
 
   // Get current aggregator
   const aggregator = getAggregator(workspaceId);
@@ -431,75 +488,82 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
             </WorkspaceTitle>
           </ViewHeader>
 
-          <OutputContent
-            ref={contentRef}
-            onWheel={() => {
-              lastUserInteractionRef.current = Date.now();
-            }}
-            onTouchMove={() => {
-              lastUserInteractionRef.current = Date.now();
-            }}
-            onScroll={(e) => {
-              const element = e.currentTarget;
-              const currentScrollTop = element.scrollTop;
-              const threshold = 100;
-              const isAtBottom =
-                element.scrollHeight - currentScrollTop - element.clientHeight < threshold;
+          <OutputContainer>
+            <OutputContent
+              ref={contentRef}
+              onWheel={() => {
+                lastUserInteractionRef.current = Date.now();
+              }}
+              onTouchMove={() => {
+                lastUserInteractionRef.current = Date.now();
+              }}
+              onScroll={(e) => {
+                const element = e.currentTarget;
+                const currentScrollTop = element.scrollTop;
+                const threshold = 100;
+                const isAtBottom =
+                  element.scrollHeight - currentScrollTop - element.clientHeight < threshold;
 
-              // Only process user-initiated scrolls (within 100ms of interaction)
-              const isUserScroll = Date.now() - lastUserInteractionRef.current < 100;
+                // Only process user-initiated scrolls (within 100ms of interaction)
+                const isUserScroll = Date.now() - lastUserInteractionRef.current < 100;
 
-              if (!isUserScroll) {
+                if (!isUserScroll) {
+                  lastScrollTopRef.current = currentScrollTop;
+                  return; // Ignore programmatic scrolls
+                }
+
+                // Detect scroll direction
+                const isScrollingUp = currentScrollTop < lastScrollTopRef.current;
+                const isScrollingDown = currentScrollTop > lastScrollTopRef.current;
+
+                if (isScrollingUp) {
+                  // Always disable auto-scroll when scrolling up
+                  setAutoScroll(false);
+                } else if (isScrollingDown && isAtBottom) {
+                  // Only enable auto-scroll if scrolling down AND reached the bottom
+                  setAutoScroll(true);
+                }
+                // If scrolling down but not at bottom, auto-scroll remains disabled
+
+                // Update last scroll position
                 lastScrollTopRef.current = currentScrollTop;
-                return; // Ignore programmatic scrolls
-              }
+              }}
+            >
+              {messages.length === 0 ? (
+                <EmptyState>
+                  <h3>No Messages Yet</h3>
+                  <p>Send a message below to begin</p>
+                </EmptyState>
+              ) : (
+                <>
+                  {messages.map((msg) => {
+                    const isAtCutoff =
+                      editCutoffHistoryId !== undefined && msg.historyId === editCutoffHistoryId;
 
-              // Detect scroll direction
-              const isScrollingUp = currentScrollTop < lastScrollTopRef.current;
-              const isScrollingDown = currentScrollTop > lastScrollTopRef.current;
-
-              if (isScrollingUp) {
-                // Always disable auto-scroll when scrolling up
-                setAutoScroll(false);
-              } else if (isScrollingDown && isAtBottom) {
-                // Only enable auto-scroll if scrolling down AND reached the bottom
-                setAutoScroll(true);
-              }
-              // If scrolling down but not at bottom, auto-scroll remains disabled
-
-              // Update last scroll position
-              lastScrollTopRef.current = currentScrollTop;
-            }}
-          >
-            {messages.length === 0 ? (
-              <EmptyState>
-                <h3>No Messages Yet</h3>
-                <p>Send a message below to begin</p>
-              </EmptyState>
-            ) : (
-              <>
-                {messages.map((msg) => {
-                  const isAtCutoff =
-                    editCutoffHistoryId !== undefined && msg.historyId === editCutoffHistoryId;
-
-                  return (
-                    <React.Fragment key={msg.id}>
-                      <MessageRenderer message={msg} onEditUserMessage={handleEditUserMessage} />
-                      {isAtCutoff && (
-                        <EditBarrier>
-                          ⚠️ Messages below this line will be removed when you submit the edit
-                        </EditBarrier>
-                      )}
-                      {shouldShowInterruptedBarrier(msg) && <InterruptedBarrier />}
-                    </React.Fragment>
-                  );
-                })}
-              </>
+                    return (
+                      <React.Fragment key={msg.id}>
+                        <MessageRenderer message={msg} onEditUserMessage={handleEditUserMessage} />
+                        {isAtCutoff && (
+                          <EditBarrier>
+                            ⚠️ Messages below this line will be removed when you submit the edit
+                          </EditBarrier>
+                        )}
+                        {shouldShowInterruptedBarrier(msg) && <InterruptedBarrier />}
+                      </React.Fragment>
+                    );
+                  })}
+                </>
+              )}
+              {canInterrupt && (
+                <GlobalStreamingIndicator>streaming... hit Esc to cancel</GlobalStreamingIndicator>
+              )}
+            </OutputContent>
+            {!autoScroll && (
+              <JumpToBottomIndicator onClick={jumpToBottom}>
+                Press {formatKeybind(KEYBINDS.JUMP_TO_BOTTOM)} to jump to bottom
+              </JumpToBottomIndicator>
             )}
-            {canInterrupt && (
-              <GlobalStreamingIndicator>streaming... hit Esc to cancel</GlobalStreamingIndicator>
-            )}
-          </OutputContent>
+          </OutputContainer>
 
           <ChatInput
             workspaceId={workspaceId}

@@ -108,4 +108,7 @@ export const KEYBINDS = {
 
   /** Create new workspace for current project */
   NEW_WORKSPACE: { key: "n", ctrl: true },
+
+  /** Jump to bottom of chat */
+  JUMP_TO_BOTTOM: { key: "G", shift: true },
 } as const;
