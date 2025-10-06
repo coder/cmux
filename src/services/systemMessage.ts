@@ -20,6 +20,19 @@ When creating mermaid diagrams:
 </prelude>
 `;
 
+function buildEnvironmentContext(workspacePath: string): string {
+  return `
+<environment>
+You are in a git worktree at ${workspacePath}
+
+- This IS a git repository - run git commands directly (no cd needed)
+- Tools run here automatically
+- Do not modify or visit other worktrees (especially the main project) without explicit user intent
+- You are meant to do your work isolated from the user and other agents
+</environment>
+`;
+}
+
 const CUSTOM_INSTRUCTION_FILES = ["AGENTS.md", "AGENT.md", "CLAUDE.md"];
 
 /**
@@ -41,6 +54,7 @@ export async function buildSystemMessage(metadata: WorkspaceMetadata): Promise<s
     throw new Error("Invalid workspace metadata: workspacePath is required");
   }
 
+  const environmentContext = buildEnvironmentContext(metadata.workspacePath);
   let customInstructions = "";
 
   // Try to read custom instruction files in order
@@ -60,8 +74,8 @@ export async function buildSystemMessage(metadata: WorkspaceMetadata): Promise<s
   // Combine placeholder with custom instructions
   if (customInstructions) {
     const trimmedPrelude = PRELUDE.trim();
-    return `${trimmedPrelude}\n\n<custom-instructions>\n${customInstructions}\n</custom-instructions>`;
+    return `${trimmedPrelude}\n\n${environmentContext}\n<custom-instructions>\n${customInstructions}\n</custom-instructions>`;
   }
 
-  return PRELUDE;
+  return `${PRELUDE.trim()}\n\n${environmentContext}`;
 }
