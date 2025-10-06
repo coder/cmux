@@ -450,4 +450,72 @@ describe("bash tool", () => {
       expect(result.exitCode).toBe(0);
     }
   });
+
+  it("should complete quickly when background process is spawned", async () => {
+    const tool = createBashTool({ cwd: process.cwd() });
+    const startTime = performance.now();
+
+    const args: BashToolArgs = {
+      // Spawn a long-running background process, then exit foreground
+      script: "sleep 60 & echo done",
+      timeout_secs: 3,
+      max_lines: 100,
+    };
+
+    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
+    const duration = performance.now() - startTime;
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.output).toBe("done");
+      expect(result.exitCode).toBe(0);
+      // Should complete quickly (under 1s), not wait for background sleep
+      expect(duration).toBeLessThan(1000);
+    }
+  });
+
+  it("should complete quickly with background process and PID echo", async () => {
+    const tool = createBashTool({ cwd: process.cwd() });
+    const startTime = performance.now();
+
+    const args: BashToolArgs = {
+      // Mimics: cd storybook-static && python3 -m http.server 8080 > /dev/null 2>&1 & echo $!
+      script: "sleep 60 > /dev/null 2>&1 & echo $!",
+      timeout_secs: 3,
+      max_lines: 100,
+    };
+
+    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
+    const duration = performance.now() - startTime;
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      // Should output the PID of the background process
+      expect(result.output).toMatch(/^\d+$/);
+      expect(result.exitCode).toBe(0);
+      // Should complete quickly (under 1s), not wait for background sleep
+      expect(duration).toBeLessThan(1000);
+    }
+  });
+
+  it("should timeout background processes that don't complete", async () => {
+    const tool = createBashTool({ cwd: process.cwd() });
+    const startTime = performance.now();
+
+    const args: BashToolArgs = {
+      // Background process with output redirected but still blocking
+      script: "sleep 10 & wait",
+      timeout_secs: 1,
+      max_lines: 100,
+    };
+
+    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
+    const duration = performance.now() - startTime;
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain("timed out");
+      expect(duration).toBeLessThan(2000);
+    }
+  });
 });

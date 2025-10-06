@@ -154,16 +154,61 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
           }
         });
 
-        // The 'close' event fires when process exits AND all stdio streams are closed
-        // This is our single source of truth - no coordination needed
-        // Previous approaches tried coordinating exit/end events from multiple streams,
-        // which caused hangs in Electron when stream 'end' events didn't fire reliably
-        childProcess.child.on("close", (code: number | null) => {
+        // Track when streams end
+        stdoutReader.on("close", () => {
+          stdoutEnded = true;
+          tryFinalize();
+        });
+
+        stderrReader.on("close", () => {
+          stderrEnded = true;
+          tryFinalize();
+        });
+
+        // Use 'exit' event instead of 'close' to handle background processes correctly.
+        // The 'close' event waits for ALL child processes (including background ones) to exit,
+        // which causes hangs when users spawn background processes like servers.
+        // The 'exit' event fires when the main bash process exits, which is what we want.
+        let stdoutEnded = false;
+        let stderrEnded = false;
+        let processExited = false;
+
+        const handleExit = (code: number | null) => {
+          processExited = true;
+          exitCode = code;
+          // Try to finalize immediately if streams have ended
+          tryFinalize();
+          // Set a grace period timer - if streams don't end within 50ms, finalize anyway
+          // This handles background processes that keep stdio open
+          setTimeout(() => {
+            if (!resolved && processExited) {
+              // Forcibly destroy streams to ensure they close
+              childProcess.child.stdout?.destroy();
+              childProcess.child.stderr?.destroy();
+              stdoutEnded = true;
+              stderrEnded = true;
+              finalize();
+            }
+          }, 50);
+        };
+
+        const tryFinalize = () => {
+          if (resolved) return;
+          // Finalize if process exited AND (both streams ended OR 100ms grace period passed)
+          if (!processExited) return;
+
+          // If we've already collected output, finalize immediately
+          // Otherwise wait a bit for streams to flush
+          if (stdoutEnded && stderrEnded) {
+            finalize();
+          }
+        };
+
+        const finalize = () => {
           if (resolved) return;
 
           // Round to integer to preserve tokens.
           const wall_duration_ms = Math.round(performance.now() - startTime);
-          exitCode = code;
 
           // Clean up readline interfaces if still open
           stdoutReader.close();
@@ -214,7 +259,10 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
               truncated,
             });
           }
-        });
+        };
+
+        // Listen to exit event (fires when bash exits, before streams close)
+        childProcess.child.on("exit", handleExit);
 
         childProcess.child.on("error", (err: Error) => {
           if (resolved) return;
