@@ -142,6 +142,15 @@ export class EventCollector {
       `waitForEvent timeout: Expected "${eventType}" but got events: [${eventTypes.join(", ")}]`
     );
 
+    // If there was a stream-error, log the error details
+    const errorEvent = this.events.find((e) => "type" in e && e.type === "stream-error");
+    if (errorEvent && "error" in errorEvent) {
+      console.error("Stream error details:", errorEvent.error);
+      if ("errorType" in errorEvent) {
+        console.error("Stream error type:", errorEvent.errorType);
+      }
+    }
+
     return null;
   }
 
@@ -186,12 +195,43 @@ export function createEventCollector(
 
 /**
  * Assert that a stream completed successfully
+ * Provides helpful error messages when assertions fail
  */
 export function assertStreamSuccess(collector: EventCollector): void {
-  expect(collector.hasStreamEnd()).toBe(true);
-  expect(collector.hasError()).toBe(false);
+  const allEvents = collector.getEvents();
+  const eventTypes = allEvents.filter((e) => "type" in e).map((e) => (e as { type: string }).type);
+
+  // Check for stream-end
+  if (!collector.hasStreamEnd()) {
+    const errorEvent = allEvents.find((e) => "type" in e && e.type === "stream-error");
+    if (errorEvent && "error" in errorEvent) {
+      throw new Error(
+        `Stream did not complete successfully. Got stream-error: ${errorEvent.error}\n` +
+          `All events: [${eventTypes.join(", ")}]`
+      );
+    }
+    throw new Error(
+      `Stream did not emit stream-end event.\n` + `All events: [${eventTypes.join(", ")}]`
+    );
+  }
+
+  // Check for errors
+  if (collector.hasError()) {
+    const errorEvent = allEvents.find((e) => "type" in e && e.type === "stream-error");
+    const errorMsg = errorEvent && "error" in errorEvent ? errorEvent.error : "unknown";
+    throw new Error(
+      `Stream completed but also has error event: ${errorMsg}\n` +
+        `All events: [${eventTypes.join(", ")}]`
+    );
+  }
+
+  // Check for final message
   const finalMessage = collector.getFinalMessage();
-  expect(finalMessage).toBeDefined();
+  if (!finalMessage) {
+    throw new Error(
+      `Stream completed but final message is missing.\n` + `All events: [${eventTypes.join(", ")}]`
+    );
+  }
 }
 
 /**
