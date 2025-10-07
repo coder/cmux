@@ -26,6 +26,7 @@ export interface VimTextAreaProps
 const StyledTextArea = styled.textarea<{
   isEditing?: boolean;
   mode: UIMode;
+  vimMode: VimMode;
 }>`
   flex: 1;
   background: ${(props) => (props.isEditing ? "var(--color-editing-mode-alpha)" : "#1e1e1e")};
@@ -39,6 +40,7 @@ const StyledTextArea = styled.textarea<{
   min-height: 36px;
   max-height: 200px;
   overflow-y: auto;
+  caret-color: ${(props) => (props.vimMode === "normal" ? "transparent" : "#ffffff")};
 
   &:focus {
     outline: none;
@@ -71,7 +73,7 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
     const [vimMode, setVimMode] = useState<VimMode>("insert");
     const [desiredColumn, setDesiredColumn] = useState<number | null>(null);
     const yankBufferRef = useRef<string>("");
-    const pendingOpRef = useRef<null | { op: "d" | "y"; at: number }>(null);
+    const pendingOpRef = useRef<null | { op: "d" | "y" | "c"; at: number; args?: string[] }>(null);
 
     // Auto-resize when value changes
     useEffect(() => {
@@ -89,10 +91,25 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
       return { start: el.selectionStart, end: el.selectionEnd };
     };
 
+    const lineEndAtIndex = (idx: number) => {
+      const { lines, starts } = getLinesInfo();
+      let row = 0;
+      while (row + 1 < starts.length && starts[row + 1] <= idx) row++;
+      const lineEnd = starts[row] + lines[row].length;
+      return lineEnd;
+    };
+
     const setCursor = (pos: number) => {
       const el = textareaRef.current!;
       const p = Math.max(0, Math.min(value.length, pos));
-      el.selectionStart = el.selectionEnd = p;
+      const lineEnd = lineEndAtIndex(p);
+      el.selectionStart = p;
+      // In normal mode, show a 1-char selection (block cursor effect) when possible
+      if (vimMode === "normal" && p < lineEnd) {
+        el.selectionEnd = p + 1;
+      } else {
+        el.selectionEnd = p;
+      }
       setDesiredColumn(null);
     };
 
@@ -172,6 +189,14 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
       setTimeout(() => setCursor(a), 0);
     };
 
+    const changeRange = (from: number, to: number) => {
+      // Yank the deleted text, delete it, then enter insert mode at start
+      deleteRange(from, to, true);
+      setTimeout(() => {
+        setVimMode("insert");
+      }, 0);
+    };
+
     const deleteCharUnderCursor = () => {
       const i = withSelection().start;
       if (i >= value.length) return; // nothing to delete
@@ -234,14 +259,105 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
       document.execCommand("redo");
     };
 
+    const wordBoundsAt = (idx: number) => {
+      // Returns [start, end) for the word under cursor. If on whitespace, uses the next word to the right.
+      const n = value.length;
+      let i = Math.max(0, Math.min(n, idx));
+      const isWord = (ch: string) => /[A-Za-z0-9_]/.test(ch);
+      if (i >= n) i = n - 1;
+      // If we're out of range or empty
+      if (n === 0) return { start: 0, end: 0 };
+      if (i < 0) i = 0;
+      if (!isWord(value[i])) {
+        // Move right to next word
+        let j = i;
+        while (j < n && !isWord(value[j])) j++;
+        if (j >= n) return { start: n, end: n };
+        i = j;
+      }
+      let a = i;
+      while (a > 0 && isWord(value[a - 1])) a--;
+      let b = i + 1;
+      while (b < n && isWord(value[b])) b++;
+      return { start: a, end: b };
+    };
+
     const handleNormalKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
       const key = e.key;
 
-      // Multi-key ops: dd / yy
+      // Multi-key ops: dd / yy / cc / cw / ciw / c$ / C
       const now = Date.now();
       const pending = pendingOpRef.current;
       if (pending && now - pending.at > 800) {
         pendingOpRef.current = null; // timeout
+      }
+
+      // Handle continuation of a pending 'c' operator
+      if (pending && pending.op === "c") {
+        e.preventDefault();
+        const args = pending.args ?? [];
+        // Second char after 'c'
+        if (args.length === 0) {
+          if (key === "c") {
+            // cc: change entire line
+            pendingOpRef.current = null;
+            const { lineStart, lineEnd } = lineBoundsAtCursor();
+            changeRange(lineStart, lineEnd);
+            return;
+          }
+          if (key === "w") {
+            // cw: change to next word boundary
+            pendingOpRef.current = null;
+            const start = withSelection().start;
+            // Move to next word boundary like 'w', but delete from current cursor to that point
+            let i = start;
+            const n = value.length;
+            // Skip current word chars
+            while (i < n && /[A-Za-z0-9_]/.test(value[i])) i++;
+            // Skip whitespace
+            while (i < n && /\s/.test(value[i])) i++;
+            changeRange(start, i);
+            return;
+          }
+          if (key === "$" || key === "End") {
+            // c$ : change to end of line
+            pendingOpRef.current = null;
+            const { lineEnd } = lineBoundsAtCursor();
+            const start = withSelection().start;
+            changeRange(start, lineEnd);
+            return;
+          }
+          if (key === "0" || key === "Home") {
+            // c0 : change to beginning of line
+            pendingOpRef.current = null;
+            const { lineStart } = lineBoundsAtCursor();
+            const start = withSelection().start;
+            changeRange(lineStart, start);
+            return;
+          }
+          if (key === "i") {
+            // Wait for a text object (e.g., w)
+            pendingOpRef.current = { op: "c", at: now, args: ["i"] };
+            return;
+          }
+          // Unknown motion: cancel
+          pendingOpRef.current = null;
+          return;
+        }
+        // Third key (after 'ci')
+        if (args.length === 1 && args[0] === "i") {
+          if (key === "w") {
+            // ciw: change inner word
+            pendingOpRef.current = null;
+            const { start } = withSelection();
+            const { start: a, end: b } = wordBoundsAt(start);
+            changeRange(a, b);
+            return;
+          }
+          // Unhandled text object -> cancel
+          pendingOpRef.current = null;
+          return;
+        }
       }
 
       switch (key) {
@@ -339,6 +455,19 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
           }
           return;
         }
+        case "c": {
+          e.preventDefault();
+          // Start a change operator pending state
+          pendingOpRef.current = { op: "c", at: now, args: [] };
+          return;
+        }
+        case "C": {
+          e.preventDefault();
+          const { lineEnd } = lineBoundsAtCursor();
+          const start = withSelection().start;
+          changeRange(start, lineEnd);
+          return;
+        }
         case "y": {
           e.preventDefault();
           if (pending && pending.op === "y") {
@@ -390,6 +519,8 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
         if (e.key === "Escape" || (e.key === "[" && e.ctrlKey)) {
           e.preventDefault();
           setVimMode("normal");
+          // In normal mode, update the visual block cursor immediately
+          setTimeout(() => setCursor(withSelection().start), 0);
           return;
         }
         // Otherwise, allow browser default typing behavior
@@ -401,16 +532,40 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
     };
 
     return (
-      <StyledTextArea
-        ref={textareaRef}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onKeyDown={handleKeyDownInternal}
-        isEditing={isEditing}
-        mode={mode}
-        spellCheck={false}
-        {...rest}
-      />
+      <div style={{ position: "relative", width: "100%" }}>
+        <StyledTextArea
+          ref={textareaRef}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onKeyDown={handleKeyDownInternal}
+          isEditing={isEditing}
+          mode={mode}
+          vimMode={vimMode}
+          spellCheck={false}
+          {...rest}
+        />
+        {vimMode === "normal" && (
+          <div
+            aria-live="polite"
+            style={{
+              position: "absolute",
+              right: 8,
+              bottom: 8,
+              background: "rgba(255,255,255,0.08)",
+              border: "1px solid rgba(255,255,255,0.2)",
+              borderRadius: 3,
+              padding: "2px 6px",
+              fontSize: 10,
+              letterSpacing: 0.5,
+              color: "#d4d4d4",
+              userSelect: "none",
+              pointerEvents: "none",
+            }}
+          >
+            NORMAL
+          </div>
+        )}
+      </div>
     );
   }
 );
