@@ -8,6 +8,7 @@ import { matchesKeybind, formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
 import { abbreviatePath } from "@/utils/ui/pathAbbreviation";
 import { TooltipWrapper, Tooltip } from "./Tooltip";
 import { StatusIndicator } from "./StatusIndicator";
+import { getModelName } from "@/utils/ai/models";
 
 // Styled Components
 const SidebarContainer = styled.div<{ collapsed?: boolean }>`
@@ -358,6 +359,7 @@ interface ProjectSidebarProps {
     newName: string
   ) => Promise<{ success: boolean; error?: string }>;
   streamingStates: Map<string, boolean>;
+  streamingModels: Map<string, string>;
   collapsed: boolean;
   onToggleCollapsed: () => void;
 }
@@ -373,6 +375,7 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
   onRemoveWorkspace,
   onRenameWorkspace,
   streamingStates,
+  streamingModels,
   collapsed,
   onToggleCollapsed,
 }) => {
@@ -542,6 +545,7 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                         const workspaceId = metadata.id;
                         const displayName = getWorkspaceDisplayName(workspace.path);
                         const isStreaming = streamingStates.get(workspaceId) ?? false;
+                        const streamingModel = streamingModels.get(workspaceId) ?? "";
                         const isEditing = editingWorkspaceId === workspaceId;
 
                         return (
@@ -559,7 +563,9 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                           >
                             <WorkspaceStatusIndicator
                               streaming={isStreaming}
-                              title={isStreaming ? "Streaming..." : "Idle"}
+                              title={
+                                isStreaming ? `${getModelName(streamingModel)} streaming` : "Idle"
+                              }
                             />
                             <BranchIcon>⎇</BranchIcon>
                             {isEditing ? (

@@ -13,6 +13,7 @@ import { matchesKeybind, formatKeybind, KEYBINDS, isEditableElement } from "@/ut
 import { useAutoScroll } from "@/hooks/useAutoScroll";
 import type { WorkspaceState } from "@/hooks/useWorkspaceAggregators";
 import { StatusIndicator } from "./StatusIndicator";
+import { getModelName } from "@/utils/ai/models";
 
 const ViewContainer = styled.div`
   flex: 1;
@@ -274,7 +275,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
             <WorkspaceTitle>
               <StatusIndicator
                 streaming={canInterrupt}
-                title={canInterrupt ? "Streaming..." : "Idle"}
+                title={canInterrupt ? `${getModelName(currentModel)} streaming` : "Idle"}
               />
               {projectName} / {branch}
             </WorkspaceTitle>
@@ -314,7 +315,11 @@ const AIViewInner: React.FC<AIViewProps> = ({
               )}
               {canInterrupt && (
                 <StreamingBarrier
-                  text={isCompacting ? "compacting... hit Esc to cancel" : undefined}
+                  text={
+                    isCompacting
+                      ? "compacting... hit Esc to cancel"
+                      : `${getModelName(currentModel)} streaming... hit Esc to cancel`
+                  }
                 />
               )}
             </OutputContent>

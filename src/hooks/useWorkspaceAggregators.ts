@@ -305,5 +305,6 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
   return {
     getWorkspaceState,
     streamingStates,
+    streamingModels: currentModels,
   };
 }
