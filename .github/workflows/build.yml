@@ -34,6 +34,9 @@ jobs:
         run: |
           echo "Certificate length: ${#MACOS_CERTIFICATE}"
           echo "First 50 chars: ${MACOS_CERTIFICATE:0:50}"
+          echo "Last 50 chars: ${MACOS_CERTIFICATE: -50}"
+          echo "Contains newlines: $(echo "$MACOS_CERTIFICATE" | grep -c $'\n' || echo 0)"
+          echo "Contains spaces: $(echo "$MACOS_CERTIFICATE" | grep -c ' ' || echo 0)"
           echo ""
           echo "Attempting to decode and check format..."
           if echo "$MACOS_CERTIFICATE" | base64 --decode > /tmp/test.p12 2>&1; then
