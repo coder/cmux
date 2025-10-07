@@ -57,11 +57,13 @@ jobs:
           fi
 
       - name: Package for macOS
-        env:
-          CSC_LINK: ${{ secrets.MACOS_CERTIFICATE && format('base64:{0}', secrets.MACOS_CERTIFICATE) || '' }}
-          CSC_KEY_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
-          CSC_FOR_PULL_REQUEST: ${{ github.event_name == 'pull_request' && github.head_ref == 'debug-cert-format' && 'true' || '' }}
-        run: bun run dist:mac
+        run: |
+          # Strip newlines from certificate before passing to electron-builder
+          CERT_NO_NEWLINES=$(echo "${{ secrets.MACOS_CERTIFICATE }}" | tr -d '\n')
+          export CSC_LINK="base64:${CERT_NO_NEWLINES}"
+          export CSC_KEY_PASSWORD="${{ secrets.MACOS_CERTIFICATE_PWD }}"
+          export CSC_FOR_PULL_REQUEST="${{ github.event_name == 'pull_request' && github.head_ref == 'debug-cert-format' && 'true' || '' }}"
+          bun run dist:mac
 
       - name: Upload macOS DMG
         uses: actions/upload-artifact@v4
