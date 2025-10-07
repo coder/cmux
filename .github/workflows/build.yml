@@ -34,6 +34,17 @@ jobs:
             export CSC_LINK="/tmp/certificate.p12"
             export CSC_KEY_PASSWORD="${{ secrets.MACOS_CERTIFICATE_PWD }}"
           fi
+          
+          # Notarization credentials (optional - will skip if not provided)
+          if [ -n "${{ secrets.APPLE_ID }}" ]; then
+            export APPLE_ID="${{ secrets.APPLE_ID }}"
+            export APPLE_APP_SPECIFIC_PASSWORD="${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}"
+            export APPLE_TEAM_ID="${{ secrets.APPLE_TEAM_ID }}"
+            echo "✅ Notarization credentials found - will notarize"
+          else
+            echo "⚠️  No notarization credentials - skipping notarization"
+          fi
+          
           bun run dist:mac
 
       - name: Upload macOS DMG (x64)
