@@ -1,0 +1,2 @@
+export const BASH_DEFAULT_MAX_LINES = 1000;
+export const BASH_HARD_MAX_LINES = 1000;

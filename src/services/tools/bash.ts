@@ -3,6 +3,8 @@ import { spawn } from "child_process";
 import type { ChildProcess } from "child_process";
 import { createInterface } from "readline";
 import * as path from "path";
+import { BASH_DEFAULT_MAX_LINES, BASH_HARD_MAX_LINES } from "@/constants/toolLimits";
+
 import type { BashToolResult } from "@/types/tools";
 import type { ToolConfiguration, ToolFactory } from "@/utils/tools/tools";
 import { TOOL_DEFINITIONS } from "@/utils/tools/toolDefinitions";
@@ -34,10 +36,12 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
     description: TOOL_DEFINITIONS.bash.description + "\nRuns in " + config.cwd + " - no cd needed",
     inputSchema: TOOL_DEFINITIONS.bash.schema,
     execute: async (
-      { script, timeout_secs, max_lines, stdin },
+      { script, timeout_secs, max_lines = BASH_DEFAULT_MAX_LINES, stdin },
       { abortSignal }
     ): Promise<BashToolResult> => {
       const startTime = performance.now();
+      const normalizedMaxLines = Math.max(1, Math.floor(max_lines));
+      const effectiveMaxLines = Math.min(normalizedMaxLines, BASH_HARD_MAX_LINES);
 
       // Detect redundant cd to working directory
       // Match patterns like: "cd /path &&", "cd /path;", "cd '/path' &&", "cd \"/path\" &&"
@@ -129,8 +133,8 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
         stdoutReader.on("line", (line) => {
           if (!truncated && !resolved) {
             lines.push(line);
-            // Check if we've exceeded max_lines
-            if (lines.length >= max_lines) {
+            // Check if we've exceeded the effective max_lines limit
+            if (lines.length >= effectiveMaxLines) {
               truncated = true;
               // Close readline interfaces before killing to ensure clean shutdown
               stdoutReader.close();
@@ -143,8 +147,8 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
         stderrReader.on("line", (line) => {
           if (!truncated && !resolved) {
             lines.push(line);
-            // Check if we've exceeded max_lines
-            if (lines.length >= max_lines) {
+            // Check if we've exceeded the effective max_lines limit
+            if (lines.length >= effectiveMaxLines) {
               truncated = true;
               // Close readline interfaces before killing to ensure clean shutdown
               stdoutReader.close();
