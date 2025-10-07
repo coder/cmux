@@ -47,12 +47,14 @@ When documentation shows `Ctrl`, it means:
 
 ## Interface
 
-| Action         | Shortcut       |
-| -------------- | -------------- |
-| Toggle sidebar | `Ctrl+Shift+P` |
+| Action               | Shortcut       |
+| -------------------- | -------------- |
+| Open command palette | `Ctrl+Shift+P` |
+| Toggle sidebar       | `Ctrl+P`       |
 
 ## Tips
 
 - **Vim-inspired navigation**: We use `J`/`K` for next/previous navigation, similar to Vim
+- **VS Code conventions**: Command palette is `Ctrl+Shift+P` and quick toggle is `Ctrl+P` (use `⌘` on macOS)
 - **Consistent modifiers**: Most workspace/project operations use `Ctrl` as the modifier
 - **Natural expectations**: We try to use shortcuts users would naturally expect (e.g., `Ctrl+N` for new)

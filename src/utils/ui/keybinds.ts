@@ -21,7 +21,16 @@ export interface Keybind {
  * Detect if running on macOS
  */
 export function isMac(): boolean {
-  return window.api.platform === "darwin";
+  try {
+    if (typeof window === "undefined") return false;
+    interface MinimalAPI {
+      platform: string;
+    }
+    const api = (window as unknown as { api?: MinimalAPI }).api;
+    return api?.platform === "darwin";
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -146,11 +155,18 @@ export const KEYBINDS = {
   PREV_WORKSPACE: { key: "k", ctrl: true },
 
   /** Toggle sidebar visibility */
-  TOGGLE_SIDEBAR: { key: "P", ctrl: true, shift: true },
+  // VS Code-style quick toggle
+  // macOS: Cmd+P, Win/Linux: Ctrl+P
+  TOGGLE_SIDEBAR: { key: "P", ctrl: true },
 
   /** Open model selector */
   OPEN_MODEL_SELECTOR: { key: "/", ctrl: true },
 
   /** Open workspace in terminal */
   OPEN_TERMINAL: { key: "t", ctrl: true },
+
+  /** Open Command Palette */
+  // VS Code-style palette
+  // macOS: Cmd+Shift+P, Win/Linux: Ctrl+Shift+P
+  OPEN_COMMAND_PALETTE: { key: "P", ctrl: true, shift: true },
 } as const;

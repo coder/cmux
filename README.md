@@ -33,3 +33,4 @@ See [AGENTS.md](./AGENTS.md) for development setup and guidelines.
 - 📦 Multi-project management
 - 💬 Persistent session history
 - ⌨️ Keyboard-first interface
+  - Command Palette (`Cmd+Shift+P` / `Ctrl+Shift+P`)
