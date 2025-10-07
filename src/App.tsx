@@ -15,6 +15,7 @@ import { matchesKeybind, KEYBINDS } from "./utils/ui/keybinds";
 import { useProjectManagement } from "./hooks/useProjectManagement";
 import { useWorkspaceManagement } from "./hooks/useWorkspaceManagement";
 import { useWorkspaceAggregators } from "./hooks/useWorkspaceAggregators";
+import { useGitStatus } from "./hooks/useGitStatus";
 
 // Global Styles with nice fonts
 const globalStyles = css`
@@ -170,7 +171,10 @@ function App() {
     });
 
   // Use workspace aggregators hook for message state
-  const { getWorkspaceState, streamingModels } = useWorkspaceAggregators(workspaceMetadata);
+  const { getWorkspaceState } = useWorkspaceAggregators(workspaceMetadata);
+
+  // Enrich workspace metadata with git status
+  const displayedWorkspaceMetadata = useGitStatus(workspaceMetadata);
 
   const handleRemoveProject = async (path: string) => {
     // Clear selected workspace if it belongs to the removed project
@@ -258,7 +262,7 @@ function App() {
       <AppContainer>
         <ProjectSidebar
           projects={projects}
-          workspaceMetadata={workspaceMetadata}
+          workspaceMetadata={displayedWorkspaceMetadata}
           selectedWorkspace={selectedWorkspace}
           onSelectWorkspace={setSelectedWorkspace}
           onAddProject={() => void addProject()}
@@ -266,7 +270,7 @@ function App() {
           onRemoveProject={(path) => void handleRemoveProject(path)}
           onRemoveWorkspace={removeWorkspace}
           onRenameWorkspace={renameWorkspace}
-          streamingModels={streamingModels}
+          getWorkspaceState={getWorkspaceState}
           collapsed={sidebarCollapsed}
           onToggleCollapsed={() => setSidebarCollapsed((prev) => !prev)}
         />
@@ -285,6 +289,10 @@ function App() {
                   projectName={selectedWorkspace.projectName}
                   branch={selectedWorkspace.workspacePath.split("/").pop() ?? ""}
                   workspaceState={getWorkspaceState(selectedWorkspace.workspaceId)}
+                  gitStatus={
+                    displayedWorkspaceMetadata.get(selectedWorkspace.workspacePath)?.gitStatus ??
+                    null
+                  }
                 />
               </ErrorBoundary>
             ) : (

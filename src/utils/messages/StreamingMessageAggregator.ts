@@ -23,6 +23,7 @@ interface StreamingContext {
   startTime: number;
   isComplete: boolean;
   isCompacting: boolean;
+  model: string;
 }
 
 /**
@@ -101,6 +102,24 @@ export class StreamingMessageAggregator {
     return false;
   }
 
+  getCurrentModel(): string | undefined {
+    // If there's an active stream, return its model
+    for (const context of this.activeStreams.values()) {
+      return context.model;
+    }
+
+    // Otherwise, return the model from the most recent assistant message
+    const messages = this.getAllMessages();
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const message = messages[i];
+      if (message.role === "assistant" && message.metadata?.model) {
+        return message.metadata.model;
+      }
+    }
+
+    return undefined;
+  }
+
   clearActiveStreams(): void {
     this.activeStreams.clear();
   }
@@ -146,6 +165,7 @@ export class StreamingMessageAggregator {
       startTime: Date.now(),
       isComplete: false,
       isCompacting,
+      model: data.model,
     };
 
     // Use messageId as key - ensures only ONE stream per message

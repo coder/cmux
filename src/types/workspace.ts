@@ -34,6 +34,25 @@ export interface WorkspaceMetadata {
 export type WorkspaceMetadataUI = WorkspaceMetadata;
 
 /**
+ * Git status for a workspace (ahead/behind relative to origin's primary branch)
+ */
+export interface GitStatus {
+  ahead: number;
+  behind: number;
+  /** Whether there are uncommitted changes (staged or unstaged) */
+  dirty: boolean;
+}
+
+/**
+ * Frontend-enriched workspace metadata with additional UI-specific data.
+ * Extends backend WorkspaceMetadata with frontend-computed information.
+ */
+export interface DisplayedWorkspaceMetadata extends WorkspaceMetadata {
+  /** Git status relative to origin's primary branch (null if not available) */
+  gitStatus: GitStatus | null;
+}
+
+/**
  * Event emitted when workspace metadata changes
  */
 export interface WorkspaceMetadataUpdate {

@@ -2,13 +2,15 @@ import React, { useState, useEffect } from "react";
 import styled from "@emotion/styled";
 import { css } from "@emotion/react";
 import type { ProjectConfig } from "@/config";
-import type { WorkspaceMetadata } from "@/types/workspace";
+import type { DisplayedWorkspaceMetadata } from "@/types/workspace";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { matchesKeybind, formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
 import { abbreviatePath } from "@/utils/ui/pathAbbreviation";
 import { TooltipWrapper, Tooltip } from "./Tooltip";
 import { StatusIndicator } from "./StatusIndicator";
 import { getModelName } from "@/utils/ai/models";
+import { GitStatusIndicator } from "./GitStatusIndicator";
+import type { WorkspaceState } from "@/hooks/useWorkspaceAggregators";
 
 // Styled Components
 const SidebarContainer = styled.div<{ collapsed?: boolean }>`
@@ -280,12 +282,6 @@ const WorkspaceItem = styled.div<{ selected?: boolean }>`
   }
 `;
 
-const BranchIcon = styled.span`
-  color: #569cd6;
-  margin-right: 8px;
-  font-size: 14px;
-`;
-
 const WorkspaceName = styled.span`
   flex: 1;
   color: #ccc;
@@ -347,7 +343,7 @@ export interface WorkspaceSelection {
 
 interface ProjectSidebarProps {
   projects: Map<string, ProjectConfig>;
-  workspaceMetadata: Map<string, WorkspaceMetadata>;
+  workspaceMetadata: Map<string, DisplayedWorkspaceMetadata>;
   selectedWorkspace: WorkspaceSelection | null;
   onSelectWorkspace: (selection: WorkspaceSelection) => void;
   onAddProject: () => void;
@@ -358,7 +354,7 @@ interface ProjectSidebarProps {
     workspaceId: string,
     newName: string
   ) => Promise<{ success: boolean; error?: string }>;
-  streamingModels: Map<string, string>;
+  getWorkspaceState: (workspaceId: string) => WorkspaceState;
   collapsed: boolean;
   onToggleCollapsed: () => void;
 }
@@ -373,7 +369,7 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
   onRemoveProject,
   onRemoveWorkspace,
   onRenameWorkspace,
-  streamingModels,
+  getWorkspaceState,
   collapsed,
   onToggleCollapsed,
 }) => {
@@ -542,8 +538,9 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
 
                         const workspaceId = metadata.id;
                         const displayName = getWorkspaceDisplayName(workspace.path);
-                        const streamingModel = streamingModels.get(workspaceId);
-                        const isStreaming = streamingModel !== undefined;
+                        const workspaceState = getWorkspaceState(workspaceId);
+                        const isStreaming = workspaceState.canInterrupt;
+                        const streamingModel = workspaceState.currentModel;
                         const isEditing = editingWorkspaceId === workspaceId;
 
                         return (
@@ -567,7 +564,11 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                                   : "Idle"
                               }
                             />
-                            <BranchIcon>⎇</BranchIcon>
+                            <GitStatusIndicator
+                              gitStatus={metadata.gitStatus}
+                              workspaceId={workspaceId}
+                              tooltipPosition="right"
+                            />
                             {isEditing ? (
                               <WorkspaceNameInput
                                 value={editingName}

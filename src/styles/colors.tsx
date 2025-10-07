@@ -115,6 +115,9 @@ export const GlobalColors = () => (
         --color-interrupted: hsl(38 92% 50%); /* #f59e0b */
         --color-interrupted-alpha: hsl(from var(--color-interrupted) h s l / 0.3);
 
+        /* Git Dirty/Uncommitted Changes Colors */
+        --color-git-dirty: hsl(38 92% 50%); /* Same as interrupted - orange warning color */
+
         /* Error Colors */
         --color-error: hsl(0 70% 50%); /* Red for errors */
         --color-error-alpha: hsl(from var(--color-error) h s l / 0.1);
