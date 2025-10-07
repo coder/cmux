@@ -36,7 +36,7 @@ export function getLinesInfo(text: string): LinesInfo {
  * Convert index to (row, col) coordinates.
  */
 export function getRowCol(text: string, idx: number): { row: number; col: number } {
-  const { lines, starts } = getLinesInfo(text);
+  const { starts } = getLinesInfo(text);
   let row = 0;
   while (row + 1 < starts.length && starts[row + 1] <= idx) row++;
   const col = idx - starts[row];
@@ -182,7 +182,7 @@ export function deleteCharUnderCursor(
 export function deleteLine(
   text: string,
   cursor: number,
-  yankBuffer: string
+  _yankBuffer: string
 ): { text: string; cursor: number; yankBuffer: string } {
   const { lineStart, lineEnd } = getLineBounds(text, cursor);
   const isLastLine = lineEnd === text.length;
@@ -268,9 +268,9 @@ export function changeRange(
   text: string,
   from: number,
   to: number,
-  yankBuffer: string
+  _yankBuffer: string
 ): { text: string; cursor: number; yankBuffer: string } {
-  return deleteRange(text, from, to, true, yankBuffer);
+  return deleteRange(text, from, to, true, _yankBuffer);
 }
 
 /**

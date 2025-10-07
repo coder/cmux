@@ -66,9 +66,9 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
     // Expose DOM ref to parent
     useEffect(() => {
       if (!ref) return;
-      if (typeof ref === "function") ref(textareaRef.current as HTMLTextAreaElement);
+      if (typeof ref === "function") ref(textareaRef.current);
       else
-        (ref as React.MutableRefObject<HTMLTextAreaElement | null>).current = textareaRef.current;
+        (ref).current = textareaRef.current;
     }, [ref]);
 
     const [vimMode, setVimMode] = useState<VimMode>("insert");
@@ -166,12 +166,12 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
 
     const handleUndo = () => {
       // Use browser's editing history (supported in Chromium)
-      // eslint-disable-next-line deprecation/deprecation
+       
       document.execCommand("undo");
     };
 
     const handleRedo = () => {
-      // eslint-disable-next-line deprecation/deprecation
+       
       document.execCommand("redo");
     };
 
@@ -331,14 +331,18 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
           e.preventDefault();
           moveVert(-1);
           return;
-        case "0":
+        case "0": {
           e.preventDefault();
-          setCursor(lineBoundsAtCursor().lineStart);
+          const { lineStart } = vim.getLineBounds(value, withSelection().start);
+          setCursor(lineStart);
           return;
-        case "$":
+        }
+        case "$": {
           e.preventDefault();
-          setCursor(lineBoundsAtCursor().lineEnd);
+          const { lineEnd } = vim.getLineBounds(value, withSelection().start);
+          setCursor(lineEnd);
           return;
+        }
         case "w":
           e.preventDefault();
           moveWordForward();
@@ -369,9 +373,9 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
         }
         case "C": {
           e.preventDefault();
-          const { lineEnd } = lineBoundsAtCursor();
-          const start = withSelection().start;
-          changeRange(start, lineEnd);
+          const cursor = withSelection().start;
+          const result = vim.changeToEndOfLine(value, cursor, yankBufferRef.current);
+          applyEditAndEnterInsert(result);
           return;
         }
         case "y": {
