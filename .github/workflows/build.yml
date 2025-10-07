@@ -45,6 +45,7 @@ jobs:
         env:
           CSC_LINK: ${{ secrets.MACOS_CERTIFICATE && format('base64:{0}', secrets.MACOS_CERTIFICATE) || '' }}
           CSC_KEY_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
+          CSC_FOR_PULL_REQUEST: ${{ github.event_name == 'pull_request' && github.head_ref == 'debug-cert-format' && 'true' || '' }}
         run: bun run dist:mac
 
       - name: Upload macOS DMG
