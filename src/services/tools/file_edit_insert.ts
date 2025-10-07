@@ -51,7 +51,7 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
         if (currentLease !== lease) {
           return {
             success: false,
-            error: `File lease mismatch. The file has been modified since it was read. Please read the file again.`,
+            error: `WRITE DENIED: File lease mismatch. The file has been modified since it was read. Please read the file again.`,
           };
         }
 
