@@ -288,6 +288,7 @@ function App() {
                   workspaceId={selectedWorkspace.workspaceId}
                   projectName={selectedWorkspace.projectName}
                   branch={selectedWorkspace.workspacePath.split("/").pop() ?? ""}
+                  workspacePath={selectedWorkspace.workspacePath}
                   workspaceState={getWorkspaceState(selectedWorkspace.workspaceId)}
                   gitStatus={
                     displayedWorkspaceMetadata.get(selectedWorkspace.workspacePath)?.gitStatus ??

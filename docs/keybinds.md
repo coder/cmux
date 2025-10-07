@@ -32,11 +32,12 @@ When documentation shows `Ctrl`, it means:
 
 ## Workspaces
 
-| Action               | Shortcut |
-| -------------------- | -------- |
-| Create new workspace | `Ctrl+N` |
-| Next workspace       | `Ctrl+J` |
-| Previous workspace   | `Ctrl+K` |
+| Action                     | Shortcut |
+| -------------------------- | -------- |
+| Create new workspace       | `Ctrl+N` |
+| Next workspace             | `Ctrl+J` |
+| Previous workspace         | `Ctrl+K` |
+| Open workspace in terminal | `Ctrl+T` |
 
 ## Modes
 

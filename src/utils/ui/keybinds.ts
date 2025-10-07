@@ -147,4 +147,7 @@ export const KEYBINDS = {
 
   /** Open model selector */
   OPEN_MODEL_SELECTOR: { key: "/", ctrl: true },
+
+  /** Open workspace in terminal */
+  OPEN_TERMINAL: { key: "t", ctrl: true },
 } as const;

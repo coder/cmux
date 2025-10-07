@@ -178,6 +178,7 @@ export interface IPCApi {
       script: string,
       options?: { timeout_secs?: number; max_lines?: number; stdin?: string }
     ): Promise<Result<BashToolResult, string>>;
+    openTerminal(workspacePath: string): Promise<void>;
 
     // Event subscriptions (renderer-only)
     // These methods are designed to send current state immediately upon subscription,

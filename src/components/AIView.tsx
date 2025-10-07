@@ -16,6 +16,7 @@ import { StatusIndicator } from "./StatusIndicator";
 import { getModelName } from "@/utils/ai/models";
 import { GitStatusIndicator } from "./GitStatusIndicator";
 import type { GitStatus } from "@/types/workspace";
+import { TooltipWrapper, Tooltip } from "./Tooltip";
 
 const ViewContainer = styled.div`
   flex: 1;
@@ -37,7 +38,7 @@ const ChatArea = styled.div`
 `;
 
 const ViewHeader = styled.div`
-  padding: 10px 15px;
+  padding: 4px 15px;
   background: #252526;
   border-bottom: 1px solid #3e3e42;
   display: flex;
@@ -51,6 +52,34 @@ const WorkspaceTitle = styled.div`
   display: flex;
   align-items: center;
   gap: 8px;
+`;
+
+const WorkspacePath = styled.span`
+  font-family: var(--font-monospace);
+  color: #888;
+  font-weight: 400;
+  font-size: 11px;
+`;
+
+const TerminalIconButton = styled.button`
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #888;
+  transition: color 0.2s;
+
+  &:hover {
+    color: #ccc;
+  }
+
+  svg {
+    width: 16px;
+    height: 16px;
+  }
 `;
 
 const OutputContainer = styled.div`
@@ -142,6 +171,7 @@ interface AIViewProps {
   workspaceId: string;
   projectName: string;
   branch: string;
+  workspacePath: string;
   workspaceState: WorkspaceState;
   gitStatus: GitStatus | null;
   className?: string;
@@ -151,6 +181,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
   workspaceId,
   projectName,
   branch,
+  workspacePath,
   workspaceState,
   gitStatus,
   className,
@@ -221,6 +252,10 @@ const AIViewInner: React.FC<AIViewProps> = ({
     []
   );
 
+  const handleOpenTerminal = useCallback(() => {
+    void window.api.workspace.openTerminal(workspacePath);
+  }, [workspacePath]);
+
   // Scroll to bottom when workspace loads or changes
   useEffect(() => {
     if (!loading && messages.length > 0) {
@@ -243,12 +278,15 @@ const AIViewInner: React.FC<AIViewProps> = ({
       if (matchesKeybind(e, KEYBINDS.JUMP_TO_BOTTOM)) {
         e.preventDefault();
         jumpToBottom();
+      } else if (matchesKeybind(e, KEYBINDS.OPEN_TERMINAL)) {
+        e.preventDefault();
+        handleOpenTerminal();
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [jumpToBottom]);
+  }, [jumpToBottom, handleOpenTerminal]);
 
   if (loading) {
     return (
@@ -287,6 +325,17 @@ const AIViewInner: React.FC<AIViewProps> = ({
                 tooltipPosition="bottom"
               />
               {projectName} / {branch}
+              <WorkspacePath>{workspacePath}</WorkspacePath>
+              <TooltipWrapper inline>
+                <TerminalIconButton onClick={handleOpenTerminal}>
+                  <svg viewBox="0 0 16 16" fill="currentColor">
+                    <path d="M0 2.75C0 1.784.784 1 1.75 1h12.5c.966 0 1.75.784 1.75 1.75v10.5A1.75 1.75 0 0114.25 15H1.75A1.75 1.75 0 010 13.25V2.75zm1.75-.25a.25.25 0 00-.25.25v10.5c0 .138.112.25.25.25h12.5a.25.25 0 00.25-.25V2.75a.25.25 0 00-.25-.25H1.75zM7.25 8a.75.75 0 01-.22.53l-2.25 2.25a.75.75 0 01-1.06-1.06L5.44 8 3.72 6.28a.75.75 0 111.06-1.06l2.25 2.25c.141.14.22.331.22.53zm1.5 1.5a.75.75 0 000 1.5h3a.75.75 0 000-1.5h-3z" />
+                  </svg>
+                </TerminalIconButton>
+                <Tooltip className="tooltip" position="bottom" align="center">
+                  Open in terminal ({formatKeybind(KEYBINDS.OPEN_TERMINAL)})
+                </Tooltip>
+              </TooltipWrapper>
             </WorkspaceTitle>
           </ViewHeader>
 

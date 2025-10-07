@@ -1,4 +1,5 @@
 import type { BrowserWindow, IpcMain as ElectronIpcMain } from "electron";
+import { spawn } from "child_process";
 import * as path from "path";
 import * as fsPromises from "fs/promises";
 import type { Config, ProjectConfig } from "@/config";
@@ -654,6 +655,38 @@ export class IpcMain {
         }
       }
     );
+
+    ipcMain.handle(IPC_CHANNELS.WORKSPACE_OPEN_TERMINAL, (_event, workspacePath: string) => {
+      try {
+        if (process.platform === "darwin") {
+          // macOS - try Ghostty first, fallback to Terminal.app
+          try {
+            spawn("open", ["-a", "Ghostty", workspacePath], { detached: true });
+          } catch {
+            spawn("open", ["-a", "Terminal", workspacePath], { detached: true });
+          }
+        } else if (process.platform === "win32") {
+          // Windows
+          spawn("cmd", ["/c", "start", "cmd", "/K", "cd", "/D", workspacePath], {
+            detached: true,
+            shell: true,
+          });
+        } else {
+          // Linux - try x-terminal-emulator, fallback to xterm
+          try {
+            spawn("x-terminal-emulator", [], {
+              cwd: workspacePath,
+              detached: true,
+            });
+          } catch {
+            spawn("xterm", [], { cwd: workspacePath, detached: true });
+          }
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        log.error(`Failed to open terminal: ${message}`);
+      }
+    });
   }
 
   private registerProviderHandlers(ipcMain: ElectronIpcMain): void {

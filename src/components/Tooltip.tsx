@@ -18,6 +18,7 @@ export const TooltipWrapper = styled.span<TooltipWrapperProps>`
 interface TooltipProps {
   align?: "left" | "center" | "right";
   width?: "auto" | "wide";
+  position?: "top" | "bottom";
 }
 
 export const Tooltip = styled.span<TooltipProps>`
@@ -30,7 +31,7 @@ export const Tooltip = styled.span<TooltipProps>`
   padding: 6px 10px;
   position: absolute;
   z-index: 9999;
-  bottom: 125%;
+  ${(props) => (props.position === "bottom" ? "top: 125%;" : "bottom: 125%;")}
   ${(props) => {
     if (props.align === "right") return "right: 0;";
     if (props.align === "left") return "left: 0;";
@@ -49,7 +50,7 @@ export const Tooltip = styled.span<TooltipProps>`
   &::after {
     content: "";
     position: absolute;
-    top: 100%;
+    ${(props) => (props.position === "bottom" ? "bottom: 100%;" : "top: 100%;")}
     ${(props) => {
       if (props.align === "right") return "right: 10px;";
       if (props.align === "left") return "left: 10px;";
@@ -57,7 +58,10 @@ export const Tooltip = styled.span<TooltipProps>`
     }}
     border-width: 5px;
     border-style: solid;
-    border-color: #2d2d30 transparent transparent transparent;
+    ${(props) =>
+      props.position === "bottom"
+        ? "border-color: transparent transparent #2d2d30 transparent;"
+        : "border-color: #2d2d30 transparent transparent transparent;"}
   }
 `;
 
