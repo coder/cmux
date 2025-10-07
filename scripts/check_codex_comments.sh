@@ -8,36 +8,66 @@ if [ $# -eq 0 ]; then
 fi
 
 PR_NUMBER=$1
-BOT_LOGIN="chatgpt-codex-connector[bot]"
+BOT_LOGIN_REST="chatgpt-codex-connector[bot]"  # REST API uses [bot] suffix
+BOT_LOGIN_GRAPHQL="chatgpt-codex-connector"    # GraphQL does not
 
 echo "Checking for unresolved Codex comments in PR #${PR_NUMBER}..."
 
-# Get all comments from the Codex bot
-# This includes both regular PR comments and review comments
+# Get all regular issue comments from the Codex bot (these can't be resolved)
 REGULAR_COMMENTS=$(gh api "/repos/{owner}/{repo}/issues/${PR_NUMBER}/comments" \
-    --jq "[.[] | select(.user.login == \"${BOT_LOGIN}\")]")
+    --jq "[.[] | select(.user.login == \"${BOT_LOGIN_REST}\")]")
 
-REVIEW_COMMENTS=$(gh api "/repos/{owner}/{repo}/pulls/${PR_NUMBER}/comments" \
-    --jq "[.[] | select(.user.login == \"${BOT_LOGIN}\")]")
-
-# Count regular comments (these are always considered unresolved unless deleted)
 REGULAR_COUNT=$(echo "$REGULAR_COMMENTS" | jq 'length')
 
-# For review comments, GitHub doesn't expose a direct "resolved" field via the API
-# However, we can check the review thread state via GraphQL
-# For simplicity, we'll check if there are any review comments at all
-REVIEW_COUNT=$(echo "$REVIEW_COMMENTS" | jq 'length')
+# Use GraphQL to get review threads and their resolution status
+# Only count threads from the bot that are NOT resolved
+GRAPHQL_QUERY='query($owner: String!, $repo: String!, $pr: Int!) {
+  repository(owner: $owner, name: $repo) {
+    pullRequest(number: $pr) {
+      reviewThreads(first: 100) {
+        nodes {
+          isResolved
+          comments(first: 1) {
+            nodes {
+              author {
+                login
+              }
+              body
+              createdAt
+              path
+              line
+            }
+          }
+        }
+      }
+    }
+  }
+}'
 
-echo "Found ${REGULAR_COUNT} regular comment(s) from ${BOT_LOGIN}"
-echo "Found ${REVIEW_COUNT} review comment(s) from ${BOT_LOGIN}"
+# Extract owner and repo from gh cli
+REPO_INFO=$(gh repo view --json owner,name --jq '{owner: .owner.login, name: .name}')
+OWNER=$(echo "$REPO_INFO" | jq -r '.owner')
+REPO=$(echo "$REPO_INFO" | jq -r '.name')
 
-# If there are any comments from Codex, we consider them unresolved
-# (unless they're explicitly marked as resolved or deleted)
-TOTAL_COMMENTS=$((REGULAR_COUNT + REVIEW_COUNT))
+# Query for unresolved review threads from the bot
+UNRESOLVED_THREADS=$(gh api graphql \
+    -f query="$GRAPHQL_QUERY" \
+    -F owner="$OWNER" \
+    -F repo="$REPO" \
+    -F pr="$PR_NUMBER" \
+    --jq "[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false and .comments.nodes[0].author.login == \"${BOT_LOGIN_GRAPHQL}\")]")
 
-if [ $TOTAL_COMMENTS -gt 0 ]; then
+UNRESOLVED_COUNT=$(echo "$UNRESOLVED_THREADS" | jq 'length')
+
+echo "Found ${REGULAR_COUNT} regular comment(s) from bot"
+echo "Found ${UNRESOLVED_COUNT} unresolved review thread(s) from bot"
+
+# If there are any unresolved comments or threads from Codex, fail
+TOTAL_UNRESOLVED=$((REGULAR_COUNT + UNRESOLVED_COUNT))
+
+if [ $TOTAL_UNRESOLVED -gt 0 ]; then
     echo ""
-    echo "❌ Found ${TOTAL_COMMENTS} comment(s) from ${BOT_LOGIN} in PR #${PR_NUMBER}"
+    echo "❌ Found ${TOTAL_UNRESOLVED} unresolved comment(s) from Codex in PR #${PR_NUMBER}"
     echo ""
     echo "Codex comments:"
     
@@ -45,8 +75,8 @@ if [ $TOTAL_COMMENTS -gt 0 ]; then
         echo "$REGULAR_COMMENTS" | jq -r '.[] | "  - [\(.created_at)] \(.body[0:100] | gsub("\n"; " "))..."'
     fi
     
-    if [ $REVIEW_COUNT -gt 0 ]; then
-        echo "$REVIEW_COMMENTS" | jq -r '.[] | "  - [\(.created_at)] \(.path):\(.line) - \(.body[0:100] | gsub("\n"; " "))..."'
+    if [ $UNRESOLVED_COUNT -gt 0 ]; then
+        echo "$UNRESOLVED_THREADS" | jq -r '.[] | "  - [\(.comments.nodes[0].createdAt)] \(.comments.nodes[0].path // "comment"):\(.comments.nodes[0].line // "") - \(.comments.nodes[0].body[0:100] | gsub("\n"; " "))..."'
     fi
     
     echo ""
