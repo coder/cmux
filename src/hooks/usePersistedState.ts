@@ -47,6 +47,28 @@ export function usePersistedState<T>(
     }
   });
 
+  // Re-initialize state when key changes (e.g., when switching workspaces)
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.localStorage) {
+      return;
+    }
+
+    try {
+      const storedValue = window.localStorage.getItem(key);
+      if (storedValue === null || storedValue === "undefined") {
+        setState(initialValue);
+        return;
+      }
+
+      const parsedValue = JSON.parse(storedValue) as T;
+      setState(parsedValue);
+    } catch (error) {
+      console.warn(`Error reading localStorage key "${key}" on key change:`, error);
+      setState(initialValue);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]); // Only depend on key, not initialValue (to avoid infinite loops)
+
   // Enhanced setState that supports functional updates
   const setPersistedState = useCallback(
     (value: SetValue<T>) => {
