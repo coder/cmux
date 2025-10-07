@@ -1,5 +1,7 @@
 # Introduction
 
+![cmux product screenshot](img/product-hero.webp)
+
 **cmux** (Coding Agent Multiplexer) is a cross-platform desktop application for AI-assisted development with git worktree integration.
 
 ## What is cmux?

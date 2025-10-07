@@ -3,6 +3,8 @@
 [![CI](https://github.com/coder/cmux/actions/workflows/ci.yml/badge.svg)](https://github.com/coder/cmux/actions/workflows/ci.yml)
 [![Build](https://github.com/coder/cmux/actions/workflows/build.yml/badge.svg)](https://github.com/coder/cmux/actions/workflows/build.yml)
 
+![cmux product screenshot](docs/img/product-hero.webp)
+
 A cross-platform desktop application for embarassingly parallel development.
 
 ## Documentation
