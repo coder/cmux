@@ -1,4 +1,5 @@
 import modelsData from "./models.json";
+import { modelsExtra } from "./models-extra";
 
 export interface ModelStats {
   max_input_tokens: number;
@@ -34,7 +35,14 @@ function extractModelName(modelString: string): string {
  */
 export function getModelStats(modelString: string): ModelStats | null {
   const modelName = extractModelName(modelString);
-  const data = (modelsData as Record<string, RawModelData>)[modelName];
+
+  // Check main models.json first
+  let data = (modelsData as Record<string, RawModelData>)[modelName];
+
+  // Fall back to models-extra.ts if not found
+  if (!data) {
+    data = (modelsExtra as Record<string, RawModelData>)[modelName];
+  }
 
   if (!data) {
     return null;
