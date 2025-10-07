@@ -10,21 +10,41 @@ import type { CmuxMessage } from "@/types/message";
  * Filter out assistant messages that only contain reasoning parts (no text or tool parts).
  * These messages are invalid for the API and provide no value to the model.
  * This happens when a message is interrupted during thinking before producing any text.
+ * 
+ * Also strips reasoning parts from OpenAI messages to prevent orphaned reasoning items.
+ * OpenAI's Responses API creates separate reasoning items with IDs that must be properly
+ * linked. When reasoning parts come from history, they cause "reasoning without following item" errors.
  */
 export function filterEmptyAssistantMessages(messages: CmuxMessage[]): CmuxMessage[] {
-  return messages.filter((msg) => {
-    // Keep all non-assistant messages
-    if (msg.role !== "assistant") {
-      return true;
-    }
+  return messages
+    .map((msg) => {
+      // Only process assistant messages
+      if (msg.role !== "assistant") {
+        return msg;
+      }
 
-    // Keep assistant messages that have at least one text or tool part
-    const hasContent = msg.parts.some(
-      (part) => (part.type === "text" && part.text) || part.type === "dynamic-tool"
-    );
+      // Strip reasoning parts - they should never be sent back to the API
+      // Reasoning is only for display/debugging, not for model context
+      const filteredParts = msg.parts.filter((part) => part.type !== "reasoning");
 
-    return hasContent;
-  });
+      return {
+        ...msg,
+        parts: filteredParts,
+      };
+    })
+    .filter((msg) => {
+      // Keep all non-assistant messages
+      if (msg.role !== "assistant") {
+        return true;
+      }
+
+      // Keep assistant messages that have at least one text or tool part
+      const hasContent = msg.parts.some(
+        (part) => (part.type === "text" && part.text) || part.type === "dynamic-tool"
+      );
+
+      return hasContent;
+    });
 }
 
 /**
