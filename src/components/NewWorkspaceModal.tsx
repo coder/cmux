@@ -201,8 +201,8 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
   const projectName = projectPath.split("/").pop() ?? projectPath.split("\\").pop() ?? "project";
 
   return (
-    <ModalOverlay onClick={handleCancel}>
-      <ModalContent onClick={(e) => e.stopPropagation()}>
+    <ModalOverlay>
+      <ModalContent>
         <h2>New Workspace</h2>
         <ModalSubtitle>Create a new workspace for {projectName}</ModalSubtitle>
 
