@@ -1,6 +1,7 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import styled from "@emotion/styled";
 import type { UIMode } from "@/types/mode";
+import * as vim from "@/utils/vim";
 
 /**
  * VimTextArea – minimal Vim-like editing for a textarea.
@@ -57,7 +58,7 @@ const StyledTextArea = styled.textarea<{
   }
 `;
 
-type VimMode = "insert" | "normal";
+type VimMode = vim.VimMode;
 
 export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProps>(
   ({ value, onChange, mode, isEditing, suppressKeys, onKeyDown, ...rest }, ref) => {
@@ -91,18 +92,10 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
       return { start: el.selectionStart, end: el.selectionEnd };
     };
 
-    const lineEndAtIndex = (idx: number) => {
-      const { lines, starts } = getLinesInfo();
-      let row = 0;
-      while (row + 1 < starts.length && starts[row + 1] <= idx) row++;
-      const lineEnd = starts[row] + lines[row].length;
-      return lineEnd;
-    };
-
     const setCursor = (pos: number) => {
       const el = textareaRef.current!;
       const p = Math.max(0, Math.min(value.length, pos));
-      const lineEnd = lineEndAtIndex(p);
+      const lineEnd = vim.lineEndAtIndex(value, p);
       el.selectionStart = p;
       // In normal mode, show a 1-char selection (block cursor effect) when possible
       if (vimMode === "normal" && p < lineEnd) {
@@ -113,139 +106,62 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
       setDesiredColumn(null);
     };
 
-    const getLinesInfo = useCallback(() => {
-      const lines = value.split("\n");
-      const starts: number[] = [];
-      let acc = 0;
-      for (let i = 0; i < lines.length; i++) {
-        starts.push(acc);
-        acc += lines[i].length + (i < lines.length - 1 ? 1 : 0);
-      }
-      return { lines, starts };
-    }, [value]);
-
-    const getRowCol = useCallback(
-      (idx: number) => {
-        const { lines, starts } = getLinesInfo();
-        let row = 0;
-        while (row + 1 < starts.length && starts[row + 1] <= idx) row++;
-        const col = idx - starts[row];
-        return { row, col, lines, starts };
-      },
-      [getLinesInfo]
-    );
-
-    const indexAt = (row: number, col: number) => {
-      const { lines, starts } = getLinesInfo();
-      row = Math.max(0, Math.min(row, lines.length - 1));
-      col = Math.max(0, Math.min(col, lines[row].length));
-      return starts[row] + col;
-    };
-
     const moveVert = (delta: number) => {
       const { start } = withSelection();
-      const { row, col, lines } = getRowCol(start);
-      const nextRow = Math.max(0, Math.min(lines.length - 1, row + delta));
-      const goal = desiredColumn ?? col;
-      const nextCol = Math.max(0, Math.min(goal, lines[nextRow].length));
-      setCursor(indexAt(nextRow, nextCol));
-      setDesiredColumn(goal);
+      const result = vim.moveVertical(value, start, delta, desiredColumn);
+      setCursor(result.cursor);
+      setDesiredColumn(result.desiredColumn);
     };
 
     const moveWordForward = () => {
-      // Simple word definition: sequences of [A-Za-z0-9_]
-      let i = withSelection().end;
-      const n = value.length;
-      // Skip current non-word
-      while (i < n && /[A-Za-z0-9_]/.test(value[i])) i++;
-      // Skip whitespace
-      while (i < n && /\s/.test(value[i])) i++;
-      setCursor(i);
+      const newPos = vim.moveWordForward(value, withSelection().end);
+      setCursor(newPos);
     };
 
     const moveWordBackward = () => {
-      let i = withSelection().start - 1;
-      while (i > 0 && /\s/.test(value[i])) i--;
-      while (i > 0 && /[A-Za-z0-9_]/.test(value[i - 1])) i--;
-      setCursor(Math.max(0, i));
+      const newPos = vim.moveWordBackward(value, withSelection().start);
+      setCursor(newPos);
     };
 
-    const lineBoundsAtCursor = () => {
-      const { row, lines, starts } = getRowCol(withSelection().start);
-      const lineStart = starts[row];
-      const lineEnd = lineStart + lines[row].length; // no newline included
-      return { lineStart, lineEnd, row };
+    const applyEdit = (result: { text: string; cursor: number; yankBuffer?: string }) => {
+      onChange(result.text);
+      if (result.yankBuffer !== undefined) {
+        yankBufferRef.current = result.yankBuffer;
+      }
+      setTimeout(() => setCursor(result.cursor), 0);
     };
 
-    const deleteRange = (from: number, to: number, yank = true) => {
-      const a = Math.max(0, Math.min(from, to));
-      const b = Math.max(0, Math.max(from, to));
-      const before = value.slice(0, a);
-      const removed = value.slice(a, b);
-      const after = value.slice(b);
-      if (yank) yankBufferRef.current = removed;
-      const next = before + after;
-      onChange(next);
-      setTimeout(() => setCursor(a), 0);
-    };
-
-    const changeRange = (from: number, to: number) => {
-      // Yank the deleted text, delete it, then enter insert mode at start
-      deleteRange(from, to, true);
+    const applyEditAndEnterInsert = (result: { text: string; cursor: number; yankBuffer: string }) => {
+      onChange(result.text);
+      yankBufferRef.current = result.yankBuffer;
       setTimeout(() => {
+        setCursor(result.cursor);
         setVimMode("insert");
       }, 0);
     };
 
     const deleteCharUnderCursor = () => {
-      const i = withSelection().start;
-      if (i >= value.length) return; // nothing to delete
-      deleteRange(i, i + 1, true);
+      const result = vim.deleteCharUnderCursor(value, withSelection().start, yankBufferRef.current);
+      applyEdit(result);
     };
 
     const deleteLine = () => {
-      const { lineStart, lineEnd } = lineBoundsAtCursor();
-      // Include trailing newline if not last line
-      const isLastLine = lineEnd === value.length;
-      const to = isLastLine ? lineEnd : lineEnd + 1;
-      const from = lineStart;
-      // Yank full line (including newline when possible)
-      yankBufferRef.current = value.slice(from, to);
-      deleteRange(from, to, false);
+      const result = vim.deleteLine(value, withSelection().start, yankBufferRef.current);
+      applyEdit(result);
     };
 
     const yankLine = () => {
-      const { lineStart, lineEnd } = lineBoundsAtCursor();
-      const isLastLine = lineEnd === value.length;
-      const to = isLastLine ? lineEnd : lineEnd + 1;
-      yankBufferRef.current = value.slice(lineStart, to);
+      yankBufferRef.current = vim.yankLine(value, withSelection().start);
     };
 
     const pasteAfter = () => {
-      const buf = yankBufferRef.current;
-      if (!buf) return;
-      const i = withSelection().start;
-      const next = value.slice(0, i) + buf + value.slice(i);
-      onChange(next);
-      setTimeout(() => setCursor(i + buf.length), 0);
+      const result = vim.pasteAfter(value, withSelection().start, yankBufferRef.current);
+      applyEdit(result);
     };
 
     const pasteBefore = () => {
-      const buf = yankBufferRef.current;
-      if (!buf) return;
-      const i = withSelection().start;
-      const next = value.slice(0, i) + buf + value.slice(i);
-      onChange(next);
-      setTimeout(() => setCursor(i), 0);
-    };
-
-    const enterInsertMode = (placeCursor?: (pos: number) => number) => {
-      const pos = withSelection().start;
-      if (placeCursor) {
-        const p = placeCursor(pos);
-        setCursor(p);
-      }
-      setVimMode("insert");
+      const result = vim.pasteBefore(value, withSelection().start, yankBufferRef.current);
+      applyEdit(result);
     };
 
     const handleUndo = () => {
@@ -257,29 +173,6 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
     const handleRedo = () => {
       // eslint-disable-next-line deprecation/deprecation
       document.execCommand("redo");
-    };
-
-    const wordBoundsAt = (idx: number) => {
-      // Returns [start, end) for the word under cursor. If on whitespace, uses the next word to the right.
-      const n = value.length;
-      let i = Math.max(0, Math.min(n, idx));
-      const isWord = (ch: string) => /[A-Za-z0-9_]/.test(ch);
-      if (i >= n) i = n - 1;
-      // If we're out of range or empty
-      if (n === 0) return { start: 0, end: 0 };
-      if (i < 0) i = 0;
-      if (!isWord(value[i])) {
-        // Move right to next word
-        let j = i;
-        while (j < n && !isWord(value[j])) j++;
-        if (j >= n) return { start: n, end: n };
-        i = j;
-      }
-      let a = i;
-      while (a > 0 && isWord(value[a - 1])) a--;
-      let b = i + 1;
-      while (b < n && isWord(value[b])) b++;
-      return { start: a, end: b };
     };
 
     const handleNormalKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -296,43 +189,35 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
       if (pending && pending.op === "c") {
         e.preventDefault();
         const args = pending.args ?? [];
+        const cursor = withSelection().start;
         // Second char after 'c'
         if (args.length === 0) {
           if (key === "c") {
             // cc: change entire line
             pendingOpRef.current = null;
-            const { lineStart, lineEnd } = lineBoundsAtCursor();
-            changeRange(lineStart, lineEnd);
+            const result = vim.changeLine(value, cursor, yankBufferRef.current);
+            applyEditAndEnterInsert(result);
             return;
           }
           if (key === "w") {
             // cw: change to next word boundary
             pendingOpRef.current = null;
-            const start = withSelection().start;
-            // Move to next word boundary like 'w', but delete from current cursor to that point
-            let i = start;
-            const n = value.length;
-            // Skip current word chars
-            while (i < n && /[A-Za-z0-9_]/.test(value[i])) i++;
-            // Skip whitespace
-            while (i < n && /\s/.test(value[i])) i++;
-            changeRange(start, i);
+            const result = vim.changeWord(value, cursor, yankBufferRef.current);
+            applyEditAndEnterInsert(result);
             return;
           }
           if (key === "$" || key === "End") {
             // c$ : change to end of line
             pendingOpRef.current = null;
-            const { lineEnd } = lineBoundsAtCursor();
-            const start = withSelection().start;
-            changeRange(start, lineEnd);
+            const result = vim.changeToEndOfLine(value, cursor, yankBufferRef.current);
+            applyEditAndEnterInsert(result);
             return;
           }
           if (key === "0" || key === "Home") {
             // c0 : change to beginning of line
             pendingOpRef.current = null;
-            const { lineStart } = lineBoundsAtCursor();
-            const start = withSelection().start;
-            changeRange(lineStart, start);
+            const result = vim.changeToBeginningOfLine(value, cursor, yankBufferRef.current);
+            applyEditAndEnterInsert(result);
             return;
           }
           if (key === "i") {
@@ -349,9 +234,8 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
           if (key === "w") {
             // ciw: change inner word
             pendingOpRef.current = null;
-            const { start } = withSelection();
-            const { start: a, end: b } = wordBoundsAt(start);
-            changeRange(a, b);
+            const result = vim.changeInnerWord(value, cursor, yankBufferRef.current);
+            applyEditAndEnterInsert(result);
             return;
           }
           // Unhandled text object -> cancel
@@ -371,40 +255,62 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
             return;
           }
           break;
-        case "i":
+        case "i": {
           e.preventDefault();
-          enterInsertMode();
+          const result = vim.getInsertCursorPos(value, withSelection().start, "i");
+          onChange(result.text);
+          setTimeout(() => {
+            setCursor(result.cursor);
+            setVimMode("insert");
+          }, 0);
           return;
-        case "a":
+        }
+        case "a": {
           e.preventDefault();
-          enterInsertMode((pos) => Math.min(pos + 1, value.length));
+          const result = vim.getInsertCursorPos(value, withSelection().start, "a");
+          onChange(result.text);
+          setTimeout(() => {
+            setCursor(result.cursor);
+            setVimMode("insert");
+          }, 0);
           return;
-        case "I":
+        }
+        case "I": {
           e.preventDefault();
-          enterInsertMode(() => lineBoundsAtCursor().lineStart);
+          const result = vim.getInsertCursorPos(value, withSelection().start, "I");
+          onChange(result.text);
+          setTimeout(() => {
+            setCursor(result.cursor);
+            setVimMode("insert");
+          }, 0);
           return;
-        case "A":
+        }
+        case "A": {
           e.preventDefault();
-          enterInsertMode(() => lineBoundsAtCursor().lineEnd);
+          const result = vim.getInsertCursorPos(value, withSelection().start, "A");
+          onChange(result.text);
+          setTimeout(() => {
+            setCursor(result.cursor);
+            setVimMode("insert");
+          }, 0);
           return;
+        }
         case "o": {
           e.preventDefault();
-          const { lineEnd } = lineBoundsAtCursor();
-          const next = value.slice(0, lineEnd) + "\n" + value.slice(lineEnd);
-          onChange(next);
+          const result = vim.getInsertCursorPos(value, withSelection().start, "o");
+          onChange(result.text);
           setTimeout(() => {
-            setCursor(lineEnd + 1);
+            setCursor(result.cursor);
             setVimMode("insert");
           }, 0);
           return;
         }
         case "O": {
           e.preventDefault();
-          const { lineStart } = lineBoundsAtCursor();
-          const next = value.slice(0, lineStart) + "\n" + value.slice(lineStart);
-          onChange(next);
+          const result = vim.getInsertCursorPos(value, withSelection().start, "O");
+          onChange(result.text);
           setTimeout(() => {
-            setCursor(lineStart);
+            setCursor(result.cursor);
             setVimMode("insert");
           }, 0);
           return;
