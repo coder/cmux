@@ -171,7 +171,7 @@ function App() {
     });
 
   // Use workspace aggregators hook for message state
-  const { getWorkspaceState, streamingModels } = useWorkspaceAggregators(workspaceMetadata);
+  const { getWorkspaceState } = useWorkspaceAggregators(workspaceMetadata);
 
   // Enrich workspace metadata with git status
   const displayedWorkspaceMetadata = useGitStatus(workspaceMetadata);
@@ -270,7 +270,7 @@ function App() {
           onRemoveProject={(path) => void handleRemoveProject(path)}
           onRemoveWorkspace={removeWorkspace}
           onRenameWorkspace={renameWorkspace}
-          streamingModels={streamingModels}
+          getWorkspaceState={getWorkspaceState}
           collapsed={sidebarCollapsed}
           onToggleCollapsed={() => setSidebarCollapsed((prev) => !prev)}
         />

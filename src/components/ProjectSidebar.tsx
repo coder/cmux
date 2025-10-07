@@ -10,6 +10,7 @@ import { TooltipWrapper, Tooltip } from "./Tooltip";
 import { StatusIndicator } from "./StatusIndicator";
 import { getModelName } from "@/utils/ai/models";
 import { GitStatusIndicator } from "./GitStatusIndicator";
+import type { WorkspaceState } from "@/hooks/useWorkspaceAggregators";
 
 // Styled Components
 const SidebarContainer = styled.div<{ collapsed?: boolean }>`
@@ -353,7 +354,7 @@ interface ProjectSidebarProps {
     workspaceId: string,
     newName: string
   ) => Promise<{ success: boolean; error?: string }>;
-  streamingModels: Map<string, string>;
+  getWorkspaceState: (workspaceId: string) => WorkspaceState;
   collapsed: boolean;
   onToggleCollapsed: () => void;
 }
@@ -368,7 +369,7 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
   onRemoveProject,
   onRemoveWorkspace,
   onRenameWorkspace,
-  streamingModels,
+  getWorkspaceState,
   collapsed,
   onToggleCollapsed,
 }) => {
@@ -537,8 +538,9 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
 
                         const workspaceId = metadata.id;
                         const displayName = getWorkspaceDisplayName(workspace.path);
-                        const streamingModel = streamingModels.get(workspaceId);
-                        const isStreaming = streamingModel !== undefined;
+                        const workspaceState = getWorkspaceState(workspaceId);
+                        const isStreaming = workspaceState.canInterrupt;
+                        const streamingModel = workspaceState.currentModel;
                         const isEditing = editingWorkspaceId === workspaceId;
 
                         return (
