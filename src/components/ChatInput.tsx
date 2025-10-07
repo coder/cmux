@@ -473,8 +473,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
           try {
             // Construct message asking for summarization
-            let compactionMessage = `Summarize this conversation into a compact form
-for a new Assistant to continue helping the user. Prioritize specific, actionable context.`;
+            let compactionMessage = `Summarize this conversation into a compact form for a new Assistant to continue helping the user. Prioritize specific, actionable context.`;
             if (parsed.instructions) {
               compactionMessage += ` ${parsed.instructions}`;
             }

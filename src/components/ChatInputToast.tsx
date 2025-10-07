@@ -5,7 +5,7 @@ import { keyframes, css } from "@emotion/react";
 
 const slideIn = keyframes`
   from {
-    transform: translateY(100%);
+    transform: translateY(10px);
     opacity: 0;
   }
   to {
@@ -23,6 +23,21 @@ const fadeOut = keyframes`
   }
 `;
 
+// Floating wrapper for toasts
+const ToastWrapper = styled.div`
+  position: absolute;
+  bottom: 100%;
+  left: 15px;
+  right: 15px;
+  margin-bottom: 8px;
+  z-index: 1000;
+  pointer-events: none;
+
+  > * {
+    pointer-events: auto;
+  }
+`;
+
 interface ToastContainerProps {
   type: "success" | "error";
   isLeaving?: boolean;
@@ -30,13 +45,13 @@ interface ToastContainerProps {
 
 const ToastContainer = styled.div<ToastContainerProps>`
   padding: 6px 12px;
-  margin-bottom: 6px;
   border-radius: 4px;
   font-size: 12px;
   animation: ${slideIn} 0.2s ease-out;
   display: flex;
   align-items: center;
   gap: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 
   ${(props) =>
     props.isLeaving &&
@@ -107,10 +122,10 @@ const ErrorContainer = styled.div`
   border: 1px solid #5a2c2c;
   border-radius: 4px;
   padding: 10px 12px;
-  margin-bottom: 8px;
   font-size: 12px;
   color: #f48771;
   animation: ${slideIn} 0.2s ease-out;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 `;
 
 const ErrorDetails = styled.div`
@@ -186,35 +201,39 @@ export const ChatInputToast: React.FC<ChatInputToastProps> = ({ toast, onDismiss
 
   if (isRichError) {
     return (
-      <ErrorContainer>
-        <div style={{ display: "flex", alignItems: "flex-start", gap: "6px" }}>
-          <ToastIcon>⚠</ToastIcon>
-          <div style={{ flex: 1 }}>
-            {toast.title && (
-              <div style={{ fontWeight: 600, marginBottom: "6px" }}>{toast.title}</div>
-            )}
-            <ErrorDetails>{toast.message}</ErrorDetails>
-            {toast.solution && <ErrorSolution>{toast.solution}</ErrorSolution>}
+      <ToastWrapper>
+        <ErrorContainer>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: "6px" }}>
+            <ToastIcon>⚠</ToastIcon>
+            <div style={{ flex: 1 }}>
+              {toast.title && (
+                <div style={{ fontWeight: 600, marginBottom: "6px" }}>{toast.title}</div>
+              )}
+              <ErrorDetails>{toast.message}</ErrorDetails>
+              {toast.solution && <ErrorSolution>{toast.solution}</ErrorSolution>}
+            </div>
+            <CloseButton onClick={handleDismiss}>×</CloseButton>
           </div>
-          <CloseButton onClick={handleDismiss}>×</CloseButton>
-        </div>
-      </ErrorContainer>
+        </ErrorContainer>
+      </ToastWrapper>
     );
   }
 
   // Regular toast for simple messages and success
   return (
-    <ToastContainer type={toast.type} isLeaving={isLeaving}>
-      <ToastIcon>{toast.type === "success" ? "✓" : "⚠"}</ToastIcon>
-      <ToastContent>
-        {toast.title && <ToastTitle>{toast.title}</ToastTitle>}
-        <ToastMessage>{toast.message}</ToastMessage>
-      </ToastContent>
-      {toast.type === "error" && (
-        <CloseButton onClick={handleDismiss} aria-label="Dismiss">
-          ×
-        </CloseButton>
-      )}
-    </ToastContainer>
+    <ToastWrapper>
+      <ToastContainer type={toast.type} isLeaving={isLeaving}>
+        <ToastIcon>{toast.type === "success" ? "✓" : "⚠"}</ToastIcon>
+        <ToastContent>
+          {toast.title && <ToastTitle>{toast.title}</ToastTitle>}
+          <ToastMessage>{toast.message}</ToastMessage>
+        </ToastContent>
+        {toast.type === "error" && (
+          <CloseButton onClick={handleDismiss} aria-label="Dismiss">
+            ×
+          </CloseButton>
+        )}
+      </ToastContainer>
+    </ToastWrapper>
   );
 };
