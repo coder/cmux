@@ -27,7 +27,7 @@ jobs:
         run: bun run build
 
       - name: Import Code Signing Certificate
-        if: github.event_name == 'push' && secrets.MACOS_CERTIFICATE != '' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/macos-code-signing')
+        if: github.event_name == 'push' && env.MACOS_CERTIFICATE != '' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/macos-code-signing')
         env:
           MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
           MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
