@@ -58,9 +58,10 @@ jobs:
 
       - name: Package for macOS
         run: |
-          # Strip newlines from certificate before passing to electron-builder
-          CERT_NO_NEWLINES=$(echo "${{ secrets.MACOS_CERTIFICATE }}" | tr -d '\n')
-          export CSC_LINK="base64:${CERT_NO_NEWLINES}"
+          # Decode certificate to a file and provide the file path to electron-builder
+          # This avoids issues with electron-builder's internal base64 decoder
+          echo "${{ secrets.MACOS_CERTIFICATE }}" | base64 --decode > /tmp/certificate.p12
+          export CSC_LINK="/tmp/certificate.p12"
           export CSC_KEY_PASSWORD="${{ secrets.MACOS_CERTIFICATE_PWD }}"
           export CSC_FOR_PULL_REQUEST="${{ github.event_name == 'pull_request' && github.head_ref == 'debug-cert-format' && 'true' || '' }}"
           bun run dist:mac
