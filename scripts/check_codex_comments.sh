@@ -14,8 +14,9 @@ BOT_LOGIN_GRAPHQL="chatgpt-codex-connector"    # GraphQL does not
 echo "Checking for unresolved Codex comments in PR #${PR_NUMBER}..."
 
 # Get all regular issue comments from the Codex bot (these can't be resolved)
+# Filter out "all clear" comments that indicate no issues found
 REGULAR_COMMENTS=$(gh api "/repos/{owner}/{repo}/issues/${PR_NUMBER}/comments" \
-    --jq "[.[] | select(.user.login == \"${BOT_LOGIN_REST}\")]")
+    --jq "[.[] | select(.user.login == \"${BOT_LOGIN_REST}\") | select(.body | test(\"Didn't find any major issues\") | not)]")
 
 REGULAR_COUNT=$(echo "$REGULAR_COMMENTS" | jq 'length')
 
