@@ -302,71 +302,82 @@ export const GitStatusIndicator: React.FC<GitStatusIndicatorProps> = ({
     setIsLoading(true);
 
     try {
-      // Get current branch name
-      const currentBranchResult = await window.api.workspace.executeBash(
-        workspaceId,
-        "git rev-parse --abbrev-ref HEAD",
-        { timeout_secs: 2 }
-      );
+      // Consolidated bash script that gets all git info in one IPC call
+      const getDirtyFiles = gitStatus?.dirty ? "git status --porcelain 2>/dev/null | head -20" : "";
+      const script = `
+# Get current branch
+CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "main")
 
-      let currentBranch = "main"; // fallback
-      if (currentBranchResult.success && currentBranchResult.data.success) {
-        currentBranch = currentBranchResult.data.output.trim() || "main";
-      }
+# Get primary branch (main or master)
+PRIMARY_BRANCH=$(git branch -r 2>/dev/null | grep -E 'origin/(main|master)$' | head -1 | sed 's@^.*origin/@@' || echo "main")
 
-      // Get primary branch - reuse the same logic as useGitStatus
-      const branchCheckResult = await window.api.workspace.executeBash(
-        workspaceId,
-        "git branch -r | grep -E 'origin/(main|master)$' | head -1 | sed 's@^.*origin/@@'",
-        { timeout_secs: 2 }
-      );
+# Build refs list for show-branch
+REFS="HEAD origin/$PRIMARY_BRANCH"
 
-      let primaryBranch = "main"; // fallback
-      if (branchCheckResult.success && branchCheckResult.data.success) {
-        primaryBranch = branchCheckResult.data.output.trim() || "main";
-      }
+# Check if origin/<current-branch> exists and is different from primary
+if [ "$CURRENT_BRANCH" != "$PRIMARY_BRANCH" ] && git rev-parse --verify "origin/$CURRENT_BRANCH" >/dev/null 2>&1; then
+  REFS="$REFS origin/$CURRENT_BRANCH"
+fi
 
-      // Use git show-branch to get branch indicators (without --more to avoid extraneous commits)
-      const showBranchResult = await window.api.workspace.executeBash(
-        workspaceId,
-        `git show-branch --sha1-name HEAD origin/${primaryBranch} origin/${currentBranch}`,
-        { timeout_secs: 3, max_lines: 50 }
-      );
+# Store show-branch output to avoid running twice
+SHOW_BRANCH=$(git show-branch --sha1-name $REFS)
 
-      if (!showBranchResult.success || !showBranchResult.data.success) {
-        setErrorMessage("Branch info unavailable");
+# Output show-branch
+echo "$SHOW_BRANCH"
+
+# Separator for dates section
+echo "---DATES---"
+
+# Extract all hashes and get dates in ONE git log call
+HASHES=$(echo "$SHOW_BRANCH" | grep -oE '\\[[a-f0-9]+\\]' | tr -d '[]' | tr '\\n' ' ')
+git log --no-walk --format='%h|%ad' --date=format:'%b %d %I:%M %p' $HASHES 2>/dev/null
+
+# Separator for dirty files section
+echo "---DIRTY_FILES---"
+
+# Get dirty files if requested
+${getDirtyFiles}
+`;
+
+      const result = await window.api.workspace.executeBash(workspaceId, script, {
+        timeout_secs: 5,
+        max_lines: 100,
+      });
+
+      if (!result.success) {
+        setErrorMessage(`Branch info unavailable: ${result.error}`);
         setCommits(null);
         return;
       }
 
-      const showBranchOutput = showBranchResult.data.output.trim();
-      if (!showBranchOutput) {
-        setErrorMessage("No branch info available");
+      if (!result.data.success) {
+        const errorMsg = result.data.output
+          ? result.data.output.trim()
+          : result.data.error || "Unknown error";
+        setErrorMessage(`Branch info unavailable: ${errorMsg}`);
         setCommits(null);
         return;
       }
 
-      // Extract hashes from show-branch output to fetch dates
-      const hashMatch = showBranchOutput.matchAll(/\[([a-f0-9]+)\]/g);
-      const hashes = Array.from(hashMatch, (m) => m[1]);
+      // Parse the structured output
+      const output = result.data.output;
+      const sections = output.split("---DATES---");
 
-      if (hashes.length === 0) {
-        setErrorMessage("No commits found");
+      if (sections.length < 2) {
+        setErrorMessage("Invalid output format from git script");
         setCommits(null);
         return;
       }
 
-      // Fetch dates for all hashes in a single batch call
-      const dateResult = await window.api.workspace.executeBash(
-        workspaceId,
-        `git log --format='%h|%ad' --date=format:'%b %d %I:%M %p' ${hashes.join(" ")}`,
-        { timeout_secs: 2, max_lines: 50 }
-      );
+      const showBranchOutput = sections[0].trim();
+      const afterDates = sections[1].split("---DIRTY_FILES---");
+      const datesOutput = afterDates[0].trim();
+      const dirtyOutput = afterDates.length > 1 ? afterDates[1].trim() : "";
 
-      // Build hash -> date map
+      // Build date map
       const dateMap = new Map<string, string>();
-      if (dateResult.success && dateResult.data.success) {
-        const dateLines = dateResult.data.output.trim().split("\n");
+      if (datesOutput) {
+        const dateLines = datesOutput.split("\n");
         for (const line of dateLines) {
           const [hash, date] = line.split("|");
           if (hash && date) {
@@ -375,7 +386,7 @@ export const GitStatusIndicator: React.FC<GitStatusIndicatorProps> = ({
         }
       }
 
-      // Parse show-branch output with dates
+      // Parse show-branch output
       const parsed = parseGitShowBranch(showBranchOutput, dateMap);
       if (parsed.commits.length === 0) {
         setErrorMessage("Unable to parse branch info");
@@ -385,23 +396,10 @@ export const GitStatusIndicator: React.FC<GitStatusIndicatorProps> = ({
         return;
       }
 
-      // Fetch git status --porcelain for dirty files
-      let parsedDirtyFiles: string[] = [];
-      if (gitStatus?.dirty) {
-        const statusResult = await window.api.workspace.executeBash(
-          workspaceId,
-          "git status --porcelain",
-          { timeout_secs: 2, max_lines: 25 }
-        );
-
-        if (statusResult.success && statusResult.data.success) {
-          const lines = statusResult.data.output
-            .trim()
-            .split("\n")
-            .filter((line) => line.trim());
-          parsedDirtyFiles = lines;
-        }
-      }
+      // Parse dirty files
+      const parsedDirtyFiles = dirtyOutput
+        ? dirtyOutput.split("\n").filter((line) => line.trim())
+        : [];
 
       setBranchHeaders(parsed.headers);
       setCommits(parsed.commits);
@@ -413,8 +411,10 @@ export const GitStatusIndicator: React.FC<GitStatusIndicatorProps> = ({
         dirtyFiles: parsedDirtyFiles,
         timestamp: Date.now(),
       };
-    } catch {
-      setErrorMessage("Failed to fetch branch info");
+    } catch (error) {
+      setErrorMessage(
+        `Failed to fetch branch info: ${error instanceof Error ? error.message : String(error)}`
+      );
       setCommits(null);
     } finally {
       setIsLoading(false);

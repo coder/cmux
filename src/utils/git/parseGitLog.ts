@@ -63,8 +63,8 @@ export function parseGitShowBranch(
   let inCommitSection = false;
 
   for (const line of lines) {
-    // Skip until we find the separator "---"
-    if (line.trim() === "---") {
+    // Skip until we find the separator "--" or "---"
+    if (line.trim() === "--" || line.trim() === "---") {
       inCommitSection = true;
       continue;
     }

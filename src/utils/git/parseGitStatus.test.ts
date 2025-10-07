@@ -2,16 +2,16 @@ import { parseGitRevList } from "./parseGitStatus";
 
 describe("parseGitRevList", () => {
   test("parses valid ahead and behind counts", () => {
-    expect(parseGitRevList("5\t3")).toEqual({ ahead: 5, behind: 3 });
-    expect(parseGitRevList("0\t0")).toEqual({ ahead: 0, behind: 0 });
-    expect(parseGitRevList("10\t0")).toEqual({ ahead: 10, behind: 0 });
-    expect(parseGitRevList("0\t7")).toEqual({ ahead: 0, behind: 7 });
+    expect(parseGitRevList("5\t3")).toEqual({ ahead: 5, behind: 3, dirty: false });
+    expect(parseGitRevList("0\t0")).toEqual({ ahead: 0, behind: 0, dirty: false });
+    expect(parseGitRevList("10\t0")).toEqual({ ahead: 10, behind: 0, dirty: false });
+    expect(parseGitRevList("0\t7")).toEqual({ ahead: 0, behind: 7, dirty: false });
   });
 
   test("handles whitespace variations", () => {
-    expect(parseGitRevList("  5\t3  ")).toEqual({ ahead: 5, behind: 3 });
-    expect(parseGitRevList("5  3")).toEqual({ ahead: 5, behind: 3 });
-    expect(parseGitRevList("5   3")).toEqual({ ahead: 5, behind: 3 });
+    expect(parseGitRevList("  5\t3  ")).toEqual({ ahead: 5, behind: 3, dirty: false });
+    expect(parseGitRevList("5  3")).toEqual({ ahead: 5, behind: 3, dirty: false });
+    expect(parseGitRevList("5   3")).toEqual({ ahead: 5, behind: 3, dirty: false });
   });
 
   test("returns null for invalid formats", () => {
