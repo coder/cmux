@@ -24,6 +24,7 @@ When documentation shows `Ctrl`, it means:
 
 | Action                 | Shortcut      |
 | ---------------------- | ------------- |
+| Focus chat input       | `a` or `i`    |
 | Send message           | `Enter`       |
 | New line in message    | `Shift+Enter` |
 | Jump to bottom of chat | `Shift+G`     |

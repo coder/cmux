@@ -387,7 +387,8 @@ export class AIService extends EventEmitter {
           timestamp: Date.now(),
         },
         providerOptions,
-        maxOutputTokens
+        maxOutputTokens,
+        toolPolicy
       );
 
       if (!streamResult.success) {
