@@ -1,6 +1,7 @@
 import { shouldRunIntegrationTests, createTestEnvironment, cleanupTestEnvironment } from "./setup";
 import { IPC_CHANNELS } from "../../src/constants/ipc-constants";
 import { createTempGitRepo, cleanupTempGitRepo } from "./helpers";
+import { BASH_HARD_MAX_LINES } from "../../src/constants/toolLimits";
 
 // Skip all tests if TEST_INTEGRATION is not set
 const describeIntegration = shouldRunIntegrationTests() ? describe : describe.skip;
@@ -188,6 +189,44 @@ describeIntegration("IpcMain executeBash integration tests", () => {
         expect(maxLinesResult.data.output).toContain("[TRUNCATED]");
 
         // Clean up
+        await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, workspaceId);
+      } finally {
+        await cleanupTestEnvironment(env);
+        await cleanupTempGitRepo(tempGitRepo);
+      }
+    },
+    15000
+  );
+
+  test.concurrent(
+    "should clamp max_lines to the hard cap",
+    async () => {
+      const env = await createTestEnvironment();
+      const tempGitRepo = await createTempGitRepo();
+
+      try {
+        const createResult = await env.mockIpcRenderer.invoke(
+          IPC_CHANNELS.WORKSPACE_CREATE,
+          tempGitRepo,
+          "test-maxlines-hardcap"
+        );
+        expect(createResult.success).toBe(true);
+        const workspaceId = createResult.metadata.id;
+
+        const oversizedResult = await env.mockIpcRenderer.invoke(
+          IPC_CHANNELS.WORKSPACE_EXECUTE_BASH,
+          workspaceId,
+          "for i in {1..1100}; do echo line$i; done",
+          { max_lines: BASH_HARD_MAX_LINES * 5 }
+        );
+
+        expect(oversizedResult.success).toBe(true);
+        expect(oversizedResult.data.success).toBe(true);
+        expect(oversizedResult.data.truncated).toBe(true);
+        const lines = oversizedResult.data.output.split("\n");
+        expect(lines).toHaveLength(BASH_HARD_MAX_LINES);
+        expect(oversizedResult.data.output).toContain("[TRUNCATED]");
+
         await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, workspaceId);
       } finally {
         await cleanupTestEnvironment(env);
