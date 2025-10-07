@@ -3,7 +3,12 @@ import { spawn } from "child_process";
 import type { ChildProcess } from "child_process";
 import { createInterface } from "readline";
 import * as path from "path";
-import { BASH_DEFAULT_MAX_LINES, BASH_HARD_MAX_LINES } from "@/constants/toolLimits";
+import {
+  BASH_DEFAULT_MAX_LINES,
+  BASH_HARD_MAX_LINES,
+  BASH_MAX_LINE_BYTES,
+  BASH_MAX_TOTAL_BYTES,
+} from "@/constants/toolLimits";
 
 import type { BashToolResult } from "@/types/tools";
 import type { ToolConfiguration, ToolFactory } from "@/utils/tools/tools";
@@ -42,6 +47,7 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
       const startTime = performance.now();
       const normalizedMaxLines = Math.max(1, Math.floor(max_lines));
       const effectiveMaxLines = Math.min(normalizedMaxLines, BASH_HARD_MAX_LINES);
+      let totalBytesAccumulated = 0;
 
       // Detect redundant cd to working directory
       // Match patterns like: "cd /path &&", "cd /path;", "cd '/path' &&", "cd \"/path\" &&"
@@ -132,7 +138,32 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
 
         stdoutReader.on("line", (line) => {
           if (!truncated && !resolved) {
-            lines.push(line);
+            // Truncate line if it exceeds max bytes
+            let processedLine = line;
+            const lineBytes = Buffer.byteLength(line, "utf-8");
+            if (lineBytes > BASH_MAX_LINE_BYTES) {
+              // Truncate to BASH_MAX_LINE_BYTES
+              processedLine = Buffer.from(line, "utf-8")
+                .subarray(0, BASH_MAX_LINE_BYTES)
+                .toString("utf-8");
+              processedLine += "... [line truncated]";
+            }
+
+            const processedLineBytes = Buffer.byteLength(processedLine, "utf-8");
+
+            // Check if adding this line would exceed total bytes limit
+            if (totalBytesAccumulated + processedLineBytes > BASH_MAX_TOTAL_BYTES) {
+              truncated = true;
+              // Close readline interfaces before killing to ensure clean shutdown
+              stdoutReader.close();
+              stderrReader.close();
+              childProcess.child.kill();
+              return;
+            }
+
+            lines.push(processedLine);
+            totalBytesAccumulated += processedLineBytes + 1; // +1 for newline
+
             // Check if we've exceeded the effective max_lines limit
             if (lines.length >= effectiveMaxLines) {
               truncated = true;
@@ -146,7 +177,32 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
 
         stderrReader.on("line", (line) => {
           if (!truncated && !resolved) {
-            lines.push(line);
+            // Truncate line if it exceeds max bytes
+            let processedLine = line;
+            const lineBytes = Buffer.byteLength(line, "utf-8");
+            if (lineBytes > BASH_MAX_LINE_BYTES) {
+              // Truncate to BASH_MAX_LINE_BYTES
+              processedLine = Buffer.from(line, "utf-8")
+                .subarray(0, BASH_MAX_LINE_BYTES)
+                .toString("utf-8");
+              processedLine += "... [line truncated]";
+            }
+
+            const processedLineBytes = Buffer.byteLength(processedLine, "utf-8");
+
+            // Check if adding this line would exceed total bytes limit
+            if (totalBytesAccumulated + processedLineBytes > BASH_MAX_TOTAL_BYTES) {
+              truncated = true;
+              // Close readline interfaces before killing to ensure clean shutdown
+              stdoutReader.close();
+              stderrReader.close();
+              childProcess.child.kill();
+              return;
+            }
+
+            lines.push(processedLine);
+            totalBytesAccumulated += processedLineBytes + 1; // +1 for newline
+
             // Check if we've exceeded the effective max_lines limit
             if (lines.length >= effectiveMaxLines) {
               truncated = true;
