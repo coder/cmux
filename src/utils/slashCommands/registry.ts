@@ -128,6 +128,43 @@ const clearCommandDefinition: SlashCommandDefinition = {
   },
 };
 
+const truncateCommandDefinition: SlashCommandDefinition = {
+  key: "truncate",
+  description: "Truncate conversation history by percentage (0-100)",
+  handler: ({ cleanRemainingTokens }): ParsedCommand => {
+    if (cleanRemainingTokens.length === 0) {
+      return {
+        type: "unknown-command",
+        command: "truncate",
+        subcommand: undefined,
+      };
+    }
+
+    if (cleanRemainingTokens.length > 1) {
+      return {
+        type: "unknown-command",
+        command: "truncate",
+        subcommand: cleanRemainingTokens[1],
+      };
+    }
+
+    // Parse percentage (0-100)
+    const pctStr = cleanRemainingTokens[0];
+    const pct = parseFloat(pctStr);
+
+    if (isNaN(pct) || pct < 0 || pct > 100) {
+      return {
+        type: "unknown-command",
+        command: "truncate",
+        subcommand: pctStr,
+      };
+    }
+
+    // Convert to 0.0-1.0
+    return { type: "truncate", percentage: pct / 100 };
+  },
+};
+
 const providersSetCommandDefinition: SlashCommandDefinition = {
   key: "set",
   description: "Set a provider configuration value",
@@ -266,6 +303,7 @@ const modelCommandDefinition: SlashCommandDefinition = {
 
 export const SLASH_COMMAND_DEFINITIONS: readonly SlashCommandDefinition[] = [
   clearCommandDefinition,
+  truncateCommandDefinition,
   modelCommandDefinition,
   providersCommandDefinition,
 ];

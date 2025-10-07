@@ -1,10 +1,37 @@
 import * as fs from "fs/promises";
 import * as path from "path";
-import type { WorkspaceMetadata } from "../types/workspace";
+import type { WorkspaceMetadata } from "@/types/workspace";
 
+// The PRELUDE is intentionally minimal to not conflict with the user's instructions.
+// cmux is designed to be model agnostic, and models have shown large inconsistency in how they
+// follow instructions.
 const PRELUDE = `
+<prelude>
 You are a coding agent.
+  
+Your Assistant messages display in Markdown with extensions for mermaidjs and katex.
+
+When creating mermaid diagrams:
+- Avoid side-by-side subgraphs (they display too wide)
+- For comparisons, use separate diagram blocks or single graph with visual separation
+- When using custom fill colors, include contrasting color property (e.g., "style note fill:#ff6b6b,color:#fff")
+- Make good use of visual space: e.g. use inline commentary
+- Wrap node labels containing brackets or special characters in quotes (e.g., Display["Message[]"] not Display[Message[]])
+</prelude>
 `;
+
+function buildEnvironmentContext(workspacePath: string): string {
+  return `
+<environment>
+You are in a git worktree at ${workspacePath}
+
+- This IS a git repository - run git commands directly (no cd needed)
+- Tools run here automatically
+- Do not modify or visit other worktrees (especially the main project) without explicit user intent
+- You are meant to do your work isolated from the user and other agents
+</environment>
+`;
+}
 
 const CUSTOM_INSTRUCTION_FILES = ["AGENTS.md", "AGENT.md", "CLAUDE.md"];
 
@@ -18,15 +45,20 @@ const CUSTOM_INSTRUCTION_FILES = ["AGENTS.md", "AGENT.md", "CLAUDE.md"];
  * 3. CLAUDE.md
  *
  * @param metadata - Workspace metadata containing the workspace path
- * @returns System message string (placeholder + custom instructions if found)
+ * @param additionalSystemInstructions - Optional additional system instructions to append at the end
+ * @returns System message string (placeholder + custom instructions if found + additional instructions)
  * @throws Error if metadata is invalid or workspace path is missing
  */
-export async function buildSystemMessage(metadata: WorkspaceMetadata): Promise<string> {
+export async function buildSystemMessage(
+  metadata: WorkspaceMetadata,
+  additionalSystemInstructions?: string
+): Promise<string> {
   // Validate metadata early
   if (!metadata?.workspacePath) {
     throw new Error("Invalid workspace metadata: workspacePath is required");
   }
 
+  const environmentContext = buildEnvironmentContext(metadata.workspacePath);
   let customInstructions = "";
 
   // Try to read custom instruction files in order
@@ -43,11 +75,19 @@ export async function buildSystemMessage(metadata: WorkspaceMetadata): Promise<s
     }
   }
 
-  // Combine placeholder with custom instructions
+  // Build the final system message
+  const trimmedPrelude = PRELUDE.trim();
+  let systemMessage = `${trimmedPrelude}\n\n${environmentContext}`;
+
+  // Add custom instructions if found
   if (customInstructions) {
-    const trimmedPrelude = PRELUDE.trim();
-    return `${trimmedPrelude}\n\n${customInstructions}`;
+    systemMessage += `\n<custom-instructions>\n${customInstructions}\n</custom-instructions>`;
   }
 
-  return PRELUDE;
+  // Add additional system instructions at the end (highest priority)
+  if (additionalSystemInstructions) {
+    systemMessage += `\n\n<additional-instructions>\n${additionalSystemInstructions}\n</additional-instructions>`;
+  }
+
+  return systemMessage;
 }

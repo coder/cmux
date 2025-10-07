@@ -143,6 +143,20 @@ export default defineConfig([
       // Allow require in specific contexts
       "@typescript-eslint/no-var-requires": "off",
 
+      // Enforce absolute imports with @/ alias for cross-directory imports
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["../!(tests)*", "../../!(tests)*"],
+              message:
+                "Use absolute imports with @/ instead of relative parent imports. Same-directory imports (./foo) are allowed.",
+            },
+          ],
+        },
+      ],
+
       // Warn on TODO comments
       "no-warning-comments": [
         "off",

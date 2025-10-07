@@ -1,31 +1,18 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import styled from "@emotion/styled";
 import { MessageRenderer } from "./Messages/MessageRenderer";
-import { InterruptedBarrier } from "./Messages/InterruptedBarrier";
+import { InterruptedBarrier } from "./Messages/ChatBarrier/InterruptedBarrier";
+import { StreamingBarrier } from "./Messages/ChatBarrier/StreamingBarrier";
 import { ChatInput } from "./ChatInput";
 import { ChatMetaSidebar } from "./ChatMetaSidebar";
-import type { DisplayedMessage, CmuxMessage } from "../types/message";
-import { StreamingMessageAggregator } from "../utils/StreamingMessageAggregator";
-import { shouldShowInterruptedBarrier } from "../utils/messageUtils";
-import { DebugProvider, useDebugMode } from "../contexts/DebugContext";
-import { ChatProvider } from "../contexts/ChatContext";
-import { ThinkingProvider } from "../contexts/ThinkingContext";
-import type { WorkspaceChatMessage } from "../types/ipc";
-import {
-  isCaughtUpMessage,
-  isStreamError,
-  isStreamStart,
-  isStreamDelta,
-  isStreamEnd,
-  isStreamAbort,
-  isToolCallStart,
-  isToolCallDelta,
-  isToolCallEnd,
-  isReasoningDelta,
-  isReasoningEnd,
-} from "../types/ipc";
-
-// StreamingMessageAggregator is now imported from utils
+import { shouldShowInterruptedBarrier } from "@/utils/messages/messageUtils";
+import { ChatProvider } from "@/contexts/ChatContext";
+import { ThinkingProvider } from "@/contexts/ThinkingContext";
+import { ModeProvider } from "@/contexts/ModeContext";
+import { matchesKeybind, formatKeybind, KEYBINDS, isEditableElement } from "@/utils/ui/keybinds";
+import { useAutoScroll } from "@/hooks/useAutoScroll";
+import type { WorkspaceState } from "@/hooks/useWorkspaceAggregators";
+import { StatusIndicator } from "./StatusIndicator";
 
 const ViewContainer = styled.div`
   flex: 1;
@@ -36,6 +23,7 @@ const ViewContainer = styled.div`
   font-family: var(--font-monospace);
   font-size: 12px;
   overflow: hidden;
+  container-type: inline-size;
 `;
 
 const ChatArea = styled.div`
@@ -43,7 +31,6 @@ const ChatArea = styled.div`
   min-width: 750px;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
 `;
 
 const ViewHeader = styled.div`
@@ -63,8 +50,14 @@ const WorkspaceTitle = styled.div`
   gap: 8px;
 `;
 
-const OutputContent = styled.div`
+const OutputContainer = styled.div`
   flex: 1;
+  position: relative;
+  overflow: hidden;
+`;
+
+const OutputContent = styled.div`
+  height: 100%;
   overflow-y: auto;
   padding: 15px;
   white-space: pre-wrap;
@@ -93,24 +86,6 @@ const EmptyState = styled.div`
   }
 `;
 
-const GlobalStreamingIndicator = styled.div`
-  font-size: 10px;
-  color: var(--color-assistant-border);
-  font-style: italic;
-  padding: 8px 0;
-  animation: pulse 1.5s ease-in-out infinite;
-
-  @keyframes pulse {
-    0%,
-    100% {
-      opacity: 0.6;
-    }
-    50% {
-      opacity: 1;
-    }
-  }
-`;
-
 const EditBarrier = styled.div`
   margin: 20px 0;
   padding: 12px 15px;
@@ -130,65 +105,76 @@ const EditBarrier = styled.div`
   text-align: center;
 `;
 
+const JumpToBottomIndicator = styled.div`
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 8px;
+  background: hsl(from var(--color-assistant-border) h s l / 0.1);
+  color: white;
+  border: 1px solid hsl(from var(--color-assistant-border) h s l / 0.4);
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 100;
+  font-family: var(--font-primary);
+  backdrop-filter: blur(1px);
+
+  &:hover {
+    background: hsl(from var(--color-assistant-border) h s l / 0.4);
+    border-color: hsl(from var(--color-assistant-border) h s l / 0.6);
+    transform: translateX(-50%) scale(1.05);
+  }
+
+  &:active {
+    transform: translateX(-50%) scale(0.95);
+  }
+`;
+
 interface AIViewProps {
   workspaceId: string;
   projectName: string;
   branch: string;
+  workspaceState: WorkspaceState;
   className?: string;
 }
 
-const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, className }) => {
-  const [displayedMessages, setDisplayedMessages] = useState<DisplayedMessage[]>([]);
+const AIViewInner: React.FC<AIViewProps> = ({
+  workspaceId,
+  projectName,
+  branch,
+  workspaceState,
+  className,
+}) => {
   const [isCompacting] = useState(false);
-  const { debugMode, setDebugMode } = useDebugMode(); // Use context instead of local state
-  const [autoScroll, setAutoScroll] = useState(true);
-  const [currentModel, setCurrentModel] = useState<string>("anthropic:claude-opus-4-1");
   const [editingMessage, setEditingMessage] = useState<{ id: string; content: string } | undefined>(
     undefined
   );
-  const contentRef = useRef<HTMLDivElement>(null);
-  const lastScrollTopRef = useRef<number>(0);
-  // Ref to avoid stale closures in async callbacks - always holds current autoScroll value
-  const autoScrollRef = useRef<boolean>(true);
-  const lastUserInteractionRef = useRef<number>(0);
-  // Use a Map to maintain separate aggregators per workspace
-  const aggregatorsMapRef = useRef<Map<string, StreamingMessageAggregator>>(new Map());
 
-  // Helper to get or create aggregator for current workspace
-  const getAggregator = useCallback((wsId: string): StreamingMessageAggregator => {
-    if (!aggregatorsMapRef.current.has(wsId)) {
-      aggregatorsMapRef.current.set(wsId, new StreamingMessageAggregator());
-    }
-    return aggregatorsMapRef.current.get(wsId)!;
-  }, []);
+  // Use auto-scroll hook for scroll management
+  const {
+    contentRef,
+    autoScroll,
+    setAutoScroll,
+    performAutoScroll,
+    jumpToBottom,
+    handleScroll,
+    markUserInteraction,
+  } = useAutoScroll();
 
-  // Sync ref with state to ensure callbacks always have latest value
+  // Extract state from workspace state prop
+  const { messages, canInterrupt, loading, cmuxMessages, currentModel } = workspaceState;
+
+  // Auto-scroll when messages update (during streaming)
   useEffect(() => {
-    autoScrollRef.current = autoScroll;
-  }, [autoScroll]);
-
-  const performAutoScroll = useCallback(() => {
-    if (!contentRef.current) return;
-
-    requestAnimationFrame(() => {
-      // Check ref.current not state - avoids race condition where queued frames
-      // execute after user scrolls up but still see old autoScroll=true
-      if (contentRef.current && autoScrollRef.current) {
-        contentRef.current.scrollTop = contentRef.current.scrollHeight;
-      }
-    });
-  }, []); // No deps - ref ensures we always check current value
-
-  // Process message and trigger UI update
-  // Unified UI update function - single point of UI synchronization
-  // All event handlers delegate to the aggregator then call this
-  const updateUIAndScroll = useCallback(() => {
-    const aggregator = getAggregator(workspaceId);
-    setDisplayedMessages(aggregator.getDisplayedMessages());
-    performAutoScroll();
-  }, [performAutoScroll, workspaceId, getAggregator]);
-
-  const [loading, setLoading] = useState(false);
+    if (autoScroll) {
+      performAutoScroll();
+    }
+  }, [messages, autoScroll, performAutoScroll]);
 
   // Handlers for editing messages
   const handleEditUserMessage = useCallback((messageId: string, content: string) => {
@@ -199,191 +185,26 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
     setEditingMessage(undefined);
   }, []);
 
-  // When editing, find the cutoff point but show all messages
+  // When editing, find the cutoff point
   const editCutoffHistoryId = editingMessage
-    ? (() => {
-        const messageBeingEdited = displayedMessages.find(
-          (msg) => msg.historyId === editingMessage.id
-        );
-        return messageBeingEdited?.historyId;
-      })()
+    ? messages.find((msg) => msg.historyId === editingMessage.id)?.historyId
     : undefined;
-
-  const messages = displayedMessages;
-
-  useEffect(() => {
-    if (!projectName || !branch || !workspaceId) return;
-
-    let isCaughtUp = false;
-    const historicalMessages: CmuxMessage[] = [];
-
-    // Get the aggregator for this workspace
-    const aggregator = getAggregator(workspaceId);
-
-    // Load existing messages for this workspace
-    setDisplayedMessages(aggregator.getDisplayedMessages());
-
-    // Enable auto-scroll when switching workspaces
-    setAutoScroll(true);
-
-    // Set loading state based on whether we have messages
-    // This preserves streaming state when switching workspaces
-    if (aggregator.hasMessages()) {
-      setLoading(false); // Clear loading if we have messages
-    } else {
-      setLoading(true); // Show loading only if empty
-    }
-
-    // Subscribe to workspace-specific chat channel
-    // This will automatically send historical messages then stream new ones
-    const unsubscribeChat = window.api.workspace.onChat(
-      workspaceId,
-      (data: WorkspaceChatMessage) => {
-        if (isCaughtUpMessage(data)) {
-          // Batch-load all historical messages at once for efficiency
-          if (historicalMessages.length > 0) {
-            aggregator.loadHistoricalMessages(historicalMessages);
-            updateUIAndScroll();
-          }
-          isCaughtUp = true;
-          setLoading(false);
-          // Scroll to bottom once caught up
-          requestAnimationFrame(() => {
-            if (contentRef.current) {
-              contentRef.current.scrollTop = contentRef.current.scrollHeight;
-            }
-          });
-          return;
-        }
-
-        // Handle stream errors
-        if (isStreamError(data)) {
-          // Notify aggregator to clean up streaming state and mark message with error
-          // Error will be displayed inline as a stream-error message
-          aggregator.handleStreamError(data);
-          updateUIAndScroll();
-          return;
-        }
-
-        // SIMPLIFIED EVENT HANDLING
-        // All complex logic lives in StreamingMessageAggregator
-        // AIView only handles UI updates - separation of concerns
-
-        // Handle streaming events with simplified delegation
-        if (isStreamStart(data)) {
-          aggregator.handleStreamStart(data);
-          setCurrentModel(data.model);
-          updateUIAndScroll();
-          return;
-        }
-
-        if (isStreamDelta(data)) {
-          aggregator.handleStreamDelta(data);
-          updateUIAndScroll();
-          return;
-        }
-
-        if (isStreamEnd(data)) {
-          // Aggregator handles both active streams and reconnection cases
-          aggregator.handleStreamEnd(data);
-          updateUIAndScroll();
-          return;
-        }
-
-        if (isStreamAbort(data)) {
-          // Stream was interrupted - mark message as partial
-          aggregator.handleStreamAbort(data);
-          updateUIAndScroll();
-          return;
-        }
-
-        // Handle tool call events with simplified delegation
-        if (isToolCallStart(data)) {
-          aggregator.handleToolCallStart(data);
-          updateUIAndScroll();
-          return;
-        }
-
-        if (isToolCallDelta(data)) {
-          aggregator.handleToolCallDelta(data);
-          updateUIAndScroll();
-          return;
-        }
-
-        if (isToolCallEnd(data)) {
-          aggregator.handleToolCallEnd(data);
-          updateUIAndScroll();
-          return;
-        }
-
-        // Handle reasoning events
-        if (isReasoningDelta(data)) {
-          console.log("[AIView] Received reasoning-delta", data);
-          aggregator.handleReasoningDelta(data);
-          updateUIAndScroll();
-          return;
-        }
-
-        if (isReasoningEnd(data)) {
-          aggregator.handleReasoningEnd(data);
-          updateUIAndScroll();
-          return;
-        }
-
-        // Regular messages (user messages, historical messages)
-        if (!isCaughtUp) {
-          // Before caught-up: collect historical messages for batch loading
-          // Check if it's a CmuxMessage (has role property but no type)
-          if ("role" in data && !("type" in data)) {
-            historicalMessages.push(data);
-          }
-        } else {
-          // After caught-up: handle messages normally
-          aggregator.handleMessage(data);
-          updateUIAndScroll();
-
-          // Auto-scroll for new messages after caught up
-          if (contentRef.current) {
-            contentRef.current.scrollTop = contentRef.current.scrollHeight;
-          }
-        }
-      }
-    );
-
-    // Subscribe to workspace-specific clear channel
-    const unsubscribeClear = window.api.workspace.onClear(workspaceId, () => {
-      // Full clear (used by /clear command)
-      setDisplayedMessages([]);
-      aggregator.clear();
-    });
-
-    return () => {
-      if (typeof unsubscribeChat === "function") {
-        unsubscribeChat();
-      }
-      if (typeof unsubscribeClear === "function") {
-        unsubscribeClear();
-      }
-    };
-  }, [projectName, branch, workspaceId, updateUIAndScroll, getAggregator]);
 
   const handleMessageSent = useCallback(() => {
     // Enable auto-scroll when user sends a message
     setAutoScroll(true);
-  }, []);
+  }, [setAutoScroll]);
 
-  const handleClearHistory = useCallback(async () => {
-    // Clear UI immediately
-    setDisplayedMessages([]);
-    const aggregator = getAggregator(workspaceId);
-    aggregator.clear();
+  const handleClearHistory = useCallback(
+    async (percentage = 1.0) => {
+      // Enable auto-scroll after clearing
+      setAutoScroll(true);
 
-    // Enable auto-scroll after clearing
-    setAutoScroll(true);
-
-    // Clear history in backend
-    await window.api.workspace.clearHistory(workspaceId);
-  }, [workspaceId, getAggregator]);
+      // Truncate history in backend
+      await window.api.workspace.truncateHistory(workspaceId, percentage);
+    },
+    [workspaceId, setAutoScroll]
+  );
 
   const handleProviderConfig = useCallback(
     async (provider: string, keyPath: string[], value: string) => {
@@ -395,16 +216,34 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
     []
   );
 
-  // Get current aggregator
-  const aggregator = getAggregator(workspaceId);
+  // Scroll to bottom when workspace loads or changes
+  useEffect(() => {
+    if (!loading && messages.length > 0) {
+      // Give React time to render messages before scrolling
+      requestAnimationFrame(() => {
+        jumpToBottom();
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workspaceId, loading]);
 
-  // getAllMessages() returns cached array with stable references when state unchanged
-  // The aggregator invalidates its cache on mutations, so we don't need useMemo here
-  // Must be before early returns to respect React hooks rules
-  const cmuxMessages = aggregator.getAllMessages();
+  // Handle keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't handle shortcuts if user is typing in an input field
+      if (isEditableElement(e.target)) {
+        return;
+      }
 
-  // Check if we can interrupt (streaming is active)
-  const canInterrupt = aggregator.getActiveStreams().length > 0;
+      if (matchesKeybind(e, KEYBINDS.JUMP_TO_BOTTOM)) {
+        e.preventDefault();
+        jumpToBottom();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [jumpToBottom]);
 
   if (loading) {
     return (
@@ -433,87 +272,60 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
         <ChatArea>
           <ViewHeader>
             <WorkspaceTitle>
+              <StatusIndicator
+                streaming={canInterrupt}
+                title={canInterrupt ? "Streaming..." : "Idle"}
+              />
               {projectName} / {branch}
             </WorkspaceTitle>
           </ViewHeader>
 
-          <OutputContent
-            ref={contentRef}
-            onWheel={() => {
-              lastUserInteractionRef.current = Date.now();
-            }}
-            onTouchMove={() => {
-              lastUserInteractionRef.current = Date.now();
-            }}
-            onScroll={(e) => {
-              const element = e.currentTarget;
-              const currentScrollTop = element.scrollTop;
-              const threshold = 100;
-              const isAtBottom =
-                element.scrollHeight - currentScrollTop - element.clientHeight < threshold;
+          <OutputContainer>
+            <OutputContent
+              ref={contentRef}
+              onWheel={markUserInteraction}
+              onTouchMove={markUserInteraction}
+              onScroll={handleScroll}
+            >
+              {messages.length === 0 ? (
+                <EmptyState>
+                  <h3>No Messages Yet</h3>
+                  <p>Send a message below to begin</p>
+                </EmptyState>
+              ) : (
+                <>
+                  {messages.map((msg) => {
+                    const isAtCutoff =
+                      editCutoffHistoryId !== undefined && msg.historyId === editCutoffHistoryId;
 
-              // Only process user-initiated scrolls (within 100ms of interaction)
-              const isUserScroll = Date.now() - lastUserInteractionRef.current < 100;
-
-              if (!isUserScroll) {
-                lastScrollTopRef.current = currentScrollTop;
-                return; // Ignore programmatic scrolls
-              }
-
-              // Detect scroll direction
-              const isScrollingUp = currentScrollTop < lastScrollTopRef.current;
-              const isScrollingDown = currentScrollTop > lastScrollTopRef.current;
-
-              if (isScrollingUp) {
-                // Always disable auto-scroll when scrolling up
-                setAutoScroll(false);
-              } else if (isScrollingDown && isAtBottom) {
-                // Only enable auto-scroll if scrolling down AND reached the bottom
-                setAutoScroll(true);
-              }
-              // If scrolling down but not at bottom, auto-scroll remains disabled
-
-              // Update last scroll position
-              lastScrollTopRef.current = currentScrollTop;
-            }}
-          >
-            {messages.length === 0 ? (
-              <EmptyState>
-                <h3>No Messages Yet</h3>
-                <p>Send a message below to begin</p>
-              </EmptyState>
-            ) : (
-              <>
-                {messages.map((msg) => {
-                  const isAtCutoff =
-                    editCutoffHistoryId !== undefined && msg.historyId === editCutoffHistoryId;
-
-                  return (
-                    <React.Fragment key={msg.id}>
-                      <MessageRenderer message={msg} onEditUserMessage={handleEditUserMessage} />
-                      {isAtCutoff && (
-                        <EditBarrier>
-                          ⚠️ Messages below this line will be removed when you submit the edit
-                        </EditBarrier>
-                      )}
-                      {shouldShowInterruptedBarrier(msg) && <InterruptedBarrier />}
-                    </React.Fragment>
-                  );
-                })}
-              </>
+                    return (
+                      <React.Fragment key={msg.id}>
+                        <MessageRenderer message={msg} onEditUserMessage={handleEditUserMessage} />
+                        {isAtCutoff && (
+                          <EditBarrier>
+                            ⚠️ Messages below this line will be removed when you submit the edit
+                          </EditBarrier>
+                        )}
+                        {shouldShowInterruptedBarrier(msg) && <InterruptedBarrier />}
+                      </React.Fragment>
+                    );
+                  })}
+                </>
+              )}
+              {canInterrupt && <StreamingBarrier />}
+            </OutputContent>
+            {!autoScroll && (
+              <JumpToBottomIndicator onClick={jumpToBottom}>
+                Press {formatKeybind(KEYBINDS.JUMP_TO_BOTTOM)} to jump to bottom
+              </JumpToBottomIndicator>
             )}
-            {canInterrupt && (
-              <GlobalStreamingIndicator>streaming... hit Esc to cancel</GlobalStreamingIndicator>
-            )}
-          </OutputContent>
+          </OutputContainer>
 
           <ChatInput
             workspaceId={workspaceId}
             onMessageSent={handleMessageSent}
-            onClearHistory={handleClearHistory}
+            onTruncateHistory={handleClearHistory}
             onProviderConfig={handleProviderConfig}
-            debugMode={debugMode}
-            onDebugModeChange={setDebugMode}
             disabled={!projectName || !branch}
             isCompacting={isCompacting}
             editingMessage={editingMessage}
@@ -528,13 +340,13 @@ const AIViewInner: React.FC<AIViewProps> = ({ workspaceId, projectName, branch, 
   );
 };
 
-// Wrapper component that provides the debug and thinking contexts
+// Wrapper component that provides the mode and thinking contexts
 export const AIView: React.FC<AIViewProps> = (props) => {
   return (
-    <DebugProvider>
+    <ModeProvider workspaceId={props.workspaceId}>
       <ThinkingProvider workspaceId={props.workspaceId}>
         <AIViewInner {...props} />
       </ThinkingProvider>
-    </DebugProvider>
+    </ModeProvider>
   );
 };

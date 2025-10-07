@@ -1,10 +1,10 @@
 import React from "react";
 import styled from "@emotion/styled";
-import { useChatContext } from "../../contexts/ChatContext";
-import { TooltipWrapper, Tooltip } from "../Tooltip";
-import { getModelStats } from "../../utils/modelStats";
-import { sumUsageHistory } from "../../utils/tokenStatsCalculator";
-import { usePersistedState } from "../../hooks/usePersistedState";
+import { useChatContext } from "@/contexts/ChatContext";
+import { TooltipWrapper, Tooltip, HelpIndicator } from "../Tooltip";
+import { getModelStats } from "@/utils/tokens/modelStats";
+import { sumUsageHistory } from "@/utils/tokens/tokenStatsCalculator";
+import { usePersistedState } from "@/hooks/usePersistedState";
 import { ToggleGroup, type ToggleOption } from "../ToggleGroup";
 
 const Container = styled.div`
@@ -60,21 +60,6 @@ const ConsumerName = styled.span`
   display: inline-flex;
   align-items: baseline;
   gap: 4px;
-`;
-
-const HelpIndicator = styled.span`
-  color: #666666;
-  font-size: 8px;
-  cursor: help;
-  display: inline-block;
-  vertical-align: baseline;
-  border: 1px solid #666666;
-  border-radius: 50%;
-  width: 11px;
-  height: 11px;
-  line-height: 9px;
-  text-align: center;
-  font-weight: bold;
 `;
 
 const ConsumerTokens = styled.span`

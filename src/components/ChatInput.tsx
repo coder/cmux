@@ -3,16 +3,23 @@ import styled from "@emotion/styled";
 import { CommandSuggestions, COMMAND_SUGGESTION_KEYS } from "./CommandSuggestions";
 import type { Toast } from "./ChatInputToast";
 import { ChatInputToast, SolutionLabel } from "./ChatInputToast";
-import type { ParsedCommand } from "../utils/slashCommands/types";
-import { parseCommand } from "../utils/slashCommands/parser";
-import type { SendMessageError as SendMessageErrorType } from "../types/errors";
-import { usePersistedState } from "../hooks/usePersistedState";
+import type { ParsedCommand } from "@/utils/slashCommands/types";
+import { parseCommand } from "@/utils/slashCommands/parser";
+import type { SendMessageError as SendMessageErrorType } from "@/types/errors";
+import { usePersistedState } from "@/hooks/usePersistedState";
 import { ThinkingSliderComponent } from "./ThinkingSlider";
-import { useThinkingLevel } from "../hooks/useThinkingLevel";
+import { useThinkingLevel } from "@/hooks/useThinkingLevel";
+import { useMode } from "@/contexts/ModeContext";
+import { modeToToolPolicy } from "@/utils/ui/modeUtils";
+import { ToggleGroup } from "./ToggleGroup";
+import type { UIMode } from "@/types/mode";
 import {
   getSlashCommandSuggestions,
   type SlashSuggestion,
-} from "../utils/slashCommands/suggestions";
+} from "@/utils/slashCommands/suggestions";
+import { TooltipWrapper, Tooltip, HelpIndicator } from "./Tooltip";
+import { matchesKeybind, formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
+import { defaultModel } from "@/utils/ai/models";
 
 const InputSection = styled.div`
   position: relative;
@@ -30,7 +37,11 @@ const InputControls = styled.div`
   align-items: flex-end;
 `;
 
-const InputField = styled.textarea<{ isEditing?: boolean; canInterrupt?: boolean }>`
+const InputField = styled.textarea<{
+  isEditing?: boolean;
+  canInterrupt?: boolean;
+  mode: UIMode;
+}>`
   flex: 1;
   background: ${(props) => (props.isEditing ? "var(--color-editing-mode-alpha)" : "#1e1e1e")};
   border: 1px solid ${(props) => (props.isEditing ? "var(--color-editing-mode)" : "#3e3e42")};
@@ -47,7 +58,12 @@ const InputField = styled.textarea<{ isEditing?: boolean; canInterrupt?: boolean
 
   &:focus {
     outline: none;
-    border-color: ${(props) => (props.isEditing ? "var(--color-editing-mode)" : "#569cd6")};
+    border-color: ${(props) =>
+      props.isEditing
+        ? "var(--color-editing-mode)"
+        : props.mode === "plan"
+          ? "var(--color-plan-mode)"
+          : "var(--color-exec-mode)"};
   }
 
   &::placeholder {
@@ -66,24 +82,45 @@ const ModeTogglesRow = styled.div`
   align-items: center;
 `;
 
-const DebugModeToggle = styled.label`
+const ModeToggleWrapper = styled.div`
   display: flex;
   align-items: center;
-  gap: 4px;
-  font-size: 10px;
-  color: #606060;
-  cursor: pointer;
-  user-select: none;
-  opacity: 0.7;
-  transition: opacity 0.2s ease;
+  gap: 6px;
+  margin-left: auto;
+`;
 
-  input {
-    cursor: pointer;
-    transform: scale(0.9);
-  }
+const StyledToggleContainer = styled.div<{ mode: UIMode }>`
+  display: flex;
+  gap: 0;
+  background: var(--color-toggle-bg);
+  border-radius: 4px;
 
-  &:hover {
-    opacity: 1;
+  button {
+    &:first-of-type {
+      ${(props) =>
+        props.mode === "exec" &&
+        `
+        background: var(--color-exec-mode);
+        color: white;
+
+        &:hover {
+          background: var(--color-exec-mode-hover);
+        }
+      `}
+    }
+
+    &:last-of-type {
+      ${(props) =>
+        props.mode === "plan" &&
+        `
+        background: var(--color-plan-mode);
+        color: white;
+
+        &:hover {
+          background: var(--color-plan-mode-hover);
+        }
+      `}
+    }
   }
 `;
 
@@ -97,17 +134,23 @@ const ModelDisplay = styled.div`
   font-size: 10px;
   color: #808080;
   font-family: var(--font-monospace);
+  line-height: 11px;
+`;
+
+const ModelDisplayWrapper = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 4px;
   margin-right: 12px;
+  height: 11px;
 `;
 
 export interface ChatInputProps {
   workspaceId: string;
   onMessageSent?: () => void; // Optional callback after successful send
-  onClearHistory: () => Promise<void>;
+  onTruncateHistory: (percentage?: number) => Promise<void>;
   onProviderConfig?: (provider: string, keyPath: string[], value: string) => Promise<void>;
   onModelChange?: (model: string) => void;
-  debugMode: boolean;
-  onDebugModeChange: (enabled: boolean) => void;
   disabled?: boolean;
   isCompacting?: boolean;
   editingMessage?: { id: string; content: string };
@@ -269,11 +312,9 @@ const createErrorToast = (error: SendMessageErrorType): Toast => {
 export const ChatInput: React.FC<ChatInputProps> = ({
   workspaceId,
   onMessageSent,
-  onClearHistory,
+  onTruncateHistory,
   onProviderConfig,
   onModelChange,
-  debugMode,
-  onDebugModeChange,
   disabled = false,
   isCompacting = false,
   editingMessage,
@@ -283,7 +324,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const [input, setInput] = usePersistedState("input:" + workspaceId, "");
   const [preferredModel, setPreferredModel] = usePersistedState<string>(
     "cmux-preferred-model",
-    "anthropic:claude-opus-4-1"
+    defaultModel
   );
   const [isSending, setIsSending] = useState(false);
   const [showCommandSuggestions, setShowCommandSuggestions] = useState(false);
@@ -292,6 +333,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const [toast, setToast] = useState<Toast | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [thinkingLevel] = useThinkingLevel();
+  const [mode, setMode] = useMode();
 
   // When entering editing mode, populate input with message content
   useEffect(() => {
@@ -363,11 +405,26 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           if (inputRef.current) {
             inputRef.current.style.height = "36px";
           }
-          await onClearHistory();
+          await onTruncateHistory(1.0);
           setToast({
             id: Date.now().toString(),
             type: "success",
             message: "Chat history cleared",
+          });
+          return;
+        }
+
+        // Handle /truncate command
+        if (parsed.type === "truncate") {
+          setInput("");
+          if (inputRef.current) {
+            inputRef.current.style.height = "36px";
+          }
+          await onTruncateHistory(parsed.percentage);
+          setToast({
+            id: Date.now().toString(),
+            type: "success",
+            message: `Chat history truncated by ${Math.round(parsed.percentage * 100)}%`,
           });
           return;
         }
@@ -424,10 +481,18 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       setIsSending(true);
 
       try {
+        // Build additional system instructions for plan mode
+        const additionalSystemInstructions =
+          mode === "plan"
+            ? "You are in Plan Mode. You may use tools to research and understand the task, but you MUST call the propose_plan tool with your findings before completing your response. Do not provide a text response without calling propose_plan."
+            : undefined;
+
         const result = await window.api.workspace.sendMessage(workspaceId, messageText, {
           editMessageId: editingMessage?.id,
           thinkingLevel,
           model: preferredModel,
+          toolPolicy: modeToToolPolicy(mode),
+          additionalSystemInstructions,
         });
 
         if (!result.success) {
@@ -472,8 +537,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    // Handle Escape key
-    if (e.key === "Escape") {
+    // Handle cancel/escape
+    if (matchesKeybind(e, KEYBINDS.CANCEL)) {
       e.preventDefault();
 
       // Priority 1: Cancel editing if in edit mode
@@ -501,15 +566,16 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       return; // Let CommandSuggestions handle it
     }
 
-    if (e.key === "Enter") {
-      if (e.shiftKey) {
-        // Shift+Enter: allow newline (default behavior)
-        return;
-      } else {
-        // Enter: send message
-        e.preventDefault();
-        void handleSend();
-      }
+    // Handle newline
+    if (matchesKeybind(e, KEYBINDS.NEW_LINE)) {
+      // Allow newline (default behavior)
+      return;
+    }
+
+    // Handle send message
+    if (matchesKeybind(e, KEYBINDS.SEND_MESSAGE)) {
+      e.preventDefault();
+      void handleSend();
     }
   };
 
@@ -527,6 +593,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           ref={inputRef}
           value={input}
           isEditing={!!editingMessage}
+          mode={mode}
           onChange={(e) => {
             const newValue = e.target.value;
             setInput(newValue);
@@ -539,12 +606,12 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           onKeyDown={handleKeyDown}
           placeholder={
             editingMessage
-              ? "Edit your message... (Esc to cancel, Enter to send)"
+              ? `Edit your message... (${formatKeybind(KEYBINDS.CANCEL)} to cancel, ${formatKeybind(KEYBINDS.SEND_MESSAGE)} to send)`
               : isCompacting
                 ? "Compacting conversation..."
                 : canInterrupt
-                  ? "Type a message... (Esc to interrupt, Enter to send, Shift+Enter for newline)"
-                  : "Type a message... (Enter to send, Shift+Enter for newline)"
+                  ? `Type a message... (${formatKeybind(KEYBINDS.CANCEL)} to interrupt, ${formatKeybind(KEYBINDS.SEND_MESSAGE)} to send, ${formatKeybind(KEYBINDS.NEW_LINE)} for newline)`
+                  : `Type a message... (${formatKeybind(KEYBINDS.SEND_MESSAGE)} to send, ${formatKeybind(KEYBINDS.NEW_LINE)} for newline)`
           }
           disabled={disabled || isSending || isCompacting}
           canInterrupt={canInterrupt}
@@ -553,16 +620,52 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       <ModeToggles>
         {editingMessage && <EditingIndicator>Editing message (ESC to cancel)</EditingIndicator>}
         <ModeTogglesRow>
-          <ModelDisplay>{preferredModel}</ModelDisplay>
-          <DebugModeToggle>
-            <input
-              type="checkbox"
-              checked={debugMode}
-              onChange={(e) => onDebugModeChange(e.target.checked)}
-            />
-            Debug Mode
-          </DebugModeToggle>
+          <ModelDisplayWrapper>
+            <ModelDisplay>{preferredModel}</ModelDisplay>
+            <TooltipWrapper inline>
+              <HelpIndicator>?</HelpIndicator>
+              <Tooltip className="tooltip" align="left" width="wide">
+                Change model using <code>/model</code> command
+                <br />
+                <br />
+                <strong>Abbreviations:</strong>
+                <br />• <code>/model opus</code> - Claude Opus 4.1
+                <br />• <code>/model sonnet</code> - Claude Sonnet 4.5
+                <br />
+                <br />
+                <strong>Full format:</strong>
+                <br />
+                <code>/model provider:model-name</code>
+                <br />
+                (e.g., <code>/model anthropic:claude-sonnet-4-5</code>)
+              </Tooltip>
+            </TooltipWrapper>
+          </ModelDisplayWrapper>
           <ThinkingSliderComponent />
+          <ModeToggleWrapper>
+            <StyledToggleContainer mode={mode}>
+              <ToggleGroup<UIMode>
+                options={[
+                  { value: "exec", label: "Exec" },
+                  { value: "plan", label: "Plan" },
+                ]}
+                value={mode}
+                onChange={setMode}
+              />
+            </StyledToggleContainer>
+            <TooltipWrapper inline>
+              <HelpIndicator>?</HelpIndicator>
+              <Tooltip className="tooltip" align="center" width="wide">
+                <strong>Exec Mode:</strong> AI edits files and execute commands
+                <br />
+                <br />
+                <strong>Plan Mode:</strong> AI proposes plans but does not edit files
+                <br />
+                <br />
+                Toggle with: {formatKeybind(KEYBINDS.TOGGLE_MODE)}
+              </Tooltip>
+            </TooltipWrapper>
+          </ModeToggleWrapper>
         </ModeTogglesRow>
       </ModeToggles>
     </InputSection>

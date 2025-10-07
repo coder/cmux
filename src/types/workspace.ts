@@ -12,6 +12,10 @@ export const WorkspaceMetadataSchema = z.object({
 /**
  * Unified workspace metadata type used throughout the application.
  * This is the single source of truth for workspace information.
+ *
+ * NOTE: This does NOT include branch name. Branch can be changed after workspace
+ * creation (user can switch branches in the worktree), and we should not depend
+ * on branch state in backend logic. Frontend can track branch for UI purposes.
  */
 export interface WorkspaceMetadata {
   /** Unique workspace identifier (e.g., "project-branch") */

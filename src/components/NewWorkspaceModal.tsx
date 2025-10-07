@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import styled from "@emotion/styled";
+import { matchesKeybind, KEYBINDS } from "@/utils/ui/keybinds";
 
 // Styled Components
 const ModalOverlay = styled.div`
@@ -153,7 +154,11 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  if (!isOpen) return null;
+  const handleCancel = useCallback(() => {
+    setBranchName("");
+    setError(null);
+    onClose();
+  }, [onClose]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -177,11 +182,21 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
     }
   };
 
-  const handleCancel = () => {
-    setBranchName("");
-    setError(null);
-    onClose();
-  };
+  // Handle cancel keybind to close modal
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (matchesKeybind(e, KEYBINDS.CANCEL) && !isLoading) {
+        handleCancel();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, isLoading, handleCancel]);
+
+  if (!isOpen) return null;
 
   const projectName = projectPath.split("/").pop() ?? projectPath.split("\\").pop() ?? "project";
 
@@ -213,7 +228,7 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
           <ModalInfo>
             <p>This will create a git worktree at:</p>
             <code>
-              ~/.cmux/{projectName}/{branchName || "<branch-name>"}
+              ~/.cmux/src/{projectName}/{branchName || "<branch-name>"}
             </code>
           </ModalInfo>
 

@@ -118,11 +118,14 @@ function createWindow() {
     }
   });
 
-  // Always load from dev server for now
-  void mainWindow.loadURL("http://localhost:5173");
-
-  // Open DevTools in development
-  if (process.env.NODE_ENV !== "production") {
+  // Load from dev server in development, built files in production
+  // app.isPackaged is true when running from a built .app/.exe, false in development
+  if (app.isPackaged) {
+    // Production mode: load built files
+    void mainWindow.loadFile(path.join(__dirname, "index.html"));
+  } else {
+    // Development mode: load from vite dev server
+    void mainWindow.loadURL("http://localhost:5173");
     mainWindow.webContents.openDevTools();
   }
 

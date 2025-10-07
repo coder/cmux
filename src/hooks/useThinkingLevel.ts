@@ -1,4 +1,4 @@
-import { useThinking } from "../contexts/ThinkingContext";
+import { useThinking } from "@/contexts/ThinkingContext";
 
 /**
  * Custom hook for thinking level state.

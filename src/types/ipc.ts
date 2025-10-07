@@ -1,9 +1,11 @@
 import type { Result } from "./result";
 import type { WorkspaceMetadata } from "./workspace";
 import type { CmuxMessage } from "./message";
-import type { ProjectConfig } from "../config";
+import type { ProjectConfig } from "@/config";
 import type { SendMessageError, StreamErrorType } from "./errors";
 import type { ThinkingLevel } from "./thinking";
+import type { ToolPolicy } from "@/utils/tools/toolPolicy";
+import type { BashToolResult } from "./tools";
 import type {
   StreamStartEvent,
   StreamDeltaEvent,
@@ -17,10 +19,10 @@ import type {
 } from "./stream";
 
 // Import constants from constants module (single source of truth)
-import { IPC_CHANNELS, getChatChannel, getClearChannel } from "../constants/ipc-constants";
+import { IPC_CHANNELS, getChatChannel } from "@/constants/ipc-constants";
 
 // Re-export for TypeScript consumers
-export { IPC_CHANNELS, getChatChannel, getClearChannel };
+export { IPC_CHANNELS, getChatChannel };
 
 // Type for all channel names
 export type IPCChannel = string;
@@ -38,11 +40,18 @@ export interface StreamErrorMessage {
   errorType: StreamErrorType;
 }
 
+// Delete message type (for truncating history)
+export interface DeleteMessage {
+  type: "delete";
+  historySequences: number[];
+}
+
 // Union type for workspace chat messages
 export type WorkspaceChatMessage =
   | CmuxMessage
   | CaughtUpMessage
   | StreamErrorMessage
+  | DeleteMessage
   | StreamStartEvent
   | StreamDeltaEvent
   | StreamEndEvent
@@ -61,6 +70,11 @@ export function isCaughtUpMessage(msg: WorkspaceChatMessage): msg is CaughtUpMes
 // Type guard for stream error messages
 export function isStreamError(msg: WorkspaceChatMessage): msg is StreamErrorMessage {
   return "type" in msg && msg.type === "stream-error";
+}
+
+// Type guard for delete messages
+export function isDeleteMessage(msg: WorkspaceChatMessage): msg is DeleteMessage {
+  return "type" in msg && msg.type === "delete";
 }
 
 // Type guard for stream start events
@@ -113,6 +127,8 @@ export interface SendMessageOptions {
   editMessageId?: string;
   thinkingLevel?: ThinkingLevel;
   model: string;
+  toolPolicy?: ToolPolicy;
+  additionalSystemInstructions?: string;
 }
 
 // API method signatures (shared between main and preload)
@@ -139,15 +155,24 @@ export interface IPCApi {
     create(
       projectPath: string,
       branchName: string
-    ): Promise<{ success: boolean; workspaceId?: string; path?: string; error?: string }>;
+    ): Promise<{ success: true; metadata: WorkspaceMetadata } | { success: false; error: string }>;
     remove(workspaceId: string): Promise<{ success: boolean; error?: string }>;
+    rename(
+      workspaceId: string,
+      newName: string
+    ): Promise<Result<{ newWorkspaceId: string }, string>>;
     sendMessage(
       workspaceId: string,
       message: string,
       options?: SendMessageOptions
     ): Promise<Result<void, SendMessageError>>;
-    clearHistory(workspaceId: string): Promise<Result<void, string>>;
+    truncateHistory(workspaceId: string, percentage?: number): Promise<Result<void, string>>;
     getInfo(workspaceId: string): Promise<WorkspaceMetadata | null>;
+    executeBash(
+      workspaceId: string,
+      script: string,
+      options?: { timeout_secs?: number; max_lines?: number; stdin?: string }
+    ): Promise<Result<BashToolResult, string>>;
 
     // Event subscriptions (renderer-only)
     // These methods are designed to send current state immediately upon subscription,
@@ -155,7 +180,6 @@ export interface IPCApi {
     // to encourage the renderer to maintain an always up-to-date view of the state
     // through continuous subscriptions rather than polling patterns.
     onChat(workspaceId: string, callback: (data: WorkspaceChatMessage) => void): () => void;
-    onClear(workspaceId: string, callback: (data: unknown) => void): () => void;
     onMetadata(
       callback: (data: { workspaceId: string; metadata: WorkspaceMetadata }) => void
     ): () => void;

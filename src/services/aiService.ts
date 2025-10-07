@@ -3,33 +3,61 @@ import * as path from "path";
 import { EventEmitter } from "events";
 import { convertToModelMessages, type LanguageModel } from "ai";
 import { createAnthropic } from "@ai-sdk/anthropic";
-import type { Result } from "../types/result";
-import { Ok, Err } from "../types/result";
-import type { WorkspaceMetadata } from "../types/workspace";
-import { WorkspaceMetadataSchema } from "../types/workspace";
-import type { CmuxMessage } from "../types/message";
-import { createCmuxMessage } from "../types/message";
-import type { Config } from "../config";
+import type { Result } from "@/types/result";
+import { Ok, Err } from "@/types/result";
+import type { WorkspaceMetadata } from "@/types/workspace";
+import { WorkspaceMetadataSchema } from "@/types/workspace";
+import type { CmuxMessage } from "@/types/message";
+import { createCmuxMessage } from "@/types/message";
+import type { Config } from "@/config";
 import { StreamManager } from "./streamManager";
-import type { SendMessageError } from "../types/errors";
-import { getToolsForModel } from "../utils/tools";
+import type { SendMessageError } from "@/types/errors";
+import { getToolsForModel } from "@/utils/tools/tools";
 import { log } from "./log";
 import {
   transformModelMessages,
   validateAnthropicCompliance,
   addInterruptedSentinel,
   filterEmptyAssistantMessages,
-} from "../utils/modelMessageTransform";
-import { applyCacheControl } from "../utils/cacheStrategy";
+} from "@/utils/messages/modelMessageTransform";
+import { applyCacheControl } from "@/utils/ai/cacheStrategy";
 import type { HistoryService } from "./historyService";
 import type { PartialService } from "./partialService";
 import { buildSystemMessage } from "./systemMessage";
-import { getTokenizerForModel } from "../utils/tokenizer";
-import { buildProviderOptions } from "../utils/providerOptions";
-import type { ThinkingLevel } from "../types/thinking";
+import { getTokenizerForModel } from "@/utils/tokens/tokenizer";
+import { buildProviderOptions } from "@/utils/ai/providerOptions";
+import type { ThinkingLevel } from "@/types/thinking";
 import { createOpenAI } from "@ai-sdk/openai";
+import { Agent } from "undici";
+import type { StreamAbortEvent } from "@/types/stream";
+import { applyToolPolicy, type ToolPolicy } from "@/utils/tools/toolPolicy";
 
 // Export a standalone version of getToolsForModel for use in backend
+
+// Create undici agent with unlimited timeouts for AI streaming requests.
+// Safe because users control cancellation via AbortSignal from the UI.
+const unlimitedTimeoutAgent = new Agent({
+  bodyTimeout: 0, // No timeout - prevents BodyTimeoutError on long reasoning pauses
+  headersTimeout: 0, // No timeout for headers
+});
+
+/**
+ * Default fetch function with unlimited timeouts for AI streaming.
+ * Uses undici Agent to remove artificial timeout limits while still
+ * respecting user cancellation via AbortSignal.
+ *
+ * Note: If users provide custom fetch in providers.jsonc, they are
+ * responsible for configuring timeouts appropriately. Custom fetch
+ * implementations using undici should set bodyTimeout: 0 and
+ * headersTimeout: 0 to prevent BodyTimeoutError on long-running
+ * reasoning models.
+ */
+function defaultFetchWithUnlimitedTimeout(
+  input: RequestInfo | URL,
+  init?: RequestInit
+): Promise<Response> {
+  return fetch(input, { ...init, dispatcher: unlimitedTimeoutAgent } as RequestInit);
+}
 
 export class AIService extends EventEmitter {
   private readonly METADATA_FILE = "metadata.json";
@@ -55,7 +83,20 @@ export class AIService extends EventEmitter {
     this.streamManager.on("stream-start", (data) => this.emit("stream-start", data));
     this.streamManager.on("stream-delta", (data) => this.emit("stream-delta", data));
     this.streamManager.on("stream-end", (data) => this.emit("stream-end", data));
-    this.streamManager.on("stream-abort", (data) => this.emit("stream-abort", data));
+
+    // Handle stream-abort: commit partial to history before forwarding
+    this.streamManager.on("stream-abort", (data: StreamAbortEvent) => {
+      void (async () => {
+        // Commit interrupted message to history with partial:true metadata
+        // This ensures /clear and /truncate can clean up interrupted messages
+        await this.partialService.commitToHistory(data.workspaceId);
+        await this.partialService.deletePartial(data.workspaceId);
+
+        // Forward abort event to consumers
+        this.emit("stream-abort", data);
+      })();
+    });
+
     this.streamManager.on("error", (data) => this.emit("error", data));
     // Forward tool events
     this.streamManager.on("tool-call-start", (data) => this.emit("tool-call-start", data));
@@ -169,7 +210,18 @@ export class AIService extends EventEmitter {
             provider: providerName,
           });
         }
-        const provider = createOpenAI(providerConfig);
+        // Use user's custom fetch as-is if provided (user controls timeouts),
+        // otherwise use our default fetch with unlimited timeout.
+        const fetchToUse =
+          typeof providerConfig.fetch === "function"
+            ? (providerConfig.fetch as typeof fetch)
+            : defaultFetchWithUnlimitedTimeout;
+
+        const provider = createOpenAI({
+          ...providerConfig,
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-explicit-any
+          fetch: fetchToUse as any,
+        });
         // Use Responses API for persistence and built-in tools
         return Ok(provider.responses(modelId));
       }
@@ -190,7 +242,9 @@ export class AIService extends EventEmitter {
    * @param workspaceId Unique identifier for the workspace
    * @param modelString Model string (e.g., "anthropic:claude-opus-4-1") - required from frontend
    * @param thinkingLevel Optional thinking/reasoning level for AI models
+   * @param toolPolicy Optional policy to filter available tools
    * @param abortSignal Optional signal to abort the stream
+   * @param additionalSystemInstructions Optional additional system instructions to append
    * @returns Promise that resolves when streaming completes or fails
    */
   async streamMessage(
@@ -198,7 +252,9 @@ export class AIService extends EventEmitter {
     workspaceId: string,
     modelString: string,
     thinkingLevel?: ThinkingLevel,
-    abortSignal?: AbortSignal
+    toolPolicy?: ToolPolicy,
+    abortSignal?: AbortSignal,
+    additionalSystemInstructions?: string
   ): Promise<Result<void, SendMessageError>> {
     try {
       // DEBUG: Log streamMessage call
@@ -262,7 +318,10 @@ export class AIService extends EventEmitter {
       }
 
       // Build system message from workspace metadata
-      const systemMessage = await buildSystemMessage(metadataResult.data);
+      const systemMessage = await buildSystemMessage(
+        metadataResult.data,
+        additionalSystemInstructions
+      );
 
       // Count system message tokens for cost tracking
       const tokenizer = getTokenizerForModel(modelString);
@@ -271,7 +330,10 @@ export class AIService extends EventEmitter {
       const workspacePath = metadataResult.data.workspacePath;
 
       // Get model-specific tools with workspace path configuration
-      const tools = getToolsForModel(modelString, { cwd: workspacePath });
+      const allTools = getToolsForModel(modelString, { cwd: workspacePath });
+
+      // Apply tool policy to filter tools (if policy provided)
+      const tools = applyToolPolicy(allTools, toolPolicy);
 
       // Create assistant message placeholder with historySequence from backend
       const assistantMessageId = `assistant-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
@@ -347,6 +409,22 @@ export class AIService extends EventEmitter {
    */
   getStreamState(workspaceId: string): string {
     return this.streamManager.getStreamState(workspaceId);
+  }
+
+  /**
+   * Get the current stream info for a workspace if actively streaming
+   * Used to re-establish streaming context on frontend reconnection
+   */
+  getStreamInfo(workspaceId: string): ReturnType<typeof this.streamManager.getStreamInfo> {
+    return this.streamManager.getStreamInfo(workspaceId);
+  }
+
+  /**
+   * Replay stream events
+   * Emits the same events that would be emitted during live streaming
+   */
+  replayStream(workspaceId: string): void {
+    this.streamManager.replayStream(workspaceId);
   }
 
   async deleteWorkspace(workspaceId: string): Promise<Result<void>> {

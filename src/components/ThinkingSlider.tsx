@@ -1,7 +1,7 @@
 import React from "react";
 import styled from "@emotion/styled";
-import type { ThinkingLevel } from "../types/thinking";
-import { useThinkingLevel } from "../hooks/useThinkingLevel";
+import type { ThinkingLevel } from "@/types/thinking";
+import { useThinkingLevel } from "@/hooks/useThinkingLevel";
 
 const ThinkingSliderContainer = styled.div`
   display: flex;

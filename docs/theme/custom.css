@@ -1,0 +1,224 @@
+/* cmux Documentation Theme - Matching the app's design */
+
+:root {
+  /* Colors from colors.tsx */
+  --bg-primary: #1e1e1e;
+  --bg-secondary: #262626;
+  --bg-tertiary: #333333;
+
+  --text-primary: #d4d4d4;
+  --text-secondary: #6b6b6b;
+  --text-muted: #404040;
+
+  --accent-blue: #3b7fb5;
+  --accent-green: #4a8a5f;
+  --accent-yellow: #f59e0b;
+  --accent-red: #b54040;
+
+  --border-color: #404040;
+  --link-color: #4a9eff;
+  --link-hover: #6bb0ff;
+
+  /* Override mdbook's default variables */
+  --bg: var(--bg-primary) !important;
+  --table-alternate-bg: var(--bg-secondary) !important; /* Fix blue alternate row background */
+}
+
+/* Base styles */
+body {
+  background-color: var(--bg-primary) !important;
+  color: var(--text-primary) !important;
+}
+
+.content {
+  background-color: var(--bg-primary) !important;
+}
+
+/* Sidebar */
+.sidebar {
+  background-color: var(--bg-secondary) !important;
+  border-right: 1px solid var(--border-color) !important;
+}
+
+.sidebar-resize-handle {
+  background-color: var(--bg-tertiary) !important; /* #333333 - close to #323232 */
+}
+
+.sidebar .chapter li.chapter-item a {
+  color: var(--text-primary) !important;
+}
+
+.sidebar .chapter li.chapter-item a.active {
+  color: var(--accent-blue) !important;
+  background-color: transparent !important;
+}
+
+.sidebar .chapter li.chapter-item a:hover {
+  color: var(--text-primary) !important;
+  background-color: var(--bg-tertiary) !important;
+}
+
+/* Links */
+a {
+  color: var(--link-color) !important;
+}
+
+a:hover {
+  color: var(--link-hover) !important;
+  text-decoration: none !important;
+}
+
+/* Code blocks */
+pre {
+  background-color: var(--bg-secondary) !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: 4px;
+}
+
+:not(pre) > code {
+  background-color: var(--bg-secondary) !important;
+  color: var(--accent-green) !important;
+  border-radius: 3px;
+  padding: 2px 6px;
+}
+
+pre > code {
+  background-color: transparent !important;
+  color: var(--text-primary) !important;
+  padding: 6px;
+}
+
+/* Tables - LEFT ALIGN ALL CELLS */
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1em 0;
+  background-color: var(--bg-secondary) !important;
+}
+
+table thead {
+  background-color: var(--bg-tertiary) !important;
+  border-bottom: 2px solid var(--border-color) !important;
+}
+
+table th,
+table td {
+  padding: 0.75em 1em;
+  border: 1px solid var(--border-color) !important;
+  text-align: left !important; /* Force left alignment */
+  color: var(--text-primary) !important;
+}
+
+table th {
+  font-weight: 600;
+}
+
+table tbody tr:hover {
+  background-color: var(--bg-tertiary) !important;
+}
+
+/* Inline code in tables */
+table code {
+  background-color: var(--bg-primary) !important;
+  color: var(--accent-yellow) !important;
+  font-family: "Monaco", "Menlo", "Courier New", monospace;
+  font-size: 0.9em;
+}
+
+/* Blockquotes */
+blockquote {
+  border-left: 4px solid var(--accent-blue) !important;
+  background-color: var(--bg-secondary) !important;
+  padding: 1em;
+  margin: 1em 0;
+  color: var(--text-secondary) !important;
+}
+
+blockquote strong {
+  color: var(--accent-blue) !important;
+}
+
+/* Headers */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  color: var(--text-primary) !important;
+  border-bottom-color: var(--border-color) !important;
+}
+
+h1 {
+  border-bottom: 2px solid var(--border-color) !important;
+}
+
+h2 {
+  border-bottom: 1px solid var(--border-color) !important;
+}
+
+/* Search */
+#searchbar {
+  background-color: var(--bg-tertiary) !important;
+  border: 1px solid var(--border-color) !important;
+  color: var(--text-primary) !important;
+}
+
+#searchbar:focus {
+  border-color: var(--accent-blue) !important;
+  outline: none;
+}
+
+/* Navigation buttons */
+.nav-chapters {
+  color: var(--text-secondary) !important;
+}
+
+.nav-chapters:hover {
+  color: var(--text-primary) !important;
+  background-color: var(--bg-tertiary) !important;
+}
+
+/* Menu bar */
+#menu-bar {
+  background-color: var(--bg-secondary) !important;
+  border-bottom: 1px solid var(--border-color) !important;
+}
+
+.icon-button {
+  color: var(--text-secondary) !important;
+}
+
+.icon-button:hover {
+  color: var(--text-primary) !important;
+}
+
+/* Hide theme selector */
+#theme-toggle,
+.theme-popup {
+  display: none !important;
+}
+
+/* Page wrapper */
+.page-wrapper {
+  background-color: var(--bg-primary) !important;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--bg-tertiary);
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-color);
+}

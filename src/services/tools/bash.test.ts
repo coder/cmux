@@ -1,6 +1,6 @@
 import { describe, it, expect } from "bun:test";
 import { createBashTool } from "./bash";
-import type { BashToolArgs, BashToolResult } from "../../types/tools";
+import type { BashToolArgs, BashToolResult } from "@/types/tools";
 import type { ToolCallOptions } from "ai";
 
 // Mock ToolCallOptions for testing
@@ -242,6 +242,280 @@ describe("bash tool", () => {
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.output).toBe("");
+    }
+  });
+
+  it("should not hang on git rebase --continue", async () => {
+    const tool = createBashTool({ cwd: process.cwd() });
+    const startTime = performance.now();
+
+    // Extremely minimal case - just enough to trigger rebase --continue
+    const script = `
+      T=$(mktemp -d) && cd "$T"
+      git init && git config user.email "t@t" && git config user.name "T"
+      echo a > f && git add f && git commit -m a
+      git checkout -b b && echo b > f && git commit -am b
+      git checkout main && echo c > f && git commit -am c
+      git rebase b || true
+      echo resolved > f && git add f
+      git rebase --continue
+    `;
+
+    const result = (await tool.execute!(
+      { script, timeout_secs: 2, max_lines: 100 },
+      mockToolCallOptions
+    )) as BashToolResult;
+
+    const duration = performance.now() - startTime;
+
+    expect(duration).toBeLessThan(2000);
+    expect(result).toBeDefined();
+  });
+
+  it("should accept stdin input and avoid shell escaping issues", async () => {
+    const tool = createBashTool({ cwd: process.cwd() });
+
+    // Test case: pass JSON data with special characters through stdin
+    // This avoids shell escaping complexity that would occur if passing as argument
+    const complexData = '{"message": "Hello $USER, this has `backticks` and "quotes"!"}';
+
+    const args: BashToolArgs = {
+      script: "cat", // Read from stdin
+      timeout_secs: 5,
+      max_lines: 100,
+      stdin: complexData,
+    };
+
+    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.output).toBe(complexData);
+      expect(result.exitCode).toBe(0);
+    }
+  });
+
+  it("should handle multi-line stdin input", async () => {
+    const tool = createBashTool({ cwd: process.cwd() });
+
+    const multiLineInput = "line1\nline2\nline3\n";
+
+    const args: BashToolArgs = {
+      script: "wc -l", // Count lines from stdin
+      timeout_secs: 5,
+      max_lines: 100,
+      stdin: multiLineInput,
+    };
+
+    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      // wc -l should report 3 lines
+      expect(result.output.trim()).toBe("3");
+      expect(result.exitCode).toBe(0);
+    }
+  });
+
+  it("should work without stdin when not provided (backward compatibility)", async () => {
+    const tool = createBashTool({ cwd: process.cwd() });
+
+    const args: BashToolArgs = {
+      script: "echo test",
+      timeout_secs: 5,
+      max_lines: 100,
+      // stdin not provided
+    };
+
+    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.output).toBe("test");
+      expect(result.exitCode).toBe(0);
+    }
+  });
+
+  it("should reject redundant cd to working directory with &&", async () => {
+    const cwd = process.cwd();
+    const tool = createBashTool({ cwd });
+
+    const args: BashToolArgs = {
+      script: `cd ${cwd} && echo hello`,
+      timeout_secs: 5,
+      max_lines: 100,
+    };
+
+    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain("Redundant cd to working directory detected");
+      expect(result.error).toContain(cwd);
+      expect(result.exitCode).toBe(-1);
+      expect(result.wall_duration_ms).toBe(0);
+    }
+  });
+
+  it("should reject redundant cd to working directory with semicolon", async () => {
+    const cwd = process.cwd();
+    const tool = createBashTool({ cwd });
+
+    const args: BashToolArgs = {
+      script: `cd ${cwd}; echo hello`,
+      timeout_secs: 5,
+      max_lines: 100,
+    };
+
+    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain("Redundant cd to working directory detected");
+      expect(result.exitCode).toBe(-1);
+    }
+  });
+
+  it("should reject redundant cd with relative path (.)", async () => {
+    const cwd = process.cwd();
+    const tool = createBashTool({ cwd });
+
+    const args: BashToolArgs = {
+      script: "cd . && echo hello",
+      timeout_secs: 5,
+      max_lines: 100,
+    };
+
+    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain("Redundant cd to working directory detected");
+      expect(result.exitCode).toBe(-1);
+    }
+  });
+
+  it("should reject redundant cd with quoted path", async () => {
+    const cwd = process.cwd();
+    const tool = createBashTool({ cwd });
+
+    const args: BashToolArgs = {
+      script: `cd "${cwd}" && echo hello`,
+      timeout_secs: 5,
+      max_lines: 100,
+    };
+
+    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain("Redundant cd to working directory detected");
+      expect(result.exitCode).toBe(-1);
+    }
+  });
+
+  it("should allow cd to a different directory", async () => {
+    const tool = createBashTool({ cwd: process.cwd() });
+
+    const args: BashToolArgs = {
+      script: "cd /tmp && pwd",
+      timeout_secs: 5,
+      max_lines: 100,
+    };
+
+    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.output).toBe("/tmp");
+      expect(result.exitCode).toBe(0);
+    }
+  });
+
+  it("should allow commands that don't start with cd", async () => {
+    const cwd = process.cwd();
+    const tool = createBashTool({ cwd });
+
+    const args: BashToolArgs = {
+      script: `echo ${cwd} && cd /tmp`,
+      timeout_secs: 5,
+      max_lines: 100,
+    };
+
+    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.output).toContain(cwd);
+      expect(result.exitCode).toBe(0);
+    }
+  });
+
+  it("should complete quickly when background process is spawned", async () => {
+    const tool = createBashTool({ cwd: process.cwd() });
+    const startTime = performance.now();
+
+    const args: BashToolArgs = {
+      // Spawn a long-running background process, then exit foreground
+      script: "sleep 60 & echo done",
+      timeout_secs: 3,
+      max_lines: 100,
+    };
+
+    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
+    const duration = performance.now() - startTime;
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.output).toBe("done");
+      expect(result.exitCode).toBe(0);
+      // Should complete quickly (under 1s), not wait for background sleep
+      expect(duration).toBeLessThan(1000);
+    }
+  });
+
+  it("should complete quickly with background process and PID echo", async () => {
+    const tool = createBashTool({ cwd: process.cwd() });
+    const startTime = performance.now();
+
+    const args: BashToolArgs = {
+      // Mimics: cd storybook-static && python3 -m http.server 8080 > /dev/null 2>&1 & echo $!
+      script: "sleep 60 > /dev/null 2>&1 & echo $!",
+      timeout_secs: 3,
+      max_lines: 100,
+    };
+
+    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
+    const duration = performance.now() - startTime;
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      // Should output the PID of the background process
+      expect(result.output).toMatch(/^\d+$/);
+      expect(result.exitCode).toBe(0);
+      // Should complete quickly (under 1s), not wait for background sleep
+      expect(duration).toBeLessThan(1000);
+    }
+  });
+
+  it("should timeout background processes that don't complete", async () => {
+    const tool = createBashTool({ cwd: process.cwd() });
+    const startTime = performance.now();
+
+    const args: BashToolArgs = {
+      // Background process with output redirected but still blocking
+      script: "sleep 10 & wait",
+      timeout_secs: 1,
+      max_lines: 100,
+    };
+
+    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
+    const duration = performance.now() - startTime;
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain("timed out");
+      expect(duration).toBeLessThan(2000);
     }
   });
 });

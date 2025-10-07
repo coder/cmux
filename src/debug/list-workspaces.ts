@@ -1,4 +1,4 @@
-import { defaultConfig } from "../config";
+import { defaultConfig } from "@/config";
 import * as path from "path";
 import * as fs from "fs";
 
@@ -15,28 +15,25 @@ export function listWorkspacesCommand() {
     console.log(`  Workspaces: ${project.workspaces.length}`);
 
     for (const workspace of project.workspaces) {
-      console.log(`    - Branch: ${workspace.branch}`);
+      const workspaceId = defaultConfig.generateWorkspaceId(projectPath, workspace.path);
+      console.log(`    - ID: ${workspaceId} (generated)`);
       console.log(`      Path: ${workspace.path}`);
       console.log(`      Exists: ${fs.existsSync(workspace.path)}`);
     }
   }
 
-  console.log("\n=== Testing findWorkspacePath ===\n");
+  console.log("\n=== Testing findWorkspace ===\n");
 
-  // Test finding specific workspaces
-  const testCases = [
-    { project: "cmux", branch: "colors" },
-    { project: "cmux", branch: "main" },
-    { project: "cmux", branch: "fix" },
-    { project: "cmux", branch: "markdown" },
-  ];
+  // Test finding specific workspaces by ID
+  const testCases = ["cmux-colors", "cmux-main", "cmux-fix", "cmux-markdown"];
 
-  for (const test of testCases) {
-    const result = defaultConfig.findWorkspacePath(test.project, test.branch);
-    console.log(`findWorkspacePath('${test.project}', '${test.branch}'):`);
+  for (const workspaceId of testCases) {
+    const result = defaultConfig.findWorkspace(workspaceId);
+    console.log(`findWorkspace('${workspaceId}'):`);
     if (result) {
-      console.log(`  Found: ${result}`);
-      console.log(`  Exists: ${fs.existsSync(result)}`);
+      console.log(`  Found: ${result.workspacePath}`);
+      console.log(`  Project: ${result.projectPath}`);
+      console.log(`  Exists: ${fs.existsSync(result.workspacePath)}`);
     } else {
       console.log(`  Not found!`);
     }

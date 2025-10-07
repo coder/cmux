@@ -46,15 +46,15 @@ export const StatusIndicator = styled.span<{ status: string }>`
   color: ${({ status }) => {
     switch (status) {
       case "executing":
-        return "#ffa000";
+        return "var(--color-pending)";
       case "completed":
         return "#4caf50";
       case "failed":
         return "#f44336";
       case "interrupted":
-        return "var(--color-warning, #f59e0b)";
+        return "var(--color-interrupted)";
       default:
-        return "#9e9e9e";
+        return "var(--color-text-secondary)";
     }
   }};
 `;

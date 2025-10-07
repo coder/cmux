@@ -1,6 +1,9 @@
 import React, { useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
+import "katex/dist/katex.min.css";
 import { normalizeMarkdown } from "./MarkdownStyles";
 import { markdownComponents } from "./MarkdownComponents";
 
@@ -19,7 +22,11 @@ export const MarkdownCore: React.FC<MarkdownCoreProps> = ({ content, children })
 
   return (
     <>
-      <ReactMarkdown components={markdownComponents} remarkPlugins={[remarkGfm]}>
+      <ReactMarkdown
+        components={markdownComponents}
+        remarkPlugins={[remarkGfm, remarkMath]}
+        rehypePlugins={[rehypeKatex]}
+      >
         {normalizedContent}
       </ReactMarkdown>
       {children}

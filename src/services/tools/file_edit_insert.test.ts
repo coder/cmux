@@ -4,7 +4,7 @@ import * as path from "path";
 import * as os from "os";
 import { createFileEditInsertTool } from "./file_edit_insert";
 import { leaseFromStat } from "./fileCommon";
-import type { FileEditInsertToolArgs, FileEditInsertToolResult } from "../../types/tools";
+import type { FileEditInsertToolArgs, FileEditInsertToolResult } from "@/types/tools";
 import type { ToolCallOptions } from "ai";
 
 // Mock ToolCallOptions for testing

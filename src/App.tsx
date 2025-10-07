@@ -1,14 +1,20 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import styled from "@emotion/styled";
 import { Global, css } from "@emotion/react";
 import { GlobalColors } from "./styles/colors";
 import { GlobalFonts } from "./styles/fonts";
-import type { ProjectConfig, WorkspaceSelection } from "./components/ProjectSidebar";
+import type { ProjectConfig } from "./config";
+import type { WorkspaceSelection } from "./components/ProjectSidebar";
 import ProjectSidebar from "./components/ProjectSidebar";
 import NewWorkspaceModal from "./components/NewWorkspaceModal";
 import { AIView } from "./components/AIView";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { TipsCarousel } from "./components/TipsCarousel";
 import { usePersistedState } from "./hooks/usePersistedState";
+import { matchesKeybind, KEYBINDS } from "./utils/ui/keybinds";
+import { useProjectManagement } from "./hooks/useProjectManagement";
+import { useWorkspaceManagement } from "./hooks/useWorkspaceManagement";
+import { useWorkspaceAggregators } from "./hooks/useWorkspaceAggregators";
 
 // Global Styles with nice fonts
 const globalStyles = css`
@@ -35,6 +41,44 @@ const globalStyles = css`
   code {
     font-family: var(--font-monospace);
   }
+
+  /* Enable native tooltips */
+  [title] {
+    position: relative;
+  }
+
+  [title]:hover::after {
+    content: attr(title);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-bottom: 8px;
+    padding: 6px 10px;
+    background: #2d2d30;
+    color: #cccccc;
+    border: 1px solid #464647;
+    border-radius: 4px;
+    font-size: 11px;
+    white-space: nowrap;
+    z-index: 1000;
+    pointer-events: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  }
+
+  [title]:hover::before {
+    content: "";
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-bottom: 3px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: #2d2d30 transparent transparent transparent;
+    z-index: 1000;
+    pointer-events: none;
+  }
 `;
 
 // Styled Components
@@ -56,6 +100,9 @@ const AppHeader = styled.header`
   padding: 10px 20px;
   background: #2d2d2d;
   border-bottom: 1px solid #444;
+  display: flex;
+  align-items: center;
+  gap: 24px;
 
   h1 {
     color: #fff;
@@ -63,6 +110,9 @@ const AppHeader = styled.header`
     margin: 0;
     font-weight: 600;
     letter-spacing: -0.5px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
   }
 `;
 
@@ -70,23 +120,6 @@ const ContentArea = styled.div`
   flex: 1;
   display: flex;
   overflow: hidden;
-`;
-
-const ProjectView = styled.div`
-  h2 {
-    color: #fff;
-    font-size: 28px;
-    margin: 0 0 8px 0;
-    font-weight: 600;
-    letter-spacing: -0.5px;
-  }
-`;
-
-const ProjectFullPath = styled.p`
-  color: #888;
-  font-size: 14px;
-  margin: 0 0 32px 0;
-  font-family: var(--font-monospace);
 `;
 
 const WelcomeView = styled.div`
@@ -109,74 +142,42 @@ const WelcomeView = styled.div`
 `;
 
 function App() {
-  const [projects, setProjects] = useState<Map<string, ProjectConfig>>(new Map());
-  const [selectedProject, setSelectedProject] = useState<string | null>(null);
   const [selectedWorkspace, setSelectedWorkspace] = usePersistedState<WorkspaceSelection | null>(
     "selectedWorkspace",
     null
   );
   const [workspaceModalOpen, setWorkspaceModalOpen] = useState(false);
   const [workspaceModalProject, setWorkspaceModalProject] = useState<string | null>(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = usePersistedState("sidebarCollapsed", false);
 
-  useEffect(() => {
-    void loadProjects();
-  }, []);
+  // Use custom hooks for project and workspace management
+  const { projects, setProjects, addProject, removeProject } = useProjectManagement();
 
-  const loadProjects = async () => {
-    try {
-      console.log("Loading projects from config...");
-      const config = await window.api.config.load();
-      console.log("Received config:", config);
+  // Workspace management needs to update projects state when workspace operations complete
+  const handleProjectsUpdate = useCallback(
+    (newProjects: Map<string, ProjectConfig>) => {
+      setProjects(newProjects);
+    },
+    [setProjects]
+  );
 
-      if (config && Array.isArray(config.projects)) {
-        console.log("Projects array length:", config.projects.length);
-        const projectsMap = new Map<string, ProjectConfig>(config.projects);
-        console.log("Created projects map, size:", projectsMap.size);
-        setProjects(projectsMap);
-      } else {
-        console.log("No projects or invalid format");
-        setProjects(new Map());
-      }
-    } catch (error) {
-      console.error("Failed to load config:", error);
-      setProjects(new Map());
-    }
-  };
+  const { workspaceMetadata, createWorkspace, removeWorkspace, renameWorkspace } =
+    useWorkspaceManagement({
+      projects,
+      selectedWorkspace,
+      onProjectsUpdate: handleProjectsUpdate,
+      onSelectedWorkspaceUpdate: setSelectedWorkspace,
+    });
 
-  const handleAddProject = async () => {
-    try {
-      const selectedPath = await window.api.dialog.selectDirectory();
-      if (selectedPath && !projects.has(selectedPath)) {
-        const newProjects = new Map(projects);
-        newProjects.set(selectedPath, { path: selectedPath, workspaces: [] });
-        setProjects(newProjects);
-
-        await window.api.config.save({
-          projects: Array.from(newProjects.entries()),
-        });
-      }
-    } catch (error) {
-      console.error("Failed to add project:", error);
-    }
-  };
+  // Use workspace aggregators hook for message state
+  const { getWorkspaceState, streamingStates } = useWorkspaceAggregators(workspaceMetadata);
 
   const handleRemoveProject = async (path: string) => {
-    const newProjects = new Map(projects);
-    newProjects.delete(path);
-    setProjects(newProjects);
-
-    if (selectedProject === path) {
-      setSelectedProject(null);
+    // Clear selected workspace if it belongs to the removed project
+    if (selectedWorkspace?.projectPath === path) {
       setSelectedWorkspace(null);
     }
-
-    try {
-      await window.api.config.save({
-        projects: Array.from(newProjects.entries()),
-      });
-    } catch (error) {
-      console.error("Failed to save config:", error);
-    }
+    await removeProject(path);
   };
 
   const handleAddWorkspace = (projectPath: string) => {
@@ -187,43 +188,67 @@ function App() {
   const handleCreateWorkspace = async (branchName: string) => {
     if (!workspaceModalProject) return;
 
-    const result = await window.api.workspace.create(workspaceModalProject, branchName);
-    if (result.success && result.path) {
-      // Update the project config with the new workspace
-      const newProjects = new Map(projects);
-      const projectConfig = newProjects.get(workspaceModalProject);
-      if (projectConfig) {
-        projectConfig.workspaces.push({
-          branch: branchName,
-          path: result.path,
-        });
-        setProjects(newProjects);
-
-        await window.api.config.save({
-          projects: Array.from(newProjects.entries()),
-        });
-      }
-    } else {
-      throw new Error(result.error ?? "Failed to create workspace");
+    const newWorkspace = await createWorkspace(workspaceModalProject, branchName);
+    if (newWorkspace) {
+      setSelectedWorkspace(newWorkspace);
     }
   };
 
-  const handleRemoveWorkspace = async (workspaceId: string) => {
-    const result = await window.api.workspace.remove(workspaceId);
-    if (result.success) {
-      // Reload config since backend has updated it
-      const config = await window.api.config.load();
-      const loadedProjects = new Map(config.projects);
-      setProjects(loadedProjects);
+  const handleNavigateWorkspace = useCallback(
+    (direction: "next" | "prev") => {
+      if (!selectedWorkspace) return;
 
-      // Clear selected workspace if it was removed
-      if (selectedWorkspace?.workspaceId === workspaceId) {
-        setSelectedWorkspace(null);
+      const projectConfig = projects.get(selectedWorkspace.projectPath);
+      if (!projectConfig || projectConfig.workspaces.length <= 1) return;
+
+      // Find current workspace index
+      const currentIndex = projectConfig.workspaces.findIndex(
+        (ws) => ws.path === selectedWorkspace.workspacePath
+      );
+      if (currentIndex === -1) return;
+
+      // Calculate next/prev index with wrapping
+      let targetIndex: number;
+      if (direction === "next") {
+        targetIndex = (currentIndex + 1) % projectConfig.workspaces.length;
+      } else {
+        targetIndex = currentIndex === 0 ? projectConfig.workspaces.length - 1 : currentIndex - 1;
       }
-    } else {
-      console.error("Failed to remove workspace:", result.error);
-    }
-  };
+
+      const targetWorkspace = projectConfig.workspaces[targetIndex];
+      if (!targetWorkspace) return;
+
+      const metadata = workspaceMetadata.get(targetWorkspace.path);
+      if (!metadata) return;
+
+      setSelectedWorkspace({
+        projectPath: selectedWorkspace.projectPath,
+        projectName: selectedWorkspace.projectName,
+        workspacePath: targetWorkspace.path,
+        workspaceId: metadata.id,
+      });
+    },
+    [selectedWorkspace, projects, workspaceMetadata, setSelectedWorkspace]
+  );
+
+  // Handle keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (matchesKeybind(e, KEYBINDS.NEXT_WORKSPACE)) {
+        e.preventDefault();
+        handleNavigateWorkspace("next");
+      } else if (matchesKeybind(e, KEYBINDS.PREV_WORKSPACE)) {
+        e.preventDefault();
+        handleNavigateWorkspace("prev");
+      } else if (matchesKeybind(e, KEYBINDS.TOGGLE_SIDEBAR)) {
+        e.preventDefault();
+        setSidebarCollapsed((prev) => !prev);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleNavigateWorkspace, setSidebarCollapsed]);
 
   return (
     <>
@@ -233,42 +258,39 @@ function App() {
       <AppContainer>
         <ProjectSidebar
           projects={projects}
-          selectedProject={selectedProject}
+          workspaceMetadata={workspaceMetadata}
           selectedWorkspace={selectedWorkspace}
-          onSelectProject={setSelectedProject}
           onSelectWorkspace={setSelectedWorkspace}
-          onAddProject={() => void handleAddProject()}
+          onAddProject={() => void addProject()}
           onAddWorkspace={(projectPath) => void handleAddWorkspace(projectPath)}
           onRemoveProject={(path) => void handleRemoveProject(path)}
-          onRemoveWorkspace={(workspaceId) => void handleRemoveWorkspace(workspaceId)}
+          onRemoveWorkspace={removeWorkspace}
+          onRenameWorkspace={renameWorkspace}
+          streamingStates={streamingStates}
+          collapsed={sidebarCollapsed}
+          onToggleCollapsed={() => setSidebarCollapsed((prev) => !prev)}
         />
         <MainContent>
           <AppHeader>
             <h1>coder multiplexer</h1>
+            <TipsCarousel />
           </AppHeader>
           <ContentArea>
             {selectedWorkspace ? (
               <ErrorBoundary
-                workspaceInfo={`${selectedWorkspace.projectName}/${selectedWorkspace.branch}`}
+                workspaceInfo={`${selectedWorkspace.projectName}/${selectedWorkspace.workspacePath.split("/").pop() ?? ""}`}
               >
                 <AIView
                   workspaceId={selectedWorkspace.workspaceId}
                   projectName={selectedWorkspace.projectName}
-                  branch={selectedWorkspace.branch}
+                  branch={selectedWorkspace.workspacePath.split("/").pop() ?? ""}
+                  workspaceState={getWorkspaceState(selectedWorkspace.workspaceId)}
                 />
               </ErrorBoundary>
-            ) : selectedProject ? (
-              <ProjectView>
-                <h2>Project: {selectedProject.split("/").pop()}</h2>
-                <ProjectFullPath>{selectedProject}</ProjectFullPath>
-                <p style={{ color: "#888", marginTop: "20px" }}>
-                  Select a workspace from the sidebar to view AI output.
-                </p>
-              </ProjectView>
             ) : (
               <WelcomeView>
                 <h2>Welcome to Cmux</h2>
-                <p>Select a project from the sidebar or add a new one to get started.</p>
+                <p>Select a workspace from the sidebar or add a new one to get started.</p>
               </WelcomeView>
             )}
           </ContentArea>

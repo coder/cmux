@@ -2,10 +2,10 @@ import { tool } from "ai";
 import * as fs from "fs/promises";
 import * as path from "path";
 import writeFileAtomic from "write-file-atomic";
-import type { FileEditReplaceToolResult } from "../../types/tools";
-import type { ToolConfiguration, ToolFactory } from "../../utils/tools";
-import { TOOL_DEFINITIONS } from "../../utils/toolDefinitions";
-import { leaseFromStat, generateDiff } from "./fileCommon";
+import type { FileEditReplaceToolResult } from "@/types/tools";
+import type { ToolConfiguration, ToolFactory } from "@/utils/tools/tools";
+import { TOOL_DEFINITIONS } from "@/utils/tools/toolDefinitions";
+import { leaseFromStat, generateDiff, validatePathInCwd } from "./fileCommon";
 
 /**
  * File edit replace tool factory for AI assistant
@@ -16,8 +16,21 @@ export const createFileEditReplaceTool: ToolFactory = (config: ToolConfiguration
   return tool({
     description: TOOL_DEFINITIONS.file_edit_replace.description,
     inputSchema: TOOL_DEFINITIONS.file_edit_replace.schema,
-    execute: async ({ file_path, edits, lease }): Promise<FileEditReplaceToolResult> => {
+    execute: async (
+      { file_path, edits, lease },
+      { abortSignal: _abortSignal }
+    ): Promise<FileEditReplaceToolResult> => {
+      // Note: abortSignal available but not used - file operations are fast and complete quickly
       try {
+        // Validate that the path is within the working directory
+        const pathValidation = validatePathInCwd(file_path, config.cwd);
+        if (pathValidation) {
+          return {
+            success: false,
+            error: pathValidation.error,
+          };
+        }
+
         // Resolve path (but expect absolute paths)
         const resolvedPath = path.isAbsolute(file_path)
           ? file_path

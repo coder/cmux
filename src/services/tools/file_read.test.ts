@@ -3,7 +3,7 @@ import * as fs from "fs/promises";
 import * as path from "path";
 import * as os from "os";
 import { createFileReadTool } from "./file_read";
-import type { FileReadToolArgs, FileReadToolResult } from "../../types/tools";
+import type { FileReadToolArgs, FileReadToolResult } from "@/types/tools";
 import type { ToolCallOptions } from "ai";
 
 // Mock ToolCallOptions for testing
@@ -295,6 +295,73 @@ describe("file_read tool", () => {
     if (result.success) {
       expect(result.lines_read).toBe(500);
       expect(result.lease).toMatch(/^[0-9a-f]{6}$/);
+    }
+  });
+
+  it("should reject reading files outside cwd using ..", async () => {
+    // Setup - create a file in testDir
+    const content = "secret content";
+    await fs.writeFile(testFilePath, content);
+
+    // Create a subdirectory
+    const subDir = path.join(testDir, "subdir");
+    await fs.mkdir(subDir);
+
+    // Try to read file outside cwd by going up
+    const tool = createFileReadTool({ cwd: subDir });
+    const args: FileReadToolArgs = {
+      filePath: "../test.txt", // This goes outside subDir back to testDir
+    };
+
+    // Execute
+    const result = (await tool.execute!(args, mockToolCallOptions)) as FileReadToolResult;
+
+    // Assert
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain("restricted to the workspace directory");
+      expect(result.error).toContain("ask the user for permission");
+    }
+  });
+
+  it("should reject reading absolute paths outside cwd", async () => {
+    // Setup
+    const tool = createFileReadTool({ cwd: testDir });
+    const args: FileReadToolArgs = {
+      filePath: "/etc/passwd", // Absolute path outside cwd
+    };
+
+    // Execute
+    const result = (await tool.execute!(args, mockToolCallOptions)) as FileReadToolResult;
+
+    // Assert
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain("restricted to the workspace directory");
+    }
+  });
+
+  it("should allow reading files with relative paths within cwd", async () => {
+    // Setup - create a subdirectory and file
+    const subDir = path.join(testDir, "subdir");
+    await fs.mkdir(subDir);
+    const subFilePath = path.join(subDir, "test.txt");
+    const content = "content in subdir";
+    await fs.writeFile(subFilePath, content);
+
+    // Read using relative path from cwd
+    const tool = createFileReadTool({ cwd: testDir });
+    const args: FileReadToolArgs = {
+      filePath: "subdir/test.txt",
+    };
+
+    // Execute
+    const result = (await tool.execute!(args, mockToolCallOptions)) as FileReadToolResult;
+
+    // Assert
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.content).toContain("content in subdir");
     }
   });
 });

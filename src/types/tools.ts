@@ -8,6 +8,7 @@ export interface BashToolArgs {
   script: string;
   timeout_secs: number;
   max_lines: number;
+  stdin?: string;
 }
 
 interface CommonBashFields {
@@ -95,3 +96,16 @@ export type FileEditInsertToolResult =
       success: false;
       error: string;
     };
+
+// Propose Plan Tool Types
+export interface ProposePlanToolArgs {
+  title: string;
+  plan: string;
+}
+
+export interface ProposePlanToolResult {
+  success: true;
+  title: string;
+  plan: string;
+  message: string;
+}

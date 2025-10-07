@@ -1,12 +1,13 @@
 import type { BrowserWindow, IpcMain as ElectronIpcMain } from "electron";
 import * as path from "path";
-import type { Config, ProjectConfig } from "../config";
-import { createWorktree, removeWorktree } from "../git";
-import { AIService } from "../services/aiService";
-import { HistoryService } from "../services/historyService";
-import { PartialService } from "../services/partialService";
-import { createCmuxMessage } from "../types/message";
-import { log } from "../services/log";
+import * as fsPromises from "fs/promises";
+import type { Config, ProjectConfig } from "@/config";
+import { createWorktree, removeWorktree, moveWorktree } from "@/git";
+import { AIService } from "@/services/aiService";
+import { HistoryService } from "@/services/historyService";
+import { PartialService } from "@/services/partialService";
+import { createCmuxMessage } from "@/types/message";
+import { log } from "@/services/log";
 import type {
   StreamStartEvent,
   StreamDeltaEvent,
@@ -15,10 +16,14 @@ import type {
   ToolCallDeltaEvent,
   ToolCallEndEvent,
   ErrorEvent,
-} from "../types/stream";
-import { IPC_CHANNELS, getChatChannel } from "../constants/ipc-constants";
-import type { SendMessageError } from "../types/errors";
-import type { StreamErrorMessage, SendMessageOptions } from "../types/ipc";
+} from "@/types/stream";
+import { IPC_CHANNELS, getChatChannel } from "@/constants/ipc-constants";
+import type { SendMessageError } from "@/types/errors";
+import type { StreamErrorMessage, SendMessageOptions, DeleteMessage } from "@/types/ipc";
+import { Ok, Err } from "@/types/result";
+import { validateWorkspaceName } from "@/utils/validation/workspaceValidation";
+import { createBashTool } from "@/services/tools/bash";
+import type { BashToolResult } from "@/types/tools";
 
 const createUnknownSendMessageError = (raw: string): SendMessageError => ({
   type: "unknown",
@@ -111,13 +116,21 @@ export class IpcMain {
     ipcMain.handle(
       IPC_CHANNELS.WORKSPACE_CREATE,
       async (_event, projectPath: string, branchName: string) => {
+        // Validate workspace name
+        const validation = validateWorkspaceName(branchName);
+        if (!validation.valid) {
+          return { success: false, error: validation.error };
+        }
+
         // First create the git worktree
         const result = await createWorktree(this.config, projectPath, branchName);
 
         if (result.success && result.path) {
           const projectName =
             projectPath.split("/").pop() ?? projectPath.split("\\").pop() ?? "unknown";
-          const workspaceId = `${projectName}-${branchName}`;
+
+          // Generate workspace ID using central method
+          const workspaceId = this.config.generateWorkspaceId(projectPath, result.path);
 
           // Initialize workspace metadata
           const metadata = {
@@ -133,10 +146,13 @@ export class IpcMain {
             metadata,
           });
 
-          return { success: true, workspaceId, path: result.path };
+          return {
+            success: true,
+            metadata,
+          };
         }
 
-        return result;
+        return { success: false, error: result.error ?? "Failed to create workspace" };
       }
     );
 
@@ -145,22 +161,20 @@ export class IpcMain {
         // Load current config
         const projectsConfig = this.config.loadConfigOrDefault();
 
-        // Find workspace path from config
+        // Find workspace path from config by generating IDs
         let workspacePath: string | null = null;
         let foundProjectPath: string | null = null;
 
         for (const [projectPath, projectConfig] of projectsConfig.projects.entries()) {
-          const workspace = projectConfig.workspaces.find((w) => {
-            const projectName = path.basename(projectPath);
-            const wsId = `${projectName}-${w.branch}`;
-            return wsId === workspaceId;
-          });
-
-          if (workspace) {
-            workspacePath = workspace.path;
-            foundProjectPath = projectPath;
-            break;
+          for (const workspace of projectConfig.workspaces) {
+            const generatedId = this.config.generateWorkspaceId(projectPath, workspace.path);
+            if (generatedId === workspaceId) {
+              workspacePath = workspace.path;
+              foundProjectPath = projectPath;
+              break;
+            }
           }
+          if (workspacePath) break;
         }
 
         // Remove git worktree if we found the path
@@ -201,10 +215,151 @@ export class IpcMain {
       }
     });
 
-    ipcMain.handle(IPC_CHANNELS.WORKSPACE_LIST, async () => {
+    ipcMain.handle(
+      IPC_CHANNELS.WORKSPACE_RENAME,
+      async (_event, workspaceId: string, newName: string) => {
+        try {
+          // Validate workspace name
+          const validation = validateWorkspaceName(newName);
+          if (!validation.valid) {
+            return Err(validation.error ?? "Invalid workspace name");
+          }
+
+          // Block rename if there's an active stream
+          if (this.aiService.isStreaming(workspaceId)) {
+            return Err(
+              "Cannot rename workspace while stream is active. Press Esc to stop the stream first."
+            );
+          }
+
+          // Get current metadata
+          const metadataResult = await this.aiService.getWorkspaceMetadata(workspaceId);
+          if (!metadataResult.success) {
+            return Err(`Failed to get workspace metadata: ${metadataResult.error}`);
+          }
+          const oldMetadata = metadataResult.data;
+
+          // Calculate new workspace ID
+          const newWorkspaceId = `${oldMetadata.projectName}-${newName}`;
+
+          // If renaming to itself, just return success (no-op)
+          if (newWorkspaceId === workspaceId) {
+            return Ok({ newWorkspaceId });
+          }
+
+          // Check if new workspace ID already exists
+          const existingMetadata = await this.aiService.getWorkspaceMetadata(newWorkspaceId);
+          if (existingMetadata.success) {
+            return Err(`Workspace with name "${newName}" already exists`);
+          }
+
+          // Get old and new session directory paths
+          const oldSessionDir = this.config.getSessionDir(workspaceId);
+          const newSessionDir = this.config.getSessionDir(newWorkspaceId);
+
+          // Find project path from config (needed for git operations)
+          const projectsConfig = this.config.loadConfigOrDefault();
+          let foundProjectPath: string | null = null;
+          let workspaceIndex = -1;
+
+          for (const [projectPath, projectConfig] of projectsConfig.projects.entries()) {
+            const idx = projectConfig.workspaces.findIndex((w) => {
+              const generatedId = this.config.generateWorkspaceId(projectPath, w.path);
+              return generatedId === workspaceId;
+            });
+
+            if (idx !== -1) {
+              foundProjectPath = projectPath;
+              workspaceIndex = idx;
+              break;
+            }
+          }
+
+          if (!foundProjectPath) {
+            return Err("Failed to find project path for workspace");
+          }
+
+          // Rename session directory
+          await fsPromises.rename(oldSessionDir, newSessionDir);
+
+          // Migrate workspace IDs in history messages
+          const migrateResult = await this.historyService.migrateWorkspaceId(
+            workspaceId,
+            newWorkspaceId
+          );
+          if (!migrateResult.success) {
+            // Rollback session directory rename
+            await fsPromises.rename(newSessionDir, oldSessionDir);
+            return Err(`Failed to migrate message workspace IDs: ${migrateResult.error}`);
+          }
+
+          // Calculate new worktree path
+          const oldWorktreePath = oldMetadata.workspacePath;
+          const newWorktreePath = path.join(
+            path.dirname(oldWorktreePath),
+            newName // Use newName as the directory name
+          );
+
+          // Move worktree directory
+          const moveResult = await moveWorktree(foundProjectPath, oldWorktreePath, newWorktreePath);
+          if (!moveResult.success) {
+            // Rollback session directory rename
+            await fsPromises.rename(newSessionDir, oldSessionDir);
+            return Err(`Failed to move worktree: ${moveResult.error}`);
+          }
+
+          // Update metadata with new ID and path
+          const newMetadata = {
+            id: newWorkspaceId,
+            projectName: oldMetadata.projectName,
+            workspacePath: newWorktreePath,
+          };
+
+          const saveResult = await this.aiService.saveWorkspaceMetadata(
+            newWorkspaceId,
+            newMetadata
+          );
+          if (!saveResult.success) {
+            // Rollback worktree and session directory
+            await moveWorktree(foundProjectPath, newWorktreePath, oldWorktreePath);
+            await fsPromises.rename(newSessionDir, oldSessionDir);
+            return Err(`Failed to save new metadata: ${saveResult.error}`);
+          }
+
+          // Update config with new workspace info using atomic edit
+          this.config.editConfig((config) => {
+            const projectConfig = config.projects.get(foundProjectPath);
+            if (projectConfig && workspaceIndex !== -1) {
+              projectConfig.workspaces[workspaceIndex] = {
+                path: newWorktreePath,
+              };
+            }
+            return config;
+          });
+
+          // Emit metadata event for old workspace deletion
+          this.mainWindow?.webContents.send(IPC_CHANNELS.WORKSPACE_METADATA, {
+            workspaceId,
+            metadata: null,
+          });
+
+          // Emit metadata event for new workspace
+          this.mainWindow?.webContents.send(IPC_CHANNELS.WORKSPACE_METADATA, {
+            workspaceId: newWorkspaceId,
+            metadata: newMetadata,
+          });
+
+          return Ok({ newWorkspaceId });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          return Err(`Failed to rename workspace: ${message}`);
+        }
+      }
+    );
+
+    ipcMain.handle(IPC_CHANNELS.WORKSPACE_LIST, () => {
       try {
-        const workspaceData = await this.config.getAllWorkspaceMetadata();
-        return workspaceData.map(({ metadata }) => metadata);
+        return this.config.getAllWorkspaceMetadata();
       } catch (error) {
         console.error("Failed to list workspaces:", error);
         return [];
@@ -219,13 +374,16 @@ export class IpcMain {
     ipcMain.handle(
       IPC_CHANNELS.WORKSPACE_SEND_MESSAGE,
       async (_event, workspaceId: string, message: string, options?: SendMessageOptions) => {
-        const { editMessageId, thinkingLevel, model } = options ?? {};
+        const { editMessageId, thinkingLevel, model, toolPolicy, additionalSystemInstructions } =
+          options ?? {};
         log.debug("sendMessage handler: Received", {
           workspaceId,
           messagePreview: message.substring(0, 50),
           editMessageId,
           thinkingLevel,
           model,
+          toolPolicy,
+          additionalSystemInstructions,
         });
         try {
           // Early exit: empty message = either interrupt (if streaming) or invalid input
@@ -316,13 +474,17 @@ export class IpcMain {
           log.debug("sendMessage handler: Calling aiService.streamMessage with thinkingLevel", {
             thinkingLevel,
             model,
+            toolPolicy,
+            additionalSystemInstructions,
           });
           const streamResult = await this.aiService.streamMessage(
             historyResult.data,
             workspaceId,
             model,
             thinkingLevel,
-            undefined
+            toolPolicy,
+            undefined,
+            additionalSystemInstructions
           );
           log.debug("sendMessage handler: Stream completed");
           return streamResult;
@@ -339,14 +501,85 @@ export class IpcMain {
       }
     );
 
-    ipcMain.handle(IPC_CHANNELS.WORKSPACE_CLEAR_HISTORY, async (_event, workspaceId: string) => {
-      // Clear both chat.jsonl and partial.json
-      const historyResult = await this.historyService.clearHistory(workspaceId);
-      if (!historyResult.success) {
-        return historyResult;
+    ipcMain.handle(
+      IPC_CHANNELS.WORKSPACE_TRUNCATE_HISTORY,
+      async (_event, workspaceId: string, percentage?: number) => {
+        // Block truncate if there's an active stream
+        // User must press Esc first to stop stream and commit partial to history
+        if (this.aiService.isStreaming(workspaceId)) {
+          return {
+            success: false,
+            error:
+              "Cannot truncate history while stream is active. Press Esc to stop the stream first.",
+          };
+        }
+
+        // Truncate chat.jsonl (only operates on committed history)
+        // Note: partial.json is NOT touched here - it has its own lifecycle
+        // Interrupted messages are committed to history by stream-abort handler
+        const truncateResult = await this.historyService.truncateHistory(
+          workspaceId,
+          percentage ?? 1.0
+        );
+        if (!truncateResult.success) {
+          return { success: false, error: truncateResult.error };
+        }
+
+        // Send DeleteMessage event to frontend with deleted historySequence numbers
+        const deletedSequences = truncateResult.data;
+        if (deletedSequences.length > 0 && this.mainWindow) {
+          const deleteMessage: DeleteMessage = {
+            type: "delete",
+            historySequences: deletedSequences,
+          };
+          this.mainWindow.webContents.send(getChatChannel(workspaceId), deleteMessage);
+        }
+
+        return { success: true, data: undefined };
       }
-      return await this.partialService.deletePartial(workspaceId);
-    });
+    );
+
+    ipcMain.handle(
+      IPC_CHANNELS.WORKSPACE_EXECUTE_BASH,
+      async (
+        _event,
+        workspaceId: string,
+        script: string,
+        options?: { timeout_secs?: number; max_lines?: number; stdin?: string }
+      ) => {
+        try {
+          // Get workspace metadata to find workspacePath
+          const metadataResult = await this.aiService.getWorkspaceMetadata(workspaceId);
+          if (!metadataResult.success) {
+            return Err(`Failed to get workspace metadata: ${metadataResult.error}`);
+          }
+
+          const workspacePath = metadataResult.data.workspacePath;
+
+          // Create bash tool with workspace's cwd
+          const bashTool = createBashTool({ cwd: workspacePath });
+
+          // Execute the script with provided options
+          const result = (await bashTool.execute!(
+            {
+              script,
+              timeout_secs: options?.timeout_secs ?? 120,
+              max_lines: options?.max_lines ?? 1000,
+              stdin: options?.stdin,
+            },
+            {
+              toolCallId: `bash-${Date.now()}`,
+              messages: [],
+            }
+          )) as BashToolResult;
+
+          return Ok(result);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          return Err(`Failed to execute bash command: ${message}`);
+        }
+      }
+    );
   }
 
   private registerProviderHandlers(ipcMain: ElectronIpcMain): void {
@@ -411,8 +644,18 @@ export class IpcMain {
             this.mainWindow?.webContents.send(chatChannel, msg);
           }
 
+          // Check if there's an active stream or a partial message
+          const streamInfo = this.aiService.getStreamInfo(workspaceId);
           const partial = await this.partialService.readPartial(workspaceId);
-          if (partial) {
+
+          if (streamInfo) {
+            // Stream is actively running - replay events to re-establish streaming context
+            // Events flow: StreamManager → AIService → IpcMain → renderer
+            // This ensures frontend receives stream-start and creates activeStream entry
+            // so that stream-end can properly clean up the streaming indicator
+            this.aiService.replayStream(workspaceId);
+          } else if (partial) {
+            // No active stream but there's a partial - send as regular message (shows INTERRUPTED)
             this.mainWindow?.webContents.send(chatChannel, partial);
           }
         }
@@ -422,25 +665,21 @@ export class IpcMain {
     });
 
     // Handle subscription events for metadata
-    ipcMain.on(
-      `workspace:metadata:subscribe`,
-      () =>
-        void (async () => {
-          try {
-            const workspaceData = await this.config.getAllWorkspaceMetadata();
+    ipcMain.on(IPC_CHANNELS.WORKSPACE_METADATA_SUBSCRIBE, () => {
+      try {
+        const workspaceMetadata = this.config.getAllWorkspaceMetadata();
 
-            // Emit current metadata for each workspace
-            for (const { workspaceId, metadata } of workspaceData) {
-              this.mainWindow?.webContents.send(IPC_CHANNELS.WORKSPACE_METADATA, {
-                workspaceId,
-                metadata,
-              });
-            }
-          } catch (error) {
-            console.error("Failed to emit current metadata:", error);
-          }
-        })()
-    );
+        // Emit current metadata for each workspace
+        for (const metadata of workspaceMetadata) {
+          this.mainWindow?.webContents.send(IPC_CHANNELS.WORKSPACE_METADATA, {
+            workspaceId: metadata.id,
+            metadata,
+          });
+        }
+      } catch (error) {
+        console.error("Failed to emit current metadata:", error);
+      }
+    });
   }
 
   private setupEventForwarding(): void {

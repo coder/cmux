@@ -1,6 +1,6 @@
-import React from "react";
+import React, { useState, useEffect, useRef } from "react";
 import styled from "@emotion/styled";
-import type { BashToolArgs, BashToolResult } from "../../types/tools";
+import type { BashToolArgs, BashToolResult } from "@/types/tools";
 import {
   ToolContainer,
   ToolHeader,
@@ -51,8 +51,16 @@ const ExitCodeBadge = styled.span<{ exitCode: number }>`
   margin-left: 8px;
 `;
 
-const TimeoutInfo = styled.span`
-  color: var(--color-text-secondary);
+const TimeoutInfo = styled.span<{ status?: ToolStatus }>`
+  color: ${({ status }) => {
+    switch (status) {
+      case "executing":
+      case "pending":
+        return "var(--color-pending)";
+      default:
+        return "var(--color-text-secondary)";
+    }
+  }};
   font-size: 10px;
   margin-left: 8px;
 `;
@@ -76,11 +84,29 @@ function formatDuration(ms: number): string {
   if (ms < 1000) {
     return `${Math.round(ms)}ms`;
   }
-  return `${(ms / 1000).toFixed(1)}s`;
+  return `${Math.round(ms / 1000)}s`;
 }
 
 export const BashToolCall: React.FC<BashToolCallProps> = ({ args, result, status = "pending" }) => {
   const { expanded, toggleExpanded } = useToolExpansion();
+  const [elapsedTime, setElapsedTime] = useState(0);
+  const startTimeRef = useRef<number>(Date.now());
+
+  // Track elapsed time for pending/executing status
+  useEffect(() => {
+    if (status === "executing" || status === "pending") {
+      startTimeRef.current = Date.now();
+      setElapsedTime(0);
+
+      const timer = setInterval(() => {
+        setElapsedTime(Date.now() - startTimeRef.current);
+      }, 1000);
+
+      return () => clearInterval(timer);
+    }
+  }, [status]);
+
+  const isPending = status === "executing" || status === "pending";
 
   return (
     <ToolContainer expanded={expanded}>
@@ -88,9 +114,10 @@ export const BashToolCall: React.FC<BashToolCallProps> = ({ args, result, status
         <ExpandIcon expanded={expanded}>▶</ExpandIcon>
         <ToolName>bash</ToolName>
         <ScriptPreview>{args.script}</ScriptPreview>
-        <TimeoutInfo>
+        <TimeoutInfo status={isPending ? status : undefined}>
           timeout: {args.timeout_secs}s
           {result && ` • took ${formatDuration(result.wall_duration_ms)}`}
+          {!result && isPending && elapsedTime > 0 && ` • ${formatDuration(elapsedTime)}`}
         </TimeoutInfo>
         {result && <ExitCodeBadge exitCode={result.exitCode}>{result.exitCode}</ExitCodeBadge>}
         <StatusIndicator status={status}>{getStatusDisplay(status)}</StatusIndicator>

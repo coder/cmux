@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import React, { useState } from "react";
 import styled from "@emotion/styled";
-import type { CmuxMessage, DisplayedMessage } from "../../types/message";
+import type { CmuxMessage, DisplayedMessage } from "@/types/message";
 import { HeaderButton } from "../tools/shared/ToolPrimitives";
 
 const MessageBlock = styled.div<{ borderColor: string; backgroundColor?: string }>`

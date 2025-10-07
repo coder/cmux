@@ -41,7 +41,7 @@ export async function createWorktree(
         (b) =>
           b.trim() === branchName ||
           b.trim() === `* ${branchName}` ||
-          b.includes(`remotes/origin/${branchName}`)
+          b.trim() === `remotes/origin/${branchName}`
       );
 
     if (branchExists) {
@@ -67,6 +67,35 @@ export async function removeWorktree(
     // Remove the worktree
     await execAsync(`git worktree remove "${workspacePath}" ${options.force ? "--force" : ""}`);
     return { success: true };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return { success: false, error: message };
+  }
+}
+
+export async function moveWorktree(
+  projectPath: string,
+  oldPath: string,
+  newPath: string
+): Promise<WorktreeResult> {
+  try {
+    // Check if new path already exists
+    if (fs.existsSync(newPath)) {
+      return {
+        success: false,
+        error: `Target path already exists: ${newPath}`,
+      };
+    }
+
+    // Create parent directory for new path if needed
+    const parentDir = path.dirname(newPath);
+    if (!fs.existsSync(parentDir)) {
+      fs.mkdirSync(parentDir, { recursive: true });
+    }
+
+    // Move the worktree using git (from the main repository context)
+    await execAsync(`git -C "${projectPath}" worktree move "${oldPath}" "${newPath}"`);
+    return { success: true, path: newPath };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     return { success: false, error: message };

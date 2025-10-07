@@ -3,14 +3,18 @@ import { IPC_CHANNELS, getChatChannel } from "../../src/constants/ipc-constants"
 import type { SendMessageOptions, WorkspaceChatMessage } from "../../src/types/ipc";
 import type { Result } from "../../src/types/result";
 import type { SendMessageError } from "../../src/types/errors";
+import type { WorkspaceMetadata } from "../../src/types/workspace";
 import * as path from "path";
 import * as os from "os";
 
 /**
  * Generate a unique branch name
+ * Uses high-resolution time (nanosecond precision) to prevent collisions
  */
 export function generateBranchName(prefix = "test"): string {
-  return `${prefix}-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+  const hrTime = process.hrtime.bigint();
+  const random = Math.random().toString(36).substring(2, 10);
+  return `${prefix}-${hrTime}-${random}`;
 }
 
 /**
@@ -38,19 +42,33 @@ export async function sendMessage(
 }
 
 /**
+ * Send a message with a provider and model (convenience wrapper)
+ */
+export async function sendMessageWithModel(
+  mockIpcRenderer: IpcRenderer,
+  workspaceId: string,
+  message: string,
+  provider = "anthropic",
+  model = "claude-sonnet-4-5",
+  options?: Omit<SendMessageOptions, "model">
+): Promise<Result<void, SendMessageError>> {
+  return sendMessage(mockIpcRenderer, workspaceId, message, {
+    ...options,
+    model: modelString(provider, model),
+  });
+}
+
+/**
  * Create a workspace via IPC
  */
 export async function createWorkspace(
   mockIpcRenderer: IpcRenderer,
   projectPath: string,
   branchName: string
-): Promise<{ success: boolean; workspaceId?: string; path?: string; error?: string }> {
-  return (await mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_CREATE, projectPath, branchName)) as {
-    success: boolean;
-    workspaceId?: string;
-    path?: string;
-    error?: string;
-  };
+): Promise<{ success: true; metadata: WorkspaceMetadata } | { success: false; error: string }> {
+  return (await mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_CREATE, projectPath, branchName)) as
+    | { success: true; metadata: WorkspaceMetadata }
+    | { success: false; error: string };
 }
 
 /**
@@ -61,7 +79,7 @@ export async function clearHistory(
   workspaceId: string
 ): Promise<Result<void, string>> {
   return (await mockIpcRenderer.invoke(
-    IPC_CHANNELS.WORKSPACE_CLEAR_HISTORY,
+    IPC_CHANNELS.WORKSPACE_TRUNCATE_HISTORY,
     workspaceId
   )) as Result<void, string>;
 }
@@ -99,10 +117,11 @@ export class EventCollector {
   }
 
   /**
-   * Wait for a specific event type
+   * Wait for a specific event type with exponential backoff
    */
   async waitForEvent(eventType: string, timeoutMs = 30000): Promise<WorkspaceChatMessage | null> {
     const startTime = Date.now();
+    let pollInterval = 50; // Start with 50ms for faster detection
 
     while (Date.now() - startTime < timeoutMs) {
       this.collect();
@@ -110,8 +129,26 @@ export class EventCollector {
       if (event) {
         return event;
       }
-      // Wait a bit before checking again
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      // Exponential backoff with max 500ms
+      await new Promise((resolve) => setTimeout(resolve, pollInterval));
+      pollInterval = Math.min(pollInterval * 1.5, 500);
+    }
+
+    // Log diagnostic info on timeout
+    const eventTypes = this.events
+      .filter((e) => "type" in e)
+      .map((e) => (e as { type: string }).type);
+    console.warn(
+      `waitForEvent timeout: Expected "${eventType}" but got events: [${eventTypes.join(", ")}]`
+    );
+
+    // If there was a stream-error, log the error details
+    const errorEvent = this.events.find((e) => "type" in e && e.type === "stream-error");
+    if (errorEvent && "error" in errorEvent) {
+      console.error("Stream error details:", errorEvent.error);
+      if ("errorType" in errorEvent) {
+        console.error("Stream error type:", errorEvent.errorType);
+      }
     }
 
     return null;
@@ -158,12 +195,43 @@ export function createEventCollector(
 
 /**
  * Assert that a stream completed successfully
+ * Provides helpful error messages when assertions fail
  */
 export function assertStreamSuccess(collector: EventCollector): void {
-  expect(collector.hasStreamEnd()).toBe(true);
-  expect(collector.hasError()).toBe(false);
+  const allEvents = collector.getEvents();
+  const eventTypes = allEvents.filter((e) => "type" in e).map((e) => (e as { type: string }).type);
+
+  // Check for stream-end
+  if (!collector.hasStreamEnd()) {
+    const errorEvent = allEvents.find((e) => "type" in e && e.type === "stream-error");
+    if (errorEvent && "error" in errorEvent) {
+      throw new Error(
+        `Stream did not complete successfully. Got stream-error: ${errorEvent.error}\n` +
+          `All events: [${eventTypes.join(", ")}]`
+      );
+    }
+    throw new Error(
+      `Stream did not emit stream-end event.\n` + `All events: [${eventTypes.join(", ")}]`
+    );
+  }
+
+  // Check for errors
+  if (collector.hasError()) {
+    const errorEvent = allEvents.find((e) => "type" in e && e.type === "stream-error");
+    const errorMsg = errorEvent && "error" in errorEvent ? errorEvent.error : "unknown";
+    throw new Error(
+      `Stream completed but also has error event: ${errorMsg}\n` +
+        `All events: [${eventTypes.join(", ")}]`
+    );
+  }
+
+  // Check for final message
   const finalMessage = collector.getFinalMessage();
-  expect(finalMessage).toBeDefined();
+  if (!finalMessage) {
+    throw new Error(
+      `Stream completed but final message is missing.\n` + `All events: [${eventTypes.join(", ")}]`
+    );
+  }
 }
 
 /**
@@ -180,35 +248,104 @@ export function assertError(
 }
 
 /**
+ * Poll for a condition with exponential backoff
+ * More robust than fixed sleeps for async operations
+ */
+export async function waitFor(
+  condition: () => boolean | Promise<boolean>,
+  timeoutMs = 5000,
+  pollIntervalMs = 50
+): Promise<boolean> {
+  const startTime = Date.now();
+  let currentInterval = pollIntervalMs;
+
+  while (Date.now() - startTime < timeoutMs) {
+    if (await condition()) {
+      return true;
+    }
+    await new Promise((resolve) => setTimeout(resolve, currentInterval));
+    // Exponential backoff with max 500ms
+    currentInterval = Math.min(currentInterval * 1.5, 500);
+  }
+
+  return false;
+}
+
+/**
+ * Wait for a file to exist with retry logic
+ * Useful for checking file operations that may take time
+ */
+export async function waitForFileExists(filePath: string, timeoutMs = 5000): Promise<boolean> {
+  const fs = await import("fs/promises");
+  return waitFor(async () => {
+    try {
+      await fs.access(filePath);
+      return true;
+    } catch {
+      return false;
+    }
+  }, timeoutMs);
+}
+
+/**
+ * Wait for a file to NOT exist with retry logic
+ */
+export async function waitForFileNotExists(filePath: string, timeoutMs = 5000): Promise<boolean> {
+  const fs = await import("fs/promises");
+  return waitFor(async () => {
+    try {
+      await fs.access(filePath);
+      return false;
+    } catch {
+      return true;
+    }
+  }, timeoutMs);
+}
+
+/**
  * Create a temporary git repository for testing
  */
 export async function createTempGitRepo(): Promise<string> {
+  const fs = await import("fs/promises");
   const { exec } = await import("child_process");
   const { promisify } = await import("util");
   const execAsync = promisify(exec);
 
-  const tempDir = path.join(os.tmpdir(), `cmux-test-repo-${Date.now()}`);
-  await execAsync(`mkdir -p ${tempDir}`);
+  // Use mkdtemp to avoid race conditions and ensure unique directory
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "cmux-test-repo-"));
+
+  // Batch git commands where possible to reduce overhead
   await execAsync(`git init`, { cwd: tempDir });
-  await execAsync(`git config user.email "test@example.com"`, { cwd: tempDir });
-  await execAsync(`git config user.name "Test User"`, { cwd: tempDir });
-  await execAsync(`echo "test" > README.md`, { cwd: tempDir });
-  await execAsync(`git add .`, { cwd: tempDir });
-  await execAsync(`git commit -m "Initial commit"`, { cwd: tempDir });
-  // Create a test branch that worktrees can be created from
-  await execAsync(`git branch test-branch`, { cwd: tempDir });
+  await execAsync(`git config user.email "test@example.com" && git config user.name "Test User"`, {
+    cwd: tempDir,
+  });
+  await execAsync(
+    `echo "test" > README.md && git add . && git commit -m "Initial commit" && git branch test-branch`,
+    { cwd: tempDir }
+  );
 
   return tempDir;
 }
 
 /**
- * Cleanup temporary git repository
+ * Cleanup temporary git repository with retry logic
  */
 export async function cleanupTempGitRepo(repoPath: string): Promise<void> {
   const fs = await import("fs/promises");
-  try {
-    await fs.rm(repoPath, { recursive: true, force: true });
-  } catch (error) {
-    console.warn("Failed to cleanup temp git repo:", error);
+  const maxRetries = 3;
+  let lastError: unknown;
+
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      await fs.rm(repoPath, { recursive: true, force: true });
+      return;
+    } catch (error) {
+      lastError = error;
+      // Wait before retry (files might be locked temporarily)
+      if (i < maxRetries - 1) {
+        await new Promise((resolve) => setTimeout(resolve, 100 * (i + 1)));
+      }
+    }
   }
+  console.warn(`Failed to cleanup temp git repo after ${maxRetries} attempts:`, lastError);
 }

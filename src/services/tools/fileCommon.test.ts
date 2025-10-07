@@ -1,6 +1,6 @@
 import { describe, it, expect } from "bun:test";
 import type * as fs from "fs";
-import { leaseFromStat } from "./fileCommon";
+import { leaseFromStat, validatePathInCwd } from "./fileCommon";
 
 describe("fileCommon", () => {
   describe("leaseFromStat", () => {
@@ -119,6 +119,74 @@ describe("fileCommon", () => {
 
       // Verify determinism within same run
       expect(leaseFromStat(stats)).toBe(lease);
+    });
+  });
+
+  describe("validatePathInCwd", () => {
+    const cwd = "/workspace/project";
+
+    it("should allow relative paths within cwd", () => {
+      expect(validatePathInCwd("src/file.ts", cwd)).toBeNull();
+      expect(validatePathInCwd("./src/file.ts", cwd)).toBeNull();
+      expect(validatePathInCwd("file.ts", cwd)).toBeNull();
+    });
+
+    it("should allow absolute paths within cwd", () => {
+      expect(validatePathInCwd("/workspace/project/src/file.ts", cwd)).toBeNull();
+      expect(validatePathInCwd("/workspace/project/file.ts", cwd)).toBeNull();
+    });
+
+    it("should reject paths that go up and outside cwd with ..", () => {
+      const result = validatePathInCwd("../outside.ts", cwd);
+      expect(result).not.toBeNull();
+      expect(result?.error).toContain("restricted to the workspace directory");
+      expect(result?.error).toContain("/workspace/project");
+    });
+
+    it("should reject paths that go multiple levels up", () => {
+      const result = validatePathInCwd("../../outside.ts", cwd);
+      expect(result).not.toBeNull();
+      expect(result?.error).toContain("restricted to the workspace directory");
+    });
+
+    it("should reject paths that go down then up outside cwd", () => {
+      const result = validatePathInCwd("src/../../outside.ts", cwd);
+      expect(result).not.toBeNull();
+      expect(result?.error).toContain("restricted to the workspace directory");
+    });
+
+    it("should reject absolute paths outside cwd", () => {
+      const result = validatePathInCwd("/etc/passwd", cwd);
+      expect(result).not.toBeNull();
+      expect(result?.error).toContain("restricted to the workspace directory");
+    });
+
+    it("should reject absolute paths in different directory tree", () => {
+      const result = validatePathInCwd("/home/user/file.ts", cwd);
+      expect(result).not.toBeNull();
+      expect(result?.error).toContain("restricted to the workspace directory");
+    });
+
+    it("should handle paths with trailing slashes", () => {
+      expect(validatePathInCwd("src/", cwd)).toBeNull();
+    });
+
+    it("should handle nested paths correctly", () => {
+      expect(validatePathInCwd("src/components/Button/index.ts", cwd)).toBeNull();
+      expect(validatePathInCwd("./src/components/Button/index.ts", cwd)).toBeNull();
+    });
+
+    it("should provide helpful error message mentioning to ask user", () => {
+      const result = validatePathInCwd("../outside.ts", cwd);
+      expect(result?.error).toContain("ask the user for permission");
+    });
+
+    it("should work with cwd that has trailing slash", () => {
+      const cwdWithSlash = "/workspace/project/";
+      expect(validatePathInCwd("src/file.ts", cwdWithSlash)).toBeNull();
+
+      const result = validatePathInCwd("../outside.ts", cwdWithSlash);
+      expect(result).not.toBeNull();
     });
   });
 });

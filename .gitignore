@@ -57,8 +57,14 @@ yarn-error.log
 bun.lockb
 dist
 
+# Electron build output
+release
+
 # Documentation
 docs/vercel/
+docs/book/
+docs/mermaid-init.js
+docs/mermaid.min.js
 
 # Secrets
 .env

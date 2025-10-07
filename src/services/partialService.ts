@@ -1,11 +1,11 @@
 import * as fs from "fs/promises";
 import * as path from "path";
-import type { Result } from "../types/result";
-import { Ok, Err } from "../types/result";
-import type { CmuxMessage } from "../types/message";
-import type { Config } from "../config";
+import type { Result } from "@/types/result";
+import { Ok, Err } from "@/types/result";
+import type { CmuxMessage } from "@/types/message";
+import type { Config } from "@/config";
 import type { HistoryService } from "./historyService";
-import { MutexMap } from "../utils/mutexMap";
+import { workspaceFileLocks } from "@/utils/concurrency/workspaceFileLocks";
 
 /**
  * PartialService - Manages partial message persistence for interrupted streams
@@ -27,7 +27,9 @@ import { MutexMap } from "../utils/mutexMap";
 export class PartialService {
   private readonly PARTIAL_FILE = "partial.json";
   private readonly historyService: HistoryService;
-  private readonly fileLocks = new MutexMap<string>();
+  // Shared file operation lock across all workspace file services
+  // This prevents deadlocks when services call each other (e.g., PartialService → HistoryService)
+  private readonly fileLocks = workspaceFileLocks;
   private readonly config: Config;
 
   constructor(config: Config, historyService: HistoryService) {

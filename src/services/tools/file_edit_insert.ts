@@ -2,10 +2,10 @@ import { tool } from "ai";
 import * as fs from "fs/promises";
 import * as path from "path";
 import writeFileAtomic from "write-file-atomic";
-import type { FileEditInsertToolResult } from "../../types/tools";
-import type { ToolConfiguration, ToolFactory } from "../../utils/tools";
-import { TOOL_DEFINITIONS } from "../../utils/toolDefinitions";
-import { leaseFromStat, generateDiff } from "./fileCommon";
+import type { FileEditInsertToolResult } from "@/types/tools";
+import type { ToolConfiguration, ToolFactory } from "@/utils/tools/tools";
+import { TOOL_DEFINITIONS } from "@/utils/tools/toolDefinitions";
+import { leaseFromStat, generateDiff, validatePathInCwd } from "./fileCommon";
 
 /**
  * File edit insert tool factory for AI assistant
@@ -23,6 +23,15 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
       lease,
     }): Promise<FileEditInsertToolResult> => {
       try {
+        // Validate that the path is within the working directory
+        const pathValidation = validatePathInCwd(file_path, config.cwd);
+        if (pathValidation) {
+          return {
+            success: false,
+            error: pathValidation.error,
+          };
+        }
+
         // Resolve path (but expect absolute paths)
         const resolvedPath = path.isAbsolute(file_path)
           ? file_path

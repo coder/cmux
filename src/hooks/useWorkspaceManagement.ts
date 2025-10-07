@@ -1,0 +1,142 @@
+import { useState, useEffect } from "react";
+import type { WorkspaceMetadata } from "@/types/workspace";
+import type { WorkspaceSelection } from "@/components/ProjectSidebar";
+import type { ProjectConfig } from "@/config";
+
+interface UseWorkspaceManagementProps {
+  projects: Map<string, ProjectConfig>;
+  selectedWorkspace: WorkspaceSelection | null;
+  onProjectsUpdate: (projects: Map<string, ProjectConfig>) => void;
+  onSelectedWorkspaceUpdate: (workspace: WorkspaceSelection | null) => void;
+}
+
+/**
+ * Hook to manage workspace operations (create, remove, rename, list)
+ */
+export function useWorkspaceManagement({
+  projects,
+  selectedWorkspace,
+  onProjectsUpdate,
+  onSelectedWorkspaceUpdate,
+}: UseWorkspaceManagementProps) {
+  const [workspaceMetadata, setWorkspaceMetadata] = useState<Map<string, WorkspaceMetadata>>(
+    new Map()
+  );
+
+  useEffect(() => {
+    void loadWorkspaceMetadata();
+  }, []);
+
+  const loadWorkspaceMetadata = async () => {
+    try {
+      const metadataList = await window.api.workspace.list();
+      const metadataMap = new Map();
+      for (const metadata of metadataList) {
+        metadataMap.set(metadata.workspacePath, metadata);
+      }
+      setWorkspaceMetadata(metadataMap);
+    } catch (error) {
+      console.error("Failed to load workspace metadata:", error);
+    }
+  };
+
+  const createWorkspace = async (projectPath: string, branchName: string) => {
+    const result = await window.api.workspace.create(projectPath, branchName);
+    if (result.success) {
+      // Update the project config with the new workspace
+      const newProjects = new Map(projects);
+      const projectConfig = newProjects.get(projectPath);
+      if (projectConfig) {
+        projectConfig.workspaces.push({
+          path: result.metadata.workspacePath,
+        });
+        onProjectsUpdate(newProjects);
+
+        await window.api.config.save({
+          projects: Array.from(newProjects.entries()),
+        });
+
+        // Reload workspace metadata to get the new workspace ID
+        await loadWorkspaceMetadata();
+
+        // Return the new workspace selection
+        return {
+          projectPath,
+          projectName: result.metadata.projectName,
+          workspacePath: result.metadata.workspacePath,
+          workspaceId: result.metadata.id,
+        };
+      }
+    } else {
+      throw new Error(result.error);
+    }
+  };
+
+  const removeWorkspace = async (
+    workspaceId: string
+  ): Promise<{ success: boolean; error?: string }> => {
+    const result = await window.api.workspace.remove(workspaceId);
+    if (result.success) {
+      // Reload config since backend has updated it
+      const config = await window.api.config.load();
+      const loadedProjects = new Map(config.projects);
+      onProjectsUpdate(loadedProjects);
+
+      // Reload workspace metadata
+      await loadWorkspaceMetadata();
+
+      // Clear selected workspace if it was removed
+      if (selectedWorkspace?.workspaceId === workspaceId) {
+        onSelectedWorkspaceUpdate(null);
+      }
+      return { success: true };
+    } else {
+      console.error("Failed to remove workspace:", result.error);
+      return { success: false, error: result.error };
+    }
+  };
+
+  const renameWorkspace = async (
+    workspaceId: string,
+    newName: string
+  ): Promise<{ success: boolean; error?: string }> => {
+    const result = await window.api.workspace.rename(workspaceId, newName);
+    if (result.success) {
+      // Reload config since backend has updated it
+      const config = await window.api.config.load();
+      const loadedProjects = new Map(config.projects);
+      onProjectsUpdate(loadedProjects);
+
+      // Reload workspace metadata
+      await loadWorkspaceMetadata();
+
+      // Update selected workspace if it was renamed
+      if (selectedWorkspace?.workspaceId === workspaceId) {
+        const newWorkspaceId = result.data.newWorkspaceId;
+
+        // Get updated workspace metadata from backend
+        const newMetadata = await window.api.workspace.getInfo(newWorkspaceId);
+        if (newMetadata) {
+          onSelectedWorkspaceUpdate({
+            projectPath: selectedWorkspace.projectPath,
+            projectName: newMetadata.projectName,
+            workspacePath: newMetadata.workspacePath,
+            workspaceId: newWorkspaceId,
+          });
+        }
+      }
+      return { success: true };
+    } else {
+      console.error("Failed to rename workspace:", result.error);
+      return { success: false, error: result.error };
+    }
+  };
+
+  return {
+    workspaceMetadata,
+    createWorkspace,
+    removeWorkspace,
+    renameWorkspace,
+    loadWorkspaceMetadata,
+  };
+}

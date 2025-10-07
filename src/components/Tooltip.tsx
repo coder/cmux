@@ -29,7 +29,7 @@ export const Tooltip = styled.span<TooltipProps>`
   border-radius: 4px;
   padding: 6px 10px;
   position: absolute;
-  z-index: 1000;
+  z-index: 9999;
   bottom: 125%;
   ${(props) => {
     if (props.align === "right") return "right: 0;";
@@ -37,9 +37,10 @@ export const Tooltip = styled.span<TooltipProps>`
     return "left: 50%; transform: translateX(-50%);";
   }}
   white-space: ${(props) => (props.width === "wide" ? "normal" : "nowrap")};
-  ${(props) => props.width === "wide" && "width: 200px;"}
+  ${(props) => props.width === "wide" && "max-width: 300px; width: max-content;"}
   font-size: 11px;
   font-weight: normal;
+  font-family: var(--font-primary);
   border: 1px solid #464647;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
   transition: opacity 0.2s;
@@ -58,4 +59,20 @@ export const Tooltip = styled.span<TooltipProps>`
     border-style: solid;
     border-color: #2d2d30 transparent transparent transparent;
   }
+`;
+
+export const HelpIndicator = styled.span`
+  color: #666666;
+  font-size: 8px;
+  cursor: help;
+  display: inline-block;
+  vertical-align: baseline;
+  border: 1px solid #666666;
+  border-radius: 50%;
+  width: 11px;
+  height: 11px;
+  line-height: 9px;
+  text-align: center;
+  font-weight: bold;
+  margin-bottom: 2px;
 `;

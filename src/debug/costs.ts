@@ -1,8 +1,9 @@
 import * as fs from "fs";
 import * as path from "path";
-import { defaultConfig } from "../config";
-import type { CmuxMessage } from "../types/message";
-import { calculateTokenStats } from "../utils/tokenStatsCalculator";
+import { defaultConfig } from "@/config";
+import type { CmuxMessage } from "@/types/message";
+import { calculateTokenStats } from "@/utils/tokens/tokenStatsCalculator";
+import { defaultModel } from "@/utils/ai/models";
 
 /**
  * Debug command to display cost/token statistics for a workspace
@@ -34,7 +35,7 @@ export function costsCommand(workspaceId: string) {
 
   // Detect model from first assistant message
   const firstAssistantMessage = messages.find((msg) => msg.role === "assistant");
-  const model = firstAssistantMessage?.metadata?.model ?? "anthropic:claude-opus-4-1";
+  const model = firstAssistantMessage?.metadata?.model ?? defaultModel;
 
   // Calculate stats using shared logic (now synchronous)
   const stats = calculateTokenStats(messages, model);

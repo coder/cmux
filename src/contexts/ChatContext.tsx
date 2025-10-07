@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
 import React, { createContext, useContext, useState, useEffect, useRef } from "react";
-import type { CmuxMessage, DisplayedMessage } from "../types/message";
-import type { ChatStats } from "../types/chatStats";
-import { TokenStatsWorker } from "../utils/TokenStatsWorker";
+import type { CmuxMessage, DisplayedMessage } from "@/types/message";
+import type { ChatStats } from "@/types/chatStats";
+import { TokenStatsWorker } from "@/utils/tokens/TokenStatsWorker";
 
 interface ChatContextType {
   messages: DisplayedMessage[];

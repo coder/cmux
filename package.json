@@ -5,10 +5,10 @@
   "main": "dist/main.js",
   "scripts": {
     "dev": "bun run build:main && concurrently -k \"bun run dev:main\" \"bun run dev:renderer\"",
-    "dev:main": "tsc -w -p tsconfig.main.json",
+    "dev:main": "concurrently \"tsc -w -p tsconfig.main.json\" \"tsc-alias -w -p tsconfig.main.json\"",
     "dev:renderer": "vite",
     "build": "bun run build:renderer && bun run build:main && bun run build:preload",
-    "build:main": "tsc -p tsconfig.main.json",
+    "build:main": "tsc -p tsconfig.main.json && tsc-alias -p tsconfig.main.json",
     "build:preload": "bun build src/preload.ts --format=cjs --target=node --external=electron --outfile=dist/preload.js",
     "build:renderer": "vite build",
     "start": "bun build:preload && electron .",
@@ -23,10 +23,13 @@
     "test:watch": "./scripts/test.sh --watch",
     "test:coverage": "./scripts/test.sh --coverage",
     "test:integration": "bun test src && TEST_INTEGRATION=1 jest tests",
-    "dist": "bun run build && electron-builder",
-    "dist:mac": "bun run build && electron-builder --mac",
-    "dist:win": "bun run build && electron-builder --win",
-    "dist:linux": "bun run build && electron-builder --linux"
+    "dist": "bun run build && electron-builder --publish never",
+    "dist:mac": "bun run build && electron-builder --mac --publish never",
+    "dist:win": "bun run build && electron-builder --win --publish never",
+    "dist:linux": "bun run build && electron-builder --linux --publish never",
+    "docs": "./scripts/docs.sh",
+    "docs:build": "./scripts/docs_build.sh",
+    "docs:watch": "cd docs && mdbook watch"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.20",
@@ -41,10 +44,15 @@
     "diff": "^8.0.2",
     "jsonc-parser": "^3.3.1",
     "lru-cache": "^11.2.2",
+    "mermaid": "^11.12.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-markdown": "^10.1.0",
+    "react-syntax-highlighter": "^15.6.6",
+    "rehype-katex": "^7.0.1",
     "remark-gfm": "^4.0.1",
+    "remark-math": "^6.0.0",
+    "undici": "^7.16.0",
     "write-file-atomic": "^6.0.0",
     "zod": "^4.1.11",
     "zod-to-json-schema": "^3.24.6"
@@ -55,8 +63,10 @@
     "@types/bun": "^1.2.23",
     "@types/diff": "^8.0.0",
     "@types/jest": "^30.0.0",
+    "@types/katex": "^0.16.7",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
+    "@types/react-syntax-highlighter": "^15.5.13",
     "@types/write-file-atomic": "^4.0.3",
     "@typescript-eslint/eslint-plugin": "^8.44.1",
     "@typescript-eslint/parser": "^8.44.1",
@@ -72,6 +82,7 @@
     "jest": "^30.1.3",
     "prettier": "^3.6.2",
     "ts-jest": "^29.4.4",
+    "tsc-alias": "^1.8.16",
     "typescript": "^5.1.3",
     "typescript-eslint": "^8.45.0",
     "vite": "^4.4.0",
@@ -88,11 +99,25 @@
       "dist/**/*"
     ],
     "mac": {
-      "category": "public.app-category.developer-tools"
+      "category": "public.app-category.developer-tools",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "icon": "build/icon.icns",
+      "artifactName": "${productName}-${version}-${arch}.${ext}",
+      "identity": null
     },
     "linux": {
       "target": "AppImage",
-      "category": "Development"
+      "category": "Development",
+      "icon": "build/icon.png",
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
     },
     "win": {
       "target": "nsis"

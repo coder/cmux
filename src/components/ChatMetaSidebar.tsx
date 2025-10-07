@@ -1,6 +1,6 @@
 import React from "react";
 import styled from "@emotion/styled";
-import { usePersistedState } from "../hooks/usePersistedState";
+import { usePersistedState } from "@/hooks/usePersistedState";
 import { CostsTab } from "./ChatMetaSidebar/CostsTab";
 import { ToolsTab } from "./ChatMetaSidebar/ToolsTab";
 
@@ -11,6 +11,10 @@ const SidebarContainer = styled.div`
   display: flex;
   flex-direction: column;
   overflow: hidden;
+
+  @container (max-width: 949px) {
+    display: none;
+  }
 `;
 
 const TabBar = styled.div`

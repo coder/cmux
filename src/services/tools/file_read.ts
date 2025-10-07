@@ -2,10 +2,10 @@ import { tool } from "ai";
 import * as fs from "fs/promises";
 import * as path from "path";
 import * as readline from "readline";
-import type { FileReadToolResult } from "../../types/tools";
-import type { ToolConfiguration, ToolFactory } from "../../utils/tools";
-import { TOOL_DEFINITIONS } from "../../utils/toolDefinitions";
-import { leaseFromStat } from "./fileCommon";
+import type { FileReadToolResult } from "@/types/tools";
+import type { ToolConfiguration, ToolFactory } from "@/utils/tools/tools";
+import { TOOL_DEFINITIONS } from "@/utils/tools/toolDefinitions";
+import { leaseFromStat, validatePathInCwd } from "./fileCommon";
 
 /**
  * File read tool factory for AI assistant
@@ -16,8 +16,21 @@ export const createFileReadTool: ToolFactory = (config: ToolConfiguration) => {
   return tool({
     description: TOOL_DEFINITIONS.file_read.description,
     inputSchema: TOOL_DEFINITIONS.file_read.schema,
-    execute: async ({ filePath, offset, limit }): Promise<FileReadToolResult> => {
+    execute: async (
+      { filePath, offset, limit },
+      { abortSignal: _abortSignal }
+    ): Promise<FileReadToolResult> => {
+      // Note: abortSignal available but not used - file reads are fast and complete quickly
       try {
+        // Validate that the path is within the working directory
+        const pathValidation = validatePathInCwd(filePath, config.cwd);
+        if (pathValidation) {
+          return {
+            success: false,
+            error: pathValidation.error,
+          };
+        }
+
         // Resolve relative paths from configured working directory
         const resolvedPath = path.isAbsolute(filePath)
           ? filePath
@@ -124,13 +137,15 @@ export const createFileReadTool: ToolFactory = (config: ToolConfiguration) => {
         const content = numberedLines.join("\n");
 
         // Return file info and content
+        // IMPORTANT: lease must be last in the return object so it remains fresh in the LLM's context
+        // when it's reading this tool result. The LLM needs the lease value to perform subsequent edits.
         return {
           success: true,
           file_size: stats.size,
           modifiedTime: stats.mtime.toISOString(),
           lines_read: numberedLines.length,
           content,
-          lease,
+          lease, // Must be last - see comment above
         };
       } catch (error) {
         // Handle specific errors

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import styled from "@emotion/styled";
-import type { DisplayedMessage } from "../../types/message";
+import type { DisplayedMessage } from "@/types/message";
 import { MarkdownRenderer } from "./MarkdownRenderer";
 import { TypewriterMarkdown } from "./TypewriterMarkdown";
 import type { ButtonConfig } from "./MessageWindow";

@@ -10,6 +10,7 @@ export type ParsedCommand =
   | { type: "model-set"; modelString: string }
   | { type: "model-help" }
   | { type: "clear" }
+  | { type: "truncate"; percentage: number }
   | { type: "unknown-command"; command: string; subcommand?: string }
   | null;
 
