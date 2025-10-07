@@ -56,9 +56,7 @@ export const openaiReasoningFixMiddleware: LanguageModelV2Middleware = {
 
           // If all content was reasoning, remove this message entirely
           if (filteredContent.length === 0 && message.content.length > 0) {
-            log.debug(
-              "[OpenAI Middleware] Removed reasoning-only assistant message from prompt"
-            );
+            log.debug("[OpenAI Middleware] Removed reasoning-only assistant message from prompt");
             // Return null to signal this message should be removed
             return null;
           }
