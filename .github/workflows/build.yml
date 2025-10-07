@@ -27,10 +27,14 @@ jobs:
         run: bun run build
 
       - name: Package for macOS
-        env:
-          CSC_LINK: ${{ secrets.MACOS_CERTIFICATE && format('base64:{0}', secrets.MACOS_CERTIFICATE) || '' }}
-          CSC_KEY_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
-        run: bun run dist:mac
+        run: |
+          # Decode certificate to file to avoid issues with newlines in base64 string
+          if [ -n "${{ secrets.MACOS_CERTIFICATE }}" ]; then
+            echo "${{ secrets.MACOS_CERTIFICATE }}" | base64 --decode > /tmp/certificate.p12
+            export CSC_LINK="/tmp/certificate.p12"
+            export CSC_KEY_PASSWORD="${{ secrets.MACOS_CERTIFICATE_PWD }}"
+          fi
+          bun run dist:mac
 
       - name: Upload macOS DMG
         uses: actions/upload-artifact@v4
