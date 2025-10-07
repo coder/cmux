@@ -326,6 +326,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const [commandSuggestions, setCommandSuggestions] = useState<SlashSuggestion[]>([]);
   const [providerNames, setProviderNames] = useState<string[]>([]);
   const [toast, setToast] = useState<Toast | null>(null);
+  const handleToastDismiss = useCallback(() => {
+    setToast(null);
+  }, []);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const modelSelectorRef = useRef<ModelSelectorRef>(null);
   const [thinkingLevel] = useThinkingLevel();
@@ -696,7 +699,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
   return (
     <InputSection>
-      <ChatInputToast toast={toast} onDismiss={() => setToast(null)} />
+      <ChatInputToast toast={toast} onDismiss={handleToastDismiss} />
       <CommandSuggestions
         suggestions={commandSuggestions}
         onSelectSuggestion={handleCommandSelect}
