@@ -323,7 +323,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 }) => {
   const [input, setInput] = usePersistedState("input:" + workspaceId, "");
   const [preferredModel, setPreferredModel] = usePersistedState<string>(
-    "cmux-preferred-model",
+    "model:" + workspaceId,
     defaultModel
   );
   const [isSending, setIsSending] = useState(false);
