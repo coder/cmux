@@ -396,7 +396,7 @@ describeIntegration("OpenAI Reasoning Error Reproduction", () => {
           // Check if stream had an error
           const streamError = collector
             .getEvents()
-            .find((e: { type?: string }) => "type" in e && e.type === "stream-error");
+            .find((e) => "type" in e && e.type === "stream-error");
 
           if (streamError) {
             console.log(`[History Replay] Turn ${i + 1} stream error:`, streamError);
