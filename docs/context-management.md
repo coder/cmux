@@ -2,6 +2,32 @@
 
 Commands for managing conversation history length and token usage.
 
+## `/clear` - Clear All History
+
+Remove all messages from conversation history. Equivalent to `/truncate 100`.
+
+### Syntax
+
+```
+/clear
+```
+
+### Examples
+
+```
+/clear
+```
+
+Start fresh with an empty conversation.
+
+### Notes
+
+- Instant deletion of all messages
+- **Irreversible** - all history is permanently removed
+- Use when you want to start a completely new conversation
+
+---
+
 ## `/compact` - AI Summarization
 
 Compress conversation history using AI summarization. Replaces the conversation with a compact summary that preserves context.
@@ -14,7 +40,7 @@ Compress conversation history using AI summarization. Replaces the conversation 
 
 ### Parameters
 
-- `maxTokens` (optional) - Maximum output tokens for the summary (e.g., 2000)
+- `maxTokens` (optional) - Maximum output tokens for the summary (defaults to 32000)
 - `instructions` (optional) - Additional instructions to guide the summarization
 
 ### Examples
@@ -32,16 +58,15 @@ Basic compaction with default settings.
 Limit summary to 1000 output tokens.
 
 ```
-/compact 2000 Focus on technical decisions and current implementation status
+/compact 2000 next up, we're adding a dark theme 
 ```
 
 Compact with token limit and custom instructions.
 
 ### Notes
 
-- Uses the AI model to intelligently summarize conversation history
+- Uses the selected LLM summarize conversation history
 - Preserves actionable context and specific details
-- Replaces existing conversation with the summary
 - **Irreversible** - original messages are replaced
 
 ---
@@ -68,18 +93,6 @@ Remove a percentage of messages from conversation history (from the oldest first
 
 Remove oldest 50% of messages.
 
-```
-/truncate 25
-```
-
-Remove oldest 25% of messages.
-
-```
-/truncate 75
-```
-
-Remove oldest 75% of messages.
-
 ### Notes
 
 - Simple deletion, no AI involved
@@ -91,10 +104,10 @@ Remove oldest 75% of messages.
 
 ## Comparison
 
-| Feature | `/compact` | `/truncate` |
-|---------|-----------|------------|
-| **Speed** | Slower (uses AI) | Fast (instant) |
-| **Context Preservation** | Intelligent summary | None (simple deletion) |
-| **Customization** | Token limit + instructions | Percentage only |
-| **Cost** | Uses API tokens | Free |
-| **Reversible** | No | No |
+| Feature | `/clear` | `/truncate` | `/compact` |
+|---------|----------|------------|------------|
+| **Speed** | Instant | Instant | Slower (uses AI) |
+| **Context Preservation** | None | None | Intelligent summary |
+| **Customization** | None | Percentage | Token limit + instructions |
+| **Cost** | Free | Free | Uses API tokens |
+| **Reversible** | No | No | No |
