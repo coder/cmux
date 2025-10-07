@@ -7,9 +7,14 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 cd "$PROJECT_ROOT"
 
-PRETTIER_PATTERNS=("src/**/*.{ts,tsx,js,jsx,json}" "*.{json,md}")
+PRETTIER_PATTERNS=(
+  "src/**/*.{ts,tsx,js,jsx,json}"
+  "tests/**/*.{ts,tsx,js,jsx,json}"
+  "docs/**/*.{md,mdx}"
+  "*.{json,md}"
+)
 
-format_typescript() {
+run_prettier() {
   local mode="$1"
   if [ "$mode" = "--check" ]; then
     echo "Checking TypeScript/JSON/Markdown formatting..."
@@ -38,12 +43,12 @@ format_shell() {
 }
 
 if [ "$1" = "--check" ]; then
-  format_typescript --check
+  run_prettier --check
 elif [ "$1" = "--shell" ]; then
   format_shell
 elif [ "$1" = "--all" ]; then
-  format_typescript
+  run_prettier
   format_shell
 else
-  format_typescript
+  run_prettier
 fi
