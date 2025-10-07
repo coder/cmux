@@ -19,19 +19,17 @@ const config: StorybookConfig = {
     "options": {}
   },
   async viteFinal(config: UserConfig) {
-    // Filter out Storybook's default React plugin
+    // Remove any existing Vite React plugins that Storybook registers
     config.plugins = (config.plugins || []).filter((plugin) => {
-      return !(
-        Array.isArray(plugin) &&
-        plugin[0]?.name?.includes('vite:react')
-      );
+      if (!plugin) return true;
+      const pluginName = Array.isArray(plugin) ? plugin[0]?.name : plugin.name;
+      return !pluginName?.includes('vite:react');
     });
 
-    // Add React plugin with emotion configuration
-    // Force Babel to process all files (not just JSX) to ensure emotion transforms work
+    // Re-register the React plugin with Emotion configuration
     config.plugins.push(
       react({
-        include: '**/*.{jsx,tsx,ts,js}',
+        exclude: [/\.stories\.(t|j)sx?$/, /node_modules/],
         jsxImportSource: '@emotion/react',
         babel: {
           plugins: ['@emotion/babel-plugin'],
@@ -39,7 +37,7 @@ const config: StorybookConfig = {
       })
     );
 
-    // Optimize emotion dependencies
+    // Pre-bundle Emotion packages to reduce cold start time
     config.optimizeDeps = {
       ...config.optimizeDeps,
       include: [
@@ -48,12 +46,6 @@ const config: StorybookConfig = {
         '@emotion/styled',
         '@emotion/cache',
       ],
-    };
-
-    // Ensure emotion packages are resolved correctly
-    config.resolve = {
-      ...config.resolve,
-      dedupe: ['@emotion/react', '@emotion/styled', '@emotion/cache'],
     };
 
     return config;

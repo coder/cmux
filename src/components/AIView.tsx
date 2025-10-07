@@ -1,5 +1,13 @@
+<<<<<<< HEAD
 import React, { useState, useCallback, useEffect } from "react";
 import styled from "@emotion/styled";
+||||||| parent of 16a6df0 (Fix Chromatic compatibility by removing styled shim)
+import React, { useState, useEffect, useCallback } from "react";
+import styled from "@/styles/styled";
+=======
+import React, { useState, useEffect, useCallback } from "react";
+import styled from "@emotion/styled";
+>>>>>>> 16a6df0 (Fix Chromatic compatibility by removing styled shim)
 import { MessageRenderer } from "./Messages/MessageRenderer";
 import { InterruptedBarrier } from "./Messages/ChatBarrier/InterruptedBarrier";
 import { StreamingBarrier } from "./Messages/ChatBarrier/StreamingBarrier";
