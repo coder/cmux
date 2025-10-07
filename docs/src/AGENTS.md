@@ -49,6 +49,19 @@ git rebase origin/main
 git push --force-with-lease
 ```
 
+### ⚠️ NEVER Auto-Merge PRs
+
+**DO NOT** enable auto-merge (`gh pr merge --auto`) or merge PRs (`gh pr merge`) without **explicit user instruction**.
+
+Reason: PRs may need human review, discussion, or additional changes based on review comments (e.g., Codex feedback). Always:
+
+1. Submit the PR
+2. Wait for checks to pass
+3. Report PR status to user
+4. **Wait for user to decide** whether to merge
+
+Only merge if the user explicitly says "merge it" or similar.
+
 ## Project Structure
 
 - `src/main.ts` - Main Electron process

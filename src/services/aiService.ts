@@ -42,11 +42,17 @@ const unlimitedTimeoutAgent = new Agent({
 });
 
 /**
- * Custom fetch function with unlimited timeouts for AI streaming.
+ * Default fetch function with unlimited timeouts for AI streaming.
  * Uses undici Agent to remove artificial timeout limits while still
  * respecting user cancellation via AbortSignal.
+ *
+ * Note: If users provide custom fetch in providers.jsonc, they are
+ * responsible for configuring timeouts appropriately. Custom fetch
+ * implementations using undici should set bodyTimeout: 0 and
+ * headersTimeout: 0 to prevent BodyTimeoutError on long-running
+ * reasoning models.
  */
-function fetchWithUnlimitedTimeout(
+function defaultFetchWithUnlimitedTimeout(
   input: RequestInfo | URL,
   init?: RequestInit
 ): Promise<Response> {
@@ -204,11 +210,17 @@ export class AIService extends EventEmitter {
             provider: providerName,
           });
         }
+        // Use user's custom fetch as-is if provided (user controls timeouts),
+        // otherwise use our default fetch with unlimited timeout.
+        const fetchToUse =
+          typeof providerConfig.fetch === "function"
+            ? (providerConfig.fetch as typeof fetch)
+            : defaultFetchWithUnlimitedTimeout;
+
         const provider = createOpenAI({
           ...providerConfig,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-explicit-any
-          fetch: fetchWithUnlimitedTimeout as any,
+          fetch: fetchToUse as any,
         });
         // Use Responses API for persistence and built-in tools
         return Ok(provider.responses(modelId));
