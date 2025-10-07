@@ -10,6 +10,10 @@ import type { CmuxMessage } from "@/types/message";
  * Filter out assistant messages that only contain reasoning parts (no text or tool parts).
  * These messages are invalid for the API and provide no value to the model.
  * This happens when a message is interrupted during thinking before producing any text.
+ *
+ * Note: This function filters out reasoning-only messages but does NOT strip reasoning
+ * parts from messages that have other content. Reasoning parts are handled differently
+ * per provider (see stripReasoningForOpenAI).
  */
 export function filterEmptyAssistantMessages(messages: CmuxMessage[]): CmuxMessage[] {
   return messages.filter((msg) => {
@@ -24,6 +28,36 @@ export function filterEmptyAssistantMessages(messages: CmuxMessage[]): CmuxMessa
     );
 
     return hasContent;
+  });
+}
+
+/**
+ * Strip reasoning parts from messages for OpenAI.
+ *
+ * OpenAI's Responses API uses encrypted reasoning items (with IDs like rs_*) that are
+ * managed automatically via previous_response_id. When reasoning parts from history
+ * (which are Anthropic-style text-based reasoning) are sent to OpenAI, they create
+ * orphaned reasoning items that cause "reasoning without following item" errors.
+ *
+ * Anthropic's reasoning (text-based) is different and SHOULD be sent back via sendReasoning.
+ *
+ * @param messages - Messages that may contain reasoning parts
+ * @returns Messages with reasoning parts stripped (for OpenAI only)
+ */
+export function stripReasoningForOpenAI(messages: CmuxMessage[]): CmuxMessage[] {
+  return messages.map((msg) => {
+    // Only process assistant messages
+    if (msg.role !== "assistant") {
+      return msg;
+    }
+
+    // Strip reasoning parts - OpenAI manages reasoning via previousResponseId
+    const filteredParts = msg.parts.filter((part) => part.type !== "reasoning");
+
+    return {
+      ...msg,
+      parts: filteredParts,
+    };
   });
 }
 
