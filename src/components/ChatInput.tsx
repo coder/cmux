@@ -22,6 +22,7 @@ import { matchesKeybind, formatKeybind, KEYBINDS, isEditableElement } from "@/ut
 import { defaultModel } from "@/utils/ai/models";
 import { ModelSelector, type ModelSelectorRef } from "./ModelSelector";
 import { useModelLRU } from "@/hooks/useModelLRU";
+import { VimTextArea } from "./VimTextArea";
 
 const InputSection = styled.div`
   position: relative;
@@ -39,39 +40,7 @@ const InputControls = styled.div`
   align-items: flex-end;
 `;
 
-const InputField = styled.textarea<{
-  isEditing?: boolean;
-  canInterrupt?: boolean;
-  mode: UIMode;
-}>`
-  flex: 1;
-  background: ${(props) => (props.isEditing ? "var(--color-editing-mode-alpha)" : "#1e1e1e")};
-  border: 1px solid ${(props) => (props.isEditing ? "var(--color-editing-mode)" : "#3e3e42")};
-  color: #d4d4d4;
-  padding: 8px 12px;
-  border-radius: 4px;
-  font-family: inherit;
-  font-size: 13px;
-  resize: none;
-  min-height: 36px;
-  max-height: 200px;
-  overflow-y: auto;
-  max-height: 120px;
-
-  &:focus {
-    outline: none;
-    border-color: ${(props) =>
-      props.isEditing
-        ? "var(--color-editing-mode)"
-        : props.mode === "plan"
-          ? "var(--color-plan-mode)"
-          : "var(--color-exec-mode)"};
-  }
-
-  &::placeholder {
-    color: #6b6b6b;
-  }
-`;
+// Input now rendered by VimTextArea; styles moved there
 
 const ModeToggles = styled.div`
   display: flex;
@@ -666,18 +635,28 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     // Handle cancel/escape
     if (matchesKeybind(e, KEYBINDS.CANCEL)) {
       const isFocused = document.activeElement === inputRef.current;
-      e.preventDefault();
+      let handled = false;
 
       // Cancel editing if in edit mode
       if (editingMessage && onCancelEdit) {
+        e.preventDefault();
         onCancelEdit();
+        handled = true;
+      } else if (canInterrupt) {
+        // Priority 2: Interrupt streaming if active
+        e.preventDefault();
+        void window.api.workspace.sendMessage(workspaceId, "");
+        handled = true;
       }
 
-      if (isFocused) {
-        inputRef.current?.blur();
+      if (handled) {
+        if (isFocused) {
+          inputRef.current?.blur();
+        }
+        return;
       }
 
-      return;
+      // Otherwise, do not preventDefault here: allow VimTextArea or other handlers (like suggestions) to process ESC
     }
 
     // Don't handle keys if command suggestions are visible
@@ -732,24 +711,16 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         isVisible={showCommandSuggestions}
       />
       <InputControls>
-        <InputField
+        <VimTextArea
           ref={inputRef}
           value={input}
           isEditing={!!editingMessage}
           mode={mode}
-          onChange={(e) => {
-            const newValue = e.target.value;
-            setInput(newValue);
-            // Auto-resize textarea
-            e.target.style.height = "auto";
-            e.target.style.height = Math.min(e.target.scrollHeight, 200) + "px";
-
-            // Don't clear toast when typing - let user dismiss it manually or it auto-dismisses
-          }}
+          onChange={setInput}
           onKeyDown={handleKeyDown}
+          suppressKeys={showCommandSuggestions ? COMMAND_SUGGESTION_KEYS : undefined}
           placeholder={placeholder}
           disabled={disabled || isSending || isCompacting}
-          canInterrupt={canInterrupt}
         />
       </InputControls>
       <ModeToggles>
