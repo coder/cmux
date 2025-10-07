@@ -18,8 +18,10 @@ import {
   type SlashSuggestion,
 } from "@/utils/slashCommands/suggestions";
 import { TooltipWrapper, Tooltip, HelpIndicator } from "./Tooltip";
-import { matchesKeybind, formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
+import { matchesKeybind, formatKeybind, KEYBINDS, isEditableElement } from "@/utils/ui/keybinds";
 import { defaultModel } from "@/utils/ai/models";
+import { ModelSelector, type ModelSelectorRef } from "./ModelSelector";
+import { useModelLRU } from "@/hooks/useModelLRU";
 
 const InputSection = styled.div`
   position: relative;
@@ -128,13 +130,6 @@ const EditingIndicator = styled.div`
   font-size: 11px;
   color: var(--color-editing-mode);
   font-weight: 500;
-`;
-
-const ModelDisplay = styled.div`
-  font-size: 10px;
-  color: #808080;
-  font-family: var(--font-monospace);
-  line-height: 11px;
 `;
 
 const ModelDisplayWrapper = styled.div`
@@ -332,8 +327,51 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const [providerNames, setProviderNames] = useState<string[]>([]);
   const [toast, setToast] = useState<Toast | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const modelSelectorRef = useRef<ModelSelectorRef>(null);
   const [thinkingLevel] = useThinkingLevel();
   const [mode, setMode] = useMode();
+  const { recentModels } = useModelLRU();
+
+  const focusMessageInput = useCallback(() => {
+    const element = inputRef.current;
+    if (!element || element.disabled) {
+      return;
+    }
+
+    element.focus();
+
+    requestAnimationFrame(() => {
+      const cursor = element.value.length;
+      element.selectionStart = cursor;
+      element.selectionEnd = cursor;
+      element.style.height = "auto";
+      element.style.height = Math.min(element.scrollHeight, 200) + "px";
+    });
+  }, []);
+
+  useEffect(() => {
+    const handleGlobalKeyDown = (event: KeyboardEvent) => {
+      if (isEditableElement(event.target)) {
+        return;
+      }
+
+      if (matchesKeybind(event, KEYBINDS.FOCUS_INPUT_I)) {
+        event.preventDefault();
+        focusMessageInput();
+        return;
+      }
+
+      if (matchesKeybind(event, KEYBINDS.FOCUS_INPUT_A)) {
+        event.preventDefault();
+        focusMessageInput();
+      }
+    };
+
+    window.addEventListener("keydown", handleGlobalKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleGlobalKeyDown);
+    };
+  }, [focusMessageInput]);
 
   // When entering editing mode, populate input with message content
   useEffect(() => {
@@ -476,8 +514,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
           try {
             // Construct message asking for summarization
-            let compactionMessage = `Summarize this conversation into a compact form
-for a new Assistant to continue helping the user. Prioritize specific, actionable context.`;
+            let compactionMessage = `Summarize this conversation into a compact form for a new Assistant to continue helping the user. Prioritize specific, actionable context.`;
             if (parsed.instructions) {
               compactionMessage += ` ${parsed.instructions}`;
             }
@@ -588,21 +625,28 @@ for a new Assistant to continue helping the user. Prioritize specific, actionabl
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // Handle open model selector
+    if (matchesKeybind(e, KEYBINDS.OPEN_MODEL_SELECTOR)) {
+      e.preventDefault();
+      modelSelectorRef.current?.open();
+      return;
+    }
+
     // Handle cancel/escape
     if (matchesKeybind(e, KEYBINDS.CANCEL)) {
+      const isFocused = document.activeElement === inputRef.current;
       e.preventDefault();
 
       // Priority 1: Cancel editing if in edit mode
       if (editingMessage && onCancelEdit) {
         onCancelEdit();
-        return;
+      } else if (canInterrupt) {
+        // Priority 2: Interrupt streaming if active
+        void window.api.workspace.sendMessage(workspaceId, "");
       }
 
-      // Priority 2: Interrupt streaming if active
-      if (canInterrupt) {
-        // Send empty message to trigger interrupt
-        void window.api.workspace.sendMessage(workspaceId, "");
-        return;
+      if (isFocused) {
+        inputRef.current?.blur();
       }
 
       return;
@@ -630,6 +674,26 @@ for a new Assistant to continue helping the user. Prioritize specific, actionabl
     }
   };
 
+  // Build placeholder text based on current state
+  const placeholder = (() => {
+    if (editingMessage) {
+      return `Edit your message... (${formatKeybind(KEYBINDS.CANCEL)} to cancel, ${formatKeybind(KEYBINDS.SEND_MESSAGE)} to send)`;
+    }
+    if (isCompacting) {
+      return "Compacting conversation...";
+    }
+
+    // Build hints for normal input
+    const hints: string[] = [];
+    if (canInterrupt) {
+      hints.push(`${formatKeybind(KEYBINDS.CANCEL)} to interrupt`);
+    }
+    hints.push(`${formatKeybind(KEYBINDS.SEND_MESSAGE)} to send`);
+    hints.push(`${formatKeybind(KEYBINDS.OPEN_MODEL_SELECTOR)} to change model`);
+
+    return `Type a message... (${hints.join(", ")})`;
+  })();
+
   return (
     <InputSection>
       <ChatInputToast toast={toast} onDismiss={() => setToast(null)} />
@@ -655,15 +719,7 @@ for a new Assistant to continue helping the user. Prioritize specific, actionabl
             // Don't clear toast when typing - let user dismiss it manually or it auto-dismisses
           }}
           onKeyDown={handleKeyDown}
-          placeholder={
-            editingMessage
-              ? `Edit your message... (${formatKeybind(KEYBINDS.CANCEL)} to cancel, ${formatKeybind(KEYBINDS.SEND_MESSAGE)} to send)`
-              : isCompacting
-                ? "Compacting conversation..."
-                : canInterrupt
-                  ? `Type a message... (${formatKeybind(KEYBINDS.CANCEL)} to interrupt, ${formatKeybind(KEYBINDS.SEND_MESSAGE)} to send, ${formatKeybind(KEYBINDS.NEW_LINE)} for newline)`
-                  : `Type a message... (${formatKeybind(KEYBINDS.SEND_MESSAGE)} to send, ${formatKeybind(KEYBINDS.NEW_LINE)} for newline)`
-          }
+          placeholder={placeholder}
           disabled={disabled || isSending || isCompacting}
           canInterrupt={canInterrupt}
         />
@@ -672,11 +728,17 @@ for a new Assistant to continue helping the user. Prioritize specific, actionabl
         {editingMessage && <EditingIndicator>Editing message (ESC to cancel)</EditingIndicator>}
         <ModeTogglesRow>
           <ModelDisplayWrapper>
-            <ModelDisplay>{preferredModel}</ModelDisplay>
+            <ModelSelector
+              ref={modelSelectorRef}
+              value={preferredModel}
+              onChange={setPreferredModel}
+              recentModels={recentModels}
+              onComplete={() => inputRef.current?.focus()}
+            />
             <TooltipWrapper inline>
               <HelpIndicator>?</HelpIndicator>
               <Tooltip className="tooltip" align="left" width="wide">
-                Change model using <code>/model</code> command
+                <strong>Click to edit</strong> or use {formatKeybind(KEYBINDS.OPEN_MODEL_SELECTOR)}
                 <br />
                 <br />
                 <strong>Abbreviations:</strong>

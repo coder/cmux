@@ -18,6 +18,7 @@ import {
   isReasoningDelta,
   isReasoningEnd,
 } from "@/types/ipc";
+import { useModelLRU } from "./useModelLRU";
 
 export interface WorkspaceState {
   messages: DisplayedMessage[];
@@ -40,6 +41,9 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
   const [streamingModels, setStreamingModels] = useState<Map<string, string>>(new Map());
   // Force re-render when messages change for the selected workspace
   const [, setUpdateCounter] = useState(0);
+
+  // Track recently used models
+  const { addModel } = useModelLRU();
 
   // Track caught-up state per workspace
   const caughtUpRef = useRef<Map<string, boolean>>(new Map());
@@ -154,6 +158,8 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
             next.set(workspaceId, data.model);
             return next;
           });
+          // Track model in LRU cache
+          addModel(data.model);
           forceUpdate();
           return;
         }
@@ -251,29 +257,10 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
           );
           aggregator.handleToolCallEnd(data);
 
-          // Handle compact_summary completion - replace chat history with summary
-          if (data.toolName === "compact_summary") {
-            console.log("[useWorkspaceAggregators] Handling compact_summary completion");
-            const result = data.result as { summary?: string };
-            console.log("[useWorkspaceAggregators] Result structure:", result);
-            if (result?.summary) {
-              console.log("[useWorkspaceAggregators] Calling replaceChatHistory with summary");
-              const summaryMessage = createCmuxMessage(
-                `summary-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
-                "assistant",
-                result.summary,
-                {
-                  timestamp: Date.now(),
-                  compacted: true,
-                  model: streamingModels.get(workspaceId),
-                }
-              );
-
-              void window.api.workspace.replaceChatHistory(workspaceId, summaryMessage);
-            } else {
-              console.log("[useWorkspaceAggregators] No summary in result or result is falsy");
-            }
-          }
+          // Note: compact_summary handling removed from tool-call-end
+          // Compaction is handled in stream-end to prevent infinite loops
+          // (calling replaceChatHistory during streaming causes the model to see
+          // cleared history and trigger compaction again)
 
           forceUpdate();
           return;
