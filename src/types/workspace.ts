@@ -39,6 +39,8 @@ export type WorkspaceMetadataUI = WorkspaceMetadata;
 export interface GitStatus {
   ahead: number;
   behind: number;
+  /** Whether there are uncommitted changes (staged or unstaged) */
+  dirty: boolean;
 }
 
 /**

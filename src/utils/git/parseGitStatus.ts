@@ -29,7 +29,8 @@ export function parseGitRevList(output: string): GitStatus | null {
     return null;
   }
 
-  return { ahead, behind };
+  // Note: dirty status is checked separately in the caller
+  return { ahead, behind, dirty: false };
 }
 
 /**
@@ -101,5 +102,6 @@ export function parseGitShowBranchForStatus(output: string): GitStatus | null {
     }
   }
 
-  return { ahead, behind };
+  // Note: dirty status is checked separately in the caller
+  return { ahead, behind, dirty: false };
 }

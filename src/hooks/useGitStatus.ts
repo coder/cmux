@@ -138,7 +138,25 @@ export function useGitStatus(
             }
 
             const gitStatus = parseGitShowBranchForStatus(showBranchResult.data.output);
-            return [workspacePath, { ...metadata, gitStatus }];
+
+            if (!gitStatus) {
+              return [workspacePath, { ...metadata, gitStatus: null }];
+            }
+
+            // Check for uncommitted changes (dirty status)
+            const statusResult = await window.api.workspace.executeBash(
+              metadata.id,
+              "git status --porcelain",
+              { timeout_secs: 2 }
+            );
+
+            let dirty = false;
+            if (statusResult.success && statusResult.data.success) {
+              // If git status --porcelain has any output, there are uncommitted changes
+              dirty = statusResult.data.output.trim().length > 0;
+            }
+
+            return [workspacePath, { ...metadata, gitStatus: { ...gitStatus, dirty } }];
           } catch {
             // Silently fail - git status failures shouldn't crash the UI
             return [workspacePath, { ...metadata, gitStatus: null }];
