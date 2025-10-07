@@ -66,15 +66,15 @@ export function clearProviderMetadataForOpenAI(messages: ModelMessage[]): ModelM
 
     // Process content array and clear provider metadata
     const cleanedContent = assistantMsg.content.map((part) => {
-      // Clear providerMetadata for reasoning parts
-      if (part.type === "text" && "providerMetadata" in part) {
+      // Clear providerMetadata for text and reasoning parts
+      if ((part.type === "text" || part.type === "reasoning") && "providerMetadata" in part) {
         return {
           ...part,
           providerMetadata: {},
         };
       }
 
-      // Clear callProviderMetadata for tool-call parts
+      // Clear providerMetadata for tool-call parts
       if (part.type === "tool-call" && "providerMetadata" in part) {
         return {
           ...part,
@@ -434,21 +434,18 @@ function mergeConsecutiveUserMessages(messages: ModelMessage[]): ModelMessage[] 
 
 /**
  * Transform messages to ensure provider API compliance.
- * Applies multiple transformation passes based on provider requirements:
+ * Applies multiple transformation passes:
  * 0. Coalesce consecutive parts (text/reasoning) - all providers, reduces JSON overhead
  * 1. Split mixed content messages (text + tool calls) - all providers
- * 2. Strip/filter reasoning parts:
- *    - OpenAI: Strip all Anthropic reasoning parts (incompatible format)
- *    - Anthropic: Filter out reasoning-only messages (API rejects them)
+ * 2. Filter out reasoning-only messages - all providers
  * 3. Merge consecutive user messages - all providers
  *
- * Note: encryptedContent stripping happens earlier in streamManager when tool results
- * are first stored, not during message transformation.
+ * Note: Provider-specific handling (like clearing OpenAI metadata) happens in aiService.ts
+ * before/after this transformation.
  *
  * @param messages The messages to transform
- * @param provider The provider name (e.g., "anthropic", "openai")
  */
-export function transformModelMessages(messages: ModelMessage[], provider: string): ModelMessage[] {
+export function transformModelMessages(messages: ModelMessage[]): ModelMessage[] {
   // Pass 0: Coalesce consecutive parts to reduce JSON overhead from streaming (applies to all providers)
   const coalesced = coalesceConsecutiveParts(messages);
 

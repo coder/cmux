@@ -283,7 +283,7 @@ export class AIService extends EventEmitter {
       const [providerName] = modelString.split(":");
 
       // Filter out assistant messages with only reasoning (no text/tools)
-      let filteredMessages = filterEmptyAssistantMessages(messages);
+      const filteredMessages = filterEmptyAssistantMessages(messages);
       log.debug(`Filtered ${messages.length - filteredMessages.length} empty assistant messages`);
       log.debug_obj(`${workspaceId}/1a_filtered_messages.json`, filteredMessages);
 
@@ -307,7 +307,7 @@ export class AIService extends EventEmitter {
       }
 
       // Apply ModelMessage transforms based on provider requirements
-      const transformedMessages = transformModelMessages(modelMessages, providerName);
+      const transformedMessages = transformModelMessages(modelMessages);
 
       // Apply cache control for Anthropic models AFTER transformation
       const finalMessages = applyCacheControl(transformedMessages, modelString);

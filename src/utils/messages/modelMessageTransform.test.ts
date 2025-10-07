@@ -23,7 +23,7 @@ describe("modelMessageTransform", () => {
         assistantMsg,
       ];
 
-      const result = transformModelMessages(messages, "anthropic");
+      const result = transformModelMessages(messages);
       expect(result).toEqual(messages);
     });
 
@@ -38,7 +38,7 @@ describe("modelMessageTransform", () => {
       };
       const messages: ModelMessage[] = [assistantMsg1, assistantMsg2];
 
-      const result = transformModelMessages(messages, "anthropic");
+      const result = transformModelMessages(messages);
       expect(result).toEqual(messages);
     });
 
@@ -52,7 +52,7 @@ describe("modelMessageTransform", () => {
       };
       const messages: ModelMessage[] = [assistantMsg];
 
-      const result = transformModelMessages(messages, "anthropic");
+      const result = transformModelMessages(messages);
 
       // Should only keep text, strip interrupted tool calls
       expect(result).toHaveLength(1);
@@ -71,7 +71,7 @@ describe("modelMessageTransform", () => {
       };
       const messages: ModelMessage[] = [assistantMsg];
 
-      const result = transformModelMessages(messages, "anthropic");
+      const result = transformModelMessages(messages);
 
       // Should filter out the entire message since it only has orphaned tool calls
       expect(result).toHaveLength(0);
@@ -108,7 +108,7 @@ describe("modelMessageTransform", () => {
       };
       const messages: ModelMessage[] = [assistantMsg, toolMsg];
 
-      const result = transformModelMessages(messages, "anthropic");
+      const result = transformModelMessages(messages);
 
       // Should have: text message, tool calls (only call1 & call2), tool results
       expect(result).toHaveLength(3);
@@ -198,7 +198,7 @@ describe("modelMessageTransform", () => {
       };
       const messages: ModelMessage[] = [assistantMsg, toolMsg];
 
-      const result = transformModelMessages(messages, "anthropic");
+      const result = transformModelMessages(messages);
 
       // Should split into multiple messages with tool results properly placed
       expect(result.length).toBeGreaterThan(2);
@@ -323,7 +323,7 @@ describe("modelMessageTransform", () => {
         },
       ];
 
-      const result = transformModelMessages(messages, "anthropic");
+      const result = transformModelMessages(messages);
       expect(result).toHaveLength(1);
       expect(result[0].role).toBe("user");
       expect((result[0].content as Array<{ type: string; text: string }>)[0].text).toBe("Hello");
@@ -341,7 +341,7 @@ describe("modelMessageTransform", () => {
         },
       ];
 
-      const result = transformModelMessages(messages, "anthropic");
+      const result = transformModelMessages(messages);
       expect(result).toHaveLength(1);
       expect(result[0].role).toBe("user");
       expect((result[0].content as Array<{ type: string; text: string }>)[0].text).toBe(
@@ -365,7 +365,7 @@ describe("modelMessageTransform", () => {
         },
       ];
 
-      const result = transformModelMessages(messages, "anthropic");
+      const result = transformModelMessages(messages);
       expect(result).toHaveLength(1);
       expect(result[0].role).toBe("user");
       expect((result[0].content as Array<{ type: string; text: string }>)[0].text).toBe(
@@ -389,7 +389,7 @@ describe("modelMessageTransform", () => {
         },
       ];
 
-      const result = transformModelMessages(messages, "anthropic");
+      const result = transformModelMessages(messages);
       expect(result).toHaveLength(3);
       expect(result[0].role).toBe("user");
       expect((result[0].content as Array<{ type: string; text: string }>)[0].text).toBe("Hello");
@@ -535,8 +535,8 @@ describe("modelMessageTransform", () => {
 
       // Both providers should preserve reasoning parts
       // OpenAI-specific metadata clearing is done in aiService.ts, not in transformModelMessages
-      const resultOpenAI = transformModelMessages(messages, "openai");
-      const resultAnthropic = transformModelMessages(messages, "anthropic");
+      const resultOpenAI = transformModelMessages(messages);
+      const resultAnthropic = transformModelMessages(messages);
 
       // Both should have 2 messages with reasoning and text preserved
       expect(resultOpenAI).toHaveLength(2);
@@ -567,8 +567,8 @@ describe("modelMessageTransform", () => {
       ];
 
       // Both providers should filter reasoning-only messages
-      const resultOpenAI = transformModelMessages(messages, "openai");
-      const resultAnthropic = transformModelMessages(messages, "anthropic");
+      const resultOpenAI = transformModelMessages(messages);
+      const resultAnthropic = transformModelMessages(messages);
 
       // Should only have user message for both providers
       expect(resultOpenAI).toHaveLength(1);
@@ -604,7 +604,7 @@ describe("modelMessageTransform", () => {
         },
       ];
 
-      const result = transformModelMessages(messages, "openai");
+      const result = transformModelMessages(messages);
 
       // Should split into text message and tool-call/tool-result messages
       expect(result.length).toBeGreaterThan(2);
@@ -651,7 +651,7 @@ describe("modelMessageTransform", () => {
         },
       ];
 
-      const result = transformModelMessages(messages, "openai");
+      const result = transformModelMessages(messages);
 
       // Should have 2 messages, assistant should have coalesced reasoning and text
       expect(result).toHaveLength(2);
