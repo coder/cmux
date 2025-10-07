@@ -469,6 +469,57 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           return;
         }
 
+        // Handle /compact command
+        if (parsed.type === "compact") {
+          setInput(""); // Clear input immediately
+          setIsSending(true);
+
+          try {
+            // Construct message asking for summarization
+            let compactionMessage = `Summarize this conversation into a compact form
+for a new Assistant to continue helping the user. Prioritize specific, actionable context.`;
+            if (parsed.instructions) {
+              compactionMessage += ` ${parsed.instructions}`;
+            }
+
+            // Send message with compact_summary tool required and maxOutputTokens in options
+            const result = await window.api.workspace.sendMessage(workspaceId, compactionMessage, {
+              thinkingLevel,
+              model: preferredModel,
+              toolPolicy: [{ regex_match: "compact_summary", action: "require" }],
+              maxOutputTokens: parsed.maxOutputTokens, // Pass to model directly
+            });
+
+            if (!result.success) {
+              console.error("Failed to initiate compaction:", result.error);
+              setToast(createErrorToast(result.error));
+              setInput(messageText); // Restore input on error
+            } else {
+              setToast({
+                id: Date.now().toString(),
+                type: "success",
+                message: "Compaction started. AI will summarize the conversation.",
+              });
+              // Note: Full compaction flow needs to be implemented in AIView component:
+              // 1. Listen for tool-call-end event with toolName === "compact_summary"
+              // 2. Extract summary from tool result
+              // 3. Construct CmuxMessage with metadata: { compacted: true, timestamp, model, etc. }
+              // 4. Call window.api.workspace.replaceChatHistory(workspaceId, summaryMessage)
+            }
+          } catch (error) {
+            console.error("Compaction error:", error);
+            setToast({
+              id: Date.now().toString(),
+              type: "error",
+              message: error instanceof Error ? error.message : "Failed to start compaction",
+            });
+            setInput(messageText); // Restore input on error
+          } finally {
+            setIsSending(false);
+          }
+          return;
+        }
+
         // Handle all other commands - show display toast
         const commandToast = createCommandToast(parsed);
         if (commandToast) {

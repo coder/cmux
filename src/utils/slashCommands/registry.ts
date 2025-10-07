@@ -165,6 +165,34 @@ const truncateCommandDefinition: SlashCommandDefinition = {
   },
 };
 
+const compactCommandDefinition: SlashCommandDefinition = {
+  key: "compact",
+  description: "Compact conversation history using AI summarization",
+  handler: ({ cleanRemainingTokens }): ParsedCommand => {
+    // Parse optional maxOutputTokens (first arg, must be a number)
+    let maxOutputTokens: number | undefined;
+    let instructionsStart = 0;
+
+    if (cleanRemainingTokens.length > 0) {
+      const firstToken = cleanRemainingTokens[0];
+      const parsed = parseInt(firstToken, 10);
+
+      if (!isNaN(parsed) && parsed > 0) {
+        maxOutputTokens = parsed;
+        instructionsStart = 1;
+      }
+    }
+
+    // Parse optional instructions (remaining args joined)
+    const instructions =
+      cleanRemainingTokens.length > instructionsStart
+        ? cleanRemainingTokens.slice(instructionsStart).join(" ")
+        : undefined;
+
+    return { type: "compact", maxOutputTokens, instructions };
+  },
+};
+
 const providersSetCommandDefinition: SlashCommandDefinition = {
   key: "set",
   description: "Set a provider configuration value",
@@ -304,6 +332,7 @@ const modelCommandDefinition: SlashCommandDefinition = {
 export const SLASH_COMMAND_DEFINITIONS: readonly SlashCommandDefinition[] = [
   clearCommandDefinition,
   truncateCommandDefinition,
+  compactCommandDefinition,
   modelCommandDefinition,
   providersCommandDefinition,
 ];

@@ -39,6 +39,16 @@ const ModelName = styled.span`
   font-size: 10px;
 `;
 
+const CompactedBadge = styled.span`
+  color: var(--color-plan-mode);
+  font-weight: 500;
+  font-size: 10px;
+  padding: 2px 6px;
+  background: var(--color-plan-mode-alpha);
+  border-radius: 3px;
+  text-transform: uppercase;
+`;
+
 interface AssistantMessageProps {
   message: DisplayedMessage & { type: "assistant" };
   className?: string;
@@ -98,18 +108,18 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({ message, cla
     ) : null;
   };
 
-  // Create label with model name if available
+  // Create label with model name and compacted indicator if applicable
   const renderLabel = () => {
     const modelName = message.model;
-    if (modelName) {
-      return (
-        <LabelContainer>
-          <span>ASSISTANT</span>
-          <ModelName>{modelName.toLowerCase()}</ModelName>
-        </LabelContainer>
-      );
-    }
-    return "ASSISTANT";
+    const isCompacted = message.isCompacted;
+
+    return (
+      <LabelContainer>
+        <span>ASSISTANT</span>
+        {modelName && <ModelName>{modelName.toLowerCase()}</ModelName>}
+        {isCompacted && <CompactedBadge>📦 compacted</CompactedBadge>}
+      </LabelContainer>
+    );
   };
 
   return (

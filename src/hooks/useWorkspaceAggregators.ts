@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import type { DisplayedMessage, CmuxMessage } from "@/types/message";
+import { createCmuxMessage } from "@/types/message";
 import type { WorkspaceMetadata } from "@/types/workspace";
 import type { WorkspaceChatMessage } from "@/types/ipc";
 import { StreamingMessageAggregator } from "@/utils/messages/StreamingMessageAggregator";
@@ -21,6 +22,7 @@ import {
 export interface WorkspaceState {
   messages: DisplayedMessage[];
   canInterrupt: boolean;
+  isCompacting: boolean;
   loading: boolean;
   cmuxMessages: CmuxMessage[];
   currentModel: string;
@@ -62,6 +64,7 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
       return {
         messages: aggregator.getDisplayedMessages(),
         canInterrupt: aggregator.getActiveStreams().length > 0,
+        isCompacting: aggregator.isCompacting(),
         loading: !hasMessages && !isCaughtUp,
         cmuxMessages: aggregator.getAllMessages(),
         currentModel: currentModels.get(workspaceId) ?? "claude-sonnet-4-5",
@@ -150,6 +153,44 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
 
         if (isStreamEnd(data)) {
           aggregator.handleStreamEnd(data);
+
+          // Handle compact_summary completion - check if any tool in parts is compact_summary
+          // Tool results may come in stream-end rather than as separate tool-call-end events
+          if (data.parts) {
+            for (const part of data.parts) {
+              if (part.type === "dynamic-tool" && part.toolName === "compact_summary") {
+                console.log("[useWorkspaceAggregators] Found compact_summary in stream-end parts");
+                const output = part.output as { summary?: string } | undefined;
+                console.log("[useWorkspaceAggregators] Tool output:", output);
+                if (output?.summary) {
+                  console.log(
+                    "[useWorkspaceAggregators] Calling replaceChatHistory with summary from stream-end"
+                  );
+                  const summaryMessage = createCmuxMessage(
+                    `summary-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
+                    "assistant",
+                    output.summary,
+                    {
+                      timestamp: Date.now(),
+                      compacted: true,
+                      model: currentModels.get(workspaceId),
+                      // Copy usage metadata so users can see tokens/costs for the compaction operation
+                      usage: data.metadata.usage,
+                      providerMetadata: data.metadata.providerMetadata,
+                      duration: data.metadata.duration,
+                      systemMessageTokens: data.metadata.systemMessageTokens,
+                    }
+                  );
+
+                  void window.api.workspace.replaceChatHistory(workspaceId, summaryMessage);
+                } else {
+                  console.log("[useWorkspaceAggregators] No summary in tool output");
+                }
+                break; // Only one compact_summary per stream
+              }
+            }
+          }
+
           setStreamingStates((prev) =>
             new Map(prev).set(workspaceId, aggregator.getActiveStreams().length > 0)
           );
@@ -166,6 +207,7 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
 
         // Handle tool call events
         if (isToolCallStart(data)) {
+          console.log("[useWorkspaceAggregators] Tool call start:", data.toolName);
           aggregator.handleToolCallStart(data);
           forceUpdate();
           return;
@@ -178,7 +220,38 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
         }
 
         if (isToolCallEnd(data)) {
+          console.log(
+            "[useWorkspaceAggregators] Tool call end:",
+            data.toolName,
+            "result:",
+            data.result
+          );
           aggregator.handleToolCallEnd(data);
+
+          // Handle compact_summary completion - replace chat history with summary
+          if (data.toolName === "compact_summary") {
+            console.log("[useWorkspaceAggregators] Handling compact_summary completion");
+            const result = data.result as { summary?: string };
+            console.log("[useWorkspaceAggregators] Result structure:", result);
+            if (result?.summary) {
+              console.log("[useWorkspaceAggregators] Calling replaceChatHistory with summary");
+              const summaryMessage = createCmuxMessage(
+                `summary-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
+                "assistant",
+                result.summary,
+                {
+                  timestamp: Date.now(),
+                  compacted: true,
+                  model: currentModels.get(workspaceId),
+                }
+              );
+
+              void window.api.workspace.replaceChatHistory(workspaceId, summaryMessage);
+            } else {
+              console.log("[useWorkspaceAggregators] No summary in result or result is falsy");
+            }
+          }
+
           forceUpdate();
           return;
         }

@@ -11,7 +11,7 @@
     "build:main": "tsc -p tsconfig.main.json && tsc-alias -p tsconfig.main.json",
     "build:preload": "bun build src/preload.ts --format=cjs --target=node --external=electron --outfile=dist/preload.js",
     "build:renderer": "vite build",
-    "start": "bun build:preload && electron .",
+    "start": "bun run build:main && bun run build:preload && electron .",
     "typecheck": "./scripts/typecheck.sh",
     "debug": "bun src/debug/index.ts",
     "lint": "./scripts/lint.sh",

@@ -135,6 +135,17 @@ export const TOOL_DEFINITIONS = {
         ),
     }),
   },
+  compact_summary: {
+    description:
+      "Summarize the conversation history into a compact form. This tool is used during context compaction to reduce token usage while preserving key information.",
+    schema: z.object({
+      summary: z
+        .string()
+        .describe(
+          "Compact summary of the conversation, preserving key decisions, context, and important details. Include enough information for the conversation to continue meaningfully."
+        ),
+    }),
+  },
 } as const;
 
 /**
@@ -165,7 +176,14 @@ export function getAvailableTools(modelString: string): string[] {
   const [provider] = modelString.split(":");
 
   // Base tools available for all models
-  const baseTools = ["bash", "file_read", "file_edit_replace", "file_edit_insert", "propose_plan"];
+  const baseTools = [
+    "bash",
+    "file_read",
+    "file_edit_replace",
+    "file_edit_insert",
+    "propose_plan",
+    "compact_summary",
+  ];
 
   // Add provider-specific tools
   switch (provider) {

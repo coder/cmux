@@ -22,6 +22,7 @@ import { isDynamicToolPart } from "@/types/toolParts";
 interface StreamingContext {
   startTime: number;
   isComplete: boolean;
+  isCompacting: boolean;
 }
 
 /**
@@ -91,6 +92,15 @@ export class StreamingMessageAggregator {
     return Array.from(this.activeStreams.values());
   }
 
+  isCompacting(): boolean {
+    for (const context of this.activeStreams.values()) {
+      if (context.isCompacting) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   clearActiveStreams(): void {
     this.activeStreams.clear();
   }
@@ -122,9 +132,20 @@ export class StreamingMessageAggregator {
 
   // Unified event handlers that encapsulate all complex logic
   handleStreamStart(data: StreamStartEvent): void {
+    // Detect if this stream is compacting by checking last user message's toolPolicy
+    const messages = this.getAllMessages();
+    const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
+    const isCompacting =
+      lastUserMsg?.metadata?.toolPolicy?.some(
+        (filter) =>
+          filter.action === "require" &&
+          new RegExp(`^${filter.regex_match}$`).test("compact_summary")
+      ) ?? false;
+
     const context: StreamingContext = {
       startTime: Date.now(),
       isComplete: false,
+      isCompacting,
     };
 
     // Use messageId as key - ensures only ONE stream per message
@@ -464,6 +485,7 @@ export class StreamingMessageAggregator {
               isStreaming,
               isPartial: message.metadata?.partial ?? false,
               isLastPartOfMessage: isLastPart,
+              isCompacted: message.metadata?.compacted ?? false,
               model: message.metadata?.model,
               timestamp: baseTimestamp,
             });

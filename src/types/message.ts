@@ -15,6 +15,8 @@ export interface CmuxMetadata {
   synthetic?: boolean; // Whether this message was synthetically generated (e.g., [INTERRUPTED] sentinel)
   error?: string; // Error message if stream failed
   errorType?: StreamErrorType; // Error type/category if stream failed
+  compacted?: boolean; // Whether this message is a compacted summary of previous history
+  toolPolicy?: import("@/utils/tools/toolPolicy").ToolPolicy; // Tool policy active when this message was sent (user messages only)
 }
 
 // Extended tool part type that supports interrupted tool calls (input-available state)
@@ -67,6 +69,7 @@ export type DisplayedMessage =
       isStreaming: boolean;
       isPartial: boolean; // Whether this message was interrupted
       isLastPartOfMessage?: boolean; // True if this is the last part of a multi-part message
+      isCompacted: boolean; // Whether this is a compacted summary
       model?: string;
       timestamp?: number;
       tokens?: number;

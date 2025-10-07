@@ -150,7 +150,6 @@ const AIViewInner: React.FC<AIViewProps> = ({
   workspaceState,
   className,
 }) => {
-  const [isCompacting] = useState(false);
   const [editingMessage, setEditingMessage] = useState<{ id: string; content: string } | undefined>(
     undefined
   );
@@ -167,7 +166,8 @@ const AIViewInner: React.FC<AIViewProps> = ({
   } = useAutoScroll();
 
   // Extract state from workspace state prop
-  const { messages, canInterrupt, loading, cmuxMessages, currentModel } = workspaceState;
+  const { messages, canInterrupt, isCompacting, loading, cmuxMessages, currentModel } =
+    workspaceState;
 
   // Auto-scroll when messages update (during streaming)
   useEffect(() => {
@@ -312,7 +312,11 @@ const AIViewInner: React.FC<AIViewProps> = ({
                   })}
                 </>
               )}
-              {canInterrupt && <StreamingBarrier />}
+              {canInterrupt && (
+                <StreamingBarrier
+                  text={isCompacting ? "compacting... hit Esc to cancel" : undefined}
+                />
+              )}
             </OutputContent>
             {!autoScroll && (
               <JumpToBottomIndicator onClick={jumpToBottom}>

@@ -245,6 +245,7 @@ export class AIService extends EventEmitter {
    * @param toolPolicy Optional policy to filter available tools
    * @param abortSignal Optional signal to abort the stream
    * @param additionalSystemInstructions Optional additional system instructions to append
+   * @param maxOutputTokens Optional maximum tokens for model output
    * @returns Promise that resolves when streaming completes or fails
    */
   async streamMessage(
@@ -254,7 +255,8 @@ export class AIService extends EventEmitter {
     thinkingLevel?: ThinkingLevel,
     toolPolicy?: ToolPolicy,
     abortSignal?: AbortSignal,
-    additionalSystemInstructions?: string
+    additionalSystemInstructions?: string,
+    maxOutputTokens?: number
   ): Promise<Result<void, SendMessageError>> {
     try {
       // DEBUG: Log streamMessage call
@@ -374,7 +376,8 @@ export class AIService extends EventEmitter {
           systemMessageTokens,
           timestamp: Date.now(),
         },
-        providerOptions
+        providerOptions,
+        maxOutputTokens
       );
 
       if (!streamResult.success) {

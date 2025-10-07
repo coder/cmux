@@ -129,6 +129,7 @@ export interface SendMessageOptions {
   model: string;
   toolPolicy?: ToolPolicy;
   additionalSystemInstructions?: string;
+  maxOutputTokens?: number;
 }
 
 // API method signatures (shared between main and preload)
@@ -167,6 +168,10 @@ export interface IPCApi {
       options?: SendMessageOptions
     ): Promise<Result<void, SendMessageError>>;
     truncateHistory(workspaceId: string, percentage?: number): Promise<Result<void, string>>;
+    replaceChatHistory(
+      workspaceId: string,
+      summaryMessage: CmuxMessage
+    ): Promise<Result<void, string>>;
     getInfo(workspaceId: string): Promise<WorkspaceMetadata | null>;
     executeBash(
       workspaceId: string,

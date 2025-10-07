@@ -272,7 +272,8 @@ export class StreamManager extends EventEmitter {
     historySequence: number,
     tools?: Record<string, Tool>,
     initialMetadata?: Partial<CmuxMetadata>,
-    providerOptions?: Record<string, unknown>
+    providerOptions?: Record<string, unknown>,
+    maxOutputTokens?: number
   ): WorkspaceStreamInfo {
     // Create abort controller for this specific stream
     const abortController = new AbortController();
@@ -294,9 +295,8 @@ export class StreamManager extends EventEmitter {
         stopWhen: stepCountIs(100000), // Allow up to 100000 steps (effectively unlimited)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
         providerOptions: providerOptions as any, // Pass provider-specific options (thinking/reasoning config)
-        // This is at least necessary for Anthropic, which defaults to
-        // 4096 tokens.
-        maxOutputTokens: 32000,
+        // Default to 32000 tokens if not specified (Anthropic defaults to 4096)
+        maxOutputTokens: maxOutputTokens ?? 32000,
       });
     } catch (error) {
       // Clean up abort controller if stream creation fails
@@ -818,7 +818,8 @@ export class StreamManager extends EventEmitter {
     abortSignal?: AbortSignal,
     tools?: Record<string, Tool>,
     initialMetadata?: Partial<CmuxMetadata>,
-    providerOptions?: Record<string, unknown>
+    providerOptions?: Record<string, unknown>,
+    maxOutputTokens?: number
   ): Promise<Result<StreamToken, SendMessageError>> {
     const typedWorkspaceId = workspaceId as WorkspaceId;
 
@@ -853,7 +854,8 @@ export class StreamManager extends EventEmitter {
         historySequence,
         tools,
         initialMetadata,
-        providerOptions
+        providerOptions,
+        maxOutputTokens
       );
 
       // Step 3: Track the processing promise for guaranteed cleanup

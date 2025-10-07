@@ -193,4 +193,59 @@ describe("applyToolPolicy", () => {
       expect(Object.keys(result)).toEqual(Object.keys(mockTools));
     });
   });
+
+  describe("require action", () => {
+    test("requires a single tool and disables all others", () => {
+      const policy: ToolPolicy = [{ regex_match: "bash", action: "require" }];
+      const result = applyToolPolicy(mockTools, policy);
+
+      expect(result.bash).toBeDefined();
+      expect(Object.keys(result)).toHaveLength(1);
+      expect(result.file_read).toBeUndefined();
+      expect(result.file_edit_replace).toBeUndefined();
+      expect(result.file_edit_insert).toBeUndefined();
+      expect(result.web_search).toBeUndefined();
+    });
+
+    test("requires tool with regex pattern", () => {
+      const policy: ToolPolicy = [{ regex_match: "file_.*", action: "require" }];
+
+      // This should throw because multiple tools match (file_read, file_edit_replace, file_edit_insert)
+      expect(() => applyToolPolicy(mockTools, policy)).toThrow(/Multiple tools marked as required/);
+    });
+
+    test("requires specific tool with other filters ignored", () => {
+      const policy: ToolPolicy = [
+        { regex_match: ".*", action: "disable" },
+        { regex_match: "bash", action: "enable" },
+        { regex_match: "file_read", action: "require" },
+      ];
+      const result = applyToolPolicy(mockTools, policy);
+
+      // When a tool is required, all other filters are ignored
+      expect(result.file_read).toBeDefined();
+      expect(Object.keys(result)).toHaveLength(1);
+      expect(result.bash).toBeUndefined();
+    });
+
+    test("throws error when multiple tools are required", () => {
+      const policy: ToolPolicy = [
+        { regex_match: "bash", action: "require" },
+        { regex_match: "file_read", action: "require" },
+      ];
+
+      expect(() => applyToolPolicy(mockTools, policy)).toThrow(
+        /Multiple tools marked as required \(bash, file_read\)/
+      );
+    });
+
+    test("requires nonexistent tool returns empty result", () => {
+      const policy: ToolPolicy = [{ regex_match: "nonexistent", action: "require" }];
+      const result = applyToolPolicy(mockTools, policy);
+
+      // No tool matches, so no tools are required, fall back to standard logic
+      // Since no other filters exist, all tools should be enabled
+      expect(Object.keys(result)).toEqual(Object.keys(mockTools));
+    });
+  });
 });

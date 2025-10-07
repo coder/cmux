@@ -6,7 +6,7 @@ import { createWorktree, removeWorktree, moveWorktree } from "@/git";
 import { AIService } from "@/services/aiService";
 import { HistoryService } from "@/services/historyService";
 import { PartialService } from "@/services/partialService";
-import { createCmuxMessage } from "@/types/message";
+import { createCmuxMessage, type CmuxMessage } from "@/types/message";
 import { log } from "@/services/log";
 import type {
   StreamStartEvent,
@@ -374,8 +374,14 @@ export class IpcMain {
     ipcMain.handle(
       IPC_CHANNELS.WORKSPACE_SEND_MESSAGE,
       async (_event, workspaceId: string, message: string, options?: SendMessageOptions) => {
-        const { editMessageId, thinkingLevel, model, toolPolicy, additionalSystemInstructions } =
-          options ?? {};
+        const {
+          editMessageId,
+          thinkingLevel,
+          model,
+          toolPolicy,
+          additionalSystemInstructions,
+          maxOutputTokens,
+        } = options ?? {};
         log.debug("sendMessage handler: Received", {
           workspaceId,
           messagePreview: message.substring(0, 50),
@@ -384,6 +390,7 @@ export class IpcMain {
           model,
           toolPolicy,
           additionalSystemInstructions,
+          maxOutputTokens,
         });
         try {
           // Early exit: empty message = either interrupt (if streaming) or invalid input
@@ -430,6 +437,7 @@ export class IpcMain {
           const userMessage = createCmuxMessage(messageId, "user", message, {
             // historySequence will be assigned by historyService.appendToHistory()
             timestamp: Date.now(),
+            toolPolicy, // Store for historical record and compaction detection
           });
 
           // Append user message to history
@@ -476,6 +484,7 @@ export class IpcMain {
             model,
             toolPolicy,
             additionalSystemInstructions,
+            maxOutputTokens,
           });
           const streamResult = await this.aiService.streamMessage(
             historyResult.data,
@@ -484,7 +493,8 @@ export class IpcMain {
             thinkingLevel,
             toolPolicy,
             undefined,
-            additionalSystemInstructions
+            additionalSystemInstructions,
+            maxOutputTokens
           );
           log.debug("sendMessage handler: Stream completed");
           return streamResult;
@@ -536,6 +546,63 @@ export class IpcMain {
         }
 
         return { success: true, data: undefined };
+      }
+    );
+
+    ipcMain.handle(
+      IPC_CHANNELS.WORKSPACE_REPLACE_HISTORY,
+      async (_event, workspaceId: string, summaryMessage: CmuxMessage) => {
+        // Block replace if there's an active stream
+        if (this.aiService.isStreaming(workspaceId)) {
+          return Err(
+            "Cannot replace history while stream is active. Press Esc to stop the stream first."
+          );
+        }
+
+        try {
+          // Get all existing messages to collect their historySequence numbers
+          const historyResult = await this.historyService.getHistory(workspaceId);
+          const deletedSequences = historyResult.success
+            ? historyResult.data
+                .map((msg) => msg.metadata?.historySequence ?? -1)
+                .filter((s) => s >= 0)
+            : [];
+
+          // Clear entire history
+          const clearResult = await this.historyService.clearHistory(workspaceId);
+          if (!clearResult.success) {
+            return Err(`Failed to clear history: ${clearResult.error}`);
+          }
+
+          // Append the summary message to history (gets historySequence assigned by backend)
+          // Frontend provides the message with all metadata (compacted, timestamp, etc.)
+          const appendResult = await this.historyService.appendToHistory(
+            workspaceId,
+            summaryMessage
+          );
+          if (!appendResult.success) {
+            return Err(`Failed to append summary: ${appendResult.error}`);
+          }
+
+          // Send delete event to frontend for all old messages
+          if (deletedSequences.length > 0 && this.mainWindow) {
+            const deleteMessage: DeleteMessage = {
+              type: "delete",
+              historySequences: deletedSequences,
+            };
+            this.mainWindow.webContents.send(getChatChannel(workspaceId), deleteMessage);
+          }
+
+          // Send the new summary message to frontend
+          if (this.mainWindow) {
+            this.mainWindow.webContents.send(getChatChannel(workspaceId), summaryMessage);
+          }
+
+          return Ok(undefined);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          return Err(`Failed to replace history: ${message}`);
+        }
       }
     );
 

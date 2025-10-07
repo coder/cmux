@@ -3,15 +3,14 @@ import { BaseBarrier } from "./BaseBarrier";
 
 interface StreamingBarrierProps {
   className?: string;
+  text?: string;
 }
 
-export const StreamingBarrier: React.FC<StreamingBarrierProps> = ({ className }) => {
+export const StreamingBarrier: React.FC<StreamingBarrierProps> = ({
+  className,
+  text = "streaming... hit Esc to cancel",
+}) => {
   return (
-    <BaseBarrier
-      text="streaming... hit Esc to cancel"
-      color="var(--color-assistant-border)"
-      animate
-      className={className}
-    />
+    <BaseBarrier text={text} color="var(--color-assistant-border)" animate className={className} />
   );
 };

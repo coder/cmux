@@ -23,6 +23,7 @@ export const IPC_CHANNELS = {
   WORKSPACE_STREAM_META: "workspace:streamMeta",
   WORKSPACE_SEND_MESSAGE: "workspace:sendMessage",
   WORKSPACE_TRUNCATE_HISTORY: "workspace:truncateHistory",
+  WORKSPACE_REPLACE_HISTORY: "workspace:replaceHistory",
   WORKSPACE_STREAM_HISTORY: "workspace:streamHistory",
   WORKSPACE_GET_INFO: "workspace:getInfo",
   WORKSPACE_EXECUTE_BASH: "workspace:executeBash",
