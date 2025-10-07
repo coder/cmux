@@ -124,6 +124,12 @@ export const KEYBINDS = {
   /** Cancel current action / Close modal / Interrupt streaming */
   CANCEL: { key: "Escape" },
 
+  /** Focus chat input */
+  FOCUS_INPUT_I: { key: "i" },
+
+  /** Focus chat input (alternate) */
+  FOCUS_INPUT_A: { key: "a" },
+
   /** Create new workspace for current project */
   NEW_WORKSPACE: { key: "n", ctrl: true },
 

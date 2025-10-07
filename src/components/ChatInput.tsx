@@ -18,7 +18,7 @@ import {
   type SlashSuggestion,
 } from "@/utils/slashCommands/suggestions";
 import { TooltipWrapper, Tooltip, HelpIndicator } from "./Tooltip";
-import { matchesKeybind, formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
+import { matchesKeybind, formatKeybind, KEYBINDS, isEditableElement } from "@/utils/ui/keybinds";
 import { defaultModel } from "@/utils/ai/models";
 import { ModelSelector, type ModelSelectorRef } from "./ModelSelector";
 import { useModelLRU } from "@/hooks/useModelLRU";
@@ -332,6 +332,47 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const [mode, setMode] = useMode();
   const { recentModels } = useModelLRU();
 
+  const focusMessageInput = useCallback(() => {
+    const element = inputRef.current;
+    if (!element || element.disabled) {
+      return;
+    }
+
+    element.focus();
+
+    requestAnimationFrame(() => {
+      const cursor = element.value.length;
+      element.selectionStart = cursor;
+      element.selectionEnd = cursor;
+      element.style.height = "auto";
+      element.style.height = Math.min(element.scrollHeight, 200) + "px";
+    });
+  }, []);
+
+  useEffect(() => {
+    const handleGlobalKeyDown = (event: KeyboardEvent) => {
+      if (isEditableElement(event.target)) {
+        return;
+      }
+
+      if (matchesKeybind(event, KEYBINDS.FOCUS_INPUT_I)) {
+        event.preventDefault();
+        focusMessageInput();
+        return;
+      }
+
+      if (matchesKeybind(event, KEYBINDS.FOCUS_INPUT_A)) {
+        event.preventDefault();
+        focusMessageInput();
+      }
+    };
+
+    window.addEventListener("keydown", handleGlobalKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleGlobalKeyDown);
+    };
+  }, [focusMessageInput]);
+
   // When entering editing mode, populate input with message content
   useEffect(() => {
     if (editingMessage) {
@@ -593,19 +634,19 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
     // Handle cancel/escape
     if (matchesKeybind(e, KEYBINDS.CANCEL)) {
+      const isFocused = document.activeElement === inputRef.current;
       e.preventDefault();
 
       // Priority 1: Cancel editing if in edit mode
       if (editingMessage && onCancelEdit) {
         onCancelEdit();
-        return;
+      } else if (canInterrupt) {
+        // Priority 2: Interrupt streaming if active
+        void window.api.workspace.sendMessage(workspaceId, "");
       }
 
-      // Priority 2: Interrupt streaming if active
-      if (canInterrupt) {
-        // Send empty message to trigger interrupt
-        void window.api.workspace.sendMessage(workspaceId, "");
-        return;
+      if (isFocused) {
+        inputRef.current?.blur();
       }
 
       return;
