@@ -36,11 +36,19 @@ jobs:
           fi
           bun run dist:mac
 
-      - name: Upload macOS DMG
+      - name: Upload macOS DMG (x64)
         uses: actions/upload-artifact@v4
         with:
-          name: macos-dmg
-          path: release/*.dmg
+          name: macos-dmg-x64
+          path: release/*-x64.dmg
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Upload macOS DMG (arm64)
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-dmg-arm64
+          path: release/*-arm64.dmg
           retention-days: 30
           if-no-files-found: error
 
