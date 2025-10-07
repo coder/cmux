@@ -101,6 +101,7 @@ Verify with React DevTools Profiler - MarkdownCore should only re-render when co
 
 - **User-facing docs** → `./docs/` directory
 - **Developer docs** → Colocated with relevant code (e.g., `src/components/VimTextArea.md` next to `VimTextArea.tsx`)
+  - When documenting behaviour that lives in a source file, prefer inline comments/JSDoc directly in that file. Use colocated markdown only for higher-level design notes that truly span multiple files.
 
 **DO NOT** create standalone documentation files in the project root or random locations.
 
