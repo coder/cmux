@@ -35,6 +35,7 @@ export const openaiReasoningFixMiddleware: LanguageModelV2Middleware = {
     }
 
     log.debug("[OpenAI Middleware] Transforming params to fix reasoning items");
+    log.debug(`[OpenAI Middleware] Input has ${params.prompt.length} messages`);
 
     // Clone the prompt array to avoid mutations
     const transformedPrompt = params.prompt
@@ -46,13 +47,56 @@ export const openaiReasoningFixMiddleware: LanguageModelV2Middleware = {
 
         // Filter out reasoning content from assistant messages
         if (Array.isArray(message.content)) {
-          const filteredContent = message.content.filter((part) => {
-            // Remove reasoning parts - OpenAI manages these via previousResponseId
-            if (typeof part === "object" && part !== null && "type" in part) {
-              return part.type !== "reasoning";
-            }
-            return true;
-          });
+          // Check if this message contains reasoning
+          const hasReasoning = message.content.some(
+            (part) =>
+              typeof part === "object" &&
+              part !== null &&
+              "type" in part &&
+              part.type === "reasoning"
+          );
+
+          const filteredContent = message.content
+            .filter((part) => {
+              // Remove reasoning parts - OpenAI manages these via previousResponseId
+              if (typeof part === "object" && part !== null && "type" in part) {
+                return part.type !== "reasoning";
+              }
+              return true;
+            })
+            .map((part) => {
+              // If we filtered out reasoning from this message, also strip OpenAI item IDs
+              // from remaining parts to avoid dangling references
+              if (hasReasoning && typeof part === "object" && part !== null) {
+                // Check if part has providerOptions.openai.itemId
+                const partObj = part as unknown as Record<string, unknown>;
+                if (
+                  "providerOptions" in partObj &&
+                  typeof partObj.providerOptions === "object" &&
+                  partObj.providerOptions !== null &&
+                  "openai" in (partObj.providerOptions as Record<string, unknown>)
+                ) {
+                  // Strip the OpenAI provider options that contain item IDs
+                  const { providerOptions, ...restOfPart } = partObj;
+                  const { openai, ...restOfProviderOptions } = providerOptions as Record<
+                    string,
+                    unknown
+                  >;
+
+                  log.debug(
+                    `[OpenAI Middleware] Stripped OpenAI itemId from ${(part as { type?: string }).type || "unknown"} part`
+                  );
+
+                  // If there are other provider options, keep them
+                  if (Object.keys(restOfProviderOptions).length > 0) {
+                    return { ...restOfPart, providerOptions: restOfProviderOptions };
+                  }
+                  // Otherwise return without providerOptions
+                  return restOfPart;
+                }
+              }
+              return part;
+            });
 
           // If all content was reasoning, remove this message entirely
           if (filteredContent.length === 0 && message.content.length > 0) {
