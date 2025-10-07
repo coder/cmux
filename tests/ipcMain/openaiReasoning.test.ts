@@ -79,17 +79,12 @@ describeIntegration("OpenAI Reasoning Error Reproduction", () => {
             continue;
           }
 
-          // Wait for stream to complete
+          // Wait for stream to complete (or error)
           const collector1 = createEventCollector(env.sentEvents, workspaceId);
-          const streamEnd1 = await collector1.waitForEvent("stream-end", 30000);
-
-          if (!streamEnd1) {
-            console.log(`[Run ${run}] First stream timed out`);
-            await cleanup();
-            continue;
-          }
-
-          // Check if stream succeeded or had an error
+          // Don't wait for stream-end if there's an error - check events immediately after any completion
+          await collector1.waitForEvent("stream-end", 30000).catch(() => {/* Timeout is OK if error occurred */});
+          
+          // Check if stream had an error
           const streamError1 = collector1.getEvents().find((e) => "type" in e && e.type === "stream-error");
           if (streamError1) {
             console.log(`[Run ${run}] First stream error:`, streamError1);
@@ -132,16 +127,10 @@ describeIntegration("OpenAI Reasoning Error Reproduction", () => {
             continue;
           }
 
-          // Wait for stream to complete
+          // Wait for stream to complete (or error)
           const collector2 = createEventCollector(env.sentEvents, workspaceId);
-          const streamEnd2 = await collector2.waitForEvent("stream-end", 30000);
-
-          if (!streamEnd2) {
-            console.log(`[Run ${run}] Second stream timed out`);
-            await cleanup();
-            continue;
-          }
-
+          await collector2.waitForEvent("stream-end", 30000).catch(() => {/* Timeout is OK if error occurred */});
+          
           // Check if stream had the error we're looking for
           const streamError2 = collector2.getEvents().find((e) => "type" in e && e.type === "stream-error");
           if (streamError2) {
@@ -185,16 +174,10 @@ describeIntegration("OpenAI Reasoning Error Reproduction", () => {
             continue;
           }
 
-          // Wait for stream to complete
+          // Wait for stream to complete (or error)
           const collector3 = createEventCollector(env.sentEvents, workspaceId);
-          const streamEnd3 = await collector3.waitForEvent("stream-end", 30000);
-
-          if (!streamEnd3) {
-            console.log(`[Run ${run}] Third stream timed out`);
-            await cleanup();
-            continue;
-          }
-
+          await collector3.waitForEvent("stream-end", 30000).catch(() => {/* Timeout is OK if error occurred */});
+          
           // Check if stream had the error
           const streamError3 = collector3.getEvents().find((e) => "type" in e && e.type === "stream-error");
           if (streamError3) {
