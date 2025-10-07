@@ -3,7 +3,7 @@ import { spawn } from "child_process";
 import * as path from "path";
 import * as fsPromises from "fs/promises";
 import type { Config, ProjectConfig } from "@/config";
-import { createWorktree, removeWorktree, moveWorktree } from "@/git";
+import { createWorktree, removeWorktree, moveWorktree, pruneWorktrees } from "@/git";
 import { AIService } from "@/services/aiService";
 import { HistoryService } from "@/services/historyService";
 import { PartialService } from "@/services/partialService";
@@ -181,9 +181,45 @@ export class IpcMain {
 
         // Remove git worktree if we found the path
         if (workspacePath) {
-          const gitResult = await removeWorktree(workspacePath, { force: false });
-          if (!gitResult.success) {
-            return gitResult;
+          const worktreeExists = await fsPromises
+            .access(workspacePath)
+            .then(() => true)
+            .catch(() => false);
+
+          if (worktreeExists) {
+            const gitResult = await removeWorktree(workspacePath, { force: false });
+            if (!gitResult.success) {
+              const errorMessage = gitResult.error ?? "Unknown error";
+              const normalizedError = errorMessage.toLowerCase();
+              const looksLikeMissingWorktree =
+                normalizedError.includes("not a working tree") ||
+                normalizedError.includes("does not exist") ||
+                normalizedError.includes("no such file");
+
+              if (looksLikeMissingWorktree) {
+                if (foundProjectPath) {
+                  const pruneResult = await pruneWorktrees(foundProjectPath);
+                  if (!pruneResult.success) {
+                    log.info(
+                      `Failed to prune stale worktrees for ${foundProjectPath} after removeWorktree error: ${
+                        pruneResult.error ?? "unknown error"
+                      }`
+                    );
+                  }
+                }
+              } else {
+                return gitResult;
+              }
+            }
+          } else if (foundProjectPath) {
+            const pruneResult = await pruneWorktrees(foundProjectPath);
+            if (!pruneResult.success) {
+              log.info(
+                `Failed to prune stale worktrees for ${foundProjectPath} after detecting missing workspace at ${workspacePath}: ${
+                  pruneResult.error ?? "unknown error"
+                }`
+              );
+            }
           }
         }
 

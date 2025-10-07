@@ -420,6 +420,28 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     };
   }, []);
 
+  // Allow external components (e.g., CommandPalette) to insert text
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { text?: string } | undefined;
+      if (!detail?.text) return;
+      setInput(detail.text);
+      setTimeout(() => inputRef.current?.focus(), 0);
+    };
+    window.addEventListener("cmux:insertToChatInput", handler as EventListener);
+    return () => window.removeEventListener("cmux:insertToChatInput", handler as EventListener);
+  }, [setInput]);
+
+  // Allow external components to open the Model Selector
+  useEffect(() => {
+    const handler = () => {
+      // Open the inline ModelSelector and let it take focus itself
+      modelSelectorRef.current?.open();
+    };
+    window.addEventListener("cmux:openModelSelector", handler as EventListener);
+    return () => window.removeEventListener("cmux:openModelSelector", handler as EventListener);
+  }, []);
+
   // Handle command selection
   const handleCommandSelect = useCallback(
     (suggestion: SlashSuggestion) => {

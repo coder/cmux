@@ -73,6 +73,16 @@ export async function removeWorktree(
   }
 }
 
+export async function pruneWorktrees(projectPath: string): Promise<WorktreeResult> {
+  try {
+    await execAsync(`git -C "${projectPath}" worktree prune`);
+    return { success: true };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return { success: false, error: message };
+  }
+}
+
 export async function moveWorktree(
   projectPath: string,
   oldPath: string,

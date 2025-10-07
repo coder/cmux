@@ -154,6 +154,14 @@ in `./docs/vercel/**.mdx`.
 
   If IPC is hard to test, fix the test infrastructure or IPC layer, don't work around it by bypassing IPC.
 
+## Command Palette (Cmd+Shift+P)
+
+- Open with `Cmd+Shift+P` on macOS or `Ctrl+Shift+P` on Windows/Linux.
+- Quick toggle sidebar is `Cmd+P` / `Ctrl+P`.
+- Palette includes workspace switching/creation, navigation, chat utils, mode/model, projects, and slash-command prefixes:
+  - `/` shows slash command suggestions (select to insert into Chat input).
+  - `>` filters to actions only.
+
 ## Styling
 
 - Colors are centralized as CSS variables in `src/styles/colors.tsx`

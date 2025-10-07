@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import styled from "@emotion/styled";
 import { Global, css } from "@emotion/react";
 import { GlobalColors } from "./styles/colors";
@@ -15,6 +15,10 @@ import { matchesKeybind, KEYBINDS } from "./utils/ui/keybinds";
 import { useProjectManagement } from "./hooks/useProjectManagement";
 import { useWorkspaceManagement } from "./hooks/useWorkspaceManagement";
 import { useWorkspaceAggregators } from "./hooks/useWorkspaceAggregators";
+import { CommandRegistryProvider, useCommandRegistry } from "./contexts/CommandRegistryContext";
+import type { CommandAction } from "./contexts/CommandRegistryContext";
+import { CommandPalette } from "./components/CommandPalette";
+import { buildCoreSources, type BuildSourcesParams } from "./utils/commands/sources";
 import { useGitStatus } from "./hooks/useGitStatus";
 
 // Global Styles with nice fonts
@@ -142,7 +146,7 @@ const WelcomeView = styled.div`
   }
 `;
 
-function App() {
+function AppInner() {
   const [selectedWorkspace, setSelectedWorkspace] = usePersistedState<WorkspaceSelection | null>(
     "selectedWorkspace",
     null
@@ -173,21 +177,35 @@ function App() {
   // Use workspace aggregators hook for message state
   const { getWorkspaceState } = useWorkspaceAggregators(workspaceMetadata);
 
+  const streamingModels = new Map<string, string>();
+  for (const metadata of workspaceMetadata.values()) {
+    const state = getWorkspaceState(metadata.id);
+    if (state.canInterrupt) {
+      streamingModels.set(metadata.id, state.currentModel);
+    }
+  }
+
   // Enrich workspace metadata with git status
   const displayedWorkspaceMetadata = useGitStatus(workspaceMetadata);
 
-  const handleRemoveProject = async (path: string) => {
-    // Clear selected workspace if it belongs to the removed project
-    if (selectedWorkspace?.projectPath === path) {
-      setSelectedWorkspace(null);
-    }
-    await removeProject(path);
-  };
+  const openWorkspaceInTerminal = useCallback((workspacePath: string) => {
+    void window.api.workspace.openTerminal(workspacePath);
+  }, []);
 
-  const handleAddWorkspace = (projectPath: string) => {
+  const handleRemoveProject = useCallback(
+    async (path: string) => {
+      if (selectedWorkspace?.projectPath === path) {
+        setSelectedWorkspace(null);
+      }
+      await removeProject(path);
+    },
+    [removeProject, selectedWorkspace, setSelectedWorkspace]
+  );
+
+  const handleAddWorkspace = useCallback((projectPath: string) => {
     setWorkspaceModalProject(projectPath);
     setWorkspaceModalOpen(true);
-  };
+  }, []);
 
   const handleCreateWorkspace = async (branchName: string) => {
     if (!workspaceModalProject) return;
@@ -235,6 +253,106 @@ function App() {
     [selectedWorkspace, projects, workspaceMetadata, setSelectedWorkspace]
   );
 
+  // Register command sources with registry
+  const {
+    registerSource,
+    isOpen: isCommandPaletteOpen,
+    open: openCommandPalette,
+    close: closeCommandPalette,
+  } = useCommandRegistry();
+
+  const registerParamsRef = useRef<BuildSourcesParams | null>(null);
+
+  const openNewWorkspaceFromPalette = useCallback(
+    (projectPath: string) => {
+      handleAddWorkspace(projectPath);
+    },
+    [handleAddWorkspace]
+  );
+
+  const createWorkspaceFromPalette = useCallback(
+    async (projectPath: string, branchName: string) => {
+      const newWs = await createWorkspace(projectPath, branchName);
+      if (newWs) setSelectedWorkspace(newWs);
+    },
+    [createWorkspace, setSelectedWorkspace]
+  );
+
+  const selectWorkspaceFromPalette = useCallback(
+    (selection: {
+      projectPath: string;
+      projectName: string;
+      workspacePath: string;
+      workspaceId: string;
+    }) => {
+      setSelectedWorkspace(selection);
+    },
+    [setSelectedWorkspace]
+  );
+
+  const removeWorkspaceFromPalette = useCallback(
+    async (workspaceId: string) => removeWorkspace(workspaceId),
+    [removeWorkspace]
+  );
+
+  const renameWorkspaceFromPalette = useCallback(
+    async (workspaceId: string, newName: string) => renameWorkspace(workspaceId, newName),
+    [renameWorkspace]
+  );
+
+  const addProjectFromPalette = useCallback(() => {
+    void addProject();
+  }, [addProject]);
+
+  const removeProjectFromPalette = useCallback(
+    (path: string) => {
+      void handleRemoveProject(path);
+    },
+    [handleRemoveProject]
+  );
+
+  const toggleSidebarFromPalette = useCallback(() => {
+    setSidebarCollapsed((prev) => !prev);
+  }, [setSidebarCollapsed]);
+
+  const navigateWorkspaceFromPalette = useCallback(
+    (dir: "next" | "prev") => {
+      handleNavigateWorkspace(dir);
+    },
+    [handleNavigateWorkspace]
+  );
+
+  registerParamsRef.current = {
+    projects,
+    workspaceMetadata,
+    selectedWorkspace,
+    streamingModels,
+    onOpenNewWorkspaceModal: openNewWorkspaceFromPalette,
+    onCreateWorkspace: createWorkspaceFromPalette,
+    onSelectWorkspace: selectWorkspaceFromPalette,
+    onRemoveWorkspace: removeWorkspaceFromPalette,
+    onRenameWorkspace: renameWorkspaceFromPalette,
+    onAddProject: addProjectFromPalette,
+    onRemoveProject: removeProjectFromPalette,
+    onToggleSidebar: toggleSidebarFromPalette,
+    onNavigateWorkspace: navigateWorkspaceFromPalette,
+    onOpenWorkspaceInTerminal: openWorkspaceInTerminal,
+  };
+
+  useEffect(() => {
+    const unregister = registerSource(() => {
+      const params = registerParamsRef.current;
+      if (!params) return [];
+      const factories = buildCoreSources(params);
+      const actions: CommandAction[] = [];
+      for (const factory of factories) {
+        actions.push(...factory());
+      }
+      return actions;
+    });
+    return unregister;
+  }, [registerSource]);
+
   // Handle keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -244,6 +362,13 @@ function App() {
       } else if (matchesKeybind(e, KEYBINDS.PREV_WORKSPACE)) {
         e.preventDefault();
         handleNavigateWorkspace("prev");
+      } else if (matchesKeybind(e, KEYBINDS.OPEN_COMMAND_PALETTE)) {
+        e.preventDefault();
+        if (isCommandPaletteOpen) {
+          closeCommandPalette();
+        } else {
+          openCommandPalette();
+        }
       } else if (matchesKeybind(e, KEYBINDS.TOGGLE_SIDEBAR)) {
         e.preventDefault();
         setSidebarCollapsed((prev) => !prev);
@@ -252,7 +377,13 @@ function App() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handleNavigateWorkspace, setSidebarCollapsed]);
+  }, [
+    handleNavigateWorkspace,
+    setSidebarCollapsed,
+    isCommandPaletteOpen,
+    closeCommandPalette,
+    openCommandPalette,
+  ]);
 
   return (
     <>
@@ -304,6 +435,12 @@ function App() {
             )}
           </ContentArea>
         </MainContent>
+        <CommandPalette
+          getSlashContext={() => ({
+            providerNames: [],
+            workspaceId: selectedWorkspace?.workspaceId,
+          })}
+        />
         {workspaceModalOpen && workspaceModalProject && (
           <NewWorkspaceModal
             isOpen={workspaceModalOpen}
@@ -317,6 +454,14 @@ function App() {
         )}
       </AppContainer>
     </>
+  );
+}
+
+function App() {
+  return (
+    <CommandRegistryProvider>
+      <AppInner />
+    </CommandRegistryProvider>
   );
 }
 
