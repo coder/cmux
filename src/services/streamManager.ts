@@ -27,6 +27,7 @@ import type { CmuxMetadata, CmuxMessage } from "@/types/message";
 import type { PartialService } from "./partialService";
 import type { HistoryService } from "./historyService";
 import { AsyncMutex } from "@/utils/concurrency/asyncMutex";
+import type { ToolPolicy } from "@/utils/tools/toolPolicy";
 
 // Type definitions for stream parts with extended properties
 interface ReasoningDeltaPart {
@@ -273,7 +274,8 @@ export class StreamManager extends EventEmitter {
     tools?: Record<string, Tool>,
     initialMetadata?: Partial<CmuxMetadata>,
     providerOptions?: Record<string, unknown>,
-    maxOutputTokens?: number
+    maxOutputTokens?: number,
+    toolPolicy?: ToolPolicy
   ): WorkspaceStreamInfo {
     // Create abort controller for this specific stream
     const abortController = new AbortController();
@@ -281,6 +283,20 @@ export class StreamManager extends EventEmitter {
     // Link external abort signal
     if (abortSignal) {
       abortSignal.addEventListener("abort", () => abortController.abort());
+    }
+
+    // Determine toolChoice based on toolPolicy
+    // If a tool is required (tools object has exactly one tool after applyToolPolicy),
+    // force the model to use it with toolChoice: { type: "required", toolName: "..." }
+    let toolChoice: { type: "required"; toolName: string } | undefined;
+    if (tools && toolPolicy) {
+      // Check if any filter has "require" action
+      const hasRequireAction = toolPolicy.some((filter) => filter.action === "require");
+      if (hasRequireAction && Object.keys(tools).length === 1) {
+        const requiredToolName = Object.keys(tools)[0];
+        toolChoice = { type: "required", toolName: requiredToolName };
+        log.debug("Setting toolChoice to required", { toolName: requiredToolName });
+      }
     }
 
     // Start streaming - this can throw immediately if API key is missing
@@ -292,7 +308,11 @@ export class StreamManager extends EventEmitter {
         system,
         abortSignal: abortController.signal,
         tools,
-        stopWhen: stepCountIs(100000), // Allow up to 100000 steps (effectively unlimited)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
+        toolChoice: toolChoice as any, // Force tool use when required by policy
+        // When toolChoice is set (required tool), limit to 1 step to prevent infinite loops
+        // Otherwise allow unlimited steps for multi-turn tool use
+        ...(toolChoice ? { maxSteps: 1 } : { stopWhen: stepCountIs(100000) }),
         // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
         providerOptions: providerOptions as any, // Pass provider-specific options (thinking/reasoning config)
         // Default to 32000 tokens if not specified (Anthropic defaults to 4096)
@@ -819,7 +839,8 @@ export class StreamManager extends EventEmitter {
     tools?: Record<string, Tool>,
     initialMetadata?: Partial<CmuxMetadata>,
     providerOptions?: Record<string, unknown>,
-    maxOutputTokens?: number
+    maxOutputTokens?: number,
+    toolPolicy?: ToolPolicy
   ): Promise<Result<StreamToken, SendMessageError>> {
     const typedWorkspaceId = workspaceId as WorkspaceId;
 
@@ -855,7 +876,8 @@ export class StreamManager extends EventEmitter {
         tools,
         initialMetadata,
         providerOptions,
-        maxOutputTokens
+        maxOutputTokens,
+        toolPolicy
       );
 
       // Step 3: Track the processing promise for guaranteed cleanup

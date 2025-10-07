@@ -552,8 +552,10 @@ export class IpcMain {
     ipcMain.handle(
       IPC_CHANNELS.WORKSPACE_REPLACE_HISTORY,
       async (_event, workspaceId: string, summaryMessage: CmuxMessage) => {
-        // Block replace if there's an active stream
-        if (this.aiService.isStreaming(workspaceId)) {
+        // Block replace if there's an active stream, UNLESS this is a compacted message
+        // (which is called from stream-end handler before stream cleanup completes)
+        const isCompaction = summaryMessage.metadata?.compacted === true;
+        if (!isCompaction && this.aiService.isStreaming(workspaceId)) {
           return Err(
             "Cannot replace history while stream is active. Press Esc to stop the stream first."
           );
