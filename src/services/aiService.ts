@@ -28,10 +28,30 @@ import { getTokenizerForModel } from "@/utils/tokens/tokenizer";
 import { buildProviderOptions } from "@/utils/ai/providerOptions";
 import type { ThinkingLevel } from "@/types/thinking";
 import { createOpenAI } from "@ai-sdk/openai";
+import { Agent } from "undici";
 import type { StreamAbortEvent } from "@/types/stream";
 import { applyToolPolicy, type ToolPolicy } from "@/utils/tools/toolPolicy";
 
 // Export a standalone version of getToolsForModel for use in backend
+
+// Create undici agent with unlimited timeouts for AI streaming requests.
+// Safe because users control cancellation via AbortSignal from the UI.
+const unlimitedTimeoutAgent = new Agent({
+  bodyTimeout: 0, // No timeout - prevents BodyTimeoutError on long reasoning pauses
+  headersTimeout: 0, // No timeout for headers
+});
+
+/**
+ * Custom fetch function with unlimited timeouts for AI streaming.
+ * Uses undici Agent to remove artificial timeout limits while still
+ * respecting user cancellation via AbortSignal.
+ */
+function fetchWithUnlimitedTimeout(
+  input: RequestInfo | URL,
+  init?: RequestInit
+): Promise<Response> {
+  return fetch(input, { ...init, dispatcher: unlimitedTimeoutAgent } as RequestInit);
+}
 
 export class AIService extends EventEmitter {
   private readonly METADATA_FILE = "metadata.json";
@@ -184,7 +204,12 @@ export class AIService extends EventEmitter {
             provider: providerName,
           });
         }
-        const provider = createOpenAI(providerConfig);
+        const provider = createOpenAI({
+          ...providerConfig,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-explicit-any
+          fetch: fetchWithUnlimitedTimeout as any,
+        });
         // Use Responses API for persistence and built-in tools
         return Ok(provider.responses(modelId));
       }
