@@ -68,10 +68,21 @@ while true; do
   # Check if all checks passed and merge state is clean
   if echo "$CHECKS" | grep -q "pass" && ! echo "$CHECKS" | grep -qE "pending|fail"; then
     if [ "$MERGE_STATE" = "CLEAN" ]; then
-      echo "✅ All checks passed and PR is ready to merge!"
+      # Check for unresolved Codex comments
+      echo "✅ All checks passed!"
       echo ""
       gh pr checks "$PR_NUMBER"
-      exit 0
+      echo ""
+      echo "🤖 Checking for unresolved Codex comments..."
+      if ./scripts/check_codex_comments.sh "$PR_NUMBER"; then
+        echo ""
+        echo "✅ PR is ready to merge!"
+        exit 0
+      else
+        echo ""
+        echo "❌ Please resolve Codex comments before merging."
+        exit 1
+      fi
     elif [ "$MERGE_STATE" = "BLOCKED" ]; then
       echo "⏳ All checks passed but still blocked (waiting for required checks)..."
     fi
