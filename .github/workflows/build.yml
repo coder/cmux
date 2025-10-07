@@ -28,7 +28,7 @@ jobs:
 
       - name: Package for macOS
         env:
-          CSC_LINK: ${{ secrets.MACOS_CERTIFICATE }}
+          CSC_LINK: ${{ secrets.MACOS_CERTIFICATE && format('base64:{0}', secrets.MACOS_CERTIFICATE) || '' }}
           CSC_KEY_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
         run: bun run dist:mac
 
