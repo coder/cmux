@@ -115,6 +115,10 @@ export function buildProviderOptions(
         ...(reasoningEffort && {
           reasoningEffort,
           reasoningSummary: "detailed", // Enable detailed reasoning summaries
+          // Include reasoning encrypted content to preserve reasoning context across conversation steps
+          // Required when using reasoning models (gpt-5, o3, o4-mini) with tool calls
+          // See: https://sdk.vercel.ai/providers/ai-sdk-providers/openai#responses-models
+          include: ["reasoning.encrypted_content"],
         }),
         // Include previousResponseId for persistence (Responses API)
         ...(previousResponseId && { previousResponseId }),
