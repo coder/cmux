@@ -1,6 +1,7 @@
 import type { UIMessage } from "ai";
 import type { LanguageModelV2Usage } from "@ai-sdk/provider";
 import type { StreamErrorType } from "./errors";
+import type { ToolPolicy } from "@/utils/tools/toolPolicy";
 
 // Our custom metadata type
 export interface CmuxMetadata {
@@ -16,7 +17,7 @@ export interface CmuxMetadata {
   error?: string; // Error message if stream failed
   errorType?: StreamErrorType; // Error type/category if stream failed
   compacted?: boolean; // Whether this message is a compacted summary of previous history
-  toolPolicy?: import("@/utils/tools/toolPolicy").ToolPolicy; // Tool policy active when this message was sent (user messages only)
+  toolPolicy?: ToolPolicy; // Tool policy active when this message was sent (user messages only)
 }
 
 // Extended tool part type that supports interrupted tool calls (input-available state)

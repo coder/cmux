@@ -294,6 +294,12 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
         }
       });
     };
+    // currentModels is intentionally excluded from deps to prevent re-subscription loops.
+    // Since Maps are compared by reference, setCurrentModels creates a new Map on every
+    // stream start (line 142), which would tear down and recreate all subscriptions.
+    // The model value is only used for metadata in compaction messages, so capturing
+    // a stale closure value has minimal impact vs. the cost of constant re-subscriptions.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workspaceMetadata, getAggregator, forceUpdate]);
 
   return {
