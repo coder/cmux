@@ -104,10 +104,11 @@
       "target": [
         {
           "target": "dmg",
-          "arch": [
-            "x64",
-            "arm64"
-          ]
+          "arch": "x64"
+        },
+        {
+          "target": "dmg",
+          "arch": "arm64"
         }
       ],
       "icon": "build/icon.icns",
@@ -116,6 +117,9 @@
       "gatekeeperAssess": false,
       "entitlements": "build/entitlements.mac.plist",
       "entitlementsInherit": "build/entitlements.mac.plist"
+    },
+    "dmg": {
+      "sign": true
     },
     "linux": {
       "target": "AppImage",
