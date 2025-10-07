@@ -517,14 +517,20 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
           try {
             // Construct message asking for summarization
-            let compactionMessage = `Summarize this conversation into a compact form for a new Assistant to continue helping the user. Prioritize specific, actionable context.`;
+            const targetWords = parsed.maxOutputTokens
+              ? Math.round(parsed.maxOutputTokens / 1.3)
+              : 2000;
+            let compactionMessage = `Summarize this conversation into a compact form for a new Assistant to continue helping the user. Use approximately ${targetWords} words.`;
             if (parsed.instructions) {
               compactionMessage += ` ${parsed.instructions}`;
             }
 
             // Send message with compact_summary tool required and maxOutputTokens in options
+            // Note: Anthropic doesn't support extended thinking with required tool_choice,
+            // so disable thinking for Anthropic models during compaction
+            const isAnthropic = preferredModel.startsWith("anthropic:");
             const result = await window.api.workspace.sendMessage(workspaceId, compactionMessage, {
-              thinkingLevel,
+              thinkingLevel: isAnthropic ? "off" : thinkingLevel,
               model: preferredModel,
               toolPolicy: [{ regex_match: "compact_summary", action: "require" }],
               maxOutputTokens: parsed.maxOutputTokens, // Pass to model directly
