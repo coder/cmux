@@ -35,6 +35,9 @@ export function useGitStatus(
 
     initializeMetadata();
 
+    // Run immediately on mount
+    void updateGitStatus();
+
     // Poll git status every 1 second
     const interval = setInterval(() => {
       void updateGitStatus();
