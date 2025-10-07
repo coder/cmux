@@ -18,6 +18,7 @@ import {
   isReasoningDelta,
   isReasoningEnd,
 } from "@/types/ipc";
+import { useModelLRU } from "./useModelLRU";
 
 export interface WorkspaceState {
   messages: DisplayedMessage[];
@@ -40,6 +41,9 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
   const [streamingModels, setStreamingModels] = useState<Map<string, string>>(new Map());
   // Force re-render when messages change for the selected workspace
   const [, setUpdateCounter] = useState(0);
+
+  // Track recently used models
+  const { addModel } = useModelLRU();
 
   // Track caught-up state per workspace
   const caughtUpRef = useRef<Map<string, boolean>>(new Map());
@@ -154,6 +158,8 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
             next.set(workspaceId, data.model);
             return next;
           });
+          // Track model in LRU cache
+          addModel(data.model);
           forceUpdate();
           return;
         }

@@ -20,6 +20,8 @@ import {
 import { TooltipWrapper, Tooltip, HelpIndicator } from "./Tooltip";
 import { matchesKeybind, formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
 import { defaultModel } from "@/utils/ai/models";
+import { ModelSelector } from "./ModelSelector";
+import { useModelLRU } from "@/hooks/useModelLRU";
 
 const InputSection = styled.div`
   position: relative;
@@ -128,13 +130,6 @@ const EditingIndicator = styled.div`
   font-size: 11px;
   color: var(--color-editing-mode);
   font-weight: 500;
-`;
-
-const ModelDisplay = styled.div`
-  font-size: 10px;
-  color: #808080;
-  font-family: var(--font-monospace);
-  line-height: 11px;
 `;
 
 const ModelDisplayWrapper = styled.div`
@@ -334,6 +329,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [thinkingLevel] = useThinkingLevel();
   const [mode, setMode] = useMode();
+  const { recentModels } = useModelLRU();
 
   // When entering editing mode, populate input with message content
   useEffect(() => {
@@ -672,11 +668,16 @@ for a new Assistant to continue helping the user. Prioritize specific, actionabl
         {editingMessage && <EditingIndicator>Editing message (ESC to cancel)</EditingIndicator>}
         <ModeTogglesRow>
           <ModelDisplayWrapper>
-            <ModelDisplay>{preferredModel}</ModelDisplay>
+            <ModelSelector
+              value={preferredModel}
+              onChange={setPreferredModel}
+              recentModels={recentModels}
+              onComplete={() => inputRef.current?.focus()}
+            />
             <TooltipWrapper inline>
               <HelpIndicator>?</HelpIndicator>
               <Tooltip className="tooltip" align="left" width="wide">
-                Change model using <code>/model</code> command
+                <strong>Click to edit</strong> or use <code>/model</code> command
                 <br />
                 <br />
                 <strong>Abbreviations:</strong>
