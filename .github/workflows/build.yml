@@ -27,10 +27,10 @@ jobs:
         run: bun run build
 
       - name: Debug Certificate Format
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
           MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
-          HAS_CERT: ${{ secrets.MACOS_CERTIFICATE != '' }}
-        if: env.HAS_CERT == 'true'
+          MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
         run: |
           echo "Certificate length: ${#MACOS_CERTIFICATE}"
           echo "First 50 chars: ${MACOS_CERTIFICATE:0:50}"
