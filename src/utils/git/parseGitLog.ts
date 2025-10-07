@@ -85,17 +85,27 @@ export function parseGitShowBranch(
     }
 
     // Match: <indicators> [<hash>] <subject>
-    // Indicators are the first N chars (one per branch), followed by space, then [hash]
-    const match = /^(.+?)\s+\[([a-f0-9]+)\]\s+(.+)$/.exec(line);
+    // Indicators are exactly N characters (one per branch), followed by space(s), then [hash]
+    // Extract exactly N characters to preserve position information
+    const numBranches = headers.length;
+    if (line.length < numBranches) {
+      continue; // Line too short to have indicators
+    }
+
+    const indicators = line.substring(0, numBranches);
+    const rest = line.substring(numBranches).trim();
+
+    // Parse the rest: [hash] subject
+    const match = /^\[([a-f0-9]+)\]\s+(.+)$/.exec(rest);
 
     if (!match) {
       continue; // Skip lines that don't match
     }
 
-    const [, indicators, hash, subject] = match;
+    const [, hash, subject] = match;
 
     commits.push({
-      indicators: indicators.trim(),
+      indicators,
       hash: hash.trim(),
       date: dateMap.get(hash.trim()) ?? "",
       subject: subject.trim(),
