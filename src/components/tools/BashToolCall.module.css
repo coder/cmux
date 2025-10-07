@@ -1,0 +1,59 @@
+.scriptPreview {
+  color: var(--color-text);
+  font-family: var(--font-monospace);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 400px;
+}
+
+.outputBlock {
+  margin: 0;
+  padding: 6px 8px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
+  border-left: 2px solid #4caf50;
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.exitCodeBadge {
+  display: inline-block;
+  padding: 2px 6px;
+  color: white;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 500;
+  margin-left: 8px;
+}
+
+.exitCodeBadge.success {
+  background: #4caf50;
+}
+
+.exitCodeBadge.failure {
+  background: #f44336;
+}
+
+.timeoutInfo {
+  color: var(--color-text-secondary);
+  font-size: 10px;
+  margin-left: 8px;
+}
+
+.timeoutInfo.active {
+  color: var(--color-pending);
+}
+
+.errorMessage {
+  color: #f44336;
+  font-size: 11px;
+  padding: 6px 8px;
+  background: rgba(244, 67, 54, 0.1);
+  border-radius: 3px;
+  border-left: 2px solid #f44336;
+}

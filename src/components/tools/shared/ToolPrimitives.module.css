@@ -1,0 +1,142 @@
+/**
+ * Shared CSS for tool UI primitives
+ * These styles provide consistent styling across all tool components
+ */
+
+.toolContainer {
+  margin: 8px 0;
+  padding: 4px 12px;
+  background: rgba(100, 100, 100, 0.05);
+  border-radius: 4px;
+  font-family: var(--font-monospace);
+  font-size: 11px;
+  transition: all 0.2s ease;
+}
+
+.toolContainer.expanded {
+  padding: 8px 12px;
+}
+
+.toolHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+  color: var(--color-text-secondary);
+}
+
+.toolHeader:hover {
+  color: var(--color-text);
+}
+
+.expandIcon {
+  display: inline-block;
+  transition: transform 0.2s ease;
+  transform: rotate(0deg);
+  font-size: 10px;
+}
+
+.expandIcon.expanded {
+  transform: rotate(90deg);
+}
+
+.toolName {
+  font-weight: 500;
+}
+
+.statusIndicator {
+  font-size: 10px;
+  margin-left: auto;
+  opacity: 0.8;
+}
+
+.statusIndicator.executing {
+  color: var(--color-pending);
+}
+
+.statusIndicator.completed {
+  color: #4caf50;
+}
+
+.statusIndicator.failed {
+  color: #f44336;
+}
+
+.statusIndicator.interrupted {
+  color: var(--color-interrupted);
+}
+
+.statusIndicator.pending {
+  color: var(--color-text-secondary);
+}
+
+.toolDetails {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  color: var(--color-text);
+}
+
+.detailSection {
+  margin: 6px 0;
+}
+
+.detailLabel {
+  font-size: 10px;
+  color: var(--color-text-secondary);
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.detailContent {
+  margin: 0;
+  padding: 6px 8px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.loadingDots::after {
+  content: "...";
+  animation: dots 1.5s infinite;
+}
+
+@keyframes dots {
+  0%, 20% {
+    content: ".";
+  }
+  40% {
+    content: "..";
+  }
+  60%, 100% {
+    content: "...";
+  }
+}
+
+.headerButton {
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #cccccc;
+  padding: 2px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 10px;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.headerButton.active {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.headerButton:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.3);
+}

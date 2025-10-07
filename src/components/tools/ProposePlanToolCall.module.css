@@ -1,0 +1,33 @@
+.planIcon {
+  font-size: 14px;
+}
+
+.planPreview {
+  color: var(--color-text);
+  font-family: var(--font-monospace);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 500px;
+}
+
+.planBlock {
+  margin: 0;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
+  border-left: 2px solid #9c27b0;
+  font-size: 11px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.errorMessage {
+  color: #f44336;
+  font-size: 11px;
+  padding: 6px 8px;
+  background: rgba(244, 67, 54, 0.1);
+  border-radius: 3px;
+  border-left: 2px solid #f44336;
+}
