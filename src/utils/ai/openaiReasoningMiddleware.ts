@@ -65,9 +65,9 @@ export const openaiReasoningFixMiddleware: LanguageModelV2Middleware = {
               return true;
             })
             .map((part) => {
-              // If we filtered out reasoning from this message, also strip OpenAI item IDs
-              // from remaining parts to avoid dangling references
-              if (hasReasoning && typeof part === "object" && part !== null) {
+              // Always strip OpenAI item IDs from parts that have them
+              // OpenAI manages these via previousResponseId, not via message content
+              if (typeof part === "object" && part !== null) {
                 // Check if part has providerOptions.openai.itemId
                 const partObj = part as unknown as Record<string, unknown>;
                 if (
