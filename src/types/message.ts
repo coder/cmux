@@ -112,6 +112,12 @@ export type DisplayedMessage =
       historySequence: number; // Global ordering across all messages
       timestamp?: number;
       model?: string;
+    }
+  | {
+      type: "history-hidden";
+      id: string; // Display ID for UI/React keys
+      hiddenCount: number; // Number of messages hidden
+      historySequence: number; // Global ordering across all messages
     };
 
 // Helper to create a simple text message

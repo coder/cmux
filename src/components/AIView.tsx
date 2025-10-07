@@ -17,6 +17,7 @@ import { getModelName } from "@/utils/ai/models";
 import { GitStatusIndicator } from "./GitStatusIndicator";
 import type { GitStatus } from "@/types/workspace";
 import { TooltipWrapper, Tooltip } from "./Tooltip";
+import type { DisplayedMessage } from "@/types/message";
 
 const ViewContainer = styled.div`
   flex: 1;
@@ -223,7 +224,10 @@ const AIViewInner: React.FC<AIViewProps> = ({
 
   // When editing, find the cutoff point
   const editCutoffHistoryId = editingMessage
-    ? messages.find((msg) => msg.historyId === editingMessage.id)?.historyId
+    ? messages.find(
+        (msg): msg is Exclude<DisplayedMessage, { type: "history-hidden" }> =>
+          msg.type !== "history-hidden" && msg.historyId === editingMessage.id
+      )?.historyId
     : undefined;
 
   const handleMessageSent = useCallback(() => {
@@ -361,7 +365,9 @@ const AIViewInner: React.FC<AIViewProps> = ({
                 <>
                   {messages.map((msg) => {
                     const isAtCutoff =
-                      editCutoffHistoryId !== undefined && msg.historyId === editCutoffHistoryId;
+                      editCutoffHistoryId !== undefined &&
+                      msg.type !== "history-hidden" &&
+                      msg.historyId === editCutoffHistoryId;
 
                     return (
                       <React.Fragment key={msg.id}>

@@ -18,7 +18,8 @@ export function extractTextContent(message: CmuxMessage): string {
  * - For multi-part messages, only show on the last part
  */
 export function shouldShowInterruptedBarrier(msg: DisplayedMessage): boolean {
-  if (msg.type === "user" || msg.type === "stream-error") return false;
+  if (msg.type === "user" || msg.type === "stream-error" || msg.type === "history-hidden")
+    return false;
 
   // Only show on the last part of multi-part messages
   if (!msg.isLastPartOfMessage) return false;

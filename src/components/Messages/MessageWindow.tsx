@@ -1,8 +1,9 @@
 import type { ReactNode } from "react";
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import styled from "@emotion/styled";
 import type { CmuxMessage, DisplayedMessage } from "@/types/message";
 import { HeaderButton } from "../tools/shared/ToolPrimitives";
+import { formatTimestamp } from "@/utils/ui/dateTime";
 
 const MessageBlock = styled.div<{ borderColor: string; backgroundColor?: string }>`
   margin-bottom: 15px;
@@ -25,9 +26,21 @@ const MessageHeader = styled.div`
   font-weight: 500;
 `;
 
+const LeftSection = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+`;
+
 const MessageTypeLabel = styled.div`
   text-transform: uppercase;
   letter-spacing: 0.5px;
+`;
+
+const TimestampText = styled.span`
+  font-size: 10px;
+  color: var(--color-text-secondary);
+  font-weight: 400;
 `;
 
 const ButtonGroup = styled.div`
@@ -81,10 +94,23 @@ export const MessageWindow: React.FC<MessageWindowProps> = ({
 }) => {
   const [showJson, setShowJson] = useState(false);
 
+  // Get timestamp from message if available
+  const timestamp =
+    "timestamp" in message && typeof message.timestamp === "number" ? message.timestamp : null;
+
+  // Memoize formatted timestamp to avoid recalculating on every render
+  const formattedTimestamp = useMemo(
+    () => (timestamp ? formatTimestamp(timestamp) : null),
+    [timestamp]
+  );
+
   return (
     <MessageBlock borderColor={borderColor} backgroundColor={backgroundColor} className={className}>
       <MessageHeader>
-        <MessageTypeLabel>{label}</MessageTypeLabel>
+        <LeftSection>
+          <MessageTypeLabel>{label}</MessageTypeLabel>
+          {formattedTimestamp && <TimestampText>{formattedTimestamp}</TimestampText>}
+        </LeftSection>
         <ButtonGroup>
           {rightLabel}
           {buttons.map((button, index) => (
