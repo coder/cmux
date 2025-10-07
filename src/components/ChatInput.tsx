@@ -20,7 +20,7 @@ import {
 import { TooltipWrapper, Tooltip, HelpIndicator } from "./Tooltip";
 import { matchesKeybind, formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
 import { defaultModel } from "@/utils/ai/models";
-import { ModelSelector } from "./ModelSelector";
+import { ModelSelector, type ModelSelectorRef } from "./ModelSelector";
 import { useModelLRU } from "@/hooks/useModelLRU";
 
 const InputSection = styled.div`
@@ -327,6 +327,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const [providerNames, setProviderNames] = useState<string[]>([]);
   const [toast, setToast] = useState<Toast | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const modelSelectorRef = useRef<ModelSelectorRef>(null);
   const [thinkingLevel] = useThinkingLevel();
   const [mode, setMode] = useMode();
   const { recentModels } = useModelLRU();
@@ -584,6 +585,13 @@ for a new Assistant to continue helping the user. Prioritize specific, actionabl
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // Handle open model selector
+    if (matchesKeybind(e, KEYBINDS.OPEN_MODEL_SELECTOR)) {
+      e.preventDefault();
+      modelSelectorRef.current?.open();
+      return;
+    }
+
     // Handle cancel/escape
     if (matchesKeybind(e, KEYBINDS.CANCEL)) {
       e.preventDefault();
@@ -626,6 +634,26 @@ for a new Assistant to continue helping the user. Prioritize specific, actionabl
     }
   };
 
+  // Build placeholder text based on current state
+  const placeholder = (() => {
+    if (editingMessage) {
+      return `Edit your message... (${formatKeybind(KEYBINDS.CANCEL)} to cancel, ${formatKeybind(KEYBINDS.SEND_MESSAGE)} to send)`;
+    }
+    if (isCompacting) {
+      return "Compacting conversation...";
+    }
+
+    // Build hints for normal input
+    const hints: string[] = [];
+    if (canInterrupt) {
+      hints.push(`${formatKeybind(KEYBINDS.CANCEL)} to interrupt`);
+    }
+    hints.push(`${formatKeybind(KEYBINDS.SEND_MESSAGE)} to send`);
+    hints.push(`${formatKeybind(KEYBINDS.OPEN_MODEL_SELECTOR)} to change model`);
+
+    return `Type a message... (${hints.join(", ")})`;
+  })();
+
   return (
     <InputSection>
       <ChatInputToast toast={toast} onDismiss={() => setToast(null)} />
@@ -651,15 +679,7 @@ for a new Assistant to continue helping the user. Prioritize specific, actionabl
             // Don't clear toast when typing - let user dismiss it manually or it auto-dismisses
           }}
           onKeyDown={handleKeyDown}
-          placeholder={
-            editingMessage
-              ? `Edit your message... (${formatKeybind(KEYBINDS.CANCEL)} to cancel, ${formatKeybind(KEYBINDS.SEND_MESSAGE)} to send)`
-              : isCompacting
-                ? "Compacting conversation..."
-                : canInterrupt
-                  ? `Type a message... (${formatKeybind(KEYBINDS.CANCEL)} to interrupt, ${formatKeybind(KEYBINDS.SEND_MESSAGE)} to send, ${formatKeybind(KEYBINDS.NEW_LINE)} for newline)`
-                  : `Type a message... (${formatKeybind(KEYBINDS.SEND_MESSAGE)} to send, ${formatKeybind(KEYBINDS.NEW_LINE)} for newline)`
-          }
+          placeholder={placeholder}
           disabled={disabled || isSending || isCompacting}
           canInterrupt={canInterrupt}
         />
@@ -669,6 +689,7 @@ for a new Assistant to continue helping the user. Prioritize specific, actionabl
         <ModeTogglesRow>
           <ModelDisplayWrapper>
             <ModelSelector
+              ref={modelSelectorRef}
               value={preferredModel}
               onChange={setPreferredModel}
               recentModels={recentModels}
@@ -677,7 +698,7 @@ for a new Assistant to continue helping the user. Prioritize specific, actionabl
             <TooltipWrapper inline>
               <HelpIndicator>?</HelpIndicator>
               <Tooltip className="tooltip" align="left" width="wide">
-                <strong>Click to edit</strong> or use <code>/model</code> command
+                <strong>Click to edit</strong> or use {formatKeybind(KEYBINDS.OPEN_MODEL_SELECTOR)}
                 <br />
                 <br />
                 <strong>Abbreviations:</strong>

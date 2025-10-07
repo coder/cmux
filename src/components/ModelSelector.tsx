@@ -1,4 +1,11 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, {
+  useState,
+  useRef,
+  useEffect,
+  useCallback,
+  useImperativeHandle,
+  forwardRef,
+} from "react";
 import styled from "@emotion/styled";
 
 const Container = styled.div`
@@ -94,199 +101,211 @@ interface ModelSelectorProps {
   onComplete?: () => void;
 }
 
-export const ModelSelector: React.FC<ModelSelectorProps> = ({
-  value,
-  onChange,
-  recentModels,
-  onComplete,
-}) => {
-  const [isEditing, setIsEditing] = useState(false);
-  const [inputValue, setInputValue] = useState(value);
-  const [error, setError] = useState<string | null>(null);
-  const [showDropdown, setShowDropdown] = useState(false);
-  const [highlightedIndex, setHighlightedIndex] = useState<number>(-1);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const dropdownItemRefs = useRef<Array<HTMLDivElement | null>>([]);
+export interface ModelSelectorRef {
+  open: () => void;
+}
 
-  // Update input value when prop changes
-  useEffect(() => {
-    if (!isEditing) {
+export const ModelSelector = forwardRef<ModelSelectorRef, ModelSelectorProps>(
+  ({ value, onChange, recentModels, onComplete }, ref) => {
+    const [isEditing, setIsEditing] = useState(false);
+    const [inputValue, setInputValue] = useState(value);
+    const [error, setError] = useState<string | null>(null);
+    const [showDropdown, setShowDropdown] = useState(false);
+    const [highlightedIndex, setHighlightedIndex] = useState<number>(-1);
+    const inputRef = useRef<HTMLInputElement>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
+    const dropdownItemRefs = useRef<Array<HTMLDivElement | null>>([]);
+
+    // Update input value when prop changes
+    useEffect(() => {
+      if (!isEditing) {
+        setInputValue(value);
+      }
+    }, [value, isEditing]);
+
+    // Focus input when editing starts
+    useEffect(() => {
+      if (isEditing && inputRef.current) {
+        inputRef.current.focus();
+        inputRef.current.select();
+      }
+    }, [isEditing]);
+
+    const handleCancel = useCallback(() => {
+      setIsEditing(false);
       setInputValue(value);
-    }
-  }, [value, isEditing]);
+      setError(null);
+      setShowDropdown(false);
+      setHighlightedIndex(-1);
+    }, [value]);
 
-  // Focus input when editing starts
-  useEffect(() => {
-    if (isEditing && inputRef.current) {
-      inputRef.current.focus();
-      inputRef.current.select();
-    }
-  }, [isEditing]);
+    // Handle click outside to close
+    useEffect(() => {
+      if (!isEditing) return;
 
-  const handleCancel = useCallback(() => {
-    setIsEditing(false);
-    setInputValue(value);
-    setError(null);
-    setShowDropdown(false);
-    setHighlightedIndex(-1);
-  }, [value]);
+      const handleClickOutside = (e: MouseEvent) => {
+        if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+          handleCancel();
+        }
+      };
 
-  // Handle click outside to close
-  useEffect(() => {
-    if (!isEditing) return;
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, [isEditing, handleCancel]);
 
-    const handleClickOutside = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+    // Filter recent models based on input (show all if empty) and sort lexicographically
+    const filteredModels = (
+      inputValue.trim() === ""
+        ? recentModels
+        : recentModels.filter((model) => model.toLowerCase().includes(inputValue.toLowerCase()))
+    ).sort();
+
+    const handleSave = () => {
+      // If an item is highlighted, use that instead of inputValue
+      const valueToSave =
+        highlightedIndex >= 0 && highlightedIndex < filteredModels.length
+          ? filteredModels[highlightedIndex]
+          : inputValue.trim();
+
+      if (!valueToSave) {
+        setError("Model cannot be empty");
+        return;
+      }
+
+      // Basic validation: should have format "provider:model" or be an abbreviation
+      if (!valueToSave.includes(":") && valueToSave.length < 3) {
+        setError("Invalid model format");
+        return;
+      }
+
+      onChange(valueToSave);
+      setIsEditing(false);
+      setError(null);
+      setShowDropdown(false);
+      setHighlightedIndex(-1);
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
         handleCancel();
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        handleSave();
+        // Focus the main ChatInput after selecting a model
+        onComplete?.();
+      } else if (e.key === "Tab") {
+        e.preventDefault();
+        // Tab auto-completes the highlighted item without closing
+        if (highlightedIndex >= 0 && highlightedIndex < filteredModels.length) {
+          setInputValue(filteredModels[highlightedIndex]);
+          setHighlightedIndex(-1);
+        }
+      } else if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setHighlightedIndex((prev) => Math.min(prev + 1, filteredModels.length - 1));
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setHighlightedIndex((prev) => Math.max(prev - 1, -1));
       }
     };
 
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [isEditing, handleCancel]);
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const newValue = e.target.value;
+      setInputValue(newValue);
+      setError(null);
 
-  // Filter recent models based on input (show all if empty) and sort lexicographically
-  const filteredModels = (
-    inputValue.trim() === ""
-      ? recentModels
-      : recentModels.filter((model) => model.toLowerCase().includes(inputValue.toLowerCase()))
-  ).sort();
+      // Auto-highlight first filtered result
+      const filtered =
+        newValue.trim() === ""
+          ? recentModels
+          : recentModels.filter((model) => model.toLowerCase().includes(newValue.toLowerCase()));
+      const sortedFiltered = filtered.sort();
 
-  const handleSave = () => {
-    // If an item is highlighted, use that instead of inputValue
-    const valueToSave =
-      highlightedIndex >= 0 && highlightedIndex < filteredModels.length
-        ? filteredModels[highlightedIndex]
-        : inputValue.trim();
+      // Highlight first result if any, otherwise no highlight
+      setHighlightedIndex(sortedFiltered.length > 0 ? 0 : -1);
 
-    if (!valueToSave) {
-      setError("Model cannot be empty");
-      return;
-    }
+      // Keep dropdown visible if there are recent models (filtering happens automatically)
+      setShowDropdown(recentModels.length > 0);
+    };
 
-    // Basic validation: should have format "provider:model" or be an abbreviation
-    if (!valueToSave.includes(":") && valueToSave.length < 3) {
-      setError("Invalid model format");
-      return;
-    }
+    const handleSelectModel = (model: string) => {
+      setInputValue(model);
+      onChange(model);
+      setIsEditing(false);
+      setError(null);
+      setShowDropdown(false);
+    };
 
-    onChange(valueToSave);
-    setIsEditing(false);
-    setError(null);
-    setShowDropdown(false);
-    setHighlightedIndex(-1);
-  };
+    const handleClick = useCallback(() => {
+      setIsEditing(true);
+      setInputValue(""); // Clear input to show all models
+      setShowDropdown(recentModels.length > 0);
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Escape") {
-      e.preventDefault();
-      handleCancel();
-    } else if (e.key === "Enter") {
-      e.preventDefault();
-      handleSave();
-      // Focus the main ChatInput after selecting a model
-      onComplete?.();
-    } else if (e.key === "Tab") {
-      e.preventDefault();
-      // Tab auto-completes the highlighted item without closing
-      if (highlightedIndex >= 0 && highlightedIndex < filteredModels.length) {
-        setInputValue(filteredModels[highlightedIndex]);
-        setHighlightedIndex(-1);
+      // Start with current value highlighted
+      const sortedModels = [...recentModels].sort();
+      const currentIndex = sortedModels.indexOf(value);
+      setHighlightedIndex(currentIndex);
+    }, [recentModels, value]);
+
+    // Expose open method to parent via ref
+    useImperativeHandle(
+      ref,
+      () => ({
+        open: handleClick,
+      }),
+      [handleClick]
+    );
+
+    // Scroll highlighted item into view
+    useEffect(() => {
+      if (highlightedIndex >= 0 && dropdownItemRefs.current[highlightedIndex]) {
+        dropdownItemRefs.current[highlightedIndex]?.scrollIntoView({
+          block: "nearest",
+          behavior: "smooth",
+        });
       }
-    } else if (e.key === "ArrowDown") {
-      e.preventDefault();
-      setHighlightedIndex((prev) => Math.min(prev + 1, filteredModels.length - 1));
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      setHighlightedIndex((prev) => Math.max(prev - 1, -1));
+    }, [highlightedIndex]);
+
+    if (!isEditing) {
+      return (
+        <Container ref={containerRef}>
+          <ModelDisplay clickable onClick={handleClick}>
+            {value}
+          </ModelDisplay>
+        </Container>
+      );
     }
-  };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue = e.target.value;
-    setInputValue(newValue);
-    setError(null);
-
-    // Auto-highlight first filtered result
-    const filtered =
-      newValue.trim() === ""
-        ? recentModels
-        : recentModels.filter((model) => model.toLowerCase().includes(newValue.toLowerCase()));
-    const sortedFiltered = filtered.sort();
-
-    // Highlight first result if any, otherwise no highlight
-    setHighlightedIndex(sortedFiltered.length > 0 ? 0 : -1);
-
-    // Keep dropdown visible if there are recent models (filtering happens automatically)
-    setShowDropdown(recentModels.length > 0);
-  };
-
-  const handleSelectModel = (model: string) => {
-    setInputValue(model);
-    onChange(model);
-    setIsEditing(false);
-    setError(null);
-    setShowDropdown(false);
-  };
-
-  const handleClick = () => {
-    setIsEditing(true);
-    setInputValue(""); // Clear input to show all models
-    setShowDropdown(recentModels.length > 0);
-
-    // Start with current value highlighted
-    const sortedModels = [...recentModels].sort();
-    const currentIndex = sortedModels.indexOf(value);
-    setHighlightedIndex(currentIndex);
-  };
-
-  // Scroll highlighted item into view
-  useEffect(() => {
-    if (highlightedIndex >= 0 && dropdownItemRefs.current[highlightedIndex]) {
-      dropdownItemRefs.current[highlightedIndex]?.scrollIntoView({
-        block: "nearest",
-        behavior: "smooth",
-      });
-    }
-  }, [highlightedIndex]);
-
-  if (!isEditing) {
     return (
       <Container ref={containerRef}>
-        <ModelDisplay clickable onClick={handleClick}>
-          {value}
-        </ModelDisplay>
+        <div>
+          <InputField
+            ref={inputRef}
+            value={inputValue}
+            onChange={handleInputChange}
+            onKeyDown={handleKeyDown}
+            placeholder="provider:model-name"
+          />
+          {error && <ErrorText>{error}</ErrorText>}
+        </div>
+        {showDropdown && filteredModels.length > 0 && (
+          <Dropdown>
+            {filteredModels.map((model, index) => (
+              <DropdownItem
+                key={model}
+                ref={(el) => (dropdownItemRefs.current[index] = el)}
+                highlighted={index === highlightedIndex}
+                onClick={() => handleSelectModel(model)}
+              >
+                {model}
+              </DropdownItem>
+            ))}
+          </Dropdown>
+        )}
       </Container>
     );
   }
+);
 
-  return (
-    <Container ref={containerRef}>
-      <div>
-        <InputField
-          ref={inputRef}
-          value={inputValue}
-          onChange={handleInputChange}
-          onKeyDown={handleKeyDown}
-          placeholder="provider:model-name"
-        />
-        {error && <ErrorText>{error}</ErrorText>}
-      </div>
-      {showDropdown && filteredModels.length > 0 && (
-        <Dropdown>
-          {filteredModels.map((model, index) => (
-            <DropdownItem
-              key={model}
-              ref={(el) => (dropdownItemRefs.current[index] = el)}
-              highlighted={index === highlightedIndex}
-              onClick={() => handleSelectModel(model)}
-            >
-              {model}
-            </DropdownItem>
-          ))}
-        </Dropdown>
-      )}
-    </Container>
-  );
-};
+ModelSelector.displayName = "ModelSelector";
