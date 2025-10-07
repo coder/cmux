@@ -36,8 +36,8 @@ export interface WorkspaceState {
  */
 export function useWorkspaceAggregators(workspaceMetadata: Map<string, WorkspaceMetadata>) {
   const aggregatorsRef = useRef<Map<string, StreamingMessageAggregator>>(new Map());
-  const [streamingStates, setStreamingStates] = useState<Map<string, boolean>>(new Map());
-  const [currentModels, setCurrentModels] = useState<Map<string, string>>(new Map());
+  // Track streaming state by model: presence in map = streaming with that model
+  const [streamingModels, setStreamingModels] = useState<Map<string, string>>(new Map());
   // Force re-render when messages change for the selected workspace
   const [, setUpdateCounter] = useState(0);
 
@@ -67,10 +67,10 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
         isCompacting: aggregator.isCompacting(),
         loading: !hasMessages && !isCaughtUp,
         cmuxMessages: aggregator.getAllMessages(),
-        currentModel: currentModels.get(workspaceId) ?? "claude-sonnet-4-5",
+        currentModel: streamingModels.get(workspaceId) ?? "claude-sonnet-4-5",
       };
     },
-    [getAggregator, currentModels]
+    [getAggregator, streamingModels]
   );
 
   // Force update for a specific workspace (used when that workspace is selected)
@@ -111,10 +111,14 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
             historicalMessagesRef.current.set(workspaceId, []);
           }
           caughtUpRef.current.set(workspaceId, true);
-          // Update streaming state
-          setStreamingStates((prev) =>
-            new Map(prev).set(workspaceId, aggregator.getActiveStreams().length > 0)
-          );
+          // Update streaming state - remove from map if not actively streaming
+          if (aggregator.getActiveStreams().length === 0) {
+            setStreamingModels((prev) => {
+              const next = new Map(prev);
+              next.delete(workspaceId);
+              return next;
+            });
+          }
           forceUpdate();
           return;
         }
@@ -122,9 +126,14 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
         // Handle stream errors
         if (isStreamError(data)) {
           aggregator.handleStreamError(data);
-          setStreamingStates((prev) =>
-            new Map(prev).set(workspaceId, aggregator.getActiveStreams().length > 0)
-          );
+          // Remove from streaming map if no active streams
+          if (aggregator.getActiveStreams().length === 0) {
+            setStreamingModels((prev) => {
+              const next = new Map(prev);
+              next.delete(workspaceId);
+              return next;
+            });
+          }
           forceUpdate();
           return;
         }
@@ -139,8 +148,12 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
         // Handle streaming events
         if (isStreamStart(data)) {
           aggregator.handleStreamStart(data);
-          setCurrentModels((prev) => new Map(prev).set(workspaceId, data.model));
-          setStreamingStates((prev) => new Map(prev).set(workspaceId, true));
+          // Add to streaming map with model name
+          setStreamingModels((prev) => {
+            const next = new Map(prev);
+            next.set(workspaceId, data.model);
+            return next;
+          });
           forceUpdate();
           return;
         }
@@ -173,7 +186,7 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
                     {
                       timestamp: Date.now(),
                       compacted: true,
-                      model: currentModels.get(workspaceId),
+                      model: streamingModels.get(workspaceId),
                       // Copy usage metadata so users can see tokens/costs for the compaction operation
                       usage: data.metadata.usage,
                       providerMetadata: data.metadata.providerMetadata,
@@ -191,16 +204,26 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
             }
           }
 
-          setStreamingStates((prev) =>
-            new Map(prev).set(workspaceId, aggregator.getActiveStreams().length > 0)
-          );
+          // Remove from streaming map if no active streams
+          if (aggregator.getActiveStreams().length === 0) {
+            setStreamingModels((prev) => {
+              const next = new Map(prev);
+              next.delete(workspaceId);
+              return next;
+            });
+          }
           forceUpdate();
           return;
         }
 
         if (isStreamAbort(data)) {
           aggregator.handleStreamAbort(data);
-          setStreamingStates((prev) => new Map(prev).set(workspaceId, false));
+          // Remove from streaming map on abort
+          setStreamingModels((prev) => {
+            const next = new Map(prev);
+            next.delete(workspaceId);
+            return next;
+          });
           forceUpdate();
           return;
         }
@@ -242,7 +265,7 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
                 {
                   timestamp: Date.now(),
                   compacted: true,
-                  model: currentModels.get(workspaceId),
+                  model: streamingModels.get(workspaceId),
                 }
               );
 
@@ -294,9 +317,9 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
         }
       });
     };
-    // currentModels is intentionally excluded from deps to prevent re-subscription loops.
-    // Since Maps are compared by reference, setCurrentModels creates a new Map on every
-    // stream start (line 142), which would tear down and recreate all subscriptions.
+    // streamingModels is intentionally excluded from deps to prevent re-subscription loops.
+    // Since Maps are compared by reference, setStreamingModels creates a new Map on every
+    // stream start, which would tear down and recreate all subscriptions.
     // The model value is only used for metadata in compaction messages, so capturing
     // a stale closure value has minimal impact vs. the cost of constant re-subscriptions.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -304,7 +327,6 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
 
   return {
     getWorkspaceState,
-    streamingStates,
-    streamingModels: currentModels,
+    streamingModels,
   };
 }

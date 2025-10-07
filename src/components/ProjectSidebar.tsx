@@ -358,7 +358,6 @@ interface ProjectSidebarProps {
     workspaceId: string,
     newName: string
   ) => Promise<{ success: boolean; error?: string }>;
-  streamingStates: Map<string, boolean>;
   streamingModels: Map<string, string>;
   collapsed: boolean;
   onToggleCollapsed: () => void;
@@ -374,7 +373,6 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
   onRemoveProject,
   onRemoveWorkspace,
   onRenameWorkspace,
-  streamingStates,
   streamingModels,
   collapsed,
   onToggleCollapsed,
@@ -544,8 +542,8 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
 
                         const workspaceId = metadata.id;
                         const displayName = getWorkspaceDisplayName(workspace.path);
-                        const isStreaming = streamingStates.get(workspaceId) ?? false;
-                        const streamingModel = streamingModels.get(workspaceId) ?? "";
+                        const streamingModel = streamingModels.get(workspaceId);
+                        const isStreaming = streamingModel !== undefined;
                         const isEditing = editingWorkspaceId === workspaceId;
 
                         return (
@@ -564,7 +562,9 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                             <WorkspaceStatusIndicator
                               streaming={isStreaming}
                               title={
-                                isStreaming ? `${getModelName(streamingModel)} streaming` : "Idle"
+                                isStreaming && streamingModel
+                                  ? `${getModelName(streamingModel)} streaming`
+                                  : "Idle"
                               }
                             />
                             <BranchIcon>⎇</BranchIcon>

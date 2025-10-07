@@ -170,8 +170,7 @@ function App() {
     });
 
   // Use workspace aggregators hook for message state
-  const { getWorkspaceState, streamingStates, streamingModels } =
-    useWorkspaceAggregators(workspaceMetadata);
+  const { getWorkspaceState, streamingModels } = useWorkspaceAggregators(workspaceMetadata);
 
   const handleRemoveProject = async (path: string) => {
     // Clear selected workspace if it belongs to the removed project
@@ -267,7 +266,6 @@ function App() {
           onRemoveProject={(path) => void handleRemoveProject(path)}
           onRemoveWorkspace={removeWorkspace}
           onRenameWorkspace={renameWorkspace}
-          streamingStates={streamingStates}
           streamingModels={streamingModels}
           collapsed={sidebarCollapsed}
           onToggleCollapsed={() => setSidebarCollapsed((prev) => !prev)}
