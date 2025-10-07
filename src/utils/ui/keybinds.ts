@@ -15,6 +15,14 @@ export interface Keybind {
   shift?: boolean;
   alt?: boolean;
   meta?: boolean;
+  /**
+   * On macOS, Ctrl-based shortcuts traditionally use Cmd instead.
+   * Use this field to control that behavior:
+   * - "either" (default): accept Ctrl or Cmd
+   * - "command": require Cmd specifically
+   * - "control": require the Control key specifically
+   */
+  macCtrlBehavior?: "either" | "command" | "control";
 }
 
 /**
@@ -35,7 +43,7 @@ export function isMac(): boolean {
 
 /**
  * Check if a keyboard event matches a keybind definition.
- * On macOS, ctrl in the definition matches either ctrl OR meta (Cmd) in the event.
+ * On macOS, ctrl in the definition defaults to matching Ctrl or Cmd unless overridden.
  */
 export function matchesKeybind(
   event: React.KeyboardEvent | KeyboardEvent,
@@ -46,12 +54,48 @@ export function matchesKeybind(
     return false;
   }
 
-  // On Mac, treat ctrl and meta as equivalent
-  const ctrlOrMeta = isMac() ? event.ctrlKey || event.metaKey : event.ctrlKey;
+  const onMac = isMac();
+  const macCtrlBehavior = keybind.macCtrlBehavior ?? "either";
+  const ctrlPressed = event.ctrlKey;
+  const metaPressed = event.metaKey;
 
-  // Check modifiers
-  if (keybind.ctrl && !ctrlOrMeta) return false;
-  if (!keybind.ctrl && ctrlOrMeta) return false;
+  let ctrlRequired = false;
+  let ctrlAllowed = false;
+  let metaRequired = keybind.meta ?? false;
+  let metaAllowed = metaRequired;
+
+  if (keybind.ctrl) {
+    if (onMac) {
+      switch (macCtrlBehavior) {
+        case "control": {
+          ctrlRequired = true;
+          ctrlAllowed = true;
+          // Only allow Cmd if explicitly requested via meta flag
+          break;
+        }
+        case "command": {
+          metaRequired = true;
+          metaAllowed = true;
+          ctrlAllowed = true;
+          break;
+        }
+        case "either": {
+          ctrlAllowed = true;
+          metaAllowed = true;
+          if (!ctrlPressed && !metaPressed) return false;
+          break;
+        }
+      }
+    } else {
+      ctrlRequired = true;
+      ctrlAllowed = true;
+    }
+  } else {
+    ctrlAllowed = false;
+  }
+
+  if (ctrlRequired && !ctrlPressed) return false;
+  if (!ctrlAllowed && ctrlPressed) return false;
 
   if (keybind.shift && !event.shiftKey) return false;
   if (!keybind.shift && event.shiftKey) return false;
@@ -59,10 +103,17 @@ export function matchesKeybind(
   if (keybind.alt && !event.altKey) return false;
   if (!keybind.alt && event.altKey) return false;
 
-  // meta is explicit (only check when not handled by ctrl equivalence)
-  if (!isMac()) {
-    if (keybind.meta && !event.metaKey) return false;
-    if (!keybind.meta && event.metaKey) return false;
+  if (metaRequired && !metaPressed) return false;
+
+  if (!metaAllowed) {
+    // If Cmd is allowed implicitly via ctrl behavior, mark it now
+    if (onMac && keybind.ctrl && macCtrlBehavior !== "control") {
+      metaAllowed = true;
+    }
+  }
+
+  if (!metaAllowed && metaPressed) {
+    return false;
   }
 
   return true;
@@ -92,7 +143,12 @@ export function formatKeybind(keybind: Keybind): string {
     // Mac-style formatting with symbols (using Unicode escapes for safety)
     // For ctrl on Mac, we actually mean Cmd in most cases since matcher treats them as equivalent
     if (keybind.ctrl && !keybind.meta) {
-      parts.push("\u2318"); // ⌘ Command
+      const macCtrlBehavior = keybind.macCtrlBehavior ?? "either";
+      if (macCtrlBehavior === "control") {
+        parts.push("\u2303"); // ⌃ Control
+      } else {
+        parts.push("\u2318"); // ⌘ Command
+      }
     } else if (keybind.ctrl) {
       parts.push("\u2303"); // ⌃ Control
     }
@@ -134,7 +190,7 @@ export const KEYBINDS = {
   CANCEL: { key: "Escape" },
 
   /** Interrupt active stream (destructive - stops AI generation) */
-  INTERRUPT_STREAM: { key: "c", ctrl: true },
+  INTERRUPT_STREAM: { key: "c", ctrl: true, macCtrlBehavior: "control" },
 
   /** Focus chat input */
   FOCUS_INPUT_I: { key: "i" },
