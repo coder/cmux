@@ -2,7 +2,7 @@ name: Build
 
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "debug-cert-format"]
   pull_request:
     branches: ["**"]
   workflow_dispatch: # Allow manual triggering
