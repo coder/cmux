@@ -23,7 +23,7 @@ import type {
 import { log } from "@/services/log";
 
 export const openaiReasoningFixMiddleware: LanguageModelV2Middleware = {
-  transformParams: async ({
+  transformParams: ({
     params,
   }: {
     type: "generate" | "stream";
@@ -31,7 +31,7 @@ export const openaiReasoningFixMiddleware: LanguageModelV2Middleware = {
   }) => {
     // Only process if we have messages
     if (!params.prompt || !Array.isArray(params.prompt)) {
-      return params;
+      return Promise.resolve(params);
     }
 
     log.debug("[OpenAI Middleware] Transforming params to fix reasoning items");
@@ -56,7 +56,9 @@ export const openaiReasoningFixMiddleware: LanguageModelV2Middleware = {
 
           // If all content was reasoning, remove this message entirely
           if (filteredContent.length === 0 && message.content.length > 0) {
-            log.debug("[OpenAI Middleware] Removed reasoning-only assistant message from prompt");
+            log.debug(
+              "[OpenAI Middleware] Removed reasoning-only assistant message from prompt"
+            );
             // Return null to signal this message should be removed
             return null;
           }
@@ -75,9 +77,9 @@ export const openaiReasoningFixMiddleware: LanguageModelV2Middleware = {
       `[OpenAI Middleware] Filtered ${params.prompt.length - transformedPrompt.length} reasoning-only messages`
     );
 
-    return {
+    return Promise.resolve({
       ...params,
       prompt: transformedPrompt,
-    };
+    });
   },
 };
