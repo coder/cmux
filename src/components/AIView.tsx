@@ -14,6 +14,8 @@ import { useAutoScroll } from "@/hooks/useAutoScroll";
 import type { WorkspaceState } from "@/hooks/useWorkspaceAggregators";
 import { StatusIndicator } from "./StatusIndicator";
 import { getModelName } from "@/utils/ai/models";
+import { GitStatusIndicator } from "./GitStatusIndicator";
+import type { GitStatus } from "@/types/workspace";
 
 const ViewContainer = styled.div`
   flex: 1;
@@ -141,6 +143,7 @@ interface AIViewProps {
   projectName: string;
   branch: string;
   workspaceState: WorkspaceState;
+  gitStatus: GitStatus | null;
   className?: string;
 }
 
@@ -149,6 +152,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
   projectName,
   branch,
   workspaceState,
+  gitStatus,
   className,
 }) => {
   const [editingMessage, setEditingMessage] = useState<{ id: string; content: string } | undefined>(
@@ -276,6 +280,11 @@ const AIViewInner: React.FC<AIViewProps> = ({
               <StatusIndicator
                 streaming={canInterrupt}
                 title={canInterrupt ? `${getModelName(currentModel)} streaming` : "Idle"}
+              />
+              <GitStatusIndicator
+                gitStatus={gitStatus}
+                workspaceId={workspaceId}
+                tooltipPosition="bottom"
               />
               {projectName} / {branch}
             </WorkspaceTitle>
