@@ -6,6 +6,9 @@ import { createWorktree, removeWorktree, moveWorktree } from "@/git";
 import { AIService } from "@/services/aiService";
 import { HistoryService } from "@/services/historyService";
 import { PartialService } from "@/services/partialService";
+import { TodoService } from "@/services/todoService";
+import type { TodoOperation } from "@/types/todo";
+import type { WorkspaceMetadata } from "@/types/workspace";
 import { createCmuxMessage, type CmuxMessage } from "@/types/message";
 import { log } from "@/services/log";
 import type {
@@ -48,6 +51,7 @@ export class IpcMain {
   private readonly historyService: HistoryService;
   private readonly partialService: PartialService;
   private readonly aiService: AIService;
+  private readonly todoService: TodoService;
   private mainWindow: BrowserWindow | null = null;
 
   constructor(config: Config) {
@@ -55,6 +59,7 @@ export class IpcMain {
     this.historyService = new HistoryService(config);
     this.partialService = new PartialService(config, this.historyService);
     this.aiService = new AIService(config, this.historyService, this.partialService);
+    this.todoService = new TodoService(config);
   }
 
   /**
@@ -68,6 +73,7 @@ export class IpcMain {
     this.registerDialogHandlers(ipcMain);
     this.registerWorkspaceHandlers(ipcMain);
     this.registerProviderHandlers(ipcMain);
+    this.registerTodoHandlers(ipcMain);
     this.registerSubscriptionHandlers(ipcMain);
     this.setupEventForwarding();
   }
@@ -140,15 +146,18 @@ export class IpcMain {
           };
           await this.aiService.saveWorkspaceMetadata(workspaceId, metadata);
 
+          // Enrich with todos for response
+          const enrichedMetadata = await this.enrichMetadataWithTodos(workspaceId, metadata);
+
           // Emit metadata event for new workspace
           this.mainWindow?.webContents.send(IPC_CHANNELS.WORKSPACE_METADATA, {
             workspaceId,
-            metadata,
+            metadata: enrichedMetadata,
           });
 
           return {
             success: true,
-            metadata,
+            metadata: enrichedMetadata,
           };
         }
 
@@ -337,6 +346,12 @@ export class IpcMain {
             return config;
           });
 
+          // Enrich with todos for response
+          const enrichedNewMetadata = await this.enrichMetadataWithTodos(
+            newWorkspaceId,
+            newMetadata
+          );
+
           // Emit metadata event for old workspace deletion
           this.mainWindow?.webContents.send(IPC_CHANNELS.WORKSPACE_METADATA, {
             workspaceId,
@@ -346,7 +361,7 @@ export class IpcMain {
           // Emit metadata event for new workspace
           this.mainWindow?.webContents.send(IPC_CHANNELS.WORKSPACE_METADATA, {
             workspaceId: newWorkspaceId,
-            metadata: newMetadata,
+            metadata: enrichedNewMetadata,
           });
 
           return Ok({ newWorkspaceId });
@@ -368,7 +383,10 @@ export class IpcMain {
 
     ipcMain.handle(IPC_CHANNELS.WORKSPACE_GET_INFO, async (_event, workspaceId: string) => {
       const result = await this.aiService.getWorkspaceMetadata(workspaceId);
-      return result.success ? result.data : null;
+      if (result.success) {
+        return await this.enrichMetadataWithTodos(workspaceId, result.data);
+      }
+      return null;
     });
 
     ipcMain.handle(
@@ -649,6 +667,58 @@ export class IpcMain {
     );
   }
 
+  /**
+   * Helper to enrich metadata with todos
+   * DRY principle - single place to load and attach todos to metadata
+   */
+  private async enrichMetadataWithTodos(
+    workspaceId: string,
+    metadata: Omit<WorkspaceMetadata, "todos">
+  ): Promise<WorkspaceMetadata> {
+    const todosResult = await this.todoService.getTodos(workspaceId);
+    return {
+      ...metadata,
+      todos: todosResult.success ? todosResult.data : undefined,
+    };
+  }
+
+  private registerTodoHandlers(ipcMain: ElectronIpcMain): void {
+    ipcMain.handle(
+      IPC_CHANNELS.WORKSPACE_TODO,
+      async (_event, workspaceId: string, operation: TodoOperation) => {
+        // Execute operation based on discriminated union type
+        let result;
+        switch (operation.type) {
+          case "add":
+            result = await this.todoService.addTodo(workspaceId, operation.todoId, operation.text);
+            break;
+          case "remove":
+            result = await this.todoService.removeTodo(workspaceId, operation.todoId);
+            break;
+          case "toggle":
+            result = await this.todoService.toggleTodo(workspaceId, operation.todoId);
+            break;
+        }
+
+        if (!result.success) {
+          return Err(result.error);
+        }
+
+        // Get updated metadata with todos
+        const metadataResult = await this.aiService.getWorkspaceMetadata(workspaceId);
+        if (metadataResult.success) {
+          const metadata = await this.enrichMetadataWithTodos(workspaceId, metadataResult.data);
+          this.mainWindow?.webContents.send(IPC_CHANNELS.WORKSPACE_METADATA, {
+            workspaceId,
+            metadata,
+          });
+          return Ok(metadata);
+        }
+        return Err("Failed to get workspace metadata");
+      }
+    );
+  }
+
   private registerProviderHandlers(ipcMain: ElectronIpcMain): void {
     ipcMain.handle(
       IPC_CHANNELS.PROVIDERS_SET_CONFIG,
@@ -733,19 +803,22 @@ export class IpcMain {
 
     // Handle subscription events for metadata
     ipcMain.on(IPC_CHANNELS.WORKSPACE_METADATA_SUBSCRIBE, () => {
-      try {
-        const workspaceMetadata = this.config.getAllWorkspaceMetadata();
+      void (async () => {
+        try {
+          const workspaceMetadata = this.config.getAllWorkspaceMetadata();
 
-        // Emit current metadata for each workspace
-        for (const metadata of workspaceMetadata) {
-          this.mainWindow?.webContents.send(IPC_CHANNELS.WORKSPACE_METADATA, {
-            workspaceId: metadata.id,
-            metadata,
-          });
+          // Emit current metadata for each workspace (enriched with todos)
+          for (const metadata of workspaceMetadata) {
+            const enrichedMetadata = await this.enrichMetadataWithTodos(metadata.id, metadata);
+            this.mainWindow?.webContents.send(IPC_CHANNELS.WORKSPACE_METADATA, {
+              workspaceId: metadata.id,
+              metadata: enrichedMetadata,
+            });
+          }
+        } catch (error) {
+          console.error("Failed to emit current metadata:", error);
         }
-      } catch (error) {
-        console.error("Failed to emit current metadata:", error);
-      }
+      })();
     });
   }
 

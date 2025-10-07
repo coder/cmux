@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TodoSchema } from "./todo";
 
 /**
  * Zod schema for workspace metadata validation
@@ -7,6 +8,7 @@ export const WorkspaceMetadataSchema = z.object({
   id: z.string().min(1, "Workspace ID is required"),
   projectName: z.string().min(1, "Project name is required"),
   workspacePath: z.string().min(1, "Workspace path is required"),
+  todos: z.array(TodoSchema).optional(),
 });
 
 /**
@@ -26,6 +28,9 @@ export interface WorkspaceMetadata {
 
   /** Absolute path to the workspace worktree directory */
   workspacePath: string;
+
+  /** TODO list for this workspace (optional for backward compatibility) */
+  todos?: Array<{ id: string; text: string; completed: boolean }>;
 }
 
 /**

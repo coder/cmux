@@ -16,6 +16,8 @@ export const IPC_CHANNELS = {
   PROVIDERS_LIST: "providers:list",
 
   // Workspace channels
+  // NOTE: Prefer discriminated unions over creating separate channels for related operations
+  // to prevent constant bloat (e.g., use WORKSPACE_TODO with operation type, not TODO_ADD/REMOVE/TOGGLE)
   WORKSPACE_LIST: "workspace:list",
   WORKSPACE_CREATE: "workspace:create",
   WORKSPACE_REMOVE: "workspace:remove",
@@ -27,6 +29,7 @@ export const IPC_CHANNELS = {
   WORKSPACE_STREAM_HISTORY: "workspace:streamHistory",
   WORKSPACE_GET_INFO: "workspace:getInfo",
   WORKSPACE_EXECUTE_BASH: "workspace:executeBash",
+  WORKSPACE_TODO: "workspace:todo",
 
   // Dynamic channel prefixes
   WORKSPACE_CHAT_PREFIX: "workspace:chat:",

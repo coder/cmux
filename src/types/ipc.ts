@@ -6,6 +6,7 @@ import type { SendMessageError, StreamErrorType } from "./errors";
 import type { ThinkingLevel } from "./thinking";
 import type { ToolPolicy } from "@/utils/tools/toolPolicy";
 import type { BashToolResult } from "./tools";
+import type { TodoOperation } from "./todo";
 import type {
   StreamStartEvent,
   StreamDeltaEvent,
@@ -178,6 +179,7 @@ export interface IPCApi {
       script: string,
       options?: { timeout_secs?: number; max_lines?: number; stdin?: string }
     ): Promise<Result<BashToolResult, string>>;
+    todo(workspaceId: string, operation: TodoOperation): Promise<Result<WorkspaceMetadata, string>>;
 
     // Event subscriptions (renderer-only)
     // These methods are designed to send current state immediately upon subscription,

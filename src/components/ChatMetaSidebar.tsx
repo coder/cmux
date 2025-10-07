@@ -71,12 +71,12 @@ export const ChatMetaSidebar: React.FC<ChatMetaSidebarProps> = ({ workspaceId })
           Costs
         </TabButton>
         <TabButton active={selectedTab === "tools"} onClick={() => setSelectedTab("tools")}>
-          Tools
+          TODOs
         </TabButton>
       </TabBar>
       <TabContent>
         {selectedTab === "costs" && <CostsTab />}
-        {selectedTab === "tools" && <ToolsTab />}
+        {selectedTab === "tools" && <ToolsTab workspaceId={workspaceId} />}
       </TabContent>
     </SidebarContainer>
   );
