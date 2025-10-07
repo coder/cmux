@@ -226,13 +226,13 @@ export class AIService extends EventEmitter {
         });
         // Use Responses API for persistence and built-in tools
         const baseModel = provider.responses(modelId);
-        
+
         // Wrap with middleware to fix reasoning items
         const wrappedModel = wrapLanguageModel({
           model: baseModel,
           middleware: openaiReasoningFixMiddleware,
         });
-        
+
         return Ok(wrappedModel);
       }
 

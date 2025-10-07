@@ -1,16 +1,16 @@
 /**
  * OpenAI Reasoning Middleware
- * 
+ *
  * Fixes the "reasoning without following item" error by ensuring reasoning items
  * in the prompt are properly formatted for OpenAI's Responses API.
- * 
+ *
  * The issue: OpenAI's streaming responses sometimes fail with:
  * "Item 'rs_*' of type 'reasoning' was provided without its required following item"
- * 
+ *
  * This occurs when:
  * - The conversation includes previous reasoning parts in history
  * - OpenAI's Responses API expects reasoning items to be paired with content
- * 
+ *
  * Solution: Strip reasoning items from the input messages before sending to OpenAI,
  * since OpenAI manages reasoning state via `previousResponseId` parameter.
  */
@@ -56,9 +56,7 @@ export const openaiReasoningFixMiddleware: LanguageModelV2Middleware = {
 
           // If all content was reasoning, remove this message entirely
           if (filteredContent.length === 0 && message.content.length > 0) {
-            log.debug(
-              "[OpenAI Middleware] Removed reasoning-only assistant message from prompt"
-            );
+            log.debug("[OpenAI Middleware] Removed reasoning-only assistant message from prompt");
             // Return null to signal this message should be removed
             return null;
           }
