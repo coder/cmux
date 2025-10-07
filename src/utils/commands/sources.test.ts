@@ -21,6 +21,8 @@ const mk = (over: Partial<Parameters<typeof buildCoreSources>[0]> = {}) => {
       workspaceId: "w1",
     },
     streamingModels: new Map<string, string>(),
+    getThinkingLevel: () => "off",
+    onSetThinkingLevel: () => undefined,
     onCreateWorkspace: async () => {
       await Promise.resolve();
     },
@@ -46,4 +48,25 @@ test("buildCoreSources includes create/switch workspace actions", () => {
   expect(titles.some((t) => t.includes("Switch to "))).toBe(true);
   expect(titles.includes("Open Current Workspace in Terminal")).toBe(true);
   expect(titles.includes("Open Workspace in Terminal…")).toBe(true);
+});
+
+test("buildCoreSources adds thinking effort command", () => {
+  const sources = mk({ getThinkingLevel: () => "medium" });
+  const actions = sources.flatMap((s) => s());
+  const thinkingAction = actions.find((a) => a.id === "thinking:set-level");
+
+  expect(thinkingAction).toBeDefined();
+  expect(thinkingAction?.subtitle).toContain("Medium");
+});
+
+test("thinking effort command submits selected level", async () => {
+  const onSetThinkingLevel = jest.fn();
+  const sources = mk({ onSetThinkingLevel, getThinkingLevel: () => "low" });
+  const actions = sources.flatMap((s) => s());
+  const thinkingAction = actions.find((a) => a.id === "thinking:set-level");
+
+  expect(thinkingAction?.prompt).toBeDefined();
+  await thinkingAction!.prompt!.onSubmit({ thinkingLevel: "high" });
+
+  expect(onSetThinkingLevel).toHaveBeenCalledWith("w1", "high");
 });

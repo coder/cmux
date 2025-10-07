@@ -1,7 +1,38 @@
 import type { Dispatch, SetStateAction } from "react";
 import { useState, useCallback, useEffect } from "react";
+import { getStorageChangeEvent } from "@/constants/events";
 
 type SetValue<T> = T | ((prev: T) => T);
+
+/**
+ * Update a persisted state value from outside the hook.
+ * This is useful when you need to update state from a different component/context
+ * that doesn't have access to the setter (e.g., command palette updating workspace state).
+ *
+ * @param key - The same localStorage key used in usePersistedState
+ * @param value - The new value to set
+ */
+export function updatePersistedState<T>(key: string, value: T): void {
+  if (typeof window === "undefined" || !window.localStorage) {
+    return;
+  }
+
+  try {
+    if (value === undefined || value === null) {
+      window.localStorage.removeItem(key);
+    } else {
+      window.localStorage.setItem(key, JSON.stringify(value));
+    }
+
+    // Dispatch custom event for same-tab synchronization
+    const customEvent = new CustomEvent(getStorageChangeEvent(key), {
+      detail: { key, newValue: value },
+    });
+    window.dispatchEvent(customEvent);
+  } catch (error) {
+    console.warn(`Error writing to localStorage key "${key}":`, error);
+  }
+}
 
 interface UsePersistedStateOptions {
   /** Enable listening to storage changes from other components/tabs */
@@ -85,7 +116,7 @@ export function usePersistedState<T>(
             }
 
             // Dispatch custom event for same-tab synchronization
-            const customEvent = new CustomEvent(`storage-change:${key}`, {
+            const customEvent = new CustomEvent(getStorageChangeEvent(key), {
               detail: { key, newValue },
             });
             window.dispatchEvent(customEvent);
@@ -137,8 +168,9 @@ export function usePersistedState<T>(
     };
 
     // Listen to both storage events (cross-tab) and custom events (same-tab)
+    const storageChangeEvent = getStorageChangeEvent(key);
     window.addEventListener("storage", handleStorageChange);
-    window.addEventListener(`storage-change:${key}`, handleStorageChange);
+    window.addEventListener(storageChangeEvent, handleStorageChange);
 
     return () => {
       // Cancel pending animation frame
@@ -146,7 +178,7 @@ export function usePersistedState<T>(
         cancelAnimationFrame(rafId);
       }
       window.removeEventListener("storage", handleStorageChange);
-      window.removeEventListener(`storage-change:${key}`, handleStorageChange);
+      window.removeEventListener(storageChangeEvent, handleStorageChange);
     };
   }, [key, options?.listener]);
 

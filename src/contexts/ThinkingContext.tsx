@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import React, { createContext, useContext } from "react";
 import type { ThinkingLevel } from "@/types/thinking";
 import { usePersistedState } from "@/hooks/usePersistedState";
+import { getThinkingLevelKey } from "@/constants/storage";
 
 interface ThinkingContextType {
   thinkingLevel: ThinkingLevel;
@@ -16,9 +17,11 @@ interface ThinkingProviderProps {
 }
 
 export const ThinkingProvider: React.FC<ThinkingProviderProps> = ({ workspaceId, children }) => {
+  const key = getThinkingLevelKey(workspaceId);
   const [thinkingLevel, setThinkingLevel] = usePersistedState<ThinkingLevel>(
-    `thinkingLevel:${workspaceId}`,
-    "off"
+    key,
+    "off",
+    { listener: true } // Listen for changes from command palette and other sources
   );
 
   return (

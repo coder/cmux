@@ -10,7 +10,7 @@ import NewWorkspaceModal from "./components/NewWorkspaceModal";
 import { AIView } from "./components/AIView";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { TipsCarousel } from "./components/TipsCarousel";
-import { usePersistedState } from "./hooks/usePersistedState";
+import { usePersistedState, updatePersistedState } from "./hooks/usePersistedState";
 import { matchesKeybind, KEYBINDS } from "./utils/ui/keybinds";
 import { useProjectManagement } from "./hooks/useProjectManagement";
 import { useWorkspaceManagement } from "./hooks/useWorkspaceManagement";
@@ -20,6 +20,12 @@ import type { CommandAction } from "./contexts/CommandRegistryContext";
 import { CommandPalette } from "./components/CommandPalette";
 import { buildCoreSources, type BuildSourcesParams } from "./utils/commands/sources";
 import { useGitStatus } from "./hooks/useGitStatus";
+
+import type { ThinkingLevel } from "./types/thinking";
+import { CUSTOM_EVENTS } from "./constants/events";
+import { getThinkingLevelKey } from "./constants/storage";
+
+const THINKING_LEVELS: ThinkingLevel[] = ["off", "low", "medium", "high"];
 
 // Global Styles with nice fonts
 const globalStyles = css`
@@ -277,6 +283,51 @@ function AppInner() {
     close: closeCommandPalette,
   } = useCommandRegistry();
 
+  const getThinkingLevelForWorkspace = useCallback((workspaceId: string): ThinkingLevel => {
+    if (!workspaceId) {
+      return "off";
+    }
+
+    if (typeof window === "undefined" || !window.localStorage) {
+      return "off";
+    }
+
+    try {
+      const key = getThinkingLevelKey(workspaceId);
+      const stored = window.localStorage.getItem(key);
+      if (!stored || stored === "undefined") {
+        return "off";
+      }
+      const parsed = JSON.parse(stored) as ThinkingLevel;
+      return THINKING_LEVELS.includes(parsed) ? parsed : "off";
+    } catch (error) {
+      console.warn("Failed to read thinking level", error);
+      return "off";
+    }
+  }, []);
+
+  const setThinkingLevelFromPalette = useCallback((workspaceId: string, level: ThinkingLevel) => {
+    if (!workspaceId) {
+      return;
+    }
+
+    const normalized = THINKING_LEVELS.includes(level) ? level : "off";
+    const key = getThinkingLevelKey(workspaceId);
+
+    // Use the utility function which handles localStorage and event dispatch
+    // ThinkingProvider will pick this up via its listener
+    updatePersistedState(key, normalized);
+
+    // Dispatch toast notification event for UI feedback
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent(CUSTOM_EVENTS.THINKING_LEVEL_TOAST, {
+          detail: { workspaceId, level: normalized },
+        })
+      );
+    }
+  }, []);
+
   const registerParamsRef = useRef<BuildSourcesParams | null>(null);
 
   const openNewWorkspaceFromPalette = useCallback(
@@ -343,6 +394,8 @@ function AppInner() {
     workspaceMetadata,
     selectedWorkspace,
     streamingModels,
+    getThinkingLevel: getThinkingLevelForWorkspace,
+    onSetThinkingLevel: setThinkingLevelFromPalette,
     onOpenNewWorkspaceModal: openNewWorkspaceFromPalette,
     onCreateWorkspace: createWorkspaceFromPalette,
     onSelectWorkspace: selectWorkspaceFromPalette,

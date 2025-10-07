@@ -13,6 +13,7 @@ import { ChatToggles } from "./ChatToggles";
 import { use1MContext } from "@/hooks/use1MContext";
 import { modeToToolPolicy } from "@/utils/ui/modeUtils";
 import { ToggleGroup } from "./ToggleGroup";
+import { CUSTOM_EVENTS } from "@/constants/events";
 import type { UIMode } from "@/types/mode";
 import {
   getSlashCommandSuggestions,
@@ -24,6 +25,8 @@ import { defaultModel } from "@/utils/ai/models";
 import { ModelSelector, type ModelSelectorRef } from "./ModelSelector";
 import { useModelLRU } from "@/hooks/useModelLRU";
 import { VimTextArea } from "./VimTextArea";
+
+import type { ThinkingLevel } from "@/types/thinking";
 
 const InputSection = styled.div`
   position: relative;
@@ -399,8 +402,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       setInput(detail.text);
       setTimeout(() => inputRef.current?.focus(), 0);
     };
-    window.addEventListener("cmux:insertToChatInput", handler as EventListener);
-    return () => window.removeEventListener("cmux:insertToChatInput", handler as EventListener);
+    window.addEventListener(CUSTOM_EVENTS.INSERT_TO_CHAT_INPUT, handler as EventListener);
+    return () =>
+      window.removeEventListener(CUSTOM_EVENTS.INSERT_TO_CHAT_INPUT, handler as EventListener);
   }, [setInput]);
 
   // Allow external components to open the Model Selector
@@ -409,9 +413,38 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       // Open the inline ModelSelector and let it take focus itself
       modelSelectorRef.current?.open();
     };
-    window.addEventListener("cmux:openModelSelector", handler as EventListener);
-    return () => window.removeEventListener("cmux:openModelSelector", handler as EventListener);
+    window.addEventListener(CUSTOM_EVENTS.OPEN_MODEL_SELECTOR, handler as EventListener);
+    return () =>
+      window.removeEventListener(CUSTOM_EVENTS.OPEN_MODEL_SELECTOR, handler as EventListener);
   }, []);
+
+  // Show toast when thinking level is changed via command palette
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<{ workspaceId: string; level: ThinkingLevel }>).detail;
+      if (!detail || detail.workspaceId !== workspaceId || !detail.level) {
+        return;
+      }
+
+      const level = detail.level;
+      const levelDescriptions: Record<ThinkingLevel, string> = {
+        off: "Off — fastest responses",
+        low: "Low — adds light reasoning",
+        medium: "Medium — balanced reasoning",
+        high: "High — maximum reasoning depth",
+      };
+
+      setToast({
+        id: Date.now().toString(),
+        type: "success",
+        message: `Thinking effort set to ${levelDescriptions[level]}`,
+      });
+    };
+
+    window.addEventListener(CUSTOM_EVENTS.THINKING_LEVEL_TOAST, handler as EventListener);
+    return () =>
+      window.removeEventListener(CUSTOM_EVENTS.THINKING_LEVEL_TOAST, handler as EventListener);
+  }, [workspaceId, setToast]);
 
   // Handle command selection
   const handleCommandSelect = useCallback(
