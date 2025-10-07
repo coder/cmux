@@ -6,6 +6,8 @@
  */
 
 import { z } from "zod";
+import { BASH_DEFAULT_MAX_LINES, BASH_HARD_MAX_LINES } from "@/constants/toolLimits";
+
 import { zodToJsonSchema } from "zod-to-json-schema";
 
 interface ToolSchema {
@@ -44,9 +46,11 @@ export const TOOL_DEFINITIONS = {
         .number()
         .int()
         .positive()
-        .describe(
-          "Maximum number of output lines to return. Command will be killed if output exceeds this limit."
-        ),
+        .max(
+          BASH_HARD_MAX_LINES,
+          `Maximum number of output lines to return (hard capped at ${BASH_HARD_MAX_LINES}). Command will be killed if output exceeds this limit.`
+        )
+        .default(BASH_DEFAULT_MAX_LINES),
       stdin: z
         .string()
         .optional()

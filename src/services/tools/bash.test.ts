@@ -1,6 +1,8 @@
 import { describe, it, expect } from "bun:test";
 import { createBashTool } from "./bash";
 import type { BashToolArgs, BashToolResult } from "@/types/tools";
+import { BASH_HARD_MAX_LINES } from "@/constants/toolLimits";
+
 import type { ToolCallOptions } from "ai";
 
 // Mock ToolCallOptions for testing
@@ -62,6 +64,24 @@ describe("bash tool", () => {
       expect(lines.length).toBe(5);
       expect(result.output).toContain("[TRUNCATED]");
       expect(result.truncated).toBe(true);
+    }
+  });
+  it("should clamp max_lines requests above the hard cap", async () => {
+    const tool = createBashTool({ cwd: process.cwd() });
+    const args: BashToolArgs = {
+      script: "for i in {1..1100}; do echo line$i; done",
+      timeout_secs: 5,
+      max_lines: BASH_HARD_MAX_LINES * 5,
+    };
+
+    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.truncated).toBe(true);
+      const lines = result.output.split("\n");
+      expect(lines).toHaveLength(BASH_HARD_MAX_LINES);
+      expect(result.output).toContain("[TRUNCATED]");
     }
   });
 
