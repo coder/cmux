@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import styled from "@emotion/styled";
 import type { FileReadToolArgs, FileReadToolResult } from "@/types/tools";
 import {
   ToolContainer,
@@ -12,93 +11,7 @@ import {
   HeaderButton,
 } from "./shared/ToolPrimitives";
 import { useToolExpansion, type ToolStatus } from "./shared/toolUtils";
-
-// File read specific styled components
-
-const CompactHeader = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 1;
-  font-size: 11px;
-  color: var(--color-text);
-`;
-
-const SearchIcon = styled.span`
-  font-size: 14px;
-`;
-
-const FilePath = styled.span`
-  font-family: var(--font-monospace);
-  color: var(--color-text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 400px;
-`;
-
-const TokenCount = styled.span`
-  color: var(--color-text-secondary);
-  font-size: 10px;
-  margin-left: 4px;
-`;
-
-const ContentBlock = styled.pre`
-  margin: 0;
-  padding: 6px 8px;
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 3px;
-  border-left: 2px solid #2196f3;
-  font-size: 11px;
-  line-height: 1.4;
-  white-space: pre-wrap;
-  word-break: break-word;
-  max-height: 400px;
-  overflow-y: auto;
-`;
-
-const MetadataRow = styled.div`
-  display: flex;
-  gap: 16px;
-  font-size: 10px;
-  color: var(--color-text-secondary);
-  padding: 4px 0;
-`;
-
-const ErrorMessage = styled.div`
-  color: #f44336;
-  font-size: 11px;
-  padding: 6px 8px;
-  background: rgba(244, 67, 54, 0.1);
-  border-radius: 3px;
-  border-left: 2px solid #f44336;
-`;
-
-const StyledToolHeader = styled(ToolHeader)`
-  cursor: default;
-
-  &:hover {
-    color: var(--color-text-secondary);
-  }
-`;
-
-const LeftContent = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 1;
-  cursor: pointer;
-
-  &:hover {
-    color: var(--color-text);
-  }
-`;
-
-const ButtonGroup = styled.div`
-  display: flex;
-  gap: 6px;
-  margin-right: 8px;
-`;
+import styles from "./FileReadToolCall.module.css";
 
 interface FileReadToolCallProps {
   args: FileReadToolArgs;
@@ -144,13 +57,13 @@ export const FileReadToolCall: React.FC<FileReadToolCallProps> = ({
   if (!expanded) {
     return (
       <ToolContainer expanded={false}>
-        <StyledToolHeader onClick={toggleExpanded}>
-          <CompactHeader>
-            <SearchIcon>🔍</SearchIcon>
-            <FilePath>{filePath}</FilePath>
-            {tokenCount !== null && <TokenCount>~{tokenCount} tokens</TokenCount>}
-          </CompactHeader>
-        </StyledToolHeader>
+        <div className={styles.styledToolHeader} onClick={toggleExpanded}>
+          <div className={styles.compactHeader}>
+            <span className={styles.searchIcon}>🔍</span>
+            <span className={styles.filePath}>{filePath}</span>
+            {tokenCount !== null && <span className={styles.tokenCount}>~{tokenCount} tokens</span>}
+          </div>
+        </div>
       </ToolContainer>
     );
   }
@@ -158,14 +71,14 @@ export const FileReadToolCall: React.FC<FileReadToolCallProps> = ({
   // Full display when expanded
   return (
     <ToolContainer expanded={expanded}>
-      <StyledToolHeader>
-        <LeftContent onClick={toggleExpanded}>
-          <SearchIcon>🔍</SearchIcon>
-          <FilePath>{filePath}</FilePath>
-          {tokenCount !== null && <TokenCount>~{tokenCount} tokens</TokenCount>}
-        </LeftContent>
+      <div className={styles.styledToolHeader}>
+        <div className={styles.leftContent} onClick={toggleExpanded}>
+          <span className={styles.searchIcon}>🔍</span>
+          <span className={styles.filePath}>{filePath}</span>
+          {tokenCount !== null && <span className={styles.tokenCount}>~{tokenCount} tokens</span>}
+        </div>
         {result && result.success && (
-          <ButtonGroup>
+          <div className={styles.buttonGroup}>
             <HeaderButton
               onClick={(e: React.MouseEvent) => {
                 e.stopPropagation();
@@ -174,9 +87,9 @@ export const FileReadToolCall: React.FC<FileReadToolCallProps> = ({
             >
               {copied ? "✓ Copied" : "Copy Content"}
             </HeaderButton>
-          </ButtonGroup>
+          </div>
         )}
-      </StyledToolHeader>
+      </div>
 
       {expanded && (
         <ToolDetails>
@@ -185,21 +98,21 @@ export const FileReadToolCall: React.FC<FileReadToolCallProps> = ({
               {result.success === false && result.error && (
                 <DetailSection>
                   <DetailLabel>Error</DetailLabel>
-                  <ErrorMessage>{result.error}</ErrorMessage>
+                  <div className={styles.errorMessage}>{result.error}</div>
                 </DetailSection>
               )}
 
               {result.success && (
                 <>
-                  <MetadataRow>
+                  <div className={styles.metadataRow}>
                     <span>Lines: {result.lines_read}</span>
                     <span>Size: {formatFileSize(result.file_size)}</span>
                     <span>Modified: {new Date(result.modifiedTime).toLocaleString()}</span>
-                  </MetadataRow>
+                  </div>
 
                   <DetailSection>
                     <DetailLabel>Content</DetailLabel>
-                    <ContentBlock>{result.content}</ContentBlock>
+                    <pre className={styles.contentBlock}>{result.content}</pre>
                   </DetailSection>
                 </>
               )}
