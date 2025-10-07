@@ -30,7 +30,7 @@ jobs:
         run: |
           # Decode certificate to file to avoid issues with newlines in base64 string
           if [ -n "${{ secrets.MACOS_CERTIFICATE }}" ]; then
-            echo "${{ secrets.MACOS_CERTIFICATE }}" | base64 --decode > /tmp/certificate.p12
+            echo "${{ secrets.MACOS_CERTIFICATE }}" | base64 -D > /tmp/certificate.p12
             export CSC_LINK="/tmp/certificate.p12"
             export CSC_KEY_PASSWORD="${{ secrets.MACOS_CERTIFICATE_PWD }}"
           fi
