@@ -50,6 +50,12 @@ const config: StorybookConfig = {
       ],
     };
 
+    // Ensure emotion packages are resolved correctly
+    config.resolve = {
+      ...config.resolve,
+      dedupe: ['@emotion/react', '@emotion/styled', '@emotion/cache'],
+    };
+
     return config;
   },
 };
