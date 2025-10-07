@@ -2,23 +2,24 @@
 
 Commands for managing conversation history length and token usage.
 
+## Comparison
+
+| Feature | `/clear` | `/truncate` | `/compact` |
+|---------|----------|------------|------------|
+| **Speed** | Instant | Instant | Slower (uses AI) |
+| **Context Preservation** | None | Temporal | Intelligent |
+| **Cost** | Free | Free | Uses API tokens |
+| **Reversible** | No | No | No |
+
 ## `/clear` - Clear All History
 
-Remove all messages from conversation history. Equivalent to `/truncate 100`.
+Remove all messages from conversation history. 
 
 ### Syntax
 
 ```
 /clear
 ```
-
-### Examples
-
-```
-/clear
-```
-
-Start fresh with an empty conversation.
 
 ### Notes
 
@@ -97,17 +98,8 @@ Remove oldest 50% of messages.
 
 - Simple deletion, no AI involved
 - Removes messages from oldest to newest
-- Faster than `/compact` but loses context
+- About as fast as `/clear`
+- `/truncate 100` is equivalent to `/clear`
 - **Irreversible** - messages are permanently removed
 
----
 
-## Comparison
-
-| Feature | `/clear` | `/truncate` | `/compact` |
-|---------|----------|------------|------------|
-| **Speed** | Instant | Instant | Slower (uses AI) |
-| **Context Preservation** | None | None | Intelligent summary |
-| **Customization** | None | Percentage | Token limit + instructions |
-| **Cost** | Free | Free | Uses API tokens |
-| **Reversible** | No | No | No |
