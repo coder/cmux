@@ -121,8 +121,11 @@ export const KEYBINDS = {
   /** Insert newline in text input */
   NEW_LINE: { key: "Enter", shift: true },
 
-  /** Cancel current action / Close modal / Interrupt streaming */
+  /** Cancel current action / Close modal (excludes stream interruption) */
   CANCEL: { key: "Escape" },
+
+  /** Interrupt active stream (destructive - stops AI generation) */
+  INTERRUPT_STREAM: { key: "c", ctrl: true },
 
   /** Focus chat input */
   FOCUS_INPUT_I: { key: "i" },

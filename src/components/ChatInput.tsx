@@ -640,12 +640,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       const isFocused = document.activeElement === inputRef.current;
       e.preventDefault();
 
-      // Priority 1: Cancel editing if in edit mode
+      // Cancel editing if in edit mode
       if (editingMessage && onCancelEdit) {
         onCancelEdit();
-      } else if (canInterrupt) {
-        // Priority 2: Interrupt streaming if active
-        void window.api.workspace.sendMessage(workspaceId, "");
       }
 
       if (isFocused) {
@@ -680,7 +677,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   // Build placeholder text based on current state
   const placeholder = (() => {
     if (editingMessage) {
-      return `Edit your message... (${formatKeybind(KEYBINDS.CANCEL)} to cancel, ${formatKeybind(KEYBINDS.SEND_MESSAGE)} to send)`;
+      return `Edit your message... (${formatKeybind(KEYBINDS.CANCEL)} to cancel edit, ${formatKeybind(KEYBINDS.SEND_MESSAGE)} to send)`;
     }
     if (isCompacting) {
       return "Compacting conversation...";
@@ -689,7 +686,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     // Build hints for normal input
     const hints: string[] = [];
     if (canInterrupt) {
-      hints.push(`${formatKeybind(KEYBINDS.CANCEL)} to interrupt`);
+      hints.push(`${formatKeybind(KEYBINDS.INTERRUPT_STREAM)} to interrupt`);
     }
     hints.push(`${formatKeybind(KEYBINDS.SEND_MESSAGE)} to send`);
     hints.push(`${formatKeybind(KEYBINDS.OPEN_MODEL_SELECTOR)} to change model`);

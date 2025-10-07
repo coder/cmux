@@ -281,12 +281,18 @@ const AIViewInner: React.FC<AIViewProps> = ({
       } else if (matchesKeybind(e, KEYBINDS.OPEN_TERMINAL)) {
         e.preventDefault();
         handleOpenTerminal();
+      } else if (matchesKeybind(e, KEYBINDS.INTERRUPT_STREAM)) {
+        // Only interrupt if there's an active stream
+        if (canInterrupt) {
+          e.preventDefault();
+          void window.api.workspace.sendMessage(workspaceId, "");
+        }
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [jumpToBottom, handleOpenTerminal]);
+  }, [jumpToBottom, handleOpenTerminal, workspaceId, canInterrupt]);
 
   if (loading) {
     return (
@@ -375,8 +381,8 @@ const AIViewInner: React.FC<AIViewProps> = ({
                 <StreamingBarrier
                   text={
                     isCompacting
-                      ? "compacting... hit Esc to cancel"
-                      : `${getModelName(currentModel)} streaming... hit Esc to cancel`
+                      ? `compacting... hit ${formatKeybind(KEYBINDS.INTERRUPT_STREAM)} to cancel`
+                      : `${getModelName(currentModel)} streaming... hit ${formatKeybind(KEYBINDS.INTERRUPT_STREAM)} to cancel`
                   }
                 />
               )}
