@@ -45,23 +45,18 @@ const unlimitedTimeoutAgent = new Agent({
  * Default fetch function with unlimited timeouts for AI streaming.
  * Uses undici Agent to remove artificial timeout limits while still
  * respecting user cancellation via AbortSignal.
+ *
+ * Note: If users provide custom fetch in providers.jsonc, they are
+ * responsible for configuring timeouts appropriately. Custom fetch
+ * implementations using undici should set bodyTimeout: 0 and
+ * headersTimeout: 0 to prevent BodyTimeoutError on long-running
+ * reasoning models.
  */
 function defaultFetchWithUnlimitedTimeout(
   input: RequestInfo | URL,
   init?: RequestInit
 ): Promise<Response> {
   return fetch(input, { ...init, dispatcher: unlimitedTimeoutAgent } as RequestInit);
-}
-
-/**
- * Wraps a user-provided fetch function to add unlimited timeout support.
- * Preserves custom fetch behavior (proxies, headers, logging) while preventing
- * BodyTimeoutError on long-running requests.
- */
-function wrapFetchWithUnlimitedTimeout(userFetch: typeof fetch): typeof fetch {
-  return ((input: RequestInfo | URL, init?: RequestInit) => {
-    return userFetch(input, { ...init, dispatcher: unlimitedTimeoutAgent } as RequestInit);
-  }) as typeof fetch;
 }
 
 export class AIService extends EventEmitter {
@@ -215,17 +210,17 @@ export class AIService extends EventEmitter {
             provider: providerName,
           });
         }
-        // Preserve user's custom fetch (for proxies, headers, logging, etc.) if provided,
-        // but wrap it to add unlimited timeout support. If no custom fetch, use default.
-        const fetchWithTimeout =
+        // Use user's custom fetch as-is if provided (user controls timeouts),
+        // otherwise use our default fetch with unlimited timeout.
+        const fetchToUse =
           typeof providerConfig.fetch === "function"
-            ? wrapFetchWithUnlimitedTimeout(providerConfig.fetch as typeof fetch)
+            ? (providerConfig.fetch as typeof fetch)
             : defaultFetchWithUnlimitedTimeout;
 
         const provider = createOpenAI({
           ...providerConfig,
           // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-explicit-any
-          fetch: fetchWithTimeout as any,
+          fetch: fetchToUse as any,
         });
         // Use Responses API for persistence and built-in tools
         return Ok(provider.responses(modelId));
