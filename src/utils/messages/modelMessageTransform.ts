@@ -52,43 +52,72 @@ export function filterEmptyAssistantMessages(messages: CmuxMessage[]): CmuxMessa
  */
 export function clearProviderMetadataForOpenAI(messages: ModelMessage[]): ModelMessage[] {
   return messages.map((msg) => {
-    // Only process assistant messages (which may have reasoning/tool parts)
-    if (msg.role !== "assistant") {
-      return msg;
-    }
+    // Process assistant messages (which may have reasoning/text/tool-call parts)
+    if (msg.role === "assistant") {
+      const assistantMsg = msg;
 
-    const assistantMsg = msg;
-
-    // Handle string content (no parts to process)
-    if (typeof assistantMsg.content === "string") {
-      return msg;
-    }
-
-    // Process content array and clear provider metadata
-    const cleanedContent = assistantMsg.content.map((part) => {
-      // Clear providerMetadata for text and reasoning parts
-      if ((part.type === "text" || part.type === "reasoning") && "providerMetadata" in part) {
-        return {
-          ...part,
-          providerMetadata: {},
-        };
+      // Handle string content (no parts to process)
+      if (typeof assistantMsg.content === "string") {
+        return msg;
       }
 
-      // Clear providerMetadata for tool-call parts
-      if (part.type === "tool-call" && "providerMetadata" in part) {
-        return {
-          ...part,
-          providerMetadata: {},
-        };
+      // Process content array and clear provider metadata
+      const cleanedContent = assistantMsg.content.map((part) => {
+        // Clear providerMetadata for text and reasoning parts
+        if ((part.type === "text" || part.type === "reasoning") && "providerMetadata" in part) {
+          return {
+            ...part,
+            providerMetadata: {},
+          };
+        }
+
+        // Clear providerMetadata for tool-call parts
+        if (part.type === "tool-call" && "providerMetadata" in part) {
+          return {
+            ...part,
+            providerMetadata: {},
+          };
+        }
+
+        return part;
+      });
+
+      return {
+        ...assistantMsg,
+        content: cleanedContent,
+      };
+    }
+
+    // Process tool messages (which may have tool-result parts with stale metadata)
+    if (msg.role === "tool") {
+      const toolMsg = msg;
+
+      // Handle string content (no parts to process)
+      if (typeof toolMsg.content === "string") {
+        return msg;
       }
 
-      return part;
-    });
+      // Process content array and clear provider metadata
+      const cleanedContent = toolMsg.content.map((part) => {
+        // Clear providerMetadata for tool-result parts
+        if (part.type === "tool-result" && "providerMetadata" in part) {
+          return {
+            ...part,
+            providerMetadata: {},
+          };
+        }
 
-    return {
-      ...assistantMsg,
-      content: cleanedContent,
-    };
+        return part;
+      });
+
+      return {
+        ...toolMsg,
+        content: cleanedContent,
+      };
+    }
+
+    // Other message types (user, system) pass through unchanged
+    return msg;
   });
 }
 
