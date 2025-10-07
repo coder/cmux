@@ -3,10 +3,10 @@
 /**
  * Debug script to replay a chat history and send a new message.
  * Useful for reproducing errors with specific conversation contexts.
- * 
+ *
  * Usage:
  *   bun src/debug/replay-history.ts <history-file.json> <message> [--model <model>]
- * 
+ *
  * Example:
  *   bun src/debug/replay-history.ts /tmp/chat-broken.json "test message" --model openai:gpt-5-codex
  */
@@ -34,8 +34,12 @@ const historyFile = positionals[0];
 const messageText = positionals[1];
 
 if (!historyFile || !messageText) {
-  console.error("Usage: bun src/debug/replay-history.ts <history-file.json> <message> [--model <model>]");
-  console.error("Example: bun src/debug/replay-history.ts /tmp/chat-broken.json 'test' --model openai:gpt-5-codex");
+  console.error(
+    "Usage: bun src/debug/replay-history.ts <history-file.json> <message> [--model <model>]"
+  );
+  console.error(
+    "Example: bun src/debug/replay-history.ts /tmp/chat-broken.json 'test' --model openai:gpt-5-codex"
+  );
   process.exit(1);
 }
 
@@ -53,7 +57,7 @@ async function main() {
   // Read history
   const historyContent = fs.readFileSync(historyFile, "utf-8");
   let messages: CmuxMessage[];
-  
+
   try {
     // Try parsing as JSON array first
     messages = JSON.parse(historyContent) as CmuxMessage[];
@@ -69,12 +73,13 @@ async function main() {
   }
 
   console.log(`📝 Loaded ${messages.length} messages from history\n`);
-  
+
   // Display summary
   for (const msg of messages) {
-    const preview = msg.role === "user"
-      ? (msg.parts.find((p) => p.type === "text")?.text?.substring(0, 60) ?? "")
-      : `[${msg.parts.length} parts: ${msg.parts.map(p => p.type).join(", ")}]`;
+    const preview =
+      msg.role === "user"
+        ? (msg.parts.find((p) => p.type === "text")?.text?.substring(0, 60) ?? "")
+        : `[${msg.parts.length} parts: ${msg.parts.map((p) => p.type).join(", ")}]`;
     const model = msg.metadata?.model ?? "unknown";
     console.log(`  ${msg.role.padEnd(9)} (${model}): ${preview}`);
   }
@@ -82,16 +87,19 @@ async function main() {
   // Create a temporary workspace
   const workspaceId = `debug-replay-${Date.now()}`;
   const sessionDir = defaultConfig.getSessionDir(workspaceId);
-  fs.mkdirSync(sessionDir, { recursive: true});
-  
+  fs.mkdirSync(sessionDir, { recursive: true });
+
   // Create workspace metadata
   const metadataPath = path.join(sessionDir, "metadata.json");
-  fs.writeFileSync(metadataPath, JSON.stringify({
-    id: workspaceId,
-    projectName: "debug",
-    workspacePath: `/tmp/${workspaceId}`
-  }));
-  
+  fs.writeFileSync(
+    metadataPath,
+    JSON.stringify({
+      id: workspaceId,
+      projectName: "debug",
+      workspacePath: `/tmp/${workspaceId}`,
+    })
+  );
+
   const chatHistoryPath = path.join(sessionDir, "chat.jsonl");
 
   // Write history to temp workspace
@@ -99,7 +107,7 @@ async function main() {
   fs.writeFileSync(chatHistoryPath, historyLines + "\n");
 
   console.log(`\n✓ Created temporary workspace: ${workspaceId}`);
-  
+
   // Add new user message to the history
   const userMessage = createCmuxMessage(
     `user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -108,7 +116,7 @@ async function main() {
     { timestamp: Date.now(), historySequence: messages.length }
   );
   messages.push(userMessage);
-  
+
   console.log(`\n📤 Sending message: "${messageText}"\n`);
 
   // Initialize services - AIService creates its own StreamManager
@@ -122,12 +130,7 @@ async function main() {
 
   try {
     // Stream the message - pass all messages including the new one
-    const result = await aiService.streamMessage(
-      messages,
-      workspaceId,
-      modelString,
-      thinkingLevel
-    );
+    const result = await aiService.streamMessage(messages, workspaceId, modelString, thinkingLevel);
 
     if (!result.success) {
       console.error(`\n❌ Error:`, JSON.stringify(result.error, null, 2));
@@ -135,24 +138,24 @@ async function main() {
     }
 
     console.log(`✓ Stream started`);
-    
+
     // Wait for stream to complete
     console.log(`\n⏳ Waiting for stream to complete...\n`);
-    
+
     // Subscribe to stream events
     let hasError = false;
     let errorMessage = "";
-    
+
     interface StreamEvent {
       workspaceId: string;
       type: string;
       toolName?: string;
       error?: string;
-    };
-    
+    }
+
     aiService.on("stream-event", (event: StreamEvent) => {
       if (event.workspaceId !== workspaceId) return;
-      
+
       if (event.type === "stream-start") {
         console.log(`[${event.type}] Started`);
       } else if (event.type === "reasoning-delta" || event.type === "text-delta") {
@@ -177,14 +180,18 @@ async function main() {
     // Wait for completion
     await new Promise<void>((resolve) => {
       const checkInterval = setInterval(() => {
-        const streamManager = (aiService as unknown as { streamManager: { workspaceStreams: Map<string, { state: string }> } }).streamManager;
+        const streamManager = (
+          aiService as unknown as {
+            streamManager: { workspaceStreams: Map<string, { state: string }> };
+          }
+        ).streamManager;
         const stream = streamManager.workspaceStreams.get(workspaceId);
         if (!stream || stream.state === "completed" || stream.state === "error") {
           clearInterval(checkInterval);
           resolve();
         }
       }, 100);
-      
+
       // Timeout after 2 minutes
       setTimeout(() => {
         clearInterval(checkInterval);
@@ -195,17 +202,16 @@ async function main() {
     if (hasError) {
       console.log(`\n❌ Stream encountered an error:`);
       console.log(errorMessage);
-      
+
       // Check if it's the web_search_call error
       if (errorMessage.includes("web_search_call") && errorMessage.includes("reasoning")) {
         console.log(`\n🎯 Reproduced the web_search_call + reasoning error!`);
       }
-      
+
       process.exit(1);
     }
 
     console.log(`\n✅ Stream completed successfully!`);
-    
   } catch (error) {
     console.error(`\n❌ Exception:`, error);
     process.exit(1);
