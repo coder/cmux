@@ -1,6 +1,14 @@
 import type { ReactNode } from "react";
+<<<<<<< HEAD
 import React, { useState, useMemo } from "react";
 import styled from "@emotion/styled";
+||||||| parent of 16a6df0 (Fix Chromatic compatibility by removing styled shim)
+import React, { useState } from "react";
+import styled from "@/styles/styled";
+=======
+import React, { useState } from "react";
+import styled from "@emotion/styled";
+>>>>>>> 16a6df0 (Fix Chromatic compatibility by removing styled shim)
 import type { CmuxMessage, DisplayedMessage } from "@/types/message";
 import { HeaderButton } from "../tools/shared/ToolPrimitives";
 import { formatTimestamp } from "@/utils/ui/dateTime";

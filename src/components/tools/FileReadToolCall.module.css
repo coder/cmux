@@ -1,0 +1,84 @@
+.compactHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  font-size: 11px;
+  color: var(--color-text);
+}
+
+.searchIcon {
+  font-size: 14px;
+}
+
+.filePath {
+  font-family: var(--font-monospace);
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 400px;
+}
+
+.tokenCount {
+  color: var(--color-text-secondary);
+  font-size: 10px;
+  margin-left: 4px;
+}
+
+.contentBlock {
+  margin: 0;
+  padding: 6px 8px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
+  border-left: 2px solid #2196f3;
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.metadataRow {
+  display: flex;
+  gap: 16px;
+  font-size: 10px;
+  color: var(--color-text-secondary);
+  padding: 4px 0;
+}
+
+.errorMessage {
+  color: #f44336;
+  font-size: 11px;
+  padding: 6px 8px;
+  background: rgba(244, 67, 54, 0.1);
+  border-radius: 3px;
+  border-left: 2px solid #f44336;
+}
+
+.styledToolHeader {
+  cursor: default;
+}
+
+.styledToolHeader:hover {
+  color: var(--color-text-secondary);
+}
+
+.leftContent {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  cursor: pointer;
+}
+
+.leftContent:hover {
+  color: var(--color-text);
+}
+
+.buttonGroup {
+  display: flex;
+  gap: 6px;
+  margin-right: 8px;
+}

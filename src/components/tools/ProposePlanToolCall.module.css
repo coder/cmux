@@ -1,0 +1,120 @@
+.planContainer {
+  padding: 12px;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-plan-mode), transparent 92%) 0%,
+    color-mix(in srgb, var(--color-plan-mode), transparent 95%) 100%
+  );
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--color-plan-mode), transparent 70%);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.planHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-plan-mode), transparent 80%);
+}
+
+.planHeaderLeft {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.planHeaderRight {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.planIcon {
+  font-size: 16px;
+}
+
+.planTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-plan-mode);
+  font-family: var(--font-monospace);
+}
+
+.planButton {
+  padding: 4px 8px;
+  font-size: 10px;
+  font-family: var(--font-monospace);
+  color: #888;
+  background: transparent;
+  border: 1px solid rgba(136, 136, 136, 0.3);
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.planButton.active {
+  color: var(--color-plan-mode);
+  background: color-mix(in srgb, var(--color-plan-mode), transparent 90%);
+  border-color: color-mix(in srgb, var(--color-plan-mode), transparent 70%);
+}
+
+.planButton:hover {
+  background: color-mix(in srgb, var(--color-plan-mode), transparent 85%);
+  color: var(--color-plan-mode);
+  border-color: color-mix(in srgb, var(--color-plan-mode), transparent 60%);
+}
+
+.rawContent {
+  font-family: var(--font-monospace);
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--color-text);
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
+}
+
+.planContent {
+  font-family: var(--font-primary);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.guidanceText {
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  font-style: italic;
+  margin: 8px 0;
+}
+
+.keybindDisplay {
+  font-family: var(--font-monospace);
+  font-weight: 600;
+}
+
+.planBlock {
+  margin: 0;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
+  border-left: 2px solid #9c27b0;
+  font-size: 11px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.errorMessage {
+  color: #f44336;
+  font-size: 11px;
+  padding: 6px 8px;
+  background: rgba(244, 67, 54, 0.1);
+  border-radius: 3px;
+  border-left: 2px solid #f44336;
+}

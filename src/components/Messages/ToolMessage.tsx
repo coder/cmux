@@ -3,10 +3,13 @@ import type { DisplayedMessage } from "@/types/message";
 import { GenericToolCall } from "../tools/GenericToolCall";
 import { BashToolCall } from "../tools/BashToolCall";
 import { FileEditToolCall } from "../tools/FileEditToolCall";
+import { FileReadToolCall } from "../tools/FileReadToolCall";
 import { ProposePlanToolCall } from "../tools/ProposePlanToolCall";
 import type {
   BashToolArgs,
   BashToolResult,
+  FileReadToolArgs,
+  FileReadToolResult,
   FileEditReplaceToolArgs,
   FileEditInsertToolArgs,
   FileEditReplaceToolResult,
@@ -28,6 +31,13 @@ function isBashTool(toolName: string, args: unknown): args is BashToolArgs {
     args !== null &&
     "script" in args &&
     "timeout_secs" in args
+  );
+}
+
+// Type guard for file_read tool
+function isFileReadTool(toolName: string, args: unknown): args is FileReadToolArgs {
+  return (
+    toolName === "file_read" && typeof args === "object" && args !== null && "filePath" in args
   );
 }
 
@@ -69,6 +79,18 @@ export const ToolMessage: React.FC<ToolMessageProps> = ({ message, className }) 
         <BashToolCall
           args={message.args}
           result={message.result as BashToolResult | undefined}
+          status={message.status}
+        />
+      </div>
+    );
+  }
+
+  if (isFileReadTool(message.toolName, message.args)) {
+    return (
+      <div className={className}>
+        <FileReadToolCall
+          args={message.args}
+          result={message.result as FileReadToolResult | undefined}
           status={message.status}
         />
       </div>
