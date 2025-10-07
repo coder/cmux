@@ -19,6 +19,10 @@ import type {
 } from "@/types/toolParts";
 import { isDynamicToolPart } from "@/types/toolParts";
 
+// Maximum number of messages to display in the DOM for performance
+// Full history is still maintained internally for token counting and stats
+const MAX_DISPLAYED_MESSAGES = 128;
+
 interface StreamingContext {
   startTime: number;
   isComplete: boolean;
@@ -552,6 +556,23 @@ export class StreamingMessageAggregator {
           });
         }
       }
+    }
+
+    // Limit to last N messages for DOM performance
+    // Full history is still maintained internally for token counting
+    if (displayedMessages.length > MAX_DISPLAYED_MESSAGES) {
+      const hiddenCount = displayedMessages.length - MAX_DISPLAYED_MESSAGES;
+      const slicedMessages = displayedMessages.slice(-MAX_DISPLAYED_MESSAGES);
+
+      // Add history-hidden indicator as the first message
+      const historyHiddenMessage: DisplayedMessage = {
+        type: "history-hidden",
+        id: "history-hidden",
+        hiddenCount,
+        historySequence: -1, // Place it before all messages
+      };
+
+      return [historyHiddenMessage, ...slicedMessages];
     }
 
     return displayedMessages;
