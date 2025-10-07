@@ -1,7 +1,7 @@
 import * as fs from "fs/promises";
 import * as path from "path";
 import { EventEmitter } from "events";
-import { convertToModelMessages, type LanguageModel } from "ai";
+import { convertToModelMessages, wrapLanguageModel, type LanguageModel } from "ai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import type { Result } from "@/types/result";
 import { Ok, Err } from "@/types/result";
@@ -32,6 +32,7 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { Agent } from "undici";
 import type { StreamAbortEvent } from "@/types/stream";
 import { applyToolPolicy, type ToolPolicy } from "@/utils/tools/toolPolicy";
+import { openaiReasoningFixMiddleware } from "@/utils/ai/openaiReasoningMiddleware";
 
 // Export a standalone version of getToolsForModel for use in backend
 
@@ -224,7 +225,15 @@ export class AIService extends EventEmitter {
           fetch: fetchToUse as any,
         });
         // Use Responses API for persistence and built-in tools
-        return Ok(provider.responses(modelId));
+        const baseModel = provider.responses(modelId);
+        
+        // Wrap with middleware to fix reasoning items
+        const wrappedModel = wrapLanguageModel({
+          model: baseModel,
+          middleware: openaiReasoningFixMiddleware,
+        });
+        
+        return Ok(wrappedModel);
       }
 
       return Err({
