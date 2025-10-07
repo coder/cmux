@@ -326,4 +326,118 @@ describeIntegration("OpenAI Reasoning Error Reproduction", () => {
     },
     TOTAL_TIMEOUT
   );
+
+  test.concurrent(
+    "should reproduce error with real chat history from cmux-docs-style",
+    async () => {
+      // Skip if TEST_RUNS is 0 (default)
+      if (TEST_RUNS === 0) {
+        console.log("⏭️  Skipping history replay test (set OPENAI_REASONING_TEST_RUNS to run)");
+        expect(true).toBe(true);
+        return;
+      }
+
+      console.log("\n[History Replay] Loading real chat history that triggers the error...");
+
+      const provider = "openai";
+      const model = "gpt-5-codex";
+
+      // Load the chat history that reliably reproduces the error
+      const fs = await import("fs/promises");
+      const path = await import("path");
+      const historyPath = path.join(__dirname, "../testdata/openai-reasoning-error-repro.jsonl");
+      const historyContent = await fs.readFile(historyPath, "utf-8");
+      const messages = historyContent
+        .trim()
+        .split("\n")
+        .map((line) => JSON.parse(line));
+
+      console.log(`[History Replay] Loaded ${messages.length} messages from history`);
+
+      const { env, workspaceId, cleanup } = await setupWorkspace(provider, "history-replay");
+
+      try {
+        // Replay the user messages in sequence
+        const userMessages = messages.filter((m: { role: string }) => m.role === "user");
+        console.log(`[History Replay] Replaying ${userMessages.length} user messages...`);
+
+        for (let i = 0; i < userMessages.length; i++) {
+          const userMsg = userMessages[i] as { parts: Array<{ type: string; text?: string }> };
+          const messageText = userMsg.parts.find((p) => p.type === "text")?.text || "";
+
+          console.log(
+            `\n[History Replay] Turn ${i + 1}/${userMessages.length}: ${messageText.substring(0, 80)}...`
+          );
+
+          const result = await sendMessageWithModel(
+            env.mockIpcRenderer,
+            workspaceId,
+            messageText,
+            provider,
+            model,
+            {
+              thinkingLevel: "high",
+            }
+          );
+
+          if (!result.success) {
+            console.log(`[History Replay] Turn ${i + 1} failed:`, result.error);
+            await cleanup();
+            expect(result.success).toBe(true);
+            return;
+          }
+
+          // Wait for stream to complete (or error)
+          const collector = createEventCollector(env.sentEvents, workspaceId);
+          await collector.waitForEvent("stream-end", 60000).catch(() => {
+            /* Timeout is OK if error occurred */
+          });
+
+          // Check if stream had an error
+          const streamError = collector
+            .getEvents()
+            .find((e: { type?: string }) => "type" in e && e.type === "stream-error");
+
+          if (streamError) {
+            console.log(`[History Replay] Turn ${i + 1} stream error:`, streamError);
+
+            // Check if this is the error we're looking for
+            if ("error" in streamError && typeof streamError.error === "string") {
+              if (
+                streamError.error.includes("reasoning") &&
+                streamError.error.includes("without its required following item")
+              ) {
+                console.log(`\n🎯 [History Replay] REPRODUCED THE ERROR on turn ${i + 1}!`);
+                console.log(`Error: ${streamError.error}`);
+                await cleanup();
+                expect(true).toBe(true); // Success - we reproduced it!
+                return;
+              }
+            }
+
+            // Some other error - fail the test
+            await cleanup();
+            expect(streamError).toBeUndefined();
+            return;
+          }
+
+          console.log(`[History Replay] Turn ${i + 1} succeeded`);
+
+          // Clear events for next message
+          env.sentEvents.length = 0;
+        }
+
+        console.log(
+          `\n❌ [History Replay] Failed to reproduce error - all ${userMessages.length} messages succeeded`
+        );
+        await cleanup();
+        expect(true).toBe(true);
+      } catch (error) {
+        console.log(`[History Replay] Exception:`, error);
+        await cleanup();
+        throw error;
+      }
+    },
+    120000 // 2 minute timeout for history replay
+  );
 });
