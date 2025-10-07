@@ -48,7 +48,7 @@ export const openaiReasoningFixMiddleware: LanguageModelV2Middleware = {
         // Filter out reasoning content from assistant messages
         if (Array.isArray(message.content)) {
           // Check if this message contains reasoning
-          const hasReasoning = message.content.some(
+          const _hasReasoning = message.content.some(
             (part) =>
               typeof part === "object" &&
               part !== null &&
