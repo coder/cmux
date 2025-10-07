@@ -21,6 +21,14 @@ const Arrow = styled.span`
   font-weight: normal;
 `;
 
+const DirtyIndicator = styled.span`
+  display: flex;
+  align-items: center;
+  font-weight: normal;
+  color: var(--color-git-dirty);
+  line-height: 1;
+`;
+
 const Tooltip = styled.div<{ show: boolean }>`
   position: fixed;
   z-index: 10000;
@@ -80,6 +88,40 @@ const BranchHeaderLine = styled.div`
 
 const BranchName = styled.span`
   color: #cccccc;
+`;
+
+const DirtySection = styled.div`
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #464647;
+`;
+
+const DirtySectionTitle = styled.div`
+  color: var(--color-git-dirty);
+  font-weight: 600;
+  margin-bottom: 4px;
+  font-family: var(--font-monospace);
+`;
+
+const DirtyFileList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+`;
+
+const DirtyFileLine = styled.div`
+  color: #cccccc;
+  font-family: var(--font-monospace);
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: pre;
+`;
+
+const TruncationNote = styled.div`
+  color: #808080;
+  font-style: italic;
+  margin-top: 4px;
+  font-size: 10px;
 `;
 
 const CommitList = styled.div`
@@ -150,7 +192,8 @@ interface GitStatusIndicatorProps {
 /**
  * Displays git status (ahead/behind) relative to origin's primary branch.
  * Shows arrows with counts: ↑N for ahead, ↓M for behind.
- * Shows nothing if status is unavailable or both counts are 0.
+ * Shows * indicator if there are uncommitted changes (dirty).
+ * Shows nothing if status is unavailable and no changes.
  * On hover, displays git show-branch output in a tooltip.
  */
 export const GitStatusIndicator: React.FC<GitStatusIndicatorProps> = ({
@@ -162,6 +205,7 @@ export const GitStatusIndicator: React.FC<GitStatusIndicatorProps> = ({
   const [showTooltip, setShowTooltip] = useState(false);
   const [branchHeaders, setBranchHeaders] = useState<GitBranchHeader[] | null>(null);
   const [commits, setCommits] = useState<GitCommit[] | null>(null);
+  const [dirtyFiles, setDirtyFiles] = useState<string[] | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [tooltipCoords, setTooltipCoords] = useState<{ top: number; left: number }>({
@@ -173,6 +217,7 @@ export const GitStatusIndicator: React.FC<GitStatusIndicatorProps> = ({
   const cacheRef = useRef<{
     headers: GitBranchHeader[];
     commits: GitCommit[];
+    dirtyFiles: string[];
     timestamp: number;
   } | null>(null);
   const containerRef = useRef<HTMLSpanElement>(null);
@@ -210,9 +255,13 @@ export const GitStatusIndicator: React.FC<GitStatusIndicatorProps> = ({
     if (cacheRef.current && now - cacheRef.current.timestamp < 5000) {
       setBranchHeaders(cacheRef.current.headers);
       setCommits(cacheRef.current.commits);
+      setDirtyFiles(cacheRef.current.dirtyFiles);
       setErrorMessage(null);
       return;
     }
+
+    // Set loading state immediately so tooltip shows "Loading..." instead of "No commits to display"
+    setIsLoading(true);
 
     // Debounce the fetch by 200ms to avoid rapid re-fetches
     if (fetchTimeoutRef.current) {
@@ -332,16 +381,38 @@ export const GitStatusIndicator: React.FC<GitStatusIndicatorProps> = ({
         setErrorMessage("Unable to parse branch info");
         setBranchHeaders(null);
         setCommits(null);
-      } else {
-        setBranchHeaders(parsed.headers);
-        setCommits(parsed.commits);
-        setErrorMessage(null);
-        cacheRef.current = {
-          headers: parsed.headers,
-          commits: parsed.commits,
-          timestamp: Date.now(),
-        };
+        setDirtyFiles(null);
+        return;
       }
+
+      // Fetch git status --porcelain for dirty files
+      let parsedDirtyFiles: string[] = [];
+      if (gitStatus?.dirty) {
+        const statusResult = await window.api.workspace.executeBash(
+          workspaceId,
+          "git status --porcelain",
+          { timeout_secs: 2, max_lines: 25 }
+        );
+
+        if (statusResult.success && statusResult.data.success) {
+          const lines = statusResult.data.output
+            .trim()
+            .split("\n")
+            .filter((line) => line.trim());
+          parsedDirtyFiles = lines;
+        }
+      }
+
+      setBranchHeaders(parsed.headers);
+      setCommits(parsed.commits);
+      setDirtyFiles(parsedDirtyFiles);
+      setErrorMessage(null);
+      cacheRef.current = {
+        headers: parsed.headers,
+        commits: parsed.commits,
+        dirtyFiles: parsedDirtyFiles,
+        timestamp: Date.now(),
+      };
     } catch {
       setErrorMessage("Failed to fetch branch info");
       setCommits(null);
@@ -362,8 +433,8 @@ export const GitStatusIndicator: React.FC<GitStatusIndicatorProps> = ({
     };
   }, []);
 
-  // Don't render if no status or both are 0 (check AFTER all hooks)
-  if (!gitStatus || (gitStatus.ahead === 0 && gitStatus.behind === 0)) {
+  // Don't render if no status or no meaningful information to show (check AFTER all hooks)
+  if (!gitStatus || (gitStatus.ahead === 0 && gitStatus.behind === 0 && !gitStatus.dirty)) {
     return null;
   }
 
@@ -406,6 +477,33 @@ export const GitStatusIndicator: React.FC<GitStatusIndicatorProps> = ({
     );
   };
 
+  // Render dirty files section
+  const renderDirtySection = () => {
+    if (!dirtyFiles || dirtyFiles.length === 0) {
+      return null;
+    }
+
+    const LIMIT = 20;
+    const displayFiles = dirtyFiles.slice(0, LIMIT);
+    const isTruncated = dirtyFiles.length > LIMIT;
+
+    return (
+      <DirtySection>
+        <DirtySectionTitle>Uncommitted changes:</DirtySectionTitle>
+        <DirtyFileList>
+          {displayFiles.map((line, index) => (
+            <DirtyFileLine key={index}>{line}</DirtyFileLine>
+          ))}
+        </DirtyFileList>
+        {isTruncated && (
+          <TruncationNote>
+            (showing {LIMIT} of {dirtyFiles.length} files)
+          </TruncationNote>
+        )}
+      </DirtySection>
+    );
+  };
+
   // Render tooltip content
   const renderTooltipContent = () => {
     if (isLoading) {
@@ -422,6 +520,7 @@ export const GitStatusIndicator: React.FC<GitStatusIndicatorProps> = ({
 
     return (
       <>
+        {renderDirtySection()}
         {renderBranchHeaders()}
         <CommitList>
           {commits.map((commit, index) => (
@@ -460,6 +559,7 @@ export const GitStatusIndicator: React.FC<GitStatusIndicatorProps> = ({
       <Container ref={containerRef} onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>
         {gitStatus.ahead > 0 && <Arrow>↑{gitStatus.ahead}</Arrow>}
         {gitStatus.behind > 0 && <Arrow>↓{gitStatus.behind}</Arrow>}
+        {gitStatus.dirty && <DirtyIndicator>*</DirtyIndicator>}
       </Container>
 
       {createPortal(tooltipElement, document.body)}
