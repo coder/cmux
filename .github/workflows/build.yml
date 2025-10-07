@@ -27,7 +27,7 @@ jobs:
         run: bun run build
 
       - name: Debug Certificate Format
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: secrets.MACOS_CERTIFICATE != ''
         env:
           MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
         run: |
