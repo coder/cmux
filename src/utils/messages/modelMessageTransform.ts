@@ -32,31 +32,62 @@ export function filterEmptyAssistantMessages(messages: CmuxMessage[]): CmuxMessa
 }
 
 /**
- * Strip reasoning parts from messages for OpenAI.
+ * Clear provider metadata from ModelMessages for OpenAI to prevent reasoning/tool errors.
  *
- * OpenAI's Responses API uses encrypted reasoning items (with IDs like rs_*) that are
- * managed automatically via previous_response_id. When reasoning parts from history
- * (which are Anthropic-style text-based reasoning) are sent to OpenAI, they create
- * orphaned reasoning items that cause "reasoning without following item" errors.
+ * OpenAI's Responses API uses encrypted reasoning items (IDs like rs_*) that are
+ * managed automatically via previous_response_id. When these provider metadata
+ * references are sent back to OpenAI from stored history, they can cause errors:
+ * - "Item 'rs_*' of type 'reasoning' was provided without its required following item"
+ * - "referenced reasoning on a function_call was not provided"
  *
- * Anthropic's reasoning (text-based) is different and SHOULD be sent back via sendReasoning.
+ * The solution is to blank out providerMetadata on reasoning parts and
+ * callProviderMetadata on tool-call parts. This lets OpenAI manage conversation
+ * state via previousResponseId without conflicting with stale metadata.
  *
- * @param messages - Messages that may contain reasoning parts
- * @returns Messages with reasoning parts stripped (for OpenAI only)
+ * Reference: https://github.com/vercel/ai/issues/7099
+ * User solution: https://github.com/gvkhna/vibescraper
+ *
+ * @param messages - ModelMessages after convertToModelMessages()
+ * @returns Messages with provider metadata cleared (for OpenAI only)
  */
-export function stripReasoningForOpenAI(messages: CmuxMessage[]): CmuxMessage[] {
+export function clearProviderMetadataForOpenAI(messages: ModelMessage[]): ModelMessage[] {
   return messages.map((msg) => {
-    // Only process assistant messages
+    // Only process assistant messages (which may have reasoning/tool parts)
     if (msg.role !== "assistant") {
       return msg;
     }
 
-    // Strip reasoning parts - OpenAI manages reasoning via previousResponseId
-    const filteredParts = msg.parts.filter((part) => part.type !== "reasoning");
+    const assistantMsg = msg;
+
+    // Handle string content (no parts to process)
+    if (typeof assistantMsg.content === "string") {
+      return msg;
+    }
+
+    // Process content array and clear provider metadata
+    const cleanedContent = assistantMsg.content.map((part) => {
+      // Clear providerMetadata for reasoning parts
+      if (part.type === "text" && "providerMetadata" in part) {
+        return {
+          ...part,
+          providerMetadata: {},
+        };
+      }
+
+      // Clear callProviderMetadata for tool-call parts
+      if (part.type === "tool-call" && "providerMetadata" in part) {
+        return {
+          ...part,
+          providerMetadata: {},
+        };
+      }
+
+      return part;
+    });
 
     return {
-      ...msg,
-      parts: filteredParts,
+      ...assistantMsg,
+      content: cleanedContent,
     };
   });
 }
@@ -122,7 +153,10 @@ function splitMixedContentMessages(messages: ModelMessage[]): ModelMessage[] {
     }
 
     // Check if this assistant message has both text and tool calls
-    const textParts = assistantMsg.content.filter((c) => c.type === "text" && c.text.trim());
+    // Note: Reasoning parts are treated like text parts (they stay together)
+    const textParts = assistantMsg.content.filter(
+      (c) => (c.type === "text" && c.text.trim()) || c.type === "reasoning"
+    );
     const toolCallParts = assistantMsg.content.filter((c) => c.type === "tool-call");
 
     // Check if the next message is a tool result message
@@ -180,7 +214,9 @@ function splitMixedContentMessages(messages: ModelMessage[]): ModelMessage[] {
       let currentGroup: { type: "text" | "tool-call"; parts: ContentArray } | null = null;
 
       for (const item of contentWithPositions) {
-        const partType = item.content.type === "text" ? "text" : "tool-call";
+        // Reasoning parts are treated as text (they go together with text)
+        const partType =
+          item.content.type === "text" || item.content.type === "reasoning" ? "text" : "tool-call";
 
         if (!currentGroup || currentGroup.type !== partType) {
           if (currentGroup) groups.push(currentGroup);
@@ -306,37 +342,6 @@ function filterReasoningOnlyMessages(messages: ModelMessage[]): ModelMessage[] {
 }
 
 /**
- * Strip reasoning parts from assistant messages.
- * OpenAI's Responses API has its own reasoning format (encrypted reasoning items with IDs).
- * Anthropic's text-based reasoning parts are incompatible and must be removed.
- * This function removes reasoning parts while preserving text and tool-call parts.
- */
-function stripReasoningParts(messages: ModelMessage[]): ModelMessage[] {
-  return messages.map((msg) => {
-    // Only process assistant messages with array content
-    if (msg.role !== "assistant") {
-      return msg;
-    }
-
-    const assistantMsg = msg;
-
-    // Skip string content (no reasoning parts to strip)
-    if (typeof assistantMsg.content === "string") {
-      return msg;
-    }
-
-    // Filter out reasoning parts, keep everything else
-    const filteredContent = assistantMsg.content.filter((part) => part.type !== "reasoning");
-
-    // If all content was filtered out, this message will be caught by filterReasoningOnlyMessages
-    return {
-      ...assistantMsg,
-      content: filteredContent,
-    };
-  });
-}
-
-/**
  * Coalesce consecutive parts of the same type within each message.
  * Streaming creates many individual text/reasoning parts; merge them for easier debugging.
  * Also reduces JSON overhead when sending messages to the API.
@@ -450,23 +455,12 @@ export function transformModelMessages(messages: ModelMessage[], provider: strin
   // Pass 1: Split mixed content messages (applies to all providers)
   const split = splitMixedContentMessages(coalesced);
 
-  // Pass 2: Provider-specific reasoning handling
-  let reasoningHandled: ModelMessage[];
-  if (provider === "openai") {
-    // OpenAI: Strip all reasoning parts (Anthropic's text-based reasoning is incompatible with OpenAI's format)
-    reasoningHandled = stripReasoningParts(split);
-    // Then filter out any messages that became empty after stripping
-    reasoningHandled = filterReasoningOnlyMessages(reasoningHandled);
-  } else if (provider === "anthropic") {
-    // Anthropic: Filter out reasoning-only messages (API rejects messages with only reasoning)
-    reasoningHandled = filterReasoningOnlyMessages(split);
-  } else {
-    // Unknown provider: no reasoning handling
-    reasoningHandled = split;
-  }
+  // Pass 2: Filter out reasoning-only messages (applies to all providers)
+  // Both Anthropic and OpenAI reject messages that have only reasoning parts
+  const reasoningFiltered = filterReasoningOnlyMessages(split);
 
   // Pass 3: Merge consecutive user messages (applies to all providers)
-  const merged = mergeConsecutiveUserMessages(reasoningHandled);
+  const merged = mergeConsecutiveUserMessages(reasoningFiltered);
 
   return merged;
 }

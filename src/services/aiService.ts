@@ -19,7 +19,7 @@ import {
   validateAnthropicCompliance,
   addInterruptedSentinel,
   filterEmptyAssistantMessages,
-  stripReasoningForOpenAI,
+  clearProviderMetadataForOpenAI,
 } from "@/utils/messages/modelMessageTransform";
 import { applyCacheControl } from "@/utils/ai/cacheStrategy";
 import type { HistoryService } from "./historyService";
@@ -287,24 +287,24 @@ export class AIService extends EventEmitter {
       log.debug(`Filtered ${messages.length - filteredMessages.length} empty assistant messages`);
       log.debug_obj(`${workspaceId}/1a_filtered_messages.json`, filteredMessages);
 
-      // OpenAI-specific: Strip reasoning parts from history
-      // OpenAI manages reasoning via previousResponseId; sending Anthropic-style reasoning
-      // parts creates orphaned reasoning items that cause API errors
-      if (providerName === "openai") {
-        filteredMessages = stripReasoningForOpenAI(filteredMessages);
-        log.debug("Stripped reasoning parts for OpenAI");
-        log.debug_obj(`${workspaceId}/1b_openai_stripped.json`, filteredMessages);
-      }
-
       // Add [INTERRUPTED] sentinel to partial messages (for model context)
       const messagesWithSentinel = addInterruptedSentinel(filteredMessages);
 
       // Convert CmuxMessage to ModelMessage format using Vercel AI SDK utility
       // Type assertion needed because CmuxMessage has custom tool parts for interrupted tools
       // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
-      const modelMessages = convertToModelMessages(messagesWithSentinel as any);
+      let modelMessages = convertToModelMessages(messagesWithSentinel as any);
 
       log.debug_obj(`${workspaceId}/2_model_messages.json`, modelMessages);
+
+      // OpenAI-specific: Clear provider metadata to prevent reasoning/tool errors
+      // OpenAI manages reasoning via previousResponseId; sending stale provider metadata
+      // from history causes "reasoning without following item" and tool call errors
+      if (providerName === "openai") {
+        modelMessages = clearProviderMetadataForOpenAI(modelMessages);
+        log.debug("Cleared provider metadata for OpenAI");
+        log.debug_obj(`${workspaceId}/2a_openai_cleaned.json`, modelMessages);
+      }
 
       // Apply ModelMessage transforms based on provider requirements
       const transformedMessages = transformModelMessages(modelMessages, providerName);

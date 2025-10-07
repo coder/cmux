@@ -517,8 +517,8 @@ describe("modelMessageTransform", () => {
     });
   });
 
-  describe("reasoning part stripping for OpenAI", () => {
-    it("should strip reasoning parts for OpenAI provider", () => {
+  describe("reasoning part handling", () => {
+    it("should preserve reasoning parts for both OpenAI and Anthropic", () => {
       const messages: ModelMessage[] = [
         {
           role: "user",
@@ -533,46 +533,28 @@ describe("modelMessageTransform", () => {
         },
       ];
 
-      const result = transformModelMessages(messages, "openai");
+      // Both providers should preserve reasoning parts
+      // OpenAI-specific metadata clearing is done in aiService.ts, not in transformModelMessages
+      const resultOpenAI = transformModelMessages(messages, "openai");
+      const resultAnthropic = transformModelMessages(messages, "anthropic");
 
-      // Should have 2 messages, assistant message should only have text
-      expect(result).toHaveLength(2);
-      expect(result[1].role).toBe("assistant");
-      expect((result[1] as AssistantModelMessage).content).toEqual([
-        { type: "text", text: "Here's the solution" },
-      ]);
-    });
+      // Both should have 2 messages with reasoning and text preserved
+      expect(resultOpenAI).toHaveLength(2);
+      expect(resultAnthropic).toHaveLength(2);
 
-    it("should preserve reasoning parts for Anthropic provider", () => {
-      const messages: ModelMessage[] = [
-        {
-          role: "user",
-          content: [{ type: "text", text: "Solve this problem" }],
-        },
-        {
-          role: "assistant",
-          content: [
-            { type: "reasoning", text: "Let me think about this..." },
-            { type: "text", text: "Here's the solution" },
-          ],
-        },
-      ];
-
-      const result = transformModelMessages(messages, "anthropic");
-
-      // Should have 2 messages, assistant message should have both reasoning and text
-      expect(result).toHaveLength(2);
-      expect(result[1].role).toBe("assistant");
-      const content = (result[1] as AssistantModelMessage).content;
-      expect(Array.isArray(content)).toBe(true);
-      if (Array.isArray(content)) {
-        expect(content).toHaveLength(2);
-        expect(content[0]).toEqual({ type: "reasoning", text: "Let me think about this..." });
-        expect(content[1]).toEqual({ type: "text", text: "Here's the solution" });
+      for (const result of [resultOpenAI, resultAnthropic]) {
+        expect(result[1].role).toBe("assistant");
+        const content = (result[1] as AssistantModelMessage).content;
+        expect(Array.isArray(content)).toBe(true);
+        if (Array.isArray(content)) {
+          expect(content).toHaveLength(2);
+          expect(content[0]).toEqual({ type: "reasoning", text: "Let me think about this..." });
+          expect(content[1]).toEqual({ type: "text", text: "Here's the solution" });
+        }
       }
     });
 
-    it("should filter out reasoning-only messages for OpenAI", () => {
+    it("should filter out reasoning-only messages for all providers", () => {
       const messages: ModelMessage[] = [
         {
           role: "user",
@@ -584,14 +566,18 @@ describe("modelMessageTransform", () => {
         },
       ];
 
-      const result = transformModelMessages(messages, "openai");
+      // Both providers should filter reasoning-only messages
+      const resultOpenAI = transformModelMessages(messages, "openai");
+      const resultAnthropic = transformModelMessages(messages, "anthropic");
 
-      // Should only have user message, reasoning-only assistant message should be filtered out
-      expect(result).toHaveLength(1);
-      expect(result[0].role).toBe("user");
+      // Should only have user message for both providers
+      expect(resultOpenAI).toHaveLength(1);
+      expect(resultOpenAI[0].role).toBe("user");
+      expect(resultAnthropic).toHaveLength(1);
+      expect(resultAnthropic[0].role).toBe("user");
     });
 
-    it("should preserve tool calls when stripping reasoning for OpenAI", () => {
+    it("should preserve reasoning and tool calls in messages", () => {
       const messages: ModelMessage[] = [
         {
           role: "user",
@@ -620,7 +606,7 @@ describe("modelMessageTransform", () => {
 
       const result = transformModelMessages(messages, "openai");
 
-      // Should have user, text, tool-call, tool-result (no reasoning)
+      // Should split into text message and tool-call/tool-result messages
       expect(result.length).toBeGreaterThan(2);
 
       // Find the assistant message with text
@@ -633,8 +619,8 @@ describe("modelMessageTransform", () => {
       if (textMessage) {
         const content = (textMessage as AssistantModelMessage).content;
         if (Array.isArray(content)) {
-          // Should not have reasoning parts
-          expect(content.some((c) => c.type === "reasoning")).toBe(false);
+          // Should have reasoning parts preserved
+          expect(content.some((c) => c.type === "reasoning")).toBe(true);
           // Should have text
           expect(content.some((c) => c.type === "text")).toBe(true);
         }
@@ -649,7 +635,7 @@ describe("modelMessageTransform", () => {
       expect(toolCallMessage).toBeDefined();
     });
 
-    it("should handle multiple reasoning parts for OpenAI", () => {
+    it("should coalesce multiple consecutive reasoning parts", () => {
       const messages: ModelMessage[] = [
         {
           role: "user",
@@ -667,12 +653,20 @@ describe("modelMessageTransform", () => {
 
       const result = transformModelMessages(messages, "openai");
 
-      // Should have 2 messages, assistant should only have text
+      // Should have 2 messages, assistant should have coalesced reasoning and text
       expect(result).toHaveLength(2);
       expect(result[1].role).toBe("assistant");
-      expect((result[1] as AssistantModelMessage).content).toEqual([
-        { type: "text", text: "Final answer" },
-      ]);
+      const content = (result[1] as AssistantModelMessage).content;
+      expect(Array.isArray(content)).toBe(true);
+      if (Array.isArray(content)) {
+        // Should coalesce the two reasoning parts into one
+        expect(content).toHaveLength(2);
+        expect(content[0]).toEqual({
+          type: "reasoning",
+          text: "First, I'll consider...Then, I'll analyze...",
+        });
+        expect(content[1]).toEqual({ type: "text", text: "Final answer" });
+      }
     });
   });
 });
