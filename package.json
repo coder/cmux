@@ -111,7 +111,10 @@
       ],
       "icon": "build/icon.icns",
       "artifactName": "${productName}-${version}-${arch}.${ext}",
-      "identity": null
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist"
     },
     "linux": {
       "target": "AppImage",
