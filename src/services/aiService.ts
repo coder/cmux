@@ -58,9 +58,7 @@ function defaultFetchWithUnlimitedTimeout(
  * Preserves custom fetch behavior (proxies, headers, logging) while preventing
  * BodyTimeoutError on long-running requests.
  */
-function wrapFetchWithUnlimitedTimeout(
-  userFetch: typeof fetch
-): typeof fetch {
+function wrapFetchWithUnlimitedTimeout(userFetch: typeof fetch): typeof fetch {
   return ((input: RequestInfo | URL, init?: RequestInit) => {
     return userFetch(input, { ...init, dispatcher: unlimitedTimeoutAgent } as RequestInit);
   }) as typeof fetch;
@@ -219,9 +217,10 @@ export class AIService extends EventEmitter {
         }
         // Preserve user's custom fetch (for proxies, headers, logging, etc.) if provided,
         // but wrap it to add unlimited timeout support. If no custom fetch, use default.
-        const fetchWithTimeout = providerConfig.fetch
-          ? wrapFetchWithUnlimitedTimeout(providerConfig.fetch)
-          : defaultFetchWithUnlimitedTimeout;
+        const fetchWithTimeout =
+          typeof providerConfig.fetch === "function"
+            ? wrapFetchWithUnlimitedTimeout(providerConfig.fetch as typeof fetch)
+            : defaultFetchWithUnlimitedTimeout;
 
         const provider = createOpenAI({
           ...providerConfig,
