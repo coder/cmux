@@ -27,9 +27,10 @@ jobs:
         run: bun run build
 
       - name: Debug Certificate Format
-        if: secrets.MACOS_CERTIFICATE != ''
         env:
           MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          HAS_CERT: ${{ secrets.MACOS_CERTIFICATE != '' }}
+        if: env.HAS_CERT == 'true'
         run: |
           echo "Certificate length: ${#MACOS_CERTIFICATE}"
           echo "First 50 chars: ${MACOS_CERTIFICATE:0:50}"
