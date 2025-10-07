@@ -84,7 +84,7 @@ export const openaiReasoningFixMiddleware: LanguageModelV2Middleware = {
                   >;
 
                   log.debug(
-                    `[OpenAI Middleware] Stripped OpenAI itemId from ${(part as { type?: string }).type || "unknown"} part`
+                    `[OpenAI Middleware] Stripped OpenAI itemId from ${(part as { type?: string }).type ?? "unknown"} part`
                   );
 
                   // If there are other provider options, keep them
