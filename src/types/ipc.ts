@@ -131,6 +131,7 @@ export interface SendMessageOptions {
   toolPolicy?: ToolPolicy;
   additionalSystemInstructions?: string;
   maxOutputTokens?: number;
+  disableAutoTruncation?: boolean; // For testing truncation behavior
 }
 
 // API method signatures (shared between main and preload)

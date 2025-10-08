@@ -174,7 +174,10 @@ export class AIService extends EventEmitter {
    * constructor, ensuring automatic parity with Vercel AI SDK - any configuration options
    * supported by the provider will work without modification.
    */
-  private createModel(modelString: string): Result<LanguageModel, SendMessageError> {
+  private createModel(
+    modelString: string,
+    options?: { disableAutoTruncation?: boolean }
+  ): Result<LanguageModel, SendMessageError> {
     try {
       // Parse model string (format: "provider:model-id")
       const [providerName, modelId] = modelString.split(":");
@@ -224,6 +227,8 @@ export class AIService extends EventEmitter {
         // This is a temporary override until @ai-sdk/openai supports passing
         // truncation via providerOptions. Safe because it only targets the
         // OpenAI Responses endpoint and leaves other providers untouched.
+        // Can be disabled via options for testing purposes.
+        const disableAutoTruncation = options?.disableAutoTruncation ?? false;
         const fetchWithOpenAITruncation = Object.assign(
           async (
             input: Parameters<typeof fetch>[0],
@@ -250,7 +255,12 @@ export class AIService extends EventEmitter {
               const isOpenAIResponses = /\/v1\/responses(\?|$)/.test(urlString);
 
               const body = init?.body;
-              if (isOpenAIResponses && method === "POST" && typeof body === "string") {
+              if (
+                !disableAutoTruncation &&
+                isOpenAIResponses &&
+                method === "POST" &&
+                typeof body === "string"
+              ) {
                 // Clone headers to avoid mutating caller-provided objects
                 const headers = new Headers(init?.headers);
                 // Remove content-length if present, since body will change
@@ -330,7 +340,8 @@ export class AIService extends EventEmitter {
     toolPolicy?: ToolPolicy,
     abortSignal?: AbortSignal,
     additionalSystemInstructions?: string,
-    maxOutputTokens?: number
+    maxOutputTokens?: number,
+    disableAutoTruncation?: boolean
   ): Promise<Result<void, SendMessageError>> {
     try {
       // DEBUG: Log streamMessage call
@@ -344,7 +355,7 @@ export class AIService extends EventEmitter {
       await this.partialService.commitToHistory(workspaceId);
 
       // Create model instance with early API key validation
-      const modelResult = this.createModel(modelString);
+      const modelResult = this.createModel(modelString, { disableAutoTruncation });
       if (!modelResult.success) {
         return Err(modelResult.error);
       }

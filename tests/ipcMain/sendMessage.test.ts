@@ -956,4 +956,81 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
       15000
     );
   });
+
+  // OpenAI auto truncation integration test
+  // This test verifies that the truncation: "auto" parameter works correctly
+  // by first forcing a context overflow error, then verifying recovery with auto-truncation
+  describeIntegration("OpenAI auto truncation integration", () => {
+    const provider = "openai";
+    const model = "gpt-4o-mini";
+
+    test.concurrent(
+      "respects disableAutoTruncation flag",
+      async () => {
+        const { env, workspaceId, cleanup } = await setupWorkspace(provider);
+
+        try {
+          // Phase 1: Send large messages until context error occurs
+          // gpt-4o-mini has ~128k token context window
+          // Each chunk is ~10k tokens (40k chars / 4 chars per token)
+          const largeChunk = "A".repeat(40000);
+          let contextError: unknown = null;
+
+          // Send up to 20 large messages (200k tokens total)
+          // Should exceed 128k context limit and trigger error
+          for (let i = 0; i < 20; i++) {
+            const result = await sendMessageWithModel(
+              env.mockIpcRenderer,
+              workspaceId,
+              largeChunk,
+              provider,
+              model,
+              { disableAutoTruncation: true }
+            );
+
+            if (!result.success) {
+              contextError = result.error;
+              break;
+            }
+
+            // Wait for stream completion
+            const collector = createEventCollector(env.sentEvents, workspaceId);
+            await collector.waitForEvent("stream-end", 60000);
+            assertStreamSuccess(collector);
+            env.sentEvents.length = 0; // Clear events for next iteration
+          }
+
+          // Verify we hit a context error
+          expect(contextError).not.toBeNull();
+          // Check that error message contains context-related keywords
+          const errorStr = JSON.stringify(contextError).toLowerCase();
+          expect(
+            errorStr.includes("context") ||
+              errorStr.includes("length") ||
+              errorStr.includes("exceed") ||
+              errorStr.includes("token")
+          ).toBe(true);
+
+          // Phase 2: Send message with auto-truncation enabled (should succeed)
+          env.sentEvents.length = 0;
+          const successResult = await sendMessageWithModel(
+            env.mockIpcRenderer,
+            workspaceId,
+            "Final message after auto truncation",
+            provider,
+            model
+            // disableAutoTruncation defaults to false (auto-truncation enabled)
+          );
+
+          expect(successResult.success).toBe(true);
+          const collector = createEventCollector(env.sentEvents, workspaceId);
+          await collector.waitForEvent("stream-end", 60000);
+          assertStreamSuccess(collector);
+        } finally {
+          await cleanup();
+        }
+      },
+      180000 // 3 minute timeout for heavy test with multiple API calls
+    );
+  });
 });
