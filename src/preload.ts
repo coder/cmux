@@ -25,10 +25,6 @@ import { IPC_CHANNELS, getChatChannel } from "./constants/ipc-constants";
 
 // Build the API implementation using the shared interface
 const api: IPCApi = {
-  config: {
-    load: () => ipcRenderer.invoke(IPC_CHANNELS.CONFIG_LOAD),
-    save: (config) => ipcRenderer.invoke(IPC_CHANNELS.CONFIG_SAVE, config),
-  },
   dialog: {
     selectDirectory: () => ipcRenderer.invoke(IPC_CHANNELS.DIALOG_SELECT_DIR),
   },
@@ -37,10 +33,15 @@ const api: IPCApi = {
       ipcRenderer.invoke(IPC_CHANNELS.PROVIDERS_SET_CONFIG, provider, keyPath, value),
     list: () => ipcRenderer.invoke(IPC_CHANNELS.PROVIDERS_LIST),
   },
-  secrets: {
-    get: (projectPath) => ipcRenderer.invoke(IPC_CHANNELS.SECRETS_GET, projectPath),
-    update: (projectPath, secrets) =>
-      ipcRenderer.invoke(IPC_CHANNELS.SECRETS_UPDATE, projectPath, secrets),
+  projects: {
+    create: (projectPath) => ipcRenderer.invoke(IPC_CHANNELS.PROJECT_CREATE, projectPath),
+    remove: (projectPath) => ipcRenderer.invoke(IPC_CHANNELS.PROJECT_REMOVE, projectPath),
+    list: () => ipcRenderer.invoke(IPC_CHANNELS.PROJECT_LIST),
+    secrets: {
+      get: (projectPath) => ipcRenderer.invoke(IPC_CHANNELS.PROJECT_SECRETS_GET, projectPath),
+      update: (projectPath, secrets) =>
+        ipcRenderer.invoke(IPC_CHANNELS.PROJECT_SECRETS_UPDATE, projectPath, secrets),
+    },
   },
   workspace: {
     list: () => ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_LIST),

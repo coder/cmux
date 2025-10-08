@@ -14,7 +14,11 @@ if [ -n "$PNG_FILES" ]; then
   echo "❌ Error: PNG files found in docs directory. Please use WebP format instead:"
   echo "$PNG_FILES"
   echo ""
-  echo "Convert with: cwebp input.png -o output.webp -q 85"
+  echo "Convert with:"
+  for png in $PNG_FILES; do
+    webp="${png%.png}.webp"
+    echo "  cwebp '$png' -o '$webp' -q 85"
+  done
   exit 1
 fi
 
