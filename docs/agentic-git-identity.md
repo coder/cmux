@@ -1,15 +1,11 @@
 # Agentic Git Identity
 
-Configure cmux to use a separate Git identity for AI-generated commits, making it easy to distinguish between human and AI contributions.
+Configure cmux to use a separate Git identity for AI-generated commits, making it easy to distinguish between human and AI contributions. Reasons to use a separate identity include:
 
-## Why Use a Separate Identity?
+- Clear attribution
+- Preventing (accidental) destructive actions
+- Enforcing review flow, e.g. preventing AI from merging into `main` while allowing humans
 
-Using a dedicated Git identity for AI-generated commits provides:
-
-- **Clear attribution** - Distinguish AI contributions from human commits at a glance
-- **Better analytics** - Track AI contributions separately in your repository
-- **Professional transparency** - Show that you're responsibly using AI assistance
-- **Repository policies** - Some organizations require AI-generated code to be clearly marked
 
 ## Setup Overview
 
@@ -44,35 +40,20 @@ Classic tokens are easier to configure than fine-grained tokens for repository a
 
 ## Step 3: Configure Git Identity
 
-Set environment variables to configure the Git author and committer:
+Add the Git identity environment variables as [Project Secrets](./project-secrets.md) in cmux:
 
-### macOS/Linux
+1. Open cmux and find your project in the sidebar
+2. Click the 🔒 lock icon to open the secrets modal
+3. Add the following four secrets:
+   - `GIT_AUTHOR_NAME` = `Your Name (Agent)`
+   - `GIT_AUTHOR_EMAIL` = `yourname+ai@example.com`
+   - `GIT_COMMITTER_NAME` = `Your Name (Agent)`
+   - `GIT_COMMITTER_EMAIL` = `yourname+ai@example.com`
+4. Click "Save"
 
-Add to your shell configuration (`~/.zshrc`, `~/.bashrc`, etc.):
+These environment variables will be automatically injected when the agent runs Git commands in that project.
 
-```bash
-export GIT_AUTHOR_NAME="Your Name (Agent)"
-export GIT_AUTHOR_EMAIL="yourname+ai@example.com"
-export GIT_COMMITTER_NAME="Your Name (Agent)"
-export GIT_COMMITTER_EMAIL="yourname+ai@example.com"
-```
-
-Then reload your shell:
-
-```bash
-source ~/.zshrc  # or ~/.bashrc
-```
-
-### Windows
-
-Set environment variables in PowerShell:
-
-```powershell
-[System.Environment]::SetEnvironmentVariable('GIT_AUTHOR_NAME', 'Your Name (Agent)', 'User')
-[System.Environment]::SetEnvironmentVariable('GIT_AUTHOR_EMAIL', 'yourname+ai@example.com', 'User')
-[System.Environment]::SetEnvironmentVariable('GIT_COMMITTER_NAME', 'Your Name (Agent)', 'User')
-[System.Environment]::SetEnvironmentVariable('GIT_COMMITTER_EMAIL', 'yourname+ai@example.com', 'User')
-```
+> **Note**: If you need the agent identity outside of cmux, you can alternatively set these as global environment variables in your shell configuration (`~/.zshrc`, `~/.bashrc`, etc.)
 
 ## Step 4: Configure GitHub Authentication
 
@@ -193,19 +174,21 @@ System keychain might be overriding `gh` credentials:
 
 ### Author and Committer Differ
 
-Missing `GIT_COMMITTER_*` environment variables:
+Missing `GIT_COMMITTER_*` secrets:
 
-- Set all four variables: `GIT_AUTHOR_NAME`, `GIT_AUTHOR_EMAIL`, `GIT_COMMITTER_NAME`, `GIT_COMMITTER_EMAIL`
-- Restart your shell/terminal
-- Verify with: `env | grep GIT_`
+- Ensure all four secrets are set in Project Secrets: `GIT_AUTHOR_NAME`, `GIT_AUTHOR_EMAIL`, `GIT_COMMITTER_NAME`, `GIT_COMMITTER_EMAIL`
+- Click "Save" in the secrets modal
+- Restart cmux to pick up the changes
+- Test by running a git command via the agent and checking the commit
 
 ### Changes Don't Take Effect
 
-Environment variables aren't loaded:
+Secrets not being applied:
 
-- Restart your terminal/shell
-- For cmux, restart the application to pick up new environment variables
-- Verify variables: `env | grep GIT_`
+- Verify the secrets are saved in the Project Secrets modal
+- Restart cmux to ensure the config is reloaded
+- Test with a simple bash command: `echo $GIT_AUTHOR_NAME` via the agent
+- Ensure you're working in the correct project (secrets are project-scoped)
 
 ## Best Practices
 
@@ -217,16 +200,20 @@ Environment variables aren't loaded:
 
 ## Reverting to Personal Identity
 
-To switch back to your personal identity for manual commits:
+To switch back to your personal identity:
 
-```bash
-# Temporarily unset for current shell
-unset GIT_AUTHOR_NAME GIT_AUTHOR_EMAIL GIT_COMMITTER_NAME GIT_COMMITTER_EMAIL
+**For cmux projects:**
 
-# Or remove from shell config and restart terminal
-```
+1. Open the Project Secrets modal (🔒 icon)
+2. Remove the four Git identity secrets
+3. Click "Save"
+4. Restart cmux
 
-Or switch the `gh` authentication:
+Commits will now use your default Git identity from `~/.gitconfig`.
+
+**For GitHub authentication:**
+
+Switch to your personal GitHub account:
 
 ```bash
 # Switch to different GitHub account

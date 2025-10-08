@@ -130,5 +130,4 @@ If you previously used global environment variables for secrets (e.g., in `~/.zs
 
 ## Related
 
-- [Agentic Git Identity](./agentic-git-identity.md) - Configure Git credentials for AI commits
-- For agent-specific environment variables like `GIT_AUTHOR_*`, use shell config files instead of project secrets
+- [Agentic Git Identity](./agentic-git-identity.md) - Configure Git credentials for AI commits using Project Secrets
