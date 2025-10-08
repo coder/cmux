@@ -3,7 +3,13 @@ import { spawn } from "child_process";
 import * as path from "path";
 import * as fsPromises from "fs/promises";
 import type { Config, ProjectConfig } from "@/config";
-import { createWorktree, removeWorktree, moveWorktree, pruneWorktrees } from "@/git";
+import {
+  createWorktree,
+  removeWorktree,
+  moveWorktree,
+  pruneWorktrees,
+  getMainWorktreeFromWorktree,
+} from "@/git";
 import { AIService } from "@/services/aiService";
 import { HistoryService } from "@/services/historyService";
 import { PartialService } from "@/services/partialService";
@@ -170,34 +176,30 @@ export class IpcMain {
 
     ipcMain.handle(IPC_CHANNELS.WORKSPACE_REMOVE, async (_event, workspaceId: string) => {
       try {
-        // Load current config
-        const projectsConfig = this.config.loadConfigOrDefault();
-
-        // Find workspace path from config by generating IDs
-        let workspacePath: string | null = null;
-        let foundProjectPath: string | null = null;
-
-        for (const [projectPath, projectConfig] of projectsConfig.projects.entries()) {
-          for (const workspace of projectConfig.workspaces) {
-            const generatedId = this.config.generateWorkspaceId(projectPath, workspace.path);
-            if (generatedId === workspaceId) {
-              workspacePath = workspace.path;
-              foundProjectPath = projectPath;
-              break;
-            }
-          }
-          if (workspacePath) break;
+        // Get workspace path from metadata
+        const metadataResult = await this.aiService.getWorkspaceMetadata(workspaceId);
+        if (!metadataResult.success) {
+          // If metadata doesn't exist, workspace is already gone - consider it success
+          log.info(`Workspace ${workspaceId} metadata not found, considering removal successful`);
+          return { success: true };
         }
 
-        // Remove git worktree if we found the path
-        if (workspacePath) {
+        const workspacePath = metadataResult.data.workspacePath;
+
+        // Get project path from the worktree itself
+        const foundProjectPath = await getMainWorktreeFromWorktree(workspacePath);
+
+        // Remove git worktree if we found the project path
+        if (foundProjectPath) {
           const worktreeExists = await fsPromises
             .access(workspacePath)
             .then(() => true)
             .catch(() => false);
 
           if (worktreeExists) {
-            const gitResult = await removeWorktree(workspacePath, { force: false });
+            const gitResult = await removeWorktree(foundProjectPath, workspacePath, {
+              force: false,
+            });
             if (!gitResult.success) {
               const errorMessage = gitResult.error ?? "Unknown error";
               const normalizedError = errorMessage.toLowerCase();
@@ -207,21 +209,19 @@ export class IpcMain {
                 normalizedError.includes("no such file");
 
               if (looksLikeMissingWorktree) {
-                if (foundProjectPath) {
-                  const pruneResult = await pruneWorktrees(foundProjectPath);
-                  if (!pruneResult.success) {
-                    log.info(
-                      `Failed to prune stale worktrees for ${foundProjectPath} after removeWorktree error: ${
-                        pruneResult.error ?? "unknown error"
-                      }`
-                    );
-                  }
+                const pruneResult = await pruneWorktrees(foundProjectPath);
+                if (!pruneResult.success) {
+                  log.info(
+                    `Failed to prune stale worktrees for ${foundProjectPath} after removeWorktree error: ${
+                      pruneResult.error ?? "unknown error"
+                    }`
+                  );
                 }
               } else {
                 return gitResult;
               }
             }
-          } else if (foundProjectPath) {
+          } else {
             const pruneResult = await pruneWorktrees(foundProjectPath);
             if (!pruneResult.success) {
               log.info(
@@ -239,8 +239,9 @@ export class IpcMain {
           return { success: false, error: aiResult.error };
         }
 
-        // Update config to remove the workspace
-        if (foundProjectPath && workspacePath) {
+        // Update config to remove the workspace (if it's in config)
+        if (foundProjectPath) {
+          const projectsConfig = this.config.loadConfigOrDefault();
           const projectConfig = projectsConfig.projects.get(foundProjectPath);
           if (projectConfig) {
             projectConfig.workspaces = projectConfig.workspaces.filter(

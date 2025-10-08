@@ -60,12 +60,15 @@ export async function createWorktree(
 }
 
 export async function removeWorktree(
+  projectPath: string,
   workspacePath: string,
   options: { force: boolean } = { force: false }
 ): Promise<WorktreeResult> {
   try {
-    // Remove the worktree
-    await execAsync(`git worktree remove "${workspacePath}" ${options.force ? "--force" : ""}`);
+    // Remove the worktree (from the main repository context)
+    await execAsync(
+      `git -C "${projectPath}" worktree remove "${workspacePath}" ${options.force ? "--force" : ""}`
+    );
     return { success: true };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -120,7 +123,7 @@ export async function listWorktrees(projectPath: string): Promise<string[]> {
 
     for (const line of lines) {
       if (line.startsWith("worktree ")) {
-        const path = line.substring(9);
+        const path = line.slice("worktree ".length);
         if (path !== projectPath) {
           // Exclude main worktree
           worktrees.push(path);
@@ -141,5 +144,29 @@ export async function isGitRepository(projectPath: string): Promise<boolean> {
     return true;
   } catch {
     return false;
+  }
+}
+
+/**
+ * Get the main repository path from a worktree path
+ * @param worktreePath Path to a git worktree
+ * @returns Path to the main repository, or null if not found
+ */
+export async function getMainWorktreeFromWorktree(worktreePath: string): Promise<string | null> {
+  try {
+    // Get the worktree list from the worktree itself
+    const { stdout } = await execAsync(`git -C "${worktreePath}" worktree list --porcelain`);
+    const lines = stdout.split("\n");
+
+    // The first worktree in the list is always the main worktree
+    for (const line of lines) {
+      if (line.startsWith("worktree ")) {
+        return line.slice("worktree ".length);
+      }
+    }
+
+    return null;
+  } catch {
+    return null;
   }
 }
