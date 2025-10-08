@@ -2,6 +2,8 @@
 
 Securely manage environment variables for your projects in cmux. Project secrets are automatically injected when the agent executes bash commands, making it easy to provide API keys, tokens, and other sensitive configuration.
 
+![Project Secrets Modal](./img/project-secrets.webp)
+
 ## What Are Project Secrets?
 
 Project secrets are key-value pairs stored per project that are:
