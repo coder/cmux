@@ -66,7 +66,7 @@ build-preload: ## Build preload script
 
 build-renderer: dist/version.txt ## Build renderer process
 	@echo "Building renderer..."
-	@vite build
+	@bun x vite build
 
 dist/version.txt: ## Generate version file
 	@./scripts/generate-version.sh
@@ -82,11 +82,11 @@ lint-fix: ## Run linter with --fix
 
 fmt: ## Format code with Prettier
 	@echo "Formatting TypeScript/JSON/Markdown files..."
-	@prettier --write $(PRETTIER_PATTERNS)
+	@bun x prettier --write $(PRETTIER_PATTERNS)
 
 fmt-check: ## Check code formatting
 	@echo "Checking TypeScript/JSON/Markdown formatting..."
-	@prettier --check $(PRETTIER_PATTERNS) 2>&1 | grep -v 'No files matching'
+	@bun x prettier --check $(PRETTIER_PATTERNS) 2>&1 | grep -v 'No files matching'
 
 fmt-shell: ## Format shell scripts with shfmt
 	@./scripts/fmt.sh --shell
