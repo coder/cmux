@@ -3,6 +3,8 @@ import { spawn } from "child_process";
 import type { ChildProcess } from "child_process";
 import { createInterface } from "readline";
 import * as path from "path";
+import * as fs from "fs";
+import * as os from "os";
 import {
   BASH_DEFAULT_MAX_LINES,
   BASH_HARD_MAX_LINES,
@@ -139,77 +141,87 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
         const stderrReader = createInterface({ input: childProcess.child.stderr! });
 
         stdoutReader.on("line", (line) => {
-          if (!truncated && !resolved) {
-            const lineBytes = Buffer.byteLength(line, "utf-8");
-
-            // Check if line exceeds per-line limit
-            if (lineBytes > BASH_MAX_LINE_BYTES) {
-              truncated = true;
-              // Close readline interfaces before killing to ensure clean shutdown
-              stdoutReader.close();
-              stderrReader.close();
-              childProcess.child.kill();
-              return;
-            }
-
-            // Check if adding this line would exceed total bytes limit
-            if (totalBytesAccumulated + lineBytes > BASH_MAX_TOTAL_BYTES) {
-              truncated = true;
-              // Close readline interfaces before killing to ensure clean shutdown
-              stdoutReader.close();
-              stderrReader.close();
-              childProcess.child.kill();
-              return;
-            }
-
+          if (!resolved) {
+            // Always collect lines, even after truncation is triggered
+            // This allows us to save the full output to a temp file
             lines.push(line);
-            totalBytesAccumulated += lineBytes + 1; // +1 for newline
 
-            // Check if we've exceeded the effective max_lines limit
-            if (lines.length >= effectiveMaxLines) {
-              truncated = true;
-              // Close readline interfaces before killing to ensure clean shutdown
-              stdoutReader.close();
-              stderrReader.close();
-              childProcess.child.kill();
+            if (!truncated) {
+              const lineBytes = Buffer.byteLength(line, "utf-8");
+
+              // Check if line exceeds per-line limit
+              if (lineBytes > BASH_MAX_LINE_BYTES) {
+                truncated = true;
+                // Close readline interfaces before killing to ensure clean shutdown
+                stdoutReader.close();
+                stderrReader.close();
+                childProcess.child.kill();
+                return;
+              }
+
+              totalBytesAccumulated += lineBytes + 1; // +1 for newline
+
+              // Check if adding this line would exceed total bytes limit
+              if (totalBytesAccumulated > BASH_MAX_TOTAL_BYTES) {
+                truncated = true;
+                // Close readline interfaces before killing to ensure clean shutdown
+                stdoutReader.close();
+                stderrReader.close();
+                childProcess.child.kill();
+                return;
+              }
+
+              // Check if we've exceeded the effective max_lines limit
+              if (lines.length >= effectiveMaxLines) {
+                truncated = true;
+                // Close readline interfaces before killing to ensure clean shutdown
+                stdoutReader.close();
+                stderrReader.close();
+                childProcess.child.kill();
+              }
             }
           }
         });
 
         stderrReader.on("line", (line) => {
-          if (!truncated && !resolved) {
-            const lineBytes = Buffer.byteLength(line, "utf-8");
-
-            // Check if line exceeds per-line limit
-            if (lineBytes > BASH_MAX_LINE_BYTES) {
-              truncated = true;
-              // Close readline interfaces before killing to ensure clean shutdown
-              stdoutReader.close();
-              stderrReader.close();
-              childProcess.child.kill();
-              return;
-            }
-
-            // Check if adding this line would exceed total bytes limit
-            if (totalBytesAccumulated + lineBytes > BASH_MAX_TOTAL_BYTES) {
-              truncated = true;
-              // Close readline interfaces before killing to ensure clean shutdown
-              stdoutReader.close();
-              stderrReader.close();
-              childProcess.child.kill();
-              return;
-            }
-
+          if (!resolved) {
+            // Always collect lines, even after truncation is triggered
+            // This allows us to save the full output to a temp file
             lines.push(line);
-            totalBytesAccumulated += lineBytes + 1; // +1 for newline
 
-            // Check if we've exceeded the effective max_lines limit
-            if (lines.length >= effectiveMaxLines) {
-              truncated = true;
-              // Close readline interfaces before killing to ensure clean shutdown
-              stdoutReader.close();
-              stderrReader.close();
-              childProcess.child.kill();
+            if (!truncated) {
+              const lineBytes = Buffer.byteLength(line, "utf-8");
+
+              // Check if line exceeds per-line limit
+              if (lineBytes > BASH_MAX_LINE_BYTES) {
+                truncated = true;
+                // Close readline interfaces before killing to ensure clean shutdown
+                stdoutReader.close();
+                stderrReader.close();
+                childProcess.child.kill();
+                return;
+              }
+
+              totalBytesAccumulated += lineBytes + 1; // +1 for newline
+
+              // Check if adding this line would exceed total bytes limit
+              if (totalBytesAccumulated > BASH_MAX_TOTAL_BYTES) {
+                truncated = true;
+                // Close readline interfaces before killing to ensure clean shutdown
+                stdoutReader.close();
+                stderrReader.close();
+                childProcess.child.kill();
+                return;
+              }
+
+              // Check if we've exceeded the effective max_lines limit
+              if (lines.length >= effectiveMaxLines) {
+                truncated = true;
+                // Close readline interfaces before killing to ensure clean shutdown
+                stdoutReader.close();
+                stderrReader.close();
+                childProcess.child.kill();
+              }
             }
           }
         });
@@ -294,15 +306,45 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
               wall_duration_ms,
             });
           } else if (truncated) {
-            // Return error when output limits exceeded - no partial output
-            resolveOnce({
-              success: false,
-              error:
-                `Command output exceeded limits (max ${BASH_MAX_TOTAL_BYTES} bytes total, ${BASH_MAX_LINE_BYTES} bytes per line, ${effectiveMaxLines} lines). ` +
-                "Use output-limiting commands like 'head', 'tail', or 'grep' to reduce output size.",
-              exitCode: -1,
-              wall_duration_ms,
-            });
+            // Save overflow output to temp file instead of returning an error
+            // We don't show ANY of the actual output to avoid overwhelming context.
+            // Instead, save it to a temp file and encourage the agent to use filtering tools.
+            try {
+              const tmpDir = os.tmpdir();
+              // Use 8 hex characters for short, memorable temp file IDs
+              const fileId = Math.random().toString(16).substring(2, 10);
+              const overflowPath = path.join(tmpDir, `bash-${fileId}.txt`);
+              const fullOutput = lines.join("\n");
+              fs.writeFileSync(overflowPath, fullOutput, "utf-8");
+
+              const output = `[OUTPUT OVERFLOW - ${lines.length} lines saved to ${overflowPath}]
+
+The command output exceeded limits and was saved to a temporary file.
+Use filtering tools to extract what you need:
+- grep '<pattern>' ${overflowPath}
+- head -n 100 ${overflowPath}
+- tail -n 100 ${overflowPath}
+- sed -n '100,200p' ${overflowPath}
+
+When done, clean up: rm ${overflowPath}`;
+
+              resolveOnce({
+                success: false,
+                error: output,
+                exitCode: -1,
+                wall_duration_ms,
+              });
+            } catch (err) {
+              // If temp file creation fails, fall back to original error
+              resolveOnce({
+                success: false,
+                error:
+                  `Command output exceeded limits (max ${BASH_MAX_TOTAL_BYTES} bytes total, ${BASH_MAX_LINE_BYTES} bytes per line, ${effectiveMaxLines} lines). ` +
+                  `Use output-limiting commands like 'head', 'tail', or 'grep' to reduce output size. Failed to save overflow: ${err}`,
+                exitCode: -1,
+                wall_duration_ms,
+              });
+            }
           } else if (exitCode === 0 || exitCode === null) {
             resolveOnce({
               success: true,
