@@ -37,7 +37,6 @@ The app is code-signed and notarized by Apple, so it will open without security 
 2. Make it executable: `chmod +x Cmux-*.AppImage`
 3. Run it: `./Cmux-*.AppImage`
 
-
 ### Testing Pre-Release Builds
 
 ⚠️ **Note**: Only builds from the `main` branch are signed and notarized. If you're testing a build from a pull request or other branch, you'll need to bypass macOS Gatekeeper:
@@ -46,4 +45,3 @@ The app is code-signed and notarized by Apple, so it will open without security 
 2. Run: `xattr -cr /Applications/Cmux.app`
 3. Run: `codesign --force --deep --sign - /Applications/Cmux.app`
 4. Now you can open the app normally
-
