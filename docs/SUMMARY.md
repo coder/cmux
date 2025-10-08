@@ -7,4 +7,3 @@
 - [Project Secrets](./project-secrets.md)
 - [Agentic Git Identity](./agentic-git-identity.md)
 - [AGENTS](./AGENTS.md)
-

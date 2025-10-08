@@ -1,17 +1,16 @@
 # Build System
 # ============
-# This Makefile orchestrates the cmux build process with automatic parallelism.
+# This Makefile orchestrates the cmux build process.
 #
 # Quick Start:
 #   make help          - Show all available targets
 #   make dev           - Start development server with hot reload
 #   make build         - Build all targets (parallel when possible)
-#   make lint          - Run linter + typecheck
+#   make static-check  - Run all static checks (lint + typecheck + fmt-check)
 #   make test          - Run tests
 #
 # Parallelism:
-#   Make automatically detects CPU cores and runs independent tasks concurrently.
-#   Override with: make -j4 build (use 4 jobs) or make -j1 build (serial)
+#   Use make -jN to run independent tasks concurrently (e.g., make -j4 build)
 #
 # Backwards Compatibility:
 #   All commands also work via `bun run` (e.g., `bun run dev` calls `make dev`)
@@ -21,13 +20,13 @@
 
 .PHONY: all build dev start clean help
 .PHONY: build-main build-preload build-renderer
-.PHONY: lint lint-fix fmt fmt-check fmt-shell typecheck
-.PHONY: test test-unit test-integration test-watch test-coverage
+.PHONY: lint lint-fix fmt fmt-check fmt-shell typecheck static-check
+.PHONY: test-integration test-watch test-coverage
 .PHONY: dist dist-mac dist-win dist-linux
 .PHONY: docs docs-build docs-watch
 
-# Detect number of cores for parallelism
-MAKEFLAGS += --jobs=$(shell nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
+# Prettier patterns for formatting
+PRETTIER_PATTERNS := 'src/**/*.{ts,tsx,json}' 'tests/**/*.{ts,json}' 'docs/**/*.{md,mdx}' '*.{json,md}'
 
 # Default target
 all: build
@@ -73,6 +72,8 @@ dist/version.txt: ## Generate version file
 	@./scripts/generate-version.sh
 
 ## Quality checks (can run in parallel)
+static-check: lint typecheck fmt-check ## Run all static checks
+
 lint: ## Run linter and typecheck
 	@./scripts/lint.sh
 
@@ -80,10 +81,12 @@ lint-fix: ## Run linter with --fix
 	@./scripts/lint.sh --fix
 
 fmt: ## Format code with Prettier
-	@./scripts/fmt.sh
+	@echo "Formatting TypeScript/JSON/Markdown files..."
+	@prettier --write $(PRETTIER_PATTERNS)
 
 fmt-check: ## Check code formatting
-	@./scripts/fmt.sh --check
+	@echo "Checking TypeScript/JSON/Markdown formatting..."
+	@prettier --check $(PRETTIER_PATTERNS) 2>&1 | grep -v 'No files matching'
 
 fmt-shell: ## Format shell scripts with shfmt
 	@./scripts/fmt.sh --shell
@@ -92,14 +95,12 @@ typecheck: ## Run TypeScript type checking
 	@./scripts/typecheck.sh
 
 ## Testing
-test: test-unit ## Run unit tests
+test-integration: ## Run all tests (unit + integration)
 	@bun test src
-
-test-unit: ## Run unit tests only
-	@bun test src
-
-test-integration: test-unit ## Run all tests (unit + integration)
 	@TEST_INTEGRATION=1 jest tests
+
+test: ## Run unit tests
+	@bun test src
 
 test-watch: ## Run tests in watch mode
 	@./scripts/test.sh --watch
@@ -135,9 +136,6 @@ clean: ## Clean build artifacts
 	@echo "Cleaning build artifacts..."
 	@rm -rf dist release
 	@echo "Done!"
-
-## CI targets
-ci-check: lint typecheck test-integration ## Run all CI checks
 
 # Parallel build optimization - these can run concurrently
 .NOTPARALLEL: build-main  # TypeScript can handle its own parallelism
