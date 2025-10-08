@@ -101,3 +101,18 @@ Remove oldest 50% of messages.
 - About as fast as `/clear`
 - `/truncate 100` is equivalent to `/clear`
 - **Irreversible** - messages are permanently removed
+
+### OpenAI Responses API Limitation
+
+⚠️ **`/truncate` does not work with OpenAI models** due to the Responses API architecture:
+
+- OpenAI's Responses API stores conversation state server-side
+- Manual message deletion via `/truncate` doesn't affect the server-side state
+- Instead, OpenAI models use **automatic truncation** (`truncation: "auto"`)
+- When context exceeds the limit, the API automatically drops messages from the middle of the conversation
+
+**Workarounds for OpenAI:**
+
+- Use `/clear` to start a fresh conversation
+- Use `/compact` to intelligently summarize and reduce context
+- Rely on automatic truncation (enabled by default)
