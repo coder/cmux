@@ -6,7 +6,12 @@
  */
 
 import { z } from "zod";
-import { BASH_DEFAULT_MAX_LINES, BASH_HARD_MAX_LINES } from "@/constants/toolLimits";
+import {
+  BASH_DEFAULT_MAX_LINES,
+  BASH_HARD_MAX_LINES,
+  BASH_MAX_LINE_BYTES,
+  BASH_MAX_TOTAL_BYTES,
+} from "@/constants/toolLimits";
 
 import { zodToJsonSchema } from "zod-to-json-schema";
 
@@ -33,7 +38,11 @@ const leaseSchema = z
  */
 export const TOOL_DEFINITIONS = {
   bash: {
-    description: "Execute a bash command with a configurable timeout",
+    description:
+      "Execute a bash command with a configurable timeout. " +
+      `Output is strictly limited to ${BASH_HARD_MAX_LINES} lines, ${BASH_MAX_LINE_BYTES} bytes per line, and ${BASH_MAX_TOTAL_BYTES} bytes total. ` +
+      "Commands that exceed these limits will FAIL with an error (no partial output returned). " +
+      "Be conservative: use 'head', 'tail', 'grep', or other filters to limit output before running commands.",
     schema: z.object({
       script: z.string().describe("The bash script/command to execute"),
       timeout_secs: z
