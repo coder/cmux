@@ -1,6 +1,16 @@
 import { z } from "zod";
 
 /**
+ * Information about a GitHub Pull Request
+ */
+export interface PullRequestInfo {
+  number: number;
+  title: string;
+  url: string;
+  state: "OPEN" | "CLOSED" | "MERGED";
+}
+
+/**
  * Zod schema for workspace metadata validation
  */
 export const WorkspaceMetadataSchema = z.object({
@@ -50,6 +60,8 @@ export interface GitStatus {
 export interface DisplayedWorkspaceMetadata extends WorkspaceMetadata {
   /** Git status relative to origin's primary branch (null if not available) */
   gitStatus: GitStatus | null;
+  /** Pull request information (null if no PR exists) */
+  pullRequest: PullRequestInfo | null;
 }
 
 /**

@@ -13,6 +13,8 @@ import {
 import { AIService } from "@/services/aiService";
 import { HistoryService } from "@/services/historyService";
 import { PartialService } from "@/services/partialService";
+import { GitHubService } from "@/services/githubService";
+import type { PullRequestInfo } from "@/types/workspace";
 import { createCmuxMessage, type CmuxMessage } from "@/types/message";
 import { log } from "@/services/log";
 import type {
@@ -56,6 +58,7 @@ export class IpcMain {
   private readonly historyService: HistoryService;
   private readonly partialService: PartialService;
   private readonly aiService: AIService;
+  private readonly githubService: GitHubService;
   private mainWindow: BrowserWindow | null = null;
   private registered = false;
 
@@ -64,6 +67,7 @@ export class IpcMain {
     this.historyService = new HistoryService(config);
     this.partialService = new PartialService(config, this.historyService);
     this.aiService = new AIService(config, this.historyService, this.partialService);
+    this.githubService = new GitHubService();
   }
 
   /**
@@ -734,6 +738,25 @@ export class IpcMain {
         log.error(`Failed to open terminal: ${message}`);
       }
     });
+
+    ipcMain.handle(
+      IPC_CHANNELS.WORKSPACE_GET_PR,
+      async (_event, workspaceId: string): Promise<PullRequestInfo | null> => {
+        try {
+          const result = await this.aiService.getWorkspaceMetadata(workspaceId);
+          if (!result.success) {
+            log.debug(`Workspace not found for ID: ${workspaceId}`);
+            return null;
+          }
+
+          return await this.githubService.getOpenPR(result.data.workspacePath);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          log.debug(`Failed to get PR info for workspace ${workspaceId}: ${message}`);
+          return null;
+        }
+      }
+    );
   }
 
   private registerProviderHandlers(ipcMain: ElectronIpcMain): void {

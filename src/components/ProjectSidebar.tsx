@@ -10,6 +10,7 @@ import { TooltipWrapper, Tooltip } from "./Tooltip";
 import { StatusIndicator } from "./StatusIndicator";
 import { getModelName } from "@/utils/ai/models";
 import { GitStatusIndicator } from "./GitStatusIndicator";
+import { GitHubPRLink } from "./GitHubPRLink";
 import type { WorkspaceState } from "@/hooks/useWorkspaceAggregators";
 
 // Styled Components
@@ -569,6 +570,9 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                               workspaceId={workspaceId}
                               tooltipPosition="right"
                             />
+                            {metadata.pullRequest && (
+                              <GitHubPRLink pullRequest={metadata.pullRequest} />
+                            )}
                             {isEditing ? (
                               <WorkspaceNameInput
                                 value={editingName}

@@ -21,13 +21,14 @@ export function useGitStatus(
   );
 
   useEffect(() => {
-    // Initialize enriched metadata with null git status
+    // Initialize enriched metadata with null git status and PR info
     const initializeMetadata = () => {
       const initial = new Map<string, DisplayedWorkspaceMetadata>();
       for (const [workspacePath, metadata] of workspaceMetadata.entries()) {
         initial.set(workspacePath, {
           ...metadata,
           gitStatus: null,
+          pullRequest: null,
         });
       }
       setEnrichedMetadata(initial);
@@ -126,7 +127,7 @@ export function useGitStatus(
 
             if (!primaryBranch) {
               console.debug(`[useGitStatus] Could not determine primary branch for ${metadata.id}`);
-              return [workspacePath, { ...metadata, gitStatus: null }];
+              return [workspacePath, { ...metadata, gitStatus: null, pullRequest: null }];
             }
 
             // Get ahead/behind counts using git show-branch for meaningful divergence
@@ -137,13 +138,13 @@ export function useGitStatus(
             );
 
             if (!showBranchResult.success || !showBranchResult.data.success) {
-              return [workspacePath, { ...metadata, gitStatus: null }];
+              return [workspacePath, { ...metadata, gitStatus: null, pullRequest: null }];
             }
 
             const gitStatus = parseGitShowBranchForStatus(showBranchResult.data.output);
 
             if (!gitStatus) {
-              return [workspacePath, { ...metadata, gitStatus: null }];
+              return [workspacePath, { ...metadata, gitStatus: null, pullRequest: null }];
             }
 
             // Check for uncommitted changes (dirty status)
@@ -159,10 +160,16 @@ export function useGitStatus(
               dirty = statusResult.data.output.trim().length > 0;
             }
 
-            return [workspacePath, { ...metadata, gitStatus: { ...gitStatus, dirty } }];
+            // Get PR information
+            const pullRequest = await window.api.workspace.getPR(metadata.id);
+
+            return [
+              workspacePath,
+              { ...metadata, gitStatus: { ...gitStatus, dirty }, pullRequest },
+            ];
           } catch {
             // Silently fail - git status failures shouldn't crash the UI
-            return [workspacePath, { ...metadata, gitStatus: null }];
+            return [workspacePath, { ...metadata, gitStatus: null, pullRequest: null }];
           }
         })()
       );

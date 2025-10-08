@@ -6,6 +6,7 @@ import type { SendMessageError, StreamErrorType } from "./errors";
 import type { ThinkingLevel } from "./thinking";
 import type { ToolPolicy } from "@/utils/tools/toolPolicy";
 import type { BashToolResult } from "./tools";
+import type { PullRequestInfo } from "./workspace";
 import type {
   StreamStartEvent,
   StreamDeltaEvent,
@@ -179,6 +180,7 @@ export interface IPCApi {
       options?: { timeout_secs?: number; max_lines?: number; stdin?: string }
     ): Promise<Result<BashToolResult, string>>;
     openTerminal(workspacePath: string): Promise<void>;
+    getPR(workspaceId: string): Promise<PullRequestInfo | null>;
 
     // Event subscriptions (renderer-only)
     // These methods are designed to send current state immediately upon subscription,
