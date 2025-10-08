@@ -273,7 +273,7 @@ describeIntegration("IpcMain executeBash integration tests", () => {
         const workspaceId = createResult.metadata.id;
 
         // Set secrets for the project
-        await env.mockIpcRenderer.invoke(IPC_CHANNELS.SECRETS_UPDATE, tempGitRepo, [
+        await env.mockIpcRenderer.invoke(IPC_CHANNELS.PROJECT_SECRETS_UPDATE, tempGitRepo, [
           { key: "TEST_SECRET_KEY", value: "secret_value_123" },
           { key: "ANOTHER_SECRET", value: "another_value_456" },
         ]);
