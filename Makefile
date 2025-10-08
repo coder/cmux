@@ -1,3 +1,24 @@
+# Build System
+# ============
+# This Makefile orchestrates the cmux build process with automatic parallelism.
+#
+# Quick Start:
+#   make help          - Show all available targets
+#   make dev           - Start development server with hot reload
+#   make build         - Build all targets (parallel when possible)
+#   make lint          - Run linter + typecheck
+#   make test          - Run tests
+#
+# Parallelism:
+#   Make automatically detects CPU cores and runs independent tasks concurrently.
+#   Override with: make -j4 build (use 4 jobs) or make -j1 build (serial)
+#
+# Backwards Compatibility:
+#   All commands also work via `bun run` (e.g., `bun run dev` calls `make dev`)
+#
+# Adding New Targets:
+#   Add `## Description` after the target to make it appear in `make help`
+
 .PHONY: all build dev start clean help
 .PHONY: build-main build-preload build-renderer
 .PHONY: lint lint-fix fmt fmt-check fmt-shell typecheck

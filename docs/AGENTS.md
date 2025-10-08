@@ -96,7 +96,7 @@ in `./docs/vercel/**.mdx`.
 
 ## Development Commands
 
-This project uses **Make** as the primary build orchestrator. See [Build System](./build-system.md) for details.
+This project uses **Make** as the primary build orchestrator. See `Makefile` for inline documentation.
 
 **Primary commands (use Make):**
 
