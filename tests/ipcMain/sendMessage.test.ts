@@ -993,9 +993,45 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
               break;
             }
 
-            // Wait for stream completion
+            // Wait for stream completion or error
             const collector = createEventCollector(env.sentEvents, workspaceId);
-            await collector.waitForEvent("stream-end", 60000);
+            
+            // Poll for either stream-end or stream-error
+            const startTime = Date.now();
+            let foundEvent = false;
+            while (Date.now() - startTime < 60000 && !foundEvent) {
+              collector.collect(); // Collect new events from sentEvents
+              
+              const streamEnd = collector.getEvents().find(
+                (e) => "type" in e && e.type === "stream-end"
+              );
+              const streamError = collector.getEvents().find(
+                (e) => "type" in e && e.type === "stream-error"
+              );
+              
+              if (streamError && "error" in streamError) {
+                contextError = streamError.error;
+                foundEvent = true;
+                break;
+              }
+              
+              if (streamEnd) {
+                foundEvent = true;
+                break;
+              }
+              
+              await new Promise((resolve) => setTimeout(resolve, 100));
+            }
+            
+            if (!foundEvent) {
+              throw new Error("Timeout waiting for stream-end or stream-error");
+            }
+            
+            // If we got a stream error, break out of the loop
+            if (contextError) {
+              break;
+            }
+            
             assertStreamSuccess(collector);
             env.sentEvents.length = 0; // Clear events for next iteration
           }
