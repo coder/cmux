@@ -93,16 +93,30 @@ winget install --id GitHub.cli
 
 ### Configure Git Credential Helper
 
-Set up Git to use the GitHub CLI for authentication:
+Set up Git to use the GitHub CLI for authentication. The recommended approach is to use `gh auth setup-git`, which scopes the credential helper to GitHub only:
 
 ```bash
-# Clear any existing credential helpers and use gh
+# Configure gh as credential helper for GitHub (recommended)
+gh auth setup-git
+```
+
+This configures Git to use `gh` for GitHub authentication while preserving your existing credential helpers for other Git hosts.
+
+**Alternative: Manual configuration (for advanced users)**
+
+If you need more control or want to completely replace existing credential helpers:
+
+```bash
+# Scope to GitHub only (preserves other credential helpers)
+git config --global credential.https://github.com.helper '!gh auth git-credential'
+
+# OR: Replace all credential helpers (may break non-GitHub authentication)
 git config --global --unset-all credential.helper
 git config --global credential.helper ""
 git config --global --add credential.helper '!gh auth git-credential'
 ```
 
-The empty `credential.helper ""` resets the credential chain, preventing system keychains from interfering.
+⚠️ **Warning**: The "replace all" approach will disable platform keychain helpers and may break Git authentication for non-GitHub remotes (GitLab, Bitbucket, etc.).
 
 ### Authenticate with Your Token
 
@@ -171,7 +185,10 @@ The token might not have access to the repository:
 System keychain might be overriding `gh` credentials:
 
 - Verify git credential config: `git config --show-origin --get-all credential.helper`
-- Ensure empty helper `""` comes before `!gh auth git-credential`
+- If you used `gh auth setup-git`, it should be properly scoped to GitHub
+- If you manually configured, ensure the credential helper is either:
+  - Scoped: `credential.https://github.com.helper`
+  - Or global with reset: empty helper `""` comes before `!gh auth git-credential`
 - Clear keychain credentials if needed (macOS): Delete github.com entry from Keychain Access
 
 ### Author and Committer Differ
