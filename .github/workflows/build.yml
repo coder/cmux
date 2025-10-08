@@ -39,9 +39,9 @@ jobs:
           if [ -n "${{ secrets.AC_APIKEY_ID }}" ]; then
             # Decode API key to file
             echo "${{ secrets.AC_APIKEY_P8_BASE64 }}" | base64 -D > /tmp/AuthKey.p8
-            export API_KEY_ID="${{ secrets.AC_APIKEY_ID }}"
-            export API_KEY_ISSUER_ID="${{ secrets.AC_APIKEY_ISSUER_ID }}"
-            export API_KEY="/tmp/AuthKey.p8"
+            export APPLE_API_KEY="/tmp/AuthKey.p8"
+            export APPLE_API_KEY_ID="${{ secrets.AC_APIKEY_ID }}"
+            export APPLE_API_ISSUER="${{ secrets.AC_APIKEY_ISSUER_ID }}"
             echo "✅ Notarization credentials found (API key) - will notarize"
           else
             echo "⚠️  No notarization credentials - skipping notarization"
