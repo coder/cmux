@@ -100,23 +100,27 @@ export function moveVertical(
 
 /**
  * Move cursor to next word boundary (like 'w').
+ * In normal mode, cursor should never go past the last character.
  */
 export function moveWordForward(text: string, cursor: number): number {
   let i = cursor;
   const n = text.length;
   while (i < n && /[A-Za-z0-9_]/.test(text[i])) i++;
   while (i < n && /\s/.test(text[i])) i++;
-  return i;
+  // Clamp to last character position in normal mode (never past the end)
+  return Math.min(i, Math.max(0, n - 1));
 }
 
 /**
  * Move cursor to previous word boundary (like 'b').
+ * In normal mode, cursor should never go past the last character.
  */
 export function moveWordBackward(text: string, cursor: number): number {
   let i = cursor - 1;
   while (i > 0 && /\s/.test(text[i])) i--;
   while (i > 0 && /[A-Za-z0-9_]/.test(text[i - 1])) i--;
-  return Math.max(0, i);
+  // Clamp to last character position in normal mode (never past the end)
+  return Math.min(Math.max(0, i), Math.max(0, text.length - 1));
 }
 
 /**

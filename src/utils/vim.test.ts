@@ -107,7 +107,8 @@ describe("moveWordForward", () => {
 
   test("at end of text", () => {
     const text = "hello";
-    expect(vim.moveWordForward(text, 3)).toBe(5);
+    // In normal mode, cursor clamps to last character (never past the end)
+    expect(vim.moveWordForward(text, 3)).toBe(4);
   });
 });
 
