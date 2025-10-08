@@ -189,6 +189,9 @@ export const KEYBINDS = {
   /** Cancel current action / Close modal (excludes stream interruption) */
   CANCEL: { key: "Escape" },
 
+  /** Cancel editing message (exit edit mode) */
+  CANCEL_EDIT: { key: "q", ctrl: true },
+
   /** Interrupt active stream (destructive - stops AI generation) */
   INTERRUPT_STREAM: { key: "c", ctrl: true, macCtrlBehavior: "control" },
 

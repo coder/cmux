@@ -632,24 +632,25 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       return;
     }
 
-    // Handle cancel/escape
-    if (matchesKeybind(e, KEYBINDS.CANCEL)) {
-      const isFocused = document.activeElement === inputRef.current;
-      let handled = false;
-
-      // Cancel editing if in edit mode
+    // Handle cancel edit (Ctrl+Q)
+    if (matchesKeybind(e, KEYBINDS.CANCEL_EDIT)) {
       if (editingMessage && onCancelEdit) {
         e.preventDefault();
         onCancelEdit();
-        handled = true;
-      } else if (canInterrupt) {
-        // Priority 2: Interrupt streaming if active
+        const isFocused = document.activeElement === inputRef.current;
+        if (isFocused) {
+          inputRef.current?.blur();
+        }
+        return;
+      }
+    }
+
+    // Handle escape for interrupting stream
+    if (matchesKeybind(e, KEYBINDS.CANCEL)) {
+      if (canInterrupt) {
         e.preventDefault();
         void window.api.workspace.sendMessage(workspaceId, "");
-        handled = true;
-      }
-
-      if (handled) {
+        const isFocused = document.activeElement === inputRef.current;
         if (isFocused) {
           inputRef.current?.blur();
         }
@@ -724,7 +725,11 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         />
       </InputControls>
       <ModeToggles>
-        {editingMessage && <EditingIndicator>Editing message (ESC to cancel)</EditingIndicator>}
+        {editingMessage && (
+          <EditingIndicator>
+            Editing message ({formatKeybind(KEYBINDS.CANCEL_EDIT)} to cancel)
+          </EditingIndicator>
+        )}
         <ModeTogglesRow>
           <ModelDisplayWrapper>
             <ModelSelector
