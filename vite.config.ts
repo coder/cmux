@@ -7,9 +7,10 @@ import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-export default defineConfig({
-  // Only React plugin for main renderer - WASM plugins excluded to avoid mermaid initialization errors
-  plugins: [react()],
+export default defineConfig(({ mode }) => ({
+  // WASM plugins only in dev mode - production externalizes tiktoken anyway
+  // This prevents mermaid initialization errors in production while allowing dev to work
+  plugins: mode === "development" ? [react(), wasm(), topLevelAwait()] : [react()],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
@@ -49,4 +50,4 @@ export default defineConfig({
       target: "esnext",
     },
   },
-});
+}));
