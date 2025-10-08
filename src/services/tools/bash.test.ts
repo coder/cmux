@@ -609,3 +609,61 @@ it("should stop accumulating output when byte limit is reached", async () => {
     expect(lines.length).toBeGreaterThan(100);
   }
 });
+
+  it("should fail when line exceeds max line bytes", async () => {
+    const tool = createBashTool({ cwd: process.cwd() });
+    const longLine = "x".repeat(2000);
+    const args: BashToolArgs = {
+      script: `echo '${longLine}'`,
+      timeout_secs: 5,
+      max_lines: 10,
+    };
+
+    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain("output exceeded limits");
+      expect(result.error).toContain("head");
+      expect(result.exitCode).toBe(-1);
+    }
+  });
+
+  it("should fail when total bytes limit exceeded", async () => {
+    const tool = createBashTool({ cwd: process.cwd() });
+    const lineContent = "x".repeat(100);
+    const numLines = Math.ceil(BASH_MAX_TOTAL_BYTES / 100) + 50;
+    const args: BashToolArgs = {
+      script: `for i in {1..${numLines}}; do echo '${lineContent}'; done`,
+      timeout_secs: 5,
+      max_lines: BASH_HARD_MAX_LINES,
+    };
+
+    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain("output exceeded limits");
+      expect(result.error).toContain("grep");
+      expect(result.exitCode).toBe(-1);
+    }
+  });
+
+  it("should fail early when byte limit is reached", async () => {
+    const tool = createBashTool({ cwd: process.cwd() });
+    const args: BashToolArgs = {
+      script: `for i in {1..1000}; do echo 'This is line number '$i' with some content'; done`,
+      timeout_secs: 5,
+      max_lines: BASH_HARD_MAX_LINES,
+    };
+
+    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain("output exceeded limits");
+      expect(result.error).toContain("tail");
+      expect(result.exitCode).toBe(-1);
+    }
+  });
+});
