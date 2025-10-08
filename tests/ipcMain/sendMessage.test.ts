@@ -972,103 +972,90 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
         const { env, workspaceId, cleanup } = await setupWorkspace(provider);
 
         try {
-          // Phase 1: Send large messages until context error occurs
+          // Phase 1: Build up large conversation history to exceed context limit
+          // HACK: Use HistoryService directly to populate history without API calls.
+          // This is a test-only shortcut. Real application code should NEVER bypass IPC.
+          const historyService = new HistoryService(env.config);
+
           // gpt-4o-mini has ~128k token context window
-          // Each chunk is ~10k tokens (40k chars / 4 chars per token)
-          const largeChunk = "A".repeat(40000);
-          let contextError: unknown = null;
+          // Create ~50k chars per message (~12.5k tokens)
+          const messageSize = 50_000;
+          const largeText = "A".repeat(messageSize);
 
-          // Send up to 20 large messages (200k tokens total)
-          // Should exceed 128k context limit and trigger error
-          for (let i = 0; i < 20; i++) {
-            const result = await sendMessageWithModel(
-              env.mockIpcRenderer,
-              workspaceId,
-              largeChunk,
-              provider,
-              model,
-              { disableAutoTruncation: true }
-            );
+          // Need ~150k tokens to exceed 128k context limit
+          // 12 messages × 12.5k tokens = 150k tokens
+          const messageCount = 12;
 
-            if (!result.success) {
-              contextError = result.error;
-              break;
-            }
+          // Build conversation history with alternating user/assistant messages
+          for (let i = 0; i < messageCount; i++) {
+            const isUser = i % 2 === 0;
+            const role = isUser ? "user" : "assistant";
+            const message = createCmuxMessage(`history-msg-${i}`, role, largeText, {});
 
-            // Wait for stream completion or error
-            const collector = createEventCollector(env.sentEvents, workspaceId);
-            
-            // Poll for either stream-end or stream-error
-            const startTime = Date.now();
-            let foundEvent = false;
-            while (Date.now() - startTime < 60000 && !foundEvent) {
-              collector.collect(); // Collect new events from sentEvents
-              
-              const streamEnd = collector.getEvents().find(
-                (e) => "type" in e && e.type === "stream-end"
-              );
-              const streamError = collector.getEvents().find(
-                (e) => "type" in e && e.type === "stream-error"
-              );
-              
-              if (streamError && "error" in streamError) {
-                contextError = streamError.error;
-                foundEvent = true;
-                break;
-              }
-              
-              if (streamEnd) {
-                foundEvent = true;
-                break;
-              }
-              
-              await new Promise((resolve) => setTimeout(resolve, 100));
-            }
-            
-            if (!foundEvent) {
-              throw new Error("Timeout waiting for stream-end or stream-error");
-            }
-            
-            // If we got a stream error, break out of the loop
-            if (contextError) {
-              break;
-            }
-            
-            assertStreamSuccess(collector);
-            env.sentEvents.length = 0; // Clear events for next iteration
+            const result = await historyService.appendToHistory(workspaceId, message);
+            expect(result.success).toBe(true);
           }
 
-          // Verify we hit a context error
-          expect(contextError).not.toBeNull();
+          // Now send a new message with auto-truncation disabled - should trigger error
+          const result = await sendMessageWithModel(
+            env.mockIpcRenderer,
+            workspaceId,
+            "This should trigger a context error",
+            provider,
+            model,
+            { disableAutoTruncation: true }
+          );
+
+          // IPC call itself should succeed (errors come through stream events)
+          expect(result.success).toBe(true);
+
+          // Wait for either stream-end or stream-error
+          const collector = createEventCollector(env.sentEvents, workspaceId);
+          await Promise.race([
+            collector.waitForEvent("stream-end", 10000),
+            collector.waitForEvent("stream-error", 10000),
+          ]);
+
+          // Should have received error event with context exceeded error
+          expect(collector.hasError()).toBe(true);
+
           // Check that error message contains context-related keywords
-          const errorStr = JSON.stringify(contextError).toLowerCase();
-          expect(
-            errorStr.includes("context") ||
-              errorStr.includes("length") ||
-              errorStr.includes("exceed") ||
-              errorStr.includes("token")
-          ).toBe(true);
+          const errorEvents = collector
+            .getEvents()
+            .filter((e) => "type" in e && e.type === "stream-error");
+          expect(errorEvents.length).toBeGreaterThan(0);
+
+          const errorEvent = errorEvents[0];
+          if (errorEvent && "error" in errorEvent) {
+            const errorStr = String(errorEvent.error).toLowerCase();
+            expect(
+              errorStr.includes("context") ||
+                errorStr.includes("length") ||
+                errorStr.includes("exceed") ||
+                errorStr.includes("token")
+            ).toBe(true);
+          }
 
           // Phase 2: Send message with auto-truncation enabled (should succeed)
           env.sentEvents.length = 0;
           const successResult = await sendMessageWithModel(
             env.mockIpcRenderer,
             workspaceId,
-            "Final message after auto truncation",
+            "This should succeed with auto-truncation",
             provider,
             model
             // disableAutoTruncation defaults to false (auto-truncation enabled)
           );
 
           expect(successResult.success).toBe(true);
-          const collector = createEventCollector(env.sentEvents, workspaceId);
-          await collector.waitForEvent("stream-end", 60000);
-          assertStreamSuccess(collector);
+          const successCollector = createEventCollector(env.sentEvents, workspaceId);
+          await successCollector.waitForEvent("stream-end", 30000);
+          assertStreamSuccess(successCollector);
         } finally {
           await cleanup();
         }
       },
-      180000 // 3 minute timeout for heavy test with multiple API calls
+      60000 // 1 minute timeout (much faster since we don't make many API calls)
     );
   });
 });
