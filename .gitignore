@@ -61,7 +61,7 @@ dist
 release
 
 # Documentation
-docs/vercel/
+ai-sdk-docs/
 docs/book/
 docs/mermaid-init.js
 docs/mermaid.min.js
