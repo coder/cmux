@@ -65,9 +65,9 @@ describe("bash tool", () => {
   it("should save overflow output to temp file with short ID", async () => {
     const tool = createBashTool({ cwd: process.cwd() });
     const args: BashToolArgs = {
-      script: "for i in {1..150}; do echo line$i; done",
+      script: "for i in {1..400}; do echo line$i; done",
       timeout_secs: 5,
-      max_lines: 100,
+      max_lines: 300,
     };
 
     const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
@@ -81,8 +81,8 @@ describe("bash tool", () => {
       
       // Verify helpful filtering instructions are included
       expect(result.error).toContain("grep '<pattern>'");
-      expect(result.error).toContain("head -n 100");
-      expect(result.error).toContain("tail -n 100");
+      expect(result.error).toContain("head -n 300");
+      expect(result.error).toContain("tail -n 300");
       expect(result.error).toContain("When done, clean up: rm");
 
       // Extract file path from error message
@@ -99,12 +99,12 @@ describe("bash tool", () => {
         const fs = require("fs");
         expect(fs.existsSync(overflowPath)).toBe(true);
         
-        // Verify file contains collected lines (at least 100, may be slightly more)
+        // Verify file contains collected lines (at least 300, may be slightly more)
         const fileContent = fs.readFileSync(overflowPath, "utf-8");
         const fileLines = fileContent.split("\n").filter((l: string) => l.length > 0);
-        expect(fileLines.length).toBeGreaterThanOrEqual(100);
+        expect(fileLines.length).toBeGreaterThanOrEqual(300);
         expect(fileContent).toContain("line1");
-        expect(fileContent).toContain("line100");
+        expect(fileContent).toContain("line300");
         
         // Clean up temp file
         fs.unlinkSync(overflowPath);

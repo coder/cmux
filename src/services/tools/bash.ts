@@ -140,6 +140,15 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
         const stdoutReader = createInterface({ input: childProcess.child.stdout! });
         const stderrReader = createInterface({ input: childProcess.child.stderr! });
 
+        // Helper to trigger truncation and clean shutdown
+        // Prevents duplication and ensures consistent cleanup
+        const triggerTruncation = () => {
+          truncated = true;
+          stdoutReader.close();
+          stderrReader.close();
+          childProcess.child.kill();
+        };
+
         stdoutReader.on("line", (line) => {
           if (!resolved) {
             // Always collect lines, even after truncation is triggered
@@ -151,11 +160,7 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
 
               // Check if line exceeds per-line limit
               if (lineBytes > BASH_MAX_LINE_BYTES) {
-                truncated = true;
-                // Close readline interfaces before killing to ensure clean shutdown
-                stdoutReader.close();
-                stderrReader.close();
-                childProcess.child.kill();
+                triggerTruncation();
                 return;
               }
 
@@ -163,21 +168,13 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
 
               // Check if adding this line would exceed total bytes limit
               if (totalBytesAccumulated > BASH_MAX_TOTAL_BYTES) {
-                truncated = true;
-                // Close readline interfaces before killing to ensure clean shutdown
-                stdoutReader.close();
-                stderrReader.close();
-                childProcess.child.kill();
+                triggerTruncation();
                 return;
               }
 
               // Check if we've exceeded the effective max_lines limit
               if (lines.length >= effectiveMaxLines) {
-                truncated = true;
-                // Close readline interfaces before killing to ensure clean shutdown
-                stdoutReader.close();
-                stderrReader.close();
-                childProcess.child.kill();
+                triggerTruncation();
               }
             }
           }
@@ -194,11 +191,7 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
 
               // Check if line exceeds per-line limit
               if (lineBytes > BASH_MAX_LINE_BYTES) {
-                truncated = true;
-                // Close readline interfaces before killing to ensure clean shutdown
-                stdoutReader.close();
-                stderrReader.close();
-                childProcess.child.kill();
+                triggerTruncation();
                 return;
               }
 
@@ -206,21 +199,13 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
 
               // Check if adding this line would exceed total bytes limit
               if (totalBytesAccumulated > BASH_MAX_TOTAL_BYTES) {
-                truncated = true;
-                // Close readline interfaces before killing to ensure clean shutdown
-                stdoutReader.close();
-                stderrReader.close();
-                childProcess.child.kill();
+                triggerTruncation();
                 return;
               }
 
               // Check if we've exceeded the effective max_lines limit
               if (lines.length >= effectiveMaxLines) {
-                truncated = true;
-                // Close readline interfaces before killing to ensure clean shutdown
-                stdoutReader.close();
-                stderrReader.close();
-                childProcess.child.kill();
+                triggerTruncation();
               }
             }
           }
@@ -322,9 +307,9 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
 The command output exceeded limits and was saved to a temporary file.
 Use filtering tools to extract what you need:
 - grep '<pattern>' ${overflowPath}
-- head -n 100 ${overflowPath}
-- tail -n 100 ${overflowPath}
-- sed -n '100,200p' ${overflowPath}
+- head -n 300 ${overflowPath}
+- tail -n 300 ${overflowPath}
+- sed -n '100,400p' ${overflowPath}
 
 When done, clean up: rm ${overflowPath}`;
 
