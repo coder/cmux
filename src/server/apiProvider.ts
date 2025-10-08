@@ -21,11 +21,11 @@ const getPlatform = (): string => {
 };
 
 // Create a mock versions object for web mode
-const webVersions = {
+const getWebVersions = () => ({
   node: "N/A",
-  chrome: navigator.userAgent.match(/Chrome\/([\d.]+)/)?.[1] || "N/A",
+  chrome: typeof navigator !== "undefined" ? (navigator.userAgent.match(/Chrome\/([\d.]+)/)?.[1] || "N/A") : "N/A",
   electron: "N/A (Web Mode)",
-};
+});
 
 // Export the appropriate API based on environment
 export const api: IPCApi & {
@@ -40,7 +40,7 @@ export const api: IPCApi & {
   : {
       ...webApi,
       platform: getPlatform(),
-      versions: webVersions,
+      versions: getWebVersions(),
     };
 
 export const isWebMode = !isElectron;
