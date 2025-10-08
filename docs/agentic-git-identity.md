@@ -58,6 +58,7 @@ export GIT_COMMITTER_EMAIL="yourname+ai@example.com"
 ```
 
 Then reload your shell:
+
 ```bash
 source ~/.zshrc  # or ~/.bashrc
 ```
@@ -110,6 +111,7 @@ gh auth login --with-token <<< "your_token_here"
 ```
 
 Or interactively:
+
 ```bash
 gh auth login
 # Select: GitHub.com
@@ -159,6 +161,7 @@ Commit: Your Name (Agent) <yourname+ai@example.com>
 ### Push Fails with "Repository not found"
 
 The token might not have access to the repository:
+
 - Verify the token has `repo` scope
 - For private repos, ensure the agent account has access to the repository
 - Try: `gh repo view owner/repo` to test access
@@ -166,6 +169,7 @@ The token might not have access to the repository:
 ### Push Uses Wrong Credentials
 
 System keychain might be overriding `gh` credentials:
+
 - Verify git credential config: `git config --show-origin --get-all credential.helper`
 - Ensure empty helper `""` comes before `!gh auth git-credential`
 - Clear keychain credentials if needed (macOS): Delete github.com entry from Keychain Access
@@ -173,6 +177,7 @@ System keychain might be overriding `gh` credentials:
 ### Author and Committer Differ
 
 Missing `GIT_COMMITTER_*` environment variables:
+
 - Set all four variables: `GIT_AUTHOR_NAME`, `GIT_AUTHOR_EMAIL`, `GIT_COMMITTER_NAME`, `GIT_COMMITTER_EMAIL`
 - Restart your shell/terminal
 - Verify with: `env | grep GIT_`
@@ -180,6 +185,7 @@ Missing `GIT_COMMITTER_*` environment variables:
 ### Changes Don't Take Effect
 
 Environment variables aren't loaded:
+
 - Restart your terminal/shell
 - For cmux, restart the application to pick up new environment variables
 - Verify variables: `env | grep GIT_`

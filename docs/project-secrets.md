@@ -80,11 +80,13 @@ The agent doesn't need to explicitly reference secrets - they're available as re
 ### What Secrets Can Access
 
 Secrets are available to:
+
 - ✅ Bash commands executed by the agent
 - ✅ Scripts run within the workspace
 - ✅ Git operations (e.g., `gh` CLI commands)
 
 Secrets are NOT:
+
 - ❌ Sent to AI models (unless explicitly output in bash results)
 - ❌ Visible in the chat UI
 - ❌ Shared across different projects
@@ -96,6 +98,7 @@ Secrets are NOT:
 **Symptom**: Commands fail with authentication errors even though secrets are set.
 
 **Solutions**:
+
 - Verify the secret key name matches what the tool expects (e.g., `GITHUB_TOKEN` not `GH_TOKEN`)
 - Check that you saved the secrets modal (click "Save" button)
 - Restart cmux to ensure config changes are loaded
@@ -106,6 +109,7 @@ Secrets are NOT:
 **Symptom**: You need the same secret (e.g., `GITHUB_TOKEN`) across multiple projects.
 
 **Solutions**:
+
 - Copy the secret to each project individually (recommended for different values)
 - Or use global environment variables (set in your shell config) as a fallback
 - Note: Project secrets override global environment variables with the same name
@@ -115,6 +119,7 @@ Secrets are NOT:
 **Symptom**: Secret values containing quotes, spaces, or special characters cause issues.
 
 **Solutions**:
+
 - Secrets are injected as-is, no escaping needed
 - Avoid trailing newlines or spaces in values
 - If pasting from terminal output, ensure you copy only the token value
