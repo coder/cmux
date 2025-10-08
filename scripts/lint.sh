@@ -25,11 +25,11 @@ fi
 ESLINT_PATTERN='src/**/*.{ts,tsx}'
 
 if [ "$1" = "--fix" ]; then
-  echo "Running eslint with --fix..."
-  eslint "$ESLINT_PATTERN" --fix
+  echo "Running bun x eslint with --fix..."
+  bun x eslint "$ESLINT_PATTERN" --fix
 else
   echo "Running eslint..."
-  eslint "$ESLINT_PATTERN"
+  bun x eslint "$ESLINT_PATTERN"
   ./scripts/typecheck.sh
   echo "All lint checks passed!"
 fi
