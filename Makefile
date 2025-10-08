@@ -41,7 +41,7 @@ help: ## Show this help message
 ## Development
 dev: build-main ## Start development server (Vite + TypeScript watcher)
 	@bun x concurrently -k \
-		"bun x concurrently \"tsc -w -p tsconfig.main.json\" \"tsc-alias -w -p tsconfig.main.json\"" \
+		"bun x concurrently \"bun x tsc -w -p tsconfig.main.json\" \"bun x tsc-alias -w -p tsconfig.main.json\"" \
 		"vite"
 
 start: build-main build-preload ## Build and start Electron app
@@ -52,8 +52,8 @@ build: dist/version.txt build-renderer build-main build-preload ## Build all tar
 
 build-main: dist/version.txt ## Build main process
 	@echo "Building main process..."
-	@tsc -p tsconfig.main.json
-	@tsc-alias -p tsconfig.main.json
+	@bun x tsc -p tsconfig.main.json
+	@bun x tsc-alias -p tsconfig.main.json
 
 build-preload: ## Build preload script
 	@echo "Building preload script..."
