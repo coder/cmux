@@ -75,25 +75,13 @@ Only merge if the user explicitly says "merge it" or similar.
 ## Docs
 
 DO NOT visit https://sdk.vercel.ai/docs/ai-sdk-core. All of that content is already
-in `./docs/vercel/**.mdx`.
+in `./ai-sdk-docs/**.mdx`.
 
 (Generate them with `./scripts/update_vercel_docs.sh` if they don't exist.)
 
 ### Documentation Guidelines
 
-**Developer documentation should live inline with relevant code as comments.**
-
-Instead of creating separate documentation files for technical details, embed documentation directly in the code:
-
-- **Makefiles**: Add header comments explaining purpose, usage, and key concepts
-- **Scripts**: Include comments explaining behavior, arguments, and examples  
-- **Configuration files**: Document options and their effects inline
-- **Source code**: Use JSDoc/TSDoc for APIs, inline comments for complex logic
-
-**When to create separate docs (in `docs/`):**
-- User-facing guides (installation, usage, tutorials)
-- Architecture overviews (high-level system design)
-- Project context (goals, conventions, onboarding)
+**Developer documentation should live inline with relevant code as comments.** The `docs/` directory contains user-facing documentation.
 
 ## Key Features
 
