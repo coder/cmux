@@ -30,7 +30,7 @@ This is especially important with rapid development where branches quickly fall 
 ./scripts/wait_pr_checks.sh <pr_number>
 ```
 
-This script polls every 5 seconds and fails immediately on CI failure or bad merge status.
+This script polls every 5 seconds and fails immediately on CI failure, bad merge status, or unresolved review comments.
 
 **Key status values:**
 
