@@ -171,7 +171,6 @@ function AppInner() {
 
   const { workspaceMetadata, createWorkspace, removeWorkspace, renameWorkspace } =
     useWorkspaceManagement({
-      projects,
       selectedWorkspace,
       onProjectsUpdate: handleProjectsUpdate,
       onSelectedWorkspaceUpdate: setSelectedWorkspace,
@@ -220,12 +219,15 @@ function AppInner() {
   };
 
   const handleGetSecrets = useCallback(async (projectPath: string) => {
-    return await window.api.secrets.get(projectPath);
+    return await window.api.projects.secrets.get(projectPath);
   }, []);
 
   const handleUpdateSecrets = useCallback(
     async (projectPath: string, secrets: Array<{ key: string; value: string }>) => {
-      await window.api.secrets.update(projectPath, secrets);
+      const result = await window.api.projects.secrets.update(projectPath, secrets);
+      if (!result.success) {
+        console.error("Failed to update secrets:", result.error);
+      }
     },
     []
   );
