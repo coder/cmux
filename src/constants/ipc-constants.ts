@@ -15,6 +15,10 @@ export const IPC_CHANNELS = {
   PROVIDERS_SET_CONFIG: "providers:setConfig",
   PROVIDERS_LIST: "providers:list",
 
+  // Secrets channels
+  SECRETS_GET: "secrets:get",
+  SECRETS_UPDATE: "secrets:update",
+
   // Workspace channels
   WORKSPACE_LIST: "workspace:list",
   WORKSPACE_CREATE: "workspace:create",

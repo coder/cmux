@@ -13,6 +13,7 @@ import type { Config } from "@/config";
 import { StreamManager } from "./streamManager";
 import type { SendMessageError } from "@/types/errors";
 import { getToolsForModel } from "@/utils/tools/tools";
+import { secretsToRecord } from "@/types/secrets";
 import { log } from "./log";
 import {
   transformModelMessages,
@@ -350,8 +351,17 @@ export class AIService extends EventEmitter {
 
       const workspacePath = metadataResult.data.workspacePath;
 
-      // Get model-specific tools with workspace path configuration
-      const allTools = getToolsForModel(modelString, { cwd: workspacePath });
+      // Find project path for this workspace to load secrets
+      const workspaceInfo = this.config.findWorkspace(workspaceId);
+      const projectSecrets = workspaceInfo
+        ? this.config.getProjectSecrets(workspaceInfo.projectPath)
+        : [];
+
+      // Get model-specific tools with workspace path configuration and secrets
+      const allTools = getToolsForModel(modelString, {
+        cwd: workspacePath,
+        secrets: secretsToRecord(projectSecrets),
+      });
 
       // Apply tool policy to filter tools (if policy provided)
       const tools = applyToolPolicy(allTools, toolPolicy);

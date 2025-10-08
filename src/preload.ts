@@ -37,6 +37,11 @@ const api: IPCApi = {
       ipcRenderer.invoke(IPC_CHANNELS.PROVIDERS_SET_CONFIG, provider, keyPath, value),
     list: () => ipcRenderer.invoke(IPC_CHANNELS.PROVIDERS_LIST),
   },
+  secrets: {
+    get: (projectPath) => ipcRenderer.invoke(IPC_CHANNELS.SECRETS_GET, projectPath),
+    update: (projectPath, secrets) =>
+      ipcRenderer.invoke(IPC_CHANNELS.SECRETS_UPDATE, projectPath, secrets),
+  },
   workspace: {
     list: () => ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_LIST),
     create: (projectPath, branchName) =>

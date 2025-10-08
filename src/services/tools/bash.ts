@@ -75,6 +75,8 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
           cwd: config.cwd,
           env: {
             ...process.env,
+            // Inject secrets as environment variables
+            ...(config.secrets ?? {}),
             // Prevent interactive editors from blocking bash execution
             // This is critical for git operations like rebase/commit that try to open editors
             GIT_EDITOR: "true", // Git-specific editor (highest priority)

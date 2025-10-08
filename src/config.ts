@@ -4,6 +4,7 @@ import * as os from "os";
 import * as jsonc from "jsonc-parser";
 import writeFileAtomic from "write-file-atomic";
 import type { WorkspaceMetadata } from "./types/workspace";
+import type { Secret, SecretsConfig } from "./types/secrets";
 
 export interface Workspace {
   path: string; // Absolute path to workspace worktree
@@ -40,6 +41,7 @@ export class Config {
   readonly srcDir: string;
   private readonly configFile: string;
   private readonly providersFile: string;
+  private readonly secretsFile: string;
 
   constructor(rootDir?: string) {
     this.rootDir = rootDir ?? path.join(os.homedir(), ".cmux");
@@ -47,6 +49,7 @@ export class Config {
     this.srcDir = path.join(this.rootDir, "src");
     this.configFile = path.join(this.rootDir, "config.json");
     this.providersFile = path.join(this.rootDir, "providers.jsonc");
+    this.secretsFile = path.join(this.rootDir, "secrets.json");
   }
 
   loadConfigOrDefault(): ProjectsConfig {
@@ -239,6 +242,61 @@ ${jsonString}`;
       console.error("Error saving providers config:", error);
       throw error; // Re-throw to let caller handle
     }
+  }
+
+  /**
+   * Load secrets configuration from JSON file
+   * Returns empty config if file doesn't exist
+   */
+  loadSecretsConfig(): SecretsConfig {
+    try {
+      if (fs.existsSync(this.secretsFile)) {
+        const data = fs.readFileSync(this.secretsFile, "utf-8");
+        return JSON.parse(data) as SecretsConfig;
+      }
+    } catch (error) {
+      console.error("Error loading secrets config:", error);
+    }
+
+    return {};
+  }
+
+  /**
+   * Save secrets configuration to JSON file
+   * @param config The secrets configuration to save
+   */
+  saveSecretsConfig(config: SecretsConfig): void {
+    try {
+      if (!fs.existsSync(this.rootDir)) {
+        fs.mkdirSync(this.rootDir, { recursive: true });
+      }
+
+      writeFileAtomic.sync(this.secretsFile, JSON.stringify(config, null, 2));
+    } catch (error) {
+      console.error("Error saving secrets config:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get secrets for a specific project
+   * @param projectPath The path to the project
+   * @returns Array of secrets for the project, or empty array if none
+   */
+  getProjectSecrets(projectPath: string): Secret[] {
+    const config = this.loadSecretsConfig();
+    return config[projectPath] ?? [];
+  }
+
+  /**
+   * Update secrets for a specific project
+   * @param projectPath The path to the project
+   * @param secrets The secrets to save for the project
+   */
+  updateProjectSecrets(projectPath: string, secrets: Secret[]): void {
+    const config = this.loadSecretsConfig();
+    config[projectPath] = secrets;
+    this.saveSecretsConfig(config);
   }
 }
 

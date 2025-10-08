@@ -32,6 +32,7 @@ import { validateWorkspaceName } from "@/utils/validation/workspaceValidation";
 import { createBashTool } from "@/services/tools/bash";
 import type { BashToolResult } from "@/types/tools";
 import { BASH_DEFAULT_MAX_LINES, BASH_HARD_MAX_LINES } from "@/constants/toolLimits";
+import { secretsToRecord } from "@/types/secrets";
 
 const createUnknownSendMessageError = (raw: string): SendMessageError => ({
   type: "unknown",
@@ -85,6 +86,7 @@ export class IpcMain {
     this.registerDialogHandlers(ipcMain);
     this.registerWorkspaceHandlers(ipcMain);
     this.registerProviderHandlers(ipcMain);
+    this.registerSecretsHandlers(ipcMain);
     this.registerSubscriptionHandlers(ipcMain);
     this.setupEventForwarding();
     this.registered = true;
@@ -157,6 +159,24 @@ export class IpcMain {
             workspacePath: result.path,
           };
           await this.aiService.saveWorkspaceMetadata(workspaceId, metadata);
+
+          // Update config to include the new workspace
+          this.config.editConfig((config) => {
+            let projectConfig = config.projects.get(projectPath);
+            if (!projectConfig) {
+              // Create project config if it doesn't exist
+              projectConfig = {
+                path: projectPath,
+                workspaces: [],
+              };
+              config.projects.set(projectPath, projectConfig);
+            }
+            // Add workspace to project config
+            projectConfig.workspaces.push({
+              path: result.path!,
+            });
+            return config;
+          });
 
           // Emit metadata event for new workspace
           this.mainWindow?.webContents.send(IPC_CHANNELS.WORKSPACE_METADATA, {
@@ -674,8 +694,17 @@ export class IpcMain {
 
           const workspacePath = metadataResult.data.workspacePath;
 
-          // Create bash tool with workspace's cwd
-          const bashTool = createBashTool({ cwd: workspacePath });
+          // Find project path for this workspace to load secrets
+          const workspaceInfo = this.config.findWorkspace(workspaceId);
+          const projectSecrets = workspaceInfo
+            ? this.config.getProjectSecrets(workspaceInfo.projectPath)
+            : [];
+
+          // Create bash tool with workspace's cwd and secrets
+          const bashTool = createBashTool({
+            cwd: workspacePath,
+            secrets: secretsToRecord(projectSecrets),
+          });
 
           // Execute the script with provided options
           const requestedMaxLines = options?.max_lines ?? BASH_DEFAULT_MAX_LINES;
@@ -784,6 +813,29 @@ export class IpcMain {
         return [];
       }
     });
+  }
+
+  private registerSecretsHandlers(ipcMain: ElectronIpcMain): void {
+    ipcMain.handle(IPC_CHANNELS.SECRETS_GET, (_event, projectPath: string) => {
+      try {
+        return this.config.getProjectSecrets(projectPath);
+      } catch (error) {
+        log.error("Failed to get secrets:", error);
+        return [];
+      }
+    });
+
+    ipcMain.handle(
+      IPC_CHANNELS.SECRETS_UPDATE,
+      (_event, projectPath: string, secrets: Array<{ key: string; value: string }>) => {
+        try {
+          this.config.updateProjectSecrets(projectPath, secrets);
+        } catch (error) {
+          log.error("Failed to update secrets:", error);
+          throw error;
+        }
+      }
+    );
   }
 
   private registerSubscriptionHandlers(ipcMain: ElectronIpcMain): void {

@@ -219,6 +219,17 @@ function AppInner() {
     }
   };
 
+  const handleGetSecrets = useCallback(async (projectPath: string) => {
+    return await window.api.secrets.get(projectPath);
+  }, []);
+
+  const handleUpdateSecrets = useCallback(
+    async (projectPath: string, secrets: Array<{ key: string; value: string }>) => {
+      await window.api.secrets.update(projectPath, secrets);
+    },
+    []
+  );
+
   const handleNavigateWorkspace = useCallback(
     (direction: "next" | "prev") => {
       if (!selectedWorkspace) return;
@@ -407,6 +418,8 @@ function AppInner() {
           getWorkspaceState={getWorkspaceState}
           collapsed={sidebarCollapsed}
           onToggleCollapsed={() => setSidebarCollapsed((prev) => !prev)}
+          onGetSecrets={handleGetSecrets}
+          onUpdateSecrets={handleUpdateSecrets}
         />
         <MainContent>
           <AppHeader>

@@ -151,6 +151,10 @@ export interface IPCApi {
     ): Promise<Result<void, string>>;
     list(): Promise<string[]>;
   };
+  secrets: {
+    get(projectPath: string): Promise<Array<{ key: string; value: string }>>;
+    update(projectPath: string, secrets: Array<{ key: string; value: string }>): Promise<void>;
+  };
   workspace: {
     list(): Promise<WorkspaceMetadata[]>;
     create(
