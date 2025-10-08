@@ -184,9 +184,9 @@ describeIntegration("IpcMain executeBash integration tests", () => {
         );
 
         expect(maxLinesResult.success).toBe(true);
-        expect(maxLinesResult.data.success).toBe(true);
-        expect(maxLinesResult.data.truncated).toBe(true);
-        expect(maxLinesResult.data.output).toContain("[TRUNCATED]");
+        expect(maxLinesResult.data.success).toBe(false);
+        expect(maxLinesResult.data.error).toContain("output exceeded limits");
+        expect(maxLinesResult.data.exitCode).toBe(-1);
 
         // Clean up
         await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, workspaceId);
@@ -221,11 +221,9 @@ describeIntegration("IpcMain executeBash integration tests", () => {
         );
 
         expect(oversizedResult.success).toBe(true);
-        expect(oversizedResult.data.success).toBe(true);
-        expect(oversizedResult.data.truncated).toBe(true);
-        const lines = oversizedResult.data.output.split("\n");
-        expect(lines).toHaveLength(BASH_HARD_MAX_LINES);
-        expect(oversizedResult.data.output).toContain("[TRUNCATED]");
+        expect(oversizedResult.data.success).toBe(false);
+        expect(oversizedResult.data.error).toContain("output exceeded limits");
+        expect(oversizedResult.data.exitCode).toBe(-1);
 
         await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, workspaceId);
       } finally {

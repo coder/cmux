@@ -3,7 +3,12 @@ import { spawn } from "child_process";
 import type { ChildProcess } from "child_process";
 import { createInterface } from "readline";
 import * as path from "path";
-import { BASH_DEFAULT_MAX_LINES, BASH_HARD_MAX_LINES } from "@/constants/toolLimits";
+import {
+  BASH_DEFAULT_MAX_LINES,
+  BASH_HARD_MAX_LINES,
+  BASH_MAX_LINE_BYTES,
+  BASH_MAX_TOTAL_BYTES,
+} from "@/constants/toolLimits";
 
 import type { BashToolResult } from "@/types/tools";
 import type { ToolConfiguration, ToolFactory } from "@/utils/tools/tools";
@@ -42,6 +47,7 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
       const startTime = performance.now();
       const normalizedMaxLines = Math.max(1, Math.floor(max_lines));
       const effectiveMaxLines = Math.min(normalizedMaxLines, BASH_HARD_MAX_LINES);
+      let totalBytesAccumulated = 0;
 
       // Detect redundant cd to working directory
       // Match patterns like: "cd /path &&", "cd /path;", "cd '/path' &&", "cd \"/path\" &&"
@@ -132,7 +138,31 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
 
         stdoutReader.on("line", (line) => {
           if (!truncated && !resolved) {
+            const lineBytes = Buffer.byteLength(line, "utf-8");
+
+            // Check if line exceeds per-line limit
+            if (lineBytes > BASH_MAX_LINE_BYTES) {
+              truncated = true;
+              // Close readline interfaces before killing to ensure clean shutdown
+              stdoutReader.close();
+              stderrReader.close();
+              childProcess.child.kill();
+              return;
+            }
+
+            // Check if adding this line would exceed total bytes limit
+            if (totalBytesAccumulated + lineBytes > BASH_MAX_TOTAL_BYTES) {
+              truncated = true;
+              // Close readline interfaces before killing to ensure clean shutdown
+              stdoutReader.close();
+              stderrReader.close();
+              childProcess.child.kill();
+              return;
+            }
+
             lines.push(line);
+            totalBytesAccumulated += lineBytes + 1; // +1 for newline
+
             // Check if we've exceeded the effective max_lines limit
             if (lines.length >= effectiveMaxLines) {
               truncated = true;
@@ -146,7 +176,31 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
 
         stderrReader.on("line", (line) => {
           if (!truncated && !resolved) {
+            const lineBytes = Buffer.byteLength(line, "utf-8");
+
+            // Check if line exceeds per-line limit
+            if (lineBytes > BASH_MAX_LINE_BYTES) {
+              truncated = true;
+              // Close readline interfaces before killing to ensure clean shutdown
+              stdoutReader.close();
+              stderrReader.close();
+              childProcess.child.kill();
+              return;
+            }
+
+            // Check if adding this line would exceed total bytes limit
+            if (totalBytesAccumulated + lineBytes > BASH_MAX_TOTAL_BYTES) {
+              truncated = true;
+              // Close readline interfaces before killing to ensure clean shutdown
+              stdoutReader.close();
+              stderrReader.close();
+              childProcess.child.kill();
+              return;
+            }
+
             lines.push(line);
+            totalBytesAccumulated += lineBytes + 1; // +1 for newline
+
             // Check if we've exceeded the effective max_lines limit
             if (lines.length >= effectiveMaxLines) {
               truncated = true;
@@ -218,12 +272,6 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
           stdoutReader.close();
           stderrReader.close();
 
-          // Join lines and add truncation marker if needed
-          let output = lines.join("\n");
-          if (truncated && output.length > 0) {
-            output += " [TRUNCATED]";
-          }
-
           // Check if this was aborted (stream cancelled)
           const wasAborted = abortSignal?.aborted ?? false;
           // Check if this was a timeout (process killed and no natural exit code)
@@ -235,7 +283,6 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
               error: "Command aborted due to stream cancellation",
               exitCode: -2,
               wall_duration_ms,
-              truncated,
             });
           } else if (timedOut) {
             resolveOnce({
@@ -243,24 +290,31 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
               error: `Command timed out after ${timeout_secs} seconds`,
               exitCode: -1,
               wall_duration_ms,
-              truncated,
+            });
+          } else if (truncated) {
+            // Return error when output limits exceeded - no partial output
+            resolveOnce({
+              success: false,
+              error:
+                `Command output exceeded limits (max ${BASH_MAX_TOTAL_BYTES} bytes total, ${BASH_MAX_LINE_BYTES} bytes per line, ${effectiveMaxLines} lines). ` +
+                "Use output-limiting commands like 'head', 'tail', or 'grep' to reduce output size.",
+              exitCode: -1,
+              wall_duration_ms,
             });
           } else if (exitCode === 0 || exitCode === null) {
             resolveOnce({
               success: true,
-              output,
+              output: lines.join("\n"),
               exitCode: 0,
               wall_duration_ms,
-              ...(truncated && { truncated: true }),
             });
           } else {
             resolveOnce({
               success: false,
-              output,
+              output: lines.join("\n"),
               exitCode,
               error: `Command exited with code ${exitCode}`,
               wall_duration_ms,
-              truncated,
             });
           }
         };
