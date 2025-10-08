@@ -645,19 +645,11 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       }
     }
 
-    // Handle escape for interrupting stream
+    // Handle escape - let VimTextArea handle it (for Vim mode transitions)
+    // Edit canceling is handled by Ctrl+Q above
+    // Stream interruption is handled by Ctrl+C (INTERRUPT_STREAM keybind)
     if (matchesKeybind(e, KEYBINDS.CANCEL)) {
-      if (canInterrupt) {
-        e.preventDefault();
-        void window.api.workspace.sendMessage(workspaceId, "");
-        const isFocused = document.activeElement === inputRef.current;
-        if (isFocused) {
-          inputRef.current?.blur();
-        }
-        return;
-      }
-
-      // Otherwise, do not preventDefault here: allow VimTextArea or other handlers (like suggestions) to process ESC
+      // Do not preventDefault here: allow VimTextArea or other handlers (like suggestions) to process ESC
     }
 
     // Don't handle keys if command suggestions are visible
