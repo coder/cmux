@@ -407,10 +407,12 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
           return;
         }
         case "w":
+        case "W":
           e.preventDefault();
           moveWordForward();
           return;
         case "b":
+        case "B":
           e.preventDefault();
           moveWordBackward();
           return;
