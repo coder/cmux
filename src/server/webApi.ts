@@ -21,7 +21,7 @@ interface InvokeResponse<T> {
 
 // Helper function to invoke IPC handlers via HTTP
 async function invokeIPC<T>(channel: string, ...args: unknown[]): Promise<T> {
-  const response = await fetch(`${API_BASE}/ipc/${channel}`, {
+  const response = await fetch(`${API_BASE}/ipc/${encodeURIComponent(channel)}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -47,6 +47,7 @@ class WebSocketManager {
   private ws: WebSocket | null = null;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private messageHandlers = new Map<string, Set<(data: unknown) => void>>();
+  private channelWorkspaceIds = new Map<string, string>(); // Track workspaceId for each channel
   private isConnecting = false;
   private shouldReconnect = true;
 
@@ -62,9 +63,10 @@ class WebSocketManager {
       console.log("WebSocket connected");
       this.isConnecting = false;
 
-      // Resubscribe to all channels
+      // Resubscribe to all channels with their workspace IDs
       for (const channel of this.messageHandlers.keys()) {
-        this.subscribe(channel);
+        const workspaceId = this.channelWorkspaceIds.get(channel);
+        this.subscribe(channel, workspaceId);
       }
     };
 
@@ -100,6 +102,7 @@ class WebSocketManager {
   subscribe(channel: string, workspaceId?: string): void {
     if (this.ws?.readyState === WebSocket.OPEN) {
       if (channel.startsWith(IPC_CHANNELS.WORKSPACE_CHAT_PREFIX)) {
+        console.log(`[WebSocketManager] Subscribing to workspace chat for workspaceId: ${workspaceId}`);
         this.ws.send(
           JSON.stringify({
             type: "subscribe",
@@ -142,6 +145,10 @@ class WebSocketManager {
   on(channel: string, handler: (data: unknown) => void, workspaceId?: string): () => void {
     if (!this.messageHandlers.has(channel)) {
       this.messageHandlers.set(channel, new Set());
+      // Store workspaceId for this channel (needed for reconnection)
+      if (workspaceId) {
+        this.channelWorkspaceIds.set(channel, workspaceId);
+      }
       this.connect();
       this.subscribe(channel, workspaceId);
     }
@@ -154,6 +161,7 @@ class WebSocketManager {
       handlers.delete(handler);
       if (handlers.size === 0) {
         this.messageHandlers.delete(channel);
+        this.channelWorkspaceIds.delete(channel);
         this.unsubscribe(channel, workspaceId);
       }
     };
@@ -181,7 +189,11 @@ export const webApi: IPCApi = {
     save: (config) => invokeIPC(IPC_CHANNELS.CONFIG_SAVE, config),
   },
   dialog: {
-    selectDirectory: () => invokeIPC(IPC_CHANNELS.DIALOG_SELECT_DIR),
+    selectDirectory: async () => {
+      // TODO: Implement remote directory selection for mobile
+      // For now, return hardcoded path for testing
+      return "/home/kyle/projects/coder/cmux";
+    },
   },
   providers: {
     setProviderConfig: (provider, keyPath, value) =>

@@ -43,6 +43,11 @@ export default defineConfig(({ mode }) => ({
   server: {
     port: 5173,
     strictPort: true,
+
+    proxy: {
+      "/ipc": "http://localhost:3000",
+      "/ws": "ws://localhost:3000",
+    }
   },
   optimizeDeps: {
     exclude: ["@dqbd/tiktoken"],

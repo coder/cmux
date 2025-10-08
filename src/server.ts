@@ -43,15 +43,27 @@ class HttpIpcMainAdapter {
     this.handlers.set(channel, handler);
 
     // Create HTTP endpoint for this handler
-    app.post(`/ipc/${channel}`, async (req, res) => {
+    app.post(`/ipc/${encodeURIComponent(channel)}`, async (req, res) => {
       try {
         const args = req.body.args || [];
         const result = await handler(null, ...args);
+        
+        // If handler returns an error result object, unwrap it and send as error response
+        // This ensures webApi.ts will throw with the proper error message
+        if (result && typeof result === 'object' && 'success' in result && result.success === false) {
+          const errorMessage = 'error' in result && typeof result.error === 'string' 
+            ? result.error 
+            : 'Unknown error';
+          // Return 200 with error structure so webApi can throw with the detailed message
+          res.json({ success: false, error: errorMessage });
+          return;
+        }
+        
         res.json({ success: true, data: result });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         console.error(`Error in handler ${channel}:`, error);
-        res.status(500).json({ success: false, error: message });
+        res.json({ success: false, error: message });
       }
     });
   }
@@ -146,13 +158,15 @@ wss.on("connection", (ws) => {
 
       if (type === "subscribe") {
         if (channel === "workspace:chat") {
-          console.log(`Client subscribed to workspace chat: ${workspaceId}`);
+          console.log(`[WS] Client subscribed to workspace chat: ${workspaceId}`);
           clientInfo.chatSubscriptions.add(workspaceId);
+          console.log(`[WS] Subscription added. Current subscriptions:`, Array.from(clientInfo.chatSubscriptions));
 
           // Send subscription acknowledgment through IPC system
+          console.log(`[WS] Triggering workspace:chat:subscribe handler for ${workspaceId}`);
           httpIpcMain.send("workspace:chat:subscribe", workspaceId);
         } else if (channel === "workspace:metadata") {
-          console.log("Client subscribed to workspace metadata");
+          console.log("[WS] Client subscribed to workspace metadata");
           clientInfo.metadataSubscription = true;
 
           // Send subscription acknowledgment
