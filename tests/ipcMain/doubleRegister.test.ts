@@ -17,10 +17,9 @@ describeIntegration("IpcMain double registration", () => {
         }).not.toThrow();
 
         // Verify handlers still work after second registration
-        const configResult = await env.mockIpcRenderer.invoke(IPC_CHANNELS.CONFIG_LOAD);
-        expect(configResult).toBeDefined();
-        expect(configResult.projects).toBeDefined();
-        expect(Array.isArray(configResult.projects)).toBe(true);
+        const projectsList = await env.mockIpcRenderer.invoke(IPC_CHANNELS.PROJECT_LIST);
+        expect(projectsList).toBeDefined();
+        expect(Array.isArray(projectsList)).toBe(true);
       } finally {
         await cleanupTestEnvironment(env);
       }
@@ -42,9 +41,9 @@ describeIntegration("IpcMain double registration", () => {
         }
 
         // Verify handlers still work
-        const configResult = await env.mockIpcRenderer.invoke(IPC_CHANNELS.CONFIG_LOAD);
-        expect(configResult).toBeDefined();
-        expect(configResult.projects).toBeDefined();
+        const projectsList = await env.mockIpcRenderer.invoke(IPC_CHANNELS.PROJECT_LIST);
+        expect(projectsList).toBeDefined();
+        expect(Array.isArray(projectsList)).toBe(true);
 
         const listResult = await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_LIST);
         expect(Array.isArray(listResult)).toBe(true);

@@ -13,21 +13,15 @@ export function useProjectManagement() {
 
   const loadProjects = async () => {
     try {
-      console.log("Loading projects from config...");
-      const config = await window.api.config.load();
-      console.log("Received config:", config);
+      console.log("Loading projects...");
+      const projectsList = await window.api.projects.list();
+      console.log("Received projects:", projectsList);
 
-      if (config && Array.isArray(config.projects)) {
-        console.log("Projects array length:", config.projects.length);
-        const projectsMap = new Map<string, ProjectConfig>(config.projects);
-        console.log("Created projects map, size:", projectsMap.size);
-        setProjects(projectsMap);
-      } else {
-        console.log("No projects or invalid format");
-        setProjects(new Map());
-      }
+      const projectsMap = new Map<string, ProjectConfig>(projectsList.map((p) => [p.path, p]));
+      console.log("Created projects map, size:", projectsMap.size);
+      setProjects(projectsMap);
     } catch (error) {
-      console.error("Failed to load config:", error);
+      console.error("Failed to load projects:", error);
       setProjects(new Map());
     }
   };
@@ -35,14 +29,20 @@ export function useProjectManagement() {
   const addProject = async () => {
     try {
       const selectedPath = await window.api.dialog.selectDirectory();
-      if (selectedPath && !projects.has(selectedPath)) {
-        const newProjects = new Map(projects);
-        newProjects.set(selectedPath, { path: selectedPath, workspaces: [] });
-        setProjects(newProjects);
+      if (!selectedPath) return;
 
-        await window.api.config.save({
-          projects: Array.from(newProjects.entries()),
-        });
+      if (projects.has(selectedPath)) {
+        console.log("Project already exists:", selectedPath);
+        return;
+      }
+
+      const result = await window.api.projects.create(selectedPath);
+      if (result.success) {
+        const newProjects = new Map(projects);
+        newProjects.set(selectedPath, result.data);
+        setProjects(newProjects);
+      } else {
+        console.error("Failed to create project:", result.error);
       }
     } catch (error) {
       console.error("Failed to add project:", error);
@@ -50,16 +50,19 @@ export function useProjectManagement() {
   };
 
   const removeProject = async (path: string) => {
-    const newProjects = new Map(projects);
-    newProjects.delete(path);
-    setProjects(newProjects);
-
     try {
-      await window.api.config.save({
-        projects: Array.from(newProjects.entries()),
-      });
+      const result = await window.api.projects.remove(path);
+      if (result.success) {
+        const newProjects = new Map(projects);
+        newProjects.delete(path);
+        setProjects(newProjects);
+      } else {
+        console.error("Failed to remove project:", result.error);
+        // Show error to user - they might need to remove workspaces first
+        alert(result.error);
+      }
     } catch (error) {
-      console.error("Failed to save config:", error);
+      console.error("Failed to remove project:", error);
     }
   };
 
