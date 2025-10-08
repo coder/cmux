@@ -8,6 +8,7 @@
     "dev:main": "concurrently \"tsc -w -p tsconfig.main.json\" \"tsc-alias -w -p tsconfig.main.json\"",
     "dev:renderer": "vite",
     "prebuild": "./scripts/generate-version.sh",
+    "prebuild:main": "./scripts/generate-version.sh",
     "build": "bun run build:renderer && bun run build:main && bun run build:preload",
     "build:main": "tsc -p tsconfig.main.json && tsc-alias -p tsconfig.main.json",
     "build:preload": "bun build src/preload.ts --format=cjs --target=node --external=electron --sourcemap=inline --outfile=dist/preload.js",
