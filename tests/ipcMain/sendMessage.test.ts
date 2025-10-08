@@ -698,12 +698,14 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
 
           // Now try to send a new message - should trigger token limit error
           // due to accumulated history
+          // Disable auto-truncation to force context error
           const result = await sendMessageWithModel(
             env.mockIpcRenderer,
             workspaceId,
             "What is the weather?",
             provider,
-            model
+            model,
+            { disableAutoTruncation: true }
           );
 
           // IPC call itself should succeed (errors come through stream events)
