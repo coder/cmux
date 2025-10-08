@@ -47,7 +47,7 @@ jobs:
             echo "⚠️  No notarization credentials - skipping notarization"
           fi
 
-          bun run dist:mac
+          make dist-mac
 
       - name: Upload macOS DMG (x64)
         uses: actions/upload-artifact@v4
@@ -84,7 +84,7 @@ jobs:
         run: bun run build
 
       - name: Package for Linux
-        run: bun run dist:linux
+        run: make dist-linux
 
       - name: Upload Linux AppImage
         uses: actions/upload-artifact@v4
