@@ -97,7 +97,7 @@ typecheck: ## Run TypeScript type checking
 ## Testing
 test-integration: ## Run all tests (unit + integration)
 	@bun test src
-	@TEST_INTEGRATION=1 jest tests
+	@TEST_INTEGRATION=1 bun x jest tests
 
 test-unit: ## Run unit tests
 	@bun test src
