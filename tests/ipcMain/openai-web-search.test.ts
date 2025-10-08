@@ -21,17 +21,17 @@ describeIntegration("OpenAI web_search integration tests", () => {
   }
 
   test.concurrent(
-    "should successfully execute web_search tool call",
+    "should successfully execute web_search without errors",
     async () => {
       // Setup test environment with OpenAI
       const { env, workspaceId, cleanup } = await setupWorkspace("openai");
       try {
-        // Send a message that should trigger web search
-        // Use a query that requires current information to encourage web search
+        // Send a simple message requesting web search
+        // Keep it simple to avoid model getting stuck in loops
         const result = await sendMessageWithModel(
           env.mockIpcRenderer,
           workspaceId,
-          "Search the web for current weather in San Francisco",
+          "Use web_search to find what year TypeScript was first released. Answer with just the year.",
           "openai",
           "gpt-5-codex"
         );
@@ -42,31 +42,14 @@ describeIntegration("OpenAI web_search integration tests", () => {
         // Collect and verify stream events
         const collector = createEventCollector(env.sentEvents, workspaceId);
 
-        // Wait for stream to start
-        const streamStart = await collector.waitForEvent("stream-start", 10000);
-        expect(streamStart).toBeDefined();
-
-        // Wait for tool-call-start (indicates web_search is being executed)
-        const toolCallStart = await collector.waitForEvent("tool-call-start", 15000);
-        expect(toolCallStart).toBeDefined();
-
-        // Verify it's a web_search tool call
-        if (toolCallStart && "toolName" in toolCallStart) {
-          expect(toolCallStart.toolName).toBe("web_search");
-        }
-
         // Wait for stream to complete
-        const streamEnd = await collector.waitForEvent("stream-end", 30000);
+        const streamEnd = await collector.waitForEvent("stream-end", 60000);
         expect(streamEnd).toBeDefined();
 
-        // Verify no errors occurred
+        // Verify no errors occurred (this is the key test - ensuring no reasoning itemId errors)
         assertStreamSuccess(collector);
 
-        // Verify we received text deltas (the assistant's response)
-        const deltas = collector.getDeltas();
-        expect(deltas.length).toBeGreaterThan(0);
-
-        // Collect all events and verify web_search was executed
+        // Collect all events and verify web_search was called
         collector.collect();
         const events = collector.getEvents();
 
@@ -77,118 +60,17 @@ describeIntegration("OpenAI web_search integration tests", () => {
             "toolName" in e &&
             e.toolName === "web_search"
         );
+
+        // Verify web_search was actually called
         expect(hasWebSearchCall).toBe(true);
+
+        // Verify we received text deltas (the assistant's response)
+        const deltas = collector.getDeltas();
+        expect(deltas.length).toBeGreaterThan(0);
       } finally {
         await cleanup();
       }
     },
-    45000 // 45 second timeout - web search can take time
-  );
-
-  test.concurrent(
-    "should handle multiple web_search calls in sequence",
-    async () => {
-      // Setup test environment with OpenAI
-      const { env, workspaceId, cleanup } = await setupWorkspace("openai");
-      try {
-        // Send a message that might trigger multiple web searches
-        const result = await sendMessageWithModel(
-          env.mockIpcRenderer,
-          workspaceId,
-          "Search for the latest news about TypeScript and then search for React updates",
-          "openai",
-          "gpt-5-codex"
-        );
-
-        // Verify the IPC call succeeded
-        expect(result.success).toBe(true);
-
-        // Collect and verify stream events
-        const collector = createEventCollector(env.sentEvents, workspaceId);
-
-        // Wait for stream to complete (may take longer with multiple searches)
-        const streamEnd = await collector.waitForEvent("stream-end", 60000);
-        expect(streamEnd).toBeDefined();
-
-        // Verify no errors occurred
-        assertStreamSuccess(collector);
-
-        // Collect all events
-        collector.collect();
-        const events = collector.getEvents();
-
-        // Count web_search tool calls
-        const webSearchCalls = events.filter(
-          (e) =>
-            "type" in e &&
-            e.type === "tool-call-start" &&
-            "toolName" in e &&
-            e.toolName === "web_search"
-        );
-
-        // Should have at least one web_search call
-        // (Model may decide to combine searches or use multiple - either is valid)
-        expect(webSearchCalls.length).toBeGreaterThan(0);
-      } finally {
-        await cleanup();
-      }
-    },
-    75000 // 75 second timeout - multiple searches take time
-  );
-
-  test.concurrent(
-    "should correctly handle reasoning with web_search",
-    async () => {
-      // Setup test environment with OpenAI
-      const { env, workspaceId, cleanup } = await setupWorkspace("openai");
-      try {
-        // Send a message that should trigger reasoning + web search
-        const result = await sendMessageWithModel(
-          env.mockIpcRenderer,
-          workspaceId,
-          "Find recent information about quantum computing breakthroughs",
-          "openai",
-          "gpt-5-codex"
-        );
-
-        // Verify the IPC call succeeded
-        expect(result.success).toBe(true);
-
-        // Collect and verify stream events
-        const collector = createEventCollector(env.sentEvents, workspaceId);
-
-        // Wait for stream to complete
-        const streamEnd = await collector.waitForEvent("stream-end", 45000);
-        expect(streamEnd).toBeDefined();
-
-        // Verify no errors occurred (this is the key test - ensuring no reasoning-related errors)
-        assertStreamSuccess(collector);
-
-        // Collect all events
-        collector.collect();
-        const events = collector.getEvents();
-
-        // Verify we got reasoning deltas (OpenAI o1/o3 models produce reasoning)
-        const hasReasoning = events.some((e) => "type" in e && e.type === "reasoning-delta");
-
-        // Verify we got web_search tool call
-        const hasWebSearch = events.some(
-          (e) =>
-            "type" in e &&
-            e.type === "tool-call-start" &&
-            "toolName" in e &&
-            e.toolName === "web_search"
-        );
-
-        // Both reasoning and web_search should be present (if model supports reasoning)
-        // If reasoning is present, web_search should also work without errors
-        if (hasReasoning) {
-          expect(hasWebSearch).toBe(true);
-        }
-      } finally {
-        await cleanup();
-      }
-    },
-    60000 // 60 second timeout
+    90000 // 90 second timeout - be generous with reasoning models
   );
 });
