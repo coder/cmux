@@ -1,1 +1,0 @@
-{"version":3,"file":"toolLimits.js","sourceRoot":"","sources":["../../src/constants/toolLimits.ts"],"names":[],"mappings":";;;AAAa,QAAA,sBAAsB,GAAG,IAAI,CAAC;AAC9B,QAAA,mBAAmB,GAAG,IAAI,CAAC","sourcesContent":["export const BASH_DEFAULT_MAX_LINES = 1000;\nexport const BASH_HARD_MAX_LINES = 1000;\n"]}
