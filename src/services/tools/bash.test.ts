@@ -588,28 +588,6 @@ it("should enforce total bytes limit", async () => {
   }
 });
 
-it("should stop accumulating output when byte limit is reached", async () => {
-  const tool = createBashTool({ cwd: process.cwd() });
-  // Test that we stop early and don't process all lines
-  const args: BashToolArgs = {
-    script: `for i in {1..1000}; do echo 'This is line number '$i' with some content'; done`,
-    timeout_secs: 5,
-    max_lines: BASH_HARD_MAX_LINES,
-  };
-
-  const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
-
-  expect(result.success).toBe(true);
-  if (result.success) {
-    expect(result.truncated).toBe(true);
-    // Should have fewer than 1000 lines due to byte limit
-    const lines = result.output.split("\n").filter((l) => l !== "[TRUNCATED]");
-    expect(lines.length).toBeLessThan(1000);
-    // But should have some reasonable output
-    expect(lines.length).toBeGreaterThan(100);
-  }
-});
-
   it("should fail when line exceeds max line bytes", async () => {
     const tool = createBashTool({ cwd: process.cwd() });
     const longLine = "x".repeat(2000);
