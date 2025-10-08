@@ -29,7 +29,6 @@ Project secrets are key-value pairs stored per project that are:
 2. Hover over the project name
 3. Click the 🔑 key icon that appears
 
-
 ## How Secrets Are Used
 
 When the agent runs bash commands (via the `bash` tool), all project secrets are automatically injected as environment variables:

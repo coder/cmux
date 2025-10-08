@@ -31,11 +31,13 @@ See [AGENTS.md](./AGENTS.md) for development setup and guidelines.
 When writing user-facing documentation, follow these principles:
 
 **Minimum Viable Documentation** - Write only what users need to complete their task successfully. Assume users are:
+
 - Capable of using basic UIs without instruction
 - Able to debug issues without pre-written troubleshooting
 - Smart enough to apply security best practices without being told
 
 **Delete:**
+
 - Step-by-step UI walkthroughs for obvious interactions ("Click the button", "Enter the value", "Click Save")
 - Troubleshooting sections for hypothetical problems that haven't occurred
 - Best practices and security advice (users will research when needed)
@@ -43,6 +45,7 @@ When writing user-facing documentation, follow these principles:
 - Verification/testing sections
 
 **Keep:**
+
 - Core setup steps with technical details
 - Non-obvious facts about how things work
 - Actual command examples
