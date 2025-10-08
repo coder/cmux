@@ -117,7 +117,7 @@ This project uses **Make** as the primary build orchestrator. See `Makefile` for
 - `make clean` - Clean build artifacts
 - `make help` - Show all available targets
 
-**Backwards compatibility:** All commands are also available via `bun run` (e.g., `bun run dev` calls `make dev`)
+**Backwards compatibility:** Existing commands are available via `bun run` (e.g., `bun run dev` calls `make dev`). New commands will only be added to `Makefile`, not `package.json`.
 
 ## Refactoring
 
