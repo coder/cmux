@@ -16,6 +16,8 @@ import { log } from "@/services/log";
 export interface ToolConfiguration {
   /** Working directory for command execution (required) */
   cwd: string;
+  /** Environment secrets to inject (optional) */
+  secrets?: Record<string, string>;
 }
 
 /**

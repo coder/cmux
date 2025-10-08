@@ -11,6 +11,8 @@ import { StatusIndicator } from "./StatusIndicator";
 import { getModelName } from "@/utils/ai/models";
 import { GitStatusIndicator } from "./GitStatusIndicator";
 import type { WorkspaceState } from "@/hooks/useWorkspaceAggregators";
+import SecretsModal from "./SecretsModal";
+import type { Secret } from "@/types/secrets";
 
 // Styled Components
 const SidebarContainer = styled.div<{ collapsed?: boolean }>`
@@ -224,6 +226,29 @@ const RemoveBtn = styled.button`
   }
 `;
 
+const SecretsBtn = styled.button`
+  width: 20px;
+  height: 20px;
+  background: transparent;
+  color: #6e6e6e;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  opacity: 0;
+  flex-shrink: 0;
+  margin-right: 4px;
+
+  &:hover {
+    color: #569cd6;
+    background: rgba(86, 156, 214, 0.1);
+  }
+`;
+
 const WorkspacesContainer = styled.div`
   background: #1a1a1a;
 `;
@@ -357,6 +382,8 @@ interface ProjectSidebarProps {
   getWorkspaceState: (workspaceId: string) => WorkspaceState;
   collapsed: boolean;
   onToggleCollapsed: () => void;
+  onGetSecrets: (projectPath: string) => Promise<Secret[]>;
+  onUpdateSecrets: (projectPath: string, secrets: Secret[]) => Promise<void>;
 }
 
 const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
@@ -372,6 +399,8 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
   getWorkspaceState,
   collapsed,
   onToggleCollapsed,
+  onGetSecrets,
+  onUpdateSecrets,
 }) => {
   // Store as array in localStorage, convert to Set for usage
   const [expandedProjectsArray, setExpandedProjectsArray] = usePersistedState<string[]>(
@@ -391,6 +420,12 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
   const [removeError, setRemoveError] = useState<{ workspaceId: string; error: string } | null>(
     null
   );
+  const [secretsModalState, setSecretsModalState] = useState<{
+    isOpen: boolean;
+    projectPath: string;
+    projectName: string;
+    secrets: Secret[];
+  } | null>(null);
 
   const getProjectName = (path: string) => {
     if (!path || typeof path !== "string") {
@@ -463,6 +498,26 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
     }
   };
 
+  const handleOpenSecrets = async (projectPath: string) => {
+    const secrets = await onGetSecrets(projectPath);
+    setSecretsModalState({
+      isOpen: true,
+      projectPath,
+      projectName: getProjectName(projectPath),
+      secrets,
+    });
+  };
+
+  const handleSaveSecrets = async (secrets: Secret[]) => {
+    if (secretsModalState) {
+      await onUpdateSecrets(secretsModalState.projectPath, secrets);
+    }
+  };
+
+  const handleCloseSecrets = () => {
+    setSecretsModalState(null);
+  };
+
   // Handle keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -507,6 +562,19 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                         </Tooltip>
                       </TooltipWrapper>
                     </ProjectInfo>
+                    <TooltipWrapper inline>
+                      <SecretsBtn
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void handleOpenSecrets(projectPath);
+                        }}
+                      >
+                        🔑
+                      </SecretsBtn>
+                      <Tooltip className="tooltip" align="right">
+                        Manage secrets
+                      </Tooltip>
+                    </TooltipWrapper>
                     <TooltipWrapper inline>
                       <RemoveBtn
                         onClick={(e) => {
@@ -626,6 +694,16 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
           {formatKeybind(KEYBINDS.TOGGLE_SIDEBAR)})
         </Tooltip>
       </TooltipWrapper>
+      {secretsModalState && (
+        <SecretsModal
+          isOpen={secretsModalState.isOpen}
+          projectPath={secretsModalState.projectPath}
+          projectName={secretsModalState.projectName}
+          initialSecrets={secretsModalState.secrets}
+          onClose={handleCloseSecrets}
+          onSave={handleSaveSecrets}
+        />
+      )}
     </SidebarContainer>
   );
 };

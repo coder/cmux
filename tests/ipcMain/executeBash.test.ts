@@ -255,4 +255,49 @@ describeIntegration("IpcMain executeBash integration tests", () => {
     },
     15000
   );
+
+  test.concurrent(
+    "should inject secrets as environment variables",
+    async () => {
+      const env = await createTestEnvironment();
+      const tempGitRepo = await createTempGitRepo();
+
+      try {
+        // Create a workspace
+        const createResult = await env.mockIpcRenderer.invoke(
+          IPC_CHANNELS.WORKSPACE_CREATE,
+          tempGitRepo,
+          "test-secrets"
+        );
+        expect(createResult.success).toBe(true);
+        const workspaceId = createResult.metadata.id;
+
+        // Set secrets for the project
+        await env.mockIpcRenderer.invoke(IPC_CHANNELS.SECRETS_UPDATE, tempGitRepo, [
+          { key: "TEST_SECRET_KEY", value: "secret_value_123" },
+          { key: "ANOTHER_SECRET", value: "another_value_456" },
+        ]);
+
+        // Execute bash command that reads the environment variables
+        const echoResult = await env.mockIpcRenderer.invoke(
+          IPC_CHANNELS.WORKSPACE_EXECUTE_BASH,
+          workspaceId,
+          'echo "KEY=$TEST_SECRET_KEY ANOTHER=$ANOTHER_SECRET"'
+        );
+
+        expect(echoResult.success).toBe(true);
+        expect(echoResult.data.success).toBe(true);
+        expect(echoResult.data.output).toContain("KEY=secret_value_123");
+        expect(echoResult.data.output).toContain("ANOTHER=another_value_456");
+        expect(echoResult.data.exitCode).toBe(0);
+
+        // Clean up
+        await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, workspaceId);
+      } finally {
+        await cleanupTestEnvironment(env);
+        await cleanupTempGitRepo(tempGitRepo);
+      }
+    },
+    15000
+  );
 });
