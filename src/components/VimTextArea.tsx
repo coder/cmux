@@ -60,7 +60,7 @@ const StyledTextArea = styled.textarea<{
   /* Blinking cursor in normal mode */
   &::selection {
     background-color: ${(props) =>
-      props.vimMode === "normal" ? "rgba(255, 255, 255, 0.3)" : "rgba(51, 153, 255, 0.5)"};
+      props.vimMode === "normal" ? "rgba(255, 255, 255, 0.6)" : "rgba(51, 153, 255, 0.5)"};
   }
 
   /* Apply blink animation when in normal mode */
@@ -75,7 +75,7 @@ const StyledTextArea = styled.textarea<{
   @keyframes vim-cursor-blink {
     0%,
     49% {
-      background-color: rgba(255, 255, 255, 0.3);
+      background-color: rgba(255, 255, 255, 0.6);
     }
     50%,
     100% {
@@ -91,7 +91,7 @@ const ModeIndicator = styled.div`
   letter-spacing: 0.8px;
   margin-bottom: 2px;
   user-select: none;
-  height: 12px;
+  min-height: 11px;
 `;
 
 type VimMode = vim.VimMode;
@@ -140,8 +140,8 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
       const el = textareaRef.current;
       if (!el) return;
       const pos = el.selectionStart;
-      const lineEnd = vim.lineEndAtIndex(value, pos);
-      if (pos < lineEnd && cursorVisible) {
+      // Show cursor if there's a character under it
+      if (pos < value.length && cursorVisible) {
         el.selectionEnd = pos + 1;
       } else {
         el.selectionEnd = pos;
@@ -158,10 +158,10 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
     const setCursor = (pos: number) => {
       const el = textareaRef.current!;
       const p = Math.max(0, Math.min(value.length, pos));
-      const lineEnd = vim.lineEndAtIndex(value, p);
       el.selectionStart = p;
       // In normal mode, show a 1-char selection (block cursor effect) when possible
-      if (vimMode === "normal" && p < lineEnd && cursorVisible) {
+      // Show cursor if there's a character under it (including at end of line before newline)
+      if (vimMode === "normal" && p < value.length && cursorVisible) {
         el.selectionEnd = p + 1;
       } else {
         el.selectionEnd = p;
