@@ -56,6 +56,7 @@ yarn-error.log
 # Bun
 bun.lockb
 dist
+dist-server
 
 # Electron build output
 release
