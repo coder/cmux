@@ -112,16 +112,16 @@ test-coverage: ## Run tests with coverage
 
 ## Distribution
 dist: build ## Build distributable packages
-	@electron-builder --publish never
+	@bun x electron-builder --publish never
 
 dist-mac: build ## Build macOS distributable
-	@electron-builder --mac --publish never
+	@bun x electron-builder --mac --publish never
 
 dist-win: build ## Build Windows distributable
-	@electron-builder --win --publish never
+	@bun x electron-builder --win --publish never
 
 dist-linux: build ## Build Linux distributable
-	@electron-builder --linux --publish never
+	@bun x electron-builder --linux --publish never
 
 ## Documentation
 docs: ## Serve documentation locally
