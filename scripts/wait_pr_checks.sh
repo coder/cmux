@@ -65,6 +65,14 @@ while true; do
     exit 1
   fi
   
+  # Check for unresolved review comments in the hot loop
+  if ! ./scripts/check_pr_reviews.sh "$PR_NUMBER" >/dev/null 2>&1; then
+    echo ""
+    echo "❌ Unresolved review comments found!"
+    ./scripts/check_pr_reviews.sh "$PR_NUMBER"
+    exit 1
+  fi
+  
   # Check if all checks passed and merge state is clean
   if echo "$CHECKS" | grep -q "pass" && ! echo "$CHECKS" | grep -qE "pending|fail"; then
     if [ "$MERGE_STATE" = "CLEAN" ]; then
