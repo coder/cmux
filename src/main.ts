@@ -42,151 +42,164 @@ process.on("unhandledRejection", (reason, promise) => {
   }
 });
 
-// Single instance lock
-const gotTheLock = app.requestSingleInstanceLock();
-console.log("Single instance lock acquired:", gotTheLock);
+// Check for --server flag
+const isServerMode = process.argv.includes("--server");
 
-if (!gotTheLock) {
-  // Another instance is already running, quit this one
-  console.log("Another instance is already running, quitting...");
-  app.quit();
-} else {
-  // This is the primary instance
-  console.log("This is the primary instance");
-  app.on("second-instance", () => {
-    // Someone tried to run a second instance, focus our window instead
-    console.log("Second instance attempted to start");
-    if (mainWindow) {
-      if (mainWindow.isMinimized()) mainWindow.restore();
-      mainWindow.focus();
-    }
+if (isServerMode) {
+  console.log("Starting in server mode...");
+  // Import and run the server
+  import("./server").catch((error) => {
+    console.error("Failed to start server:", error);
+    process.exit(1);
   });
-}
+} else {
 
-let mainWindow: BrowserWindow | null = null;
+  // Single instance lock
+  const gotTheLock = app.requestSingleInstanceLock();
+  console.log("Single instance lock acquired:", gotTheLock);
 
-function createMenu() {
-  const template: MenuItemConstructorOptions[] = [
-    {
-      label: "Edit",
-      submenu: [
-        { role: "undo" },
-        { role: "redo" },
-        { type: "separator" },
-        { role: "cut" },
-        { role: "copy" },
-        { role: "paste" },
-        { role: "selectAll" },
-      ],
-    },
-    {
-      label: "View",
-      submenu: [
-        { role: "reload" },
-        { role: "forceReload" },
-        { role: "toggleDevTools" },
-        { type: "separator" },
-        { role: "resetZoom" },
-        { role: "zoomIn" },
-        { role: "zoomOut" },
-        { type: "separator" },
-        { role: "togglefullscreen" },
-      ],
-    },
-    {
-      label: "Window",
-      submenu: [{ role: "minimize" }, { role: "close" }],
-    },
-  ];
-
-  if (process.platform === "darwin") {
-    template.unshift({
-      label: app.getName(),
-      submenu: [
-        { role: "about" },
-        { type: "separator" },
-        { role: "services", submenu: [] },
-        { type: "separator" },
-        { role: "hide" },
-        { role: "hideOthers" },
-        { role: "unhide" },
-        { type: "separator" },
-        { role: "quit" },
-      ],
+  if (!gotTheLock) {
+    // Another instance is already running, quit this one
+    console.log("Another instance is already running, quitting...");
+    app.quit();
+  } else {
+    // This is the primary instance
+    console.log("This is the primary instance");
+    app.on("second-instance", () => {
+      // Someone tried to run a second instance, focus our window instead
+      console.log("Second instance attempted to start");
+      if (mainWindow) {
+        if (mainWindow.isMinimized()) mainWindow.restore();
+        mainWindow.focus();
+      }
     });
   }
 
-  const menu = Menu.buildFromTemplate(template);
-  Menu.setApplicationMenu(menu);
-}
+  let mainWindow: BrowserWindow | null = null;
 
-function createWindow() {
-  mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 800,
-    webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true,
-      preload: path.join(__dirname, "preload.js"),
-    },
-    title: "cmux - coder multiplexer",
-  });
+  function createMenu() {
+    const template: MenuItemConstructorOptions[] = [
+      {
+        label: "Edit",
+        submenu: [
+          { role: "undo" },
+          { role: "redo" },
+          { type: "separator" },
+          { role: "cut" },
+          { role: "copy" },
+          { role: "paste" },
+          { role: "selectAll" },
+        ],
+      },
+      {
+        label: "View",
+        submenu: [
+          { role: "reload" },
+          { role: "forceReload" },
+          { role: "toggleDevTools" },
+          { type: "separator" },
+          { role: "resetZoom" },
+          { role: "zoomIn" },
+          { role: "zoomOut" },
+          { type: "separator" },
+          { role: "togglefullscreen" },
+        ],
+      },
+      {
+        label: "Window",
+        submenu: [{ role: "minimize" }, { role: "close" }],
+      },
+    ];
 
-  // Register IPC handlers with the main window
-  ipcMain.register(electronIpcMain, mainWindow);
-
-  // Open all external links in default browser
-  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    void shell.openExternal(url);
-    return { action: "deny" };
-  });
-
-  mainWindow.webContents.on("will-navigate", (event, url) => {
-    const currentOrigin = new URL(mainWindow!.webContents.getURL()).origin;
-    const targetOrigin = new URL(url).origin;
-    // Prevent navigation away from app origin, open externally instead
-    if (targetOrigin !== currentOrigin) {
-      event.preventDefault();
-      void shell.openExternal(url);
+    if (process.platform === "darwin") {
+      template.unshift({
+        label: app.getName(),
+        submenu: [
+          { role: "about" },
+          { type: "separator" },
+          { role: "services", submenu: [] },
+          { type: "separator" },
+          { role: "hide" },
+          { role: "hideOthers" },
+          { role: "unhide" },
+          { type: "separator" },
+          { role: "quit" },
+        ],
+      });
     }
-  });
 
-  // Load from dev server in development, built files in production
-  // app.isPackaged is true when running from a built .app/.exe, false in development
-  if (app.isPackaged) {
-    // Production mode: load built files
-    void mainWindow.loadFile(path.join(__dirname, "index.html"));
-  } else {
-    // Development mode: load from vite dev server
-    void mainWindow.loadURL("http://localhost:5173");
-    mainWindow.webContents.openDevTools();
+    const menu = Menu.buildFromTemplate(template);
+    Menu.setApplicationMenu(menu);
   }
 
-  mainWindow.on("closed", () => {
-    mainWindow = null;
-  });
-}
+  function createWindow() {
+    mainWindow = new BrowserWindow({
+      width: 1200,
+      height: 800,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+        preload: path.join(__dirname, "preload.js"),
+      },
+      title: "cmux - coder multiplexer",
+    });
 
-// Only setup app handlers if we got the lock
-if (gotTheLock) {
-  void app.whenReady().then(() => {
-    console.log("App ready, creating window...");
-    createMenu();
-    createWindow();
-    // No need to auto-start workspaces anymore - they start on demand
-  });
+    // Register IPC handlers with the main window
+    ipcMain.register(electronIpcMain, mainWindow);
 
-  app.on("window-all-closed", () => {
-    if (process.platform !== "darwin") {
-      app.quit();
+    // Open all external links in default browser
+    mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+      void shell.openExternal(url);
+      return { action: "deny" };
+    });
+
+    mainWindow.webContents.on("will-navigate", (event, url) => {
+      const currentOrigin = new URL(mainWindow!.webContents.getURL()).origin;
+      const targetOrigin = new URL(url).origin;
+      // Prevent navigation away from app origin, open externally instead
+      if (targetOrigin !== currentOrigin) {
+        event.preventDefault();
+        void shell.openExternal(url);
+      }
+    });
+
+    // Load from dev server in development, built files in production
+    // app.isPackaged is true when running from a built .app/.exe, false in development
+    if (app.isPackaged) {
+      // Production mode: load built files
+      void mainWindow.loadFile(path.join(__dirname, "index.html"));
+    } else {
+      // Development mode: load from vite dev server
+      void mainWindow.loadURL("http://localhost:5173");
+      mainWindow.webContents.openDevTools();
     }
-  });
 
-  app.on("activate", () => {
-    // Only create window if app is ready and no window exists
-    // This prevents "Cannot create BrowserWindow before app is ready" error
-    if (app.isReady() && mainWindow === null) {
+    mainWindow.on("closed", () => {
+      mainWindow = null;
+    });
+  }
+
+  // Only setup app handlers if we got the lock
+  if (gotTheLock) {
+    void app.whenReady().then(() => {
+      console.log("App ready, creating window...");
+      createMenu();
       createWindow();
-    }
-  });
+      // No need to auto-start workspaces anymore - they start on demand
+    });
+
+    app.on("window-all-closed", () => {
+      if (process.platform !== "darwin") {
+        app.quit();
+      }
+    });
+
+    app.on("activate", () => {
+      // Only create window if app is ready and no window exists
+      // This prevents "Cannot create BrowserWindow before app is ready" error
+      if (app.isReady() && mainWindow === null) {
+        createWindow();
+      }
+    });
+  }
 }

@@ -1,6 +1,12 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
+import { api, isWebMode } from "./server/apiProvider";
+
+// Inject API into window if running in web mode
+if (isWebMode && typeof window !== "undefined") {
+  (window as any).api = api;
+}
 
 // Global error handlers for renderer process
 // These catch errors that escape the ErrorBoundary
