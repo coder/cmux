@@ -34,6 +34,19 @@ jobs:
             export CSC_LINK="/tmp/certificate.p12"
             export CSC_KEY_PASSWORD="${{ secrets.MACOS_CERTIFICATE_PWD }}"
           fi
+          
+          # Notarization credentials (optional - will skip if not provided)
+          if [ -n "${{ secrets.AC_APIKEY_ID }}" ]; then
+            # Decode API key to file
+            echo "${{ secrets.AC_APIKEY_P8_BASE64 }}" | base64 -D > /tmp/AuthKey.p8
+            export APPLE_API_KEY="/tmp/AuthKey.p8"
+            export APPLE_API_KEY_ID="${{ secrets.AC_APIKEY_ID }}"
+            export APPLE_API_ISSUER="${{ secrets.AC_APIKEY_ISSUER_ID }}"
+            echo "✅ Notarization credentials found (API key) - will notarize"
+          else
+            echo "⚠️  No notarization credentials - skipping notarization"
+          fi
+          
           bun run dist:mac
 
       - name: Upload macOS DMG (x64)
