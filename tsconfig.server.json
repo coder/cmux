@@ -4,7 +4,7 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "target": "ES2022",
-    "outDir": "dist-server",
+    "outDir": "dist",
     "lib": ["ES2022"],
     "types": ["node"],
     "skipLibCheck": true,
@@ -33,5 +33,12 @@
     "src/utils/tools/**/*",
     "src/utils/concurrency/**/*"
   ],
-  "exclude": ["node_modules", "dist", "dist-server", "src/main.ts", "src/preload.ts", "src/**/*.test.ts", "src/server/webApi.ts", "src/server/apiProvider.ts"]
+  "exclude": [
+    "node_modules",
+    "src/main.ts",
+    "src/preload.ts",
+    "src/**/*.test.ts",
+    "src/server/webApi.ts",
+    "src/server/apiProvider.ts"
+  ]
 }

@@ -47,18 +47,22 @@ class HttpIpcMainAdapter {
       try {
         const args = req.body.args || [];
         const result = await handler(null, ...args);
-        
+
         // If handler returns an error result object, unwrap it and send as error response
         // This ensures webApi.ts will throw with the proper error message
-        if (result && typeof result === 'object' && 'success' in result && result.success === false) {
-          const errorMessage = 'error' in result && typeof result.error === 'string' 
-            ? result.error 
-            : 'Unknown error';
+        if (
+          result &&
+          typeof result === "object" &&
+          "success" in result &&
+          result.success === false
+        ) {
+          const errorMessage =
+            "error" in result && typeof result.error === "string" ? result.error : "Unknown error";
           // Return 200 with error structure so webApi can throw with the detailed message
           res.json({ success: false, error: errorMessage });
           return;
         }
-        
+
         res.json({ success: true, data: result });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
@@ -114,12 +118,15 @@ const mockWindow = new MockBrowserWindow();
 const httpIpcMain = new HttpIpcMainAdapter();
 
 // Register IPC handlers
-ipcMainService.register(httpIpcMain as unknown as ElectronIpcMain, mockWindow as unknown as BrowserWindow);
+ipcMainService.register(
+  httpIpcMain as unknown as ElectronIpcMain,
+  mockWindow as unknown as BrowserWindow
+);
 
 console.log("IPC handlers registered");
 
 // Serve static files from dist directory (built renderer)
-app.use(express.static(path.join(__dirname, "../dist")));
+app.use(express.static(path.join(__dirname, ".")));
 
 // Health check endpoint
 app.get("/health", (req, res) => {
@@ -129,7 +136,7 @@ app.get("/health", (req, res) => {
 // Fallback to index.html for SPA routes
 app.get("*", (req, res) => {
   if (!req.path.startsWith("/ipc") && !req.path.startsWith("/ws")) {
-    res.sendFile(path.join(__dirname, "../dist/index.html"));
+    res.sendFile(path.join(__dirname, "index.html"));
   }
 });
 
@@ -160,7 +167,10 @@ wss.on("connection", (ws) => {
         if (channel === "workspace:chat") {
           console.log(`[WS] Client subscribed to workspace chat: ${workspaceId}`);
           clientInfo.chatSubscriptions.add(workspaceId);
-          console.log(`[WS] Subscription added. Current subscriptions:`, Array.from(clientInfo.chatSubscriptions));
+          console.log(
+            `[WS] Subscription added. Current subscriptions:`,
+            Array.from(clientInfo.chatSubscriptions)
+          );
 
           // Send subscription acknowledgment through IPC system
           console.log(`[WS] Triggering workspace:chat:subscribe handler for ${workspaceId}`);
