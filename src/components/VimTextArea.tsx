@@ -208,15 +208,6 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
       applyEdit(result);
     };
 
-    const deleteLine = () => {
-      const result = vim.deleteLine(value, withSelection().start, yankBufferRef.current);
-      applyEdit(result);
-    };
-
-    const yankLine = () => {
-      yankBufferRef.current = vim.yankLine(value, withSelection().start);
-    };
-
     const pasteAfter = () => {
       const result = vim.pasteAfter(value, withSelection().start, yankBufferRef.current);
       applyEdit(result);
@@ -238,74 +229,178 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
       document.execCommand("redo");
     };
 
+    // Apply operator with motion
+    const applyOperator = (
+      op: "d" | "c" | "y",
+      motion: "w" | "b" | "$" | "0" | "line",
+      cursor: number
+    ) => {
+      const result = (() => {
+        switch (op) {
+          case "d":
+            switch (motion) {
+              case "w":
+                return vim.deleteRange(
+                  value,
+                  cursor,
+                  vim.moveWordForward(value, cursor),
+                  true,
+                  yankBufferRef.current
+                );
+              case "b":
+                return vim.deleteRange(
+                  value,
+                  vim.moveWordBackward(value, cursor),
+                  cursor,
+                  true,
+                  yankBufferRef.current
+                );
+              case "$": {
+                const { lineEnd } = vim.getLineBounds(value, cursor);
+                return vim.deleteRange(value, cursor, lineEnd, true, yankBufferRef.current);
+              }
+              case "0": {
+                const { lineStart } = vim.getLineBounds(value, cursor);
+                return vim.deleteRange(value, lineStart, cursor, true, yankBufferRef.current);
+              }
+              case "line":
+                return vim.deleteLine(value, cursor, yankBufferRef.current);
+            }
+            break;
+          case "c":
+            switch (motion) {
+              case "w":
+                return vim.changeWord(value, cursor, yankBufferRef.current);
+              case "b":
+                return vim.changeRange(
+                  value,
+                  vim.moveWordBackward(value, cursor),
+                  cursor,
+                  yankBufferRef.current
+                );
+              case "$":
+                return vim.changeToEndOfLine(value, cursor, yankBufferRef.current);
+              case "0":
+                return vim.changeToBeginningOfLine(value, cursor, yankBufferRef.current);
+              case "line":
+                return vim.changeLine(value, cursor, yankBufferRef.current);
+            }
+            break;
+          case "y":
+            switch (motion) {
+              case "w": {
+                const to = vim.moveWordForward(value, cursor);
+                const yanked = value.slice(cursor, to);
+                return { text: value, cursor, yankBuffer: yanked };
+              }
+              case "b": {
+                const from = vim.moveWordBackward(value, cursor);
+                const yanked = value.slice(from, cursor);
+                return { text: value, cursor, yankBuffer: yanked };
+              }
+              case "$": {
+                const { lineEnd } = vim.getLineBounds(value, cursor);
+                const yanked = value.slice(cursor, lineEnd);
+                return { text: value, cursor, yankBuffer: yanked };
+              }
+              case "0": {
+                const { lineStart } = vim.getLineBounds(value, cursor);
+                const yanked = value.slice(lineStart, cursor);
+                return { text: value, cursor, yankBuffer: yanked };
+              }
+              case "line":
+                return { text: value, cursor, yankBuffer: vim.yankLine(value, cursor) };
+            }
+            break;
+        }
+        return null;
+      })();
+
+      if (!result) return;
+
+      if (op === "c") {
+        applyEditAndEnterInsert(result);
+      } else {
+        applyEdit(result);
+      }
+    };
+
     const handleNormalKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
       const key = e.key;
 
-      // Multi-key ops: dd / yy / cc / cw / ciw / c$ / C
+      // Operator-motion system
       const now = Date.now();
       const pending = pendingOpRef.current;
       if (pending && now - pending.at > 800) {
         pendingOpRef.current = null; // timeout
       }
 
-      // Handle continuation of a pending 'c' operator
-      if (pending && pending.op === "c") {
+      // Handle pending operator + motion
+      if (pending && (pending.op === "d" || pending.op === "c" || pending.op === "y")) {
         e.preventDefault();
-        const args = pending.args ?? [];
         const cursor = withSelection().start;
-        // Second char after 'c'
-        if (args.length === 0) {
-          if (key === "c") {
-            // cc: change entire line
-            pendingOpRef.current = null;
-            const result = vim.changeLine(value, cursor, yankBufferRef.current);
+        const args = pending.args ?? [];
+
+        // Handle doubled operator (dd, yy, cc) -> line operation
+        if (args.length === 0 && key === pending.op) {
+          pendingOpRef.current = null;
+          applyOperator(pending.op, "line", cursor);
+          return;
+        }
+
+        // Handle text objects (currently just "iw")
+        if (args.length === 1 && args[0] === "i" && key === "w") {
+          pendingOpRef.current = null;
+          if (pending.op === "c") {
+            const result = vim.changeInnerWord(value, cursor, yankBufferRef.current);
             applyEditAndEnterInsert(result);
+          } else if (pending.op === "d") {
+            const { start, end } = vim.wordBoundsAt(value, cursor);
+            const result = vim.deleteRange(value, start, end, true, yankBufferRef.current);
+            applyEdit(result);
+          } else if (pending.op === "y") {
+            const { start, end } = vim.wordBoundsAt(value, cursor);
+            const yanked = value.slice(start, end);
+            yankBufferRef.current = yanked;
+          }
+          return;
+        }
+
+        // Handle motion keys
+        if (args.length === 0) {
+          if (key === "w" || key === "W") {
+            pendingOpRef.current = null;
+            applyOperator(pending.op, "w", cursor);
             return;
           }
-          if (key === "w") {
-            // cw: change to next word boundary
+          if (key === "b" || key === "B") {
             pendingOpRef.current = null;
-            const result = vim.changeWord(value, cursor, yankBufferRef.current);
-            applyEditAndEnterInsert(result);
+            applyOperator(pending.op, "b", cursor);
             return;
           }
           if (key === "$" || key === "End") {
-            // c$ : change to end of line
             pendingOpRef.current = null;
-            const result = vim.changeToEndOfLine(value, cursor, yankBufferRef.current);
-            applyEditAndEnterInsert(result);
+            applyOperator(pending.op, "$", cursor);
             return;
           }
           if (key === "0" || key === "Home") {
-            // c0 : change to beginning of line
             pendingOpRef.current = null;
-            const result = vim.changeToBeginningOfLine(value, cursor, yankBufferRef.current);
-            applyEditAndEnterInsert(result);
+            applyOperator(pending.op, "0", cursor);
             return;
           }
           if (key === "i") {
-            // Wait for a text object (e.g., w)
-            pendingOpRef.current = { op: "c", at: now, args: ["i"] };
+            // Wait for text object (e.g., w)
+            pendingOpRef.current = { op: pending.op, at: now, args: ["i"] };
             return;
           }
-          // Unknown motion: cancel
-          pendingOpRef.current = null;
-          return;
         }
-        // Third key (after 'ci')
-        if (args.length === 1 && args[0] === "i") {
-          if (key === "w") {
-            // ciw: change inner word
-            pendingOpRef.current = null;
-            const result = vim.changeInnerWord(value, cursor, yankBufferRef.current);
-            applyEditAndEnterInsert(result);
-            return;
-          }
-          // Unhandled text object -> cancel
-          pendingOpRef.current = null;
-          return;
-        }
+
+        // Unknown motion: cancel
+        pendingOpRef.current = null;
+        return;
       }
+
+
 
       switch (key) {
         case "Escape":
@@ -422,17 +517,13 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
           return;
         case "d": {
           e.preventDefault();
-          if (pending && pending.op === "d") {
-            pendingOpRef.current = null;
-            deleteLine();
-          } else {
-            pendingOpRef.current = { op: "d", at: now };
-          }
+          // Start delete operator pending state
+          pendingOpRef.current = { op: "d", at: now, args: [] };
           return;
         }
         case "c": {
           e.preventDefault();
-          // Start a change operator pending state
+          // Start change operator pending state
           pendingOpRef.current = { op: "c", at: now, args: [] };
           return;
         }
@@ -443,14 +534,15 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
           applyEditAndEnterInsert(result);
           return;
         }
+        case "D": {
+          e.preventDefault();
+          applyOperator("d", "$", withSelection().start);
+          return;
+        }
         case "y": {
           e.preventDefault();
-          if (pending && pending.op === "y") {
-            pendingOpRef.current = null;
-            yankLine();
-          } else {
-            pendingOpRef.current = { op: "y", at: now };
-          }
+          // Start yank operator pending state
+          pendingOpRef.current = { op: "y", at: now, args: [] };
           return;
         }
         case "p":
