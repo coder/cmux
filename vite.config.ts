@@ -8,7 +8,8 @@ import { fileURLToPath } from "url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
-  plugins: [react(), wasm(), topLevelAwait()],
+  // Only React plugin for main renderer - WASM plugins excluded to avoid mermaid initialization errors
+  plugins: [react()],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
@@ -20,17 +21,32 @@ export default defineConfig({
     assetsDir: ".",
     emptyOutDir: false,
     sourcemap: true,
+    minify: "esbuild",
     rollupOptions: {
-      // External modules that shouldn't be bundled
-      external: [],
+      // Exclude tiktoken from renderer bundle - it's never used there (only in main process)
+      external: ["@dqbd/tiktoken"],
+      output: {
+        format: "es",
+        inlineDynamicImports: false,
+        sourcemapExcludeSources: false,
+      },
     },
+    chunkSizeWarningLimit: 2000,
+    target: "esnext",
   },
   worker: {
     format: "es",
+    // Web workers need WASM plugin for tiktoken in tokenStats.worker.ts
     plugins: [wasm(), topLevelAwait()],
   },
   server: {
     port: 5173,
     strictPort: true,
+  },
+  optimizeDeps: {
+    exclude: ["@dqbd/tiktoken"],
+    esbuildOptions: {
+      target: "esnext",
+    },
   },
 });

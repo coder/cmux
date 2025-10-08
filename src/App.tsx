@@ -129,11 +129,14 @@ const ContentArea = styled.div`
 
 const WelcomeView = styled.div`
   text-align: center;
-  padding-top: 100px;
+  padding: clamp(40px, 10vh, 100px) 20px;
+  max-width: 800px;
+  margin: 0 auto;
+  width: 100%;
 
   h2 {
     color: #fff;
-    font-size: 36px;
+    font-size: clamp(24px, 5vw, 36px);
     margin-bottom: 16px;
     font-weight: 700;
     letter-spacing: -1px;
@@ -141,7 +144,7 @@ const WelcomeView = styled.div`
 
   p {
     color: #888;
-    font-size: 16px;
+    font-size: clamp(14px, 2vw, 16px);
     line-height: 1.6;
   }
 `;

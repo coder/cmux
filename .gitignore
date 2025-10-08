@@ -76,3 +76,4 @@ docs/mermaid.min.js
 # Profiling
 **.cpuprofile
 profile.txt
+src/version.ts

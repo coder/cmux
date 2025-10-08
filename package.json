@@ -7,9 +7,10 @@
     "dev": "bun run build:main && concurrently -k \"bun run dev:main\" \"bun run dev:renderer\"",
     "dev:main": "concurrently \"tsc -w -p tsconfig.main.json\" \"tsc-alias -w -p tsconfig.main.json\"",
     "dev:renderer": "vite",
+    "prebuild": "./scripts/generate-version.sh",
     "build": "bun run build:renderer && bun run build:main && bun run build:preload",
     "build:main": "tsc -p tsconfig.main.json && tsc-alias -p tsconfig.main.json",
-    "build:preload": "bun build src/preload.ts --format=cjs --target=node --external=electron --outfile=dist/preload.js",
+    "build:preload": "bun build src/preload.ts --format=cjs --target=node --external=electron --sourcemap=inline --outfile=dist/preload.js",
     "build:renderer": "vite build",
     "start": "bun run build:main && bun run build:preload && electron .",
     "typecheck": "./scripts/typecheck.sh",
@@ -53,6 +54,7 @@
     "rehype-katex": "^7.0.1",
     "remark-gfm": "^4.0.1",
     "remark-math": "^6.0.0",
+    "source-map-support": "^0.5.21",
     "undici": "^7.16.0",
     "write-file-atomic": "^6.0.0",
     "zod": "^4.1.11",
@@ -98,6 +100,10 @@
     },
     "files": [
       "dist/**/*"
+    ],
+    "asarUnpack": [
+      "dist/**/*.wasm",
+      "dist/**/*.map"
     ],
     "mac": {
       "category": "public.app-category.developer-tools",
