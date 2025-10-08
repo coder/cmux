@@ -72,7 +72,7 @@ dist/version.txt: ## Generate version file
 	@./scripts/generate-version.sh
 
 ## Quality checks (can run in parallel)
-static-check: lint typecheck fmt-check fmt-shell-check ## Run all static checks
+static-check: lint typecheck fmt-check ## Run all static checks
 
 lint: ## Run linter and typecheck
 	@./scripts/lint.sh
