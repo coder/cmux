@@ -22,14 +22,12 @@ export type BashToolResult =
       success: true;
       output: string;
       exitCode: 0;
-      truncated?: boolean;
     })
   | (CommonBashFields & {
       success: false;
       output?: string;
       exitCode: number;
       error: string;
-      truncated?: boolean;
     });
 
 // File Read Tool Types
