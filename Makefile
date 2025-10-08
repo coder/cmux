@@ -20,8 +20,8 @@
 
 .PHONY: all build dev start clean help
 .PHONY: build-main build-preload build-renderer
-.PHONY: lint lint-fix fmt fmt-check fmt-shell typecheck static-check
-.PHONY: test-integration test-watch test-coverage
+.PHONY: lint lint-fix fmt fmt-check fmt-shell fmt-shell-check typecheck static-check
+.PHONY: test test-unit test-integration test-watch test-coverage
 .PHONY: dist dist-mac dist-win dist-linux
 .PHONY: docs docs-build docs-watch
 
@@ -72,7 +72,7 @@ dist/version.txt: ## Generate version file
 	@./scripts/generate-version.sh
 
 ## Quality checks (can run in parallel)
-static-check: lint typecheck fmt-check ## Run all static checks
+static-check: lint typecheck fmt-check fmt-shell-check ## Run all static checks
 
 lint: ## Run linter and typecheck
 	@./scripts/lint.sh
@@ -99,8 +99,10 @@ test-integration: ## Run all tests (unit + integration)
 	@bun test src
 	@TEST_INTEGRATION=1 jest tests
 
-test: ## Run unit tests
+test-unit: ## Run unit tests
 	@bun test src
+
+test: test-unit ## Alias for test-unit
 
 test-watch: ## Run tests in watch mode
 	@./scripts/test.sh --watch
@@ -139,3 +141,11 @@ clean: ## Clean build artifacts
 
 # Parallel build optimization - these can run concurrently
 .NOTPARALLEL: build-main  # TypeScript can handle its own parallelism
+
+fmt-shell-check: ## Check shell script formatting
+	@if ! command -v shfmt &>/dev/null; then \
+		echo "shfmt not found. Install with: brew install shfmt"; \
+		exit 1; \
+	fi
+	@echo "Checking shell script formatting..."
+	@shfmt -i 2 -ci -bn -d scripts
