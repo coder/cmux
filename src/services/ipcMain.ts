@@ -51,6 +51,7 @@ export class IpcMain {
   private readonly partialService: PartialService;
   private readonly aiService: AIService;
   private mainWindow: BrowserWindow | null = null;
+  private registered = false;
 
   constructor(config: Config) {
     this.config = config;
@@ -65,13 +66,22 @@ export class IpcMain {
    * @param mainWindow - The main BrowserWindow for sending events
    */
   register(ipcMain: ElectronIpcMain, mainWindow: BrowserWindow): void {
+    // Always update the window reference (windows can be recreated on macOS)
     this.mainWindow = mainWindow;
+
+    // Skip registration if handlers are already registered
+    // This prevents "handler already registered" errors when windows are recreated
+    if (this.registered) {
+      return;
+    }
+
     this.registerConfigHandlers(ipcMain);
     this.registerDialogHandlers(ipcMain);
     this.registerWorkspaceHandlers(ipcMain);
     this.registerProviderHandlers(ipcMain);
     this.registerSubscriptionHandlers(ipcMain);
     this.setupEventForwarding();
+    this.registered = true;
   }
 
   private registerConfigHandlers(ipcMain: ElectronIpcMain): void {

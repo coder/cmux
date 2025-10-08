@@ -1,13 +1,46 @@
+// Enable source map support for better error stack traces in production
+import "source-map-support/register";
+
 import type { MenuItemConstructorOptions } from "electron";
-import { app, BrowserWindow, ipcMain as electronIpcMain, Menu, shell } from "electron";
+import { app, BrowserWindow, ipcMain as electronIpcMain, Menu, shell, dialog } from "electron";
 import * as path from "path";
 import { Config } from "./config";
 import { IpcMain } from "./services/ipcMain";
+import { VERSION } from "./version";
 
 const config = new Config();
 const ipcMain = new IpcMain(config);
 
+console.log(`Cmux starting - version: ${VERSION.git} (built: ${VERSION.buildTime})`);
 console.log("Main process starting...");
+
+// Global error handlers for better error reporting
+process.on("uncaughtException", (error) => {
+  console.error("Uncaught Exception:", error);
+  console.error("Stack:", error.stack);
+
+  // Show error dialog in production
+  if (app.isPackaged) {
+    dialog.showErrorBox(
+      "Application Error",
+      `An unexpected error occurred:\n\n${error.message}\n\nStack trace:\n${error.stack ?? "No stack trace available"}`
+    );
+  }
+});
+
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("Unhandled Rejection at:", promise);
+  console.error("Reason:", reason);
+
+  if (app.isPackaged) {
+    const message = reason instanceof Error ? reason.message : String(reason);
+    const stack = reason instanceof Error ? reason.stack : undefined;
+    dialog.showErrorBox(
+      "Unhandled Promise Rejection",
+      `An unhandled promise rejection occurred:\n\n${message}\n\nStack trace:\n${stack ?? "No stack trace available"}`
+    );
+  }
+});
 
 // Single instance lock
 const gotTheLock = app.requestSingleInstanceLock();
@@ -150,7 +183,9 @@ if (gotTheLock) {
   });
 
   app.on("activate", () => {
-    if (mainWindow === null) {
+    // Only create window if app is ready and no window exists
+    // This prevents "Cannot create BrowserWindow before app is ready" error
+    if (app.isReady() && mainWindow === null) {
       createWindow();
     }
   });
