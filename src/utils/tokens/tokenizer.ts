@@ -46,7 +46,8 @@ const tokenCountCache = new LRUCache<number, number>({
  */
 function isBrowserContext(): boolean {
   // Check for Electron process type (only available in Electron environments)
-  const processType = (globalThis as { process?: NodeJS.Process & { type?: string } }).process?.type;
+  const processType = (globalThis as { process?: NodeJS.Process & { type?: string } }).process
+    ?.type;
 
   // Electron main process has type 'browser' or undefined
   // Electron renderer has type 'renderer'
