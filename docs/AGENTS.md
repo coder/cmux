@@ -96,12 +96,24 @@ in `./docs/vercel/**.mdx`.
 
 ## Development Commands
 
-- `bun dev` - Start development server (Vite + TypeScript watcher)
-- `bun start` - Start Electron app
-- `bun build` - Build the application
-- `bun lint` - Run ESLint & typecheck (also: `bun lint:fix`)
-- `bun fmt` - Format all source files with Prettier
-- `bun fmt:check` - Check if files are formatted correctly
+This project uses **Make** as the primary build orchestrator. See [Build System](./build-system.md) for details.
+
+**Primary commands (use Make):**
+
+- `make dev` - Start development server (Vite + TypeScript watcher)
+- `make start` - Build and start Electron app
+- `make build` - Build the application (with parallelism)
+- `make lint` - Run ESLint & typecheck
+- `make lint-fix` - Run ESLint with --fix
+- `make fmt` - Format all source files with Prettier
+- `make fmt-check` - Check if files are formatted correctly
+- `make typecheck` - Run TypeScript type checking
+- `make test` - Run unit tests
+- `make test-integration` - Run all tests (unit + integration)
+- `make clean` - Clean build artifacts
+- `make help` - Show all available targets
+
+**Backwards compatibility:** All commands are also available via `bun run` (e.g., `bun run dev` calls `make dev`)
 
 ## Refactoring
 
@@ -109,7 +121,7 @@ in `./docs/vercel/**.mdx`.
 
 ## Testing
 
-- Always run `bun typecheck` and `bun typecheck:main` after making changes to verify types
+- Always run `make typecheck` after making changes to verify types (checks both main and renderer)
 - **Unit tests should be colocated with their business logic** - Place unit test files (\*.test.ts) in the same directory as the code they test (e.g., `aiService.test.ts` next to `aiService.ts`)
 - E2E and integration tests may live in `./tests/` directory, but unit tests must be colocated
 - Strive to decompose complex logic away from the components and into `.src/utils/`
@@ -356,8 +368,8 @@ The IPC layer is the boundary between backend and frontend. Follow these rules t
 
 ## Debugging
 
-- `bun debug ui-messages --workspace <workspace-name>` - Show UI messages for a workspace
-- `bun debug ui-messages --workspace <workspace-name> --drop <n>` - Show messages with last n dropped
+- `bun run debug ui-messages --workspace <workspace-name>` - Show UI messages for a workspace
+- `bun run debug ui-messages --workspace <workspace-name> --drop <n>` - Show messages with last n dropped
 - Workspace names can be found in `~/.cmux/sessions/`
 
 ## UX Guidelines
