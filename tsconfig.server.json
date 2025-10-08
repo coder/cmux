@@ -1,0 +1,37 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "target": "ES2022",
+    "outDir": "dist-server",
+    "lib": ["ES2022"],
+    "types": ["node"],
+    "skipLibCheck": true,
+    "strict": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": [
+    "src/server.ts",
+    "src/config.ts",
+    "src/git.ts",
+    "src/services/ipcMain.ts",
+    "src/services/aiService.ts",
+    "src/services/historyService.ts",
+    "src/services/partialService.ts",
+    "src/services/streamManager.ts",
+    "src/services/systemMessage.ts",
+    "src/services/log.ts",
+    "src/services/tools/**/*",
+    "src/types/**/*",
+    "src/constants/**/*",
+    "src/utils/validation/**/*",
+    "src/utils/tools/**/*",
+    "src/utils/concurrency/**/*"
+  ],
+  "exclude": ["node_modules", "dist", "dist-server", "src/main.ts", "src/preload.ts", "src/**/*.test.ts", "src/server/webApi.ts", "src/server/apiProvider.ts"]
+}

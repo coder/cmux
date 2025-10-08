@@ -1,0 +1,1 @@
+{"version":3,"file":"mode.js","sourceRoot":"","sources":["../../src/types/mode.ts"],"names":[],"mappings":";AAAA;;GAEG","sourcesContent":["/**\n * UI Mode types\n */\n\nexport type UIMode = \"plan\" | \"exec\";\n"]}

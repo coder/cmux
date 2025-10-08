@@ -55,7 +55,7 @@ const unlimitedTimeoutAgent = new Agent({
  * reasoning models.
  */
 function defaultFetchWithUnlimitedTimeout(
-  input: RequestInfo | URL,
+  input: string | URL | Request,
   init?: RequestInit
 ): Promise<Response> {
   return fetch(input, { ...init, dispatcher: unlimitedTimeoutAgent } as RequestInit);
