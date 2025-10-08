@@ -325,7 +325,7 @@ When done, clean up: rm ${overflowPath}`;
                 success: false,
                 error:
                   `Command output exceeded limits (max ${BASH_MAX_TOTAL_BYTES} bytes total, ${BASH_MAX_LINE_BYTES} bytes per line, ${effectiveMaxLines} lines). ` +
-                  `Use output-limiting commands like 'head', 'tail', or 'grep' to reduce output size. Failed to save overflow: ${err}`,
+                  `Use output-limiting commands like 'head', 'tail', or 'grep' to reduce output size. Failed to save overflow: ${String(err)}`,
                 exitCode: -1,
                 wall_duration_ms,
               });

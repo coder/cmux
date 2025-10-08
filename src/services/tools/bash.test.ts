@@ -2,6 +2,7 @@ import { describe, it, expect } from "bun:test";
 import { createBashTool } from "./bash";
 import type { BashToolArgs, BashToolResult } from "@/types/tools";
 import { BASH_HARD_MAX_LINES, BASH_MAX_TOTAL_BYTES } from "@/constants/toolLimits";
+import * as fs from "fs";
 
 import type { ToolCallOptions } from "ai";
 
@@ -86,7 +87,7 @@ describe("bash tool", () => {
       expect(result.error).toContain("When done, clean up: rm");
 
       // Extract file path from error message
-      const match = result.error.match(/saved to (\/[^\]]+\.txt)/);
+      const match = /saved to (\/[^\]]+\.txt)/.exec(result.error);
       expect(match).toBeDefined();
       if (match) {
         const overflowPath = match[1];
@@ -95,8 +96,7 @@ describe("bash tool", () => {
         const filename = overflowPath.split("/").pop();
         expect(filename).toMatch(/^bash-[0-9a-f]{8}\.txt$/);
         
-        // Verify file exists
-        const fs = require("fs");
+        // Verify file exists and read contents
         expect(fs.existsSync(overflowPath)).toBe(true);
         
         // Verify file contains collected lines (at least 300, may be slightly more)
