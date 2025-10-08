@@ -3,19 +3,21 @@
 ## Prerequisites
 
 1. **GitHub CLI installed**:
+
    ```bash
    # Check if gh is installed
    gh --version
-   
+
    # If not, install it:
    # macOS: brew install gh
    # Linux: See https://github.com/cli/cli#installation
    ```
 
 2. **GitHub CLI authenticated**:
+
    ```bash
    gh auth status
-   
+
    # If not authenticated:
    gh auth login
    ```
@@ -30,6 +32,7 @@
 ### Test 1: PR Detection (Positive Case)
 
 1. **Start the app**:
+
    ```bash
    bun dev
    # In another terminal:
@@ -38,14 +41,11 @@
 
 2. **Create/Select a workspace** with an open PR:
    - The workspace must be on a branch that has an open PR
-   
 3. **Verify GitHub icon appears**:
    - Look in the workspace sidebar
    - A GitHub logo should appear next to the workspace name (after the git status indicator)
-   
 4. **Hover over the icon**:
    - Tooltip should show: "PR #[number]: [title]"
-   
 5. **Click the icon**:
    - Your default browser should open to the PR URL
 
@@ -53,7 +53,6 @@
 
 1. **Create a workspace** on a branch without a PR:
    - No GitHub icon should appear
-   
 2. **Switch to a branch without PR**:
    - GitHub icon should disappear after ~1 second
 
@@ -66,11 +65,12 @@
 ### Test 4: No GitHub CLI
 
 1. **Rename `gh` temporarily**:
+
    ```bash
    # Find gh location
    which gh
    # Example: /opt/homebrew/bin/gh
-   
+
    # Temporarily rename
    sudo mv /opt/homebrew/bin/gh /opt/homebrew/bin/gh.bak
    ```
@@ -87,7 +87,6 @@
 1. **Create multiple workspaces**:
    - Some with PRs
    - Some without PRs
-   
 2. **Verify icons appear only** for workspaces with open PRs
 
 ### Test 6: Performance
@@ -103,11 +102,13 @@
 ## Expected Behavior
 
 ✅ **Should show icon when**:
+
 - GitHub CLI is installed and authenticated
 - Workspace branch has an open PR
 - PR state is "OPEN"
 
 ❌ **Should NOT show icon when**:
+
 - GitHub CLI is not installed
 - Branch has no PR
 - PR is closed or merged
@@ -118,6 +119,7 @@
 If the icon doesn't appear when expected:
 
 1. **Check GitHub CLI manually**:
+
    ```bash
    cd /path/to/workspace
    gh pr view --json number,title,url,state

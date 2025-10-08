@@ -7,6 +7,7 @@ Added functionality to detect and display a GitHub PR link in the workspace side
 ## Changes Made
 
 ### 1. Backend: GitHub Service (`src/services/githubService.ts`)
+
 - **New file**: Created `GitHubService` class to interact with GitHub CLI
 - Checks if `gh` CLI is available on the system
 - Fetches PR information for the current branch using `gh pr view --json number,title,url,state`
@@ -14,6 +15,7 @@ Added functionality to detect and display a GitHub PR link in the workspace side
 - Gracefully handles errors with debug logging
 
 ### 2. Types (`src/types/workspace.ts`)
+
 - **Added** `PullRequestInfo` interface:
   - `number`: PR number
   - `title`: PR title
@@ -22,6 +24,7 @@ Added functionality to detect and display a GitHub PR link in the workspace side
 - **Extended** `DisplayedWorkspaceMetadata` to include `pullRequest: PullRequestInfo | null`
 
 ### 3. IPC Layer
+
 - **IPC Constants** (`src/constants/ipc-constants.ts`):
   - Added `WORKSPACE_GET_PR` channel
 - **IPC Types** (`src/types/ipc.ts`):
@@ -36,6 +39,7 @@ Added functionality to detect and display a GitHub PR link in the workspace side
     - Returns PR info or null
 
 ### 4. Frontend: Data Fetching (`src/hooks/useGitStatus.ts`)
+
 - **Extended** `useGitStatus` hook to fetch PR information alongside git status
 - Polls for PR info every 1 second (same interval as git status)
 - Initializes `pullRequest: null` for all workspaces
@@ -43,6 +47,7 @@ Added functionality to detect and display a GitHub PR link in the workspace side
 - Updates `DisplayedWorkspaceMetadata` with PR info
 
 ### 5. Frontend: UI Component (`src/components/GitHubPRLink.tsx`)
+
 - **New file**: Created `GitHubPRLink` component
 - Displays GitHub logo icon (SVG) when PR exists
 - Styled button with hover effects
@@ -51,10 +56,13 @@ Added functionality to detect and display a GitHub PR link in the workspace side
 - Uses `TooltipWrapper` for consistent tooltip behavior
 
 ### 6. Frontend: Integration (`src/components/ProjectSidebar.tsx`)
+
 - **Imported** `GitHubPRLink` component
 - **Added** conditional rendering after `GitStatusIndicator`:
   ```tsx
-  {metadata.pullRequest && <GitHubPRLink pullRequest={metadata.pullRequest} />}
+  {
+    metadata.pullRequest && <GitHubPRLink pullRequest={metadata.pullRequest} />;
+  }
   ```
 - Icon appears inline with other workspace indicators
 
@@ -94,23 +102,23 @@ graph TB
         C --> E[DisplayedWorkspaceMetadata]
         E --> A
     end
-    
+
     subgraph "IPC Boundary"
         D --> F[IPC: WORKSPACE_GET_PR]
     end
-    
+
     subgraph "Backend (Main Process)"
         F --> G[IpcMain Handler]
         G --> H[AIService.getWorkspaceMetadata]
         G --> I[GitHubService.getOpenPR]
         I --> J[gh pr view CLI]
     end
-    
+
     subgraph "External"
         J --> K[GitHub API]
         B --> L[Browser: PR URL]
     end
-    
+
     style A fill:#569cd6,color:#fff
     style B fill:#4ec9b0,color:#fff
     style C fill:#569cd6,color:#fff
@@ -142,4 +150,3 @@ graph TB
    - User clicks GitHub icon
    - `window.open(url, "_blank")` triggers
    - Electron's `setWindowOpenHandler` opens URL in default browser
-
