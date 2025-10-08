@@ -28,11 +28,19 @@ export interface CommandAction {
           name: string;
           label?: string;
           placeholder?: string;
-          getOptions: (values: Record<string, string>) => Array<{
-            id: string;
-            label: string;
-            keywords?: string[];
-          }>;
+          getOptions: (values: Record<string, string>) =>
+            | Array<{
+                id: string;
+                label: string;
+                keywords?: string[];
+              }>
+            | Promise<
+                Array<{
+                  id: string;
+                  label: string;
+                  keywords?: string[];
+                }>
+              >;
         }
     >;
     onSubmit: (values: Record<string, string>) => void | Promise<void>;

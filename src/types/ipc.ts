@@ -29,6 +29,11 @@ export { IPC_CHANNELS, getChatChannel };
 // Type for all channel names
 export type IPCChannel = string;
 
+export interface BranchListResult {
+  branches: string[];
+  recommendedTrunk: string;
+}
+
 // Caught up message type
 export interface CaughtUpMessage {
   type: "caught-up";
@@ -158,6 +163,7 @@ export interface IPCApi {
     create(projectPath: string): Promise<Result<ProjectConfig, string>>;
     remove(projectPath: string): Promise<Result<void, string>>;
     list(): Promise<ProjectConfig[]>;
+    listBranches(projectPath: string): Promise<BranchListResult>;
     secrets: {
       get(projectPath: string): Promise<Secret[]>;
       update(projectPath: string, secrets: Secret[]): Promise<Result<void, string>>;
@@ -167,7 +173,8 @@ export interface IPCApi {
     list(): Promise<WorkspaceMetadata[]>;
     create(
       projectPath: string,
-      branchName: string
+      branchName: string,
+      trunkBranch: string
     ): Promise<{ success: true; metadata: WorkspaceMetadata } | { success: false; error: string }>;
     remove(workspaceId: string): Promise<{ success: boolean; error?: string }>;
     rename(

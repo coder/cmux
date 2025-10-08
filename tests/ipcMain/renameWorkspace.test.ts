@@ -4,6 +4,7 @@ import {
   createEventCollector,
   waitForFileExists,
   waitForFileNotExists,
+  createWorkspace,
 } from "./helpers";
 import { IPC_CHANNELS } from "../../src/constants/ipc-constants";
 import type { CmuxMessage } from "../../src/types/message";
@@ -137,8 +138,8 @@ describeIntegration("IpcMain rename workspace integration tests", () => {
       try {
         // Create a second workspace with a different branch
         const secondBranchName = "conflict-branch";
-        const createResult = await env.mockIpcRenderer.invoke(
-          IPC_CHANNELS.WORKSPACE_CREATE,
+        const createResult = await createWorkspace(
+          env.mockIpcRenderer,
           tempGitRepo,
           secondBranchName
         );

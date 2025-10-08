@@ -38,8 +38,12 @@ export function useWorkspaceManagement({
     }
   };
 
-  const createWorkspace = async (projectPath: string, branchName: string) => {
-    const result = await window.api.workspace.create(projectPath, branchName);
+  const createWorkspace = async (projectPath: string, branchName: string, trunkBranch: string) => {
+    console.assert(
+      typeof trunkBranch === "string" && trunkBranch.trim().length > 0,
+      "Expected trunk branch to be provided when creating a workspace"
+    );
+    const result = await window.api.workspace.create(projectPath, branchName, trunkBranch);
     if (result.success) {
       // Backend has already updated the config - reload projects to get updated state
       const projectsList = await window.api.projects.list();

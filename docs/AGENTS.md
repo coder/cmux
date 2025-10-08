@@ -393,7 +393,9 @@ The IPC layer is the boundary between backend and frontend. Follow these rules t
 
    ```typescript
    // ✅ GOOD - Frontend combines backend data with context it already has
-   const result = await window.api.workspace.create(projectPath, branchName);
+   const { recommendedTrunk } = await window.api.projects.listBranches(projectPath);
+   const trunkBranch = recommendedTrunk ?? "main";
+   const result = await window.api.workspace.create(projectPath, branchName, trunkBranch);
    if (result.success) {
      setSelectedWorkspace({
        ...result.metadata,
@@ -404,7 +406,9 @@ The IPC layer is the boundary between backend and frontend. Follow these rules t
    }
 
    // ❌ BAD - Backend returns frontend-specific data
-   const result = await window.api.workspace.create(projectPath, branchName);
+   const { recommendedTrunk } = await window.api.projects.listBranches(projectPath);
+   const trunkBranch = recommendedTrunk ?? "main";
+   const result = await window.api.workspace.create(projectPath, branchName, trunkBranch);
    if (result.success) {
      setSelectedWorkspace(result.workspace); // Backend shouldn't know about WorkspaceSelection
    }

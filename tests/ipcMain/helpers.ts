@@ -6,6 +6,7 @@ import type { SendMessageError } from "../../src/types/errors";
 import type { WorkspaceMetadata } from "../../src/types/workspace";
 import * as path from "path";
 import * as os from "os";
+import { detectDefaultTrunkBranch } from "../../src/git";
 
 /**
  * Generate a unique branch name
@@ -64,11 +65,20 @@ export async function sendMessageWithModel(
 export async function createWorkspace(
   mockIpcRenderer: IpcRenderer,
   projectPath: string,
-  branchName: string
+  branchName: string,
+  trunkBranch?: string
 ): Promise<{ success: true; metadata: WorkspaceMetadata } | { success: false; error: string }> {
-  return (await mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_CREATE, projectPath, branchName)) as
-    | { success: true; metadata: WorkspaceMetadata }
-    | { success: false; error: string };
+  const resolvedTrunk =
+    typeof trunkBranch === "string" && trunkBranch.trim().length > 0
+      ? trunkBranch.trim()
+      : await detectDefaultTrunkBranch(projectPath);
+
+  return (await mockIpcRenderer.invoke(
+    IPC_CHANNELS.WORKSPACE_CREATE,
+    projectPath,
+    branchName,
+    resolvedTrunk
+  )) as { success: true; metadata: WorkspaceMetadata } | { success: false; error: string };
 }
 
 /**

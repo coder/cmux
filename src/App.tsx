@@ -25,6 +25,7 @@ import { GitStatusProvider } from "./contexts/GitStatusContext";
 import type { ThinkingLevel } from "./types/thinking";
 import { CUSTOM_EVENTS } from "./constants/events";
 import { getThinkingLevelKey } from "./constants/storage";
+import type { BranchListResult } from "./types/ipc";
 
 const THINKING_LEVELS: ThinkingLevel[] = ["off", "low", "medium", "high"];
 
@@ -206,10 +207,15 @@ function AppInner() {
     setWorkspaceModalOpen(true);
   }, []);
 
-  const handleCreateWorkspace = async (branchName: string) => {
+  const handleCreateWorkspace = async (branchName: string, trunkBranch: string) => {
     if (!workspaceModalProject) return;
 
-    const newWorkspace = await createWorkspace(workspaceModalProject, branchName);
+    console.assert(
+      typeof trunkBranch === "string" && trunkBranch.trim().length > 0,
+      "Expected trunk branch to be provided by the workspace modal"
+    );
+
+    const newWorkspace = await createWorkspace(workspaceModalProject, branchName, trunkBranch);
     if (newWorkspace) {
       setSelectedWorkspace(newWorkspace);
     }
@@ -329,11 +335,36 @@ function AppInner() {
   );
 
   const createWorkspaceFromPalette = useCallback(
-    async (projectPath: string, branchName: string) => {
-      const newWs = await createWorkspace(projectPath, branchName);
+    async (projectPath: string, branchName: string, trunkBranch: string) => {
+      console.assert(
+        typeof trunkBranch === "string" && trunkBranch.trim().length > 0,
+        "Expected trunk branch to be provided by the command palette"
+      );
+      const newWs = await createWorkspace(projectPath, branchName, trunkBranch);
       if (newWs) setSelectedWorkspace(newWs);
     },
     [createWorkspace, setSelectedWorkspace]
+  );
+
+  const getBranchesForProject = useCallback(
+    async (projectPath: string): Promise<BranchListResult> => {
+      const branchResult = await window.api.projects.listBranches(projectPath);
+      const sanitizedBranches = Array.isArray(branchResult?.branches)
+        ? branchResult.branches.filter((branch): branch is string => typeof branch === "string")
+        : [];
+
+      const recommended =
+        typeof branchResult?.recommendedTrunk === "string" &&
+        sanitizedBranches.includes(branchResult.recommendedTrunk)
+          ? branchResult.recommendedTrunk
+          : (sanitizedBranches[0] ?? "");
+
+      return {
+        branches: sanitizedBranches,
+        recommendedTrunk: recommended,
+      };
+    },
+    []
   );
 
   const selectWorkspaceFromPalette = useCallback(
@@ -389,6 +420,7 @@ function AppInner() {
     onSetThinkingLevel: setThinkingLevelFromPalette,
     onOpenNewWorkspaceModal: openNewWorkspaceFromPalette,
     onCreateWorkspace: createWorkspaceFromPalette,
+    getBranchesForProject,
     onSelectWorkspace: selectWorkspaceFromPalette,
     onRemoveWorkspace: removeWorkspaceFromPalette,
     onRenameWorkspace: renameWorkspaceFromPalette,

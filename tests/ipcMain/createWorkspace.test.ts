@@ -1,6 +1,7 @@
 import { shouldRunIntegrationTests, createTestEnvironment, cleanupTestEnvironment } from "./setup";
 import { IPC_CHANNELS } from "../../src/constants/ipc-constants";
 import { createTempGitRepo, cleanupTempGitRepo } from "./helpers";
+import { detectDefaultTrunkBranch } from "../../src/git";
 
 // Skip all tests if TEST_INTEGRATION is not set
 const describeIntegration = shouldRunIntegrationTests() ? describe : describe.skip;
@@ -25,11 +26,14 @@ describeIntegration("IpcMain create workspace integration tests", () => {
           { name: "a".repeat(65), expectedError: "64 characters" },
         ];
 
+        const trunkBranch = await detectDefaultTrunkBranch(tempGitRepo);
+
         for (const { name, expectedError } of invalidNames) {
           const createResult = await env.mockIpcRenderer.invoke(
             IPC_CHANNELS.WORKSPACE_CREATE,
             tempGitRepo,
-            name
+            name,
+            trunkBranch
           );
           expect(createResult.success).toBe(false);
           expect(createResult.error.toLowerCase()).toContain(expectedError.toLowerCase());
@@ -59,11 +63,14 @@ describeIntegration("IpcMain create workspace integration tests", () => {
           "b".repeat(64), // Max length
         ];
 
+        const trunkBranch = await detectDefaultTrunkBranch(tempGitRepo);
+
         for (const name of validNames) {
           const createResult = await env.mockIpcRenderer.invoke(
             IPC_CHANNELS.WORKSPACE_CREATE,
             tempGitRepo,
-            name
+            name,
+            trunkBranch
           );
           if (!createResult.success) {
             console.error(`Failed to create workspace "${name}":`, createResult.error);
