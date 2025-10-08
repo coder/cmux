@@ -19,7 +19,7 @@ A cross-platform desktop application for embarassingly parallel development.
 
 Download pre-built binaries from [GitHub Actions artifacts](https://github.com/coder/cmux/actions/workflows/build.yml):
 
-- **macOS**: Universal binary DMG (Intel + Apple Silicon)
+- **macOS**: Signed and notarized DMG (separate builds for Intel/Apple Silicon)
 - **Linux**: AppImage
 
 ## Development
