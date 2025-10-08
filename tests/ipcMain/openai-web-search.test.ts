@@ -21,19 +21,26 @@ describeIntegration("OpenAI web_search integration tests", () => {
   }
 
   test.concurrent(
-    "should successfully execute web_search without errors",
+    "should handle reasoning + web_search without itemId errors",
     async () => {
       // Setup test environment with OpenAI
       const { env, workspaceId, cleanup } = await setupWorkspace("openai");
       try {
-        // Send a simple message requesting web search
-        // Keep it simple to avoid model getting stuck in loops
+        // This prompt reliably triggers the reasoning + web_search bug:
+        // 1. Gold price search always triggers web_search (pricing data)
+        // 2. Mathematical computation requires reasoning
+        // 3. High reasoning effort ensures reasoning is present
+        // This combination exposed the itemId bug on main branch
         const result = await sendMessageWithModel(
           env.mockIpcRenderer,
           workspaceId,
-          "Use web_search to find what year TypeScript was first released. Answer with just the year.",
+          "Find the current gold price per ounce via web search. " +
+            "Then compute round(price^2) and determine how many Collatz steps it takes to reach 1.",
           "openai",
-          "gpt-5-codex"
+          "gpt-5-codex",
+          {
+            thinkingLevel: "high", // Ensure reasoning is used
+          }
         );
 
         // Verify the IPC call succeeded
@@ -43,16 +50,22 @@ describeIntegration("OpenAI web_search integration tests", () => {
         const collector = createEventCollector(env.sentEvents, workspaceId);
 
         // Wait for stream to complete
-        const streamEnd = await collector.waitForEvent("stream-end", 60000);
+        const streamEnd = await collector.waitForEvent("stream-end", 120000);
         expect(streamEnd).toBeDefined();
 
-        // Verify no errors occurred (this is the key test - ensuring no reasoning itemId errors)
+        // Verify no errors occurred - this is the KEY test
+        // Before the fix, this would fail with:
+        // "Item 'ws_...' of type 'web_search_call' was provided without its required 'reasoning' item"
         assertStreamSuccess(collector);
 
-        // Collect all events and verify web_search was called
+        // Collect all events and verify both reasoning and web_search occurred
         collector.collect();
         const events = collector.getEvents();
 
+        // Verify we got reasoning (this is what triggers the bug)
+        const hasReasoning = events.some((e) => "type" in e && e.type === "reasoning-delta");
+
+        // Verify web_search was called
         const hasWebSearchCall = events.some(
           (e) =>
             "type" in e &&
@@ -61,16 +74,17 @@ describeIntegration("OpenAI web_search integration tests", () => {
             e.toolName === "web_search"
         );
 
-        // Verify web_search was actually called
+        // Both should be present for this test to be valid
+        expect(hasReasoning).toBe(true);
         expect(hasWebSearchCall).toBe(true);
 
-        // Verify we received text deltas (the assistant's response)
+        // Verify we received text deltas (the assistant's final answer)
         const deltas = collector.getDeltas();
         expect(deltas.length).toBeGreaterThan(0);
       } finally {
         await cleanup();
       }
     },
-    90000 // 90 second timeout - be generous with reasoning models
+    150000 // 150 second timeout - reasoning + web_search + computation takes time
   );
 });
