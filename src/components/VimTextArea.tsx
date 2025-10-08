@@ -29,7 +29,7 @@ const StyledTextArea = styled.textarea<{
   mode: UIMode;
   vimMode: VimMode;
 }>`
-  flex: 1;
+  width: 100%;
   background: ${(props) => (props.isEditing ? "var(--color-editing-mode-alpha)" : "#1e1e1e")};
   border: 1px solid ${(props) => (props.isEditing ? "var(--color-editing-mode)" : "#3e3e42")};
   color: #d4d4d4;
@@ -56,6 +56,42 @@ const StyledTextArea = styled.textarea<{
   &::placeholder {
     color: #6b6b6b;
   }
+
+  /* Blinking cursor in normal mode */
+  &::selection {
+    background-color: ${(props) =>
+      props.vimMode === "normal" ? "rgba(255, 255, 255, 0.3)" : "rgba(51, 153, 255, 0.5)"};
+  }
+
+  /* Apply blink animation when in normal mode */
+  ${(props) =>
+    props.vimMode === "normal" &&
+    `
+    &::selection {
+      animation: vim-cursor-blink 1s step-end infinite;
+    }
+  `}
+
+  @keyframes vim-cursor-blink {
+    0%,
+    49% {
+      background-color: rgba(255, 255, 255, 0.3);
+    }
+    50%,
+    100% {
+      background-color: transparent;
+    }
+  }
+`;
+
+const ModeIndicator = styled.div`
+  font-size: 9px;
+  color: rgba(212, 212, 212, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin-bottom: 2px;
+  user-select: none;
+  height: 12px;
 `;
 
 type VimMode = vim.VimMode;
@@ -73,6 +109,7 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
 
     const [vimMode, setVimMode] = useState<VimMode>("insert");
     const [desiredColumn, setDesiredColumn] = useState<number | null>(null);
+    const [cursorVisible, setCursorVisible] = useState(true);
     const yankBufferRef = useRef<string>("");
     const pendingOpRef = useRef<null | { op: "d" | "y" | "c"; at: number; args?: string[] }>(null);
 
@@ -84,6 +121,32 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
       const max = 200;
       el.style.height = Math.min(el.scrollHeight, max) + "px";
     }, [value]);
+
+    // Cursor blink in normal mode
+    useEffect(() => {
+      if (vimMode !== "normal") {
+        setCursorVisible(true);
+        return;
+      }
+      const interval = setInterval(() => {
+        setCursorVisible((v) => !v);
+      }, 500);
+      return () => clearInterval(interval);
+    }, [vimMode]);
+
+    // Update cursor display when blink state changes
+    useEffect(() => {
+      if (vimMode !== "normal") return;
+      const el = textareaRef.current;
+      if (!el) return;
+      const pos = el.selectionStart;
+      const lineEnd = vim.lineEndAtIndex(value, pos);
+      if (pos < lineEnd && cursorVisible) {
+        el.selectionEnd = pos + 1;
+      } else {
+        el.selectionEnd = pos;
+      }
+    }, [cursorVisible, vimMode, value]);
 
     const suppressSet = useMemo(() => new Set(suppressKeys ?? []), [suppressKeys]);
 
@@ -98,7 +161,7 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
       const lineEnd = vim.lineEndAtIndex(value, p);
       el.selectionStart = p;
       // In normal mode, show a 1-char selection (block cursor effect) when possible
-      if (vimMode === "normal" && p < lineEnd) {
+      if (vimMode === "normal" && p < lineEnd && cursorVisible) {
         el.selectionEnd = p + 1;
       } else {
         el.selectionEnd = p;
@@ -442,7 +505,8 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
     };
 
     return (
-      <div style={{ position: "relative", width: "100%" }}>
+      <div style={{ width: "100%" }}>
+        <ModeIndicator aria-live="polite">{vimMode === "normal" ? "NORMAL" : ""}</ModeIndicator>
         <StyledTextArea
           ref={textareaRef}
           value={value}
@@ -454,27 +518,6 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
           spellCheck={false}
           {...rest}
         />
-        {vimMode === "normal" && (
-          <div
-            aria-live="polite"
-            style={{
-              position: "absolute",
-              right: 8,
-              bottom: 8,
-              background: "rgba(255,255,255,0.08)",
-              border: "1px solid rgba(255,255,255,0.2)",
-              borderRadius: 3,
-              padding: "2px 6px",
-              fontSize: 10,
-              letterSpacing: 0.5,
-              color: "#d4d4d4",
-              userSelect: "none",
-              pointerEvents: "none",
-            }}
-          >
-            NORMAL
-          </div>
-        )}
       </div>
     );
   }
