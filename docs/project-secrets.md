@@ -25,7 +25,7 @@ Project secrets are key-value pairs stored per project that are:
 
 1. Find your project in the left sidebar
 2. Hover over the project name
-3. Click the Key icon that appears
+3. Click the 🔑 key icon that appears
 
 
 ## How Secrets Are Used

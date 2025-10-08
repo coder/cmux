@@ -42,7 +42,7 @@ Classic tokens are easier to configure than fine-grained tokens for repository a
 Add the Git identity environment variables as [Project Secrets](./project-secrets.md) in cmux:
 
 1. Open cmux and find your project in the sidebar
-2. Click the 🔒 lock icon to open the secrets modal
+2. Click the 🔑 key icon to open the secrets modal
 3. Add the following four secrets:
    - `GIT_AUTHOR_NAME` = `Your Name (Agent)`
    - `GIT_AUTHOR_EMAIL` = `yourname+ai@example.com`
