@@ -3,20 +3,20 @@ set -euo pipefail
 
 # Check if PR number is provided
 if [ $# -eq 0 ]; then
-    echo "Usage: $0 <pr_number>"
-    exit 1
+  echo "Usage: $0 <pr_number>"
+  exit 1
 fi
 
 PR_NUMBER=$1
-BOT_LOGIN_REST="chatgpt-codex-connector[bot]"  # REST API uses [bot] suffix
-BOT_LOGIN_GRAPHQL="chatgpt-codex-connector"    # GraphQL does not
+BOT_LOGIN_REST="chatgpt-codex-connector[bot]" # REST API uses [bot] suffix
+BOT_LOGIN_GRAPHQL="chatgpt-codex-connector"   # GraphQL does not
 
 echo "Checking for unresolved Codex comments in PR #${PR_NUMBER}..."
 
 # Get all regular issue comments from the Codex bot (these can't be resolved)
 # Filter out "all clear" comments that indicate no issues found
 REGULAR_COMMENTS=$(gh api "/repos/{owner}/{repo}/issues/${PR_NUMBER}/comments" \
-    --jq "[.[] | select(.user.login == \"${BOT_LOGIN_REST}\") | select(.body | test(\"Didn't find any major issues\") | not)]")
+  --jq "[.[] | select(.user.login == \"${BOT_LOGIN_REST}\") | select(.body | test(\"Didn't find any major issues\") | not)]")
 
 REGULAR_COUNT=$(echo "$REGULAR_COMMENTS" | jq 'length')
 
@@ -52,11 +52,11 @@ REPO=$(echo "$REPO_INFO" | jq -r '.name')
 
 # Query for unresolved review threads from the bot
 UNRESOLVED_THREADS=$(gh api graphql \
-    -f query="$GRAPHQL_QUERY" \
-    -F owner="$OWNER" \
-    -F repo="$REPO" \
-    -F pr="$PR_NUMBER" \
-    --jq "[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false and .comments.nodes[0].author.login == \"${BOT_LOGIN_GRAPHQL}\")]")
+  -f query="$GRAPHQL_QUERY" \
+  -F owner="$OWNER" \
+  -F repo="$REPO" \
+  -F pr="$PR_NUMBER" \
+  --jq "[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false and .comments.nodes[0].author.login == \"${BOT_LOGIN_GRAPHQL}\")]")
 
 UNRESOLVED_COUNT=$(echo "$UNRESOLVED_THREADS" | jq 'length')
 
@@ -67,23 +67,23 @@ echo "Found ${UNRESOLVED_COUNT} unresolved review thread(s) from bot"
 TOTAL_UNRESOLVED=$((REGULAR_COUNT + UNRESOLVED_COUNT))
 
 if [ $TOTAL_UNRESOLVED -gt 0 ]; then
-    echo ""
-    echo "❌ Found ${TOTAL_UNRESOLVED} unresolved comment(s) from Codex in PR #${PR_NUMBER}"
-    echo ""
-    echo "Codex comments:"
-    
-    if [ $REGULAR_COUNT -gt 0 ]; then
-        echo "$REGULAR_COMMENTS" | jq -r '.[] | "  - [\(.created_at)] \(.body[0:100] | gsub("\n"; " "))..."'
-    fi
-    
-    if [ $UNRESOLVED_COUNT -gt 0 ]; then
-        echo "$UNRESOLVED_THREADS" | jq -r '.[] | "  - [\(.comments.nodes[0].createdAt)] \(.comments.nodes[0].path // "comment"):\(.comments.nodes[0].line // "") - \(.comments.nodes[0].body[0:100] | gsub("\n"; " "))..."'
-    fi
-    
-    echo ""
-    echo "Please address or resolve all Codex comments before merging."
-    exit 1
+  echo ""
+  echo "❌ Found ${TOTAL_UNRESOLVED} unresolved comment(s) from Codex in PR #${PR_NUMBER}"
+  echo ""
+  echo "Codex comments:"
+
+  if [ $REGULAR_COUNT -gt 0 ]; then
+    echo "$REGULAR_COMMENTS" | jq -r '.[] | "  - [\(.created_at)] \(.body[0:100] | gsub("\n"; " "))..."'
+  fi
+
+  if [ $UNRESOLVED_COUNT -gt 0 ]; then
+    echo "$UNRESOLVED_THREADS" | jq -r '.[] | "  - [\(.comments.nodes[0].createdAt)] \(.comments.nodes[0].path // "comment"):\(.comments.nodes[0].line // "") - \(.comments.nodes[0].body[0:100] | gsub("\n"; " "))..."'
+  fi
+
+  echo ""
+  echo "Please address or resolve all Codex comments before merging."
+  exit 1
 else
-    echo "✅ No unresolved Codex comments found"
-    exit 0
+  echo "✅ No unresolved Codex comments found"
+  exit 0
 fi
