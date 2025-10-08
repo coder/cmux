@@ -977,14 +977,14 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
           // This is a test-only shortcut. Real application code should NEVER bypass IPC.
           const historyService = new HistoryService(env.config);
 
-          // gpt-4o-mini has ~128k token context window
-          // Create ~50k chars per message (~12.5k tokens)
+          // gpt-4o-mini context window varies, use same approach as token limit test
+          // Create ~50k chars per message
           const messageSize = 50_000;
           const largeText = "A".repeat(messageSize);
 
-          // Need ~150k tokens to exceed 128k context limit
-          // 12 messages × 12.5k tokens = 150k tokens
-          const messageCount = 12;
+          // Use ~80 messages (4M chars total) to ensure we hit the limit
+          // This matches the token limit error test for OpenAI
+          const messageCount = 80;
 
           // Build conversation history with alternating user/assistant messages
           for (let i = 0; i < messageCount; i++) {
