@@ -288,7 +288,8 @@ export class AIService extends EventEmitter {
               return fetchToUse(input, init);
             }
           },
-          "preconnect" in fetchToUse && typeof (fetchToUse as typeof fetch).preconnect === "function"
+          "preconnect" in fetchToUse &&
+            typeof (fetchToUse as typeof fetch).preconnect === "function"
             ? { preconnect: (fetchToUse as typeof fetch).preconnect.bind(fetchToUse) }
             : {}
         );
