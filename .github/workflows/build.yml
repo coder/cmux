@@ -36,11 +36,11 @@ jobs:
           fi
           
           # Notarization credentials (optional - will skip if not provided)
-          if [ -n "${{ secrets.APPLE_ID }}" ]; then
-            export APPLE_ID="${{ secrets.APPLE_ID }}"
-            export APPLE_APP_SPECIFIC_PASSWORD="${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}"
-            export APPLE_TEAM_ID="${{ secrets.APPLE_TEAM_ID }}"
-            echo "✅ Notarization credentials found - will notarize"
+          if [ -n "${{ secrets.APPLE_API_KEY_ID }}" ]; then
+            export API_KEY_ID="${{ secrets.APPLE_API_KEY_ID }}"
+            export API_KEY_ISSUER_ID="${{ secrets.APPLE_API_ISSUER_ID }}"
+            export API_KEY="${{ secrets.APPLE_API_KEY }}"
+            echo "✅ Notarization credentials found (API key) - will notarize"
           else
             echo "⚠️  No notarization credentials - skipping notarization"
           fi
