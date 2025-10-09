@@ -80,23 +80,10 @@ export function useResumeManager(workspaceStates: Map<string, WorkspaceState>) {
 
   /**
    * Attempt to resume a workspace stream
-   * If not yet eligible due to backoff, schedules a retry
+   * Polling will check eligibility every 1 second
    */
   const attemptResume = async (workspaceId: string) => {
-    const eligibility = isEligibleForResume(workspaceId);
-    
-    // If not eligible but should retry later, schedule it
-    if (!eligibility.eligible && eligibility.scheduleRetryIn) {
-      console.log(
-        `[useResumeManager] Scheduling retry for ${workspaceId} in ${Math.ceil(eligibility.scheduleRetryIn / 1000)}s`
-      );
-      setTimeout(() => {
-        void attemptResume(workspaceId);
-      }, eligibility.scheduleRetryIn);
-      return;
-    }
-    
-    if (!eligibility.eligible) return;
+    if (!isEligibleForResume(workspaceId)) return;
 
     // Mark as retrying
     retryingRef.current.add(workspaceId);
