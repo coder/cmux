@@ -104,9 +104,7 @@ Verify with React DevTools Profiler - MarkdownCore should only re-render when co
   - User docs are built with mdbook and deployed to https://cmux.io
   - Must be added to `docs/SUMMARY.md` to appear in the docs
   - Use standard markdown + mermaid diagrams
-- **Developer docs** → Colocated with relevant code (e.g., `src/components/VimTextArea.md` next to `VimTextArea.tsx`)
-  - When documenting behaviour that lives in a source file, prefer inline comments/JSDoc directly in that file. Use colocated markdown only for higher-level design notes that truly span multiple files.
-
+- **Developer docs** → inline with the code its documenting as comments. Consider them notes as notes to future Assistants to understand the logic more quickly. 
 **DO NOT** create standalone documentation files in the project root or random locations.
 
 ### External API Docs
