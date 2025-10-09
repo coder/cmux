@@ -158,7 +158,7 @@ export function useResumeManager(workspaceStates: Map<string, WorkspaceState>) {
       void attemptResume(workspaceId);
     }
 
-    // Listen for resume check requests
+    // Listen for resume check requests (primary mechanism)
     const handleResumeCheck = (event: Event) => {
       const customEvent = event as CustomEvent<{ workspaceId: string }>;
       const { workspaceId } = customEvent.detail;
@@ -168,8 +168,17 @@ export function useResumeManager(workspaceStates: Map<string, WorkspaceState>) {
 
     window.addEventListener(CUSTOM_EVENTS.RESUME_CHECK_REQUESTED, handleResumeCheck);
 
+    // Backup polling mechanism - check all workspaces every 1 second
+    // This is defense-in-depth in case events are missed
+    const pollInterval = setInterval(() => {
+      for (const [workspaceId] of workspaceStatesRef.current) {
+        void attemptResume(workspaceId);
+      }
+    }, 1000);
+
     return () => {
       window.removeEventListener(CUSTOM_EVENTS.RESUME_CHECK_REQUESTED, handleResumeCheck);
+      clearInterval(pollInterval);
     };
   }, []); // Stable effect - no deps, uses refs
 }
