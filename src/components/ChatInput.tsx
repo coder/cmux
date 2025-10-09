@@ -333,6 +333,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const modelSelectorRef = useRef<ModelSelectorRef>(null);
   const [thinkingLevel] = useThinkingLevel();
   const [mode, setMode] = useMode();
+  const [use1M] = use1MContext(workspaceId);
   const { recentModels } = useModelLRU();
 
   const focusMessageInput = useCallback(() => {
@@ -612,6 +613,11 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           model: preferredModel,
           toolPolicy: modeToToolPolicy(mode),
           additionalSystemInstructions,
+          providerOptions: {
+            anthropic: {
+              use1MContext: use1M,
+            },
+          },
         });
 
         if (!result.success) {
@@ -782,6 +788,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
               </Tooltip>
             </TooltipWrapper>
           </ModelDisplayWrapper>
+          <Context1MCheckbox workspaceId={workspaceId} modelString={preferredModel} />
           <ThinkingSliderComponent />
           <ModeToggleWrapper>
             <StyledToggleContainer mode={mode}>

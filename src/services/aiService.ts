@@ -14,6 +14,7 @@ import { StreamManager } from "./streamManager";
 import type { SendMessageError } from "@/types/errors";
 import { getToolsForModel } from "@/utils/tools/tools";
 import { secretsToRecord } from "@/types/secrets";
+import type { FrontendProviderOptions } from "@/types/providerOptions";
 import { log } from "./log";
 import {
   transformModelMessages,
@@ -203,8 +204,47 @@ export class AIService extends EventEmitter {
           });
         }
 
+        // Add 1M context beta header if requested
+
+
+        const use1MContext = frontendProviderOptions?.anthropic?.use1MContext;
+
+
+        const existingHeaders = providerConfig.headers as Record<string, string> | undefined;
+
+
+        const headers =
+
+
+          use1MContext && existingHeaders
+
+
+            ? {
+
+
+                ...existingHeaders,
+
+
+                "anthropic-beta": "context-1m-2025-08-07",
+
+
+              }
+
+
+            : use1MContext
+
+
+              ? { "anthropic-beta": "context-1m-2025-08-07" }
+
+
+              : existingHeaders;
+
+
+
         // Pass configuration verbatim to the provider, ensuring parity with Vercel AI SDK
-        const provider = createAnthropic(providerConfig);
+
+
+        const provider = createAnthropic({ ...providerConfig, headers });
         return Ok(provider(modelId));
       }
 
