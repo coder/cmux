@@ -91,7 +91,7 @@ fmt-check: ## Check code formatting
 fmt-shell: ## Format shell scripts with shfmt
 	@./scripts/fmt.sh --shell
 
-typecheck: ## Run TypeScript type checking
+typecheck: dist/version.txt ## Run TypeScript type checking
 	@./scripts/typecheck.sh
 
 ## Testing

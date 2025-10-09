@@ -46,6 +46,16 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
       { script, timeout_secs, max_lines = BASH_DEFAULT_MAX_LINES, stdin },
       { abortSignal }
     ): Promise<BashToolResult> => {
+      // Validate script is not empty - likely indicates a malformed tool call
+      if (!script || script.trim().length === 0) {
+        return {
+          success: false,
+          error: "Script parameter is empty. This likely indicates a malformed tool call.",
+          exitCode: -1,
+          wall_duration_ms: 0,
+        };
+      }
+
       const startTime = performance.now();
       const normalizedMaxLines = Math.max(1, Math.floor(max_lines));
       const effectiveMaxLines = Math.min(normalizedMaxLines, BASH_HARD_MAX_LINES);
