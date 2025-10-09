@@ -133,13 +133,14 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
       return { start: el.selectionStart, end: el.selectionEnd };
     };
 
-    const setCursor = (pos: number) => {
+    const setCursor = (pos: number, mode?: vim.VimMode) => {
       const el = textareaRef.current!;
       const p = Math.max(0, Math.min(value.length, pos));
       el.selectionStart = p;
       // In normal mode, show a 1-char selection (block cursor effect) when possible
       // Show cursor if there's a character under it (including at end of line before newline)
-      if (vimMode === "normal" && p < value.length) {
+      const effectiveMode = mode ?? vimMode;
+      if (effectiveMode === "normal" && p < value.length) {
         el.selectionEnd = p + 1;
       } else {
         el.selectionEnd = p;
@@ -206,7 +207,8 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
       }
       
       // Set cursor after React state updates (important for mode transitions)
-      setTimeout(() => setCursor(newState.cursor), 0);
+      // Pass the new mode explicitly to avoid stale closure issues
+      setTimeout(() => setCursor(newState.cursor, newState.mode), 0);
     };
 
     // Build mode indicator content
