@@ -148,6 +148,19 @@ This project uses **Make** as the primary build orchestrator. See `Makefile` for
 
 ## Testing
 
+### Test-Driven Development (TDD)
+
+**TDD is the preferred development style for agents.** 
+
+- Prefer relocated complex logic into places where they're easily tested
+    - E.g. pure functions in `utils` are easier to test than complex logic in a React component
+- Strive for broad coverage with minimal tests
+- Prefer testing large blocks of composite logic
+  - Tests should be written with the end-user experience in mind
+- **Good tests create conditions where the feature matters, then verify the difference.** Don't just test that requests succeed with a flag enabled—create the scenario where the flag changes the outcome (e.g., build history that exceeds limits, then verify flag prevents the error). Tests must prove the feature actually does something, not just that it doesn't break things.
+
+### General Testing Guidelines
+
 - Always run `make typecheck` after making changes to verify types (checks both main and renderer)
 - **Unit tests should be colocated with their business logic** - Place unit test files (\*.test.ts) in the same directory as the code they test (e.g., `aiService.test.ts` next to `aiService.ts`)
 - E2E and integration tests may live in `./tests/` directory, but unit tests must be colocated
