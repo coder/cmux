@@ -358,7 +358,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       setTimeout(() => {
         if (inputRef.current) {
           inputRef.current.style.height = "auto";
-          inputRef.current.style.height = Math.min(inputRef.current.scrollHeight, window.innerHeight * 0.5) + "px";
+          inputRef.current.style.height =
+            Math.min(inputRef.current.scrollHeight, window.innerHeight * 0.5) + "px";
           inputRef.current.focus();
         }
       }, 0);
