@@ -506,7 +506,7 @@ describe("file_edit_replace tool", () => {
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.error).toContain("lease mismatch");
-      expect(result.error).toContain("read the file again");
+      expect(result.error).toContain("obtain a new lease from tool");
     }
 
     // File should remain unchanged
