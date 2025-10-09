@@ -7,9 +7,6 @@ export interface ModelStats {
   output_cost_per_token: number;
   cache_creation_input_token_cost?: number;
   cache_read_input_token_cost?: number;
-  // Elevated pricing for 1M context window (200k-1M tokens)
-  input_cost_per_token_above_200k_tokens?: number;
-  output_cost_per_token_above_200k_tokens?: number;
 }
 
 interface RawModelData {
@@ -18,8 +15,6 @@ interface RawModelData {
   output_cost_per_token?: number;
   cache_creation_input_token_cost?: number;
   cache_read_input_token_cost?: number;
-  input_cost_per_token_above_200k_tokens?: number;
-  output_cost_per_token_above_200k_tokens?: number;
   [key: string]: unknown;
 }
 
@@ -73,14 +68,6 @@ export function getModelStats(modelString: string): ModelStats | null {
     cache_read_input_token_cost:
       typeof data.cache_read_input_token_cost === "number"
         ? data.cache_read_input_token_cost
-        : undefined,
-    input_cost_per_token_above_200k_tokens:
-      typeof data.input_cost_per_token_above_200k_tokens === "number"
-        ? data.input_cost_per_token_above_200k_tokens
-        : undefined,
-    output_cost_per_token_above_200k_tokens:
-      typeof data.output_cost_per_token_above_200k_tokens === "number"
-        ? data.output_cost_per_token_above_200k_tokens
         : undefined,
   };
 }

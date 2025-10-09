@@ -266,18 +266,15 @@ const formatCostWithDollar = (cost: number | undefined): string => {
 const calculateElevatedCost = (
   tokens: number,
   standardRate: number,
-  elevatedRate: number | undefined
+  isInput: boolean
 ): number => {
   if (tokens <= 200_000) {
     return tokens * standardRate;
   }
-  if (elevatedRate === undefined) {
-    // Fallback to standard rate if elevated rate not available
-    return tokens * standardRate;
-  }
   const baseCost = 200_000 * standardRate;
   const elevatedTokens = tokens - 200_000;
-  const elevatedCost = elevatedTokens * elevatedRate;
+  const elevatedMultiplier = isInput ? 2.0 : 1.5;
+  const elevatedCost = elevatedTokens * standardRate * elevatedMultiplier;
   return baseCost + elevatedCost;
 };
 
@@ -411,19 +408,19 @@ export const CostsTab: React.FC = () => {
                 adjustedInputCost = calculateElevatedCost(
                   displayUsage.input.tokens,
                   modelStats.input_cost_per_token,
-                  modelStats.input_cost_per_token_above_200k_tokens
+                  true  // isInput
                 );
                 // Recalculate output cost with elevated pricing
                 adjustedOutputCost = calculateElevatedCost(
                   displayUsage.output.tokens,
                   modelStats.output_cost_per_token,
-                  modelStats.output_cost_per_token_above_200k_tokens
+                  false  // isOutput
                 );
                 // Recalculate reasoning cost with elevated pricing
                 adjustedReasoningCost = calculateElevatedCost(
                   displayUsage.reasoning.tokens,
                   modelStats.output_cost_per_token,
-                  modelStats.output_cost_per_token_above_200k_tokens
+                  false  // isOutput
                 );
               }
 
