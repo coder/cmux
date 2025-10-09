@@ -7,10 +7,9 @@ import type { ParsedCommand } from "@/utils/slashCommands/types";
 import { parseCommand } from "@/utils/slashCommands/parser";
 import type { SendMessageError as SendMessageErrorType } from "@/types/errors";
 import { usePersistedState } from "@/hooks/usePersistedState";
-import { ThinkingSliderComponent } from "./ThinkingSlider";
 import { useThinkingLevel } from "@/hooks/useThinkingLevel";
 import { useMode } from "@/contexts/ModeContext";
-import { Context1MCheckbox } from "./Context1MCheckbox";
+import { ChatToggles } from "./ChatToggles";
 import { use1MContext } from "@/hooks/use1MContext";
 import { modeToToolPolicy } from "@/utils/ui/modeUtils";
 import { ToggleGroup } from "./ToggleGroup";
@@ -763,35 +762,35 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       <ModeToggles>
         {editingMessage && <EditingIndicator>Editing message (ESC to cancel)</EditingIndicator>}
         <ModeTogglesRow>
-          <ModelDisplayWrapper>
-            <ModelSelector
-              ref={modelSelectorRef}
-              value={preferredModel}
-              onChange={setPreferredModel}
-              recentModels={recentModels}
-              onComplete={() => inputRef.current?.focus()}
-            />
-            <TooltipWrapper inline>
-              <HelpIndicator>?</HelpIndicator>
-              <Tooltip className="tooltip" align="left" width="wide">
-                <strong>Click to edit</strong> or use {formatKeybind(KEYBINDS.OPEN_MODEL_SELECTOR)}
-                <br />
-                <br />
-                <strong>Abbreviations:</strong>
-                <br />• <code>/model opus</code> - Claude Opus 4.1
-                <br />• <code>/model sonnet</code> - Claude Sonnet 4.5
-                <br />
-                <br />
-                <strong>Full format:</strong>
-                <br />
-                <code>/model provider:model-name</code>
-                <br />
-                (e.g., <code>/model anthropic:claude-sonnet-4-5</code>)
-              </Tooltip>
-            </TooltipWrapper>
-          </ModelDisplayWrapper>
-          <ThinkingSliderComponent />
-          <Context1MCheckbox workspaceId={workspaceId} modelString={preferredModel} />
+          <ChatToggles workspaceId={workspaceId} modelString={preferredModel}>
+            <ModelDisplayWrapper>
+              <ModelSelector
+                ref={modelSelectorRef}
+                value={preferredModel}
+                onChange={setPreferredModel}
+                recentModels={recentModels}
+                onComplete={() => inputRef.current?.focus()}
+              />
+              <TooltipWrapper inline>
+                <HelpIndicator>?</HelpIndicator>
+                <Tooltip className="tooltip" align="left" width="wide">
+                  <strong>Click to edit</strong> or use {formatKeybind(KEYBINDS.OPEN_MODEL_SELECTOR)}
+                  <br />
+                  <br />
+                  <strong>Abbreviations:</strong>
+                  <br />• <code>/model opus</code> - Claude Opus 4.1
+                  <br />• <code>/model sonnet</code> - Claude Sonnet 4.5
+                  <br />
+                  <br />
+                  <strong>Full format:</strong>
+                  <br />
+                  <code>/model provider:model-name</code>
+                  <br />
+                  (e.g., <code>/model anthropic:claude-sonnet-4-5</code>)
+                </Tooltip>
+              </TooltipWrapper>
+            </ModelDisplayWrapper>
+          </ChatToggles>
           <ModeToggleWrapper>
             <StyledToggleContainer mode={mode}>
               <ToggleGroup<UIMode>
