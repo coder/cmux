@@ -4,13 +4,12 @@ Commands for managing conversation history length and token usage.
 
 ## Comparison
 
-| Approach                  | `/clear` | `/truncate` | `/compact`       | Plan Compaction | 
-| ------------------------ | -------- | ----------- | ---------------- | ---------------- |
-| **Speed**                | Instant  | Instant     | Slower (uses AI) |  Instant |
-| **Context Preservation** | None     | Temporal    | Intelligent      |  Intelligent | 
-| **Cost**                 | Free     | Free        | Uses API tokens  | Free |
-| **Reversible**           | No       | No          | No               | Yes | 
-
+| Approach                 | `/clear` | `/truncate` | `/compact`       | Plan Compaction |
+| ------------------------ | -------- | ----------- | ---------------- | --------------- |
+| **Speed**                | Instant  | Instant     | Slower (uses AI) | Instant         |
+| **Context Preservation** | None     | Temporal    | Intelligent      | Intelligent     |
+| **Cost**                 | Free     | Free        | Uses API tokens  | Free            |
+| **Reversible**           | No       | No          | No               | Yes             |
 
 ## Plan Compaction
 
