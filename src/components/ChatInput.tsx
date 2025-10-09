@@ -306,7 +306,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const modelSelectorRef = useRef<ModelSelectorRef>(null);
   const [thinkingLevel] = useThinkingLevel();
   const [mode, setMode] = useMode();
-  const [use1M] = use1MContext(workspaceId);
+  const [use1M] = use1MContext();
   const { recentModels } = useModelLRU();
 
   const focusMessageInput = useCallback(() => {
