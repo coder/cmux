@@ -28,6 +28,16 @@ const MAX_DELAY = 60000; // 60 seconds
  * - Background operation: Works for all workspaces, even non-visible ones
  * - Idempotency: Safe to emit events multiple times, hook silently ignores invalid requests
  *
+ * autoRetry State Semantics (Explicit Transitions Only):
+ * -------------------------------------------------------
+ * - true (default): System errors should auto-retry with exponential backoff
+ * - false: User pressed Ctrl+C - don't auto-retry until user manually retries
+ *
+ * State transitions:
+ * - User presses Ctrl+C → autoRetry = false (stays false until manual action)
+ * - User clicks manual retry → autoRetry = true (re-enables auto-retry)
+ * - NO automatic resets when streams start (prevents initialization bugs)
+ *
  * Features:
  * - Polling-based: Checks all workspaces every 1 second
  * - Event-driven: Also reacts to RESUME_CHECK_REQUESTED events for fast path
@@ -72,11 +82,7 @@ export function useResumeManager(workspaceStates: Map<string, WorkspaceState>) {
 
     // 2. Auto-retry must be enabled (user didn't press Ctrl+C)
     const autoRetry = readPersistedState<boolean>(getAutoRetryKey(workspaceId), true);
-    console.log(`[useResumeManager] ${workspaceId} autoRetry check:`, autoRetry);
-    if (!autoRetry) {
-      console.log(`[useResumeManager] ${workspaceId} not eligible: autoRetry = false`);
-      return false;
-    }
+    if (!autoRetry) return false;
 
     // 3. Must not already be retrying
     if (retryingRef.current.has(workspaceId)) return false;

@@ -195,16 +195,18 @@ const AIViewInner: React.FC<AIViewProps> = ({
   );
 
   // Auto-retry state (persisted per workspace, with cross-component sync)
+  // Semantics:
+  //   true (default): System errors should auto-retry
+  //   false: User stopped this (Ctrl+C), don't auto-retry until manual retry
+  // State transitions are EXPLICIT only:
+  //   - User presses Ctrl+C → false
+  //   - User clicks manual retry button → true
+  // No automatic resets - this prevents initialization bugs and race conditions
   const [autoRetry, setAutoRetry] = usePersistedState<boolean>(
     getAutoRetryKey(workspaceId),
     true, // Default to true
     { listener: true } // Enable cross-component synchronization
   );
-
-  // Debug: log autoRetry value on mount and when it changes
-  useEffect(() => {
-    console.log(`[AIView] ${workspaceId} autoRetry initialized/changed:`, autoRetry);
-  }, [autoRetry, workspaceId]);
 
   // Use auto-scroll hook for scroll management
   const {
@@ -238,13 +240,9 @@ const AIViewInner: React.FC<AIViewProps> = ({
     }
   }, [messages, autoScroll, performAutoScroll]);
 
-  // Reset autoRetry when a new stream starts
-  useEffect(() => {
-    if (canInterrupt) {
-      console.log(`[AIView] ${workspaceId} stream started, resetting autoRetry to true`);
-      setAutoRetry(true); // Re-enable auto-retry for the next failure
-    }
-  }, [canInterrupt, workspaceId, setAutoRetry]);
+  // Note: We intentionally do NOT reset autoRetry when streams start.
+  // If user pressed Ctrl+C, autoRetry stays false until they manually retry.
+  // This makes state transitions explicit and predictable.
 
   // Handlers for editing messages
   const handleEditUserMessage = useCallback((messageId: string, content: string) => {
@@ -312,8 +310,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
         e.preventDefault();
         // If there's a stream or auto-retry in progress, stop it and disable auto-retry
         if (canInterrupt || showRetryBarrier) {
-          console.log(`[AIView] ${workspaceId} Ctrl+C pressed, setting autoRetry to false`);
-          setAutoRetry(false); // Disable auto-retry (user explicitly interrupted)
+          setAutoRetry(false); // User explicitly stopped - don't auto-retry
           void window.api.workspace.sendMessage(workspaceId, "");
         }
         return;
