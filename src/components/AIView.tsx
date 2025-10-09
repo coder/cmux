@@ -201,7 +201,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
 
   // Persist autoRetry state
   useEffect(() => {
-    localStorage.setItem(`${workspaceId}-autoRetry`, JSON.stringify(autoRetry));
+    localStorage.setItem(getAutoRetryKey(workspaceId), JSON.stringify(autoRetry));
   }, [workspaceId, autoRetry]);
 
   // Use auto-scroll hook for scroll management
