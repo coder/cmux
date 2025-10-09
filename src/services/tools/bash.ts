@@ -334,7 +334,17 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
             // We don't show ANY of the actual output to avoid overwhelming context.
             // Instead, save it to a temp file and encourage the agent to use filtering tools.
             try {
-              const tmpDir = os.tmpdir();
+              // Use ~/.cmux-tmp for overflow files (not in ~/.cmux to prevent accidental
+              // deletion/modification of configuration). Avoids /tmp for security since
+              // command output may contain sensitive data and /tmp is world-readable.
+              const homeDir = os.homedir();
+              const tmpDir = path.join(homeDir, ".cmux-tmp");
+
+              // Ensure directory exists with secure permissions (user-only)
+              if (!fs.existsSync(tmpDir)) {
+                fs.mkdirSync(tmpDir, { mode: 0o700 });
+              }
+
               // Use 8 hex characters for short, memorable temp file IDs
               const fileId = Math.random().toString(16).substring(2, 10);
               const overflowPath = path.join(tmpDir, `bash-${fileId}.txt`);
@@ -345,11 +355,7 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
 
 Full output (${lines.length} lines) saved to ${overflowPath}
 
-Use filtering tools to extract what you need:
-- grep '<pattern>' ${overflowPath}
-- head -n 300 ${overflowPath}
-- tail -n 300 ${overflowPath}
-- sed -n '100,400p' ${overflowPath}
+Use selective filtering tools (e.g. grep) to extract relevant information and continue your task
 
 When done, clean up: rm ${overflowPath}`;
 
