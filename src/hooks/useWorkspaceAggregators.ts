@@ -124,7 +124,7 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
         if (isStreamError(data)) {
           aggregator.handleStreamError(data);
           forceUpdate();
-          
+
           // Trigger resume check
           window.dispatchEvent(
             new CustomEvent(CUSTOM_EVENTS.RESUME_CHECK_REQUESTED, {
@@ -208,7 +208,7 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
         if (isStreamAbort(data)) {
           aggregator.handleStreamAbort(data);
           forceUpdate();
-          
+
           // Trigger resume check
           window.dispatchEvent(
             new CustomEvent(CUSTOM_EVENTS.RESUME_CHECK_REQUESTED, {

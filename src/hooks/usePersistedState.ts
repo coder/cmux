@@ -28,7 +28,6 @@ export function readPersistedState<T>(key: string, defaultValue: T): T {
   }
 }
 
-
 /**
  * Update a persisted state value from outside the hook.
  * This is useful when you need to update state from a different component/context

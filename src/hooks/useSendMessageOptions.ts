@@ -33,7 +33,8 @@ export function useSendMessageOptions(workspaceId: string): SendMessageOptions {
       : undefined;
 
   // Ensure model is always a valid string (defensive against corrupted localStorage)
-  const model = typeof preferredModel === "string" && preferredModel ? preferredModel : defaultModel;
+  const model =
+    typeof preferredModel === "string" && preferredModel ? preferredModel : defaultModel;
 
   return {
     thinkingLevel,

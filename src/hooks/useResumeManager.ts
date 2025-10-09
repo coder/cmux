@@ -114,10 +114,10 @@ export function useResumeManager(workspaceStates: Map<string, WorkspaceState>) {
     retryingRef.current.add(workspaceId);
 
     // Read current retry state
-    const retryState = readPersistedState<RetryState>(
-      getRetryStateKey(workspaceId),
-      { attempt: 0, retryStartTime: Date.now() }
-    );
+    const retryState = readPersistedState<RetryState>(getRetryStateKey(workspaceId), {
+      attempt: 0,
+      retryStartTime: Date.now(),
+    });
 
     const { attempt } = retryState;
 

@@ -265,7 +265,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
   const handleMessageSent = useCallback(() => {
     // Enable auto-scroll when user sends a message
     setAutoScroll(true);
-    
+
     // Reset autoRetry when user sends a message
     // User action = clear intent: "I'm actively using this workspace"
     setAutoRetry(true);
