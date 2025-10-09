@@ -608,11 +608,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       setIsSending(true);
 
       try {
-        // Get current send message options from shared hook
-        const baseOptions = useSendMessageOptions(workspaceId);
-
         const result = await window.api.workspace.sendMessage(workspaceId, messageText, {
-          ...baseOptions,
+          ...sendMessageOptions,
           editMessageId: editingMessage?.id,
         });
 
