@@ -114,15 +114,8 @@ Text objects work from anywhere within the word - you don't need to be at the st
 
 ## Visual Feedback
 
-### Cursor
-- **Insert mode**: Thin blinking cursor
-- **Normal mode**: Solid block cursor (no blinking)
-- The cursor is always visible, even on empty text
-
-### Mode Indicator
-- Shows current mode above the input
-- Shows pending commands (e.g., "NORMAL d" when waiting for motion)
-- Fixed height to prevent layout shifts
+- **Cursor**: Thin blinking cursor in insert mode, solid block in normal mode
+- **Mode Indicator**: Shows current mode and pending commands (e.g., "NORMAL d" when waiting for motion)
 
 ## Keybind Conflicts
 
@@ -132,8 +125,7 @@ ESC is used for:
 2. NOT used for canceling edits (use **Ctrl-Q** instead)
 3. NOT used for interrupting streams (use **Ctrl-C** instead)
 
-### Other Keybinds
-When command palette or other popups are open, Vim mode automatically defers to them for navigation keys like Tab, Arrow keys, etc.
+
 
 ## Tips
 
@@ -141,9 +133,7 @@ When command palette or other popups are open, Vim mode automatically defers to 
 
 2. **Use text objects**: `ciw` to change a word is more reliable than `cw` because it works from anywhere in the word.
 
-3. **Visual feedback**: Watch the mode indicator - it shows you exactly what command is being composed.
-
-4. **Column preservation**: When navigating up/down, your column position is preserved across lines of different lengths.
+3. **Column preservation**: When navigating up/down, your column position is preserved across lines of different lengths.
 
 ## Not Yet Implemented
 
