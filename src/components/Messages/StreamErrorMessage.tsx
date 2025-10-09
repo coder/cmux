@@ -49,9 +49,15 @@ const ErrorType = styled.span`
 interface StreamErrorMessageProps {
   message: DisplayedMessage & { type: "stream-error" };
   className?: string;
+  workspaceId?: string;
+  model?: string;
 }
 
-export const StreamErrorMessage: React.FC<StreamErrorMessageProps> = ({ message, className }) => {
+// Note: RetryBarrier now handles all retry UI. This component just displays the error.
+export const StreamErrorMessage: React.FC<StreamErrorMessageProps> = ({
+  message,
+  className,
+}) => {
   return (
     <ErrorContainer className={className}>
       <ErrorHeader>

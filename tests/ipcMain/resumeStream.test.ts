@@ -32,11 +32,12 @@ describeIntegration("IpcMain resumeStream integration tests", () => {
     async () => {
       const { env, workspaceId, cleanup } = await setupWorkspace("anthropic");
       try {
-        // Start a stream with a bash command that will take some time
+        // Start a stream with a bash command that outputs a specific word
+        const expectedWord = "RESUMPTION_TEST_SUCCESS";
         void sendMessageWithModel(
           env.mockIpcRenderer,
           workspaceId,
-          "Run this bash command: sleep 5 && echo 'done'",
+          `Run this bash command: sleep 5 && echo '${expectedWord}'`,
           "anthropic",
           "claude-sonnet-4-5"
         );
@@ -133,6 +134,14 @@ describeIntegration("IpcMain resumeStream integration tests", () => {
           expect(streamEnd.messageId).toBeTruthy();
           expect(streamEnd.historySequence).toBeGreaterThan(0);
         }
+
+        // Verify we received the expected word in the output
+        // This proves the bash command completed successfully after resume
+        const allText = deltas
+          .filter((d) => "delta" in d)
+          .map((d) => ("delta" in d ? d.delta : ""))
+          .join("");
+        expect(allText).toContain(expectedWord);
       } finally {
         await cleanup();
       }
