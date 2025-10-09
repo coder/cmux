@@ -570,6 +570,84 @@ export class IpcMain {
     );
 
     ipcMain.handle(
+      IPC_CHANNELS.WORKSPACE_RESUME_STREAM,
+      async (_event, workspaceId: string, modelString: string, options?: SendMessageOptions) => {
+        log.debug("resumeStream handler: Received", {
+          workspaceId,
+          modelString,
+          options,
+        });
+        try {
+          // Block resume if there's already an active stream
+          if (this.aiService.isStreaming(workspaceId)) {
+            log.debug("resumeStream handler: Stream already active");
+            return {
+              success: false,
+              error: createUnknownSendMessageError(
+                "Cannot resume stream: a stream is already active"
+              ),
+            };
+          }
+
+          // Commit any existing partial to history BEFORE loading
+          // This ensures interrupted messages are included in the AI's context
+          await this.partialService.commitToHistory(workspaceId);
+
+          // Get full conversation history (including interrupted messages)
+          const historyResult = await this.historyService.getHistory(workspaceId);
+          if (!historyResult.success) {
+            log.error("Failed to get conversation history:", historyResult.error);
+            return {
+              success: false,
+              error: createUnknownSendMessageError(historyResult.error),
+            };
+          }
+
+          // Stream the AI response with existing history (no new user message)
+          const {
+            thinkingLevel,
+            toolPolicy,
+            additionalSystemInstructions,
+            maxOutputTokens,
+            providerOptions,
+          } = options ?? {};
+
+          log.debug("resumeStream handler: Calling aiService.streamMessage", {
+            thinkingLevel,
+            modelString,
+            toolPolicy,
+            additionalSystemInstructions,
+            maxOutputTokens,
+            providerOptions,
+          });
+
+          const streamResult = await this.aiService.streamMessage(
+            historyResult.data,
+            workspaceId,
+            modelString,
+            thinkingLevel,
+            toolPolicy,
+            undefined,
+            additionalSystemInstructions,
+            maxOutputTokens,
+            providerOptions
+          );
+          log.debug("resumeStream handler: Stream completed");
+          return streamResult;
+        } catch (error) {
+          // Convert to SendMessageError for typed error handling
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          log.error("Unexpected error in resumeStream handler:", error);
+          const sendError: SendMessageError = {
+            type: "unknown",
+            raw: `Failed to resume stream: ${errorMessage}`,
+          };
+          return { success: false, error: sendError };
+        }
+      }
+    );
+
+    ipcMain.handle(
       IPC_CHANNELS.WORKSPACE_TRUNCATE_HISTORY,
       async (_event, workspaceId: string, percentage?: number) => {
         // Block truncate if there's an active stream
