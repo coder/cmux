@@ -124,7 +124,7 @@ export function isReasoningEnd(msg: WorkspaceChatMessage): msg is ReasoningEndEv
   return "type" in msg && msg.type === "reasoning-end";
 }
 
-// Options for sendMessage
+// Options for sendMessage and resumeStream
 export interface SendMessageOptions {
   editMessageId?: string;
   thinkingLevel?: ThinkingLevel;
@@ -181,8 +181,7 @@ export interface IPCApi {
     ): Promise<Result<void, SendMessageError>>;
     resumeStream(
       workspaceId: string,
-      model: string,
-      options?: SendMessageOptions
+      options: SendMessageOptions
     ): Promise<Result<void, SendMessageError>>;
     truncateHistory(workspaceId: string, percentage?: number): Promise<Result<void, string>>;
     replaceChatHistory(

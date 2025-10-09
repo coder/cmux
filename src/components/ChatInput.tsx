@@ -11,6 +11,7 @@ import { useThinkingLevel } from "@/hooks/useThinkingLevel";
 import { useMode } from "@/contexts/ModeContext";
 import { ChatToggles } from "./ChatToggles";
 import { use1MContext } from "@/hooks/use1MContext";
+import { useSendMessageOptions } from "@/hooks/useSendMessageOptions";
 import { modeToToolPolicy } from "@/utils/ui/modeUtils";
 import { ToggleGroup } from "./ToggleGroup";
 import { CUSTOM_EVENTS } from "@/constants/events";
@@ -604,23 +605,12 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       setIsSending(true);
 
       try {
-        // Build additional system instructions for plan mode
-        const additionalSystemInstructions =
-          mode === "plan"
-            ? "You are in Plan Mode. You may use tools to research and understand the task, but you MUST call the propose_plan tool with your findings before completing your response. Do not provide a text response without calling propose_plan."
-            : undefined;
+        // Get current send message options from shared hook
+        const baseOptions = useSendMessageOptions(workspaceId);
 
         const result = await window.api.workspace.sendMessage(workspaceId, messageText, {
+          ...baseOptions,
           editMessageId: editingMessage?.id,
-          thinkingLevel,
-          model: preferredModel,
-          toolPolicy: modeToToolPolicy(mode),
-          additionalSystemInstructions,
-          providerOptions: {
-            anthropic: {
-              use1MContext: use1M,
-            },
-          },
         });
 
         if (!result.success) {
