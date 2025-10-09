@@ -486,12 +486,32 @@ describe("Vim Command Integration Tests", () => {
       expect(state.cursor).toBe(3); // Should move to 'h' after tab and spaces
     });
 
-    test("d_ deletes to first non-whitespace character", () => {
+    test("d_ deletes entire line and newline (linewise motion)", () => {
       const state = executeVimCommands(
-        { ...initialState, text: "  hello world", cursor: 10, mode: "normal" },
+        { ...initialState, text: "  hello world\nnext", cursor: 10, mode: "normal" },
         ["d", "_"]
       );
-      expect(state.text).toBe("  ld"); // Deletes from cursor back to first non-whitespace (inclusive)
+      expect(state.text).toBe("next"); // Entire current line removed (including newline)
+      expect(state.cursor).toBe(0);
+    });
+
+    test("c_ changes entire line like cc", () => {
+      const state = executeVimCommands(
+        { ...initialState, text: "  hello world\nnext", cursor: 5, mode: "normal" },
+        ["c", "_"]
+      );
+      expect(state.text).toBe("\nnext"); // Line cleared and enters insert mode
+      expect(state.mode).toBe("insert");
+      expect(state.cursor).toBe(0);
+    });
+
+    test("y_ yanks entire line", () => {
+      const state = executeVimCommands(
+        { ...initialState, text: "  hello world\nnext", cursor: 3, mode: "normal" },
+        ["y", "_"]
+      );
+      expect(state.yankBuffer).toBe("  hello world\n");
+      expect(state.text).toBe("  hello world\nnext");
     });
   });
 });

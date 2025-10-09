@@ -558,16 +558,9 @@ function getMotionRange(
       const { lineStart } = getLineBounds(text, cursor);
       return { from: lineStart, to: cursor };
     }
-    case "_": {
-      const firstNonWS = moveToFirstNonWhitespace(text, cursor);
-      // d_ deletes from first non-whitespace to cursor (inclusive)
-      // deleteRange expects [from, to) so we add 1 to include the endpoint
-      if (cursor < firstNonWS) {
-        return { from: cursor, to: firstNonWS + 1 };
-      } else {
-        return { from: firstNonWS, to: cursor + 1 };
-      }
-    }
+    case "_":
+      // '_' is a linewise motion in Vim - operates on whole lines
+      return null; // Use linewise handling like 'dd'
     case "line":
       return null; // Special case: handled separately
   }
@@ -583,8 +576,8 @@ function applyOperatorMotion(
 ): VimState {
   const { text, cursor, yankBuffer } = state;
 
-  // Line operations use special functions
-  if (motion === "line") {
+  // Line operations use special functions (dd, cc, yy, d_, c_, y_)
+  if (motion === "line" || motion === "_") {
     if (op === "d") {
       const result = deleteLine(text, cursor, yankBuffer);
       return completeOperation(state, {
