@@ -3,6 +3,7 @@ import styled from "@emotion/styled";
 import { MessageRenderer } from "./Messages/MessageRenderer";
 import { InterruptedBarrier } from "./Messages/ChatBarrier/InterruptedBarrier";
 import { StreamingBarrier } from "./Messages/ChatBarrier/StreamingBarrier";
+import { RetryBarrier } from "./Messages/ChatBarrier/RetryBarrier";
 import { ChatInput } from "./ChatInput";
 import { ChatMetaSidebar } from "./ChatMetaSidebar";
 import { shouldShowInterruptedBarrier } from "@/utils/messages/messageUtils";
@@ -191,6 +192,17 @@ const AIViewInner: React.FC<AIViewProps> = ({
     undefined
   );
 
+  // Auto-retry state (persisted per workspace)
+  const [autoRetry, setAutoRetry] = useState<boolean>(() => {
+    const stored = localStorage.getItem(`${workspaceId}-autoRetry`);
+    return stored !== null ? (JSON.parse(stored) as boolean) : true; // Default to true
+  });
+
+  // Persist autoRetry state
+  useEffect(() => {
+    localStorage.setItem(`${workspaceId}-autoRetry`, JSON.stringify(autoRetry));
+  }, [workspaceId, autoRetry]);
+
   // Use auto-scroll hook for scroll management
   const {
     contentRef,
@@ -206,12 +218,29 @@ const AIViewInner: React.FC<AIViewProps> = ({
   const { messages, canInterrupt, isCompacting, loading, cmuxMessages, currentModel } =
     workspaceState;
 
+  // Track if last message was interrupted or errored (for RetryBarrier)
+  const lastMessage = messages.length > 0 ? messages[messages.length - 1] : null;
+  const showRetryBarrier =
+    !canInterrupt && // Not currently streaming
+    lastMessage &&
+    (lastMessage.type === "stream-error" ||
+      (lastMessage.type === "assistant" &&
+        lastMessage.isPartial === true &&
+        shouldShowInterruptedBarrier(lastMessage)));
+
   // Auto-scroll when messages update (during streaming)
   useEffect(() => {
     if (autoScroll) {
       performAutoScroll();
     }
   }, [messages, autoScroll, performAutoScroll]);
+
+  // Reset autoRetry when a new stream starts
+  useEffect(() => {
+    if (canInterrupt) {
+      setAutoRetry(true); // Re-enable auto-retry for the next failure
+    }
+  }, [canInterrupt]);
 
   // Handlers for editing messages
   const handleEditUserMessage = useCallback((messageId: string, content: string) => {
@@ -286,9 +315,10 @@ const AIViewInner: React.FC<AIViewProps> = ({
         e.preventDefault();
         handleOpenTerminal();
       } else if (matchesKeybind(e, KEYBINDS.INTERRUPT_STREAM)) {
-        // Only interrupt if there's an active stream
-        if (canInterrupt) {
-          e.preventDefault();
+        e.preventDefault();
+        // If there's a stream or auto-retry in progress, stop it and disable auto-retry
+        if (canInterrupt || showRetryBarrier) {
+          setAutoRetry(false); // Disable auto-retry (user explicitly interrupted)
           void window.api.workspace.sendMessage(workspaceId, "");
         }
       }
@@ -296,7 +326,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [jumpToBottom, handleOpenTerminal, workspaceId, canInterrupt]);
+  }, [jumpToBottom, handleOpenTerminal, workspaceId, canInterrupt, showRetryBarrier]);
 
   if (loading) {
     return (
@@ -375,6 +405,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
                           message={msg}
                           onEditUserMessage={handleEditUserMessage}
                           workspaceId={workspaceId}
+                          model={currentModel}
                         />
                         {isAtCutoff && (
                           <EditBarrier>
@@ -385,6 +416,16 @@ const AIViewInner: React.FC<AIViewProps> = ({
                       </React.Fragment>
                     );
                   })}
+                  {/* Show RetryBarrier after the last message if needed */}
+                  {showRetryBarrier && (
+                    <RetryBarrier
+                      workspaceId={workspaceId}
+                      model={currentModel}
+                      autoRetry={autoRetry}
+                      onStopAutoRetry={() => setAutoRetry(false)}
+                      onResetAutoRetry={() => setAutoRetry(true)}
+                    />
+                  )}
                 </>
               )}
               {canInterrupt && (
