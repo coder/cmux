@@ -40,7 +40,9 @@ if (!app.isPackaged) {
 const config = new Config();
 const ipcMain = new IpcMain(config);
 
-console.log(`Cmux starting - version: ${(VERSION as { git?: string; buildTime?: string }).git ?? "(dev)"} (built: ${(VERSION as { git?: string; buildTime?: string }).buildTime ?? "dev-mode"})`);
+console.log(
+  `Cmux starting - version: ${(VERSION as { git?: string; buildTime?: string }).git ?? "(dev)"} (built: ${(VERSION as { git?: string; buildTime?: string }).buildTime ?? "dev-mode"})`
+);
 console.log("Main process starting...");
 
 // Global error handlers for better error reporting
@@ -189,7 +191,7 @@ function createWindow() {
     // Development mode: load from vite dev server
     void mainWindow.loadURL("http://localhost:5173");
     // Open DevTools after React content loads
-    mainWindow.webContents.once('did-finish-load', () => {
+    mainWindow.webContents.once("did-finish-load", () => {
       mainWindow?.webContents.openDevTools();
     });
   }
@@ -203,7 +205,7 @@ function createWindow() {
 if (gotTheLock) {
   void app.whenReady().then(async () => {
     console.log("App ready, creating window...");
-    
+
     // Install React DevTools in development
     if (!app.isPackaged && installExtension && REACT_DEVELOPER_TOOLS) {
       try {
@@ -215,7 +217,7 @@ if (gotTheLock) {
         console.log("❌ Error installing React DevTools:", err);
       }
     }
-    
+
     createMenu();
     createWindow();
     // No need to auto-start workspaces anymore - they start on demand

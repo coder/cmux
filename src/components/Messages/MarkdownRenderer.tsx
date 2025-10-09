@@ -38,7 +38,10 @@ interface PlanMarkdownRendererProps {
   className?: string;
 }
 
-export const PlanMarkdownRenderer: React.FC<PlanMarkdownRendererProps> = ({ content, className }) => {
+export const PlanMarkdownRenderer: React.FC<PlanMarkdownRendererProps> = ({
+  content,
+  className,
+}) => {
   return (
     <PlanMarkdownContainer className={className}>
       <MarkdownCore content={content} />

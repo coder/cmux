@@ -20,7 +20,7 @@ const REHYPE_PLUGINS = [rehypeKatex];
 /**
  * Core markdown rendering component that handles all markdown processing.
  * This is the single source of truth for markdown configuration.
- * 
+ *
  * Memoized to prevent expensive re-parsing when content hasn't changed.
  */
 export const MarkdownCore = React.memo<MarkdownCoreProps>(({ content, children }) => {

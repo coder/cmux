@@ -181,16 +181,14 @@ export class AIService extends EventEmitter {
         // Add 1M context beta header if requested
         const use1MContext = cmuxProviderOptions?.anthropic?.use1MContext;
         const existingHeaders = providerConfig.headers as Record<string, string> | undefined;
-        const headers = use1MContext && existingHeaders
-          ? { ...existingHeaders, "anthropic-beta": "context-1m-2025-08-07" }
-          : use1MContext
-            ? { "anthropic-beta": "context-1m-2025-08-07" }
-            : existingHeaders;
-
-
+        const headers =
+          use1MContext && existingHeaders
+            ? { ...existingHeaders, "anthropic-beta": "context-1m-2025-08-07" }
+            : use1MContext
+              ? { "anthropic-beta": "context-1m-2025-08-07" }
+              : existingHeaders;
 
         // Pass configuration verbatim to the provider, ensuring parity with Vercel AI SDK
-
 
         const provider = createAnthropic({ ...providerConfig, headers });
         return Ok(provider(modelId));

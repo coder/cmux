@@ -159,8 +159,7 @@ export const FileReadToolCall: React.FC<FileReadToolCallProps> = ({
   const fileName = args.filePath.split("/").pop() ?? args.filePath;
 
   // Parse the file content to extract line numbers and actual content
-  const parsedContent =
-    result?.success && result.content ? parseFileContent(result.content) : null;
+  const parsedContent = result?.success && result.content ? parseFileContent(result.content) : null;
 
   return (
     <ToolContainer expanded={expanded}>

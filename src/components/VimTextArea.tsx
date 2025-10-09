@@ -106,13 +106,16 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
     useEffect(() => {
       if (!ref) return;
       if (typeof ref === "function") ref(textareaRef.current);
-      else
-        (ref).current = textareaRef.current;
+      else ref.current = textareaRef.current;
     }, [ref]);
 
     const [vimMode, setVimMode] = useState<VimMode>("insert");
     const [desiredColumn, setDesiredColumn] = useState<number | null>(null);
-    const [pendingOp, setPendingOp] = useState<null | { op: "d" | "y" | "c"; at: number; args?: string[] }>(null);
+    const [pendingOp, setPendingOp] = useState<null | {
+      op: "d" | "y" | "c";
+      at: number;
+      args?: string[];
+    }>(null);
     const yankBufferRef = useRef<string>("");
 
     // Auto-resize when value changes
@@ -123,8 +126,6 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
       const max = 200;
       el.style.height = Math.min(el.scrollHeight, max) + "px";
     }, [value]);
-
-
 
     const suppressSet = useMemo(() => new Set(suppressKeys ?? []), [suppressKeys]);
 
@@ -189,7 +190,7 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
 
       // Apply new state to React
       const newState = result.newState;
-      
+
       if (newState.text !== value) {
         onChange(newState.text);
       }
@@ -205,7 +206,7 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
       if (newState.pendingOp !== pendingOp) {
         setPendingOp(newState.pendingOp);
       }
-      
+
       // Set cursor after React state updates (important for mode transitions)
       // Pass the new mode explicitly to avoid stale closure issues
       setTimeout(() => setCursor(newState.cursor, newState.mode), 0);
@@ -226,10 +227,21 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
                   <strong>Vim Mode Enabled</strong>
                   <br />
                   <br />
-                  Press <strong>ESC</strong> for normal mode, <strong>i</strong> to return to insert mode.
+                  Press <strong>ESC</strong> for normal mode, <strong>i</strong> to return to insert
+                  mode.
                   <br />
                   <br />
-                  See <a href="#" onClick={(e) => { e.preventDefault(); window.open('/docs/vim-mode.md'); }}>Vim Mode docs</a> for full command reference.
+                  See{" "}
+                  <a
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      window.open("/docs/vim-mode.md");
+                    }}
+                  >
+                    Vim Mode docs
+                  </a>{" "}
+                  for full command reference.
                 </Tooltip>
               </TooltipWrapper>
               <ModeText>normal</ModeText>
