@@ -519,6 +519,21 @@ function handlePendingOperator(
 }
 
 /**
+ * Helper to complete an operation and clear pending state.
+ */
+function completeOperation(
+  state: VimState,
+  updates: Partial<VimState>
+): VimState {
+  return {
+    ...state,
+    ...updates,
+    pendingOp: null,
+    desiredColumn: null,
+  };
+}
+
+/**
  * Calculate the range (from, to) for a motion.
  * Returns null for "line" motion (requires special handling).
  */
@@ -561,34 +576,25 @@ function applyOperatorMotion(
   if (motion === "line") {
     if (op === "d") {
       const result = deleteLine(text, cursor, yankBuffer);
-      return {
-        ...state,
+      return completeOperation(state, {
         text: result.text,
         cursor: result.cursor,
         yankBuffer: result.yankBuffer,
-        pendingOp: null,
-        desiredColumn: null,
-      };
+      });
     }
     if (op === "c") {
       const result = changeLine(text, cursor, yankBuffer);
-      return {
-        ...state,
+      return completeOperation(state, {
         mode: "insert",
         text: result.text,
         cursor: result.cursor,
         yankBuffer: result.yankBuffer,
-        pendingOp: null,
-        desiredColumn: null,
-      };
+      });
     }
     if (op === "y") {
-      return {
-        ...state,
+      return completeOperation(state, {
         yankBuffer: yankLine(text, cursor),
-        pendingOp: null,
-        desiredColumn: null,
-      };
+      });
     }
   }
 
@@ -599,36 +605,27 @@ function applyOperatorMotion(
   // Apply operator to range
   if (op === "d") {
     const result = deleteRange(text, range.from, range.to, true, yankBuffer);
-    return {
-      ...state,
+    return completeOperation(state, {
       text: result.text,
       cursor: result.cursor,
       yankBuffer: result.yankBuffer,
-      pendingOp: null,
-      desiredColumn: null,
-    };
+    });
   }
 
   if (op === "c") {
     const result = changeRange(text, range.from, range.to, yankBuffer);
-    return {
-      ...state,
+    return completeOperation(state, {
       mode: "insert",
       text: result.text,
       cursor: result.cursor,
       yankBuffer: result.yankBuffer,
-      pendingOp: null,
-      desiredColumn: null,
-    };
+    });
   }
 
   if (op === "y") {
-    return {
-      ...state,
+    return completeOperation(state, {
       yankBuffer: text.slice(range.from, range.to),
-      pendingOp: null,
-      desiredColumn: null,
-    };
+    });
   }
 
   return state;
@@ -651,50 +648,48 @@ function applyOperatorTextObject(
   // Apply operator to range [start, end)
   if (op === "d") {
     const result = deleteRange(text, start, end, true, yankBuffer);
-    return {
-      ...state,
+    return completeOperation(state, {
       text: result.text,
       cursor: result.cursor,
       yankBuffer: result.yankBuffer,
-      pendingOp: null,
-      desiredColumn: null,
-    };
+    });
   }
 
   if (op === "c") {
     const result = changeRange(text, start, end, yankBuffer);
-    return {
-      ...state,
+    return completeOperation(state, {
       mode: "insert",
       text: result.text,
       cursor: result.cursor,
       yankBuffer: result.yankBuffer,
-      pendingOp: null,
-      desiredColumn: null,
-    };
+    });
   }
 
   if (op === "y") {
-    return {
-      ...state,
+    return completeOperation(state, {
       yankBuffer: text.slice(start, end),
-      pendingOp: null,
-      desiredColumn: null,
-    };
+    });
   }
 
   return state;
+}
+
+type InsertKey = "i" | "a" | "I" | "A" | "o" | "O";
+
+/**
+ * Type guard to check if key is a valid insert mode key.
+ */
+function isInsertKey(key: string): key is InsertKey {
+  return ["i", "a", "I", "A", "o", "O"].includes(key);
 }
 
 /**
  * Try to handle insert mode entry (i/a/I/A/o/O).
  */
 function tryEnterInsertMode(state: VimState, key: string): VimKeyResult | null {
-  const modes: Array<"i" | "a" | "I" | "A" | "o" | "O"> = ["i", "a", "I", "A", "o", "O"];
-  
-  if (!modes.includes(key as any)) return null;
+  if (!isInsertKey(key)) return null;
 
-  const result = getInsertCursorPos(state.text, state.cursor, key as any);
+  const result = getInsertCursorPos(state.text, state.cursor, key);
   
   return {
     handled: true,
