@@ -169,8 +169,22 @@ function createWindow() {
 
 // Only setup app handlers if we got the lock
 if (gotTheLock) {
-  void app.whenReady().then(() => {
+  void app.whenReady().then(async () => {
     console.log("App ready, creating window...");
+    
+    // Install React DevTools in development
+    if (!app.isPackaged) {
+      try {
+        const { default: installExtension, REACT_DEVELOPER_TOOLS } = await import(
+          "electron-devtools-installer"
+        );
+        const name = await installExtension(REACT_DEVELOPER_TOOLS);
+        console.log(`Added Extension: ${name}`);
+      } catch (error) {
+        console.log("Error installing React DevTools:", error);
+      }
+    }
+    
     createMenu();
     createWindow();
     // No need to auto-start workspaces anymore - they start on demand
