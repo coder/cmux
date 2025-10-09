@@ -595,10 +595,9 @@ export class IpcMain {
 
     ipcMain.handle(
       IPC_CHANNELS.WORKSPACE_RESUME_STREAM,
-      async (_event, workspaceId: string, modelString: string, options?: SendMessageOptions) => {
+      async (_event, workspaceId: string, options: SendMessageOptions) => {
         log.debug("resumeStream handler: Received", {
           workspaceId,
-          modelString,
           options,
         });
         try {
@@ -610,7 +609,7 @@ export class IpcMain {
           }
 
           // Stream the AI response with existing history (no new user message)
-          return await this.streamWithHistory(workspaceId, modelString, options);
+          return await this.streamWithHistory(workspaceId, options.model, options);
         } catch (error) {
           // Convert to SendMessageError for typed error handling
           const errorMessage = error instanceof Error ? error.message : String(error);

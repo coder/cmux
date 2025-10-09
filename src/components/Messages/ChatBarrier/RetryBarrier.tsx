@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import styled from "@emotion/styled";
+import { useSendMessageOptions } from "@/hooks/useSendMessageOptions";
 
 const BarrierContainer = styled.div`
   margin: 20px 0;
@@ -77,7 +78,6 @@ const Button = styled.button<{ variant?: "primary" | "secondary" }>`
 
 interface RetryBarrierProps {
   workspaceId: string;
-  model: string;
   autoRetry: boolean;
   onStopAutoRetry: () => void;
   onResetAutoRetry: () => void;
@@ -89,7 +89,6 @@ const INITIAL_DELAY = 1000; // 1 second
 
 export const RetryBarrier: React.FC<RetryBarrierProps> = ({
   workspaceId,
-  model,
   autoRetry,
   onStopAutoRetry,
   onResetAutoRetry,
@@ -100,6 +99,10 @@ export const RetryBarrier: React.FC<RetryBarrierProps> = ({
   const [isRetrying, setIsRetrying] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Get current send message options from shared hook
+  // This ensures retry uses current settings, not historical ones
+  const options = useSendMessageOptions(workspaceId);
 
   // Calculate delay with exponential backoff
   const getDelay = useCallback((attemptNum: number) => {
@@ -148,7 +151,7 @@ export const RetryBarrier: React.FC<RetryBarrierProps> = ({
       setIsRetrying(true);
       void (async () => {
         try {
-          const result = await window.api.workspace.resumeStream(workspaceId, model);
+          const result = await window.api.workspace.resumeStream(workspaceId, options);
           if (!result.success) {
             console.error("Auto-retry failed:", result.error);
             // Increment attempt and retry again
@@ -164,7 +167,7 @@ export const RetryBarrier: React.FC<RetryBarrierProps> = ({
         }
       })();
     }, delay);
-  }, [workspaceId, model, onStopAutoRetry, getDelay]);
+  }, [workspaceId, options, onStopAutoRetry, getDelay]);
 
   // Auto-retry effect
   useEffect(() => {
@@ -185,7 +188,7 @@ export const RetryBarrier: React.FC<RetryBarrierProps> = ({
     
     void (async () => {
       try {
-        const result = await window.api.workspace.resumeStream(workspaceId, model);
+        const result = await window.api.workspace.resumeStream(workspaceId, options);
         if (!result.success) {
           console.error("Manual retry failed:", result.error);
           setIsRetrying(false);

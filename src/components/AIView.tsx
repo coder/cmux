@@ -224,9 +224,9 @@ const AIViewInner: React.FC<AIViewProps> = ({
     !canInterrupt && // Not currently streaming
     lastMessage &&
     (lastMessage.type === "stream-error" ||
-      (lastMessage.type === "assistant" &&
-        lastMessage.isPartial === true &&
-        shouldShowInterruptedBarrier(lastMessage)));
+      (lastMessage.type === "assistant" && lastMessage.isPartial === true) ||
+      (lastMessage.type === "tool" && lastMessage.isPartial === true) ||
+      (lastMessage.type === "reasoning" && lastMessage.isPartial === true));
 
   // Auto-scroll when messages update (during streaming)
   useEffect(() => {
@@ -303,7 +303,18 @@ const AIViewInner: React.FC<AIViewProps> = ({
   // Handle keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't handle shortcuts if user is typing in an input field
+      // Interrupt stream works anywhere (even in input fields)
+      if (matchesKeybind(e, KEYBINDS.INTERRUPT_STREAM)) {
+        e.preventDefault();
+        // If there's a stream or auto-retry in progress, stop it and disable auto-retry
+        if (canInterrupt || showRetryBarrier) {
+          setAutoRetry(false); // Disable auto-retry (user explicitly interrupted)
+          void window.api.workspace.sendMessage(workspaceId, "");
+        }
+        return;
+      }
+
+      // Don't handle other shortcuts if user is typing in an input field
       if (isEditableElement(e.target)) {
         return;
       }
@@ -314,13 +325,6 @@ const AIViewInner: React.FC<AIViewProps> = ({
       } else if (matchesKeybind(e, KEYBINDS.OPEN_TERMINAL)) {
         e.preventDefault();
         handleOpenTerminal();
-      } else if (matchesKeybind(e, KEYBINDS.INTERRUPT_STREAM)) {
-        e.preventDefault();
-        // If there's a stream or auto-retry in progress, stop it and disable auto-retry
-        if (canInterrupt || showRetryBarrier) {
-          setAutoRetry(false); // Disable auto-retry (user explicitly interrupted)
-          void window.api.workspace.sendMessage(workspaceId, "");
-        }
       }
     };
 
@@ -420,7 +424,6 @@ const AIViewInner: React.FC<AIViewProps> = ({
                   {showRetryBarrier && (
                     <RetryBarrier
                       workspaceId={workspaceId}
-                      model={currentModel}
                       autoRetry={autoRetry}
                       onStopAutoRetry={() => setAutoRetry(false)}
                       onResetAutoRetry={() => setAutoRetry(true)}
