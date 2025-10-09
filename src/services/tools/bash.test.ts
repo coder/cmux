@@ -90,8 +90,8 @@ describe("bash tool", () => {
       expect(result.error).toContain("tail -n 300");
       expect(result.error).toContain("When done, clean up: rm");
 
-      // Extract file path from error message
-      const match = /saved to (\/[^\]]+\.txt)/.exec(result.error);
+      // Extract file path from error message (handles both "lines saved to" and "lines) saved to")
+      const match = /saved to (\/.+?\.txt)/.exec(result.error);
       expect(match).toBeDefined();
       if (match) {
         const overflowPath = match[1];
