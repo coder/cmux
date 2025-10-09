@@ -337,7 +337,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [jumpToBottom, handleOpenTerminal, workspaceId, canInterrupt, showRetryBarrier]);
+  }, [jumpToBottom, handleOpenTerminal, workspaceId, canInterrupt, showRetryBarrier, setAutoRetry]);
 
   if (loading) {
     return (

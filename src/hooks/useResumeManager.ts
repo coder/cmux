@@ -185,5 +185,6 @@ export function useResumeManager(workspaceStates: Map<string, WorkspaceState>) {
       window.removeEventListener(CUSTOM_EVENTS.RESUME_CHECK_REQUESTED, handleResumeCheck);
       clearInterval(pollInterval);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Stable effect - no deps, uses refs
 }
