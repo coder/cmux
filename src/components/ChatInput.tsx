@@ -26,7 +26,7 @@ import { VimTextArea } from "./VimTextArea";
 
 const InputSection = styled.div`
   position: relative;
-  padding: 15px;
+  padding: 5px 15px 15px 15px; /* Reduced top padding from 15px to 5px */
   background: #252526;
   border-top: 1px solid #3e3e42;
   display: flex;
@@ -695,7 +695,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   })();
 
   return (
-    <InputSection>
+    <InputSection data-component="ChatInputSection">
       <ChatInputToast toast={toast} onDismiss={handleToastDismiss} />
       <CommandSuggestions
         suggestions={commandSuggestions}
@@ -703,7 +703,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         onDismiss={() => setShowCommandSuggestions(false)}
         isVisible={showCommandSuggestions}
       />
-      <InputControls>
+      <InputControls data-component="ChatInputControls">
         <VimTextArea
           ref={inputRef}
           value={input}
@@ -716,7 +716,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           disabled={disabled || isSending || isCompacting}
         />
       </InputControls>
-      <ModeToggles>
+      <ModeToggles data-component="ChatModeToggles">
         {editingMessage && (
           <EditingIndicator>
             Editing message ({formatKeybind(KEYBINDS.CANCEL_EDIT)} to cancel)
