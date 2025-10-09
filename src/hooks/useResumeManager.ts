@@ -153,7 +153,8 @@ export function useResumeManager(workspaceStates: Map<string, WorkspaceState>) {
 
   useEffect(() => {
     // Initial scan on mount - check all workspaces for interrupted streams
-    console.log("[useResumeManager] Initial scan on mount");
+    const workspaceIds = Array.from(workspaceStatesRef.current.keys());
+    console.log("[useResumeManager] Initial scan on mount for workspaces:", workspaceIds);
     for (const [workspaceId] of workspaceStatesRef.current) {
       void attemptResume(workspaceId);
     }
@@ -173,9 +174,11 @@ export function useResumeManager(workspaceStates: Map<string, WorkspaceState>) {
     let pollCount = 0;
     const pollInterval = setInterval(() => {
       pollCount++;
+      const workspaceIds = Array.from(workspaceStatesRef.current.keys());
       if (pollCount === 1 || pollCount % 10 === 0) {
         console.log(
-          `[useResumeManager] Polling check #${pollCount} for ${workspaceStatesRef.current.size} workspaces`
+          `[useResumeManager] Polling check #${pollCount} for workspaces:`,
+          workspaceIds
         );
       }
       for (const [workspaceId] of workspaceStatesRef.current) {
