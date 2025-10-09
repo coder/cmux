@@ -159,7 +159,10 @@ function createWindow() {
   } else {
     // Development mode: load from vite dev server
     void mainWindow.loadURL("http://localhost:5173");
-    mainWindow.webContents.openDevTools();
+    // Open DevTools after React content loads
+    mainWindow.webContents.once('did-finish-load', () => {
+      mainWindow?.webContents.openDevTools();
+    });
   }
 
   mainWindow.on("closed", () => {
@@ -178,10 +181,12 @@ if (gotTheLock) {
         const { default: installExtension, REACT_DEVELOPER_TOOLS } = await import(
           "electron-devtools-installer"
         );
-        const name = await installExtension(REACT_DEVELOPER_TOOLS);
-        console.log(`Added Extension: ${name}`);
+        const extension = await installExtension(REACT_DEVELOPER_TOOLS, {
+          loadExtensionOptions: { allowFileAccess: true },
+        });
+        console.log(`✅ React DevTools installed: ${extension.name} (id: ${extension.id})`);
       } catch (error) {
-        console.log("Error installing React DevTools:", error);
+        console.log("❌ Error installing React DevTools:", error);
       }
     }
     
