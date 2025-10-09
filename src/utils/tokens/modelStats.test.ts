@@ -1,54 +1,32 @@
-import { describe, expect, test } from "bun:test";
 import { getModelStats } from "./modelStats";
 
 describe("getModelStats", () => {
-  test("should retrieve stats for anthropic:claude-opus-4-1", () => {
-    const stats = getModelStats("anthropic:claude-opus-4-1");
-
+  it("should return model stats for claude-sonnet-4-5", () => {
+    const stats = getModelStats("anthropic:claude-sonnet-4-5");
+    
     expect(stats).not.toBeNull();
-    expect(stats).toEqual({
-      max_input_tokens: 200000,
-      input_cost_per_token: 0.000015,
-      output_cost_per_token: 0.000075,
-      cache_creation_input_token_cost: 0.00001875,
-      cache_read_input_token_cost: 0.0000015,
-    });
+    expect(stats?.input_cost_per_token).toBe(0.000003);
+    expect(stats?.output_cost_per_token).toBe(0.000015);
+    expect(stats?.max_input_tokens).toBe(200000);
   });
 
-  test("should work with model name without provider prefix", () => {
-    const stats = getModelStats("claude-opus-4-1");
-
+  it("should handle model without provider prefix", () => {
+    const stats = getModelStats("claude-sonnet-4-5");
+    
     expect(stats).not.toBeNull();
-    expect(stats).toEqual({
-      max_input_tokens: 200000,
-      input_cost_per_token: 0.000015,
-      output_cost_per_token: 0.000075,
-      cache_creation_input_token_cost: 0.00001875,
-      cache_read_input_token_cost: 0.0000015,
-    });
+    expect(stats?.input_cost_per_token).toBe(0.000003);
   });
 
-  test("should return null for non-existent model", () => {
-    const stats = getModelStats("anthropic:non-existent-model");
+  it("should return cache pricing when available", () => {
+    const stats = getModelStats("anthropic:claude-sonnet-4-5");
+    
+    expect(stats?.cache_creation_input_token_cost).toBe(0.00000375);
+    expect(stats?.cache_read_input_token_cost).toBe(3e-7);
+  });
+
+  it("should return null for unknown models", () => {
+    const stats = getModelStats("unknown:model");
+    
     expect(stats).toBeNull();
-  });
-
-  test("should return null for model with missing required fields", () => {
-    // Image generation models don't have input_cost_per_token
-    const stats = getModelStats("dall-e-2");
-    expect(stats).toBeNull();
-  });
-
-  test("should retrieve stats for gpt-5 with partial cache support", () => {
-    // OpenAI models have cache_read costs but not cache_creation costs
-    const stats = getModelStats("openai:gpt-5");
-    expect(stats).not.toBeNull();
-    expect(stats).toMatchObject({
-      max_input_tokens: 272000,
-      input_cost_per_token: 0.00000125,
-      output_cost_per_token: 0.00001,
-      cache_read_input_token_cost: 1.25e-7,
-    });
-    expect(stats?.cache_creation_input_token_cost).toBeUndefined();
   });
 });

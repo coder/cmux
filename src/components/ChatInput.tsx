@@ -7,9 +7,10 @@ import type { ParsedCommand } from "@/utils/slashCommands/types";
 import { parseCommand } from "@/utils/slashCommands/parser";
 import type { SendMessageError as SendMessageErrorType } from "@/types/errors";
 import { usePersistedState } from "@/hooks/usePersistedState";
-import { ThinkingSliderComponent } from "./ThinkingSlider";
 import { useThinkingLevel } from "@/hooks/useThinkingLevel";
 import { useMode } from "@/contexts/ModeContext";
+import { ChatToggles } from "./ChatToggles";
+import { use1MContext } from "@/hooks/use1MContext";
 import { modeToToolPolicy } from "@/utils/ui/modeUtils";
 import { ToggleGroup } from "./ToggleGroup";
 import type { UIMode } from "@/types/mode";
@@ -302,6 +303,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const modelSelectorRef = useRef<ModelSelectorRef>(null);
   const [thinkingLevel] = useThinkingLevel();
   const [mode, setMode] = useMode();
+  const [use1M] = use1MContext(workspaceId);
   const { recentModels } = useModelLRU();
 
   const focusMessageInput = useCallback(() => {
@@ -581,6 +583,11 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           model: preferredModel,
           toolPolicy: modeToToolPolicy(mode),
           additionalSystemInstructions,
+          providerOptions: {
+            anthropic: {
+              use1MContext: use1M,
+            },
+          },
         });
 
         if (!result.success) {
@@ -723,34 +730,35 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           </EditingIndicator>
         )}
         <ModeTogglesRow>
-          <ModelDisplayWrapper>
-            <ModelSelector
-              ref={modelSelectorRef}
-              value={preferredModel}
-              onChange={setPreferredModel}
-              recentModels={recentModels}
-              onComplete={() => inputRef.current?.focus()}
-            />
-            <TooltipWrapper inline>
-              <HelpIndicator>?</HelpIndicator>
-              <Tooltip className="tooltip" align="left" width="wide">
-                <strong>Click to edit</strong> or use {formatKeybind(KEYBINDS.OPEN_MODEL_SELECTOR)}
-                <br />
-                <br />
-                <strong>Abbreviations:</strong>
-                <br />• <code>/model opus</code> - Claude Opus 4.1
-                <br />• <code>/model sonnet</code> - Claude Sonnet 4.5
-                <br />
-                <br />
-                <strong>Full format:</strong>
-                <br />
-                <code>/model provider:model-name</code>
-                <br />
-                (e.g., <code>/model anthropic:claude-sonnet-4-5</code>)
-              </Tooltip>
-            </TooltipWrapper>
-          </ModelDisplayWrapper>
-          <ThinkingSliderComponent />
+          <ChatToggles workspaceId={workspaceId} modelString={preferredModel}>
+            <ModelDisplayWrapper>
+              <ModelSelector
+                ref={modelSelectorRef}
+                value={preferredModel}
+                onChange={setPreferredModel}
+                recentModels={recentModels}
+                onComplete={() => inputRef.current?.focus()}
+              />
+              <TooltipWrapper inline>
+                <HelpIndicator>?</HelpIndicator>
+                <Tooltip className="tooltip" align="left" width="wide">
+                  <strong>Click to edit</strong> or use {formatKeybind(KEYBINDS.OPEN_MODEL_SELECTOR)}
+                  <br />
+                  <br />
+                  <strong>Abbreviations:</strong>
+                  <br />• <code>/model opus</code> - Claude Opus 4.1
+                  <br />• <code>/model sonnet</code> - Claude Sonnet 4.5
+                  <br />
+                  <br />
+                  <strong>Full format:</strong>
+                  <br />
+                  <code>/model provider:model-name</code>
+                  <br />
+                  (e.g., <code>/model anthropic:claude-sonnet-4-5</code>)
+                </Tooltip>
+              </TooltipWrapper>
+            </ModelDisplayWrapper>
+          </ChatToggles>
           <ModeToggleWrapper>
             <StyledToggleContainer mode={mode}>
               <ToggleGroup<UIMode>

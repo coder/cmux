@@ -435,7 +435,7 @@ export class IpcMain {
           toolPolicy,
           additionalSystemInstructions,
           maxOutputTokens,
-          disableAutoTruncation,
+          providerOptions,
         } = options ?? {};
         log.debug("sendMessage handler: Received", {
           workspaceId,
@@ -446,7 +446,7 @@ export class IpcMain {
           toolPolicy,
           additionalSystemInstructions,
           maxOutputTokens,
-          disableAutoTruncation,
+          providerOptions,
         });
         try {
           // Early exit: empty message = either interrupt (if streaming) or invalid input
@@ -541,7 +541,7 @@ export class IpcMain {
             toolPolicy,
             additionalSystemInstructions,
             maxOutputTokens,
-            disableAutoTruncation,
+            providerOptions,
           });
           const streamResult = await this.aiService.streamMessage(
             historyResult.data,
@@ -552,7 +552,7 @@ export class IpcMain {
             undefined,
             additionalSystemInstructions,
             maxOutputTokens,
-            disableAutoTruncation
+            providerOptions
           );
           log.debug("sendMessage handler: Stream completed");
           return streamResult;

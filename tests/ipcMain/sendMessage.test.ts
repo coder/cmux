@@ -14,9 +14,9 @@ import {
   assertStreamSuccess,
   assertError,
   waitFor,
+  buildLargeHistory,
 } from "./helpers";
-import { HistoryService } from "../../src/services/historyService";
-import { createCmuxMessage } from "../../src/types/message";
+
 
 // Skip all tests if TEST_INTEGRATION is not set
 const describeIntegration = shouldRunIntegrationTests() ? describe : describe.skip;
@@ -672,29 +672,14 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
       async (provider, model) => {
         const { env, workspaceId, cleanup } = await setupWorkspace(provider);
         try {
-          // HACK: Build up a large conversation history using HistoryService directly
-          // This is a test-only shortcut to quickly populate history without streaming.
-          // Real application code should NEVER bypass IPC like this.
-          const historyService = new HistoryService(env.config);
-
-          // Create ~50k chars per message
-          const messageSize = 50_000;
-          const largeText = "a".repeat(messageSize);
-
+          // Build up large conversation history to exceed context limits
           // Different providers have different limits:
           // - Anthropic: 200k tokens → need ~40 messages of 50k chars (2M chars total)
           // - OpenAI: varies by model, use ~80 messages (4M chars total) to ensure we hit the limit
-          const messageCount = provider === "anthropic" ? 40 : 80;
-
-          // Build conversation history with alternating user/assistant messages
-          for (let i = 0; i < messageCount; i++) {
-            const isUser = i % 2 === 0;
-            const role = isUser ? "user" : "assistant";
-            const message = createCmuxMessage(`history-msg-${i}`, role, largeText, {});
-
-            const result = await historyService.appendToHistory(workspaceId, message);
-            expect(result.success).toBe(true);
-          }
+          await buildLargeHistory(workspaceId, env.config, {
+            messageSize: 50_000,
+            messageCount: provider === "anthropic" ? 40 : 80,
+          });
 
           // Now try to send a new message - should trigger token limit error
           // due to accumulated history
@@ -705,7 +690,7 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
             "What is the weather?",
             provider,
             model,
-            { disableAutoTruncation: true }
+            { providerOptions: { openai: { disableAutoTruncation: true } } }
           );
 
           // IPC call itself should succeed (errors come through stream events)
@@ -973,28 +958,11 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
 
         try {
           // Phase 1: Build up large conversation history to exceed context limit
-          // HACK: Use HistoryService directly to populate history without API calls.
-          // This is a test-only shortcut. Real application code should NEVER bypass IPC.
-          const historyService = new HistoryService(env.config);
-
-          // gpt-4o-mini context window varies, use same approach as token limit test
-          // Create ~50k chars per message
-          const messageSize = 50_000;
-          const largeText = "A".repeat(messageSize);
-
           // Use ~80 messages (4M chars total) to ensure we hit the limit
-          // This matches the token limit error test for OpenAI
-          const messageCount = 80;
-
-          // Build conversation history with alternating user/assistant messages
-          for (let i = 0; i < messageCount; i++) {
-            const isUser = i % 2 === 0;
-            const role = isUser ? "user" : "assistant";
-            const message = createCmuxMessage(`history-msg-${i}`, role, largeText, {});
-
-            const result = await historyService.appendToHistory(workspaceId, message);
-            expect(result.success).toBe(true);
-          }
+          await buildLargeHistory(workspaceId, env.config, {
+            messageSize: 50_000,
+            messageCount: 80,
+          });
 
           // Now send a new message with auto-truncation disabled - should trigger error
           const result = await sendMessageWithModel(
@@ -1003,7 +971,7 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
             "This should trigger a context error",
             provider,
             model,
-            { disableAutoTruncation: true }
+            { providerOptions: { openai: { disableAutoTruncation: true } } }
           );
 
           // IPC call itself should succeed (errors come through stream events)

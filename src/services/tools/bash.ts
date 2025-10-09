@@ -50,6 +50,7 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
       const normalizedMaxLines = Math.max(1, Math.floor(max_lines));
       const effectiveMaxLines = Math.min(normalizedMaxLines, BASH_HARD_MAX_LINES);
       let totalBytesAccumulated = 0;
+      let overflowReason: string | null = null;
 
       // Detect redundant cd to working directory
       // Match patterns like: "cd /path &&", "cd /path;", "cd '/path' &&", "cd \"/path\" &&"
@@ -142,8 +143,9 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
 
         // Helper to trigger truncation and clean shutdown
         // Prevents duplication and ensures consistent cleanup
-        const triggerTruncation = () => {
+        const triggerTruncation = (reason: string) => {
           truncated = true;
+          overflowReason = reason;
           stdoutReader.close();
           stderrReader.close();
           childProcess.child.kill();
@@ -160,7 +162,9 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
 
               // Check if line exceeds per-line limit
               if (lineBytes > BASH_MAX_LINE_BYTES) {
-                triggerTruncation();
+                triggerTruncation(
+                  `Line ${lines.length} exceeded per-line limit: ${lineBytes} bytes > ${BASH_MAX_LINE_BYTES} bytes`
+                );
                 return;
               }
 
@@ -168,13 +172,17 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
 
               // Check if adding this line would exceed total bytes limit
               if (totalBytesAccumulated > BASH_MAX_TOTAL_BYTES) {
-                triggerTruncation();
+                triggerTruncation(
+                  `Total output exceeded limit: ${totalBytesAccumulated} bytes > ${BASH_MAX_TOTAL_BYTES} bytes (at line ${lines.length})`
+                );
                 return;
               }
 
               // Check if we've exceeded the effective max_lines limit
               if (lines.length >= effectiveMaxLines) {
-                triggerTruncation();
+                triggerTruncation(
+                  `Line count exceeded limit: ${lines.length} lines >= ${effectiveMaxLines} lines (${totalBytesAccumulated} bytes read)`
+                );
               }
             }
           }
@@ -191,7 +199,9 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
 
               // Check if line exceeds per-line limit
               if (lineBytes > BASH_MAX_LINE_BYTES) {
-                triggerTruncation();
+                triggerTruncation(
+                  `Line ${lines.length} exceeded per-line limit: ${lineBytes} bytes > ${BASH_MAX_LINE_BYTES} bytes`
+                );
                 return;
               }
 
@@ -199,13 +209,17 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
 
               // Check if adding this line would exceed total bytes limit
               if (totalBytesAccumulated > BASH_MAX_TOTAL_BYTES) {
-                triggerTruncation();
+                triggerTruncation(
+                  `Total output exceeded limit: ${totalBytesAccumulated} bytes > ${BASH_MAX_TOTAL_BYTES} bytes (at line ${lines.length})`
+                );
                 return;
               }
 
               // Check if we've exceeded the effective max_lines limit
               if (lines.length >= effectiveMaxLines) {
-                triggerTruncation();
+                triggerTruncation(
+                  `Line count exceeded limit: ${lines.length} lines >= ${effectiveMaxLines} lines (${totalBytesAccumulated} bytes read)`
+                );
               }
             }
           }
@@ -302,9 +316,10 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
               const fullOutput = lines.join("\n");
               fs.writeFileSync(overflowPath, fullOutput, "utf-8");
 
-              const output = `[OUTPUT OVERFLOW - ${lines.length} lines saved to ${overflowPath}]
+              const output = `[OUTPUT OVERFLOW - ${overflowReason}]
 
-The command output exceeded limits and was saved to a temporary file.
+Full output (${lines.length} lines) saved to ${overflowPath}
+
 Use filtering tools to extract what you need:
 - grep '<pattern>' ${overflowPath}
 - head -n 300 ${overflowPath}
@@ -323,9 +338,7 @@ When done, clean up: rm ${overflowPath}`;
               // If temp file creation fails, fall back to original error
               resolveOnce({
                 success: false,
-                error:
-                  `Command output exceeded limits (max ${BASH_MAX_TOTAL_BYTES} bytes total, ${BASH_MAX_LINE_BYTES} bytes per line, ${effectiveMaxLines} lines). ` +
-                  `Use output-limiting commands like 'head', 'tail', or 'grep' to reduce output size. Failed to save overflow: ${String(err)}`,
+                error: `Command output overflow: ${overflowReason}. Failed to save overflow to temp file: ${String(err)}`,
                 exitCode: -1,
                 wall_duration_ms,
               });
