@@ -12,7 +12,7 @@ import { useMode } from "@/contexts/ModeContext";
 import { ChatToggles } from "./ChatToggles";
 import { use1MContext } from "@/hooks/use1MContext";
 import { useSendMessageOptions } from "@/hooks/useSendMessageOptions";
-import { getModelKey, getInputKey } from "@/constants/storageKeys";
+import { getModelKey, getInputKey } from "@/constants/storage";
 import { modeToToolPolicy } from "@/utils/ui/modeUtils";
 import { ToggleGroup } from "./ToggleGroup";
 import { CUSTOM_EVENTS } from "@/constants/events";

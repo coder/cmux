@@ -4,7 +4,7 @@ import { useMode } from "@/contexts/ModeContext";
 import { usePersistedState } from "./usePersistedState";
 import { modeToToolPolicy } from "@/utils/ui/modeUtils";
 import { defaultModel } from "@/utils/ai/models";
-import { getModelKey } from "@/constants/storageKeys";
+import { getModelKey } from "@/constants/storage";
 import type { SendMessageOptions } from "@/types/ipc";
 
 /**

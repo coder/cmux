@@ -53,7 +53,7 @@ const Button = styled.button<{ variant?: "primary" | "secondary" }>`
   font-family: var(--font-primary);
   font-size: 12px;
   font-weight: 600;
-  color: ${(props) => (props.variant === "secondary" ? "var(--color-warning)" : "#000")};
+  color: ${(props) => (props.variant === "secondary" ? "var(--color-warning)" : "var(--color-bg)")};
   cursor: pointer;
   transition: all 0.2s;
   white-space: nowrap;
@@ -84,8 +84,8 @@ interface RetryBarrierProps {
   className?: string;
 }
 
-const MAX_RETRIES = 5;
 const INITIAL_DELAY = 1000; // 1 second
+const MAX_DELAY = 60000; // 60 seconds (cap for exponential backoff)
 
 export const RetryBarrier: React.FC<RetryBarrierProps> = ({
   workspaceId,
@@ -97,16 +97,19 @@ export const RetryBarrier: React.FC<RetryBarrierProps> = ({
   const [attempt, setAttempt] = useState(0);
   const [countdown, setCountdown] = useState(0);
   const [isRetrying, setIsRetrying] = useState(false);
+  const [totalRetryTime, setTotalRetryTime] = useState(0); // Total time spent retrying in seconds
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const retryStartTimeRef = useRef<number>(Date.now()); // Track when retrying started
   
   // Get current send message options from shared hook
   // This ensures retry uses current settings, not historical ones
   const options = useSendMessageOptions(workspaceId);
 
-  // Calculate delay with exponential backoff
+  // Calculate delay with exponential backoff (capped at MAX_DELAY)
   const getDelay = useCallback((attemptNum: number) => {
-    return INITIAL_DELAY * Math.pow(2, attemptNum);
+    const exponentialDelay = INITIAL_DELAY * Math.pow(2, attemptNum);
+    return Math.min(exponentialDelay, MAX_DELAY);
   }, []);
 
   // Cleanup timers
