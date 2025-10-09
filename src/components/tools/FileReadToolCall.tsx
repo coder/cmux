@@ -37,7 +37,6 @@ const ContentBlock = styled.div`
   padding: 6px 8px;
   background: rgba(0, 0, 0, 0.2);
   border-radius: 3px;
-  border-left: 2px solid #2196f3;
   font-size: 11px;
   line-height: 1.4;
   max-height: 200px;
@@ -155,22 +154,12 @@ export const FileReadToolCall: React.FC<FileReadToolCallProps> = ({
         <ToolDetails>
           <DetailSection>
             <DetailLabel>File Path</DetailLabel>
-            <DetailContent>{args.filePath}</DetailContent>
+            <DetailContent>
+              {args.filePath}
+              {args.offset !== undefined && ` • offset: line ${args.offset}`}
+              {args.limit !== undefined && ` • limit: ${args.limit} lines`}
+            </DetailContent>
           </DetailSection>
-
-          {args.offset !== undefined && (
-            <DetailSection>
-              <DetailLabel>Offset</DetailLabel>
-              <DetailContent>Line {args.offset}</DetailContent>
-            </DetailSection>
-          )}
-
-          {args.limit !== undefined && (
-            <DetailSection>
-              <DetailLabel>Limit</DetailLabel>
-              <DetailContent>{args.limit} lines</DetailContent>
-            </DetailSection>
-          )}
 
           {result && (
             <>
