@@ -3,6 +3,31 @@ import { useState, useCallback, useEffect } from "react";
 import { getStorageChangeEvent } from "@/constants/events";
 
 type SetValue<T> = T | ((prev: T) => T);
+/**
+ * Read a persisted state value from localStorage (non-hook version)
+ * Mirrors the reading logic from usePersistedState
+ *
+ * @param key - The localStorage key
+ * @param defaultValue - Value to return if key doesn't exist or parsing fails
+ * @returns The parsed value or defaultValue
+ */
+export function readPersistedState<T>(key: string, defaultValue: T): T {
+  if (typeof window === "undefined" || !window.localStorage) {
+    return defaultValue;
+  }
+
+  try {
+    const storedValue = window.localStorage.getItem(key);
+    if (storedValue === null || storedValue === "undefined") {
+      return defaultValue;
+    }
+    return JSON.parse(storedValue) as T;
+  } catch (error) {
+    console.error(`Failed to read persisted state for key "${key}":`, error);
+    return defaultValue;
+  }
+}
+
 
 /**
  * Update a persisted state value from outside the hook.

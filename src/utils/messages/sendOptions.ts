@@ -1,6 +1,7 @@
 import { getModelKey, getThinkingLevelKey } from "@/constants/storage";
 import { defaultModel } from "@/utils/ai/models";
 import { modeToToolPolicy } from "@/utils/ui/modeUtils";
+import { readPersistedState } from "@/hooks/usePersistedState";
 import type { SendMessageOptions } from "@/types/ipc";
 import type { UIMode } from "@/types/mode";
 import type { ThinkingLevel } from "@/types/thinking";
