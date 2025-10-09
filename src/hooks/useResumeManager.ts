@@ -128,7 +128,7 @@ export function useResumeManager(workspaceStates: Map<string, WorkspaceState>) {
 
       if (!result.success) {
         console.error(`[useResumeManager] Resume failed for ${workspaceId}:`, result.error);
-        // Increment attempt and reset timer
+        // Increment attempt and reset timer for next retry
         const newState: RetryState = {
           attempt: attempt + 1,
           retryStartTime: Date.now(),
@@ -136,12 +136,9 @@ export function useResumeManager(workspaceStates: Map<string, WorkspaceState>) {
         localStorage.setItem(getRetryStateKey(workspaceId), JSON.stringify(newState));
       } else {
         console.log(`[useResumeManager] Resume succeeded for ${workspaceId}`);
-        // Success - reset retry state for next failure
-        const newState: RetryState = {
-          attempt: 0,
-          retryStartTime: Date.now(),
-        };
-        localStorage.setItem(getRetryStateKey(workspaceId), JSON.stringify(newState));
+        // Success - clear retry state entirely
+        // If stream fails again, we'll start fresh (immediately eligible)
+        localStorage.removeItem(getRetryStateKey(workspaceId));
       }
     } catch (error) {
       console.error(`[useResumeManager] Unexpected error resuming ${workspaceId}:`, error);

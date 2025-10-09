@@ -142,11 +142,9 @@ export const RetryBarrier: React.FC<RetryBarrierProps> = ({
   const handleManualRetry = () => {
     onResetAutoRetry(); // Re-enable auto-retry for next failure
 
-    // Reset retry state to make workspace immediately eligible for resume
-    localStorage.setItem(
-      getRetryStateKey(workspaceId),
-      JSON.stringify({ attempt: 0, retryStartTime: Date.now() - 2000 }) // -2s = immediate
-    );
+    // Clear retry state to make workspace immediately eligible for resume
+    // (no retryState = defaults to immediately eligible in useResumeManager)
+    localStorage.removeItem(getRetryStateKey(workspaceId));
 
     // Emit event to useResumeManager - it will handle the actual resume
     window.dispatchEvent(
