@@ -54,7 +54,7 @@ When writing user-facing documentation, follow these principles:
 ## Features
 
 - 🔀 Git worktree integration for multi-branch workflows
-- 🤖 Multiple AI permission modes (plan/edit/yolo)
+- 🤖 Multiple AI permission modes (plan/edit)
 - 📦 Multi-project management
 - 💬 Persistent session history
 - ⌨️ Keyboard-first interface

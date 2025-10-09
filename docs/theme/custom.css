@@ -20,7 +20,6 @@
   --color-plan-mode-hover: color-mix(in srgb, var(--color-plan-mode), white 20%);
   --color-exec-mode: hsl(268.56 94.04% 55.19%);
   --color-edit-mode: hsl(120 50% 35%);
-  --color-yolo-mode: hsl(0 70% 45%);
   --color-interrupted: hsl(38 92% 50%);
 
   /* Docs-specific tokens */
