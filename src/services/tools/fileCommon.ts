@@ -23,7 +23,6 @@ export function leaseFromContent(content: string | Buffer): string {
   return crypto.createHash("sha256").update(content).digest("hex").slice(0, 6);
 }
 
-
 /**
  * Generate a unified diff between old and new content using jsdiff.
  * Uses createPatch with context of 3 lines.
