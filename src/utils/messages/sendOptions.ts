@@ -15,20 +15,16 @@ import type { ThinkingLevel } from "@/types/thinking";
  */
 export function getSendOptionsFromStorage(workspaceId: string): SendMessageOptions {
   // Read model preference (workspace-specific)
-  // Note: usePersistedState stores values with JSON.stringify, so we need to parse
-  const modelRaw = localStorage.getItem(getModelKey(workspaceId));
-  const model = modelRaw ? (JSON.parse(modelRaw) as string) : defaultModel;
+  const model = readPersistedState<string>(getModelKey(workspaceId), defaultModel);
 
   // Read thinking level (workspace-specific)
-  const thinkingLevelRaw = localStorage.getItem(getThinkingLevelKey(workspaceId));
-  const thinkingLevel = thinkingLevelRaw ? (JSON.parse(thinkingLevelRaw) as ThinkingLevel) : "medium";
+  const thinkingLevel = readPersistedState<ThinkingLevel>(getThinkingLevelKey(workspaceId), "medium");
 
   // Read mode (workspace-specific)
-  const modeRaw = localStorage.getItem(`mode:${workspaceId}`);
-  const mode = modeRaw ? (JSON.parse(modeRaw) as UIMode) : "exec";
+  const mode = readPersistedState<UIMode>(`mode:${workspaceId}`, "exec");
 
   // Read 1M context (global)
-  const use1M = localStorage.getItem("use1MContext") === "true";
+  const use1M = readPersistedState<boolean>("use1MContext", false);
 
   // Plan mode system instructions
   const additionalSystemInstructions =
