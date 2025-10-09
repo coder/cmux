@@ -87,6 +87,41 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
 }
 
+/**
+ * Parse file_read content which comes formatted as:
+ * LINE_NUMBER\tCONTENT
+ * LINE_NUMBER\tCONTENT
+ * ...
+ */
+function parseFileContent(content: string): {
+  lineNumbers: string[];
+  actualContent: string;
+  actualBytes: number;
+} {
+  const lines = content.split("\n");
+  const lineNumbers: string[] = [];
+  const contentLines: string[] = [];
+
+  for (const line of lines) {
+    const tabIndex = line.indexOf("\t");
+    if (tabIndex !== -1) {
+      // Line has format: NUMBER\tCONTENT
+      lineNumbers.push(line.substring(0, tabIndex));
+      contentLines.push(line.substring(tabIndex + 1));
+    } else {
+      // Malformed or empty line - preserve as-is
+      lineNumbers.push("");
+      contentLines.push(line);
+    }
+  }
+
+  const actualContent = contentLines.join("\n");
+  // Calculate actual bytes (content + newlines, without line number prefixes)
+  const actualBytes = new TextEncoder().encode(actualContent).length;
+
+  return { lineNumbers, actualContent, actualBytes };
+}
+
 export const FileReadToolCall: React.FC<FileReadToolCallProps> = ({
   args,
   result,
@@ -97,6 +132,10 @@ export const FileReadToolCall: React.FC<FileReadToolCallProps> = ({
   // Extract just the filename from the path for compact display
   const fileName = args.filePath.split("/").pop() ?? args.filePath;
 
+  // Parse the file content to extract line numbers and actual content
+  const parsedContent =
+    result?.success && result.content ? parseFileContent(result.content) : null;
+
   return (
     <ToolContainer expanded={expanded}>
       <ToolHeader onClick={toggleExpanded}>
@@ -104,9 +143,9 @@ export const FileReadToolCall: React.FC<FileReadToolCallProps> = ({
         <span>📖</span>
         <ToolName>file_read</ToolName>
         <FilePathText>{fileName}</FilePathText>
-        {result && result.success && (
+        {result && result.success && parsedContent && (
           <MetadataText>
-            read {formatBytes(result.content.length)} of {formatBytes(result.file_size)}
+            read {formatBytes(parsedContent.actualBytes)} of {formatBytes(result.file_size)}
           </MetadataText>
         )}
         <StatusIndicator status={status}>{getStatusDisplay(status)}</StatusIndicator>
@@ -142,16 +181,16 @@ export const FileReadToolCall: React.FC<FileReadToolCallProps> = ({
                 </DetailSection>
               )}
 
-              {result.success && result.content && (
+              {result.success && result.content && parsedContent && (
                 <DetailSection>
                   <DetailLabel>Content</DetailLabel>
                   <ContentBlock>
                     <LineNumbers>
-                      {result.content.split("\n").map((_, i) => (
-                        <div key={i}>{(args.offset ?? 1) + i}</div>
+                      {parsedContent.lineNumbers.map((lineNum, i) => (
+                        <div key={i}>{lineNum}</div>
                       ))}
                     </LineNumbers>
-                    <ContentText>{result.content}</ContentText>
+                    <ContentText>{parsedContent.actualContent}</ContentText>
                   </ContentBlock>
                 </DetailSection>
               )}
