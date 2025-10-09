@@ -37,15 +37,18 @@ export function useResumeManager(workspaceStates: Map<string, WorkspaceState>) {
   /**
    * Check if a workspace is eligible for auto-resume
    * Idempotent - returns false if conditions aren't met
+   * Returns { eligible: boolean, scheduleRetryIn?: number }
    */
-  const isEligibleForResume = (workspaceId: string): boolean => {
+  const isEligibleForResume = (
+    workspaceId: string
+  ): { eligible: boolean; scheduleRetryIn?: number } => {
     const state = workspaceStatesRef.current.get(workspaceId);
-    if (!state) return false;
+    if (!state) return { eligible: false };
 
     // 1. Must have interrupted stream (not currently streaming)
-    if (state.canInterrupt) return false; // Currently streaming
+    if (state.canInterrupt) return { eligible: false }; // Currently streaming
 
-    if (state.messages.length === 0) return false; // No messages
+    if (state.messages.length === 0) return { eligible: false }; // No messages
 
     const lastMessage = state.messages[state.messages.length - 1];
     const hasInterruptedStream =
@@ -53,35 +56,52 @@ export function useResumeManager(workspaceStates: Map<string, WorkspaceState>) {
       (lastMessage.type === "tool" && lastMessage.isPartial) ||
       (lastMessage.type === "reasoning" && lastMessage.isPartial);
 
-    if (!hasInterruptedStream) return false;
+    if (!hasInterruptedStream) return { eligible: false };
 
     // 2. Auto-retry must be enabled (user didn't press Ctrl+C)
     const autoRetry = localStorage.getItem(getAutoRetryKey(workspaceId));
-    if (autoRetry !== "true") return false;
+    if (autoRetry !== "true") return { eligible: false };
 
     // 3. Must not already be retrying
-    if (retryingRef.current.has(workspaceId)) return false;
+    if (retryingRef.current.has(workspaceId)) return { eligible: false };
 
     // 4. Check exponential backoff timer
     const retryStateJson = localStorage.getItem(getRetryStateKey(workspaceId));
     const retryState: RetryState = retryStateJson
       ? JSON.parse(retryStateJson)
-      : { attempt: 0, retryStartTime: Date.now() };
+      : { attempt: 0, retryStartTime: Date.now() - INITIAL_DELAY }; // Make immediately eligible on first check
 
     const { attempt, retryStartTime } = retryState;
     const delay = Math.min(INITIAL_DELAY * Math.pow(2, attempt), MAX_DELAY);
     const timeSinceLastRetry = Date.now() - retryStartTime;
 
-    if (timeSinceLastRetry < delay) return false; // Not time yet
+    if (timeSinceLastRetry < delay) {
+      // Not time yet - return how long to wait
+      return { eligible: false, scheduleRetryIn: delay - timeSinceLastRetry };
+    }
 
-    return true;
+    return { eligible: true };
   };
 
   /**
    * Attempt to resume a workspace stream
+   * If not yet eligible due to backoff, schedules a retry
    */
   const attemptResume = async (workspaceId: string) => {
-    if (!isEligibleForResume(workspaceId)) return;
+    const eligibility = isEligibleForResume(workspaceId);
+    
+    // If not eligible but should retry later, schedule it
+    if (!eligibility.eligible && eligibility.scheduleRetryIn) {
+      console.log(
+        `[useResumeManager] Scheduling retry for ${workspaceId} in ${Math.ceil(eligibility.scheduleRetryIn / 1000)}s`
+      );
+      setTimeout(() => {
+        void attemptResume(workspaceId);
+      }, eligibility.scheduleRetryIn);
+      return;
+    }
+    
+    if (!eligibility.eligible) return;
 
     // Mark as retrying
     retryingRef.current.add(workspaceId);
