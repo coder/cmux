@@ -237,19 +237,7 @@ const SectionHeader = styled.div`
   margin-bottom: 12px;
 `;
 
-const Context1MBadge = styled.span`
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
-  background: rgba(0, 122, 204, 0.15);
-  border: 1px solid rgba(0, 122, 204, 0.4);
-  border-radius: 3px;
-  color: #007acc;
-  font-size: 11px;
-  font-weight: 500;
-  margin-left: 8px;
-`;
+
 
 // Format token display - show k for thousands with 1 decimal
 const formatTokens = (tokens: number) =>
@@ -512,10 +500,7 @@ export const CostsTab: React.FC = () => {
                 <>
                   <ConsumerRow>
                     <ConsumerHeader>
-                      <ConsumerName>
-                        Token Usage
-                        {is1MActive && <Context1MBadge>1M Context</Context1MBadge>}
-                      </ConsumerName>
+                      <ConsumerName>Token Usage</ConsumerName>
                       <ConsumerTokens>
                         {totalDisplay}
                         {maxDisplay}
