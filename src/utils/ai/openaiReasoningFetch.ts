@@ -4,6 +4,10 @@
  * Intercepts requests to OpenAI's Responses API and strips problematic itemId
  * references that cause "reasoning without following item" errors.
  *
+ * Works with any OpenAI-compatible endpoint (api.openai.com, Azure OpenAI,
+ * OpenRouter, custom proxies) by detecting Responses API requests via the
+ * presence of an 'input' field containing messages.
+ *
  * This works at the HTTP level, which allows us to fix multi-step execution
  * that happens internally in the SDK (which middleware cannot intercept).
  *
@@ -96,15 +100,16 @@ export function createOpenAIReasoningFetch(
       url = input.url;
     }
 
-    // Only intercept OpenAI API requests
-    if (url.includes("api.openai.com") && init?.method === "POST") {
+    // Only intercept POST requests with JSON bodies
+    if (init?.method === "POST") {
       try {
         // Parse request body
         const body = init.body;
         if (body && typeof body === "string") {
           const parsed = JSON.parse(body) as unknown;
 
-          // Check if this is a Responses API request (has 'input' field with messages)
+          // Detect OpenAI Responses API requests by checking for 'input' field with messages
+          // This works for api.openai.com, Azure OpenAI, OpenRouter, and custom endpoints
           if (
             typeof parsed === "object" &&
             parsed !== null &&
