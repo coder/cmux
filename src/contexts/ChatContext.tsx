@@ -24,7 +24,6 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({
   messages,
   cmuxMessages,
   model,
-  
 }) => {
   const [stats, setStats] = useState<ChatStats | null>(null);
   const [isCalculating, setIsCalculating] = useState(false);
@@ -89,7 +88,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({
   }, [cmuxMessages, model]);
 
   return (
-    <ChatContext.Provider value={{ messages, stats, isCalculating}}>
+    <ChatContext.Provider value={{ messages, stats, isCalculating }}>
       {children}
     </ChatContext.Provider>
   );
