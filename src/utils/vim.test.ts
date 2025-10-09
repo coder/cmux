@@ -24,358 +24,39 @@ import { describe, expect, test } from "@jest/globals";
 import * as vim from "./vim";
 
 /**
- * Test state representing a Vim session at a point in time
- */
-interface VimState {
-  text: string;
-  cursor: number; // cursor position (index in text)
-  mode: vim.VimMode;
-  yankBuffer: string;
-  desiredColumn: number | null;
-}
-
-/**
  * Execute a sequence of Vim commands and return the final state.
- * This simulates how the VimTextArea component processes key events.
+ * Uses the real handleKeyPress() function from vim.ts for complete integration testing.
  */
-function executeVimCommands(initial: VimState, keys: string[]): VimState {
+function executeVimCommands(initial: vim.VimState, keys: string[]): vim.VimState {
   let state = { ...initial };
-  let pendingOp: { op: "d" | "c" | "y"; at: number } | null = null;
-  let pendingTextObj: "i" | null = null; // For text objects like "iw"
 
   for (const key of keys) {
-    // Mode transitions
-    if (key === "Escape" || key === "Ctrl-[") {
-      // Enter normal mode, clamp cursor to valid position
-      const maxCursor = Math.max(0, state.text.length - 1);
-      state.cursor = Math.min(state.cursor, maxCursor);
-      state.mode = "normal";
-      pendingOp = null;
-      continue;
+    // Parse key string to extract modifiers
+    const ctrl = key.startsWith("Ctrl-");
+    const actualKey = ctrl ? key.slice(5) : key;
+
+    const result = vim.handleKeyPress(state, actualKey, { ctrl });
+    
+    if (result.handled) {
+      // Ignore undo/redo actions in tests (they require browser execCommand)
+      if (result.action === "undo" || result.action === "redo") {
+        continue;
+      }
+      state = result.newState;
     }
-
-    if (state.mode === "insert") {
-      // In insert mode, only ESC matters for these tests
-      continue;
-    }
-
-    // Normal mode commands
-    if (state.mode === "normal") {
-      // Handle special shortcuts without pending operator
-      if (key === "D" && !pendingOp) {
-        const result = applyOperatorMotion(state, "d", "$", state.cursor);
-        state = result;
-        continue;
-      }
-      if (key === "C" && !pendingOp) {
-        const result = applyOperatorMotion(state, "c", "$", state.cursor);
-        state = result;
-        continue;
-      }
-
-      // Operators (must check before motions since motions can also be operator targets)
-      if (["d", "c", "y"].includes(key)) {
-        if (pendingOp && pendingOp.op === key) {
-          // Double operator: operate on line (dd, cc, yy)
-          const cursor = state.cursor;
-          if (key === "d") {
-            const result = vim.deleteLine(state.text, cursor, state.yankBuffer);
-            state.text = result.text;
-            state.cursor = result.cursor;
-            state.yankBuffer = result.yankBuffer;
-          } else if (key === "c") {
-            const result = vim.changeLine(state.text, cursor, state.yankBuffer);
-            state.text = result.text;
-            state.cursor = result.cursor;
-            state.yankBuffer = result.yankBuffer;
-            state.mode = "insert";
-          } else if (key === "y") {
-            state.yankBuffer = vim.yankLine(state.text, cursor);
-          }
-          pendingOp = null;
-        } else {
-          // Start pending operator
-          pendingOp = { op: key as "d" | "c" | "y", at: state.cursor };
-        }
-        continue;
-      }
-
-      // Operator motions (check if we have a pending operator before treating as navigation)
-      if (pendingOp) {
-        const { op, at } = pendingOp;
-        let motion: "w" | "b" | "$" | "0" | null = null;
-        let textObject: "iw" | null = null;
-
-        // Handle text objects (two-key sequences)
-        if (pendingTextObj === "i") {
-          if (key === "w") {
-            textObject = "iw";
-            pendingTextObj = null;
-          }
-        } else if (key === "i") {
-          // Start text object sequence
-          pendingTextObj = "i";
-          continue;
-        }
-
-        // Handle motions (only if no text object was set)
-        if (!textObject) {
-          if (key === "w" || key === "W") motion = "w";
-          else if (key === "b" || key === "B") motion = "b";
-          else if (key === "$") motion = "$";
-          else if (key === "0") motion = "0";
-          else if (key === "D") {
-            motion = "$";
-            pendingOp.op = "d";
-          } else if (key === "C") {
-            motion = "$";
-            pendingOp.op = "c";
-          }
-        }
-
-        // Apply motion or text object
-        if (motion) {
-          const result = applyOperatorMotion(state, op, motion, at);
-          state = result;
-          pendingOp = null;
-          pendingTextObj = null;
-          continue;
-        } else if (textObject) {
-          const result = applyOperatorTextObject(state, op, textObject, at);
-          state = result;
-          pendingOp = null;
-          pendingTextObj = null;
-          continue;
-        }
-        // If not a motion or text object, fall through (cancels pending op)
-        pendingOp = null;
-        pendingTextObj = null;
-      }
-
-      // Insert mode entry
-      if (["i", "a", "I", "A", "o", "O"].includes(key)) {
-        const result = vim.getInsertCursorPos(
-          state.text,
-          state.cursor,
-          key as "i" | "a" | "I" | "A" | "o" | "O",
-        );
-        state.text = result.text;
-        state.cursor = result.cursor;
-        state.mode = "insert";
-        continue;
-      }
-
-      // Navigation (only without pending operator)
-      if (key === "h") {
-        state.cursor = Math.max(0, state.cursor - 1);
-        continue;
-      }
-      if (key === "l") {
-        state.cursor = Math.min(state.text.length - 1, state.cursor + 1);
-        continue;
-      }
-      if (key === "j") {
-        const result = vim.moveVertical(state.text, state.cursor, 1, state.desiredColumn);
-        state.cursor = result.cursor;
-        state.desiredColumn = result.desiredColumn;
-        continue;
-      }
-      if (key === "k") {
-        const result = vim.moveVertical(state.text, state.cursor, -1, state.desiredColumn);
-        state.cursor = result.cursor;
-        state.desiredColumn = result.desiredColumn;
-        continue;
-      }
-      if (key === "w" || key === "W") {
-        state.cursor = vim.moveWordForward(state.text, state.cursor);
-        state.desiredColumn = null;
-        continue;
-      }
-      if (key === "b" || key === "B") {
-        state.cursor = vim.moveWordBackward(state.text, state.cursor);
-        state.desiredColumn = null;
-        continue;
-      }
-      if (key === "0") {
-        const { lineStart } = vim.getLineBounds(state.text, state.cursor);
-        state.cursor = lineStart;
-        state.desiredColumn = null;
-        continue;
-      }
-      if (key === "$") {
-        const { lineEnd } = vim.getLineBounds(state.text, state.cursor);
-        // Special case: if lineEnd points to newline and we're not at it, go to char before newline
-        // If line is empty (lineEnd == lineStart), stay at lineStart
-        const { lineStart } = vim.getLineBounds(state.text, state.cursor);
-        if (lineEnd > lineStart && state.text[lineEnd - 1] !== "\n") {
-          state.cursor = lineEnd - 1; // Last char of line
-        } else if (lineEnd > lineStart) {
-          state.cursor = lineEnd - 1; // Char before newline
-        } else {
-          state.cursor = lineStart; // Empty line
-        }
-        state.desiredColumn = null;
-        continue;
-      }
-
-      // Simple edits
-      if (key === "x") {
-        const result = vim.deleteCharUnderCursor(state.text, state.cursor, state.yankBuffer);
-        state.text = result.text;
-        state.cursor = result.cursor;
-        state.yankBuffer = result.yankBuffer;
-        continue;
-      }
-
-      // Paste
-      if (key === "p") {
-        // In normal mode, cursor is ON a character. Paste after means after cursor+1.
-        const result = vim.pasteAfter(state.text, state.cursor + 1, state.yankBuffer);
-        state.text = result.text;
-        state.cursor = result.cursor - 1; // Adjust back to normal mode positioning
-        continue;
-      }
-      if (key === "P") {
-        const result = vim.pasteBefore(state.text, state.cursor, state.yankBuffer);
-        state.text = result.text;
-        state.cursor = result.cursor;
-        continue;
-      }
-
-
-    }
+    // If not handled, browser would handle it (e.g., typing in insert mode)
   }
 
   return state;
 }
-
-/**
- * Apply an operator-motion combination (e.g., d$, cw, y0)
- */
-function applyOperatorMotion(
-  state: VimState,
-  op: "d" | "c" | "y",
-  motion: "w" | "b" | "$" | "0",
-  at: number,
-): VimState {
-  const { text, yankBuffer } = state;
-  let start: number;
-  let end: number;
-
-  // Calculate range based on motion
-  // Note: ranges are exclusive on the end [start, end)
-  if (motion === "w") {
-    start = at;
-    end = vim.moveWordForward(text, at);
-  } else if (motion === "b") {
-    start = vim.moveWordBackward(text, at);
-    end = at;
-  } else if (motion === "$") {
-    start = at;
-    const { lineEnd } = vim.getLineBounds(text, at);
-    end = lineEnd;
-  } else if (motion === "0") {
-    const { lineStart } = vim.getLineBounds(text, at);
-    start = lineStart;
-    end = at;
-  } else {
-    return state;
-  }
-
-  // Normalize range
-  if (start > end) [start, end] = [end, start];
-
-  // Apply operator
-  if (op === "d") {
-    const result = vim.deleteRange(text, start, end, true, yankBuffer);
-    return {
-      ...state,
-      text: result.text,
-      cursor: result.cursor,
-      yankBuffer: result.yankBuffer,
-      desiredColumn: null,
-    };
-  } else if (op === "c") {
-    const result = vim.deleteRange(text, start, end, true, yankBuffer);
-    return {
-      ...state,
-      text: result.text,
-      cursor: result.cursor,
-      yankBuffer: result.yankBuffer,
-      mode: "insert",
-      desiredColumn: null,
-    };
-  } else if (op === "y") {
-    const yanked = text.slice(start, end);
-    return {
-      ...state,
-      yankBuffer: yanked,
-      desiredColumn: null,
-    };
-  }
-
-  return state;
-}
-
-
-/**
- * Apply an operator with a text object (e.g., diw, ciw, yiw)
- */
-function applyOperatorTextObject(
-  state: VimState,
-  op: "d" | "c" | "y",
-  textObject: "iw",
-  at: number,
-): VimState {
-  const { text, yankBuffer } = state;
-
-  if (textObject === "iw") {
-    // Inner word: get word bounds at cursor position
-    const { start, end } = vim.wordBoundsAt(text, at);
-
-    // Apply operator
-    if (op === "d") {
-      const result = vim.deleteRange(text, start, end, true, yankBuffer);
-      return {
-        ...state,
-        text: result.text,
-        cursor: result.cursor,
-        yankBuffer: result.yankBuffer,
-        desiredColumn: null,
-      };
-    } else if (op === "c") {
-      const result = vim.deleteRange(text, start, end, true, yankBuffer);
-      return {
-        ...state,
-        text: result.text,
-        cursor: result.cursor,
-        yankBuffer: result.yankBuffer,
-        mode: "insert",
-        desiredColumn: null,
-      };
-    } else if (op === "y") {
-      const yanked = text.slice(start, end);
-      return {
-        ...state,
-        yankBuffer: yanked,
-        desiredColumn: null,
-      };
-    }
-  }
-
-  return state;
-}
-
-// =============================================================================
-// Integration Tests for Complete Vim Commands
-// =============================================================================
 
 describe("Vim Command Integration Tests", () => {
-  const initialState: VimState = {
+  const initialState: vim.VimState = {
     text: "",
     cursor: 0,
     mode: "insert",
     yankBuffer: "",
+    pendingOp: null,
     desiredColumn: null,
   };
 
