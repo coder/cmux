@@ -36,6 +36,7 @@ interface VimState {
 function executeVimCommands(initial: VimState, keys: string[]): VimState {
   let state = { ...initial };
   let pendingOp: { op: "d" | "c" | "y"; at: number } | null = null;
+  let pendingTextObj: "i" | null = null; // For text objects like "iw"
 
   for (const key of keys) {
     // Mode transitions
@@ -98,27 +99,52 @@ function executeVimCommands(initial: VimState, keys: string[]): VimState {
       if (pendingOp) {
         const { op, at } = pendingOp;
         let motion: "w" | "b" | "$" | "0" | null = null;
+        let textObject: "iw" | null = null;
 
-        if (key === "w" || key === "W") motion = "w";
-        else if (key === "b" || key === "B") motion = "b";
-        else if (key === "$") motion = "$";
-        else if (key === "0") motion = "0";
-        else if (key === "D") {
-          motion = "$";
-          pendingOp.op = "d";
-        } else if (key === "C") {
-          motion = "$";
-          pendingOp.op = "c";
+        // Handle text objects (two-key sequences)
+        if (pendingTextObj === "i") {
+          if (key === "w") {
+            textObject = "iw";
+            pendingTextObj = null;
+          }
+        } else if (key === "i") {
+          // Start text object sequence
+          pendingTextObj = "i";
+          continue;
         }
 
+        // Handle motions (only if no text object was set)
+        if (!textObject) {
+          if (key === "w" || key === "W") motion = "w";
+          else if (key === "b" || key === "B") motion = "b";
+          else if (key === "$") motion = "$";
+          else if (key === "0") motion = "0";
+          else if (key === "D") {
+            motion = "$";
+            pendingOp.op = "d";
+          } else if (key === "C") {
+            motion = "$";
+            pendingOp.op = "c";
+          }
+        }
+
+        // Apply motion or text object
         if (motion) {
           const result = applyOperatorMotion(state, op, motion, at);
           state = result;
           pendingOp = null;
+          pendingTextObj = null;
+          continue;
+        } else if (textObject) {
+          const result = applyOperatorTextObject(state, op, textObject, at);
+          state = result;
+          pendingOp = null;
+          pendingTextObj = null;
           continue;
         }
-        // If not a motion, fall through to handle as regular navigation (cancels pending op)
+        // If not a motion or text object, fall through (cancels pending op)
         pendingOp = null;
+        pendingTextObj = null;
       }
 
       // Insert mode entry
@@ -281,6 +307,55 @@ function applyOperatorMotion(
       yankBuffer: yanked,
       desiredColumn: null,
     };
+  }
+
+  return state;
+}
+
+
+/**
+ * Apply an operator with a text object (e.g., diw, ciw, yiw)
+ */
+function applyOperatorTextObject(
+  state: VimState,
+  op: "d" | "c" | "y",
+  textObject: "iw",
+  at: number,
+): VimState {
+  const { text, yankBuffer } = state;
+
+  if (textObject === "iw") {
+    // Inner word: get word bounds at cursor position
+    const { start, end } = vim.wordBoundsAt(text, at);
+
+    // Apply operator
+    if (op === "d") {
+      const result = vim.deleteRange(text, start, end, true, yankBuffer);
+      return {
+        ...state,
+        text: result.text,
+        cursor: result.cursor,
+        yankBuffer: result.yankBuffer,
+        desiredColumn: null,
+      };
+    } else if (op === "c") {
+      const result = vim.deleteRange(text, start, end, true, yankBuffer);
+      return {
+        ...state,
+        text: result.text,
+        cursor: result.cursor,
+        yankBuffer: result.yankBuffer,
+        mode: "insert",
+        desiredColumn: null,
+      };
+    } else if (op === "y") {
+      const yanked = text.slice(start, end);
+      return {
+        ...state,
+        yankBuffer: yanked,
+        desiredColumn: null,
+      };
+    }
   }
 
   return state;
@@ -627,5 +702,33 @@ describe("Vim Command Integration Tests", () => {
       );
       expect(state.text).toBe("hello");
     });
+
+  });
+
+  describe("Reported Issues", () => {
+    test("issue #1: ciw should delete inner word correctly", () => {
+      // User reported: "ciw sometimes leaves a blank character highlighted"
+      // Root cause: test harness was treating 'w' in 'ciw' as a motion, not text object
+      // This caused 'ciw' to behave like 'cw' (change word forward)
+      const state = executeVimCommands(
+        { ...initialState, text: "hello world foo", cursor: 6, mode: "normal" },
+        ["c", "i", "w"],
+      );
+      expect(state.text).toBe("hello  foo"); // Only "world" deleted, both spaces remain
+      expect(state.mode).toBe("insert");
+      expect(state.cursor).toBe(6); // Cursor at start of deleted word
+    });
+
+    test("issue #2: o on last line should insert line below", () => {
+      // In Vim: o opens new line below current line, even on last line
+      const state = executeVimCommands(
+        { ...initialState, text: "first\nsecond\nthird", cursor: 15, mode: "normal" },
+        ["o"],
+      );
+      expect(state.mode).toBe("insert");
+      expect(state.text).toBe("first\nsecond\nthird\n"); // New line added
+      expect(state.cursor).toBe(19); // Cursor on new line
+    });
+
   });
 });
