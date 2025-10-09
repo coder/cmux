@@ -367,15 +367,11 @@ function handleInsertModeKey(state: VimState, key: string, modifiers: KeyModifie
   if (key === "Escape" || (key === "[" && modifiers.ctrl)) {
     // Clamp cursor to valid position (can't be past end in normal mode)
     const normalCursor = Math.min(state.cursor, Math.max(0, state.text.length - 1));
-    return {
-      handled: true,
-      newState: {
-        ...state,
-        mode: "normal",
-        cursor: normalCursor,
-        desiredColumn: null,
-      },
-    };
+    return handleKey(state, {
+      mode: "normal",
+      cursor: normalCursor,
+      desiredColumn: null,
+    });
   }
 
   // Let browser handle all other keys in insert mode
@@ -452,70 +448,41 @@ function handlePendingOperator(
 
   // Handle doubled operator (dd, yy, cc) -> line operation
   if (args.length === 0 && key === pending.op) {
-    return {
-      handled: true,
-      newState: applyOperatorMotion(state, pending.op, "line"),
-    };
+    return { handled: true, newState: applyOperatorMotion(state, pending.op, "line") };
   }
 
   // Handle text objects (currently just "iw")
   if (args.length === 1 && args[0] === "i" && key === "w") {
-    return {
-      handled: true,
-      newState: applyOperatorTextObject(state, pending.op, "iw"),
-    };
+    return { handled: true, newState: applyOperatorTextObject(state, pending.op, "iw") };
   }
 
   // Handle motions when no text object is pending
   if (args.length === 0) {
     // Word motions
     if (key === "w" || key === "W") {
-      return {
-        handled: true,
-        newState: applyOperatorMotion(state, pending.op, "w"),
-      };
+      return { handled: true, newState: applyOperatorMotion(state, pending.op, "w") };
     }
     if (key === "b" || key === "B") {
-      return {
-        handled: true,
-        newState: applyOperatorMotion(state, pending.op, "b"),
-      };    }
+      return { handled: true, newState: applyOperatorMotion(state, pending.op, "b") };
+    }
     if (key === "e" || key === "E") {
-      return {
-        handled: true,
-        newState: applyOperatorMotion(state, pending.op, "e"),
-      };
+      return { handled: true, newState: applyOperatorMotion(state, pending.op, "e") };
     }
     // Line motions
     if (key === "$" || key === "End") {
-      return {
-        handled: true,
-        newState: applyOperatorMotion(state, pending.op, "$"),
-      };
+      return { handled: true, newState: applyOperatorMotion(state, pending.op, "$") };
     }
     if (key === "0" || key === "Home") {
-      return {
-        handled: true,
-        newState: applyOperatorMotion(state, pending.op, "0"),
-      };
+      return { handled: true, newState: applyOperatorMotion(state, pending.op, "0") };
     }
     // Text object prefix
     if (key === "i") {
-      return {
-        handled: true,
-        newState: {
-          ...state,
-          pendingOp: { op: pending.op, at: now, args: ["i"] },
-        },
-      };
+      return handleKey(state, { pendingOp: { op: pending.op, at: now, args: ["i"] } });
     }
   }
 
   // Unknown motion - cancel pending operation
-  return {
-    handled: true,
-    newState: { ...state, pendingOp: null },
-  };
+  return handleKey(state, { pendingOp: null });
 }
 
 /**
@@ -530,6 +497,16 @@ function completeOperation(
     ...updates,
     pendingOp: null,
     desiredColumn: null,
+  };
+}
+
+/**
+ * Helper to create a handled key result with updated state.
+ */
+function handleKey(state: VimState, updates: Partial<VimState>): VimKeyResult {
+  return {
+    handled: true,
+    newState: { ...state, ...updates },
   };
 }
 
@@ -690,17 +667,12 @@ function tryEnterInsertMode(state: VimState, key: string): VimKeyResult | null {
   if (!isInsertKey(key)) return null;
 
   const result = getInsertCursorPos(state.text, state.cursor, key);
-  
-  return {
-    handled: true,
-    newState: {
-      ...state,
-      mode: "insert",
-      text: result.text,
-      cursor: result.cursor,
-      desiredColumn: null,
-    },
-  };
+  return handleKey(state, {
+    mode: "insert",
+    text: result.text,
+    cursor: result.cursor,
+    desiredColumn: null,
+  });
 }
 
 /**
@@ -710,75 +682,50 @@ function tryHandleNavigation(state: VimState, key: string): VimKeyResult | null 
   const { text, cursor, desiredColumn } = state;
 
   switch (key) {
-    case "h": {
-      const newCursor = Math.max(0, cursor - 1);
-      return {
-        handled: true,
-        newState: { ...state, cursor: newCursor, desiredColumn: null },
-      };
-    }
-    case "l": {
-      const newCursor = Math.min(cursor + 1, Math.max(0, text.length - 1));
-      return {
-        handled: true,
-        newState: { ...state, cursor: newCursor, desiredColumn: null },
-      };
-    }
+    case "h":
+      return handleKey(state, { cursor: Math.max(0, cursor - 1), desiredColumn: null });
+    
+    case "l":
+      return handleKey(state, { 
+        cursor: Math.min(cursor + 1, Math.max(0, text.length - 1)), 
+        desiredColumn: null 
+      });
+    
     case "j": {
       const result = moveVertical(text, cursor, 1, desiredColumn);
-      return {
-        handled: true,
-        newState: { ...state, cursor: result.cursor, desiredColumn: result.desiredColumn },
-      };
+      return handleKey(state, { cursor: result.cursor, desiredColumn: result.desiredColumn });
     }
+    
     case "k": {
       const result = moveVertical(text, cursor, -1, desiredColumn);
-      return {
-        handled: true,
-        newState: { ...state, cursor: result.cursor, desiredColumn: result.desiredColumn },
-      };
+      return handleKey(state, { cursor: result.cursor, desiredColumn: result.desiredColumn });
     }
+    
     case "w":
-    case "W": {
-      const newCursor = moveWordForward(text, cursor);
-      return {
-        handled: true,
-        newState: { ...state, cursor: newCursor, desiredColumn: null },
-      };
-    }
+    case "W":
+      return handleKey(state, { cursor: moveWordForward(text, cursor), desiredColumn: null });
+    
     case "b":
-    case "B": {
-      const newCursor = moveWordBackward(text, cursor);
-      return {
-        handled: true,
-        newState: { ...state, cursor: newCursor, desiredColumn: null },
-      };    }
+    case "B":
+      return handleKey(state, { cursor: moveWordBackward(text, cursor), desiredColumn: null });
+    
     case "e":
-    case "E": {
-      const newCursor = moveWordEnd(text, cursor);
-      return {
-        handled: true,
-        newState: { ...state, cursor: newCursor, desiredColumn: null },
-      };
-    }
+    case "E":
+      return handleKey(state, { cursor: moveWordEnd(text, cursor), desiredColumn: null });
+    
     case "0":
     case "Home": {
       const { lineStart } = getLineBounds(text, cursor);
-      return {
-        handled: true,
-        newState: { ...state, cursor: lineStart, desiredColumn: null },
-      };
+      return handleKey(state, { cursor: lineStart, desiredColumn: null });
     }
+    
     case "$":
     case "End": {
       const { lineStart, lineEnd } = getLineBounds(text, cursor);
       // In normal mode, $ goes to last character, not after it
       // Special case: empty line stays at lineStart
       const newCursor = lineEnd > lineStart ? lineEnd - 1 : lineStart;
-      return {
-        handled: true,
-        newState: { ...state, cursor: newCursor, desiredColumn: null },
-      };
+      return handleKey(state, { cursor: newCursor, desiredColumn: null });
     }
   }
 
@@ -795,41 +742,31 @@ function tryHandleEdit(state: VimState, key: string): VimKeyResult | null {
     case "x": {
       if (cursor >= text.length) return null;
       const result = deleteCharUnderCursor(text, cursor, yankBuffer);
-      return {
-        handled: true,
-        newState: {
-          ...state,
-          text: result.text,
-          cursor: result.cursor,
-          yankBuffer: result.yankBuffer,
-          desiredColumn: null,
-        },
-      };
+      return handleKey(state, {
+        text: result.text,
+        cursor: result.cursor,
+        yankBuffer: result.yankBuffer,
+        desiredColumn: null,
+      });
     }
+    
     case "p": {
       // In normal mode, cursor is ON a character. Paste AFTER means after that character.
       const result = pasteAfter(text, cursor + 1, yankBuffer);
-      return {
-        handled: true,
-        newState: {
-          ...state,
-          text: result.text,
-          cursor: result.cursor - 1, // Adjust back to normal mode positioning
-          desiredColumn: null,
-        },
-      };
+      return handleKey(state, {
+        text: result.text,
+        cursor: result.cursor - 1, // Adjust back to normal mode positioning
+        desiredColumn: null,
+      });
     }
+    
     case "P": {
       const result = pasteBefore(text, cursor, yankBuffer);
-      return {
-        handled: true,
-        newState: {
-          ...state,
-          text: result.text,
-          cursor: result.cursor,
-          desiredColumn: null,
-        },
-      };
+      return handleKey(state, {
+        text: result.text,
+        cursor: result.cursor,
+        desiredColumn: null,
+      });
     }
   }
 
@@ -842,37 +779,19 @@ function tryHandleEdit(state: VimState, key: string): VimKeyResult | null {
 function tryHandleOperator(state: VimState, key: string, now: number): VimKeyResult | null {
   switch (key) {
     case "d":
-      return {
-        handled: true,
-        newState: {
-          ...state,
-          pendingOp: { op: "d", at: now, args: [] },
-        },
-      };
+      return handleKey(state, { pendingOp: { op: "d", at: now, args: [] } });
+    
     case "c":
-      return {
-        handled: true,
-        newState: {
-          ...state,
-          pendingOp: { op: "c", at: now, args: [] },
-        },
-      };
+      return handleKey(state, { pendingOp: { op: "c", at: now, args: [] } });
+    
     case "y":
-      return {
-        handled: true,
-        newState: {
-          ...state,
-          pendingOp: { op: "y", at: now, args: [] },
-        },
-      };
-    case "D": {
-      const newState = applyOperatorMotion(state, "d", "$");
-      return { handled: true, newState };
-    }
-    case "C": {
-      const newState = applyOperatorMotion(state, "c", "$");
-      return { handled: true, newState };
-    }
+      return handleKey(state, { pendingOp: { op: "y", at: now, args: [] } });
+    
+    case "D":
+      return { handled: true, newState: applyOperatorMotion(state, "d", "$") };
+    
+    case "C":
+      return { handled: true, newState: applyOperatorMotion(state, "c", "$") };
   }
 
   return null;
