@@ -197,11 +197,12 @@ const AIViewInner: React.FC<AIViewProps> = ({
   // Auto-retry state (persisted per workspace, with cross-component sync)
   // Semantics:
   //   true (default): System errors should auto-retry
-  //   false: User stopped this (Ctrl+C), don't auto-retry until manual retry
+  //   false: User stopped this (Ctrl+C), don't auto-retry until user re-engages
   // State transitions are EXPLICIT only:
   //   - User presses Ctrl+C → false
+  //   - User sends a message → true (clear intent: "I'm using this workspace")
   //   - User clicks manual retry button → true
-  // No automatic resets - this prevents initialization bugs and race conditions
+  // No automatic resets on stream events - prevents initialization bugs
   const [autoRetry, setAutoRetry] = usePersistedState<boolean>(
     getAutoRetryKey(workspaceId),
     true, // Default to true
@@ -264,7 +265,11 @@ const AIViewInner: React.FC<AIViewProps> = ({
   const handleMessageSent = useCallback(() => {
     // Enable auto-scroll when user sends a message
     setAutoScroll(true);
-  }, [setAutoScroll]);
+    
+    // Reset autoRetry when user sends a message
+    // User action = clear intent: "I'm actively using this workspace"
+    setAutoRetry(true);
+  }, [setAutoScroll, setAutoRetry]);
 
   const handleClearHistory = useCallback(
     async (percentage = 1.0) => {

@@ -31,12 +31,13 @@ const MAX_DELAY = 60000; // 60 seconds
  * autoRetry State Semantics (Explicit Transitions Only):
  * -------------------------------------------------------
  * - true (default): System errors should auto-retry with exponential backoff
- * - false: User pressed Ctrl+C - don't auto-retry until user manually retries
+ * - false: User pressed Ctrl+C - don't auto-retry until user re-engages
  *
  * State transitions:
- * - User presses Ctrl+C → autoRetry = false (stays false until manual action)
- * - User clicks manual retry → autoRetry = true (re-enables auto-retry)
- * - NO automatic resets when streams start (prevents initialization bugs)
+ * - User presses Ctrl+C → autoRetry = false
+ * - User sends a message → autoRetry = true (clear intent: "I'm using this")
+ * - User clicks manual retry → autoRetry = true
+ * - NO automatic resets on stream events (prevents initialization bugs)
  *
  * Features:
  * - Polling-based: Checks all workspaces every 1 second
@@ -88,10 +89,10 @@ export function useResumeManager(workspaceStates: Map<string, WorkspaceState>) {
     if (retryingRef.current.has(workspaceId)) return false;
 
     // 4. Check exponential backoff timer
-    const retryStateJson = localStorage.getItem(getRetryStateKey(workspaceId));
-    const retryState: RetryState = retryStateJson
-      ? JSON.parse(retryStateJson)
-      : { attempt: 0, retryStartTime: Date.now() - INITIAL_DELAY }; // Make immediately eligible on first check
+    const retryState = readPersistedState<RetryState>(
+      getRetryStateKey(workspaceId),
+      { attempt: 0, retryStartTime: Date.now() - INITIAL_DELAY } // Make immediately eligible on first check
+    );
 
     const { attempt, retryStartTime } = retryState;
     const delay = Math.min(INITIAL_DELAY * Math.pow(2, attempt), MAX_DELAY);
@@ -113,10 +114,10 @@ export function useResumeManager(workspaceStates: Map<string, WorkspaceState>) {
     retryingRef.current.add(workspaceId);
 
     // Read current retry state
-    const retryStateJson = localStorage.getItem(getRetryStateKey(workspaceId));
-    const retryState: RetryState = retryStateJson
-      ? JSON.parse(retryStateJson)
-      : { attempt: 0, retryStartTime: Date.now() };
+    const retryState = readPersistedState<RetryState>(
+      getRetryStateKey(workspaceId),
+      { attempt: 0, retryStartTime: Date.now() }
+    );
 
     const { attempt } = retryState;
 
