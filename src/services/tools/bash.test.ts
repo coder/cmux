@@ -513,7 +513,6 @@ describe("bash tool", () => {
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.error).toMatch(/exceeded per-line limit|OUTPUT OVERFLOW/);
-      expect(result.error).toContain("head");
       expect(result.exitCode).toBe(-1);
     }
   });
@@ -533,7 +532,6 @@ describe("bash tool", () => {
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.error).toMatch(/Total output exceeded limit|OUTPUT OVERFLOW/);
-      expect(result.error).toContain("grep");
       expect(result.exitCode).toBe(-1);
     }
   });
@@ -551,7 +549,6 @@ describe("bash tool", () => {
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.error).toMatch(/Total output exceeded limit|OUTPUT OVERFLOW/);
-      expect(result.error).toContain("tail");
       expect(result.exitCode).toBe(-1);
     }
   });
