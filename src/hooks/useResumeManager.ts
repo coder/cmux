@@ -170,7 +170,14 @@ export function useResumeManager(workspaceStates: Map<string, WorkspaceState>) {
 
     // Backup polling mechanism - check all workspaces every 1 second
     // This is defense-in-depth in case events are missed
+    let pollCount = 0;
     const pollInterval = setInterval(() => {
+      pollCount++;
+      if (pollCount === 1 || pollCount % 10 === 0) {
+        console.log(
+          `[useResumeManager] Polling check #${pollCount} for ${workspaceStatesRef.current.size} workspaces`
+        );
+      }
       for (const [workspaceId] of workspaceStatesRef.current) {
         void attemptResume(workspaceId);
       }
