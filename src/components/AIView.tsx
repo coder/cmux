@@ -13,6 +13,7 @@ import { ThinkingProvider } from "@/contexts/ThinkingContext";
 import { ModeProvider } from "@/contexts/ModeContext";
 import { matchesKeybind, formatKeybind, KEYBINDS, isEditableElement } from "@/utils/ui/keybinds";
 import { useAutoScroll } from "@/hooks/useAutoScroll";
+import { usePersistedState } from "@/hooks/usePersistedState";
 import type { WorkspaceState } from "@/hooks/useWorkspaceAggregators";
 import { StatusIndicator } from "./StatusIndicator";
 import { getModelName } from "@/utils/ai/models";
@@ -193,16 +194,12 @@ const AIViewInner: React.FC<AIViewProps> = ({
     undefined
   );
 
-  // Auto-retry state (persisted per workspace)
-  const [autoRetry, setAutoRetry] = useState<boolean>(() => {
-    const stored = localStorage.getItem(getAutoRetryKey(workspaceId));
-    return stored !== null ? (JSON.parse(stored) as boolean) : true; // Default to true
-  });
-
-  // Persist autoRetry state
-  useEffect(() => {
-    localStorage.setItem(getAutoRetryKey(workspaceId), JSON.stringify(autoRetry));
-  }, [workspaceId, autoRetry]);
+  // Auto-retry state (persisted per workspace, with cross-component sync)
+  const [autoRetry, setAutoRetry] = usePersistedState<boolean>(
+    getAutoRetryKey(workspaceId),
+    true, // Default to true
+    { listener: true } // Enable cross-component synchronization
+  );
 
   // Use auto-scroll hook for scroll management
   const {
