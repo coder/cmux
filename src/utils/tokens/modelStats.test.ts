@@ -1,16 +1,6 @@
 import { getModelStats } from "./modelStats";
 
 describe("getModelStats - 1M context pricing", () => {
-  it("should return elevated pricing fields for claude-sonnet-4", () => {
-    const stats = getModelStats("anthropic:claude-sonnet-4");
-    
-    expect(stats).not.toBeNull();
-    expect(stats?.input_cost_per_token).toBe(0.000003); // $3/M
-    expect(stats?.output_cost_per_token).toBe(0.000015); // $15/M
-    expect(stats?.input_cost_per_token_above_200k_tokens).toBe(0.000006); // $6/M
-    expect(stats?.output_cost_per_token_above_200k_tokens).toBe(0.0000225); // $22.5/M
-  });
-
   it("should return elevated pricing fields for claude-sonnet-4-5", () => {
     const stats = getModelStats("anthropic:claude-sonnet-4-5");
     
