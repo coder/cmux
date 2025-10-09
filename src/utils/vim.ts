@@ -91,6 +91,20 @@ export function getLineBounds(
 }
 
 /**
+ * Move to first non-whitespace character on current line (like '_').
+ */
+export function moveToFirstNonWhitespace(text: string, cursor: number): number {
+  const { lineStart, lineEnd } = getLineBounds(text, cursor);
+  let i = lineStart;
+  while (i < lineEnd && /\s/.test(text[i])) {
+    i++;
+  }
+  // If entire line is whitespace, go to line start
+  return i >= lineEnd ? lineStart : i;
+}
+
+
+/**
  * Move cursor vertically by delta lines, maintaining desiredColumn if provided.
  */
 export function moveVertical(
@@ -126,6 +140,7 @@ export function moveWordForward(text: string, cursor: number): number {
 /**
  * Move cursor to end of current/next word (like 'e').
  * If on a word character, goes to end of current word.
+ * If already at end of word, goes to end of next word.
  * If on whitespace, goes to end of next word.
  */
 export function moveWordEnd(text: string, cursor: number): number {
@@ -135,8 +150,18 @@ export function moveWordEnd(text: string, cursor: number): number {
   let i = cursor;
   const isWord = (ch: string) => /[A-Za-z0-9_]/.test(ch);
 
-  // If on a word char, move to end of this word
+  // If on a word char, check if we're at the end of it
   if (isWord(text[i])) {
+    // If next char is not a word char, we're at the end - move to next word
+    if (i < n - 1 && !isWord(text[i + 1])) {
+      // Skip whitespace to find next word
+      i++;
+      while (i < n - 1 && !isWord(text[i])) i++;
+      // Move to end of next word
+      while (i < n - 1 && isWord(text[i + 1])) i++;
+      return i;
+    }
+    // Not at end yet, move to end of current word
     while (i < n - 1 && isWord(text[i + 1])) i++;
     return i;
   }
@@ -474,6 +499,9 @@ function handlePendingOperator(
     if (key === "0" || key === "Home") {
       return { handled: true, newState: applyOperatorMotion(state, pending.op, "0") };
     }
+    if (key === "_") {
+      return { handled: true, newState: applyOperatorMotion(state, pending.op, "_") };
+    }
     // Text object prefix
     if (key === "i") {
       return handleKey(state, { pendingOp: { op: pending.op, at: now, args: ["i"] } });
@@ -513,7 +541,7 @@ function handleKey(state: VimState, updates: Partial<VimState>): VimKeyResult {
 function getMotionRange(
   text: string,
   cursor: number,
-  motion: "w" | "b" | "e" | "$" | "0" | "line"
+  motion: "w" | "b" | "e" | "$" | "0" | "_" | "line"
 ): { from: number; to: number } | null {
   switch (motion) {
     case "w":
@@ -530,6 +558,16 @@ function getMotionRange(
       const { lineStart } = getLineBounds(text, cursor);
       return { from: lineStart, to: cursor };
     }
+    case "_": {
+      const firstNonWS = moveToFirstNonWhitespace(text, cursor);
+      // d_ deletes from first non-whitespace to cursor (inclusive)
+      // deleteRange expects [from, to) so we add 1 to include the endpoint
+      if (cursor < firstNonWS) {
+        return { from: cursor, to: firstNonWS + 1 };
+      } else {
+        return { from: firstNonWS, to: cursor + 1 };
+      }
+    }
     case "line":
       return null; // Special case: handled separately
   }
@@ -541,7 +579,7 @@ function getMotionRange(
 function applyOperatorMotion(
   state: VimState,
   op: "d" | "c" | "y",
-  motion: "w" | "b" | "e" | "$" | "0" | "line"
+  motion: "w" | "b" | "e" | "$" | "0" | "_" | "line"
 ): VimState {
   const { text, cursor, yankBuffer } = state;
 
@@ -710,6 +748,9 @@ function tryHandleNavigation(state: VimState, key: string): VimKeyResult | null 
       const { lineStart } = getLineBounds(text, cursor);
       return handleKey(state, { cursor: lineStart, desiredColumn: null });
     }
+
+    case "_":
+      return handleKey(state, { cursor: moveToFirstNonWhitespace(text, cursor), desiredColumn: null });
 
     case "$":
     case "End": {
