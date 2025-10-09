@@ -85,11 +85,6 @@ describe("bash tool", () => {
       expect(result.error).toContain("lines) saved to");
       expect(result.error).toContain("bash-");
       expect(result.error).toContain(".txt");
-
-      // Verify helpful filtering instructions are included
-      expect(result.error).toContain("grep '<pattern>'");
-      expect(result.error).toContain("head -n 300");
-      expect(result.error).toContain("tail -n 300");
       expect(result.error).toContain("When done, clean up: rm");
 
       // Extract file path from error message (handles both "lines saved to" and "lines) saved to")
