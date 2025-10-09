@@ -221,6 +221,7 @@ export class IpcMain {
                   normalizedError.includes("no such file");
 
                 if (looksLikeMissingWorktree) {
+                  // Path already missing - prune and continue with deletion
                   const pruneResult = await pruneWorktrees(foundProjectPath);
                   if (!pruneResult.success) {
                     log.info(
@@ -229,14 +230,25 @@ export class IpcMain {
                       }`
                     );
                   }
+                  // Path is gone, safe to delete temp dir
+                  void fsPromises.rm(tempDir, { recursive: true, force: true }).catch((err) => {
+                    log.info(`Failed to delete temp workspace directory ${tempDir}: ${String(err)}`);
+                  });
+                } else {
+                  // Real git error (e.g., uncommitted changes) - rollback the rename and return error
+                  await fsPromises.rename(tempDir, workspacePath).catch((rollbackErr) => {
+                    log.info(
+                      `Failed to rollback workspace rename after git error: ${String(rollbackErr)}`
+                    );
+                  });
+                  return gitResult;
                 }
-                // Continue even if git cleanup fails - we'll delete the temp dir anyway
+              } else {
+                // Git removal succeeded - delete the temp directory in the background
+                void fsPromises.rm(tempDir, { recursive: true, force: true }).catch((err) => {
+                  log.info(`Failed to delete temp workspace directory ${tempDir}: ${String(err)}`);
+                });
               }
-
-              // Delete the temp directory in the background (don't await)
-              void fsPromises.rm(tempDir, { recursive: true, force: true }).catch((err) => {
-                log.info(`Failed to delete temp workspace directory ${tempDir}: ${String(err)}`);
-              });
             } catch (renameError) {
               // If rename fails, fall back to direct deletion
               log.info(
