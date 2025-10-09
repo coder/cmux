@@ -27,6 +27,7 @@ When documentation shows `Ctrl`, it means:
 | Focus chat input       | `a` or `i`    |
 | Send message           | `Enter`       |
 | New line in message    | `Shift+Enter` |
+| Cancel editing message | `Ctrl+Q`      |
 | Jump to bottom of chat | `Shift+G`     |
 | Change model           | `Ctrl+/`      |
 

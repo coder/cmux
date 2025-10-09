@@ -23,10 +23,11 @@ import { matchesKeybind, formatKeybind, KEYBINDS, isEditableElement } from "@/ut
 import { defaultModel } from "@/utils/ai/models";
 import { ModelSelector, type ModelSelectorRef } from "./ModelSelector";
 import { useModelLRU } from "@/hooks/useModelLRU";
+import { VimTextArea } from "./VimTextArea";
 
 const InputSection = styled.div`
   position: relative;
-  padding: 15px;
+  padding: 5px 15px 15px 15px; /* Reduced top padding from 15px to 5px */
   background: #252526;
   border-top: 1px solid #3e3e42;
   display: flex;
@@ -40,39 +41,7 @@ const InputControls = styled.div`
   align-items: flex-end;
 `;
 
-const InputField = styled.textarea<{
-  isEditing?: boolean;
-  canInterrupt?: boolean;
-  mode: UIMode;
-}>`
-  flex: 1;
-  background: ${(props) => (props.isEditing ? "var(--color-editing-mode-alpha)" : "#1e1e1e")};
-  border: 1px solid ${(props) => (props.isEditing ? "var(--color-editing-mode)" : "#3e3e42")};
-  color: #d4d4d4;
-  padding: 8px 12px;
-  border-radius: 4px;
-  font-family: inherit;
-  font-size: 13px;
-  resize: none;
-  min-height: 36px;
-  max-height: 200px;
-  overflow-y: auto;
-  max-height: 120px;
-
-  &:focus {
-    outline: none;
-    border-color: ${(props) =>
-      props.isEditing
-        ? "var(--color-editing-mode)"
-        : props.mode === "plan"
-          ? "var(--color-plan-mode)"
-          : "var(--color-exec-mode)"};
-  }
-
-  &::placeholder {
-    color: #6b6b6b;
-  }
-`;
+// Input now rendered by VimTextArea; styles moved there
 
 const ModeToggles = styled.div`
   display: flex;
@@ -670,21 +639,24 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       return;
     }
 
-    // Handle cancel/escape
-    if (matchesKeybind(e, KEYBINDS.CANCEL)) {
-      const isFocused = document.activeElement === inputRef.current;
-      e.preventDefault();
-
-      // Cancel editing if in edit mode
+    // Handle cancel edit (Ctrl+Q)
+    if (matchesKeybind(e, KEYBINDS.CANCEL_EDIT)) {
       if (editingMessage && onCancelEdit) {
+        e.preventDefault();
         onCancelEdit();
+        const isFocused = document.activeElement === inputRef.current;
+        if (isFocused) {
+          inputRef.current?.blur();
+        }
+        return;
       }
+    }
 
-      if (isFocused) {
-        inputRef.current?.blur();
-      }
-
-      return;
+    // Handle escape - let VimTextArea handle it (for Vim mode transitions)
+    // Edit canceling is handled by Ctrl+Q above
+    // Stream interruption is handled by Ctrl+C (INTERRUPT_STREAM keybind)
+    if (matchesKeybind(e, KEYBINDS.CANCEL)) {
+      // Do not preventDefault here: allow VimTextArea or other handlers (like suggestions) to process ESC
     }
 
     // Don't handle keys if command suggestions are visible
@@ -730,7 +702,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   })();
 
   return (
-    <InputSection>
+    <InputSection data-component="ChatInputSection">
       <ChatInputToast toast={toast} onDismiss={handleToastDismiss} />
       <CommandSuggestions
         suggestions={commandSuggestions}
@@ -738,29 +710,25 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         onDismiss={() => setShowCommandSuggestions(false)}
         isVisible={showCommandSuggestions}
       />
-      <InputControls>
-        <InputField
+      <InputControls data-component="ChatInputControls">
+        <VimTextArea
           ref={inputRef}
           value={input}
           isEditing={!!editingMessage}
           mode={mode}
-          onChange={(e) => {
-            const newValue = e.target.value;
-            setInput(newValue);
-            // Auto-resize textarea
-            e.target.style.height = "auto";
-            e.target.style.height = Math.min(e.target.scrollHeight, 200) + "px";
-
-            // Don't clear toast when typing - let user dismiss it manually or it auto-dismisses
-          }}
+          onChange={setInput}
           onKeyDown={handleKeyDown}
+          suppressKeys={showCommandSuggestions ? COMMAND_SUGGESTION_KEYS : undefined}
           placeholder={placeholder}
           disabled={disabled || isSending || isCompacting}
-          canInterrupt={canInterrupt}
         />
       </InputControls>
-      <ModeToggles>
-        {editingMessage && <EditingIndicator>Editing message (ESC to cancel)</EditingIndicator>}
+      <ModeToggles data-component="ChatModeToggles">
+        {editingMessage && (
+          <EditingIndicator>
+            Editing message ({formatKeybind(KEYBINDS.CANCEL_EDIT)} to cancel)
+          </EditingIndicator>
+        )}
         <ModeTogglesRow>
           <ChatToggles workspaceId={workspaceId} modelString={preferredModel}>
             <ModelDisplayWrapper>

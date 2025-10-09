@@ -186,15 +186,15 @@ const Arrow = styled.div`
 
 export const HelpIndicator = styled.span`
   color: #666666;
-  font-size: 8px;
+  font-size: 7px;
   cursor: help;
   display: inline-block;
   vertical-align: baseline;
   border: 1px solid #666666;
   border-radius: 50%;
-  width: 11px;
-  height: 11px;
-  line-height: 9px;
+  width: 10px;
+  height: 10px;
+  line-height: 8px;
   text-align: center;
   font-weight: bold;
   margin-bottom: 2px;

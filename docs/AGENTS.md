@@ -95,7 +95,19 @@ Verify with React DevTools Profiler - MarkdownCore should only re-render when co
 - `~/.cmux/src/<project_name>/<branch>` - Workspace directories for git worktrees
 - `~/.cmux/sessions/<workspace_id>/chat.jsonl` - Session chat histories
 
-## Docs
+## Documentation Guidelines
+
+**Free-floating markdown docs are not permitted.** Documentation must be organized:
+
+- **User-facing docs** → `./docs/` directory
+  - **IMPORTANT**: Read `docs/README.md` first before writing user-facing documentation
+  - User docs are built with mdbook and deployed to https://cmux.io
+  - Must be added to `docs/SUMMARY.md` to appear in the docs
+  - Use standard markdown + mermaid diagrams
+- **Developer docs** → inline with the code its documenting as comments. Consider them notes as notes to future Assistants to understand the logic more quickly. 
+**DO NOT** create standalone documentation files in the project root or random locations.
+
+### External API Docs
 
 DO NOT visit https://sdk.vercel.ai/docs/ai-sdk-core. All of that content is already
 in `./ai-sdk-docs/**.mdx`.
