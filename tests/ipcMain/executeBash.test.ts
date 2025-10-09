@@ -300,4 +300,56 @@ describeIntegration("IpcMain executeBash integration tests", () => {
     },
     15000
   );
+
+  test.concurrent(
+    "should set GIT_TERMINAL_PROMPT=0 to prevent credential prompts",
+    async () => {
+      const env = await createTestEnvironment();
+      const tempGitRepo = await createTempGitRepo();
+
+      try {
+        // Create a workspace
+        const createResult = await env.mockIpcRenderer.invoke(
+          IPC_CHANNELS.WORKSPACE_CREATE,
+          tempGitRepo,
+          "test-git-env"
+        );
+        expect(createResult.success).toBe(true);
+        const workspaceId = createResult.metadata.id;
+
+        // Verify GIT_TERMINAL_PROMPT is set to 0
+        const gitEnvResult = await env.mockIpcRenderer.invoke(
+          IPC_CHANNELS.WORKSPACE_EXECUTE_BASH,
+          workspaceId,
+          'echo "GIT_TERMINAL_PROMPT=$GIT_TERMINAL_PROMPT"'
+        );
+
+        expect(gitEnvResult.success).toBe(true);
+        expect(gitEnvResult.data.success).toBe(true);
+        expect(gitEnvResult.data.output).toContain("GIT_TERMINAL_PROMPT=0");
+        expect(gitEnvResult.data.exitCode).toBe(0);
+
+        // Verify that git fetch with invalid remote doesn't hang (should fail quickly)
+        // This simulates a credential issue - git should fail immediately instead of prompting
+        const fetchResult = await env.mockIpcRenderer.invoke(
+          IPC_CHANNELS.WORKSPACE_EXECUTE_BASH,
+          workspaceId,
+          "git fetch https://invalid-remote-that-does-not-exist-12345.com/repo.git 2>&1 || true",
+          { timeout_secs: 5 }
+        );
+
+        // Should complete quickly (not hang waiting for credentials)
+        expect(fetchResult.success).toBe(true);
+        // Command should complete within timeout - the "|| true" ensures success even if fetch fails
+        expect(fetchResult.data.success).toBe(true);
+
+        // Clean up
+        await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, workspaceId);
+      } finally {
+        await cleanupTestEnvironment(env);
+        await cleanupTempGitRepo(tempGitRepo);
+      }
+    },
+    15000
+  );
 });
