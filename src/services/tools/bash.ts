@@ -56,6 +56,17 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
         };
       }
 
+      // Validate timeout_secs is present and valid
+      if (timeout_secs === undefined || timeout_secs === null || timeout_secs <= 0) {
+        return {
+          success: false,
+          error:
+            "timeout_secs parameter is missing or invalid. This likely indicates a malformed tool call.",
+          exitCode: -1,
+          wall_duration_ms: 0,
+        };
+      }
+
       const startTime = performance.now();
       const normalizedMaxLines = Math.max(1, Math.floor(max_lines));
       const effectiveMaxLines = Math.min(normalizedMaxLines, BASH_HARD_MAX_LINES);
