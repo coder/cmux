@@ -552,8 +552,11 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
         if (e.key === "Escape" || (e.key === "[" && e.ctrlKey)) {
           e.preventDefault();
           setVimMode("normal");
-          // In normal mode, update the visual block cursor immediately
-          setTimeout(() => setCursor(withSelection().start), 0);
+          // In normal mode, cursor should be ON a character, not after it
+          // Move back one if we're past the end of text
+          const pos = withSelection().start;
+          const normalPos = Math.min(pos, Math.max(0, value.length - 1));
+          setTimeout(() => setCursor(normalPos), 0);
           return;
         }
         // Otherwise, allow browser default typing behavior
