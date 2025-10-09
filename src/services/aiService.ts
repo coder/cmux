@@ -365,12 +365,14 @@ export class AIService extends EventEmitter {
       // Type assertion needed because CmuxMessage has custom tool parts for interrupted tools
       // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
       const modelMessages = convertToModelMessages(messagesWithSentinel as any);
+      log.debug_obj(`${workspaceId}/2_model_messages.json`, modelMessages);
 
       // Apply ModelMessage transforms based on provider requirements
       const transformedMessages = transformModelMessages(modelMessages, providerName);
 
       // Apply cache control for Anthropic models AFTER transformation
       const finalMessages = applyCacheControl(transformedMessages, modelString);
+      log.debug_obj(`${workspaceId}/3_final_messages.json`, finalMessages);
 
       // Validate the messages meet Anthropic requirements (Anthropic only)
       if (providerName === "anthropic") {
