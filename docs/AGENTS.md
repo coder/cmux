@@ -127,18 +127,13 @@ This project uses **Make** as the primary build orchestrator. See `Makefile` for
 
 ### Test-Driven Development (TDD)
 
-**TDD is the preferred development style for agents.** When implementing new features:
+**TDD is the preferred development style for agents.** 
 
-1. **Write tests first** - Define the desired behavior through tests before implementation
-2. **Run the tests** - Verify they fail for the right reasons
-3. **Implement the feature** - Write the minimum code to make tests pass
-4. **Refactor** - Clean up the code while keeping tests green
-
-Benefits:
-- Tests document the intended behavior
-- Prevents over-engineering
-- Catches regressions early
-- Forces clean, testable architecture
+- Prefer relocated complex logic into places where they're easily tested
+    - E.g. pure functions in `utils` are easier to test than complex logic in a React component
+- Strive for broad coverage with minimal tests
+- Prefer testing large blocks of composite logic
+  - Tests should be written with the end-user experience in mind
 
 ### General Testing Guidelines
 
