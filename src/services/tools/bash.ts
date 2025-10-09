@@ -86,6 +86,10 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
             GIT_SEQUENCE_EDITOR: "true", // For interactive rebase sequences
             EDITOR: "true", // General fallback for non-git commands
             VISUAL: "true", // Another common editor environment variable
+            // Prevent git from prompting for credentials
+            // This is critical for operations like fetch/pull that might try to authenticate
+            // Without this, git can hang waiting for user input if credentials aren't configured
+            GIT_TERMINAL_PROMPT: "0", // Disables git credential prompts
           },
           stdio: [stdin !== undefined ? "pipe" : "ignore", "pipe", "pipe"], // stdin: pipe if provided, else ignore
         })

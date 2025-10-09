@@ -300,4 +300,69 @@ describeIntegration("IpcMain executeBash integration tests", () => {
     },
     15000
   );
+
+  test.concurrent(
+    "should set GIT_TERMINAL_PROMPT=0 to prevent credential prompts",
+    async () => {
+      const env = await createTestEnvironment();
+      const tempGitRepo = await createTempGitRepo();
+
+      try {
+        // Create a workspace
+        const createResult = await env.mockIpcRenderer.invoke(
+          IPC_CHANNELS.WORKSPACE_CREATE,
+          tempGitRepo,
+          "test-git-env"
+        );
+        expect(createResult.success).toBe(true);
+        const workspaceId = createResult.metadata.id;
+
+        // Verify GIT_TERMINAL_PROMPT is set to 0
+        const gitEnvResult = await env.mockIpcRenderer.invoke(
+          IPC_CHANNELS.WORKSPACE_EXECUTE_BASH,
+          workspaceId,
+          'echo "GIT_TERMINAL_PROMPT=$GIT_TERMINAL_PROMPT"'
+        );
+
+        expect(gitEnvResult.success).toBe(true);
+        expect(gitEnvResult.data.success).toBe(true);
+        expect(gitEnvResult.data.output).toContain("GIT_TERMINAL_PROMPT=0");
+        expect(gitEnvResult.data.exitCode).toBe(0);
+
+        // Test 1: Verify that git fetch with invalid remote doesn't hang (should fail quickly)
+        const invalidFetchResult = await env.mockIpcRenderer.invoke(
+          IPC_CHANNELS.WORKSPACE_EXECUTE_BASH,
+          workspaceId,
+          "git fetch https://invalid-remote-that-does-not-exist-12345.com/repo.git 2>&1 || true",
+          { timeout_secs: 5 }
+        );
+
+        expect(invalidFetchResult.success).toBe(true);
+        expect(invalidFetchResult.data.success).toBe(true);
+
+        // Test 2: Verify git fetch to real GitHub org repo doesn't hang
+        // Uses OpenAI org - will fail if no auth configured, but should fail quickly without prompting
+        const githubFetchResult = await env.mockIpcRenderer.invoke(
+          IPC_CHANNELS.WORKSPACE_EXECUTE_BASH,
+          workspaceId,
+          "git fetch https://github.com/openai/private-test-repo-nonexistent 2>&1 || true",
+          { timeout_secs: 5 }
+        );
+
+        // Should complete quickly (not hang waiting for credentials)
+        expect(githubFetchResult.success).toBe(true);
+        // Command should complete within timeout - the "|| true" ensures success even if fetch fails
+        expect(githubFetchResult.data.success).toBe(true);
+        // Output should contain error message, not hang
+        expect(githubFetchResult.data.output).toContain("fatal");
+
+        // Clean up
+        await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, workspaceId);
+      } finally {
+        await cleanupTestEnvironment(env);
+        await cleanupTempGitRepo(tempGitRepo);
+      }
+    },
+    15000
+  );
 });
