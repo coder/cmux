@@ -322,7 +322,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       element.selectionStart = cursor;
       element.selectionEnd = cursor;
       element.style.height = "auto";
-      element.style.height = Math.min(element.scrollHeight, 200) + "px";
+      element.style.height = Math.min(element.scrollHeight, window.innerHeight * 0.5) + "px";
     });
   }, []);
 
@@ -358,7 +358,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       setTimeout(() => {
         if (inputRef.current) {
           inputRef.current.style.height = "auto";
-          inputRef.current.style.height = Math.min(inputRef.current.scrollHeight, 200) + "px";
+          inputRef.current.style.height =
+            Math.min(inputRef.current.scrollHeight, window.innerHeight * 0.5) + "px";
           inputRef.current.focus();
         }
       }, 0);

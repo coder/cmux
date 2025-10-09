@@ -45,7 +45,7 @@ const StyledTextArea = styled.textarea<{
   font-size: 13px;
   resize: none;
   min-height: 32px;
-  max-height: 200px;
+  max-height: 50vh;
   overflow-y: auto;
   caret-color: ${(props) => (props.vimMode === "normal" ? "transparent" : "#ffffff")};
 
@@ -123,7 +123,7 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
       const el = textareaRef.current;
       if (!el) return;
       el.style.height = "auto";
-      const max = 200;
+      const max = window.innerHeight * 0.5; // 50vh
       el.style.height = Math.min(el.scrollHeight, max) + "px";
     }, [value]);
 
