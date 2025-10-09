@@ -307,7 +307,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const [thinkingLevel] = useThinkingLevel();
   const [mode, setMode] = useMode();
   const { recentModels } = useModelLRU();
-  
+
   // Get current send message options from shared hook (must be at component top level)
   const sendMessageOptions = useSendMessageOptions(workspaceId);
 

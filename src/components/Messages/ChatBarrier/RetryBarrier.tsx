@@ -5,11 +5,7 @@ import { useSendMessageOptions } from "@/hooks/useSendMessageOptions";
 const BarrierContainer = styled.div`
   margin: 20px 0;
   padding: 16px 20px;
-  background: linear-gradient(
-    135deg,
-    rgba(255, 165, 0, 0.1) 0%,
-    rgba(255, 140, 0, 0.1) 100%
-  );
+  background: linear-gradient(135deg, rgba(255, 165, 0, 0.1) 0%, rgba(255, 140, 0, 0.1) 100%);
   border-left: 4px solid var(--color-warning);
   border-radius: 4px;
   display: flex;
@@ -46,8 +42,7 @@ const Countdown = styled.span`
 const Button = styled.button<{ variant?: "primary" | "secondary" }>`
   background: ${(props) =>
     props.variant === "secondary" ? "transparent" : "var(--color-warning)"};
-  border: ${(props) =>
-    props.variant === "secondary" ? "1px solid var(--color-warning)" : "none"};
+  border: ${(props) => (props.variant === "secondary" ? "1px solid var(--color-warning)" : "none")};
   border-radius: 4px;
   padding: 8px 16px;
   font-family: var(--font-primary);
@@ -101,7 +96,7 @@ export const RetryBarrier: React.FC<RetryBarrierProps> = ({
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const retryStartTimeRef = useRef<number>(Date.now()); // Track when retrying started
-  
+
   // Get current send message options from shared hook
   // This ensures retry uses current settings, not historical ones
   const options = useSendMessageOptions(workspaceId);
@@ -125,48 +120,51 @@ export const RetryBarrier: React.FC<RetryBarrierProps> = ({
   }, []);
 
   // Start auto-retry with countdown (no max retries - continues indefinitely)
-  const startAutoRetry = useCallback((attemptNum: number) => {
-    const delay = getDelay(attemptNum);
-    const startTime = Date.now();
-    const endTime = startTime + delay;
+  const startAutoRetry = useCallback(
+    (attemptNum: number) => {
+      const delay = getDelay(attemptNum);
+      const startTime = Date.now();
+      const endTime = startTime + delay;
 
-    // Update countdown every 100ms
-    setCountdown(Math.ceil(delay / 1000));
-    countdownIntervalRef.current = setInterval(() => {
-      const remaining = endTime - Date.now();
-      if (remaining <= 0) {
-        clearInterval(countdownIntervalRef.current!);
-        countdownIntervalRef.current = null;
-        setCountdown(0);
-      } else {
-        setCountdown(Math.ceil(remaining / 1000));
-      }
-      // Update total retry time
-      setTotalRetryTime(Math.floor((Date.now() - retryStartTimeRef.current) / 1000));
-    }, 100);
+      // Update countdown every 100ms
+      setCountdown(Math.ceil(delay / 1000));
+      countdownIntervalRef.current = setInterval(() => {
+        const remaining = endTime - Date.now();
+        if (remaining <= 0) {
+          clearInterval(countdownIntervalRef.current!);
+          countdownIntervalRef.current = null;
+          setCountdown(0);
+        } else {
+          setCountdown(Math.ceil(remaining / 1000));
+        }
+        // Update total retry time
+        setTotalRetryTime(Math.floor((Date.now() - retryStartTimeRef.current) / 1000));
+      }, 100);
 
-    // Schedule retry
-    timerRef.current = setTimeout(() => {
-      setIsRetrying(true);
-      void (async () => {
-        try {
-          const result = await window.api.workspace.resumeStream(workspaceId, options);
-          if (!result.success) {
-            console.error("Auto-retry failed:", result.error);
+      // Schedule retry
+      timerRef.current = setTimeout(() => {
+        setIsRetrying(true);
+        void (async () => {
+          try {
+            const result = await window.api.workspace.resumeStream(workspaceId, options);
+            if (!result.success) {
+              console.error("Auto-retry failed:", result.error);
+              // Increment attempt and retry again
+              setAttempt(attemptNum + 1);
+              setIsRetrying(false);
+            }
+            // On success, the stream will start and component will unmount
+          } catch (error) {
+            console.error("Unexpected error during auto-retry:", error);
             // Increment attempt and retry again
             setAttempt(attemptNum + 1);
             setIsRetrying(false);
           }
-          // On success, the stream will start and component will unmount
-        } catch (error) {
-          console.error("Unexpected error during auto-retry:", error);
-          // Increment attempt and retry again
-          setAttempt(attemptNum + 1);
-          setIsRetrying(false);
-        }
-      })();
-    }, delay);
-  }, [workspaceId, options, getDelay]);
+        })();
+      }, delay);
+    },
+    [workspaceId, options, getDelay]
+  );
 
   // Auto-retry effect
   useEffect(() => {
@@ -186,7 +184,7 @@ export const RetryBarrier: React.FC<RetryBarrierProps> = ({
     retryStartTimeRef.current = Date.now(); // Reset elapsed time tracking
     setTotalRetryTime(0);
     onResetAutoRetry(); // Re-enable auto-retry for next failure
-    
+
     void (async () => {
       try {
         const result = await window.api.workspace.resumeStream(workspaceId, options);
@@ -219,9 +217,7 @@ export const RetryBarrier: React.FC<RetryBarrierProps> = ({
           <Icon>🔄</Icon>
           <Message>
             {isRetrying ? (
-              <>
-                Retrying...{totalRetryTime > 0 && ` (${totalRetryTime}s elapsed)`}
-              </>
+              <>Retrying...{totalRetryTime > 0 && ` (${totalRetryTime}s elapsed)`}</>
             ) : (
               <>
                 Retrying in <Countdown>{countdown}s</Countdown>
