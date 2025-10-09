@@ -15,6 +15,18 @@ const MAX_DELAY = 60000; // 60 seconds
 /**
  * Centralized auto-resume manager for interrupted streams
  *
+ * DESIGN PRINCIPLE: Single Source of Truth for ALL Retry Logic
+ * ============================================================
+ * This hook is the ONLY place that calls window.api.workspace.resumeStream().
+ * All other components (RetryBarrier, etc.) emit RESUME_CHECK_REQUESTED events
+ * and let this hook handle the actual retry logic.
+ *
+ * Why this matters:
+ * - Consistency: All retries use the same backoff, state management, eligibility checks
+ * - Maintainability: One place to update retry logic
+ * - Background operation: Works for all workspaces, even non-visible ones
+ * - Idempotency: Safe to emit events multiple times, hook silently ignores invalid requests
+ *
  * Features:
  * - Polling-based: Checks all workspaces every 1 second
  * - Event-driven: Also reacts to RESUME_CHECK_REQUESTED events for fast path
@@ -26,6 +38,7 @@ const MAX_DELAY = 60000; // 60 seconds
  * - App startup (initial scan)
  * - Every 1 second (polling)
  * - Stream errors/aborts (events for fast response)
+ * - Manual retry button (event from RetryBarrier)
  */
 export function useResumeManager(workspaceStates: Map<string, WorkspaceState>) {
   // Use ref to avoid effect re-running on every state change

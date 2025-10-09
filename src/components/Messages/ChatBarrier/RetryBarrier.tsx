@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import styled from "@emotion/styled";
-import { useSendMessageOptions } from "@/hooks/useSendMessageOptions";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { getRetryStateKey } from "@/constants/storage";
+import { CUSTOM_EVENTS } from "@/constants/events";
 
 const BarrierContainer = styled.div`
   margin: 20px 0;
@@ -113,10 +113,6 @@ export const RetryBarrier: React.FC<RetryBarrierProps> = ({
 
   // Local state for UI
   const [countdown, setCountdown] = useState(0);
-  const [isRetrying, setIsRetrying] = useState(false);
-
-  // Get current send message options from shared hook
-  const options = useSendMessageOptions(workspaceId);
 
   // Calculate delay with exponential backoff (same as useResumeManager)
   const getDelay = useCallback((attemptNum: number) => {
@@ -141,29 +137,23 @@ export const RetryBarrier: React.FC<RetryBarrierProps> = ({
   }, [autoRetry, attempt, retryStartTime, getDelay]);
 
   // Manual retry handler (user-initiated, immediate)
+  // Emits event to useResumeManager instead of calling resumeStream directly
+  // This keeps all retry logic centralized in one place
   const handleManualRetry = () => {
-    setIsRetrying(true);
     onResetAutoRetry(); // Re-enable auto-retry for next failure
 
-    // Reset retry state for manual retry
+    // Reset retry state to make workspace immediately eligible for resume
     localStorage.setItem(
       getRetryStateKey(workspaceId),
-      JSON.stringify({ attempt: 0, retryStartTime: Date.now() })
+      JSON.stringify({ attempt: 0, retryStartTime: Date.now() - 2000 }) // -2s = immediate
     );
 
-    void (async () => {
-      try {
-        const result = await window.api.workspace.resumeStream(workspaceId, options);
-        if (!result.success) {
-          console.error("Manual retry failed:", result.error);
-          setIsRetrying(false);
-        }
-        // On success, the stream will start and component will unmount
-      } catch (error) {
-        console.error("Unexpected error during manual retry:", error);
-        setIsRetrying(false);
-      }
-    })();
+    // Emit event to useResumeManager - it will handle the actual resume
+    window.dispatchEvent(
+      new CustomEvent(CUSTOM_EVENTS.RESUME_CHECK_REQUESTED, {
+        detail: { workspaceId },
+      })
+    );
   };
 
   // Stop auto-retry handler
@@ -202,9 +192,7 @@ export const RetryBarrier: React.FC<RetryBarrierProps> = ({
           <Icon>⚠️</Icon>
           <Message>Stream interrupted</Message>
         </BarrierContent>
-        <Button onClick={handleManualRetry} disabled={isRetrying}>
-          {isRetrying ? "Retrying..." : "Retry"}
-        </Button>
+        <Button onClick={handleManualRetry}>Retry</Button>
       </BarrierContainer>
     );
   }
