@@ -23,11 +23,7 @@ const REMARK_PLUGINS = [remarkGfm, remarkMath];
 // This prevents XSS attacks while allowing <details>/<summary> toggles
 const SANITIZE_SCHEMA = {
   ...defaultSchema,
-  tagNames: [
-    ...(defaultSchema.tagNames || []),
-    "details",
-    "summary",
-  ],
+  tagNames: [...(defaultSchema.tagNames ?? []), "details", "summary"],
   attributes: {
     ...defaultSchema.attributes,
     details: ["open"], // Allow 'open' attribute for default-expanded state
