@@ -597,4 +597,80 @@ describe("bash tool", () => {
       expect(result.wall_duration_ms).toBe(0);
     }
   });
+
+  it("should fail immediately when timeout_secs is undefined", async () => {
+    const tool = createBashTool({ cwd: process.cwd() });
+    const args = {
+      script: "echo hello",
+      timeout_secs: undefined,
+      max_lines: 100,
+    };
+
+    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain("timeout_secs parameter is missing or invalid");
+      expect(result.error).toContain("malformed tool call");
+      expect(result.exitCode).toBe(-1);
+      expect(result.wall_duration_ms).toBe(0);
+    }
+  });
+
+  it("should fail immediately when timeout_secs is null", async () => {
+    const tool = createBashTool({ cwd: process.cwd() });
+    const args = {
+      script: "echo hello",
+      timeout_secs: null as unknown as number,
+      max_lines: 100,
+    };
+
+    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain("timeout_secs parameter is missing or invalid");
+      expect(result.error).toContain("malformed tool call");
+      expect(result.exitCode).toBe(-1);
+      expect(result.wall_duration_ms).toBe(0);
+    }
+  });
+
+  it("should fail immediately when timeout_secs is zero", async () => {
+    const tool = createBashTool({ cwd: process.cwd() });
+    const args: BashToolArgs = {
+      script: "echo hello",
+      timeout_secs: 0,
+      max_lines: 100,
+    };
+
+    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain("timeout_secs parameter is missing or invalid");
+      expect(result.error).toContain("malformed tool call");
+      expect(result.exitCode).toBe(-1);
+      expect(result.wall_duration_ms).toBe(0);
+    }
+  });
+
+  it("should fail immediately when timeout_secs is negative", async () => {
+    const tool = createBashTool({ cwd: process.cwd() });
+    const args: BashToolArgs = {
+      script: "echo hello",
+      timeout_secs: -5,
+      max_lines: 100,
+    };
+
+    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain("timeout_secs parameter is missing or invalid");
+      expect(result.error).toContain("malformed tool call");
+      expect(result.exitCode).toBe(-1);
+      expect(result.wall_duration_ms).toBe(0);
+    }
+  });
 });
