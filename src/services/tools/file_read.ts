@@ -5,7 +5,7 @@ import * as readline from "readline";
 import type { FileReadToolResult } from "@/types/tools";
 import type { ToolConfiguration, ToolFactory } from "@/utils/tools/tools";
 import { TOOL_DEFINITIONS } from "@/utils/tools/toolDefinitions";
-import { leaseFromStat, validatePathInCwd } from "./fileCommon";
+import { leaseFromContent, validatePathInCwd, validateFileSize } from "./fileCommon";
 
 /**
  * File read tool factory for AI assistant
@@ -45,8 +45,14 @@ export const createFileReadTool: ToolFactory = (config: ToolConfiguration) => {
           };
         }
 
-        // Compute lease for this file state
-        const lease = leaseFromStat(stats);
+        // Validate file size
+        const sizeValidation = validateFileSize(stats);
+        if (sizeValidation) {
+          return {
+            success: false,
+            error: sizeValidation.error,
+          };
+        }
 
         const startLineNumber = offset ?? 1;
 
@@ -135,6 +141,11 @@ export const createFileReadTool: ToolFactory = (config: ToolConfiguration) => {
 
         // Join lines with newlines
         const content = numberedLines.join("\n");
+
+        // Read full file content to compute content-based lease
+        // This prevents lease mismatches caused by external processes updating mtime
+        const fullContent = await fs.readFile(resolvedPath, { encoding: "utf-8" });
+        const lease = leaseFromContent(fullContent);
 
         // Return file info and content
         // IMPORTANT: lease must be last in the return object so it remains fresh in the LLM's context
