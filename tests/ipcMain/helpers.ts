@@ -374,7 +374,8 @@ export async function buildLargeHistory(
   const { HistoryService } = await import("../../src/services/historyService");
   const { createCmuxMessage } = await import("../../src/types/message");
   
-  const historyService = new HistoryService(config);
+  // HistoryService only needs getSessionDir, so we can cast the partial config
+  const historyService = new HistoryService(config as any);
   
   const messageSize = options.messageSize ?? 50_000;
   const messageCount = options.messageCount ?? 80;
