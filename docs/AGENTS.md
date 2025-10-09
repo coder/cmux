@@ -102,7 +102,7 @@ Verify with React DevTools Profiler - MarkdownCore should only re-render when co
 - **User-facing docs** → `./docs/` directory
   - **IMPORTANT**: Read `docs/README.md` first before writing user-facing documentation
   - User docs are built with mdbook and deployed to https://cmux.io
-  - Must be added to `docs/src/SUMMARY.md` to appear in the docs
+  - Must be added to `docs/SUMMARY.md` to appear in the docs
   - Use standard markdown + mermaid diagrams
 - **Developer docs** → Colocated with relevant code (e.g., `src/components/VimTextArea.md` next to `VimTextArea.tsx`)
   - When documenting behaviour that lives in a source file, prefer inline comments/JSDoc directly in that file. Use colocated markdown only for higher-level design notes that truly span multiple files.

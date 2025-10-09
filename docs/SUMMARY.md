@@ -3,6 +3,7 @@
 - [Introduction](./intro.md)
 - [Install](./install.md)
 - [Keyboard Shortcuts](./keybinds.md)
+- [Vim Mode](./vim-mode.md)
 - [Context Management](./context-management.md)
 - [Project Secrets](./project-secrets.md)
 - [Agentic Git Identity](./agentic-git-identity.md)
