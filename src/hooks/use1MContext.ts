@@ -7,5 +7,5 @@ import { usePersistedState } from "@/hooks/usePersistedState";
  * @returns [use1MContext, setUse1MContext] tuple
  */
 export function use1MContext(): [boolean, (value: boolean) => void] {
-  return usePersistedState<boolean>("use1MContext", false);
+  return usePersistedState<boolean>("use1MContext", false, { listener: true });
 }

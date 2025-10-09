@@ -14,7 +14,9 @@ interface ModeProviderProps {
 }
 
 export const ModeProvider: React.FC<ModeProviderProps> = ({ workspaceId, children }) => {
-  const [mode, setMode] = usePersistedState<UIMode>(`mode:${workspaceId}`, "exec");
+  const [mode, setMode] = usePersistedState<UIMode>(`mode:${workspaceId}`, "exec", {
+    listener: true, // Listen for changes from command palette and other sources
+  });
 
   // Set up global keybind handler
   useEffect(() => {

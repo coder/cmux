@@ -21,7 +21,11 @@ export function useSendMessageOptions(workspaceId: string): SendMessageOptions {
   const [use1M] = use1MContext();
   const [thinkingLevel] = useThinkingLevel();
   const [mode] = useMode();
-  const [preferredModel] = usePersistedState<string>(getModelKey(workspaceId), defaultModel);
+  const [preferredModel] = usePersistedState<string>(
+    getModelKey(workspaceId),
+    defaultModel,
+    { listener: true } // Listen for changes from ModelSelector and other sources
+  );
 
   const additionalSystemInstructions =
     mode === "plan"
