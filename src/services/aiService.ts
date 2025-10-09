@@ -174,7 +174,10 @@ export class AIService extends EventEmitter {
    * constructor, ensuring automatic parity with Vercel AI SDK - any configuration options
    * supported by the provider will work without modification.
    */
-  private createModel(modelString: string): Result<LanguageModel, SendMessageError> {
+  private createModel(
+    modelString: string,
+    options?: { disableAutoTruncation?: boolean }
+  ): Result<LanguageModel, SendMessageError> {
     try {
       // Parse model string (format: "provider:model-id")
       const [providerName, modelId] = modelString.split(":");
@@ -220,10 +223,81 @@ export class AIService extends EventEmitter {
             ? (providerConfig.fetch as typeof fetch)
             : defaultFetchWithUnlimitedTimeout;
 
+        // Wrap fetch to force truncation: "auto" for OpenAI Responses API calls.
+        // This is a temporary override until @ai-sdk/openai supports passing
+        // truncation via providerOptions. Safe because it only targets the
+        // OpenAI Responses endpoint and leaves other providers untouched.
+        // Can be disabled via options for testing purposes.
+        const disableAutoTruncation = options?.disableAutoTruncation ?? false;
+        const fetchWithOpenAITruncation = Object.assign(
+          async (
+            input: Parameters<typeof fetch>[0],
+            init?: Parameters<typeof fetch>[1]
+          ): Promise<Response> => {
+            try {
+              const urlString = (() => {
+                if (typeof input === "string") {
+                  return input;
+                }
+                if (input instanceof URL) {
+                  return input.toString();
+                }
+                if (typeof input === "object" && input !== null && "url" in input) {
+                  const possibleUrl = (input as { url?: unknown }).url;
+                  if (typeof possibleUrl === "string") {
+                    return possibleUrl;
+                  }
+                }
+                return "";
+              })();
+
+              const method = (init?.method ?? "GET").toUpperCase();
+              const isOpenAIResponses = /\/v1\/responses(\?|$)/.test(urlString);
+
+              const body = init?.body;
+              if (
+                !disableAutoTruncation &&
+                isOpenAIResponses &&
+                method === "POST" &&
+                typeof body === "string"
+              ) {
+                // Clone headers to avoid mutating caller-provided objects
+                const headers = new Headers(init?.headers);
+                // Remove content-length if present, since body will change
+                headers.delete("content-length");
+
+                try {
+                  const json = JSON.parse(body) as Record<string, unknown>;
+                  // Only set if not already present
+                  if (json.truncation === undefined) {
+                    json.truncation = "auto";
+                  }
+                  const newBody = JSON.stringify(json);
+                  const newInit: RequestInit = { ...init, headers, body: newBody };
+                  return fetchToUse(input, newInit);
+                } catch {
+                  // If body isn't JSON, fall through to normal fetch
+                  return fetchToUse(input, init);
+                }
+              }
+
+              // Default passthrough
+              return fetchToUse(input, init);
+            } catch {
+              // On any unexpected error, fall back to original fetch
+              return fetchToUse(input, init);
+            }
+          },
+          "preconnect" in fetchToUse &&
+            typeof (fetchToUse as typeof fetch).preconnect === "function"
+            ? { preconnect: (fetchToUse as typeof fetch).preconnect.bind(fetchToUse) }
+            : {}
+        );
+
         const provider = createOpenAI({
           ...providerConfig,
           // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-explicit-any
-          fetch: fetchToUse as any,
+          fetch: fetchWithOpenAITruncation as any,
         });
         // Use Responses API for persistence and built-in tools
         const baseModel = provider.responses(modelId);
@@ -267,7 +341,8 @@ export class AIService extends EventEmitter {
     toolPolicy?: ToolPolicy,
     abortSignal?: AbortSignal,
     additionalSystemInstructions?: string,
-    maxOutputTokens?: number
+    maxOutputTokens?: number,
+    disableAutoTruncation?: boolean
   ): Promise<Result<void, SendMessageError>> {
     try {
       // DEBUG: Log streamMessage call
@@ -281,7 +356,7 @@ export class AIService extends EventEmitter {
       await this.partialService.commitToHistory(workspaceId);
 
       // Create model instance with early API key validation
-      const modelResult = this.createModel(modelString);
+      const modelResult = this.createModel(modelString, { disableAutoTruncation });
       if (!modelResult.success) {
         return Err(modelResult.error);
       }

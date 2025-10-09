@@ -698,12 +698,14 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
 
           // Now try to send a new message - should trigger token limit error
           // due to accumulated history
+          // Disable auto-truncation to force context error
           const result = await sendMessageWithModel(
             env.mockIpcRenderer,
             workspaceId,
             "What is the weather?",
             provider,
-            model
+            model,
+            { disableAutoTruncation: true }
           );
 
           // IPC call itself should succeed (errors come through stream events)
@@ -954,6 +956,106 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
         }
       },
       15000
+    );
+  });
+
+  // OpenAI auto truncation integration test
+  // This test verifies that the truncation: "auto" parameter works correctly
+  // by first forcing a context overflow error, then verifying recovery with auto-truncation
+  describeIntegration("OpenAI auto truncation integration", () => {
+    const provider = "openai";
+    const model = "gpt-4o-mini";
+
+    test.concurrent(
+      "respects disableAutoTruncation flag",
+      async () => {
+        const { env, workspaceId, cleanup } = await setupWorkspace(provider);
+
+        try {
+          // Phase 1: Build up large conversation history to exceed context limit
+          // HACK: Use HistoryService directly to populate history without API calls.
+          // This is a test-only shortcut. Real application code should NEVER bypass IPC.
+          const historyService = new HistoryService(env.config);
+
+          // gpt-4o-mini context window varies, use same approach as token limit test
+          // Create ~50k chars per message
+          const messageSize = 50_000;
+          const largeText = "A".repeat(messageSize);
+
+          // Use ~80 messages (4M chars total) to ensure we hit the limit
+          // This matches the token limit error test for OpenAI
+          const messageCount = 80;
+
+          // Build conversation history with alternating user/assistant messages
+          for (let i = 0; i < messageCount; i++) {
+            const isUser = i % 2 === 0;
+            const role = isUser ? "user" : "assistant";
+            const message = createCmuxMessage(`history-msg-${i}`, role, largeText, {});
+
+            const result = await historyService.appendToHistory(workspaceId, message);
+            expect(result.success).toBe(true);
+          }
+
+          // Now send a new message with auto-truncation disabled - should trigger error
+          const result = await sendMessageWithModel(
+            env.mockIpcRenderer,
+            workspaceId,
+            "This should trigger a context error",
+            provider,
+            model,
+            { disableAutoTruncation: true }
+          );
+
+          // IPC call itself should succeed (errors come through stream events)
+          expect(result.success).toBe(true);
+
+          // Wait for either stream-end or stream-error
+          const collector = createEventCollector(env.sentEvents, workspaceId);
+          await Promise.race([
+            collector.waitForEvent("stream-end", 10000),
+            collector.waitForEvent("stream-error", 10000),
+          ]);
+
+          // Should have received error event with context exceeded error
+          expect(collector.hasError()).toBe(true);
+
+          // Check that error message contains context-related keywords
+          const errorEvents = collector
+            .getEvents()
+            .filter((e) => "type" in e && e.type === "stream-error");
+          expect(errorEvents.length).toBeGreaterThan(0);
+
+          const errorEvent = errorEvents[0];
+          if (errorEvent && "error" in errorEvent) {
+            const errorStr = String(errorEvent.error).toLowerCase();
+            expect(
+              errorStr.includes("context") ||
+                errorStr.includes("length") ||
+                errorStr.includes("exceed") ||
+                errorStr.includes("token")
+            ).toBe(true);
+          }
+
+          // Phase 2: Send message with auto-truncation enabled (should succeed)
+          env.sentEvents.length = 0;
+          const successResult = await sendMessageWithModel(
+            env.mockIpcRenderer,
+            workspaceId,
+            "This should succeed with auto-truncation",
+            provider,
+            model
+            // disableAutoTruncation defaults to false (auto-truncation enabled)
+          );
+
+          expect(successResult.success).toBe(true);
+          const successCollector = createEventCollector(env.sentEvents, workspaceId);
+          await successCollector.waitForEvent("stream-end", 30000);
+          assertStreamSuccess(successCollector);
+        } finally {
+          await cleanup();
+        }
+      },
+      60000 // 1 minute timeout (much faster since we don't make many API calls)
     );
   });
 });

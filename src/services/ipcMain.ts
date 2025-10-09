@@ -82,34 +82,13 @@ export class IpcMain {
       return;
     }
 
-    this.registerConfigHandlers(ipcMain);
     this.registerDialogHandlers(ipcMain);
     this.registerWorkspaceHandlers(ipcMain);
     this.registerProviderHandlers(ipcMain);
-    this.registerSecretsHandlers(ipcMain);
+    this.registerProjectHandlers(ipcMain);
     this.registerSubscriptionHandlers(ipcMain);
     this.setupEventForwarding();
     this.registered = true;
-  }
-
-  private registerConfigHandlers(ipcMain: ElectronIpcMain): void {
-    ipcMain.handle(IPC_CHANNELS.CONFIG_LOAD, () => {
-      const projectsConfig = this.config.loadConfigOrDefault();
-      return {
-        projects: Array.from(projectsConfig.projects.entries()),
-      };
-    });
-
-    ipcMain.handle(
-      IPC_CHANNELS.CONFIG_SAVE,
-      (_event, configData: { projects: Array<[string, ProjectConfig]> }) => {
-        const projectsConfig = {
-          projects: new Map(configData.projects),
-        };
-        this.config.saveConfig(projectsConfig);
-        return true;
-      }
-    );
   }
 
   private registerDialogHandlers(ipcMain: ElectronIpcMain): void {
@@ -259,16 +238,22 @@ export class IpcMain {
           return { success: false, error: aiResult.error };
         }
 
-        // Update config to remove the workspace (if it's in config)
-        if (foundProjectPath) {
-          const projectsConfig = this.config.loadConfigOrDefault();
-          const projectConfig = projectsConfig.projects.get(foundProjectPath);
-          if (projectConfig) {
-            projectConfig.workspaces = projectConfig.workspaces.filter(
-              (w) => w.path !== workspacePath
-            );
-            this.config.saveConfig(projectsConfig);
+        // Update config to remove the workspace from all projects
+        // We iterate through all projects instead of relying on foundProjectPath
+        // because the worktree might be deleted (so getMainWorktreeFromWorktree fails)
+        const projectsConfig = this.config.loadConfigOrDefault();
+        let configUpdated = false;
+        for (const [_projectPath, projectConfig] of projectsConfig.projects.entries()) {
+          const initialCount = projectConfig.workspaces.length;
+          projectConfig.workspaces = projectConfig.workspaces.filter(
+            (w) => w.path !== workspacePath
+          );
+          if (projectConfig.workspaces.length < initialCount) {
+            configUpdated = true;
           }
+        }
+        if (configUpdated) {
+          this.config.saveConfig(projectsConfig);
         }
 
         // Emit metadata event for workspace removal (with null metadata to indicate deletion)
@@ -450,6 +435,7 @@ export class IpcMain {
           toolPolicy,
           additionalSystemInstructions,
           maxOutputTokens,
+          disableAutoTruncation,
         } = options ?? {};
         log.debug("sendMessage handler: Received", {
           workspaceId,
@@ -460,6 +446,7 @@ export class IpcMain {
           toolPolicy,
           additionalSystemInstructions,
           maxOutputTokens,
+          disableAutoTruncation,
         });
         try {
           // Early exit: empty message = either interrupt (if streaming) or invalid input
@@ -554,6 +541,7 @@ export class IpcMain {
             toolPolicy,
             additionalSystemInstructions,
             maxOutputTokens,
+            disableAutoTruncation,
           });
           const streamResult = await this.aiService.streamMessage(
             historyResult.data,
@@ -563,7 +551,8 @@ export class IpcMain {
             toolPolicy,
             undefined,
             additionalSystemInstructions,
-            maxOutputTokens
+            maxOutputTokens,
+            disableAutoTruncation
           );
           log.debug("sendMessage handler: Stream completed");
           return streamResult;
@@ -815,24 +804,96 @@ export class IpcMain {
     });
   }
 
-  private registerSecretsHandlers(ipcMain: ElectronIpcMain): void {
-    ipcMain.handle(IPC_CHANNELS.SECRETS_GET, (_event, projectPath: string) => {
+  private registerProjectHandlers(ipcMain: ElectronIpcMain): void {
+    ipcMain.handle(IPC_CHANNELS.PROJECT_CREATE, (_event, projectPath: string) => {
+      try {
+        const config = this.config.loadConfigOrDefault();
+
+        // Check if project already exists
+        if (config.projects.has(projectPath)) {
+          return Err("Project already exists");
+        }
+
+        // Create new project config
+        const projectConfig: ProjectConfig = {
+          path: projectPath,
+          workspaces: [],
+        };
+
+        // Add to config
+        config.projects.set(projectPath, projectConfig);
+        this.config.saveConfig(config);
+
+        return Ok(projectConfig);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        return Err(`Failed to create project: ${message}`);
+      }
+    });
+
+    ipcMain.handle(IPC_CHANNELS.PROJECT_REMOVE, (_event, projectPath: string) => {
+      try {
+        const config = this.config.loadConfigOrDefault();
+        const projectConfig = config.projects.get(projectPath);
+
+        if (!projectConfig) {
+          return Err("Project not found");
+        }
+
+        // Check if project has any workspaces
+        if (projectConfig.workspaces.length > 0) {
+          return Err(
+            `Cannot remove project with active workspaces. Please remove all ${projectConfig.workspaces.length} workspace(s) first.`
+          );
+        }
+
+        // Remove project from config
+        config.projects.delete(projectPath);
+        this.config.saveConfig(config);
+
+        // Also remove project secrets if any
+        try {
+          this.config.updateProjectSecrets(projectPath, []);
+        } catch (error) {
+          log.error(`Failed to clean up secrets for project ${projectPath}:`, error);
+          // Continue - don't fail the whole operation if secrets cleanup fails
+        }
+
+        return Ok(undefined);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        return Err(`Failed to remove project: ${message}`);
+      }
+    });
+
+    ipcMain.handle(IPC_CHANNELS.PROJECT_LIST, () => {
+      try {
+        const config = this.config.loadConfigOrDefault();
+        return Array.from(config.projects.values());
+      } catch (error) {
+        log.error("Failed to list projects:", error);
+        return [];
+      }
+    });
+
+    ipcMain.handle(IPC_CHANNELS.PROJECT_SECRETS_GET, (_event, projectPath: string) => {
       try {
         return this.config.getProjectSecrets(projectPath);
       } catch (error) {
-        log.error("Failed to get secrets:", error);
+        log.error("Failed to get project secrets:", error);
         return [];
       }
     });
 
     ipcMain.handle(
-      IPC_CHANNELS.SECRETS_UPDATE,
+      IPC_CHANNELS.PROJECT_SECRETS_UPDATE,
       (_event, projectPath: string, secrets: Array<{ key: string; value: string }>) => {
         try {
           this.config.updateProjectSecrets(projectPath, secrets);
+          return Ok(undefined);
         } catch (error) {
-          log.error("Failed to update secrets:", error);
-          throw error;
+          const message = error instanceof Error ? error.message : String(error);
+          return Err(`Failed to update project secrets: ${message}`);
         }
       }
     );

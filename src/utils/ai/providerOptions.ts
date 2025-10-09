@@ -12,11 +12,28 @@ import { log } from "@/services/log";
 import type { CmuxMessage } from "@/types/message";
 
 /**
+ * Extended OpenAI Responses provider options to include truncation
+ *
+ * NOTE: The SDK types don't yet include this parameter, but it's supported by the OpenAI API.
+ * However, the @ai-sdk/openai v2.0.40 implementation does NOT pass truncation from provider
+ * options - it only sets it based on modelConfig.requiredAutoTruncation.
+ *
+ * This type extension is prepared for a future SDK update that will properly map the
+ * truncation parameter from provider options to the API request.
+ *
+ * Current behavior: OpenAI models will NOT use truncation: "auto" until the SDK is updated.
+ * Workaround: Use /clear or /compact commands to manage conversation history.
+ */
+type ExtendedOpenAIResponsesProviderOptions = OpenAIResponsesProviderOptions & {
+  truncation?: "auto" | "disabled";
+};
+
+/**
  * Provider-specific options structure for AI SDK
  */
 type ProviderOptions =
   | { anthropic: AnthropicProviderOptions }
-  | { openai: OpenAIResponsesProviderOptions }
+  | { openai: ExtendedOpenAIResponsesProviderOptions }
   | Record<string, never>; // Empty object for unsupported providers
 
 /**
@@ -111,6 +128,7 @@ export function buildProviderOptions(
         parallelToolCalls: true, // Always enable concurrent tool execution
         // TODO: allow this to be configured
         serviceTier: "priority", // Always use priority tier for best performance
+        truncation: "auto", // Automatically truncate conversation to fit context window
         // Conditionally add reasoning configuration
         ...(reasoningEffort && {
           reasoningEffort,

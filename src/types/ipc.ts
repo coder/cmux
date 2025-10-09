@@ -6,6 +6,7 @@ import type { SendMessageError, StreamErrorType } from "./errors";
 import type { ThinkingLevel } from "./thinking";
 import type { ToolPolicy } from "@/utils/tools/toolPolicy";
 import type { BashToolResult } from "./tools";
+import type { Secret } from "./secrets";
 import type {
   StreamStartEvent,
   StreamDeltaEvent,
@@ -130,16 +131,13 @@ export interface SendMessageOptions {
   toolPolicy?: ToolPolicy;
   additionalSystemInstructions?: string;
   maxOutputTokens?: number;
+  disableAutoTruncation?: boolean; // For testing truncation behavior
 }
 
 // API method signatures (shared between main and preload)
 // We strive to have a small, tight interface between main and the renderer
 // to promote good SoC and testing.
 export interface IPCApi {
-  config: {
-    load(): Promise<{ projects: Array<[string, ProjectConfig]> }>;
-    save(config: { projects: Array<[string, ProjectConfig]> }): Promise<boolean>;
-  };
   dialog: {
     selectDirectory(): Promise<string | null>;
   };
@@ -151,9 +149,14 @@ export interface IPCApi {
     ): Promise<Result<void, string>>;
     list(): Promise<string[]>;
   };
-  secrets: {
-    get(projectPath: string): Promise<Array<{ key: string; value: string }>>;
-    update(projectPath: string, secrets: Array<{ key: string; value: string }>): Promise<void>;
+  projects: {
+    create(projectPath: string): Promise<Result<ProjectConfig, string>>;
+    remove(projectPath: string): Promise<Result<void, string>>;
+    list(): Promise<ProjectConfig[]>;
+    secrets: {
+      get(projectPath: string): Promise<Secret[]>;
+      update(projectPath: string, secrets: Secret[]): Promise<Result<void, string>>;
+    };
   };
   workspace: {
     list(): Promise<WorkspaceMetadata[]>;

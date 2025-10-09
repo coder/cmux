@@ -2,6 +2,7 @@ import { describe, it, expect } from "bun:test";
 import { createBashTool } from "./bash";
 import type { BashToolArgs, BashToolResult } from "@/types/tools";
 import { BASH_HARD_MAX_LINES, BASH_MAX_TOTAL_BYTES } from "@/constants/toolLimits";
+import * as fs from "fs";
 
 import type { ToolCallOptions } from "ai";
 
@@ -61,6 +62,57 @@ describe("bash tool", () => {
       expect(result.exitCode).toBe(-1);
     }
   });
+
+  it("should save overflow output to temp file with short ID", async () => {
+    const tool = createBashTool({ cwd: process.cwd() });
+    const args: BashToolArgs = {
+      script: "for i in {1..400}; do echo line$i; done",
+      timeout_secs: 5,
+      max_lines: 300,
+    };
+
+    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain("[OUTPUT OVERFLOW");
+      expect(result.error).toContain("lines saved to");
+      expect(result.error).toContain("bash-");
+      expect(result.error).toContain(".txt");
+      
+      // Verify helpful filtering instructions are included
+      expect(result.error).toContain("grep '<pattern>'");
+      expect(result.error).toContain("head -n 300");
+      expect(result.error).toContain("tail -n 300");
+      expect(result.error).toContain("When done, clean up: rm");
+
+      // Extract file path from error message
+      const match = /saved to (\/[^\]]+\.txt)/.exec(result.error);
+      expect(match).toBeDefined();
+      if (match) {
+        const overflowPath = match[1];
+        
+        // Verify file has short ID format (bash-<8 hex chars>.txt)
+        const filename = overflowPath.split("/").pop();
+        expect(filename).toMatch(/^bash-[0-9a-f]{8}\.txt$/);
+        
+        // Verify file exists and read contents
+        expect(fs.existsSync(overflowPath)).toBe(true);
+        
+        // Verify file contains collected lines (at least 300, may be slightly more)
+        const fileContent = fs.readFileSync(overflowPath, "utf-8");
+        const fileLines = fileContent.split("\n").filter((l: string) => l.length > 0);
+        expect(fileLines.length).toBeGreaterThanOrEqual(300);
+        expect(fileContent).toContain("line1");
+        expect(fileContent).toContain("line300");
+        
+        // Clean up temp file
+        fs.unlinkSync(overflowPath);
+      }
+    }
+  });
+
+
 
   it("should fail early when max_lines is reached", async () => {
     const tool = createBashTool({ cwd: process.cwd() });

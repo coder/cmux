@@ -143,6 +143,7 @@ export const TOOL_DEFINITIONS = {
             "Scale the detail to match the task complexity: for straightforward changes, briefly state what and why; " +
             "for complex changes, explain approach, key decisions, risks/tradeoffs; " +
             "for uncertain changes, clarify options and what needs user input. " +
+            "When presenting options, always provide your recommendation for the overall best option for the user. " +
             "For highly complex concepts, use mermaid diagrams where they'd clarify better than text. " +
             "Cover what's necessary to understand and approve the approach. Omit obvious details or ceremony."
         ),

@@ -4,10 +4,6 @@
  */
 
 export const IPC_CHANNELS = {
-  // Config channels
-  CONFIG_LOAD: "config:load",
-  CONFIG_SAVE: "config:save",
-
   // Dialog channels
   DIALOG_SELECT_DIR: "dialog:selectDirectory",
 
@@ -15,9 +11,12 @@ export const IPC_CHANNELS = {
   PROVIDERS_SET_CONFIG: "providers:setConfig",
   PROVIDERS_LIST: "providers:list",
 
-  // Secrets channels
-  SECRETS_GET: "secrets:get",
-  SECRETS_UPDATE: "secrets:update",
+  // Project channels
+  PROJECT_CREATE: "project:create",
+  PROJECT_REMOVE: "project:remove",
+  PROJECT_LIST: "project:list",
+  PROJECT_SECRETS_GET: "project:secrets:get",
+  PROJECT_SECRETS_UPDATE: "project:secrets:update",
 
   // Workspace channels
   WORKSPACE_LIST: "workspace:list",

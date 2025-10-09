@@ -4,7 +4,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-DOCS_DIR="$PROJECT_ROOT/docs/vercel"
+DOCS_DIR="$PROJECT_ROOT/ai-sdk-docs"
 TEMP_DIR="$(mktemp -d)"
 
 cleanup() {
@@ -25,7 +25,7 @@ git fetch --depth=1 origin main
 git checkout main
 
 if [ -d "$DOCS_DIR" ]; then
-  echo "Removing existing docs/vercel directory..."
+  echo "Removing existing ai-sdk-docs directory..."
   rm -rf "$DOCS_DIR"
 fi
 
