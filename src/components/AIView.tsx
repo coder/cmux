@@ -201,6 +201,11 @@ const AIViewInner: React.FC<AIViewProps> = ({
     { listener: true } // Enable cross-component synchronization
   );
 
+  // Debug: log autoRetry value on mount and when it changes
+  useEffect(() => {
+    console.log(`[AIView] ${workspaceId} autoRetry initialized/changed:`, autoRetry);
+  }, [autoRetry, workspaceId]);
+
   // Use auto-scroll hook for scroll management
   const {
     contentRef,
@@ -236,9 +241,10 @@ const AIViewInner: React.FC<AIViewProps> = ({
   // Reset autoRetry when a new stream starts
   useEffect(() => {
     if (canInterrupt) {
+      console.log(`[AIView] ${workspaceId} stream started, resetting autoRetry to true`);
       setAutoRetry(true); // Re-enable auto-retry for the next failure
     }
-  }, [canInterrupt]);
+  }, [canInterrupt, workspaceId, setAutoRetry]);
 
   // Handlers for editing messages
   const handleEditUserMessage = useCallback((messageId: string, content: string) => {
@@ -306,6 +312,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
         e.preventDefault();
         // If there's a stream or auto-retry in progress, stop it and disable auto-retry
         if (canInterrupt || showRetryBarrier) {
+          console.log(`[AIView] ${workspaceId} Ctrl+C pressed, setting autoRetry to false`);
           setAutoRetry(false); // Disable auto-retry (user explicitly interrupted)
           void window.api.workspace.sendMessage(workspaceId, "");
         }

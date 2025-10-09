@@ -72,7 +72,11 @@ export function useResumeManager(workspaceStates: Map<string, WorkspaceState>) {
 
     // 2. Auto-retry must be enabled (user didn't press Ctrl+C)
     const autoRetry = readPersistedState<boolean>(getAutoRetryKey(workspaceId), true);
-    if (!autoRetry) return false;
+    console.log(`[useResumeManager] ${workspaceId} autoRetry check:`, autoRetry);
+    if (!autoRetry) {
+      console.log(`[useResumeManager] ${workspaceId} not eligible: autoRetry = false`);
+      return false;
+    }
 
     // 3. Must not already be retrying
     if (retryingRef.current.has(workspaceId)) return false;
