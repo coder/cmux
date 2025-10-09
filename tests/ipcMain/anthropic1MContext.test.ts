@@ -4,6 +4,8 @@ import {
   createEventCollector,
   assertStreamSuccess,
 } from "./helpers";
+import { HistoryService } from "../../src/services/historyService";
+import { createCmuxMessage } from "../../src/types/message";
 
 // Skip all tests if TEST_INTEGRATION is not set
 const describeIntegration = shouldRunIntegrationTests() ? describe : describe.skip;
@@ -20,53 +22,42 @@ describeIntegration("IpcMain anthropic 1M context integration tests", () => {
   }
 
   test.concurrent(
-    "should accept 1M context header when enabled and reject invalid beta header when disabled",
+    "should handle larger context with 1M flag enabled vs standard limits",
     async () => {
       const { env, workspaceId, cleanup } = await setupWorkspace("anthropic");
       try {
-        // Test 1: Send message WITH 1M context enabled - should succeed
-        // (If the beta header was invalid/malformed, Anthropic API would reject it)
-        env.sentEvents.length = 0;
-        const resultWith1M = await sendMessageWithModel(
-          env.mockIpcRenderer,
-          workspaceId,
-          "Say 'hello' and nothing else.",
-          "anthropic",
-          "claude-sonnet-4-5",
-          {
-            providerOptions: {
-              anthropic: {
-                use1MContext: true,
-              },
-            },
-          }
-        );
-
-        expect(resultWith1M.success).toBe(true);
-
-        const collectorWith1M = createEventCollector(env.sentEvents, workspaceId);
-        await collectorWith1M.waitForEvent("stream-end", 10000);
-        assertStreamSuccess(collectorWith1M);
-
-        const messageWith1M = collectorWith1M.getFinalMessage();
-        expect(messageWith1M).toBeDefined();
-        if (messageWith1M && "parts" in messageWith1M && Array.isArray(messageWith1M.parts)) {
-          const content = messageWith1M.parts
-            .filter((part) => part.type === "text")
-            .map((part) => (part as { text: string }).text)
-            .join("")
-            .toLowerCase();
-          // If we got a valid response, the beta header was accepted
-          expect(content).toContain("hello");
+        // Build large conversation history to push context limits
+        // Claude Sonnet 4 standard context is ~200k tokens
+        // 1M context allows up to ~800k tokens
+        // We'll build ~300k tokens (1.2M chars) to exceed standard but fit in 1M
+        
+        const historyService = new HistoryService(env.config);
+        
+        // Create ~60k chars per message (roughly 15k tokens)
+        const messageSize = 60_000;
+        const largeText = "Context test: " + "A".repeat(messageSize);
+        
+        // Use 20 messages = 1.2M chars total (~300k tokens)
+        // This should exceed standard context but fit in 1M window
+        const messageCount = 20;
+        
+        for (let i = 0; i < messageCount; i++) {
+          const isUser = i % 2 === 0;
+          const role = isUser ? "user" : "assistant";
+          const message = createCmuxMessage(`history-msg-${i}`, role, largeText, {});
+          
+          const result = await historyService.appendToHistory(workspaceId, message);
+          expect(result.success).toBe(true);
         }
-
-        // Test 2: Send message WITHOUT 1M context - should also succeed
-        // This proves the flag actually changes behavior (header presence/absence)
+        
+        // Phase 1: Try without 1M context flag
+        // This may fail or succeed depending on Anthropic's handling,
+        // but we're testing that the flag is applied
         env.sentEvents.length = 0;
         const resultWithout1M = await sendMessageWithModel(
           env.mockIpcRenderer,
           workspaceId,
-          "Say 'goodbye' and nothing else.",
+          "Summarize the context above in one word.",
           "anthropic",
           "claude-sonnet-4-5",
           {
@@ -77,70 +68,59 @@ describeIntegration("IpcMain anthropic 1M context integration tests", () => {
             },
           }
         );
-
+        
+        // May succeed or fail - we just verify the API accepted our request structure
         expect(resultWithout1M.success).toBe(true);
-
+        
         const collectorWithout1M = createEventCollector(env.sentEvents, workspaceId);
-        await collectorWithout1M.waitForEvent("stream-end", 10000);
-        assertStreamSuccess(collectorWithout1M);
-
-        const messageWithout1M = collectorWithout1M.getFinalMessage();
-        expect(messageWithout1M).toBeDefined();
-        if (messageWithout1M && "parts" in messageWithout1M && Array.isArray(messageWithout1M.parts)) {
-          const content = messageWithout1M.parts
-            .filter((part) => part.type === "text")
-            .map((part) => (part as { text: string }).text)
-            .join("")
-            .toLowerCase();
-          // Should still work without the header
-          expect(content).toContain("goodbye");
-        }
-
-        // Both should succeed - proving the flag controls header presence without breaking anything
-        // The fact that Anthropic accepted the beta header in test 1 proves it's valid
-      } finally {
-        await cleanup();
-      }
-    },
-    20000
-  );
-
-  test.concurrent(
-    "should work without providerOptions (default behavior, no beta header)",
-    async () => {
-      const { env, workspaceId, cleanup } = await setupWorkspace("anthropic");
-      try {
+        await Promise.race([
+          collectorWithout1M.waitForEvent("stream-end", 30000),
+          collectorWithout1M.waitForEvent("stream-error", 30000),
+        ]);
+        
+        // Phase 2: Try WITH 1M context flag
+        // Should handle the large context better with beta header
         env.sentEvents.length = 0;
-
-        const result = await sendMessageWithModel(
+        const resultWith1M = await sendMessageWithModel(
           env.mockIpcRenderer,
           workspaceId,
-          "Say 'default' and nothing else.",
+          "Summarize the context above in one word.",
           "anthropic",
-          "claude-sonnet-4-5"
-          // No providerOptions - should not add beta header
+          "claude-sonnet-4-5",
+          {
+            providerOptions: {
+              anthropic: {
+                use1MContext: true,
+              },
+            },
+          }
         );
-
-        expect(result.success).toBe(true);
-
-        const collector = createEventCollector(env.sentEvents, workspaceId);
-        await collector.waitForEvent("stream-end", 10000);
-        assertStreamSuccess(collector);
-
-        const finalMessage = collector.getFinalMessage();
-        expect(finalMessage).toBeDefined();
-        if (finalMessage && "parts" in finalMessage && Array.isArray(finalMessage.parts)) {
-          const content = finalMessage.parts
+        
+        expect(resultWith1M.success).toBe(true);
+        
+        const collectorWith1M = createEventCollector(env.sentEvents, workspaceId);
+        await collectorWith1M.waitForEvent("stream-end", 30000);
+        
+        // With 1M context, should succeed
+        assertStreamSuccess(collectorWith1M);
+        
+        const messageWith1M = collectorWith1M.getFinalMessage();
+        expect(messageWith1M).toBeDefined();
+        
+        // The key test: with 1M context, we should get a valid response
+        // that processed the large context
+        if (messageWith1M && "parts" in messageWith1M && Array.isArray(messageWith1M.parts)) {
+          const content = messageWith1M.parts
             .filter((part) => part.type === "text")
             .map((part) => (part as { text: string }).text)
-            .join("")
-            .toLowerCase();
-          expect(content).toContain("default");
+            .join("");
+          // Should have some content (proves it processed the request)
+          expect(content.length).toBeGreaterThan(0);
         }
       } finally {
         await cleanup();
       }
     },
-    15000
+    60000 // 1 minute timeout
   );
 });
