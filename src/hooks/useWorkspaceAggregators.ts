@@ -4,6 +4,8 @@ import { createCmuxMessage } from "@/types/message";
 import type { WorkspaceMetadata } from "@/types/workspace";
 import type { WorkspaceChatMessage } from "@/types/ipc";
 import { StreamingMessageAggregator } from "@/utils/messages/StreamingMessageAggregator";
+import { updatePersistedState } from "./usePersistedState";
+import { getRetryStateKey } from "@/constants/storage";
 import {
   isCaughtUpMessage,
   isStreamError,
@@ -136,6 +138,12 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
           aggregator.handleStreamStart(data);
           // Track model in LRU cache
           addModel(data.model);
+          // Clear retry state on successful stream start (fixes retry barrier persistence)
+          updatePersistedState(getRetryStateKey(workspaceId), {
+            attempt: 0,
+            totalRetryTime: 0,
+            retryStartTime: Date.now(),
+          });
           forceUpdate();
           return;
         }

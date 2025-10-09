@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import styled from "@emotion/styled";
 import { useSendMessageOptions } from "@/hooks/useSendMessageOptions";
+import { usePersistedState } from "@/hooks/usePersistedState";
+import { getRetryStateKey } from "@/constants/storage";
 
 const BarrierContainer = styled.div`
   margin: 20px 0;
@@ -82,6 +84,18 @@ interface RetryBarrierProps {
 const INITIAL_DELAY = 1000; // 1 second
 const MAX_DELAY = 60000; // 60 seconds (cap for exponential backoff)
 
+interface RetryState {
+  attempt: number;
+  totalRetryTime: number;
+  retryStartTime: number;
+}
+
+const defaultRetryState: RetryState = {
+  attempt: 0,
+  totalRetryTime: 0,
+  retryStartTime: Date.now(),
+};
+
 export const RetryBarrier: React.FC<RetryBarrierProps> = ({
   workspaceId,
   autoRetry,
@@ -89,13 +103,35 @@ export const RetryBarrier: React.FC<RetryBarrierProps> = ({
   onResetAutoRetry,
   className,
 }) => {
-  const [attempt, setAttempt] = useState(0);
+  // Use persisted state for retry tracking (survives workspace switches)
+  const [retryState, setRetryState] = usePersistedState<RetryState>(
+    getRetryStateKey(workspaceId),
+    defaultRetryState,
+    { listener: true }
+  );
+
+  // Extract for convenience
+  const { attempt, totalRetryTime, retryStartTime } = retryState;
+
+  // Setters that update the persisted state
+  const setAttempt = useCallback(
+    (num: number) => setRetryState((prev) => ({ ...prev, attempt: num })),
+    [setRetryState]
+  );
+  const setTotalRetryTime = useCallback(
+    (time: number) => setRetryState((prev) => ({ ...prev, totalRetryTime: time })),
+    [setRetryState]
+  );
+  const setRetryStartTime = useCallback(
+    (time: number) => setRetryState((prev) => ({ ...prev, retryStartTime: time })),
+    [setRetryState]
+  );
+
+  // Local state for UI (doesn't need to persist)
   const [countdown, setCountdown] = useState(0);
   const [isRetrying, setIsRetrying] = useState(false);
-  const [totalRetryTime, setTotalRetryTime] = useState(0); // Total time spent retrying in seconds
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const retryStartTimeRef = useRef<number>(Date.now()); // Track when retrying started
 
   // Get current send message options from shared hook
   // This ensures retry uses current settings, not historical ones
@@ -138,7 +174,7 @@ export const RetryBarrier: React.FC<RetryBarrierProps> = ({
           setCountdown(Math.ceil(remaining / 1000));
         }
         // Update total retry time
-        setTotalRetryTime(Math.floor((Date.now() - retryStartTimeRef.current) / 1000));
+        setTotalRetryTime(Math.floor((Date.now() - retryStartTime) / 1000));
       }, 100);
 
       // Schedule retry
@@ -163,7 +199,7 @@ export const RetryBarrier: React.FC<RetryBarrierProps> = ({
         })();
       }, delay);
     },
-    [workspaceId, options, getDelay]
+    [workspaceId, options, getDelay, setAttempt, retryStartTime, setTotalRetryTime]
   );
 
   // Auto-retry effect
@@ -181,7 +217,7 @@ export const RetryBarrier: React.FC<RetryBarrierProps> = ({
   const handleManualRetry = () => {
     setIsRetrying(true);
     setAttempt(0); // Reset attempt count
-    retryStartTimeRef.current = Date.now(); // Reset elapsed time tracking
+    setRetryStartTime(Date.now()); // Reset elapsed time tracking
     setTotalRetryTime(0);
     onResetAutoRetry(); // Re-enable auto-retry for next failure
 
@@ -217,10 +253,13 @@ export const RetryBarrier: React.FC<RetryBarrierProps> = ({
           <Icon>🔄</Icon>
           <Message>
             {isRetrying ? (
-              <>Retrying...{totalRetryTime > 0 && ` (${totalRetryTime}s elapsed)`}</>
+              <>
+                Retrying... (attempt {attempt + 1})
+                {totalRetryTime > 0 && ` • ${totalRetryTime}s elapsed`}
+              </>
             ) : (
               <>
-                Retrying in <Countdown>{countdown}s</Countdown>
+                Retrying in <Countdown>{countdown}s</Countdown> (attempt {attempt + 1})
                 {totalRetryTime > 0 && ` • ${totalRetryTime}s elapsed`}
               </>
             )}

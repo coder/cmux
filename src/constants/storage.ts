@@ -29,3 +29,12 @@ export function getInputKey(workspaceId: string): string {
 export function getAutoRetryKey(workspaceId: string): string {
   return `${workspaceId}-autoRetry`;
 }
+
+/**
+ * Get the localStorage key for retry state for a workspace
+ * Stores: { attempt, totalRetryTime, retryStartTime }
+ */
+export function getRetryStateKey(workspaceId: string): string {
+  return `${workspaceId}-retryState`;
+}
+
