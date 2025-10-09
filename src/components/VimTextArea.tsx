@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import styled from "@emotion/styled";
 import type { UIMode } from "@/types/mode";
 import * as vim from "@/utils/vim";
+import { TooltipWrapper, Tooltip, HelpIndicator } from "./Tooltip";
 
 /**
  * VimTextArea – minimal Vim-like editing for a textarea.
@@ -67,12 +68,18 @@ const StyledTextArea = styled.textarea<{
 const ModeIndicator = styled.div`
   font-size: 9px;
   color: rgba(212, 212, 212, 0.6);
-  text-transform: uppercase;
   letter-spacing: 0.8px;
   user-select: none;
   height: 11px; /* Fixed height to prevent border bump */
   line-height: 11px;
   margin-bottom: 1px; /* Minimal spacing between indicator and textarea */
+  display: flex;
+  align-items: center;
+  gap: 4px;
+`;
+
+const ModeText = styled.span`
+  text-transform: uppercase; /* Only uppercase the mode name, not commands */
 `;
 
 const EmptyCursor = styled.div`
@@ -568,19 +575,38 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
       handleNormalKey(e);
     };
 
-    // Build mode indicator text
-    const modeText = (() => {
-      if (vimMode !== "normal") return "";
+    // Build mode indicator content
+    const showVimMode = vimMode === "normal";
+    const pendingCommand = (() => {
+      if (!showVimMode) return "";
       const pending = pendingOpRef.current;
-      if (!pending) return "NORMAL";
-      // Show pending operator and any accumulated args
+      if (!pending) return "";
       const args = pending.args?.join("") || "";
-      return `NORMAL ${pending.op}${args}`;
+      return `${pending.op}${args}`;
     })();
 
     return (
       <div style={{ width: "100%" }} data-component="VimTextAreaContainer">
-        <ModeIndicator aria-live="polite">{modeText}</ModeIndicator>
+        <ModeIndicator aria-live="polite">
+          {showVimMode && (
+            <>
+              <TooltipWrapper>
+                <HelpIndicator>?</HelpIndicator>
+                <Tooltip align="left" width="wide">
+                  <strong>Vim Mode Enabled</strong>
+                  <br />
+                  <br />
+                  Press <strong>ESC</strong> for normal mode, <strong>i</strong> to return to insert mode.
+                  <br />
+                  <br />
+                  See <a href="#" onClick={(e) => { e.preventDefault(); window.open('/docs/vim-mode.md'); }}>Vim Mode docs</a> for full command reference.
+                </Tooltip>
+              </TooltipWrapper>
+              <ModeText>normal</ModeText>
+              {pendingCommand && <span>{pendingCommand}</span>}
+            </>
+          )}
+        </ModeIndicator>
         <div style={{ position: "relative" }} data-component="VimTextAreaWrapper">
           <StyledTextArea
             ref={textareaRef}
