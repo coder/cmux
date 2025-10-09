@@ -59,6 +59,21 @@ export async function createWorktree(
   }
 }
 
+/**
+ * Check if a worktree has uncommitted changes or untracked files
+ * Returns true if the worktree is clean (safe to delete), false otherwise
+ */
+export async function isWorktreeClean(workspacePath: string): Promise<boolean> {
+  try {
+    // Check for uncommitted changes (staged or unstaged)
+    const { stdout: statusOutput } = await execAsync(`git -C "${workspacePath}" status --porcelain`);
+    return statusOutput.trim() === "";
+  } catch {
+    // If git command fails, assume not clean (safer default)
+    return false;
+  }
+}
+
 export async function removeWorktree(
   projectPath: string,
   workspacePath: string,

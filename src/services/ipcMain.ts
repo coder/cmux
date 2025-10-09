@@ -9,6 +9,7 @@ import {
   moveWorktree,
   pruneWorktrees,
   getMainWorktreeFromWorktree,
+  isWorktreeClean,
 } from "@/git";
 import { AIService } from "@/services/aiService";
 import { HistoryService } from "@/services/historyService";
@@ -196,64 +197,49 @@ export class IpcMain {
             .catch(() => false);
 
           if (worktreeExists) {
-            // Strategy: Move worktree to temp directory first (instant), then delete in background
-            // This makes the UI feel instant while cleanup happens asynchronously
-            const tempDir = path.join(
-              path.dirname(workspacePath),
-              `.deleting-${path.basename(workspacePath)}-${Date.now()}`
-            );
+            // Check if worktree is clean (no uncommitted changes)
+            const isClean = await isWorktreeClean(workspacePath);
 
-            try {
-              // Move the worktree to temp location (instant operation)
-              await fsPromises.rename(workspacePath, tempDir);
+            if (isClean) {
+              // Strategy: For clean worktrees, move to temp directory first (instant),
+              // then delete in background. This makes removal feel instant.
+              const tempDir = path.join(
+                path.dirname(workspacePath),
+                `.deleting-${path.basename(workspacePath)}-${Date.now()}`
+              );
 
-              // Tell git about the move, then remove it
-              const gitResult = await removeWorktree(foundProjectPath, tempDir, {
-                force: false,
-              });
+              try {
+                // Rename to temp location (instant operation)
+                await fsPromises.rename(workspacePath, tempDir);
 
-              if (!gitResult.success) {
-                const errorMessage = gitResult.error ?? "Unknown error";
-                const normalizedError = errorMessage.toLowerCase();
-                const looksLikeMissingWorktree =
-                  normalizedError.includes("not a working tree") ||
-                  normalizedError.includes("does not exist") ||
-                  normalizedError.includes("no such file");
+                // Prune the worktree from git's records
+                await pruneWorktrees(foundProjectPath);
 
-                if (looksLikeMissingWorktree) {
-                  // Path already missing - prune and continue with deletion
-                  const pruneResult = await pruneWorktrees(foundProjectPath);
-                  if (!pruneResult.success) {
-                    log.info(
-                      `Failed to prune stale worktrees for ${foundProjectPath} after removeWorktree error: ${
-                        pruneResult.error ?? "unknown error"
-                      }`
-                    );
-                  }
-                  // Path is gone, safe to delete temp dir
-                  void fsPromises.rm(tempDir, { recursive: true, force: true }).catch((err) => {
-                    log.info(`Failed to delete temp workspace directory ${tempDir}: ${String(err)}`);
-                  });
-                } else {
-                  // Real git error (e.g., uncommitted changes) - rollback the rename and return error
-                  await fsPromises.rename(tempDir, workspacePath).catch((rollbackErr) => {
-                    log.info(
-                      `Failed to rollback workspace rename after git error: ${String(rollbackErr)}`
-                    );
-                  });
-                  return gitResult;
-                }
-              } else {
-                // Git removal succeeded - delete the temp directory in the background
+                // Delete the temp directory in the background
                 void fsPromises.rm(tempDir, { recursive: true, force: true }).catch((err) => {
                   log.info(`Failed to delete temp workspace directory ${tempDir}: ${String(err)}`);
                 });
+              } catch (err) {
+                log.info(
+                  `Failed to rename/prune workspace for instant deletion: ${String(err)}, falling back to sync removal`
+                );
+                // Rollback rename if it succeeded
+                const tempExists = await fsPromises
+                  .access(tempDir)
+                  .then(() => true)
+                  .catch(() => false);
+                if (tempExists) {
+                  await fsPromises.rename(tempDir, workspacePath).catch(() => {
+                    // If rollback fails, continue with sync removal of temp
+                  });
+                }
+                // Fall through to sync removal below
               }
-            } catch (renameError) {
-              // If rename fails, fall back to direct deletion
-              log.info(
-                `Failed to rename workspace for deletion, falling back to direct delete: ${String(renameError)}`
-              );
+            }
+
+            // For dirty worktrees OR if instant removal failed,
+            // use regular git worktree remove (respects git safety checks)
+            if (!isClean || (await fsPromises.access(workspacePath).then(() => true).catch(() => false))) {
               const gitResult = await removeWorktree(foundProjectPath, workspacePath, {
                 force: false,
               });
