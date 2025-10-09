@@ -69,13 +69,18 @@ export function useWorkspaceManagement({
   const createWorkspace = async (projectPath: string, branchName: string) => {
     const result = await window.api.workspace.create(projectPath, branchName);
     if (result.success) {
+      // Immediately add the new workspace to metadata map for instant UI update
+      // (the event listener will also update it, but this ensures no delay)
+      setWorkspaceMetadata((prev) => {
+        const next = new Map(prev);
+        next.set(result.metadata.workspacePath, result.metadata);
+        return next;
+      });
+
       // Backend has already updated the config - reload projects to get updated state
       const projectsList = await window.api.projects.list();
       const loadedProjects = new Map(projectsList.map((p) => [p.path, p]));
       onProjectsUpdate(loadedProjects);
-
-      // No need to reload workspace metadata - the onWorkspaceMetadata event listener
-      // will update it automatically when the backend emits the event
 
       // Return the new workspace selection
       return {
@@ -102,9 +107,32 @@ export function useWorkspaceManagement({
       // No need to reload workspace metadata - the onWorkspaceMetadata event listener
       // will update it automatically when the backend emits the event
 
-      // Clear selected workspace if it was removed
+      // If we removed the selected workspace, select the next workspace in the same project
       if (selectedWorkspace?.workspaceId === workspaceId) {
-        onSelectedWorkspaceUpdate(null);
+        // Find the project that contained this workspace
+        const projectPath = selectedWorkspace.projectPath;
+        const project = loadedProjects.get(projectPath);
+
+        if (project && project.workspaces.length > 0) {
+          // Select the first remaining workspace in the project
+          const nextWorkspacePath = project.workspaces[0].path;
+          const nextMetadata = workspaceMetadata.get(nextWorkspacePath);
+
+          if (nextMetadata) {
+            onSelectedWorkspaceUpdate({
+              projectPath,
+              projectName: nextMetadata.projectName,
+              workspacePath: nextMetadata.workspacePath,
+              workspaceId: nextMetadata.id,
+            });
+          } else {
+            // Metadata not loaded yet, clear selection
+            onSelectedWorkspaceUpdate(null);
+          }
+        } else {
+          // No workspaces left in this project, clear selection
+          onSelectedWorkspaceUpdate(null);
+        }
       }
       return { success: true };
     } else {
