@@ -124,14 +124,8 @@ export const RetryBarrier: React.FC<RetryBarrierProps> = ({
     }
   }, []);
 
-  // Start auto-retry with countdown
+  // Start auto-retry with countdown (no max retries - continues indefinitely)
   const startAutoRetry = useCallback((attemptNum: number) => {
-    if (attemptNum >= MAX_RETRIES) {
-      // Max retries reached, stop auto-retry
-      onStopAutoRetry();
-      return;
-    }
-
     const delay = getDelay(attemptNum);
     const startTime = Date.now();
     const endTime = startTime + delay;
@@ -147,6 +141,8 @@ export const RetryBarrier: React.FC<RetryBarrierProps> = ({
       } else {
         setCountdown(Math.ceil(remaining / 1000));
       }
+      // Update total retry time
+      setTotalRetryTime(Math.floor((Date.now() - retryStartTimeRef.current) / 1000));
     }, 100);
 
     // Schedule retry
