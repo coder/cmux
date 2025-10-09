@@ -52,6 +52,8 @@ const api: IPCApi = {
       ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_RENAME, workspaceId, newName),
     sendMessage: (workspaceId, message, options) =>
       ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_SEND_MESSAGE, workspaceId, message, options),
+    resumeStream: (workspaceId, model, options) =>
+      ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_RESUME_STREAM, workspaceId, model, options),
     truncateHistory: (workspaceId, percentage) =>
       ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_TRUNCATE_HISTORY, workspaceId, percentage),
     replaceChatHistory: (workspaceId, summaryMessage) =>
