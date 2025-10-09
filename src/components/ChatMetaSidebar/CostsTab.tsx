@@ -6,6 +6,8 @@ import { getModelStats } from "@/utils/tokens/modelStats";
 import { sumUsageHistory } from "@/utils/tokens/tokenStatsCalculator";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { ToggleGroup, type ToggleOption } from "../ToggleGroup";
+import { use1MContext } from "@/hooks/use1MContext";
+import { supports1MContext } from "@/utils/ai/models";
 
 const Container = styled.div`
   color: #d4d4d4;
@@ -235,6 +237,20 @@ const SectionHeader = styled.div`
   margin-bottom: 12px;
 `;
 
+const Context1MBadge = styled.span`
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  background: rgba(0, 122, 204, 0.15);
+  border: 1px solid rgba(0, 122, 204, 0.4);
+  border-radius: 3px;
+  color: #007acc;
+  font-size: 11px;
+  font-weight: 500;
+  margin-left: 8px;
+`;
+
 // Format token display - show k for thousands with 1 decimal
 const formatTokens = (tokens: number) =>
   tokens >= 1000 ? `${(tokens / 1000).toFixed(1)}k` : tokens.toLocaleString();
@@ -255,6 +271,28 @@ const formatCostWithDollar = (cost: number | undefined): string => {
   return `$${formatCost(cost)}`;
 };
 
+/**
+ * Calculate cost with elevated pricing for 1M context (200k-1M tokens)
+ * For tokens above 200k, use elevated pricing rates
+ */
+const calculateElevatedCost = (
+  tokens: number,
+  standardRate: number,
+  elevatedRate: number | undefined
+): number => {
+  if (tokens <= 200_000) {
+    return tokens * standardRate;
+  }
+  if (elevatedRate === undefined) {
+    // Fallback to standard rate if elevated rate not available
+    return tokens * standardRate;
+  }
+  const baseCost = 200_000 * standardRate;
+  const elevatedTokens = tokens - 200_000;
+  const elevatedCost = elevatedTokens * elevatedRate;
+  return baseCost + elevatedCost;
+};
+
 type ViewMode = "last-request" | "session";
 
 const VIEW_MODE_OPTIONS: Array<ToggleOption<ViewMode>> = [
@@ -263,8 +301,9 @@ const VIEW_MODE_OPTIONS: Array<ToggleOption<ViewMode>> = [
 ];
 
 export const CostsTab: React.FC = () => {
-  const { stats, isCalculating } = useChatContext();
+  const { stats, isCalculating, workspaceId } = useChatContext();
   const [viewMode, setViewMode] = usePersistedState<ViewMode>("costsTab:viewMode", "last-request");
+  const [use1M] = use1MContext(workspaceId);
 
   // Only show loading if we don't have any stats yet
   if (isCalculating && !stats) {
@@ -303,7 +342,10 @@ export const CostsTab: React.FC = () => {
             {(() => {
               // Get max tokens for the model from the model stats database
               const modelStats = getModelStats(stats.model);
-              const maxTokens = modelStats?.max_input_tokens;
+              const baseMaxTokens = modelStats?.max_input_tokens;
+              // Check if 1M context is active and supported
+              const is1MActive = use1M && supports1MContext(stats.model);
+              const maxTokens = is1MActive ? 1_000_000 : baseMaxTokens;
               // Total tokens includes cache creation (they're input tokens sent for caching)
               const totalUsed = displayUsage
                 ? displayUsage.input.tokens +
@@ -371,26 +413,49 @@ export const CostsTab: React.FC = () => {
               const getCostPercentage = (cost: number | undefined, total: number | undefined) =>
                 total !== undefined && total > 0 && cost !== undefined ? (cost / total) * 100 : 0;
 
+              // Recalculate costs with elevated pricing if 1M context is active
+              let adjustedInputCost = displayUsage?.input.cost_usd;
+              let adjustedOutputCost = displayUsage?.output.cost_usd;
+              let adjustedReasoningCost = displayUsage?.reasoning.cost_usd;
+
+              if (is1MActive && displayUsage && modelStats) {
+                // Recalculate input cost with elevated pricing
+                adjustedInputCost = calculateElevatedCost(
+                  displayUsage.input.tokens,
+                  modelStats.input_cost_per_token,
+                  modelStats.input_cost_per_token_above_200k_tokens
+                );
+                // Recalculate output cost with elevated pricing
+                adjustedOutputCost = calculateElevatedCost(
+                  displayUsage.output.tokens,
+                  modelStats.output_cost_per_token,
+                  modelStats.output_cost_per_token_above_200k_tokens
+                );
+                // Recalculate reasoning cost with elevated pricing
+                adjustedReasoningCost = calculateElevatedCost(
+                  displayUsage.reasoning.tokens,
+                  modelStats.output_cost_per_token,
+                  modelStats.output_cost_per_token_above_200k_tokens
+                );
+              }
+
               // Calculate total cost (undefined if any cost is unknown)
               const totalCost: number | undefined = displayUsage
-                ? displayUsage.input.cost_usd !== undefined &&
+                ? adjustedInputCost !== undefined &&
                   displayUsage.cached.cost_usd !== undefined &&
                   displayUsage.cacheCreate.cost_usd !== undefined &&
-                  displayUsage.output.cost_usd !== undefined &&
-                  displayUsage.reasoning.cost_usd !== undefined
-                  ? displayUsage.input.cost_usd +
+                  adjustedOutputCost !== undefined &&
+                  adjustedReasoningCost !== undefined
+                  ? adjustedInputCost +
                     displayUsage.cached.cost_usd +
                     displayUsage.cacheCreate.cost_usd +
-                    displayUsage.output.cost_usd +
-                    displayUsage.reasoning.cost_usd
+                    adjustedOutputCost +
+                    adjustedReasoningCost
                   : undefined
                 : undefined;
 
-              // Calculate cost percentages
-              const inputCostPercentage = getCostPercentage(
-                displayUsage?.input.cost_usd,
-                totalCost
-              );
+              // Calculate cost percentages (using adjusted costs for 1M context)
+              const inputCostPercentage = getCostPercentage(adjustedInputCost, totalCost);
               const cachedCostPercentage = getCostPercentage(
                 displayUsage?.cached.cost_usd,
                 totalCost
@@ -399,16 +464,10 @@ export const CostsTab: React.FC = () => {
                 displayUsage?.cacheCreate.cost_usd,
                 totalCost
               );
-              const outputCostPercentage = getCostPercentage(
-                displayUsage?.output.cost_usd,
-                totalCost
-              );
-              const reasoningCostPercentage = getCostPercentage(
-                displayUsage?.reasoning.cost_usd,
-                totalCost
-              );
+              const outputCostPercentage = getCostPercentage(adjustedOutputCost, totalCost);
+              const reasoningCostPercentage = getCostPercentage(adjustedReasoningCost, totalCost);
 
-              // Build component data for table
+              // Build component data for table (using adjusted costs for 1M context)
               const components = displayUsage
                 ? [
                     {
@@ -428,21 +487,21 @@ export const CostsTab: React.FC = () => {
                     {
                       name: "Input",
                       tokens: displayUsage.input.tokens,
-                      cost: displayUsage.input.cost_usd,
+                      cost: adjustedInputCost,
                       color: COMPONENT_COLORS.input,
                       show: true,
                     },
                     {
                       name: "Output",
                       tokens: displayUsage.output.tokens,
-                      cost: displayUsage.output.cost_usd,
+                      cost: adjustedOutputCost,
                       color: COMPONENT_COLORS.output,
                       show: true,
                     },
                     {
                       name: "Thinking",
                       tokens: displayUsage.reasoning.tokens,
-                      cost: displayUsage.reasoning.cost_usd,
+                      cost: adjustedReasoningCost,
                       color: COMPONENT_COLORS.thinking,
                       show: displayUsage.reasoning.tokens > 0,
                     },
@@ -453,7 +512,10 @@ export const CostsTab: React.FC = () => {
                 <>
                   <ConsumerRow>
                     <ConsumerHeader>
-                      <ConsumerName>Token Usage</ConsumerName>
+                      <ConsumerName>
+                        Token Usage
+                        {is1MActive && <Context1MBadge>1M Context</Context1MBadge>}
+                      </ConsumerName>
                       <ConsumerTokens>
                         {totalDisplay}
                         {maxDisplay}
