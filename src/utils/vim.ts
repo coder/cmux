@@ -123,6 +123,32 @@ export function moveWordForward(text: string, cursor: number): number {
   return Math.min(i, Math.max(0, n - 1));
 }
 
+
+/**
+ * Move cursor to end of current/next word (like 'e').
+ * If on a word character, goes to end of current word.
+ * If on whitespace, goes to end of next word.
+ */
+export function moveWordEnd(text: string, cursor: number): number {
+  const n = text.length;
+  if (cursor >= n - 1) return Math.max(0, n - 1);
+  
+  let i = cursor;
+  const isWord = (ch: string) => /[A-Za-z0-9_]/.test(ch);
+  
+  // If on a word char, move to end of this word
+  if (isWord(text[i])) {
+    while (i < n - 1 && isWord(text[i + 1])) i++;
+    return i;
+  }
+  
+  // If on whitespace, skip to next word then go to its end
+  while (i < n - 1 && !isWord(text[i])) i++;
+  while (i < n - 1 && isWord(text[i + 1])) i++;
+  
+  return Math.min(i, Math.max(0, n - 1));
+}
+
 /**
  * Move cursor to previous word boundary (like 'b').
  * In normal mode, cursor should never go past the last character.
@@ -504,6 +530,11 @@ function handlePendingOperator(
       return {
         handled: true,
         newState: applyOperatorMotion(state, pending.op, "b"),
+      };    }
+    if (key === "e" || key === "E") {
+      return {
+        handled: true,
+        newState: applyOperatorMotion(state, pending.op, "e"),
       };
     }
     // Line motions
@@ -544,7 +575,7 @@ function handlePendingOperator(
 function applyOperatorMotion(
   state: VimState,
   op: "d" | "c" | "y",
-  motion: "w" | "b" | "$" | "0" | "line"
+  motion: "w" | "b" | "e" | "$" | "0" | "line"
 ): VimState {
   const { text, cursor, yankBuffer, mode } = state;
 
@@ -558,6 +589,9 @@ function applyOperatorMotion(
         break;
       case "b":
         result = deleteRange(text, moveWordBackward(text, cursor), cursor, true, yankBuffer);
+        break;
+      case "e":
+        result = deleteRange(text, cursor, moveWordEnd(text, cursor) + 1, true, yankBuffer);
         break;
       case "$": {
         const { lineEnd } = getLineBounds(text, cursor);
@@ -595,6 +629,9 @@ function applyOperatorMotion(
       case "b":
         result = changeRange(text, moveWordBackward(text, cursor), cursor, yankBuffer);
         break;
+      case "e":
+        result = changeRange(text, cursor, moveWordEnd(text, cursor) + 1, yankBuffer);
+        break;
       case "$":
         result = changeToEndOfLine(text, cursor, yankBuffer);
         break;
@@ -627,6 +664,9 @@ function applyOperatorMotion(
         break;
       case "b":
         yanked = text.slice(moveWordBackward(text, cursor), cursor);
+        break;
+      case "e":
+        yanked = text.slice(cursor, moveWordEnd(text, cursor) + 1);
         break;
       case "$": {
         const { lineEnd } = getLineBounds(text, cursor);
@@ -773,6 +813,13 @@ function tryHandleNavigation(state: VimState, key: string): VimKeyResult | null 
     case "b":
     case "B": {
       const newCursor = moveWordBackward(text, cursor);
+      return {
+        handled: true,
+        newState: { ...state, cursor: newCursor, desiredColumn: null },
+      };    }
+    case "e":
+    case "E": {
+      const newCursor = moveWordEnd(text, cursor);
       return {
         handled: true,
         newState: { ...state, cursor: newCursor, desiredColumn: null },

@@ -417,4 +417,32 @@ describe("Vim Command Integration Tests", () => {
     });
 
   });
+
+  describe("e/E motion", () => {
+    test("e moves to end of current word", () => {
+      const state = executeVimCommands(
+        { ...initialState, text: "hello world", cursor: 1, mode: "normal" },
+        ["e"],
+      );
+      expect(state.cursor).toBe(4);
+    });
+
+    test("de deletes to end of word", () => {
+      const state = executeVimCommands(
+        { ...initialState, text: "hello world", cursor: 1, mode: "normal" },
+        ["d", "e"],
+      );
+      expect(state.text).toBe("h world");
+      expect(state.yankBuffer).toBe("ello");
+    });
+
+    test("ce changes to end of word", () => {
+      const state = executeVimCommands(
+        { ...initialState, text: "hello world", cursor: 1, mode: "normal" },
+        ["c", "e"],
+      );
+      expect(state.text).toBe("h world");
+      expect(state.mode).toBe("insert");
+    });
+  });
 });

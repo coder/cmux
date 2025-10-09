@@ -38,7 +38,8 @@ Vim mode is always enabled. Press **ESC** to enter normal mode from insert mode.
 - **W** - Move forward to start of next WORD (whitespace-separated)
 - **b** - Move backward to start of previous word
 - **B** - Move backward to start of previous WORD
-- **e** - Move to end of word (not yet implemented)
+- **e** - Move to end of current/next word
+- **E** - Move to end of current/next WORD
 
 ### Line Movement
 - **0** - Move to beginning of line
@@ -86,15 +87,19 @@ Vim's power comes from combining operators with motions. All operators work with
 ### Motions
 - **w** - To next word
 - **b** - To previous word
+- **e** - To end of word
 - **$** - To end of line
 - **0** - To beginning of line
 
 ### Examples
 - **dw** - Delete to next word
+- **de** - Delete to end of word
 - **d$** - Delete to end of line
 - **cw** - Change to next word
+- **ce** - Change to end of word
 - **c0** - Change to beginning of line
 - **y$** - Yank to end of line
+- **ye** - Yank to end of word
 - **yy** - Yank line (doubled operator)
 
 ### Shortcuts
@@ -138,7 +143,7 @@ ESC is used for:
 ## Not Yet Implemented
 
 Features that may be added in the future:
-- **e**, **ge** - End of word motions
+- **ge** - Backward end of word motion
 - **f{char}**, **t{char}** - Find character motions
 - **i"**, **i'**, **i(**, **i[**, **i{** - More text objects
 - **2w**, **3dd**, **5x** - Count prefixes
