@@ -14,6 +14,11 @@ import { TooltipWrapper, Tooltip, HelpIndicator } from "./Tooltip";
  * - Edit: x (delete char), dd (delete line), yy (yank line), p/P (paste), u (undo), Ctrl-r (redo)
  * - Works alongside parent keybinds (send, cancel). Parent onKeyDown runs first; if it prevents default we do nothing.
  * - Respects a suppressKeys list (e.g. when command suggestions popover is open)
+ *
+ * Keep in sync with:
+ * - docs/vim-mode.md (user documentation)
+ * - src/utils/vim.ts (core Vim logic)
+ * - src/utils/vim.test.ts (integration tests)
  */
 
 export interface VimTextAreaProps

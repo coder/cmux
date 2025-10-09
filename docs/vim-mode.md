@@ -1,3 +1,9 @@
+<!-- Keep this file in sync with:
+     - src/components/VimTextArea.tsx (implementation)
+     - src/utils/vim.ts (core logic)
+     - src/utils/vim.test.ts (test suite)
+-->
+
 # Vim Mode
 
 cmux includes a built-in Vim mode for the chat input, providing familiar Vim-style editing for power users.
@@ -149,12 +155,3 @@ Features that may be added in the future:
 - **Visual mode** - Character, line, and block selection
 - **Macros** - Recording and replaying command sequences
 - **Marks** - Named cursor positions
-
-## Architecture Notes
-
-The Vim implementation is designed to be:
-- **Composable**: Operators automatically work with all motions
-- **Testable**: Comprehensive integration tests verify complete command sequences
-- **Non-intrusive**: Works alongside existing keybinds without conflicts
-
-See `src/components/VimTextArea.tsx` for implementation details.

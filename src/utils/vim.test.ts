@@ -13,6 +13,11 @@
  * - Cursor positioning across mode transitions
  * - Operator-motion composition
  * - State management between key presses
+ *
+ * Keep in sync with:
+ * - docs/vim-mode.md (user documentation)
+ * - src/components/VimTextArea.tsx (React component integration)
+ * - src/utils/vim.ts (core Vim logic)
  */
 
 import { describe, expect, test } from "@jest/globals";

@@ -1,6 +1,11 @@
 /**
  * Core Vim text manipulation utilities.
  * All functions are pure and accept text + cursor position, returning new state.
+ *
+ * Keep in sync with:
+ * - docs/vim-mode.md (user documentation)
+ * - src/components/VimTextArea.tsx (React component integration)
+ * - src/utils/vim.test.ts (integration tests)
  */
 
 export type VimMode = "insert" | "normal";
