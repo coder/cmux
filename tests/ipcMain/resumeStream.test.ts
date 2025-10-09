@@ -4,11 +4,7 @@ import {
   validateApiKeys,
   type TestEnvironment,
 } from "./setup";
-import {
-  sendMessageWithModel,
-  createEventCollector,
-  waitFor,
-} from "./helpers";
+import { sendMessageWithModel, createEventCollector, waitFor } from "./helpers";
 import { IPC_CHANNELS } from "../../src/constants/ipc-constants";
 import type { Result } from "../../src/types/result";
 import type { SendMessageError } from "../../src/types/errors";
@@ -75,9 +71,7 @@ describeIntegration("IpcMain resumeStream integration tests", () => {
           const hasAbort = collector1
             .getEvents()
             .some((e) => "type" in e && e.type === "stream-abort");
-          const hasEnd = collector1
-            .getEvents()
-            .some((e) => "type" in e && e.type === "stream-end");
+          const hasEnd = collector1.getEvents().some((e) => "type" in e && e.type === "stream-end");
           return hasAbort || hasEnd;
         }, 5000);
         expect(streamInterrupted).toBe(true);
@@ -96,7 +90,7 @@ describeIntegration("IpcMain resumeStream integration tests", () => {
         const resumeResult = (await env.mockIpcRenderer.invoke(
           IPC_CHANNELS.WORKSPACE_RESUME_STREAM,
           workspaceId,
-          "anthropic:claude-sonnet-4-5"
+          { model: "anthropic:claude-sonnet-4-5" }
         )) as Result<void, SendMessageError>;
         expect(resumeResult.success).toBe(true);
 
