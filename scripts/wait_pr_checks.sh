@@ -30,6 +30,12 @@ while true; do
     exit 0
   fi
 
+  # Check if PR is closed without merging
+  if [ "$PR_STATE" = "CLOSED" ]; then
+    echo "❌ PR #$PR_NUMBER is closed (not merged)!"
+    exit 1
+  fi
+
   MERGEABLE=$(echo "$STATUS" | jq -r '.mergeable')
   MERGE_STATE=$(echo "$STATUS" | jq -r '.mergeStateStatus')
 

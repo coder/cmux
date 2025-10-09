@@ -306,7 +306,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const modelSelectorRef = useRef<ModelSelectorRef>(null);
   const [thinkingLevel] = useThinkingLevel();
   const [mode, setMode] = useMode();
-  const [use1M] = use1MContext(workspaceId);
+  const [use1M] = use1MContext();
   const { recentModels } = useModelLRU();
 
   const focusMessageInput = useCallback(() => {
@@ -763,7 +763,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           </EditingIndicator>
         )}
         <ModeTogglesRow>
-          <ChatToggles workspaceId={workspaceId} modelString={preferredModel}>
+          <ChatToggles modelString={preferredModel}>
             <ModelDisplayWrapper>
               <ModelSelector
                 ref={modelSelectorRef}

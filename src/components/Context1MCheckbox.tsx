@@ -59,15 +59,11 @@ const Checkbox = styled.input`
 `;
 
 interface Context1MCheckboxProps {
-  workspaceId: string;
   modelString: string;
 }
 
-export const Context1MCheckbox: React.FC<Context1MCheckboxProps> = ({
-  workspaceId,
-  modelString,
-}) => {
-  const [use1M, setUse1M] = use1MContext(workspaceId);
+export const Context1MCheckbox: React.FC<Context1MCheckboxProps> = ({ modelString }) => {
+  const [use1M, setUse1M] = use1MContext();
   const isSupported = supports1MContext(modelString);
 
   if (!isSupported) {
