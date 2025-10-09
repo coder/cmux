@@ -63,7 +63,7 @@ export const createFileEditReplaceTool: ToolFactory = (config: ToolConfiguration
         if (currentLease !== lease) {
           return {
             success: false,
-            error: `WRITE DENIED: File lease mismatch. The file has been modified since it was read. Please read the file again.`,
+            error: `WRITE DENIED: File lease mismatch. The file has been modified since it was read. Please obtain a new lease from tool \`file_read\`.`,
           };
         }
         let content = originalContent;
