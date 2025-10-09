@@ -28,9 +28,12 @@ export function useSendMessageOptions(workspaceId: string): SendMessageOptions {
       ? "You are in Plan Mode. You may use tools to research and understand the task, but you MUST call the propose_plan tool with your findings before completing your response. Do not provide a text response without calling propose_plan."
       : undefined;
 
+  // Ensure model is always a valid string (defensive against corrupted localStorage)
+  const model = typeof preferredModel === "string" && preferredModel ? preferredModel : defaultModel;
+
   return {
     thinkingLevel,
-    model: preferredModel,
+    model,
     toolPolicy: modeToToolPolicy(mode),
     additionalSystemInstructions,
     providerOptions: {
