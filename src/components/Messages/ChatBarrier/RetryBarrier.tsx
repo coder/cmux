@@ -166,7 +166,7 @@ export const RetryBarrier: React.FC<RetryBarrierProps> = ({
         }
       })();
     }, delay);
-  }, [workspaceId, options, onStopAutoRetry, getDelay]);
+  }, [workspaceId, options, getDelay]);
 
   // Auto-retry effect
   useEffect(() => {

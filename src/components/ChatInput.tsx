@@ -10,10 +10,8 @@ import { usePersistedState } from "@/hooks/usePersistedState";
 import { useThinkingLevel } from "@/hooks/useThinkingLevel";
 import { useMode } from "@/contexts/ModeContext";
 import { ChatToggles } from "./ChatToggles";
-import { use1MContext } from "@/hooks/use1MContext";
 import { useSendMessageOptions } from "@/hooks/useSendMessageOptions";
 import { getModelKey, getInputKey } from "@/constants/storage";
-import { modeToToolPolicy } from "@/utils/ui/modeUtils";
 import { ToggleGroup } from "./ToggleGroup";
 import { CUSTOM_EVENTS } from "@/constants/events";
 import type { UIMode } from "@/types/mode";
@@ -308,7 +306,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const modelSelectorRef = useRef<ModelSelectorRef>(null);
   const [thinkingLevel] = useThinkingLevel();
   const [mode, setMode] = useMode();
-  const [use1M] = use1MContext();
   const { recentModels } = useModelLRU();
   
   // Get current send message options from shared hook (must be at component top level)
