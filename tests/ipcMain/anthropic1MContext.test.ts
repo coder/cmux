@@ -25,20 +25,18 @@ describeIntegration("IpcMain anthropic 1M context integration tests", () => {
     async () => {
       const { env, workspaceId, cleanup } = await setupWorkspace("anthropic");
       try {
-        // Build large conversation history to push context limits
-        // Claude Sonnet 4 standard context is ~200k tokens
-        // 1M context allows up to ~800k tokens
-        // We'll build ~300k tokens (1.2M chars) to exceed standard but fit in 1M
-        // Use 20 messages of 60k chars = 1.2M chars total (~300k tokens)
+        // Build large conversation history to exceed 200k token limit
+        // Standard limit: 200k tokens
+        // 1M context: up to 1M tokens
+        // We need ~210k tokens to reliably exceed standard limit
+        // Using 20 messages of 50k chars = 1M chars ≈ 210k tokens (accounting for overhead)
         await buildLargeHistory(workspaceId, env.config, {
-          messageSize: 60_000,
+          messageSize: 50_000,
           messageCount: 20,
           textPrefix: "Context test: ",
         });
         
-        // Phase 1: Try without 1M context flag
-        // This may fail or succeed depending on Anthropic's handling,
-        // but we're testing that the flag is applied
+        // Phase 1: Try without 1M context flag - should fail with context limit error
         env.sentEvents.length = 0;
         const resultWithout1M = await sendMessageWithModel(
           env.mockIpcRenderer,
@@ -55,14 +53,21 @@ describeIntegration("IpcMain anthropic 1M context integration tests", () => {
           }
         );
         
-        // May succeed or fail - we just verify the API accepted our request structure
         expect(resultWithout1M.success).toBe(true);
         
         const collectorWithout1M = createEventCollector(env.sentEvents, workspaceId);
-        await Promise.race([
-          collectorWithout1M.waitForEvent("stream-end", 30000),
-          collectorWithout1M.waitForEvent("stream-error", 30000),
+        const resultType = await Promise.race([
+          collectorWithout1M.waitForEvent("stream-end", 30000).then(() => "success"),
+          collectorWithout1M.waitForEvent("stream-error", 30000).then(() => "error"),
         ]);
+        
+        // Should get an error due to exceeding 200k token limit
+        expect(resultType).toBe("error");
+        const errorEvent = collectorWithout1M.getEvents().find(
+          (e) => "type" in e && e.type === "stream-error"
+        ) as { error: string } | undefined;
+        expect(errorEvent).toBeDefined();
+        expect(errorEvent!.error).toMatch(/too long|200000|maximum/i);
         
         // Phase 2: Try WITH 1M context flag
         // Should handle the large context better with beta header
