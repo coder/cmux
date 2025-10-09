@@ -3,9 +3,8 @@ import {
   sendMessageWithModel,
   createEventCollector,
   assertStreamSuccess,
+  buildLargeHistory,
 } from "./helpers";
-import { HistoryService } from "../../src/services/historyService";
-import { createCmuxMessage } from "../../src/types/message";
 
 // Skip all tests if TEST_INTEGRATION is not set
 const describeIntegration = shouldRunIntegrationTests() ? describe : describe.skip;
@@ -30,25 +29,12 @@ describeIntegration("IpcMain anthropic 1M context integration tests", () => {
         // Claude Sonnet 4 standard context is ~200k tokens
         // 1M context allows up to ~800k tokens
         // We'll build ~300k tokens (1.2M chars) to exceed standard but fit in 1M
-        
-        const historyService = new HistoryService(env.config);
-        
-        // Create ~60k chars per message (roughly 15k tokens)
-        const messageSize = 60_000;
-        const largeText = "Context test: " + "A".repeat(messageSize);
-        
-        // Use 20 messages = 1.2M chars total (~300k tokens)
-        // This should exceed standard context but fit in 1M window
-        const messageCount = 20;
-        
-        for (let i = 0; i < messageCount; i++) {
-          const isUser = i % 2 === 0;
-          const role = isUser ? "user" : "assistant";
-          const message = createCmuxMessage(`history-msg-${i}`, role, largeText, {});
-          
-          const result = await historyService.appendToHistory(workspaceId, message);
-          expect(result.success).toBe(true);
-        }
+        // Use 20 messages of 60k chars = 1.2M chars total (~300k tokens)
+        await buildLargeHistory(workspaceId, env.config, {
+          messageSize: 60_000,
+          messageCount: 20,
+          textPrefix: "Context test: ",
+        });
         
         // Phase 1: Try without 1M context flag
         // This may fail or succeed depending on Anthropic's handling,
