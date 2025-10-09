@@ -75,7 +75,7 @@ export const FileReadToolCall: React.FC<FileReadToolCallProps> = ({
   const { expanded, toggleExpanded } = useToolExpansion();
 
   // Extract just the filename from the path for compact display
-  const fileName = args.filePath.split("/").pop() || args.filePath;
+  const fileName = args.filePath.split("/").pop() ?? args.filePath;
 
   return (
     <ToolContainer expanded={expanded}>
