@@ -86,13 +86,11 @@ const MAX_DELAY = 60000; // 60 seconds (cap for exponential backoff)
 
 interface RetryState {
   attempt: number;
-  totalRetryTime: number;
   retryStartTime: number;
 }
 
 const defaultRetryState: RetryState = {
   attempt: 0,
-  totalRetryTime: 0,
   retryStartTime: Date.now(),
 };
 
@@ -111,15 +109,11 @@ export const RetryBarrier: React.FC<RetryBarrierProps> = ({
   );
 
   // Extract for convenience
-  const { attempt, totalRetryTime, retryStartTime } = retryState;
+  const { attempt, retryStartTime } = retryState;
 
-  // Setters that update the persisted state
+  // Setter for attempt
   const setAttempt = useCallback(
     (num: number) => setRetryState((prev) => ({ ...prev, attempt: num })),
-    [setRetryState]
-  );
-  const setTotalRetryTime = useCallback(
-    (time: number) => setRetryState((prev) => ({ ...prev, totalRetryTime: time })),
     [setRetryState]
   );
   const setRetryStartTime = useCallback(
@@ -130,6 +124,7 @@ export const RetryBarrier: React.FC<RetryBarrierProps> = ({
   // Local state for UI (doesn't need to persist)
   const [countdown, setCountdown] = useState(0);
   const [isRetrying, setIsRetrying] = useState(false);
+  const [totalRetryTime, setTotalRetryTime] = useState(0); // Display only, derived from retryStartTime
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -173,7 +168,7 @@ export const RetryBarrier: React.FC<RetryBarrierProps> = ({
         } else {
           setCountdown(Math.ceil(remaining / 1000));
         }
-        // Update total retry time
+        // Update total retry time (derived from retryStartTime)
         setTotalRetryTime(Math.floor((Date.now() - retryStartTime) / 1000));
       }, 100);
 
@@ -199,7 +194,7 @@ export const RetryBarrier: React.FC<RetryBarrierProps> = ({
         })();
       }, delay);
     },
-    [workspaceId, options, getDelay, setAttempt, retryStartTime, setTotalRetryTime]
+    [workspaceId, options, getDelay, setAttempt, retryStartTime]
   );
 
   // Auto-retry effect
