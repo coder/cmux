@@ -1,19 +1,27 @@
-import { useState, useEffect, startTransition } from "react";
+import { useState, useEffect } from "react";
 import type { WorkspaceMetadata } from "@/types/workspace";
 import type { WorkspaceSelection } from "@/components/ProjectSidebar";
 import type { ProjectConfig } from "@/config";
 
 interface UseWorkspaceManagementProps {
   selectedWorkspace: WorkspaceSelection | null;
+  loadedProjects: Map<string, ProjectConfig>;
   onProjectsUpdate: (projects: Map<string, ProjectConfig>) => void;
   onSelectedWorkspaceUpdate: (workspace: WorkspaceSelection | null) => void;
 }
 
 /**
  * Hook to manage workspace operations (create, remove, rename, list)
+ *
+ * Architecture:
+ * - IPC operations return complete metadata
+ * - We update both workspaceMetadata and projects maps directly
+ * - Event listener provides multi-window consistency
+ * - No unnecessary reloading from disk
  */
 export function useWorkspaceManagement({
   selectedWorkspace,
+  loadedProjects,
   onProjectsUpdate,
   onSelectedWorkspaceUpdate,
 }: UseWorkspaceManagementProps) {
@@ -26,13 +34,14 @@ export function useWorkspaceManagement({
     void loadWorkspaceMetadata();
 
     // Subscribe to real-time workspace metadata updates from backend
+    // This provides multi-window consistency - if another window creates/deletes a workspace,
+    // this window will be notified. Primary updates come from IPC responses, not events.
     const unsubscribe = window.api.workspace.onMetadata(
       (data: { workspaceId: string; metadata: WorkspaceMetadata | null }) => {
         setWorkspaceMetadata((prev) => {
           const next = new Map(prev);
           if (data.metadata === null) {
             // Workspace was deleted - remove from map
-            // Find and remove by workspace ID
             for (const [key, value] of next.entries()) {
               if (value.id === data.workspaceId) {
                 next.delete(key);
@@ -69,24 +78,30 @@ export function useWorkspaceManagement({
   const createWorkspace = async (projectPath: string, branchName: string) => {
     const result = await window.api.workspace.create(projectPath, branchName);
     if (result.success) {
-      // Immediately add the new workspace to metadata map for instant UI update
-      // (the event listener will also update it, but this ensures no delay)
+      // Update workspaceMetadata map
       setWorkspaceMetadata((prev) => {
         const next = new Map(prev);
         next.set(result.metadata.workspacePath, result.metadata);
         return next;
       });
 
-      // Reload projects in background (don't block on this)
-      // Using startTransition to avoid causing flicker in the UI
-      void window.api.projects.list().then((projectsList) => {
-        const loadedProjects = new Map(projectsList.map((p) => [p.path, p]));
-        startTransition(() => {
-          onProjectsUpdate(loadedProjects);
-        });
+      // Update projects map directly - no need to reload from disk
+      const updatedProjects = new Map(loadedProjects);
+      let projectConfig = updatedProjects.get(projectPath);
+      if (!projectConfig) {
+        projectConfig = {
+          path: projectPath,
+          workspaces: [],
+        };
+        updatedProjects.set(projectPath, projectConfig);
+      }
+      // Add workspace to project
+      projectConfig.workspaces.push({
+        path: result.metadata.workspacePath,
       });
+      onProjectsUpdate(updatedProjects);
 
-      // Return the new workspace selection immediately
+      // Return the new workspace selection
       return {
         projectPath,
         projectName: result.metadata.projectName,
@@ -101,25 +116,52 @@ export function useWorkspaceManagement({
   const removeWorkspace = async (
     workspaceId: string
   ): Promise<{ success: boolean; error?: string }> => {
+    // Find workspace metadata to get workspacePath before removal
+    let workspacePath: string | null = null;
+    let projectPath: string | null = null;
+    for (const [path, metadata] of workspaceMetadata.entries()) {
+      if (metadata.id === workspaceId) {
+        workspacePath = path;
+        // Find which project contains this workspace
+        for (const [projPath, project] of loadedProjects.entries()) {
+          if (project.workspaces.some((w) => w.path === path)) {
+            projectPath = projPath;
+            break;
+          }
+        }
+        break;
+      }
+    }
+
     const result = await window.api.workspace.remove(workspaceId);
     if (result.success) {
-      // Backend has already updated the config - reload projects to get updated state
-      const projectsList = await window.api.projects.list();
-      const loadedProjects = new Map(projectsList.map((p) => [p.path, p]));
-      onProjectsUpdate(loadedProjects);
+      // Update workspaceMetadata map
+      if (workspacePath) {
+        setWorkspaceMetadata((prev) => {
+          const next = new Map(prev);
+          next.delete(workspacePath!);
+          return next;
+        });
+      }
 
-      // No need to reload workspace metadata - the onWorkspaceMetadata event listener
-      // will update it automatically when the backend emits the event
+      // Update projects map directly - remove workspace from project
+      if (projectPath && workspacePath) {
+        const updatedProjects = new Map(loadedProjects);
+        const project = updatedProjects.get(projectPath);
+        if (project) {
+          project.workspaces = project.workspaces.filter((w) => w.path !== workspacePath);
+          onProjectsUpdate(updatedProjects);
+        }
+      }
 
       // If we removed the selected workspace, select the next workspace in the same project
-      if (selectedWorkspace?.workspaceId === workspaceId) {
-        // Find the project that contained this workspace
-        const projectPath = selectedWorkspace.projectPath;
+      if (selectedWorkspace?.workspaceId === workspaceId && projectPath) {
         const project = loadedProjects.get(projectPath);
+        const remainingWorkspaces = project?.workspaces.filter((w) => w.path !== workspacePath) ?? [];
 
-        if (project && project.workspaces.length > 0) {
+        if (remainingWorkspaces.length > 0) {
           // Select the first remaining workspace in the project
-          const nextWorkspacePath = project.workspaces[0].path;
+          const nextWorkspacePath = remainingWorkspaces[0].path;
           const nextMetadata = workspaceMetadata.get(nextWorkspacePath);
 
           if (nextMetadata) {
@@ -130,7 +172,6 @@ export function useWorkspaceManagement({
               workspaceId: nextMetadata.id,
             });
           } else {
-            // Metadata not loaded yet, clear selection
             onSelectedWorkspaceUpdate(null);
           }
         } else {
@@ -149,23 +190,57 @@ export function useWorkspaceManagement({
     workspaceId: string,
     newName: string
   ): Promise<{ success: boolean; error?: string }> => {
+    // Find old workspace path before rename
+    let oldWorkspacePath: string | null = null;
+    let projectPath: string | null = null;
+    for (const [path, metadata] of workspaceMetadata.entries()) {
+      if (metadata.id === workspaceId) {
+        oldWorkspacePath = path;
+        // Find which project contains this workspace
+        for (const [projPath, project] of loadedProjects.entries()) {
+          if (project.workspaces.some((w) => w.path === path)) {
+            projectPath = projPath;
+            break;
+          }
+        }
+        break;
+      }
+    }
+
     const result = await window.api.workspace.rename(workspaceId, newName);
     if (result.success) {
-      // Backend has already updated the config - reload projects to get updated state
-      const projectsList = await window.api.projects.list();
-      const loadedProjects = new Map(projectsList.map((p) => [p.path, p]));
-      onProjectsUpdate(loadedProjects);
+      const newWorkspaceId = result.data.newWorkspaceId;
 
-      // No need to reload workspace metadata - the onWorkspaceMetadata event listener
-      // will update it automatically when the backend emits the event
+      // Get updated workspace metadata from backend
+      const newMetadata = await window.api.workspace.getInfo(newWorkspaceId);
+      if (newMetadata) {
+        // Update workspaceMetadata map - remove old, add new
+        setWorkspaceMetadata((prev) => {
+          const next = new Map(prev);
+          if (oldWorkspacePath) {
+            next.delete(oldWorkspacePath);
+          }
+          next.set(newMetadata.workspacePath, newMetadata);
+          return next;
+        });
 
-      // Update selected workspace if it was renamed
-      if (selectedWorkspace?.workspaceId === workspaceId) {
-        const newWorkspaceId = result.data.newWorkspaceId;
+        // Update projects map directly - replace old workspace path with new
+        if (projectPath && oldWorkspacePath) {
+          const updatedProjects = new Map(loadedProjects);
+          const project = updatedProjects.get(projectPath);
+          if (project) {
+            const workspaceIndex = project.workspaces.findIndex((w) => w.path === oldWorkspacePath);
+            if (workspaceIndex !== -1) {
+              project.workspaces[workspaceIndex] = {
+                path: newMetadata.workspacePath,
+              };
+              onProjectsUpdate(updatedProjects);
+            }
+          }
+        }
 
-        // Get updated workspace metadata from backend
-        const newMetadata = await window.api.workspace.getInfo(newWorkspaceId);
-        if (newMetadata) {
+        // Update selected workspace if it was renamed
+        if (selectedWorkspace?.workspaceId === workspaceId) {
           onSelectedWorkspaceUpdate({
             projectPath: selectedWorkspace.projectPath,
             projectName: newMetadata.projectName,

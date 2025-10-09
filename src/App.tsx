@@ -172,6 +172,7 @@ function AppInner() {
   const { workspaceMetadata, createWorkspace, removeWorkspace, renameWorkspace } =
     useWorkspaceManagement({
       selectedWorkspace,
+      loadedProjects: projects,
       onProjectsUpdate: handleProjectsUpdate,
       onSelectedWorkspaceUpdate: setSelectedWorkspace,
     });
