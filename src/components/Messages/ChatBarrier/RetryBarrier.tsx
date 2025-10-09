@@ -183,6 +183,8 @@ export const RetryBarrier: React.FC<RetryBarrierProps> = ({
   const handleManualRetry = () => {
     setIsRetrying(true);
     setAttempt(0); // Reset attempt count
+    retryStartTimeRef.current = Date.now(); // Reset elapsed time tracking
+    setTotalRetryTime(0);
     onResetAutoRetry(); // Re-enable auto-retry for next failure
     
     void (async () => {
@@ -205,6 +207,7 @@ export const RetryBarrier: React.FC<RetryBarrierProps> = ({
     clearTimers();
     setAttempt(0);
     setCountdown(0);
+    setTotalRetryTime(0);
     onStopAutoRetry();
   };
 
@@ -216,21 +219,20 @@ export const RetryBarrier: React.FC<RetryBarrierProps> = ({
           <Icon>🔄</Icon>
           <Message>
             {isRetrying ? (
-              "Retrying..."
-            ) : attempt >= MAX_RETRIES ? (
-              "Maximum retries reached"
+              <>
+                Retrying...{totalRetryTime > 0 && ` (${totalRetryTime}s elapsed)`}
+              </>
             ) : (
               <>
-                Retrying in <Countdown>{countdown}s</Countdown> (attempt {attempt + 1}/{MAX_RETRIES})
+                Retrying in <Countdown>{countdown}s</Countdown>
+                {totalRetryTime > 0 && ` • ${totalRetryTime}s elapsed`}
               </>
             )}
           </Message>
         </BarrierContent>
-        {attempt < MAX_RETRIES && (
-          <Button variant="secondary" onClick={handleStopAutoRetry} disabled={isRetrying}>
-            Stop Auto-Retry
-          </Button>
-        )}
+        <Button variant="secondary" onClick={handleStopAutoRetry} disabled={isRetrying}>
+          Stop Auto-Retry
+        </Button>
       </BarrierContainer>
     );
   } else {
