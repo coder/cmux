@@ -123,7 +123,6 @@ export function moveWordForward(text: string, cursor: number): number {
   return Math.min(i, Math.max(0, n - 1));
 }
 
-
 /**
  * Move cursor to end of current/next word (like 'e').
  * If on a word character, goes to end of current word.
@@ -132,20 +131,20 @@ export function moveWordForward(text: string, cursor: number): number {
 export function moveWordEnd(text: string, cursor: number): number {
   const n = text.length;
   if (cursor >= n - 1) return Math.max(0, n - 1);
-  
+
   let i = cursor;
   const isWord = (ch: string) => /[A-Za-z0-9_]/.test(ch);
-  
+
   // If on a word char, move to end of this word
   if (isWord(text[i])) {
     while (i < n - 1 && isWord(text[i + 1])) i++;
     return i;
   }
-  
+
   // If on whitespace, skip to next word then go to its end
   while (i < n - 1 && !isWord(text[i])) i++;
   while (i < n - 1 && isWord(text[i + 1])) i++;
-  
+
   return Math.min(i, Math.max(0, n - 1));
 }
 
@@ -383,7 +382,7 @@ function handleInsertModeKey(state: VimState, key: string, modifiers: KeyModifie
  */
 function handleNormalModeKey(state: VimState, key: string, modifiers: KeyModifiers): VimKeyResult {
   const now = Date.now();
-  
+
   // Check for timeout on pending operator (800ms like Vim)
   let pending = state.pendingOp;
   if (pending && now - pending.at > 800) {
@@ -488,10 +487,7 @@ function handlePendingOperator(
 /**
  * Helper to complete an operation and clear pending state.
  */
-function completeOperation(
-  state: VimState,
-  updates: Partial<VimState>
-): VimState {
+function completeOperation(state: VimState, updates: Partial<VimState>): VimState {
   return {
     ...state,
     ...updates,
@@ -612,11 +608,7 @@ function applyOperatorMotion(
  * Apply operator + text object combination.
  * Currently only supports "iw" (inner word).
  */
-function applyOperatorTextObject(
-  state: VimState,
-  op: "d" | "c" | "y",
-  textObj: "iw"
-): VimState {
+function applyOperatorTextObject(state: VimState, op: "d" | "c" | "y", textObj: "iw"): VimState {
   if (textObj !== "iw") return state;
 
   const { text, cursor, yankBuffer } = state;
@@ -684,41 +676,41 @@ function tryHandleNavigation(state: VimState, key: string): VimKeyResult | null 
   switch (key) {
     case "h":
       return handleKey(state, { cursor: Math.max(0, cursor - 1), desiredColumn: null });
-    
+
     case "l":
-      return handleKey(state, { 
-        cursor: Math.min(cursor + 1, Math.max(0, text.length - 1)), 
-        desiredColumn: null 
+      return handleKey(state, {
+        cursor: Math.min(cursor + 1, Math.max(0, text.length - 1)),
+        desiredColumn: null,
       });
-    
+
     case "j": {
       const result = moveVertical(text, cursor, 1, desiredColumn);
       return handleKey(state, { cursor: result.cursor, desiredColumn: result.desiredColumn });
     }
-    
+
     case "k": {
       const result = moveVertical(text, cursor, -1, desiredColumn);
       return handleKey(state, { cursor: result.cursor, desiredColumn: result.desiredColumn });
     }
-    
+
     case "w":
     case "W":
       return handleKey(state, { cursor: moveWordForward(text, cursor), desiredColumn: null });
-    
+
     case "b":
     case "B":
       return handleKey(state, { cursor: moveWordBackward(text, cursor), desiredColumn: null });
-    
+
     case "e":
     case "E":
       return handleKey(state, { cursor: moveWordEnd(text, cursor), desiredColumn: null });
-    
+
     case "0":
     case "Home": {
       const { lineStart } = getLineBounds(text, cursor);
       return handleKey(state, { cursor: lineStart, desiredColumn: null });
     }
-    
+
     case "$":
     case "End": {
       const { lineStart, lineEnd } = getLineBounds(text, cursor);
@@ -749,7 +741,7 @@ function tryHandleEdit(state: VimState, key: string): VimKeyResult | null {
         desiredColumn: null,
       });
     }
-    
+
     case "p": {
       // In normal mode, cursor is ON a character. Paste AFTER means after that character.
       const result = pasteAfter(text, cursor + 1, yankBuffer);
@@ -759,7 +751,7 @@ function tryHandleEdit(state: VimState, key: string): VimKeyResult | null {
         desiredColumn: null,
       });
     }
-    
+
     case "P": {
       const result = pasteBefore(text, cursor, yankBuffer);
       return handleKey(state, {
@@ -780,23 +772,22 @@ function tryHandleOperator(state: VimState, key: string, now: number): VimKeyRes
   switch (key) {
     case "d":
       return handleKey(state, { pendingOp: { op: "d", at: now, args: [] } });
-    
+
     case "c":
       return handleKey(state, { pendingOp: { op: "c", at: now, args: [] } });
-    
+
     case "y":
       return handleKey(state, { pendingOp: { op: "y", at: now, args: [] } });
-    
+
     case "D":
       return { handled: true, newState: applyOperatorMotion(state, "d", "$") };
-    
+
     case "C":
       return { handled: true, newState: applyOperatorMotion(state, "c", "$") };
   }
 
   return null;
 }
-
 
 /**
  * Format pending operator command for display in mode indicator.
@@ -808,4 +799,3 @@ export function formatPendingCommand(pendingOp: VimState["pendingOp"]): string {
   const args = pendingOp.args?.join("") ?? "";
   return `${pendingOp.op}${args}`;
 }
-

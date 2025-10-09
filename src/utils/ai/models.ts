@@ -30,7 +30,6 @@ export function supports1MContext(modelString: string): boolean {
   }
   // Check for Sonnet 4 and Sonnet 4.5 models
   return (
-    modelName?.includes("claude-sonnet-4") &&
-    !modelName.includes("claude-sonnet-3") // Exclude Sonnet 3.x models
+    modelName?.includes("claude-sonnet-4") && !modelName.includes("claude-sonnet-3") // Exclude Sonnet 3.x models
   );
 }

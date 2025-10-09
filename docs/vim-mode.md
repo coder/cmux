@@ -15,11 +15,13 @@ Vim mode is always enabled. Press **ESC** to enter normal mode from insert mode.
 ## Modes
 
 ### Insert Mode (Default)
+
 - This is the default mode when typing in the chat input
 - Type normally, all characters are inserted
 - Press **ESC** or **Ctrl-[** to enter normal mode
 
 ### Normal Mode
+
 - Command mode for navigation and editing
 - Indicated by "NORMAL" text above the input
 - Pending commands are shown (e.g., "NORMAL d" when delete is pending)
@@ -28,12 +30,14 @@ Vim mode is always enabled. Press **ESC** to enter normal mode from insert mode.
 ## Navigation
 
 ### Basic Movement
+
 - **h** - Move left one character
 - **j** - Move down one line
 - **k** - Move up one line
 - **l** - Move right one character
 
 ### Word Movement
+
 - **w** - Move forward to start of next word
 - **W** - Move forward to start of next WORD (whitespace-separated)
 - **b** - Move backward to start of previous word
@@ -42,12 +46,14 @@ Vim mode is always enabled. Press **ESC** to enter normal mode from insert mode.
 - **E** - Move to end of current/next WORD
 
 ### Line Movement
+
 - **0** - Move to beginning of line
 - **$** - Move to end of line
 - **Home** - Same as **0**
 - **End** - Same as **$**
 
 ### Column Preservation
+
 When moving up/down with **j**/**k**, the cursor attempts to stay in the same column position. If a line is shorter, the cursor moves to the end of that line, but will return to the original column on longer lines.
 
 ## Entering Insert Mode
@@ -62,15 +68,18 @@ When moving up/down with **j**/**k**, the cursor attempts to stay in the same co
 ## Editing Commands
 
 ### Simple Edits
+
 - **x** - Delete character under cursor
 - **p** - Paste after cursor
 - **P** - Paste before cursor
 
 ### Undo/Redo
+
 - **u** - Undo last change
 - **Ctrl-r** - Redo
 
 ### Line Operations
+
 - **dd** - Delete line (yank to clipboard)
 - **yy** - Yank (copy) line
 - **cc** - Change line (delete and enter insert mode)
@@ -80,11 +89,13 @@ When moving up/down with **j**/**k**, the cursor attempts to stay in the same co
 Vim's power comes from combining operators with motions. All operators work with all motions:
 
 ### Operators
+
 - **d** - Delete
 - **c** - Change (delete and enter insert mode)
 - **y** - Yank (copy)
 
 ### Motions
+
 - **w** - To next word
 - **b** - To previous word
 - **e** - To end of word
@@ -92,6 +103,7 @@ Vim's power comes from combining operators with motions. All operators work with
 - **0** - To beginning of line
 
 ### Examples
+
 - **dw** - Delete to next word
 - **de** - Delete to end of word
 - **d$** - Delete to end of line
@@ -103,6 +115,7 @@ Vim's power comes from combining operators with motions. All operators work with
 - **yy** - Yank line (doubled operator)
 
 ### Shortcuts
+
 - **D** - Same as **d$** (delete to end of line)
 - **C** - Same as **c$** (change to end of line)
 
@@ -111,6 +124,7 @@ Vim's power comes from combining operators with motions. All operators work with
 Text objects let you operate on semantic units:
 
 ### Inner Word (iw)
+
 - **diw** - Delete inner word (word under cursor)
 - **ciw** - Change inner word
 - **yiw** - Yank inner word
@@ -125,12 +139,12 @@ Text objects work from anywhere within the word - you don't need to be at the st
 ## Keybind Conflicts
 
 ### ESC Key
+
 ESC is used for:
+
 1. Exiting Vim normal mode (highest priority)
 2. NOT used for canceling edits (use **Ctrl-Q** instead)
 3. NOT used for interrupting streams (use **Ctrl-C** instead)
-
-
 
 ## Tips
 
@@ -143,6 +157,7 @@ ESC is used for:
 ## Not Yet Implemented
 
 Features that may be added in the future:
+
 - **ge** - Backward end of word motion
 - **f{char}**, **t{char}** - Find character motions
 - **i"**, **i'**, **i(**, **i[**, **i{** - More text objects

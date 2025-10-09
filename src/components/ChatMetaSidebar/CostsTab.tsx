@@ -237,8 +237,6 @@ const SectionHeader = styled.div`
   margin-bottom: 12px;
 `;
 
-
-
 // Format token display - show k for thousands with 1 decimal
 const formatTokens = (tokens: number) =>
   tokens >= 1000 ? `${(tokens / 1000).toFixed(1)}k` : tokens.toLocaleString();
@@ -263,11 +261,7 @@ const formatCostWithDollar = (cost: number | undefined): string => {
  * Calculate cost with elevated pricing for 1M context (200k-1M tokens)
  * For tokens above 200k, use elevated pricing rates
  */
-const calculateElevatedCost = (
-  tokens: number,
-  standardRate: number,
-  isInput: boolean
-): number => {
+const calculateElevatedCost = (tokens: number, standardRate: number, isInput: boolean): number => {
   if (tokens <= 200_000) {
     return tokens * standardRate;
   }
@@ -408,19 +402,19 @@ export const CostsTab: React.FC = () => {
                 adjustedInputCost = calculateElevatedCost(
                   displayUsage.input.tokens,
                   modelStats.input_cost_per_token,
-                  true  // isInput
+                  true // isInput
                 );
                 // Recalculate output cost with elevated pricing
                 adjustedOutputCost = calculateElevatedCost(
                   displayUsage.output.tokens,
                   modelStats.output_cost_per_token,
-                  false  // isOutput
+                  false // isOutput
                 );
                 // Recalculate reasoning cost with elevated pricing
                 adjustedReasoningCost = calculateElevatedCost(
                   displayUsage.reasoning.tokens,
                   modelStats.output_cost_per_token,
-                  false  // isOutput
+                  false // isOutput
                 );
               }
 

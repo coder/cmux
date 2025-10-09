@@ -71,6 +71,7 @@ Write PR bodies for **busy reviewers**. Be concise and avoid redundancy:
 - **If it's obvious, omit it** - Problem obvious from solution? Don't state it. Solution obvious from problem? Skip to implementation details.
 
 ❌ **Bad** (redundant):
+
 ```
 Problem: Markdown rendering is slow, causing 50ms tasks
 Solution: Make markdown rendering faster
@@ -78,6 +79,7 @@ Impact: Reduces task time to <16ms
 ```
 
 ✅ **Good** (each section adds value):
+
 ```
 ReactMarkdown was re-parsing content on every parent render because plugin arrays
 were created fresh each time. Moved to module scope for stable references.
@@ -104,8 +106,8 @@ Verify with React DevTools Profiler - MarkdownCore should only re-render when co
   - User docs are built with mdbook and deployed to https://cmux.io
   - Must be added to `docs/SUMMARY.md` to appear in the docs
   - Use standard markdown + mermaid diagrams
-- **Developer docs** → inline with the code its documenting as comments. Consider them notes as notes to future Assistants to understand the logic more quickly. 
-**DO NOT** create standalone documentation files in the project root or random locations.
+- **Developer docs** → inline with the code its documenting as comments. Consider them notes as notes to future Assistants to understand the logic more quickly.
+  **DO NOT** create standalone documentation files in the project root or random locations.
 
 ### External API Docs
 
@@ -162,10 +164,10 @@ This project uses **Make** as the primary build orchestrator. See `Makefile` for
 
 ### Test-Driven Development (TDD)
 
-**TDD is the preferred development style for agents.** 
+**TDD is the preferred development style for agents.**
 
 - Prefer relocated complex logic into places where they're easily tested
-    - E.g. pure functions in `utils` are easier to test than complex logic in a React component
+  - E.g. pure functions in `utils` are easier to test than complex logic in a React component
 - Strive for broad coverage with minimal tests
 - Prefer testing large blocks of composite logic
   - Tests should be written with the end-user experience in mind

@@ -36,7 +36,7 @@ function executeVimCommands(initial: vim.VimState, keys: string[]): vim.VimState
     const actualKey = ctrl ? key.slice(5) : key;
 
     const result = vim.handleKeyPress(state, actualKey, { ctrl });
-    
+
     if (result.handled) {
       // Ignore undo/redo actions in tests (they require browser execCommand)
       if (result.action === "undo" || result.action === "redo") {
@@ -64,7 +64,7 @@ describe("Vim Command Integration Tests", () => {
     test("ESC enters normal mode from insert", () => {
       const state = executeVimCommands(
         { ...initialState, text: "hello", cursor: 5, mode: "insert" },
-        ["Escape"],
+        ["Escape"]
       );
       expect(state.mode).toBe("normal");
       expect(state.cursor).toBe(4); // Clamps to last char
@@ -73,7 +73,7 @@ describe("Vim Command Integration Tests", () => {
     test("i enters insert mode at cursor", () => {
       const state = executeVimCommands(
         { ...initialState, text: "hello", cursor: 2, mode: "normal" },
-        ["i"],
+        ["i"]
       );
       expect(state.mode).toBe("insert");
       expect(state.cursor).toBe(2);
@@ -82,7 +82,7 @@ describe("Vim Command Integration Tests", () => {
     test("a enters insert mode after cursor", () => {
       const state = executeVimCommands(
         { ...initialState, text: "hello", cursor: 2, mode: "normal" },
-        ["a"],
+        ["a"]
       );
       expect(state.mode).toBe("insert");
       expect(state.cursor).toBe(3);
@@ -91,7 +91,7 @@ describe("Vim Command Integration Tests", () => {
     test("o opens line below", () => {
       const state = executeVimCommands(
         { ...initialState, text: "hello\nworld", cursor: 2, mode: "normal" },
-        ["o"],
+        ["o"]
       );
       expect(state.mode).toBe("insert");
       expect(state.text).toBe("hello\n\nworld");
@@ -103,7 +103,7 @@ describe("Vim Command Integration Tests", () => {
     test("w moves to next word", () => {
       const state = executeVimCommands(
         { ...initialState, text: "hello world foo", cursor: 0, mode: "normal" },
-        ["w"],
+        ["w"]
       );
       expect(state.cursor).toBe(6);
     });
@@ -111,7 +111,7 @@ describe("Vim Command Integration Tests", () => {
     test("b moves to previous word", () => {
       const state = executeVimCommands(
         { ...initialState, text: "hello world foo", cursor: 12, mode: "normal" },
-        ["b"],
+        ["b"]
       );
       expect(state.cursor).toBe(6);
     });
@@ -119,7 +119,7 @@ describe("Vim Command Integration Tests", () => {
     test("$ moves to end of line", () => {
       const state = executeVimCommands(
         { ...initialState, text: "hello world", cursor: 0, mode: "normal" },
-        ["$"],
+        ["$"]
       );
       expect(state.cursor).toBe(10); // On last char, not past it
     });
@@ -127,7 +127,7 @@ describe("Vim Command Integration Tests", () => {
     test("0 moves to start of line", () => {
       const state = executeVimCommands(
         { ...initialState, text: "hello world", cursor: 10, mode: "normal" },
-        ["0"],
+        ["0"]
       );
       expect(state.cursor).toBe(0);
     });
@@ -137,7 +137,7 @@ describe("Vim Command Integration Tests", () => {
     test("x deletes character under cursor", () => {
       const state = executeVimCommands(
         { ...initialState, text: "hello", cursor: 1, mode: "normal" },
-        ["x"],
+        ["x"]
       );
       expect(state.text).toBe("hllo");
       expect(state.cursor).toBe(1);
@@ -147,7 +147,7 @@ describe("Vim Command Integration Tests", () => {
     test("p pastes after cursor", () => {
       const state = executeVimCommands(
         { ...initialState, text: "hello", cursor: 2, mode: "normal", yankBuffer: "XX" },
-        ["p"],
+        ["p"]
       );
       expect(state.text).toBe("helXXlo");
       expect(state.cursor).toBe(4);
@@ -156,7 +156,7 @@ describe("Vim Command Integration Tests", () => {
     test("P pastes before cursor", () => {
       const state = executeVimCommands(
         { ...initialState, text: "hello", cursor: 2, mode: "normal", yankBuffer: "XX" },
-        ["P"],
+        ["P"]
       );
       expect(state.text).toBe("heXXllo");
       expect(state.cursor).toBe(2);
@@ -167,7 +167,7 @@ describe("Vim Command Integration Tests", () => {
     test("dd deletes line", () => {
       const state = executeVimCommands(
         { ...initialState, text: "hello\nworld\nfoo", cursor: 8, mode: "normal" },
-        ["d", "d"],
+        ["d", "d"]
       );
       expect(state.text).toBe("hello\nfoo");
       expect(state.yankBuffer).toBe("world\n");
@@ -176,7 +176,7 @@ describe("Vim Command Integration Tests", () => {
     test("yy yanks line", () => {
       const state = executeVimCommands(
         { ...initialState, text: "hello\nworld", cursor: 2, mode: "normal" },
-        ["y", "y"],
+        ["y", "y"]
       );
       expect(state.text).toBe("hello\nworld"); // Text unchanged
       expect(state.yankBuffer).toBe("hello\n");
@@ -185,7 +185,7 @@ describe("Vim Command Integration Tests", () => {
     test("cc changes line", () => {
       const state = executeVimCommands(
         { ...initialState, text: "hello\nworld\nfoo", cursor: 8, mode: "normal" },
-        ["c", "c"],
+        ["c", "c"]
       );
       expect(state.text).toBe("hello\n\nfoo");
       expect(state.mode).toBe("insert");
@@ -197,7 +197,7 @@ describe("Vim Command Integration Tests", () => {
     test("d$ deletes to end of line", () => {
       const state = executeVimCommands(
         { ...initialState, text: "hello world", cursor: 6, mode: "normal" },
-        ["d", "$"],
+        ["d", "$"]
       );
       expect(state.text).toBe("hello ");
       expect(state.cursor).toBe(6);
@@ -207,7 +207,7 @@ describe("Vim Command Integration Tests", () => {
     test("D deletes to end of line (shortcut)", () => {
       const state = executeVimCommands(
         { ...initialState, text: "hello world", cursor: 6, mode: "normal" },
-        ["D"],
+        ["D"]
       );
       expect(state.text).toBe("hello ");
       expect(state.cursor).toBe(6);
@@ -216,7 +216,7 @@ describe("Vim Command Integration Tests", () => {
     test("d0 deletes to beginning of line", () => {
       const state = executeVimCommands(
         { ...initialState, text: "hello world", cursor: 6, mode: "normal" },
-        ["d", "0"],
+        ["d", "0"]
       );
       expect(state.text).toBe("world");
       expect(state.yankBuffer).toBe("hello ");
@@ -225,7 +225,7 @@ describe("Vim Command Integration Tests", () => {
     test("dw deletes to next word", () => {
       const state = executeVimCommands(
         { ...initialState, text: "hello world foo", cursor: 0, mode: "normal" },
-        ["d", "w"],
+        ["d", "w"]
       );
       expect(state.text).toBe("world foo");
       expect(state.yankBuffer).toBe("hello ");
@@ -234,7 +234,7 @@ describe("Vim Command Integration Tests", () => {
     test("db deletes to previous word", () => {
       const state = executeVimCommands(
         { ...initialState, text: "hello world foo", cursor: 12, mode: "normal" },
-        ["d", "b"],
+        ["d", "b"]
       );
       expect(state.text).toBe("hello foo");
     });
@@ -244,7 +244,7 @@ describe("Vim Command Integration Tests", () => {
     test("c$ changes to end of line", () => {
       const state = executeVimCommands(
         { ...initialState, text: "hello world", cursor: 6, mode: "normal" },
-        ["c", "$"],
+        ["c", "$"]
       );
       expect(state.text).toBe("hello ");
       expect(state.mode).toBe("insert");
@@ -254,7 +254,7 @@ describe("Vim Command Integration Tests", () => {
     test("C changes to end of line (shortcut)", () => {
       const state = executeVimCommands(
         { ...initialState, text: "hello world", cursor: 6, mode: "normal" },
-        ["C"],
+        ["C"]
       );
       expect(state.text).toBe("hello ");
       expect(state.mode).toBe("insert");
@@ -263,7 +263,7 @@ describe("Vim Command Integration Tests", () => {
     test("c0 changes to beginning of line", () => {
       const state = executeVimCommands(
         { ...initialState, text: "hello world", cursor: 6, mode: "normal" },
-        ["c", "0"],
+        ["c", "0"]
       );
       expect(state.text).toBe("world");
       expect(state.mode).toBe("insert");
@@ -272,7 +272,7 @@ describe("Vim Command Integration Tests", () => {
     test("cw changes to next word", () => {
       const state = executeVimCommands(
         { ...initialState, text: "hello world", cursor: 0, mode: "normal" },
-        ["c", "w"],
+        ["c", "w"]
       );
       expect(state.text).toBe("world");
       expect(state.mode).toBe("insert");
@@ -283,7 +283,7 @@ describe("Vim Command Integration Tests", () => {
     test("y$ yanks to end of line", () => {
       const state = executeVimCommands(
         { ...initialState, text: "hello world", cursor: 6, mode: "normal" },
-        ["y", "$"],
+        ["y", "$"]
       );
       expect(state.text).toBe("hello world"); // Text unchanged
       expect(state.yankBuffer).toBe("world");
@@ -293,7 +293,7 @@ describe("Vim Command Integration Tests", () => {
     test("y0 yanks to beginning of line", () => {
       const state = executeVimCommands(
         { ...initialState, text: "hello world", cursor: 6, mode: "normal" },
-        ["y", "0"],
+        ["y", "0"]
       );
       expect(state.text).toBe("hello world");
       expect(state.yankBuffer).toBe("hello ");
@@ -302,7 +302,7 @@ describe("Vim Command Integration Tests", () => {
     test("yw yanks to next word", () => {
       const state = executeVimCommands(
         { ...initialState, text: "hello world", cursor: 0, mode: "normal" },
-        ["y", "w"],
+        ["y", "w"]
       );
       expect(state.text).toBe("hello world");
       expect(state.yankBuffer).toBe("hello ");
@@ -313,7 +313,7 @@ describe("Vim Command Integration Tests", () => {
     test("ESC then d$ deletes from insert cursor to end", () => {
       const state = executeVimCommands(
         { ...initialState, text: "hello world", cursor: 6, mode: "insert" },
-        ["Escape", "d", "$"],
+        ["Escape", "d", "$"]
       );
       // Cursor at 6 in insert mode stays at 6 after ESC (on 'w')
       // d$ deletes from 'w' to end of line
@@ -324,7 +324,7 @@ describe("Vim Command Integration Tests", () => {
     test("navigate with w, then delete with dw", () => {
       const state = executeVimCommands(
         { ...initialState, text: "one two three", cursor: 0, mode: "normal" },
-        ["w", "d", "w"],
+        ["w", "d", "w"]
       );
       expect(state.text).toBe("one three");
     });
@@ -332,7 +332,7 @@ describe("Vim Command Integration Tests", () => {
     test("yank line, navigate, paste", () => {
       const state = executeVimCommands(
         { ...initialState, text: "first\nsecond\nthird", cursor: 0, mode: "normal" },
-        ["y", "y", "j", "j", "p"],
+        ["y", "y", "j", "j", "p"]
       );
       expect(state.yankBuffer).toBe("first\n");
       // After yy: cursor at 0, yank "first\n"
@@ -345,7 +345,7 @@ describe("Vim Command Integration Tests", () => {
     test("delete word, move, paste", () => {
       const state = executeVimCommands(
         { ...initialState, text: "hello world foo", cursor: 0, mode: "normal" },
-        ["d", "w", "w", "p"],
+        ["d", "w", "w", "p"]
       );
       expect(state.yankBuffer).toBe("hello ");
       // After dw: text = "world foo", cursor at 0, yank "hello "
@@ -359,7 +359,7 @@ describe("Vim Command Integration Tests", () => {
     test("$ on empty line", () => {
       const state = executeVimCommands(
         { ...initialState, text: "hello\n\nworld", cursor: 6, mode: "normal" },
-        ["$"],
+        ["$"]
       );
       expect(state.cursor).toBe(6); // Empty line, stays at newline char
     });
@@ -367,7 +367,7 @@ describe("Vim Command Integration Tests", () => {
     test("w at end of text", () => {
       const state = executeVimCommands(
         { ...initialState, text: "hello", cursor: 4, mode: "normal" },
-        ["w"],
+        ["w"]
       );
       expect(state.cursor).toBe(4); // Clamps to last char
     });
@@ -375,7 +375,7 @@ describe("Vim Command Integration Tests", () => {
     test("d$ at end of line deletes last char", () => {
       const state = executeVimCommands(
         { ...initialState, text: "hello", cursor: 4, mode: "normal" },
-        ["d", "$"],
+        ["d", "$"]
       );
       // Cursor at 4 (on 'o'), d$ deletes from 'o' to line end
       expect(state.text).toBe("hell");
@@ -384,11 +384,10 @@ describe("Vim Command Integration Tests", () => {
     test("x at end of text does nothing", () => {
       const state = executeVimCommands(
         { ...initialState, text: "hello", cursor: 5, mode: "normal" },
-        ["x"],
+        ["x"]
       );
       expect(state.text).toBe("hello");
     });
-
   });
 
   describe("Reported Issues", () => {
@@ -398,7 +397,7 @@ describe("Vim Command Integration Tests", () => {
       // This caused 'ciw' to behave like 'cw' (change word forward)
       const state = executeVimCommands(
         { ...initialState, text: "hello world foo", cursor: 6, mode: "normal" },
-        ["c", "i", "w"],
+        ["c", "i", "w"]
       );
       expect(state.text).toBe("hello  foo"); // Only "world" deleted, both spaces remain
       expect(state.mode).toBe("insert");
@@ -409,20 +408,19 @@ describe("Vim Command Integration Tests", () => {
       // In Vim: o opens new line below current line, even on last line
       const state = executeVimCommands(
         { ...initialState, text: "first\nsecond\nthird", cursor: 15, mode: "normal" },
-        ["o"],
+        ["o"]
       );
       expect(state.mode).toBe("insert");
       expect(state.text).toBe("first\nsecond\nthird\n"); // New line added
       expect(state.cursor).toBe(19); // Cursor on new line
     });
-
   });
 
   describe("e/E motion", () => {
     test("e moves to end of current word", () => {
       const state = executeVimCommands(
         { ...initialState, text: "hello world", cursor: 1, mode: "normal" },
-        ["e"],
+        ["e"]
       );
       expect(state.cursor).toBe(4);
     });
@@ -430,7 +428,7 @@ describe("Vim Command Integration Tests", () => {
     test("de deletes to end of word", () => {
       const state = executeVimCommands(
         { ...initialState, text: "hello world", cursor: 1, mode: "normal" },
-        ["d", "e"],
+        ["d", "e"]
       );
       expect(state.text).toBe("h world");
       expect(state.yankBuffer).toBe("ello");
@@ -439,7 +437,7 @@ describe("Vim Command Integration Tests", () => {
     test("ce changes to end of word", () => {
       const state = executeVimCommands(
         { ...initialState, text: "hello world", cursor: 1, mode: "normal" },
-        ["c", "e"],
+        ["c", "e"]
       );
       expect(state.text).toBe("h world");
       expect(state.mode).toBe("insert");

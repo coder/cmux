@@ -17,7 +17,6 @@ import {
   buildLargeHistory,
 } from "./helpers";
 
-
 // Skip all tests if TEST_INTEGRATION is not set
 const describeIntegration = shouldRunIntegrationTests() ? describe : describe.skip;
 

@@ -742,7 +742,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
               <TooltipWrapper inline>
                 <HelpIndicator>?</HelpIndicator>
                 <Tooltip className="tooltip" align="left" width="wide">
-                  <strong>Click to edit</strong> or use {formatKeybind(KEYBINDS.OPEN_MODEL_SELECTOR)}
+                  <strong>Click to edit</strong> or use{" "}
+                  {formatKeybind(KEYBINDS.OPEN_MODEL_SELECTOR)}
                   <br />
                   <br />
                   <strong>Abbreviations:</strong>

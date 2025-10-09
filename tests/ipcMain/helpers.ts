@@ -352,11 +352,11 @@ export async function cleanupTempGitRepo(repoPath: string): Promise<void> {
 
 /**
  * Build large conversation history to test context limits
- * 
+ *
  * This is a test-only utility that uses HistoryService directly to quickly
  * populate history without making API calls. Real application code should
  * NEVER bypass IPC like this.
- * 
+ *
  * @param workspaceId - Workspace to populate
  * @param config - Config instance for HistoryService
  * @param options - Configuration for history size
@@ -373,26 +373,25 @@ export async function buildLargeHistory(
 ): Promise<void> {
   const { HistoryService } = await import("../../src/services/historyService");
   const { createCmuxMessage } = await import("../../src/types/message");
-  
+
   // HistoryService only needs getSessionDir, so we can cast the partial config
   const historyService = new HistoryService(config as any);
-  
+
   const messageSize = options.messageSize ?? 50_000;
   const messageCount = options.messageCount ?? 80;
   const textPrefix = options.textPrefix ?? "";
-  
+
   const largeText = textPrefix + "A".repeat(messageSize);
-  
+
   // Build conversation history with alternating user/assistant messages
   for (let i = 0; i < messageCount; i++) {
     const isUser = i % 2 === 0;
     const role = isUser ? "user" : "assistant";
     const message = createCmuxMessage(`history-msg-${i}`, role, largeText, {});
-    
+
     const result = await historyService.appendToHistory(workspaceId, message);
     if (!result.success) {
       throw new Error(`Failed to append message ${i} to history: ${result.error}`);
     }
   }
 }
-

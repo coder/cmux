@@ -35,18 +35,18 @@ const Checkbox = styled.input`
   border-radius: 2px;
   background: #1e1e1e;
   position: relative;
-  
+
   &:hover {
     border-color: #007acc;
   }
-  
+
   &:checked {
     background: #007acc;
     border-color: #007acc;
   }
-  
+
   &:checked::after {
-    content: '';
+    content: "";
     position: absolute;
     left: 3px;
     top: 0px;
@@ -77,15 +77,22 @@ export const Context1MCheckbox: React.FC<Context1MCheckboxProps> = ({
   return (
     <CheckboxContainer>
       <CheckboxLabel>
-        <Checkbox
-          type="checkbox"
-          checked={use1M}
-          onChange={(e) => setUse1M(e.target.checked)}
-        />
+        <Checkbox type="checkbox" checked={use1M} onChange={(e) => setUse1M(e.target.checked)} />
         1M Context
       </CheckboxLabel>
       <TooltipWrapper inline>
-        <span style={{ cursor: "help", color: "#888", fontSize: "10px", lineHeight: "1", display: "flex", alignItems: "center" }}>?</span>
+        <span
+          style={{
+            cursor: "help",
+            color: "#888",
+            fontSize: "10px",
+            lineHeight: "1",
+            display: "flex",
+            alignItems: "center",
+          }}
+        >
+          ?
+        </span>
         <Tooltip className="tooltip" align="center" width="auto">
           Enable 1M token context window (beta feature for Claude Sonnet 4/4.5)
         </Tooltip>

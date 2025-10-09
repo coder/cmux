@@ -15,11 +15,7 @@ interface ChatTogglesProps {
   children: React.ReactNode;
 }
 
-export const ChatToggles: React.FC<ChatTogglesProps> = ({
-  workspaceId,
-  modelString,
-  children,
-}) => {
+export const ChatToggles: React.FC<ChatTogglesProps> = ({ workspaceId, modelString, children }) => {
   return (
     <TogglesContainer>
       {children}

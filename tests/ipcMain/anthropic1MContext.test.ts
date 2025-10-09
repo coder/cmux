@@ -35,7 +35,7 @@ describeIntegration("IpcMain anthropic 1M context integration tests", () => {
           messageCount: 20,
           textPrefix: "Context test: ",
         });
-        
+
         // Phase 1: Try without 1M context flag - should fail with context limit error
         env.sentEvents.length = 0;
         const resultWithout1M = await sendMessageWithModel(
@@ -52,23 +52,23 @@ describeIntegration("IpcMain anthropic 1M context integration tests", () => {
             },
           }
         );
-        
+
         expect(resultWithout1M.success).toBe(true);
-        
+
         const collectorWithout1M = createEventCollector(env.sentEvents, workspaceId);
         const resultType = await Promise.race([
           collectorWithout1M.waitForEvent("stream-end", 30000).then(() => "success"),
           collectorWithout1M.waitForEvent("stream-error", 30000).then(() => "error"),
         ]);
-        
+
         // Should get an error due to exceeding 200k token limit
         expect(resultType).toBe("error");
-        const errorEvent = collectorWithout1M.getEvents().find(
-          (e) => "type" in e && e.type === "stream-error"
-        ) as { error: string } | undefined;
+        const errorEvent = collectorWithout1M
+          .getEvents()
+          .find((e) => "type" in e && e.type === "stream-error") as { error: string } | undefined;
         expect(errorEvent).toBeDefined();
         expect(errorEvent!.error).toMatch(/too long|200000|maximum/i);
-        
+
         // Phase 2: Try WITH 1M context flag
         // Should handle the large context better with beta header
         env.sentEvents.length = 0;
@@ -86,18 +86,18 @@ describeIntegration("IpcMain anthropic 1M context integration tests", () => {
             },
           }
         );
-        
+
         expect(resultWith1M.success).toBe(true);
-        
+
         const collectorWith1M = createEventCollector(env.sentEvents, workspaceId);
         await collectorWith1M.waitForEvent("stream-end", 30000);
-        
+
         // With 1M context, should succeed
         assertStreamSuccess(collectorWith1M);
-        
+
         const messageWith1M = collectorWith1M.getFinalMessage();
         expect(messageWith1M).toBeDefined();
-        
+
         // The key test: with 1M context, we should get a valid response
         // that processed the large context
         if (messageWith1M && "parts" in messageWith1M && Array.isArray(messageWith1M.parts)) {
