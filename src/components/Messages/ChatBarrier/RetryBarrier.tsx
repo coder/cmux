@@ -102,119 +102,54 @@ export const RetryBarrier: React.FC<RetryBarrierProps> = ({
   className,
 }) => {
   // Use persisted state for retry tracking (survives workspace switches)
-  const [retryState, setRetryState] = usePersistedState<RetryState>(
+  // Read retry state (managed by useResumeManager)
+  const [retryState] = usePersistedState<RetryState>(
     getRetryStateKey(workspaceId),
     defaultRetryState,
     { listener: true }
   );
 
-  // Extract for convenience
   const { attempt, retryStartTime } = retryState;
 
-  // Setter for attempt
-  const setAttempt = useCallback(
-    (num: number) => setRetryState((prev) => ({ ...prev, attempt: num })),
-    [setRetryState]
-  );
-  const setRetryStartTime = useCallback(
-    (time: number) => setRetryState((prev) => ({ ...prev, retryStartTime: time })),
-    [setRetryState]
-  );
-
-  // Local state for UI (doesn't need to persist)
+  // Local state for UI
   const [countdown, setCountdown] = useState(0);
   const [isRetrying, setIsRetrying] = useState(false);
-  const [totalRetryTime, setTotalRetryTime] = useState(0); // Display only, derived from retryStartTime
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Get current send message options from shared hook
-  // This ensures retry uses current settings, not historical ones
   const options = useSendMessageOptions(workspaceId);
 
-  // Calculate delay with exponential backoff (capped at MAX_DELAY)
+  // Calculate delay with exponential backoff (same as useResumeManager)
   const getDelay = useCallback((attemptNum: number) => {
     const exponentialDelay = INITIAL_DELAY * Math.pow(2, attemptNum);
     return Math.min(exponentialDelay, MAX_DELAY);
   }, []);
 
-  // Cleanup timers
-  const clearTimers = useCallback(() => {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-    if (countdownIntervalRef.current) {
-      clearInterval(countdownIntervalRef.current);
-      countdownIntervalRef.current = null;
-    }
-  }, []);
-
-  // Start auto-retry with countdown (no max retries - continues indefinitely)
-  const startAutoRetry = useCallback(
-    (attemptNum: number) => {
-      const delay = getDelay(attemptNum);
-      const startTime = Date.now();
-      const endTime = startTime + delay;
-
-      // Update countdown every 100ms
-      setCountdown(Math.ceil(delay / 1000));
-      countdownIntervalRef.current = setInterval(() => {
-        const remaining = endTime - Date.now();
-        if (remaining <= 0) {
-          clearInterval(countdownIntervalRef.current!);
-          countdownIntervalRef.current = null;
-          setCountdown(0);
-        } else {
-          setCountdown(Math.ceil(remaining / 1000));
-        }
-        // Update total retry time (derived from retryStartTime)
-        setTotalRetryTime(Math.floor((Date.now() - retryStartTime) / 1000));
-      }, 100);
-
-      // Schedule retry
-      timerRef.current = setTimeout(() => {
-        setIsRetrying(true);
-        void (async () => {
-          try {
-            const result = await window.api.workspace.resumeStream(workspaceId, options);
-            if (!result.success) {
-              console.error("Auto-retry failed:", result.error);
-              // Increment attempt and retry again
-              setAttempt(attemptNum + 1);
-              setIsRetrying(false);
-            }
-            // On success, the stream will start and component will unmount
-          } catch (error) {
-            console.error("Unexpected error during auto-retry:", error);
-            // Increment attempt and retry again
-            setAttempt(attemptNum + 1);
-            setIsRetrying(false);
-          }
-        })();
-      }, delay);
-    },
-    [workspaceId, options, getDelay, setAttempt, retryStartTime]
-  );
-
-  // Auto-retry effect
+  // Update countdown display (pure display logic, no side effects)
+  // useResumeManager handles the actual retry logic
   useEffect(() => {
-    if (autoRetry && !isRetrying) {
-      startAutoRetry(attempt);
-    }
+    if (!autoRetry) return;
 
-    return () => {
-      clearTimers();
-    };
-  }, [autoRetry, attempt, isRetrying, startAutoRetry, clearTimers]);
+    const interval = setInterval(() => {
+      const delay = getDelay(attempt);
+      const nextRetryTime = retryStartTime + delay;
+      const timeUntilRetry = Math.max(0, nextRetryTime - Date.now());
 
-  // Manual retry handler
+      setCountdown(Math.ceil(timeUntilRetry / 1000));
+    }, 100);
+
+    return () => clearInterval(interval);
+  }, [autoRetry, attempt, retryStartTime, getDelay]);
+
+  // Manual retry handler (user-initiated, immediate)
   const handleManualRetry = () => {
     setIsRetrying(true);
-    setAttempt(0); // Reset attempt count
-    setRetryStartTime(Date.now()); // Reset elapsed time tracking
-    setTotalRetryTime(0);
     onResetAutoRetry(); // Re-enable auto-retry for next failure
+
+    // Reset retry state for manual retry
+    localStorage.setItem(
+      getRetryStateKey(workspaceId),
+      JSON.stringify({ attempt: 0, retryStartTime: Date.now() })
+    );
 
     void (async () => {
       try {
@@ -233,34 +168,28 @@ export const RetryBarrier: React.FC<RetryBarrierProps> = ({
 
   // Stop auto-retry handler
   const handleStopAutoRetry = () => {
-    clearTimers();
-    setAttempt(0);
     setCountdown(0);
-    setTotalRetryTime(0);
     onStopAutoRetry();
   };
 
   if (autoRetry) {
     // Auto-retry mode: Show countdown and stop button
+    // useResumeManager handles the actual retry logic
     return (
       <BarrierContainer className={className}>
         <BarrierContent>
           <Icon>🔄</Icon>
           <Message>
-            {isRetrying ? (
-              <>
-                Retrying... (attempt {attempt + 1})
-                {totalRetryTime > 0 && ` • ${totalRetryTime}s elapsed`}
-              </>
+            {countdown === 0 ? (
+              <>Retrying... (attempt {attempt + 1})</>
             ) : (
               <>
                 Retrying in <Countdown>{countdown}s</Countdown> (attempt {attempt + 1})
-                {totalRetryTime > 0 && ` • ${totalRetryTime}s elapsed`}
               </>
             )}
           </Message>
         </BarrierContent>
-        <Button variant="secondary" onClick={handleStopAutoRetry} disabled={isRetrying}>
+        <Button variant="secondary" onClick={handleStopAutoRetry}>
           Stop Auto-Retry
         </Button>
       </BarrierContainer>
