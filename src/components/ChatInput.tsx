@@ -763,7 +763,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           </EditingIndicator>
         )}
         <ModeTogglesRow>
-          <ChatToggles workspaceId={workspaceId} modelString={preferredModel}>
+          <ChatToggles modelString={preferredModel}>
             <ModelDisplayWrapper>
               <ModelSelector
                 ref={modelSelectorRef}

@@ -320,11 +320,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
   }
 
   return (
-    <ChatProvider
-      messages={messages}
-      cmuxMessages={cmuxMessages}
-      model={currentModel}
-    >
+    <ChatProvider messages={messages} cmuxMessages={cmuxMessages} model={currentModel}>
       <ViewContainer className={className}>
         <ChatArea>
           <ViewHeader>

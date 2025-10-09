@@ -9,4 +9,3 @@ import { usePersistedState } from "@/hooks/usePersistedState";
 export function use1MContext(): [boolean, (value: boolean) => void] {
   return usePersistedState<boolean>("use1MContext", false);
 }
-
