@@ -33,12 +33,12 @@ const StyledTextArea = styled.textarea<{
   background: ${(props) => (props.isEditing ? "var(--color-editing-mode-alpha)" : "#1e1e1e")};
   border: 1px solid ${(props) => (props.isEditing ? "var(--color-editing-mode)" : "#3e3e42")};
   color: #d4d4d4;
-  padding: 8px 12px;
+  padding: 6px 8px;
   border-radius: 4px;
   font-family: inherit;
   font-size: 13px;
   resize: none;
-  min-height: 36px;
+  min-height: 32px;
   max-height: 200px;
   overflow-y: auto;
   caret-color: ${(props) => (props.vimMode === "normal" ? "transparent" : "#ffffff")};
@@ -72,6 +72,7 @@ const ModeIndicator = styled.div`
   user-select: none;
   height: 11px; /* Fixed height to prevent border bump */
   line-height: 11px;
+  margin-bottom: 1px; /* Minimal spacing between indicator and textarea */
 `;
 
 const EmptyCursor = styled.div`
@@ -80,8 +81,8 @@ const EmptyCursor = styled.div`
   height: 16px;
   background-color: rgba(255, 255, 255, 0.5);
   pointer-events: none;
-  left: 12px;
-  top: 8px;
+  left: 8px;
+  top: 6px;
 `;
 
 type VimMode = vim.VimMode;
@@ -578,9 +579,9 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
     })();
 
     return (
-      <div style={{ width: "100%" }}>
+      <div style={{ width: "100%" }} data-component="VimTextAreaContainer">
         <ModeIndicator aria-live="polite">{modeText}</ModeIndicator>
-        <div style={{ position: "relative" }}>
+        <div style={{ position: "relative" }} data-component="VimTextAreaWrapper">
           <StyledTextArea
             ref={textareaRef}
             value={value}
