@@ -1,124 +1,121 @@
 import { describe, it, expect } from "bun:test";
 import type * as fs from "fs";
-import { leaseFromStat, validatePathInCwd } from "./fileCommon";
+import { leaseFromContent, validatePathInCwd, validateFileSize, MAX_FILE_SIZE } from "./fileCommon";
 
 describe("fileCommon", () => {
-  describe("leaseFromStat", () => {
+  describe("leaseFromContent", () => {
     it("should return a 6-character hexadecimal string", () => {
-      const stats = {
-        mtimeMs: 1234567890123,
-        mtime: new Date(1234567890123),
-        size: 1024,
-      } satisfies Partial<fs.Stats> as fs.Stats;
-
-      const lease = leaseFromStat(stats);
+      const content = "Hello, world!";
+      const lease = leaseFromContent(content);
 
       expect(lease).toMatch(/^[0-9a-f]{6}$/);
       expect(lease.length).toBe(6);
     });
 
-    it("should be deterministic for same stats", () => {
-      const stats = {
-        mtimeMs: 1234567890123,
-        mtime: new Date(1234567890123),
-        size: 1024,
-      } satisfies Partial<fs.Stats> as fs.Stats;
-
-      const lease1 = leaseFromStat(stats);
-      const lease2 = leaseFromStat(stats);
+    it("should be deterministic for same content", () => {
+      const content = "Hello, world!";
+      const lease1 = leaseFromContent(content);
+      const lease2 = leaseFromContent(content);
 
       expect(lease1).toBe(lease2);
     });
 
-    it("should produce different leases for different mtimeMs", () => {
-      const stats1 = {
-        mtimeMs: 1234567890123,
-        mtime: new Date(1234567890123),
-        size: 1024,
-      } satisfies Partial<fs.Stats> as fs.Stats;
+    it("should produce different leases for different content", () => {
+      const content1 = "Hello, world!";
+      const content2 = "Hello, world!!";
 
-      const stats2 = {
-        mtimeMs: 1234567890124, // Different by 1ms
-        mtime: new Date(1234567890124),
-        size: 1024,
-      } satisfies Partial<fs.Stats> as fs.Stats;
-
-      const lease1 = leaseFromStat(stats1);
-      const lease2 = leaseFromStat(stats2);
+      const lease1 = leaseFromContent(content1);
+      const lease2 = leaseFromContent(content2);
 
       expect(lease1).not.toBe(lease2);
     });
 
-    it("should produce different leases for different file sizes", () => {
-      const stats1 = {
-        mtimeMs: 1234567890123,
-        mtime: new Date(1234567890123),
-        size: 1024,
-      } satisfies Partial<fs.Stats> as fs.Stats;
-
-      const stats2 = {
-        mtimeMs: 1234567890123,
-        mtime: new Date(1234567890123),
-        size: 1025, // Different size
-      } satisfies Partial<fs.Stats> as fs.Stats;
-
-      const lease1 = leaseFromStat(stats1);
-      const lease2 = leaseFromStat(stats2);
-
-      expect(lease1).not.toBe(lease2);
-    });
-
-    it("should fallback to mtime.getTime() if mtimeMs is not available", () => {
-      const stats = {
-        mtime: new Date(1234567890123),
-        size: 1024,
-      } satisfies Partial<fs.Stats> as fs.Stats;
-
-      const lease = leaseFromStat(stats);
+    it("should work with Buffer input", () => {
+      const buffer = Buffer.from("Hello, world!", "utf-8");
+      const lease = leaseFromContent(buffer);
 
       expect(lease).toMatch(/^[0-9a-f]{6}$/);
       expect(lease.length).toBe(6);
     });
 
-    it("should produce non-sequential leases due to CRC32", () => {
-      const stats1 = {
-        mtimeMs: 1000,
-        mtime: new Date(1000),
-        size: 100,
-      } satisfies Partial<fs.Stats> as fs.Stats;
+    it("should produce same lease for string and equivalent Buffer", () => {
+      const content = "Hello, world!";
+      const buffer = Buffer.from(content, "utf-8");
 
-      const stats2 = {
-        mtimeMs: 1001,
-        mtime: new Date(1001),
-        size: 100,
-      } satisfies Partial<fs.Stats> as fs.Stats;
+      const lease1 = leaseFromContent(content);
+      const lease2 = leaseFromContent(buffer);
 
-      const lease1 = leaseFromStat(stats1);
-      const lease2 = leaseFromStat(stats2);
-
-      // Leases should not be sequential (e.g., not "000000" and "000001")
-      const lease1Num = parseInt(lease1, 16);
-      const lease2Num = parseInt(lease2, 16);
-
-      expect(Math.abs(lease2Num - lease1Num)).toBeGreaterThan(1);
+      expect(lease1).toBe(lease2);
     });
 
-    it("should produce different leases across multiple test runs due to secret", () => {
-      // This test verifies that the same input produces the same output within a run
-      // but the secret ensures it's not guessable across runs
+    it("should produce different leases for empty vs non-empty content", () => {
+      const lease1 = leaseFromContent("");
+      const lease2 = leaseFromContent("a");
+
+      expect(lease1).not.toBe(lease2);
+    });
+
+    it("should produce identical lease for same content regardless of external factors", () => {
+      // This test verifies that content-based leases are immune to mtime changes
+      // that could be triggered by external processes (e.g., IDE, git, filesystem tools)
+      const content = "const x = 42;\n";
+      const lease1 = leaseFromContent(content);
+
+      // Simulate same content but different metadata (like mtime)
+      // In the old mtime-based system, this would produce a different lease
+      // With content-based leases, it produces the same lease
+      const lease2 = leaseFromContent(content);
+
+      expect(lease1).toBe(lease2);
+    });
+  });
+
+  describe("validateFileSize", () => {
+    it("should return null for files within size limit", () => {
       const stats = {
-        mtimeMs: 9999999999999,
-        mtime: new Date(9999999999999),
-        size: 12345,
+        size: 1024, // 1KB
       } satisfies Partial<fs.Stats> as fs.Stats;
 
-      const lease = leaseFromStat(stats);
+      expect(validateFileSize(stats)).toBeNull();
+    });
 
-      // Verify it's a valid 6-char hex
-      expect(lease).toMatch(/^[0-9a-f]{6}$/);
+    it("should return null for files at exactly the limit", () => {
+      const stats = {
+        size: MAX_FILE_SIZE,
+      } satisfies Partial<fs.Stats> as fs.Stats;
 
-      // Verify determinism within same run
-      expect(leaseFromStat(stats)).toBe(lease);
+      expect(validateFileSize(stats)).toBeNull();
+    });
+
+    it("should return error for files exceeding size limit", () => {
+      const stats = {
+        size: MAX_FILE_SIZE + 1,
+      } satisfies Partial<fs.Stats> as fs.Stats;
+
+      const result = validateFileSize(stats);
+      expect(result).not.toBeNull();
+      expect(result?.error).toContain("too large");
+      expect(result?.error).toContain("system tools");
+    });
+
+    it("should include size information in error message", () => {
+      const stats = {
+        size: MAX_FILE_SIZE * 2, // 2MB
+      } satisfies Partial<fs.Stats> as fs.Stats;
+
+      const result = validateFileSize(stats);
+      expect(result?.error).toContain("2.00MB");
+      expect(result?.error).toContain("1.00MB");
+    });
+
+    it("should suggest alternative tools in error message", () => {
+      const stats = {
+        size: MAX_FILE_SIZE + 1,
+      } satisfies Partial<fs.Stats> as fs.Stats;
+
+      const result = validateFileSize(stats);
+      expect(result?.error).toContain("grep");
+      expect(result?.error).toContain("sed");
     });
   });
 

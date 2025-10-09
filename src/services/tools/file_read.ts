@@ -1,11 +1,10 @@
 import { tool } from "ai";
 import * as fs from "fs/promises";
 import * as path from "path";
-import * as readline from "readline";
 import type { FileReadToolResult } from "@/types/tools";
 import type { ToolConfiguration, ToolFactory } from "@/utils/tools/tools";
 import { TOOL_DEFINITIONS } from "@/utils/tools/toolDefinitions";
-import { leaseFromStat, validatePathInCwd } from "./fileCommon";
+import { leaseFromContent, validatePathInCwd, validateFileSize } from "./fileCommon";
 
 /**
  * File read tool factory for AI assistant
@@ -45,8 +44,19 @@ export const createFileReadTool: ToolFactory = (config: ToolConfiguration) => {
           };
         }
 
-        // Compute lease for this file state
-        const lease = leaseFromStat(stats);
+        // Validate file size
+        const sizeValidation = validateFileSize(stats);
+        if (sizeValidation) {
+          return {
+            success: false,
+            error: sizeValidation.error,
+          };
+        }
+
+        // Read full file content once for both display and lease computation
+        // This ensures lease matches the exact content snapshot being returned
+        const fullContent = await fs.readFile(resolvedPath, { encoding: "utf-8" });
+        const lease = leaseFromContent(fullContent);
 
         const startLineNumber = offset ?? 1;
 
@@ -58,30 +68,31 @@ export const createFileReadTool: ToolFactory = (config: ToolConfiguration) => {
           };
         }
 
-        // Open file with using for automatic cleanup
-        await using fileHandle = await fs.open(resolvedPath, "r");
+        // Split content into lines for processing
+        // Handle empty file case: splitting "" by "\n" gives [""], but we want []
+        const lines = fullContent === "" ? [] : fullContent.split("\n");
 
-        // Create readline interface for line-by-line reading
-        const rl = readline.createInterface({
-          input: fileHandle.createReadStream({ encoding: "utf-8" }),
-          crlfDelay: Infinity,
-        });
+        // Validate offset
+        if (offset !== undefined && offset > lines.length) {
+          return {
+            success: false,
+            error: `Offset ${offset} is beyond file length`,
+          };
+        }
 
         const numberedLines: string[] = [];
-        let currentLineNumber = 1;
-        let totalLinesRead = 0;
         let totalBytesAccumulated = 0;
         const MAX_LINE_BYTES = 1024;
         const MAX_LINES = 1000;
         const MAX_TOTAL_BYTES = 16 * 1024; // 16KB
 
-        // Iterate through file line by line
-        for await (const line of rl) {
-          // Skip lines before offset
-          if (currentLineNumber < startLineNumber) {
-            currentLineNumber++;
-            continue;
-          }
+        // Process lines with offset and limit
+        const startIdx = startLineNumber - 1; // Convert to 0-based index
+        const endIdx = limit !== undefined ? startIdx + limit : lines.length;
+
+        for (let i = startIdx; i < Math.min(endIdx, lines.length); i++) {
+          const line = lines[i];
+          const lineNumber = i + 1;
 
           // Truncate line if it exceeds max bytes
           let processedLine = line;
@@ -95,7 +106,7 @@ export const createFileReadTool: ToolFactory = (config: ToolConfiguration) => {
           }
 
           // Format line with number prefix
-          const numberedLine = `${currentLineNumber}\t${processedLine}`;
+          const numberedLine = `${lineNumber}\t${processedLine}`;
           const numberedLineBytes = Buffer.byteLength(numberedLine, "utf-8");
 
           // Check if adding this line would exceed byte limit
@@ -108,29 +119,14 @@ export const createFileReadTool: ToolFactory = (config: ToolConfiguration) => {
 
           numberedLines.push(numberedLine);
           totalBytesAccumulated += numberedLineBytes + 1; // +1 for newline
-          totalLinesRead++;
-          currentLineNumber++;
 
           // Check if we've exceeded max lines
-          if (totalLinesRead > MAX_LINES) {
+          if (numberedLines.length > MAX_LINES) {
             return {
               success: false,
               error: `Output would exceed ${MAX_LINES} lines. Please read less at a time using offset and limit parameters.`,
             };
           }
-
-          // Stop if we've collected enough lines
-          if (limit !== undefined && totalLinesRead >= limit) {
-            break;
-          }
-        }
-
-        // Check if offset was beyond file length
-        if (offset !== undefined && numberedLines.length === 0) {
-          return {
-            success: false,
-            error: `Offset ${offset} is beyond file length`,
-          };
         }
 
         // Join lines with newlines

@@ -3,7 +3,7 @@ import * as fs from "fs/promises";
 import * as path from "path";
 import * as os from "os";
 import { createFileEditInsertTool } from "./file_edit_insert";
-import { leaseFromStat } from "./fileCommon";
+import { leaseFromContent } from "./fileCommon";
 import type { FileEditInsertToolArgs, FileEditInsertToolResult } from "@/types/tools";
 import type { ToolCallOptions } from "ai";
 
@@ -33,8 +33,8 @@ describe("file_edit_insert tool", () => {
     const initialContent = "line1\nline2\nline3";
     await fs.writeFile(testFilePath, initialContent);
 
-    const stats = await fs.stat(testFilePath);
-    const lease = leaseFromStat(stats);
+    const content = await fs.readFile(testFilePath, "utf-8");
+    const lease = leaseFromContent(content);
 
     const tool = createFileEditInsertTool({ cwd: testDir });
     const args: FileEditInsertToolArgs = {
@@ -63,8 +63,8 @@ describe("file_edit_insert tool", () => {
     const initialContent = "line1\nline2\nline3";
     await fs.writeFile(testFilePath, initialContent);
 
-    const stats = await fs.stat(testFilePath);
-    const lease = leaseFromStat(stats);
+    const content = await fs.readFile(testFilePath, "utf-8");
+    const lease = leaseFromContent(content);
 
     const tool = createFileEditInsertTool({ cwd: testDir });
     const args: FileEditInsertToolArgs = {
@@ -92,8 +92,8 @@ describe("file_edit_insert tool", () => {
     const initialContent = "line1\nline2\nline3";
     await fs.writeFile(testFilePath, initialContent);
 
-    const stats = await fs.stat(testFilePath);
-    const lease = leaseFromStat(stats);
+    const content = await fs.readFile(testFilePath, "utf-8");
+    const lease = leaseFromContent(content);
 
     const tool = createFileEditInsertTool({ cwd: testDir });
     const args: FileEditInsertToolArgs = {
@@ -121,8 +121,8 @@ describe("file_edit_insert tool", () => {
     const initialContent = "line1\nline2\nline3";
     await fs.writeFile(testFilePath, initialContent);
 
-    const stats = await fs.stat(testFilePath);
-    const lease = leaseFromStat(stats);
+    const content = await fs.readFile(testFilePath, "utf-8");
+    const lease = leaseFromContent(content);
 
     const tool = createFileEditInsertTool({ cwd: testDir });
     const args: FileEditInsertToolArgs = {
@@ -150,8 +150,8 @@ describe("file_edit_insert tool", () => {
     const initialContent = "line1\nline2";
     await fs.writeFile(testFilePath, initialContent);
 
-    const stats = await fs.stat(testFilePath);
-    const lease = leaseFromStat(stats);
+    const content = await fs.readFile(testFilePath, "utf-8");
+    const lease = leaseFromContent(content);
 
     const tool = createFileEditInsertTool({ cwd: testDir });
     const args: FileEditInsertToolArgs = {
@@ -178,8 +178,8 @@ describe("file_edit_insert tool", () => {
     // Setup
     await fs.writeFile(testFilePath, "");
 
-    const stats = await fs.stat(testFilePath);
-    const lease = leaseFromStat(stats);
+    const content = await fs.readFile(testFilePath, "utf-8");
+    const lease = leaseFromContent(content);
 
     const tool = createFileEditInsertTool({ cwd: testDir });
     const args: FileEditInsertToolArgs = {
@@ -229,8 +229,8 @@ describe("file_edit_insert tool", () => {
     const initialContent = "line1\nline2";
     await fs.writeFile(testFilePath, initialContent);
 
-    const stats = await fs.stat(testFilePath);
-    const lease = leaseFromStat(stats);
+    const content = await fs.readFile(testFilePath, "utf-8");
+    const lease = leaseFromContent(content);
 
     const tool = createFileEditInsertTool({ cwd: testDir });
     const args: FileEditInsertToolArgs = {
@@ -255,8 +255,8 @@ describe("file_edit_insert tool", () => {
     const initialContent = "line1\nline2";
     await fs.writeFile(testFilePath, initialContent);
 
-    const stats = await fs.stat(testFilePath);
-    const lease = leaseFromStat(stats);
+    const content = await fs.readFile(testFilePath, "utf-8");
+    const lease = leaseFromContent(content);
 
     const tool = createFileEditInsertTool({ cwd: testDir });
     const args: FileEditInsertToolArgs = {
@@ -310,8 +310,8 @@ describe("file_edit_insert tool", () => {
     await fs.writeFile(testFilePath, initialContent);
 
     // Get initial lease
-    const stats = await fs.stat(testFilePath);
-    const lease = leaseFromStat(stats);
+    const content = await fs.readFile(testFilePath, "utf-8");
+    const lease = leaseFromContent(content);
 
     // Modify file to simulate concurrent edit
     await fs.writeFile(testFilePath, "Modified content");
