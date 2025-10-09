@@ -13,7 +13,7 @@ Commands for managing conversation history length and token usage.
 
 ## Plan Compaction
 
-If you've produced a plan, you can opportunistically click "Compact Here" on the plan to use that
+If you've produced a plan, you can opportunistically click "Compact Here" on the plan to use it
 as the entire conversation history. This operation is instant as all of the LLM's work was already
 done when it created the plan.
 
