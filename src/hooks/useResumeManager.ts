@@ -16,15 +16,16 @@ const MAX_DELAY = 60000; // 60 seconds
  * Centralized auto-resume manager for interrupted streams
  *
  * Features:
- * - Event-driven: Reacts to RESUME_CHECK_REQUESTED events
+ * - Polling-based: Checks all workspaces every 1 second
+ * - Event-driven: Also reacts to RESUME_CHECK_REQUESTED events for fast path
  * - Idempotent: Safe to call multiple times, silently ignores invalid requests
  * - Background operation: Works for all workspaces, visible or not
  * - Exponential backoff: 1s → 2s → 4s → 8s → ... → 60s (max)
  *
- * Emits resume checks on:
- * - App startup (for all interrupted workspaces)
- * - Stream errors (from useWorkspaceAggregators)
- * - Stream aborts (from useWorkspaceAggregators)
+ * Checks happen on:
+ * - App startup (initial scan)
+ * - Every 1 second (polling)
+ * - Stream errors/aborts (events for fast response)
  */
 export function useResumeManager(workspaceStates: Map<string, WorkspaceState>) {
   // Use ref to avoid effect re-running on every state change
