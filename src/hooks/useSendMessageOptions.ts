@@ -21,7 +21,7 @@ export function useSendMessageOptions(workspaceId: string): SendMessageOptions {
   const [thinkingLevel] = useThinkingLevel();
   const [mode] = useMode();
   const [preferredModel] = usePersistedState<string>(
-    `${workspaceId}-preferredModel`,
+    "model:" + workspaceId,
     defaultModel
   );
   
