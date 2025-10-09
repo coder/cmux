@@ -3,7 +3,7 @@ import * as fs from "fs/promises";
 import * as path from "path";
 import * as os from "os";
 import { createFileEditReplaceTool } from "./file_edit_replace";
-import { leaseFromStat } from "./fileCommon";
+import { leaseFromContent } from "./fileCommon";
 import type { FileEditReplaceToolArgs, FileEditReplaceToolResult } from "@/types/tools";
 import type { ToolCallOptions } from "ai";
 
@@ -16,8 +16,7 @@ const mockToolCallOptions: ToolCallOptions = {
 // Test helpers
 const setupFile = async (filePath: string, content: string): Promise<string> => {
   await fs.writeFile(filePath, content);
-  const stats = await fs.stat(filePath);
-  return leaseFromStat(stats);
+  return leaseFromContent(content);
 };
 
 const readFile = async (filePath: string): Promise<string> => {
@@ -101,8 +100,8 @@ describe("file_edit_replace tool", () => {
     const initialContent = "foo bar baz";
     await fs.writeFile(testFilePath, initialContent);
 
-    const stats = await fs.stat(testFilePath);
-    const lease = leaseFromStat(stats);
+    const content = await fs.readFile(testFilePath, "utf-8");
+    const lease = leaseFromContent(content);
 
     const tool = createFileEditReplaceTool({ cwd: testDir });
     const args: FileEditReplaceToolArgs = {
@@ -144,8 +143,8 @@ describe("file_edit_replace tool", () => {
     const initialContent = "cat dog cat bird cat";
     await fs.writeFile(testFilePath, initialContent);
 
-    const stats = await fs.stat(testFilePath);
-    const lease = leaseFromStat(stats);
+    const content = await fs.readFile(testFilePath, "utf-8");
+    const lease = leaseFromContent(content);
 
     const tool = createFileEditReplaceTool({ cwd: testDir });
     const args: FileEditReplaceToolArgs = {
@@ -179,8 +178,8 @@ describe("file_edit_replace tool", () => {
     const initialContent = "cat dog bird";
     await fs.writeFile(testFilePath, initialContent);
 
-    const stats = await fs.stat(testFilePath);
-    const lease = leaseFromStat(stats);
+    const content = await fs.readFile(testFilePath, "utf-8");
+    const lease = leaseFromContent(content);
 
     const tool = createFileEditReplaceTool({ cwd: testDir });
     const args: FileEditReplaceToolArgs = {
@@ -214,8 +213,8 @@ describe("file_edit_replace tool", () => {
     const initialContent = "Hello world";
     await fs.writeFile(testFilePath, initialContent);
 
-    const stats = await fs.stat(testFilePath);
-    const lease = leaseFromStat(stats);
+    const content = await fs.readFile(testFilePath, "utf-8");
+    const lease = leaseFromContent(content);
 
     const tool = createFileEditReplaceTool({ cwd: testDir });
     const args: FileEditReplaceToolArgs = {
@@ -239,8 +238,8 @@ describe("file_edit_replace tool", () => {
     }
 
     // File should remain unchanged
-    const content = await fs.readFile(testFilePath, "utf-8");
-    expect(content).toBe(initialContent);
+    const unchangedContent = await fs.readFile(testFilePath, "utf-8");
+    expect(unchangedContent).toBe(initialContent);
   });
 
   it("should fail when old_string appears multiple times with replace_count of 1", async () => {
@@ -248,8 +247,8 @@ describe("file_edit_replace tool", () => {
     const initialContent = "cat dog cat bird cat";
     await fs.writeFile(testFilePath, initialContent);
 
-    const stats = await fs.stat(testFilePath);
-    const lease = leaseFromStat(stats);
+    const content = await fs.readFile(testFilePath, "utf-8");
+    const lease = leaseFromContent(content);
 
     const tool = createFileEditReplaceTool({ cwd: testDir });
     const args: FileEditReplaceToolArgs = {
@@ -276,8 +275,8 @@ describe("file_edit_replace tool", () => {
     }
 
     // File should remain unchanged
-    const content = await fs.readFile(testFilePath, "utf-8");
-    expect(content).toBe(initialContent);
+    const unchangedContent = await fs.readFile(testFilePath, "utf-8");
+    expect(unchangedContent).toBe(initialContent);
   });
 
   it("should replace exactly N occurrences when replace_count is N", async () => {
@@ -285,8 +284,8 @@ describe("file_edit_replace tool", () => {
     const initialContent = "cat dog cat bird cat";
     await fs.writeFile(testFilePath, initialContent);
 
-    const stats = await fs.stat(testFilePath);
-    const lease = leaseFromStat(stats);
+    const content = await fs.readFile(testFilePath, "utf-8");
+    const lease = leaseFromContent(content);
 
     const tool = createFileEditReplaceTool({ cwd: testDir });
     const args: FileEditReplaceToolArgs = {
@@ -320,8 +319,8 @@ describe("file_edit_replace tool", () => {
     const initialContent = "cat dog bird";
     await fs.writeFile(testFilePath, initialContent);
 
-    const stats = await fs.stat(testFilePath);
-    const lease = leaseFromStat(stats);
+    const content = await fs.readFile(testFilePath, "utf-8");
+    const lease = leaseFromContent(content);
 
     const tool = createFileEditReplaceTool({ cwd: testDir });
     const args: FileEditReplaceToolArgs = {
@@ -347,8 +346,8 @@ describe("file_edit_replace tool", () => {
     }
 
     // File should remain unchanged
-    const content = await fs.readFile(testFilePath, "utf-8");
-    expect(content).toBe(initialContent);
+    const unchangedContent = await fs.readFile(testFilePath, "utf-8");
+    expect(unchangedContent).toBe(initialContent);
   });
 
   it("should fail when file does not exist", async () => {
@@ -382,8 +381,8 @@ describe("file_edit_replace tool", () => {
     const initialContent = "line1\nline2\nline3\nline4";
     await fs.writeFile(testFilePath, initialContent);
 
-    const stats = await fs.stat(testFilePath);
-    const lease = leaseFromStat(stats);
+    const content = await fs.readFile(testFilePath, "utf-8");
+    const lease = leaseFromContent(content);
 
     const tool = createFileEditReplaceTool({ cwd: testDir });
     const args: FileEditReplaceToolArgs = {
@@ -416,8 +415,8 @@ describe("file_edit_replace tool", () => {
     const initialContent = "Hello [DELETE_ME] world";
     await fs.writeFile(testFilePath, initialContent);
 
-    const stats = await fs.stat(testFilePath);
-    const lease = leaseFromStat(stats);
+    const content = await fs.readFile(testFilePath, "utf-8");
+    const lease = leaseFromContent(content);
 
     const tool = createFileEditReplaceTool({ cwd: testDir });
     const args: FileEditReplaceToolArgs = {
@@ -450,8 +449,8 @@ describe("file_edit_replace tool", () => {
     const initialContent = "step1";
     await fs.writeFile(testFilePath, initialContent);
 
-    const stats = await fs.stat(testFilePath);
-    const lease = leaseFromStat(stats);
+    const content = await fs.readFile(testFilePath, "utf-8");
+    const lease = leaseFromContent(content);
 
     const tool = createFileEditReplaceTool({ cwd: testDir });
     const args: FileEditReplaceToolArgs = {
@@ -511,8 +510,8 @@ describe("file_edit_replace tool", () => {
     }
 
     // File should remain unchanged
-    const content = await fs.readFile(testFilePath, "utf-8");
-    expect(content).toBe(initialContent);
+    const unchangedContent = await fs.readFile(testFilePath, "utf-8");
+    expect(unchangedContent).toBe(initialContent);
   });
 
   it("should detect file modified between read and edit", async () => {
@@ -521,8 +520,8 @@ describe("file_edit_replace tool", () => {
     await fs.writeFile(testFilePath, initialContent);
 
     // Get initial lease
-    const stats = await fs.stat(testFilePath);
-    const lease = leaseFromStat(stats);
+    const content = await fs.readFile(testFilePath, "utf-8");
+    const lease = leaseFromContent(content);
 
     // Modify file to simulate concurrent edit
     await fs.writeFile(testFilePath, "Modified content");
@@ -554,8 +553,8 @@ describe("file_edit_replace tool", () => {
     const initialContent = "line1\nline2\nline3\nline4\nline5\nline6\nline7\nline8\nline9";
     await fs.writeFile(testFilePath, initialContent);
 
-    const stats = await fs.stat(testFilePath);
-    const lease = leaseFromStat(stats);
+    const content = await fs.readFile(testFilePath, "utf-8");
+    const lease = leaseFromContent(content);
 
     const tool = createFileEditReplaceTool({ cwd: testDir });
     const args: FileEditReplaceToolArgs = {

@@ -4,25 +4,25 @@ import * as path from "path";
 import { createPatch } from "diff";
 
 /**
- * Compute a 6-character hexadecimal lease from file stats.
- * The lease changes when file is modified (mtime or size changes).
+ * Maximum file size for file operations (1MB)
+ * Files larger than this should be processed with system tools like grep, sed, etc.
+ */
+export const MAX_FILE_SIZE = 1024 * 1024; // 1MB
+
+/**
+ * Compute a 6-character hexadecimal lease from file content.
+ * The lease changes when file content is modified.
  * Uses a deterministic hash so leases are consistent across processes.
  *
- * @param stats - File stats from fs.stat()
+ * @param content - File content as string or Buffer
  * @returns 6-character hexadecimal lease string
  */
-export function leaseFromStat(stats: fs.Stats): string {
-  // Use highest-precision timestamp available
-  const mtime = stats.mtimeMs ?? stats.mtime.getTime();
-
-  // We use size in case mtime is only second precision, which occurs on some
-  // dated filesystems.
-  const data = `${mtime}:${stats.size}`;
-
-  // Use deterministic SHA-256 hash (no secret) so leases are consistent
+export function leaseFromContent(content: string | Buffer): string {
+  // Use deterministic SHA-256 hash of content so leases are consistent
   // across processes and restarts
-  return crypto.createHash("sha256").update(data).digest("hex").slice(0, 6);
+  return crypto.createHash("sha256").update(content).digest("hex").slice(0, 6);
 }
+
 
 /**
  * Generate a unified diff between old and new content using jsdiff.
@@ -35,6 +35,24 @@ export function leaseFromStat(stats: fs.Stats): string {
  */
 export function generateDiff(filePath: string, oldContent: string, newContent: string): string {
   return createPatch(filePath, oldContent, newContent, "", "", { context: 3 });
+}
+
+/**
+ * Validates that a file size is within the allowed limit.
+ * Returns an error object if the file is too large, null if valid.
+ *
+ * @param stats - File stats from fs.stat()
+ * @returns Error object if file is too large, null if valid
+ */
+export function validateFileSize(stats: fs.Stats): { error: string } | null {
+  if (stats.size > MAX_FILE_SIZE) {
+    const sizeMB = (stats.size / (1024 * 1024)).toFixed(2);
+    const maxMB = (MAX_FILE_SIZE / (1024 * 1024)).toFixed(2);
+    return {
+      error: `File is too large (${sizeMB}MB). The maximum file size for file operations is ${maxMB}MB. Please use system tools like grep, sed, awk, or split the file into smaller chunks.`,
+    };
+  }
+  return null;
 }
 
 /**
