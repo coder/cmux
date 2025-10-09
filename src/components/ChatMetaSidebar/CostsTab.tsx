@@ -286,9 +286,9 @@ const VIEW_MODE_OPTIONS: Array<ToggleOption<ViewMode>> = [
 ];
 
 export const CostsTab: React.FC = () => {
-  const { stats, isCalculating, workspaceId } = useChatContext();
+  const { stats, isCalculating } = useChatContext();
   const [viewMode, setViewMode] = usePersistedState<ViewMode>("costsTab:viewMode", "last-request");
-  const [use1M] = use1MContext(workspaceId);
+  const [use1M] = use1MContext();
 
   // Only show loading if we don't have any stats yet
   if (isCalculating && !stats) {

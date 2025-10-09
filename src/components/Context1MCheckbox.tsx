@@ -67,7 +67,7 @@ export const Context1MCheckbox: React.FC<Context1MCheckboxProps> = ({
   workspaceId,
   modelString,
 }) => {
-  const [use1M, setUse1M] = use1MContext(workspaceId);
+  const [use1M, setUse1M] = use1MContext();
   const isSupported = supports1MContext(modelString);
 
   if (!isSupported) {
