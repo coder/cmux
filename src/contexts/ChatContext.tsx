@@ -8,7 +8,6 @@ interface ChatContextType {
   messages: DisplayedMessage[];
   stats: ChatStats | null;
   isCalculating: boolean;
-  workspaceId: string;
 }
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
@@ -18,7 +17,6 @@ interface ChatProviderProps {
   messages: DisplayedMessage[];
   cmuxMessages: CmuxMessage[];
   model: string;
-  workspaceId: string;
 }
 
 export const ChatProvider: React.FC<ChatProviderProps> = ({
@@ -26,7 +24,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({
   messages,
   cmuxMessages,
   model,
-  workspaceId,
+  
 }) => {
   const [stats, setStats] = useState<ChatStats | null>(null);
   const [isCalculating, setIsCalculating] = useState(false);
@@ -91,7 +89,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({
   }, [cmuxMessages, model]);
 
   return (
-    <ChatContext.Provider value={{ messages, stats, isCalculating, workspaceId }}>
+    <ChatContext.Provider value={{ messages, stats, isCalculating}}>
       {children}
     </ChatContext.Provider>
   );
