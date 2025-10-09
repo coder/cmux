@@ -8,6 +8,35 @@ import { Config } from "./config";
 import { IpcMain } from "./services/ipcMain";
 import { VERSION } from "./version";
 
+// React DevTools for development profiling
+// Using require() instead of import since it's dev-only and conditionally loaded
+interface Extension {
+  name: string;
+  id: string;
+}
+
+type ExtensionInstaller = (
+  ext: { id: string },
+  options?: { loadExtensionOptions?: { allowFileAccess?: boolean } }
+) => Promise<Extension>;
+
+let installExtension: ExtensionInstaller | null = null;
+let REACT_DEVELOPER_TOOLS: { id: string } | null = null;
+
+if (!app.isPackaged) {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const devtools = require("electron-devtools-installer") as {
+      default: ExtensionInstaller;
+      REACT_DEVELOPER_TOOLS: { id: string };
+    };
+    installExtension = devtools.default;
+    REACT_DEVELOPER_TOOLS = devtools.REACT_DEVELOPER_TOOLS;
+  } catch (error) {
+    console.log("React DevTools not available:", error);
+  }
+}
+
 const config = new Config();
 const ipcMain = new IpcMain(config);
 
@@ -176,17 +205,14 @@ if (gotTheLock) {
     console.log("App ready, creating window...");
     
     // Install React DevTools in development
-    if (!app.isPackaged) {
+    if (!app.isPackaged && installExtension && REACT_DEVELOPER_TOOLS) {
       try {
-        const { default: installExtension, REACT_DEVELOPER_TOOLS } = await import(
-          "electron-devtools-installer"
-        );
         const extension = await installExtension(REACT_DEVELOPER_TOOLS, {
           loadExtensionOptions: { allowFileAccess: true },
         });
         console.log(`✅ React DevTools installed: ${extension.name} (id: ${extension.id})`);
-      } catch (error) {
-        console.log("❌ Error installing React DevTools:", error);
+      } catch (err) {
+        console.log("❌ Error installing React DevTools:", err);
       }
     }
     
