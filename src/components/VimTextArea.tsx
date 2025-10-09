@@ -163,8 +163,8 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
       onChange(result.text);
       yankBufferRef.current = result.yankBuffer;
       setTimeout(() => {
+        setVimMode("insert"); // Set mode BEFORE cursor to avoid block selection
         setCursor(result.cursor);
-        setVimMode("insert");
       }, 0);
     };
 
