@@ -112,8 +112,8 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
 
     const [vimMode, setVimMode] = useState<VimMode>("insert");
     const [desiredColumn, setDesiredColumn] = useState<number | null>(null);
+    const [pendingOp, setPendingOp] = useState<null | { op: "d" | "y" | "c"; at: number; args?: string[] }>(null);
     const yankBufferRef = useRef<string>("");
-    const pendingOpRef = useRef<null | { op: "d" | "y" | "c"; at: number; args?: string[] }>(null);
 
     // Auto-resize when value changes
     useEffect(() => {
@@ -147,411 +147,6 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
       setDesiredColumn(null);
     };
 
-    const moveVert = (delta: number) => {
-      const { start } = withSelection();
-      const result = vim.moveVertical(value, start, delta, desiredColumn);
-      setCursor(result.cursor);
-      setDesiredColumn(result.desiredColumn);
-    };
-
-    const moveWordForward = () => {
-      const newPos = vim.moveWordForward(value, withSelection().end);
-      setCursor(newPos);
-    };
-
-    const moveWordBackward = () => {
-      const newPos = vim.moveWordBackward(value, withSelection().start);
-      setCursor(newPos);
-    };
-
-    const applyEdit = (result: { text: string; cursor: number; yankBuffer?: string }) => {
-      onChange(result.text);
-      if (result.yankBuffer !== undefined) {
-        yankBufferRef.current = result.yankBuffer;
-      }
-      setTimeout(() => setCursor(result.cursor), 0);
-    };
-
-    const applyEditAndEnterInsert = (result: { text: string; cursor: number; yankBuffer: string }) => {
-      onChange(result.text);
-      yankBufferRef.current = result.yankBuffer;
-      setTimeout(() => {
-        setVimMode("insert"); // Set mode BEFORE cursor to avoid block selection
-        setCursor(result.cursor);
-      }, 0);
-    };
-
-    const deleteCharUnderCursor = () => {
-      const result = vim.deleteCharUnderCursor(value, withSelection().start, yankBufferRef.current);
-      applyEdit(result);
-    };
-
-    const pasteAfter = () => {
-      const result = vim.pasteAfter(value, withSelection().start, yankBufferRef.current);
-      applyEdit(result);
-    };
-
-    const pasteBefore = () => {
-      const result = vim.pasteBefore(value, withSelection().start, yankBufferRef.current);
-      applyEdit(result);
-    };
-
-    const handleUndo = () => {
-      // Use browser's editing history (supported in Chromium)
-       
-      document.execCommand("undo");
-    };
-
-    const handleRedo = () => {
-       
-      document.execCommand("redo");
-    };
-
-    // Apply operator with motion
-    const applyOperator = (
-      op: "d" | "c" | "y",
-      motion: "w" | "b" | "$" | "0" | "line",
-      cursor: number
-    ) => {
-      const result = (() => {
-        switch (op) {
-          case "d":
-            switch (motion) {
-              case "w":
-                return vim.deleteRange(
-                  value,
-                  cursor,
-                  vim.moveWordForward(value, cursor),
-                  true,
-                  yankBufferRef.current
-                );
-              case "b":
-                return vim.deleteRange(
-                  value,
-                  vim.moveWordBackward(value, cursor),
-                  cursor,
-                  true,
-                  yankBufferRef.current
-                );
-              case "$": {
-                const { lineEnd } = vim.getLineBounds(value, cursor);
-                return vim.deleteRange(value, cursor, lineEnd, true, yankBufferRef.current);
-              }
-              case "0": {
-                const { lineStart } = vim.getLineBounds(value, cursor);
-                return vim.deleteRange(value, lineStart, cursor, true, yankBufferRef.current);
-              }
-              case "line":
-                return vim.deleteLine(value, cursor, yankBufferRef.current);
-            }
-            break;
-          case "c":
-            switch (motion) {
-              case "w":
-                return vim.changeWord(value, cursor, yankBufferRef.current);
-              case "b":
-                return vim.changeRange(
-                  value,
-                  vim.moveWordBackward(value, cursor),
-                  cursor,
-                  yankBufferRef.current
-                );
-              case "$":
-                return vim.changeToEndOfLine(value, cursor, yankBufferRef.current);
-              case "0":
-                return vim.changeToBeginningOfLine(value, cursor, yankBufferRef.current);
-              case "line":
-                return vim.changeLine(value, cursor, yankBufferRef.current);
-            }
-            break;
-          case "y":
-            switch (motion) {
-              case "w": {
-                const to = vim.moveWordForward(value, cursor);
-                const yanked = value.slice(cursor, to);
-                return { text: value, cursor, yankBuffer: yanked };
-              }
-              case "b": {
-                const from = vim.moveWordBackward(value, cursor);
-                const yanked = value.slice(from, cursor);
-                return { text: value, cursor, yankBuffer: yanked };
-              }
-              case "$": {
-                const { lineEnd } = vim.getLineBounds(value, cursor);
-                const yanked = value.slice(cursor, lineEnd);
-                return { text: value, cursor, yankBuffer: yanked };
-              }
-              case "0": {
-                const { lineStart } = vim.getLineBounds(value, cursor);
-                const yanked = value.slice(lineStart, cursor);
-                return { text: value, cursor, yankBuffer: yanked };
-              }
-              case "line":
-                return { text: value, cursor, yankBuffer: vim.yankLine(value, cursor) };
-            }
-            break;
-        }
-        return null;
-      })();
-
-      if (!result) return;
-
-      if (op === "c") {
-        applyEditAndEnterInsert(result);
-      } else {
-        applyEdit(result);
-      }
-    };
-
-    const handleNormalKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-      const key = e.key;
-
-      // Operator-motion system
-      const now = Date.now();
-      const pending = pendingOpRef.current;
-      if (pending && now - pending.at > 800) {
-        pendingOpRef.current = null; // timeout
-      }
-
-      // Handle pending operator + motion
-      if (pending && (pending.op === "d" || pending.op === "c" || pending.op === "y")) {
-        e.preventDefault();
-        const cursor = withSelection().start;
-        const args = pending.args ?? [];
-
-        // Handle doubled operator (dd, yy, cc) -> line operation
-        if (args.length === 0 && key === pending.op) {
-          pendingOpRef.current = null;
-          applyOperator(pending.op, "line", cursor);
-          return;
-        }
-
-        // Handle text objects (currently just "iw")
-        if (args.length === 1 && args[0] === "i" && key === "w") {
-          pendingOpRef.current = null;
-          if (pending.op === "c") {
-            const result = vim.changeInnerWord(value, cursor, yankBufferRef.current);
-            applyEditAndEnterInsert(result);
-          } else if (pending.op === "d") {
-            const { start, end } = vim.wordBoundsAt(value, cursor);
-            const result = vim.deleteRange(value, start, end, true, yankBufferRef.current);
-            applyEdit(result);
-          } else if (pending.op === "y") {
-            const { start, end } = vim.wordBoundsAt(value, cursor);
-            const yanked = value.slice(start, end);
-            yankBufferRef.current = yanked;
-          }
-          return;
-        }
-
-        // Handle motion keys
-        if (args.length === 0) {
-          if (key === "w" || key === "W") {
-            pendingOpRef.current = null;
-            applyOperator(pending.op, "w", cursor);
-            return;
-          }
-          if (key === "b" || key === "B") {
-            pendingOpRef.current = null;
-            applyOperator(pending.op, "b", cursor);
-            return;
-          }
-          if (key === "$" || key === "End") {
-            pendingOpRef.current = null;
-            applyOperator(pending.op, "$", cursor);
-            return;
-          }
-          if (key === "0" || key === "Home") {
-            pendingOpRef.current = null;
-            applyOperator(pending.op, "0", cursor);
-            return;
-          }
-          if (key === "i") {
-            // Wait for text object (e.g., w)
-            pendingOpRef.current = { op: pending.op, at: now, args: ["i"] };
-            return;
-          }
-        }
-
-        // Unknown motion: cancel
-        pendingOpRef.current = null;
-        return;
-      }
-
-
-
-      switch (key) {
-        case "Escape":
-          e.preventDefault();
-          // stay in normal
-          return;
-        case "[":
-          if (e.ctrlKey) {
-            e.preventDefault();
-            return;
-          }
-          break;
-        case "i": {
-          e.preventDefault();
-          const result = vim.getInsertCursorPos(value, withSelection().start, "i");
-          onChange(result.text);
-          setTimeout(() => {
-            setCursor(result.cursor);
-            setVimMode("insert");
-          }, 0);
-          return;
-        }
-        case "a": {
-          e.preventDefault();
-          const result = vim.getInsertCursorPos(value, withSelection().start, "a");
-          onChange(result.text);
-          setTimeout(() => {
-            setCursor(result.cursor);
-            setVimMode("insert");
-          }, 0);
-          return;
-        }
-        case "I": {
-          e.preventDefault();
-          const result = vim.getInsertCursorPos(value, withSelection().start, "I");
-          onChange(result.text);
-          setTimeout(() => {
-            setCursor(result.cursor);
-            setVimMode("insert");
-          }, 0);
-          return;
-        }
-        case "A": {
-          e.preventDefault();
-          const result = vim.getInsertCursorPos(value, withSelection().start, "A");
-          onChange(result.text);
-          setTimeout(() => {
-            setCursor(result.cursor);
-            setVimMode("insert");
-          }, 0);
-          return;
-        }
-        case "o": {
-          e.preventDefault();
-          const result = vim.getInsertCursorPos(value, withSelection().start, "o");
-          onChange(result.text);
-          setTimeout(() => {
-            setCursor(result.cursor);
-            setVimMode("insert");
-          }, 0);
-          return;
-        }
-        case "O": {
-          e.preventDefault();
-          const result = vim.getInsertCursorPos(value, withSelection().start, "O");
-          onChange(result.text);
-          setTimeout(() => {
-            setCursor(result.cursor);
-            setVimMode("insert");
-          }, 0);
-          return;
-        }
-        case "h":
-          e.preventDefault();
-          setCursor(withSelection().start - 1);
-          return;
-        case "l":
-          e.preventDefault();
-          setCursor(withSelection().start + 1);
-          return;
-        case "j":
-          e.preventDefault();
-          moveVert(1);
-          return;
-        case "k":
-          e.preventDefault();
-          moveVert(-1);
-          return;
-        case "0": {
-          e.preventDefault();
-          const { lineStart } = vim.getLineBounds(value, withSelection().start);
-          setCursor(lineStart);
-          return;
-        }
-        case "$": {
-          e.preventDefault();
-          const { lineEnd } = vim.getLineBounds(value, withSelection().start);
-          // In Vim normal mode, $ goes to the last character, not after it
-          setCursor(Math.max(0, lineEnd - 1));
-          return;
-        }
-        case "w":
-        case "W":
-          e.preventDefault();
-          moveWordForward();
-          return;
-        case "b":
-        case "B":
-          e.preventDefault();
-          moveWordBackward();
-          return;
-        case "x":
-          e.preventDefault();
-          deleteCharUnderCursor();
-          return;
-        case "d": {
-          e.preventDefault();
-          // Start delete operator pending state
-          pendingOpRef.current = { op: "d", at: now, args: [] };
-          return;
-        }
-        case "c": {
-          e.preventDefault();
-          // Start change operator pending state
-          pendingOpRef.current = { op: "c", at: now, args: [] };
-          return;
-        }
-        case "C": {
-          e.preventDefault();
-          const cursor = withSelection().start;
-          const result = vim.changeToEndOfLine(value, cursor, yankBufferRef.current);
-          applyEditAndEnterInsert(result);
-          return;
-        }
-        case "D": {
-          e.preventDefault();
-          applyOperator("d", "$", withSelection().start);
-          return;
-        }
-        case "y": {
-          e.preventDefault();
-          // Start yank operator pending state
-          pendingOpRef.current = { op: "y", at: now, args: [] };
-          return;
-        }
-        case "p":
-          e.preventDefault();
-          pasteAfter();
-          return;
-        case "P":
-          e.preventDefault();
-          pasteBefore();
-          return;
-        case "u":
-          e.preventDefault();
-          handleUndo();
-          return;
-        case "r":
-          if (e.ctrlKey) {
-            e.preventDefault();
-            handleRedo();
-            return;
-          }
-          break;
-      }
-
-      // If we reached here in normal mode, swallow single-character inputs (don't type letters)
-      if (key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        e.preventDefault();
-        return;
-      }
-    };
-
     const handleKeyDownInternal = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
       // Let parent handle first (send, cancel, etc.)
       onKeyDown?.(e);
@@ -560,31 +155,65 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
       // If suggestions or external popovers are active, do not intercept navigation keys
       if (suppressSet.has(e.key)) return;
 
-      if (vimMode === "insert") {
-        // ESC or Ctrl-[ -> normal
-        if (e.key === "Escape" || (e.key === "[" && e.ctrlKey)) {
-          e.preventDefault();
-          setVimMode("normal");
-          // In normal mode, cursor should be ON a character, not after it
-          // Move back one if we're past the end of text
-          const pos = withSelection().start;
-          const normalPos = Math.min(pos, Math.max(0, value.length - 1));
-          setTimeout(() => setCursor(normalPos), 0);
-          return;
-        }
-        // Otherwise, allow browser default typing behavior
+      // Build current Vim state
+      const vimState: vim.VimState = {
+        text: value,
+        cursor: withSelection().start,
+        mode: vimMode,
+        yankBuffer: yankBufferRef.current,
+        desiredColumn,
+        pendingOp,
+      };
+
+      // Handle key press through centralized state machine
+      const result = vim.handleKeyPress(vimState, e.key, {
+        ctrl: e.ctrlKey,
+        meta: e.metaKey,
+        alt: e.altKey,
+      });
+
+      if (!result.handled) return; // Let browser handle (e.g., typing in insert mode)
+
+      e.preventDefault();
+
+      // Handle side effects (undo/redo)
+      if (result.action === "undo") {
+        document.execCommand("undo");
+        return;
+      }
+      if (result.action === "redo") {
+        document.execCommand("redo");
         return;
       }
 
-      // Normal mode handling
-      handleNormalKey(e);
+      // Apply new state to React
+      const newState = result.newState;
+      
+      if (newState.text !== value) {
+        onChange(newState.text);
+      }
+      if (newState.mode !== vimMode) {
+        setVimMode(newState.mode);
+      }
+      if (newState.yankBuffer !== yankBufferRef.current) {
+        yankBufferRef.current = newState.yankBuffer;
+      }
+      if (newState.desiredColumn !== desiredColumn) {
+        setDesiredColumn(newState.desiredColumn);
+      }
+      if (newState.pendingOp !== pendingOp) {
+        setPendingOp(newState.pendingOp);
+      }
+      
+      // Set cursor after React state updates (important for mode transitions)
+      setTimeout(() => setCursor(newState.cursor), 0);
     };
 
     // Build mode indicator content
     const showVimMode = vimMode === "normal";
     const pendingCommand = (() => {
       if (!showVimMode) return "";
-      const pending = pendingOpRef.current;
+      const pending = pendingOp;
       if (!pending) return "";
       const args = pending.args?.join("") || "";
       return `${pending.op}${args}`;
