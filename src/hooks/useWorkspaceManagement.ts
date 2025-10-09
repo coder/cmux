@@ -21,8 +21,36 @@ export function useWorkspaceManagement({
     new Map()
   );
 
+  // Load initial workspace metadata and subscribe to real-time updates
   useEffect(() => {
     void loadWorkspaceMetadata();
+
+    // Subscribe to real-time workspace metadata updates from backend
+    const unsubscribe = window.api.workspace.onWorkspaceMetadata(
+      (data: { workspaceId: string; metadata: WorkspaceMetadata | null }) => {
+        setWorkspaceMetadata((prev) => {
+          const next = new Map(prev);
+          if (data.metadata === null) {
+            // Workspace was deleted - remove from map
+            // Find and remove by workspace ID
+            for (const [key, value] of next.entries()) {
+              if (value.id === data.workspaceId) {
+                next.delete(key);
+                break;
+              }
+            }
+          } else {
+            // Workspace was created or updated - add/update in map
+            next.set(data.metadata.workspacePath, data.metadata);
+          }
+          return next;
+        });
+      }
+    );
+
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   const loadWorkspaceMetadata = async () => {
@@ -46,8 +74,8 @@ export function useWorkspaceManagement({
       const loadedProjects = new Map(projectsList.map((p) => [p.path, p]));
       onProjectsUpdate(loadedProjects);
 
-      // Reload workspace metadata to get the new workspace ID
-      await loadWorkspaceMetadata();
+      // No need to reload workspace metadata - the onWorkspaceMetadata event listener
+      // will update it automatically when the backend emits the event
 
       // Return the new workspace selection
       return {
@@ -71,8 +99,8 @@ export function useWorkspaceManagement({
       const loadedProjects = new Map(projectsList.map((p) => [p.path, p]));
       onProjectsUpdate(loadedProjects);
 
-      // Reload workspace metadata
-      await loadWorkspaceMetadata();
+      // No need to reload workspace metadata - the onWorkspaceMetadata event listener
+      // will update it automatically when the backend emits the event
 
       // Clear selected workspace if it was removed
       if (selectedWorkspace?.workspaceId === workspaceId) {
@@ -96,8 +124,8 @@ export function useWorkspaceManagement({
       const loadedProjects = new Map(projectsList.map((p) => [p.path, p]));
       onProjectsUpdate(loadedProjects);
 
-      // Reload workspace metadata
-      await loadWorkspaceMetadata();
+      // No need to reload workspace metadata - the onWorkspaceMetadata event listener
+      // will update it automatically when the backend emits the event
 
       // Update selected workspace if it was renamed
       if (selectedWorkspace?.workspaceId === workspaceId) {

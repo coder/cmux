@@ -196,28 +196,77 @@ export class IpcMain {
             .catch(() => false);
 
           if (worktreeExists) {
-            const gitResult = await removeWorktree(foundProjectPath, workspacePath, {
-              force: false,
-            });
-            if (!gitResult.success) {
-              const errorMessage = gitResult.error ?? "Unknown error";
-              const normalizedError = errorMessage.toLowerCase();
-              const looksLikeMissingWorktree =
-                normalizedError.includes("not a working tree") ||
-                normalizedError.includes("does not exist") ||
-                normalizedError.includes("no such file");
+            // Strategy: Move worktree to temp directory first (instant), then delete in background
+            // This makes the UI feel instant while cleanup happens asynchronously
+            const tempDir = path.join(
+              path.dirname(workspacePath),
+              `.deleting-${path.basename(workspacePath)}-${Date.now()}`
+            );
 
-              if (looksLikeMissingWorktree) {
-                const pruneResult = await pruneWorktrees(foundProjectPath);
-                if (!pruneResult.success) {
-                  log.info(
-                    `Failed to prune stale worktrees for ${foundProjectPath} after removeWorktree error: ${
-                      pruneResult.error ?? "unknown error"
-                    }`
-                  );
+            try {
+              // Move the worktree to temp location (instant operation)
+              await fsPromises.rename(workspacePath, tempDir);
+
+              // Tell git about the move, then remove it
+              const gitResult = await removeWorktree(foundProjectPath, tempDir, {
+                force: false,
+              });
+
+              if (!gitResult.success) {
+                const errorMessage = gitResult.error ?? "Unknown error";
+                const normalizedError = errorMessage.toLowerCase();
+                const looksLikeMissingWorktree =
+                  normalizedError.includes("not a working tree") ||
+                  normalizedError.includes("does not exist") ||
+                  normalizedError.includes("no such file");
+
+                if (looksLikeMissingWorktree) {
+                  const pruneResult = await pruneWorktrees(foundProjectPath);
+                  if (!pruneResult.success) {
+                    log.info(
+                      `Failed to prune stale worktrees for ${foundProjectPath} after removeWorktree error: ${
+                        pruneResult.error ?? "unknown error"
+                      }`
+                    );
+                  }
                 }
-              } else {
-                return gitResult;
+                // Continue even if git cleanup fails - we'll delete the temp dir anyway
+              }
+
+              // Delete the temp directory in the background (don't await)
+              void fsPromises
+                .rm(tempDir, { recursive: true, force: true })
+                .catch((err) => {
+                  log.info(`Failed to delete temp workspace directory ${tempDir}: ${String(err)}`);
+                });
+            } catch (renameError) {
+              // If rename fails, fall back to direct deletion
+              log.info(
+                `Failed to rename workspace for deletion, falling back to direct delete: ${String(renameError)}`
+              );
+              const gitResult = await removeWorktree(foundProjectPath, workspacePath, {
+                force: false,
+              });
+              if (!gitResult.success) {
+                const errorMessage = gitResult.error ?? "Unknown error";
+                const normalizedError = errorMessage.toLowerCase();
+                const looksLikeMissingWorktree =
+                  normalizedError.includes("not a working tree") ||
+                  normalizedError.includes("does not exist") ||
+                  normalizedError.includes("no such file");
+
+                if (looksLikeMissingWorktree) {
+                  const pruneResult = await pruneWorktrees(foundProjectPath);
+                  if (!pruneResult.success) {
+                    log.info(
+                      `Failed to prune stale worktrees for ${foundProjectPath} after removeWorktree error: ${
+                        pruneResult.error ?? "unknown error"
+                      }`
+                    );
+                  }
+                } else {
+                  return gitResult;
+                }
               }
             }
           } else {
