@@ -790,8 +790,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
               </Tooltip>
             </TooltipWrapper>
           </ModelDisplayWrapper>
-          <Context1MCheckbox workspaceId={workspaceId} modelString={preferredModel} />
           <ThinkingSliderComponent />
+          <Context1MCheckbox workspaceId={workspaceId} modelString={preferredModel} />
           <ModeToggleWrapper>
             <StyledToggleContainer mode={mode}>
               <ToggleGroup<UIMode>

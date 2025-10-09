@@ -27,9 +27,35 @@ const CheckboxLabel = styled.label`
 
 const Checkbox = styled.input`
   cursor: pointer;
-  width: 14px;
-  height: 14px;
-  accent-color: #007acc;
+  width: 11px;
+  height: 11px;
+  margin: 0;
+  appearance: none;
+  border: 1px solid #3e3e42;
+  border-radius: 2px;
+  background: #1e1e1e;
+  position: relative;
+  
+  &:hover {
+    border-color: #007acc;
+  }
+  
+  &:checked {
+    background: #007acc;
+    border-color: #007acc;
+  }
+  
+  &:checked::after {
+    content: '';
+    position: absolute;
+    left: 3px;
+    top: 1px;
+    width: 3px;
+    height: 6px;
+    border: solid white;
+    border-width: 0 1.5px 1.5px 0;
+    transform: rotate(45deg);
+  }
 `;
 
 interface Context1MCheckboxProps {
