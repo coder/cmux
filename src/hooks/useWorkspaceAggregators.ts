@@ -4,6 +4,9 @@ import { createCmuxMessage } from "@/types/message";
 import type { WorkspaceMetadata } from "@/types/workspace";
 import type { WorkspaceChatMessage } from "@/types/ipc";
 import { StreamingMessageAggregator } from "@/utils/messages/StreamingMessageAggregator";
+import { updatePersistedState } from "./usePersistedState";
+import { getRetryStateKey } from "@/constants/storage";
+import { CUSTOM_EVENTS } from "@/constants/events";
 import {
   isCaughtUpMessage,
   isStreamError,
@@ -121,6 +124,13 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
         if (isStreamError(data)) {
           aggregator.handleStreamError(data);
           forceUpdate();
+
+          // Trigger resume check
+          window.dispatchEvent(
+            new CustomEvent(CUSTOM_EVENTS.RESUME_CHECK_REQUESTED, {
+              detail: { workspaceId },
+            })
+          );
           return;
         }
 
@@ -136,6 +146,11 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
           aggregator.handleStreamStart(data);
           // Track model in LRU cache
           addModel(data.model);
+          // Clear retry state on successful stream start (fixes retry barrier persistence)
+          updatePersistedState(getRetryStateKey(workspaceId), {
+            attempt: 0,
+            retryStartTime: Date.now(),
+          });
           forceUpdate();
           return;
         }
@@ -193,6 +208,13 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
         if (isStreamAbort(data)) {
           aggregator.handleStreamAbort(data);
           forceUpdate();
+
+          // Trigger resume check
+          window.dispatchEvent(
+            new CustomEvent(CUSTOM_EVENTS.RESUME_CHECK_REQUESTED, {
+              detail: { workspaceId },
+            })
+          );
           return;
         }
 
@@ -268,7 +290,15 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
     };
   }, [workspaceMetadata, getAggregator, forceUpdate, addModel]);
 
+  // Build workspaceStates map for consumers that need all states
+  // Key by metadata.id (short format like 'cmux-md-toggles') to match localStorage keys
+  const workspaceStates = new Map<string, WorkspaceState>();
+  for (const [_key, metadata] of workspaceMetadata) {
+    workspaceStates.set(metadata.id, getWorkspaceState(metadata.id));
+  }
+
   return {
     getWorkspaceState,
+    workspaceStates,
   };
 }

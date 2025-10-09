@@ -15,6 +15,7 @@ import { matchesKeybind, KEYBINDS } from "./utils/ui/keybinds";
 import { useProjectManagement } from "./hooks/useProjectManagement";
 import { useWorkspaceManagement } from "./hooks/useWorkspaceManagement";
 import { useWorkspaceAggregators } from "./hooks/useWorkspaceAggregators";
+import { useResumeManager } from "./hooks/useResumeManager";
 import { CommandRegistryProvider, useCommandRegistry } from "./contexts/CommandRegistryContext";
 import type { CommandAction } from "./contexts/CommandRegistryContext";
 import { CommandPalette } from "./components/CommandPalette";
@@ -183,7 +184,10 @@ function AppInner() {
     });
 
   // Use workspace aggregators hook for message state
-  const { getWorkspaceState } = useWorkspaceAggregators(workspaceMetadata);
+  const { getWorkspaceState, workspaceStates } = useWorkspaceAggregators(workspaceMetadata);
+
+  // Auto-resume interrupted streams on app startup and when failures occur
+  useResumeManager(workspaceStates);
 
   const streamingModels = new Map<string, string>();
   for (const metadata of workspaceMetadata.values()) {

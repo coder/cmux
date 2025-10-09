@@ -6,12 +6,11 @@ import { ChatInputToast, SolutionLabel } from "./ChatInputToast";
 import type { ParsedCommand } from "@/utils/slashCommands/types";
 import { parseCommand } from "@/utils/slashCommands/parser";
 import type { SendMessageError as SendMessageErrorType } from "@/types/errors";
-import { usePersistedState } from "@/hooks/usePersistedState";
-import { useThinkingLevel } from "@/hooks/useThinkingLevel";
+import { usePersistedState, updatePersistedState } from "@/hooks/usePersistedState";
 import { useMode } from "@/contexts/ModeContext";
 import { ChatToggles } from "./ChatToggles";
-import { use1MContext } from "@/hooks/use1MContext";
-import { modeToToolPolicy } from "@/utils/ui/modeUtils";
+import { useSendMessageOptions } from "@/hooks/useSendMessageOptions";
+import { getModelKey, getInputKey } from "@/constants/storage";
 import { ToggleGroup } from "./ToggleGroup";
 import { CUSTOM_EVENTS } from "@/constants/events";
 import type { UIMode } from "@/types/mode";
@@ -21,7 +20,6 @@ import {
 } from "@/utils/slashCommands/suggestions";
 import { TooltipWrapper, Tooltip, HelpIndicator } from "./Tooltip";
 import { matchesKeybind, formatKeybind, KEYBINDS, isEditableElement } from "@/utils/ui/keybinds";
-import { defaultModel } from "@/utils/ai/models";
 import { ModelSelector, type ModelSelectorRef } from "./ModelSelector";
 import { useModelLRU } from "@/hooks/useModelLRU";
 import { VimTextArea } from "./VimTextArea";
@@ -289,11 +287,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   onCancelEdit,
   canInterrupt = false,
 }) => {
-  const [input, setInput] = usePersistedState("input:" + workspaceId, "");
-  const [preferredModel, setPreferredModel] = usePersistedState<string>(
-    "model:" + workspaceId,
-    defaultModel
-  );
+  const [input, setInput] = usePersistedState(getInputKey(workspaceId), "");
   const [isSending, setIsSending] = useState(false);
   const [showCommandSuggestions, setShowCommandSuggestions] = useState(false);
   const [commandSuggestions, setCommandSuggestions] = useState<SlashSuggestion[]>([]);
@@ -304,10 +298,18 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   }, []);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const modelSelectorRef = useRef<ModelSelectorRef>(null);
-  const [thinkingLevel] = useThinkingLevel();
   const [mode, setMode] = useMode();
-  const [use1M] = use1MContext();
   const { recentModels } = useModelLRU();
+
+  // Get current send message options from shared hook (must be at component top level)
+  const sendMessageOptions = useSendMessageOptions(workspaceId);
+  // Extract model for convenience (don't create separate state - use hook as single source of truth)
+  const preferredModel = sendMessageOptions.model;
+  // Setter for model - updates localStorage directly so useSendMessageOptions picks it up
+  const setPreferredModel = useCallback(
+    (model: string) => updatePersistedState(getModelKey(workspaceId), model),
+    [workspaceId]
+  );
 
   const focusMessageInput = useCallback(() => {
     const element = inputRef.current;
@@ -555,10 +557,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             // Send message with compact_summary tool required and maxOutputTokens in options
             // Note: Anthropic doesn't support extended thinking with required tool_choice,
             // so disable thinking for Anthropic models during compaction
-            const isAnthropic = preferredModel.startsWith("anthropic:");
+            const isAnthropic = sendMessageOptions.model.startsWith("anthropic:");
             const result = await window.api.workspace.sendMessage(workspaceId, compactionMessage, {
-              thinkingLevel: isAnthropic ? "off" : thinkingLevel,
-              model: preferredModel,
+              thinkingLevel: isAnthropic ? "off" : sendMessageOptions.thinkingLevel,
+              model: sendMessageOptions.model,
               toolPolicy: [{ regex_match: "compact_summary", action: "require" }],
               maxOutputTokens: parsed.maxOutputTokens, // Pass to model directly
             });
@@ -605,23 +607,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       setIsSending(true);
 
       try {
-        // Build additional system instructions for plan mode
-        const additionalSystemInstructions =
-          mode === "plan"
-            ? "You are in Plan Mode. You may use tools to research and understand the task, but you MUST call the propose_plan tool with your findings before completing your response. Do not provide a text response without calling propose_plan."
-            : undefined;
-
         const result = await window.api.workspace.sendMessage(workspaceId, messageText, {
+          ...sendMessageOptions,
           editMessageId: editingMessage?.id,
-          thinkingLevel,
-          model: preferredModel,
-          toolPolicy: modeToToolPolicy(mode),
-          additionalSystemInstructions,
-          providerOptions: {
-            anthropic: {
-              use1MContext: use1M,
-            },
-          },
         });
 
         if (!result.success) {

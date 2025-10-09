@@ -27,7 +27,7 @@ import type {
 import { IPC_CHANNELS, getChatChannel } from "@/constants/ipc-constants";
 import type { SendMessageError } from "@/types/errors";
 import type { StreamErrorMessage, SendMessageOptions, DeleteMessage } from "@/types/ipc";
-import { Ok, Err } from "@/types/result";
+import { Ok, Err, type Result } from "@/types/result";
 import { validateWorkspaceName } from "@/utils/validation/workspaceValidation";
 import { createBashTool } from "@/services/tools/bash";
 import type { BashToolResult } from "@/types/tools";
@@ -109,6 +109,63 @@ export class IpcMain {
 
       return result.filePaths[0];
     });
+  }
+
+  /**
+   * Helper method: Stream AI response with history
+   * Shared logic between sendMessage and resumeStream handlers
+   */
+  private async streamWithHistory(
+    workspaceId: string,
+    modelString: string,
+    options?: SendMessageOptions
+  ): Promise<Result<void, SendMessageError>> {
+    const {
+      thinkingLevel,
+      toolPolicy,
+      additionalSystemInstructions,
+      maxOutputTokens,
+      providerOptions,
+    } = options ?? {};
+
+    // Commit any existing partial to history BEFORE loading
+    // This ensures interrupted messages are included in the AI's context
+    await this.partialService.commitToHistory(workspaceId);
+
+    // Get full conversation history
+    const historyResult = await this.historyService.getHistory(workspaceId);
+    if (!historyResult.success) {
+      log.error("Failed to get conversation history:", historyResult.error);
+      return {
+        success: false,
+        error: createUnknownSendMessageError(historyResult.error),
+      };
+    }
+
+    // Stream the AI response
+    log.debug("Calling aiService.streamMessage", {
+      workspaceId,
+      thinkingLevel,
+      modelString,
+      toolPolicy,
+      additionalSystemInstructions,
+      maxOutputTokens,
+      providerOptions,
+    });
+
+    const streamResult = await this.aiService.streamMessage(
+      historyResult.data,
+      workspaceId,
+      modelString,
+      thinkingLevel,
+      toolPolicy,
+      undefined,
+      additionalSystemInstructions,
+      maxOutputTokens,
+      providerOptions
+    );
+    log.debug("Stream completed", { workspaceId });
+    return streamResult;
   }
 
   private registerWorkspaceHandlers(ipcMain: ElectronIpcMain): void {
@@ -511,20 +568,6 @@ export class IpcMain {
             this.mainWindow.webContents.send(getChatChannel(workspaceId), userMessage);
           }
 
-          // Commit any existing partial to history BEFORE loading
-          // This ensures interrupted messages are included in the AI's context
-          await this.partialService.commitToHistory(workspaceId);
-
-          // Get full conversation history
-          const historyResult = await this.historyService.getHistory(workspaceId);
-          if (!historyResult.success) {
-            log.error("Failed to get conversation history:", historyResult.error);
-            return {
-              success: false,
-              error: createUnknownSendMessageError(historyResult.error),
-            };
-          }
-
           // Stream the AI response
           if (!model) {
             log.error("No model provided by frontend");
@@ -535,27 +578,8 @@ export class IpcMain {
               ),
             };
           }
-          log.debug("sendMessage handler: Calling aiService.streamMessage with thinkingLevel", {
-            thinkingLevel,
-            model,
-            toolPolicy,
-            additionalSystemInstructions,
-            maxOutputTokens,
-            providerOptions,
-          });
-          const streamResult = await this.aiService.streamMessage(
-            historyResult.data,
-            workspaceId,
-            model,
-            thinkingLevel,
-            toolPolicy,
-            undefined,
-            additionalSystemInstructions,
-            maxOutputTokens,
-            providerOptions
-          );
-          log.debug("sendMessage handler: Stream completed");
-          return streamResult;
+
+          return await this.streamWithHistory(workspaceId, model, options);
         } catch (error) {
           // Convert to SendMessageError for typed error handling
           const errorMessage = error instanceof Error ? error.message : String(error);
@@ -563,6 +587,36 @@ export class IpcMain {
           const sendError: SendMessageError = {
             type: "unknown",
             raw: `Failed to send message: ${errorMessage}`,
+          };
+          return { success: false, error: sendError };
+        }
+      }
+    );
+
+    ipcMain.handle(
+      IPC_CHANNELS.WORKSPACE_RESUME_STREAM,
+      async (_event, workspaceId: string, options: SendMessageOptions) => {
+        log.debug("resumeStream handler: Received", {
+          workspaceId,
+          options,
+        });
+        try {
+          // Idempotent: if stream already active, return success (not error)
+          // This makes client code simpler and more resilient
+          if (this.aiService.isStreaming(workspaceId)) {
+            log.debug("resumeStream handler: Stream already active, returning success");
+            return { success: true };
+          }
+
+          // Stream the AI response with existing history (no new user message)
+          return await this.streamWithHistory(workspaceId, options.model, options);
+        } catch (error) {
+          // Convert to SendMessageError for typed error handling
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          log.error("Unexpected error in resumeStream handler:", error);
+          const sendError: SendMessageError = {
+            type: "unknown",
+            raw: `Failed to resume stream: ${errorMessage}`,
           };
           return { success: false, error: sendError };
         }

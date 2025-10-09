@@ -124,7 +124,7 @@ export function isReasoningEnd(msg: WorkspaceChatMessage): msg is ReasoningEndEv
   return "type" in msg && msg.type === "reasoning-end";
 }
 
-// Options for sendMessage
+// Options for sendMessage and resumeStream
 export interface SendMessageOptions {
   editMessageId?: string;
   thinkingLevel?: ThinkingLevel;
@@ -138,6 +138,10 @@ export interface SendMessageOptions {
 // API method signatures (shared between main and preload)
 // We strive to have a small, tight interface between main and the renderer
 // to promote good SoC and testing.
+//
+// Design principle: IPC methods should be idempotent when possible.
+// For example, calling resumeStream on an already-active stream should
+// return success (not error), making client code simpler and more resilient.
 export interface IPCApi {
   dialog: {
     selectDirectory(): Promise<string | null>;
@@ -174,6 +178,10 @@ export interface IPCApi {
       workspaceId: string,
       message: string,
       options?: SendMessageOptions
+    ): Promise<Result<void, SendMessageError>>;
+    resumeStream(
+      workspaceId: string,
+      options: SendMessageOptions
     ): Promise<Result<void, SendMessageError>>;
     truncateHistory(workspaceId: string, percentage?: number): Promise<Result<void, string>>;
     replaceChatHistory(

@@ -21,6 +21,19 @@ export const CUSTOM_EVENTS = {
    * No detail
    */
   OPEN_MODEL_SELECTOR: "cmux:openModelSelector",
+
+  /**
+   * Event to trigger resume check for a workspace
+   * Detail: { workspaceId: string }
+   *
+   * Emitted when:
+   * - Stream error occurs
+   * - Stream aborted
+   * - App startup (for all workspaces with interrupted streams)
+   *
+   * useResumeManager handles this idempotently - safe to emit multiple times
+   */
+  RESUME_CHECK_REQUESTED: "cmux:resumeCheckRequested",
 } as const;
 
 /**

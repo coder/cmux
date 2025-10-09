@@ -8,3 +8,32 @@
  * Format: "thinkingLevel:{workspaceId}"
  */
 export const getThinkingLevelKey = (workspaceId: string): string => `thinkingLevel:${workspaceId}`;
+
+/**
+ * Get the localStorage key for the user's preferred model for a workspace
+ */
+export function getModelKey(workspaceId: string): string {
+  return `model:${workspaceId}`;
+}
+
+/**
+ * Get the localStorage key for the input text for a workspace
+ */
+export function getInputKey(workspaceId: string): string {
+  return `input:${workspaceId}`;
+}
+
+/**
+ * Get the localStorage key for auto-retry preference for a workspace
+ */
+export function getAutoRetryKey(workspaceId: string): string {
+  return `${workspaceId}-autoRetry`;
+}
+
+/**
+ * Get the localStorage key for retry state for a workspace
+ * Stores: { attempt, totalRetryTime, retryStartTime }
+ */
+export function getRetryStateKey(workspaceId: string): string {
+  return `${workspaceId}-retryState`;
+}
