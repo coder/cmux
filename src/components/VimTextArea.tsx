@@ -463,7 +463,8 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
         case "$": {
           e.preventDefault();
           const { lineEnd } = vim.getLineBounds(value, withSelection().start);
-          setCursor(lineEnd);
+          // In Vim normal mode, $ goes to the last character, not after it
+          setCursor(Math.max(0, lineEnd - 1));
           return;
         }
         case "w":
