@@ -138,8 +138,13 @@ export function buildProviderOptions(
           // See: https://sdk.vercel.ai/providers/ai-sdk-providers/openai#responses-models
           include: ["reasoning.encrypted_content"],
         }),
-        // Include previousResponseId for persistence (Responses API)
-        ...(previousResponseId && { previousResponseId }),
+        // IMPORTANT: Do NOT use previousResponseId when reasoning is present
+        // OpenAI assigns itemIds in responses that reference reasoning items
+        // When we filter reasoning but OpenAI still has previousResponseId,
+        // it tries to link to missing reasoning items, causing errors
+        // Trade-off: Losing previousResponseId means OpenAI can't optimize context,
+        // but it prevents the itemId reference errors
+        // ...(previousResponseId && { previousResponseId }),  // DISABLED - causes itemId errors
       },
     };
     log.info("buildProviderOptions: Returning OpenAI options", options);
