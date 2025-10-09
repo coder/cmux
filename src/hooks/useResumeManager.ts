@@ -3,6 +3,7 @@ import type { WorkspaceState } from "./useWorkspaceAggregators";
 import { CUSTOM_EVENTS } from "@/constants/events";
 import { getAutoRetryKey, getRetryStateKey } from "@/constants/storage";
 import { getSendOptionsFromStorage } from "@/utils/messages/sendOptions";
+import { readPersistedState } from "./usePersistedState";
 
 interface RetryState {
   attempt: number;
@@ -70,8 +71,8 @@ export function useResumeManager(workspaceStates: Map<string, WorkspaceState>) {
     if (!hasInterruptedStream) return false;
 
     // 2. Auto-retry must be enabled (user didn't press Ctrl+C)
-    const autoRetry = localStorage.getItem(getAutoRetryKey(workspaceId));
-    if (autoRetry !== "true") return false;
+    const autoRetry = readPersistedState<boolean>(getAutoRetryKey(workspaceId), true);
+    if (!autoRetry) return false;
 
     // 3. Must not already be retrying
     if (retryingRef.current.has(workspaceId)) return false;
