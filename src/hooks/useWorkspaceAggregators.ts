@@ -291,9 +291,10 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
   }, [workspaceMetadata, getAggregator, forceUpdate, addModel]);
 
   // Build workspaceStates map for consumers that need all states
+  // Key by metadata.id (short format like 'cmux-md-toggles') to match localStorage keys
   const workspaceStates = new Map<string, WorkspaceState>();
-  for (const [workspaceId] of workspaceMetadata) {
-    workspaceStates.set(workspaceId, getWorkspaceState(workspaceId));
+  for (const [_key, metadata] of workspaceMetadata) {
+    workspaceStates.set(metadata.id, getWorkspaceState(metadata.id));
   }
 
   return {
