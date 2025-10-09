@@ -1,5 +1,5 @@
 import type { Dispatch, SetStateAction } from "react";
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { getStorageChangeEvent } from "@/constants/events";
 
 type SetValue<T> = T | ((prev: T) => T);
@@ -50,6 +50,7 @@ export function updatePersistedState<T>(key: string, value: T): void {
     }
 
     // Dispatch custom event for same-tab synchronization
+    // No origin since this is an external update - all listeners should receive it
     const customEvent = new CustomEvent(getStorageChangeEvent(key), {
       detail: { key, newValue: value },
     });
@@ -78,6 +79,9 @@ export function usePersistedState<T>(
   initialValue: T,
   options?: UsePersistedStateOptions
 ): [T, Dispatch<SetStateAction<T>>] {
+  // Unique component ID to prevent echo when listening to own updates
+  const componentIdRef = useRef(Math.random().toString(36));
+
   // Lazy initialization - only runs on first render
   const [state, setState] = useState<T>(() => {
     // Handle SSR and environments without localStorage
@@ -141,8 +145,9 @@ export function usePersistedState<T>(
             }
 
             // Dispatch custom event for same-tab synchronization
+            // Include origin marker to prevent echo
             const customEvent = new CustomEvent(getStorageChangeEvent(key), {
-              detail: { key, newValue },
+              detail: { key, newValue, origin: componentIdRef.current },
             });
             window.dispatchEvent(customEvent);
           } catch (error) {
@@ -184,8 +189,12 @@ export function usePersistedState<T>(
           }
         } else if (e instanceof CustomEvent) {
           // Same-tab custom event
-          const detail = e.detail as { key: string; newValue: T };
+          const detail = e.detail as { key: string; newValue: T; origin?: string };
           if (detail.key === key) {
+            // Skip if this update originated from this component (prevent echo)
+            if (detail.origin && detail.origin === componentIdRef.current) {
+              return;
+            }
             setState(detail.newValue);
           }
         }
