@@ -7,7 +7,7 @@ import type { ThinkingLevel } from "./thinking";
 import type { ToolPolicy } from "@/utils/tools/toolPolicy";
 import type { BashToolResult } from "./tools";
 import type { Secret } from "./secrets";
-import type { FrontendProviderOptions } from "./providerOptions";
+import type { CmuxProviderOptions } from "./providerOptions";
 import type {
   StreamStartEvent,
   StreamDeltaEvent,
@@ -132,8 +132,7 @@ export interface SendMessageOptions {
   toolPolicy?: ToolPolicy;
   additionalSystemInstructions?: string;
   maxOutputTokens?: number;
-  providerOptions?: FrontendProviderOptions;
-  disableAutoTruncation?: boolean;
+  providerOptions?: CmuxProviderOptions;
 }
 
 // API method signatures (shared between main and preload)

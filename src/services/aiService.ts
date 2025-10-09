@@ -14,7 +14,7 @@ import { StreamManager } from "./streamManager";
 import type { SendMessageError } from "@/types/errors";
 import { getToolsForModel } from "@/utils/tools/tools";
 import { secretsToRecord } from "@/types/secrets";
-import type { FrontendProviderOptions } from "@/types/providerOptions";
+import type { CmuxProviderOptions } from "@/types/providerOptions";
 import { log } from "./log";
 import {
   transformModelMessages,
@@ -177,8 +177,7 @@ export class AIService extends EventEmitter {
    */
   private createModel(
     modelString: string,
-    frontendProviderOptions?: FrontendProviderOptions,
-    options?: { disableAutoTruncation?: boolean }
+    cmuxProviderOptions?: CmuxProviderOptions
   ): Result<LanguageModel, SendMessageError> {
     try {
       // Parse model string (format: "provider:model-id")
@@ -206,39 +205,13 @@ export class AIService extends EventEmitter {
         }
 
         // Add 1M context beta header if requested
-
-
-        const use1MContext = frontendProviderOptions?.anthropic?.use1MContext;
-
-
+        const use1MContext = cmuxProviderOptions?.anthropic?.use1MContext;
         const existingHeaders = providerConfig.headers as Record<string, string> | undefined;
-
-
-        const headers =
-
-
-          use1MContext && existingHeaders
-
-
-            ? {
-
-
-                ...existingHeaders,
-
-
-                "anthropic-beta": "context-1m-2025-08-07",
-
-
-              }
-
-
-            : use1MContext
-
-
-              ? { "anthropic-beta": "context-1m-2025-08-07" }
-
-
-              : existingHeaders;
+        const headers = use1MContext && existingHeaders
+          ? { ...existingHeaders, "anthropic-beta": "context-1m-2025-08-07" }
+          : use1MContext
+            ? { "anthropic-beta": "context-1m-2025-08-07" }
+            : existingHeaders;
 
 
 
@@ -268,8 +241,8 @@ export class AIService extends EventEmitter {
         // This is a temporary override until @ai-sdk/openai supports passing
         // truncation via providerOptions. Safe because it only targets the
         // OpenAI Responses endpoint and leaves other providers untouched.
-        // Can be disabled via options for testing purposes.
-        const disableAutoTruncation = options?.disableAutoTruncation ?? false;
+        // Can be disabled via cmuxProviderOptions for testing purposes.
+        const disableAutoTruncation = cmuxProviderOptions?.disableAutoTruncation ?? false;
         const fetchWithOpenAITruncation = Object.assign(
           async (
             input: Parameters<typeof fetch>[0],
@@ -383,8 +356,7 @@ export class AIService extends EventEmitter {
     abortSignal?: AbortSignal,
     additionalSystemInstructions?: string,
     maxOutputTokens?: number,
-    frontendProviderOptions?: FrontendProviderOptions,
-    disableAutoTruncation?: boolean
+    cmuxProviderOptions?: CmuxProviderOptions
   ): Promise<Result<void, SendMessageError>> {
     try {
       // DEBUG: Log streamMessage call
@@ -398,9 +370,7 @@ export class AIService extends EventEmitter {
       await this.partialService.commitToHistory(workspaceId);
 
       // Create model instance with early API key validation
-      const modelResult = this.createModel(modelString, frontendProviderOptions, {
-        disableAutoTruncation,
-      });
+      const modelResult = this.createModel(modelString, cmuxProviderOptions);
       if (!modelResult.success) {
         return Err(modelResult.error);
       }

@@ -1,7 +1,7 @@
 /**
- * Frontend provider-specific options that get passed through the stack.
- * This allows us to cleanly handle provider-specific features without
- * polluting function signatures with individual flags.
+ * Cmux provider-specific options that get passed through the stack.
+ * Used by both frontend and backend to configure provider-specific features
+ * without polluting function signatures with individual flags.
  *
  * Note: This is separate from the AI SDK's provider options
  * (src/utils/ai/providerOptions.ts) which configures thinking levels, etc.
@@ -10,26 +10,30 @@
  */
 
 /**
- * Anthropic-specific frontend options
+ * Anthropic-specific options
  */
-export interface AnthropicFrontendOptions {
+export interface AnthropicProviderOptions {
   /** Enable 1M context window (requires beta header) */
   use1MContext?: boolean;
 }
 
 /**
- * OpenAI-specific frontend options
+ * OpenAI-specific options
  * Currently empty but reserved for future options
  */
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface OpenAIFrontendOptions {
+export interface OpenAIProviderOptions {
   // Placeholder for future OpenAI-specific options
 }
 
 /**
- * Union type for all frontend provider options
+ * Cmux provider options - used by both frontend and backend
  */
-export interface FrontendProviderOptions {
-  anthropic?: AnthropicFrontendOptions;
-  openai?: OpenAIFrontendOptions;
+export interface CmuxProviderOptions {
+  /** Provider-specific options */
+  anthropic?: AnthropicProviderOptions;
+  openai?: OpenAIProviderOptions;
+  
+  /** Disable automatic context truncation for OpenAI (useful for testing) */
+  disableAutoTruncation?: boolean;
 }
