@@ -74,6 +74,33 @@ const ErrorMessage = styled.div`
   border-left: 2px solid #f44336;
 `;
 
+const FileInfoRow = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 6px 8px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
+  font-size: 11px;
+  line-height: 1.4;
+`;
+
+const InfoItem = styled.div`
+  display: flex;
+  gap: 6px;
+`;
+
+const InfoLabel = styled.span`
+  color: var(--color-text-secondary);
+  font-weight: 500;
+`;
+
+const InfoValue = styled.span`
+  color: var(--color-text);
+  font-family: var(--font-monospace);
+  word-break: break-all;
+`;
+
 interface FileReadToolCallProps {
   args: FileReadToolArgs;
   result?: FileReadToolResult;
@@ -153,12 +180,24 @@ export const FileReadToolCall: React.FC<FileReadToolCallProps> = ({
       {expanded && (
         <ToolDetails>
           <DetailSection>
-            <DetailLabel>File Path</DetailLabel>
-            <DetailContent>
-              {args.filePath}
-              {args.offset !== undefined && ` • offset: line ${args.offset}`}
-              {args.limit !== undefined && ` • limit: ${args.limit} lines`}
-            </DetailContent>
+            <FileInfoRow>
+              <InfoItem>
+                <InfoLabel>Path:</InfoLabel>
+                <InfoValue>{args.filePath}</InfoValue>
+              </InfoItem>
+              {args.offset !== undefined && (
+                <InfoItem>
+                  <InfoLabel>Offset:</InfoLabel>
+                  <InfoValue>line {args.offset}</InfoValue>
+                </InfoItem>
+              )}
+              {args.limit !== undefined && (
+                <InfoItem>
+                  <InfoLabel>Limit:</InfoLabel>
+                  <InfoValue>{args.limit} lines</InfoValue>
+                </InfoItem>
+              )}
+            </FileInfoRow>
           </DetailSection>
 
           {result && (
