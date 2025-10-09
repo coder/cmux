@@ -19,7 +19,9 @@ export interface AnthropicFrontendOptions {
 
 /**
  * OpenAI-specific frontend options
+ * Currently empty but reserved for future options
  */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface OpenAIFrontendOptions {
   // Placeholder for future OpenAI-specific options
 }
