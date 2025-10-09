@@ -134,6 +134,7 @@ This project uses **Make** as the primary build orchestrator. See `Makefile` for
 - Strive for broad coverage with minimal tests
 - Prefer testing large blocks of composite logic
   - Tests should be written with the end-user experience in mind
+- **Good tests verify actual behavior differences, not just success paths.** Test both the enabled and disabled states of a feature to prove it actually does what it claims. Simply checking that a request succeeds doesn't verify that your feature flag/option changed anything.
 
 ### General Testing Guidelines
 
