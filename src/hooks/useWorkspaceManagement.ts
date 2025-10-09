@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, startTransition } from "react";
 import type { WorkspaceMetadata } from "@/types/workspace";
 import type { WorkspaceSelection } from "@/components/ProjectSidebar";
 import type { ProjectConfig } from "@/config";
@@ -77,12 +77,16 @@ export function useWorkspaceManagement({
         return next;
       });
 
-      // Backend has already updated the config - reload projects to get updated state
-      const projectsList = await window.api.projects.list();
-      const loadedProjects = new Map(projectsList.map((p) => [p.path, p]));
-      onProjectsUpdate(loadedProjects);
+      // Reload projects in background (don't block on this)
+      // Using startTransition to avoid causing flicker in the UI
+      void window.api.projects.list().then((projectsList) => {
+        const loadedProjects = new Map(projectsList.map((p) => [p.path, p]));
+        startTransition(() => {
+          onProjectsUpdate(loadedProjects);
+        });
+      });
 
-      // Return the new workspace selection
+      // Return the new workspace selection immediately
       return {
         projectPath,
         projectName: result.metadata.projectName,
