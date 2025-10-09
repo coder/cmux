@@ -4,6 +4,7 @@ import { MessageRenderer } from "./Messages/MessageRenderer";
 import { InterruptedBarrier } from "./Messages/ChatBarrier/InterruptedBarrier";
 import { StreamingBarrier } from "./Messages/ChatBarrier/StreamingBarrier";
 import { RetryBarrier } from "./Messages/ChatBarrier/RetryBarrier";
+import { getAutoRetryKey } from "@/constants/storageKeys";
 import { ChatInput } from "./ChatInput";
 import { ChatMetaSidebar } from "./ChatMetaSidebar";
 import { shouldShowInterruptedBarrier } from "@/utils/messages/messageUtils";
@@ -194,7 +195,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
 
   // Auto-retry state (persisted per workspace)
   const [autoRetry, setAutoRetry] = useState<boolean>(() => {
-    const stored = localStorage.getItem(`${workspaceId}-autoRetry`);
+    const stored = localStorage.getItem(getAutoRetryKey(workspaceId));
     return stored !== null ? (JSON.parse(stored) as boolean) : true; // Default to true
   });
 

@@ -12,6 +12,7 @@ import { useMode } from "@/contexts/ModeContext";
 import { ChatToggles } from "./ChatToggles";
 import { use1MContext } from "@/hooks/use1MContext";
 import { useSendMessageOptions } from "@/hooks/useSendMessageOptions";
+import { getModelKey, getInputKey } from "@/constants/storageKeys";
 import { modeToToolPolicy } from "@/utils/ui/modeUtils";
 import { ToggleGroup } from "./ToggleGroup";
 import { CUSTOM_EVENTS } from "@/constants/events";
@@ -290,9 +291,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   onCancelEdit,
   canInterrupt = false,
 }) => {
-  const [input, setInput] = usePersistedState("input:" + workspaceId, "");
+  const [input, setInput] = usePersistedState(getInputKey(workspaceId), "");
   const [preferredModel, setPreferredModel] = usePersistedState<string>(
-    "model:" + workspaceId,
+    getModelKey(workspaceId),
     defaultModel
   );
   const [isSending, setIsSending] = useState(false);

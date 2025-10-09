@@ -4,6 +4,7 @@ import { useMode } from "@/contexts/ModeContext";
 import { usePersistedState } from "./usePersistedState";
 import { modeToToolPolicy } from "@/utils/ui/modeUtils";
 import { defaultModel } from "@/utils/ai/models";
+import { getModelKey } from "@/constants/storageKeys";
 import type { SendMessageOptions } from "@/types/ipc";
 
 /**
@@ -20,10 +21,7 @@ export function useSendMessageOptions(workspaceId: string): SendMessageOptions {
   const [use1M] = use1MContext();
   const [thinkingLevel] = useThinkingLevel();
   const [mode] = useMode();
-  const [preferredModel] = usePersistedState<string>(
-    "model:" + workspaceId,
-    defaultModel
-  );
+  const [preferredModel] = usePersistedState<string>(getModelKey(workspaceId), defaultModel);
   
   const additionalSystemInstructions =
     mode === "plan"
