@@ -6,8 +6,7 @@ import { ChatInputToast, SolutionLabel } from "./ChatInputToast";
 import type { ParsedCommand } from "@/utils/slashCommands/types";
 import { parseCommand } from "@/utils/slashCommands/parser";
 import type { SendMessageError as SendMessageErrorType } from "@/types/errors";
-import { usePersistedState } from "@/hooks/usePersistedState";
-import { useThinkingLevel } from "@/hooks/useThinkingLevel";
+import { usePersistedState, updatePersistedState } from "@/hooks/usePersistedState";
 import { useMode } from "@/contexts/ModeContext";
 import { ChatToggles } from "./ChatToggles";
 import { useSendMessageOptions } from "@/hooks/useSendMessageOptions";
@@ -21,7 +20,6 @@ import {
 } from "@/utils/slashCommands/suggestions";
 import { TooltipWrapper, Tooltip, HelpIndicator } from "./Tooltip";
 import { matchesKeybind, formatKeybind, KEYBINDS, isEditableElement } from "@/utils/ui/keybinds";
-import { defaultModel } from "@/utils/ai/models";
 import { ModelSelector, type ModelSelectorRef } from "./ModelSelector";
 import { useModelLRU } from "@/hooks/useModelLRU";
 import { VimTextArea } from "./VimTextArea";
@@ -290,10 +288,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   canInterrupt = false,
 }) => {
   const [input, setInput] = usePersistedState(getInputKey(workspaceId), "");
-  const [preferredModel, setPreferredModel] = usePersistedState<string>(
-    getModelKey(workspaceId),
-    defaultModel
-  );
   const [isSending, setIsSending] = useState(false);
   const [showCommandSuggestions, setShowCommandSuggestions] = useState(false);
   const [commandSuggestions, setCommandSuggestions] = useState<SlashSuggestion[]>([]);
@@ -304,12 +298,18 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   }, []);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const modelSelectorRef = useRef<ModelSelectorRef>(null);
-  const [thinkingLevel] = useThinkingLevel();
   const [mode, setMode] = useMode();
   const { recentModels } = useModelLRU();
 
   // Get current send message options from shared hook (must be at component top level)
   const sendMessageOptions = useSendMessageOptions(workspaceId);
+  // Extract model for convenience (don't create separate state - use hook as single source of truth)
+  const preferredModel = sendMessageOptions.model;
+  // Setter for model - updates localStorage directly so useSendMessageOptions picks it up
+  const setPreferredModel = useCallback(
+    (model: string) => updatePersistedState(getModelKey(workspaceId), model),
+    [workspaceId]
+  );
 
   const focusMessageInput = useCallback(() => {
     const element = inputRef.current;
@@ -556,10 +556,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             // Send message with compact_summary tool required and maxOutputTokens in options
             // Note: Anthropic doesn't support extended thinking with required tool_choice,
             // so disable thinking for Anthropic models during compaction
-            const isAnthropic = preferredModel.startsWith("anthropic:");
+            const isAnthropic = sendMessageOptions.model.startsWith("anthropic:");
             const result = await window.api.workspace.sendMessage(workspaceId, compactionMessage, {
-              thinkingLevel: isAnthropic ? "off" : thinkingLevel,
-              model: preferredModel,
+              thinkingLevel: isAnthropic ? "off" : sendMessageOptions.thinkingLevel,
+              model: sendMessageOptions.model,
               toolPolicy: [{ regex_match: "compact_summary", action: "require" }],
               maxOutputTokens: parsed.maxOutputTokens, // Pass to model directly
             });
