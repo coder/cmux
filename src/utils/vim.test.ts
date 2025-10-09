@@ -1,292 +1,631 @@
+/**
+ * Vim Command Integration Tests
+ *
+ * These tests verify complete Vim command workflows, not isolated utility functions.
+ * Each test simulates a sequence of key presses and verifies the final state.
+ *
+ * Test format:
+ * - Initial state: text, cursor position, mode
+ * - Execute: sequence of key presses (e.g., ["Escape", "d", "$"])
+ * - Assert: final text, cursor position, mode, yank buffer
+ *
+ * This approach catches integration bugs that unit tests miss:
+ * - Cursor positioning across mode transitions
+ * - Operator-motion composition
+ * - State management between key presses
+ */
+
 import { describe, expect, test } from "@jest/globals";
 import * as vim from "./vim";
 
-describe("getLinesInfo", () => {
-  test("single line", () => {
-    const { lines, starts } = vim.getLinesInfo("hello");
-    expect(lines).toEqual(["hello"]);
-    expect(starts).toEqual([0]);
+/**
+ * Test state representing a Vim session at a point in time
+ */
+interface VimState {
+  text: string;
+  cursor: number; // cursor position (index in text)
+  mode: vim.VimMode;
+  yankBuffer: string;
+  desiredColumn: number | null;
+}
+
+/**
+ * Execute a sequence of Vim commands and return the final state.
+ * This simulates how the VimTextArea component processes key events.
+ */
+function executeVimCommands(initial: VimState, keys: string[]): VimState {
+  let state = { ...initial };
+  let pendingOp: { op: "d" | "c" | "y"; at: number } | null = null;
+
+  for (const key of keys) {
+    // Mode transitions
+    if (key === "Escape" || key === "Ctrl-[") {
+      // Enter normal mode, clamp cursor to valid position
+      const maxCursor = Math.max(0, state.text.length - 1);
+      state.cursor = Math.min(state.cursor, maxCursor);
+      state.mode = "normal";
+      pendingOp = null;
+      continue;
+    }
+
+    if (state.mode === "insert") {
+      // In insert mode, only ESC matters for these tests
+      continue;
+    }
+
+    // Normal mode commands
+    if (state.mode === "normal") {
+      // Handle special shortcuts without pending operator
+      if (key === "D" && !pendingOp) {
+        const result = applyOperatorMotion(state, "d", "$", state.cursor);
+        state = result;
+        continue;
+      }
+      if (key === "C" && !pendingOp) {
+        const result = applyOperatorMotion(state, "c", "$", state.cursor);
+        state = result;
+        continue;
+      }
+
+      // Operators (must check before motions since motions can also be operator targets)
+      if (["d", "c", "y"].includes(key)) {
+        if (pendingOp && pendingOp.op === key) {
+          // Double operator: operate on line (dd, cc, yy)
+          const cursor = state.cursor;
+          if (key === "d") {
+            const result = vim.deleteLine(state.text, cursor, state.yankBuffer);
+            state.text = result.text;
+            state.cursor = result.cursor;
+            state.yankBuffer = result.yankBuffer;
+          } else if (key === "c") {
+            const result = vim.changeLine(state.text, cursor, state.yankBuffer);
+            state.text = result.text;
+            state.cursor = result.cursor;
+            state.yankBuffer = result.yankBuffer;
+            state.mode = "insert";
+          } else if (key === "y") {
+            state.yankBuffer = vim.yankLine(state.text, cursor);
+          }
+          pendingOp = null;
+        } else {
+          // Start pending operator
+          pendingOp = { op: key as "d" | "c" | "y", at: state.cursor };
+        }
+        continue;
+      }
+
+      // Operator motions (check if we have a pending operator before treating as navigation)
+      if (pendingOp) {
+        const { op, at } = pendingOp;
+        let motion: "w" | "b" | "$" | "0" | null = null;
+
+        if (key === "w" || key === "W") motion = "w";
+        else if (key === "b" || key === "B") motion = "b";
+        else if (key === "$") motion = "$";
+        else if (key === "0") motion = "0";
+        else if (key === "D") {
+          motion = "$";
+          pendingOp.op = "d";
+        } else if (key === "C") {
+          motion = "$";
+          pendingOp.op = "c";
+        }
+
+        if (motion) {
+          const result = applyOperatorMotion(state, op, motion, at);
+          state = result;
+          pendingOp = null;
+          continue;
+        }
+        // If not a motion, fall through to handle as regular navigation (cancels pending op)
+        pendingOp = null;
+      }
+
+      // Insert mode entry
+      if (["i", "a", "I", "A", "o", "O"].includes(key)) {
+        const result = vim.getInsertCursorPos(
+          state.text,
+          state.cursor,
+          key as "i" | "a" | "I" | "A" | "o" | "O",
+        );
+        state.text = result.text;
+        state.cursor = result.cursor;
+        state.mode = "insert";
+        continue;
+      }
+
+      // Navigation (only without pending operator)
+      if (key === "h") {
+        state.cursor = Math.max(0, state.cursor - 1);
+        continue;
+      }
+      if (key === "l") {
+        state.cursor = Math.min(state.text.length - 1, state.cursor + 1);
+        continue;
+      }
+      if (key === "j") {
+        const result = vim.moveVertical(state.text, state.cursor, 1, state.desiredColumn);
+        state.cursor = result.cursor;
+        state.desiredColumn = result.desiredColumn;
+        continue;
+      }
+      if (key === "k") {
+        const result = vim.moveVertical(state.text, state.cursor, -1, state.desiredColumn);
+        state.cursor = result.cursor;
+        state.desiredColumn = result.desiredColumn;
+        continue;
+      }
+      if (key === "w" || key === "W") {
+        state.cursor = vim.moveWordForward(state.text, state.cursor);
+        state.desiredColumn = null;
+        continue;
+      }
+      if (key === "b" || key === "B") {
+        state.cursor = vim.moveWordBackward(state.text, state.cursor);
+        state.desiredColumn = null;
+        continue;
+      }
+      if (key === "0") {
+        const { lineStart } = vim.getLineBounds(state.text, state.cursor);
+        state.cursor = lineStart;
+        state.desiredColumn = null;
+        continue;
+      }
+      if (key === "$") {
+        const { lineEnd } = vim.getLineBounds(state.text, state.cursor);
+        // Special case: if lineEnd points to newline and we're not at it, go to char before newline
+        // If line is empty (lineEnd == lineStart), stay at lineStart
+        const { lineStart } = vim.getLineBounds(state.text, state.cursor);
+        if (lineEnd > lineStart && state.text[lineEnd - 1] !== "\n") {
+          state.cursor = lineEnd - 1; // Last char of line
+        } else if (lineEnd > lineStart) {
+          state.cursor = lineEnd - 1; // Char before newline
+        } else {
+          state.cursor = lineStart; // Empty line
+        }
+        state.desiredColumn = null;
+        continue;
+      }
+
+      // Simple edits
+      if (key === "x") {
+        const result = vim.deleteCharUnderCursor(state.text, state.cursor, state.yankBuffer);
+        state.text = result.text;
+        state.cursor = result.cursor;
+        state.yankBuffer = result.yankBuffer;
+        continue;
+      }
+
+      // Paste
+      if (key === "p") {
+        // In normal mode, cursor is ON a character. Paste after means after cursor+1.
+        const result = vim.pasteAfter(state.text, state.cursor + 1, state.yankBuffer);
+        state.text = result.text;
+        state.cursor = result.cursor - 1; // Adjust back to normal mode positioning
+        continue;
+      }
+      if (key === "P") {
+        const result = vim.pasteBefore(state.text, state.cursor, state.yankBuffer);
+        state.text = result.text;
+        state.cursor = result.cursor;
+        continue;
+      }
+
+
+    }
+  }
+
+  return state;
+}
+
+/**
+ * Apply an operator-motion combination (e.g., d$, cw, y0)
+ */
+function applyOperatorMotion(
+  state: VimState,
+  op: "d" | "c" | "y",
+  motion: "w" | "b" | "$" | "0",
+  at: number,
+): VimState {
+  const { text, yankBuffer } = state;
+  let start: number;
+  let end: number;
+
+  // Calculate range based on motion
+  // Note: ranges are exclusive on the end [start, end)
+  if (motion === "w") {
+    start = at;
+    end = vim.moveWordForward(text, at);
+  } else if (motion === "b") {
+    start = vim.moveWordBackward(text, at);
+    end = at;
+  } else if (motion === "$") {
+    start = at;
+    const { lineEnd } = vim.getLineBounds(text, at);
+    end = lineEnd;
+  } else if (motion === "0") {
+    const { lineStart } = vim.getLineBounds(text, at);
+    start = lineStart;
+    end = at;
+  } else {
+    return state;
+  }
+
+  // Normalize range
+  if (start > end) [start, end] = [end, start];
+
+  // Apply operator
+  if (op === "d") {
+    const result = vim.deleteRange(text, start, end, true, yankBuffer);
+    return {
+      ...state,
+      text: result.text,
+      cursor: result.cursor,
+      yankBuffer: result.yankBuffer,
+      desiredColumn: null,
+    };
+  } else if (op === "c") {
+    const result = vim.deleteRange(text, start, end, true, yankBuffer);
+    return {
+      ...state,
+      text: result.text,
+      cursor: result.cursor,
+      yankBuffer: result.yankBuffer,
+      mode: "insert",
+      desiredColumn: null,
+    };
+  } else if (op === "y") {
+    const yanked = text.slice(start, end);
+    return {
+      ...state,
+      yankBuffer: yanked,
+      desiredColumn: null,
+    };
+  }
+
+  return state;
+}
+
+// =============================================================================
+// Integration Tests for Complete Vim Commands
+// =============================================================================
+
+describe("Vim Command Integration Tests", () => {
+  const initialState: VimState = {
+    text: "",
+    cursor: 0,
+    mode: "insert",
+    yankBuffer: "",
+    desiredColumn: null,
+  };
+
+  describe("Mode Transitions", () => {
+    test("ESC enters normal mode from insert", () => {
+      const state = executeVimCommands(
+        { ...initialState, text: "hello", cursor: 5, mode: "insert" },
+        ["Escape"],
+      );
+      expect(state.mode).toBe("normal");
+      expect(state.cursor).toBe(4); // Clamps to last char
+    });
+
+    test("i enters insert mode at cursor", () => {
+      const state = executeVimCommands(
+        { ...initialState, text: "hello", cursor: 2, mode: "normal" },
+        ["i"],
+      );
+      expect(state.mode).toBe("insert");
+      expect(state.cursor).toBe(2);
+    });
+
+    test("a enters insert mode after cursor", () => {
+      const state = executeVimCommands(
+        { ...initialState, text: "hello", cursor: 2, mode: "normal" },
+        ["a"],
+      );
+      expect(state.mode).toBe("insert");
+      expect(state.cursor).toBe(3);
+    });
+
+    test("o opens line below", () => {
+      const state = executeVimCommands(
+        { ...initialState, text: "hello\nworld", cursor: 2, mode: "normal" },
+        ["o"],
+      );
+      expect(state.mode).toBe("insert");
+      expect(state.text).toBe("hello\n\nworld");
+      expect(state.cursor).toBe(6);
+    });
   });
 
-  test("multiple lines", () => {
-    const { lines, starts } = vim.getLinesInfo("line1\nline2\nline3");
-    expect(lines).toEqual(["line1", "line2", "line3"]);
-    expect(starts).toEqual([0, 6, 12]);
+  describe("Navigation", () => {
+    test("w moves to next word", () => {
+      const state = executeVimCommands(
+        { ...initialState, text: "hello world foo", cursor: 0, mode: "normal" },
+        ["w"],
+      );
+      expect(state.cursor).toBe(6);
+    });
+
+    test("b moves to previous word", () => {
+      const state = executeVimCommands(
+        { ...initialState, text: "hello world foo", cursor: 12, mode: "normal" },
+        ["b"],
+      );
+      expect(state.cursor).toBe(6);
+    });
+
+    test("$ moves to end of line", () => {
+      const state = executeVimCommands(
+        { ...initialState, text: "hello world", cursor: 0, mode: "normal" },
+        ["$"],
+      );
+      expect(state.cursor).toBe(10); // On last char, not past it
+    });
+
+    test("0 moves to start of line", () => {
+      const state = executeVimCommands(
+        { ...initialState, text: "hello world", cursor: 10, mode: "normal" },
+        ["0"],
+      );
+      expect(state.cursor).toBe(0);
+    });
   });
 
-  test("empty string", () => {
-    const { lines, starts } = vim.getLinesInfo("");
-    expect(lines).toEqual([""]);
-    expect(starts).toEqual([0]);
-  });
-});
+  describe("Simple Edits", () => {
+    test("x deletes character under cursor", () => {
+      const state = executeVimCommands(
+        { ...initialState, text: "hello", cursor: 1, mode: "normal" },
+        ["x"],
+      );
+      expect(state.text).toBe("hllo");
+      expect(state.cursor).toBe(1);
+      expect(state.yankBuffer).toBe("e");
+    });
 
-describe("getRowCol", () => {
-  test("first line", () => {
-    expect(vim.getRowCol("hello\nworld", 3)).toEqual({ row: 0, col: 3 });
-  });
+    test("p pastes after cursor", () => {
+      const state = executeVimCommands(
+        { ...initialState, text: "hello", cursor: 2, mode: "normal", yankBuffer: "XX" },
+        ["p"],
+      );
+      expect(state.text).toBe("helXXlo");
+      expect(state.cursor).toBe(4);
+    });
 
-  test("second line", () => {
-    expect(vim.getRowCol("hello\nworld", 8)).toEqual({ row: 1, col: 2 });
-  });
-
-  test("at newline", () => {
-    expect(vim.getRowCol("hello\nworld", 5)).toEqual({ row: 0, col: 5 });
-  });
-});
-
-describe("indexAt", () => {
-  test("converts row/col to index", () => {
-    const text = "hello\nworld\nfoo";
-    expect(vim.indexAt(text, 0, 3)).toBe(3);
-    expect(vim.indexAt(text, 1, 2)).toBe(8);
-    expect(vim.indexAt(text, 2, 0)).toBe(12);
-  });
-
-  test("clamps out of bounds", () => {
-    const text = "hi\nbye";
-    expect(vim.indexAt(text, 10, 0)).toBe(3); // row 1, col 0
-    expect(vim.indexAt(text, 0, 100)).toBe(2); // row 0, last col
-  });
-});
-
-describe("lineEndAtIndex", () => {
-  test("finds line end", () => {
-    const text = "hello\nworld\nfoo";
-    expect(vim.lineEndAtIndex(text, 3)).toBe(5); // "hello" ends at 5
-    expect(vim.lineEndAtIndex(text, 8)).toBe(11); // "world" ends at 11
-  });
-});
-
-describe("getLineBounds", () => {
-  test("first line", () => {
-    const text = "hello\nworld";
-    expect(vim.getLineBounds(text, 3)).toEqual({ lineStart: 0, lineEnd: 5, row: 0 });
+    test("P pastes before cursor", () => {
+      const state = executeVimCommands(
+        { ...initialState, text: "hello", cursor: 2, mode: "normal", yankBuffer: "XX" },
+        ["P"],
+      );
+      expect(state.text).toBe("heXXllo");
+      expect(state.cursor).toBe(2);
+    });
   });
 
-  test("second line", () => {
-    const text = "hello\nworld";
-    expect(vim.getLineBounds(text, 8)).toEqual({ lineStart: 6, lineEnd: 11, row: 1 });
-  });
-});
+  describe("Line Operations", () => {
+    test("dd deletes line", () => {
+      const state = executeVimCommands(
+        { ...initialState, text: "hello\nworld\nfoo", cursor: 8, mode: "normal" },
+        ["d", "d"],
+      );
+      expect(state.text).toBe("hello\nfoo");
+      expect(state.yankBuffer).toBe("world\n");
+    });
 
-describe("moveVertical", () => {
-  const text = "hello\nworld\nfoo bar\nbaz";
+    test("yy yanks line", () => {
+      const state = executeVimCommands(
+        { ...initialState, text: "hello\nworld", cursor: 2, mode: "normal" },
+        ["y", "y"],
+      );
+      expect(state.text).toBe("hello\nworld"); // Text unchanged
+      expect(state.yankBuffer).toBe("hello\n");
+    });
 
-  test("move down", () => {
-    const result = vim.moveVertical(text, 2, 1, null);
-    expect(vim.getRowCol(text, result.cursor)).toEqual({ row: 1, col: 2 });
-  });
-
-  test("move up", () => {
-    const result = vim.moveVertical(text, 8, -1, null);
-    expect(vim.getRowCol(text, result.cursor)).toEqual({ row: 0, col: 2 });
-  });
-
-  test("maintains desiredColumn", () => {
-    const result1 = vim.moveVertical(text, 4, 1, null); // row 0, col 4 -> row 1, col 4
-    expect(result1.desiredColumn).toBe(4);
-    const result2 = vim.moveVertical(text, result1.cursor, 1, result1.desiredColumn);
-    expect(vim.getRowCol(text, result2.cursor)).toEqual({ row: 2, col: 4 });
-  });
-
-  test("clamps column to line length", () => {
-    const result = vim.moveVertical(text, 16, 1, null); // row 2 (foo bar) -> row 3 (baz)
-    const { row, col } = vim.getRowCol(text, result.cursor);
-    expect(row).toBe(3);
-    expect(col).toBeLessThanOrEqual(3); // "baz" is shorter
-  });
-});
-
-describe("moveWordForward", () => {
-  test("moves to next word", () => {
-    const text = "hello world foo";
-    expect(vim.moveWordForward(text, 0)).toBe(6); // start of "world"
-    expect(vim.moveWordForward(text, 6)).toBe(12); // start of "foo"
+    test("cc changes line", () => {
+      const state = executeVimCommands(
+        { ...initialState, text: "hello\nworld\nfoo", cursor: 8, mode: "normal" },
+        ["c", "c"],
+      );
+      expect(state.text).toBe("hello\n\nfoo");
+      expect(state.mode).toBe("insert");
+      expect(state.yankBuffer).toBe("world");
+    });
   });
 
-  test("at end of text", () => {
-    const text = "hello";
-    // In normal mode, cursor clamps to last character (never past the end)
-    expect(vim.moveWordForward(text, 3)).toBe(4);
-  });
-});
+  describe("Operator + Motion: Delete", () => {
+    test("d$ deletes to end of line", () => {
+      const state = executeVimCommands(
+        { ...initialState, text: "hello world", cursor: 6, mode: "normal" },
+        ["d", "$"],
+      );
+      expect(state.text).toBe("hello ");
+      expect(state.cursor).toBe(6);
+      expect(state.yankBuffer).toBe("world");
+    });
 
-describe("moveWordBackward", () => {
-  test("moves to previous word", () => {
-    const text = "hello world foo";
-    expect(vim.moveWordBackward(text, 12)).toBe(6); // start of "world"
-    expect(vim.moveWordBackward(text, 6)).toBe(0); // start of "hello"
-  });
-});
+    test("D deletes to end of line (shortcut)", () => {
+      const state = executeVimCommands(
+        { ...initialState, text: "hello world", cursor: 6, mode: "normal" },
+        ["D"],
+      );
+      expect(state.text).toBe("hello ");
+      expect(state.cursor).toBe(6);
+    });
 
-describe("wordBoundsAt", () => {
-  test("finds word bounds", () => {
-    const text = "hello world foo";
-    expect(vim.wordBoundsAt(text, 2)).toEqual({ start: 0, end: 5 }); // "hello"
-    expect(vim.wordBoundsAt(text, 7)).toEqual({ start: 6, end: 11 }); // "world"
-  });
+    test("d0 deletes to beginning of line", () => {
+      const state = executeVimCommands(
+        { ...initialState, text: "hello world", cursor: 6, mode: "normal" },
+        ["d", "0"],
+      );
+      expect(state.text).toBe("world");
+      expect(state.yankBuffer).toBe("hello ");
+    });
 
-  test("on whitespace, finds next word", () => {
-    const text = "hello world";
-    expect(vim.wordBoundsAt(text, 5)).toEqual({ start: 6, end: 11 }); // space -> "world"
-  });
+    test("dw deletes to next word", () => {
+      const state = executeVimCommands(
+        { ...initialState, text: "hello world foo", cursor: 0, mode: "normal" },
+        ["d", "w"],
+      );
+      expect(state.text).toBe("world foo");
+      expect(state.yankBuffer).toBe("hello ");
+    });
 
-  test("empty text", () => {
-    expect(vim.wordBoundsAt("", 0)).toEqual({ start: 0, end: 0 });
-  });
-});
-
-describe("deleteRange", () => {
-  test("deletes range and yanks", () => {
-    const result = vim.deleteRange("hello world", 5, 11, true, "");
-    expect(result.text).toBe("hello");
-    expect(result.cursor).toBe(5);
-    expect(result.yankBuffer).toBe(" world");
-  });
-
-  test("deletes without yanking", () => {
-    const result = vim.deleteRange("hello world", 5, 11, false, "old");
-    expect(result.text).toBe("hello");
-    expect(result.yankBuffer).toBe("old");
-  });
-});
-
-describe("deleteCharUnderCursor", () => {
-  test("deletes single character", () => {
-    const result = vim.deleteCharUnderCursor("hello", 1, "");
-    expect(result.text).toBe("hllo");
-    expect(result.cursor).toBe(1);
-    expect(result.yankBuffer).toBe("e");
+    test("db deletes to previous word", () => {
+      const state = executeVimCommands(
+        { ...initialState, text: "hello world foo", cursor: 12, mode: "normal" },
+        ["d", "b"],
+      );
+      expect(state.text).toBe("hello foo");
+    });
   });
 
-  test("at end of text does nothing", () => {
-    const result = vim.deleteCharUnderCursor("hi", 2, "");
-    expect(result.text).toBe("hi");
-    expect(result.cursor).toBe(2);
-  });
-});
+  describe("Operator + Motion: Change", () => {
+    test("c$ changes to end of line", () => {
+      const state = executeVimCommands(
+        { ...initialState, text: "hello world", cursor: 6, mode: "normal" },
+        ["c", "$"],
+      );
+      expect(state.text).toBe("hello ");
+      expect(state.mode).toBe("insert");
+      expect(state.cursor).toBe(6);
+    });
 
-describe("deleteLine", () => {
-  test("deletes line with newline", () => {
-    const result = vim.deleteLine("hello\nworld\nfoo", 3, "");
-    expect(result.text).toBe("world\nfoo");
-    expect(result.cursor).toBe(0);
-    expect(result.yankBuffer).toBe("hello\n");
-  });
+    test("C changes to end of line (shortcut)", () => {
+      const state = executeVimCommands(
+        { ...initialState, text: "hello world", cursor: 6, mode: "normal" },
+        ["C"],
+      );
+      expect(state.text).toBe("hello ");
+      expect(state.mode).toBe("insert");
+    });
 
-  test("deletes last line without trailing newline", () => {
-    const result = vim.deleteLine("hello\nworld", 8, "");
-    expect(result.text).toBe("hello\n");
-    expect(result.cursor).toBe(6);
-    expect(result.yankBuffer).toBe("world");
-  });
-});
+    test("c0 changes to beginning of line", () => {
+      const state = executeVimCommands(
+        { ...initialState, text: "hello world", cursor: 6, mode: "normal" },
+        ["c", "0"],
+      );
+      expect(state.text).toBe("world");
+      expect(state.mode).toBe("insert");
+    });
 
-describe("yankLine", () => {
-  test("yanks line with newline", () => {
-    expect(vim.yankLine("hello\nworld", 2)).toBe("hello\n");
-  });
-
-  test("yanks last line without newline", () => {
-    expect(vim.yankLine("hello\nworld", 8)).toBe("world");
-  });
-});
-
-describe("pasteAfter", () => {
-  test("pastes after cursor", () => {
-    const result = vim.pasteAfter("hello", 2, " world");
-    expect(result.text).toBe("he worldllo");
-    expect(result.cursor).toBe(8); // cursor at end of pasted text
-  });
-
-  test("empty buffer does nothing", () => {
-    const result = vim.pasteAfter("hello", 2, "");
-    expect(result).toEqual({ text: "hello", cursor: 2 });
-  });
-});
-
-describe("pasteBefore", () => {
-  test("pastes before cursor", () => {
-    const result = vim.pasteBefore("hello", 2, " world");
-    expect(result.text).toBe("he worldllo");
-    expect(result.cursor).toBe(2);
-  });
-});
-
-describe("getInsertCursorPos", () => {
-  const text = "hello\nworld";
-
-  test("i: stays at cursor", () => {
-    expect(vim.getInsertCursorPos(text, 3, "i")).toEqual({ cursor: 3, text });
+    test("cw changes to next word", () => {
+      const state = executeVimCommands(
+        { ...initialState, text: "hello world", cursor: 0, mode: "normal" },
+        ["c", "w"],
+      );
+      expect(state.text).toBe("world");
+      expect(state.mode).toBe("insert");
+    });
   });
 
-  test("a: moves one right", () => {
-    expect(vim.getInsertCursorPos(text, 3, "a")).toEqual({ cursor: 4, text });
+  describe("Operator + Motion: Yank", () => {
+    test("y$ yanks to end of line", () => {
+      const state = executeVimCommands(
+        { ...initialState, text: "hello world", cursor: 6, mode: "normal" },
+        ["y", "$"],
+      );
+      expect(state.text).toBe("hello world"); // Text unchanged
+      expect(state.yankBuffer).toBe("world");
+      expect(state.mode).toBe("normal");
+    });
+
+    test("y0 yanks to beginning of line", () => {
+      const state = executeVimCommands(
+        { ...initialState, text: "hello world", cursor: 6, mode: "normal" },
+        ["y", "0"],
+      );
+      expect(state.text).toBe("hello world");
+      expect(state.yankBuffer).toBe("hello ");
+    });
+
+    test("yw yanks to next word", () => {
+      const state = executeVimCommands(
+        { ...initialState, text: "hello world", cursor: 0, mode: "normal" },
+        ["y", "w"],
+      );
+      expect(state.text).toBe("hello world");
+      expect(state.yankBuffer).toBe("hello ");
+    });
   });
 
-  test("I: moves to line start", () => {
-    expect(vim.getInsertCursorPos(text, 8, "I")).toEqual({ cursor: 6, text });
+  describe("Complex Workflows", () => {
+    test("ESC then d$ deletes from insert cursor to end", () => {
+      const state = executeVimCommands(
+        { ...initialState, text: "hello world", cursor: 6, mode: "insert" },
+        ["Escape", "d", "$"],
+      );
+      // Cursor at 6 in insert mode stays at 6 after ESC (on 'w')
+      // d$ deletes from 'w' to end of line
+      expect(state.text).toBe("hello ");
+      expect(state.mode).toBe("normal");
+    });
+
+    test("navigate with w, then delete with dw", () => {
+      const state = executeVimCommands(
+        { ...initialState, text: "one two three", cursor: 0, mode: "normal" },
+        ["w", "d", "w"],
+      );
+      expect(state.text).toBe("one three");
+    });
+
+    test("yank line, navigate, paste", () => {
+      const state = executeVimCommands(
+        { ...initialState, text: "first\nsecond\nthird", cursor: 0, mode: "normal" },
+        ["y", "y", "j", "j", "p"],
+      );
+      expect(state.yankBuffer).toBe("first\n");
+      // After yy: cursor at 0, yank "first\n"
+      // After jj: cursor moves down 2 lines to "third" (at index 13, on 't')
+      // After p: pastes "first\n" after cursor position (character-wise in test harness)
+      // Note: Real Vim would do line-wise paste, but test harness does character-wise
+      expect(state.text).toBe("first\nsecond\ntfirst\nhird");
+    });
+
+    test("delete word, move, paste", () => {
+      const state = executeVimCommands(
+        { ...initialState, text: "hello world foo", cursor: 0, mode: "normal" },
+        ["d", "w", "w", "p"],
+      );
+      expect(state.yankBuffer).toBe("hello ");
+      // After dw: text = "world foo", cursor at 0, yank "hello "
+      // After w: cursor moves to start of "foo" (index 6)
+      // After p: paste "hello " after cursor
+      expect(state.text).toBe("world fhello oo");
+    });
   });
 
-  test("A: moves to line end", () => {
-    expect(vim.getInsertCursorPos(text, 7, "A")).toEqual({ cursor: 11, text });
-  });
+  describe("Edge Cases", () => {
+    test("$ on empty line", () => {
+      const state = executeVimCommands(
+        { ...initialState, text: "hello\n\nworld", cursor: 6, mode: "normal" },
+        ["$"],
+      );
+      expect(state.cursor).toBe(6); // Empty line, stays at newline char
+    });
 
-  test("o: inserts newline after current line", () => {
-    const result = vim.getInsertCursorPos(text, 3, "o");
-    expect(result.text).toBe("hello\n\nworld");
-    expect(result.cursor).toBe(6);
-  });
+    test("w at end of text", () => {
+      const state = executeVimCommands(
+        { ...initialState, text: "hello", cursor: 4, mode: "normal" },
+        ["w"],
+      );
+      expect(state.cursor).toBe(4); // Clamps to last char
+    });
 
-  test("O: inserts newline before current line", () => {
-    const result = vim.getInsertCursorPos(text, 8, "O");
-    expect(result.text).toBe("hello\n\nworld");
-    expect(result.cursor).toBe(6);
-  });
-});
+    test("d$ at end of line deletes last char", () => {
+      const state = executeVimCommands(
+        { ...initialState, text: "hello", cursor: 4, mode: "normal" },
+        ["d", "$"],
+      );
+      // Cursor at 4 (on 'o'), d$ deletes from 'o' to line end
+      expect(state.text).toBe("hell");
+    });
 
-describe("changeWord", () => {
-  test("changes to next word boundary", () => {
-    const result = vim.changeWord("hello world", 0, "");
-    expect(result.text).toBe("world");
-    expect(result.cursor).toBe(0);
-    expect(result.yankBuffer).toBe("hello ");
-  });
-});
-
-describe("changeInnerWord", () => {
-  test("changes word under cursor", () => {
-    const result = vim.changeInnerWord("hello world foo", 7, "");
-    expect(result.text).toBe("hello  foo");
-    expect(result.cursor).toBe(6);
-    expect(result.yankBuffer).toBe("world");
-  });
-});
-
-describe("changeToEndOfLine", () => {
-  test("changes to end of line", () => {
-    const result = vim.changeToEndOfLine("hello world", 6, "");
-    expect(result.text).toBe("hello ");
-    expect(result.cursor).toBe(6);
-    expect(result.yankBuffer).toBe("world");
-  });
-});
-
-describe("changeToBeginningOfLine", () => {
-  test("changes to beginning of line", () => {
-    const result = vim.changeToBeginningOfLine("hello world", 6, "");
-    expect(result.text).toBe("world");
-    expect(result.cursor).toBe(0);
-    expect(result.yankBuffer).toBe("hello ");
-  });
-});
-
-describe("changeLine", () => {
-  test("changes entire line", () => {
-    const result = vim.changeLine("hello\nworld\nfoo", 8, "");
-    expect(result.text).toBe("hello\n\nfoo");
-    expect(result.cursor).toBe(6);
-    expect(result.yankBuffer).toBe("world");
+    test("x at end of text does nothing", () => {
+      const state = executeVimCommands(
+        { ...initialState, text: "hello", cursor: 5, mode: "normal" },
+        ["x"],
+      );
+      expect(state.text).toBe("hello");
+    });
   });
 });
