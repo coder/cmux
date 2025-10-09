@@ -4,12 +4,23 @@ Commands for managing conversation history length and token usage.
 
 ## Comparison
 
-| Feature                  | `/clear` | `/truncate` | `/compact`       |
-| ------------------------ | -------- | ----------- | ---------------- |
-| **Speed**                | Instant  | Instant     | Slower (uses AI) |
-| **Context Preservation** | None     | Temporal    | Intelligent      |
-| **Cost**                 | Free     | Free        | Uses API tokens  |
-| **Reversible**           | No       | No          | No               |
+| Approach                 | `/clear` | `/truncate` | `/compact`       | Plan Compaction |
+| ------------------------ | -------- | ----------- | ---------------- | --------------- |
+| **Speed**                | Instant  | Instant     | Slower (uses AI) | Instant         |
+| **Context Preservation** | None     | Temporal    | Intelligent      | Intelligent     |
+| **Cost**                 | Free     | Free        | Uses API tokens  | Free            |
+| **Reversible**           | No       | No          | No               | Yes             |
+
+## Plan Compaction
+
+If you've produced a plan, you can opportunistically click "Compact Here" on the plan to use it
+as the entire conversation history. This operation is instant as all of the LLM's work was already
+done when it created the plan.
+
+![Plan Compaction](./img/plan-compact.webp)
+
+This is a form of "opportunistic compaction" and is special in that you can review the post-compact
+context before the old context is permanently removed.
 
 ## `/clear` - Clear All History
 

@@ -515,4 +515,3 @@ describe("Vim Command Integration Tests", () => {
     });
   });
 });
-

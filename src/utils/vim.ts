@@ -103,7 +103,6 @@ export function moveToFirstNonWhitespace(text: string, cursor: number): number {
   return i >= lineEnd ? lineStart : i;
 }
 
-
 /**
  * Move cursor vertically by delta lines, maintaining desiredColumn if provided.
  */
@@ -743,7 +742,10 @@ function tryHandleNavigation(state: VimState, key: string): VimKeyResult | null 
     }
 
     case "_":
-      return handleKey(state, { cursor: moveToFirstNonWhitespace(text, cursor), desiredColumn: null });
+      return handleKey(state, {
+        cursor: moveToFirstNonWhitespace(text, cursor),
+        desiredColumn: null,
+      });
 
     case "$":
     case "End": {

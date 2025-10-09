@@ -48,7 +48,7 @@ Vim mode is always enabled. Press **ESC** to enter normal mode from insert mode.
 ### Line Movement
 
 - **0** - Move to beginning of line
-- **_** - Move to first non-whitespace character of line
+- **\_** - Move to first non-whitespace character of line
 - **$** - Move to end of line
 - **Home** - Same as **0**
 - **End** - Same as **$**
@@ -102,7 +102,7 @@ Vim's power comes from combining operators with motions. All operators work with
 - **e** - To end of word
 - **$** - To end of line
 - **0** - To beginning of line
-- **_** - To first non-whitespace character
+- **\_** - To first non-whitespace character
 
 ### Examples
 

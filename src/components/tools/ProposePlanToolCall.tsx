@@ -273,7 +273,7 @@ export const ProposePlanToolCall: React.FC<ProposePlanToolCallProps> = ({
       // Create a compacted message with the plan content
       // Format: Title as H1 + plan content
       const compactedContent = `# ${args.title}\n\n${args.plan}`;
-      
+
       const summaryMessage = createCmuxMessage(
         `compact-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
         "assistant",
@@ -285,7 +285,7 @@ export const ProposePlanToolCall: React.FC<ProposePlanToolCallProps> = ({
       );
 
       const result = await window.api.workspace.replaceChatHistory(workspaceId, summaryMessage);
-      
+
       if (!result.success) {
         console.error("Failed to compact:", result.error);
       }
