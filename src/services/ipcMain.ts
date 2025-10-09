@@ -435,6 +435,7 @@ export class IpcMain {
           toolPolicy,
           additionalSystemInstructions,
           maxOutputTokens,
+          providerOptions,
           disableAutoTruncation,
         } = options ?? {};
         log.debug("sendMessage handler: Received", {
@@ -552,6 +553,7 @@ export class IpcMain {
             undefined,
             additionalSystemInstructions,
             maxOutputTokens,
+            providerOptions,
             disableAutoTruncation
           );
           log.debug("sendMessage handler: Stream completed");

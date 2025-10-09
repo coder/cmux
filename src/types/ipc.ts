@@ -133,6 +133,7 @@ export interface SendMessageOptions {
   additionalSystemInstructions?: string;
   maxOutputTokens?: number;
   providerOptions?: FrontendProviderOptions;
+  disableAutoTruncation?: boolean;
 }
 
 // API method signatures (shared between main and preload)

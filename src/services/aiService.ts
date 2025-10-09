@@ -177,6 +177,7 @@ export class AIService extends EventEmitter {
    */
   private createModel(
     modelString: string,
+    frontendProviderOptions?: FrontendProviderOptions,
     options?: { disableAutoTruncation?: boolean }
   ): Result<LanguageModel, SendMessageError> {
     try {
@@ -382,6 +383,7 @@ export class AIService extends EventEmitter {
     abortSignal?: AbortSignal,
     additionalSystemInstructions?: string,
     maxOutputTokens?: number,
+    frontendProviderOptions?: FrontendProviderOptions,
     disableAutoTruncation?: boolean
   ): Promise<Result<void, SendMessageError>> {
     try {
@@ -396,7 +398,9 @@ export class AIService extends EventEmitter {
       await this.partialService.commitToHistory(workspaceId);
 
       // Create model instance with early API key validation
-      const modelResult = this.createModel(modelString, { disableAutoTruncation });
+      const modelResult = this.createModel(modelString, frontendProviderOptions, {
+        disableAutoTruncation,
+      });
       if (!modelResult.success) {
         return Err(modelResult.error);
       }
