@@ -705,7 +705,7 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
             "What is the weather?",
             provider,
             model,
-            { providerOptions: { disableAutoTruncation: true } }
+            { providerOptions: { openai: { disableAutoTruncation: true } } }
           );
 
           // IPC call itself should succeed (errors come through stream events)
@@ -1003,7 +1003,7 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
             "This should trigger a context error",
             provider,
             model,
-            { providerOptions: { disableAutoTruncation: true } }
+            { providerOptions: { openai: { disableAutoTruncation: true } } }
           );
 
           // IPC call itself should succeed (errors come through stream events)

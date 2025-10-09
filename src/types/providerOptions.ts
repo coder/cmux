@@ -19,11 +19,10 @@ export interface AnthropicProviderOptions {
 
 /**
  * OpenAI-specific options
- * Currently empty but reserved for future options
  */
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface OpenAIProviderOptions {
-  // Placeholder for future OpenAI-specific options
+  /** Disable automatic context truncation (useful for testing) */
+  disableAutoTruncation?: boolean;
 }
 
 /**
@@ -33,7 +32,4 @@ export interface CmuxProviderOptions {
   /** Provider-specific options */
   anthropic?: AnthropicProviderOptions;
   openai?: OpenAIProviderOptions;
-  
-  /** Disable automatic context truncation for OpenAI (useful for testing) */
-  disableAutoTruncation?: boolean;
 }

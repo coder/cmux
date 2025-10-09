@@ -242,7 +242,7 @@ export class AIService extends EventEmitter {
         // truncation via providerOptions. Safe because it only targets the
         // OpenAI Responses endpoint and leaves other providers untouched.
         // Can be disabled via cmuxProviderOptions for testing purposes.
-        const disableAutoTruncation = cmuxProviderOptions?.disableAutoTruncation ?? false;
+        const disableAutoTruncation = cmuxProviderOptions?.openai?.disableAutoTruncation ?? false;
         const fetchWithOpenAITruncation = Object.assign(
           async (
             input: Parameters<typeof fetch>[0],
