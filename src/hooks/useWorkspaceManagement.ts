@@ -26,7 +26,7 @@ export function useWorkspaceManagement({
     void loadWorkspaceMetadata();
 
     // Subscribe to real-time workspace metadata updates from backend
-    const unsubscribe = window.api.workspace.onWorkspaceMetadata(
+    const unsubscribe = window.api.workspace.onMetadata(
       (data: { workspaceId: string; metadata: WorkspaceMetadata | null }) => {
         setWorkspaceMetadata((prev) => {
           const next = new Map(prev);

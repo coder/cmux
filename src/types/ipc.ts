@@ -194,7 +194,7 @@ export interface IPCApi {
     // through continuous subscriptions rather than polling patterns.
     onChat(workspaceId: string, callback: (data: WorkspaceChatMessage) => void): () => void;
     onMetadata(
-      callback: (data: { workspaceId: string; metadata: WorkspaceMetadata }) => void
+      callback: (data: { workspaceId: string; metadata: WorkspaceMetadata | null }) => void
     ): () => void;
   };
 }

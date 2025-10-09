@@ -81,11 +81,11 @@ const api: IPCApi = {
       };
     },
     onMetadata: (
-      callback: (data: { workspaceId: string; metadata: WorkspaceMetadata }) => void
+      callback: (data: { workspaceId: string; metadata: WorkspaceMetadata | null }) => void
     ) => {
       const handler = (
         _event: unknown,
-        data: { workspaceId: string; metadata: WorkspaceMetadata }
+        data: { workspaceId: string; metadata: WorkspaceMetadata | null }
       ) => callback(data);
 
       // Subscribe to metadata events

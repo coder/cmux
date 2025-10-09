@@ -234,11 +234,9 @@ export class IpcMain {
               }
 
               // Delete the temp directory in the background (don't await)
-              void fsPromises
-                .rm(tempDir, { recursive: true, force: true })
-                .catch((err) => {
-                  log.info(`Failed to delete temp workspace directory ${tempDir}: ${String(err)}`);
-                });
+              void fsPromises.rm(tempDir, { recursive: true, force: true }).catch((err) => {
+                log.info(`Failed to delete temp workspace directory ${tempDir}: ${String(err)}`);
+              });
             } catch (renameError) {
               // If rename fails, fall back to direct deletion
               log.info(

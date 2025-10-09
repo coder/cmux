@@ -83,7 +83,7 @@ describe("bash tool", () => {
       expect(result.error).toContain("lines) saved to");
       expect(result.error).toContain("bash-");
       expect(result.error).toContain(".txt");
-      
+
       // Verify helpful filtering instructions are included
       expect(result.error).toContain("grep '<pattern>'");
       expect(result.error).toContain("head -n 300");
@@ -95,28 +95,26 @@ describe("bash tool", () => {
       expect(match).toBeDefined();
       if (match) {
         const overflowPath = match[1];
-        
+
         // Verify file has short ID format (bash-<8 hex chars>.txt)
         const filename = overflowPath.split("/").pop();
         expect(filename).toMatch(/^bash-[0-9a-f]{8}\.txt$/);
-        
+
         // Verify file exists and read contents
         expect(fs.existsSync(overflowPath)).toBe(true);
-        
+
         // Verify file contains collected lines (at least 300, may be slightly more)
         const fileContent = fs.readFileSync(overflowPath, "utf-8");
         const fileLines = fileContent.split("\n").filter((l: string) => l.length > 0);
         expect(fileLines.length).toBeGreaterThanOrEqual(300);
         expect(fileContent).toContain("line1");
         expect(fileContent).toContain("line300");
-        
+
         // Clean up temp file
         fs.unlinkSync(overflowPath);
       }
     }
   });
-
-
 
   it("should fail early when max_lines is reached", async () => {
     const tool = createBashTool({ cwd: process.cwd() });
