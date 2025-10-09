@@ -69,9 +69,9 @@ const ModeIndicator = styled.div`
   color: rgba(212, 212, 212, 0.6);
   text-transform: uppercase;
   letter-spacing: 0.8px;
-  margin-bottom: 2px;
   user-select: none;
-  min-height: 11px;
+  height: 11px; /* Fixed height to prevent border bump */
+  line-height: 11px;
 `;
 
 const EmptyCursor = styled.div`
@@ -567,9 +567,19 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
       handleNormalKey(e);
     };
 
+    // Build mode indicator text
+    const modeText = (() => {
+      if (vimMode !== "normal") return "";
+      const pending = pendingOpRef.current;
+      if (!pending) return "NORMAL";
+      // Show pending operator and any accumulated args
+      const args = pending.args?.join("") || "";
+      return `NORMAL ${pending.op}${args}`;
+    })();
+
     return (
       <div style={{ width: "100%" }}>
-        <ModeIndicator aria-live="polite">{vimMode === "normal" ? "NORMAL" : ""}</ModeIndicator>
+        <ModeIndicator aria-live="polite">{modeText}</ModeIndicator>
         <div style={{ position: "relative" }}>
           <StyledTextArea
             ref={textareaRef}
