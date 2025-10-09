@@ -40,7 +40,7 @@ if (!app.isPackaged) {
 const config = new Config();
 const ipcMain = new IpcMain(config);
 
-console.log(`Cmux starting - version: ${VERSION.git} (built: ${VERSION.buildTime})`);
+console.log(`Cmux starting - version: ${(VERSION as { git?: string; buildTime?: string }).git ?? "(dev)"} (built: ${(VERSION as { git?: string; buildTime?: string }).buildTime ?? "dev-mode"})`);
 console.log("Main process starting...");
 
 // Global error handlers for better error reporting

@@ -805,7 +805,7 @@ function tryHandleOperator(state: VimState, key: string, now: number): VimKeyRes
  */
 export function formatPendingCommand(pendingOp: VimState["pendingOp"]): string {
   if (!pendingOp) return "";
-  const args = pendingOp.args?.join("") || "";
+  const args = pendingOp.args?.join("") ?? "";
   return `${pendingOp.op}${args}`;
 }
 
