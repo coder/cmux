@@ -5,6 +5,7 @@ import { useCommandRegistry } from "@/contexts/CommandRegistryContext";
 import type { CommandAction } from "@/contexts/CommandRegistryContext";
 import { formatKeybind, KEYBINDS, isEditableElement, matchesKeybind } from "@/utils/ui/keybinds";
 import { getSlashCommandSuggestions } from "@/utils/slashCommands/suggestions";
+import { CUSTOM_EVENTS } from "@/constants/events";
 
 const Overlay = styled.div`
   position: fixed;
@@ -254,7 +255,9 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ getSlashContext 
             shortcutHint: `${formatKeybind(KEYBINDS.SEND_MESSAGE)} to insert`,
             run: () => {
               const text = s.replacement;
-              window.dispatchEvent(new CustomEvent("cmux:insertToChatInput", { detail: { text } }));
+              window.dispatchEvent(
+                new CustomEvent(CUSTOM_EVENTS.INSERT_TO_CHAT_INPUT, { detail: { text } })
+              );
             },
           })),
         },

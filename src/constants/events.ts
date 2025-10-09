@@ -1,0 +1,30 @@
+/**
+ * Custom Event Constants
+ * These are window-level custom events used for cross-component communication
+ */
+
+export const CUSTOM_EVENTS = {
+  /**
+   * Event to show a toast notification when thinking level changes
+   * Detail: { workspaceId: string, level: ThinkingLevel }
+   */
+  THINKING_LEVEL_TOAST: "cmux:thinkingLevelToast",
+
+  /**
+   * Event to insert text into the chat input
+   * Detail: { text: string }
+   */
+  INSERT_TO_CHAT_INPUT: "cmux:insertToChatInput",
+
+  /**
+   * Event to open the model selector
+   * No detail
+   */
+  OPEN_MODEL_SELECTOR: "cmux:openModelSelector",
+} as const;
+
+/**
+ * Helper to create a storage change event name for a specific key
+ * Used by usePersistedState for same-tab synchronization
+ */
+export const getStorageChangeEvent = (key: string): string => `storage-change:${key}`;

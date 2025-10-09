@@ -1,5 +1,8 @@
 import type { CommandAction } from "@/contexts/CommandRegistryContext";
 import { formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
+import type { ThinkingLevel } from "@/types/thinking";
+import { CUSTOM_EVENTS } from "@/constants/events";
+
 import type { ProjectConfig } from "@/config";
 import type { WorkspaceMetadata } from "@/types/workspace";
 
@@ -14,6 +17,9 @@ export interface BuildSourcesParams {
   } | null;
   streamingModels: Map<string, string>;
   // UI actions
+  getThinkingLevel: (workspaceId: string) => ThinkingLevel;
+  onSetThinkingLevel: (workspaceId: string, level: ThinkingLevel) => void;
+
   onOpenNewWorkspaceModal: (projectPath: string) => void;
   onCreateWorkspace: (projectPath: string, branchName: string) => Promise<void>;
   onSelectWorkspace: (sel: {
@@ -33,6 +39,8 @@ export interface BuildSourcesParams {
   onNavigateWorkspace: (dir: "next" | "prev") => void;
   onOpenWorkspaceInTerminal: (workspacePath: string) => void;
 }
+
+const THINKING_LEVELS: ThinkingLevel[] = ["off", "low", "medium", "high"];
 
 const section = {
   workspaces: "Workspaces",
@@ -341,27 +349,80 @@ export function buildCoreSources(p: BuildSourcesParams): Array<() => CommandActi
   });
 
   // Modes & Model
-  actions.push(() => [
-    {
-      id: "mode:toggle",
-      title: "Toggle Plan/Exec Mode",
-      section: section.mode,
-      shortcutHint: formatKeybind(KEYBINDS.TOGGLE_MODE),
-      run: () => {
-        const ev = new KeyboardEvent("keydown", { key: "M", ctrlKey: true, shiftKey: true });
-        window.dispatchEvent(ev);
+  actions.push(() => {
+    const list: CommandAction[] = [
+      {
+        id: "mode:toggle",
+        title: "Toggle Plan/Exec Mode",
+        section: section.mode,
+        shortcutHint: formatKeybind(KEYBINDS.TOGGLE_MODE),
+        run: () => {
+          const ev = new KeyboardEvent("keydown", { key: "M", ctrlKey: true, shiftKey: true });
+          window.dispatchEvent(ev);
+        },
       },
-    },
-    {
-      id: "model:change",
-      title: "Change Model…",
-      section: section.mode,
-      shortcutHint: formatKeybind(KEYBINDS.OPEN_MODEL_SELECTOR),
-      run: () => {
-        window.dispatchEvent(new CustomEvent("cmux:openModelSelector"));
+      {
+        id: "model:change",
+        title: "Change Model…",
+        section: section.mode,
+        shortcutHint: formatKeybind(KEYBINDS.OPEN_MODEL_SELECTOR),
+        run: () => {
+          window.dispatchEvent(new CustomEvent(CUSTOM_EVENTS.OPEN_MODEL_SELECTOR));
+        },
       },
-    },
-  ]);
+    ];
+
+    const selectedWorkspace = p.selectedWorkspace;
+    if (selectedWorkspace) {
+      const { workspaceId } = selectedWorkspace;
+      const levelDescriptions: Record<ThinkingLevel, string> = {
+        off: "Off — fastest responses",
+        low: "Low — add a bit of reasoning",
+        medium: "Medium — balanced reasoning",
+        high: "High — maximum reasoning depth",
+      };
+      const currentLevel = p.getThinkingLevel(workspaceId);
+
+      list.push({
+        id: "thinking:set-level",
+        title: "Set Thinking Effort…",
+        subtitle: `Current: ${levelDescriptions[currentLevel] ?? currentLevel}`,
+        section: section.mode,
+        run: () => undefined,
+        prompt: {
+          title: "Select Thinking Effort",
+          fields: [
+            {
+              type: "select",
+              name: "thinkingLevel",
+              label: "Thinking effort",
+              placeholder: "Choose effort level…",
+              getOptions: () =>
+                THINKING_LEVELS.map((level) => ({
+                  id: level,
+                  label: levelDescriptions[level],
+                  keywords: [
+                    level,
+                    levelDescriptions[level].toLowerCase(),
+                    "thinking",
+                    "reasoning",
+                  ],
+                })),
+            },
+          ],
+          onSubmit: (vals) => {
+            const rawLevel = vals.thinkingLevel;
+            const level = THINKING_LEVELS.includes(rawLevel as ThinkingLevel)
+              ? (rawLevel as ThinkingLevel)
+              : "off";
+            p.onSetThinkingLevel(workspaceId, level);
+          },
+        },
+      });
+    }
+
+    return list;
+  });
 
   // Help / Docs
   actions.push(() => [
