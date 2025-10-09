@@ -5,7 +5,7 @@ import writeFileAtomic from "write-file-atomic";
 import type { FileEditReplaceToolResult } from "@/types/tools";
 import type { ToolConfiguration, ToolFactory } from "@/utils/tools/tools";
 import { TOOL_DEFINITIONS } from "@/utils/tools/toolDefinitions";
-import { leaseFromStat, generateDiff, validatePathInCwd } from "./fileCommon";
+import { leaseFromContent, generateDiff, validatePathInCwd, validateFileSize } from "./fileCommon";
 
 /**
  * File edit replace tool factory for AI assistant
@@ -45,17 +45,27 @@ export const createFileEditReplaceTool: ToolFactory = (config: ToolConfiguration
           };
         }
 
+        // Validate file size
+        const sizeValidation = validateFileSize(stats);
+        if (sizeValidation) {
+          return {
+            success: false,
+            error: sizeValidation.error,
+          };
+        }
+
+        // Read file content
+        const originalContent = await fs.readFile(resolvedPath, { encoding: "utf-8" });
+
         // Validate lease to prevent editing stale file state
-        const currentLease = leaseFromStat(stats);
+        // Use content-based lease to avoid mtime issues with external processes
+        const currentLease = leaseFromContent(originalContent);
         if (currentLease !== lease) {
           return {
             success: false,
             error: `WRITE DENIED: File lease mismatch. The file has been modified since it was read. Please read the file again.`,
           };
         }
-
-        // Read file content
-        const originalContent = await fs.readFile(resolvedPath, { encoding: "utf-8" });
         let content = originalContent;
 
         // Apply each edit sequentially
@@ -133,9 +143,8 @@ export const createFileEditReplaceTool: ToolFactory = (config: ToolConfiguration
         // Write the modified content back to file atomically
         await writeFileAtomic(resolvedPath, content, { encoding: "utf-8" });
 
-        // Get new file stats and compute new lease
-        const newStats = await fs.stat(resolvedPath);
-        const newLease = leaseFromStat(newStats);
+        // Compute new lease from modified content
+        const newLease = leaseFromContent(content);
 
         // Generate diff
         const diff = generateDiff(resolvedPath, originalContent, content);

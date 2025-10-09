@@ -320,12 +320,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
   }
 
   return (
-    <ChatProvider
-      messages={messages}
-      cmuxMessages={cmuxMessages}
-      model={currentModel}
-      workspaceId={workspaceId}
-    >
+    <ChatProvider messages={messages} cmuxMessages={cmuxMessages} model={currentModel}>
       <ViewContainer className={className}>
         <ChatArea>
           <ViewHeader>
@@ -376,7 +371,11 @@ const AIViewInner: React.FC<AIViewProps> = ({
 
                     return (
                       <React.Fragment key={msg.id}>
-                        <MessageRenderer message={msg} onEditUserMessage={handleEditUserMessage} />
+                        <MessageRenderer
+                          message={msg}
+                          onEditUserMessage={handleEditUserMessage}
+                          workspaceId={workspaceId}
+                        />
                         {isAtCutoff && (
                           <EditBarrier>
                             ⚠️ Messages below this line will be removed when you submit the edit

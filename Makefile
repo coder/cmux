@@ -86,7 +86,7 @@ fmt: ## Format code with Prettier
 
 fmt-check: ## Check code formatting
 	@echo "Checking TypeScript/JSON/Markdown formatting..."
-	@bun x prettier --check $(PRETTIER_PATTERNS) 2>&1 | grep -v 'No files matching'
+	@bun x prettier --check $(PRETTIER_PATTERNS)
 
 fmt-shell: ## Format shell scripts with shfmt
 	@./scripts/fmt.sh --shell

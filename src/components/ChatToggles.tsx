@@ -10,17 +10,16 @@ export const TogglesContainer = styled.div`
 `;
 
 interface ChatTogglesProps {
-  workspaceId: string;
   modelString: string;
   children: React.ReactNode;
 }
 
-export const ChatToggles: React.FC<ChatTogglesProps> = ({ workspaceId, modelString, children }) => {
+export const ChatToggles: React.FC<ChatTogglesProps> = ({ modelString, children }) => {
   return (
     <TogglesContainer>
       {children}
       <ThinkingSliderComponent />
-      <Context1MCheckbox workspaceId={workspaceId} modelString={modelString} />
+      <Context1MCheckbox modelString={modelString} />
     </TogglesContainer>
   );
 };

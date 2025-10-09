@@ -12,6 +12,7 @@ import {
 import { useToolExpansion, getStatusDisplay, type ToolStatus } from "./shared/toolUtils";
 import { MarkdownRenderer } from "../Messages/MarkdownRenderer";
 import { formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
+import { createCmuxMessage } from "@/types/message";
 
 const PlanContainer = styled.div`
   padding: 12px;
@@ -238,16 +239,19 @@ interface ProposePlanToolCallProps {
   args: ProposePlanToolArgs;
   result?: ProposePlanToolResult;
   status?: ToolStatus;
+  workspaceId?: string;
 }
 
 export const ProposePlanToolCall: React.FC<ProposePlanToolCallProps> = ({
   args,
   result: _result,
   status = "pending",
+  workspaceId,
 }) => {
   const { expanded, toggleExpanded } = useToolExpansion(true); // Expand by default
   const [showRaw, setShowRaw] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [isCompacting, setIsCompacting] = useState(false);
 
   const statusDisplay = getStatusDisplay(status);
 
@@ -258,6 +262,37 @@ export const ProposePlanToolCall: React.FC<ProposePlanToolCallProps> = ({
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error("Failed to copy:", err);
+    }
+  };
+
+  const handleCompactHere = async () => {
+    if (!workspaceId || isCompacting) return;
+
+    setIsCompacting(true);
+    try {
+      // Create a compacted message with the plan content
+      // Format: Title as H1 + plan content
+      const compactedContent = `# ${args.title}\n\n${args.plan}`;
+
+      const summaryMessage = createCmuxMessage(
+        `compact-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
+        "assistant",
+        compactedContent,
+        {
+          timestamp: Date.now(),
+          compacted: true,
+        }
+      );
+
+      const result = await window.api.workspace.replaceChatHistory(workspaceId, summaryMessage);
+
+      if (!result.success) {
+        console.error("Failed to compact:", result.error);
+      }
+    } catch (err) {
+      console.error("Compact error:", err);
+    } finally {
+      setIsCompacting(false);
     }
   };
 
@@ -278,6 +313,11 @@ export const ProposePlanToolCall: React.FC<ProposePlanToolCallProps> = ({
                 <PlanTitle>{args.title}</PlanTitle>
               </PlanHeaderLeft>
               <PlanHeaderRight>
+                {workspaceId && (
+                  <PlanButton onClick={() => void handleCompactHere()} disabled={isCompacting}>
+                    {isCompacting ? "Compacting..." : "📦 Compact Here"}
+                  </PlanButton>
+                )}
                 <PlanButton onClick={() => void handleCopy()}>
                   {copied ? "✓ Copied" : "Copy"}
                 </PlanButton>

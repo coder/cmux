@@ -21,6 +21,7 @@ import type {
 interface ToolMessageProps {
   message: DisplayedMessage & { type: "tool" };
   className?: string;
+  workspaceId?: string;
 }
 
 // Type guard for bash tool
@@ -71,7 +72,7 @@ function isProposePlanTool(toolName: string, args: unknown): args is ProposePlan
   return toolName === "propose_plan" && typeof args === "object" && args !== null && "plan" in args;
 }
 
-export const ToolMessage: React.FC<ToolMessageProps> = ({ message, className }) => {
+export const ToolMessage: React.FC<ToolMessageProps> = ({ message, className, workspaceId }) => {
   // Route to specialized components based on tool name
   if (isBashTool(message.toolName, message.args)) {
     return (
@@ -130,6 +131,7 @@ export const ToolMessage: React.FC<ToolMessageProps> = ({ message, className }) 
           args={message.args}
           result={message.result as ProposePlanToolResult | undefined}
           status={message.status}
+          workspaceId={workspaceId}
         />
       </div>
     );
