@@ -20,7 +20,6 @@ import {
   validateAnthropicCompliance,
   addInterruptedSentinel,
   filterEmptyAssistantMessages,
-  stripReasoningForOpenAI,
 } from "@/utils/messages/modelMessageTransform";
 import { applyCacheControl } from "@/utils/ai/cacheStrategy";
 import type { HistoryService } from "./historyService";
@@ -30,37 +29,12 @@ import { getTokenizerForModel } from "@/utils/tokens/tokenizer";
 import { buildProviderOptions } from "@/utils/ai/providerOptions";
 import type { ThinkingLevel } from "@/types/thinking";
 import { createOpenAI } from "@ai-sdk/openai";
-import { Agent } from "undici";
 import type { StreamAbortEvent } from "@/types/stream";
 import { applyToolPolicy, type ToolPolicy } from "@/utils/tools/toolPolicy";
 import { openaiReasoningFixMiddleware } from "@/utils/ai/openaiReasoningMiddleware";
+import { createOpenAIReasoningFetch } from "@/utils/ai/openaiReasoningFetch";
 
 // Export a standalone version of getToolsForModel for use in backend
-
-// Create undici agent with unlimited timeouts for AI streaming requests.
-// Safe because users control cancellation via AbortSignal from the UI.
-const unlimitedTimeoutAgent = new Agent({
-  bodyTimeout: 0, // No timeout - prevents BodyTimeoutError on long reasoning pauses
-  headersTimeout: 0, // No timeout for headers
-});
-
-/**
- * Default fetch function with unlimited timeouts for AI streaming.
- * Uses undici Agent to remove artificial timeout limits while still
- * respecting user cancellation via AbortSignal.
- *
- * Note: If users provide custom fetch in providers.jsonc, they are
- * responsible for configuring timeouts appropriately. Custom fetch
- * implementations using undici should set bodyTimeout: 0 and
- * headersTimeout: 0 to prevent BodyTimeoutError on long-running
- * reasoning models.
- */
-function defaultFetchWithUnlimitedTimeout(
-  input: RequestInfo | URL,
-  init?: RequestInit
-): Promise<Response> {
-  return fetch(input, { ...init, dispatcher: unlimitedTimeoutAgent } as RequestInit);
-}
 
 export class AIService extends EventEmitter {
   private readonly METADATA_FILE = "metadata.json";
@@ -216,12 +190,13 @@ export class AIService extends EventEmitter {
             provider: providerName,
           });
         }
-        // Use user's custom fetch as-is if provided (user controls timeouts),
-        // otherwise use our default fetch with unlimited timeout.
-        const fetchToUse =
+        // Create custom fetch that strips itemIds to fix reasoning + web_search bugs
+        // Wraps user's custom fetch if provided, otherwise wraps default fetch
+        const baseFetch =
           typeof providerConfig.fetch === "function"
             ? (providerConfig.fetch as typeof fetch)
-            : defaultFetchWithUnlimitedTimeout;
+            : undefined;
+        const fetchWithReasoningFix = createOpenAIReasoningFetch(baseFetch);
 
         // Wrap fetch to force truncation: "auto" for OpenAI Responses API calls.
         // This is a temporary override until @ai-sdk/openai supports passing
@@ -274,23 +249,27 @@ export class AIService extends EventEmitter {
                   }
                   const newBody = JSON.stringify(json);
                   const newInit: RequestInit = { ...init, headers, body: newBody };
-                  return fetchToUse(input, newInit);
+                  return fetchWithReasoningFix(input, newInit);
                 } catch {
                   // If body isn't JSON, fall through to normal fetch
-                  return fetchToUse(input, init);
+                  return fetchWithReasoningFix(input, init);
                 }
               }
 
               // Default passthrough
-              return fetchToUse(input, init);
+              return fetchWithReasoningFix(input, init);
             } catch {
               // On any unexpected error, fall back to original fetch
-              return fetchToUse(input, init);
+              return fetchWithReasoningFix(input, init);
             }
           },
-          "preconnect" in fetchToUse &&
-            typeof (fetchToUse as typeof fetch).preconnect === "function"
-            ? { preconnect: (fetchToUse as typeof fetch).preconnect.bind(fetchToUse) }
+          "preconnect" in fetchWithReasoningFix &&
+            typeof (fetchWithReasoningFix as typeof fetch).preconnect === "function"
+            ? {
+                preconnect: (fetchWithReasoningFix as typeof fetch).preconnect.bind(
+                  fetchWithReasoningFix
+                ),
+              }
             : {}
         );
 
@@ -368,17 +347,15 @@ export class AIService extends EventEmitter {
       const [providerName] = modelString.split(":");
 
       // Filter out assistant messages with only reasoning (no text/tools)
-      let filteredMessages = filterEmptyAssistantMessages(messages);
+      const filteredMessages = filterEmptyAssistantMessages(messages);
       log.debug(`Filtered ${messages.length - filteredMessages.length} empty assistant messages`);
       log.debug_obj(`${workspaceId}/1a_filtered_messages.json`, filteredMessages);
 
-      // OpenAI-specific: Strip reasoning parts from history
-      // OpenAI manages reasoning via previousResponseId; sending Anthropic-style reasoning
-      // parts creates orphaned reasoning items that cause API errors
+      // OpenAI-specific: DON'T strip reasoning - keep all content
+      // The custom fetch wrapper strips item_reference objects to prevent dangling references
+      // OpenAI manages conversation state via previousResponseId
       if (providerName === "openai") {
-        filteredMessages = stripReasoningForOpenAI(filteredMessages);
-        log.debug("Stripped reasoning parts for OpenAI");
-        log.debug_obj(`${workspaceId}/1b_openai_stripped.json`, filteredMessages);
+        log.debug("Keeping reasoning parts for OpenAI (fetch wrapper handles item_references)");
       }
 
       // Add [INTERRUPTED] sentinel to partial messages (for model context)
@@ -388,7 +365,6 @@ export class AIService extends EventEmitter {
       // Type assertion needed because CmuxMessage has custom tool parts for interrupted tools
       // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
       const modelMessages = convertToModelMessages(messagesWithSentinel as any);
-
       log.debug_obj(`${workspaceId}/2_model_messages.json`, modelMessages);
 
       // Apply ModelMessage transforms based on provider requirements
@@ -396,7 +372,6 @@ export class AIService extends EventEmitter {
 
       // Apply cache control for Anthropic models AFTER transformation
       const finalMessages = applyCacheControl(transformedMessages, modelString);
-
       log.debug_obj(`${workspaceId}/3_final_messages.json`, finalMessages);
 
       // Validate the messages meet Anthropic requirements (Anthropic only)
