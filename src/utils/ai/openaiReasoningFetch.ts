@@ -90,16 +90,6 @@ export function createOpenAIReasoningFetch(
   const fetchFn = baseFetch ?? fetch;
 
   return async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
-    let url: string;
-    if (typeof input === "string") {
-      url = input;
-    } else if (input instanceof URL) {
-      url = input.href;
-    } else {
-      // input is a Request object
-      url = input.url;
-    }
-
     // Only intercept POST requests with JSON bodies
     if (init?.method === "POST") {
       try {
