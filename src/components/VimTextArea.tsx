@@ -211,13 +211,7 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
 
     // Build mode indicator content
     const showVimMode = vimMode === "normal";
-    const pendingCommand = (() => {
-      if (!showVimMode) return "";
-      const pending = pendingOp;
-      if (!pending) return "";
-      const args = pending.args?.join("") || "";
-      return `${pending.op}${args}`;
-    })();
+    const pendingCommand = showVimMode ? vim.formatPendingCommand(pendingOp) : "";
 
     return (
       <div style={{ width: "100%" }} data-component="VimTextAreaContainer">

@@ -316,57 +316,6 @@ export function changeRange(
 }
 
 /**
- * Handle change word (cw).
- */
-export function changeWord(
-  text: string,
-  cursor: number,
-  yankBuffer: string
-): { text: string; cursor: number; yankBuffer: string } {
-  let i = cursor;
-  const n = text.length;
-  while (i < n && /[A-Za-z0-9_]/.test(text[i])) i++;
-  while (i < n && /\s/.test(text[i])) i++;
-  return changeRange(text, cursor, i, yankBuffer);
-}
-
-/**
- * Handle change inner word (ciw).
- */
-export function changeInnerWord(
-  text: string,
-  cursor: number,
-  yankBuffer: string
-): { text: string; cursor: number; yankBuffer: string } {
-  const { start, end } = wordBoundsAt(text, cursor);
-  return changeRange(text, start, end, yankBuffer);
-}
-
-/**
- * Handle change to end of line (C or c$).
- */
-export function changeToEndOfLine(
-  text: string,
-  cursor: number,
-  yankBuffer: string
-): { text: string; cursor: number; yankBuffer: string } {
-  const { lineEnd } = getLineBounds(text, cursor);
-  return changeRange(text, cursor, lineEnd, yankBuffer);
-}
-
-/**
- * Handle change to beginning of line (c0).
- */
-export function changeToBeginningOfLine(
-  text: string,
-  cursor: number,
-  yankBuffer: string
-): { text: string; cursor: number; yankBuffer: string } {
-  const { lineStart } = getLineBounds(text, cursor);
-  return changeRange(text, lineStart, cursor, yankBuffer);
-}
-
-/**
  * Handle change entire line (cc).
  */
 export function changeLine(
@@ -570,6 +519,35 @@ function handlePendingOperator(
 }
 
 /**
+ * Calculate the range (from, to) for a motion.
+ * Returns null for "line" motion (requires special handling).
+ */
+function getMotionRange(
+  text: string,
+  cursor: number,
+  motion: "w" | "b" | "e" | "$" | "0" | "line"
+): { from: number; to: number } | null {
+  switch (motion) {
+    case "w":
+      return { from: cursor, to: moveWordForward(text, cursor) };
+    case "b":
+      return { from: moveWordBackward(text, cursor), to: cursor };
+    case "e":
+      return { from: cursor, to: moveWordEnd(text, cursor) + 1 };
+    case "$": {
+      const { lineEnd } = getLineBounds(text, cursor);
+      return { from: cursor, to: lineEnd };
+    }
+    case "0": {
+      const { lineStart } = getLineBounds(text, cursor);
+      return { from: lineStart, to: cursor };
+    }
+    case "line":
+      return null; // Special case: handled separately
+  }
+}
+
+/**
  * Apply operator + motion combination.
  */
 function applyOperatorMotion(
@@ -577,37 +555,50 @@ function applyOperatorMotion(
   op: "d" | "c" | "y",
   motion: "w" | "b" | "e" | "$" | "0" | "line"
 ): VimState {
-  const { text, cursor, yankBuffer, mode } = state;
+  const { text, cursor, yankBuffer } = state;
 
-  // Delete operator
-  if (op === "d") {
-    let result: { text: string; cursor: number; yankBuffer: string };
-    
-    switch (motion) {
-      case "w":
-        result = deleteRange(text, cursor, moveWordForward(text, cursor), true, yankBuffer);
-        break;
-      case "b":
-        result = deleteRange(text, moveWordBackward(text, cursor), cursor, true, yankBuffer);
-        break;
-      case "e":
-        result = deleteRange(text, cursor, moveWordEnd(text, cursor) + 1, true, yankBuffer);
-        break;
-      case "$": {
-        const { lineEnd } = getLineBounds(text, cursor);
-        result = deleteRange(text, cursor, lineEnd, true, yankBuffer);
-        break;
-      }
-      case "0": {
-        const { lineStart } = getLineBounds(text, cursor);
-        result = deleteRange(text, lineStart, cursor, true, yankBuffer);
-        break;
-      }
-      case "line":
-        result = deleteLine(text, cursor, yankBuffer);
-        break;
+  // Line operations use special functions
+  if (motion === "line") {
+    if (op === "d") {
+      const result = deleteLine(text, cursor, yankBuffer);
+      return {
+        ...state,
+        text: result.text,
+        cursor: result.cursor,
+        yankBuffer: result.yankBuffer,
+        pendingOp: null,
+        desiredColumn: null,
+      };
     }
+    if (op === "c") {
+      const result = changeLine(text, cursor, yankBuffer);
+      return {
+        ...state,
+        mode: "insert",
+        text: result.text,
+        cursor: result.cursor,
+        yankBuffer: result.yankBuffer,
+        pendingOp: null,
+        desiredColumn: null,
+      };
+    }
+    if (op === "y") {
+      return {
+        ...state,
+        yankBuffer: yankLine(text, cursor),
+        pendingOp: null,
+        desiredColumn: null,
+      };
+    }
+  }
 
+  // Calculate range for all other motions
+  const range = getMotionRange(text, cursor, motion);
+  if (!range) return state; // Shouldn't happen, but type safety
+
+  // Apply operator to range
+  if (op === "d") {
+    const result = deleteRange(text, range.from, range.to, true, yankBuffer);
     return {
       ...state,
       text: result.text,
@@ -618,31 +609,8 @@ function applyOperatorMotion(
     };
   }
 
-  // Change operator (delete + enter insert mode)
   if (op === "c") {
-    let result: { text: string; cursor: number; yankBuffer: string };
-    
-    switch (motion) {
-      case "w":
-        result = changeWord(text, cursor, yankBuffer);
-        break;
-      case "b":
-        result = changeRange(text, moveWordBackward(text, cursor), cursor, yankBuffer);
-        break;
-      case "e":
-        result = changeRange(text, cursor, moveWordEnd(text, cursor) + 1, yankBuffer);
-        break;
-      case "$":
-        result = changeToEndOfLine(text, cursor, yankBuffer);
-        break;
-      case "0":
-        result = changeToBeginningOfLine(text, cursor, yankBuffer);
-        break;
-      case "line":
-        result = changeLine(text, cursor, yankBuffer);
-        break;
-    }
-
+    const result = changeRange(text, range.from, range.to, yankBuffer);
     return {
       ...state,
       mode: "insert",
@@ -654,38 +622,10 @@ function applyOperatorMotion(
     };
   }
 
-  // Yank operator (copy without modifying text)
   if (op === "y") {
-    let yanked: string;
-    
-    switch (motion) {
-      case "w":
-        yanked = text.slice(cursor, moveWordForward(text, cursor));
-        break;
-      case "b":
-        yanked = text.slice(moveWordBackward(text, cursor), cursor);
-        break;
-      case "e":
-        yanked = text.slice(cursor, moveWordEnd(text, cursor) + 1);
-        break;
-      case "$": {
-        const { lineEnd } = getLineBounds(text, cursor);
-        yanked = text.slice(cursor, lineEnd);
-        break;
-      }
-      case "0": {
-        const { lineStart } = getLineBounds(text, cursor);
-        yanked = text.slice(lineStart, cursor);
-        break;
-      }
-      case "line":
-        yanked = yankLine(text, cursor);
-        break;
-    }
-
     return {
       ...state,
-      yankBuffer: yanked,
+      yankBuffer: text.slice(range.from, range.to),
       pendingOp: null,
       desiredColumn: null,
     };
@@ -696,6 +636,7 @@ function applyOperatorMotion(
 
 /**
  * Apply operator + text object combination.
+ * Currently only supports "iw" (inner word).
  */
 function applyOperatorTextObject(
   state: VimState,
@@ -707,6 +648,7 @@ function applyOperatorTextObject(
   const { text, cursor, yankBuffer } = state;
   const { start, end } = wordBoundsAt(text, cursor);
 
+  // Apply operator to range [start, end)
   if (op === "d") {
     const result = deleteRange(text, start, end, true, yankBuffer);
     return {
@@ -720,7 +662,7 @@ function applyOperatorTextObject(
   }
 
   if (op === "c") {
-    const result = changeInnerWord(text, cursor, yankBuffer);
+    const result = changeRange(text, start, end, yankBuffer);
     return {
       ...state,
       mode: "insert",
@@ -733,10 +675,9 @@ function applyOperatorTextObject(
   }
 
   if (op === "y") {
-    const yanked = text.slice(start, end);
     return {
       ...state,
-      yankBuffer: yanked,
+      yankBuffer: text.slice(start, end),
       pendingOp: null,
       desiredColumn: null,
     };
@@ -941,3 +882,16 @@ function tryHandleOperator(state: VimState, key: string, now: number): VimKeyRes
 
   return null;
 }
+
+
+/**
+ * Format pending operator command for display in mode indicator.
+ * Returns empty string if no pending command.
+ * Examples: "d", "c", "ci", "di"
+ */
+export function formatPendingCommand(pendingOp: VimState["pendingOp"]): string {
+  if (!pendingOp) return "";
+  const args = pendingOp.args?.join("") || "";
+  return `${pendingOp.op}${args}`;
+}
+
