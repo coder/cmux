@@ -1,3 +1,15 @@
+/**
+ * IpcMain Service Layer
+ *
+ * Design Principle: Keep this layer thin. Handlers should:
+ * 1. Parse/validate IPC parameters
+ * 2. Delegate to domain logic (git.ts, services/, utils/)
+ * 3. Format responses for the renderer
+ * 4. Handle errors gracefully
+ *
+ * Complex business logic belongs in domain modules, not here.
+ */
+
 import type { BrowserWindow, IpcMain as ElectronIpcMain } from "electron";
 import { spawn } from "child_process";
 import * as path from "path";
@@ -5,11 +17,9 @@ import * as fsPromises from "fs/promises";
 import type { Config, ProjectConfig } from "@/config";
 import {
   createWorktree,
-  removeWorktree,
+  removeWorktreeSafe,
   moveWorktree,
-  pruneWorktrees,
   getMainWorktreeFromWorktree,
-  isWorktreeClean,
 } from "@/git";
 import { AIService } from "@/services/aiService";
 import { HistoryService } from "@/services/historyService";
@@ -191,89 +201,16 @@ export class IpcMain {
 
         // Remove git worktree if we found the project path
         if (foundProjectPath) {
-          const worktreeExists = await fsPromises
-            .access(workspacePath)
-            .then(() => true)
-            .catch(() => false);
-
-          if (worktreeExists) {
-            // Check if worktree is clean (no uncommitted changes)
-            const isClean = await isWorktreeClean(workspacePath);
-
-            if (isClean) {
-              // Strategy: For clean worktrees, move to temp directory first (instant),
-              // then delete in background. This makes removal feel instant.
-              const tempDir = path.join(
-                path.dirname(workspacePath),
-                `.deleting-${path.basename(workspacePath)}-${Date.now()}`
-              );
-
-              try {
-                // Rename to temp location (instant operation)
-                await fsPromises.rename(workspacePath, tempDir);
-
-                // Prune the worktree from git's records
-                await pruneWorktrees(foundProjectPath);
-
-                // Delete the temp directory in the background
-                void fsPromises.rm(tempDir, { recursive: true, force: true }).catch((err) => {
-                  log.info(`Failed to delete temp workspace directory ${tempDir}: ${String(err)}`);
-                });
-              } catch (err) {
-                log.info(
-                  `Failed to rename/prune workspace for instant deletion: ${String(err)}, falling back to sync removal`
-                );
-                // Rollback rename if it succeeded
-                const tempExists = await fsPromises
-                  .access(tempDir)
-                  .then(() => true)
-                  .catch(() => false);
-                if (tempExists) {
-                  await fsPromises.rename(tempDir, workspacePath).catch(() => {
-                    // If rollback fails, continue with sync removal of temp
-                  });
-                }
-                // Fall through to sync removal below
+          const gitResult = await removeWorktreeSafe(foundProjectPath, workspacePath, {
+            onBackgroundDelete: (tempDir, error) => {
+              if (error) {
+                log.info(`Background deletion error for ${tempDir}: ${error.message}`);
               }
-            }
+            },
+          });
 
-            // For dirty worktrees OR if instant removal failed,
-            // use regular git worktree remove (respects git safety checks)
-            if (!isClean || (await fsPromises.access(workspacePath).then(() => true).catch(() => false))) {
-              const gitResult = await removeWorktree(foundProjectPath, workspacePath, {
-                force: false,
-              });
-              if (!gitResult.success) {
-                const errorMessage = gitResult.error ?? "Unknown error";
-                const normalizedError = errorMessage.toLowerCase();
-                const looksLikeMissingWorktree =
-                  normalizedError.includes("not a working tree") ||
-                  normalizedError.includes("does not exist") ||
-                  normalizedError.includes("no such file");
-
-                if (looksLikeMissingWorktree) {
-                  const pruneResult = await pruneWorktrees(foundProjectPath);
-                  if (!pruneResult.success) {
-                    log.info(
-                      `Failed to prune stale worktrees for ${foundProjectPath} after removeWorktree error: ${
-                        pruneResult.error ?? "unknown error"
-                      }`
-                    );
-                  }
-                } else {
-                  return gitResult;
-                }
-              }
-            }
-          } else {
-            const pruneResult = await pruneWorktrees(foundProjectPath);
-            if (!pruneResult.success) {
-              log.info(
-                `Failed to prune stale worktrees for ${foundProjectPath} after detecting missing workspace at ${workspacePath}: ${
-                  pruneResult.error ?? "unknown error"
-                }`
-              );
-            }
+          if (!gitResult.success) {
+            return { success: false, error: gitResult.error };
           }
         }
 

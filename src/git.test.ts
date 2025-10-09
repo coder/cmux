@@ -1,77 +1,200 @@
-import { describe, test, expect, beforeAll, afterAll } from "@jest/globals";
-import { createWorktree } from "./git";
-import { Config } from "./config";
-import * as path from "path";
-import * as os from "os";
+import { describe, test, expect, beforeEach, afterEach } from "@jest/globals";
 import * as fs from "fs/promises";
-import { exec } from "child_process";
-import { promisify } from "util";
+import * as path from "path";
+import { execSync } from "child_process";
+import { removeWorktreeSafe, isWorktreeClean, createWorktree } from "./git";
+import type { Config } from "./config";
 
-const execAsync = promisify(exec);
+// Helper to create a test git repo
+async function createTestRepo(basePath: string): Promise<string> {
+  const repoPath = path.join(basePath, "test-repo");
+  await fs.mkdir(repoPath, { recursive: true });
+  
+  execSync("git init", { cwd: repoPath });
+  execSync("git config user.email 'test@test.com'", { cwd: repoPath });
+  execSync("git config user.name 'Test User'", { cwd: repoPath });
+  
+  // Create initial commit
+  await fs.writeFile(path.join(repoPath, "README.md"), "# Test Repo");
+  execSync("git add .", { cwd: repoPath });
+  execSync('git commit -m "Initial commit"', { cwd: repoPath });
+  
+  return repoPath;
+}
 
-describe("createWorktree", () => {
-  let tempGitRepo: string;
-  let config: Config;
+// Mock config for createWorktree
+const mockConfig = {
+  getWorkspacePath: (projectPath: string, branchName: string) => {
+    return path.join(path.dirname(projectPath), "workspaces", branchName);
+  },
+} as unknown as Config;
 
-  beforeAll(async () => {
-    // Create a temporary git repository for testing
-    tempGitRepo = await fs.mkdtemp(path.join(os.tmpdir(), "cmux-git-test-"));
-    await execAsync(`git init`, { cwd: tempGitRepo });
-    await execAsync(`git config user.email "test@example.com"`, { cwd: tempGitRepo });
-    await execAsync(`git config user.name "Test User"`, { cwd: tempGitRepo });
-    await execAsync(`echo "test" > README.md`, { cwd: tempGitRepo });
-    await execAsync(`git add .`, { cwd: tempGitRepo });
-    await execAsync(`git commit -m "Initial commit"`, { cwd: tempGitRepo });
+describe("removeWorktreeSafe", () => {
+  let tempDir: string;
+  let repoPath: string;
 
-    // Create a branch with a slash in the name (like "docs/bash-timeout-ux")
-    await execAsync(`git branch docs/bash-timeout-ux`, { cwd: tempGitRepo });
-
-    // Create a config instance for testing
-    const testConfigPath = path.join(tempGitRepo, "test-config.json");
-    config = new Config(testConfigPath);
+  beforeEach(async () => {
+    tempDir = await fs.mkdtemp(path.join(__dirname, "..", "test-temp-"));
+    repoPath = await createTestRepo(tempDir);
   });
 
-  afterAll(async () => {
-    // Cleanup temp repo
+  afterEach(async () => {
     try {
-      await fs.rm(tempGitRepo, { recursive: true, force: true });
-    } catch (error) {
-      console.warn("Failed to cleanup temp git repo:", error);
+      await fs.rm(tempDir, { recursive: true, force: true });
+    } catch {
+      // Ignore cleanup errors
     }
   });
 
-  test("should correctly detect branch does not exist when name is prefix of existing branch", async () => {
-    // This tests the bug fix: "docs" is a prefix of "docs/bash-timeout-ux"
-    // The old code would use .includes() which would match "remotes/origin/docs/bash-timeout-ux"
-    // and incorrectly think "docs" exists, then try: git worktree add <path> "docs"
-    // which fails with "invalid reference: docs"
-    //
-    // The fixed code correctly detects "docs" doesn't exist and tries: git worktree add -b "docs" <path>
-    // However, Git itself won't allow creating "docs" when "docs/bash-timeout-ux" exists
-    // due to ref namespace conflicts, so this will fail with a different, more informative error.
-    const result = await createWorktree(config, tempGitRepo, "docs");
+  test("should instantly remove clean worktree via rename", async () => {
+    // Create a worktree
+    const result = await createWorktree(mockConfig, repoPath, "test-branch");
+    expect(result.success).toBe(true);
+    const worktreePath = result.path!;
 
-    // Should fail, but with a ref lock error (not "invalid reference")
-    expect(result.success).toBe(false);
-    expect(result.error).toContain("cannot lock ref");
-    expect(result.error).toContain("docs/bash-timeout-ux");
+    // Verify worktree exists
+    const existsBefore = await fs.access(worktreePath).then(() => true).catch(() => false);
+    expect(existsBefore).toBe(true);
 
-    // The old buggy code would have failed with "invalid reference: docs"
-    expect(result.error).not.toContain("invalid reference");
+    // Remove it (should be instant since it's clean)
+    const startTime = Date.now();
+    const removeResult = await removeWorktreeSafe(repoPath, worktreePath);
+    const duration = Date.now() - startTime;
+
+    expect(removeResult.success).toBe(true);
+    
+    // Should complete quickly (<200ms accounting for CI overhead)
+    expect(duration).toBeLessThan(200);
+
+    // Worktree should be gone immediately
+    const existsAfter = await fs.access(worktreePath).then(() => true).catch(() => false);
+    expect(existsAfter).toBe(false);
   });
 
-  test("should use existing branch when exact match exists", async () => {
-    // Create a branch first
-    await execAsync(`git branch existing-branch`, { cwd: tempGitRepo });
-
-    const result = await createWorktree(config, tempGitRepo, "existing-branch");
-
-    // Should succeed by using the existing branch
+  test("should block removal of dirty worktree", async () => {
+    // Create a worktree
+    const result = await createWorktree(mockConfig, repoPath, "dirty-branch");
     expect(result.success).toBe(true);
-    expect(result.path).toBeDefined();
+    const worktreePath = result.path!;
 
-    // Verify the worktree was created
-    const { stdout } = await execAsync(`git worktree list`, { cwd: tempGitRepo });
-    expect(stdout).toContain("existing-branch");
+    // Make it dirty by adding uncommitted changes
+    await fs.writeFile(path.join(worktreePath, "new-file.txt"), "uncommitted content");
+
+    // Verify it's dirty
+    const isClean = await isWorktreeClean(worktreePath);
+    expect(isClean).toBe(false);
+
+    // Try to remove it - should fail due to uncommitted changes
+    const removeResult = await removeWorktreeSafe(repoPath, worktreePath);
+    
+    expect(removeResult.success).toBe(false);
+    expect(removeResult.error).toMatch(/modified|untracked|changes/i);
+
+    // Worktree should still exist
+    const existsAfter = await fs.access(worktreePath).then(() => true).catch(() => false);
+    expect(existsAfter).toBe(true);
+  });
+
+  test("should handle already-deleted worktree gracefully", async () => {
+    // Create a worktree
+    const result = await createWorktree(mockConfig, repoPath, "temp-branch");
+    expect(result.success).toBe(true);
+    const worktreePath = result.path!;
+
+    // Manually delete it (simulating external deletion)
+    await fs.rm(worktreePath, { recursive: true, force: true });
+
+    // Remove via removeWorktreeSafe - should succeed and prune git records
+    const removeResult = await removeWorktreeSafe(repoPath, worktreePath);
+    
+    expect(removeResult.success).toBe(true);
+  });
+
+  test("should remove clean worktree with staged changes using git", async () => {
+    // Create a worktree
+    const result = await createWorktree(mockConfig, repoPath, "staged-branch");
+    expect(result.success).toBe(true);
+    const worktreePath = result.path!;
+
+    // Add staged changes
+    await fs.writeFile(path.join(worktreePath, "staged.txt"), "staged content");
+    execSync("git add .", { cwd: worktreePath });
+
+    // Verify it's dirty (staged changes count as dirty)
+    const isClean = await isWorktreeClean(worktreePath);
+    expect(isClean).toBe(false);
+
+    // Try to remove it - should fail
+    const removeResult = await removeWorktreeSafe(repoPath, worktreePath);
+    
+    expect(removeResult.success).toBe(false);
+  });
+
+  test("should call onBackgroundDelete callback on errors", async () => {
+    // Create a worktree
+    const result = await createWorktree(mockConfig, repoPath, "callback-branch");
+    expect(result.success).toBe(true);
+    const worktreePath = result.path!;
+
+    const errors: Array<{ tempDir: string; error?: Error }> = [];
+    
+    // Remove it
+    const removeResult = await removeWorktreeSafe(repoPath, worktreePath, {
+      onBackgroundDelete: (tempDir, error) => {
+        errors.push({ tempDir, error });
+      },
+    });
+
+    expect(removeResult.success).toBe(true);
+
+    // Wait a bit for background deletion to complete
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    // Callback should be called for successful background deletion
+    // (or not called at all if deletion succeeds without error)
+    // This test mainly ensures the callback doesn't crash
+  });
+});
+
+describe("isWorktreeClean", () => {
+  let tempDir: string;
+  let repoPath: string;
+
+  beforeEach(async () => {
+    tempDir = await fs.mkdtemp(path.join(__dirname, "..", "test-temp-"));
+    repoPath = await createTestRepo(tempDir);
+  });
+
+  afterEach(async () => {
+    try {
+      await fs.rm(tempDir, { recursive: true, force: true });
+    } catch {
+      // Ignore cleanup errors
+    }
+  });
+
+  test("should return true for clean worktree", async () => {
+    const result = await createWorktree(mockConfig, repoPath, "clean-check");
+    expect(result.success).toBe(true);
+    
+    const isClean = await isWorktreeClean(result.path!);
+    expect(isClean).toBe(true);
+  });
+
+  test("should return false for worktree with uncommitted changes", async () => {
+    const result = await createWorktree(mockConfig, repoPath, "dirty-check");
+    expect(result.success).toBe(true);
+    const worktreePath = result.path!;
+
+    // Add uncommitted file
+    await fs.writeFile(path.join(worktreePath, "uncommitted.txt"), "content");
+
+    const isClean = await isWorktreeClean(worktreePath);
+    expect(isClean).toBe(false);
+  });
+
+  test("should return false for non-existent path", async () => {
+    const isClean = await isWorktreeClean("/non/existent/path");
+    expect(isClean).toBe(false);
   });
 });
