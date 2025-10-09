@@ -1,7 +1,7 @@
 import { expect, type Locator, type Page } from "@playwright/test";
 import type { DemoProjectConfig } from "./demoProject";
 
-type ChatMode = "Plan" | "Exec" | "Yolo";
+type ChatMode = "Plan" | "Exec";
 
 export interface StreamTimelineEvent {
   type: string;
@@ -51,8 +51,6 @@ function sanitizeMode(mode: ChatMode): ChatMode {
       return "Plan";
     case "exec":
       return "Exec";
-    case "yolo":
-      return "Yolo";
     default:
       throw new Error(`Unsupported chat mode: ${mode as string}`);
   }
