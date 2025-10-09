@@ -62,6 +62,29 @@ Reason: PRs may need human review, discussion, or additional changes based on re
 
 Only merge if the user explicitly says "merge it" or similar.
 
+### Writing PR Descriptions
+
+Write PR bodies for **busy reviewers**. Be concise and avoid redundancy:
+
+- **Each section should add new information** - Don't restate the same thing in different words
+- **Structure emerges from content** - Some fixes need problem/solution/testing, others just need "what changed and why"
+- **If it's obvious, omit it** - Problem obvious from solution? Don't state it. Solution obvious from problem? Skip to implementation details.
+
+❌ **Bad** (redundant):
+```
+Problem: Markdown rendering is slow, causing 50ms tasks
+Solution: Make markdown rendering faster
+Impact: Reduces task time to <16ms
+```
+
+✅ **Good** (each section adds value):
+```
+ReactMarkdown was re-parsing content on every parent render because plugin arrays
+were created fresh each time. Moved to module scope for stable references.
+
+Verify with React DevTools Profiler - MarkdownCore should only re-render when content changes.
+```
+
 ## Project Structure
 
 - `src/main.ts` - Main Electron process
