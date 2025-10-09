@@ -329,19 +329,32 @@ describeIntegration("IpcMain executeBash integration tests", () => {
         expect(gitEnvResult.data.output).toContain("GIT_TERMINAL_PROMPT=0");
         expect(gitEnvResult.data.exitCode).toBe(0);
 
-        // Verify that git fetch with invalid remote doesn't hang (should fail quickly)
-        // This simulates a credential issue - git should fail immediately instead of prompting
-        const fetchResult = await env.mockIpcRenderer.invoke(
+        // Test 1: Verify that git fetch with invalid remote doesn't hang (should fail quickly)
+        const invalidFetchResult = await env.mockIpcRenderer.invoke(
           IPC_CHANNELS.WORKSPACE_EXECUTE_BASH,
           workspaceId,
           "git fetch https://invalid-remote-that-does-not-exist-12345.com/repo.git 2>&1 || true",
           { timeout_secs: 5 }
         );
 
+        expect(invalidFetchResult.success).toBe(true);
+        expect(invalidFetchResult.data.success).toBe(true);
+
+        // Test 2: Verify git fetch to real GitHub org repo doesn't hang
+        // Uses OpenAI org - will fail if no auth configured, but should fail quickly without prompting
+        const githubFetchResult = await env.mockIpcRenderer.invoke(
+          IPC_CHANNELS.WORKSPACE_EXECUTE_BASH,
+          workspaceId,
+          "git fetch https://github.com/openai/private-test-repo-nonexistent 2>&1 || true",
+          { timeout_secs: 5 }
+        );
+
         // Should complete quickly (not hang waiting for credentials)
-        expect(fetchResult.success).toBe(true);
+        expect(githubFetchResult.success).toBe(true);
         // Command should complete within timeout - the "|| true" ensures success even if fetch fails
-        expect(fetchResult.data.success).toBe(true);
+        expect(githubFetchResult.data.success).toBe(true);
+        // Output should contain error message, not hang
+        expect(githubFetchResult.data.output).toContain("fatal");
 
         // Clean up
         await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, workspaceId);
