@@ -32,7 +32,7 @@ const MetadataText = styled.span`
   margin-left: 8px;
 `;
 
-const ContentBlock = styled.pre`
+const ContentBlock = styled.div`
   margin: 0;
   padding: 6px 8px;
   background: rgba(0, 0, 0, 0.2);
@@ -40,10 +40,30 @@ const ContentBlock = styled.pre`
   border-left: 2px solid #2196f3;
   font-size: 11px;
   line-height: 1.4;
-  white-space: pre-wrap;
-  word-break: break-word;
   max-height: 200px;
   overflow-y: auto;
+  display: flex;
+`;
+
+const LineNumbers = styled.div`
+  color: var(--color-text-secondary);
+  opacity: 0.4;
+  padding-right: 12px;
+  margin-right: 8px;
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  user-select: none;
+  text-align: right;
+  min-width: 40px;
+  font-family: var(--font-monospace);
+`;
+
+const ContentText = styled.pre`
+  margin: 0;
+  padding: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  flex: 1;
+  font-family: var(--font-monospace);
 `;
 
 const ErrorMessage = styled.div`
@@ -86,7 +106,7 @@ export const FileReadToolCall: React.FC<FileReadToolCallProps> = ({
         <FilePathText>{fileName}</FilePathText>
         {result && result.success && (
           <MetadataText>
-            {result.lines_read} lines • {formatBytes(result.file_size)}
+            read {formatBytes(result.content.length)} of {formatBytes(result.file_size)}
           </MetadataText>
         )}
         <StatusIndicator status={status}>{getStatusDisplay(status)}</StatusIndicator>
@@ -125,7 +145,14 @@ export const FileReadToolCall: React.FC<FileReadToolCallProps> = ({
               {result.success && result.content && (
                 <DetailSection>
                   <DetailLabel>Content</DetailLabel>
-                  <ContentBlock>{result.content}</ContentBlock>
+                  <ContentBlock>
+                    <LineNumbers>
+                      {result.content.split("\n").map((_, i) => (
+                        <div key={i}>{(args.offset ?? 1) + i}</div>
+                      ))}
+                    </LineNumbers>
+                    <ContentText>{result.content}</ContentText>
+                  </ContentBlock>
                 </DetailSection>
               )}
             </>
