@@ -10,6 +10,8 @@ import { usePersistedState } from "@/hooks/usePersistedState";
 import { ThinkingSliderComponent } from "./ThinkingSlider";
 import { useThinkingLevel } from "@/hooks/useThinkingLevel";
 import { useMode } from "@/contexts/ModeContext";
+import { Context1MCheckbox } from "./Context1MCheckbox";
+import { use1MContext } from "@/hooks/use1MContext";
 import { modeToToolPolicy } from "@/utils/ui/modeUtils";
 import { ToggleGroup } from "./ToggleGroup";
 import type { UIMode } from "@/types/mode";

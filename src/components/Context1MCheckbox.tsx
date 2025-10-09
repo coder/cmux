@@ -60,7 +60,7 @@ export const Context1MCheckbox: React.FC<Context1MCheckboxProps> = ({
       </CheckboxLabel>
       <TooltipWrapper inline>
         <span style={{ cursor: "help", color: "#888", fontSize: "10px" }}>?</span>
-        <Tooltip className="tooltip" align="center" width="medium">
+        <Tooltip className="tooltip" align="center" width="auto">
           Enable 1M token context window (beta feature for Claude Sonnet 4/4.5)
         </Tooltip>
       </TooltipWrapper>

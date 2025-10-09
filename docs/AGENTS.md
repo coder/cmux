@@ -125,6 +125,23 @@ This project uses **Make** as the primary build orchestrator. See `Makefile` for
 
 ## Testing
 
+### Test-Driven Development (TDD)
+
+**TDD is the preferred development style for agents.** When implementing new features:
+
+1. **Write tests first** - Define the desired behavior through tests before implementation
+2. **Run the tests** - Verify they fail for the right reasons
+3. **Implement the feature** - Write the minimum code to make tests pass
+4. **Refactor** - Clean up the code while keeping tests green
+
+Benefits:
+- Tests document the intended behavior
+- Prevents over-engineering
+- Catches regressions early
+- Forces clean, testable architecture
+
+### General Testing Guidelines
+
 - Always run `make typecheck` after making changes to verify types (checks both main and renderer)
 - **Unit tests should be colocated with their business logic** - Place unit test files (\*.test.ts) in the same directory as the code they test (e.g., `aiService.test.ts` next to `aiService.ts`)
 - E2E and integration tests may live in `./tests/` directory, but unit tests must be colocated
