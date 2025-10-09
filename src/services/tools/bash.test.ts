@@ -58,7 +58,8 @@ describe("bash tool", () => {
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error).toContain("output exceeded limits");
+      // Should contain specific overflow reason
+      expect(result.error).toMatch(/Line count exceeded limit|OUTPUT OVERFLOW/);
       expect(result.exitCode).toBe(-1);
     }
   });
@@ -76,7 +77,10 @@ describe("bash tool", () => {
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.error).toContain("[OUTPUT OVERFLOW");
-      expect(result.error).toContain("lines saved to");
+      // Should contain specific overflow reason (one of the three types)
+      expect(result.error).toMatch(/Line count exceeded limit|Total output exceeded limit|exceeded per-line limit/);
+      expect(result.error).toContain("Full output");
+      expect(result.error).toContain("lines) saved to");
       expect(result.error).toContain("bash-");
       expect(result.error).toContain(".txt");
       
@@ -130,7 +134,7 @@ describe("bash tool", () => {
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error).toContain("output exceeded limits");
+      expect(result.error).toMatch(/Line count exceeded limit|OUTPUT OVERFLOW/);
       // Should complete much faster than 10 seconds (give it 2 seconds buffer)
       expect(duration).toBeLessThan(2000);
     }
@@ -513,7 +517,7 @@ describe("bash tool", () => {
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error).toContain("output exceeded limits");
+      expect(result.error).toMatch(/exceeded per-line limit|OUTPUT OVERFLOW/);
       expect(result.error).toContain("head");
       expect(result.exitCode).toBe(-1);
     }
@@ -533,7 +537,7 @@ describe("bash tool", () => {
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error).toContain("output exceeded limits");
+      expect(result.error).toMatch(/Total output exceeded limit|OUTPUT OVERFLOW/);
       expect(result.error).toContain("grep");
       expect(result.exitCode).toBe(-1);
     }
@@ -551,7 +555,7 @@ describe("bash tool", () => {
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error).toContain("output exceeded limits");
+      expect(result.error).toMatch(/Total output exceeded limit|OUTPUT OVERFLOW/);
       expect(result.error).toContain("tail");
       expect(result.exitCode).toBe(-1);
     }
