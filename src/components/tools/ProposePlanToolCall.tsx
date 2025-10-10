@@ -13,6 +13,8 @@ import { useToolExpansion, getStatusDisplay, type ToolStatus } from "./shared/to
 import { MarkdownRenderer } from "../Messages/MarkdownRenderer";
 import { formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
 import { useStartHere } from "@/hooks/useStartHere";
+import { StartHereModal } from "../StartHereModal";
+import { TooltipWrapper, Tooltip } from "../Tooltip";
 
 const PlanContainer = styled.div`
   padding: 12px;
@@ -255,14 +257,20 @@ export const ProposePlanToolCall: React.FC<ProposePlanToolCallProps> = ({
   // Format: Title as H1 + plan content for "Start Here" functionality
   const startHereContent = `# ${args.title}\n\n${args.plan}`;
   const {
-    handleStartHere,
+    isModalOpen,
+    openModal,
+    closeModal,
+    executeStartHere,
     buttonLabel,
+    buttonEmoji,
     disabled: startHereDisabled,
   } = useStartHere(
     workspaceId,
     startHereContent,
     false // Plans are never already compacted
   );
+
+  const [isHovered, setIsHovered] = useState(false);
 
   const statusDisplay = getStatusDisplay(status);
 
@@ -294,9 +302,18 @@ export const ProposePlanToolCall: React.FC<ProposePlanToolCallProps> = ({
               </PlanHeaderLeft>
               <PlanHeaderRight>
                 {workspaceId && (
-                  <PlanButton onClick={() => void handleStartHere()} disabled={startHereDisabled}>
-                    {buttonLabel}
-                  </PlanButton>
+                  <TooltipWrapper inline>
+                    <PlanButton
+                      onClick={openModal}
+                      disabled={startHereDisabled}
+                      onMouseEnter={() => setIsHovered(true)}
+                      onMouseLeave={() => setIsHovered(false)}
+                    >
+                      {isHovered && <span style={{ marginRight: "4px" }}>{buttonEmoji}</span>}
+                      {buttonLabel}
+                    </PlanButton>
+                    <Tooltip align="center">Replace all chat history with this plan</Tooltip>
+                  </TooltipWrapper>
                 )}
                 <PlanButton onClick={() => void handleCopy()}>
                   {copied ? "✓ Copied" : "Copy"}
@@ -325,6 +342,8 @@ export const ProposePlanToolCall: React.FC<ProposePlanToolCallProps> = ({
           </PlanContainer>
         </ToolDetails>
       )}
+
+      <StartHereModal isOpen={isModalOpen} onClose={closeModal} onConfirm={executeStartHere} />
     </ToolContainer>
   );
 };

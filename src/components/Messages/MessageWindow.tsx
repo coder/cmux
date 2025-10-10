@@ -4,6 +4,7 @@ import styled from "@emotion/styled";
 import type { CmuxMessage, DisplayedMessage } from "@/types/message";
 import { HeaderButton } from "../tools/shared/ToolPrimitives";
 import { formatTimestamp } from "@/utils/ui/dateTime";
+import { TooltipWrapper, Tooltip } from "../Tooltip";
 
 const MessageBlock = styled.div<{ borderColor: string; backgroundColor?: string }>`
   margin-bottom: 15px;
@@ -70,6 +71,8 @@ export interface ButtonConfig {
   onClick: () => void;
   active?: boolean;
   disabled?: boolean;
+  emoji?: string; // Optional emoji that shows only on hover
+  tooltip?: string; // Optional tooltip text
 }
 
 interface MessageWindowProps {
@@ -114,16 +117,25 @@ export const MessageWindow: React.FC<MessageWindowProps> = ({
         </LeftSection>
         <ButtonGroup>
           {rightLabel}
-          {buttons.map((button, index) => (
-            <HeaderButton
-              key={index}
-              active={button.active}
-              onClick={button.onClick}
-              disabled={button.disabled}
-            >
-              {button.label}
-            </HeaderButton>
-          ))}
+          {buttons.map((button, index) =>
+            button.tooltip ? (
+              <TooltipWrapper key={index} inline>
+                <ButtonWithHoverEmoji
+                  button={button}
+                  active={button.active}
+                  disabled={button.disabled}
+                />
+                <Tooltip align="center">{button.tooltip}</Tooltip>
+              </TooltipWrapper>
+            ) : (
+              <ButtonWithHoverEmoji
+                key={index}
+                button={button}
+                active={button.active}
+                disabled={button.disabled}
+              />
+            )
+          )}
           <HeaderButton active={showJson} onClick={() => setShowJson(!showJson)}>
             {showJson ? "Hide JSON" : "Show JSON"}
           </HeaderButton>
@@ -133,5 +145,33 @@ export const MessageWindow: React.FC<MessageWindowProps> = ({
         {showJson ? <JsonContent>{JSON.stringify(message, null, 2)}</JsonContent> : children}
       </MessageContent>
     </MessageBlock>
+  );
+};
+
+// Button component that shows emoji only on hover
+interface ButtonWithHoverEmojiProps {
+  button: ButtonConfig;
+  active?: boolean;
+  disabled?: boolean;
+}
+
+const ButtonWithHoverEmoji: React.FC<ButtonWithHoverEmojiProps> = ({
+  button,
+  active,
+  disabled,
+}) => {
+  const [isHovered, setIsHovered] = useState(false);
+
+  return (
+    <HeaderButton
+      active={active}
+      onClick={button.onClick}
+      disabled={disabled}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      {button.emoji && isHovered && <span style={{ marginRight: "4px" }}>{button.emoji}</span>}
+      {button.label}
+    </HeaderButton>
   );
 };

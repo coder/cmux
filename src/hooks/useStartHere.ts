@@ -3,8 +3,8 @@ import { startHereWithMessage } from "@/utils/startHere";
 import { COMPACTED_EMOJI } from "@/constants/ui";
 
 /**
- * Hook for managing Start Here button state and action.
- * Returns a button config that can be used with MessageWindow or other components.
+ * Hook for managing Start Here button state and modal.
+ * Returns a button config and modal state management.
  *
  * @param workspaceId - Current workspace ID (required for operation)
  * @param content - Content to use as the new conversation starting point
@@ -15,9 +15,22 @@ export function useStartHere(
   content: string,
   isCompacted = false
 ) {
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [isStartingHere, setIsStartingHere] = useState(false);
 
-  const handleStartHere = async () => {
+  // Opens the confirmation modal
+  const openModal = () => {
+    if (!workspaceId || isCompacted) return;
+    setIsModalOpen(true);
+  };
+
+  // Closes the modal
+  const closeModal = () => {
+    setIsModalOpen(false);
+  };
+
+  // Executes the Start Here operation
+  const executeStartHere = async () => {
     if (!workspaceId || isStartingHere || isCompacted) return;
 
     setIsStartingHere(true);
@@ -29,9 +42,13 @@ export function useStartHere(
   };
 
   return {
+    isModalOpen,
+    openModal,
+    closeModal,
+    executeStartHere,
     isStartingHere,
-    handleStartHere,
-    buttonLabel: isStartingHere ? "Starting..." : `${COMPACTED_EMOJI} Start Here`,
+    buttonLabel: `Start Here`,
+    buttonEmoji: COMPACTED_EMOJI,
     disabled: !workspaceId || isStartingHere || isCompacted,
   };
 }

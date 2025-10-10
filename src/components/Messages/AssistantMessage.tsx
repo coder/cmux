@@ -7,6 +7,7 @@ import type { ButtonConfig } from "./MessageWindow";
 import { MessageWindow } from "./MessageWindow";
 import { useStartHere } from "@/hooks/useStartHere";
 import { COMPACTED_EMOJI } from "@/constants/ui";
+import { StartHereModal } from "../StartHereModal";
 
 const RawContent = styled.pre`
   font-family: var(--font-monospace);
@@ -71,8 +72,12 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({
 
   // Use Start Here hook for final assistant messages
   const {
-    handleStartHere,
+    isModalOpen,
+    openModal,
+    closeModal,
+    executeStartHere,
     buttonLabel,
+    buttonEmoji,
     disabled: startHereDisabled,
   } = useStartHere(workspaceId, content, isCompacted);
 
@@ -95,8 +100,10 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({
           ? [
               {
                 label: buttonLabel,
-                onClick: () => void handleStartHere(),
+                emoji: buttonEmoji,
+                onClick: openModal,
                 disabled: startHereDisabled,
+                tooltip: "Replace all chat history with this message",
               },
             ]
           : []),
@@ -148,14 +155,18 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({
   };
 
   return (
-    <MessageWindow
-      label={renderLabel()}
-      borderColor="var(--color-assistant-border)"
-      message={message}
-      buttons={buttons}
-      className={className}
-    >
-      {renderContent()}
-    </MessageWindow>
+    <>
+      <MessageWindow
+        label={renderLabel()}
+        borderColor="var(--color-assistant-border)"
+        message={message}
+        buttons={buttons}
+        className={className}
+      >
+        {renderContent()}
+      </MessageWindow>
+
+      <StartHereModal isOpen={isModalOpen} onClose={closeModal} onConfirm={executeStartHere} />
+    </>
   );
 };
