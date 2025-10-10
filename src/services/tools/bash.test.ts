@@ -678,13 +678,13 @@ describe("bash tool", () => {
   });
 });
 
-  describe("niceness parameter", () => {
-    it("should execute complex multi-line scripts with niceness", async () => {
-      const tool = createBashTool({ cwd: process.cwd(), niceness: 19 });
+describe("niceness parameter", () => {
+  it("should execute complex multi-line scripts with niceness", async () => {
+    const tool = createBashTool({ cwd: process.cwd(), niceness: 19 });
 
-      // Complex script with conditionals, similar to GIT_STATUS_SCRIPT
-      const args: BashToolArgs = {
-        script: `
+    // Complex script with conditionals, similar to GIT_STATUS_SCRIPT
+    const args: BashToolArgs = {
+      script: `
 # Test complex script with conditionals
 VALUE=$(echo "test")
 
@@ -704,62 +704,61 @@ echo "---OUTPUT---"
 echo "$VALUE"
 echo "$RESULT"
 `,
-        timeout_secs: 5,
-        max_lines: 100,
-      };
+      timeout_secs: 5,
+      max_lines: 100,
+    };
 
-      const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
+    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
 
-      expect(result.success).toBe(true);
-      if (result.success) {
-        expect(result.output).toContain("---OUTPUT---");
-        expect(result.output).toContain("test");
-        expect(result.output).toContain("success");
-        expect(result.exitCode).toBe(0);
-      }
-    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.output).toContain("---OUTPUT---");
+      expect(result.output).toContain("test");
+      expect(result.output).toContain("success");
+      expect(result.exitCode).toBe(0);
+    }
+  });
 
-    it("should handle exit codes correctly with niceness", async () => {
-      const tool = createBashTool({ cwd: process.cwd(), niceness: 19 });
+  it("should handle exit codes correctly with niceness", async () => {
+    const tool = createBashTool({ cwd: process.cwd(), niceness: 19 });
 
-      // Script that should exit with code 2
-      const args: BashToolArgs = {
-        script: `
+    // Script that should exit with code 2
+    const args: BashToolArgs = {
+      script: `
 RESULT=$(false)
 if [ $? -ne 0 ]; then
   echo "Command failed as expected"
   exit 2
 fi
 `,
-        timeout_secs: 5,
-        max_lines: 100,
-      };
+      timeout_secs: 5,
+      max_lines: 100,
+    };
 
-      const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
+    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
 
-      expect(result.success).toBe(false);
-      expect(result.exitCode).toBe(2);
-      // Error message includes stderr output
-      if (!result.success) {
-        expect(result.error).toMatch(/Command failed as expected|Command exited with code 2/);
-      }
-    });
-
-    it("should execute simple commands with niceness", async () => {
-      const tool = createBashTool({ cwd: process.cwd(), niceness: 10 });
-      const args: BashToolArgs = {
-        script: "echo hello",
-        timeout_secs: 5,
-        max_lines: 100,
-      };
-
-      const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
-
-      expect(result.success).toBe(true);
-      if (result.success) {
-        expect(result.output).toBe("hello");
-        expect(result.exitCode).toBe(0);
-      }
-    });
+    expect(result.success).toBe(false);
+    expect(result.exitCode).toBe(2);
+    // Error message includes stderr output
+    if (!result.success) {
+      expect(result.error).toMatch(/Command failed as expected|Command exited with code 2/);
+    }
   });
 
+  it("should execute simple commands with niceness", async () => {
+    const tool = createBashTool({ cwd: process.cwd(), niceness: 10 });
+    const args: BashToolArgs = {
+      script: "echo hello",
+      timeout_secs: 5,
+      max_lines: 100,
+    };
+
+    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.output).toBe("hello");
+      expect(result.exitCode).toBe(0);
+    }
+  });
+});
