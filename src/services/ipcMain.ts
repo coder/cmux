@@ -1055,7 +1055,7 @@ export class IpcMain {
             // so that stream-end can properly clean up the streaming indicator
             this.aiService.replayStream(workspaceId);
           } else if (partial) {
-            // No active stream but there's a partial - send as regular message (shows INTERRUPTED)
+            // No active stream but there's a partial - send as regular message (shows CONTINUE)
             this.mainWindow?.webContents.send(chatChannel, partial);
           }
         }

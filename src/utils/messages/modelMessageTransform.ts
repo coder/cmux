@@ -62,8 +62,8 @@ export function stripReasoningForOpenAI(messages: CmuxMessage[]): CmuxMessage[] 
 }
 
 /**
- * Add [INTERRUPTED] sentinel to partial messages by inserting a user message.
- * This helps the model understand that a message was interrupted and incomplete.
+ * Add [CONTINUE] sentinel to partial messages by inserting a user message.
+ * This helps the model understand that a message was interrupted and to continue.
  * The sentinel is ONLY for model context, not shown in UI.
  *
  * We insert a separate user message instead of modifying the assistant message
@@ -77,12 +77,12 @@ export function addInterruptedSentinel(messages: CmuxMessage[]): CmuxMessage[] {
   for (const msg of messages) {
     result.push(msg);
 
-    // If this is a partial assistant message, insert [INTERRUPTED] user message after it
+    // If this is a partial assistant message, insert [CONTINUE] user message after it
     if (msg.role === "assistant" && msg.metadata?.partial) {
       result.push({
         id: `interrupted-${msg.id}`,
         role: "user",
-        parts: [{ type: "text", text: "[INTERRUPTED]" }],
+        parts: [{ type: "text", text: "[CONTINUE]" }],
         metadata: {
           timestamp: msg.metadata.timestamp,
           // Mark as synthetic so it can be identified if needed
