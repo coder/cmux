@@ -86,14 +86,18 @@ export function mergeConsecutiveStreamErrors(
     // Count consecutive identical errors
     let count = 1;
     let j = i + 1;
-    while (
-      j < messages.length &&
-      messages[j].type === "stream-error" &&
-      messages[j].error === msg.error &&
-      messages[j].errorType === msg.errorType
-    ) {
-      count++;
-      j++;
+    while (j < messages.length) {
+      const nextMsg = messages[j];
+      if (
+        nextMsg.type === "stream-error" &&
+        nextMsg.error === msg.error &&
+        nextMsg.errorType === msg.errorType
+      ) {
+        count++;
+        j++;
+      } else {
+        break;
+      }
     }
 
     // Add the error with count

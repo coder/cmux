@@ -87,7 +87,7 @@ describe("mergeConsecutiveStreamErrors", () => {
         id: "e2",
         historyId: "h2",
         error: "Rate limit exceeded",
-        errorType: "rate-limit",
+        errorType: "rate_limit",
         historySequence: 2,
       },
     ];
@@ -120,7 +120,7 @@ describe("mergeConsecutiveStreamErrors", () => {
         id: "e2",
         historyId: "h2",
         error: "Error occurred",
-        errorType: "rate-limit",
+        errorType: "rate_limit",
         historySequence: 2,
       },
     ];
@@ -223,7 +223,7 @@ describe("mergeConsecutiveStreamErrors", () => {
         id: "e3",
         historyId: "h3",
         error: "Error B",
-        errorType: "rate-limit",
+        errorType: "rate_limit",
         historySequence: 5,
       },
     ];
