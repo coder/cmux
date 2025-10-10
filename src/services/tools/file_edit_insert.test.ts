@@ -32,13 +32,11 @@ describe("file_edit_insert tool", () => {
     const initialContent = "line1\nline2\nline3";
     await fs.writeFile(testFilePath, initialContent);
 
-
     const tool = createFileEditInsertTool({ cwd: testDir });
     const args: FileEditInsertToolArgs = {
       file_path: testFilePath,
       line_offset: 0,
       content: "INSERTED",
-      
     };
 
     // Execute
@@ -56,13 +54,11 @@ describe("file_edit_insert tool", () => {
     const initialContent = "line1\nline2\nline3";
     await fs.writeFile(testFilePath, initialContent);
 
-
     const tool = createFileEditInsertTool({ cwd: testDir });
     const args: FileEditInsertToolArgs = {
       file_path: testFilePath,
       line_offset: 1,
       content: "INSERTED",
-      
     };
 
     // Execute
@@ -80,13 +76,11 @@ describe("file_edit_insert tool", () => {
     const initialContent = "line1\nline2\nline3";
     await fs.writeFile(testFilePath, initialContent);
 
-
     const tool = createFileEditInsertTool({ cwd: testDir });
     const args: FileEditInsertToolArgs = {
       file_path: testFilePath,
       line_offset: 2,
       content: "INSERTED",
-      
     };
 
     // Execute
@@ -104,13 +98,11 @@ describe("file_edit_insert tool", () => {
     const initialContent = "line1\nline2\nline3";
     await fs.writeFile(testFilePath, initialContent);
 
-
     const tool = createFileEditInsertTool({ cwd: testDir });
     const args: FileEditInsertToolArgs = {
       file_path: testFilePath,
       line_offset: 3,
       content: "INSERTED",
-      
     };
 
     // Execute
@@ -128,13 +120,11 @@ describe("file_edit_insert tool", () => {
     const initialContent = "line1\nline2";
     await fs.writeFile(testFilePath, initialContent);
 
-
     const tool = createFileEditInsertTool({ cwd: testDir });
     const args: FileEditInsertToolArgs = {
       file_path: testFilePath,
       line_offset: 1,
       content: "INSERTED1\nINSERTED2",
-      
     };
 
     // Execute
@@ -151,13 +141,11 @@ describe("file_edit_insert tool", () => {
     // Setup
     await fs.writeFile(testFilePath, "");
 
-
     const tool = createFileEditInsertTool({ cwd: testDir });
     const args: FileEditInsertToolArgs = {
       file_path: testFilePath,
       line_offset: 0,
       content: "INSERTED",
-      
     };
 
     // Execute
@@ -196,13 +184,11 @@ describe("file_edit_insert tool", () => {
     const initialContent = "line1\nline2";
     await fs.writeFile(testFilePath, initialContent);
 
-
     const tool = createFileEditInsertTool({ cwd: testDir });
     const args: FileEditInsertToolArgs = {
       file_path: testFilePath,
       line_offset: -1,
       content: "INSERTED",
-      
     };
 
     // Execute
@@ -220,13 +206,11 @@ describe("file_edit_insert tool", () => {
     const initialContent = "line1\nline2";
     await fs.writeFile(testFilePath, initialContent);
 
-
     const tool = createFileEditInsertTool({ cwd: testDir });
     const args: FileEditInsertToolArgs = {
       file_path: testFilePath,
       line_offset: 10, // File only has 2 lines
       content: "INSERTED",
-      
     };
 
     // Execute

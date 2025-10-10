@@ -49,10 +49,9 @@ describe("file_edit_replace tool", () => {
     await setupFile(testFilePath, "Hello world\nThis is a test\nGoodbye world");
     const tool = createFileEditReplaceTool({ cwd: testDir });
 
-    const result = await executeReplace(
-      tool,
-      testFilePath,
-      [{ old_string: "Hello world", new_string: "Hello universe" }]);
+    const result = await executeReplace(tool, testFilePath, [
+      { old_string: "Hello world", new_string: "Hello universe" },
+    ]);
 
     expect(result.success).toBe(true);
     if (result.success) {
@@ -66,14 +65,11 @@ describe("file_edit_replace tool", () => {
     await setupFile(testFilePath, "foo bar baz");
     const tool = createFileEditReplaceTool({ cwd: testDir });
 
-    const result = await executeReplace(
-      tool,
-      testFilePath,
-      [
-        { old_string: "foo", new_string: "FOO" },
-        { old_string: "bar", new_string: "BAR" },
-        { old_string: "baz", new_string: "BAZ" },
-      ]);
+    const result = await executeReplace(tool, testFilePath, [
+      { old_string: "foo", new_string: "FOO" },
+      { old_string: "bar", new_string: "BAR" },
+      { old_string: "baz", new_string: "BAZ" },
+    ]);
 
     expect(result.success).toBe(true);
     if (result.success) {
@@ -104,7 +100,8 @@ describe("file_edit_replace tool", () => {
           old_string: "foo",
           new_string: "qux",
         },
-      ] };
+      ],
+    };
 
     // Execute
     const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditReplaceToolResult;
@@ -137,7 +134,8 @@ describe("file_edit_replace tool", () => {
           new_string: "mouse",
           replace_count: -1,
         },
-      ] };
+      ],
+    };
 
     // Execute
     const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditReplaceToolResult;
@@ -166,7 +164,8 @@ describe("file_edit_replace tool", () => {
           new_string: "mouse",
           // replace_count omitted, defaults to 1
         },
-      ] };
+      ],
+    };
 
     // Execute
     const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditReplaceToolResult;
@@ -194,7 +193,8 @@ describe("file_edit_replace tool", () => {
           old_string: "nonexistent",
           new_string: "replacement",
         },
-      ] };
+      ],
+    };
 
     // Execute
     const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditReplaceToolResult;
@@ -224,7 +224,8 @@ describe("file_edit_replace tool", () => {
           new_string: "mouse",
           replace_count: 1, // Explicitly set to 1
         },
-      ] };
+      ],
+    };
 
     // Execute
     const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditReplaceToolResult;
@@ -256,7 +257,8 @@ describe("file_edit_replace tool", () => {
           new_string: "mouse",
           replace_count: 2, // Replace first 2 occurrences
         },
-      ] };
+      ],
+    };
 
     // Execute
     const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditReplaceToolResult;
@@ -285,7 +287,8 @@ describe("file_edit_replace tool", () => {
           new_string: "mouse",
           replace_count: 5, // Only 1 occurrence exists
         },
-      ] };
+      ],
+    };
 
     // Execute
     const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditReplaceToolResult;
@@ -340,7 +343,8 @@ describe("file_edit_replace tool", () => {
           old_string: "line2\nline3",
           new_string: "REPLACED",
         },
-      ] };
+      ],
+    };
 
     // Execute
     const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditReplaceToolResult;
@@ -368,7 +372,8 @@ describe("file_edit_replace tool", () => {
           old_string: "[DELETE_ME] ",
           new_string: "",
         },
-      ] };
+      ],
+    };
 
     // Execute
     const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditReplaceToolResult;
@@ -400,7 +405,8 @@ describe("file_edit_replace tool", () => {
           old_string: "step2",
           new_string: "step3",
         },
-      ] };
+      ],
+    };
 
     // Execute
     const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditReplaceToolResult;
@@ -428,7 +434,8 @@ describe("file_edit_replace tool", () => {
           old_string: "line5",
           new_string: "LINE5_MODIFIED",
         },
-      ] };
+      ],
+    };
 
     // Execute
     const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditReplaceToolResult;

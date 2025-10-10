@@ -3,7 +3,6 @@ import type * as fs from "fs";
 import { validatePathInCwd, validateFileSize, MAX_FILE_SIZE } from "./fileCommon";
 
 describe("fileCommon", () => {
-
   describe("validateFileSize", () => {
     it("should return null for files within size limit", () => {
       const stats = {

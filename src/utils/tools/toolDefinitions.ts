@@ -25,8 +25,6 @@ interface ToolSchema {
   };
 }
 
-
-
 /**
  * Tool definitions: single source of truth
  * Key = tool name, Value = { description, schema }
