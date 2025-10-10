@@ -453,38 +453,35 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   }, [workspaceId, setToast]);
 
   // Handle paste events to extract images
-  const handlePaste = useCallback(
-    (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
-      const items = e.clipboardData?.items;
-      if (!items) return;
+  const handlePaste = useCallback((e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
 
-      // Look for image items in clipboard
-      for (const item of Array.from(items)) {
-        if (!item?.type.startsWith("image/")) continue;
+    // Look for image items in clipboard
+    for (const item of Array.from(items)) {
+      if (!item?.type.startsWith("image/")) continue;
 
-        e.preventDefault(); // Prevent default paste behavior for images
+      e.preventDefault(); // Prevent default paste behavior for images
 
-        const file = item.getAsFile();
-        if (!file) continue;
+      const file = item.getAsFile();
+      if (!file) continue;
 
-        // Convert to base64 data URL
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          const dataUrl = event.target?.result as string;
-          if (dataUrl) {
-            const attachment: ImageAttachment = {
-              id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-              dataUrl,
-              mimeType: file.type,
-            };
-            setImageAttachments((prev) => [...prev, attachment]);
-          }
-        };
-        reader.readAsDataURL(file);
-      }
-    },
-    []
-  );
+      // Convert to base64 data URL
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const dataUrl = event.target?.result as string;
+        if (dataUrl) {
+          const attachment: ImageAttachment = {
+            id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            dataUrl,
+            mimeType: file.type,
+          };
+          setImageAttachments((prev) => [...prev, attachment]);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  }, []);
 
   // Handle removing an image attachment
   const handleRemoveImage = useCallback((id: string) => {
