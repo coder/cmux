@@ -333,19 +333,23 @@ const AIViewInner: React.FC<AIViewProps> = ({
         if (!isEditableElement(e.target)) {
           e.preventDefault();
           // Get current thinking level for the workspace
+          // Values are JSON-stringified by usePersistedState, so we need to parse them
           const thinkingKey = getThinkingLevelKey(workspaceId);
-          const currentThinking = localStorage.getItem(thinkingKey) as ThinkingLevel | null;
+          const thinkingRaw = localStorage.getItem(thinkingKey);
+          const currentThinking = thinkingRaw ? (JSON.parse(thinkingRaw) as ThinkingLevel) : null;
 
           if (currentThinking && currentThinking !== "off") {
             // If thinking is on, save it for this model and turn it off
             const modelKey = getThinkingByModelKey(currentModel);
-            localStorage.setItem(modelKey, currentThinking);
+            localStorage.setItem(modelKey, JSON.stringify(currentThinking));
             updatePersistedState(thinkingKey, "off");
           } else {
             // If thinking is off, restore the last value for this model (default to "medium")
             const modelKey = getThinkingByModelKey(currentModel);
-            const lastThinking =
-              (localStorage.getItem(modelKey) as ThinkingLevel | null) ?? "medium";
+            const lastThinkingRaw = localStorage.getItem(modelKey);
+            const lastThinking: ThinkingLevel = lastThinkingRaw
+              ? (JSON.parse(lastThinkingRaw) as ThinkingLevel)
+              : "medium";
             updatePersistedState(thinkingKey, lastThinking);
           }
           return;
