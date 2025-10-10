@@ -13,57 +13,117 @@
           inherit system;
         };
 
-        # Extract revision from the flake source
-        # This will be the commit hash, branch, or tag used in 'nix run'
-        revision = self.rev or self.dirtyRev or "main";
+        cmux = pkgs.stdenv.mkDerivation rec {
+          pname = "cmux";
+          version = self.rev or self.dirtyRev or "dev";
 
-        cmux = pkgs.writeShellScriptBin "cmux" ''
-          # Ensure we have a working directory for cmux
-          export CMUX_HOME="''${CMUX_HOME:-$HOME/.cmux}"
-          mkdir -p "$CMUX_HOME"
-          
-          # The revision/branch we want to run (from flake)
-          CMUX_REVISION="${revision}"
-          
-          # Clone or update cmux repository
-          CMUX_REPO="$CMUX_HOME/repo"
-          if [ ! -d "$CMUX_REPO" ]; then
-            echo "First run: cloning cmux repository..."
-            ${pkgs.git}/bin/git clone https://github.com/coder/cmux.git "$CMUX_REPO"
-            cd "$CMUX_REPO"
-            ${pkgs.git}/bin/git checkout "$CMUX_REVISION"
-          else
-            cd "$CMUX_REPO"
+          src = ./.;
+
+          nativeBuildInputs = with pkgs; [
+            bun
+            nodejs
+            makeWrapper
+          ];
+
+          buildInputs = with pkgs; [
+            electron
+          ];
+
+          # Fetch dependencies in a separate fixed-output derivation
+          offlineCache = pkgs.stdenvNoCC.mkDerivation {
+            name = "cmux-deps-${version}";
             
-            # Check if we need to update (only if online)
-            if ${pkgs.git}/bin/git fetch origin "$CMUX_REVISION" --quiet 2>/dev/null; then
-              LOCAL=$(${pkgs.git}/bin/git rev-parse HEAD)
-              REMOTE=$(${pkgs.git}/bin/git rev-parse "origin/$CMUX_REVISION" 2>/dev/null || echo "$LOCAL")
-              
-              if [ "$LOCAL" != "$REMOTE" ] && [ -n "$REMOTE" ]; then
-                echo "Updating cmux to latest version..."
-                ${pkgs.git}/bin/git reset --hard "origin/$CMUX_REVISION"
-                # Clear node_modules to force reinstall after successful update
-                rm -rf node_modules
-              fi
-            fi
-          fi
-          
-          # Install dependencies if needed
-          if [ ! -d "node_modules" ]; then
-            echo "Installing dependencies..."
-            ${pkgs.bun}/bin/bun install --frozen-lockfile
-          fi
-          
-          # Build if needed
-          if [ ! -d "dist" ] || [ ! -f "dist/main.js" ]; then
-            echo "Building cmux..."
-            ${pkgs.bun}/bin/bun run build
-          fi
-          
-          # Run the application
-          exec ${pkgs.electron}/bin/electron "$CMUX_REPO/dist/main.js" "$@"
-        '';
+            inherit src;
+            
+            nativeBuildInputs = [ pkgs.bun pkgs.cacert ];
+            
+            # Don't patch shebangs in node_modules - it creates /nix/store references
+            dontPatchShebangs = true;
+            dontFixup = true;
+            
+            buildPhase = ''
+              export HOME=$TMPDIR
+              export BUN_INSTALL_CACHE_DIR=$TMPDIR/.bun-cache
+              bun install --frozen-lockfile --no-progress
+            '';
+            
+            installPhase = ''
+              mkdir -p $out
+              cp -r node_modules $out/
+            '';
+            
+            outputHashMode = "recursive";
+            outputHash = "sha256-doqJkN6tmwc/4ENop2E45EeFNJ2PWw2LdR1w1MgXW7k=";
+          };
+
+          configurePhase = ''
+            export HOME=$TMPDIR
+            # Use pre-fetched dependencies (copy so tools can write to it)
+            cp -r ${offlineCache}/node_modules .
+            chmod -R +w node_modules
+            
+            # Patch shebangs in node_modules binaries
+            patchShebangs node_modules
+          '';
+
+          buildPhase = ''
+            # Generate version files
+            mkdir -p dist
+            echo "${version}" > dist/version.txt
+            
+            # Generate src/version.ts
+            TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+            cat >src/version.ts <<EOF
+// This file is auto-generated
+// Do not edit manually
+
+export const VERSION = {
+  git: "${version}",
+  buildTime: "$TIMESTAMP",
+};
+EOF
+            
+            echo "Building TypeScript (main process)..."
+            ./node_modules/.bin/tsc -p tsconfig.main.json
+            ./node_modules/.bin/tsc-alias -p tsconfig.main.json
+            
+            echo "Building preload script..."
+            bun build src/preload.ts \
+              --format=cjs \
+              --target=node \
+              --external=electron \
+              --sourcemap=inline \
+              --outfile=dist/preload.js
+            
+            echo "Building renderer (React app)..."
+            bun x vite build
+            
+            echo "Build complete!"
+          '';
+
+          installPhase = ''
+            mkdir -p $out/lib/cmux
+            mkdir -p $out/bin
+            
+            # Copy built files and runtime dependencies
+            cp -r dist $out/lib/cmux/
+            cp -r node_modules $out/lib/cmux/
+            cp package.json $out/lib/cmux/
+            
+            # Create wrapper script
+            makeWrapper ${pkgs.electron}/bin/electron $out/bin/cmux \
+              --add-flags "$out/lib/cmux/dist/main.js" \
+              --prefix PATH : ${pkgs.lib.makeBinPath [ pkgs.git pkgs.bash ]}
+          '';
+
+          meta = with pkgs.lib; {
+            description = "cmux - coder multiplexer";
+            homepage = "https://github.com/coder/cmux";
+            license = licenses.agpl3Only;
+            platforms = platforms.linux ++ platforms.darwin;
+            mainProgram = "cmux";
+          };
+        };
       in
       {
         packages.default = cmux;
