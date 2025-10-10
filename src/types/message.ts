@@ -120,6 +120,7 @@ export type DisplayedMessage =
       historySequence: number; // Global ordering across all messages
       timestamp?: number;
       model?: string;
+      errorCount?: number; // Number of consecutive identical errors merged into this message
     }
   | {
       type: "history-hidden";

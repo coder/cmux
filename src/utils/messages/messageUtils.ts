@@ -51,26 +51,17 @@ export function isStreamingMessage(message: CmuxMessage): boolean {
 }
 
 /**
- * Message type for rendering that includes merged error count
- */
-export type DisplayedMessageWithErrorCount = DisplayedMessage & {
-  errorCount?: number; // For stream-error messages, indicates how many consecutive identical errors occurred
-};
-
-/**
  * Merges consecutive stream-error messages with identical content.
  * Returns a new array where consecutive identical errors are represented as a single message
  * with an errorCount field indicating how many times it occurred.
  *
  * @param messages - Array of DisplayedMessages to process
- * @returns Array with consecutive identical errors merged
+ * @returns Array with consecutive identical errors merged (errorCount added to stream-error variants)
  */
-export function mergeConsecutiveStreamErrors(
-  messages: DisplayedMessage[]
-): DisplayedMessageWithErrorCount[] {
+export function mergeConsecutiveStreamErrors(messages: DisplayedMessage[]): DisplayedMessage[] {
   if (messages.length === 0) return [];
 
-  const result: DisplayedMessageWithErrorCount[] = [];
+  const result: DisplayedMessage[] = [];
   let i = 0;
 
   while (i < messages.length) {

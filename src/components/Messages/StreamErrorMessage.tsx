@@ -1,6 +1,6 @@
 import React from "react";
 import styled from "@emotion/styled";
-import type { DisplayedMessageWithErrorCount } from "@/utils/messages/messageUtils";
+import type { DisplayedMessage } from "@/types/message";
 
 const ErrorContainer = styled.div`
   background: var(--color-error-bg);
@@ -59,7 +59,7 @@ const ErrorCount = styled.span`
 `;
 
 interface StreamErrorMessageProps {
-  message: DisplayedMessageWithErrorCount & { type: "stream-error" };
+  message: DisplayedMessage & { type: "stream-error" };
   className?: string;
   workspaceId?: string;
   model?: string;

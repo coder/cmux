@@ -1,5 +1,5 @@
 import React from "react";
-import type { DisplayedMessageWithErrorCount } from "@/utils/messages/messageUtils";
+import type { DisplayedMessage } from "@/types/message";
 import { UserMessage } from "./UserMessage";
 import { AssistantMessage } from "./AssistantMessage";
 import { ToolMessage } from "./ToolMessage";
@@ -8,7 +8,7 @@ import { StreamErrorMessage } from "./StreamErrorMessage";
 import { HistoryHiddenMessage } from "./HistoryHiddenMessage";
 
 interface MessageRendererProps {
-  message: DisplayedMessageWithErrorCount;
+  message: DisplayedMessage;
   className?: string;
   onEditUserMessage?: (messageId: string, content: string) => void;
   workspaceId?: string;
