@@ -1,5 +1,4 @@
 import React from "react";
-import type { DisplayedMessage } from "@/types/message";
 import type { DisplayedMessageWithErrorCount } from "@/utils/messages/messageUtils";
 import { UserMessage } from "./UserMessage";
 import { AssistantMessage } from "./AssistantMessage";

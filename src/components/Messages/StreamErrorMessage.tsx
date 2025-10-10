@@ -1,6 +1,5 @@
 import React from "react";
 import styled from "@emotion/styled";
-import type { DisplayedMessage } from "@/types/message";
 import type { DisplayedMessageWithErrorCount } from "@/utils/messages/messageUtils";
 
 const ErrorContainer = styled.div`

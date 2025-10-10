@@ -62,7 +62,7 @@ describe("mergeConsecutiveStreamErrors", () => {
     ];
 
     const result = mergeConsecutiveStreamErrors(messages);
-    
+
     expect(result).toHaveLength(1);
     expect(result[0]).toMatchObject({
       type: "stream-error",
@@ -93,7 +93,7 @@ describe("mergeConsecutiveStreamErrors", () => {
     ];
 
     const result = mergeConsecutiveStreamErrors(messages);
-    
+
     expect(result).toHaveLength(2);
     expect(result[0]).toMatchObject({
       error: "Connection timeout",
@@ -126,7 +126,7 @@ describe("mergeConsecutiveStreamErrors", () => {
     ];
 
     const result = mergeConsecutiveStreamErrors(messages);
-    
+
     expect(result).toHaveLength(2);
     expect(result[0].errorCount).toBe(1);
     expect(result[1].errorCount).toBe(1);
@@ -168,7 +168,7 @@ describe("mergeConsecutiveStreamErrors", () => {
     ];
 
     const result = mergeConsecutiveStreamErrors(messages);
-    
+
     expect(result).toHaveLength(3);
     expect(result[0]).toMatchObject({
       type: "stream-error",
@@ -229,7 +229,7 @@ describe("mergeConsecutiveStreamErrors", () => {
     ];
 
     const result = mergeConsecutiveStreamErrors(messages);
-    
+
     expect(result).toHaveLength(4);
     expect(result[0].type).toBe("user");
     expect(result[1]).toMatchObject({
@@ -268,7 +268,7 @@ describe("mergeConsecutiveStreamErrors", () => {
     ];
 
     const result = mergeConsecutiveStreamErrors(messages);
-    
+
     expect(result).toHaveLength(1);
     expect(result[0]).toMatchObject({
       id: "e1",

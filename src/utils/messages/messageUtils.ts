@@ -50,7 +50,6 @@ export function isStreamingMessage(message: CmuxMessage): boolean {
   return message.parts.some(isStreamingPart);
 }
 
-
 /**
  * Message type for rendering that includes merged error count
  */
