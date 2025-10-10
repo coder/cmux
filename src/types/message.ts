@@ -43,10 +43,17 @@ export interface CmuxReasoningPart {
   text: string;
 }
 
+// Image part type for multimodal messages
+export interface CmuxImagePart {
+  type: "image";
+  image: string | Uint8Array | ArrayBuffer | URL; // base64 string or binary data or URL
+  mimeType?: string; // e.g., "image/png", "image/jpeg"
+}
+
 // CmuxMessage extends UIMessage with our metadata and custom parts
-// Supports text, reasoning, and tool parts (including interrupted tool calls)
+// Supports text, reasoning, image, and tool parts (including interrupted tool calls)
 export type CmuxMessage = Omit<UIMessage<CmuxMetadata, never, never>, "parts"> & {
-  parts: Array<CmuxTextPart | CmuxReasoningPart | CmuxToolPart>;
+  parts: Array<CmuxTextPart | CmuxReasoningPart | CmuxImagePart | CmuxToolPart>;
 };
 
 // DisplayedMessage represents a single UI message block
@@ -57,6 +64,7 @@ export type DisplayedMessage =
       id: string; // Display ID for UI/React keys
       historyId: string; // Original CmuxMessage ID for history operations
       content: string;
+      imageParts?: Array<{ image: string; mimeType?: string }>; // Optional image attachments
       historySequence: number; // Global ordering across all messages
       timestamp?: number;
     }

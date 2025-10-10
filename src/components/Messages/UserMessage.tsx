@@ -16,6 +16,20 @@ const FormattedContent = styled.pre`
   opacity: 0.9;
 `;
 
+const ImageContainer = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+`;
+
+const MessageImage = styled.img`
+  max-width: 300px;
+  max-height: 300px;
+  border-radius: 4px;
+  border: 1px solid #3e3e42;
+`;
+
 interface UserMessageProps {
   message: DisplayedMessage & { type: "user" };
   className?: string;
@@ -91,7 +105,14 @@ export const UserMessage: React.FC<UserMessageProps> = ({ message, className, on
       buttons={buttons}
       className={className}
     >
-      <FormattedContent>{content}</FormattedContent>
+      {content && <FormattedContent>{content}</FormattedContent>}
+      {message.imageParts && message.imageParts.length > 0 && (
+        <ImageContainer>
+          {message.imageParts.map((img, idx) => (
+            <MessageImage key={idx} src={img.image} alt={`Attachment ${idx + 1}`} />
+          ))}
+        </ImageContainer>
+      )}
     </MessageWindow>
   );
 };

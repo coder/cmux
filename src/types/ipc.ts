@@ -177,7 +177,7 @@ export interface IPCApi {
     sendMessage(
       workspaceId: string,
       message: string,
-      options?: SendMessageOptions
+      options?: SendMessageOptions & { imageParts?: Array<{ image: string; mimeType: string }> }
     ): Promise<Result<void, SendMessageError>>;
     resumeStream(
       workspaceId: string,

@@ -415,17 +415,25 @@ export class StreamingMessageAggregator {
       const historySequence = message.metadata?.historySequence ?? 0;
 
       if (message.role === "user") {
-        // User messages: combine all text parts into single block
+        // User messages: combine all text parts into single block, extract images
         const content = message.parts
           .filter((p) => p.type === "text")
           .map((p) => p.text)
           .join("");
+
+        const imageParts = message.parts
+          .filter((p) => p.type === "image")
+          .map((p) => ({
+            image: typeof p.image === "string" ? p.image : "",
+            mimeType: p.mimeType,
+          }));
 
         displayedMessages.push({
           type: "user",
           id: message.id,
           historyId: message.id,
           content,
+          imageParts: imageParts.length > 0 ? imageParts : undefined,
           historySequence,
           timestamp: baseTimestamp,
         });
