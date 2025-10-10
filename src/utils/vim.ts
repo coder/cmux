@@ -128,12 +128,35 @@ export function moveVertical(
  * In normal mode, cursor should never go past the last character.
  */
 export function moveWordForward(text: string, cursor: number): number {
-  let i = cursor;
   const n = text.length;
-  while (i < n && /[A-Za-z0-9_]/.test(text[i])) i++;
-  while (i < n && /\s/.test(text[i])) i++;
-  // Clamp to last character position in normal mode (never past the end)
-  return Math.min(i, Math.max(0, n - 1));
+  if (n === 0) return 0;
+
+  let i = Math.max(0, Math.min(cursor, n - 1));
+  const isWord = (ch: string) => /[A-Za-z0-9_]/.test(ch);
+
+  const advancePastWord = (idx: number): number => {
+    let j = idx;
+    while (j < n && isWord(text[j])) j++;
+    return j;
+  };
+
+  const advanceToWord = (idx: number): number => {
+    let j = idx;
+    while (j < n && !isWord(text[j])) j++;
+    return j;
+  };
+
+  if (isWord(text[i])) {
+    i = advancePastWord(i);
+  }
+
+  i = advanceToWord(i);
+
+  if (i >= n) {
+    return Math.max(0, n - 1);
+  }
+
+  return i;
 }
 
 /**
@@ -144,32 +167,34 @@ export function moveWordForward(text: string, cursor: number): number {
  */
 export function moveWordEnd(text: string, cursor: number): number {
   const n = text.length;
+  if (n === 0) return 0;
   if (cursor >= n - 1) return Math.max(0, n - 1);
 
-  let i = cursor;
+  const clamp = Math.max(0, Math.min(cursor, n - 1));
   const isWord = (ch: string) => /[A-Za-z0-9_]/.test(ch);
 
-  // If on a word char, check if we're at the end of it
-  if (isWord(text[i])) {
-    // If next char is not a word char, we're at the end - move to next word
-    if (i < n - 1 && !isWord(text[i + 1])) {
-      // Skip whitespace to find next word
-      i++;
-      while (i < n - 1 && !isWord(text[i])) i++;
-      // Move to end of next word
-      while (i < n - 1 && isWord(text[i + 1])) i++;
-      return i;
-    }
-    // Not at end yet, move to end of current word
+  if (!isWord(text[clamp])) {
+    let i = clamp;
+    while (i < n && !isWord(text[i])) i++;
+    if (i >= n) return Math.max(0, n - 1);
     while (i < n - 1 && isWord(text[i + 1])) i++;
     return i;
   }
 
-  // If on whitespace, skip to next word then go to its end
-  while (i < n - 1 && !isWord(text[i])) i++;
-  while (i < n - 1 && isWord(text[i + 1])) i++;
+  let endOfCurrent = clamp;
+  while (endOfCurrent < n - 1 && isWord(text[endOfCurrent + 1])) endOfCurrent++;
 
-  return Math.min(i, Math.max(0, n - 1));
+  if (clamp < endOfCurrent) {
+    return endOfCurrent;
+  }
+
+  let j = endOfCurrent + 1;
+  while (j < n && !isWord(text[j])) j++;
+  if (j >= n) return Math.max(0, n - 1);
+
+  let endOfNext = j;
+  while (endOfNext < n - 1 && isWord(text[endOfNext + 1])) endOfNext++;
+  return endOfNext;
 }
 
 /**
