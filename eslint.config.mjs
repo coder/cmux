@@ -193,7 +193,7 @@ export default defineConfig([
     },
   },
   {
-    // Frontend architectural boundary - prevent services imports
+    // Frontend architectural boundary - prevent services and tokenizer imports
     files: ["src/components/**", "src/contexts/**", "src/hooks/**", "src/App.tsx"],
     rules: {
       "no-restricted-imports": [
@@ -204,6 +204,11 @@ export default defineConfig([
               group: ["**/services/**", "../services/**", "../../services/**"],
               message:
                 "Frontend code cannot import from services/. Use IPC or move shared code to utils/.",
+            },
+            {
+              group: ["**/tokens/tokenizer", "**/tokens/tokenStatsCalculator"],
+              message:
+                "Frontend code cannot import tokenizer (2MB+ encodings). Use @/utils/tokens/usageAggregator for aggregation or @/utils/tokens/modelStats for pricing.",
             },
           ],
         },
