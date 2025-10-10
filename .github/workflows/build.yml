@@ -22,6 +22,9 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Install ImageMagick
+        run: brew install imagemagick
+
       - name: Build application
         run: bun run build
 
@@ -78,6 +81,9 @@ jobs:
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
+
+      - name: Install ImageMagick
+        run: sudo apt-get update && sudo apt-get install -y imagemagick
 
       - name: Build application
         run: bun run build

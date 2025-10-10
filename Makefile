@@ -19,7 +19,7 @@
 #   Add `## Description` after the target to make it appear in `make help`
 
 .PHONY: all build dev start clean help
-.PHONY: build-renderer version
+.PHONY: build-renderer version build-icons
 .PHONY: lint lint-fix fmt fmt-check fmt-shell fmt-nix fmt-nix-check fmt-shell-check typecheck static-check
 .PHONY: test test-unit test-integration test-watch test-coverage test-e2e
 .PHONY: dist dist-mac dist-win dist-linux
@@ -57,7 +57,7 @@ start: build-main build-preload ## Build and start Electron app
 	@bun x electron --remote-debugging-port=9222 .
 
 ## Build targets (can run in parallel)
-build: ensure-deps src/version.ts build-renderer build-main build-preload ## Build all targets
+build: ensure-deps src/version.ts build-renderer build-main build-preload build-icons ## Build all targets
 
 build-main: ensure-deps dist/main.js ## Build main process
 
@@ -87,6 +87,35 @@ version: ## Generate version file
 
 src/version.ts: version
 
+# Platform-specific icon targets
+ifeq ($(shell uname), Darwin)
+build-icons: build/icon.icns build/icon.png ## Generate Electron app icons from logo (macOS builds both)
+else
+build-icons: build/icon.png ## Generate Electron app icons from logo (Linux builds PNG only)
+endif
+
+# Detect ImageMagick command (magick on v7+, convert on older versions)
+MAGICK_CMD := $(shell command -v magick 2>/dev/null || command -v convert 2>/dev/null || echo "magick")
+
+build/icon.png: docs/img/logo.webp
+	@echo "Generating Linux icon..."
+	@mkdir -p build
+	@$(MAGICK_CMD) docs/img/logo.webp -resize 512x512 build/icon.png
+
+build/icon.icns: docs/img/logo.webp
+	@echo "Generating macOS icon..."
+	@mkdir -p build/icon.iconset
+	@for size in 16 32 64 128 256 512; do \
+		$(MAGICK_CMD) docs/img/logo.webp -resize $${size}x$${size} build/icon.iconset/icon_$${size}x$${size}.png; \
+		if [ $$size -le 256 ]; then \
+			double=$$((size * 2)); \
+			$(MAGICK_CMD) docs/img/logo.webp -resize $${double}x$${double} build/icon.iconset/icon_$${size}x$${size}@2x.png; \
+		fi; \
+	done
+	@iconutil -c icns build/icon.iconset -o build/icon.icns
+	@rm -rf build/icon.iconset
+
+>>>>>>> 1cbd3eac (🤖 Add cmux logo)
 ## Quality checks (can run in parallel)
 static-check: lint typecheck fmt-check ## Run all static checks
 
@@ -161,7 +190,7 @@ docs-watch: ## Watch and rebuild documentation
 ## Clean
 clean: ## Clean build artifacts
 	@echo "Cleaning build artifacts..."
-	@rm -rf dist release
+	@rm -rf dist release build/icon.icns build/icon.png
 	@echo "Done!"
 
 # Parallel build optimization - these can run concurrently
