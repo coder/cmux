@@ -424,7 +424,7 @@ function mergeConsecutiveUserMessages(messages: ModelMessage[]): ModelMessage[] 
       // Update the previous message with merged text and all image parts
       merged[merged.length - 1] = {
         role: "user",
-        content: [{ type: "text", text: mergedText }, ...prevImageParts, ...currentImageParts],
+        content: [{ type: "text" as const, text: mergedText }, ...prevImageParts, ...currentImageParts],
       };
     } else {
       // Not consecutive user message, add as-is
