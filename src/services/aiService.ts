@@ -430,11 +430,7 @@ export class AIService extends EventEmitter {
 
       // Filter out assistant messages with only reasoning (no text/tools)
       // Pass provider and thinking level for context-aware filtering
-      const filteredMessages = filterEmptyAssistantMessages(
-        messages,
-        providerName,
-        thinkingLevel
-      );
+      const filteredMessages = filterEmptyAssistantMessages(messages, providerName, thinkingLevel);
       log.debug(`Filtered ${messages.length - filteredMessages.length} empty assistant messages`);
       log.debug_obj(`${workspaceId}/1a_filtered_messages.json`, filteredMessages);
 
