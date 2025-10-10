@@ -19,7 +19,7 @@ import type { WorkspaceState } from "@/hooks/useWorkspaceAggregators";
 import { StatusIndicator } from "./StatusIndicator";
 import { getModelName } from "@/utils/ai/models";
 import { GitStatusIndicator } from "./GitStatusIndicator";
-import type { GitStatus } from "@/types/workspace";
+import { useGitStatus } from "@/contexts/GitStatusContext";
 import { TooltipWrapper, Tooltip } from "./Tooltip";
 import type { DisplayedMessage } from "@/types/message";
 
@@ -178,7 +178,6 @@ interface AIViewProps {
   branch: string;
   workspacePath: string;
   workspaceState: WorkspaceState;
-  gitStatus: GitStatus | null;
   className?: string;
 }
 
@@ -188,9 +187,11 @@ const AIViewInner: React.FC<AIViewProps> = ({
   branch,
   workspacePath,
   workspaceState,
-  gitStatus,
   className,
 }) => {
+  // Get git status from context
+  const gitStatusMap = useGitStatus();
+  const gitStatus = gitStatusMap.get(workspaceId) ?? null;
   const [editingMessage, setEditingMessage] = useState<{ id: string; content: string } | undefined>(
     undefined
   );

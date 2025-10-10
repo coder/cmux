@@ -20,7 +20,7 @@ import { CommandRegistryProvider, useCommandRegistry } from "./contexts/CommandR
 import type { CommandAction } from "./contexts/CommandRegistryContext";
 import { CommandPalette } from "./components/CommandPalette";
 import { buildCoreSources, type BuildSourcesParams } from "./utils/commands/sources";
-import { useGitStatus } from "./hooks/useGitStatus";
+import { GitStatusProvider } from "./contexts/GitStatusContext";
 
 import type { ThinkingLevel } from "./types/thinking";
 import { CUSTOM_EVENTS } from "./constants/events";
@@ -176,9 +176,6 @@ function AppInner() {
       streamingModels.set(metadata.id, state.currentModel);
     }
   }
-
-  // Enrich workspace metadata with git status
-  const displayedWorkspaceMetadata = useGitStatus(workspaceMetadata);
 
   // Update window title when workspace changes
   useEffect(() => {
@@ -454,67 +451,65 @@ function AppInner() {
       <GlobalFonts />
       <GlobalScrollbars />
       <Global styles={globalStyles} />
-      <AppContainer>
-        <ProjectSidebar
-          projects={projects}
-          workspaceMetadata={displayedWorkspaceMetadata}
-          selectedWorkspace={selectedWorkspace}
-          onSelectWorkspace={setSelectedWorkspace}
-          onAddProject={() => void addProject()}
-          onAddWorkspace={(projectPath) => void handleAddWorkspace(projectPath)}
-          onRemoveProject={(path) => void handleRemoveProject(path)}
-          onRemoveWorkspace={removeWorkspace}
-          onRenameWorkspace={renameWorkspace}
-          getWorkspaceState={getWorkspaceState}
-          collapsed={sidebarCollapsed}
-          onToggleCollapsed={() => setSidebarCollapsed((prev) => !prev)}
-          onGetSecrets={handleGetSecrets}
-          onUpdateSecrets={handleUpdateSecrets}
-        />
-        <MainContent>
-          <ContentArea>
-            {selectedWorkspace ? (
-              <ErrorBoundary
-                workspaceInfo={`${selectedWorkspace.projectName}/${selectedWorkspace.workspacePath.split("/").pop() ?? ""}`}
-              >
-                <AIView
-                  workspaceId={selectedWorkspace.workspaceId}
-                  projectName={selectedWorkspace.projectName}
-                  branch={selectedWorkspace.workspacePath.split("/").pop() ?? ""}
-                  workspacePath={selectedWorkspace.workspacePath}
-                  workspaceState={getWorkspaceState(selectedWorkspace.workspaceId)}
-                  gitStatus={
-                    displayedWorkspaceMetadata.get(selectedWorkspace.workspacePath)?.gitStatus ??
-                    null
-                  }
-                />
-              </ErrorBoundary>
-            ) : (
-              <WelcomeView>
-                <h2>Welcome to Cmux</h2>
-                <p>Select a workspace from the sidebar or add a new one to get started.</p>
-              </WelcomeView>
-            )}
-          </ContentArea>
-        </MainContent>
-        <CommandPalette
-          getSlashContext={() => ({
-            providerNames: [],
-            workspaceId: selectedWorkspace?.workspaceId,
-          })}
-        />
-        {workspaceModalOpen && workspaceModalProject && (
-          <NewWorkspaceModal
-            isOpen={workspaceModalOpen}
-            projectPath={workspaceModalProject}
-            onClose={() => {
-              setWorkspaceModalOpen(false);
-              setWorkspaceModalProject(null);
-            }}
-            onAdd={handleCreateWorkspace}
+      <GitStatusProvider workspaceMetadata={workspaceMetadata}>
+        <AppContainer>
+          <ProjectSidebar
+            projects={projects}
+            workspaceMetadata={workspaceMetadata}
+            selectedWorkspace={selectedWorkspace}
+            onSelectWorkspace={setSelectedWorkspace}
+            onAddProject={() => void addProject()}
+            onAddWorkspace={(projectPath) => void handleAddWorkspace(projectPath)}
+            onRemoveProject={(path) => void handleRemoveProject(path)}
+            onRemoveWorkspace={removeWorkspace}
+            onRenameWorkspace={renameWorkspace}
+            getWorkspaceState={getWorkspaceState}
+            collapsed={sidebarCollapsed}
+            onToggleCollapsed={() => setSidebarCollapsed((prev) => !prev)}
+            onGetSecrets={handleGetSecrets}
+            onUpdateSecrets={handleUpdateSecrets}
           />
-        )}
-      </AppContainer>
+          <MainContent>
+            <ContentArea>
+              {selectedWorkspace ? (
+                <ErrorBoundary
+                  workspaceInfo={`${selectedWorkspace.projectName}/${selectedWorkspace.workspacePath.split("/").pop() ?? ""}`}
+                >
+                  <AIView
+                    workspaceId={selectedWorkspace.workspaceId}
+                    projectName={selectedWorkspace.projectName}
+                    branch={selectedWorkspace.workspacePath.split("/").pop() ?? ""}
+                    workspacePath={selectedWorkspace.workspacePath}
+                    workspaceState={getWorkspaceState(selectedWorkspace.workspaceId)}
+                  />
+                </ErrorBoundary>
+              ) : (
+                <WelcomeView>
+                  <h2>Welcome to Cmux</h2>
+                  <p>Select a workspace from the sidebar or add a new one to get started.</p>
+                </WelcomeView>
+              )}
+            </ContentArea>
+          </MainContent>
+          <CommandPalette
+            getSlashContext={() => ({
+              providerNames: [],
+              workspaceId: selectedWorkspace?.workspaceId,
+            })}
+          />
+          {workspaceModalOpen && workspaceModalProject && (
+            <NewWorkspaceModal
+              isOpen={workspaceModalOpen}
+              projectPath={workspaceModalProject}
+              onClose={() => {
+                setWorkspaceModalOpen(false);
+                setWorkspaceModalProject(null);
+              }}
+              onAdd={handleCreateWorkspace}
+            />
+          )}
+        </AppContainer>
+      </GitStatusProvider>
     </>
   );
 }
