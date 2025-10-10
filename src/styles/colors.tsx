@@ -121,6 +121,11 @@ export const GlobalColors = () => (
         --color-input-text: hsl(0 0% 80%);
         --color-input-border: hsl(207 51% 59%); /* VS Code blue */
         --color-input-border-focus: hsl(193 91% 64%); /* Lighter blue on focus */
+
+        /* Scrollbar Colors */
+        --scrollbar-track: hsl(0 0% 18%);
+        --scrollbar-thumb: hsl(0 0% 32%);
+        --scrollbar-thumb-hover: hsl(0 0% 42%);
       }
     `}
   />

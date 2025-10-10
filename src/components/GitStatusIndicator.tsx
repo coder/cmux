@@ -50,24 +50,6 @@ const Tooltip = styled.div<{ show: boolean }>`
   transition:
     opacity 0.2s,
     visibility 0.2s;
-
-  &::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: #424242;
-    border-radius: 4px;
-  }
-
-  &::-webkit-scrollbar-thumb:hover {
-    background: #4e4e4e;
-  }
 `;
 
 const BranchHeader = styled.div`

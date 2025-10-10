@@ -10,23 +10,6 @@ const SecretsList = styled.div`
   overflow-y: auto;
   margin-bottom: 16px;
   min-height: 200px;
-
-  &::-webkit-scrollbar {
-    width: 8px;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: #424242;
-    border-radius: 4px;
-  }
-
-  &::-webkit-scrollbar-thumb:hover {
-    background: #4e4e4e;
-  }
 `;
 
 const SecretsGrid = styled.div`
