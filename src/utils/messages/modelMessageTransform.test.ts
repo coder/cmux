@@ -4,7 +4,6 @@ import {
   transformModelMessages,
   validateAnthropicCompliance,
 } from "./modelMessageTransform";
-import type { CmuxMessage } from "@/types/message";
 
 describe("modelMessageTransform", () => {
   describe("transformModelMessages", () => {

@@ -7,7 +7,7 @@ import { sendMessageWithModel, createEventCollector, waitFor } from "./helpers";
 import { IPC_CHANNELS } from "../../src/constants/ipc-constants";
 import type { Result } from "../../src/types/result";
 import type { SendMessageError } from "../../src/types/errors";
-import type { CmuxMessage } from "../../src/types/message";
+
 
 // Skip all tests if TEST_INTEGRATION is not set
 const describeIntegration = shouldRunIntegrationTests() ? describe : describe.skip;
@@ -28,16 +28,9 @@ describeIntegration("Resume stream without sentinel", () => {
     async () => {
       const { env, workspaceId, cleanup } = await setupWorkspace("anthropic");
       try {
-        // Mock addInterruptedSentinel to be a no-op (just return messages unchanged)
-        // This simulates what would happen if we removed the sentinel entirely
-        const modelMessageTransform = await import(
-          "../../src/utils/messages/modelMessageTransform"
-        );
-        const originalFn = modelMessageTransform.addInterruptedSentinel;
-        
-        // Replace with identity function (no sentinel added)
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (modelMessageTransform as any).addInterruptedSentinel = (messages: CmuxMessage[]) => messages;
+        // This test verifies that models can resume from partial messages without
+        // any synthetic sentinel messages (like [INTERRUPTED] or [CONTINUE]).
+        // The sentinel logic has been removed, so this is now the default behavior.
 
         // Start a stream with a bash command that outputs a specific word
         const expectedWord = "NO_SENTINEL_TEST_SUCCESS";
@@ -147,10 +140,6 @@ describeIntegration("Resume stream without sentinel", () => {
           .map((d) => ("delta" in d ? d.delta : ""))
           .join("");
         expect(allText).toContain(expectedWord);
-
-        // Restore original function
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (modelMessageTransform as any).addInterruptedSentinel = originalFn;
       } finally {
         await cleanup();
       }
