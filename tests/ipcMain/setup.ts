@@ -41,6 +41,7 @@ function createMockBrowserWindow(): {
     focus: jest.fn(),
     loadURL: jest.fn(),
     on: jest.fn(),
+    setTitle: jest.fn(),
   } as unknown as BrowserWindow;
 
   return { window: mockWindow, sentEvents };

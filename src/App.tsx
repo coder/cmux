@@ -201,6 +201,16 @@ function AppInner() {
   // Enrich workspace metadata with git status
   const displayedWorkspaceMetadata = useGitStatus(workspaceMetadata);
 
+  // Update window title when workspace changes
+  useEffect(() => {
+    if (selectedWorkspace) {
+      const title = `${selectedWorkspace.workspaceId} - ${selectedWorkspace.projectName} - cmux`;
+      void window.api.window.setTitle(title);
+    } else {
+      void window.api.window.setTitle("cmux");
+    }
+  }, [selectedWorkspace]);
+
   const openWorkspaceInTerminal = useCallback((workspacePath: string) => {
     void window.api.workspace.openTerminal(workspacePath);
   }, []);

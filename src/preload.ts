@@ -102,6 +102,9 @@ const api: IPCApi = {
       };
     },
   },
+  window: {
+    setTitle: (title: string) => ipcRenderer.invoke(IPC_CHANNELS.WINDOW_SET_TITLE, title),
+  },
 };
 
 // Expose the API along with platform/versions

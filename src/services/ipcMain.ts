@@ -83,6 +83,7 @@ export class IpcMain {
     }
 
     this.registerDialogHandlers(ipcMain);
+    this.registerWindowHandlers(ipcMain);
     this.registerWorkspaceHandlers(ipcMain);
     this.registerProviderHandlers(ipcMain);
     this.registerProjectHandlers(ipcMain);
@@ -108,6 +109,13 @@ export class IpcMain {
       }
 
       return result.filePaths[0];
+    });
+  }
+
+  private registerWindowHandlers(ipcMain: ElectronIpcMain): void {
+    ipcMain.handle(IPC_CHANNELS.WINDOW_SET_TITLE, (_event, title: string) => {
+      if (!this.mainWindow) return;
+      this.mainWindow.setTitle(title);
     });
   }
 
