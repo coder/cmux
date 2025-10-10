@@ -757,7 +757,7 @@ export class IpcMain {
         _event,
         workspaceId: string,
         script: string,
-        options?: { timeout_secs?: number; max_lines?: number; stdin?: string }
+        options?: { timeout_secs?: number; max_lines?: number; stdin?: string; niceness?: number }
       ) => {
         try {
           // Get workspace metadata to find workspacePath
@@ -778,6 +778,7 @@ export class IpcMain {
           const bashTool = createBashTool({
             cwd: workspacePath,
             secrets: secretsToRecord(projectSecrets),
+            niceness: options?.niceness,
           });
 
           // Execute the script with provided options

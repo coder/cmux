@@ -24,6 +24,7 @@
 .PHONY: test test-unit test-integration test-watch test-coverage test-e2e
 .PHONY: dist dist-mac dist-win dist-linux
 .PHONY: docs docs-build docs-watch
+.PHONY: ensure-deps
 
 # Prettier patterns for formatting
 PRETTIER_PATTERNS := 'src/**/*.{ts,tsx,json}' 'tests/**/*.{ts,json}' 'docs/**/*.{md,mdx}' '*.{json,md}'
@@ -31,6 +32,13 @@ TS_SOURCES := $(shell find src -type f \( -name '*.ts' -o -name '*.tsx' \))
 
 # Default target
 all: build
+
+# Ensure dependencies are installed
+ensure-deps:
+	@if [ ! -d "node_modules" ]; then \
+		echo "node_modules not found, running bun install..."; \
+		bun install; \
+	fi
 
 ## Help
 help: ## Show this help message
@@ -40,7 +48,7 @@ help: ## Show this help message
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
 ## Development
-dev: build-main ## Start development server (Vite + TypeScript watcher)
+dev: ensure-deps build-main ## Start development server (Vite + TypeScript watcher)
 	@bun x concurrently -k \
 		"bun x concurrently \"bun x tsc -w -p tsconfig.main.json\" \"bun x tsc-alias -w -p tsconfig.main.json\"" \
 		"vite"
@@ -49,16 +57,16 @@ start: build-main build-preload ## Build and start Electron app
 	@bun x electron --remote-debugging-port=9222 .
 
 ## Build targets (can run in parallel)
-build: src/version.ts build-renderer build-main build-preload ## Build all targets
+build: ensure-deps src/version.ts build-renderer build-main build-preload ## Build all targets
 
-build-main: dist/main.js ## Build main process
+build-main: ensure-deps dist/main.js ## Build main process
 
 dist/main.js: src/version.ts tsconfig.main.json tsconfig.json $(TS_SOURCES)
 	@echo "Building main process..."
 	@NODE_ENV=production bun x tsc -p tsconfig.main.json
 	@NODE_ENV=production bun x tsc-alias -p tsconfig.main.json
 
-build-preload: dist/preload.js ## Build preload script
+build-preload: ensure-deps dist/preload.js ## Build preload script
 
 dist/preload.js: src/preload.ts $(TS_SOURCES)
 	@echo "Building preload script..."
@@ -69,7 +77,7 @@ dist/preload.js: src/preload.ts $(TS_SOURCES)
 		--sourcemap=inline \
 		--outfile=dist/preload.js
 
-build-renderer: src/version.ts ## Build renderer process
+build-renderer: ensure-deps src/version.ts ## Build renderer process
 	@echo "Building renderer..."
 	@bun x vite build
 
