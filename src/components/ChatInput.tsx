@@ -23,6 +23,7 @@ import { matchesKeybind, formatKeybind, KEYBINDS, isEditableElement } from "@/ut
 import { ModelSelector, type ModelSelectorRef } from "./ModelSelector";
 import { useModelLRU } from "@/hooks/useModelLRU";
 import { VimTextArea } from "./VimTextArea";
+import { ImageAttachments, type ImageAttachment } from "./ImageAttachments";
 
 import type { ThinkingLevel } from "@/types/thinking";
 
@@ -293,6 +294,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const [commandSuggestions, setCommandSuggestions] = useState<SlashSuggestion[]>([]);
   const [providerNames, setProviderNames] = useState<string[]>([]);
   const [toast, setToast] = useState<Toast | null>(null);
+  const [imageAttachments, setImageAttachments] = useState<ImageAttachment[]>([]);
   const handleToastDismiss = useCallback(() => {
     setToast(null);
   }, []);
@@ -450,6 +452,46 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       window.removeEventListener(CUSTOM_EVENTS.THINKING_LEVEL_TOAST, handler as EventListener);
   }, [workspaceId, setToast]);
 
+  // Handle paste events to extract images
+  const handlePaste = useCallback(
+    (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      // Look for image items in clipboard
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.type.startsWith("image/")) {
+          e.preventDefault(); // Prevent default paste behavior for images
+
+          const file = item.getAsFile();
+          if (!file) continue;
+
+          // Convert to base64 data URL
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            const dataUrl = event.target?.result as string;
+            if (dataUrl) {
+              const attachment: ImageAttachment = {
+                id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                dataUrl,
+                mimeType: file.type,
+              };
+              setImageAttachments((prev) => [...prev, attachment]);
+            }
+          };
+          reader.readAsDataURL(file);
+        }
+      }
+    },
+    []
+  );
+
+  // Handle removing an image attachment
+  const handleRemoveImage = useCallback((id: string) => {
+    setImageAttachments((prev) => prev.filter((img) => img.id !== id));
+  }, []);
+
   // Handle command selection
   const handleCommandSelect = useCallback(
     (suggestion: SlashSuggestion) => {
@@ -461,7 +503,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   );
 
   const handleSend = async () => {
-    if (!input.trim() || disabled || isSending || isCompacting) return;
+    // Allow sending if there's text or images
+    if ((!input.trim() && imageAttachments.length === 0) || disabled || isSending || isCompacting)
+      return;
 
     const messageText = input.trim();
 
@@ -608,9 +652,16 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       setIsSending(true);
 
       try {
+        // Prepare image parts if any
+        const imageParts = imageAttachments.map((img) => ({
+          image: img.dataUrl,
+          mimeType: img.mimeType,
+        }));
+
         const result = await window.api.workspace.sendMessage(workspaceId, messageText, {
           ...sendMessageOptions,
           editMessageId: editingMessage?.id,
+          imageParts: imageParts.length > 0 ? imageParts : undefined,
         });
 
         if (!result.success) {
@@ -621,8 +672,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           // Restore input on error so user can try again
           setInput(messageText);
         } else {
-          // Success - clear input
+          // Success - clear input and images
           setInput("");
+          setImageAttachments([]);
           // Reset textarea height
           if (inputRef.current) {
             inputRef.current.style.height = "36px";
@@ -743,6 +795,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           mode={mode}
           onChange={setInput}
           onKeyDown={handleKeyDown}
+          onPaste={handlePaste}
           suppressKeys={showCommandSuggestions ? COMMAND_SUGGESTION_KEYS : undefined}
           placeholder={placeholder}
           disabled={disabled || isSending || isCompacting}
@@ -754,6 +807,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           aria-expanded={showCommandSuggestions && commandSuggestions.length > 0}
         />
       </InputControls>
+      <ImageAttachments images={imageAttachments} onRemove={handleRemoveImage} />
       <ModeToggles data-component="ChatModeToggles">
         {editingMessage && (
           <EditingIndicator>

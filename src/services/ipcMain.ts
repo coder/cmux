@@ -484,7 +484,12 @@ export class IpcMain {
 
     ipcMain.handle(
       IPC_CHANNELS.WORKSPACE_SEND_MESSAGE,
-      async (_event, workspaceId: string, message: string, options?: SendMessageOptions) => {
+      async (
+        _event,
+        workspaceId: string,
+        message: string,
+        options?: SendMessageOptions & { imageParts?: Array<{ image: string; mimeType: string }> }
+      ) => {
         const {
           editMessageId,
           thinkingLevel,
@@ -493,6 +498,7 @@ export class IpcMain {
           additionalSystemInstructions,
           maxOutputTokens,
           providerOptions,
+          imageParts,
         } = options ?? {};
         log.debug("sendMessage handler: Received", {
           workspaceId,
@@ -506,9 +512,9 @@ export class IpcMain {
           providerOptions,
         });
         try {
-          // Early exit: empty message = either interrupt (if streaming) or invalid input
+          // Early exit: empty message and no images = either interrupt (if streaming) or invalid input
           // This prevents race conditions where empty messages arrive after streaming stops
-          if (!message.trim()) {
+          if (!message.trim() && (!imageParts || imageParts.length === 0)) {
             // If streaming, this is an interrupt request (from Esc key)
             if (this.aiService.isStreaming(workspaceId)) {
               log.debug("sendMessage handler: Empty message during streaming, interrupting");
@@ -545,13 +551,24 @@ export class IpcMain {
             // replacement automatically when the new message arrives with the same historySequence
           }
 
-          // Create user message
+          // Create user message with text and optional image parts
           const messageId = `user-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
-          const userMessage = createCmuxMessage(messageId, "user", message, {
-            // historySequence will be assigned by historyService.appendToHistory()
-            timestamp: Date.now(),
-            toolPolicy, // Store for historical record and compaction detection
-          });
+          const additionalParts = imageParts?.map((img) => ({
+            type: "image" as const,
+            image: img.image,
+            mimeType: img.mimeType,
+          }));
+          const userMessage = createCmuxMessage(
+            messageId,
+            "user",
+            message,
+            {
+              // historySequence will be assigned by historyService.appendToHistory()
+              timestamp: Date.now(),
+              toolPolicy, // Store for historical record and compaction detection
+            },
+            additionalParts
+          );
 
           // Append user message to history
           const appendResult = await this.historyService.appendToHistory(workspaceId, userMessage);
