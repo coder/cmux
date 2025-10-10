@@ -66,7 +66,7 @@ jobs:
 
   build-linux:
     name: Build Linux
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.repository_owner == 'coder' && 'depot-ubuntu-22.04-16' || 'ubuntu-latest' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
