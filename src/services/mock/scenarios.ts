@@ -2,6 +2,7 @@ import * as basicChat from "./scenarios/basicChat";
 import * as review from "./scenarios/review";
 import * as toolFlows from "./scenarios/toolFlows";
 import * as slashCommands from "./scenarios/slashCommands";
+import * as permissionModes from "./scenarios/permissionModes";
 import type { ScenarioTurn } from "./scenarioTypes";
 
 export const allScenarios: ScenarioTurn[] = [
@@ -9,4 +10,5 @@ export const allScenarios: ScenarioTurn[] = [
   ...review.scenarios,
   ...toolFlows.scenarios,
   ...slashCommands.scenarios,
+  ...permissionModes.scenarios,
 ];
