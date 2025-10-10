@@ -7,7 +7,6 @@ import type { ButtonConfig } from "./MessageWindow";
 import { MessageWindow } from "./MessageWindow";
 import { useStartHere } from "@/hooks/useStartHere";
 import { COMPACTED_EMOJI } from "@/constants/ui";
-import { StartHereModal } from "../StartHereModal";
 
 const RawContent = styled.pre`
   font-family: var(--font-monospace);
@@ -71,15 +70,11 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({
   const isCompacted = message.isCompacted;
 
   // Use Start Here hook for final assistant messages
-  const {
-    isModalOpen,
-    openModal,
-    closeModal,
-    executeStartHere,
-    buttonLabel,
-    buttonEmoji,
-    disabled: startHereDisabled,
-  } = useStartHere(workspaceId, content, isCompacted);
+  const { openModal, buttonLabel, buttonEmoji, disabled: startHereDisabled, modal } = useStartHere(
+    workspaceId,
+    content,
+    isCompacted
+  );
 
   const handleCopy = async () => {
     try {
@@ -166,7 +161,7 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({
         {renderContent()}
       </MessageWindow>
 
-      <StartHereModal isOpen={isModalOpen} onClose={closeModal} onConfirm={executeStartHere} />
+      {modal}
     </>
   );
 };

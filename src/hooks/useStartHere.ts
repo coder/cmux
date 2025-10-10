@@ -1,6 +1,8 @@
 import { useState } from "react";
+import React from "react";
 import { startHereWithMessage } from "@/utils/startHere";
 import { COMPACTED_EMOJI } from "@/constants/ui";
+import { StartHereModal } from "@/components/StartHereModal";
 
 /**
  * Hook for managing Start Here button state and modal.
@@ -41,14 +43,19 @@ export function useStartHere(
     }
   };
 
+  // Pre-configured modal component
+  const modal = React.createElement(StartHereModal, {
+    isOpen: isModalOpen,
+    onClose: closeModal,
+    onConfirm: executeStartHere,
+  });
+
   return {
-    isModalOpen,
     openModal,
-    closeModal,
-    executeStartHere,
     isStartingHere,
     buttonLabel: `Start Here`,
     buttonEmoji: COMPACTED_EMOJI,
     disabled: !workspaceId || isStartingHere || isCompacted,
+    modal, // Pre-configured modal to render
   };
 }

@@ -13,7 +13,6 @@ import { useToolExpansion, getStatusDisplay, type ToolStatus } from "./shared/to
 import { MarkdownRenderer } from "../Messages/MarkdownRenderer";
 import { formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
 import { useStartHere } from "@/hooks/useStartHere";
-import { StartHereModal } from "../StartHereModal";
 import { TooltipWrapper, Tooltip } from "../Tooltip";
 
 const PlanContainer = styled.div`
@@ -256,15 +255,7 @@ export const ProposePlanToolCall: React.FC<ProposePlanToolCallProps> = ({
 
   // Format: Title as H1 + plan content for "Start Here" functionality
   const startHereContent = `# ${args.title}\n\n${args.plan}`;
-  const {
-    isModalOpen,
-    openModal,
-    closeModal,
-    executeStartHere,
-    buttonLabel,
-    buttonEmoji,
-    disabled: startHereDisabled,
-  } = useStartHere(
+  const { openModal, buttonLabel, buttonEmoji, disabled: startHereDisabled, modal } = useStartHere(
     workspaceId,
     startHereContent,
     false // Plans are never already compacted
@@ -343,7 +334,7 @@ export const ProposePlanToolCall: React.FC<ProposePlanToolCallProps> = ({
         </ToolDetails>
       )}
 
-      <StartHereModal isOpen={isModalOpen} onClose={closeModal} onConfirm={executeStartHere} />
+      {modal}
     </ToolContainer>
   );
 };
