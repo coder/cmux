@@ -1,4 +1,5 @@
 import React from "react";
+import { TOOL_DEFINITIONS } from "@/utils/tools/toolDefinitions";
 import type { DisplayedMessage } from "@/types/message";
 import { GenericToolCall } from "../tools/GenericToolCall";
 import { BashToolCall } from "../tools/BashToolCall";
@@ -24,52 +25,31 @@ interface ToolMessageProps {
   workspaceId?: string;
 }
 
-// Type guard for bash tool
+// Type guards using Zod schemas for single source of truth
+// This ensures type guards stay in sync with tool definitions
 function isBashTool(toolName: string, args: unknown): args is BashToolArgs {
-  return (
-    toolName === "bash" &&
-    typeof args === "object" &&
-    args !== null &&
-    "script" in args &&
-    "timeout_secs" in args
-  );
+  if (toolName !== "bash") return false;
+  return TOOL_DEFINITIONS.bash.schema.safeParse(args).success;
 }
 
-// Type guard for file_read tool
 function isFileReadTool(toolName: string, args: unknown): args is FileReadToolArgs {
-  return (
-    toolName === "file_read" && typeof args === "object" && args !== null && "filePath" in args
-  );
+  if (toolName !== "file_read") return false;
+  return TOOL_DEFINITIONS.file_read.schema.safeParse(args).success;
 }
 
-// Type guard for file_edit_replace tool
 function isFileEditReplaceTool(toolName: string, args: unknown): args is FileEditReplaceToolArgs {
-  return (
-    toolName === "file_edit_replace" &&
-    typeof args === "object" &&
-    args !== null &&
-    "file_path" in args &&
-    "edits" in args &&
-    "lease" in args
-  );
+  if (toolName !== "file_edit_replace") return false;
+  return TOOL_DEFINITIONS.file_edit_replace.schema.safeParse(args).success;
 }
 
-// Type guard for file_edit_insert tool
 function isFileEditInsertTool(toolName: string, args: unknown): args is FileEditInsertToolArgs {
-  return (
-    toolName === "file_edit_insert" &&
-    typeof args === "object" &&
-    args !== null &&
-    "file_path" in args &&
-    "line_offset" in args &&
-    "content" in args &&
-    "lease" in args
-  );
+  if (toolName !== "file_edit_insert") return false;
+  return TOOL_DEFINITIONS.file_edit_insert.schema.safeParse(args).success;
 }
 
-// Type guard for propose_plan tool
 function isProposePlanTool(toolName: string, args: unknown): args is ProposePlanToolArgs {
-  return toolName === "propose_plan" && typeof args === "object" && args !== null && "plan" in args;
+  if (toolName !== "propose_plan") return false;
+  return TOOL_DEFINITIONS.propose_plan.schema.safeParse(args).success;
 }
 
 export const ToolMessage: React.FC<ToolMessageProps> = ({ message, className, workspaceId }) => {
