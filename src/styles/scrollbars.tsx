@@ -12,6 +12,11 @@ import { Global, css } from "@emotion/react";
 export const GlobalScrollbars = () => (
   <Global
     styles={css`
+      /* Set dark color scheme to force dark scrollbars on Chromium/Linux */
+      :root {
+        color-scheme: dark;
+      }
+
       /* Firefox scrollbar styling */
       * {
         scrollbar-width: thin;
@@ -22,6 +27,7 @@ export const GlobalScrollbars = () => (
       ::-webkit-scrollbar {
         width: 10px;
         height: 10px;
+        background: var(--scrollbar-track);
       }
 
       ::-webkit-scrollbar-track {
