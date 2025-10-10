@@ -226,20 +226,14 @@ describeIntegration("IpcMain resumeStream integration tests", () => {
             { historySequence: 1 }
           );
 
-          const userAppendResult = await historyService.appendToHistory(
-            workspaceId,
-            userMessage
-          );
+          const userAppendResult = await historyService.appendToHistory(workspaceId, userMessage);
           expect(userAppendResult.success).toBe(true);
 
           // Create the tricky assistant message
           const trickyMessage = history.createMessage(`assistant-${Date.now()}`);
 
           // Append the tricky message to history
-          const appendResult = await historyService.appendToHistory(
-            workspaceId,
-            trickyMessage
-          );
+          const appendResult = await historyService.appendToHistory(workspaceId, trickyMessage);
           expect(appendResult.success).toBe(true);
 
           // Clear events before resume
@@ -255,10 +249,7 @@ describeIntegration("IpcMain resumeStream integration tests", () => {
 
           // Should succeed for all tricky histories with the fix
           if (!resumeResult.success) {
-            console.error(
-              `[${provider}/${history.name}] Failed to resume:`,
-              resumeResult.error
-            );
+            console.error(`[${provider}/${history.name}] Failed to resume:`, resumeResult.error);
           }
           expect(resumeResult.success).toBe(true);
 
@@ -274,10 +265,7 @@ describeIntegration("IpcMain resumeStream integration tests", () => {
             .filter((e) => "type" in e && e.type === "stream-error");
 
           if (streamErrors.length > 0) {
-            console.error(
-              `[${provider}/${history.name}] Stream errors:`,
-              streamErrors
-            );
+            console.error(`[${provider}/${history.name}] Stream errors:`, streamErrors);
           }
           expect(streamErrors.length).toBe(0);
 

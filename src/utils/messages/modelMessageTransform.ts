@@ -47,7 +47,8 @@ export function filterEmptyAssistantMessages(
     // This prevents "Expected `thinking` but found `text`" errors on resume
     if (
       provider === "anthropic" &&
-      thinkingLevel && thinkingLevel !== "off" &&
+      thinkingLevel &&
+      thinkingLevel !== "off" &&
       msg.metadata?.partial
     ) {
       return true; // Keep reasoning-only messages for Anthropic thinking
