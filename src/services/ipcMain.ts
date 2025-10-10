@@ -823,8 +823,10 @@ export class IpcMain {
             shell: true,
           });
         } else {
-          // Linux - try common terminal emulators in order of preference
+          // Linux - try terminal emulators in order of preference
+          // x-terminal-emulator is checked first as it respects user's system-wide preference
           const terminals = [
+            { cmd: "x-terminal-emulator", args: [], cwd: workspacePath },
             { cmd: "ghostty", args: ["--working-directory=" + workspacePath] },
             { cmd: "alacritty", args: ["--working-directory", workspacePath] },
             { cmd: "kitty", args: ["--directory", workspacePath] },
@@ -832,7 +834,6 @@ export class IpcMain {
             { cmd: "gnome-terminal", args: ["--working-directory", workspacePath] },
             { cmd: "konsole", args: ["--workdir", workspacePath] },
             { cmd: "xfce4-terminal", args: ["--working-directory", workspacePath] },
-            { cmd: "x-terminal-emulator", args: [], cwd: workspacePath },
             { cmd: "xterm", args: [], cwd: workspacePath },
           ];
 
