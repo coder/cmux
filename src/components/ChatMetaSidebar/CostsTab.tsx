@@ -3,7 +3,7 @@ import styled from "@emotion/styled";
 import { useChatContext } from "@/contexts/ChatContext";
 import { TooltipWrapper, Tooltip, HelpIndicator } from "../Tooltip";
 import { getModelStats } from "@/utils/tokens/modelStats";
-import { sumUsageHistory } from "@/utils/tokens/tokenStatsCalculator";
+import { sumUsageHistory } from "@/utils/tokens/usageAggregator";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { ToggleGroup, type ToggleOption } from "../ToggleGroup";
 import { use1MContext } from "@/hooks/use1MContext";

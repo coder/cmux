@@ -13,26 +13,12 @@ import type { LanguageModelV2Usage } from "@ai-sdk/provider";
 import { getTokenizerForModel, countTokensForData, getToolDefinitionTokens } from "./tokenizer";
 import { getModelStats } from "./modelStats";
 
-export interface ChatUsageComponent {
-  tokens: number;
-  cost_usd?: number; // undefined if model pricing unknown
-}
+// Re-export types and functions from usageAggregator to maintain backward compatibility
+// NOTE: CostsTab.tsx should import from usageAggregator.ts directly to avoid pulling tokenizer into renderer
+export type { ChatUsageComponent, ChatUsageDisplay } from "./usageAggregator";
+export { sumUsageHistory } from "./usageAggregator";
 
-/**
- * Enhanced usage type for display that includes provider-specific cache stats
- */
-export interface ChatUsageDisplay {
-  // Input is the part of the input that was not cached. So,
-  // totalInput = input + cached (cacheCreate is separate for billing)
-  input: ChatUsageComponent;
-  cached: ChatUsageComponent;
-  cacheCreate: ChatUsageComponent; // Cache creation tokens (separate billing concept)
-
-  // Output is the part of the output excluding reasoning, so
-  // totalOutput = output + reasoning
-  output: ChatUsageComponent;
-  reasoning: ChatUsageComponent;
-}
+import type { ChatUsageDisplay } from "./usageAggregator";
 
 /**
  * Create a display-friendly usage object from AI SDK usage
@@ -107,48 +93,6 @@ export function createDisplayUsage(
       cost_usd: reasoningCost,
     },
   };
-}
-
-/**
- * Sum multiple ChatUsageDisplay objects into a single cumulative display
- * Used for showing total costs across multiple API responses
- */
-export function sumUsageHistory(usageHistory: ChatUsageDisplay[]): ChatUsageDisplay | undefined {
-  if (usageHistory.length === 0) return undefined;
-
-  // Track if any costs are undefined (model pricing unknown)
-  let hasUndefinedCosts = false;
-
-  const sum: ChatUsageDisplay = {
-    input: { tokens: 0, cost_usd: 0 },
-    cached: { tokens: 0, cost_usd: 0 },
-    cacheCreate: { tokens: 0, cost_usd: 0 },
-    output: { tokens: 0, cost_usd: 0 },
-    reasoning: { tokens: 0, cost_usd: 0 },
-  };
-
-  for (const usage of usageHistory) {
-    // Iterate over each component and sum tokens and costs
-    for (const key of Object.keys(sum) as Array<keyof ChatUsageDisplay>) {
-      sum[key].tokens += usage[key].tokens;
-      if (usage[key].cost_usd === undefined) {
-        hasUndefinedCosts = true;
-      } else {
-        sum[key].cost_usd = (sum[key].cost_usd ?? 0) + (usage[key].cost_usd ?? 0);
-      }
-    }
-  }
-
-  // If any costs were undefined, set all to undefined
-  if (hasUndefinedCosts) {
-    sum.input.cost_usd = undefined;
-    sum.cached.cost_usd = undefined;
-    sum.cacheCreate.cost_usd = undefined;
-    sum.output.cost_usd = undefined;
-    sum.reasoning.cost_usd = undefined;
-  }
-
-  return sum;
 }
 
 /**
