@@ -8,6 +8,11 @@ export interface StreamTimelineEvent {
   timestamp: number;
   delta?: string;
   messageId?: string;
+  model?: string;
+  toolName?: string;
+  toolCallId?: string;
+  args?: unknown;
+  result?: unknown;
 }
 
 export interface StreamTimeline {
@@ -170,6 +175,11 @@ export function createWorkspaceUI(page: Page, context: DemoProjectConfig): Works
           timestamp: number;
           delta?: string;
           messageId?: string;
+          model?: string;
+          toolName?: string;
+          toolCallId?: string;
+          args?: unknown;
+          result?: unknown;
         };
         type StreamCapture = {
           events: StreamCaptureEvent[];
@@ -199,7 +209,10 @@ export function createWorkspaceUI(page: Page, context: DemoProjectConfig): Works
             return;
           }
           const eventType = (message as { type: string }).type;
-          if (!eventType.startsWith("stream-")) {
+          const isStreamEvent = eventType.startsWith("stream-");
+          const isToolEvent = eventType.startsWith("tool-call-");
+          const isReasoningEvent = eventType.startsWith("reasoning-");
+          if (!isStreamEvent && !isToolEvent && !isReasoningEvent) {
             return;
           }
           const entry: StreamCaptureEvent = {
@@ -214,6 +227,29 @@ export function createWorkspaceUI(page: Page, context: DemoProjectConfig): Works
             typeof (message as { messageId?: unknown }).messageId === "string"
           ) {
             entry.messageId = (message as { messageId: string }).messageId;
+          }
+          if ("model" in message && typeof (message as { model?: unknown }).model === "string") {
+            entry.model = (message as { model: string }).model;
+          }
+          if (
+            isToolEvent &&
+            "toolName" in message &&
+            typeof (message as { toolName?: unknown }).toolName === "string"
+          ) {
+            entry.toolName = (message as { toolName: string }).toolName;
+          }
+          if (
+            isToolEvent &&
+            "toolCallId" in message &&
+            typeof (message as { toolCallId?: unknown }).toolCallId === "string"
+          ) {
+            entry.toolCallId = (message as { toolCallId: string }).toolCallId;
+          }
+          if (isToolEvent && "args" in message) {
+            entry.args = (message as { args?: unknown }).args;
+          }
+          if (isToolEvent && "result" in message) {
+            entry.result = (message as { result?: unknown }).result;
           }
           events.push(entry);
         });
@@ -250,6 +286,11 @@ export function createWorkspaceUI(page: Page, context: DemoProjectConfig): Works
           timestamp: number;
           delta?: string;
           messageId?: string;
+          model?: string;
+          toolName?: string;
+          toolCallId?: string;
+          args?: unknown;
+          result?: unknown;
         };
         type StreamCapture = {
           events: StreamCaptureEvent[];
