@@ -413,10 +413,22 @@ function mergeConsecutiveUserMessages(messages: ModelMessage[]): ModelMessage[] 
       // Merge with newline prefix
       const mergedText = prevText + "\n" + currentText;
 
-      // Update the previous message
+      // Collect all non-text parts from both messages (images, etc.)
+      const prevNonTextParts = Array.isArray(prevMsg.content)
+        ? prevMsg.content.filter((c) => c.type !== "text")
+        : [];
+      const currentNonTextParts = Array.isArray(msg.content)
+        ? msg.content.filter((c) => c.type !== "text")
+        : [];
+
+      // Update the previous message with merged text and all non-text parts
       merged[merged.length - 1] = {
         role: "user",
-        content: [{ type: "text", text: mergedText }],
+        content: [
+          { type: "text", text: mergedText },
+          ...prevNonTextParts,
+          ...currentNonTextParts,
+        ],
       };
     } else {
       // Not consecutive user message, add as-is
