@@ -3,6 +3,7 @@ import styled from "@emotion/styled";
 import { Global, css } from "@emotion/react";
 import { GlobalColors } from "./styles/colors";
 import { GlobalFonts } from "./styles/fonts";
+import { GlobalScrollbars } from "./styles/scrollbars";
 import type { ProjectConfig } from "./config";
 import type { WorkspaceSelection } from "./components/ProjectSidebar";
 import ProjectSidebar from "./components/ProjectSidebar";
@@ -462,6 +463,7 @@ function AppInner() {
     <>
       <GlobalColors />
       <GlobalFonts />
+      <GlobalScrollbars />
       <Global styles={globalStyles} />
       <AppContainer>
         <ProjectSidebar

@@ -91,23 +91,6 @@ const CollapseButton = styled.button`
 const ProjectsList = styled.div`
   flex: 1;
   overflow-y: auto;
-
-  &::-webkit-scrollbar {
-    width: 8px;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: #424242;
-    border-radius: 4px;
-  }
-
-  &::-webkit-scrollbar-thumb:hover {
-    background: #4e4e4e;
-  }
 `;
 
 const EmptyState = styled.div`
