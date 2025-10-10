@@ -113,7 +113,7 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
               setBranchName(event.target.value);
               setError(null);
             }}
-            placeholder="Enter branch name (e.g., feature/new-feature)"
+            placeholder="Enter branch name (e.g., feature-new-feature)"
             disabled={isLoading}
             autoFocus={isOpen}
             required
