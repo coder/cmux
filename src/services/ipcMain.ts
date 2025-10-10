@@ -1,5 +1,5 @@
 import type { BrowserWindow, IpcMain as ElectronIpcMain } from "electron";
-import { spawn } from "child_process";
+import { spawn, spawnSync } from "child_process";
 import * as path from "path";
 import * as fsPromises from "fs/promises";
 import type { Config, ProjectConfig } from "@/config";
@@ -810,9 +810,10 @@ export class IpcMain {
       try {
         if (process.platform === "darwin") {
           // macOS - try Ghostty first, fallback to Terminal.app
-          try {
+          const terminal = this.findAvailableCommand(["ghostty", "terminal"]);
+          if (terminal === "ghostty") {
             spawn("open", ["-a", "Ghostty", workspacePath], { detached: true });
-          } catch {
+          } else {
             spawn("open", ["-a", "Terminal", workspacePath], { detached: true });
           }
         } else if (process.platform === "win32") {
@@ -822,14 +823,30 @@ export class IpcMain {
             shell: true,
           });
         } else {
-          // Linux - try x-terminal-emulator, fallback to xterm
-          try {
-            spawn("x-terminal-emulator", [], {
-              cwd: workspacePath,
+          // Linux - try common terminal emulators in order of preference
+          const terminals = [
+            { cmd: "alacritty", args: ["--working-directory", workspacePath] },
+            { cmd: "kitty", args: ["--directory", workspacePath] },
+            { cmd: "wezterm", args: ["start", "--cwd", workspacePath] },
+            { cmd: "gnome-terminal", args: ["--working-directory", workspacePath] },
+            { cmd: "konsole", args: ["--workdir", workspacePath] },
+            { cmd: "xfce4-terminal", args: ["--working-directory", workspacePath] },
+            { cmd: "x-terminal-emulator", args: [], cwd: workspacePath },
+            { cmd: "xterm", args: [], cwd: workspacePath },
+          ];
+
+          const availableTerminal = terminals.find((t) => this.isCommandAvailable(t.cmd));
+
+          if (availableTerminal) {
+            const child = spawn(availableTerminal.cmd, availableTerminal.args, {
+              cwd: availableTerminal.cwd || workspacePath,
               detached: true,
+              stdio: "ignore",
             });
-          } catch {
-            spawn("xterm", [], { cwd: workspacePath, detached: true });
+            child.unref();
+            log.info(`Opened terminal ${availableTerminal.cmd} at ${workspacePath}`);
+          } else {
+            log.error("No terminal emulator found. Tried: " + terminals.map((t) => t.cmd).join(", "));
           }
         }
       } catch (error) {
@@ -1122,5 +1139,24 @@ export class IpcMain {
         }
       }
     );
+  }
+
+  /**
+   * Check if a command is available in the system PATH
+   */
+  private isCommandAvailable(command: string): boolean {
+    try {
+      const result = spawnSync("which", [command], { encoding: "utf8" });
+      return result.status === 0;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Find the first available command from a list of commands
+   */
+  private findAvailableCommand(commands: string[]): string | null {
+    return commands.find((cmd) => this.isCommandAvailable(cmd)) || null;
   }
 }
