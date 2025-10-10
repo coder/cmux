@@ -14,7 +14,7 @@ const describeIntegration = shouldRunIntegrationTests() ? describe : describe.sk
 
 // Validate API keys before running tests
 if (shouldRunIntegrationTests()) {
-  validateApiKeys(["ANTHROPIC_API_KEY"]);
+  validateApiKeys(["ANTHROPIC_API_KEY", "OPENAI_API_KEY"]);
 }
 
 describeIntegration("IpcMain resumeStream integration tests", () => {
@@ -23,19 +23,29 @@ describeIntegration("IpcMain resumeStream integration tests", () => {
     jest.retryTimes(3, { logErrorsBeforeRetry: true });
   }
 
-  test.concurrent(
-    "should resume interrupted stream without new user message",
-    async () => {
-      const { env, workspaceId, cleanup } = await setupWorkspace("anthropic");
+  test.concurrent.each([
+    {
+      provider: "anthropic" as const,
+      model: "claude-sonnet-4-5",
+      expectedWord: "RESUMPTION_TEST_SUCCESS",
+    },
+    {
+      provider: "openai" as const,
+      model: "gpt-4o",
+      expectedWord: "RESUMPTION_TEST_OPENAI_SUCCESS",
+    },
+  ])(
+    "should resume interrupted stream without new user message ($provider)",
+    async ({ provider, model, expectedWord }) => {
+      const { env, workspaceId, cleanup } = await setupWorkspace(provider);
       try {
         // Start a stream with a bash command that outputs a specific word
-        const expectedWord = "RESUMPTION_TEST_SUCCESS";
         void sendMessageWithModel(
           env.mockIpcRenderer,
           workspaceId,
           `Run this bash command: sleep 5 && echo '${expectedWord}'`,
-          "anthropic",
-          "claude-sonnet-4-5"
+          provider,
+          model
         );
 
         // Wait for stream to start
@@ -60,8 +70,8 @@ describeIntegration("IpcMain resumeStream integration tests", () => {
           env.mockIpcRenderer,
           workspaceId,
           "",
-          "anthropic",
-          "claude-sonnet-4-5"
+          provider,
+          model
         );
         expect(interruptResult.success).toBe(true);
 
@@ -90,7 +100,7 @@ describeIntegration("IpcMain resumeStream integration tests", () => {
         const resumeResult = (await env.mockIpcRenderer.invoke(
           IPC_CHANNELS.WORKSPACE_RESUME_STREAM,
           workspaceId,
-          { model: "anthropic:claude-sonnet-4-5" }
+          { model: `${provider}:${model}` }
         )) as Result<void, SendMessageError>;
         expect(resumeResult.success).toBe(true);
 

@@ -62,40 +62,6 @@ export function stripReasoningForOpenAI(messages: CmuxMessage[]): CmuxMessage[] 
 }
 
 /**
- * Add [INTERRUPTED] sentinel to partial messages by inserting a user message.
- * This helps the model understand that a message was interrupted and incomplete.
- * The sentinel is ONLY for model context, not shown in UI.
- *
- * We insert a separate user message instead of modifying the assistant message
- * because if the assistant message only has reasoning (no text), it will be
- * filtered out, and we'd lose the interruption context. A user message always
- * survives filtering.
- */
-export function addInterruptedSentinel(messages: CmuxMessage[]): CmuxMessage[] {
-  const result: CmuxMessage[] = [];
-
-  for (const msg of messages) {
-    result.push(msg);
-
-    // If this is a partial assistant message, insert [INTERRUPTED] user message after it
-    if (msg.role === "assistant" && msg.metadata?.partial) {
-      result.push({
-        id: `interrupted-${msg.id}`,
-        role: "user",
-        parts: [{ type: "text", text: "[INTERRUPTED]" }],
-        metadata: {
-          timestamp: msg.metadata.timestamp,
-          // Mark as synthetic so it can be identified if needed
-          synthetic: true,
-        },
-      });
-    }
-  }
-
-  return result;
-}
-
-/**
  * Split assistant messages with mixed text and tool calls into separate messages
  * to comply with Anthropic's requirement that tool_use blocks must be immediately
  * followed by their tool_result blocks without intervening text.

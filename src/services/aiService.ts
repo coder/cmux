@@ -19,7 +19,6 @@ import { log } from "./log";
 import {
   transformModelMessages,
   validateAnthropicCompliance,
-  addInterruptedSentinel,
   filterEmptyAssistantMessages,
 } from "@/utils/messages/modelMessageTransform";
 import { applyCacheControl } from "@/utils/ai/cacheStrategy";
@@ -440,13 +439,10 @@ export class AIService extends EventEmitter {
         log.debug("Keeping reasoning parts for OpenAI (fetch wrapper handles item_references)");
       }
 
-      // Add [INTERRUPTED] sentinel to partial messages (for model context)
-      const messagesWithSentinel = addInterruptedSentinel(filteredMessages);
-
       // Convert CmuxMessage to ModelMessage format using Vercel AI SDK utility
       // Type assertion needed because CmuxMessage has custom tool parts for interrupted tools
       // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
-      const modelMessages = convertToModelMessages(messagesWithSentinel as any);
+      const modelMessages = convertToModelMessages(filteredMessages as any);
       log.debug_obj(`${workspaceId}/2_model_messages.json`, modelMessages);
 
       // Apply ModelMessage transforms based on provider requirements
