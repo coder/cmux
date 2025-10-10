@@ -2,7 +2,9 @@
  * Token calculation utilities for chat statistics
  */
 
-import type { Tiktoken } from "@dqbd/tiktoken";
+import AITokenizer, { type Encoding, models } from "ai-tokenizer";
+import * as o200k_base from "ai-tokenizer/encoding/o200k_base";
+import * as claude from "ai-tokenizer/encoding/claude";
 import { LRUCache } from "lru-cache";
 import CRC32 from "crc-32";
 import { getToolSchemas, getAvailableTools } from "@/utils/tools/toolDefinitions";
@@ -11,18 +13,6 @@ export interface Tokenizer {
   name: string;
   countTokens: (text: string) => number;
 }
-
-/**
- * Module-level cache for tiktoken encoders
- * Encoders are expensive to construct, so we cache and reuse them
- */
-const tiktokenEncoderCache = new Map<string, Tiktoken>();
-
-/**
- * Tracks if tiktoken module load has failed
- * Prevents repeated failed import attempts in browser contexts
- */
-let tiktokenLoadFailed = false;
 
 /**
  * LRU cache for token counts by text checksum
@@ -37,69 +27,6 @@ const tokenCountCache = new LRUCache<number, number>({
     return 48;
   },
 });
-
-/**
- * Detect if we're in a browser/renderer context vs Node.js main process
- * Returns true for Electron renderer/worker, false for Electron main process or pure Node.js
- *
- * We skip tiktoken in browser contexts because WASM initialization causes errors in production builds.
- */
-function isBrowserContext(): boolean {
-  // Check for Electron process type (only available in Electron environments)
-  const processType = (globalThis as { process?: NodeJS.Process & { type?: string } }).process
-    ?.type;
-
-  // Electron main process has type 'browser' or undefined
-  // Electron renderer has type 'renderer'
-  // Web workers have type 'worker'
-  if (processType !== undefined) {
-    return processType === "renderer" || processType === "worker";
-  }
-
-  // Not in Electron - use window as fallback indicator
-  return typeof window !== "undefined";
-}
-
-/**
- * Get or create a cached tiktoken encoder for a given OpenAI model
- * This implements lazy initialization - encoder is only created on first use
- * Returns null if initialization fails (e.g., WASM not ready in packaged app)
- */
-async function getOrCreateTiktokenEncoder(modelName: "gpt-4o"): Promise<Tiktoken | null> {
-  // Skip tiktoken in browser/renderer contexts - use approximation instead
-  // This prevents WASM initialization errors in Electron renderer process
-  if (isBrowserContext()) {
-    if (!tiktokenLoadFailed) {
-      console.log(
-        "Skipping tiktoken in browser context - using approximation (this is normal and expected)"
-      );
-      tiktokenLoadFailed = true;
-    }
-    return null;
-  }
-
-  // If we already failed to load, don't try again
-  if (tiktokenLoadFailed) {
-    return null;
-  }
-
-  if (!tiktokenEncoderCache.has(modelName)) {
-    try {
-      // Dynamic import required: Prevents WASM initialization during module load which causes
-      // "Cannot set properties of undefined (setting 'prototype')" in packaged Electron apps.
-      // This is an acceptable use of dynamic import as it's a workaround for WASM/Electron incompatibility.
-      // eslint-disable-next-line no-restricted-syntax
-      const { encoding_for_model } = await import("@dqbd/tiktoken");
-      const encoder = encoding_for_model(modelName);
-      tiktokenEncoderCache.set(modelName, encoder);
-    } catch (error) {
-      console.warn("Failed to initialize tiktoken encoder:", error);
-      tiktokenLoadFailed = true;
-      return null;
-    }
-  }
-  return tiktokenEncoderCache.get(modelName) ?? null;
-}
 
 /**
  * Count tokens with caching via CRC32 checksum
@@ -135,43 +62,46 @@ function countTokensCached(text: string, tokenizeFn: () => number | Promise<numb
  * @param modelString - Model identifier (e.g., "anthropic:claude-opus-4-1", "openai:gpt-4")
  * @returns Tokenizer interface with name and countTokens function
  */
-export function getTokenizerForModel(_modelString: string): Tokenizer {
-  // Use GPT-4o tokenizer for Anthropic models - better approximation than char count
-  // Note: Not 100% accurate for Claude 3+, but close enough for cost estimation
+export function getTokenizerForModel(modelString: string): Tokenizer {
+  const [provider, modelId] = modelString.split(":");
+  let model = models[`${provider}/${modelId}` as keyof typeof models];
+  let hasExactTokenizer = true;
+  if (!model) {
+    switch (modelString) {
+      case "anthropic:claude-sonnet-4-5":
+        model = models["anthropic/claude-sonnet-4.5"];
+        break;
+      default:
+        // GPT-4o has pretty good approximation for most models.
+        model = models["openai/gpt-4o"];
+        hasExactTokenizer = false;
+    }
+  }
 
-  // Defer encoder initialization until first use - critical for packaged Electron apps
-  // where WASM loads asynchronously. Initializing during module import causes
-  // "Cannot set properties of undefined (setting 'prototype')" errors.
-  let encoder: Tiktoken | null | undefined = undefined; // undefined = not yet attempted
-  let tokenizerName = "tiktoken"; // Optimistic default
+  let encoding: Encoding;
+  switch (model.encoding) {
+    case "o200k_base":
+      encoding = o200k_base;
+      break;
+    case "claude":
+      encoding = claude;
+      break;
+    default:
+      // Do not include all encodings, as they are pretty big.
+      // The most common one is o200k_base.
+      encoding = o200k_base;
+      break;
+  }
+  const tokenizer = new AITokenizer(encoding);
 
   return {
     get name() {
-      // Lazy evaluation of name - reflects actual initialization state
-      if (encoder === undefined) {
-        // Haven't tried to initialize yet, return optimistic name
-        return tokenizerName;
-      }
-      return encoder === null ? "approximation" : "tiktoken";
+      return hasExactTokenizer ? model.encoding : "approximation";
     },
     countTokens: (text: string) => {
-      return countTokensCached(text, async () => {
-        // Lazy initialization on first use
-        if (encoder === undefined) {
-          encoder = await getOrCreateTiktokenEncoder("gpt-4o");
-          tokenizerName = encoder === null ? "approximation" : "tiktoken";
-        }
-
-        if (encoder === null) {
-          // WASM not available (common in packaged apps), use approximation
-          return Math.ceil(text.length / 4);
-        }
-
+      return countTokensCached(text, () => {
         try {
-          // Use o200k_base encoding for GPT-4o and newer models (GPT-5, o1, etc.)
-          // Encoder is cached and reused for performance
-          const tokens = encoder.encode(text);
-          return tokens.length;
+          return tokenizer.count(text);
         } catch (error) {
           // Unexpected error during tokenization, fallback to approximation
           console.error("Failed to tokenize with tiktoken, falling back to approximation:", error);
