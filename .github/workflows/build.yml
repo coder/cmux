@@ -11,45 +11,22 @@ jobs:
     name: Build macOS
     runs-on: macos-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
+      - uses: ./.github/actions/setup-cmux
 
       - name: Install ImageMagick
         run: brew install imagemagick
 
-      - name: Build application
-        run: bun run build
+      - name: Setup code signing
+        run: ./scripts/setup-macos-signing.sh
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
+          AC_APIKEY_P8_BASE64: ${{ secrets.AC_APIKEY_P8_BASE64 }}
+          AC_APIKEY_ID: ${{ secrets.AC_APIKEY_ID }}
+          AC_APIKEY_ISSUER_ID: ${{ secrets.AC_APIKEY_ISSUER_ID }}
 
       - name: Package for macOS
-        run: |
-          # Decode certificate to file to avoid issues with newlines in base64 string
-          if [ -n "${{ secrets.MACOS_CERTIFICATE }}" ]; then
-            echo "${{ secrets.MACOS_CERTIFICATE }}" | base64 -D > /tmp/certificate.p12
-            export CSC_LINK="/tmp/certificate.p12"
-            export CSC_KEY_PASSWORD="${{ secrets.MACOS_CERTIFICATE_PWD }}"
-          fi
-
-          # Notarization credentials (optional - will skip if not provided)
-          if [ -n "${{ secrets.AC_APIKEY_ID }}" ]; then
-            # Decode API key to file
-            echo "${{ secrets.AC_APIKEY_P8_BASE64 }}" | base64 -D > /tmp/AuthKey.p8
-            export APPLE_API_KEY="/tmp/AuthKey.p8"
-            export APPLE_API_KEY_ID="${{ secrets.AC_APIKEY_ID }}"
-            export APPLE_API_ISSUER="${{ secrets.AC_APIKEY_ISSUER_ID }}"
-            echo "✅ Notarization credentials found (API key) - will notarize"
-          else
-            echo "⚠️  No notarization credentials - skipping notarization"
-          fi
-
-          make dist-mac
+        run: make dist-mac
 
       - name: Upload macOS DMG (x64)
         uses: actions/upload-artifact@v4
@@ -71,22 +48,10 @@ jobs:
     name: Build Linux
     runs-on: ${{ github.repository_owner == 'coder' && 'depot-ubuntu-22.04-16' || 'ubuntu-latest' }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
+      - uses: ./.github/actions/setup-cmux
 
       - name: Install ImageMagick
         run: sudo apt-get update && sudo apt-get install -y imagemagick
-
-      - name: Build application
-        run: bun run build
 
       - name: Package for Linux
         run: make dist-linux
