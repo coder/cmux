@@ -415,9 +415,9 @@ ${getDirtyFiles}
     };
   }, []);
 
-  // Don't render if no status or no meaningful information to show (check AFTER all hooks)
+  // Render empty placeholder to maintain grid layout (prevents layout shift)
   if (!gitStatus || (gitStatus.ahead === 0 && gitStatus.behind === 0 && !gitStatus.dirty)) {
-    return null;
+    return <Container aria-hidden="true" />;
   }
 
   // Render colored indicator characters
