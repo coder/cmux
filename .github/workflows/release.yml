@@ -1,14 +1,15 @@
-name: Build
+name: Release
 
 on:
-  pull_request:
-    branches: ["**"]
-  merge_group:
-  workflow_dispatch: # Allow manual triggering
+  release:
+    types: [published]
+
+permissions:
+  contents: write  # Required for electron-builder to upload release assets
 
 jobs:
   build-macos:
-    name: Build macOS
+    name: Build and Release macOS
     runs-on: macos-latest
     steps:
       - name: Checkout code
@@ -31,27 +32,13 @@ jobs:
           AC_APIKEY_ID: ${{ secrets.AC_APIKEY_ID }}
           AC_APIKEY_ISSUER_ID: ${{ secrets.AC_APIKEY_ISSUER_ID }}
 
-      - name: Package for macOS
-        run: make dist-mac
-
-      - name: Upload macOS DMG (x64)
-        uses: actions/upload-artifact@v4
-        with:
-          name: macos-dmg-x64
-          path: release/*-x64.dmg
-          retention-days: 30
-          if-no-files-found: error
-
-      - name: Upload macOS DMG (arm64)
-        uses: actions/upload-artifact@v4
-        with:
-          name: macos-dmg-arm64
-          path: release/*-arm64.dmg
-          retention-days: 30
-          if-no-files-found: error
+      - name: Package and publish for macOS
+        run: bun x electron-builder --mac --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-linux:
-    name: Build Linux
+    name: Build and Release Linux
     runs-on: ${{ github.repository_owner == 'coder' && 'depot-ubuntu-22.04-16' || 'ubuntu-latest' }}
     steps:
       - name: Checkout code
@@ -65,13 +52,7 @@ jobs:
       - name: Build application
         run: bun run build
 
-      - name: Package for Linux
-        run: make dist-linux
-
-      - name: Upload Linux AppImage
-        uses: actions/upload-artifact@v4
-        with:
-          name: linux-appimage
-          path: release/*.AppImage
-          retention-days: 30
-          if-no-files-found: error
+      - name: Package and publish for Linux
+        run: bun x electron-builder --linux --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
