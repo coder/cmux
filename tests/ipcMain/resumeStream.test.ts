@@ -24,8 +24,16 @@ describeIntegration("IpcMain resumeStream integration tests", () => {
   }
 
   test.concurrent.each([
-    { provider: "anthropic" as const, model: "claude-sonnet-4-5", expectedWord: "RESUMPTION_TEST_SUCCESS" },
-    { provider: "openai" as const, model: "gpt-4o", expectedWord: "RESUMPTION_TEST_OPENAI_SUCCESS" },
+    {
+      provider: "anthropic" as const,
+      model: "claude-sonnet-4-5",
+      expectedWord: "RESUMPTION_TEST_SUCCESS",
+    },
+    {
+      provider: "openai" as const,
+      model: "gpt-4o",
+      expectedWord: "RESUMPTION_TEST_OPENAI_SUCCESS",
+    },
   ])(
     "should resume interrupted stream without new user message ($provider)",
     async ({ provider, model, expectedWord }) => {
