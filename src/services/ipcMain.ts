@@ -558,6 +558,12 @@ export class IpcMain {
             image: img.image,
             mimeType: img.mimeType,
           }));
+          if (additionalParts && additionalParts.length > 0) {
+            log.debug("sendMessage: Creating message with images", {
+              imageCount: additionalParts.length,
+              mimeTypes: additionalParts.map((p) => p.mimeType),
+            });
+          }
           const userMessage = createCmuxMessage(
             messageId,
             "user",
