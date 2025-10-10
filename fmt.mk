@@ -9,8 +9,8 @@
 PRETTIER_PATTERNS := 'src/**/*.{ts,tsx,json}' 'tests/**/*.ts' 'docs/**/*.md' 'package.json' 'tsconfig*.json' 'README.md'
 SHELL_SCRIPTS := scripts
 
-# Prettier detection (prefer local, fallback to bun x)
-PRETTIER := $(shell command -v prettier 2>/dev/null || echo "bun x prettier")
+# Always use bun x prettier for reproducibility (uses package.json version)
+PRETTIER := bun x prettier
 
 # Tool availability checks
 SHFMT := $(shell command -v shfmt 2>/dev/null)
