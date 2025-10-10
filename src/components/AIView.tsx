@@ -14,7 +14,7 @@ import { ThinkingProvider } from "@/contexts/ThinkingContext";
 import { ModeProvider } from "@/contexts/ModeContext";
 import { matchesKeybind, formatKeybind, KEYBINDS, isEditableElement } from "@/utils/ui/keybinds";
 import { useAutoScroll } from "@/hooks/useAutoScroll";
-import { usePersistedState, updatePersistedState } from "@/hooks/usePersistedState";
+import { usePersistedState, updatePersistedState, readPersistedState } from "@/hooks/usePersistedState";
 import type { WorkspaceState } from "@/hooks/useWorkspaceAggregators";
 import { StatusIndicator } from "./StatusIndicator";
 import { getModelName } from "@/utils/ai/models";
@@ -332,23 +332,18 @@ const AIViewInner: React.FC<AIViewProps> = ({
       if (matchesKeybind(e, KEYBINDS.TOGGLE_THINKING)) {
         e.preventDefault();
         // Get current thinking level for the workspace
-        // Values are JSON-stringified by usePersistedState, so we need to parse them
         const thinkingKey = getThinkingLevelKey(workspaceId);
-        const thinkingRaw = localStorage.getItem(thinkingKey);
-        const currentThinking = thinkingRaw ? (JSON.parse(thinkingRaw) as ThinkingLevel) : null;
+        const currentThinking = readPersistedState<ThinkingLevel | null>(thinkingKey, null);
 
         if (currentThinking && currentThinking !== "off") {
           // If thinking is on, save it for this model and turn it off
           const modelKey = getThinkingByModelKey(currentModel);
-          localStorage.setItem(modelKey, JSON.stringify(currentThinking));
+          updatePersistedState(modelKey, currentThinking);
           updatePersistedState(thinkingKey, "off");
         } else {
           // If thinking is off, restore the last value for this model (default to "medium")
           const modelKey = getThinkingByModelKey(currentModel);
-          const lastThinkingRaw = localStorage.getItem(modelKey);
-          const lastThinking: ThinkingLevel = lastThinkingRaw
-            ? (JSON.parse(lastThinkingRaw) as ThinkingLevel)
-            : "medium";
+          const lastThinking = readPersistedState<ThinkingLevel>(modelKey, "medium");
           updatePersistedState(thinkingKey, lastThinking);
         }
         return;
