@@ -1,8 +1,41 @@
 import { useState } from "react";
 import React from "react";
-import { startHereWithMessage } from "@/utils/startHere";
 import { COMPACTED_EMOJI } from "@/constants/ui";
 import { StartHereModal } from "@/components/StartHereModal";
+import { createCmuxMessage } from "@/types/message";
+
+/**
+ * Replace chat history with a specific message.
+ * This allows starting fresh from a plan or final assistant message.
+ */
+async function startHereWithMessage(
+  workspaceId: string,
+  content: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const summaryMessage = createCmuxMessage(
+      `start-here-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
+      "assistant",
+      content,
+      {
+        timestamp: Date.now(),
+        compacted: true,
+      }
+    );
+
+    const result = await window.api.workspace.replaceChatHistory(workspaceId, summaryMessage);
+
+    if (!result.success) {
+      console.error("Failed to start here:", result.error);
+      return { success: false, error: result.error };
+    }
+
+    return { success: true };
+  } catch (err) {
+    console.error("Start here error:", err);
+    return { success: false, error: String(err) };
+  }
+}
 
 /**
  * Hook for managing Start Here button state and modal.
