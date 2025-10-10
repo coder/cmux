@@ -784,7 +784,6 @@ export class IpcMain {
     });
   }
 
-
   /**
    * Internal workspace removal logic shared by both force and non-force deletion
    */
@@ -863,9 +862,7 @@ export class IpcMain {
       let configUpdated = false;
       for (const [_projectPath, projectConfig] of projectsConfig.projects.entries()) {
         const initialCount = projectConfig.workspaces.length;
-        projectConfig.workspaces = projectConfig.workspaces.filter(
-          (w) => w.path !== workspacePath
-        );
+        projectConfig.workspaces = projectConfig.workspaces.filter((w) => w.path !== workspacePath);
         if (projectConfig.workspaces.length < initialCount) {
           configUpdated = true;
         }
