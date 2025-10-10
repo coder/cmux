@@ -1,11 +1,8 @@
 name: 'Setup cmux build environment'
-description: 'Checkout code, setup Bun, install dependencies, and build application'
+description: 'Setup Bun, install dependencies, and build application'
 runs:
   using: "composite"
   steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
     - name: Setup Bun
       uses: oven-sh/setup-bun@v2
       with:

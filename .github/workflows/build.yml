@@ -11,6 +11,9 @@ jobs:
     name: Build macOS
     runs-on: macos-latest
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - uses: ./.github/actions/setup-cmux
 
       - name: Install ImageMagick
@@ -48,6 +51,9 @@ jobs:
     name: Build Linux
     runs-on: ${{ github.repository_owner == 'coder' && 'depot-ubuntu-22.04-16' || 'ubuntu-latest' }}
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - uses: ./.github/actions/setup-cmux
 
       - name: Install ImageMagick

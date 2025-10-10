@@ -12,6 +12,9 @@ jobs:
     name: Build and Release macOS
     runs-on: macos-latest
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - uses: ./.github/actions/setup-cmux
 
       - name: Setup code signing
@@ -32,6 +35,9 @@ jobs:
     name: Build and Release Linux
     runs-on: ${{ github.repository_owner == 'coder' && 'depot-ubuntu-22.04-16' || 'ubuntu-latest' }}
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - uses: ./.github/actions/setup-cmux
 
       - name: Package and publish for Linux
