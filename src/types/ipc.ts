@@ -206,4 +206,7 @@ export interface IPCApi {
       callback: (data: { workspaceId: string; metadata: WorkspaceMetadata }) => void
     ): () => void;
   };
+  window: {
+    setTitle(title: string): Promise<void>;
+  };
 }

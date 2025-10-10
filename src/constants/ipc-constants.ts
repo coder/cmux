@@ -33,6 +33,9 @@ export const IPC_CHANNELS = {
   WORKSPACE_EXECUTE_BASH: "workspace:executeBash",
   WORKSPACE_OPEN_TERMINAL: "workspace:openTerminal",
 
+  // Window channels
+  WINDOW_SET_TITLE: "window:setTitle",
+
   // Dynamic channel prefixes
   WORKSPACE_CHAT_PREFIX: "workspace:chat:",
   WORKSPACE_METADATA: "workspace:metadata",
