@@ -20,6 +20,8 @@ const TitleBarContainer = styled.div`
 const TitleText = styled.div`
   font-weight: normal;
   letter-spacing: 0.5px;
+  user-select: text;
+  cursor: text;
 `;
 
 const BuildInfo = styled.div`
