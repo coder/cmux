@@ -49,16 +49,18 @@ export const ForceDeleteModal: React.FC<ForceDeleteModalProps> = ({
 }) => {
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const handleForceDelete = async () => {
+  const handleForceDelete = () => {
     setIsDeleting(true);
-    try {
-      await onForceDelete(workspaceId);
-      onClose();
-    } catch (err) {
-      console.error("Force delete failed:", err);
-    } finally {
-      setIsDeleting(false);
-    }
+    void (async () => {
+      try {
+        await onForceDelete(workspaceId);
+        onClose();
+      } catch (err) {
+        console.error("Force delete failed:", err);
+      } finally {
+        setIsDeleting(false);
+      }
+    })();
   };
 
   return (
