@@ -23,7 +23,7 @@ const mk = (over: Partial<Parameters<typeof buildCoreSources>[0]> = {}) => {
     streamingModels: new Map<string, string>(),
     getThinkingLevel: () => "off",
     onSetThinkingLevel: () => undefined,
-    onCreateWorkspace: async () => {
+    onCreateWorkspace: async (_projectPath, _branchName, _trunkBranch) => {
       await Promise.resolve();
     },
     onOpenNewWorkspaceModal: () => undefined,
@@ -35,6 +35,11 @@ const mk = (over: Partial<Parameters<typeof buildCoreSources>[0]> = {}) => {
     onToggleSidebar: () => undefined,
     onNavigateWorkspace: () => undefined,
     onOpenWorkspaceInTerminal: () => undefined,
+    getBranchesForProject: () =>
+      Promise.resolve({
+        branches: ["main"],
+        recommendedTrunk: "main",
+      }),
     ...over,
   };
   return buildCoreSources(params);

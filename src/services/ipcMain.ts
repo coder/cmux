@@ -9,6 +9,8 @@ import {
   moveWorktree,
   pruneWorktrees,
   getMainWorktreeFromWorktree,
+  listLocalBranches,
+  detectDefaultTrunkBranch,
 } from "@/git";
 import { AIService } from "@/services/aiService";
 import { HistoryService } from "@/services/historyService";
@@ -179,15 +181,23 @@ export class IpcMain {
   private registerWorkspaceHandlers(ipcMain: ElectronIpcMain): void {
     ipcMain.handle(
       IPC_CHANNELS.WORKSPACE_CREATE,
-      async (_event, projectPath: string, branchName: string) => {
+      async (_event, projectPath: string, branchName: string, trunkBranch: string) => {
         // Validate workspace name
         const validation = validateWorkspaceName(branchName);
         if (!validation.valid) {
           return { success: false, error: validation.error };
         }
 
+        if (typeof trunkBranch !== "string" || trunkBranch.trim().length === 0) {
+          return { success: false, error: "Trunk branch is required" };
+        }
+
+        const normalizedTrunkBranch = trunkBranch.trim();
+
         // First create the git worktree
-        const result = await createWorktree(this.config, projectPath, branchName);
+        const result = await createWorktree(this.config, projectPath, branchName, {
+          trunkBranch: normalizedTrunkBranch,
+        });
 
         if (result.success && result.path) {
           const projectName =
@@ -980,6 +990,21 @@ export class IpcMain {
       } catch (error) {
         log.error("Failed to list projects:", error);
         return [];
+      }
+    });
+
+    ipcMain.handle(IPC_CHANNELS.PROJECT_LIST_BRANCHES, async (_event, projectPath: string) => {
+      if (typeof projectPath !== "string" || projectPath.trim().length === 0) {
+        throw new Error("Project path is required to list branches");
+      }
+
+      try {
+        const branches = await listLocalBranches(projectPath);
+        const recommendedTrunk = await detectDefaultTrunkBranch(projectPath, branches);
+        return { branches, recommendedTrunk };
+      } catch (error) {
+        log.error("Failed to list branches:", error);
+        throw error instanceof Error ? error : new Error(String(error));
       }
     });
 

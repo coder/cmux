@@ -1,7 +1,18 @@
 import { shouldRunIntegrationTests, createTestEnvironment, cleanupTestEnvironment } from "./setup";
 import { IPC_CHANNELS } from "../../src/constants/ipc-constants";
-import { createTempGitRepo, cleanupTempGitRepo } from "./helpers";
+import { createTempGitRepo, cleanupTempGitRepo, createWorkspace } from "./helpers";
 import { BASH_HARD_MAX_LINES } from "../../src/constants/toolLimits";
+import type { WorkspaceMetadata } from "../../src/types/workspace";
+
+type WorkspaceCreationResult = Awaited<ReturnType<typeof createWorkspace>>;
+
+function expectWorkspaceCreationSuccess(result: WorkspaceCreationResult): WorkspaceMetadata {
+  expect(result.success).toBe(true);
+  if (!result.success) {
+    throw new Error(`Expected workspace creation to succeed, but it failed: ${result.error}`);
+  }
+  return result.metadata;
+}
 
 // Skip all tests if TEST_INTEGRATION is not set
 const describeIntegration = shouldRunIntegrationTests() ? describe : describe.skip;
@@ -15,13 +26,8 @@ describeIntegration("IpcMain executeBash integration tests", () => {
 
       try {
         // Create a workspace
-        const createResult = await env.mockIpcRenderer.invoke(
-          IPC_CHANNELS.WORKSPACE_CREATE,
-          tempGitRepo,
-          "test-bash"
-        );
-        expect(createResult.success).toBe(true);
-        const workspaceId = createResult.metadata.id;
+        const createResult = await createWorkspace(env.mockIpcRenderer, tempGitRepo, "test-bash");
+        const workspaceId = expectWorkspaceCreationSuccess(createResult).id;
 
         // Execute a simple bash command (pwd should return workspace path)
         const pwdResult = await env.mockIpcRenderer.invoke(
@@ -53,13 +59,12 @@ describeIntegration("IpcMain executeBash integration tests", () => {
 
       try {
         // Create a workspace
-        const createResult = await env.mockIpcRenderer.invoke(
-          IPC_CHANNELS.WORKSPACE_CREATE,
+        const createResult = await createWorkspace(
+          env.mockIpcRenderer,
           tempGitRepo,
           "test-git-status"
         );
-        expect(createResult.success).toBe(true);
-        const workspaceId = createResult.metadata.id;
+        const workspaceId = expectWorkspaceCreationSuccess(createResult).id;
 
         // Execute git status
         const gitStatusResult = await env.mockIpcRenderer.invoke(
@@ -91,13 +96,12 @@ describeIntegration("IpcMain executeBash integration tests", () => {
 
       try {
         // Create a workspace
-        const createResult = await env.mockIpcRenderer.invoke(
-          IPC_CHANNELS.WORKSPACE_CREATE,
+        const createResult = await createWorkspace(
+          env.mockIpcRenderer,
           tempGitRepo,
           "test-failure"
         );
-        expect(createResult.success).toBe(true);
-        const workspaceId = createResult.metadata.id;
+        const workspaceId = expectWorkspaceCreationSuccess(createResult).id;
 
         // Execute a command that will fail
         const failResult = await env.mockIpcRenderer.invoke(
@@ -129,13 +133,12 @@ describeIntegration("IpcMain executeBash integration tests", () => {
 
       try {
         // Create a workspace
-        const createResult = await env.mockIpcRenderer.invoke(
-          IPC_CHANNELS.WORKSPACE_CREATE,
+        const createResult = await createWorkspace(
+          env.mockIpcRenderer,
           tempGitRepo,
           "test-timeout"
         );
-        expect(createResult.success).toBe(true);
-        const workspaceId = createResult.metadata.id;
+        const workspaceId = expectWorkspaceCreationSuccess(createResult).id;
 
         // Execute a command that takes longer than the timeout
         const timeoutResult = await env.mockIpcRenderer.invoke(
@@ -167,13 +170,12 @@ describeIntegration("IpcMain executeBash integration tests", () => {
 
       try {
         // Create a workspace
-        const createResult = await env.mockIpcRenderer.invoke(
-          IPC_CHANNELS.WORKSPACE_CREATE,
+        const createResult = await createWorkspace(
+          env.mockIpcRenderer,
           tempGitRepo,
           "test-maxlines"
         );
-        expect(createResult.success).toBe(true);
-        const workspaceId = createResult.metadata.id;
+        const workspaceId = expectWorkspaceCreationSuccess(createResult).id;
 
         // Execute a command that produces many lines
         const maxLinesResult = await env.mockIpcRenderer.invoke(
@@ -205,13 +207,12 @@ describeIntegration("IpcMain executeBash integration tests", () => {
       const tempGitRepo = await createTempGitRepo();
 
       try {
-        const createResult = await env.mockIpcRenderer.invoke(
-          IPC_CHANNELS.WORKSPACE_CREATE,
+        const createResult = await createWorkspace(
+          env.mockIpcRenderer,
           tempGitRepo,
           "test-maxlines-hardcap"
         );
-        expect(createResult.success).toBe(true);
-        const workspaceId = createResult.metadata.id;
+        const workspaceId = expectWorkspaceCreationSuccess(createResult).id;
 
         const oversizedResult = await env.mockIpcRenderer.invoke(
           IPC_CHANNELS.WORKSPACE_EXECUTE_BASH,
@@ -264,13 +265,12 @@ describeIntegration("IpcMain executeBash integration tests", () => {
 
       try {
         // Create a workspace
-        const createResult = await env.mockIpcRenderer.invoke(
-          IPC_CHANNELS.WORKSPACE_CREATE,
+        const createResult = await createWorkspace(
+          env.mockIpcRenderer,
           tempGitRepo,
           "test-secrets"
         );
-        expect(createResult.success).toBe(true);
-        const workspaceId = createResult.metadata.id;
+        const workspaceId = expectWorkspaceCreationSuccess(createResult).id;
 
         // Set secrets for the project
         await env.mockIpcRenderer.invoke(IPC_CHANNELS.PROJECT_SECRETS_UPDATE, tempGitRepo, [
@@ -309,13 +309,12 @@ describeIntegration("IpcMain executeBash integration tests", () => {
 
       try {
         // Create a workspace
-        const createResult = await env.mockIpcRenderer.invoke(
-          IPC_CHANNELS.WORKSPACE_CREATE,
+        const createResult = await createWorkspace(
+          env.mockIpcRenderer,
           tempGitRepo,
           "test-git-env"
         );
-        expect(createResult.success).toBe(true);
-        const workspaceId = createResult.metadata.id;
+        const workspaceId = expectWorkspaceCreationSuccess(createResult).id;
 
         // Verify GIT_TERMINAL_PROMPT is set to 0
         const gitEnvResult = await env.mockIpcRenderer.invoke(

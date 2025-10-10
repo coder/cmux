@@ -306,9 +306,65 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ getSlashContext 
     }
   }, [activePrompt]);
 
+  const [selectOptions, setSelectOptions] = useState<
+    Array<{ id: string; label: string; keywords?: string[] }>
+  >([]);
+  const [isLoadingOptions, setIsLoadingOptions] = useState(false);
+
   const currentField: PromptField | null = activePrompt
     ? (activePrompt.fields[activePrompt.idx] ?? null)
     : null;
+
+  useEffect(() => {
+    // Select prompts can return options synchronously or as a promise. This effect normalizes
+    // both flows, keeps the loading state in sync, and bails out early if the prompt switches
+    // while a request is in flight.
+    let cancelled = false;
+
+    const resetState = () => {
+      if (cancelled) return;
+      setSelectOptions([]);
+      setIsLoadingOptions(false);
+    };
+
+    const hydrateSelectOptions = async () => {
+      if (!currentField || currentField.type !== "select") {
+        resetState();
+        return;
+      }
+
+      setIsLoadingOptions(true);
+      try {
+        const rawOptions = await Promise.resolve(
+          currentField.getOptions(activePrompt?.values ?? {})
+        );
+
+        if (!Array.isArray(rawOptions)) {
+          throw new Error("Prompt select options must resolve to an array");
+        }
+
+        if (!cancelled) {
+          setSelectOptions(rawOptions);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.error("Failed to resolve prompt select options", error);
+          setSelectOptions([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingOptions(false);
+        }
+      }
+    };
+
+    void hydrateSelectOptions();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentField, activePrompt]);
+
   const isSlashQuery = !currentField && query.trim().startsWith("/");
   const shouldUseCmdkFilter = currentField ? currentField.type === "select" : !isSlashQuery;
 
@@ -318,7 +374,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ getSlashContext 
   if (currentField) {
     const promptTitle = activePrompt?.title ?? currentField.label ?? "Provide details";
     if (currentField.type === "select") {
-      const options = currentField.getOptions(activePrompt?.values ?? {});
+      const options = selectOptions;
       groups = [
         {
           name: promptTitle,
@@ -331,7 +387,11 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ getSlashContext 
           })),
         },
       ];
-      emptyText = options.length ? undefined : "No options";
+      emptyText = isLoadingOptions
+        ? "Loading options..."
+        : options.length
+          ? undefined
+          : "No options";
     } else {
       const typed = query.trim();
       const fallbackHint = currentField.placeholder ?? "Type value and press Enter";

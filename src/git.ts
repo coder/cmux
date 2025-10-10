@@ -12,13 +12,84 @@ export interface WorktreeResult {
   error?: string;
 }
 
+export interface CreateWorktreeOptions {
+  trunkBranch: string;
+}
+
+export async function listLocalBranches(projectPath: string): Promise<string[]> {
+  const { stdout } = await execAsync(
+    `git -C "${projectPath}" for-each-ref --format="%(refname:short)" refs/heads`
+  );
+  return stdout
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+    .sort((a, b) => a.localeCompare(b));
+}
+
+async function getCurrentBranch(projectPath: string): Promise<string | null> {
+  try {
+    const { stdout } = await execAsync(`git -C "${projectPath}" rev-parse --abbrev-ref HEAD`);
+    const branch = stdout.trim();
+    if (!branch || branch === "HEAD") {
+      return null;
+    }
+    return branch;
+  } catch {
+    return null;
+  }
+}
+
+const FALLBACK_TRUNK_CANDIDATES = ["main", "master", "trunk", "develop", "default"];
+
+export async function detectDefaultTrunkBranch(
+  projectPath: string,
+  branches?: string[]
+): Promise<string> {
+  const branchList = branches ?? (await listLocalBranches(projectPath));
+
+  if (branchList.length === 0) {
+    throw new Error(`No branches available in repository ${projectPath}`);
+  }
+
+  const branchSet = new Set(branchList);
+  const currentBranch = await getCurrentBranch(projectPath);
+
+  if (currentBranch && branchSet.has(currentBranch)) {
+    return currentBranch;
+  }
+
+  for (const candidate of FALLBACK_TRUNK_CANDIDATES) {
+    if (branchSet.has(candidate)) {
+      return candidate;
+    }
+  }
+
+  return branchList[0];
+}
+
 export async function createWorktree(
   config: Config,
   projectPath: string,
-  branchName: string
+  branchName: string,
+  options: CreateWorktreeOptions
 ): Promise<WorktreeResult> {
   try {
     const workspacePath = config.getWorkspacePath(projectPath, branchName);
+    const { trunkBranch } = options;
+    const normalizedTrunkBranch = typeof trunkBranch === "string" ? trunkBranch.trim() : "";
+
+    if (!normalizedTrunkBranch) {
+      return {
+        success: false,
+        error: "Trunk branch is required to create a workspace",
+      };
+    }
+
+    console.assert(
+      normalizedTrunkBranch.length > 0,
+      "Expected trunk branch to be validated before calling createWorktree"
+    );
 
     // Create workspace directory if it doesn't exist
     if (!fs.existsSync(path.dirname(workspacePath))) {
@@ -33,24 +104,36 @@ export async function createWorktree(
       };
     }
 
-    // Check if branch exists
-    const { stdout: branches } = await execAsync(`git -C "${projectPath}" branch -a`);
-    const branchExists = branches
+    const localBranches = await listLocalBranches(projectPath);
+
+    // If branch already exists locally, reuse it instead of creating a new one
+    if (localBranches.includes(branchName)) {
+      await execAsync(`git -C "${projectPath}" worktree add "${workspacePath}" "${branchName}"`);
+      return { success: true, path: workspacePath };
+    }
+
+    // Check if branch exists remotely (origin/<branchName>)
+    const { stdout: remoteBranchesRaw } = await execAsync(`git -C "${projectPath}" branch -a`);
+    const branchExists = remoteBranchesRaw
       .split("\n")
-      .some(
-        (b) =>
-          b.trim() === branchName ||
-          b.trim() === `* ${branchName}` ||
-          b.trim() === `remotes/origin/${branchName}`
-      );
+      .map((b) => b.trim().replace(/^(\*)\s+/, ""))
+      .some((b) => b === branchName || b === `remotes/origin/${branchName}`);
 
     if (branchExists) {
-      // Branch exists, create worktree with existing branch
       await execAsync(`git -C "${projectPath}" worktree add "${workspacePath}" "${branchName}"`);
-    } else {
-      // Branch doesn't exist, create new branch with worktree
-      await execAsync(`git -C "${projectPath}" worktree add -b "${branchName}" "${workspacePath}"`);
+      return { success: true, path: workspacePath };
     }
+
+    if (!localBranches.includes(normalizedTrunkBranch)) {
+      return {
+        success: false,
+        error: `Trunk branch "${normalizedTrunkBranch}" does not exist locally`,
+      };
+    }
+
+    await execAsync(
+      `git -C "${projectPath}" worktree add -b "${branchName}" "${workspacePath}" "${normalizedTrunkBranch}"`
+    );
 
     return { success: true, path: workspacePath };
   } catch (error) {

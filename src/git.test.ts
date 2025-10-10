@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeAll, afterAll } from "@jest/globals";
-import { createWorktree } from "./git";
+import { createWorktree, listLocalBranches, detectDefaultTrunkBranch } from "./git";
 import { Config } from "./config";
 import * as path from "path";
 import * as os from "os";
@@ -12,6 +12,7 @@ const execAsync = promisify(exec);
 describe("createWorktree", () => {
   let tempGitRepo: string;
   let config: Config;
+  let defaultTrunk: string;
 
   beforeAll(async () => {
     // Create a temporary git repository for testing
@@ -29,6 +30,8 @@ describe("createWorktree", () => {
     // Create a config instance for testing
     const testConfigPath = path.join(tempGitRepo, "test-config.json");
     config = new Config(testConfigPath);
+
+    defaultTrunk = await detectDefaultTrunkBranch(tempGitRepo);
   });
 
   afterAll(async () => {
@@ -49,7 +52,9 @@ describe("createWorktree", () => {
     // The fixed code correctly detects "docs" doesn't exist and tries: git worktree add -b "docs" <path>
     // However, Git itself won't allow creating "docs" when "docs/bash-timeout-ux" exists
     // due to ref namespace conflicts, so this will fail with a different, more informative error.
-    const result = await createWorktree(config, tempGitRepo, "docs");
+    const result = await createWorktree(config, tempGitRepo, "docs", {
+      trunkBranch: defaultTrunk,
+    });
 
     // Should fail, but with a ref lock error (not "invalid reference")
     expect(result.success).toBe(false);
@@ -64,7 +69,9 @@ describe("createWorktree", () => {
     // Create a branch first
     await execAsync(`git branch existing-branch`, { cwd: tempGitRepo });
 
-    const result = await createWorktree(config, tempGitRepo, "existing-branch");
+    const result = await createWorktree(config, tempGitRepo, "existing-branch", {
+      trunkBranch: defaultTrunk,
+    });
 
     // Should succeed by using the existing branch
     expect(result.success).toBe(true);
@@ -73,5 +80,24 @@ describe("createWorktree", () => {
     // Verify the worktree was created
     const { stdout } = await execAsync(`git worktree list`, { cwd: tempGitRepo });
     expect(stdout).toContain("existing-branch");
+  });
+
+  test("listLocalBranches should return sorted branch names", async () => {
+    const uniqueSuffix = Date.now().toString(36);
+    const newBranches = [`zz-${uniqueSuffix}`, `aa-${uniqueSuffix}`, `mid/${uniqueSuffix}`];
+
+    for (const branch of newBranches) {
+      await execAsync(`git branch ${branch}`, { cwd: tempGitRepo });
+    }
+
+    const branches = await listLocalBranches(tempGitRepo);
+
+    for (const branch of newBranches) {
+      expect(branches).toContain(branch);
+    }
+
+    for (let i = 1; i < branches.length; i += 1) {
+      expect(branches[i - 1].localeCompare(branches[i])).toBeLessThanOrEqual(0);
+    }
   });
 });
