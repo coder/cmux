@@ -19,7 +19,7 @@
 #   Add `## Description` after the target to make it appear in `make help`
 
 .PHONY: all build dev start clean help
-.PHONY: build-main build-preload build-renderer
+.PHONY: build-renderer
 .PHONY: lint lint-fix fmt fmt-check fmt-shell fmt-shell-check typecheck static-check
 .PHONY: test test-unit test-integration test-watch test-coverage test-e2e
 .PHONY: dist dist-mac dist-win dist-linux
@@ -27,6 +27,7 @@
 
 # Prettier patterns for formatting
 PRETTIER_PATTERNS := 'src/**/*.{ts,tsx,json}' 'tests/**/*.{ts,json}' 'docs/**/*.{md,mdx}' '*.{json,md}'
+TS_SOURCES := $(shell find src -type f \( -name '*.ts' -o -name '*.tsx' \))
 
 # Default target
 all: build
@@ -48,27 +49,31 @@ start: build-main build-preload ## Build and start Electron app
 	@electron .
 
 ## Build targets (can run in parallel)
-build: dist/version.txt build-renderer build-main build-preload ## Build all targets
+build: src/version.ts build-renderer build-main build-preload ## Build all targets
 
-build-main: dist/version.txt ## Build main process
+build-main: dist/main.js ## Build main process
+
+dist/main.js: src/version.ts tsconfig.main.json tsconfig.json $(TS_SOURCES)
 	@echo "Building main process..."
-	@bun x tsc -p tsconfig.main.json
-	@bun x tsc-alias -p tsconfig.main.json
+	@NODE_ENV=production bun x tsc -p tsconfig.main.json
+	@NODE_ENV=production bun x tsc-alias -p tsconfig.main.json
 
-build-preload: ## Build preload script
+build-preload: dist/preload.js ## Build preload script
+
+dist/preload.js: src/preload.ts $(TS_SOURCES)
 	@echo "Building preload script..."
-	@bun build src/preload.ts \
+	@NODE_ENV=production bun build src/preload.ts \
 		--format=cjs \
 		--target=node \
 		--external=electron \
 		--sourcemap=inline \
 		--outfile=dist/preload.js
 
-build-renderer: dist/version.txt ## Build renderer process
+build-renderer: src/version.ts ## Build renderer process
 	@echo "Building renderer..."
 	@bun x vite build
 
-dist/version.txt: ## Generate version file
+src/version.ts: ## Generate version file
 	@./scripts/generate-version.sh
 
 ## Quality checks (can run in parallel)
@@ -91,7 +96,7 @@ fmt-check: ## Check code formatting
 fmt-shell: ## Format shell scripts with shfmt
 	@./scripts/fmt.sh --shell
 
-typecheck: dist/version.txt ## Run TypeScript type checking
+typecheck: src/version.ts ## Run TypeScript type checking
 	@./scripts/typecheck.sh
 
 ## Testing
