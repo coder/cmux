@@ -46,8 +46,6 @@ describe("file_edit_insert tool", () => {
 
     // Assert
     expect(result.success).toBe(true);
-    if (result.success) {
-    }
 
     const updatedContent = await fs.readFile(testFilePath, "utf-8");
     expect(updatedContent).toBe("INSERTED\nline1\nline2\nline3");
@@ -72,8 +70,6 @@ describe("file_edit_insert tool", () => {
 
     // Assert
     expect(result.success).toBe(true);
-    if (result.success) {
-    }
 
     const updatedContent = await fs.readFile(testFilePath, "utf-8");
     expect(updatedContent).toBe("line1\nINSERTED\nline2\nline3");
@@ -98,8 +94,6 @@ describe("file_edit_insert tool", () => {
 
     // Assert
     expect(result.success).toBe(true);
-    if (result.success) {
-    }
 
     const updatedContent = await fs.readFile(testFilePath, "utf-8");
     expect(updatedContent).toBe("line1\nline2\nINSERTED\nline3");
@@ -124,8 +118,6 @@ describe("file_edit_insert tool", () => {
 
     // Assert
     expect(result.success).toBe(true);
-    if (result.success) {
-    }
 
     const updatedContent = await fs.readFile(testFilePath, "utf-8");
     expect(updatedContent).toBe("line1\nline2\nline3\nINSERTED");
@@ -150,8 +142,6 @@ describe("file_edit_insert tool", () => {
 
     // Assert
     expect(result.success).toBe(true);
-    if (result.success) {
-    }
 
     const updatedContent = await fs.readFile(testFilePath, "utf-8");
     expect(updatedContent).toBe("line1\nINSERTED1\nINSERTED2\nline2");
@@ -175,8 +165,6 @@ describe("file_edit_insert tool", () => {
 
     // Assert
     expect(result.success).toBe(true);
-    if (result.success) {
-    }
 
     const updatedContent = await fs.readFile(testFilePath, "utf-8");
     expect(updatedContent).toBe("INSERTED\n");

@@ -90,7 +90,6 @@ describe("file_edit_replace tool", () => {
     const initialContent = "foo bar baz";
     await fs.writeFile(testFilePath, initialContent);
 
-    const content = await fs.readFile(testFilePath, "utf-8");
     const tool = createFileEditReplaceTool({ cwd: testDir });
     const args: FileEditReplaceToolArgs = {
       file_path: testFilePath,
@@ -129,7 +128,6 @@ describe("file_edit_replace tool", () => {
     const initialContent = "cat dog cat bird cat";
     await fs.writeFile(testFilePath, initialContent);
 
-    const content = await fs.readFile(testFilePath, "utf-8");
     const tool = createFileEditReplaceTool({ cwd: testDir });
     const args: FileEditReplaceToolArgs = {
       file_path: testFilePath,
@@ -159,7 +157,6 @@ describe("file_edit_replace tool", () => {
     const initialContent = "cat dog bird";
     await fs.writeFile(testFilePath, initialContent);
 
-    const content = await fs.readFile(testFilePath, "utf-8");
     const tool = createFileEditReplaceTool({ cwd: testDir });
     const args: FileEditReplaceToolArgs = {
       file_path: testFilePath,
@@ -189,7 +186,6 @@ describe("file_edit_replace tool", () => {
     const initialContent = "Hello world";
     await fs.writeFile(testFilePath, initialContent);
 
-    const content = await fs.readFile(testFilePath, "utf-8");
     const tool = createFileEditReplaceTool({ cwd: testDir });
     const args: FileEditReplaceToolArgs = {
       file_path: testFilePath,
@@ -219,7 +215,6 @@ describe("file_edit_replace tool", () => {
     const initialContent = "cat dog cat bird cat";
     await fs.writeFile(testFilePath, initialContent);
 
-    const content = await fs.readFile(testFilePath, "utf-8");
     const tool = createFileEditReplaceTool({ cwd: testDir });
     const args: FileEditReplaceToolArgs = {
       file_path: testFilePath,
@@ -252,7 +247,6 @@ describe("file_edit_replace tool", () => {
     const initialContent = "cat dog cat bird cat";
     await fs.writeFile(testFilePath, initialContent);
 
-    const content = await fs.readFile(testFilePath, "utf-8");
     const tool = createFileEditReplaceTool({ cwd: testDir });
     const args: FileEditReplaceToolArgs = {
       file_path: testFilePath,
@@ -282,7 +276,6 @@ describe("file_edit_replace tool", () => {
     const initialContent = "cat dog bird";
     await fs.writeFile(testFilePath, initialContent);
 
-    const content = await fs.readFile(testFilePath, "utf-8");
     const tool = createFileEditReplaceTool({ cwd: testDir });
     const args: FileEditReplaceToolArgs = {
       file_path: testFilePath,
@@ -322,7 +315,6 @@ describe("file_edit_replace tool", () => {
           new_string: "bar",
         },
       ],
-      lease: "000000", // Doesn't matter, file doesn't exist
     };
 
     // Execute
@@ -340,7 +332,6 @@ describe("file_edit_replace tool", () => {
     const initialContent = "line1\nline2\nline3\nline4";
     await fs.writeFile(testFilePath, initialContent);
 
-    const content = await fs.readFile(testFilePath, "utf-8");
     const tool = createFileEditReplaceTool({ cwd: testDir });
     const args: FileEditReplaceToolArgs = {
       file_path: testFilePath,
@@ -369,7 +360,6 @@ describe("file_edit_replace tool", () => {
     const initialContent = "Hello [DELETE_ME] world";
     await fs.writeFile(testFilePath, initialContent);
 
-    const content = await fs.readFile(testFilePath, "utf-8");
     const tool = createFileEditReplaceTool({ cwd: testDir });
     const args: FileEditReplaceToolArgs = {
       file_path: testFilePath,
@@ -398,7 +388,6 @@ describe("file_edit_replace tool", () => {
     const initialContent = "step1";
     await fs.writeFile(testFilePath, initialContent);
 
-    const content = await fs.readFile(testFilePath, "utf-8");
     const tool = createFileEditReplaceTool({ cwd: testDir });
     const args: FileEditReplaceToolArgs = {
       file_path: testFilePath,
@@ -431,7 +420,6 @@ describe("file_edit_replace tool", () => {
     const initialContent = "line1\nline2\nline3\nline4\nline5\nline6\nline7\nline8\nline9";
     await fs.writeFile(testFilePath, initialContent);
 
-    const content = await fs.readFile(testFilePath, "utf-8");
     const tool = createFileEditReplaceTool({ cwd: testDir });
     const args: FileEditReplaceToolArgs = {
       file_path: testFilePath,
