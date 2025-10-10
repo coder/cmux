@@ -66,6 +66,10 @@ export function stripReasoningForOpenAI(messages: CmuxMessage[]): CmuxMessage[] 
  * This helps the model understand that a message was interrupted and to continue.
  * The sentinel is ONLY for model context, not shown in UI.
  *
+ * OPTIMIZATION: If a user message already follows the partial assistant message,
+ * we skip the sentinel - the user message itself provides the continuation signal.
+ * This saves tokens and creates more natural conversation flow.
+ *
  * We insert a separate user message instead of modifying the assistant message
  * because if the assistant message only has reasoning (no text), it will be
  * filtered out, and we'd lose the interruption context. A user message always
@@ -74,21 +78,28 @@ export function stripReasoningForOpenAI(messages: CmuxMessage[]): CmuxMessage[] 
 export function addInterruptedSentinel(messages: CmuxMessage[]): CmuxMessage[] {
   const result: CmuxMessage[] = [];
 
-  for (const msg of messages) {
+  for (let i = 0; i < messages.length; i++) {
+    const msg = messages[i];
     result.push(msg);
 
-    // If this is a partial assistant message, insert [CONTINUE] user message after it
+    // If this is a partial assistant message, conditionally insert [CONTINUE] sentinel
     if (msg.role === "assistant" && msg.metadata?.partial) {
-      result.push({
-        id: `interrupted-${msg.id}`,
-        role: "user",
-        parts: [{ type: "text", text: "[CONTINUE]" }],
-        metadata: {
-          timestamp: msg.metadata.timestamp,
-          // Mark as synthetic so it can be identified if needed
-          synthetic: true,
-        },
-      });
+      const nextMsg = messages[i + 1];
+
+      // Only add sentinel if there's NO user message following
+      // If user message follows, it provides the continuation context itself
+      if (!nextMsg || nextMsg.role !== "user") {
+        result.push({
+          id: `interrupted-${msg.id}`,
+          role: "user",
+          parts: [{ type: "text", text: "[CONTINUE]" }],
+          metadata: {
+            timestamp: msg.metadata.timestamp,
+            // Mark as synthetic so it can be identified if needed
+            synthetic: true,
+          },
+        });
+      }
     }
   }
 

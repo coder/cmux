@@ -508,12 +508,48 @@ describe("modelMessageTransform", () => {
 
       const result = addInterruptedSentinel(messages);
 
-      // Should have 6 messages (4 original + 2 sentinels)
-      expect(result).toHaveLength(6);
-      expect(result[2].id).toBe("interrupted-assistant-1");
-      expect(result[2].role).toBe("user");
-      expect(result[5].id).toBe("interrupted-assistant-2");
-      expect(result[5].role).toBe("user");
+      // Should have 5 messages:
+      // - user-1, assistant-1 (partial), user-2 (NO SENTINEL - user follows), assistant-2 (partial), SENTINEL (last message)
+      expect(result).toHaveLength(5);
+      expect(result[0].id).toBe("user-1");
+      expect(result[1].id).toBe("assistant-1");
+      expect(result[2].id).toBe("user-2"); // No sentinel between assistant-1 and user-2
+      expect(result[3].id).toBe("assistant-2");
+      expect(result[4].id).toBe("interrupted-assistant-2"); // Sentinel after last partial
+      expect(result[4].role).toBe("user");
+    });
+
+    it("should skip sentinel when user message follows partial", () => {
+      const messages: CmuxMessage[] = [
+        {
+          id: "user-1",
+          role: "user",
+          parts: [{ type: "text", text: "Question" }],
+          metadata: { timestamp: 1000 },
+        },
+        {
+          id: "assistant-1",
+          role: "assistant",
+          parts: [{ type: "text", text: "Starting response..." }],
+          metadata: { timestamp: 2000, partial: true },
+        },
+        {
+          id: "user-2",
+          role: "user",
+          parts: [{ type: "text", text: "Follow-up question" }],
+          metadata: { timestamp: 3000 },
+        },
+      ];
+
+      const result = addInterruptedSentinel(messages);
+
+      // Should have 3 messages (no sentinel added because user-2 follows partial)
+      expect(result).toHaveLength(3);
+      expect(result[0].id).toBe("user-1");
+      expect(result[1].id).toBe("assistant-1");
+      expect(result[2].id).toBe("user-2");
+      // No synthetic sentinel should exist
+      expect(result.every((msg) => !msg.metadata?.synthetic)).toBe(true);
     });
   });
 
