@@ -20,6 +20,19 @@ const TitleBarContainer = styled.div`
 const TitleText = styled.div`
   font-weight: normal;
   letter-spacing: 0.5px;
+`;
+
+const CmuxLink = styled.a`
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+
+  &:hover {
+    text-decoration: underline;
+  }
+`;
+
+const VersionText = styled.span`
   user-select: text;
   cursor: text;
 `;
@@ -57,7 +70,15 @@ export function TitleBar() {
 
   return (
     <TitleBarContainer>
-      <TitleText>cmux {VERSION.git_describe}</TitleText>
+      <TitleText>
+        <TooltipWrapper>
+          <CmuxLink href="https://cmux.io" target="_blank" rel="noopener noreferrer">
+            cmux
+          </CmuxLink>
+          <Tooltip align="left">Documentation (cmux.io)</Tooltip>
+        </TooltipWrapper>{" "}
+        <VersionText>{VERSION.git_describe}</VersionText>
+      </TitleText>
       <TooltipWrapper>
         <BuildInfo>{buildDate}</BuildInfo>
         <Tooltip align="right">Built at {extendedTimestamp}</Tooltip>
