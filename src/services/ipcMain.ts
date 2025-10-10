@@ -825,6 +825,7 @@ export class IpcMain {
         } else {
           // Linux - try common terminal emulators in order of preference
           const terminals = [
+            { cmd: "ghostty", args: ["--working-directory=" + workspacePath] },
             { cmd: "alacritty", args: ["--working-directory", workspacePath] },
             { cmd: "kitty", args: ["--directory", workspacePath] },
             { cmd: "wezterm", args: ["start", "--cwd", workspacePath] },
