@@ -29,6 +29,12 @@ jobs:
           curl -sS https://webinstall.dev/shfmt | bash
           echo "$HOME/.local/bin" >> $GITHUB_PATH
 
+      - name: Install Nix
+        uses: cachix/install-nix-action@v27
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+
       - name: Run static checks
         run: make -j3 static-check
 
