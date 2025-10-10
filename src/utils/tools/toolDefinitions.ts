@@ -26,13 +26,6 @@ interface ToolSchema {
 }
 
 /**
- * Shared schema definitions
- */
-const leaseSchema = z
-  .string()
-  .describe("The lease from the file_read result. Used to prevent edits on stale file state.");
-
-/**
  * Tool definitions: single source of truth
  * Key = tool name, Value = { description, schema }
  */
@@ -112,7 +105,6 @@ export const TOOL_DEFINITIONS = {
         )
         .min(1)
         .describe("Array of edits to apply sequentially"),
-      lease: leaseSchema,
     }),
   },
   file_edit_insert: {
@@ -126,7 +118,6 @@ export const TOOL_DEFINITIONS = {
         .min(0)
         .describe("1-indexed line position (0 = insert at top, N = insert after line N)"),
       content: z.string().describe("The content to insert"),
-      lease: leaseSchema,
     }),
   },
   propose_plan: {

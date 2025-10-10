@@ -3,7 +3,6 @@ import * as fs from "fs/promises";
 import * as path from "path";
 import * as os from "os";
 import { createFileEditInsertTool } from "./file_edit_insert";
-import { leaseFromContent } from "./fileCommon";
 import type { FileEditInsertToolArgs, FileEditInsertToolResult } from "@/types/tools";
 import type { ToolCallOptions } from "ai";
 
@@ -33,15 +32,11 @@ describe("file_edit_insert tool", () => {
     const initialContent = "line1\nline2\nline3";
     await fs.writeFile(testFilePath, initialContent);
 
-    const content = await fs.readFile(testFilePath, "utf-8");
-    const lease = leaseFromContent(content);
-
     const tool = createFileEditInsertTool({ cwd: testDir });
     const args: FileEditInsertToolArgs = {
       file_path: testFilePath,
       line_offset: 0,
       content: "INSERTED",
-      lease,
     };
 
     // Execute
@@ -49,10 +44,6 @@ describe("file_edit_insert tool", () => {
 
     // Assert
     expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.lease).toMatch(/^[0-9a-f]{6}$/);
-      expect(result.lease).not.toBe(lease); // New lease should be different
-    }
 
     const updatedContent = await fs.readFile(testFilePath, "utf-8");
     expect(updatedContent).toBe("INSERTED\nline1\nline2\nline3");
@@ -63,15 +54,11 @@ describe("file_edit_insert tool", () => {
     const initialContent = "line1\nline2\nline3";
     await fs.writeFile(testFilePath, initialContent);
 
-    const content = await fs.readFile(testFilePath, "utf-8");
-    const lease = leaseFromContent(content);
-
     const tool = createFileEditInsertTool({ cwd: testDir });
     const args: FileEditInsertToolArgs = {
       file_path: testFilePath,
       line_offset: 1,
       content: "INSERTED",
-      lease,
     };
 
     // Execute
@@ -79,9 +66,6 @@ describe("file_edit_insert tool", () => {
 
     // Assert
     expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.lease).toMatch(/^[0-9a-f]{6}$/);
-    }
 
     const updatedContent = await fs.readFile(testFilePath, "utf-8");
     expect(updatedContent).toBe("line1\nINSERTED\nline2\nline3");
@@ -92,15 +76,11 @@ describe("file_edit_insert tool", () => {
     const initialContent = "line1\nline2\nline3";
     await fs.writeFile(testFilePath, initialContent);
 
-    const content = await fs.readFile(testFilePath, "utf-8");
-    const lease = leaseFromContent(content);
-
     const tool = createFileEditInsertTool({ cwd: testDir });
     const args: FileEditInsertToolArgs = {
       file_path: testFilePath,
       line_offset: 2,
       content: "INSERTED",
-      lease,
     };
 
     // Execute
@@ -108,9 +88,6 @@ describe("file_edit_insert tool", () => {
 
     // Assert
     expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.lease).toMatch(/^[0-9a-f]{6}$/);
-    }
 
     const updatedContent = await fs.readFile(testFilePath, "utf-8");
     expect(updatedContent).toBe("line1\nline2\nINSERTED\nline3");
@@ -121,15 +98,11 @@ describe("file_edit_insert tool", () => {
     const initialContent = "line1\nline2\nline3";
     await fs.writeFile(testFilePath, initialContent);
 
-    const content = await fs.readFile(testFilePath, "utf-8");
-    const lease = leaseFromContent(content);
-
     const tool = createFileEditInsertTool({ cwd: testDir });
     const args: FileEditInsertToolArgs = {
       file_path: testFilePath,
       line_offset: 3,
       content: "INSERTED",
-      lease,
     };
 
     // Execute
@@ -137,9 +110,6 @@ describe("file_edit_insert tool", () => {
 
     // Assert
     expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.lease).toMatch(/^[0-9a-f]{6}$/);
-    }
 
     const updatedContent = await fs.readFile(testFilePath, "utf-8");
     expect(updatedContent).toBe("line1\nline2\nline3\nINSERTED");
@@ -150,15 +120,11 @@ describe("file_edit_insert tool", () => {
     const initialContent = "line1\nline2";
     await fs.writeFile(testFilePath, initialContent);
 
-    const content = await fs.readFile(testFilePath, "utf-8");
-    const lease = leaseFromContent(content);
-
     const tool = createFileEditInsertTool({ cwd: testDir });
     const args: FileEditInsertToolArgs = {
       file_path: testFilePath,
       line_offset: 1,
       content: "INSERTED1\nINSERTED2",
-      lease,
     };
 
     // Execute
@@ -166,9 +132,6 @@ describe("file_edit_insert tool", () => {
 
     // Assert
     expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.lease).toMatch(/^[0-9a-f]{6}$/);
-    }
 
     const updatedContent = await fs.readFile(testFilePath, "utf-8");
     expect(updatedContent).toBe("line1\nINSERTED1\nINSERTED2\nline2");
@@ -178,15 +141,11 @@ describe("file_edit_insert tool", () => {
     // Setup
     await fs.writeFile(testFilePath, "");
 
-    const content = await fs.readFile(testFilePath, "utf-8");
-    const lease = leaseFromContent(content);
-
     const tool = createFileEditInsertTool({ cwd: testDir });
     const args: FileEditInsertToolArgs = {
       file_path: testFilePath,
       line_offset: 0,
       content: "INSERTED",
-      lease,
     };
 
     // Execute
@@ -194,9 +153,6 @@ describe("file_edit_insert tool", () => {
 
     // Assert
     expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.lease).toMatch(/^[0-9a-f]{6}$/);
-    }
 
     const updatedContent = await fs.readFile(testFilePath, "utf-8");
     expect(updatedContent).toBe("INSERTED\n");
@@ -211,7 +167,6 @@ describe("file_edit_insert tool", () => {
       file_path: nonExistentPath,
       line_offset: 0,
       content: "INSERTED",
-      lease: "000000", // Doesn't matter, file doesn't exist
     };
 
     // Execute
@@ -229,15 +184,11 @@ describe("file_edit_insert tool", () => {
     const initialContent = "line1\nline2";
     await fs.writeFile(testFilePath, initialContent);
 
-    const content = await fs.readFile(testFilePath, "utf-8");
-    const lease = leaseFromContent(content);
-
     const tool = createFileEditInsertTool({ cwd: testDir });
     const args: FileEditInsertToolArgs = {
       file_path: testFilePath,
       line_offset: -1,
       content: "INSERTED",
-      lease,
     };
 
     // Execute
@@ -255,15 +206,11 @@ describe("file_edit_insert tool", () => {
     const initialContent = "line1\nline2";
     await fs.writeFile(testFilePath, initialContent);
 
-    const content = await fs.readFile(testFilePath, "utf-8");
-    const lease = leaseFromContent(content);
-
     const tool = createFileEditInsertTool({ cwd: testDir });
     const args: FileEditInsertToolArgs = {
       file_path: testFilePath,
       line_offset: 10, // File only has 2 lines
       content: "INSERTED",
-      lease,
     };
 
     // Execute
@@ -273,64 +220,6 @@ describe("file_edit_insert tool", () => {
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.error).toContain("beyond file length");
-    }
-  });
-
-  it("should reject edit with incorrect lease", async () => {
-    // Setup
-    const initialContent = "line1\nline2";
-    await fs.writeFile(testFilePath, initialContent);
-
-    const tool = createFileEditInsertTool({ cwd: testDir });
-    const args: FileEditInsertToolArgs = {
-      file_path: testFilePath,
-      line_offset: 1,
-      content: "INSERTED",
-      lease: "ffffff", // Incorrect lease
-    };
-
-    // Execute
-    const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditInsertToolResult;
-
-    // Assert
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error).toContain("lease mismatch");
-      expect(result.error).toContain("obtain a new lease from tool");
-    }
-
-    // File should remain unchanged
-    const content = await fs.readFile(testFilePath, "utf-8");
-    expect(content).toBe(initialContent);
-  });
-
-  it("should detect file modified between read and insert", async () => {
-    // Setup - create initial file
-    const initialContent = "line1\nline2";
-    await fs.writeFile(testFilePath, initialContent);
-
-    // Get initial lease
-    const content = await fs.readFile(testFilePath, "utf-8");
-    const lease = leaseFromContent(content);
-
-    // Modify file to simulate concurrent edit
-    await fs.writeFile(testFilePath, "Modified content");
-
-    const tool = createFileEditInsertTool({ cwd: testDir });
-    const args: FileEditInsertToolArgs = {
-      file_path: testFilePath,
-      line_offset: 1,
-      content: "INSERTED",
-      lease, // This lease is now stale
-    };
-
-    // Execute
-    const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditInsertToolResult;
-
-    // Assert
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error).toContain("lease mismatch");
     }
   });
 });

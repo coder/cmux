@@ -46,7 +46,6 @@ describe("file_read tool", () => {
       expect(result.lines_read).toBe(3);
       expect(result.content).toBe("1\tline one\n2\tline two\n3\tline three");
       expect(result.file_size).toBeGreaterThan(0);
-      expect(result.lease).toMatch(/^[0-9a-f]{6}$/);
     }
   });
 
@@ -69,7 +68,6 @@ describe("file_read tool", () => {
     if (result.success) {
       expect(result.lines_read).toBe(3);
       expect(result.content).toBe("3\tline3\n4\tline4\n5\tline5");
-      expect(result.lease).toMatch(/^[0-9a-f]{6}$/);
     }
   });
 
@@ -92,7 +90,6 @@ describe("file_read tool", () => {
     if (result.success) {
       expect(result.lines_read).toBe(2);
       expect(result.content).toBe("1\tline1\n2\tline2");
-      expect(result.lease).toMatch(/^[0-9a-f]{6}$/);
     }
   });
 
@@ -116,7 +113,6 @@ describe("file_read tool", () => {
     if (result.success) {
       expect(result.lines_read).toBe(2);
       expect(result.content).toBe("2\tline2\n3\tline3");
-      expect(result.lease).toMatch(/^[0-9a-f]{6}$/);
     }
   });
 
@@ -138,7 +134,6 @@ describe("file_read tool", () => {
     if (result.success) {
       expect(result.lines_read).toBe(1);
       expect(result.content).toBe("1\tsingle line");
-      expect(result.lease).toMatch(/^[0-9a-f]{6}$/);
     }
   });
 
@@ -159,7 +154,6 @@ describe("file_read tool", () => {
     if (result.success) {
       expect(result.lines_read).toBe(0);
       expect(result.content).toBe("");
-      expect(result.lease).toMatch(/^[0-9a-f]{6}$/);
     }
   });
 
@@ -226,7 +220,6 @@ describe("file_read tool", () => {
       expect(lines[1]).toContain("... [truncated]");
       expect(Buffer.byteLength(lines[1], "utf-8")).toBeLessThan(1100); // Should be around 1024 + prefix + truncation marker
       expect(lines[2]).toBe("3\tanother short line");
-      expect(result.lease).toMatch(/^[0-9a-f]{6}$/);
     }
   });
 
@@ -294,7 +287,6 @@ describe("file_read tool", () => {
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.lines_read).toBe(500);
-      expect(result.lease).toMatch(/^[0-9a-f]{6}$/);
     }
   });
 
