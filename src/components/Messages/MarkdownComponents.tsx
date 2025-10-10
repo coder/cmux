@@ -44,7 +44,7 @@ export const markdownComponents = {
     <details
       open={open}
       style={{
-        margin: "1em 0",
+        margin: "0.5em 0",
         padding: "0.25em 0.5em",
         border: "1px solid rgba(255, 255, 255, 0.1)",
         borderRadius: "4px",
