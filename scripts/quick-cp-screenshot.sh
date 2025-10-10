@@ -37,7 +37,7 @@ OUTPUT_FILE="$PROJECT_ROOT/docs/img/$FILENAME.webp"
 
 # Convert PNG to WebP using cwebp (as suggested by lint)
 echo "Converting to WebP..."
-if ! command -v cwebp &> /dev/null; then
+if ! command -v cwebp &>/dev/null; then
   echo "❌ Error: cwebp not found. Install with: brew install webp"
   exit 1
 fi
