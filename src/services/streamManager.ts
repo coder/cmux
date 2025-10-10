@@ -10,6 +10,7 @@ import {
   APICallError,
   RetryError,
 } from "ai";
+import type { LanguageModelV2Usage } from "@ai-sdk/provider";
 import type { Result } from "@/types/result";
 import { Ok, Err } from "@/types/result";
 import { log } from "./log";
@@ -220,6 +221,33 @@ export class StreamManager extends EventEmitter {
   }
 
   /**
+   * Extracts usage and duration metadata from stream result.
+   *
+   * Usage is only available after stream completes naturally.
+   * On abort, the usage promise may hang - we use a timeout to return quickly.
+   */
+  private async getStreamMetadata(
+    streamInfo: WorkspaceStreamInfo,
+    timeoutMs = 1000
+  ): Promise<{ usage?: LanguageModelV2Usage; duration: number }> {
+    let usage = undefined;
+    try {
+      // Race usage retrieval against timeout to prevent hanging on abort
+      usage = await Promise.race([
+        streamInfo.streamResult.usage,
+        new Promise<undefined>((resolve) => setTimeout(() => resolve(undefined), timeoutMs)),
+      ]);
+    } catch (error) {
+      log.debug("Could not retrieve usage:", error);
+    }
+
+    return {
+      usage,
+      duration: Date.now() - streamInfo.startTime,
+    };
+  }
+
+  /**
    * Safely cancels an existing stream with proper cleanup
    *
    * CRITICAL: Waits for the processing promise to complete before cleanup.
@@ -243,11 +271,15 @@ export class StreamManager extends EventEmitter {
       // while a new stream starts (e.g., old stream writing to partial.json)
       await streamInfo.processingPromise;
 
-      // Emit abort event
+      // Get usage and duration metadata (usage may be undefined if aborted early)
+      const { usage, duration } = await this.getStreamMetadata(streamInfo);
+
+      // Emit abort event with usage if available
       this.emit("stream-abort", {
         type: "stream-abort",
         workspaceId: workspaceId as string,
         messageId: streamInfo.messageId,
+        metadata: { usage, duration },
       });
 
       // Clean up immediately
@@ -580,8 +612,8 @@ export class StreamManager extends EventEmitter {
 
       // Check if stream completed successfully
       if (!streamInfo.abortController.signal.aborted) {
-        // Get usage and provider metadata from stream result
-        const usage = await streamInfo.streamResult.usage;
+        // Get usage, duration, and provider metadata from stream result
+        const { usage, duration } = await this.getStreamMetadata(streamInfo);
         const providerMetadata = await streamInfo.streamResult.providerMetadata;
 
         // Emit stream end event with parts preserved in temporal order
@@ -594,7 +626,7 @@ export class StreamManager extends EventEmitter {
             model: streamInfo.model,
             usage, // AI SDK normalized usage
             providerMetadata, // Raw provider metadata
-            duration: Date.now() - streamInfo.startTime,
+            duration,
           },
           parts: streamInfo.parts, // Parts array with temporal ordering (includes reasoning)
         };
