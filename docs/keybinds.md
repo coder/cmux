@@ -22,14 +22,15 @@ When documentation shows `Ctrl`, it means:
 
 ## Chat & Messages
 
-| Action                 | Shortcut      |
-| ---------------------- | ------------- |
-| Focus chat input       | `a` or `i`    |
-| Send message           | `Enter`       |
-| New line in message    | `Shift+Enter` |
-| Cancel editing message | `Ctrl+Q`      |
-| Jump to bottom of chat | `Shift+G`     |
-| Change model           | `Ctrl+/`      |
+| Action                 | Shortcut         |
+| ---------------------- | ---------------- |
+| Focus chat input       | `a`, `i`, or `Ctrl+I` |
+| Send message           | `Enter`          |
+| New line in message    | `Shift+Enter`    |
+| Cancel editing message | `Ctrl+Q`         |
+| Jump to bottom of chat | `Shift+G`        |
+| Change model           | `Ctrl+/`         |
+| Toggle thinking level  | `Ctrl+Shift+T`   |
 
 ## Workspaces
 
@@ -59,3 +60,5 @@ When documentation shows `Ctrl`, it means:
 - **VS Code conventions**: Command palette is `Ctrl+Shift+P` and quick toggle is `Ctrl+P` (use `⌘` on macOS)
 - **Consistent modifiers**: Most workspace/project operations use `Ctrl` as the modifier
 - **Natural expectations**: We try to use shortcuts users would naturally expect (e.g., `Ctrl+N` for new)
+- **Focus anywhere**: Use `Ctrl+I` to quickly jump to the chat input from anywhere in the application
+- **Per-model thinking**: `Ctrl+Shift+T` toggles thinking on/off and remembers your last preference for each model

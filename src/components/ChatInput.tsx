@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect, useId } from "react";
+import React, { useState, useRef, useCallback, useEffect, useId, useImperativeHandle, forwardRef } from "react";
 import styled from "@emotion/styled";
 import { CommandSuggestions, COMMAND_SUGGESTION_KEYS } from "./CommandSuggestions";
 import type { Toast } from "./ChatInputToast";
@@ -123,6 +123,10 @@ export interface ChatInputProps {
   editingMessage?: { id: string; content: string };
   onCancelEdit?: () => void;
   canInterrupt?: boolean; // Whether Esc can be used to interrupt streaming
+}
+
+export interface ChatInputRef {
+  focus: () => void;
 }
 
 // Helper function to convert parsed command to display toast
@@ -276,18 +280,21 @@ const createErrorToast = (error: SendMessageErrorType): Toast => {
   }
 };
 
-export const ChatInput: React.FC<ChatInputProps> = ({
-  workspaceId,
-  onMessageSent,
-  onTruncateHistory,
-  onProviderConfig,
-  onModelChange,
-  disabled = false,
-  isCompacting = false,
-  editingMessage,
-  onCancelEdit,
-  canInterrupt = false,
-}) => {
+export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>((
+  {
+    workspaceId,
+    onMessageSent,
+    onTruncateHistory,
+    onProviderConfig,
+    onModelChange,
+    disabled = false,
+    isCompacting = false,
+    editingMessage,
+    onCancelEdit,
+    canInterrupt = false,
+  },
+  ref
+) => {
   const [input, setInput] = usePersistedState(getInputKey(workspaceId), "");
   const [isSending, setIsSending] = useState(false);
   const [showCommandSuggestions, setShowCommandSuggestions] = useState(false);
@@ -330,6 +337,11 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       element.style.height = Math.min(element.scrollHeight, window.innerHeight * 0.5) + "px";
     });
   }, []);
+
+  // Expose focus method to parent
+  useImperativeHandle(ref, () => ({
+    focus: focusMessageInput,
+  }), [focusMessageInput]);
 
   useEffect(() => {
     const handleGlobalKeyDown = (event: KeyboardEvent) => {
@@ -878,4 +890,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       </ModeToggles>
     </InputSection>
   );
-};
+});
+
+ChatInput.displayName = "ChatInput";

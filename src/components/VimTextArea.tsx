@@ -3,6 +3,7 @@ import styled from "@emotion/styled";
 import type { UIMode } from "@/types/mode";
 import * as vim from "@/utils/vim";
 import { TooltipWrapper, Tooltip, HelpIndicator } from "./Tooltip";
+import { formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
 
 /**
  * VimTextArea – minimal Vim-like editing for a textarea.
@@ -80,7 +81,21 @@ const ModeIndicator = styled.div`
   margin-bottom: 1px; /* Minimal spacing between indicator and textarea */
   display: flex;
   align-items: center;
+  justify-content: space-between; /* Space between left (vim mode) and right (focus hint) */
   gap: 4px;
+`;
+
+const ModeLeftSection = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 4px;
+`;
+
+const ModeRightSection = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
 `;
 
 const ModeText = styled.span`
@@ -110,6 +125,7 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
     }, [ref]);
 
     const [vimMode, setVimMode] = useState<VimMode>("insert");
+    const [isFocused, setIsFocused] = useState(false);
     const [desiredColumn, setDesiredColumn] = useState<number | null>(null);
     const [pendingOp, setPendingOp] = useState<null | {
       op: "d" | "y" | "c";
@@ -215,38 +231,46 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
     // Build mode indicator content
     const showVimMode = vimMode === "normal";
     const pendingCommand = showVimMode ? vim.formatPendingCommand(pendingOp) : "";
+    const showFocusHint = !isFocused;
 
     return (
       <div style={{ width: "100%" }} data-component="VimTextAreaContainer">
         <ModeIndicator aria-live="polite">
-          {showVimMode && (
-            <>
-              <TooltipWrapper>
-                <HelpIndicator>?</HelpIndicator>
-                <Tooltip align="left" width="wide">
-                  <strong>Vim Mode Enabled</strong>
-                  <br />
-                  <br />
-                  Press <strong>ESC</strong> for normal mode, <strong>i</strong> to return to insert
-                  mode.
-                  <br />
-                  <br />
-                  See{" "}
-                  <a
-                    href="#"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      window.open("/docs/vim-mode.md");
-                    }}
-                  >
-                    Vim Mode docs
-                  </a>{" "}
-                  for full command reference.
-                </Tooltip>
-              </TooltipWrapper>
-              <ModeText>normal</ModeText>
-              {pendingCommand && <span>{pendingCommand}</span>}
-            </>
+          <ModeLeftSection>
+            {showVimMode && (
+              <>
+                <TooltipWrapper>
+                  <HelpIndicator>?</HelpIndicator>
+                  <Tooltip align="left" width="wide">
+                    <strong>Vim Mode Enabled</strong>
+                    <br />
+                    <br />
+                    Press <strong>ESC</strong> for normal mode, <strong>i</strong> to return to insert
+                    mode.
+                    <br />
+                    <br />
+                    See{" "}
+                    <a
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        window.open("/docs/vim-mode.md");
+                      }}
+                    >
+                      Vim Mode docs
+                    </a>{" "}
+                    for full command reference.
+                  </Tooltip>
+                </TooltipWrapper>
+                <ModeText>normal</ModeText>
+                {pendingCommand && <span>{pendingCommand}</span>}
+              </>
+            )}
+          </ModeLeftSection>
+          {showFocusHint && (
+            <ModeRightSection>
+              <span>{formatKeybind(KEYBINDS.FOCUS_CHAT)} to focus</span>
+            </ModeRightSection>
           )}
         </ModeIndicator>
         <div style={{ position: "relative" }} data-component="VimTextAreaWrapper">
@@ -255,6 +279,8 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
             value={value}
             onChange={(e) => onChange(e.target.value)}
             onKeyDown={handleKeyDownInternal}
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => setIsFocused(false)}
             isEditing={isEditing}
             mode={mode}
             vimMode={vimMode}
