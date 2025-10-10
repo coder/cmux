@@ -71,6 +71,37 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 
+  e2e-test:
+    name: End-to-End Tests
+    runs-on: ubuntu-latest-8-cores
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb
+
+      - name: Install Playwright runtime dependencies
+        run: bun x playwright install-deps
+
+      - name: Install Playwright browsers
+        run: bun x playwright install --with-deps
+
+      - name: Run e2e tests
+        run: xvfb-run -a make test-e2e
+        env:
+          ELECTRON_DISABLE_SANDBOX: 1
+
   check-codex-comments:
     name: Check Codex Comments
     runs-on: ubuntu-latest
