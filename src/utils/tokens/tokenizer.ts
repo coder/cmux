@@ -5,11 +5,55 @@
 import AITokenizer, { type Encoding, models } from "ai-tokenizer";
 import * as o200k_base from "ai-tokenizer/encoding/o200k_base";
 import * as claude from "ai-tokenizer/encoding/claude";
+import { LRUCache } from "lru-cache";
+import CRC32 from "crc-32";
 import { getToolSchemas, getAvailableTools } from "@/utils/tools/toolDefinitions";
 
 export interface Tokenizer {
   name: string;
   countTokens: (text: string) => number;
+}
+
+/**
+ * LRU cache for token counts by text checksum
+ * Avoids re-tokenizing identical strings (system messages, tool definitions, etc.)
+ * Key: CRC32 checksum of text, Value: token count
+ */
+const tokenCountCache = new LRUCache<number, number>({
+  max: 500000, // Max entries (safety limit)
+  maxSize: 16 * 1024 * 1024, // 16MB total cache size
+  sizeCalculation: () => {
+    // Each entry: ~8 bytes (key) + ~8 bytes (value) + ~32 bytes (LRU overhead) ≈ 48 bytes
+    return 48;
+  },
+});
+
+/**
+ * Count tokens with caching via CRC32 checksum
+ * Avoids re-tokenizing identical strings (system messages, tool definitions, etc.)
+ *
+ * NOTE: For async tokenization, this returns an approximation immediately and caches
+ * the accurate count in the background. Subsequent calls will use the cached accurate count.
+ */
+function countTokensCached(text: string, tokenizeFn: () => number | Promise<number>): number {
+  const checksum = CRC32.str(text);
+  const cached = tokenCountCache.get(checksum);
+  if (cached !== undefined) {
+    return cached;
+  }
+
+  const result = tokenizeFn();
+
+  // Synchronous case: cache and return immediately
+  if (typeof result === "number") {
+    tokenCountCache.set(checksum, result);
+    return result;
+  }
+
+  // Async case: return approximation now, cache accurate value when ready
+  const approximation = Math.ceil(text.length / 4);
+  void result.then((count) => tokenCountCache.set(checksum, count));
+  return approximation;
 }
 
 /**
@@ -55,7 +99,15 @@ export function getTokenizerForModel(modelString: string): Tokenizer {
       return hasExactTokenizer ? model.encoding : "approximation";
     },
     countTokens: (text: string) => {
-      return tokenizer.count(text);
+      return countTokensCached(text, () => {
+        try {
+          return tokenizer.count(text);
+        } catch (error) {
+          // Unexpected error during tokenization, fallback to approximation
+          console.error("Failed to tokenize with tiktoken, falling back to approximation:", error);
+          return Math.ceil(text.length / 4);
+        }
+      });
     },
   };
 }
