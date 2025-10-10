@@ -7,7 +7,10 @@ import { RetryBarrier } from "./Messages/ChatBarrier/RetryBarrier";
 import { getAutoRetryKey } from "@/constants/storage";
 import { ChatInput, type ChatInputAPI } from "./ChatInput";
 import { ChatMetaSidebar } from "./ChatMetaSidebar";
-import { shouldShowInterruptedBarrier } from "@/utils/messages/messageUtils";
+import {
+  shouldShowInterruptedBarrier,
+  mergeConsecutiveStreamErrors,
+} from "@/utils/messages/messageUtils";
 import { hasInterruptedStream } from "@/utils/messages/retryEligibility";
 import { ChatProvider } from "@/contexts/ChatContext";
 import { ThinkingProvider } from "@/contexts/ThinkingContext";
@@ -263,9 +266,12 @@ const AIViewInner: React.FC<AIViewProps> = ({
     setEditingMessage(undefined);
   }, []);
 
+  // Merge consecutive identical stream errors
+  const mergedMessages = mergeConsecutiveStreamErrors(messages);
+
   // When editing, find the cutoff point
   const editCutoffHistoryId = editingMessage
-    ? messages.find(
+    ? mergedMessages.find(
         (msg): msg is Exclude<DisplayedMessage, { type: "history-hidden" }> =>
           msg.type !== "history-hidden" && msg.historyId === editingMessage.id
       )?.historyId
@@ -393,14 +399,14 @@ const AIViewInner: React.FC<AIViewProps> = ({
               aria-label="Conversation transcript"
               tabIndex={0}
             >
-              {messages.length === 0 ? (
+              {mergedMessages.length === 0 ? (
                 <EmptyState>
                   <h3>No Messages Yet</h3>
                   <p>Send a message below to begin</p>
                 </EmptyState>
               ) : (
                 <>
-                  {messages.map((msg) => {
+                  {mergedMessages.map((msg) => {
                     const isAtCutoff =
                       editCutoffHistoryId !== undefined &&
                       msg.type !== "history-hidden" &&

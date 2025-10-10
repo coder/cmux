@@ -1,6 +1,7 @@
 import React from "react";
 import styled from "@emotion/styled";
 import type { DisplayedMessage } from "@/types/message";
+import type { DisplayedMessageWithErrorCount } from "@/utils/messages/messageUtils";
 
 const ErrorContainer = styled.div`
   background: var(--color-error-bg);
@@ -46,8 +47,20 @@ const ErrorType = styled.span`
   letter-spacing: 0.5px;
 `;
 
+const ErrorCount = styled.span`
+  font-family: var(--font-monospace);
+  font-size: 10px;
+  color: var(--color-error);
+  background: rgba(255, 0, 0, 0.15);
+  padding: 3px 8px;
+  border-radius: 3px;
+  letter-spacing: 0.3px;
+  font-weight: 600;
+  margin-left: auto;
+`;
+
 interface StreamErrorMessageProps {
-  message: DisplayedMessage & { type: "stream-error" };
+  message: DisplayedMessageWithErrorCount & { type: "stream-error" };
   className?: string;
   workspaceId?: string;
   model?: string;
@@ -55,12 +68,15 @@ interface StreamErrorMessageProps {
 
 // Note: RetryBarrier now handles all retry UI. This component just displays the error.
 export const StreamErrorMessage: React.FC<StreamErrorMessageProps> = ({ message, className }) => {
+  const showCount = message.errorCount !== undefined && message.errorCount > 1;
+
   return (
     <ErrorContainer className={className}>
       <ErrorHeader>
         <ErrorIcon>●</ErrorIcon>
         <span>Stream Error</span>
         <ErrorType>{message.errorType}</ErrorType>
+        {showCount && <ErrorCount>×{message.errorCount}</ErrorCount>}
       </ErrorHeader>
       <ErrorContent>{message.error}</ErrorContent>
     </ErrorContainer>

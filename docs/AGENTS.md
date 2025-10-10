@@ -112,6 +112,8 @@ Verify with React DevTools Profiler - MarkdownCore should only re-render when co
 - **Developer docs** → inline with the code its documenting as comments. Consider them notes as notes to future Assistants to understand the logic more quickly.
   **DO NOT** create standalone documentation files in the project root or random locations.
 
+**NEVER create markdown documentation files (README, guides, summaries, etc.) in the project root during feature development unless the user explicitly requests documentation.** Code + tests + inline comments are complete documentation.
+
 ### External API Docs
 
 DO NOT visit https://sdk.vercel.ai/docs/ai-sdk-core. All of that content is already
