@@ -841,7 +841,7 @@ export class IpcMain {
 
           if (availableTerminal) {
             const child = spawn(availableTerminal.cmd, availableTerminal.args, {
-              cwd: availableTerminal.cwd || workspacePath,
+              cwd: availableTerminal.cwd ?? workspacePath,
               detached: true,
               stdio: "ignore",
             });
@@ -1161,6 +1161,6 @@ export class IpcMain {
    * Find the first available command from a list of commands
    */
   private findAvailableCommand(commands: string[]): string | null {
-    return commands.find((cmd) => this.isCommandAvailable(cmd)) || null;
+    return commands.find((cmd) => this.isCommandAvailable(cmd)) ?? null;
   }
 }
