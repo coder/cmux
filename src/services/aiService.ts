@@ -440,7 +440,7 @@ export class AIService extends EventEmitter {
         log.debug("Keeping reasoning parts for OpenAI (fetch wrapper handles item_references)");
       }
 
-      // Add [INTERRUPTED] sentinel to partial messages (for model context)
+      // Add [CONTINUE] sentinel to partial messages (for model context)
       const messagesWithSentinel = addInterruptedSentinel(filteredMessages);
 
       // Convert CmuxMessage to ModelMessage format using Vercel AI SDK utility

@@ -13,7 +13,7 @@ export interface CmuxMetadata {
   providerMetadata?: Record<string, unknown>; // Raw AI SDK provider data
   systemMessageTokens?: number; // Token count for system message sent with this request (calculated by AIService)
   partial?: boolean; // Whether this message was interrupted and is incomplete
-  synthetic?: boolean; // Whether this message was synthetically generated (e.g., [INTERRUPTED] sentinel)
+  synthetic?: boolean; // Whether this message was synthetically generated (e.g., [CONTINUE] sentinel)
   error?: string; // Error message if stream failed
   errorType?: StreamErrorType; // Error type/category if stream failed
   compacted?: boolean; // Whether this message is a compacted summary of previous history

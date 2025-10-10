@@ -420,13 +420,13 @@ describe("modelMessageTransform", () => {
 
       const result = addInterruptedSentinel(messages);
 
-      // Should have 3 messages: user, assistant, [INTERRUPTED] user
+      // Should have 3 messages: user, assistant, [CONTINUE] user
       expect(result).toHaveLength(3);
       expect(result[0].id).toBe("user-1");
       expect(result[1].id).toBe("assistant-1");
       expect(result[2].id).toBe("interrupted-assistant-1");
       expect(result[2].role).toBe("user");
-      expect(result[2].parts).toEqual([{ type: "text", text: "[INTERRUPTED]" }]);
+      expect(result[2].parts).toEqual([{ type: "text", text: "[CONTINUE]" }]);
       expect(result[2].metadata?.synthetic).toBe(true);
       expect(result[2].metadata?.timestamp).toBe(2000);
     });
@@ -472,10 +472,10 @@ describe("modelMessageTransform", () => {
 
       const result = addInterruptedSentinel(messages);
 
-      // Should have 3 messages: user, assistant (reasoning only), [INTERRUPTED] user
+      // Should have 3 messages: user, assistant (reasoning only), [CONTINUE] user
       expect(result).toHaveLength(3);
       expect(result[2].role).toBe("user");
-      expect(result[2].parts).toEqual([{ type: "text", text: "[INTERRUPTED]" }]);
+      expect(result[2].parts).toEqual([{ type: "text", text: "[CONTINUE]" }]);
     });
 
     it("should handle multiple partial messages", () => {
