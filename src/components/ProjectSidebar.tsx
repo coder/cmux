@@ -15,6 +15,7 @@ import { GitStatusIndicator } from "./GitStatusIndicator";
 import type { WorkspaceState } from "@/hooks/useWorkspaceAggregators";
 import SecretsModal from "./SecretsModal";
 import type { Secret } from "@/types/secrets";
+import { ForceDeleteModal } from "./ForceDeleteModal";
 
 // Styled Components
 const SidebarContent = styled.div`
@@ -436,6 +437,11 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
     projectName: string;
     secrets: Secret[];
   } | null>(null);
+  const [forceDeleteModal, setForceDeleteModal] = useState<{
+    isOpen: boolean;
+    workspaceId: string;
+    error: string;
+  } | null>(null);
 
   const getProjectName = (path: string) => {
     if (!path || typeof path !== "string") {
@@ -506,20 +512,32 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
   const handleRemoveWorkspace = async (workspaceId: string, buttonElement: HTMLElement) => {
     const result = await onRemoveWorkspace(workspaceId);
     if (!result.success) {
-      // Get button position to place error near it
-      const rect = buttonElement.getBoundingClientRect();
-      setRemoveError({
-        workspaceId,
-        error: result.error ?? "Failed to remove workspace",
-        position: {
-          top: rect.top + window.scrollY,
-          left: rect.right + 10, // 10px to the right of button
-        },
-      });
-      // Clear error after 5 seconds
-      setTimeout(() => {
-        setRemoveError(null);
-      }, 5000);
+      const error = result.error ?? "Failed to remove workspace";
+      
+      // Check if this is a git --delete error (uncommitted changes, etc.)
+      if (error.includes("--delete")) {
+        // Show force delete modal instead of toast
+        setForceDeleteModal({
+          isOpen: true,
+          workspaceId,
+          error,
+        });
+      } else {
+        // Show regular error toast
+        const rect = buttonElement.getBoundingClientRect();
+        setRemoveError({
+          workspaceId,
+          error,
+          position: {
+            top: rect.top + window.scrollY,
+            left: rect.right + 10, // 10px to the right of button
+          },
+        });
+        // Clear error after 5 seconds
+        setTimeout(() => {
+          setRemoveError(null);
+        }, 5000);
+      }
     }
   };
 
@@ -531,6 +549,17 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
       projectName: getProjectName(projectPath),
       secrets,
     });
+  };
+
+  const handleForceDelete = async (workspaceId: string) => {
+    const result = await window.api.workspace.removeForce(workspaceId);
+    if (result.success) {
+      setForceDeleteModal(null);
+    } else {
+      // Even force delete failed - show error in console and close modal
+      console.error("Force delete failed:", result.error);
+      setForceDeleteModal(null);
+    }
   };
 
   const handleSaveSecrets = async (secrets: Secret[]) => {
@@ -780,6 +809,15 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
           initialSecrets={secretsModalState.secrets}
           onClose={handleCloseSecrets}
           onSave={handleSaveSecrets}
+        />
+      )}
+      {forceDeleteModal && (
+        <ForceDeleteModal
+          isOpen={forceDeleteModal.isOpen}
+          workspaceId={forceDeleteModal.workspaceId}
+          error={forceDeleteModal.error}
+          onClose={() => setForceDeleteModal(null)}
+          onForceDelete={handleForceDelete}
         />
       )}
       {removeError &&
