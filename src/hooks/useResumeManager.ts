@@ -69,7 +69,7 @@ export function useResumeManager(workspaceStates: Map<string, WorkspaceState>) {
     if (!state) {
       // Debug: Log why workspace not found
       const allWorkspaceIds = Array.from(workspaceStatesRef.current.keys());
-      console.log(
+      console.debug(
         `[useResumeManager] Workspace ${workspaceId} not in Map. Available:`,
         allWorkspaceIds
       );
@@ -89,7 +89,7 @@ export function useResumeManager(workspaceStates: Map<string, WorkspaceState>) {
       (lastMessage.type === "reasoning" && lastMessage.isPartial);
 
     if (!hasInterruptedStream) {
-      console.log(
+      console.debug(
         `[useResumeManager] ${workspaceId} not eligible: last message type=${lastMessage.type} isPartial=${"isPartial" in lastMessage ? lastMessage.isPartial : "N/A"}`
       );
       return false;
