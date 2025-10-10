@@ -8,6 +8,7 @@ import { getAutoRetryKey } from "@/constants/storage";
 import { ChatInput } from "./ChatInput";
 import { ChatMetaSidebar } from "./ChatMetaSidebar";
 import { shouldShowInterruptedBarrier } from "@/utils/messages/messageUtils";
+import { hasInterruptedStream } from "@/utils/messages/retryEligibility";
 import { ChatProvider } from "@/contexts/ChatContext";
 import { ThinkingProvider } from "@/contexts/ThinkingContext";
 import { ModeProvider } from "@/contexts/ModeContext";
@@ -225,14 +226,8 @@ const AIViewInner: React.FC<AIViewProps> = ({
     workspaceState;
 
   // Track if last message was interrupted or errored (for RetryBarrier)
-  const lastMessage = messages.length > 0 ? messages[messages.length - 1] : null;
-  const showRetryBarrier =
-    !canInterrupt && // Not currently streaming
-    lastMessage &&
-    (lastMessage.type === "stream-error" ||
-      (lastMessage.type === "assistant" && lastMessage.isPartial === true) ||
-      (lastMessage.type === "tool" && lastMessage.isPartial === true) ||
-      (lastMessage.type === "reasoning" && lastMessage.isPartial === true));
+  // Uses same logic as useResumeManager for DRY
+  const showRetryBarrier = !canInterrupt && hasInterruptedStream(messages);
 
   // Auto-scroll when messages update (during streaming)
   useEffect(() => {

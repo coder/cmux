@@ -4,6 +4,7 @@ import { CUSTOM_EVENTS } from "@/constants/events";
 import { getAutoRetryKey, getRetryStateKey } from "@/constants/storage";
 import { getSendOptionsFromStorage } from "@/utils/messages/sendOptions";
 import { readPersistedState } from "./usePersistedState";
+import { hasInterruptedStream } from "@/utils/messages/retryEligibility";
 
 interface RetryState {
   attempt: number;
@@ -79,18 +80,13 @@ export function useResumeManager(workspaceStates: Map<string, WorkspaceState>) {
     // 1. Must have interrupted stream (not currently streaming)
     if (state.canInterrupt) return false; // Currently streaming
 
-    if (state.messages.length === 0) return false; // No messages
-
-    const lastMessage = state.messages[state.messages.length - 1];
-    const hasInterruptedStream =
-      lastMessage.type === "stream-error" || // Stream errored out
-      (lastMessage.type === "assistant" && lastMessage.isPartial) ||
-      (lastMessage.type === "tool" && lastMessage.isPartial) ||
-      (lastMessage.type === "reasoning" && lastMessage.isPartial);
-
-    if (!hasInterruptedStream) {
+    if (!hasInterruptedStream(state.messages)) {
+      const lastMessage =
+        state.messages.length > 0 ? state.messages[state.messages.length - 1] : null;
       console.debug(
-        `[useResumeManager] ${workspaceId} not eligible: last message type=${lastMessage.type} isPartial=${"isPartial" in lastMessage ? lastMessage.isPartial : "N/A"}`
+        `[useResumeManager] ${workspaceId} not eligible: last message type=${
+          lastMessage?.type ?? "none"
+        } isPartial=${lastMessage && "isPartial" in lastMessage ? lastMessage.isPartial : "N/A"}`
       );
       return false;
     }
