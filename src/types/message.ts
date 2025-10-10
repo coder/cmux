@@ -64,6 +64,7 @@ export type DisplayedMessage =
       id: string; // Display ID for UI/React keys
       historyId: string; // Original CmuxMessage ID for history operations
       content: string;
+      imageParts?: Array<{ image: string; mimeType?: string }>; // Optional image attachments
       historySequence: number; // Global ordering across all messages
       timestamp?: number;
     }
