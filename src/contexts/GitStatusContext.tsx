@@ -79,6 +79,7 @@ export function GitStatusProvider({ workspaceMetadata, children }: GitStatusProv
       try {
         const result = await window.api.workspace.executeBash(workspaceId, GIT_FETCH_SCRIPT, {
           timeout_secs: 30,
+          niceness: 19, // Lowest priority - don't interfere with user operations
         });
 
         if (!result.success) {
@@ -204,6 +205,7 @@ export function GitStatusProvider({ workspaceMetadata, children }: GitStatusProv
                 GIT_STATUS_SCRIPT,
                 {
                   timeout_secs: 5,
+                  niceness: 19, // Lowest priority - don't interfere with user operations
                 }
               );
 

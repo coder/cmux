@@ -324,6 +324,7 @@ ${getDirtyFiles}
       const result = await window.api.workspace.executeBash(workspaceId, script, {
         timeout_secs: 5,
         max_lines: 100,
+        niceness: 19, // Lowest priority - don't interfere with user operations
       });
 
       if (!result.success) {
