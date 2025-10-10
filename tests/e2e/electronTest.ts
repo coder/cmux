@@ -22,7 +22,27 @@ interface ElectronFixtures {
 
 const appRoot = path.resolve(__dirname, "..", "..");
 const defaultTestRoot = path.join(appRoot, "tests", "e2e", "tmp", "cmux-root");
-const DEV_SERVER_PORT = 5173;
+const BASE_DEV_SERVER_PORT = Number(process.env.CMUX_E2E_DEVSERVER_PORT_BASE ?? "5173");
+const shouldLoadDist = process.env.CMUX_E2E_LOAD_DIST === "1";
+
+const REQUIRED_DIST_FILES = [
+  path.join(appRoot, "dist", "index.html"),
+  path.join(appRoot, "dist", "main.js"),
+  path.join(appRoot, "dist", "preload.js"),
+] as const;
+
+function assertDistBundleReady(): void {
+  if (!shouldLoadDist) {
+    return;
+  }
+  for (const filePath of REQUIRED_DIST_FILES) {
+    if (!fs.existsSync(filePath)) {
+      throw new Error(
+        `Missing build artifact at ${filePath}. Run "make build" before executing dist-mode e2e tests.`
+      );
+    }
+  }
+}
 
 async function waitForServerReady(url: string, timeoutMs = 20_000): Promise<void> {
   const start = Date.now();
@@ -70,9 +90,8 @@ export const electronTest = base.extend<ElectronFixtures>({
   workspace: async ({}, use, testInfo) => {
     const envRoot = process.env.CMUX_TEST_ROOT ?? "";
     const baseRoot = envRoot || defaultTestRoot;
-    const testRoot = envRoot
-      ? baseRoot
-      : path.join(baseRoot, sanitizeForPath(testInfo.title ?? testInfo.testId));
+    const uniqueTestId = testInfo.testId || testInfo.title || `test-${Date.now()}`;
+    const testRoot = envRoot ? baseRoot : path.join(baseRoot, sanitizeForPath(uniqueTestId));
 
     const shouldCleanup = !envRoot;
 
@@ -95,34 +114,55 @@ export const electronTest = base.extend<ElectronFixtures>({
   },
   app: async ({ workspace }, use, testInfo) => {
     const { configRoot } = workspace;
-    buildTarget("build-main");
-    buildTarget("build-preload");
+    const devServerPort = BASE_DEV_SERVER_PORT + testInfo.workerIndex;
 
-    const devServer = spawn("make", ["dev"], {
-      cwd: appRoot,
-      stdio: ["ignore", "ignore", "inherit"],
-      env: {
-        ...process.env,
-        NODE_ENV: "development",
-        VITE_DISABLE_MERMAID: "1",
-      },
-    });
+    if (shouldLoadDist) {
+      assertDistBundleReady();
+    } else {
+      buildTarget("build-main");
+      buildTarget("build-preload");
+    }
 
+    const shouldStartDevServer = !shouldLoadDist;
+    let devServer: ReturnType<typeof spawn> | undefined;
     let devServerExited = false;
-    const devServerExitPromise = new Promise<void>((resolve) => {
-      const handleExit = () => {
-        devServerExited = true;
-        resolve();
-      };
+    let devServerExitPromise: Promise<void> | undefined;
 
-      if (devServer.exitCode !== null) {
-        handleExit();
-      } else {
-        devServer.once("exit", handleExit);
+    if (shouldStartDevServer) {
+      devServer = spawn("make", ["dev"], {
+        cwd: appRoot,
+        stdio: ["ignore", "ignore", "inherit"],
+        env: {
+          ...process.env,
+          NODE_ENV: "development",
+          VITE_DISABLE_MERMAID: "1",
+          CMUX_VITE_PORT: String(devServerPort),
+        },
+      });
+
+      const activeDevServer = devServer;
+      if (!activeDevServer) {
+        throw new Error("Failed to spawn dev server process");
       }
-    });
+
+      devServerExitPromise = new Promise<void>((resolve) => {
+        const handleExit = () => {
+          devServerExited = true;
+          resolve();
+        };
+
+        if (activeDevServer.exitCode !== null) {
+          handleExit();
+        } else {
+          activeDevServer.once("exit", handleExit);
+        }
+      });
+    }
 
     const stopDevServer = async () => {
+      if (!devServer || !devServerExitPromise) {
+        return;
+      }
       if (!devServerExited && devServer.exitCode === null) {
         devServer.kill("SIGTERM");
       }
@@ -134,29 +174,44 @@ export const electronTest = base.extend<ElectronFixtures>({
     let electronApp: ElectronApplication | undefined;
 
     try {
-      await waitForServerReady(`http://127.0.0.1:${DEV_SERVER_PORT}`);
-      if (devServer.exitCode !== null) {
-        throw new Error(`Vite dev server exited early (code ${devServer.exitCode})`);
+      let devHost = "127.0.0.1";
+      if (shouldStartDevServer) {
+        devHost = process.env.CMUX_DEVSERVER_HOST ?? "127.0.0.1";
+        await waitForServerReady(`http://${devHost}:${devServerPort}`);
+        const exitCode = devServer?.exitCode;
+        if (exitCode !== null && exitCode !== undefined) {
+          throw new Error(`Vite dev server exited early (code ${exitCode})`);
+        }
       }
 
       recordVideoDir = testInfo.outputPath("electron-video");
       fs.mkdirSync(recordVideoDir, { recursive: true });
 
-      const devHost = process.env.CMUX_DEVSERVER_HOST ?? "127.0.0.1";
+      const electronEnv: Record<string, string> = {};
+      for (const [key, value] of Object.entries(process.env)) {
+        if (typeof value === "string") {
+          electronEnv[key] = value;
+        }
+      }
+      electronEnv.ELECTRON_DISABLE_SECURITY_WARNINGS = "true";
+      electronEnv.CMUX_MOCK_AI = electronEnv.CMUX_MOCK_AI ?? "1";
+      electronEnv.CMUX_TEST_ROOT = configRoot;
+      electronEnv.CMUX_E2E = "1";
+      electronEnv.CMUX_E2E_LOAD_DIST = shouldLoadDist ? "1" : "0";
+      electronEnv.VITE_DISABLE_MERMAID = "1";
+
+      if (shouldStartDevServer) {
+        electronEnv.CMUX_DEVSERVER_PORT = String(devServerPort);
+        electronEnv.CMUX_DEVSERVER_HOST = devHost;
+        electronEnv.NODE_ENV = electronEnv.NODE_ENV ?? "development";
+      } else {
+        electronEnv.NODE_ENV = electronEnv.NODE_ENV ?? "production";
+      }
+
       electronApp = await electron.launch({
         args: ["."],
         cwd: appRoot,
-        env: {
-          ...process.env,
-          ELECTRON_DISABLE_SECURITY_WARNINGS: "true",
-          CMUX_MOCK_AI: process.env.CMUX_MOCK_AI ?? "1",
-          CMUX_TEST_ROOT: configRoot,
-          CMUX_E2E: "1",
-          CMUX_E2E_LOAD_DIST: "0",
-          CMUX_DEVSERVER_PORT: String(DEV_SERVER_PORT),
-          CMUX_DEVSERVER_HOST: devHost,
-          VITE_DISABLE_MERMAID: "1",
-        },
+        env: electronEnv,
         recordVideo: {
           dir: recordVideoDir,
           size: { width: 1280, height: 720 },
@@ -170,6 +225,7 @@ export const electronTest = base.extend<ElectronFixtures>({
           await electronApp.close();
         }
 
+        const displayName = testInfo.title ?? testInfo.testId;
         if (recordVideoDir) {
           try {
             const videoFiles = await fsPromises.readdir(recordVideoDir);
@@ -177,7 +233,9 @@ export const electronTest = base.extend<ElectronFixtures>({
               const videosDir = path.join(appRoot, "artifacts", "videos");
               await fsPromises.mkdir(videosDir, { recursive: true });
               const orderedFiles = [...videoFiles].sort();
-              const baseName = testInfo.title.replace(/\s+/g, "-").toLowerCase();
+              const baseName = sanitizeForPath(
+                testInfo.testId || testInfo.title || "cmux-e2e-video"
+              );
               for (const [index, file] of orderedFiles.entries()) {
                 const ext = path.extname(file) || ".webm";
                 const suffix = orderedFiles.length > 1 ? `-${index}` : "";
@@ -187,19 +245,19 @@ export const electronTest = base.extend<ElectronFixtures>({
                 console.log(`[video] saved to ${destination}`); // eslint-disable-line no-console
               }
             } else if (electronApp) {
-              console.warn(
-                `[video] no video captured for "${testInfo.title}" at ${recordVideoDir}`
-              ); // eslint-disable-line no-console
+              console.warn(`[video] no video captured for "${displayName}" at ${recordVideoDir}`); // eslint-disable-line no-console
             }
           } catch (error) {
-            console.error(`[video] failed to process video for "${testInfo.title}":`, error); // eslint-disable-line no-console
+            console.error(`[video] failed to process video for "${displayName}":`, error); // eslint-disable-line no-console
           } finally {
             await fsPromises.rm(recordVideoDir, { recursive: true, force: true });
           }
         }
       }
     } finally {
-      await stopDevServer();
+      if (shouldStartDevServer) {
+        await stopDevServer();
+      }
     }
   },
   page: async ({ app }, use) => {
