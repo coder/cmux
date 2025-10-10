@@ -6,6 +6,7 @@ import { TypewriterMarkdown } from "./TypewriterMarkdown";
 import type { ButtonConfig } from "./MessageWindow";
 import { MessageWindow } from "./MessageWindow";
 import { useStartHere } from "@/hooks/useStartHere";
+import { COMPACTED_EMOJI } from "@/constants/ui";
 
 const RawContent = styled.pre`
   font-family: var(--font-monospace);
@@ -66,12 +67,14 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({
 
   const content = message.content;
   const isStreaming = message.isStreaming;
-  
+  const isCompacted = message.isCompacted;
+
   // Use Start Here hook for final assistant messages
-  const { handleStartHere, buttonLabel, disabled: startHereDisabled } = useStartHere(
-    workspaceId,
-    content
-  );
+  const {
+    handleStartHere,
+    buttonLabel,
+    disabled: startHereDisabled,
+  } = useStartHere(workspaceId, content, isCompacted);
 
   const handleCopy = async () => {
     try {
@@ -139,7 +142,7 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({
       <LabelContainer>
         <span>ASSISTANT</span>
         {modelName && <ModelName>{modelName.toLowerCase()}</ModelName>}
-        {isCompacted && <CompactedBadge>📦 compacted</CompactedBadge>}
+        {isCompacted && <CompactedBadge>{COMPACTED_EMOJI} compacted</CompactedBadge>}
       </LabelContainer>
     );
   };

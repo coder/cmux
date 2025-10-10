@@ -251,12 +251,17 @@ export const ProposePlanToolCall: React.FC<ProposePlanToolCallProps> = ({
   const { expanded, toggleExpanded } = useToolExpansion(true); // Expand by default
   const [showRaw, setShowRaw] = useState(false);
   const [copied, setCopied] = useState(false);
-  
+
   // Format: Title as H1 + plan content for "Start Here" functionality
   const startHereContent = `# ${args.title}\n\n${args.plan}`;
-  const { handleStartHere, buttonLabel, disabled: startHereDisabled } = useStartHere(
+  const {
+    handleStartHere,
+    buttonLabel,
+    disabled: startHereDisabled,
+  } = useStartHere(
     workspaceId,
-    startHereContent
+    startHereContent,
+    false // Plans are never already compacted
   );
 
   const statusDisplay = getStatusDisplay(status);
