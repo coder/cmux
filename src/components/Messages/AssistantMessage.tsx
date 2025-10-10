@@ -90,8 +90,8 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({
   const buttons: ButtonConfig[] = isStreaming
     ? []
     : [
-        // Add Start Here button if workspaceId is available
-        ...(workspaceId
+        // Add Start Here button if workspaceId is available and message is not already compacted
+        ...(workspaceId && !isCompacted
           ? [
               {
                 label: buttonLabel,
