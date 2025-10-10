@@ -70,11 +70,13 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({
   const isCompacted = message.isCompacted;
 
   // Use Start Here hook for final assistant messages
-  const { openModal, buttonLabel, buttonEmoji, disabled: startHereDisabled, modal } = useStartHere(
-    workspaceId,
-    content,
-    isCompacted
-  );
+  const {
+    openModal,
+    buttonLabel,
+    buttonEmoji,
+    disabled: startHereDisabled,
+    modal,
+  } = useStartHere(workspaceId, content, isCompacted);
 
   const handleCopy = async () => {
     try {

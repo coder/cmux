@@ -255,7 +255,13 @@ export const ProposePlanToolCall: React.FC<ProposePlanToolCallProps> = ({
 
   // Format: Title as H1 + plan content for "Start Here" functionality
   const startHereContent = `# ${args.title}\n\n${args.plan}`;
-  const { openModal, buttonLabel, buttonEmoji, disabled: startHereDisabled, modal } = useStartHere(
+  const {
+    openModal,
+    buttonLabel,
+    buttonEmoji,
+    disabled: startHereDisabled,
+    modal,
+  } = useStartHere(
     workspaceId,
     startHereContent,
     false // Plans are never already compacted
