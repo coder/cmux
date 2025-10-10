@@ -848,7 +848,9 @@ export class IpcMain {
             child.unref();
             log.info(`Opened terminal ${availableTerminal.cmd} at ${workspacePath}`);
           } else {
-            log.error("No terminal emulator found. Tried: " + terminals.map((t) => t.cmd).join(", "));
+            log.error(
+              "No terminal emulator found. Tried: " + terminals.map((t) => t.cmd).join(", ")
+            );
           }
         }
       } catch (error) {
