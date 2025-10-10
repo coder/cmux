@@ -47,6 +47,11 @@ export interface StreamAbortEvent {
   type: "stream-abort";
   workspaceId: string;
   messageId: string;
+  // Metadata may contain usage if abort occurred after stream completed processing
+  metadata?: {
+    usage?: LanguageModelV2Usage;
+    duration?: number;
+  };
 }
 
 export interface ErrorEvent {

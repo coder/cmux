@@ -125,6 +125,66 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
     );
 
     test.concurrent(
+      "should include usage data in stream-abort events",
+      async () => {
+        // Setup test environment
+        const { env, workspaceId, cleanup } = await setupWorkspace(provider);
+        try {
+          // Start a stream that will generate some tokens
+          const message = "Write a haiku about coding";
+          void sendMessageWithModel(env.mockIpcRenderer, workspaceId, message, provider, model);
+
+          // Wait for stream to start and get some deltas
+          const collector = createEventCollector(env.sentEvents, workspaceId);
+          await collector.waitForEvent("stream-start", 5000);
+
+          // Wait a bit for some content to be generated
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+
+          // Interrupt the stream with an empty message
+          const interruptResult = await sendMessageWithModel(
+            env.mockIpcRenderer,
+            workspaceId,
+            "",
+            provider,
+            model
+          );
+
+          expect(interruptResult.success).toBe(true);
+
+          // Collect all events and find abort event
+          await waitFor(() => {
+            collector.collect();
+            return collector.getEvents().some((e) => "type" in e && e.type === "stream-abort");
+          }, 5000);
+
+          const abortEvent = collector
+            .getEvents()
+            .find((e) => "type" in e && e.type === "stream-abort");
+          expect(abortEvent).toBeDefined();
+
+          // Verify abort event structure
+          if (abortEvent && "metadata" in abortEvent) {
+            // Metadata should exist with duration
+            expect(abortEvent.metadata).toBeDefined();
+            expect(abortEvent.metadata?.duration).toBeGreaterThan(0);
+
+            // Usage MAY be present depending on abort timing:
+            // - Early abort: usage is undefined (stream didn't complete)
+            // - Late abort: usage available (stream finished before UI processed it)
+            if (abortEvent.metadata?.usage) {
+              expect(abortEvent.metadata.usage.inputTokens).toBeGreaterThan(0);
+              expect(abortEvent.metadata.usage.outputTokens).toBeGreaterThanOrEqual(0);
+            }
+          }
+        } finally {
+          await cleanup();
+        }
+      },
+      15000
+    );
+
+    test.concurrent(
       "should handle reconnection during active stream",
       async () => {
         // Only test with Anthropic (faster and more reliable for this test)

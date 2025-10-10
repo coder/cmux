@@ -21,6 +21,7 @@ import type {
   StreamStartEvent,
   StreamDeltaEvent,
   StreamEndEvent,
+  StreamAbortEvent,
   ToolCallStartEvent,
   ToolCallDeltaEvent,
   ToolCallEndEvent,
@@ -1156,19 +1157,12 @@ export class IpcMain {
     });
 
     // Handle stream abort events
-    this.aiService.on(
-      "stream-abort",
-      (data: { type: string; workspaceId: string; messageId?: string }) => {
-        if (this.mainWindow) {
-          // Send the stream-abort event to frontend
-          this.mainWindow.webContents.send(getChatChannel(data.workspaceId), {
-            type: "stream-abort",
-            workspaceId: data.workspaceId,
-            messageId: data.messageId,
-          });
-        }
+    this.aiService.on("stream-abort", (data: StreamAbortEvent) => {
+      if (this.mainWindow) {
+        // Forward complete abort event including metadata (usage, duration)
+        this.mainWindow.webContents.send(getChatChannel(data.workspaceId), data);
       }
-    );
+    });
   }
 
   /**

@@ -265,10 +265,14 @@ export class StreamingMessageAggregator {
     const activeStream = this.activeStreams.get(data.messageId);
 
     if (activeStream) {
-      // Mark the message as interrupted
+      // Mark the message as interrupted and merge metadata (consistent with handleStreamEnd)
       const message = this.messages.get(data.messageId);
       if (message?.metadata) {
-        message.metadata.partial = true;
+        message.metadata = {
+          ...message.metadata,
+          partial: true,
+          ...data.metadata, // Spread abort metadata (usage, duration)
+        };
       }
 
       // Clean up active stream - direct delete by messageId
