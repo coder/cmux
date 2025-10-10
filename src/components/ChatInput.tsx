@@ -459,29 +459,28 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       if (!items) return;
 
       // Look for image items in clipboard
-      for (let i = 0; i < items.length; i++) {
-        const item = items[i];
-        if (item.type.startsWith("image/")) {
-          e.preventDefault(); // Prevent default paste behavior for images
+      for (const item of Array.from(items)) {
+        if (!item?.type.startsWith("image/")) continue;
 
-          const file = item.getAsFile();
-          if (!file) continue;
+        e.preventDefault(); // Prevent default paste behavior for images
 
-          // Convert to base64 data URL
-          const reader = new FileReader();
-          reader.onload = (event) => {
-            const dataUrl = event.target?.result as string;
-            if (dataUrl) {
-              const attachment: ImageAttachment = {
-                id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                dataUrl,
-                mimeType: file.type,
-              };
-              setImageAttachments((prev) => [...prev, attachment]);
-            }
-          };
-          reader.readAsDataURL(file);
-        }
+        const file = item.getAsFile();
+        if (!file) continue;
+
+        // Convert to base64 data URL
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const dataUrl = event.target?.result as string;
+          if (dataUrl) {
+            const attachment: ImageAttachment = {
+              id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              dataUrl,
+              mimeType: file.type,
+            };
+            setImageAttachments((prev) => [...prev, attachment]);
+          }
+        };
+        reader.readAsDataURL(file);
       }
     },
     []
