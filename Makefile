@@ -18,16 +18,17 @@
 # Adding New Targets:
 #   Add `## Description` after the target to make it appear in `make help`
 
+# Include formatting rules
+include fmt.mk
+
 .PHONY: all build dev start clean help
 .PHONY: build-renderer version build-icons
-.PHONY: lint lint-fix fmt fmt-check fmt-shell fmt-nix fmt-nix-check fmt-shell-check typecheck static-check
+.PHONY: lint lint-fix typecheck static-check
 .PHONY: test test-unit test-integration test-watch test-coverage test-e2e
 .PHONY: dist dist-mac dist-win dist-linux
 .PHONY: docs docs-build docs-watch
 .PHONY: ensure-deps
 
-# Prettier patterns for formatting
-PRETTIER_PATTERNS := 'src/**/*.{ts,tsx,json}' 'tests/**/*.{ts,json}' 'docs/**/*.{md,mdx}' '*.{json,md}'
 TS_SOURCES := $(shell find src -type f \( -name '*.ts' -o -name '*.tsx' \))
 
 # Default target
@@ -124,23 +125,6 @@ lint: ## Run linter and typecheck
 lint-fix: ## Run linter with --fix
 	@./scripts/lint.sh --fix
 
-fmt: ## Format code with Prettier
-	@echo "Formatting TypeScript/JSON/Markdown files..."
-	@bun x prettier --write $(PRETTIER_PATTERNS)
-
-fmt-check: ## Check code formatting
-	@./scripts/fmt.sh --check
-	@./scripts/fmt.sh --nix-check
-
-fmt-shell: ## Format shell scripts with shfmt
-	@./scripts/fmt.sh --shell
-
-fmt-nix: ## Format flake.nix with nix fmt
-	@./scripts/fmt.sh --nix
-
-fmt-nix-check: ## Check flake.nix formatting
-	@./scripts/fmt.sh --nix-check
-
 typecheck: src/version.ts ## Run TypeScript type checking
 	@./scripts/typecheck.sh
 
@@ -196,10 +180,4 @@ clean: ## Clean build artifacts
 # Parallel build optimization - these can run concurrently
 .NOTPARALLEL: build-main  # TypeScript can handle its own parallelism
 
-fmt-shell-check: ## Check shell script formatting
-	@if ! command -v shfmt &>/dev/null; then \
-		echo "shfmt not found. Install with: brew install shfmt"; \
-		exit 1; \
-	fi
-	@echo "Checking shell script formatting..."
-	@shfmt -i 2 -ci -bn -d scripts
+
