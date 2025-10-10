@@ -19,6 +19,7 @@
     "test:watch": "make test-watch",
     "test:coverage": "make test-coverage",
     "test:integration": "make test-integration",
+    "test:e2e": "make test-e2e",
     "dist": "make dist",
     "dist:mac": "make dist-mac",
     "dist:win": "make dist-win",
@@ -59,6 +60,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.36.0",
+    "@playwright/test": "^1.56.0",
     "@testing-library/react": "^16.3.0",
     "@types/bun": "^1.2.23",
     "@types/diff": "^8.0.0",
@@ -81,6 +83,7 @@
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^5.2.0",
     "jest": "^30.1.3",
+    "playwright": "^1.56.0",
     "prettier": "^3.6.2",
     "ts-jest": "^29.4.4",
     "tsc-alias": "^1.8.16",

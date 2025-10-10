@@ -6,15 +6,22 @@ import path from "path";
 import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const disableMermaid = process.env.VITE_DISABLE_MERMAID === "1";
+
+const alias: Record<string, string> = {
+  "@": path.resolve(__dirname, "./src"),
+};
+
+if (disableMermaid) {
+  alias["mermaid"] = path.resolve(__dirname, "./src/mocks/mermaidStub.ts");
+}
 
 export default defineConfig(({ mode }) => ({
   // WASM plugins only in dev mode - production externalizes tiktoken anyway
   // This prevents mermaid initialization errors in production while allowing dev to work
   plugins: mode === "development" ? [react(), wasm(), topLevelAwait()] : [react()],
   resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
-    },
+    alias,
   },
   base: "./",
   build: {
@@ -41,8 +48,16 @@ export default defineConfig(({ mode }) => ({
     plugins: [wasm(), topLevelAwait()],
   },
   server: {
+    host: "127.0.0.1",
     port: 5173,
     strictPort: true,
+    allowedHosts: ["localhost", "127.0.0.1"],
+  },
+  preview: {
+    host: "127.0.0.1",
+    port: 4173,
+    strictPort: true,
+    allowedHosts: ["localhost", "127.0.0.1"],
   },
   optimizeDeps: {
     exclude: ["@dqbd/tiktoken"],

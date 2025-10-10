@@ -1,0 +1,8 @@
+[test]
+root = "src"
+match = [
+  "**/*.test.ts",
+  "**/*.test.tsx",
+  "**/*.spec.ts",
+  "**/*.spec.tsx"
+]

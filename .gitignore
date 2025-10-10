@@ -83,3 +83,5 @@ TESTING.md
 FEATURE_SUMMARY.md
 CODE_CHANGES.md
 README_COMPACT_HERE.md
+artifacts/
+tests/e2e/tmp/

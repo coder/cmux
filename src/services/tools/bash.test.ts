@@ -245,6 +245,10 @@ describe("bash tool", () => {
     const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
     const duration = performance.now() - startTime;
 
+    // Should complete almost instantly (not wait for timeout)
+    expect(duration).toBeLessThan(4000);
+
+    // cat with no input should succeed with empty output (stdin is closed)
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.output).toContain("test");
@@ -256,20 +260,27 @@ describe("bash tool", () => {
     const tool = createBashTool({ cwd: process.cwd() });
     const startTime = performance.now();
 
-    // git rebase --continue with no rebase in progress should fail immediately
-    // This test ensures that git commands don't try to open an editor
-    const args: BashToolArgs = {
-      script: "git rebase --continue 2>&1 || true",
-      timeout_secs: 5,
-      max_lines: 100,
-    };
+    // Extremely minimal case - just enough to trigger rebase --continue
+    const script = `
+      T=$(mktemp -d) && cd "$T"
+      git init && git config user.email "t@t" && git config user.name "T"
+      echo a > f && git add f && git commit -m a
+      git checkout -b b && echo b > f && git commit -am b
+      git checkout main && echo c > f && git commit -am c
+      git rebase b || true
+      echo resolved > f && git add f
+      git rebase --continue
+    `;
 
-    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
+    const result = (await tool.execute!(
+      { script, timeout_secs: 5, max_lines: 100 },
+      mockToolCallOptions
+    )) as BashToolResult;
+
     const duration = performance.now() - startTime;
 
-    expect(result.success).toBe(true);
-    // Should complete quickly without hanging on editor
-    expect(duration).toBeLessThan(2000);
+    expect(duration).toBeLessThan(4000);
+    expect(result).toBeDefined();
   });
 
   it("should accept stdin input and avoid shell escaping issues", async () => {

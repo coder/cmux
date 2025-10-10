@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect } from "react";
+import React, { useState, useRef, useCallback, useEffect, useId } from "react";
 import styled from "@emotion/styled";
 import { CommandSuggestions, COMMAND_SUGGESTION_KEYS } from "./CommandSuggestions";
 import type { Toast } from "./ChatInputToast";
@@ -300,6 +300,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const modelSelectorRef = useRef<ModelSelectorRef>(null);
   const [mode, setMode] = useMode();
   const { recentModels } = useModelLRU();
+  const commandListId = useId();
 
   // Get current send message options from shared hook (must be at component top level)
   const sendMessageOptions = useSendMessageOptions(workspaceId);
@@ -731,6 +732,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         onSelectSuggestion={handleCommandSelect}
         onDismiss={() => setShowCommandSuggestions(false)}
         isVisible={showCommandSuggestions}
+        ariaLabel="Slash command suggestions"
+        listId={commandListId}
       />
       <InputControls data-component="ChatInputControls">
         <VimTextArea
@@ -743,6 +746,12 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           suppressKeys={showCommandSuggestions ? COMMAND_SUGGESTION_KEYS : undefined}
           placeholder={placeholder}
           disabled={disabled || isSending || isCompacting}
+          aria-label={editingMessage ? "Edit your last message" : "Message Claude"}
+          aria-autocomplete="list"
+          aria-controls={
+            showCommandSuggestions && commandSuggestions.length > 0 ? commandListId : undefined
+          }
+          aria-expanded={showCommandSuggestions && commandSuggestions.length > 0}
         />
       </InputControls>
       <ModeToggles data-component="ChatModeToggles">

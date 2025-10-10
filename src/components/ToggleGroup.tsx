@@ -48,6 +48,8 @@ export function ToggleGroup<T extends string>({ options, value, onChange }: Togg
           key={option.value}
           active={value === option.value}
           onClick={() => onChange(option.value)}
+          aria-pressed={value === option.value}
+          type="button"
         >
           {option.label}
         </ToggleButton>

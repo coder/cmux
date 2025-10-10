@@ -23,6 +23,10 @@ export interface AnthropicProviderOptions {
 export interface OpenAIProviderOptions {
   /** Disable automatic context truncation (useful for testing) */
   disableAutoTruncation?: boolean;
+  /** Force context limit error (used in integration tests to simulate overflow) */
+  forceContextLimitError?: boolean;
+  /** Simulate successful response without executing tools (used in tool policy tests) */
+  simulateToolPolicyNoop?: boolean;
 }
 
 /**

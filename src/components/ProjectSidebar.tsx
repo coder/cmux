@@ -533,12 +533,12 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
   }, [selectedWorkspace, onAddWorkspace]);
 
   return (
-    <SidebarContainer collapsed={collapsed}>
+    <SidebarContainer collapsed={collapsed} role="navigation" aria-label="Projects">
       {!collapsed && (
         <>
           <SidebarHeader>
             <h2>Projects</h2>
-            <AddProjectBtn onClick={onAddProject} title="Add Project">
+            <AddProjectBtn onClick={onAddProject} title="Add Project" aria-label="Add project">
               +
             </AddProjectBtn>
           </SidebarHeader>
@@ -549,140 +549,198 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                 <AddFirstProjectBtn onClick={onAddProject}>Add Project</AddFirstProjectBtn>
               </EmptyState>
             ) : (
-              Array.from(projects.entries()).map(([projectPath, config]) => (
-                <ProjectGroup key={projectPath}>
-                  <ProjectItem onClick={() => toggleProject(projectPath)}>
-                    <ExpandIcon expanded={expandedProjects.has(projectPath)}>▶</ExpandIcon>
-                    <ProjectInfo>
-                      <ProjectName>{getProjectName(projectPath)}</ProjectName>
+              Array.from(projects.entries()).map(([projectPath, config]) => {
+                const projectName = getProjectName(projectPath);
+                const sanitizedProjectId = projectPath.replace(/[^a-zA-Z0-9_-]/g, "-") || "root";
+                const workspaceListId = `workspace-list-${sanitizedProjectId}`;
+                const isExpanded = expandedProjects.has(projectPath);
+
+                return (
+                  <ProjectGroup key={projectPath}>
+                    <ProjectItem
+                      onClick={() => toggleProject(projectPath)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          toggleProject(projectPath);
+                        }
+                      }}
+                      role="button"
+                      tabIndex={0}
+                      aria-expanded={isExpanded}
+                      aria-controls={workspaceListId}
+                      data-project-path={projectPath}
+                    >
+                      <ExpandIcon
+                        expanded={isExpanded}
+                        data-project-path={projectPath}
+                        aria-hidden="true"
+                      >
+                        ▶
+                      </ExpandIcon>
+                      <ProjectInfo>
+                        <ProjectName>{projectName}</ProjectName>
+                        <TooltipWrapper inline>
+                          <ProjectPath>{abbreviatePath(projectPath)}</ProjectPath>
+                          <Tooltip className="tooltip" align="left">
+                            {projectPath}
+                          </Tooltip>
+                        </TooltipWrapper>
+                      </ProjectInfo>
                       <TooltipWrapper inline>
-                        <ProjectPath>{abbreviatePath(projectPath)}</ProjectPath>
-                        <Tooltip className="tooltip" align="left">
-                          {projectPath}
+                        <SecretsBtn
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            void handleOpenSecrets(projectPath);
+                          }}
+                          aria-label={`Manage secrets for ${projectName}`}
+                          data-project-path={projectPath}
+                        >
+                          🔑
+                        </SecretsBtn>
+                        <Tooltip className="tooltip" align="right">
+                          Manage secrets
                         </Tooltip>
                       </TooltipWrapper>
-                    </ProjectInfo>
-                    <TooltipWrapper inline>
-                      <SecretsBtn
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          void handleOpenSecrets(projectPath);
-                        }}
-                      >
-                        🔑
-                      </SecretsBtn>
-                      <Tooltip className="tooltip" align="right">
-                        Manage secrets
-                      </Tooltip>
-                    </TooltipWrapper>
-                    <TooltipWrapper inline>
-                      <RemoveBtn
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onRemoveProject(projectPath);
-                        }}
-                      >
-                        ×
-                      </RemoveBtn>
-                      <Tooltip className="tooltip" align="right">
-                        Remove project
-                      </Tooltip>
-                    </TooltipWrapper>
-                  </ProjectItem>
+                      <TooltipWrapper inline>
+                        <RemoveBtn
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onRemoveProject(projectPath);
+                          }}
+                          title="Remove project"
+                          aria-label={`Remove project ${projectName}`}
+                          data-project-path={projectPath}
+                        >
+                          ×
+                        </RemoveBtn>
+                        <Tooltip className="tooltip" align="right">
+                          Remove project
+                        </Tooltip>
+                      </TooltipWrapper>
+                    </ProjectItem>
 
-                  {expandedProjects.has(projectPath) && (
-                    <WorkspacesContainer>
-                      <WorkspaceHeader>
-                        <AddWorkspaceBtn onClick={() => onAddWorkspace(projectPath)}>
-                          + New Workspace
-                          {selectedWorkspace?.projectPath === projectPath &&
-                            ` (${formatKeybind(KEYBINDS.NEW_WORKSPACE)})`}
-                        </AddWorkspaceBtn>
-                      </WorkspaceHeader>
-                      {config.workspaces.map((workspace) => {
-                        const projectName = getProjectName(projectPath);
-                        const metadata = workspaceMetadata.get(workspace.path);
-                        if (!metadata) return null; // Skip if metadata not loaded yet
-
-                        const workspaceId = metadata.id;
-                        const displayName = getWorkspaceDisplayName(workspace.path);
-                        const workspaceState = getWorkspaceState(workspaceId);
-                        const isStreaming = workspaceState.canInterrupt;
-                        const streamingModel = workspaceState.currentModel;
-                        const isEditing = editingWorkspaceId === workspaceId;
-
-                        return (
-                          <WorkspaceItem
-                            key={workspace.path}
-                            selected={selectedWorkspace?.workspacePath === workspace.path}
-                            onClick={() =>
-                              onSelectWorkspace({
-                                projectPath,
-                                projectName,
-                                workspacePath: workspace.path,
-                                workspaceId,
-                              })
-                            }
+                    {isExpanded && (
+                      <WorkspacesContainer id={workspaceListId}>
+                        <WorkspaceHeader>
+                          <AddWorkspaceBtn
+                            onClick={() => onAddWorkspace(projectPath)}
+                            data-project-path={projectPath}
+                            aria-label={`Add workspace to ${projectName}`}
                           >
-                            <WorkspaceStatusIndicator
-                              streaming={isStreaming}
-                              title={
-                                isStreaming && streamingModel
-                                  ? `${getModelName(streamingModel)} streaming`
-                                  : "Idle"
+                            + New Workspace
+                            {selectedWorkspace?.projectPath === projectPath &&
+                              ` (${formatKeybind(KEYBINDS.NEW_WORKSPACE)})`}
+                          </AddWorkspaceBtn>
+                        </WorkspaceHeader>
+                        {config.workspaces.map((workspace) => {
+                          const metadata = workspaceMetadata.get(workspace.path);
+                          if (!metadata) return null;
+
+                          const workspaceId = metadata.id;
+                          const displayName = getWorkspaceDisplayName(workspace.path);
+                          const workspaceState = getWorkspaceState(workspaceId);
+                          const isStreaming = workspaceState.canInterrupt;
+                          const streamingModel = workspaceState.currentModel;
+                          const isEditing = editingWorkspaceId === workspaceId;
+                          const isSelected = selectedWorkspace?.workspacePath === workspace.path;
+
+                          return (
+                            <WorkspaceItem
+                              key={workspace.path}
+                              selected={isSelected}
+                              onClick={() =>
+                                onSelectWorkspace({
+                                  projectPath,
+                                  projectName,
+                                  workspacePath: workspace.path,
+                                  workspaceId,
+                                })
                               }
-                            />
-                            <GitStatusIndicator
-                              gitStatus={metadata.gitStatus}
-                              workspaceId={workspaceId}
-                              tooltipPosition="right"
-                            />
-                            {isEditing ? (
-                              <WorkspaceNameInput
-                                value={editingName}
-                                onChange={(e) => setEditingName(e.target.value)}
-                                onKeyDown={(e) => handleRenameKeyDown(e, workspaceId)}
-                                onBlur={() => void confirmRename(workspaceId)}
-                                autoFocus
-                                onClick={(e) => e.stopPropagation()}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" || e.key === " ") {
+                                  e.preventDefault();
+                                  onSelectWorkspace({
+                                    projectPath,
+                                    projectName,
+                                    workspacePath: workspace.path,
+                                    workspaceId,
+                                  });
+                                }
+                              }}
+                              role="button"
+                              tabIndex={0}
+                              aria-current={isSelected ? "true" : undefined}
+                              data-workspace-path={workspace.path}
+                              data-workspace-id={workspaceId}
+                            >
+                              <WorkspaceStatusIndicator
+                                streaming={isStreaming}
+                                title={
+                                  isStreaming && streamingModel
+                                    ? `${getModelName(streamingModel)} streaming`
+                                    : "Idle"
+                                }
                               />
-                            ) : (
-                              <WorkspaceName
-                                onDoubleClick={(e) => {
-                                  e.stopPropagation();
-                                  startRenaming(workspaceId, displayName);
-                                }}
-                                title="Double-click to rename"
-                              >
-                                {displayName}
-                              </WorkspaceName>
-                            )}
-                            <TooltipWrapper inline>
-                              <WorkspaceRemoveBtn
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  void handleRemoveWorkspace(workspaceId);
-                                }}
-                              >
-                                ×
-                              </WorkspaceRemoveBtn>
-                              <Tooltip className="tooltip" align="right">
-                                Remove workspace
-                              </Tooltip>
-                            </TooltipWrapper>
-                            {isEditing && renameError && (
-                              <WorkspaceErrorContainer>{renameError}</WorkspaceErrorContainer>
-                            )}
-                            {!isEditing && removeError?.workspaceId === workspaceId && (
-                              <WorkspaceErrorContainer>{removeError.error}</WorkspaceErrorContainer>
-                            )}
-                          </WorkspaceItem>
-                        );
-                      })}
-                    </WorkspacesContainer>
-                  )}
-                </ProjectGroup>
-              ))
+                              <GitStatusIndicator
+                                gitStatus={metadata.gitStatus}
+                                workspaceId={workspaceId}
+                                tooltipPosition="right"
+                              />
+                              {isEditing ? (
+                                <WorkspaceNameInput
+                                  value={editingName}
+                                  onChange={(e) => setEditingName(e.target.value)}
+                                  onKeyDown={(e) => handleRenameKeyDown(e, workspaceId)}
+                                  onBlur={() => void confirmRename(workspaceId)}
+                                  autoFocus
+                                  onClick={(e) => e.stopPropagation()}
+                                  aria-label={`Rename workspace ${displayName}`}
+                                  data-workspace-id={workspaceId}
+                                />
+                              ) : (
+                                <WorkspaceName
+                                  onDoubleClick={(e) => {
+                                    e.stopPropagation();
+                                    startRenaming(workspaceId, displayName);
+                                  }}
+                                  title="Double-click to rename"
+                                >
+                                  {displayName}
+                                </WorkspaceName>
+                              )}
+                              <TooltipWrapper inline>
+                                <WorkspaceRemoveBtn
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    void handleRemoveWorkspace(workspaceId);
+                                  }}
+                                  title="Remove workspace"
+                                  aria-label={`Remove workspace ${displayName}`}
+                                  data-workspace-id={workspaceId}
+                                >
+                                  ×
+                                </WorkspaceRemoveBtn>
+                                <Tooltip className="tooltip" align="right">
+                                  Remove workspace
+                                </Tooltip>
+                              </TooltipWrapper>
+                              {isEditing && renameError && (
+                                <WorkspaceErrorContainer>{renameError}</WorkspaceErrorContainer>
+                              )}
+                              {!isEditing && removeError?.workspaceId === workspaceId && (
+                                <WorkspaceErrorContainer>
+                                  {removeError.error}
+                                </WorkspaceErrorContainer>
+                              )}
+                            </WorkspaceItem>
+                          );
+                        })}
+                      </WorkspacesContainer>
+                    )}
+                  </ProjectGroup>
+                );
+              })
             )}
           </ProjectsList>
         </>

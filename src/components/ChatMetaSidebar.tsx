@@ -64,19 +64,49 @@ export const ChatMetaSidebar: React.FC<ChatMetaSidebarProps> = ({ workspaceId })
     "costs"
   );
 
+  const baseId = `chat-meta-${workspaceId}`;
+  const costsTabId = `${baseId}-tab-costs`;
+  const toolsTabId = `${baseId}-tab-tools`;
+  const costsPanelId = `${baseId}-panel-costs`;
+  const toolsPanelId = `${baseId}-panel-tools`;
+
   return (
-    <SidebarContainer>
-      <TabBar>
-        <TabButton active={selectedTab === "costs"} onClick={() => setSelectedTab("costs")}>
+    <SidebarContainer role="complementary" aria-label="Workspace insights">
+      <TabBar role="tablist" aria-label="Metadata views">
+        <TabButton
+          active={selectedTab === "costs"}
+          onClick={() => setSelectedTab("costs")}
+          id={costsTabId}
+          role="tab"
+          type="button"
+          aria-selected={selectedTab === "costs"}
+          aria-controls={costsPanelId}
+        >
           Costs
         </TabButton>
-        <TabButton active={selectedTab === "tools"} onClick={() => setSelectedTab("tools")}>
+        <TabButton
+          active={selectedTab === "tools"}
+          onClick={() => setSelectedTab("tools")}
+          id={toolsTabId}
+          role="tab"
+          type="button"
+          aria-selected={selectedTab === "tools"}
+          aria-controls={toolsPanelId}
+        >
           Tools
         </TabButton>
       </TabBar>
       <TabContent>
-        {selectedTab === "costs" && <CostsTab />}
-        {selectedTab === "tools" && <ToolsTab />}
+        {selectedTab === "costs" && (
+          <div role="tabpanel" id={costsPanelId} aria-labelledby={costsTabId}>
+            <CostsTab />
+          </div>
+        )}
+        {selectedTab === "tools" && (
+          <div role="tabpanel" id={toolsPanelId} aria-labelledby={toolsTabId}>
+            <ToolsTab />
+          </div>
+        )}
       </TabContent>
     </SidebarContainer>
   );

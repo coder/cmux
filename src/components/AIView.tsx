@@ -142,7 +142,7 @@ const EditBarrier = styled.div`
   text-align: center;
 `;
 
-const JumpToBottomIndicator = styled.div`
+const JumpToBottomIndicator = styled.button`
   position: absolute;
   bottom: 8px;
   left: 50%;
@@ -391,6 +391,11 @@ const AIViewInner: React.FC<AIViewProps> = ({
               onWheel={markUserInteraction}
               onTouchMove={markUserInteraction}
               onScroll={handleScroll}
+              role="log"
+              aria-live={canInterrupt ? "polite" : "off"}
+              aria-busy={canInterrupt}
+              aria-label="Conversation transcript"
+              tabIndex={0}
             >
               {messages.length === 0 ? (
                 <EmptyState>
@@ -444,7 +449,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
               )}
             </OutputContent>
             {!autoScroll && (
-              <JumpToBottomIndicator onClick={jumpToBottom}>
+              <JumpToBottomIndicator onClick={jumpToBottom} type="button">
                 Press {formatKeybind(KEYBINDS.JUMP_TO_BOTTOM)} to jump to bottom
               </JumpToBottomIndicator>
             )}

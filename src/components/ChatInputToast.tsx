@@ -202,7 +202,7 @@ export const ChatInputToast: React.FC<ChatInputToastProps> = ({ toast, onDismiss
   if (isRichError) {
     return (
       <ToastWrapper>
-        <ErrorContainer>
+        <ErrorContainer role="alert" aria-live="assertive">
           <div style={{ display: "flex", alignItems: "flex-start", gap: "6px" }}>
             <ToastIcon>⚠</ToastIcon>
             <div style={{ flex: 1 }}>
@@ -212,7 +212,9 @@ export const ChatInputToast: React.FC<ChatInputToastProps> = ({ toast, onDismiss
               <ErrorDetails>{toast.message}</ErrorDetails>
               {toast.solution && <ErrorSolution>{toast.solution}</ErrorSolution>}
             </div>
-            <CloseButton onClick={handleDismiss}>×</CloseButton>
+            <CloseButton onClick={handleDismiss} aria-label="Dismiss">
+              ×
+            </CloseButton>
           </div>
         </ErrorContainer>
       </ToastWrapper>
@@ -222,7 +224,12 @@ export const ChatInputToast: React.FC<ChatInputToastProps> = ({ toast, onDismiss
   // Regular toast for simple messages and success
   return (
     <ToastWrapper>
-      <ToastContainer type={toast.type} isLeaving={isLeaving}>
+      <ToastContainer
+        type={toast.type}
+        isLeaving={isLeaving}
+        role={toast.type === "error" ? "alert" : "status"}
+        aria-live={toast.type === "error" ? "assertive" : "polite"}
+      >
         <ToastIcon>{toast.type === "success" ? "✓" : "⚠"}</ToastIcon>
         <ToastContent>
           {toast.title && <ToastTitle>{toast.title}</ToastTitle>}

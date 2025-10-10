@@ -11,6 +11,8 @@ interface CommandSuggestionsProps {
   onSelectSuggestion: (suggestion: SlashSuggestion) => void;
   onDismiss: () => void;
   isVisible: boolean;
+  ariaLabel?: string;
+  listId?: string;
 }
 
 // Styled components
@@ -83,6 +85,8 @@ export const CommandSuggestions: React.FC<CommandSuggestionsProps> = ({
   onSelectSuggestion,
   onDismiss,
   isVisible,
+  ariaLabel = "Command suggestions",
+  listId,
 }) => {
   const [selectedIndex, setSelectedIndex] = useState(0);
 
@@ -141,14 +145,28 @@ export const CommandSuggestions: React.FC<CommandSuggestionsProps> = ({
     return null;
   }
 
+  const activeSuggestion = suggestions[selectedIndex] ?? suggestions[0];
+  const resolvedListId = listId ?? `command-suggestions-list`;
+
   return (
-    <PopoverContainer data-command-suggestions>
+    <PopoverContainer
+      id={resolvedListId}
+      role="listbox"
+      aria-label={ariaLabel}
+      aria-activedescendant={
+        activeSuggestion ? `${resolvedListId}-option-${activeSuggestion.id}` : undefined
+      }
+      data-command-suggestions
+    >
       {suggestions.map((suggestion, index) => (
         <CommandItem
           key={suggestion.id}
           selected={index === selectedIndex}
           onMouseEnter={() => setSelectedIndex(index)}
           onClick={() => onSelectSuggestion(suggestion)}
+          id={`${resolvedListId}-option-${suggestion.id}`}
+          role="option"
+          aria-selected={index === selectedIndex}
         >
           <CommandText>{suggestion.display}</CommandText>
           <CommandDescription>{suggestion.description}</CommandDescription>

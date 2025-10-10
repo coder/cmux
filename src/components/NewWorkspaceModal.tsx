@@ -1,8 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useId } from "react";
 import styled from "@emotion/styled";
 import { Modal, ModalInfo, ModalActions, CancelButton, PrimaryButton } from "./Modal";
 
-// Domain-specific styled components
 const FormGroup = styled.div`
   margin-bottom: 20px;
 
@@ -61,6 +60,7 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
   const [branchName, setBranchName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const infoId = useId();
 
   const handleCancel = () => {
     setBranchName("");
@@ -68,9 +68,10 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
     onClose();
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!branchName.trim()) {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const trimmedBranchName = branchName.trim();
+    if (trimmedBranchName.length === 0) {
       setError("Branch name is required");
       return;
     }
@@ -79,7 +80,7 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
     setError(null);
 
     try {
-      await onAdd(branchName.trim());
+      await onAdd(trimmedBranchName);
       setBranchName("");
       onClose();
     } catch (err) {
@@ -99,27 +100,29 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
       subtitle={`Create a new workspace for ${projectName}`}
       onClose={handleCancel}
       isLoading={isLoading}
+      describedById={infoId}
     >
-      <form onSubmit={(e) => void handleSubmit(e)}>
+      <form onSubmit={(event) => void handleSubmit(event)}>
         <FormGroup>
           <label htmlFor="branchName">Branch Name:</label>
           <input
             id="branchName"
             type="text"
             value={branchName}
-            onChange={(e) => {
-              setBranchName(e.target.value);
+            onChange={(event) => {
+              setBranchName(event.target.value);
               setError(null);
             }}
             placeholder="Enter branch name (e.g., feature/new-feature)"
             disabled={isLoading}
-            autoFocus
+            autoFocus={isOpen}
             required
+            aria-required="true"
           />
           {error && <ErrorMessage>{error}</ErrorMessage>}
         </FormGroup>
 
-        <ModalInfo>
+        <ModalInfo id={infoId}>
           <p>This will create a git worktree at:</p>
           <InfoCode>
             ~/.cmux/src/{projectName}/{branchName || "<branch-name>"}
@@ -130,7 +133,7 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
           <CancelButton type="button" onClick={handleCancel} disabled={isLoading}>
             Cancel
           </CancelButton>
-          <PrimaryButton type="submit" disabled={isLoading || !branchName.trim()}>
+          <PrimaryButton type="submit" disabled={isLoading || branchName.trim().length === 0}>
             {isLoading ? "Creating..." : "Create Workspace"}
           </PrimaryButton>
         </ModalActions>

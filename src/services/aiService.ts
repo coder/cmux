@@ -7,7 +7,7 @@ import type { Result } from "@/types/result";
 import { Ok, Err } from "@/types/result";
 import type { WorkspaceMetadata } from "@/types/workspace";
 import { WorkspaceMetadataSchema } from "@/types/workspace";
-import type { CmuxMessage } from "@/types/message";
+import type { CmuxMessage, CmuxTextPart } from "@/types/message";
 import { createCmuxMessage } from "@/types/message";
 import type { Config } from "@/config";
 import { StreamManager } from "./streamManager";
@@ -30,19 +30,73 @@ import { getTokenizerForModel } from "@/utils/tokens/tokenizer";
 import { buildProviderOptions } from "@/utils/ai/providerOptions";
 import type { ThinkingLevel } from "@/types/thinking";
 import { createOpenAI } from "@ai-sdk/openai";
-import type { StreamAbortEvent } from "@/types/stream";
+import type {
+  StreamAbortEvent,
+  StreamDeltaEvent,
+  StreamEndEvent,
+  StreamStartEvent,
+} from "@/types/stream";
 import { applyToolPolicy, type ToolPolicy } from "@/utils/tools/toolPolicy";
 import { openaiReasoningFixMiddleware } from "@/utils/ai/openaiReasoningMiddleware";
 import { createOpenAIReasoningFetch } from "@/utils/ai/openaiReasoningFetch";
+import { MockScenarioPlayer } from "./mock/mockScenarioPlayer";
+import { Agent } from "undici";
 
 // Export a standalone version of getToolsForModel for use in backend
 
+// Create undici agent with unlimited timeouts for AI streaming requests.
+// Safe because users control cancellation via AbortSignal from the UI.
+const unlimitedTimeoutAgent = new Agent({
+  bodyTimeout: 0, // No timeout - prevents BodyTimeoutError on long reasoning pauses
+  headersTimeout: 0, // No timeout for headers
+});
+
+/**
+ * Default fetch function with unlimited timeouts for AI streaming.
+ * Uses undici Agent to remove artificial timeout limits while still
+ * respecting user cancellation via AbortSignal.
+ *
+ * Note: If users provide custom fetch in providers.jsonc, they are
+ * responsible for configuring timeouts appropriately. Custom fetch
+ * implementations using undici should set bodyTimeout: 0 and
+ * headersTimeout: 0 to prevent BodyTimeoutError on long-running
+ * reasoning models.
+ */
+const defaultFetchWithUnlimitedTimeout = (async (
+  input: RequestInfo | URL,
+  init?: RequestInit
+): Promise<Response> => {
+  const requestInit: RequestInit = {
+    ...(init ?? {}),
+    dispatcher: unlimitedTimeoutAgent,
+  };
+  return fetch(input, requestInit);
+}) as typeof fetch;
+
+type FetchWithBunExtensions = typeof fetch & {
+  preconnect?: typeof fetch extends { preconnect: infer P } ? P : unknown;
+  certificate?: typeof fetch extends { certificate: infer C } ? C : unknown;
+};
+
+const globalFetchWithExtras = fetch as FetchWithBunExtensions;
+const defaultFetchWithExtras = defaultFetchWithUnlimitedTimeout as FetchWithBunExtensions;
+
+if (typeof globalFetchWithExtras.preconnect === "function") {
+  defaultFetchWithExtras.preconnect = globalFetchWithExtras.preconnect.bind(globalFetchWithExtras);
+}
+
+if (typeof globalFetchWithExtras.certificate === "function") {
+  defaultFetchWithExtras.certificate =
+    globalFetchWithExtras.certificate.bind(globalFetchWithExtras);
+}
 export class AIService extends EventEmitter {
   private readonly METADATA_FILE = "metadata.json";
   private readonly streamManager: StreamManager;
   private readonly historyService: HistoryService;
   private readonly partialService: PartialService;
   private readonly config: Config;
+  private readonly mockModeEnabled: boolean;
+  private readonly mockScenarioPlayer?: MockScenarioPlayer;
 
   constructor(config: Config, historyService: HistoryService, partialService: PartialService) {
     super();
@@ -52,6 +106,14 @@ export class AIService extends EventEmitter {
     this.streamManager = new StreamManager(historyService, partialService);
     void this.ensureSessionsDir();
     this.setupStreamEventForwarding();
+    this.mockModeEnabled = process.env.CMUX_MOCK_AI === "1";
+    if (this.mockModeEnabled) {
+      log.info("AIService running in CMUX_MOCK_AI mode");
+      this.mockScenarioPlayer = new MockScenarioPlayer({
+        aiService: this,
+        historyService,
+      });
+    }
   }
 
   /**
@@ -95,6 +157,10 @@ export class AIService extends EventEmitter {
 
   private getMetadataPath(workspaceId: string): string {
     return path.join(this.config.getSessionDir(workspaceId), this.METADATA_FILE);
+  }
+
+  isMockModeEnabled(): boolean {
+    return this.mockModeEnabled;
   }
 
   async getWorkspaceMetadata(workspaceId: string): Promise<Result<WorkspaceMetadata>> {
@@ -207,7 +273,7 @@ export class AIService extends EventEmitter {
         const baseFetch =
           typeof providerConfig.fetch === "function"
             ? (providerConfig.fetch as typeof fetch)
-            : undefined;
+            : defaultFetchWithUnlimitedTimeout;
         const fetchWithReasoningFix = createOpenAIReasoningFetch(baseFetch);
 
         // Wrap fetch to force truncation: "auto" for OpenAI Responses API calls.
@@ -293,7 +359,7 @@ export class AIService extends EventEmitter {
         // Use Responses API for persistence and built-in tools
         const baseModel = provider.responses(modelId);
 
-        // Wrap with middleware to fix reasoning items
+        // Wrap with middleware to strip stale OpenAI reasoning item IDs
         const wrappedModel = wrapLanguageModel({
           model: baseModel,
           middleware: openaiReasoningFixMiddleware,
@@ -336,6 +402,10 @@ export class AIService extends EventEmitter {
     cmuxProviderOptions?: CmuxProviderOptions
   ): Promise<Result<void, SendMessageError>> {
     try {
+      if (this.mockModeEnabled && this.mockScenarioPlayer) {
+        return await this.mockScenarioPlayer.play(messages, workspaceId);
+      }
+
       // DEBUG: Log streamMessage call
       const lastMessage = messages[messages.length - 1];
       log.debug(
@@ -445,6 +515,123 @@ export class AIService extends EventEmitter {
       // Get the assigned historySequence
       const historySequence = assistantMessage.metadata?.historySequence ?? 0;
 
+      const forceContextLimitError =
+        modelString.startsWith("openai:") &&
+        cmuxProviderOptions?.openai?.forceContextLimitError === true;
+      const simulateToolPolicyNoop =
+        modelString.startsWith("openai:") &&
+        cmuxProviderOptions?.openai?.simulateToolPolicyNoop === true;
+
+      if (forceContextLimitError) {
+        const errorMessage =
+          "Context length exceeded: the conversation is too long to send to this OpenAI model. Please shorten the history and try again.";
+
+        const errorPartialMessage: CmuxMessage = {
+          id: assistantMessageId,
+          role: "assistant",
+          metadata: {
+            historySequence,
+            timestamp: Date.now(),
+            model: modelString,
+            systemMessageTokens,
+            partial: true,
+            error: errorMessage,
+            errorType: "context_exceeded",
+          },
+          parts: [],
+        };
+
+        await this.partialService.writePartial(workspaceId, errorPartialMessage);
+
+        const streamStartEvent: StreamStartEvent = {
+          type: "stream-start",
+          workspaceId,
+          messageId: assistantMessageId,
+          model: modelString,
+          historySequence,
+        };
+        this.emit("stream-start", streamStartEvent);
+
+        this.emit("error", {
+          type: "error",
+          workspaceId,
+          messageId: assistantMessageId,
+          error: errorMessage,
+          errorType: "context_exceeded",
+        });
+
+        return Ok(undefined);
+      }
+
+      if (simulateToolPolicyNoop) {
+        const noopMessage = createCmuxMessage(assistantMessageId, "assistant", "", {
+          timestamp: Date.now(),
+          model: modelString,
+          systemMessageTokens,
+          toolPolicy,
+        });
+
+        const parts: StreamEndEvent["parts"] = [
+          {
+            type: "text",
+            text: "Tool execution skipped because the requested tool is disabled by policy.",
+          },
+        ];
+
+        const streamStartEvent: StreamStartEvent = {
+          type: "stream-start",
+          workspaceId,
+          messageId: assistantMessageId,
+          model: modelString,
+          historySequence,
+        };
+        this.emit("stream-start", streamStartEvent);
+
+        const textParts = parts.filter((part): part is CmuxTextPart => part.type === "text");
+        if (textParts.length === 0) {
+          throw new Error("simulateToolPolicyNoop requires at least one text part");
+        }
+
+        for (const textPart of textParts) {
+          if (textPart.text.length === 0) {
+            continue;
+          }
+
+          const streamDeltaEvent: StreamDeltaEvent = {
+            type: "stream-delta",
+            workspaceId,
+            messageId: assistantMessageId,
+            delta: textPart.text,
+          };
+          this.emit("stream-delta", streamDeltaEvent);
+        }
+
+        const streamEndEvent: StreamEndEvent = {
+          type: "stream-end",
+          workspaceId,
+          messageId: assistantMessageId,
+          metadata: {
+            model: modelString,
+            systemMessageTokens,
+          },
+          parts,
+        };
+        this.emit("stream-end", streamEndEvent);
+
+        const finalAssistantMessage: CmuxMessage = {
+          ...noopMessage,
+          metadata: {
+            ...noopMessage.metadata,
+            historySequence,
+          },
+          parts,
+        };
+
+        await this.partialService.deletePartial(workspaceId);
+        await this.historyService.updateHistory(workspaceId, finalAssistantMessage);
+        return Ok(undefined);
+      }
+
       // Build provider options based on thinking level and message history
       // Pass filtered messages so OpenAI can extract previousResponseId for persistence
       const providerOptions = buildProviderOptions(
@@ -489,6 +676,10 @@ export class AIService extends EventEmitter {
   }
 
   async stopStream(workspaceId: string): Promise<Result<void>> {
+    if (this.mockModeEnabled && this.mockScenarioPlayer) {
+      this.mockScenarioPlayer.stop(workspaceId);
+      return Ok(undefined);
+    }
     return this.streamManager.stopStream(workspaceId);
   }
 
@@ -496,6 +687,9 @@ export class AIService extends EventEmitter {
    * Check if a workspace is currently streaming
    */
   isStreaming(workspaceId: string): boolean {
+    if (this.mockModeEnabled && this.mockScenarioPlayer) {
+      return this.mockScenarioPlayer.isStreaming(workspaceId);
+    }
     return this.streamManager.isStreaming(workspaceId);
   }
 
@@ -503,6 +697,9 @@ export class AIService extends EventEmitter {
    * Get the current stream state for a workspace
    */
   getStreamState(workspaceId: string): string {
+    if (this.mockModeEnabled && this.mockScenarioPlayer) {
+      return this.mockScenarioPlayer.isStreaming(workspaceId) ? "streaming" : "idle";
+    }
     return this.streamManager.getStreamState(workspaceId);
   }
 
@@ -511,6 +708,9 @@ export class AIService extends EventEmitter {
    * Used to re-establish streaming context on frontend reconnection
    */
   getStreamInfo(workspaceId: string): ReturnType<typeof this.streamManager.getStreamInfo> {
+    if (this.mockModeEnabled && this.mockScenarioPlayer) {
+      return undefined;
+    }
     return this.streamManager.getStreamInfo(workspaceId);
   }
 
@@ -519,6 +719,10 @@ export class AIService extends EventEmitter {
    * Emits the same events that would be emitted during live streaming
    */
   replayStream(workspaceId: string): void {
+    if (this.mockModeEnabled && this.mockScenarioPlayer) {
+      this.mockScenarioPlayer.replayStream(workspaceId);
+      return;
+    }
     this.streamManager.replayStream(workspaceId);
   }
 

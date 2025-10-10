@@ -44,7 +44,8 @@ export class Config {
   private readonly secretsFile: string;
 
   constructor(rootDir?: string) {
-    this.rootDir = rootDir ?? path.join(os.homedir(), ".cmux");
+    const envRoot = process.env.CMUX_TEST_ROOT;
+    this.rootDir = rootDir ?? envRoot ?? path.join(os.homedir(), ".cmux");
     this.sessionsDir = path.join(this.rootDir, "sessions");
     this.srcDir = path.join(this.rootDir, "src");
     this.configFile = path.join(this.rootDir, "config.json");

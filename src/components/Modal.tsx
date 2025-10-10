@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback } from "react";
+import React, { useEffect, useCallback, useId } from "react";
 import styled from "@emotion/styled";
 import { matchesKeybind, KEYBINDS } from "@/utils/ui/keybinds";
 
@@ -114,6 +114,7 @@ interface ModalProps {
   maxWidth?: string;
   maxHeight?: string;
   isLoading?: boolean;
+  describedById?: string;
 }
 
 export const Modal: React.FC<ModalProps> = ({
@@ -125,7 +126,12 @@ export const Modal: React.FC<ModalProps> = ({
   maxWidth,
   maxHeight,
   isLoading = false,
+  describedById,
 }) => {
+  const headingId = useId();
+  const subtitleId = subtitle ? `${headingId}-subtitle` : undefined;
+  const ariaDescribedBy = [subtitleId, describedById].filter(Boolean).join(" ") || undefined;
+
   const handleCancel = useCallback(() => {
     if (!isLoading) {
       onClose();
@@ -149,10 +155,18 @@ export const Modal: React.FC<ModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <ModalOverlay>
-      <ModalContent maxWidth={maxWidth} maxHeight={maxHeight}>
-        <h2>{title}</h2>
-        {subtitle && <ModalSubtitle>{subtitle}</ModalSubtitle>}
+    <ModalOverlay role="presentation" onClick={handleCancel}>
+      <ModalContent
+        maxWidth={maxWidth}
+        maxHeight={maxHeight}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={headingId}
+        aria-describedby={ariaDescribedBy}
+        onClick={(event) => event.stopPropagation()}
+      >
+        <h2 id={headingId}>{title}</h2>
+        {subtitle && <ModalSubtitle id={subtitleId}>{subtitle}</ModalSubtitle>}
         {children}
       </ModalContent>
     </ModalOverlay>

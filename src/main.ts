@@ -3,6 +3,7 @@ import "source-map-support/register";
 
 import type { MenuItemConstructorOptions } from "electron";
 import { app, BrowserWindow, ipcMain as electronIpcMain, Menu, shell, dialog } from "electron";
+import * as fs from "fs";
 import * as path from "path";
 import { Config } from "./config";
 import { IpcMain } from "./services/ipcMain";
@@ -39,6 +40,21 @@ if (!app.isPackaged) {
 
 const config = new Config();
 const ipcMain = new IpcMain(config);
+const isE2ETest = process.env.CMUX_E2E === "1";
+const forceDistLoad = process.env.CMUX_E2E_LOAD_DIST === "1";
+
+if (isE2ETest) {
+  const e2eUserData = path.join(config.rootDir, "user-data");
+  try {
+    fs.mkdirSync(e2eUserData, { recursive: true });
+    app.setPath("userData", e2eUserData);
+    console.log("Using test userData directory:", e2eUserData);
+  } catch (error) {
+    console.warn("Failed to prepare test userData directory:", error);
+  }
+}
+
+const devServerPort = process.env.CMUX_DEVSERVER_PORT ?? "5173";
 
 console.log(
   `Cmux starting - version: ${(VERSION as { git?: string; buildTime?: string }).git ?? "(dev)"} (built: ${(VERSION as { git?: string; buildTime?: string }).buildTime ?? "dev-mode"})`
@@ -184,16 +200,18 @@ function createWindow() {
 
   // Load from dev server in development, built files in production
   // app.isPackaged is true when running from a built .app/.exe, false in development
-  if (app.isPackaged) {
+  if ((isE2ETest && !forceDistLoad) || (!app.isPackaged && !forceDistLoad)) {
+    // Development mode: load from vite dev server
+    const devHost = process.env.CMUX_DEVSERVER_HOST ?? "127.0.0.1";
+    void mainWindow.loadURL(`http://${devHost}:${devServerPort}`);
+    if (!isE2ETest) {
+      mainWindow.webContents.once("did-finish-load", () => {
+        mainWindow?.webContents.openDevTools();
+      });
+    }
+  } else {
     // Production mode: load built files
     void mainWindow.loadFile(path.join(__dirname, "index.html"));
-  } else {
-    // Development mode: load from vite dev server
-    void mainWindow.loadURL("http://localhost:5173");
-    // Open DevTools after React content loads
-    mainWindow.webContents.once("did-finish-load", () => {
-      mainWindow?.webContents.openDevTools();
-    });
   }
 
   mainWindow.on("closed", () => {

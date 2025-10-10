@@ -121,7 +121,7 @@ export const TipsCarousel: React.FC = () => {
   }, []);
 
   return (
-    <TipsContainer>
+    <TipsContainer role="status" aria-live="polite" aria-atomic="true">
       <TipLabel className="tip-label">Tip:</TipLabel>
       <TipContent className="tip-content">{TIPS[currentTipIndex]?.content}</TipContent>
     </TipsContainer>
