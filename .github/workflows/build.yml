@@ -19,6 +19,9 @@ jobs:
       - name: Install ImageMagick
         run: brew install imagemagick
 
+      - name: Build application
+        run: bun run build
+
       - name: Setup code signing
         run: ./scripts/setup-macos-signing.sh
         env:
@@ -58,6 +61,9 @@ jobs:
 
       - name: Install ImageMagick
         run: sudo apt-get update && sudo apt-get install -y imagemagick
+
+      - name: Build application
+        run: bun run build
 
       - name: Package for Linux
         run: make dist-linux
