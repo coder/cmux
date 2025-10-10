@@ -59,7 +59,7 @@ export const markdownComponents = {
     <summary
       style={{
         cursor: "pointer",
-        fontWeight: "bold",
+        fontWeight: 600,
         padding: "0.25em 0",
         userSelect: "none",
       }}
