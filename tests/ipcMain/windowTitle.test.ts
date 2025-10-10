@@ -14,10 +14,15 @@ describeIntegration("Window title IPC", () => {
         expect(env.mockWindow.setTitle).toBeDefined();
 
         // Call setTitle via IPC
-        await env.mockIpcRenderer.invoke(IPC_CHANNELS.WINDOW_SET_TITLE, "test-workspace - test-project - cmux");
+        await env.mockIpcRenderer.invoke(
+          IPC_CHANNELS.WINDOW_SET_TITLE,
+          "test-workspace - test-project - cmux"
+        );
 
         // Verify setTitle was called on the window
-        expect(env.mockWindow.setTitle).toHaveBeenCalledWith("test-workspace - test-project - cmux");
+        expect(env.mockWindow.setTitle).toHaveBeenCalledWith(
+          "test-workspace - test-project - cmux"
+        );
       } finally {
         await cleanupTestEnvironment(env);
       }
