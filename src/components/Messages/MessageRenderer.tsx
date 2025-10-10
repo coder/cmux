@@ -23,7 +23,9 @@ export const MessageRenderer = React.memo<MessageRendererProps>(
       case "user":
         return <UserMessage message={message} className={className} onEdit={onEditUserMessage} />;
       case "assistant":
-        return <AssistantMessage message={message} className={className} />;
+        return (
+          <AssistantMessage message={message} className={className} workspaceId={workspaceId} />
+        );
       case "tool":
         return <ToolMessage message={message} className={className} workspaceId={workspaceId} />;
       case "reasoning":

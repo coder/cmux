@@ -5,6 +5,7 @@ import { MarkdownRenderer } from "./MarkdownRenderer";
 import { TypewriterMarkdown } from "./TypewriterMarkdown";
 import type { ButtonConfig } from "./MessageWindow";
 import { MessageWindow } from "./MessageWindow";
+import { useStartHere } from "@/hooks/useStartHere";
 
 const RawContent = styled.pre`
   font-family: var(--font-monospace);
@@ -52,14 +53,25 @@ const CompactedBadge = styled.span`
 interface AssistantMessageProps {
   message: DisplayedMessage & { type: "assistant" };
   className?: string;
+  workspaceId?: string;
 }
 
-export const AssistantMessage: React.FC<AssistantMessageProps> = ({ message, className }) => {
+export const AssistantMessage: React.FC<AssistantMessageProps> = ({
+  message,
+  className,
+  workspaceId,
+}) => {
   const [showRaw, setShowRaw] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const content = message.content;
   const isStreaming = message.isStreaming;
+  
+  // Use Start Here hook for final assistant messages
+  const { handleStartHere, buttonLabel, disabled: startHereDisabled } = useStartHere(
+    workspaceId,
+    content
+  );
 
   const handleCopy = async () => {
     try {
@@ -75,6 +87,16 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({ message, cla
   const buttons: ButtonConfig[] = isStreaming
     ? []
     : [
+        // Add Start Here button if workspaceId is available
+        ...(workspaceId
+          ? [
+              {
+                label: buttonLabel,
+                onClick: () => void handleStartHere(),
+                disabled: startHereDisabled,
+              },
+            ]
+          : []),
         {
           label: copied ? "✓ Copied" : "Copy Text",
           onClick: () => void handleCopy(),

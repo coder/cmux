@@ -69,6 +69,7 @@ export interface ButtonConfig {
   label: string;
   onClick: () => void;
   active?: boolean;
+  disabled?: boolean;
 }
 
 interface MessageWindowProps {
@@ -114,7 +115,12 @@ export const MessageWindow: React.FC<MessageWindowProps> = ({
         <ButtonGroup>
           {rightLabel}
           {buttons.map((button, index) => (
-            <HeaderButton key={index} active={button.active} onClick={button.onClick}>
+            <HeaderButton
+              key={index}
+              active={button.active}
+              onClick={button.onClick}
+              disabled={button.disabled}
+            >
               {button.label}
             </HeaderButton>
           ))}
