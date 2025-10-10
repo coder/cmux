@@ -16,17 +16,12 @@ import SecretsModal from "./SecretsModal";
 import type { Secret } from "@/types/secrets";
 
 // Styled Components
-const SidebarContainer = styled.div<{ collapsed?: boolean }>`
-  width: ${(props) => (props.collapsed ? "32px" : "280px")};
-  height: 100vh;
-  background: #252526;
-  border-right: 1px solid #1e1e1e;
+const SidebarContent = styled.div`
   display: flex;
   flex-direction: column;
-  flex-shrink: 0;
-  font-family: var(--font-primary);
-  transition: width 0.2s ease;
+  flex: 1;
   overflow: hidden;
+  font-family: var(--font-primary);
 `;
 
 const SidebarHeader = styled.div`
@@ -534,7 +529,7 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
   }, [selectedWorkspace, onAddWorkspace]);
 
   return (
-    <SidebarContainer collapsed={collapsed} role="navigation" aria-label="Projects">
+    <SidebarContent role="navigation" aria-label="Projects">
       {!collapsed && (
         <>
           <SidebarHeader>
@@ -763,7 +758,7 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
           onSave={handleSaveSecrets}
         />
       )}
-    </SidebarContainer>
+    </SidebarContent>
   );
 };
 

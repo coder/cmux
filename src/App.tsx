@@ -6,7 +6,7 @@ import { GlobalFonts } from "./styles/fonts";
 import { GlobalScrollbars } from "./styles/scrollbars";
 import type { ProjectConfig } from "./config";
 import type { WorkspaceSelection } from "./components/ProjectSidebar";
-import ProjectSidebar from "./components/ProjectSidebar";
+import { LeftSidebar } from "./components/LeftSidebar";
 import NewWorkspaceModal from "./components/NewWorkspaceModal";
 import { AIView } from "./components/AIView";
 import { ErrorBoundary } from "./components/ErrorBoundary";
@@ -453,7 +453,7 @@ function AppInner() {
       <Global styles={globalStyles} />
       <GitStatusProvider workspaceMetadata={workspaceMetadata}>
         <AppContainer>
-          <ProjectSidebar
+          <LeftSidebar
             projects={projects}
             workspaceMetadata={workspaceMetadata}
             selectedWorkspace={selectedWorkspace}
