@@ -64,7 +64,7 @@ export const markdownComponents = {
         userSelect: "none",
       }}
     >
-      {children}
+      <span style={{ marginLeft: "0.35em" }}>{children}</span>
     </summary>
   ),
 
