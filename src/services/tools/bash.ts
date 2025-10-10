@@ -94,16 +94,15 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
       }
 
       // Create the process with `using` for automatic cleanup
-      // If niceness is specified, wrap the command with nice
-      const finalScript =
+      // If niceness is specified, spawn nice directly to avoid escaping issues
+      const spawnCommand = config.niceness !== undefined ? "nice" : "bash";
+      const spawnArgs =
         config.niceness !== undefined
-          ? `nice -n ${config.niceness} bash -c ${JSON.stringify(script)}`
-          : script;
-      const finalCommand =
-        config.niceness !== undefined ? ["bash", "-c", finalScript] : ["bash", "-c", script];
+          ? ["-n", config.niceness.toString(), "bash", "-c", script]
+          : ["-c", script];
 
       using childProcess = new DisposableProcess(
-        spawn(finalCommand[0], finalCommand.slice(1), {
+        spawn(spawnCommand, spawnArgs, {
           cwd: config.cwd,
           env: {
             ...process.env,
