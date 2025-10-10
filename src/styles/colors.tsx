@@ -36,13 +36,6 @@ export const GlobalColors = () => (
         --color-edit-mode-alpha: hsl(from var(--color-edit-mode) h s l / 0.1);
         --color-edit-mode-alpha-hover: hsl(from var(--color-edit-mode) h s l / 0.15);
 
-        /* YOLO Mode Colors */
-        --color-yolo-mode: hsl(0 70% 45%);
-        --color-yolo-mode-hover: color-mix(in srgb, var(--color-yolo-mode), white 20%);
-        --color-yolo-mode-light: color-mix(in srgb, var(--color-yolo-mode) 60%, white);
-        --color-yolo-mode-alpha: hsl(from var(--color-yolo-mode) h s l / 0.1);
-        --color-yolo-mode-alpha-hover: hsl(from var(--color-yolo-mode) h s l / 0.15);
-
         /* Editing Mode Colors */
         --color-editing-mode: hsl(30 100% 50%);
         --color-editing-mode-alpha: hsl(from var(--color-editing-mode) h s l / 0.1);

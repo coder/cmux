@@ -249,7 +249,6 @@ This project uses **Make** as the primary build orchestrator. See `Makefile` for
   const MODE_COLORS: Record<UIPermissionMode, string> = {
     plan: "var(--color-plan-mode)",
     edit: "var(--color-edit-mode)",
-    yolo: "var(--color-yolo-mode)",
   };
 
   // ❌ Avoid - Can miss cases, typos won't be caught

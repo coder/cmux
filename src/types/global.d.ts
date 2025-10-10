@@ -1,7 +1,7 @@
 import type { IPCApi } from "./ipc";
 
 // Our simplified permission modes for UI
-export type UIPermissionMode = "plan" | "edit" | "yolo";
+export type UIPermissionMode = "plan" | "edit";
 
 // Claude SDK permission modes
 export type SDKPermissionMode = "default" | "acceptEdits" | "bypassPermissions" | "plan";
