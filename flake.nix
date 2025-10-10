@@ -23,6 +23,8 @@
             bun
             nodejs
             makeWrapper
+            gnumake
+            git  # Needed by scripts/generate-version.sh
           ];
 
           buildInputs = with pkgs; [
@@ -62,43 +64,14 @@
             cp -r ${offlineCache}/node_modules .
             chmod -R +w node_modules
             
-            # Patch shebangs in node_modules binaries
+            # Patch shebangs in node_modules binaries and scripts
             patchShebangs node_modules
+            patchShebangs scripts
           '';
 
           buildPhase = ''
-            # Generate version files
-            mkdir -p dist
-            echo "${version}" > dist/version.txt
-            
-            # Generate src/version.ts
-            TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-            cat >src/version.ts <<EOF
-// This file is auto-generated
-// Do not edit manually
-
-export const VERSION = {
-  git: "${version}",
-  buildTime: "$TIMESTAMP",
-};
-EOF
-            
-            echo "Building TypeScript (main process)..."
-            ./node_modules/.bin/tsc -p tsconfig.main.json
-            ./node_modules/.bin/tsc-alias -p tsconfig.main.json
-            
-            echo "Building preload script..."
-            bun build src/preload.ts \
-              --format=cjs \
-              --target=node \
-              --external=electron \
-              --sourcemap=inline \
-              --outfile=dist/preload.js
-            
-            echo "Building renderer (React app)..."
-            bun x vite build
-            
-            echo "Build complete!"
+            echo "Building cmux with make..."
+            make build
           '';
 
           installPhase = ''
