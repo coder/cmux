@@ -133,6 +133,69 @@ describe("Vim Command Integration Tests", () => {
     });
   });
 
+  describe("Navigation", () => {
+    test("w moves to next word", () => {
+      const state = executeVimCommands(
+        { ...initialState, text: "hello world foo", cursor: 0, mode: "normal" },
+        ["w"]
+      );
+      expect(state.cursor).toBe(6);
+    });
+
+    test("b moves to previous word", () => {
+      const state = executeVimCommands(
+        { ...initialState, text: "hello world foo", cursor: 12, mode: "normal" },
+        ["b"]
+      );
+      expect(state.cursor).toBe(6);
+    });
+
+    test("$ moves to end of line", () => {
+      const state = executeVimCommands(
+        { ...initialState, text: "hello world", cursor: 0, mode: "normal" },
+        ["$"]
+      );
+      expect(state.cursor).toBe(10); // On last char, not past it
+    });
+
+    test("0 moves to start of line", () => {
+      const state = executeVimCommands(
+        { ...initialState, text: "hello world", cursor: 10, mode: "normal" },
+        ["0"]
+      );
+      expect(state.cursor).toBe(0);
+    });
+
+    test("w skips punctuation separators like hyphen", () => {
+      const initial = {
+        ...initialState,
+        text: "asd-f asdf asdf",
+        cursor: 0,
+        mode: "normal" as const,
+      };
+
+      const afterFirstW = executeVimCommands(initial, ["w"]);
+      expect(afterFirstW.cursor).toBe(4);
+
+      const afterSecondW = executeVimCommands(afterFirstW, ["w"]);
+      expect(afterSecondW.cursor).toBe(6);
+    });
+
+    test("e moves past punctuation to end of next word", () => {
+      const state = executeVimCommands(
+        {
+          ...initialState,
+          text: "asd-f asdf asdf",
+          cursor: 3,
+          mode: "normal",
+        },
+        ["e"]
+      );
+
+      expect(state.cursor).toBe(4);
+    });
+  });
+
   describe("Simple Edits", () => {
     test("x deletes character under cursor", () => {
       const state = executeVimCommands(
