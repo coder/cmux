@@ -452,6 +452,15 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       window.removeEventListener(CUSTOM_EVENTS.THINKING_LEVEL_TOAST, handler as EventListener);
   }, [workspaceId, setToast]);
 
+  // Auto-focus chat input when workspace changes (e.g., new workspace created or switched)
+  useEffect(() => {
+    // Small delay to ensure DOM is ready and other components have settled
+    const timer = setTimeout(() => {
+      focusMessageInput();
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [workspaceId, focusMessageInput]);
+
   // Handle paste events to extract images
   const handlePaste = useCallback((e: React.ClipboardEvent<HTMLTextAreaElement>) => {
     const items = e.clipboardData?.items;

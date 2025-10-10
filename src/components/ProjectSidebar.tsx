@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import styled from "@emotion/styled";
 import { css } from "@emotion/react";
 import type { ProjectConfig } from "@/config";
@@ -343,6 +344,26 @@ const WorkspaceErrorContainer = styled.div`
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 `;
 
+const RemoveErrorToast = styled.div<{ top: number; left: number }>`
+  position: fixed;
+  top: ${(props) => props.top}px;
+  left: ${(props) => props.left}px;
+  max-width: 400px;
+  padding: 12px 16px;
+  background: var(--color-error-bg);
+  border: 1px solid var(--color-error);
+  border-radius: 6px;
+  color: var(--color-error);
+  font-size: 12px;
+  z-index: 10000;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  font-family: var(--font-monospace);
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+  pointer-events: auto;
+`;
+
 const WorkspaceRemoveBtn = styled(RemoveBtn)`
   opacity: 0;
 `;
@@ -409,9 +430,11 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
   const [editingName, setEditingName] = useState<string>("");
   const [originalName, setOriginalName] = useState<string>("");
   const [renameError, setRenameError] = useState<string | null>(null);
-  const [removeError, setRemoveError] = useState<{ workspaceId: string; error: string } | null>(
-    null
-  );
+  const [removeError, setRemoveError] = useState<{
+    workspaceId: string;
+    error: string;
+    position: { top: number; left: number };
+  } | null>(null);
   const [secretsModalState, setSecretsModalState] = useState<{
     isOpen: boolean;
     projectPath: string;
@@ -485,12 +508,18 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
     }
   };
 
-  const handleRemoveWorkspace = async (workspaceId: string) => {
+  const handleRemoveWorkspace = async (workspaceId: string, buttonElement: HTMLElement) => {
     const result = await onRemoveWorkspace(workspaceId);
     if (!result.success) {
+      // Get button position to place error near it
+      const rect = buttonElement.getBoundingClientRect();
       setRemoveError({
         workspaceId,
         error: result.error ?? "Failed to remove workspace",
+        position: {
+          top: rect.top + window.scrollY,
+          left: rect.right + 10, // 10px to the right of button
+        },
       });
       // Clear error after 5 seconds
       setTimeout(() => {
@@ -679,7 +708,7 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                                   <WorkspaceRemoveBtn
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      void handleRemoveWorkspace(workspaceId);
+                                      void handleRemoveWorkspace(workspaceId, e.currentTarget);
                                     }}
                                     aria-label={`Remove workspace ${displayName}`}
                                     data-workspace-id={workspaceId}
@@ -729,11 +758,6 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                               {isEditing && renameError && (
                                 <WorkspaceErrorContainer>{renameError}</WorkspaceErrorContainer>
                               )}
-                              {!isEditing && removeError?.workspaceId === workspaceId && (
-                                <WorkspaceErrorContainer>
-                                  {removeError.error}
-                                </WorkspaceErrorContainer>
-                              )}
                             </React.Fragment>
                           );
                         })}
@@ -763,6 +787,13 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
           onSave={handleSaveSecrets}
         />
       )}
+      {removeError &&
+        createPortal(
+          <RemoveErrorToast top={removeError.position.top} left={removeError.position.left}>
+            Failed to remove workspace: {removeError.error}
+          </RemoveErrorToast>,
+          document.body
+        )}
     </SidebarContainer>
   );
 };
