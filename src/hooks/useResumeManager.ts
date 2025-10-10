@@ -66,7 +66,15 @@ export function useResumeManager(workspaceStates: Map<string, WorkspaceState>) {
    */
   const isEligibleForResume = (workspaceId: string): boolean => {
     const state = workspaceStatesRef.current.get(workspaceId);
-    if (!state) return false;
+    if (!state) {
+      // Debug: Log why workspace not found
+      const allWorkspaceIds = Array.from(workspaceStatesRef.current.keys());
+      console.debug(
+        `[useResumeManager] Workspace ${workspaceId} not in Map. Available:`,
+        allWorkspaceIds
+      );
+      return false;
+    }
 
     // 1. Must have interrupted stream (not currently streaming)
     if (state.canInterrupt) return false; // Currently streaming
@@ -75,11 +83,17 @@ export function useResumeManager(workspaceStates: Map<string, WorkspaceState>) {
 
     const lastMessage = state.messages[state.messages.length - 1];
     const hasInterruptedStream =
+      lastMessage.type === "stream-error" || // Stream errored out
       (lastMessage.type === "assistant" && lastMessage.isPartial) ||
       (lastMessage.type === "tool" && lastMessage.isPartial) ||
       (lastMessage.type === "reasoning" && lastMessage.isPartial);
 
-    if (!hasInterruptedStream) return false;
+    if (!hasInterruptedStream) {
+      console.debug(
+        `[useResumeManager] ${workspaceId} not eligible: last message type=${lastMessage.type} isPartial=${"isPartial" in lastMessage ? lastMessage.isPartial : "N/A"}`
+      );
+      return false;
+    }
 
     // 2. Auto-retry must be enabled (user didn't press Ctrl+C)
     const autoRetry = readPersistedState<boolean>(getAutoRetryKey(workspaceId), true);
