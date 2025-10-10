@@ -1,9 +1,6 @@
 import { describe, it, expect } from "@jest/globals";
 import type { ModelMessage, AssistantModelMessage, ToolModelMessage } from "ai";
-import {
-  transformModelMessages,
-  validateAnthropicCompliance,
-} from "./modelMessageTransform";
+import { transformModelMessages, validateAnthropicCompliance } from "./modelMessageTransform";
 
 describe("modelMessageTransform", () => {
   describe("transformModelMessages", () => {
@@ -398,8 +395,6 @@ describe("modelMessageTransform", () => {
       );
     });
   });
-
-
 
   describe("reasoning part stripping for OpenAI", () => {
     it("should strip reasoning parts for OpenAI provider", () => {
