@@ -177,6 +177,9 @@ function createWindow() {
       preload: path.join(__dirname, "preload.js"),
     },
     title: "cmux - coder multiplexer",
+    // Hide menu bar on Linux by default (like VS Code)
+    // User can press Alt to toggle it
+    autoHideMenuBar: process.platform === "linux",
   });
 
   // Register IPC handlers with the main window
