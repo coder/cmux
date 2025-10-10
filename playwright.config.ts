@@ -8,14 +8,13 @@ export default defineConfig({
   expect: {
     timeout: 5_000,
   },
-  fullyParallel: false,
+  fullyParallel: true,
   forbidOnly: isCI,
   retries: isCI ? 1 : 0,
   reporter: [
     ["list"],
     ["html", { outputFolder: "artifacts/playwright-report", open: "never" }],
   ],
-  workers: 1,
   use: {
     trace: isCI ? "on-first-retry" : "retain-on-failure",
     screenshot: "only-on-failure",

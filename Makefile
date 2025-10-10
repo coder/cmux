@@ -133,7 +133,8 @@ test-coverage: ## Run tests with coverage
 	@./scripts/test.sh --coverage
 
 test-e2e: ## Run end-to-end tests
-	@PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 bun x playwright test --project=electron
+	@$(MAKE) build
+	@CMUX_E2E_LOAD_DIST=1 CMUX_E2E_SKIP_BUILD=1 PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 bun x playwright test --project=electron
 
 ## Distribution
 dist: build ## Build distributable packages

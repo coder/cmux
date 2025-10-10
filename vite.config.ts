@@ -6,6 +6,8 @@ import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const disableMermaid = process.env.VITE_DISABLE_MERMAID === "1";
+const devServerPort = Number(process.env.CMUX_VITE_PORT ?? "5173");
+const previewPort = Number(process.env.CMUX_VITE_PREVIEW_PORT ?? "4173");
 
 const alias: Record<string, string> = {
   "@": path.resolve(__dirname, "./src"),
@@ -29,8 +31,6 @@ export default defineConfig(({ mode }) => ({
     sourcemap: true,
     minify: "esbuild",
     rollupOptions: {
-      // Exclude ai-tokenizer from renderer bundle - it's never used there (only in main process)
-      external: ["ai-tokenizer"],
       output: {
         format: "es",
         inlineDynamicImports: false,
@@ -46,13 +46,13 @@ export default defineConfig(({ mode }) => ({
   },
   server: {
     host: "127.0.0.1",
-    port: 5173,
+    port: devServerPort,
     strictPort: true,
     allowedHosts: ["localhost", "127.0.0.1"],
   },
   preview: {
     host: "127.0.0.1",
-    port: 4173,
+    port: previewPort,
     strictPort: true,
     allowedHosts: ["localhost", "127.0.0.1"],
   },
