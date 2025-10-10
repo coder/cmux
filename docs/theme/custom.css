@@ -9,8 +9,8 @@
 
 :root {
   /* Core tokens mirrored from src/styles/colors.tsx */
-  --color-background: hsl(0 0% 12%);
-  --color-background-secondary: hsl(60 1% 15%);
+  --color-background: hsl(0deg 2.51% 10.04%);
+  --color-background-secondary: hsl(0deg 0% 0%);
   --color-border: hsl(240 2% 25%);
   --color-text: hsl(0 0% 83%);
   --color-text-secondary: hsl(0 0% 42%);
@@ -372,4 +372,17 @@ details[open] > summary::before {
     transition: none !important;
     animation: none !important;
   }
+}
+
+/* Add logo before menu title */
+.menu-title::before {
+  content: "";
+  display: inline-block;
+  width: 32px;
+  height: 32px;
+  margin-right: 8px;
+  vertical-align: middle;
+  background-image: url("../img/logo.webp");
+  background-size: contain;
+  background-repeat: no-repeat;
 }

@@ -59,6 +59,8 @@ dist
 
 # Electron build output
 release
+build/
+!build/entitlements.mac.plist
 
 # Documentation
 ai-sdk-docs/

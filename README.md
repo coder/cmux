@@ -1,7 +1,13 @@
+<div align="center">
+
+<img src="docs/img/logo.webp" alt="cmux logo" width="15%" />
+
 # cmux - coding agent multiplexer
 
 [![CI](https://github.com/coder/cmux/actions/workflows/ci.yml/badge.svg)](https://github.com/coder/cmux/actions/workflows/ci.yml)
 [![Build](https://github.com/coder/cmux/actions/workflows/build.yml/badge.svg)](https://github.com/coder/cmux/actions/workflows/build.yml)
+
+</div>
 
 ![cmux product screenshot](docs/img/product-hero.webp)
 
