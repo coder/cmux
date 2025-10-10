@@ -328,32 +328,30 @@ const AIViewInner: React.FC<AIViewProps> = ({
         return;
       }
 
-      // Toggle thinking works anywhere except in input fields
+      // Toggle thinking works even when focused in input fields
       if (matchesKeybind(e, KEYBINDS.TOGGLE_THINKING)) {
-        if (!isEditableElement(e.target)) {
-          e.preventDefault();
-          // Get current thinking level for the workspace
-          // Values are JSON-stringified by usePersistedState, so we need to parse them
-          const thinkingKey = getThinkingLevelKey(workspaceId);
-          const thinkingRaw = localStorage.getItem(thinkingKey);
-          const currentThinking = thinkingRaw ? (JSON.parse(thinkingRaw) as ThinkingLevel) : null;
+        e.preventDefault();
+        // Get current thinking level for the workspace
+        // Values are JSON-stringified by usePersistedState, so we need to parse them
+        const thinkingKey = getThinkingLevelKey(workspaceId);
+        const thinkingRaw = localStorage.getItem(thinkingKey);
+        const currentThinking = thinkingRaw ? (JSON.parse(thinkingRaw) as ThinkingLevel) : null;
 
-          if (currentThinking && currentThinking !== "off") {
-            // If thinking is on, save it for this model and turn it off
-            const modelKey = getThinkingByModelKey(currentModel);
-            localStorage.setItem(modelKey, JSON.stringify(currentThinking));
-            updatePersistedState(thinkingKey, "off");
-          } else {
-            // If thinking is off, restore the last value for this model (default to "medium")
-            const modelKey = getThinkingByModelKey(currentModel);
-            const lastThinkingRaw = localStorage.getItem(modelKey);
-            const lastThinking: ThinkingLevel = lastThinkingRaw
-              ? (JSON.parse(lastThinkingRaw) as ThinkingLevel)
-              : "medium";
-            updatePersistedState(thinkingKey, lastThinking);
-          }
-          return;
+        if (currentThinking && currentThinking !== "off") {
+          // If thinking is on, save it for this model and turn it off
+          const modelKey = getThinkingByModelKey(currentModel);
+          localStorage.setItem(modelKey, JSON.stringify(currentThinking));
+          updatePersistedState(thinkingKey, "off");
+        } else {
+          // If thinking is off, restore the last value for this model (default to "medium")
+          const modelKey = getThinkingByModelKey(currentModel);
+          const lastThinkingRaw = localStorage.getItem(modelKey);
+          const lastThinking: ThinkingLevel = lastThinkingRaw
+            ? (JSON.parse(lastThinkingRaw) as ThinkingLevel)
+            : "medium";
+          updatePersistedState(thinkingKey, lastThinking);
         }
+        return;
       }
 
       // Don't handle other shortcuts if user is typing in an input field
