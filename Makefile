@@ -20,7 +20,7 @@
 
 .PHONY: all build dev start clean help
 .PHONY: build-renderer
-.PHONY: lint lint-fix fmt fmt-check fmt-shell fmt-shell-check typecheck static-check
+.PHONY: lint lint-fix fmt fmt-check fmt-shell fmt-nix fmt-nix-check fmt-shell-check typecheck static-check
 .PHONY: test test-unit test-integration test-watch test-coverage test-e2e
 .PHONY: dist dist-mac dist-win dist-linux
 .PHONY: docs docs-build docs-watch
@@ -46,7 +46,7 @@ dev: build-main ## Start development server (Vite + TypeScript watcher)
 		"vite"
 
 start: build-main build-preload ## Build and start Electron app
-	@electron .
+	@bun x electron --remote-debugging-port=9222 .
 
 ## Build targets (can run in parallel)
 build: src/version.ts build-renderer build-main build-preload ## Build all targets
@@ -90,11 +90,17 @@ fmt: ## Format code with Prettier
 	@bun x prettier --write $(PRETTIER_PATTERNS)
 
 fmt-check: ## Check code formatting
-	@echo "Checking TypeScript/JSON/Markdown formatting..."
-	@bun x prettier --check $(PRETTIER_PATTERNS)
+	@./scripts/fmt.sh --check
+	@./scripts/fmt.sh --nix-check
 
 fmt-shell: ## Format shell scripts with shfmt
 	@./scripts/fmt.sh --shell
+
+fmt-nix: ## Format flake.nix with nix fmt
+	@./scripts/fmt.sh --nix
+
+fmt-nix-check: ## Check flake.nix formatting
+	@./scripts/fmt.sh --nix-check
 
 typecheck: src/version.ts ## Run TypeScript type checking
 	@./scripts/typecheck.sh
