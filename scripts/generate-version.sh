@@ -1,7 +1,8 @@
 #!/bin/bash
 # Generate version.ts with git information
 
-VERSION=$(git describe --tags --always --dirty 2>/dev/null || echo "unknown")
+GIT_COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+GIT_DESCRIBE=$(git describe --tags --always --dirty 2>/dev/null || echo "unknown")
 TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
 cat >src/version.ts <<EOF
@@ -9,9 +10,10 @@ cat >src/version.ts <<EOF
 // Do not edit manually
 
 export const VERSION = {
-  git: "${VERSION}",
+  git_commit: "${GIT_COMMIT}",
+  git_describe: "${GIT_DESCRIBE}",
   buildTime: "${TIMESTAMP}",
 };
 EOF
 
-echo "Generated version.ts: ${VERSION} at ${TIMESTAMP}"
+echo "Generated version.ts: ${GIT_DESCRIBE} (${GIT_COMMIT}) at ${TIMESTAMP}"
