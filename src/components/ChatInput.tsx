@@ -559,8 +559,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             // so disable thinking for Anthropic models during compaction
             const isAnthropic = sendMessageOptions.model.startsWith("anthropic:");
             const result = await window.api.workspace.sendMessage(workspaceId, compactionMessage, {
+              ...sendMessageOptions,
               thinkingLevel: isAnthropic ? "off" : sendMessageOptions.thinkingLevel,
-              model: sendMessageOptions.model,
               toolPolicy: [{ regex_match: "compact_summary", action: "require" }],
               maxOutputTokens: parsed.maxOutputTokens, // Pass to model directly
             });
