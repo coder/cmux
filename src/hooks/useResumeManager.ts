@@ -83,6 +83,7 @@ export function useResumeManager(workspaceStates: Map<string, WorkspaceState>) {
 
     const lastMessage = state.messages[state.messages.length - 1];
     const hasInterruptedStream =
+      lastMessage.type === "stream-error" || // Stream errored out
       (lastMessage.type === "assistant" && lastMessage.isPartial) ||
       (lastMessage.type === "tool" && lastMessage.isPartial) ||
       (lastMessage.type === "reasoning" && lastMessage.isPartial);
