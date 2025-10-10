@@ -5,6 +5,8 @@ import { MarkdownRenderer } from "./MarkdownRenderer";
 import { TypewriterMarkdown } from "./TypewriterMarkdown";
 import type { ButtonConfig } from "./MessageWindow";
 import { MessageWindow } from "./MessageWindow";
+import { useStartHere } from "@/hooks/useStartHere";
+import { COMPACTED_EMOJI } from "@/constants/ui";
 
 const RawContent = styled.pre`
   font-family: var(--font-monospace);
@@ -52,14 +54,29 @@ const CompactedBadge = styled.span`
 interface AssistantMessageProps {
   message: DisplayedMessage & { type: "assistant" };
   className?: string;
+  workspaceId?: string;
 }
 
-export const AssistantMessage: React.FC<AssistantMessageProps> = ({ message, className }) => {
+export const AssistantMessage: React.FC<AssistantMessageProps> = ({
+  message,
+  className,
+  workspaceId,
+}) => {
   const [showRaw, setShowRaw] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const content = message.content;
   const isStreaming = message.isStreaming;
+  const isCompacted = message.isCompacted;
+
+  // Use Start Here hook for final assistant messages
+  const {
+    openModal,
+    buttonLabel,
+    buttonEmoji,
+    disabled: startHereDisabled,
+    modal,
+  } = useStartHere(workspaceId, content, isCompacted);
 
   const handleCopy = async () => {
     try {
@@ -75,6 +92,18 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({ message, cla
   const buttons: ButtonConfig[] = isStreaming
     ? []
     : [
+        // Add Start Here button if workspaceId is available and message is not already compacted
+        ...(workspaceId && !isCompacted
+          ? [
+              {
+                label: buttonLabel,
+                emoji: buttonEmoji,
+                onClick: openModal,
+                disabled: startHereDisabled,
+                tooltip: "Replace all chat history with this message",
+              },
+            ]
+          : []),
         {
           label: copied ? "✓ Copied" : "Copy Text",
           onClick: () => void handleCopy(),
@@ -117,20 +146,24 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({ message, cla
       <LabelContainer>
         <span>ASSISTANT</span>
         {modelName && <ModelName>{modelName.toLowerCase()}</ModelName>}
-        {isCompacted && <CompactedBadge>📦 compacted</CompactedBadge>}
+        {isCompacted && <CompactedBadge>{COMPACTED_EMOJI} compacted</CompactedBadge>}
       </LabelContainer>
     );
   };
 
   return (
-    <MessageWindow
-      label={renderLabel()}
-      borderColor="var(--color-assistant-border)"
-      message={message}
-      buttons={buttons}
-      className={className}
-    >
-      {renderContent()}
-    </MessageWindow>
+    <>
+      <MessageWindow
+        label={renderLabel()}
+        borderColor="var(--color-assistant-border)"
+        message={message}
+        buttons={buttons}
+        className={className}
+      >
+        {renderContent()}
+      </MessageWindow>
+
+      {modal}
+    </>
   );
 };

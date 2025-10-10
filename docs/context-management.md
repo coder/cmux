@@ -4,23 +4,23 @@ Commands for managing conversation history length and token usage.
 
 ## Comparison
 
-| Approach                 | `/clear` | `/truncate` | `/compact`       | Plan Compaction |
-| ------------------------ | -------- | ----------- | ---------------- | --------------- |
-| **Speed**                | Instant  | Instant     | Slower (uses AI) | Instant         |
-| **Context Preservation** | None     | Temporal    | Intelligent      | Intelligent     |
-| **Cost**                 | Free     | Free        | Uses API tokens  | Free            |
-| **Reversible**           | No       | No          | No               | Yes             |
+| Approach                 | `/clear` | `/truncate` | `/compact`       | Start Here  |
+| ------------------------ | -------- | ----------- | ---------------- | ----------- |
+| **Speed**                | Instant  | Instant     | Slower (uses AI) | Instant     |
+| **Context Preservation** | None     | Temporal    | Intelligent      | Intelligent |
+| **Cost**                 | Free     | Free        | Uses API tokens  | Free        |
+| **Reversible**           | No       | No          | No               | Yes         |
 
-## Plan Compaction
+## Start Here
 
-If you've produced a plan, you can opportunistically click "Compact Here" on the plan to use it
-as the entire conversation history. This operation is instant as all of the LLM's work was already
-done when it created the plan.
+Start Here allows you to restart your conversation from a specific point, using that message as the entire conversation history. This is available on:
 
-![Plan Compaction](./img/plan-compact.webp)
+- **Plans** - Click "🎯 Start Here" on any plan to use it as your conversation starting point
+- **Final Assistant messages** - Click "🎯 Start Here" on any completed assistant response
 
-This is a form of "opportunistic compaction" and is special in that you can review the post-compact
-context before the old context is permanently removed.
+![Start Here](./img/plan-compact.webp)
+
+This is a form of "opportunistic compaction" - the content is already well-structured, so the operation is instant. You can review the new starting point before the old context is permanently removed, making this the only reversible context management approach (use Cmd+Z/Ctrl+Z to undo).
 
 ## `/clear` - Clear All History
 
