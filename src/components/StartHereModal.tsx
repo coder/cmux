@@ -1,21 +1,25 @@
 import React, { useState, useEffect, useCallback } from "react";
 import styled from "@emotion/styled";
-import { Modal, ModalInfo, ModalActions, CancelButton, PrimaryButton } from "./Modal";
+import { Modal, ModalInfo } from "./Modal";
 
-const CountdownText = styled.div`
-  font-size: 48px;
-  font-weight: bold;
+const CountdownContainer = styled.div`
   text-align: center;
-  color: var(--color-plan-mode);
-  margin: 20px 0;
-  font-family: var(--font-monospace);
+  margin: 40px 0;
 `;
 
-const WarningText = styled.p`
-  color: #ff9800;
-  font-size: 13px;
-  margin: 12px 0;
-  font-weight: 500;
+const CountdownText = styled.div`
+  font-size: 64px;
+  font-weight: bold;
+  color: var(--color-plan-mode);
+  font-family: var(--font-monospace);
+  line-height: 1;
+`;
+
+const CountdownLabel = styled.div`
+  font-size: 24px;
+  font-weight: bold;
+  color: #ccc;
+  margin-bottom: 20px;
 `;
 
 interface StartHereModalProps {
@@ -72,52 +76,32 @@ export const StartHereModal: React.FC<StartHereModalProps> = ({
     }
   }, [isExecuting, onClose]);
 
-  const handleConfirmNow = useCallback(async () => {
-    if (isExecuting) return;
-    setIsExecuting(true);
-    await onConfirm();
-    onClose();
-  }, [isExecuting, onConfirm, onClose]);
-
   return (
     <Modal
       isOpen={isOpen}
       title="Start Here"
-      subtitle="This will replace all chat history with this message"
+      subtitle="Press ESC to cancel"
       onClose={handleCancel}
       isLoading={isExecuting}
     >
       <ModalInfo>
-        <WarningText>
-          ⚠️ This action cannot be undone. All previous messages will be permanently removed from
-          history.
-        </WarningText>
         <p>
-          The current message will become the only message in your conversation history, allowing
-          you to start fresh from this point.
-        </p>
-        <p style={{ marginTop: "12px", color: "#aaa" }}>
-          Press <strong>ESC</strong> to cancel
+          This will replace all chat history with this message. This action cannot be undone.
         </p>
       </ModalInfo>
 
-      {!isExecuting && countdown > 0 && <CountdownText>{countdown}</CountdownText>}
-
-      {isExecuting && (
-        <CountdownText style={{ fontSize: "18px" }}>Replacing history...</CountdownText>
+      {!isExecuting && countdown > 0 && (
+        <CountdownContainer>
+          <CountdownLabel>Compacting in</CountdownLabel>
+          <CountdownText>{countdown}</CountdownText>
+        </CountdownContainer>
       )}
 
-      <ModalActions>
-        <CancelButton onClick={handleCancel} disabled={isExecuting}>
-          Cancel
-        </CancelButton>
-        <PrimaryButton
-          onClick={() => void handleConfirmNow()}
-          disabled={isExecuting || countdown === 0}
-        >
-          {countdown === 0 ? "Executing..." : "Confirm Now"}
-        </PrimaryButton>
-      </ModalActions>
+      {isExecuting && (
+        <CountdownContainer>
+          <CountdownLabel>Replacing history...</CountdownLabel>
+        </CountdownContainer>
+      )}
     </Modal>
   );
 };
