@@ -245,8 +245,8 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
                     <strong>Vim Mode Enabled</strong>
                     <br />
                     <br />
-                    Press <strong>ESC</strong> for normal mode, <strong>i</strong> to return to insert
-                    mode.
+                    Press <strong>ESC</strong> for normal mode, <strong>i</strong> to return to
+                    insert mode.
                     <br />
                     <br />
                     See{" "}

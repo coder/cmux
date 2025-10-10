@@ -22,15 +22,15 @@ When documentation shows `Ctrl`, it means:
 
 ## Chat & Messages
 
-| Action                 | Shortcut         |
-| ---------------------- | ---------------- |
+| Action                 | Shortcut              |
+| ---------------------- | --------------------- |
 | Focus chat input       | `a`, `i`, or `Ctrl+I` |
-| Send message           | `Enter`          |
-| New line in message    | `Shift+Enter`    |
-| Cancel editing message | `Ctrl+Q`         |
-| Jump to bottom of chat | `Shift+G`        |
-| Change model           | `Ctrl+/`         |
-| Toggle thinking level  | `Ctrl+Shift+T`   |
+| Send message           | `Enter`               |
+| New line in message    | `Shift+Enter`         |
+| Cancel editing message | `Ctrl+Q`              |
+| Jump to bottom of chat | `Shift+G`             |
+| Change model           | `Ctrl+/`              |
+| Toggle thinking level  | `Ctrl+Shift+T`        |
 
 ## Workspaces
 

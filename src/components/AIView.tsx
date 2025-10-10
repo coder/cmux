@@ -344,7 +344,8 @@ const AIViewInner: React.FC<AIViewProps> = ({
           } else {
             // If thinking is off, restore the last value for this model (default to "medium")
             const modelKey = getThinkingByModelKey(currentModel);
-            const lastThinking = (localStorage.getItem(modelKey) as ThinkingLevel | null) ?? "medium";
+            const lastThinking =
+              (localStorage.getItem(modelKey) as ThinkingLevel | null) ?? "medium";
             updatePersistedState(thinkingKey, lastThinking);
           }
           return;
@@ -367,7 +368,15 @@ const AIViewInner: React.FC<AIViewProps> = ({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [jumpToBottom, handleOpenTerminal, workspaceId, canInterrupt, showRetryBarrier, setAutoRetry, currentModel]);
+  }, [
+    jumpToBottom,
+    handleOpenTerminal,
+    workspaceId,
+    canInterrupt,
+    showRetryBarrier,
+    setAutoRetry,
+    currentModel,
+  ]);
 
   if (loading) {
     return (
