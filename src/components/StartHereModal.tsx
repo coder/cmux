@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from "react";
 import styled from "@emotion/styled";
-import { Modal, ModalInfo, ModalActions, CancelButton, PrimaryButton } from "./Modal";
+import { Modal, ModalActions, CancelButton, PrimaryButton } from "./Modal";
 
 const CenteredActions = styled(ModalActions)`
   justify-content: center;
@@ -41,10 +41,6 @@ export const StartHereModal: React.FC<StartHereModalProps> = ({ isOpen, onClose,
       onClose={handleCancel}
       isLoading={isExecuting}
     >
-      <ModalInfo>
-        <p>This action cannot be undone. All previous messages will be permanently removed.</p>
-      </ModalInfo>
-
       <CenteredActions>
         <CancelButton onClick={handleCancel} disabled={isExecuting}>
           Cancel
