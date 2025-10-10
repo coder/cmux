@@ -125,10 +125,35 @@ export function useWorkspaceManagement({
     }
   };
 
+  const removeWorkspaceForce = async (
+    workspaceId: string
+  ): Promise<{ success: boolean; error?: string }> => {
+    const result = await window.api.workspace.removeForce(workspaceId);
+    if (result.success) {
+      // Backend has already updated the config - reload projects to get updated state
+      const projectsList = await window.api.projects.list();
+      const loadedProjects = new Map(projectsList.map((p) => [p.path, p]));
+      onProjectsUpdate(loadedProjects);
+
+      // Reload workspace metadata
+      await loadWorkspaceMetadata();
+
+      // Clear selected workspace if it was removed
+      if (selectedWorkspace?.workspaceId === workspaceId) {
+        onSelectedWorkspaceUpdate(null);
+      }
+      return { success: true };
+    } else {
+      console.error("Failed to force remove workspace:", result.error);
+      return { success: false, error: result.error };
+    }
+  };
+
   return {
     workspaceMetadata,
     createWorkspace,
     removeWorkspace,
+    removeWorkspaceForce,
     renameWorkspace,
     loadWorkspaceMetadata,
   };

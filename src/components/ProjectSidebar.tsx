@@ -380,6 +380,7 @@ interface ProjectSidebarProps {
   onAddWorkspace: (projectPath: string) => void;
   onRemoveProject: (path: string) => void;
   onRemoveWorkspace: (workspaceId: string) => Promise<{ success: boolean; error?: string }>;
+  onRemoveWorkspaceForce: (workspaceId: string) => Promise<{ success: boolean; error?: string }>;
   onRenameWorkspace: (
     workspaceId: string,
     newName: string
@@ -400,6 +401,7 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
   onAddWorkspace,
   onRemoveProject,
   onRemoveWorkspace,
+  onRemoveWorkspaceForce,
   onRenameWorkspace,
   getWorkspaceState,
   collapsed,
@@ -514,8 +516,8 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
     if (!result.success) {
       const error = result.error ?? "Failed to remove workspace";
       
-      // Check if this is a git --delete error (uncommitted changes, etc.)
-      if (error.includes("--delete")) {
+      // Check if this is a git --force error (uncommitted changes, etc.)
+      if (error.includes("--force")) {
         // Show force delete modal instead of toast
         setForceDeleteModal({
           isOpen: true,
@@ -552,13 +554,14 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
   };
 
   const handleForceDelete = async (workspaceId: string) => {
-    const result = await window.api.workspace.removeForce(workspaceId);
-    if (result.success) {
-      setForceDeleteModal(null);
-    } else {
-      // Even force delete failed - show error in console and close modal
+    // Close modal immediately to show that action is in progress
+    setForceDeleteModal(null);
+    
+    // Use the same state update logic as regular removal
+    const result = await onRemoveWorkspaceForce(workspaceId);
+    if (!result.success) {
+      // Force delete failed - show error in console
       console.error("Force delete failed:", result.error);
-      setForceDeleteModal(null);
     }
   };
 

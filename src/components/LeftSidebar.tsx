@@ -29,6 +29,7 @@ interface LeftSidebarProps {
   onAddWorkspace: (projectPath: string) => void;
   onRemoveProject: (path: string) => void;
   onRemoveWorkspace: (workspaceId: string) => Promise<{ success: boolean; error?: string }>;
+  onRemoveWorkspaceForce: (workspaceId: string) => Promise<{ success: boolean; error?: string }>;
   onRenameWorkspace: (
     workspaceId: string,
     newName: string

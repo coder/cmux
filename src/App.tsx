@@ -157,12 +157,17 @@ function AppInner() {
     [setProjects]
   );
 
-  const { workspaceMetadata, createWorkspace, removeWorkspace, renameWorkspace } =
-    useWorkspaceManagement({
-      selectedWorkspace,
-      onProjectsUpdate: handleProjectsUpdate,
-      onSelectedWorkspaceUpdate: setSelectedWorkspace,
-    });
+  const {
+    workspaceMetadata,
+    createWorkspace,
+    removeWorkspace,
+    removeWorkspaceForce,
+    renameWorkspace,
+  } = useWorkspaceManagement({
+    selectedWorkspace,
+    onProjectsUpdate: handleProjectsUpdate,
+    onSelectedWorkspaceUpdate: setSelectedWorkspace,
+  });
 
   // Use workspace aggregators hook for message state
   const { getWorkspaceState, workspaceStates } = useWorkspaceAggregators(workspaceMetadata);
@@ -494,6 +499,7 @@ function AppInner() {
             onAddWorkspace={(projectPath) => void handleAddWorkspace(projectPath)}
             onRemoveProject={(path) => void handleRemoveProject(path)}
             onRemoveWorkspace={removeWorkspace}
+            onRemoveWorkspaceForce={removeWorkspaceForce}
             onRenameWorkspace={renameWorkspace}
             getWorkspaceState={getWorkspaceState}
             collapsed={sidebarCollapsed}
