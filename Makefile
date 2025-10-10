@@ -19,7 +19,7 @@
 #   Add `## Description` after the target to make it appear in `make help`
 
 .PHONY: all build dev start clean help
-.PHONY: build-renderer
+.PHONY: build-renderer version
 .PHONY: lint lint-fix fmt fmt-check fmt-shell fmt-nix fmt-nix-check fmt-shell-check typecheck static-check
 .PHONY: test test-unit test-integration test-watch test-coverage test-e2e
 .PHONY: dist dist-mac dist-win dist-linux
@@ -81,8 +81,11 @@ build-renderer: ensure-deps src/version.ts ## Build renderer process
 	@echo "Building renderer..."
 	@bun x vite build
 
-src/version.ts: ## Generate version file
+# Always regenerate version file (marked as .PHONY above)
+version: ## Generate version file
 	@./scripts/generate-version.sh
+
+src/version.ts: version
 
 ## Quality checks (can run in parallel)
 static-check: lint typecheck fmt-check ## Run all static checks
