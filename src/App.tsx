@@ -10,7 +10,6 @@ import ProjectSidebar from "./components/ProjectSidebar";
 import NewWorkspaceModal from "./components/NewWorkspaceModal";
 import { AIView } from "./components/AIView";
 import { ErrorBoundary } from "./components/ErrorBoundary";
-import { TipsCarousel } from "./components/TipsCarousel";
 import { usePersistedState, updatePersistedState } from "./hooks/usePersistedState";
 import { matchesKeybind, KEYBINDS } from "./utils/ui/keybinds";
 import { useProjectManagement } from "./hooks/useProjectManagement";
@@ -107,26 +106,6 @@ const MainContent = styled.div`
   display: flex;
   flex-direction: column;
   overflow: hidden;
-`;
-
-const AppHeader = styled.header`
-  padding: 10px 20px;
-  background: #2d2d2d;
-  border-bottom: 1px solid #444;
-  display: flex;
-  align-items: center;
-  gap: 24px;
-
-  h1 {
-    color: #fff;
-    font-size: 20px;
-    margin: 0;
-    font-weight: 600;
-    letter-spacing: -0.5px;
-    line-height: 1;
-    display: flex;
-    align-items: center;
-  }
 `;
 
 const ContentArea = styled.div`
@@ -493,10 +472,6 @@ function AppInner() {
           onUpdateSecrets={handleUpdateSecrets}
         />
         <MainContent>
-          <AppHeader>
-            <h1>coder multiplexer</h1>
-            <TipsCarousel />
-          </AppHeader>
           <ContentArea>
             {selectedWorkspace ? (
               <ErrorBoundary
