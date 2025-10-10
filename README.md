@@ -44,10 +44,11 @@ of cmux as the IDE of the future. We go beyond Claude Code with:
 
 ## Quick Install
 
-Download pre-built binaries from [GitHub Actions artifacts](https://github.com/coder/cmux/actions/workflows/build.yml):
+Download pre-built binaries from [the releases page](https://github.com/coder/cmux/releases):
 
 - **macOS**: Signed and notarized DMG (separate builds for Intel/Apple Silicon)
 - **Linux**: AppImage
+- **Windows**: not implemented, coming soon
 
 ## Development
 
