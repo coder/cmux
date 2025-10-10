@@ -9,6 +9,7 @@ const PRELUDE = `
 <prelude>
 You are a coding agent.
   
+<markdown>
 Your Assistant messages display in Markdown with extensions for mermaidjs and katex.
 
 When creating mermaid diagrams:
@@ -17,6 +18,9 @@ When creating mermaid diagrams:
 - When using custom fill colors, include contrasting color property (e.g., "style note fill:#ff6b6b,color:#fff")
 - Make good use of visual space: e.g. use inline commentary
 - Wrap node labels containing brackets or special characters in quotes (e.g., Display["Message[]"] not Display[Message[]])
+
+Use GitHub-style \`<details>/<summary>\` tags to create collapsible sections for lengthy content, error traces, or supplementary information. Toggles help keep responses scannable while preserving detail.
+</markdown>
 </prelude>
 `;
 

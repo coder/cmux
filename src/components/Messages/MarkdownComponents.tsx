@@ -25,10 +25,48 @@ interface PreProps {
   children?: ReactNode;
 }
 
+interface DetailsProps {
+  children?: ReactNode;
+  open?: boolean;
+}
+
+interface SummaryProps {
+  children?: ReactNode;
+}
+
 // Custom components for markdown rendering
 export const markdownComponents = {
   // Pass through pre element - let code component handle the wrapping
   pre: ({ children }: PreProps) => <>{children}</>,
+
+  // Custom details/summary for collapsible sections
+  details: ({ children, open }: DetailsProps) => (
+    <details
+      open={open}
+      style={{
+        margin: "0.5em 0",
+        padding: "0.25em 0.5em",
+        border: "1px solid rgba(255, 255, 255, 0.1)",
+        borderRadius: "4px",
+        background: "rgba(0, 0, 0, 0.2)",
+      }}
+    >
+      {children}
+    </details>
+  ),
+
+  summary: ({ children }: SummaryProps) => (
+    <summary
+      style={{
+        cursor: "pointer",
+        fontWeight: 600,
+        padding: "0.25em 0",
+        userSelect: "none",
+      }}
+    >
+      <span style={{ marginLeft: "0.35em" }}>{children}</span>
+    </summary>
+  ),
 
   // Custom code block renderer with syntax highlighting
   code: ({ inline, className, children, node, ...props }: CodeProps) => {
