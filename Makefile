@@ -115,7 +115,6 @@ build/icon.icns: docs/img/logo.webp
 	@iconutil -c icns build/icon.iconset -o build/icon.icns
 	@rm -rf build/icon.iconset
 
->>>>>>> 1cbd3eac (🤖 Add cmux logo)
 ## Quality checks (can run in parallel)
 static-check: lint typecheck fmt-check ## Run all static checks
 
