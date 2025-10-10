@@ -5,7 +5,7 @@ import writeFileAtomic from "write-file-atomic";
 import type { FileEditInsertToolResult } from "@/types/tools";
 import type { ToolConfiguration, ToolFactory } from "@/utils/tools/tools";
 import { TOOL_DEFINITIONS } from "@/utils/tools/toolDefinitions";
-import { leaseFromContent, generateDiff, validatePathInCwd, validateFileSize } from "./fileCommon";
+import { generateDiff, validatePathInCwd, validateFileSize } from "./fileCommon";
 
 /**
  * File edit insert tool factory for AI assistant
@@ -20,7 +20,6 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
       file_path,
       line_offset,
       content,
-      lease,
     }): Promise<FileEditInsertToolResult> => {
       try {
         // Validate that the path is within the working directory
@@ -57,16 +56,6 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
 
         // Read file content
         const originalContent = await fs.readFile(resolvedPath, { encoding: "utf-8" });
-
-        // Validate lease to prevent editing stale file state
-        // Use content-based lease to avoid mtime issues with external processes
-        const currentLease = leaseFromContent(originalContent);
-        if (currentLease !== lease) {
-          return {
-            success: false,
-            error: `WRITE DENIED: File lease mismatch. The file has been modified since it was read. Please obtain a new lease from tool \`file_read\`.`,
-          };
-        }
         const lines = originalContent.split("\n");
 
         // Validate line_offset
@@ -93,15 +82,11 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
         // Write the modified content back to file atomically
         await writeFileAtomic(resolvedPath, newContent, { encoding: "utf-8" });
 
-        // Compute new lease from modified content
-        const newLease = leaseFromContent(newContent);
-
         // Generate diff
         const diff = generateDiff(resolvedPath, originalContent, newContent);
 
         return {
           success: true,
-          lease: newLease,
           diff,
         };
       } catch (error) {

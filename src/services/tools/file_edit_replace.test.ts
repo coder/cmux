@@ -3,7 +3,6 @@ import * as fs from "fs/promises";
 import * as path from "path";
 import * as os from "os";
 import { createFileEditReplaceTool } from "./file_edit_replace";
-import { leaseFromContent } from "./fileCommon";
 import type { FileEditReplaceToolArgs, FileEditReplaceToolResult } from "@/types/tools";
 import type { ToolCallOptions } from "ai";
 
@@ -14,9 +13,8 @@ const mockToolCallOptions: ToolCallOptions = {
 };
 
 // Test helpers
-const setupFile = async (filePath: string, content: string): Promise<string> => {
+const setupFile = async (filePath: string, content: string): Promise<void> => {
   await fs.writeFile(filePath, content);
-  return leaseFromContent(content);
 };
 
 const readFile = async (filePath: string): Promise<string> => {
@@ -26,10 +24,9 @@ const readFile = async (filePath: string): Promise<string> => {
 const executeReplace = async (
   tool: ReturnType<typeof createFileEditReplaceTool>,
   filePath: string,
-  edits: FileEditReplaceToolArgs["edits"],
-  lease: string
+  edits: FileEditReplaceToolArgs["edits"]
 ): Promise<FileEditReplaceToolResult> => {
-  const args: FileEditReplaceToolArgs = { file_path: filePath, edits, lease };
+  const args: FileEditReplaceToolArgs = { file_path: filePath, edits };
   return (await tool.execute!(args, mockToolCallOptions)) as FileEditReplaceToolResult;
 };
 
@@ -49,28 +46,24 @@ describe("file_edit_replace tool", () => {
   });
 
   it("should apply a single edit successfully", async () => {
-    const lease = await setupFile(testFilePath, "Hello world\nThis is a test\nGoodbye world");
+    await setupFile(testFilePath, "Hello world\nThis is a test\nGoodbye world");
     const tool = createFileEditReplaceTool({ cwd: testDir });
 
     const result = await executeReplace(
       tool,
       testFilePath,
-      [{ old_string: "Hello world", new_string: "Hello universe" }],
-      lease
-    );
+      [{ old_string: "Hello world", new_string: "Hello universe" }]);
 
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.edits_applied).toBe(1);
-      expect(result.lease).toMatch(/^[0-9a-f]{6}$/);
-      expect(result.lease).not.toBe(lease);
     }
 
     expect(await readFile(testFilePath)).toBe("Hello universe\nThis is a test\nGoodbye world");
   });
 
   it("should apply multiple edits sequentially", async () => {
-    const lease = await setupFile(testFilePath, "foo bar baz");
+    await setupFile(testFilePath, "foo bar baz");
     const tool = createFileEditReplaceTool({ cwd: testDir });
 
     const result = await executeReplace(
@@ -80,14 +73,11 @@ describe("file_edit_replace tool", () => {
         { old_string: "foo", new_string: "FOO" },
         { old_string: "bar", new_string: "BAR" },
         { old_string: "baz", new_string: "BAZ" },
-      ],
-      lease
-    );
+      ]);
 
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.edits_applied).toBe(3);
-      expect(result.lease).toMatch(/^[0-9a-f]{6}$/);
     }
 
     expect(await readFile(testFilePath)).toBe("FOO BAR BAZ");
@@ -101,8 +91,6 @@ describe("file_edit_replace tool", () => {
     await fs.writeFile(testFilePath, initialContent);
 
     const content = await fs.readFile(testFilePath, "utf-8");
-    const lease = leaseFromContent(content);
-
     const tool = createFileEditReplaceTool({ cwd: testDir });
     const args: FileEditReplaceToolArgs = {
       file_path: testFilePath,
@@ -117,9 +105,7 @@ describe("file_edit_replace tool", () => {
           old_string: "foo",
           new_string: "qux",
         },
-      ],
-      lease,
-    };
+      ] };
 
     // Execute
     const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditReplaceToolResult;
@@ -144,8 +130,6 @@ describe("file_edit_replace tool", () => {
     await fs.writeFile(testFilePath, initialContent);
 
     const content = await fs.readFile(testFilePath, "utf-8");
-    const lease = leaseFromContent(content);
-
     const tool = createFileEditReplaceTool({ cwd: testDir });
     const args: FileEditReplaceToolArgs = {
       file_path: testFilePath,
@@ -155,9 +139,7 @@ describe("file_edit_replace tool", () => {
           new_string: "mouse",
           replace_count: -1,
         },
-      ],
-      lease,
-    };
+      ] };
 
     // Execute
     const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditReplaceToolResult;
@@ -166,7 +148,6 @@ describe("file_edit_replace tool", () => {
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.edits_applied).toBe(3);
-      expect(result.lease).toMatch(/^[0-9a-f]{6}$/);
     }
 
     const updatedContent = await fs.readFile(testFilePath, "utf-8");
@@ -179,8 +160,6 @@ describe("file_edit_replace tool", () => {
     await fs.writeFile(testFilePath, initialContent);
 
     const content = await fs.readFile(testFilePath, "utf-8");
-    const lease = leaseFromContent(content);
-
     const tool = createFileEditReplaceTool({ cwd: testDir });
     const args: FileEditReplaceToolArgs = {
       file_path: testFilePath,
@@ -190,9 +169,7 @@ describe("file_edit_replace tool", () => {
           new_string: "mouse",
           // replace_count omitted, defaults to 1
         },
-      ],
-      lease,
-    };
+      ] };
 
     // Execute
     const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditReplaceToolResult;
@@ -201,7 +178,6 @@ describe("file_edit_replace tool", () => {
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.edits_applied).toBe(1);
-      expect(result.lease).toMatch(/^[0-9a-f]{6}$/);
     }
 
     const updatedContent = await fs.readFile(testFilePath, "utf-8");
@@ -214,8 +190,6 @@ describe("file_edit_replace tool", () => {
     await fs.writeFile(testFilePath, initialContent);
 
     const content = await fs.readFile(testFilePath, "utf-8");
-    const lease = leaseFromContent(content);
-
     const tool = createFileEditReplaceTool({ cwd: testDir });
     const args: FileEditReplaceToolArgs = {
       file_path: testFilePath,
@@ -224,9 +198,7 @@ describe("file_edit_replace tool", () => {
           old_string: "nonexistent",
           new_string: "replacement",
         },
-      ],
-      lease,
-    };
+      ] };
 
     // Execute
     const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditReplaceToolResult;
@@ -248,8 +220,6 @@ describe("file_edit_replace tool", () => {
     await fs.writeFile(testFilePath, initialContent);
 
     const content = await fs.readFile(testFilePath, "utf-8");
-    const lease = leaseFromContent(content);
-
     const tool = createFileEditReplaceTool({ cwd: testDir });
     const args: FileEditReplaceToolArgs = {
       file_path: testFilePath,
@@ -259,9 +229,7 @@ describe("file_edit_replace tool", () => {
           new_string: "mouse",
           replace_count: 1, // Explicitly set to 1
         },
-      ],
-      lease,
-    };
+      ] };
 
     // Execute
     const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditReplaceToolResult;
@@ -285,8 +253,6 @@ describe("file_edit_replace tool", () => {
     await fs.writeFile(testFilePath, initialContent);
 
     const content = await fs.readFile(testFilePath, "utf-8");
-    const lease = leaseFromContent(content);
-
     const tool = createFileEditReplaceTool({ cwd: testDir });
     const args: FileEditReplaceToolArgs = {
       file_path: testFilePath,
@@ -296,9 +262,7 @@ describe("file_edit_replace tool", () => {
           new_string: "mouse",
           replace_count: 2, // Replace first 2 occurrences
         },
-      ],
-      lease,
-    };
+      ] };
 
     // Execute
     const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditReplaceToolResult;
@@ -307,7 +271,6 @@ describe("file_edit_replace tool", () => {
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.edits_applied).toBe(2);
-      expect(result.lease).toMatch(/^[0-9a-f]{6}$/);
     }
 
     const updatedContent = await fs.readFile(testFilePath, "utf-8");
@@ -320,8 +283,6 @@ describe("file_edit_replace tool", () => {
     await fs.writeFile(testFilePath, initialContent);
 
     const content = await fs.readFile(testFilePath, "utf-8");
-    const lease = leaseFromContent(content);
-
     const tool = createFileEditReplaceTool({ cwd: testDir });
     const args: FileEditReplaceToolArgs = {
       file_path: testFilePath,
@@ -331,9 +292,7 @@ describe("file_edit_replace tool", () => {
           new_string: "mouse",
           replace_count: 5, // Only 1 occurrence exists
         },
-      ],
-      lease,
-    };
+      ] };
 
     // Execute
     const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditReplaceToolResult;
@@ -382,8 +341,6 @@ describe("file_edit_replace tool", () => {
     await fs.writeFile(testFilePath, initialContent);
 
     const content = await fs.readFile(testFilePath, "utf-8");
-    const lease = leaseFromContent(content);
-
     const tool = createFileEditReplaceTool({ cwd: testDir });
     const args: FileEditReplaceToolArgs = {
       file_path: testFilePath,
@@ -392,9 +349,7 @@ describe("file_edit_replace tool", () => {
           old_string: "line2\nline3",
           new_string: "REPLACED",
         },
-      ],
-      lease,
-    };
+      ] };
 
     // Execute
     const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditReplaceToolResult;
@@ -403,7 +358,6 @@ describe("file_edit_replace tool", () => {
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.edits_applied).toBe(1);
-      expect(result.lease).toMatch(/^[0-9a-f]{6}$/);
     }
 
     const updatedContent = await fs.readFile(testFilePath, "utf-8");
@@ -416,8 +370,6 @@ describe("file_edit_replace tool", () => {
     await fs.writeFile(testFilePath, initialContent);
 
     const content = await fs.readFile(testFilePath, "utf-8");
-    const lease = leaseFromContent(content);
-
     const tool = createFileEditReplaceTool({ cwd: testDir });
     const args: FileEditReplaceToolArgs = {
       file_path: testFilePath,
@@ -426,9 +378,7 @@ describe("file_edit_replace tool", () => {
           old_string: "[DELETE_ME] ",
           new_string: "",
         },
-      ],
-      lease,
-    };
+      ] };
 
     // Execute
     const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditReplaceToolResult;
@@ -437,7 +387,6 @@ describe("file_edit_replace tool", () => {
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.edits_applied).toBe(1);
-      expect(result.lease).toMatch(/^[0-9a-f]{6}$/);
     }
 
     const updatedContent = await fs.readFile(testFilePath, "utf-8");
@@ -450,8 +399,6 @@ describe("file_edit_replace tool", () => {
     await fs.writeFile(testFilePath, initialContent);
 
     const content = await fs.readFile(testFilePath, "utf-8");
-    const lease = leaseFromContent(content);
-
     const tool = createFileEditReplaceTool({ cwd: testDir });
     const args: FileEditReplaceToolArgs = {
       file_path: testFilePath,
@@ -464,9 +411,7 @@ describe("file_edit_replace tool", () => {
           old_string: "step2",
           new_string: "step3",
         },
-      ],
-      lease,
-    };
+      ] };
 
     // Execute
     const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditReplaceToolResult;
@@ -475,77 +420,10 @@ describe("file_edit_replace tool", () => {
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.edits_applied).toBe(2);
-      expect(result.lease).toMatch(/^[0-9a-f]{6}$/);
     }
 
     const updatedContent = await fs.readFile(testFilePath, "utf-8");
     expect(updatedContent).toBe("step3");
-  });
-
-  it("should reject edit with incorrect lease", async () => {
-    // Setup
-    const initialContent = "Hello world";
-    await fs.writeFile(testFilePath, initialContent);
-
-    const tool = createFileEditReplaceTool({ cwd: testDir });
-    const args: FileEditReplaceToolArgs = {
-      file_path: testFilePath,
-      edits: [
-        {
-          old_string: "world",
-          new_string: "universe",
-        },
-      ],
-      lease: "ffffff", // Incorrect lease
-    };
-
-    // Execute
-    const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditReplaceToolResult;
-
-    // Assert
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error).toContain("lease mismatch");
-      expect(result.error).toContain("obtain a new lease from tool");
-    }
-
-    // File should remain unchanged
-    const unchangedContent = await fs.readFile(testFilePath, "utf-8");
-    expect(unchangedContent).toBe(initialContent);
-  });
-
-  it("should detect file modified between read and edit", async () => {
-    // Setup - create initial file
-    const initialContent = "Hello world";
-    await fs.writeFile(testFilePath, initialContent);
-
-    // Get initial lease
-    const content = await fs.readFile(testFilePath, "utf-8");
-    const lease = leaseFromContent(content);
-
-    // Modify file to simulate concurrent edit
-    await fs.writeFile(testFilePath, "Modified content");
-
-    const tool = createFileEditReplaceTool({ cwd: testDir });
-    const args: FileEditReplaceToolArgs = {
-      file_path: testFilePath,
-      edits: [
-        {
-          old_string: "world",
-          new_string: "universe",
-        },
-      ],
-      lease, // This lease is now stale
-    };
-
-    // Execute
-    const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditReplaceToolResult;
-
-    // Assert
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error).toContain("lease mismatch");
-    }
   });
 
   it("should return unified diff with context of 3", async () => {
@@ -554,8 +432,6 @@ describe("file_edit_replace tool", () => {
     await fs.writeFile(testFilePath, initialContent);
 
     const content = await fs.readFile(testFilePath, "utf-8");
-    const lease = leaseFromContent(content);
-
     const tool = createFileEditReplaceTool({ cwd: testDir });
     const args: FileEditReplaceToolArgs = {
       file_path: testFilePath,
@@ -564,9 +440,7 @@ describe("file_edit_replace tool", () => {
           old_string: "line5",
           new_string: "LINE5_MODIFIED",
         },
-      ],
-      lease,
-    };
+      ] };
 
     // Execute
     const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditReplaceToolResult;

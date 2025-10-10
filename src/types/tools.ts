@@ -44,7 +44,6 @@ export type FileReadToolResult =
       modifiedTime: string;
       lines_read: number;
       content: string;
-      lease: string;
     }
   | {
       success: false;
@@ -61,14 +60,12 @@ export interface FileEditReplaceEdit {
 export interface FileEditReplaceToolArgs {
   file_path: string;
   edits: FileEditReplaceEdit[];
-  lease: string;
 }
 
 export type FileEditReplaceToolResult =
   | {
       success: true;
       edits_applied: number;
-      lease: string;
       diff: string;
     }
   | {
@@ -81,13 +78,11 @@ export interface FileEditInsertToolArgs {
   file_path: string;
   line_offset: number; // 1-indexed line position (0 = insert at top, N = insert after line N)
   content: string;
-  lease: string;
 }
 
 export type FileEditInsertToolResult =
   | {
       success: true;
-      lease: string;
       diff: string;
     }
   | {

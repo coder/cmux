@@ -4,7 +4,7 @@ import * as path from "path";
 import type { FileReadToolResult } from "@/types/tools";
 import type { ToolConfiguration, ToolFactory } from "@/utils/tools/tools";
 import { TOOL_DEFINITIONS } from "@/utils/tools/toolDefinitions";
-import { leaseFromContent, validatePathInCwd, validateFileSize } from "./fileCommon";
+import { validatePathInCwd, validateFileSize } from "./fileCommon";
 
 /**
  * File read tool factory for AI assistant
@@ -53,10 +53,8 @@ export const createFileReadTool: ToolFactory = (config: ToolConfiguration) => {
           };
         }
 
-        // Read full file content once for both display and lease computation
-        // This ensures lease matches the exact content snapshot being returned
+        // Read full file content
         const fullContent = await fs.readFile(resolvedPath, { encoding: "utf-8" });
-        const lease = leaseFromContent(fullContent);
 
         const startLineNumber = offset ?? 1;
 
@@ -133,15 +131,12 @@ export const createFileReadTool: ToolFactory = (config: ToolConfiguration) => {
         const content = numberedLines.join("\n");
 
         // Return file info and content
-        // IMPORTANT: lease must be last in the return object so it remains fresh in the LLM's context
-        // when it's reading this tool result. The LLM needs the lease value to perform subsequent edits.
         return {
           success: true,
           file_size: stats.size,
           modifiedTime: stats.mtime.toISOString(),
           lines_read: numberedLines.length,
           content,
-          lease, // Must be last - see comment above
         };
       } catch (error) {
         // Handle specific errors

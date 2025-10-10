@@ -1,74 +1,8 @@
 import { describe, it, expect } from "bun:test";
 import type * as fs from "fs";
-import { leaseFromContent, validatePathInCwd, validateFileSize, MAX_FILE_SIZE } from "./fileCommon";
+import { validatePathInCwd, validateFileSize, MAX_FILE_SIZE } from "./fileCommon";
 
 describe("fileCommon", () => {
-  describe("leaseFromContent", () => {
-    it("should return a 6-character hexadecimal string", () => {
-      const content = "Hello, world!";
-      const lease = leaseFromContent(content);
-
-      expect(lease).toMatch(/^[0-9a-f]{6}$/);
-      expect(lease.length).toBe(6);
-    });
-
-    it("should be deterministic for same content", () => {
-      const content = "Hello, world!";
-      const lease1 = leaseFromContent(content);
-      const lease2 = leaseFromContent(content);
-
-      expect(lease1).toBe(lease2);
-    });
-
-    it("should produce different leases for different content", () => {
-      const content1 = "Hello, world!";
-      const content2 = "Hello, world!!";
-
-      const lease1 = leaseFromContent(content1);
-      const lease2 = leaseFromContent(content2);
-
-      expect(lease1).not.toBe(lease2);
-    });
-
-    it("should work with Buffer input", () => {
-      const buffer = Buffer.from("Hello, world!", "utf-8");
-      const lease = leaseFromContent(buffer);
-
-      expect(lease).toMatch(/^[0-9a-f]{6}$/);
-      expect(lease.length).toBe(6);
-    });
-
-    it("should produce same lease for string and equivalent Buffer", () => {
-      const content = "Hello, world!";
-      const buffer = Buffer.from(content, "utf-8");
-
-      const lease1 = leaseFromContent(content);
-      const lease2 = leaseFromContent(buffer);
-
-      expect(lease1).toBe(lease2);
-    });
-
-    it("should produce different leases for empty vs non-empty content", () => {
-      const lease1 = leaseFromContent("");
-      const lease2 = leaseFromContent("a");
-
-      expect(lease1).not.toBe(lease2);
-    });
-
-    it("should produce identical lease for same content regardless of external factors", () => {
-      // This test verifies that content-based leases are immune to mtime changes
-      // that could be triggered by external processes (e.g., IDE, git, filesystem tools)
-      const content = "const x = 42;\n";
-      const lease1 = leaseFromContent(content);
-
-      // Simulate same content but different metadata (like mtime)
-      // In the old mtime-based system, this would produce a different lease
-      // With content-based leases, it produces the same lease
-      const lease2 = leaseFromContent(content);
-
-      expect(lease1).toBe(lease2);
-    });
-  });
 
   describe("validateFileSize", () => {
     it("should return null for files within size limit", () => {
