@@ -108,8 +108,6 @@ const MainContent = styled.div`
   overflow: hidden;
 `;
 
-
-
 const ContentArea = styled.div`
   flex: 1;
   display: flex;
