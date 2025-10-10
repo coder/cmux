@@ -5,7 +5,28 @@
 
 ![cmux product screenshot](docs/img/product-hero.webp)
 
-A cross-platform desktop application for embarassingly parallel development.
+A cross-platform desktop application for parallel agentic development.
+
+## Features
+
+The overall experience should be familiar to Claude Code power users, we strive for parity with the best parts of Claude Code:
+
+- Plan/Exec modes
+- `/compact` based manual compaction
+- vim mode in input box
+
+But, the agentic loop is custom. Our goal is to create an experience that is as immersive and rich as an IDE. In fact, we think
+of cmux as the IDE of the future. We go beyond Claude Code with:
+
+- Live git status updates for each workspace
+- Workspace isolation
+  - Worktrees today, Docker containers / remote compute tomorrow
+- [More compaction control](https://cmux.io/context-management.html)
+- Automatic resumption after app restart
+- Rich markdown rendering of plans and assistant messages
+  - Mermaid diagrams
+  - LaTeX
+  - Toggles!
 
 ## Documentation
 
@@ -25,37 +46,3 @@ Download pre-built binaries from [GitHub Actions artifacts](https://github.com/c
 ## Development
 
 See [AGENTS.md](./AGENTS.md) for development setup and guidelines.
-
-### Documentation Style Guide
-
-When writing user-facing documentation, follow these principles:
-
-**Minimum Viable Documentation** - Write only what users need to complete their task successfully. Assume users are:
-
-- Capable of using basic UIs without instruction
-- Able to debug issues without pre-written troubleshooting
-- Smart enough to apply security best practices without being told
-
-**Delete:**
-
-- Step-by-step UI walkthroughs for obvious interactions ("Click the button", "Enter the value", "Click Save")
-- Troubleshooting sections for hypothetical problems that haven't occurred
-- Best practices and security advice (users will research when needed)
-- Multiple ways to do the same thing (pick one, preferably the simplest)
-- Verification/testing sections
-
-**Keep:**
-
-- Core setup steps with technical details
-- Non-obvious facts about how things work
-- Actual command examples
-- Brief, clear explanations
-
-## Features
-
-- 🔀 Git worktree integration for multi-branch workflows
-- 🤖 Multiple AI permission modes (plan/edit)
-- 📦 Multi-project management
-- 💬 Persistent session history
-- ⌨️ Keyboard-first interface
-  - Command Palette (`Cmd+Shift+P` / `Ctrl+Shift+P`)
