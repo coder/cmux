@@ -44,6 +44,9 @@ const CUSTOM_INSTRUCTION_FILES = ["AGENTS.md", "AGENT.md", "CLAUDE.md"];
  * 2. AGENT.md
  * 3. CLAUDE.md
  *
+ * If any of the above files are found, it also looks for AGENTS.local.md
+ * and appends its contents (useful for local-only instructions).
+ *
  * @param metadata - Workspace metadata containing the workspace path
  * @param additionalSystemInstructions - Optional additional system instructions to append at the end
  * @returns System message string (placeholder + custom instructions if found + additional instructions)
@@ -72,6 +75,18 @@ export async function buildSystemMessage(
     } catch (_error) {
       // File doesn't exist or can't be read, try next file
       continue;
+    }
+  }
+
+  // If we found a base instruction file, also look for AGENTS.local.md
+  if (customInstructions) {
+    try {
+      const localFilePath = path.join(metadata.workspacePath, "AGENTS.local.md");
+      const localContent = await fs.readFile(localFilePath, "utf-8");
+      customInstructions += `\n\n${localContent}`;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (_error) {
+      // AGENTS.local.md doesn't exist or can't be read, that's fine
     }
   }
 

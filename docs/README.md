@@ -44,6 +44,8 @@ docs/
 
 - **Don't document expected behavior** - If your target audience already expects it, don't state it
 - **Don't document obvious details** - Implementation details that "just work" don't need explanation
+- **Assume technical competence** - Don't show how to create files, edit configs, or perform basic tasks
+- **State mechanics once** - If implications or use cases are clear from the description, don't list them separately
 - **Document what's different** - Deviations from expectations, gotchas, design decisions
 - **Document what's complex** - Multi-step workflows, non-obvious interactions, tradeoffs
 
