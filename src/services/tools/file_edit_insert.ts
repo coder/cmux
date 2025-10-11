@@ -5,7 +5,12 @@ import writeFileAtomic from "write-file-atomic";
 import type { FileEditInsertToolResult } from "@/types/tools";
 import type { ToolConfiguration, ToolFactory } from "@/utils/tools/tools";
 import { TOOL_DEFINITIONS } from "@/utils/tools/toolDefinitions";
-import { generateDiff, validatePathInCwd, validateFileSize } from "./fileCommon";
+import {
+  generateDiff,
+  validatePathInCwd,
+  validateFileSize,
+  WRITE_DENIED_PREFIX,
+} from "./fileCommon";
 
 /**
  * File edit insert tool factory for AI assistant
@@ -23,7 +28,7 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
         if (pathValidation) {
           return {
             success: false,
-            error: pathValidation.error,
+            error: `${WRITE_DENIED_PREFIX} ${pathValidation.error}`,
           };
         }
 
@@ -37,7 +42,7 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
         if (!stats.isFile()) {
           return {
             success: false,
-            error: `Path exists but is not a file: ${resolvedPath}`,
+            error: `${WRITE_DENIED_PREFIX} Path exists but is not a file: ${resolvedPath}`,
           };
         }
 
@@ -46,7 +51,7 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
         if (sizeValidation) {
           return {
             success: false,
-            error: sizeValidation.error,
+            error: `${WRITE_DENIED_PREFIX} ${sizeValidation.error}`,
           };
         }
 
@@ -58,14 +63,14 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
         if (line_offset < 0) {
           return {
             success: false,
-            error: `line_offset must be non-negative (got ${line_offset})`,
+            error: `${WRITE_DENIED_PREFIX} line_offset must be non-negative (got ${line_offset})`,
           };
         }
 
         if (line_offset > lines.length) {
           return {
             success: false,
-            error: `line_offset ${line_offset} is beyond file length (${lines.length} lines)`,
+            error: `${WRITE_DENIED_PREFIX} line_offset ${line_offset} is beyond file length (${lines.length} lines)`,
           };
         }
 
@@ -91,12 +96,12 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
           if (error.code === "ENOENT") {
             return {
               success: false,
-              error: `File not found: ${file_path}`,
+              error: `${WRITE_DENIED_PREFIX} File not found: ${file_path}`,
             };
           } else if (error.code === "EACCES") {
             return {
               success: false,
-              error: `Permission denied: ${file_path}`,
+              error: `${WRITE_DENIED_PREFIX} Permission denied: ${file_path}`,
             };
           }
         }
@@ -105,7 +110,7 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
         const message = error instanceof Error ? error.message : String(error);
         return {
           success: false,
-          error: `Failed to insert content: ${message}`,
+          error: `${WRITE_DENIED_PREFIX} Failed to insert content: ${message}`,
         };
       }
     },

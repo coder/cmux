@@ -453,6 +453,7 @@ The IPC layer is the boundary between backend and frontend. Follow these rules t
 
 Notice when you've made the same change many times, refactor to create a shared function
 or component, update all the duplicated code, and then continue on with the original work.
+When repeating string literals (especially in error messages or UI text), extract them to named constants for maintainability and consistency.
 
 ## UX Considerations
 
