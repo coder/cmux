@@ -36,6 +36,11 @@ export const StreamingTokenCount: React.FC<StreamingTokenCountProps> = ({
   const tokenCount = aggregator.getStreamingTokenCount(messageId);
   const tps = aggregator.getStreamingTPS(messageId);
 
+  // Debug logging
+  console.log("[StreamingTokenCount] messageId:", messageId);
+  console.log("[StreamingTokenCount] tokenCount:", tokenCount);
+  console.log("[StreamingTokenCount] tps:", tps);
+
   // Don't show until we have some tokens
   if (tokenCount === 0) return null;
 

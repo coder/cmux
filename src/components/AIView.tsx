@@ -237,12 +237,18 @@ const AIViewInner: React.FC<AIViewProps> = ({
 
   // Get active stream message ID for token counting
   const activeStream = aggregator.getActiveStreams()[0];
-  const activeStreamMessageId = activeStream
-    ? messages.find(
-        (msg): msg is Extract<DisplayedMessage, { type: "assistant" }> =>
-          msg.type === "assistant" && msg.isStreaming
-      )?.historyId
-    : undefined;
+  const streamingMessage = messages.find(
+    (msg): msg is Extract<DisplayedMessage, { type: "assistant" }> =>
+      msg.type === "assistant" && msg.isStreaming
+  );
+  const activeStreamMessageId = activeStream ? streamingMessage?.historyId : undefined;
+
+  // Debug logging
+  if (activeStream) {
+    console.log("[AIView] Active stream found:", activeStream);
+    console.log("[AIView] Streaming message:", streamingMessage);
+    console.log("[AIView] Active stream messageId:", activeStreamMessageId);
+  }
 
   // Track if last message was interrupted or errored (for RetryBarrier)
   // Uses same logic as useResumeManager for DRY
