@@ -48,7 +48,7 @@ describe("bash tool", () => {
   it("should fail when hard cap (300 lines) is exceeded", async () => {
     const tool = createBashTool({ cwd: process.cwd() });
     const args: BashToolArgs = {
-      script: "seq 1 400", // Exceeds 300 line hard cap
+      script: "for i in {1..400}; do echo line$i; done", // Exceeds 300 line hard cap
       timeout_secs: 5,
     };
 
@@ -64,9 +64,8 @@ describe("bash tool", () => {
   it("should save overflow output to temp file with short ID", async () => {
     const tool = createBashTool({ cwd: process.cwd() });
     const args: BashToolArgs = {
-      script: "for i in {1..400}; do echo line$i; done",
+      script: "for i in {1..400}; do echo line$i; done", // Exceeds 300 line hard cap
       timeout_secs: 5,
-
     };
 
     const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
