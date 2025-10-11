@@ -17,6 +17,7 @@ import {
   buildLargeHistory,
 } from "./helpers";
 import type { StreamDeltaEvent } from "../../src/types/stream";
+import { IPC_CHANNELS } from "../../src/constants/ipc-constants";
 
 // Skip all tests if TEST_INTEGRATION is not set
 const describeIntegration = shouldRunIntegrationTests() ? describe : describe.skip;
@@ -81,7 +82,7 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
     );
 
     test.concurrent(
-      "should handle empty message during streaming (interrupt)",
+      "should interrupt streaming with interruptStream()",
       async () => {
         // Setup test environment
         const { env, workspaceId, cleanup } = await setupWorkspace(provider);
@@ -94,13 +95,10 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
           const collector = createEventCollector(env.sentEvents, workspaceId);
           await collector.waitForEvent("stream-start", 5000);
 
-          // Send empty message to interrupt
-          const interruptResult = await sendMessageWithModel(
-            env.mockIpcRenderer,
-            workspaceId,
-            "",
-            provider,
-            model
+          // Use interruptStream() to interrupt
+          const interruptResult = await env.mockIpcRenderer.invoke(
+            IPC_CHANNELS.WORKSPACE_INTERRUPT_STREAM,
+            workspaceId
           );
 
           // Should succeed (interrupt is not an error)
@@ -141,13 +139,10 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
           // Wait a bit for some content to be generated
           await new Promise((resolve) => setTimeout(resolve, 1000));
 
-          // Interrupt the stream with an empty message
-          const interruptResult = await sendMessageWithModel(
-            env.mockIpcRenderer,
-            workspaceId,
-            "",
-            provider,
-            model
+          // Interrupt the stream with interruptStream()
+          const interruptResult = await env.mockIpcRenderer.invoke(
+            IPC_CHANNELS.WORKSPACE_INTERRUPT_STREAM,
+            workspaceId
           );
 
           expect(interruptResult.success).toBe(true);
@@ -285,7 +280,7 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
     );
 
     test.concurrent(
-      "should reject empty message when not streaming",
+      "should reject empty message (use interruptStream instead)",
       async () => {
         const { env, workspaceId, cleanup } = await setupWorkspace(provider);
         try {
@@ -298,8 +293,14 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
             model
           );
 
-          // Should succeed (no error shown to user)
-          expect(result.success).toBe(true);
+          // Should fail - empty messages not allowed
+          expect(result.success).toBe(false);
+          if (!result.success) {
+            expect(result.error.type).toBe("unknown");
+            if (result.error.type === "unknown") {
+              expect(result.error.raw).toContain("Empty message not allowed");
+            }
+          }
 
           // Should not have created any stream events
           const collector = createEventCollector(env.sentEvents, workspaceId);

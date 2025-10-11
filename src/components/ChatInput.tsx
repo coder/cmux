@@ -6,6 +6,7 @@ import { ChatInputToast, SolutionLabel } from "./ChatInputToast";
 import type { ParsedCommand } from "@/utils/slashCommands/types";
 import { parseCommand } from "@/utils/slashCommands/parser";
 import type { SendMessageError as SendMessageErrorType } from "@/types/errors";
+import type { SendMessageOptions } from "@/types/ipc";
 import { usePersistedState, updatePersistedState } from "@/hooks/usePersistedState";
 import { useMode } from "@/contexts/ModeContext";
 import { ChatToggles } from "./ChatToggles";
@@ -122,6 +123,7 @@ export interface ChatInputProps {
   onTruncateHistory: (percentage?: number) => Promise<void>;
   onProviderConfig?: (provider: string, keyPath: string[], value: string) => Promise<void>;
   onModelChange?: (model: string) => void;
+  onCompactStart?: (continueMessage: string) => void; // Called when compaction starts with continue message
   disabled?: boolean;
   isCompacting?: boolean;
   editingMessage?: { id: string; content: string };
@@ -287,6 +289,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   onTruncateHistory,
   onProviderConfig,
   onModelChange,
+  onCompactStart,
   disabled = false,
   isCompacting = false,
   editingMessage,
@@ -612,10 +615,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             const targetWords = parsed.maxOutputTokens
               ? Math.round(parsed.maxOutputTokens / 1.3)
               : 2000;
-            let compactionMessage = `Summarize this conversation into a compact form for a new Assistant to continue helping the user. Use approximately ${targetWords} words.`;
-            if (parsed.instructions) {
-              compactionMessage += ` ${parsed.instructions}`;
-            }
+            const compactionMessage = `Summarize this conversation into a compact form for a new Assistant to continue helping the user. Use approximately ${targetWords} words.`;
 
             // Send message with compact_summary tool required and maxOutputTokens in options
             // Note: Anthropic doesn't support extended thinking with required tool_choice,
@@ -633,16 +633,18 @@ export const ChatInput: React.FC<ChatInputProps> = ({
               setToast(createErrorToast(result.error));
               setInput(messageText); // Restore input on error
             } else {
+              // Notify parent if continue message was provided (parent handles storage)
+              if (parsed.continueMessage && onCompactStart) {
+                onCompactStart(parsed.continueMessage);
+              }
+
               setToast({
                 id: Date.now().toString(),
                 type: "success",
-                message: "Compaction started. AI will summarize the conversation.",
+                message: parsed.continueMessage
+                  ? "Compaction started. Will continue automatically after completion."
+                  : "Compaction started. AI will summarize the conversation.",
               });
-              // Note: Full compaction flow needs to be implemented in AIView component:
-              // 1. Listen for tool-call-end event with toolName === "compact_summary"
-              // 2. Extract summary from tool result
-              // 3. Construct CmuxMessage with metadata: { compacted: true, timestamp, model, etc. }
-              // 4. Call window.api.workspace.replaceChatHistory(workspaceId, summaryMessage)
             }
           } catch (error) {
             console.error("Compaction error:", error);

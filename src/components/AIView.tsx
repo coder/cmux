@@ -17,6 +17,7 @@ import { useAutoScroll } from "@/hooks/useAutoScroll";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { useThinking } from "@/contexts/ThinkingContext";
 import type { WorkspaceState } from "@/hooks/useWorkspaceAggregators";
+import type { SendMessageOptions } from "@/types/ipc";
 import { StatusIndicator } from "./StatusIndicator";
 import { getModelName } from "@/utils/ai/models";
 import { GitStatusIndicator } from "./GitStatusIndicator";
@@ -180,6 +181,7 @@ interface AIViewProps {
   branch: string;
   workspacePath: string;
   workspaceState: WorkspaceState;
+  onCompactStart?: (continueMessage: string) => void;
   className?: string;
 }
 
@@ -189,6 +191,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
   branch,
   workspacePath,
   workspaceState,
+  onCompactStart,
   className,
 }) => {
   // Get git status from context
@@ -454,6 +457,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
             onMessageSent={handleMessageSent}
             onTruncateHistory={handleClearHistory}
             onProviderConfig={handleProviderConfig}
+            onCompactStart={onCompactStart}
             disabled={!projectName || !branch}
             isCompacting={isCompacting}
             editingMessage={editingMessage}

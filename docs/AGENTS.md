@@ -302,6 +302,12 @@ This project uses **Make** as the primary build orchestrator. See `Makefile` for
 
 - This pattern maximizes type safety and prevents runtime errors from typos or missing cases
 
+
+## Component State Management
+
+**For per-operation state tied to async workflows, parent components should own all localStorage operations.** Child components should notify parents of user intent without manipulating storage directly, preventing bugs from stale or orphaned state across component lifecycles.
+
+
 ## Module Imports
 
 - **NEVER use dynamic imports** - Always use static `import` statements at the top of files. Dynamic imports (`await import()`) are a code smell that indicates improper module structure.
@@ -453,7 +459,6 @@ The IPC layer is the boundary between backend and frontend. Follow these rules t
 
 Notice when you've made the same change many times, refactor to create a shared function
 or component, update all the duplicated code, and then continue on with the original work.
-When repeating string literals (especially in error messages or UI text), extract them to named constants for maintainability and consistency.
 
 ## UX Considerations
 

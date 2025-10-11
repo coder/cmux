@@ -47,7 +47,7 @@ export function useAIViewKeybinds({
         // If there's a stream or auto-retry in progress, stop it and disable auto-retry
         if (canInterrupt || showRetryBarrier) {
           setAutoRetry(false); // User explicitly stopped - don't auto-retry
-          void window.api.workspace.sendMessage(workspaceId, "");
+          void window.api.workspace.interruptStream(workspaceId);
         }
         return;
       }

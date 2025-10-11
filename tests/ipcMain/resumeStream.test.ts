@@ -8,6 +8,8 @@ import { sendMessageWithModel, createEventCollector, waitFor } from "./helpers";
 import { IPC_CHANNELS } from "../../src/constants/ipc-constants";
 import type { Result } from "../../src/types/result";
 import type { SendMessageError } from "../../src/types/errors";
+import { HistoryService } from "../../src/services/historyService";
+import { createCmuxMessage } from "../../src/types/message";
 
 // Skip all tests if TEST_INTEGRATION is not set
 const describeIntegration = shouldRunIntegrationTests() ? describe : describe.skip;
@@ -55,13 +57,10 @@ describeIntegration("IpcMain resumeStream integration tests", () => {
           return hasToolCallStart || hasContent;
         }, 10000);
 
-        // Interrupt the stream by sending empty message
-        const interruptResult = await sendMessageWithModel(
-          env.mockIpcRenderer,
-          workspaceId,
-          "",
-          "anthropic",
-          "claude-sonnet-4-5"
+        // Interrupt the stream with interruptStream()
+        const interruptResult = await env.mockIpcRenderer.invoke(
+          IPC_CHANNELS.WORKSPACE_INTERRUPT_STREAM,
+          workspaceId
         );
         expect(interruptResult.success).toBe(true);
 
@@ -136,6 +135,93 @@ describeIntegration("IpcMain resumeStream integration tests", () => {
           .map((d) => ("delta" in d ? d.delta : ""))
           .join("");
         expect(allText).toContain(expectedWord);
+      } finally {
+        await cleanup();
+      }
+    },
+    45000 // 45 second timeout for this test
+  );
+
+  test.concurrent(
+    "should resume from single assistant message (post-compaction scenario)",
+    async () => {
+      const { env, workspaceId, cleanup } = await setupWorkspace("anthropic");
+      try {
+        // Create a history service to write directly to chat.jsonl
+        const historyService = new HistoryService(env.config);
+
+        // Simulate post-compaction state: single assistant message with summary
+        // The message promises to say a specific word next, allowing deterministic verification
+        const verificationWord = "ELEPHANT";
+        const summaryMessage = createCmuxMessage(
+          "compaction-summary-msg",
+          "assistant",
+          `I previously helped with a task. The conversation has been compacted for token efficiency. My next message will contain the word ${verificationWord} to confirm continuation works correctly.`,
+          {
+            compacted: true,
+          }
+        );
+
+        // Write the summary message to history
+        const appendResult = await historyService.appendToHistory(workspaceId, summaryMessage);
+        expect(appendResult.success).toBe(true);
+
+        // Create event collector
+        const collector = createEventCollector(env.sentEvents, workspaceId);
+
+        // Subscribe to chat channel to receive events
+        env.mockIpcRenderer.send("workspace:chat:subscribe", workspaceId);
+
+        // Wait a moment for subscription to complete
+        await new Promise((resolve) => setTimeout(resolve, 100));
+
+        // Resume the stream (should continue from the summary message)
+        const resumeResult = (await env.mockIpcRenderer.invoke(
+          IPC_CHANNELS.WORKSPACE_RESUME_STREAM,
+          workspaceId,
+          { model: "anthropic:claude-sonnet-4-5" }
+        )) as Result<void, SendMessageError>;
+        expect(resumeResult.success).toBe(true);
+
+        // Wait for stream to start
+        const streamStart = await collector.waitForEvent("stream-start", 10000);
+        expect(streamStart).toBeDefined();
+
+        // Wait for stream to complete
+        const streamEnd = await collector.waitForEvent("stream-end", 30000);
+        expect(streamEnd).toBeDefined();
+
+        // Verify no user message was created (resumeStream should not add one)
+        collector.collect();
+        const userMessages = collector.getEvents().filter((e) => "role" in e && e.role === "user");
+        expect(userMessages.length).toBe(0);
+
+        // Verify we got an assistant response
+        const assistantMessages = collector
+          .getEvents()
+          .filter((e) => "role" in e && e.role === "assistant");
+        expect(assistantMessages.length).toBeGreaterThan(0);
+
+        // Verify we received content deltas
+        const deltas = collector.getDeltas();
+        expect(deltas.length).toBeGreaterThan(0);
+
+        // Verify no stream errors
+        const streamErrors = collector
+          .getEvents()
+          .filter((e) => "type" in e && e.type === "stream-error");
+        expect(streamErrors.length).toBe(0);
+
+        // Verify the assistant responded with actual content and said the verification word
+        const allText = deltas
+          .filter((d) => "delta" in d)
+          .map((d) => ("delta" in d ? d.delta : ""))
+          .join("");
+        expect(allText.length).toBeGreaterThan(0);
+
+        // Verify the assistant followed the instruction and said the verification word
+        // This proves resumeStream properly loaded history and continued from it
+        expect(allText).toContain(verificationWord);
       } finally {
         await cleanup();
       }

@@ -442,26 +442,16 @@ export class IpcMain {
           providerOptions,
         });
         try {
-          // Early exit: empty message and no images = either interrupt (if streaming) or invalid input
-          // This prevents race conditions where empty messages arrive after streaming stops
+          // Reject empty messages - use interruptStream() to interrupt active streams
           if (!message.trim() && (!imageParts || imageParts.length === 0)) {
-            // If streaming, this is an interrupt request (from Esc key)
-            if (this.aiService.isStreaming(workspaceId)) {
-              log.debug("sendMessage handler: Empty message during streaming, interrupting");
-              const stopResult = await this.aiService.stopStream(workspaceId);
-              if (!stopResult.success) {
-                log.error("Failed to stop stream:", stopResult.error);
-                return {
-                  success: false,
-                  error: createUnknownSendMessageError(stopResult.error),
-                };
-              }
-              return { success: true };
-            }
-
-            // If not streaming, reject empty message to prevent creating empty user messages
-            log.debug("sendMessage handler: Rejected empty message (not streaming)");
-            return { success: true }; // Return success to avoid error notification in UI
+            log.debug("sendMessage handler: Rejected empty message (use interruptStream instead)");
+            return {
+              success: false,
+              error: {
+                type: "unknown",
+                raw: "Empty message not allowed. Use interruptStream() to interrupt active streams.",
+              },
+            };
           }
 
           // If editing, truncate history after the message being edited
@@ -575,6 +565,28 @@ export class IpcMain {
         }
       }
     );
+
+    ipcMain.handle(IPC_CHANNELS.WORKSPACE_INTERRUPT_STREAM, async (_event, workspaceId: string) => {
+      log.debug("interruptStream handler: Received", { workspaceId });
+      try {
+        // Idempotent: if not streaming, return success (not error)
+        if (!this.aiService.isStreaming(workspaceId)) {
+          log.debug("interruptStream handler: Not streaming, returning success");
+          return { success: true, data: undefined };
+        }
+
+        const stopResult = await this.aiService.stopStream(workspaceId);
+        if (!stopResult.success) {
+          log.error("Failed to stop stream:", stopResult.error);
+          return { success: false, error: stopResult.error };
+        }
+        return { success: true, data: undefined };
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        log.error("Unexpected error in interruptStream handler:", error);
+        return { success: false, error: `Failed to interrupt stream: ${errorMessage}` };
+      }
+    });
 
     ipcMain.handle(
       IPC_CHANNELS.WORKSPACE_TRUNCATE_HISTORY,

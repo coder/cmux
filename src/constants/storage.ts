@@ -46,3 +46,13 @@ export function getRetryStateKey(workspaceId: string): string {
 export function getLastThinkingByModelKey(modelName: string): string {
   return `lastThinkingByModel:${modelName}`;
 }
+
+
+/**
+ * Get the localStorage key for the compact continue message for a workspace
+ * Temporarily stores the continuation prompt for the current compaction
+ * Should be deleted immediately after use to prevent bugs
+ */
+export function getCompactContinueMessageKey(workspaceId: string): string {
+  return `compactContinueMessage:${workspaceId}`;
+}
