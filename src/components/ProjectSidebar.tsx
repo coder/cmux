@@ -515,11 +515,7 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
   };
 
   const showRemoveError = useCallback(
-    (
-      workspaceId: string,
-      error: string,
-      anchor?: { top: number; left: number }
-    ) => {
+    (workspaceId: string, error: string, anchor?: { top: number; left: number }) => {
       if (removeErrorTimeoutRef.current) {
         window.clearTimeout(removeErrorTimeoutRef.current);
       }
