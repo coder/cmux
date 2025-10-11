@@ -71,6 +71,54 @@ export const ModalActions = styled.div`
   margin-top: 24px;
 `;
 
+// Reusable error/warning display components for modals
+export const ErrorSection = styled.div`
+  margin: 16px 0;
+`;
+
+export const ErrorLabel = styled.div`
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+`;
+
+export const ErrorCodeBlock = styled.pre`
+  background: var(--color-background-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  padding: 12px;
+  font-size: 12px;
+  font-family: var(--font-monospace);
+  color: var(--color-text);
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.4;
+`;
+
+export const WarningBox = styled.div`
+  background: var(--color-error-bg);
+  border-left: 3px solid var(--color-error);
+  border-radius: 4px;
+  padding: 12px 16px;
+  margin: 16px 0;
+`;
+
+export const WarningTitle = styled.div`
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--color-error);
+  margin-bottom: 4px;
+`;
+
+export const WarningText = styled.div`
+  font-size: 13px;
+  color: var(--color-text);
+  line-height: 1.5;
+`;
+
 export const Button = styled.button`
   padding: 8px 20px;
   border: none;
@@ -101,6 +149,15 @@ export const PrimaryButton = styled(Button)`
 
   &:hover:not(:disabled) {
     background: #005a9e;
+  }
+`;
+
+export const DangerButton = styled(Button)`
+  background: var(--color-error);
+  color: white;
+
+  &:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--color-error), #fff 20%);
   }
 `;
 

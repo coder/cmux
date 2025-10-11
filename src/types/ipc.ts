@@ -147,6 +147,9 @@ export interface SendMessageOptions {
 // Design principle: IPC methods should be idempotent when possible.
 // For example, calling resumeStream on an already-active stream should
 // return success (not error), making client code simpler and more resilient.
+//
+// Minimize the number of methods - use optional parameters for operation variants
+// (e.g. remove(id, force?) not remove(id) + removeForce(id)).
 export interface IPCApi {
   dialog: {
     selectDirectory(): Promise<string | null>;
@@ -176,7 +179,10 @@ export interface IPCApi {
       branchName: string,
       trunkBranch: string
     ): Promise<{ success: true; metadata: WorkspaceMetadata } | { success: false; error: string }>;
-    remove(workspaceId: string): Promise<{ success: boolean; error?: string }>;
+    remove(
+      workspaceId: string,
+      options?: { force?: boolean }
+    ): Promise<{ success: boolean; error?: string }>;
     rename(
       workspaceId: string,
       newName: string

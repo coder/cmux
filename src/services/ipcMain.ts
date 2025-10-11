@@ -249,101 +249,12 @@ export class IpcMain {
       }
     );
 
-    ipcMain.handle(IPC_CHANNELS.WORKSPACE_REMOVE, async (_event, workspaceId: string) => {
-      try {
-        // Get workspace path from metadata
-        const metadataResult = await this.aiService.getWorkspaceMetadata(workspaceId);
-        if (!metadataResult.success) {
-          // If metadata doesn't exist, workspace is already gone - consider it success
-          log.info(`Workspace ${workspaceId} metadata not found, considering removal successful`);
-          return { success: true };
-        }
-
-        const workspacePath = metadataResult.data.workspacePath;
-
-        // Get project path from the worktree itself
-        const foundProjectPath = await getMainWorktreeFromWorktree(workspacePath);
-
-        // Remove git worktree if we found the project path
-        if (foundProjectPath) {
-          const worktreeExists = await fsPromises
-            .access(workspacePath)
-            .then(() => true)
-            .catch(() => false);
-
-          if (worktreeExists) {
-            const gitResult = await removeWorktree(foundProjectPath, workspacePath, {
-              force: false,
-            });
-            if (!gitResult.success) {
-              const errorMessage = gitResult.error ?? "Unknown error";
-              const normalizedError = errorMessage.toLowerCase();
-              const looksLikeMissingWorktree =
-                normalizedError.includes("not a working tree") ||
-                normalizedError.includes("does not exist") ||
-                normalizedError.includes("no such file");
-
-              if (looksLikeMissingWorktree) {
-                const pruneResult = await pruneWorktrees(foundProjectPath);
-                if (!pruneResult.success) {
-                  log.info(
-                    `Failed to prune stale worktrees for ${foundProjectPath} after removeWorktree error: ${
-                      pruneResult.error ?? "unknown error"
-                    }`
-                  );
-                }
-              } else {
-                return gitResult;
-              }
-            }
-          } else {
-            const pruneResult = await pruneWorktrees(foundProjectPath);
-            if (!pruneResult.success) {
-              log.info(
-                `Failed to prune stale worktrees for ${foundProjectPath} after detecting missing workspace at ${workspacePath}: ${
-                  pruneResult.error ?? "unknown error"
-                }`
-              );
-            }
-          }
-        }
-
-        // Remove the workspace from AI service
-        const aiResult = await this.aiService.deleteWorkspace(workspaceId);
-        if (!aiResult.success) {
-          return { success: false, error: aiResult.error };
-        }
-
-        // Update config to remove the workspace from all projects
-        // We iterate through all projects instead of relying on foundProjectPath
-        // because the worktree might be deleted (so getMainWorktreeFromWorktree fails)
-        const projectsConfig = this.config.loadConfigOrDefault();
-        let configUpdated = false;
-        for (const [_projectPath, projectConfig] of projectsConfig.projects.entries()) {
-          const initialCount = projectConfig.workspaces.length;
-          projectConfig.workspaces = projectConfig.workspaces.filter(
-            (w) => w.path !== workspacePath
-          );
-          if (projectConfig.workspaces.length < initialCount) {
-            configUpdated = true;
-          }
-        }
-        if (configUpdated) {
-          this.config.saveConfig(projectsConfig);
-        }
-
-        // Emit metadata event for workspace removal (with null metadata to indicate deletion)
-        this.mainWindow?.webContents.send(IPC_CHANNELS.WORKSPACE_METADATA, {
-          workspaceId,
-          metadata: null, // null indicates workspace was deleted
-        });
-
-        return { success: true };
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        return { success: false, error: `Failed to remove workspace: ${message}` };
+    ipcMain.handle(
+      IPC_CHANNELS.WORKSPACE_REMOVE,
+      async (_event, workspaceId: string, options?: { force?: boolean }) => {
+        return this.removeWorkspaceInternal(workspaceId, { force: options?.force ?? false });
       }
-    });
+    );
 
     ipcMain.handle(
       IPC_CHANNELS.WORKSPACE_RENAME,
@@ -870,6 +781,106 @@ export class IpcMain {
         log.error(`Failed to open terminal: ${message}`);
       }
     });
+  }
+
+  /**
+   * Internal workspace removal logic shared by both force and non-force deletion
+   */
+  private async removeWorkspaceInternal(
+    workspaceId: string,
+    options: { force: boolean }
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      // Get workspace path from metadata
+      const metadataResult = await this.aiService.getWorkspaceMetadata(workspaceId);
+      if (!metadataResult.success) {
+        // If metadata doesn't exist, workspace is already gone - consider it success
+        log.info(`Workspace ${workspaceId} metadata not found, considering removal successful`);
+        return { success: true };
+      }
+
+      const workspacePath = metadataResult.data.workspacePath;
+
+      // Get project path from the worktree itself
+      const foundProjectPath = await getMainWorktreeFromWorktree(workspacePath);
+
+      // Remove git worktree if we found the project path
+      if (foundProjectPath) {
+        const worktreeExists = await fsPromises
+          .access(workspacePath)
+          .then(() => true)
+          .catch(() => false);
+
+        if (worktreeExists) {
+          const gitResult = await removeWorktree(foundProjectPath, workspacePath, {
+            force: options.force,
+          });
+          if (!gitResult.success) {
+            const errorMessage = gitResult.error ?? "Unknown error";
+            const normalizedError = errorMessage.toLowerCase();
+            const looksLikeMissingWorktree =
+              normalizedError.includes("not a working tree") ||
+              normalizedError.includes("does not exist") ||
+              normalizedError.includes("no such file");
+
+            if (looksLikeMissingWorktree) {
+              const pruneResult = await pruneWorktrees(foundProjectPath);
+              if (!pruneResult.success) {
+                log.info(
+                  `Failed to prune stale worktrees for ${foundProjectPath} after removeWorktree error: ${
+                    pruneResult.error ?? "unknown error"
+                  }`
+                );
+              }
+            } else {
+              return gitResult;
+            }
+          }
+        } else {
+          const pruneResult = await pruneWorktrees(foundProjectPath);
+          if (!pruneResult.success) {
+            log.info(
+              `Failed to prune stale worktrees for ${foundProjectPath} after detecting missing workspace at ${workspacePath}: ${
+                pruneResult.error ?? "unknown error"
+              }`
+            );
+          }
+        }
+      }
+
+      // Remove the workspace from AI service
+      const aiResult = await this.aiService.deleteWorkspace(workspaceId);
+      if (!aiResult.success) {
+        return { success: false, error: aiResult.error };
+      }
+
+      // Update config to remove the workspace from all projects
+      // We iterate through all projects instead of relying on foundProjectPath
+      // because the worktree might be deleted (so getMainWorktreeFromWorktree fails)
+      const projectsConfig = this.config.loadConfigOrDefault();
+      let configUpdated = false;
+      for (const [_projectPath, projectConfig] of projectsConfig.projects.entries()) {
+        const initialCount = projectConfig.workspaces.length;
+        projectConfig.workspaces = projectConfig.workspaces.filter((w) => w.path !== workspacePath);
+        if (projectConfig.workspaces.length < initialCount) {
+          configUpdated = true;
+        }
+      }
+      if (configUpdated) {
+        this.config.saveConfig(projectsConfig);
+      }
+
+      // Emit metadata event for workspace removal (with null metadata to indicate deletion)
+      this.mainWindow?.webContents.send(IPC_CHANNELS.WORKSPACE_METADATA, {
+        workspaceId,
+        metadata: null, // null indicates workspace was deleted
+      });
+
+      return { success: true };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return { success: false, error: `Failed to remove workspace: ${message}` };
+    }
   }
 
   private registerProviderHandlers(ipcMain: ElectronIpcMain): void {

@@ -66,9 +66,10 @@ export function useWorkspaceManagement({
   };
 
   const removeWorkspace = async (
-    workspaceId: string
+    workspaceId: string,
+    options?: { force?: boolean }
   ): Promise<{ success: boolean; error?: string }> => {
-    const result = await window.api.workspace.remove(workspaceId);
+    const result = await window.api.workspace.remove(workspaceId, options);
     if (result.success) {
       // Backend has already updated the config - reload projects to get updated state
       const projectsList = await window.api.projects.list();

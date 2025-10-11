@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import styled from "@emotion/styled";
 import { css } from "@emotion/react";
@@ -15,6 +15,7 @@ import { GitStatusIndicator } from "./GitStatusIndicator";
 import type { WorkspaceState } from "@/hooks/useWorkspaceAggregators";
 import SecretsModal from "./SecretsModal";
 import type { Secret } from "@/types/secrets";
+import { ForceDeleteModal } from "./ForceDeleteModal";
 
 // Styled Components
 const SidebarContent = styled.div`
@@ -378,7 +379,10 @@ interface ProjectSidebarProps {
   onAddProject: () => void;
   onAddWorkspace: (projectPath: string) => void;
   onRemoveProject: (path: string) => void;
-  onRemoveWorkspace: (workspaceId: string) => Promise<{ success: boolean; error?: string }>;
+  onRemoveWorkspace: (
+    workspaceId: string,
+    options?: { force?: boolean }
+  ) => Promise<{ success: boolean; error?: string }>;
   onRenameWorkspace: (
     workspaceId: string,
     newName: string
@@ -430,11 +434,18 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
     error: string;
     position: { top: number; left: number };
   } | null>(null);
+  const removeErrorTimeoutRef = useRef<number | null>(null);
   const [secretsModalState, setSecretsModalState] = useState<{
     isOpen: boolean;
     projectPath: string;
     projectName: string;
     secrets: Secret[];
+  } | null>(null);
+  const [forceDeleteModal, setForceDeleteModal] = useState<{
+    isOpen: boolean;
+    workspaceId: string;
+    error: string;
+    anchor: { top: number; left: number } | null;
   } | null>(null);
 
   const getProjectName = (path: string) => {
@@ -503,23 +514,62 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
     }
   };
 
+  const showRemoveError = useCallback(
+    (workspaceId: string, error: string, anchor?: { top: number; left: number }) => {
+      if (removeErrorTimeoutRef.current) {
+        window.clearTimeout(removeErrorTimeoutRef.current);
+      }
+
+      const position = anchor ?? {
+        top: window.scrollY + 32,
+        left: Math.max(window.innerWidth - 420, 16),
+      };
+
+      setRemoveError({
+        workspaceId,
+        error,
+        position,
+      });
+
+      removeErrorTimeoutRef.current = window.setTimeout(() => {
+        setRemoveError(null);
+        removeErrorTimeoutRef.current = null;
+      }, 5000);
+    },
+    []
+  );
+
+  useEffect(() => {
+    return () => {
+      if (removeErrorTimeoutRef.current) {
+        window.clearTimeout(removeErrorTimeoutRef.current);
+      }
+    };
+  }, []);
+
   const handleRemoveWorkspace = async (workspaceId: string, buttonElement: HTMLElement) => {
     const result = await onRemoveWorkspace(workspaceId);
     if (!result.success) {
-      // Get button position to place error near it
+      const error = result.error ?? "Failed to remove workspace";
       const rect = buttonElement.getBoundingClientRect();
-      setRemoveError({
-        workspaceId,
-        error: result.error ?? "Failed to remove workspace",
-        position: {
-          top: rect.top + window.scrollY,
-          left: rect.right + 10, // 10px to the right of button
-        },
-      });
-      // Clear error after 5 seconds
-      setTimeout(() => {
-        setRemoveError(null);
-      }, 5000);
+      const anchor = {
+        top: rect.top + window.scrollY,
+        left: rect.right + 10, // 10px to the right of button
+      };
+
+      // Check if this is a git --force error (uncommitted changes, etc.)
+      if (error.includes("--force")) {
+        // Show force delete modal instead of toast, preserve anchor for later reuse
+        setForceDeleteModal({
+          isOpen: true,
+          workspaceId,
+          error,
+          anchor,
+        });
+      } else {
+        // Show regular error toast
+        showRemoveError(workspaceId, error, anchor);
+      }
     }
   };
 
@@ -531,6 +581,20 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
       projectName: getProjectName(projectPath),
       secrets,
     });
+  };
+
+  const handleForceDelete = async (workspaceId: string) => {
+    const modalState = forceDeleteModal;
+    // Close modal immediately to show that action is in progress
+    setForceDeleteModal(null);
+
+    // Use the same state update logic as regular removal
+    const result = await onRemoveWorkspace(workspaceId, { force: true });
+    if (!result.success) {
+      const errorMessage = result.error ?? "Failed to remove workspace";
+      console.error("Force delete failed:", result.error);
+      showRemoveError(workspaceId, errorMessage, modalState?.anchor ?? undefined);
+    }
   };
 
   const handleSaveSecrets = async (secrets: Secret[]) => {
@@ -780,6 +844,15 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
           initialSecrets={secretsModalState.secrets}
           onClose={handleCloseSecrets}
           onSave={handleSaveSecrets}
+        />
+      )}
+      {forceDeleteModal && (
+        <ForceDeleteModal
+          isOpen={forceDeleteModal.isOpen}
+          workspaceId={forceDeleteModal.workspaceId}
+          error={forceDeleteModal.error}
+          onClose={() => setForceDeleteModal(null)}
+          onForceDelete={handleForceDelete}
         />
       )}
       {removeError &&
