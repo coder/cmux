@@ -283,45 +283,7 @@ describe("bash tool", () => {
     expect(result).toBeDefined();
   });
 
-  it("should accept stdin input and avoid shell escaping issues", async () => {
-    const tool = createBashTool({ cwd: process.cwd() });
-    const complexInput = "test'with\"quotes\nand$variables";
-
-    const args: BashToolArgs = {
-      script: "cat",
-      timeout_secs: 5,
-      max_lines: 100,
-      stdin: complexInput,
-    };
-
-    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
-
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.output).toBe(complexInput);
-    }
-  });
-
-  it("should handle multi-line stdin input", async () => {
-    const tool = createBashTool({ cwd: process.cwd() });
-    const multiLineInput = "line1\nline2\nline3";
-
-    const args: BashToolArgs = {
-      script: "cat",
-      timeout_secs: 5,
-      max_lines: 100,
-      stdin: multiLineInput,
-    };
-
-    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
-
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.output).toBe(multiLineInput);
-    }
-  });
-
-  it("should work without stdin when not provided (backward compatibility)", async () => {
+  it("should work without explicit max_lines (uses default)", async () => {
     const tool = createBashTool({ cwd: process.cwd() });
 
     const args: BashToolArgs = {

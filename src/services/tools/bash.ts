@@ -119,15 +119,9 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
             // Without this, git can hang waiting for user input if credentials aren't configured
             GIT_TERMINAL_PROMPT: "0", // Disables git credential prompts
           },
-          stdio: [stdin !== undefined ? "pipe" : "ignore", "pipe", "pipe"], // stdin: pipe if provided, else ignore
+          stdio: ["ignore", "pipe", "pipe"],
         })
       );
-
-      // Write stdin if provided
-      if (stdin !== undefined && childProcess.child.stdin) {
-        childProcess.child.stdin.write(stdin);
-        childProcess.child.stdin.end();
-      }
 
       // Use a promise to wait for completion
       return await new Promise<BashToolResult>((resolve) => {
