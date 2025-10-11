@@ -18,6 +18,9 @@ const TitleBarContainer = styled.div`
 `;
 
 const TitleText = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 4px;
   font-weight: normal;
   letter-spacing: 0.5px;
 `;
@@ -71,12 +74,12 @@ export function TitleBar() {
   return (
     <TitleBarContainer>
       <TitleText>
-        <TooltipWrapper>
+        <TooltipWrapper inline>
           <CmuxLink href="https://cmux.io" target="_blank" rel="noopener noreferrer">
             cmux
           </CmuxLink>
           <Tooltip align="left">Documentation (cmux.io)</Tooltip>
-        </TooltipWrapper>{" "}
+        </TooltipWrapper>
         <VersionText>{VERSION.git_describe}</VersionText>
       </TitleText>
       <TooltipWrapper>
