@@ -128,8 +128,14 @@ describe("mergeConsecutiveStreamErrors", () => {
     const result = mergeConsecutiveStreamErrors(messages);
 
     expect(result).toHaveLength(2);
-    expect(result[0].errorCount).toBe(1);
-    expect(result[1].errorCount).toBe(1);
+    const first = result[0];
+    const second = result[1];
+    expect(first.type).toBe("stream-error");
+    expect(second.type).toBe("stream-error");
+    if (first.type === "stream-error" && second.type === "stream-error") {
+      expect(first.errorCount).toBe(1);
+      expect(second.errorCount).toBe(1);
+    }
   });
 
   it("creates separate merged groups for non-consecutive identical errors", () => {
