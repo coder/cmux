@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useLayoutEffect, createContext, useContext } from "react";
+import React, { useState, useRef, useLayoutEffect, createContext, useContext } from "react";
 import { createPortal } from "react-dom";
 import styled from "@emotion/styled";
 
