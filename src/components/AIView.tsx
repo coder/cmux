@@ -243,12 +243,12 @@ const AIViewInner: React.FC<AIViewProps> = ({
   );
   const activeStreamMessageId = activeStream ? streamingMessage?.historyId : undefined;
 
-  // Debug logging
-  if (activeStream) {
-    console.log("[AIView] Active stream found:", activeStream);
-    console.log("[AIView] Streaming message:", streamingMessage);
-    console.log("[AIView] Active stream messageId:", activeStreamMessageId);
-  }
+  // Debug logging - check all conditions
+  console.log("[AIView] canInterrupt:", canInterrupt);
+  console.log("[AIView] activeStream:", activeStream);
+  console.log("[AIView] streamingMessage:", streamingMessage);
+  console.log("[AIView] activeStreamMessageId:", activeStreamMessageId);
+  console.log("[AIView] Will render token count:", canInterrupt && !!activeStreamMessageId);
 
   // Track if last message was interrupted or errored (for RetryBarrier)
   // Uses same logic as useResumeManager for DRY
