@@ -68,15 +68,20 @@ export const Tooltip: React.FC<TooltipProps> = ({
       return;
     }
 
-    const trigger = triggerRef.current.getBoundingClientRect();
-    const tooltip = tooltipRef.current.getBoundingClientRect();
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
+    // Double RAF to ensure layout is stable (especially for fonts on first render)
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (!triggerRef?.current || !tooltipRef.current) return;
 
-    let top: number;
-    let left: number;
-    let finalPosition = position;
-    const gap = 8; // Gap between trigger and tooltip
+        const trigger = triggerRef.current.getBoundingClientRect();
+        const tooltip = tooltipRef.current.getBoundingClientRect();
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+
+        let top: number;
+        let left: number;
+        let finalPosition = position;
+        const gap = 8; // Gap between trigger and tooltip
 
     // Vertical positioning with collision detection
     if (position === "bottom") {
@@ -125,21 +130,23 @@ export const Tooltip: React.FC<TooltipProps> = ({
       arrowLeft = Math.max(10, Math.min(originalLeft - left + 10, tooltip.width - 15));
     }
 
-    setStyle({
-      position: "fixed",
-      top: `${top}px`,
-      left: `${left}px`,
-      visibility: "visible",
-      opacity: 1,
-    });
+        setStyle({
+          position: "fixed",
+          top: `${top}px`,
+          left: `${left}px`,
+          visibility: "visible",
+          opacity: 1,
+        });
 
-    setArrowStyle({
-      left: `${arrowLeft}px`,
-      [finalPosition === "bottom" ? "bottom" : "top"]: "100%",
-      borderColor:
-        finalPosition === "bottom"
-          ? "transparent transparent #2d2d30 transparent"
-          : "#2d2d30 transparent transparent transparent",
+        setArrowStyle({
+          left: `${arrowLeft}px`,
+          [finalPosition === "bottom" ? "bottom" : "top"]: "100%",
+          borderColor:
+            finalPosition === "bottom"
+              ? "transparent transparent #2d2d30 transparent"
+              : "#2d2d30 transparent transparent transparent",
+        });
+      });
     });
   }, [isHovered, align, position, triggerRef]);
 

@@ -67,7 +67,7 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({
     return (
       <TooltipWrapper inline>
         {indicator}
-        <Tooltip className="tooltip" align="right">
+        <Tooltip className="tooltip" align="center">
           {title}
         </Tooltip>
       </TooltipWrapper>
