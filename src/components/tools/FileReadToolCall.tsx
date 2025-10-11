@@ -155,8 +155,8 @@ export const FileReadToolCall: React.FC<FileReadToolCallProps> = ({
 }) => {
   const { expanded, toggleExpanded } = useToolExpansion();
 
-  // Extract just the filename from the path for compact display
-  const fileName = args.filePath.split("/").pop() ?? args.filePath;
+  // Use full file path for consistency with file_edit display
+  const filePath = args.filePath;
 
   // Parse the file content to extract line numbers and actual content
   const parsedContent = result?.success && result.content ? parseFileContent(result.content) : null;
@@ -169,7 +169,7 @@ export const FileReadToolCall: React.FC<FileReadToolCallProps> = ({
           <span>📖</span>
           <Tooltip>file_read</Tooltip>
         </TooltipWrapper>
-        <FilePathText>{fileName}</FilePathText>
+        <FilePathText>{filePath}</FilePathText>
         {result && result.success && parsedContent && (
           <MetadataText>
             read {formatBytes(parsedContent.actualBytes)} of {formatBytes(result.file_size)}
