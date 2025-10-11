@@ -1,5 +1,6 @@
 import React from "react";
 import styled from "@emotion/styled";
+import { TooltipWrapper, Tooltip } from "./Tooltip";
 
 const Indicator = styled.div<{ streaming?: boolean; unread?: boolean; clickable?: boolean; size?: number }>`
   width: ${(props) => props.size ?? 8}px;
@@ -50,15 +51,28 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({
     }
   };
 
-  return (
+  const indicator = (
     <Indicator
       streaming={streaming}
       unread={unread}
       clickable={!!onClick}
       size={size}
       className={className}
-      title={title}
       onClick={handleClick}
     />
   );
+
+  // If title provided, wrap with proper Tooltip component
+  if (title) {
+    return (
+      <TooltipWrapper inline>
+        {indicator}
+        <Tooltip className="tooltip" align="right">
+          {title}
+        </Tooltip>
+      </TooltipWrapper>
+    );
+  }
+
+  return indicator;
 };
