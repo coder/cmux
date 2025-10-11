@@ -1,10 +1,4 @@
-import React, {
-  useState,
-  useRef,
-  useCallback,
-  useEffect,
-  useId,
-} from "react";
+import React, { useState, useRef, useCallback, useEffect, useId } from "react";
 import styled from "@emotion/styled";
 import { CommandSuggestions, COMMAND_SUGGESTION_KEYS } from "./CommandSuggestions";
 import type { Toast } from "./ChatInputToast";
@@ -300,605 +294,601 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   canInterrupt = false,
   onReady,
 }) => {
-    const [input, setInput] = usePersistedState(getInputKey(workspaceId), "");
-    const [isSending, setIsSending] = useState(false);
-    const [showCommandSuggestions, setShowCommandSuggestions] = useState(false);
-    const [commandSuggestions, setCommandSuggestions] = useState<SlashSuggestion[]>([]);
-    const [providerNames, setProviderNames] = useState<string[]>([]);
-    const [toast, setToast] = useState<Toast | null>(null);
-    const [imageAttachments, setImageAttachments] = useState<ImageAttachment[]>([]);
-    const handleToastDismiss = useCallback(() => {
-      setToast(null);
-    }, []);
-    const inputRef = useRef<HTMLTextAreaElement>(null);
-    const modelSelectorRef = useRef<ModelSelectorRef>(null);
-    const [mode, setMode] = useMode();
-    const { recentModels } = useModelLRU();
-    const commandListId = useId();
+  const [input, setInput] = usePersistedState(getInputKey(workspaceId), "");
+  const [isSending, setIsSending] = useState(false);
+  const [showCommandSuggestions, setShowCommandSuggestions] = useState(false);
+  const [commandSuggestions, setCommandSuggestions] = useState<SlashSuggestion[]>([]);
+  const [providerNames, setProviderNames] = useState<string[]>([]);
+  const [toast, setToast] = useState<Toast | null>(null);
+  const [imageAttachments, setImageAttachments] = useState<ImageAttachment[]>([]);
+  const handleToastDismiss = useCallback(() => {
+    setToast(null);
+  }, []);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const modelSelectorRef = useRef<ModelSelectorRef>(null);
+  const [mode, setMode] = useMode();
+  const { recentModels } = useModelLRU();
+  const commandListId = useId();
 
-    // Get current send message options from shared hook (must be at component top level)
-    const sendMessageOptions = useSendMessageOptions(workspaceId);
-    // Extract model for convenience (don't create separate state - use hook as single source of truth)
-    const preferredModel = sendMessageOptions.model;
-    // Setter for model - updates localStorage directly so useSendMessageOptions picks it up
-    const setPreferredModel = useCallback(
-      (model: string) => updatePersistedState(getModelKey(workspaceId), model),
-      [workspaceId]
-    );
+  // Get current send message options from shared hook (must be at component top level)
+  const sendMessageOptions = useSendMessageOptions(workspaceId);
+  // Extract model for convenience (don't create separate state - use hook as single source of truth)
+  const preferredModel = sendMessageOptions.model;
+  // Setter for model - updates localStorage directly so useSendMessageOptions picks it up
+  const setPreferredModel = useCallback(
+    (model: string) => updatePersistedState(getModelKey(workspaceId), model),
+    [workspaceId]
+  );
 
-    const focusMessageInput = useCallback(() => {
-      const element = inputRef.current;
-      if (!element || element.disabled) {
+  const focusMessageInput = useCallback(() => {
+    const element = inputRef.current;
+    if (!element || element.disabled) {
+      return;
+    }
+
+    element.focus();
+
+    requestAnimationFrame(() => {
+      const cursor = element.value.length;
+      element.selectionStart = cursor;
+      element.selectionEnd = cursor;
+      element.style.height = "auto";
+      element.style.height = Math.min(element.scrollHeight, window.innerHeight * 0.5) + "px";
+    });
+  }, []);
+
+  // Provide API to parent via callback
+  useEffect(() => {
+    if (onReady) {
+      onReady({ focus: focusMessageInput });
+    }
+  }, [onReady, focusMessageInput]);
+
+  useEffect(() => {
+    const handleGlobalKeyDown = (event: KeyboardEvent) => {
+      if (isEditableElement(event.target)) {
         return;
       }
 
-      element.focus();
-
-      requestAnimationFrame(() => {
-        const cursor = element.value.length;
-        element.selectionStart = cursor;
-        element.selectionEnd = cursor;
-        element.style.height = "auto";
-        element.style.height = Math.min(element.scrollHeight, window.innerHeight * 0.5) + "px";
-      });
-    }, []);
-
-    // Provide API to parent via callback
-    useEffect(() => {
-      if (onReady) {
-        onReady({ focus: focusMessageInput });
-      }
-    }, [onReady, focusMessageInput]);
-
-    useEffect(() => {
-      const handleGlobalKeyDown = (event: KeyboardEvent) => {
-        if (isEditableElement(event.target)) {
-          return;
-        }
-
-        if (matchesKeybind(event, KEYBINDS.FOCUS_INPUT_I)) {
-          event.preventDefault();
-          focusMessageInput();
-          return;
-        }
-
-        if (matchesKeybind(event, KEYBINDS.FOCUS_INPUT_A)) {
-          event.preventDefault();
-          focusMessageInput();
-        }
-      };
-
-      window.addEventListener("keydown", handleGlobalKeyDown);
-      return () => {
-        window.removeEventListener("keydown", handleGlobalKeyDown);
-      };
-    }, [focusMessageInput]);
-
-    // When entering editing mode, populate input with message content
-    useEffect(() => {
-      if (editingMessage) {
-        setInput(editingMessage.content);
-        // Auto-resize textarea and focus
-        setTimeout(() => {
-          if (inputRef.current) {
-            inputRef.current.style.height = "auto";
-            inputRef.current.style.height =
-              Math.min(inputRef.current.scrollHeight, window.innerHeight * 0.5) + "px";
-            inputRef.current.focus();
-          }
-        }, 0);
-      }
-    }, [editingMessage, setInput]);
-
-    // Watch input for slash commands
-    useEffect(() => {
-      const suggestions = getSlashCommandSuggestions(input, { providerNames });
-      setCommandSuggestions(suggestions);
-      setShowCommandSuggestions(suggestions.length > 0);
-    }, [input, providerNames]);
-
-    // Load provider names for suggestions
-    useEffect(() => {
-      let isMounted = true;
-
-      const loadProviders = async () => {
-        try {
-          const names = await window.api.providers.list();
-          if (isMounted && Array.isArray(names)) {
-            setProviderNames(names);
-          }
-        } catch (error) {
-          console.error("Failed to load provider list:", error);
-        }
-      };
-
-      void loadProviders();
-
-      return () => {
-        isMounted = false;
-      };
-    }, []);
-
-    // Allow external components (e.g., CommandPalette) to insert text
-    useEffect(() => {
-      const handler = (e: Event) => {
-        const detail = (e as CustomEvent).detail as { text?: string } | undefined;
-        if (!detail?.text) return;
-        setInput(detail.text);
-        setTimeout(() => inputRef.current?.focus(), 0);
-      };
-      window.addEventListener(CUSTOM_EVENTS.INSERT_TO_CHAT_INPUT, handler as EventListener);
-      return () =>
-        window.removeEventListener(CUSTOM_EVENTS.INSERT_TO_CHAT_INPUT, handler as EventListener);
-    }, [setInput]);
-
-    // Allow external components to open the Model Selector
-    useEffect(() => {
-      const handler = () => {
-        // Open the inline ModelSelector and let it take focus itself
-        modelSelectorRef.current?.open();
-      };
-      window.addEventListener(CUSTOM_EVENTS.OPEN_MODEL_SELECTOR, handler as EventListener);
-      return () =>
-        window.removeEventListener(CUSTOM_EVENTS.OPEN_MODEL_SELECTOR, handler as EventListener);
-    }, []);
-
-    // Show toast when thinking level is changed via command palette
-    useEffect(() => {
-      const handler = (event: Event) => {
-        const detail = (event as CustomEvent<{ workspaceId: string; level: ThinkingLevel }>).detail;
-        if (!detail || detail.workspaceId !== workspaceId || !detail.level) {
-          return;
-        }
-
-        const level = detail.level;
-        const levelDescriptions: Record<ThinkingLevel, string> = {
-          off: "Off — fastest responses",
-          low: "Low — adds light reasoning",
-          medium: "Medium — balanced reasoning",
-          high: "High — maximum reasoning depth",
-        };
-
-        setToast({
-          id: Date.now().toString(),
-          type: "success",
-          message: `Thinking effort set to ${levelDescriptions[level]}`,
-        });
-      };
-
-      window.addEventListener(CUSTOM_EVENTS.THINKING_LEVEL_TOAST, handler as EventListener);
-      return () =>
-        window.removeEventListener(CUSTOM_EVENTS.THINKING_LEVEL_TOAST, handler as EventListener);
-    }, [workspaceId, setToast]);
-
-    // Auto-focus chat input when workspace changes (e.g., new workspace created or switched)
-    useEffect(() => {
-      // Small delay to ensure DOM is ready and other components have settled
-      const timer = setTimeout(() => {
+      if (matchesKeybind(event, KEYBINDS.FOCUS_INPUT_I)) {
+        event.preventDefault();
         focusMessageInput();
-      }, 100);
-      return () => clearTimeout(timer);
-    }, [workspaceId, focusMessageInput]);
-
-    // Handle paste events to extract images
-    const handlePaste = useCallback((e: React.ClipboardEvent<HTMLTextAreaElement>) => {
-      const items = e.clipboardData?.items;
-      if (!items) return;
-
-      // Look for image items in clipboard
-      for (const item of Array.from(items)) {
-        if (!item?.type.startsWith("image/")) continue;
-
-        e.preventDefault(); // Prevent default paste behavior for images
-
-        const file = item.getAsFile();
-        if (!file) continue;
-
-        // Convert to base64 data URL
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          const dataUrl = event.target?.result as string;
-          if (dataUrl) {
-            const attachment: ImageAttachment = {
-              id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-              dataUrl,
-              mimeType: file.type,
-            };
-            setImageAttachments((prev) => [...prev, attachment]);
-          }
-        };
-        reader.readAsDataURL(file);
-      }
-    }, []);
-
-    // Handle removing an image attachment
-    const handleRemoveImage = useCallback((id: string) => {
-      setImageAttachments((prev) => prev.filter((img) => img.id !== id));
-    }, []);
-
-    // Handle command selection
-    const handleCommandSelect = useCallback(
-      (suggestion: SlashSuggestion) => {
-        setInput(suggestion.replacement);
-        setShowCommandSuggestions(false);
-        inputRef.current?.focus();
-      },
-      [setInput]
-    );
-
-    const handleSend = async () => {
-      // Allow sending if there's text or images
-      if ((!input.trim() && imageAttachments.length === 0) || disabled || isSending || isCompacting)
         return;
+      }
 
-      const messageText = input.trim();
+      if (matchesKeybind(event, KEYBINDS.FOCUS_INPUT_A)) {
+        event.preventDefault();
+        focusMessageInput();
+      }
+    };
 
+    window.addEventListener("keydown", handleGlobalKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleGlobalKeyDown);
+    };
+  }, [focusMessageInput]);
+
+  // When entering editing mode, populate input with message content
+  useEffect(() => {
+    if (editingMessage) {
+      setInput(editingMessage.content);
+      // Auto-resize textarea and focus
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.style.height = "auto";
+          inputRef.current.style.height =
+            Math.min(inputRef.current.scrollHeight, window.innerHeight * 0.5) + "px";
+          inputRef.current.focus();
+        }
+      }, 0);
+    }
+  }, [editingMessage, setInput]);
+
+  // Watch input for slash commands
+  useEffect(() => {
+    const suggestions = getSlashCommandSuggestions(input, { providerNames });
+    setCommandSuggestions(suggestions);
+    setShowCommandSuggestions(suggestions.length > 0);
+  }, [input, providerNames]);
+
+  // Load provider names for suggestions
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadProviders = async () => {
       try {
-        // Parse command
-        const parsed = parseCommand(messageText);
+        const names = await window.api.providers.list();
+        if (isMounted && Array.isArray(names)) {
+          setProviderNames(names);
+        }
+      } catch (error) {
+        console.error("Failed to load provider list:", error);
+      }
+    };
 
-        if (parsed) {
-          // Handle /clear command
-          if (parsed.type === "clear") {
-            setInput("");
-            if (inputRef.current) {
-              inputRef.current.style.height = "36px";
-            }
-            await onTruncateHistory(1.0);
+    void loadProviders();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Allow external components (e.g., CommandPalette) to insert text
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { text?: string } | undefined;
+      if (!detail?.text) return;
+      setInput(detail.text);
+      setTimeout(() => inputRef.current?.focus(), 0);
+    };
+    window.addEventListener(CUSTOM_EVENTS.INSERT_TO_CHAT_INPUT, handler as EventListener);
+    return () =>
+      window.removeEventListener(CUSTOM_EVENTS.INSERT_TO_CHAT_INPUT, handler as EventListener);
+  }, [setInput]);
+
+  // Allow external components to open the Model Selector
+  useEffect(() => {
+    const handler = () => {
+      // Open the inline ModelSelector and let it take focus itself
+      modelSelectorRef.current?.open();
+    };
+    window.addEventListener(CUSTOM_EVENTS.OPEN_MODEL_SELECTOR, handler as EventListener);
+    return () =>
+      window.removeEventListener(CUSTOM_EVENTS.OPEN_MODEL_SELECTOR, handler as EventListener);
+  }, []);
+
+  // Show toast when thinking level is changed via command palette
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<{ workspaceId: string; level: ThinkingLevel }>).detail;
+      if (!detail || detail.workspaceId !== workspaceId || !detail.level) {
+        return;
+      }
+
+      const level = detail.level;
+      const levelDescriptions: Record<ThinkingLevel, string> = {
+        off: "Off — fastest responses",
+        low: "Low — adds light reasoning",
+        medium: "Medium — balanced reasoning",
+        high: "High — maximum reasoning depth",
+      };
+
+      setToast({
+        id: Date.now().toString(),
+        type: "success",
+        message: `Thinking effort set to ${levelDescriptions[level]}`,
+      });
+    };
+
+    window.addEventListener(CUSTOM_EVENTS.THINKING_LEVEL_TOAST, handler as EventListener);
+    return () =>
+      window.removeEventListener(CUSTOM_EVENTS.THINKING_LEVEL_TOAST, handler as EventListener);
+  }, [workspaceId, setToast]);
+
+  // Auto-focus chat input when workspace changes (e.g., new workspace created or switched)
+  useEffect(() => {
+    // Small delay to ensure DOM is ready and other components have settled
+    const timer = setTimeout(() => {
+      focusMessageInput();
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [workspaceId, focusMessageInput]);
+
+  // Handle paste events to extract images
+  const handlePaste = useCallback((e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    // Look for image items in clipboard
+    for (const item of Array.from(items)) {
+      if (!item?.type.startsWith("image/")) continue;
+
+      e.preventDefault(); // Prevent default paste behavior for images
+
+      const file = item.getAsFile();
+      if (!file) continue;
+
+      // Convert to base64 data URL
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const dataUrl = event.target?.result as string;
+        if (dataUrl) {
+          const attachment: ImageAttachment = {
+            id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            dataUrl,
+            mimeType: file.type,
+          };
+          setImageAttachments((prev) => [...prev, attachment]);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  }, []);
+
+  // Handle removing an image attachment
+  const handleRemoveImage = useCallback((id: string) => {
+    setImageAttachments((prev) => prev.filter((img) => img.id !== id));
+  }, []);
+
+  // Handle command selection
+  const handleCommandSelect = useCallback(
+    (suggestion: SlashSuggestion) => {
+      setInput(suggestion.replacement);
+      setShowCommandSuggestions(false);
+      inputRef.current?.focus();
+    },
+    [setInput]
+  );
+
+  const handleSend = async () => {
+    // Allow sending if there's text or images
+    if ((!input.trim() && imageAttachments.length === 0) || disabled || isSending || isCompacting)
+      return;
+
+    const messageText = input.trim();
+
+    try {
+      // Parse command
+      const parsed = parseCommand(messageText);
+
+      if (parsed) {
+        // Handle /clear command
+        if (parsed.type === "clear") {
+          setInput("");
+          if (inputRef.current) {
+            inputRef.current.style.height = "36px";
+          }
+          await onTruncateHistory(1.0);
+          setToast({
+            id: Date.now().toString(),
+            type: "success",
+            message: "Chat history cleared",
+          });
+          return;
+        }
+
+        // Handle /truncate command
+        if (parsed.type === "truncate") {
+          setInput("");
+          if (inputRef.current) {
+            inputRef.current.style.height = "36px";
+          }
+          await onTruncateHistory(parsed.percentage);
+          setToast({
+            id: Date.now().toString(),
+            type: "success",
+            message: `Chat history truncated by ${Math.round(parsed.percentage * 100)}%`,
+          });
+          return;
+        }
+
+        // Handle /providers set command
+        if (parsed.type === "providers-set" && onProviderConfig) {
+          setIsSending(true);
+          setInput(""); // Clear input immediately
+
+          try {
+            await onProviderConfig(parsed.provider, parsed.keyPath, parsed.value);
+            // Success - show toast
             setToast({
               id: Date.now().toString(),
               type: "success",
-              message: "Chat history cleared",
+              message: `Provider ${parsed.provider} updated`,
             });
-            return;
-          }
-
-          // Handle /truncate command
-          if (parsed.type === "truncate") {
-            setInput("");
-            if (inputRef.current) {
-              inputRef.current.style.height = "36px";
-            }
-            await onTruncateHistory(parsed.percentage);
+          } catch (error) {
+            console.error("Failed to update provider config:", error);
             setToast({
               id: Date.now().toString(),
-              type: "success",
-              message: `Chat history truncated by ${Math.round(parsed.percentage * 100)}%`,
+              type: "error",
+              message: error instanceof Error ? error.message : "Failed to update provider",
             });
-            return;
+            setInput(messageText); // Restore input on error
+          } finally {
+            setIsSending(false);
           }
+          return;
+        }
 
-          // Handle /providers set command
-          if (parsed.type === "providers-set" && onProviderConfig) {
-            setIsSending(true);
-            setInput(""); // Clear input immediately
+        // Handle /model command
+        if (parsed.type === "model-set") {
+          setInput(""); // Clear input immediately
+          setPreferredModel(parsed.modelString);
+          onModelChange?.(parsed.modelString);
+          setToast({
+            id: Date.now().toString(),
+            type: "success",
+            message: `Model changed to ${parsed.modelString}`,
+          });
+          return;
+        }
 
-            try {
-              await onProviderConfig(parsed.provider, parsed.keyPath, parsed.value);
-              // Success - show toast
+        // Handle /compact command
+        if (parsed.type === "compact") {
+          setInput(""); // Clear input immediately
+          setIsSending(true);
+
+          try {
+            // Construct message asking for summarization
+            const targetWords = parsed.maxOutputTokens
+              ? Math.round(parsed.maxOutputTokens / 1.3)
+              : 2000;
+            let compactionMessage = `Summarize this conversation into a compact form for a new Assistant to continue helping the user. Use approximately ${targetWords} words.`;
+            if (parsed.instructions) {
+              compactionMessage += ` ${parsed.instructions}`;
+            }
+
+            // Send message with compact_summary tool required and maxOutputTokens in options
+            // Note: Anthropic doesn't support extended thinking with required tool_choice,
+            // so disable thinking for Anthropic models during compaction
+            const isAnthropic = sendMessageOptions.model.startsWith("anthropic:");
+            const result = await window.api.workspace.sendMessage(workspaceId, compactionMessage, {
+              ...sendMessageOptions,
+              thinkingLevel: isAnthropic ? "off" : sendMessageOptions.thinkingLevel,
+              toolPolicy: [{ regex_match: "compact_summary", action: "require" }],
+              maxOutputTokens: parsed.maxOutputTokens, // Pass to model directly
+            });
+
+            if (!result.success) {
+              console.error("Failed to initiate compaction:", result.error);
+              setToast(createErrorToast(result.error));
+              setInput(messageText); // Restore input on error
+            } else {
               setToast({
                 id: Date.now().toString(),
                 type: "success",
-                message: `Provider ${parsed.provider} updated`,
+                message: "Compaction started. AI will summarize the conversation.",
               });
-            } catch (error) {
-              console.error("Failed to update provider config:", error);
-              setToast({
-                id: Date.now().toString(),
-                type: "error",
-                message: error instanceof Error ? error.message : "Failed to update provider",
-              });
-              setInput(messageText); // Restore input on error
-            } finally {
-              setIsSending(false);
+              // Note: Full compaction flow needs to be implemented in AIView component:
+              // 1. Listen for tool-call-end event with toolName === "compact_summary"
+              // 2. Extract summary from tool result
+              // 3. Construct CmuxMessage with metadata: { compacted: true, timestamp, model, etc. }
+              // 4. Call window.api.workspace.replaceChatHistory(workspaceId, summaryMessage)
             }
-            return;
-          }
-
-          // Handle /model command
-          if (parsed.type === "model-set") {
-            setInput(""); // Clear input immediately
-            setPreferredModel(parsed.modelString);
-            onModelChange?.(parsed.modelString);
+          } catch (error) {
+            console.error("Compaction error:", error);
             setToast({
               id: Date.now().toString(),
-              type: "success",
-              message: `Model changed to ${parsed.modelString}`,
+              type: "error",
+              message: error instanceof Error ? error.message : "Failed to start compaction",
             });
-            return;
+            setInput(messageText); // Restore input on error
+          } finally {
+            setIsSending(false);
           }
-
-          // Handle /compact command
-          if (parsed.type === "compact") {
-            setInput(""); // Clear input immediately
-            setIsSending(true);
-
-            try {
-              // Construct message asking for summarization
-              const targetWords = parsed.maxOutputTokens
-                ? Math.round(parsed.maxOutputTokens / 1.3)
-                : 2000;
-              let compactionMessage = `Summarize this conversation into a compact form for a new Assistant to continue helping the user. Use approximately ${targetWords} words.`;
-              if (parsed.instructions) {
-                compactionMessage += ` ${parsed.instructions}`;
-              }
-
-              // Send message with compact_summary tool required and maxOutputTokens in options
-              // Note: Anthropic doesn't support extended thinking with required tool_choice,
-              // so disable thinking for Anthropic models during compaction
-              const isAnthropic = sendMessageOptions.model.startsWith("anthropic:");
-              const result = await window.api.workspace.sendMessage(
-                workspaceId,
-                compactionMessage,
-                {
-                  ...sendMessageOptions,
-                  thinkingLevel: isAnthropic ? "off" : sendMessageOptions.thinkingLevel,
-                  toolPolicy: [{ regex_match: "compact_summary", action: "require" }],
-                  maxOutputTokens: parsed.maxOutputTokens, // Pass to model directly
-                }
-              );
-
-              if (!result.success) {
-                console.error("Failed to initiate compaction:", result.error);
-                setToast(createErrorToast(result.error));
-                setInput(messageText); // Restore input on error
-              } else {
-                setToast({
-                  id: Date.now().toString(),
-                  type: "success",
-                  message: "Compaction started. AI will summarize the conversation.",
-                });
-                // Note: Full compaction flow needs to be implemented in AIView component:
-                // 1. Listen for tool-call-end event with toolName === "compact_summary"
-                // 2. Extract summary from tool result
-                // 3. Construct CmuxMessage with metadata: { compacted: true, timestamp, model, etc. }
-                // 4. Call window.api.workspace.replaceChatHistory(workspaceId, summaryMessage)
-              }
-            } catch (error) {
-              console.error("Compaction error:", error);
-              setToast({
-                id: Date.now().toString(),
-                type: "error",
-                message: error instanceof Error ? error.message : "Failed to start compaction",
-              });
-              setInput(messageText); // Restore input on error
-            } finally {
-              setIsSending(false);
-            }
-            return;
-          }
-
-          // Handle all other commands - show display toast
-          const commandToast = createCommandToast(parsed);
-          if (commandToast) {
-            setToast(commandToast);
-            return;
-          }
+          return;
         }
 
-        // Regular message - send directly via API
-        setIsSending(true);
-
-        try {
-          // Prepare image parts if any
-          const imageParts = imageAttachments.map((img) => ({
-            image: img.dataUrl,
-            mimeType: img.mimeType,
-          }));
-
-          const result = await window.api.workspace.sendMessage(workspaceId, messageText, {
-            ...sendMessageOptions,
-            editMessageId: editingMessage?.id,
-            imageParts: imageParts.length > 0 ? imageParts : undefined,
-          });
-
-          if (!result.success) {
-            // Log error for debugging
-            console.error("Failed to send message:", result.error);
-            // Show error using enhanced toast
-            setToast(createErrorToast(result.error));
-            // Restore input on error so user can try again
-            setInput(messageText);
-          } else {
-            // Success - clear input and images
-            setInput("");
-            setImageAttachments([]);
-            // Reset textarea height
-            if (inputRef.current) {
-              inputRef.current.style.height = "36px";
-            }
-            // Exit editing mode if we were editing
-            if (editingMessage && onCancelEdit) {
-              onCancelEdit();
-            }
-            onMessageSent?.();
-          }
-        } catch (error) {
-          // Handle unexpected errors
-          console.error("Unexpected error sending message:", error);
-          setToast(
-            createErrorToast({
-              type: "unknown",
-              raw: error instanceof Error ? error.message : "Failed to send message",
-            })
-          );
-          setInput(messageText);
-        } finally {
-          setIsSending(false);
-        }
-      } finally {
-        // Always restore focus at the end
-        setTimeout(() => {
-          inputRef.current?.focus();
-        }, 0);
-      }
-    };
-
-    const handleKeyDown = (e: React.KeyboardEvent) => {
-      // Handle open model selector
-      if (matchesKeybind(e, KEYBINDS.OPEN_MODEL_SELECTOR)) {
-        e.preventDefault();
-        modelSelectorRef.current?.open();
-        return;
-      }
-
-      // Handle cancel edit (Ctrl+Q)
-      if (matchesKeybind(e, KEYBINDS.CANCEL_EDIT)) {
-        if (editingMessage && onCancelEdit) {
-          e.preventDefault();
-          onCancelEdit();
-          const isFocused = document.activeElement === inputRef.current;
-          if (isFocused) {
-            inputRef.current?.blur();
-          }
+        // Handle all other commands - show display toast
+        const commandToast = createCommandToast(parsed);
+        if (commandToast) {
+          setToast(commandToast);
           return;
         }
       }
 
-      // Handle escape - let VimTextArea handle it (for Vim mode transitions)
-      // Edit canceling is handled by Ctrl+Q above
-      // Stream interruption is handled by Ctrl+C (INTERRUPT_STREAM keybind)
-      if (matchesKeybind(e, KEYBINDS.CANCEL)) {
-        // Do not preventDefault here: allow VimTextArea or other handlers (like suggestions) to process ESC
-      }
+      // Regular message - send directly via API
+      setIsSending(true);
 
-      // Don't handle keys if command suggestions are visible
-      if (
-        showCommandSuggestions &&
-        commandSuggestions.length > 0 &&
-        COMMAND_SUGGESTION_KEYS.includes(e.key)
-      ) {
-        return; // Let CommandSuggestions handle it
-      }
+      try {
+        // Prepare image parts if any
+        const imageParts = imageAttachments.map((img) => ({
+          image: img.dataUrl,
+          mimeType: img.mimeType,
+        }));
 
-      // Handle newline
-      if (matchesKeybind(e, KEYBINDS.NEW_LINE)) {
-        // Allow newline (default behavior)
+        const result = await window.api.workspace.sendMessage(workspaceId, messageText, {
+          ...sendMessageOptions,
+          editMessageId: editingMessage?.id,
+          imageParts: imageParts.length > 0 ? imageParts : undefined,
+        });
+
+        if (!result.success) {
+          // Log error for debugging
+          console.error("Failed to send message:", result.error);
+          // Show error using enhanced toast
+          setToast(createErrorToast(result.error));
+          // Restore input on error so user can try again
+          setInput(messageText);
+        } else {
+          // Success - clear input and images
+          setInput("");
+          setImageAttachments([]);
+          // Reset textarea height
+          if (inputRef.current) {
+            inputRef.current.style.height = "36px";
+          }
+          // Exit editing mode if we were editing
+          if (editingMessage && onCancelEdit) {
+            onCancelEdit();
+          }
+          onMessageSent?.();
+        }
+      } catch (error) {
+        // Handle unexpected errors
+        console.error("Unexpected error sending message:", error);
+        setToast(
+          createErrorToast({
+            type: "unknown",
+            raw: error instanceof Error ? error.message : "Failed to send message",
+          })
+        );
+        setInput(messageText);
+      } finally {
+        setIsSending(false);
+      }
+    } finally {
+      // Always restore focus at the end
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 0);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    // Handle open model selector
+    if (matchesKeybind(e, KEYBINDS.OPEN_MODEL_SELECTOR)) {
+      e.preventDefault();
+      modelSelectorRef.current?.open();
+      return;
+    }
+
+    // Handle cancel edit (Ctrl+Q)
+    if (matchesKeybind(e, KEYBINDS.CANCEL_EDIT)) {
+      if (editingMessage && onCancelEdit) {
+        e.preventDefault();
+        onCancelEdit();
+        const isFocused = document.activeElement === inputRef.current;
+        if (isFocused) {
+          inputRef.current?.blur();
+        }
         return;
       }
+    }
 
-      // Handle send message
-      if (matchesKeybind(e, KEYBINDS.SEND_MESSAGE)) {
-        e.preventDefault();
-        void handleSend();
-      }
-    };
+    // Handle escape - let VimTextArea handle it (for Vim mode transitions)
+    // Edit canceling is handled by Ctrl+Q above
+    // Stream interruption is handled by Ctrl+C (INTERRUPT_STREAM keybind)
+    if (matchesKeybind(e, KEYBINDS.CANCEL)) {
+      // Do not preventDefault here: allow VimTextArea or other handlers (like suggestions) to process ESC
+    }
 
-    // Build placeholder text based on current state
-    const placeholder = (() => {
-      if (editingMessage) {
-        return `Edit your message... (${formatKeybind(KEYBINDS.CANCEL)} to cancel edit, ${formatKeybind(KEYBINDS.SEND_MESSAGE)} to send)`;
-      }
-      if (isCompacting) {
-        return "Compacting conversation...";
-      }
+    // Don't handle keys if command suggestions are visible
+    if (
+      showCommandSuggestions &&
+      commandSuggestions.length > 0 &&
+      COMMAND_SUGGESTION_KEYS.includes(e.key)
+    ) {
+      return; // Let CommandSuggestions handle it
+    }
 
-      // Build hints for normal input
-      const hints: string[] = [];
-      if (canInterrupt) {
-        hints.push(`${formatKeybind(KEYBINDS.INTERRUPT_STREAM)} to interrupt`);
-      }
-      hints.push(`${formatKeybind(KEYBINDS.SEND_MESSAGE)} to send`);
-      hints.push(`${formatKeybind(KEYBINDS.OPEN_MODEL_SELECTOR)} to change model`);
+    // Handle newline
+    if (matchesKeybind(e, KEYBINDS.NEW_LINE)) {
+      // Allow newline (default behavior)
+      return;
+    }
 
-      return `Type a message... (${hints.join(", ")})`;
-    })();
+    // Handle send message
+    if (matchesKeybind(e, KEYBINDS.SEND_MESSAGE)) {
+      e.preventDefault();
+      void handleSend();
+    }
+  };
 
-    return (
-      <InputSection data-component="ChatInputSection">
-        <ChatInputToast toast={toast} onDismiss={handleToastDismiss} />
-        <CommandSuggestions
-          suggestions={commandSuggestions}
-          onSelectSuggestion={handleCommandSelect}
-          onDismiss={() => setShowCommandSuggestions(false)}
-          isVisible={showCommandSuggestions}
-          ariaLabel="Slash command suggestions"
-          listId={commandListId}
+  // Build placeholder text based on current state
+  const placeholder = (() => {
+    if (editingMessage) {
+      return `Edit your message... (${formatKeybind(KEYBINDS.CANCEL)} to cancel edit, ${formatKeybind(KEYBINDS.SEND_MESSAGE)} to send)`;
+    }
+    if (isCompacting) {
+      return "Compacting conversation...";
+    }
+
+    // Build hints for normal input
+    const hints: string[] = [];
+    if (canInterrupt) {
+      hints.push(`${formatKeybind(KEYBINDS.INTERRUPT_STREAM)} to interrupt`);
+    }
+    hints.push(`${formatKeybind(KEYBINDS.SEND_MESSAGE)} to send`);
+    hints.push(`${formatKeybind(KEYBINDS.OPEN_MODEL_SELECTOR)} to change model`);
+
+    return `Type a message... (${hints.join(", ")})`;
+  })();
+
+  return (
+    <InputSection data-component="ChatInputSection">
+      <ChatInputToast toast={toast} onDismiss={handleToastDismiss} />
+      <CommandSuggestions
+        suggestions={commandSuggestions}
+        onSelectSuggestion={handleCommandSelect}
+        onDismiss={() => setShowCommandSuggestions(false)}
+        isVisible={showCommandSuggestions}
+        ariaLabel="Slash command suggestions"
+        listId={commandListId}
+      />
+      <InputControls data-component="ChatInputControls">
+        <VimTextArea
+          ref={inputRef}
+          value={input}
+          isEditing={!!editingMessage}
+          mode={mode}
+          onChange={setInput}
+          onKeyDown={handleKeyDown}
+          onPaste={handlePaste}
+          suppressKeys={showCommandSuggestions ? COMMAND_SUGGESTION_KEYS : undefined}
+          placeholder={placeholder}
+          disabled={disabled || isSending || isCompacting}
+          aria-label={editingMessage ? "Edit your last message" : "Message Claude"}
+          aria-autocomplete="list"
+          aria-controls={
+            showCommandSuggestions && commandSuggestions.length > 0 ? commandListId : undefined
+          }
+          aria-expanded={showCommandSuggestions && commandSuggestions.length > 0}
         />
-        <InputControls data-component="ChatInputControls">
-          <VimTextArea
-            ref={inputRef}
-            value={input}
-            isEditing={!!editingMessage}
-            mode={mode}
-            onChange={setInput}
-            onKeyDown={handleKeyDown}
-            onPaste={handlePaste}
-            suppressKeys={showCommandSuggestions ? COMMAND_SUGGESTION_KEYS : undefined}
-            placeholder={placeholder}
-            disabled={disabled || isSending || isCompacting}
-            aria-label={editingMessage ? "Edit your last message" : "Message Claude"}
-            aria-autocomplete="list"
-            aria-controls={
-              showCommandSuggestions && commandSuggestions.length > 0 ? commandListId : undefined
-            }
-            aria-expanded={showCommandSuggestions && commandSuggestions.length > 0}
-          />
-        </InputControls>
-        <ImageAttachments images={imageAttachments} onRemove={handleRemoveImage} />
-        <ModeToggles data-component="ChatModeToggles">
-          {editingMessage && (
-            <EditingIndicator>
-              Editing message ({formatKeybind(KEYBINDS.CANCEL_EDIT)} to cancel)
-            </EditingIndicator>
-          )}
-          <ModeTogglesRow>
-            <ChatToggles modelString={preferredModel}>
-              <ModelDisplayWrapper>
-                <ModelSelector
-                  ref={modelSelectorRef}
-                  value={preferredModel}
-                  onChange={setPreferredModel}
-                  recentModels={recentModels}
-                  onComplete={() => inputRef.current?.focus()}
-                />
-                <TooltipWrapper inline>
-                  <HelpIndicator>?</HelpIndicator>
-                  <Tooltip className="tooltip" align="left" width="wide">
-                    <strong>Click to edit</strong> or use{" "}
-                    {formatKeybind(KEYBINDS.OPEN_MODEL_SELECTOR)}
-                    <br />
-                    <br />
-                    <strong>Abbreviations:</strong>
-                    <br />• <code>/model opus</code> - Claude Opus 4.1
-                    <br />• <code>/model sonnet</code> - Claude Sonnet 4.5
-                    <br />
-                    <br />
-                    <strong>Full format:</strong>
-                    <br />
-                    <code>/model provider:model-name</code>
-                    <br />
-                    (e.g., <code>/model anthropic:claude-sonnet-4-5</code>)
-                  </Tooltip>
-                </TooltipWrapper>
-              </ModelDisplayWrapper>
-            </ChatToggles>
-            <ModeToggleWrapper>
-              <StyledToggleContainer mode={mode}>
-                <ToggleGroup<UIMode>
-                  options={[
-                    { value: "exec", label: "Exec" },
-                    { value: "plan", label: "Plan" },
-                  ]}
-                  value={mode}
-                  onChange={setMode}
-                />
-              </StyledToggleContainer>
+      </InputControls>
+      <ImageAttachments images={imageAttachments} onRemove={handleRemoveImage} />
+      <ModeToggles data-component="ChatModeToggles">
+        {editingMessage && (
+          <EditingIndicator>
+            Editing message ({formatKeybind(KEYBINDS.CANCEL_EDIT)} to cancel)
+          </EditingIndicator>
+        )}
+        <ModeTogglesRow>
+          <ChatToggles modelString={preferredModel}>
+            <ModelDisplayWrapper>
+              <ModelSelector
+                ref={modelSelectorRef}
+                value={preferredModel}
+                onChange={setPreferredModel}
+                recentModels={recentModels}
+                onComplete={() => inputRef.current?.focus()}
+              />
               <TooltipWrapper inline>
                 <HelpIndicator>?</HelpIndicator>
-                <Tooltip className="tooltip" align="center" width="wide">
-                  <strong>Exec Mode:</strong> AI edits files and execute commands
+                <Tooltip className="tooltip" align="left" width="wide">
+                  <strong>Click to edit</strong> or use{" "}
+                  {formatKeybind(KEYBINDS.OPEN_MODEL_SELECTOR)}
                   <br />
                   <br />
-                  <strong>Plan Mode:</strong> AI proposes plans but does not edit files
+                  <strong>Abbreviations:</strong>
+                  <br />• <code>/model opus</code> - Claude Opus 4.1
+                  <br />• <code>/model sonnet</code> - Claude Sonnet 4.5
                   <br />
                   <br />
-                  Toggle with: {formatKeybind(KEYBINDS.TOGGLE_MODE)}
+                  <strong>Full format:</strong>
+                  <br />
+                  <code>/model provider:model-name</code>
+                  <br />
+                  (e.g., <code>/model anthropic:claude-sonnet-4-5</code>)
                 </Tooltip>
               </TooltipWrapper>
-            </ModeToggleWrapper>
-          </ModeTogglesRow>
-        </ModeToggles>
-      </InputSection>
-    );
-  };
+            </ModelDisplayWrapper>
+          </ChatToggles>
+          <ModeToggleWrapper>
+            <StyledToggleContainer mode={mode}>
+              <ToggleGroup<UIMode>
+                options={[
+                  { value: "exec", label: "Exec" },
+                  { value: "plan", label: "Plan" },
+                ]}
+                value={mode}
+                onChange={setMode}
+              />
+            </StyledToggleContainer>
+            <TooltipWrapper inline>
+              <HelpIndicator>?</HelpIndicator>
+              <Tooltip className="tooltip" align="center" width="wide">
+                <strong>Exec Mode:</strong> AI edits files and execute commands
+                <br />
+                <br />
+                <strong>Plan Mode:</strong> AI proposes plans but does not edit files
+                <br />
+                <br />
+                Toggle with: {formatKeybind(KEYBINDS.TOGGLE_MODE)}
+              </Tooltip>
+            </TooltipWrapper>
+          </ModeToggleWrapper>
+        </ModeTogglesRow>
+      </ModeToggles>
+    </InputSection>
+  );
+};
