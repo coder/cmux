@@ -39,9 +39,10 @@ export function getRetryStateKey(workspaceId: string): string {
 }
 
 /**
- * Get the localStorage key for the last thinking level used for a model
- * Format: "thinkingByModel:{modelName}"
+ * Get the localStorage key for the last active thinking level used for a model
+ * Stores only active levels ("low" | "medium" | "high"), never "off"
+ * Format: "lastThinkingByModel:{modelName}"
  */
-export function getThinkingByModelKey(modelName: string): string {
-  return `thinkingByModel:${modelName}`;
+export function getLastThinkingByModelKey(modelName: string): string {
+  return `lastThinkingByModel:${modelName}`;
 }

@@ -4,7 +4,7 @@ import { MessageRenderer } from "./Messages/MessageRenderer";
 import { InterruptedBarrier } from "./Messages/ChatBarrier/InterruptedBarrier";
 import { StreamingBarrier } from "./Messages/ChatBarrier/StreamingBarrier";
 import { RetryBarrier } from "./Messages/ChatBarrier/RetryBarrier";
-import { getAutoRetryKey, getThinkingByModelKey } from "@/constants/storage";
+import { getAutoRetryKey, getLastThinkingByModelKey } from "@/constants/storage";
 import { ChatInput, type ChatInputRef } from "./ChatInput";
 import { ChatMetaSidebar } from "./ChatMetaSidebar";
 import { shouldShowInterruptedBarrier } from "@/utils/messages/messageUtils";
@@ -27,7 +27,8 @@ import { GitStatusIndicator } from "./GitStatusIndicator";
 import { useGitStatus } from "@/contexts/GitStatusContext";
 import { TooltipWrapper, Tooltip } from "./Tooltip";
 import type { DisplayedMessage } from "@/types/message";
-import type { ThinkingLevel } from "@/types/thinking";
+import type { ThinkingLevelOn } from "@/types/thinking";
+import { DEFAULT_THINKING_LEVEL } from "@/types/thinking";
 
 const ViewContainer = styled.div`
   flex: 1;
@@ -340,18 +341,20 @@ const AIViewInner: React.FC<AIViewProps> = ({
       if (matchesKeybind(e, KEYBINDS.TOGGLE_THINKING)) {
         e.preventDefault();
 
-        // Storage key for remembering this model's last-used thinking level
-        const modelThinkingMemoryKey = getThinkingByModelKey(currentModel);
+        // Storage key for remembering this model's last-used active thinking level
+        const lastThinkingKey = getLastThinkingByModelKey(currentModel);
 
-        if (currentWorkspaceThinking && currentWorkspaceThinking !== "off") {
+        if (currentWorkspaceThinking !== "off") {
           // Thinking is currently ON - save the level for this model and turn it off
-          updatePersistedState(modelThinkingMemoryKey, currentWorkspaceThinking);
+          // Type system ensures we can only store active levels (not "off")
+          const activeLevel: ThinkingLevelOn = currentWorkspaceThinking;
+          updatePersistedState(lastThinkingKey, activeLevel);
           setThinkingLevel("off");
         } else {
           // Thinking is currently OFF - restore the last level used for this model
-          const lastUsedThinkingForModel = readPersistedState<ThinkingLevel>(
-            modelThinkingMemoryKey,
-            "medium"
+          const lastUsedThinkingForModel = readPersistedState<ThinkingLevelOn>(
+            lastThinkingKey,
+            DEFAULT_THINKING_LEVEL
           );
           setThinkingLevel(lastUsedThinkingForModel);
         }
