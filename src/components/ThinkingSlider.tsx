@@ -166,7 +166,7 @@ export const ThinkingSliderComponent: React.FC<ThinkingControlProps> = ({ modelS
       setThinkingLevel(policy.level);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [policy.variant, (policy as any).level]);
+  }, [policy.variant, policy.variant === "fixed" ? policy.level : null]);
 
   if (policy.variant === "fixed") {
     // Render non-interactive badge for fixed policy
