@@ -515,7 +515,7 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
     const result = await onRemoveWorkspace(workspaceId);
     if (!result.success) {
       const error = result.error ?? "Failed to remove workspace";
-
+      
       // Check if this is a git --force error (uncommitted changes, etc.)
       if (error.includes("--force")) {
         // Show force delete modal instead of toast
@@ -556,7 +556,7 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
   const handleForceDelete = async (workspaceId: string) => {
     // Close modal immediately to show that action is in progress
     setForceDeleteModal(null);
-
+    
     // Use the same state update logic as regular removal
     const result = await onRemoveWorkspaceForce(workspaceId);
     if (!result.success) {
