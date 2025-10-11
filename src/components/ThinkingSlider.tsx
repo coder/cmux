@@ -178,7 +178,7 @@ export const ThinkingSliderComponent: React.FC = () => {
           {thinkingLevel}
         </ThinkingLevelText>
       </ThinkingSliderContainer>
-      <Tooltip>{formatKeybind(KEYBINDS.TOGGLE_THINKING)} to toggle</Tooltip>
+      <Tooltip align="center">{formatKeybind(KEYBINDS.TOGGLE_THINKING)} to toggle</Tooltip>
     </TooltipWrapper>
   );
 };
