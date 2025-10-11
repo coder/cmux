@@ -1,9 +1,10 @@
-import React, { useId } from "react";
+import React, { useEffect, useId } from "react";
 import styled from "@emotion/styled";
 import type { ThinkingLevel } from "@/types/thinking";
 import { useThinkingLevel } from "@/hooks/useThinkingLevel";
 import { TooltipWrapper, Tooltip } from "./Tooltip";
 import { formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
+import { getThinkingPolicyForModel } from "@/utils/thinking/policy";
 
 const ThinkingSliderContainer = styled.div`
   display: flex;
@@ -150,11 +151,36 @@ const valueToThinkingLevel = (value: number): ThinkingLevel => {
   return THINKING_LEVELS[value] || "off";
 };
 
-export const ThinkingSliderComponent: React.FC = () => {
+interface ThinkingControlProps {
+  modelString: string;
+}
+
+export const ThinkingSliderComponent: React.FC<ThinkingControlProps> = ({ modelString }) => {
   const [thinkingLevel, setThinkingLevel] = useThinkingLevel();
+  const sliderId = useId();
+  const policy = getThinkingPolicyForModel(modelString);
+
+  // If policy is fixed (e.g., gpt-5-pro), force level to the fixed value
+  useEffect(() => {
+    if (policy.variant === "fixed" && thinkingLevel !== policy.level) {
+      setThinkingLevel(policy.level);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [policy.variant, (policy as any).level]);
+
+  if (policy.variant === "fixed") {
+    // Render non-interactive badge for fixed policy
+    return (
+      <ThinkingSliderContainer>
+        <ThinkingLabel>Thinking:</ThinkingLabel>
+        <ThinkingLevelText value={3} aria-live="polite" aria-label="Thinking level fixed to high">
+          high
+        </ThinkingLevelText>
+      </ThinkingSliderContainer>
+    );
+  }
 
   const value = thinkingLevelToValue(thinkingLevel);
-  const sliderId = useId();
 
   return (
     <TooltipWrapper>

@@ -66,6 +66,12 @@ export function useAIViewKeybinds({
         // Storage key for remembering this model's last-used active thinking level
         const lastThinkingKey = getLastThinkingByModelKey(currentModel);
 
+        // Special-case: if model has fixed HIGH thinking (e.g., openai:gpt-5-pro),
+        // the toggle is a no-op to avoid confusing state transitions.
+        if (/^openai:\s*.*\bgpt-5-pro\b/.test(currentModel)) {
+          return; // No toggle for fixed policy models
+        }
+
         if (currentWorkspaceThinking !== "off") {
           // Thinking is currently ON - save the level for this model and turn it off
           // Type system ensures we can only store active levels (not "off")
