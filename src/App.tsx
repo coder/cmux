@@ -168,7 +168,8 @@ function AppInner() {
     });
 
   // Use workspace aggregators hook for message state
-  const { getWorkspaceState, getAggregator, workspaceStates } = useWorkspaceAggregators(workspaceMetadata);
+  const { getWorkspaceState, getAggregator, workspaceStates } =
+    useWorkspaceAggregators(workspaceMetadata);
 
   // Track unread message status for all workspaces
   const { unreadStatus, toggleUnread } = useUnreadTracking(selectedWorkspace, workspaceStates);
