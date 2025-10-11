@@ -387,7 +387,10 @@ export class StreamManager extends EventEmitter {
   private completeToolCall(
     workspaceId: WorkspaceId,
     streamInfo: WorkspaceStreamInfo,
-    toolCalls: Map<string, { toolCallId: string; toolName: string; input: unknown; output?: unknown }>,
+    toolCalls: Map<
+      string,
+      { toolCallId: string; toolName: string; input: unknown; output?: unknown }
+    >,
     toolCallId: string,
     toolName: string,
     output: unknown
@@ -598,11 +601,12 @@ export class StreamManager extends EventEmitter {
 
             // Format error output
             const errorOutput = {
-              error: typeof toolErrorPart.error === "string" 
-                ? toolErrorPart.error 
-                : toolErrorPart.error instanceof Error
-                  ? toolErrorPart.error.message
-                  : JSON.stringify(toolErrorPart.error),
+              error:
+                typeof toolErrorPart.error === "string"
+                  ? toolErrorPart.error
+                  : toolErrorPart.error instanceof Error
+                    ? toolErrorPart.error.message
+                    : JSON.stringify(toolErrorPart.error),
             };
 
             // Use shared completion logic

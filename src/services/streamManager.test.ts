@@ -306,7 +306,6 @@ describe("StreamManager - Concurrent Stream Prevention", () => {
   });
 });
 
-
 describe("StreamManager - Unavailable Tool Handling", () => {
   let streamManager: StreamManager;
   let mockHistoryService: HistoryService;
@@ -320,20 +319,26 @@ describe("StreamManager - Unavailable Tool Handling", () => {
 
   test("should handle tool-error events from SDK", async () => {
     const workspaceId = "test-workspace-tool-error";
-    
+
     // Track emitted events
-    const events: Array<{ type: string; toolName?: string; result?: unknown }> = [];
-    
-    streamManager.on("tool-call-start", (data) => {
+    interface ToolEvent {
+      type: string;
+      toolName?: string;
+      result?: unknown;
+    }
+    const events: ToolEvent[] = [];
+
+    streamManager.on("tool-call-start", (data: { toolName: string }) => {
       events.push({ type: "tool-call-start", toolName: data.toolName });
     });
-    
-    streamManager.on("tool-call-end", (data) => {
+
+    streamManager.on("tool-call-end", (data: { toolName: string; result: unknown }) => {
       events.push({ type: "tool-call-end", toolName: data.toolName, result: data.result });
     });
-    
+
     // Mock a stream that emits tool-error event (AI SDK 5.0 behavior)
     const mockStreamResult = {
+      // eslint-disable-next-line @typescript-eslint/require-await
       fullStream: (async function* () {
         // SDK emits tool-call when model requests a tool
         yield {
@@ -383,10 +388,9 @@ describe("StreamManager - Unavailable Tool Handling", () => {
       type: "tool-call-end",
       toolName: "file_edit_replace",
     });
-    
+
     // Verify error result
     const errorResult = events[1].result as { error?: string };
     expect(errorResult?.error).toBe("Tool not found");
   });
-
 });
