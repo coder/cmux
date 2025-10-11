@@ -1,7 +1,7 @@
 import { describe, it, expect } from "bun:test";
 import { createBashTool } from "./bash";
 import type { BashToolArgs, BashToolResult } from "@/types/tools";
-import { BASH_HARD_MAX_LINES, BASH_MAX_TOTAL_BYTES } from "@/constants/toolLimits";
+import { BASH_MAX_TOTAL_BYTES } from "@/constants/toolLimits";
 import * as fs from "fs";
 
 import type { ToolCallOptions } from "ai";
