@@ -47,6 +47,7 @@ export function useUnreadTracking(
     if (selectedWorkspace) {
       markAsRead(selectedWorkspace.workspaceId);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedWorkspace?.workspaceId, markAsRead]);
 
   // Mark workspace as read when stream completes in the selected workspace
