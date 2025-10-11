@@ -1,6 +1,6 @@
 /**
  * StreamingTokenTracker - Incremental token counting for streaming responses
- * 
+ *
  * Tracks tokens across text, reasoning, and tool arguments with:
  * - Batched tokenization (every 100ms or 400 chars) for performance
  * - Smoothed TPS calculation using circular buffer
