@@ -1,49 +1,47 @@
 import { useEffect } from "react";
-import type { DisplayedMessage } from "@/types/message";
+import type { WorkspaceState } from "@/hooks/useWorkspaceAggregators";
 import { getCompactContinueMessageKey } from "@/constants/storage";
 
 /**
  * Hook to manage auto-continue after compaction
  *
  * Stateless reactive approach:
- * - When messages update, checks if chat has single compacted message
- * - If so, checks localStorage for pending continue message
- * - Sends continue message and deletes from storage
- *
- * This avoids event coordination, state tracking, and cleanup complexity.
+ * - Watches all workspaces for single compacted message
+ * - Checks localStorage for pending continue message
+ * - Sends continue message with workspace's current settings
+ * - Works even if user switches workspaces during compaction
  */
-export function useAutoCompactContinue(
-  workspaceId: string | undefined,
-  messages: DisplayedMessage[]
-) {
+export function useAutoCompactContinue(workspaceStates: Map<string, WorkspaceState>) {
   useEffect(() => {
-    if (!workspaceId) return;
+    // Check all workspaces for completed compaction
+    for (const [workspaceId, state] of workspaceStates) {
+      // Check if this workspace just compacted (single message marked as compacted)
+      if (
+        state.messages.length === 1 &&
+        state.messages[0].type === "assistant" &&
+        state.messages[0].isCompacted === true
+      ) {
+        const continueMessage = localStorage.getItem(getCompactContinueMessageKey(workspaceId));
 
-    // Check if we just compacted (single message marked as compacted)
-    if (
-      messages.length === 1 &&
-      messages[0].type === "assistant" &&
-      messages[0].isCompacted === true
-    ) {
-      const continueMessage = localStorage.getItem(getCompactContinueMessageKey(workspaceId));
+        if (continueMessage) {
+          // Clean up first to prevent duplicate sends
+          localStorage.removeItem(getCompactContinueMessageKey(workspaceId));
 
-      if (continueMessage) {
-        // Clean up first to prevent duplicate sends
-        localStorage.removeItem(getCompactContinueMessageKey(workspaceId));
-
-        // Send continue message as new user message
-        window.api.workspace.sendMessage(workspaceId, continueMessage).catch((error) => {
-          console.error("Failed to send continue message:", error);
-        });
+          // Send continue message with workspace's current model
+          // Other options (thinking level, etc.) will use workspace defaults
+          window.api.workspace
+            .sendMessage(workspaceId, continueMessage, { model: state.currentModel })
+            .catch((error) => {
+              console.error("Failed to send continue message:", error);
+            });
+        }
       }
     }
-  }, [workspaceId, messages]);
+  }, [workspaceStates]);
 
   // Simple callback to store continue message in localStorage
   // Called by ChatInput when /compact is parsed
-  const handleCompactStart = (continueMessage: string | undefined) => {
-    if (!workspaceId) return;
-    
+  const handleCompactStart = (workspaceId: string, continueMessage: string | undefined) => {
     if (continueMessage) {
       localStorage.setItem(getCompactContinueMessageKey(workspaceId), continueMessage);
     } else {

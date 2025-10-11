@@ -176,10 +176,7 @@ function AppInner() {
   useResumeManager(workspaceStates);
 
   // Handle auto-continue after compaction (when user uses /compact -c)
-  const messages = selectedWorkspace
-    ? getWorkspaceState(selectedWorkspace.workspaceId).messages
-    : [];
-  const { handleCompactStart } = useAutoCompactContinue(selectedWorkspace?.workspaceId, messages);
+  const { handleCompactStart } = useAutoCompactContinue(workspaceStates);
 
   const streamingModels = new Map<string, string>();
   for (const metadata of workspaceMetadata.values()) {
@@ -526,7 +523,9 @@ function AppInner() {
                     branch={selectedWorkspace.workspacePath.split("/").pop() ?? ""}
                     workspacePath={selectedWorkspace.workspacePath}
                     workspaceState={getWorkspaceState(selectedWorkspace.workspaceId)}
-                    onCompactStart={handleCompactStart}
+                    onCompactStart={(continueMessage) =>
+                      handleCompactStart(selectedWorkspace.workspaceId, continueMessage)
+                    }
                   />
                 </ErrorBoundary>
               ) : (
