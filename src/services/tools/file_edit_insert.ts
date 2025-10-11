@@ -21,7 +21,12 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
   return tool({
     description: TOOL_DEFINITIONS.file_edit_insert.description,
     inputSchema: TOOL_DEFINITIONS.file_edit_insert.schema,
-    execute: async ({ file_path, line_offset, content, create }): Promise<FileEditInsertToolResult> => {
+    execute: async ({
+      file_path,
+      line_offset,
+      content,
+      create,
+    }): Promise<FileEditInsertToolResult> => {
       try {
         // Validate that the path is within the working directory
         const pathValidation = validatePathInCwd(file_path, config.cwd);
@@ -39,7 +44,7 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
 
         // Check if file exists
         let originalContent = "";
-        
+
         try {
           const stats = await fs.stat(resolvedPath);
           if (!stats.isFile()) {
@@ -79,7 +84,7 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
             throw error;
           }
         }
-        
+
         const lines = originalContent.split("\n");
 
         // Validate line_offset
