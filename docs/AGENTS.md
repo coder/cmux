@@ -71,6 +71,7 @@ Write PR bodies for **busy reviewers**. Be concise and avoid redundancy:
 - **Each section should add new information** - Don't restate the same thing in different words
 - **Structure emerges from content** - Some fixes need problem/solution/testing, others just need "what changed and why"
 - **If it's obvious, omit it** - Problem obvious from solution? Don't state it. Solution obvious from problem? Skip to implementation details.
+- **Avoid over-explaining** - Comprehensive testing checklists, multiple code examples, and detailed edge case lists make PRs harder to review. State the change and why it matters.
 
 ❌ **Bad** (redundant):
 
