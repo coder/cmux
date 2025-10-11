@@ -1138,6 +1138,9 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
         } finally {
           await cleanup();
         }
+      },
+      60000 // 1 minute timeout (much faster since we don't make many API calls)
+    );
 
     test.each(PROVIDER_CONFIGS)(
       "%s should include full file_edit diff in UI/history but redact it from the next provider request",
