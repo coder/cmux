@@ -382,6 +382,64 @@ export class StreamManager extends EventEmitter {
   }
 
   /**
+   * Complete a tool call by updating its part and emitting tool-call-end event
+   */
+  private completeToolCall(
+    workspaceId: WorkspaceId,
+    streamInfo: WorkspaceStreamInfo,
+    toolCalls: Map<
+      string,
+      { toolCallId: string; toolName: string; input: unknown; output?: unknown }
+    >,
+    toolCallId: string,
+    toolName: string,
+    output: unknown
+  ): void {
+    // Find and update the existing tool part
+    const existingPartIndex = streamInfo.parts.findIndex(
+      (p) => p.type === "dynamic-tool" && p.toolCallId === toolCallId
+    );
+
+    if (existingPartIndex !== -1) {
+      const existingPart = streamInfo.parts[existingPartIndex];
+      if (existingPart.type === "dynamic-tool") {
+        streamInfo.parts[existingPartIndex] = {
+          ...existingPart,
+          state: "output-available" as const,
+          output,
+        };
+      }
+    } else {
+      // Fallback: part not found (shouldn't happen for errors, but can happen for results)
+      // This case exists in tool-result but we'll keep it for robustness
+      const toolCall = toolCalls.get(toolCallId);
+      if (toolCall) {
+        streamInfo.parts.push({
+          type: "dynamic-tool" as const,
+          toolCallId,
+          toolName,
+          state: "output-available" as const,
+          input: toolCall.input,
+          output,
+        });
+      }
+    }
+
+    // Emit tool-call-end event
+    this.emit("tool-call-end", {
+      type: "tool-call-end",
+      workspaceId: workspaceId as string,
+      messageId: streamInfo.messageId,
+      toolCallId,
+      toolName,
+      result: output,
+    } as ToolCallEndEvent);
+
+    // Schedule partial write
+    void this.schedulePartialWrite(workspaceId, streamInfo);
+  }
+
+  /**
    * Processes a stream with guaranteed cleanup, regardless of success or failure
    */
   private async processStreamWithCleanup(
@@ -480,6 +538,9 @@ export class StreamManager extends EventEmitter {
               input: part.input,
             });
 
+            // Note: Tool availability is handled by the SDK, which emits tool-error events
+            // for unavailable tools. No need to check here.
+
             // IMPORTANT: Add tool part to streamInfo.parts immediately (not just on completion)
             // This ensures in-progress tool calls are saved to partial.json if stream is interrupted
             const toolPart = {
@@ -504,52 +565,59 @@ export class StreamManager extends EventEmitter {
           }
 
           case "tool-result": {
-            // Tool call completed - update the existing tool part with output
+            // Tool call completed successfully
             const toolCall = toolCalls.get(part.toolCallId);
             if (toolCall) {
               // Strip encrypted content from web search results before storing
               const strippedOutput = stripEncryptedContent(part.output);
               toolCall.output = strippedOutput;
 
-              // Find and update the existing tool part (added during tool-call)
-              const existingPartIndex = streamInfo.parts.findIndex(
-                (p) => p.type === "dynamic-tool" && p.toolCallId === part.toolCallId
+              // Use shared completion logic
+              this.completeToolCall(
+                workspaceId,
+                streamInfo,
+                toolCalls,
+                part.toolCallId,
+                part.toolName,
+                strippedOutput
               );
-
-              if (existingPartIndex !== -1) {
-                // Update existing part with output
-                const existingPart = streamInfo.parts[existingPartIndex];
-                if (existingPart.type === "dynamic-tool") {
-                  streamInfo.parts[existingPartIndex] = {
-                    ...existingPart,
-                    state: "output-available" as const,
-                    output: strippedOutput,
-                  };
-                }
-              } else {
-                // Fallback: part not found (shouldn't happen), add it
-                streamInfo.parts.push({
-                  type: "dynamic-tool" as const,
-                  toolCallId: part.toolCallId,
-                  toolName: part.toolName,
-                  state: "output-available" as const,
-                  input: toolCall.input,
-                  output: strippedOutput,
-                });
-              }
-
-              this.emit("tool-call-end", {
-                type: "tool-call-end",
-                workspaceId: workspaceId as string,
-                messageId: streamInfo.messageId,
-                toolCallId: part.toolCallId,
-                toolName: part.toolName,
-                result: strippedOutput,
-              } as ToolCallEndEvent);
-
-              // Schedule partial write after tool result (throttled, fire-and-forget)
-              void this.schedulePartialWrite(workspaceId, streamInfo);
             }
+            break;
+          }
+
+          // Handle tool-error parts from the stream (AI SDK 5.0+)
+          // These are emitted when tool execution fails (e.g., tool doesn't exist)
+          case "tool-error": {
+            const toolErrorPart = part as {
+              toolCallId: string;
+              toolName: string;
+              error: unknown;
+            };
+
+            log.error(`Tool execution error for '${toolErrorPart.toolName}'`, {
+              toolCallId: toolErrorPart.toolCallId,
+              error: toolErrorPart.error,
+            });
+
+            // Format error output
+            const errorOutput = {
+              error:
+                typeof toolErrorPart.error === "string"
+                  ? toolErrorPart.error
+                  : toolErrorPart.error instanceof Error
+                    ? toolErrorPart.error.message
+                    : JSON.stringify(toolErrorPart.error),
+            };
+
+            // Use shared completion logic
+            this.completeToolCall(
+              workspaceId,
+              streamInfo,
+              toolCalls,
+              toolErrorPart.toolCallId,
+              toolErrorPart.toolName,
+              errorOutput
+            );
             break;
           }
 

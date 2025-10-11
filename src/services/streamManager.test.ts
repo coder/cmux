@@ -305,3 +305,92 @@ describe("StreamManager - Concurrent Stream Prevention", () => {
     }
   });
 });
+
+describe("StreamManager - Unavailable Tool Handling", () => {
+  let streamManager: StreamManager;
+  let mockHistoryService: HistoryService;
+  let mockPartialService: PartialService;
+
+  beforeEach(() => {
+    mockHistoryService = createMockHistoryService();
+    mockPartialService = createMockPartialService();
+    streamManager = new StreamManager(mockHistoryService, mockPartialService);
+  });
+
+  test("should handle tool-error events from SDK", async () => {
+    const workspaceId = "test-workspace-tool-error";
+
+    // Track emitted events
+    interface ToolEvent {
+      type: string;
+      toolName?: string;
+      result?: unknown;
+    }
+    const events: ToolEvent[] = [];
+
+    streamManager.on("tool-call-start", (data: { toolName: string }) => {
+      events.push({ type: "tool-call-start", toolName: data.toolName });
+    });
+
+    streamManager.on("tool-call-end", (data: { toolName: string; result: unknown }) => {
+      events.push({ type: "tool-call-end", toolName: data.toolName, result: data.result });
+    });
+
+    // Mock a stream that emits tool-error event (AI SDK 5.0 behavior)
+    const mockStreamResult = {
+      // eslint-disable-next-line @typescript-eslint/require-await
+      fullStream: (async function* () {
+        // SDK emits tool-call when model requests a tool
+        yield {
+          type: "tool-call",
+          toolCallId: "test-call-1",
+          toolName: "file_edit_replace",
+          input: { file_path: "/test", edits: [] },
+        };
+        // SDK emits tool-error when tool execution fails
+        yield {
+          type: "tool-error",
+          toolCallId: "test-call-1",
+          toolName: "file_edit_replace",
+          error: "Tool not found",
+        };
+      })(),
+      usage: Promise.resolve(undefined),
+      providerMetadata: Promise.resolve({}),
+    };
+
+    // Create streamInfo for testing
+    const streamInfo = {
+      state: 2, // STREAMING
+      streamResult: mockStreamResult,
+      abortController: new AbortController(),
+      messageId: "test-message-1",
+      token: "test-token",
+      startTime: Date.now(),
+      model: "test-model",
+      historySequence: 1,
+      parts: [],
+      lastPartialWriteTime: 0,
+      processingPromise: Promise.resolve(),
+    };
+
+    // Access private method for testing
+    // @ts-expect-error - accessing private method for testing
+    await streamManager.processStreamWithCleanup(workspaceId, streamInfo, 1);
+
+    // Verify events were emitted correctly
+    expect(events.length).toBeGreaterThanOrEqual(2);
+    expect(events[0]).toMatchObject({
+      type: "tool-call-start",
+      toolName: "file_edit_replace",
+    });
+    expect(events[1]).toMatchObject({
+      type: "tool-call-end",
+      toolName: "file_edit_replace",
+    });
+
+    // Verify error result
+    const errorResult = events[1].result as { error?: string };
+    expect(errorResult?.error).toBe("Tool not found");
+  });
+});
