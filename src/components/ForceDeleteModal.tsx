@@ -4,7 +4,7 @@ import {
   Modal,
   ModalActions,
   CancelButton,
-  PrimaryButton,
+  DangerButton,
   ErrorSection,
   ErrorLabel,
   ErrorCodeBlock,
@@ -15,15 +15,6 @@ import {
 
 const CenteredActions = styled(ModalActions)`
   justify-content: center;
-`;
-
-const ForceDeleteButton = styled(PrimaryButton)`
-  background: var(--color-error);
-  color: var(--color-background);
-
-  &:hover:not(:disabled) {
-    background: color-mix(in srgb, var(--color-error), #fff 20%);
-  }
 `;
 
 interface ForceDeleteModalProps {
@@ -82,9 +73,9 @@ export const ForceDeleteModal: React.FC<ForceDeleteModalProps> = ({
         <CancelButton onClick={onClose} disabled={isDeleting}>
           Cancel
         </CancelButton>
-        <ForceDeleteButton onClick={handleForceDelete} disabled={isDeleting}>
+        <DangerButton onClick={handleForceDelete} disabled={isDeleting}>
           {isDeleting ? "Deleting..." : "Force Delete"}
-        </ForceDeleteButton>
+        </DangerButton>
       </CenteredActions>
     </Modal>
   );

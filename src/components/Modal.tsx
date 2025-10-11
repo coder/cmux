@@ -152,6 +152,15 @@ export const PrimaryButton = styled(Button)`
   }
 `;
 
+export const DangerButton = styled(Button)`
+  background: var(--color-error);
+  color: var(--color-text-secondary);
+
+  &:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--color-error), #fff 20%);
+  }
+`;
+
 // Modal wrapper component
 interface ModalProps {
   isOpen: boolean;
