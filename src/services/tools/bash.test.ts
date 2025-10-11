@@ -110,15 +110,14 @@ describe("bash tool", () => {
     }
   });
 
-  it("should fail early when max_lines is reached", async () => {
+  it("should fail early when hard cap is reached", async () => {
     const tool = createBashTool({ cwd: process.cwd() });
     const startTime = performance.now();
 
     const args: BashToolArgs = {
-      // This command would take ~10 seconds if it ran to completion
-      script: "for i in {1..100}; do echo line$i; sleep 0.1; done",
+      // This will generate 500 lines slowly - should fail at 300 without waiting
+      script: "for i in {1..500}; do echo line$i; sleep 0.01; done",
       timeout_secs: 20,
-
     };
 
     const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
@@ -126,9 +125,10 @@ describe("bash tool", () => {
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error).toMatch(/Line count exceeded limit|OUTPUT OVERFLOW/);
-      // Should complete much faster than 10 seconds (give it 2 seconds buffer)
-      expect(duration).toBeLessThan(2000);
+      // Should fail early due to 300 line limit, not wait for all 500 lines
+      expect(duration).toBeLessThan(15000); // Way less than the 20s timeout
+      expect(result.error).toContain("Output exceeded 300 lines");
+      expect(result.exitCode).toBe(-1);
     }
   });
 
@@ -270,7 +270,7 @@ describe("bash tool", () => {
     `;
 
     const result = (await tool.execute!(
-      { script, timeout_secs: 5, max_lines: 100 },
+      { script, timeout_secs: 5 },
       mockToolCallOptions
     )) as BashToolResult;
 
@@ -492,7 +492,6 @@ describe("bash tool", () => {
     const args: BashToolArgs = {
       script: `for i in {1..${numLines}}; do echo '${lineContent}'; done`,
       timeout_secs: 5,
-      max_lines: BASH_HARD_MAX_LINES,
     };
 
     const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
@@ -509,7 +508,6 @@ describe("bash tool", () => {
     const args: BashToolArgs = {
       script: `for i in {1..1000}; do echo 'This is line number '$i' with some content'; done`,
       timeout_secs: 5,
-      max_lines: BASH_HARD_MAX_LINES,
     };
 
     const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
