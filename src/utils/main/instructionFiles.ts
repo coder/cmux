@@ -15,6 +15,12 @@ export const INSTRUCTION_FILE_NAMES = ["AGENTS.md", "AGENT.md", "CLAUDE.md"] as 
  */
 const LOCAL_INSTRUCTION_FILENAME = "AGENTS.local.md";
 
+interface FileSource {
+  directory: string | null | undefined;
+  baseFilenames: readonly string[];
+  localFilename?: string;
+}
+
 /**
  * Attempts to read the first available file from a list of filenames in a directory.
  *
@@ -60,6 +66,43 @@ export async function readLocalInstructionFile(directory: string): Promise<strin
 }
 
 /**
+ * Reads a base file with an optional local variant and returns their combined content.
+ *
+ * @param directory - Directory to search (can be null/undefined)
+ * @param baseFilenames - Base filenames to try in priority order
+ * @param localFilename - Optional local filename to append if present
+ * @returns Combined content or null if no base file exists
+ */
+export async function readFileWithLocalVariant(
+  directory: string | null | undefined,
+  baseFilenames: readonly string[],
+  localFilename?: string
+): Promise<string | null> {
+  if (!directory) {
+    return null;
+  }
+
+  const normalizedDirectory = path.resolve(directory);
+  const baseContent = await readFirstAvailableFile(normalizedDirectory, baseFilenames);
+
+  if (!baseContent) {
+    return null;
+  }
+
+  if (!localFilename) {
+    return baseContent;
+  }
+
+  try {
+    const localFilePath = path.join(normalizedDirectory, localFilename);
+    const localContent = await fs.readFile(localFilePath, "utf-8");
+    return `${baseContent}\n\n${localContent}`;
+  } catch {
+    return baseContent;
+  }
+}
+
+/**
  * Reads an instruction set from a directory.
  *
  * An instruction set consists of:
@@ -72,23 +115,7 @@ export async function readLocalInstructionFile(directory: string): Promise<strin
  * @returns Combined instruction content, or null if no base file exists
  */
 export async function readInstructionSet(directory: string): Promise<string | null> {
-  // First, try to find a base instruction file
-  const baseContent = await readFirstAvailableFile(directory, INSTRUCTION_FILE_NAMES);
-
-  if (!baseContent) {
-    // No base instruction file found
-    return null;
-  }
-
-  // Base file found - also check for local variant
-  const localContent = await readLocalInstructionFile(directory);
-
-  if (localContent) {
-    // Combine base and local instructions
-    return `${baseContent}\n\n${localContent}`;
-  }
-
-  return baseContent;
+  return readFileWithLocalVariant(directory, INSTRUCTION_FILE_NAMES, LOCAL_INSTRUCTION_FILENAME);
 }
 
 /**
@@ -115,4 +142,70 @@ export async function gatherInstructionSets(directories: string[]): Promise<stri
   }
 
   return segments;
+}
+
+/**
+ * Reads mode-specific files (e.g., PLAN.md for plan mode, EXEC.md for exec mode) from multiple sources.
+ *
+ * Sources are processed in order, with deduplication to avoid loading the same directory twice.
+ * This allows for layered mode files where global defaults are overridden by workspace-specific ones.
+ *
+ * @param sources - Array of file sources to search
+ * @returns Combined content from all sources, or null if none found
+ */
+export async function readModeFiles(sources: FileSource[]): Promise<string | null> {
+  const segments: string[] = [];
+  const visited = new Set<string>();
+
+  for (const source of sources) {
+    const { directory, baseFilenames, localFilename } = source;
+    if (!directory) {
+      continue;
+    }
+
+    const resolved = path.resolve(directory);
+    if (visited.has(resolved)) {
+      continue;
+    }
+    visited.add(resolved);
+
+    const content = await readFileWithLocalVariant(resolved, baseFilenames, localFilename);
+
+    if (content) {
+      segments.push(content);
+    }
+  }
+
+  return segments.length > 0 ? segments.join("\n\n") : null;
+}
+
+/**
+ * Creates default file sources for a mode-specific file.
+ *
+ * This looks for {mode}.md in the global directory and .cmux/{mode}.md (+ .local variant) in the workspace.
+ *
+ * @param mode - Mode name (will be uppercased, e.g., "plan" → "PLAN.md")
+ * @param systemDir - Global system directory (~/.cmux)
+ * @param workspaceDir - Workspace directory
+ * @returns Array of file sources to search
+ */
+export function getDefaultModeSources(
+  mode: string,
+  systemDir: string,
+  workspaceDir: string
+): FileSource[] {
+  const modeFilename = `${mode.toUpperCase()}.md`;
+  const modeLocalFilename = `${mode.toUpperCase()}.local.md`;
+
+  return [
+    {
+      directory: systemDir,
+      baseFilenames: [modeFilename],
+    },
+    {
+      directory: workspaceDir,
+      baseFilenames: [path.join(".cmux", modeFilename)],
+      localFilename: path.join(".cmux", modeLocalFilename),
+    },
+  ];
 }

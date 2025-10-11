@@ -1,8 +1,11 @@
 import * as os from "os";
 import * as path from "path";
 import type { WorkspaceMetadata } from "@/types/workspace";
-import { gatherInstructionSets } from "@/utils/main/instructionFiles";
-import { readPlanFile } from "@/utils/main/planFiles";
+import {
+  gatherInstructionSets,
+  getDefaultModeSources,
+  readModeFiles,
+} from "@/utils/main/instructionFiles";
 
 // The PRELUDE is intentionally minimal to not conflict with the user's instructions.
 // cmux is designed to be model agnostic, and models have shown large inconsistency in how they
@@ -54,11 +57,9 @@ function getSystemDirectory(): string {
  * Instruction sources are layered in this order:
  * 1. Global instructions: ~/.cmux/AGENTS.md (+ AGENTS.local.md)
  * 2. Workspace instructions: <workspace>/AGENTS.md (+ AGENTS.local.md)
- * 3. Plan context (plan mode only): First found from:
- *    - ~/.cmux/.cmux/PLAN.md
- *    - <workspace>/.cmux/PLAN.md
- *    - ~/.cmux/.cmux/PLAN.local.md
- *    - <workspace>/.cmux/PLAN.local.md
+ * 3. Mode-specific context (if mode provided): {MODE}.md files:
+ *    - ~/.cmux/{MODE}.md
+ *    - <workspace>/.cmux/{MODE}.md (+ {MODE}.local.md)
  *
  * Each instruction file location is searched for in priority order:
  * - AGENTS.md
@@ -69,14 +70,14 @@ function getSystemDirectory(): string {
  * checked and appended (useful for personal preferences not committed to git).
  *
  * @param metadata - Workspace metadata containing the workspace path
- * @param mode - UI permission mode ("exec" | "plan") - plan files only loaded in plan mode
+ * @param mode - Optional mode name (e.g., "plan", "exec") - looks for {MODE}.md files if provided
  * @param additionalSystemInstructions - Optional additional system instructions to append at the end
  * @returns System message string with all instruction sources combined
  * @throws Error if metadata is invalid or workspace path is missing
  */
 export async function buildSystemMessage(
   metadata: WorkspaceMetadata,
-  mode?: "exec" | "plan",
+  mode?: string,
   additionalSystemInstructions?: string
 ): Promise<string> {
   // Validate metadata early
@@ -93,9 +94,12 @@ export async function buildSystemMessage(
   const instructionSegments = await gatherInstructionSets(instructionDirectories);
   const customInstructions = instructionSegments.join("\n\n");
 
-  // Look for plan files only in plan mode
-  // Plan files live in .cmux/PLAN.md (or .local.md variant)
-  const planContent = mode === "plan" ? await readPlanFile([systemDir, workspaceDir]) : null;
+  // Look for mode-specific files if mode is provided
+  let modeContent: string | null = null;
+  if (mode) {
+    const modeSources = getDefaultModeSources(mode, systemDir, workspaceDir);
+    modeContent = await readModeFiles(modeSources);
+  }
 
   // Build the final system message
   const environmentContext = buildEnvironmentContext(workspaceDir);
@@ -107,9 +111,9 @@ export async function buildSystemMessage(
     systemMessage += `\n<custom-instructions>\n${customInstructions}\n</custom-instructions>`;
   }
 
-  // Add plan context if found
-  if (planContent) {
-    systemMessage += `\n\n<plan>\n${planContent}\n</plan>`;
+  // Add mode-specific content if found
+  if (modeContent) {
+    systemMessage += `\n\n<${mode}>\n${modeContent}\n</${mode}>`;
   }
 
   // Add additional system instructions at the end (highest priority)
