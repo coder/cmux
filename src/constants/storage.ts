@@ -46,3 +46,12 @@ export function getRetryStateKey(workspaceId: string): string {
 export function getLastThinkingByModelKey(modelName: string): string {
   return `lastThinkingByModel:${modelName}`;
 }
+
+/**
+ * Get the localStorage key for tracking last-read timestamp for a workspace
+ * Used to determine unread message status
+ * Format: "lastRead:{workspaceId}"
+ */
+export function getLastReadKey(workspaceId: string): string {
+  return `lastRead:${workspaceId}`;
+}

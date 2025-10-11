@@ -388,6 +388,8 @@ interface ProjectSidebarProps {
     newName: string
   ) => Promise<{ success: boolean; error?: string }>;
   getWorkspaceState: (workspaceId: string) => WorkspaceState;
+  unreadStatus: Map<string, boolean>;
+  onToggleUnread: (workspaceId: string) => void;
   collapsed: boolean;
   onToggleCollapsed: () => void;
   onGetSecrets: (projectPath: string) => Promise<Secret[]>;
@@ -405,6 +407,8 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
   onRemoveWorkspace,
   onRenameWorkspace,
   getWorkspaceState,
+  unreadStatus,
+  onToggleUnread,
   collapsed,
   onToggleCollapsed,
   onGetSecrets,
@@ -731,6 +735,7 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                           const workspaceState = getWorkspaceState(workspaceId);
                           const isStreaming = workspaceState.canInterrupt;
                           const streamingModel = workspaceState.currentModel;
+                          const isUnread = unreadStatus.get(workspaceId) ?? false;
                           const isEditing = editingWorkspaceId === workspaceId;
                           const isSelected = selectedWorkspace?.workspacePath === workspace.path;
 
@@ -807,11 +812,15 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                                 )}
                                 <WorkspaceStatusIndicator
                                   streaming={isStreaming}
+                                  unread={isUnread}
                                   title={
                                     isStreaming && streamingModel
                                       ? `${getModelName(streamingModel)} streaming`
-                                      : "Idle"
+                                      : isUnread
+                                        ? "Unread messages (click to mark as read)"
+                                        : "Idle (click to mark as unread)"
                                   }
+                                  onClick={() => onToggleUnread(workspaceId)}
                                 />
                               </WorkspaceItem>
                               {isEditing && renameError && (
