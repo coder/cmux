@@ -35,6 +35,7 @@ The first file found is used.
 After loading a base instruction file, cmux also checks for `AGENTS.local.md` in the same directory.
 
 This allows you to:
+
 - Keep personal preferences separate from team guidelines
 - Add `AGENTS.local.md` to `.gitignore`
 - Share base instructions via git while keeping local customizations private
@@ -52,6 +53,7 @@ my-project/
 ```
 
 With this setup, agents will see:
+
 1. Your global preferences (`~/.cmux/AGENTS.md`)
 2. Your global local preferences (`~/.cmux/AGENTS.local.md`)
 3. Project guidelines (`my-project/AGENTS.md`)
@@ -60,6 +62,7 @@ With this setup, agents will see:
 ## Plan Files
 
 Plan files provide task-specific context without modifying permanent instruction files. They're useful for:
+
 - Current development goals
 - Implementation strategies
 - Temporary constraints or requirements
@@ -70,11 +73,11 @@ Plan files live in `.cmux/PLAN.md` within either:
 
 1. **Global plan** - `~/.cmux/.cmux/PLAN.md`
    - Applies to all workspaces
-   
 2. **Workspace plan** - `<workspace>/.cmux/PLAN.md`
    - Applies to this workspace only
 
 Unlike instruction files, **only the first plan file found is used**. cmux searches in this order:
+
 1. `~/.cmux/.cmux/PLAN.md`
 2. `<workspace>/.cmux/PLAN.md`
 3. `~/.cmux/.cmux/PLAN.local.md`
@@ -82,12 +85,12 @@ Unlike instruction files, **only the first plan file found is used**. cmux searc
 
 ### When to Use Plans vs Instructions
 
-| Use AGENTS.md when... | Use PLAN.md when... |
-|----------------------|---------------------|
-| Guidelines apply long-term | Context is temporary |
-| Defining coding standards | Describing current task |
+| Use AGENTS.md when...       | Use PLAN.md when...               |
+| --------------------------- | --------------------------------- |
+| Guidelines apply long-term  | Context is temporary              |
+| Defining coding standards   | Describing current task           |
 | Setting project conventions | Outlining implementation approach |
-| Permanent preferences | Active development goals |
+| Permanent preferences       | Active development goals          |
 
 ### Example Workflow
 
@@ -109,15 +112,20 @@ rm .cmux/PLAN.md
 Don't repeat information already in the base system prompt. Add project-specific context.
 
 ❌ **Avoid generic advice:**
+
 ```markdown
 # AGENTS.md
+
 You should write clean code and follow best practices.
 ```
 
 ✅ **Provide specific context:**
+
 ```markdown
 # AGENTS.md
+
 This project uses:
+
 - Domain-driven design patterns
 - Functional core, imperative shell
 - Railway-oriented programming for error handling
@@ -127,9 +135,11 @@ This project uses:
 
 ```markdown
 # AGENTS.md (committed to git)
+
 Follow the project's TypeScript style guide.
 
 # AGENTS.local.md (in .gitignore)
+
 I prefer explicit return types on all functions.
 Use descriptive variable names, even if verbose.
 ```
@@ -140,14 +150,17 @@ Use descriptive variable names, even if verbose.
 # PLAN.md
 
 ## Goal
+
 Add real-time notifications using WebSockets
 
 ## Approach
+
 1. Set up Socket.IO server in existing Express app
 2. Create notification event types
 3. Build React hook for connection management
 
 ## Constraints
+
 - Must work with existing authentication
 - Keep backward compatibility with polling fallback
 ```
@@ -171,4 +184,3 @@ Add real-time notifications using WebSockets
 5. Use first file found (or none if all missing)
 
 The plan content is added to the system message in a `<plan>` section, making it available to the agent for all interactions in that workspace.
-
