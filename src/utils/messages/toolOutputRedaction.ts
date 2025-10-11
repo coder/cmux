@@ -10,10 +10,7 @@
  * - Type safety: if a tool's result type changes, these redactors should fail type-checks.
  */
 
-import type {
-  FileEditInsertToolResult,
-  FileEditReplaceToolResult,
-} from "@/types/tools";
+import type { FileEditInsertToolResult, FileEditReplaceToolResult } from "@/types/tools";
 
 // Tool-output from AI SDK is often wrapped like: { type: 'json', value: <payload> }
 // Keep this helper local so all redactors handle both wrapped and plain objects consistently.
