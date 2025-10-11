@@ -43,7 +43,7 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
     description: TOOL_DEFINITIONS.bash.description + "\nRuns in " + config.cwd + " - no cd needed",
     inputSchema: TOOL_DEFINITIONS.bash.schema,
     execute: async (
-      { script, timeout_secs, max_lines = BASH_DEFAULT_MAX_LINES, stdin },
+      { script, timeout_secs, max_lines = BASH_DEFAULT_MAX_LINES },
       { abortSignal }
     ): Promise<BashToolResult> => {
       // Validate script is not empty - likely indicates a malformed tool call

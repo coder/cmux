@@ -713,7 +713,6 @@ export class IpcMain {
               script,
               timeout_secs: options?.timeout_secs ?? 120,
               max_lines: clampedMaxLines,
-              stdin: options?.stdin,
             },
             {
               toolCallId: `bash-${Date.now()}`,

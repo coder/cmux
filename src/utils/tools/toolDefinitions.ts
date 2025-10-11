@@ -52,13 +52,8 @@ export const TOOL_DEFINITIONS = {
           BASH_HARD_MAX_LINES,
           `Maximum number of output lines to return (hard capped at ${BASH_HARD_MAX_LINES}). Command will be killed if output exceeds this limit.`
         )
-        .default(BASH_DEFAULT_MAX_LINES),
-      stdin: z
-        .string()
         .optional()
-        .describe(
-          "Optional input to provide to the command via stdin. Useful for avoiding shell escaping issues when passing complex data to commands."
-        ),
+        .default(BASH_DEFAULT_MAX_LINES),
     }),
   },
   file_read: {
