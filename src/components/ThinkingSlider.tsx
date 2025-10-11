@@ -2,6 +2,8 @@ import React, { useId } from "react";
 import styled from "@emotion/styled";
 import type { ThinkingLevel } from "@/types/thinking";
 import { useThinkingLevel } from "@/hooks/useThinkingLevel";
+import { TooltipWrapper, Tooltip } from "./Tooltip";
+import { formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
 
 const ThinkingSliderContainer = styled.div`
   display: flex;
@@ -155,25 +157,28 @@ export const ThinkingSliderComponent: React.FC = () => {
   const sliderId = useId();
 
   return (
-    <ThinkingSliderContainer>
-      <ThinkingLabel htmlFor={sliderId}>Thinking:</ThinkingLabel>
-      <ThinkingSlider
-        type="range"
-        min="0"
-        max="3"
-        step="1"
-        value={value}
-        onChange={(e) => setThinkingLevel(valueToThinkingLevel(parseInt(e.target.value)))}
-        id={sliderId}
-        role="slider"
-        aria-valuemin={0}
-        aria-valuemax={3}
-        aria-valuenow={value}
-        aria-valuetext={thinkingLevel}
-      />
-      <ThinkingLevelText value={value} aria-live="polite">
-        {thinkingLevel}
-      </ThinkingLevelText>
-    </ThinkingSliderContainer>
+    <TooltipWrapper>
+      <ThinkingSliderContainer>
+        <ThinkingLabel htmlFor={sliderId}>Thinking:</ThinkingLabel>
+        <ThinkingSlider
+          type="range"
+          min="0"
+          max="3"
+          step="1"
+          value={value}
+          onChange={(e) => setThinkingLevel(valueToThinkingLevel(parseInt(e.target.value)))}
+          id={sliderId}
+          role="slider"
+          aria-valuemin={0}
+          aria-valuemax={3}
+          aria-valuenow={value}
+          aria-valuetext={thinkingLevel}
+        />
+        <ThinkingLevelText value={value} aria-live="polite">
+          {thinkingLevel}
+        </ThinkingLevelText>
+      </ThinkingSliderContainer>
+      <Tooltip>{formatKeybind(KEYBINDS.TOGGLE_THINKING)} to toggle</Tooltip>
+    </TooltipWrapper>
   );
 };
