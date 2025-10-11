@@ -1,38 +1,32 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Check if PR number is provided
 if [ $# -eq 0 ]; then
   echo "Usage: $0 <pr_number>"
   exit 1
 fi
 
 PR_NUMBER=$1
-BOT_LOGIN_REST="chatgpt-codex-connector[bot]" # REST API uses [bot] suffix
-BOT_LOGIN_GRAPHQL="chatgpt-codex-connector"   # GraphQL does not
+BOT_LOGIN_REST="chatgpt-codex-connector[bot]"
+BOT_LOGIN_GRAPHQL="chatgpt-codex-connector"
 
 echo "Checking for unresolved Codex comments in PR #${PR_NUMBER}..."
 
-# Get all regular issue comments from the Codex bot (these can't be resolved)
-# Filter out "all clear" comments that indicate no issues found
 REGULAR_COMMENTS=$(gh api "/repos/{owner}/{repo}/issues/${PR_NUMBER}/comments" \
   --jq "[.[] | select(.user.login == \"${BOT_LOGIN_REST}\") | select(.body | test(\"Didn't find any major issues\") | not)]")
-
 REGULAR_COUNT=$(echo "$REGULAR_COMMENTS" | jq 'length')
 
-# Use GraphQL to get review threads and their resolution status
-# Only count threads from the bot that are NOT resolved
 GRAPHQL_QUERY='query($owner: String!, $repo: String!, $pr: Int!) {
   repository(owner: $owner, name: $repo) {
     pullRequest(number: $pr) {
       reviewThreads(first: 100) {
         nodes {
+          id
           isResolved
           comments(first: 1) {
             nodes {
-              author {
-                login
-              }
+              id
+              author { login }
               body
               createdAt
               path
@@ -45,26 +39,22 @@ GRAPHQL_QUERY='query($owner: String!, $repo: String!, $pr: Int!) {
   }
 }'
 
-# Extract owner and repo from gh cli
 REPO_INFO=$(gh repo view --json owner,name --jq '{owner: .owner.login, name: .name}')
 OWNER=$(echo "$REPO_INFO" | jq -r '.owner')
 REPO=$(echo "$REPO_INFO" | jq -r '.name')
 
-# Query for unresolved review threads from the bot
 UNRESOLVED_THREADS=$(gh api graphql \
   -f query="$GRAPHQL_QUERY" \
   -F owner="$OWNER" \
   -F repo="$REPO" \
   -F pr="$PR_NUMBER" \
   --jq "[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false and .comments.nodes[0].author.login == \"${BOT_LOGIN_GRAPHQL}\")]")
-
 UNRESOLVED_COUNT=$(echo "$UNRESOLVED_THREADS" | jq 'length')
+
+TOTAL_UNRESOLVED=$((REGULAR_COUNT + UNRESOLVED_COUNT))
 
 echo "Found ${REGULAR_COUNT} regular comment(s) from bot"
 echo "Found ${UNRESOLVED_COUNT} unresolved review thread(s) from bot"
-
-# If there are any unresolved comments or threads from Codex, fail
-TOTAL_UNRESOLVED=$((REGULAR_COUNT + UNRESOLVED_COUNT))
 
 if [ $TOTAL_UNRESOLVED -gt 0 ]; then
   echo ""
@@ -73,11 +63,22 @@ if [ $TOTAL_UNRESOLVED -gt 0 ]; then
   echo "Codex comments:"
 
   if [ $REGULAR_COUNT -gt 0 ]; then
-    echo "$REGULAR_COMMENTS" | jq -r '.[] | "  - [\(.created_at)] \(.body[0:100] | gsub("\n"; " "))..."'
+    echo "$REGULAR_COMMENTS" | jq -r '.[] | "  - [\(.created_at)] \(.body[0:100] | gsub("\\n"; " "))..."'
   fi
 
   if [ $UNRESOLVED_COUNT -gt 0 ]; then
-    echo "$UNRESOLVED_THREADS" | jq -r '.[] | "  - [\(.comments.nodes[0].createdAt)] \(.comments.nodes[0].path // "comment"):\(.comments.nodes[0].line // "") - \(.comments.nodes[0].body[0:100] | gsub("\n"; " "))..."'
+    THREAD_SUMMARY=$(echo "$UNRESOLVED_THREADS" | jq '[.[] | {
+      createdAt: .comments.nodes[0].createdAt,
+      thread: .id,
+      comment: .comments.nodes[0].id,
+      path: (.comments.nodes[0].path // "comment"),
+      line: (.comments.nodes[0].line // ""),
+      snippet: (.comments.nodes[0].body[0:100] | gsub("\n"; " "))
+    }]')
+
+    echo "$THREAD_SUMMARY" | jq -r '.[] | "  - [\(.createdAt)] thread=\(.thread) comment=\(.comment) \(.path):\(.line) - \(.snippet)..."'
+    echo ""
+    echo "Resolve review threads with: ./scripts/resolve_codex_comment.sh <thread_id>"
   fi
 
   echo ""
