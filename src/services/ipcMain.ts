@@ -5,13 +5,12 @@ import * as fsPromises from "fs/promises";
 import type { Config, ProjectConfig } from "@/config";
 import {
   createWorktree,
-  removeWorktree,
   moveWorktree,
-  pruneWorktrees,
-  getMainWorktreeFromWorktree,
   listLocalBranches,
   detectDefaultTrunkBranch,
+  getMainWorktreeFromWorktree,
 } from "@/git";
+import { removeWorktreeSafe, removeWorktree, pruneWorktrees } from "@/services/gitService";
 import { AIService } from "@/services/aiService";
 import { HistoryService } from "@/services/historyService";
 import { PartialService } from "@/services/partialService";
@@ -818,9 +817,25 @@ export class IpcMain {
           .catch(() => false);
 
         if (worktreeExists) {
-          const gitResult = await removeWorktree(foundProjectPath, workspacePath, {
-            force: options.force,
-          });
+          // Use optimized removal unless force is explicitly requested
+          let gitResult: Awaited<ReturnType<typeof removeWorktreeSafe>>;
+
+          if (options.force) {
+            // Force deletion: Use git worktree remove --force directly
+            gitResult = await removeWorktree(foundProjectPath, workspacePath, { force: true });
+          } else {
+            // Normal deletion: Use optimized rename-then-delete strategy
+            gitResult = await removeWorktreeSafe(foundProjectPath, workspacePath, {
+              onBackgroundDelete: (tempDir, error) => {
+                if (error) {
+                  log.info(
+                    `Background deletion failed for ${tempDir}: ${error.message ?? "unknown error"}`
+                  );
+                }
+              },
+            });
+          }
+
           if (!gitResult.success) {
             const errorMessage = gitResult.error ?? "Unknown error";
             const normalizedError = errorMessage.toLowerCase();
