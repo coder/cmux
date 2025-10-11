@@ -318,8 +318,8 @@ describe("StreamManager - Unavailable Tool Handling", () => {
     streamManager = new StreamManager(mockHistoryService, mockPartialService);
   });
 
-  test("should emit tool-call-end with error for unavailable tools", async () => {
-    const workspaceId = "test-workspace-unavailable-tool";
+  test("should handle tool-error events from SDK", async () => {
+    const workspaceId = "test-workspace-tool-error";
     
     // Track emitted events
     const events: Array<{ type: string; toolName?: string; result?: unknown }> = [];
@@ -332,26 +332,29 @@ describe("StreamManager - Unavailable Tool Handling", () => {
       events.push({ type: "tool-call-end", toolName: data.toolName, result: data.result });
     });
     
-    // Mock a stream that will request an unavailable tool
-    // We'll create a mock streamText result that emits tool-call events
+    // Mock a stream that emits tool-error event (AI SDK 5.0 behavior)
     const mockStreamResult = {
       fullStream: (async function* () {
-        // Simulate model requesting a tool that doesn't exist
+        // SDK emits tool-call when model requests a tool
         yield {
           type: "tool-call",
           toolCallId: "test-call-1",
           toolName: "file_edit_replace",
           input: { file_path: "/test", edits: [] },
         };
-        // In real scenario, SDK would fail to execute this tool
-        // Our fix should catch it and emit error
+        // SDK emits tool-error when tool execution fails
+        yield {
+          type: "tool-error",
+          toolCallId: "test-call-1",
+          toolName: "file_edit_replace",
+          error: "Tool not found",
+        };
       })(),
       usage: Promise.resolve(undefined),
       providerMetadata: Promise.resolve({}),
     };
 
-    // Manually call processStreamWithCleanup to test the logic
-    // We need to create streamInfo with empty tools object
+    // Create streamInfo for testing
     const streamInfo = {
       state: 2, // STREAMING
       streamResult: mockStreamResult,
@@ -364,7 +367,6 @@ describe("StreamManager - Unavailable Tool Handling", () => {
       parts: [],
       lastPartialWriteTime: 0,
       processingPromise: Promise.resolve(),
-      tools: {}, // Empty tools - file_edit_replace is not available
     };
 
     // Access private method for testing
@@ -384,7 +386,7 @@ describe("StreamManager - Unavailable Tool Handling", () => {
     
     // Verify error result
     const errorResult = events[1].result as { error?: string };
-    expect(errorResult?.error).toContain("not available");
+    expect(errorResult?.error).toBe("Tool not found");
   });
 
 });

@@ -104,8 +104,6 @@ interface WorkspaceStreamInfo {
   partialWritePromise?: Promise<void>;
   // Track background processing promise for guaranteed cleanup
   processingPromise: Promise<void>;
-  // Available tools for validation
-  tools?: Record<string, Tool>;
 }
 
 /**
@@ -375,7 +373,6 @@ export class StreamManager extends EventEmitter {
       lastPartialWriteTime: 0, // Initialize to 0 to allow immediate first write
       partialWritePromise: undefined, // No write in flight initially
       processingPromise: Promise.resolve(), // Placeholder, overwritten in startStream
-      tools, // Store tools for validation during stream processing
     };
 
     // Atomically register the stream
@@ -483,53 +480,8 @@ export class StreamManager extends EventEmitter {
               input: part.input,
             });
 
-            // Check if tool is available in provided tools
-            if (streamInfo.tools && !(part.toolName in streamInfo.tools)) {
-              log.error(`Tool '${part.toolName}' not in available tools`, {
-                requestedTool: part.toolName,
-                availableTools: Object.keys(streamInfo.tools),
-                workspaceId: workspaceId as string,
-              });
-
-              // Emit tool-call-start for consistency
-              this.emit("tool-call-start", {
-                type: "tool-call-start",
-                workspaceId: workspaceId as string,
-                messageId: streamInfo.messageId,
-                toolCallId: part.toolCallId,
-                toolName: part.toolName,
-                args: part.input,
-              } as ToolCallStartEvent);
-
-              // Immediately emit tool-call-end with error
-              const errorOutput = {
-                error: `Tool '${part.toolName}' is not available`,
-              };
-
-              this.emit("tool-call-end", {
-                type: "tool-call-end",
-                workspaceId: workspaceId as string,
-                messageId: streamInfo.messageId,
-                toolCallId: part.toolCallId,
-                toolName: part.toolName,
-                result: errorOutput,
-              } as ToolCallEndEvent);
-
-              // Add tool part with error to streamInfo.parts
-              streamInfo.parts.push({
-                type: "dynamic-tool" as const,
-                toolCallId: part.toolCallId,
-                toolName: part.toolName,
-                state: "output-available" as const,
-                // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-                input: part.input,
-                output: errorOutput,
-              });
-
-              // Schedule partial write
-              void this.schedulePartialWrite(workspaceId, streamInfo);
-              break;
-            }
+            // Note: Tool availability is handled by the SDK, which emits tool-error events
+            // for unavailable tools. No need to check here.
 
             // IMPORTANT: Add tool part to streamInfo.parts immediately (not just on completion)
             // This ensures in-progress tool calls are saved to partial.json if stream is interrupted
@@ -601,6 +553,59 @@ export class StreamManager extends EventEmitter {
               // Schedule partial write after tool result (throttled, fire-and-forget)
               void this.schedulePartialWrite(workspaceId, streamInfo);
             }
+            break;
+          }
+
+          // Handle tool-error parts from the stream (AI SDK 5.0+)
+          // These are emitted when tool execution fails (e.g., tool doesn't exist)
+          case "tool-error": {
+            const toolErrorPart = part as {
+              toolCallId: string;
+              toolName: string;
+              error: unknown;
+            };
+
+            log.error(`Tool execution error for '${toolErrorPart.toolName}'`, {
+              toolCallId: toolErrorPart.toolCallId,
+              error: toolErrorPart.error,
+            });
+
+            // Emit tool-call-end with error result
+            const errorOutput = {
+              error: typeof toolErrorPart.error === "string" 
+                ? toolErrorPart.error 
+                : toolErrorPart.error instanceof Error
+                  ? toolErrorPart.error.message
+                  : JSON.stringify(toolErrorPart.error),
+            };
+
+            this.emit("tool-call-end", {
+              type: "tool-call-end",
+              workspaceId: workspaceId as string,
+              messageId: streamInfo.messageId,
+              toolCallId: toolErrorPart.toolCallId,
+              toolName: toolErrorPart.toolName,
+              result: errorOutput,
+            } as ToolCallEndEvent);
+
+            // Update the tool part in streamInfo.parts with error output
+            const existingPartIndex = streamInfo.parts.findIndex(
+              (p) => p.type === "dynamic-tool" && p.toolCallId === toolErrorPart.toolCallId
+            );
+
+            if (existingPartIndex !== -1) {
+              const existingPart = streamInfo.parts[existingPartIndex];
+              if (existingPart.type === "dynamic-tool") {
+                streamInfo.parts[existingPartIndex] = {
+                  ...existingPart,
+                  state: "output-available" as const,
+                  output: errorOutput,
+                };
+              }
+            }
+
+            // Schedule partial write
+            void this.schedulePartialWrite(workspaceId, streamInfo);
             break;
           }
 
