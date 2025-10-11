@@ -210,6 +210,11 @@ export default defineConfig([
               message:
                 "Frontend code cannot import tokenizer (2MB+ encodings). Use @/utils/tokens/usageAggregator for aggregation or @/utils/tokens/modelStats for pricing.",
             },
+            {
+              group: ["**/utils/main/**", "@/utils/main/**"],
+              message:
+                "Frontend code cannot import from utils/main/ (contains Node.js APIs). Move shared code to utils/ or use IPC.",
+            },
           ],
         },
       ],
