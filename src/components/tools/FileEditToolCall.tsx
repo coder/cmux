@@ -11,7 +11,6 @@ import {
   ToolContainer,
   ToolHeader,
   ExpandIcon,
-  ToolName,
   StatusIndicator,
   ToolDetails,
   DetailSection,
@@ -20,6 +19,7 @@ import {
   HeaderButton,
 } from "./shared/ToolPrimitives";
 import { useToolExpansion, getStatusDisplay, type ToolStatus } from "./shared/toolUtils";
+import { TooltipWrapper, Tooltip } from "../Tooltip";
 
 // File edit specific styled components
 
@@ -149,11 +149,6 @@ const ErrorMessage = styled.div`
   background: rgba(244, 67, 54, 0.1);
   border-radius: 3px;
   border-left: 2px solid #f44336;
-`;
-
-const EditIcon = styled.span`
-  font-size: 12px;
-  margin-left: 8px;
 `;
 
 const StyledToolHeader = styled(ToolHeader)`
@@ -286,9 +281,11 @@ export const FileEditToolCall: React.FC<FileEditToolCallProps> = ({
       <StyledToolHeader>
         <LeftContent onClick={toggleExpanded}>
           <ExpandIcon expanded={expanded}>▶</ExpandIcon>
-          <ToolName>{toolName}</ToolName>
+          <TooltipWrapper inline>
+            <span>✏️</span>
+            <Tooltip>{toolName}</Tooltip>
+          </TooltipWrapper>
           <FilePath>{filePath}</FilePath>
-          {result && result.success && <EditIcon>✏️</EditIcon>}
         </LeftContent>
         {!(result && result.success && result.diff) && (
           <StatusIndicator status={status}>{getStatusDisplay(status)}</StatusIndicator>
