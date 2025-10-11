@@ -5,7 +5,7 @@ import writeFileAtomic from "write-file-atomic";
 import type { FileEditReplaceToolResult } from "@/types/tools";
 import type { ToolConfiguration, ToolFactory } from "@/utils/tools/tools";
 import { TOOL_DEFINITIONS } from "@/utils/tools/toolDefinitions";
-import { generateDiff, validatePathInCwd, validateFileSize } from "./fileCommon";
+import { generateDiff, validatePathInCwd, validateFileSize, WRITE_DENIED_PREFIX } from "./fileCommon";
 
 /**
  * File edit replace tool factory for AI assistant
@@ -27,7 +27,7 @@ export const createFileEditReplaceTool: ToolFactory = (config: ToolConfiguration
         if (pathValidation) {
           return {
             success: false,
-            error: pathValidation.error,
+            error: `${WRITE_DENIED_PREFIX} ${pathValidation.error}`,
           };
         }
 
@@ -41,7 +41,7 @@ export const createFileEditReplaceTool: ToolFactory = (config: ToolConfiguration
         if (!stats.isFile()) {
           return {
             success: false,
-            error: `Path exists but is not a file: ${resolvedPath}`,
+            error: `${WRITE_DENIED_PREFIX} Path exists but is not a file: ${resolvedPath}`,
           };
         }
 
@@ -50,7 +50,7 @@ export const createFileEditReplaceTool: ToolFactory = (config: ToolConfiguration
         if (sizeValidation) {
           return {
             success: false,
-            error: sizeValidation.error,
+            error: `${WRITE_DENIED_PREFIX} ${sizeValidation.error}`,
           };
         }
 
@@ -78,7 +78,7 @@ export const createFileEditReplaceTool: ToolFactory = (config: ToolConfiguration
           if (!content.includes(edit.old_string)) {
             return {
               success: false,
-              error: `Edit ${i + 1}: old_string not found in file. The text to replace must exist exactly as written in the file.`,
+              error: `${WRITE_DENIED_PREFIX} Edit ${i + 1}: old_string not found in file. The text to replace must exist exactly as written in the file.`,
             };
           }
 
@@ -90,7 +90,7 @@ export const createFileEditReplaceTool: ToolFactory = (config: ToolConfiguration
           if (replaceCount === 1 && occurrences > 1) {
             return {
               success: false,
-              error: `Edit ${i + 1}: old_string appears ${occurrences} times in the file. Either expand the context to make it unique or set replace_count to ${occurrences} or -1.`,
+              error: `${WRITE_DENIED_PREFIX} Edit ${i + 1}: old_string appears ${occurrences} times in the file. Either expand the context to make it unique or set replace_count to ${occurrences} or -1.`,
             };
           }
 
@@ -98,7 +98,7 @@ export const createFileEditReplaceTool: ToolFactory = (config: ToolConfiguration
           if (replaceCount > occurrences && replaceCount !== -1) {
             return {
               success: false,
-              error: `Edit ${i + 1}: replace_count is ${replaceCount} but old_string only appears ${occurrences} time(s) in the file.`,
+              error: `${WRITE_DENIED_PREFIX} Edit ${i + 1}: replace_count is ${replaceCount} but old_string only appears ${occurrences} time(s) in the file.`,
             };
           }
 
@@ -147,12 +147,12 @@ export const createFileEditReplaceTool: ToolFactory = (config: ToolConfiguration
           if (error.code === "ENOENT") {
             return {
               success: false,
-              error: `File not found: ${file_path}`,
+              error: `${WRITE_DENIED_PREFIX} File not found: ${file_path}`,
             };
           } else if (error.code === "EACCES") {
             return {
               success: false,
-              error: `Permission denied: ${file_path}`,
+              error: `${WRITE_DENIED_PREFIX} Permission denied: ${file_path}`,
             };
           }
         }
@@ -161,7 +161,7 @@ export const createFileEditReplaceTool: ToolFactory = (config: ToolConfiguration
         const message = error instanceof Error ? error.message : String(error);
         return {
           success: false,
-          error: `Failed to edit file: ${message}`,
+          error: `${WRITE_DENIED_PREFIX} Failed to edit file: ${message}`,
         };
       }
     },
