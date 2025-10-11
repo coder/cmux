@@ -142,4 +142,141 @@ describeIntegration("IpcMain resumeStream integration tests", () => {
     },
     45000 // 45 second timeout for this test
   );
+
+  // Define tricky message histories that could cause issues
+  const trickyHistories = [
+    {
+      name: "reasoning-only",
+      description: "Assistant message with only reasoning, no text",
+      createMessage: (id: string) => ({
+        id,
+        role: "assistant" as const,
+        parts: [{ type: "reasoning" as const, text: "Let me think about this..." }],
+        metadata: { historySequence: 2, partial: true },
+      }),
+    },
+    {
+      name: "empty-text",
+      description: "Assistant message with empty text content",
+      createMessage: (id: string) => ({
+        id,
+        role: "assistant" as const,
+        parts: [{ type: "text" as const, text: "" }],
+        metadata: { historySequence: 2, partial: true },
+      }),
+    },
+    {
+      name: "reasoning-then-empty-text",
+      description: "Assistant message with reasoning followed by empty text",
+      createMessage: (id: string) => ({
+        id,
+        role: "assistant" as const,
+        parts: [
+          { type: "reasoning" as const, text: "Thinking deeply..." },
+          { type: "text" as const, text: "" },
+        ],
+        metadata: { historySequence: 2, partial: true },
+      }),
+    },
+    {
+      name: "multiple-reasoning-blocks",
+      description: "Assistant message with multiple reasoning blocks, no text",
+      createMessage: (id: string) => ({
+        id,
+        role: "assistant" as const,
+        parts: [
+          { type: "reasoning" as const, text: "First thought..." },
+          { type: "reasoning" as const, text: "Second thought..." },
+        ],
+        metadata: { historySequence: 2, partial: true },
+      }),
+    },
+    {
+      name: "whitespace-only-text",
+      description: "Assistant message with whitespace-only text content",
+      createMessage: (id: string) => ({
+        id,
+        role: "assistant" as const,
+        parts: [{ type: "text" as const, text: "   \n\t  " }],
+        metadata: { historySequence: 2, partial: true },
+      }),
+    },
+  ];
+
+  test.concurrent.each([
+    { provider: "anthropic" as const, model: "claude-sonnet-4-5" },
+    { provider: "openai" as const, model: "gpt-4o" },
+  ])(
+    "should handle resume with tricky message histories ($provider)",
+    async ({ provider, model }) => {
+      const { HistoryService } = await import("../../src/services/historyService");
+      const { createCmuxMessage } = await import("../../src/types/message");
+
+      for (const history of trickyHistories) {
+        const { env, workspaceId, cleanup } = await setupWorkspace(provider);
+        try {
+          // Create history service to directly manipulate messages
+          const historyService = new HistoryService(env.config);
+
+          // Create a user message first
+          const userMessage = createCmuxMessage(
+            `user-${Date.now()}`,
+            "user",
+            "Please help me with this task.",
+            { historySequence: 1 }
+          );
+
+          const userAppendResult = await historyService.appendToHistory(workspaceId, userMessage);
+          expect(userAppendResult.success).toBe(true);
+
+          // Create the tricky assistant message
+          const trickyMessage = history.createMessage(`assistant-${Date.now()}`);
+
+          // Append the tricky message to history
+          const appendResult = await historyService.appendToHistory(workspaceId, trickyMessage);
+          expect(appendResult.success).toBe(true);
+
+          // Clear events before resume
+          env.sentEvents.length = 0;
+
+          // Resume the stream with thinking enabled
+          // This exercises the context-aware filtering logic
+          const resumeResult = (await env.mockIpcRenderer.invoke(
+            IPC_CHANNELS.WORKSPACE_RESUME_STREAM,
+            workspaceId,
+            { model: `${provider}:${model}`, thinkingLevel: "high" }
+          )) as Result<void, SendMessageError>;
+
+          // Should succeed for all tricky histories with the fix
+          if (!resumeResult.success) {
+            console.error(`[${provider}/${history.name}] Failed to resume:`, resumeResult.error);
+          }
+          expect(resumeResult.success).toBe(true);
+
+          // Verify the stream completes successfully
+          const collector = createEventCollector(env.sentEvents, workspaceId);
+          const streamEnd = await collector.waitForEvent("stream-end", 30000);
+          expect(streamEnd).toBeDefined();
+
+          // Verify no errors occurred during streaming
+          collector.collect();
+          const streamErrors = collector
+            .getEvents()
+            .filter((e) => "type" in e && e.type === "stream-error");
+
+          if (streamErrors.length > 0) {
+            console.error(`[${provider}/${history.name}] Stream errors:`, streamErrors);
+          }
+          expect(streamErrors.length).toBe(0);
+
+          // Verify we received some content
+          const deltas = collector.getDeltas();
+          expect(deltas.length).toBeGreaterThan(0);
+        } finally {
+          await cleanup();
+        }
+      }
+    },
+    90000 // 90 second timeout - testing multiple scenarios per provider
+  );
 });

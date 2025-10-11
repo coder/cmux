@@ -8,14 +8,26 @@ import type { CmuxMessage } from "@/types/message";
 
 /**
  * Filter out assistant messages that only contain reasoning parts (no text or tool parts).
- * These messages are invalid for the API and provide no value to the model.
+ * These messages are invalid for most API calls and provide no value to the model.
  * This happens when a message is interrupted during thinking before producing any text.
+ *
+ * EXCEPTION: For Anthropic, when resuming a partial message with thinking enabled,
+ * we preserve reasoning-only messages. This is because Anthropic's extended thinking
+ * API expects reasoning content to be present in the history.
  *
  * Note: This function filters out reasoning-only messages but does NOT strip reasoning
  * parts from messages that have other content. Reasoning parts are handled differently
  * per provider (see stripReasoningForOpenAI).
+ *
+ * @param messages - Messages to filter
+ * @param provider - AI provider (optional, for context-aware filtering)
+ * @param thinkingLevel - Thinking level setting (optional, for context-aware filtering)
  */
-export function filterEmptyAssistantMessages(messages: CmuxMessage[]): CmuxMessage[] {
+export function filterEmptyAssistantMessages(
+  messages: CmuxMessage[],
+  provider?: string,
+  thinkingLevel?: string
+): CmuxMessage[] {
   return messages.filter((msg) => {
     // Keep all non-assistant messages
     if (msg.role !== "assistant") {
@@ -27,7 +39,23 @@ export function filterEmptyAssistantMessages(messages: CmuxMessage[]): CmuxMessa
       (part) => (part.type === "text" && part.text) || part.type === "dynamic-tool"
     );
 
-    return hasContent;
+    if (hasContent) {
+      return true;
+    }
+
+    // For Anthropic with thinking enabled, preserve reasoning-only partial messages
+    // This prevents "Expected `thinking` but found `text`" errors on resume
+    if (
+      provider === "anthropic" &&
+      thinkingLevel &&
+      thinkingLevel !== "off" &&
+      msg.metadata?.partial
+    ) {
+      return true; // Keep reasoning-only messages for Anthropic thinking
+    }
+
+    // Otherwise filter out reasoning-only messages
+    return false;
   });
 }
 
