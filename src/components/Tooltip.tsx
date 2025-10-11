@@ -62,9 +62,11 @@ export const Tooltip: React.FC<TooltipProps> = ({
   const tooltipRef = useRef<HTMLDivElement>(null);
   const [style, setStyle] = useState<React.CSSProperties>({});
   const [arrowStyle, setArrowStyle] = useState<React.CSSProperties>({});
+  const [isPositioned, setIsPositioned] = useState(false);
 
   useEffect(() => {
     if (!isHovered || !triggerRef?.current || !tooltipRef.current) {
+      setIsPositioned(false); // Reset when hidden
       return;
     }
 
@@ -146,6 +148,9 @@ export const Tooltip: React.FC<TooltipProps> = ({
               ? "transparent transparent #2d2d30 transparent"
               : "#2d2d30 transparent transparent transparent",
         });
+
+        // Mark as positioned - now safe to show
+        setIsPositioned(true);
       });
     });
   }, [isHovered, align, position, triggerRef]);
@@ -155,7 +160,17 @@ export const Tooltip: React.FC<TooltipProps> = ({
   }
 
   return createPortal(
-    <StyledTooltip ref={tooltipRef} style={style} width={width} className={className}>
+    <StyledTooltip
+      ref={tooltipRef}
+      style={{
+        ...style,
+        // Override visibility until positioned to prevent flash
+        visibility: isPositioned ? style.visibility : "hidden",
+        opacity: isPositioned ? style.opacity : 0,
+      }}
+      width={width}
+      className={className}
+    >
       {children}
       <Arrow style={arrowStyle} />
     </StyledTooltip>,
