@@ -26,8 +26,14 @@ function constructSendMessageOptions(
   const model =
     typeof preferredModel === "string" && preferredModel ? preferredModel : defaultModel;
 
+  // Enforce thinking policy at the UI boundary as well (e.g., gpt-5-pro → high only)
+  let uiThinking = thinkingLevel;
+  if (/^openai:\s*.*\bgpt-5-pro\b/.test(model)) {
+    uiThinking = "high";
+  }
+
   return {
-    thinkingLevel,
+    thinkingLevel: uiThinking,
     model,
     mode: mode === "exec" || mode === "plan" ? mode : "exec", // Only pass exec/plan to backend
     toolPolicy: modeToToolPolicy(mode),

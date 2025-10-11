@@ -23,7 +23,7 @@ export function getSendOptionsFromStorage(workspaceId: string): SendMessageOptio
   const model = readPersistedState<string>(getModelKey(workspaceId), defaultModel);
 
   // Read thinking level (workspace-specific)
-  const thinkingLevel = readPersistedState<ThinkingLevel>(
+  let thinkingLevel = readPersistedState<ThinkingLevel>(
     getThinkingLevelKey(workspaceId),
     "medium"
   );
@@ -36,6 +36,11 @@ export function getSendOptionsFromStorage(workspaceId: string): SendMessageOptio
 
   // Plan mode system instructions
   const additionalSystemInstructions = mode === "plan" ? PLAN_MODE_INSTRUCTION : undefined;
+
+  // Enforce thinking policy (gpt-5-pro → high only)
+  if (/^openai:\s*.*\bgpt-5-pro\b/.test(model)) {
+    thinkingLevel = "high";
+  }
 
   return {
     model,
