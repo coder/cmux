@@ -39,7 +39,6 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
 
         // Check if file exists
         let originalContent = "";
-        let fileExists = false;
         
         try {
           const stats = await fs.stat(resolvedPath);
@@ -61,7 +60,6 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
 
           // Read file content
           originalContent = await fs.readFile(resolvedPath, { encoding: "utf-8" });
-          fileExists = true;
         } catch (error) {
           // If file doesn't exist and create is not true, return error with suggestion
           if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") {
@@ -76,7 +74,6 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
             const parentDir = path.dirname(resolvedPath);
             await fs.mkdir(parentDir, { recursive: true });
             originalContent = "";
-            fileExists = false;
           } else {
             // Re-throw other errors
             throw error;
