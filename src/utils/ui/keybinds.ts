@@ -222,8 +222,8 @@ export const KEYBINDS = {
   OPEN_MODEL_SELECTOR: { key: "/", ctrl: true },
 
   /** Open workspace in terminal */
-  // macOS: Cmd+Shift+T, Win/Linux: Ctrl+Shift+T
-  OPEN_TERMINAL: { key: "T", ctrl: true, shift: true },
+  // macOS: Cmd+T, Win/Linux: Ctrl+T
+  OPEN_TERMINAL: { key: "T", ctrl: true },
 
   /** Open Command Palette */
   // VS Code-style palette
@@ -232,8 +232,8 @@ export const KEYBINDS = {
 
   /** Toggle thinking level between off and last-used value for current model */
   // Saves/restores thinking level per model (defaults to "medium" if not found)
-  // macOS: Cmd+T, Win/Linux: Ctrl+T
-  TOGGLE_THINKING: { key: "T", ctrl: true },
+  // macOS: Cmd+Shift+T, Win/Linux: Ctrl+Shift+T
+  TOGGLE_THINKING: { key: "T", ctrl: true, shift: true },
 
   /** Focus chat input from anywhere */
   // Works even when focus is already in an input field

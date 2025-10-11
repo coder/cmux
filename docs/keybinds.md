@@ -30,16 +30,16 @@ When documentation shows `Ctrl`, it means:
 | Cancel editing message | `Ctrl+Q`              |
 | Jump to bottom of chat | `Shift+G`             |
 | Change model           | `Ctrl+/`              |
-| Toggle thinking level  | `Ctrl+T`              |
+| Toggle thinking level  | `Ctrl+Shift+T`        |
 
 ## Workspaces
 
-| Action                     | Shortcut       |
-| -------------------------- | -------------- |
-| Create new workspace       | `Ctrl+N`       |
-| Next workspace             | `Ctrl+J`       |
-| Previous workspace         | `Ctrl+K`       |
-| Open workspace in terminal | `Ctrl+Shift+T` |
+| Action                     | Shortcut |
+| -------------------------- | -------- |
+| Create new workspace       | `Ctrl+N` |
+| Next workspace             | `Ctrl+J` |
+| Previous workspace         | `Ctrl+K` |
+| Open workspace in terminal | `Ctrl+T` |
 
 ## Modes
 
@@ -62,3 +62,4 @@ When documentation shows `Ctrl`, it means:
 - **Natural expectations**: We try to use shortcuts users would naturally expect (e.g., `Ctrl+N` for new)
 - **Focus anywhere**: Use `Ctrl+I` to quickly jump to the chat input from anywhere in the application
 - **Per-model thinking**: `Ctrl+Shift+T` toggles thinking on/off and remembers your last preference for each model
+- **Terminal access**: `Ctrl+T` opens the current workspace in your system terminal
