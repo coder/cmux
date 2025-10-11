@@ -304,11 +304,9 @@ This project uses **Make** as the primary build orchestrator. See `Makefile` for
 
 - This pattern maximizes type safety and prevents runtime errors from typos or missing cases
 
-
 ## Component State Management
 
 **For per-operation state tied to async workflows, parent components should own all localStorage operations.** Child components should notify parents of user intent without manipulating storage directly, preventing bugs from stale or orphaned state across component lifecycles.
-
 
 ## Module Imports
 

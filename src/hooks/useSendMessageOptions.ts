@@ -4,7 +4,12 @@ import { useMode } from "@/contexts/ModeContext";
 import { usePersistedState } from "./usePersistedState";
 import { modeToToolPolicy, PLAN_MODE_INSTRUCTION } from "@/utils/ui/modeUtils";
 import { defaultModel } from "@/utils/ai/models";
-import { getModelKey, getThinkingLevelKey, getModeKey, USE_1M_CONTEXT_KEY } from "@/constants/storage";
+import {
+  getModelKey,
+  getThinkingLevelKey,
+  getModeKey,
+  USE_1M_CONTEXT_KEY,
+} from "@/constants/storage";
 import type { SendMessageOptions } from "@/types/ipc";
 import type { UIMode } from "@/types/mode";
 import type { ThinkingLevel } from "@/types/thinking";
@@ -63,17 +68,18 @@ export function useSendMessageOptions(workspaceId: string): SendMessageOptions {
 
 /**
  * Build SendMessageOptions from localStorage (non-hook version)
- * 
+ *
  * CRITICAL: Frontend is responsible for managing ALL sendMessage options.
  * Backend does NOT fall back to workspace metadata - all options must be passed explicitly.
- * 
+ *
  * This function mirrors useSendMessageOptions logic but reads from localStorage directly,
  * allowing it to be called outside React component lifecycle (e.g., in callbacks).
  */
 export function buildSendMessageOptions(workspaceId: string): SendMessageOptions {
   // Read from localStorage matching the keys used by useSendMessageOptions
   const use1M = localStorage.getItem(USE_1M_CONTEXT_KEY) === "true";
-  const thinkingLevel = (localStorage.getItem(getThinkingLevelKey(workspaceId)) as ThinkingLevel) || "medium";
+  const thinkingLevel =
+    (localStorage.getItem(getThinkingLevelKey(workspaceId)) as ThinkingLevel) || "medium";
   const mode = (localStorage.getItem(getModeKey(workspaceId)) as UIMode) || "edit";
   const preferredModel = localStorage.getItem(getModelKey(workspaceId));
 

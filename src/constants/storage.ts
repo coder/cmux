@@ -61,8 +61,6 @@ export function getModeKey(workspaceId: string): string {
  */
 export const USE_1M_CONTEXT_KEY = "use1MContext";
 
-
-
 /**
  * Get the localStorage key for the compact continue message for a workspace
  * Temporarily stores the continuation prompt for the current compaction

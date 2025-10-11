@@ -1,4 +1,9 @@
-import { getModelKey, getThinkingLevelKey, getModeKey, USE_1M_CONTEXT_KEY } from "@/constants/storage";
+import {
+  getModelKey,
+  getThinkingLevelKey,
+  getModeKey,
+  USE_1M_CONTEXT_KEY,
+} from "@/constants/storage";
 import { defaultModel } from "@/utils/ai/models";
 import { modeToToolPolicy, PLAN_MODE_INSTRUCTION } from "@/utils/ui/modeUtils";
 import { readPersistedState } from "@/hooks/usePersistedState";

@@ -6,7 +6,6 @@ import { ChatInputToast, SolutionLabel } from "./ChatInputToast";
 import type { ParsedCommand } from "@/utils/slashCommands/types";
 import { parseCommand } from "@/utils/slashCommands/parser";
 import type { SendMessageError as SendMessageErrorType } from "@/types/errors";
-import type { SendMessageOptions } from "@/types/ipc";
 import { usePersistedState, updatePersistedState } from "@/hooks/usePersistedState";
 import { useMode } from "@/contexts/ModeContext";
 import { ChatToggles } from "./ChatToggles";
