@@ -151,8 +151,6 @@ const ErrorMessage = styled.div`
   border-left: 2px solid #f44336;
 `;
 
-
-
 const StyledToolHeader = styled(ToolHeader)`
   cursor: default;
 
