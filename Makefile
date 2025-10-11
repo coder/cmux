@@ -34,12 +34,15 @@ TS_SOURCES := $(shell find src -type f \( -name '*.ts' -o -name '*.tsx' \))
 # Default target
 all: build
 
-# Ensure dependencies are installed
-ensure-deps:
-	@if [ ! -d "node_modules" ]; then \
-		echo "node_modules not found, running bun install..."; \
-		bun install; \
-	fi
+# Sentinel file to track when dependencies are installed
+# Depends on package.json and bun.lock - rebuilds if either changes
+node_modules/.installed: package.json bun.lock
+	@echo "Dependencies out of date or missing, running bun install..."
+	@bun install
+	@touch node_modules/.installed
+
+# Legacy target for backwards compatibility
+ensure-deps: node_modules/.installed
 
 ## Help
 help: ## Show this help message
@@ -49,25 +52,25 @@ help: ## Show this help message
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
 ## Development
-dev: ensure-deps build-main ## Start development server (Vite + TypeScript watcher)
+dev: node_modules/.installed build-main ## Start development server (Vite + TypeScript watcher)
 	@bun x concurrently -k \
 		"bun x concurrently \"bun x tsc -w -p tsconfig.main.json\" \"bun x tsc-alias -w -p tsconfig.main.json\"" \
 		"vite"
 
-start: build-main build-preload ## Build and start Electron app
+start: node_modules/.installed build-main build-preload ## Build and start Electron app
 	@bun x electron --remote-debugging-port=9222 .
 
 ## Build targets (can run in parallel)
-build: ensure-deps src/version.ts build-renderer build-main build-preload build-icons ## Build all targets
+build: node_modules/.installed src/version.ts build-renderer build-main build-preload build-icons ## Build all targets
 
-build-main: ensure-deps dist/main.js ## Build main process
+build-main: node_modules/.installed dist/main.js ## Build main process
 
 dist/main.js: src/version.ts tsconfig.main.json tsconfig.json $(TS_SOURCES)
 	@echo "Building main process..."
 	@NODE_ENV=production bun x tsc -p tsconfig.main.json
 	@NODE_ENV=production bun x tsc-alias -p tsconfig.main.json
 
-build-preload: ensure-deps dist/preload.js ## Build preload script
+build-preload: node_modules/.installed dist/preload.js ## Build preload script
 
 dist/preload.js: src/preload.ts $(TS_SOURCES)
 	@echo "Building preload script..."
@@ -78,7 +81,7 @@ dist/preload.js: src/preload.ts $(TS_SOURCES)
 		--sourcemap=inline \
 		--outfile=dist/preload.js
 
-build-renderer: ensure-deps src/version.ts ## Build renderer process
+build-renderer: node_modules/.installed src/version.ts ## Build renderer process
 	@echo "Building renderer..."
 	@bun x vite build
 
@@ -119,21 +122,21 @@ build/icon.icns: docs/img/logo.webp
 ## Quality checks (can run in parallel)
 static-check: lint typecheck fmt-check ## Run all static checks
 
-lint: ## Run linter and typecheck
+lint: node_modules/.installed ## Run linter and typecheck
 	@./scripts/lint.sh
 
-lint-fix: ## Run linter with --fix
+lint-fix: node_modules/.installed ## Run linter with --fix
 	@./scripts/lint.sh --fix
 
-typecheck: src/version.ts ## Run TypeScript type checking
+typecheck: node_modules/.installed src/version.ts ## Run TypeScript type checking
 	@./scripts/typecheck.sh
 
 ## Testing
-test-integration: ## Run all tests (unit + integration)
+test-integration: node_modules/.installed ## Run all tests (unit + integration)
 	@bun test src
 	@TEST_INTEGRATION=1 bun x jest tests
 
-test-unit: ## Run unit tests
+test-unit: node_modules/.installed ## Run unit tests
 	@bun test src
 
 test: test-unit ## Alias for test-unit
