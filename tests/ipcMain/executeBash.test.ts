@@ -1,7 +1,6 @@
 import { shouldRunIntegrationTests, createTestEnvironment, cleanupTestEnvironment } from "./setup";
 import { IPC_CHANNELS } from "../../src/constants/ipc-constants";
 import { createTempGitRepo, cleanupTempGitRepo, createWorkspace } from "./helpers";
-import { BASH_HARD_MAX_LINES } from "../../src/constants/toolLimits";
 import type { WorkspaceMetadata } from "../../src/types/workspace";
 
 type WorkspaceCreationResult = Awaited<ReturnType<typeof createWorkspace>>;
