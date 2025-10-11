@@ -5,7 +5,12 @@ import writeFileAtomic from "write-file-atomic";
 import type { FileEditInsertToolResult } from "@/types/tools";
 import type { ToolConfiguration, ToolFactory } from "@/utils/tools/tools";
 import { TOOL_DEFINITIONS } from "@/utils/tools/toolDefinitions";
-import { generateDiff, validatePathInCwd, validateFileSize, WRITE_DENIED_PREFIX } from "./fileCommon";
+import {
+  generateDiff,
+  validatePathInCwd,
+  validateFileSize,
+  WRITE_DENIED_PREFIX,
+} from "./fileCommon";
 
 /**
  * File edit insert tool factory for AI assistant
