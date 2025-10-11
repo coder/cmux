@@ -4,7 +4,7 @@ import { MessageRenderer } from "./Messages/MessageRenderer";
 import { InterruptedBarrier } from "./Messages/ChatBarrier/InterruptedBarrier";
 import { StreamingBarrier } from "./Messages/ChatBarrier/StreamingBarrier";
 import { RetryBarrier } from "./Messages/ChatBarrier/RetryBarrier";
-import { getAutoRetryKey, getLastThinkingByModelKey } from "@/constants/storage";
+import { getAutoRetryKey } from "@/constants/storage";
 import { ChatInput, type ChatInputAPI } from "./ChatInput";
 import { ChatMetaSidebar } from "./ChatMetaSidebar";
 import { shouldShowInterruptedBarrier } from "@/utils/messages/messageUtils";
@@ -12,13 +12,9 @@ import { hasInterruptedStream } from "@/utils/messages/retryEligibility";
 import { ChatProvider } from "@/contexts/ChatContext";
 import { ThinkingProvider } from "@/contexts/ThinkingContext";
 import { ModeProvider } from "@/contexts/ModeContext";
-import { matchesKeybind, formatKeybind, KEYBINDS, isEditableElement } from "@/utils/ui/keybinds";
+import { formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
 import { useAutoScroll } from "@/hooks/useAutoScroll";
-import {
-  usePersistedState,
-  updatePersistedState,
-  readPersistedState,
-} from "@/hooks/usePersistedState";
+import { usePersistedState } from "@/hooks/usePersistedState";
 import { useThinking } from "@/contexts/ThinkingContext";
 import type { WorkspaceState } from "@/hooks/useWorkspaceAggregators";
 import { StatusIndicator } from "./StatusIndicator";
@@ -27,8 +23,7 @@ import { GitStatusIndicator } from "./GitStatusIndicator";
 import { useGitStatus } from "@/contexts/GitStatusContext";
 import { TooltipWrapper, Tooltip } from "./Tooltip";
 import type { DisplayedMessage } from "@/types/message";
-import type { ThinkingLevelOn } from "@/types/thinking";
-import { DEFAULT_THINKING_LEVEL } from "@/types/thinking";
+import { useAIViewKeybinds } from "@/hooks/useAIViewKeybinds";
 
 const ViewContainer = styled.div`
   flex: 1;
@@ -320,75 +315,18 @@ const AIViewInner: React.FC<AIViewProps> = ({
   }, [workspaceId, loading]);
 
   // Handle keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Interrupt stream works anywhere (even in input fields)
-      if (matchesKeybind(e, KEYBINDS.INTERRUPT_STREAM)) {
-        e.preventDefault();
-        // If there's a stream or auto-retry in progress, stop it and disable auto-retry
-        if (canInterrupt || showRetryBarrier) {
-          setAutoRetry(false); // User explicitly stopped - don't auto-retry
-          void window.api.workspace.sendMessage(workspaceId, "");
-        }
-        return;
-      }
-
-      // Focus chat input works anywhere (even in input fields)
-      if (matchesKeybind(e, KEYBINDS.FOCUS_CHAT)) {
-        e.preventDefault();
-        chatInputAPI.current?.focus();
-        return;
-      }
-
-      // Toggle thinking works even when focused in input fields
-      if (matchesKeybind(e, KEYBINDS.TOGGLE_THINKING)) {
-        e.preventDefault();
-
-        // Storage key for remembering this model's last-used active thinking level
-        const lastThinkingKey = getLastThinkingByModelKey(currentModel);
-
-        if (currentWorkspaceThinking !== "off") {
-          // Thinking is currently ON - save the level for this model and turn it off
-          // Type system ensures we can only store active levels (not "off")
-          const activeLevel: ThinkingLevelOn = currentWorkspaceThinking;
-          updatePersistedState(lastThinkingKey, activeLevel);
-          setThinkingLevel("off");
-        } else {
-          // Thinking is currently OFF - restore the last level used for this model
-          const lastUsedThinkingForModel = readPersistedState<ThinkingLevelOn>(
-            lastThinkingKey,
-            DEFAULT_THINKING_LEVEL
-          );
-          setThinkingLevel(lastUsedThinkingForModel);
-        }
-        return;
-      }
-
-      // Don't handle other shortcuts if user is typing in an input field
-      if (isEditableElement(e.target)) {
-        return;
-      }
-
-      if (matchesKeybind(e, KEYBINDS.JUMP_TO_BOTTOM)) {
-        e.preventDefault();
-        jumpToBottom();
-      } else if (matchesKeybind(e, KEYBINDS.OPEN_TERMINAL)) {
-        e.preventDefault();
-        handleOpenTerminal();
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [
-    jumpToBottom,
-    handleOpenTerminal,
+  useAIViewKeybinds({
     workspaceId,
+    currentModel,
     canInterrupt,
     showRetryBarrier,
+    currentWorkspaceThinking,
+    setThinkingLevel,
     setAutoRetry,
-    currentModel,
-  ]);
+    chatInputAPI,
+    jumpToBottom,
+    handleOpenTerminal,
+  });
 
   if (loading) {
     return (
