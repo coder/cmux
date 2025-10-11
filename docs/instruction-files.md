@@ -1,4 +1,4 @@
-# Prompts
+# Instruction Files
 
 ## Instruction Files
 
