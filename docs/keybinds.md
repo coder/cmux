@@ -30,16 +30,16 @@ When documentation shows `Ctrl`, it means:
 | Cancel editing message | `Ctrl+Q`              |
 | Jump to bottom of chat | `Shift+G`             |
 | Change model           | `Ctrl+/`              |
-| Toggle thinking level  | `Ctrl+Shift+T`        |
+| Toggle thinking level  | `Ctrl+T`              |
 
 ## Workspaces
 
-| Action                     | Shortcut |
-| -------------------------- | -------- |
-| Create new workspace       | `Ctrl+N` |
-| Next workspace             | `Ctrl+J` |
-| Previous workspace         | `Ctrl+K` |
-| Open workspace in terminal | `Ctrl+T` |
+| Action                     | Shortcut       |
+| -------------------------- | -------------- |
+| Create new workspace       | `Ctrl+N`       |
+| Next workspace             | `Ctrl+J`       |
+| Previous workspace         | `Ctrl+K`       |
+| Open workspace in terminal | `Ctrl+Shift+T` |
 
 ## Modes
 
