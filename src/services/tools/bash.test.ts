@@ -56,7 +56,8 @@ describe("bash tool", () => {
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error).toContain("Output exceeded 300 lines");
+      expect(result.error).toContain("Line count exceeded limit");
+      expect(result.error).toContain("300 lines");
       expect(result.exitCode).toBe(-1);
     }
   });
@@ -126,7 +127,8 @@ describe("bash tool", () => {
     if (!result.success) {
       // Should fail early due to 300 line limit, not wait for all 500 lines
       expect(duration).toBeLessThan(15000); // Way less than the 20s timeout
-      expect(result.error).toContain("Output exceeded 300 lines");
+      expect(result.error).toContain("Line count exceeded limit");
+      expect(result.error).toContain("300 lines");
       expect(result.exitCode).toBe(-1);
     }
   });
