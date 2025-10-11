@@ -6,6 +6,8 @@ import { createFileEditInsertTool } from "./file_edit_insert";
 import type { FileEditInsertToolArgs, FileEditInsertToolResult } from "@/types/tools";
 import type { ToolCallOptions } from "ai";
 import { TestTempDir } from "./testHelpers";
+import { LocalRuntime } from "@/runtime/LocalRuntime";
+
 
 // Mock ToolCallOptions for testing
 const mockToolCallOptions: ToolCallOptions = {
@@ -19,6 +21,7 @@ function createTestFileEditInsertTool(options?: { cwd?: string }) {
   const tempDir = new TestTempDir("test-file-edit-insert");
   const tool = createFileEditInsertTool({
     cwd: options?.cwd ?? process.cwd(),
+    runtime: new LocalRuntime(),
     tempDir: tempDir.path,
   });
 
@@ -209,7 +212,8 @@ describe("file_edit_insert tool", () => {
     // Setup
     const nonExistentPath = path.join(testDir, "newfile.txt");
 
-    const tool = createFileEditInsertTool({ cwd: testDir, tempDir: "/tmp" });
+    const tool = createFileEditInsertTool({ cwd: testDir,
+    runtime: new LocalRuntime(), tempDir: "/tmp" });
     const args: FileEditInsertToolArgs = {
       file_path: nonExistentPath,
       line_offset: 0,
@@ -231,7 +235,8 @@ describe("file_edit_insert tool", () => {
     // Setup
     const nestedPath = path.join(testDir, "nested", "dir", "newfile.txt");
 
-    const tool = createFileEditInsertTool({ cwd: testDir, tempDir: "/tmp" });
+    const tool = createFileEditInsertTool({ cwd: testDir,
+    runtime: new LocalRuntime(), tempDir: "/tmp" });
     const args: FileEditInsertToolArgs = {
       file_path: nestedPath,
       line_offset: 0,
@@ -254,7 +259,8 @@ describe("file_edit_insert tool", () => {
     const initialContent = "line1\nline2";
     await fs.writeFile(testFilePath, initialContent);
 
-    const tool = createFileEditInsertTool({ cwd: testDir, tempDir: "/tmp" });
+    const tool = createFileEditInsertTool({ cwd: testDir,
+    runtime: new LocalRuntime(), tempDir: "/tmp" });
     const args: FileEditInsertToolArgs = {
       file_path: testFilePath,
       line_offset: 1,

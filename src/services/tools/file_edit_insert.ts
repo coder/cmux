@@ -1,5 +1,4 @@
 import { tool } from "ai";
-import * as fs from "fs/promises";
 import * as path from "path";
 import type { FileEditInsertToolResult } from "@/types/tools";
 import type { ToolConfiguration, ToolFactory } from "@/utils/tools/tools";
@@ -7,6 +6,7 @@ import { TOOL_DEFINITIONS } from "@/utils/tools/toolDefinitions";
 import { validatePathInCwd } from "./fileCommon";
 import { WRITE_DENIED_PREFIX } from "@/types/tools";
 import { executeFileEditOperation } from "./file_edit_operation";
+import { RuntimeError } from "@/runtime/Runtime";
 
 /**
  * File edit insert tool factory for AI assistant
@@ -43,10 +43,8 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
           ? file_path
           : path.resolve(config.cwd, file_path);
 
-        let fileExists = await fs
-          .stat(resolvedPath)
-          .then((stats) => stats.isFile())
-          .catch(() => false);
+        // Check if file exists using runtime
+        const fileExists = await config.runtime.exists(resolvedPath);
 
         if (!fileExists) {
           if (!create) {
@@ -56,10 +54,18 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
             };
           }
 
-          const parentDir = path.dirname(resolvedPath);
-          await fs.mkdir(parentDir, { recursive: true });
-          await fs.writeFile(resolvedPath, "");
-          fileExists = true;
+          // Create empty file using runtime
+          try {
+            await config.runtime.writeFile(resolvedPath, "");
+          } catch (err) {
+            if (err instanceof RuntimeError) {
+              return {
+                success: false,
+                error: `${WRITE_DENIED_PREFIX} ${err.message}`,
+              };
+            }
+            throw err;
+          }
         }
 
         return executeFileEditOperation({

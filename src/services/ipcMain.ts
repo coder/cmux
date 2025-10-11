@@ -31,6 +31,7 @@ import { secretsToRecord } from "@/types/secrets";
 import { DisposableTempDir } from "@/services/tempDir";
 import { BashExecutionService } from "@/services/bashExecutionService";
 import { InitStateManager } from "@/services/initStateManager";
+import { LocalRuntime } from "@/runtime/LocalRuntime";
 
 /**
  * IpcMain - Manages all IPC handlers and service coordination
@@ -839,6 +840,7 @@ export class IpcMain {
           // All IPC bash calls are from UI (background operations) - use truncate to avoid temp file spam
           const bashTool = createBashTool({
             cwd: namedPath,
+            runtime: new LocalRuntime(),
             secrets: secretsToRecord(projectSecrets),
             niceness: options?.niceness,
             tempDir: tempDir.path,

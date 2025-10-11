@@ -1,10 +1,10 @@
 import { tool } from "ai";
-import * as fs from "fs/promises";
 import * as path from "path";
 import type { FileReadToolResult } from "@/types/tools";
 import type { ToolConfiguration, ToolFactory } from "@/utils/tools/tools";
 import { TOOL_DEFINITIONS } from "@/utils/tools/toolDefinitions";
 import { validatePathInCwd, validateFileSize } from "./fileCommon";
+import { RuntimeError } from "@/runtime/Runtime";
 
 /**
  * File read tool factory for AI assistant
@@ -35,9 +35,21 @@ export const createFileReadTool: ToolFactory = (config: ToolConfiguration) => {
           ? filePath
           : path.resolve(config.cwd, filePath);
 
-        // Check if file exists
-        const stats = await fs.stat(resolvedPath);
-        if (!stats.isFile()) {
+        // Check if file exists using runtime
+        let fileStat;
+        try {
+          fileStat = await config.runtime.stat(resolvedPath);
+        } catch (err) {
+          if (err instanceof RuntimeError) {
+            return {
+              success: false,
+              error: err.message,
+            };
+          }
+          throw err;
+        }
+
+        if (!fileStat.isFile) {
           return {
             success: false,
             error: `Path exists but is not a file: ${resolvedPath}`,
@@ -45,7 +57,7 @@ export const createFileReadTool: ToolFactory = (config: ToolConfiguration) => {
         }
 
         // Validate file size
-        const sizeValidation = validateFileSize(stats);
+        const sizeValidation = validateFileSize(fileStat);
         if (sizeValidation) {
           return {
             success: false,
@@ -53,8 +65,19 @@ export const createFileReadTool: ToolFactory = (config: ToolConfiguration) => {
           };
         }
 
-        // Read full file content
-        const fullContent = await fs.readFile(resolvedPath, { encoding: "utf-8" });
+        // Read full file content using runtime
+        let fullContent: string;
+        try {
+          fullContent = await config.runtime.readFile(resolvedPath);
+        } catch (err) {
+          if (err instanceof RuntimeError) {
+            return {
+              success: false,
+              error: err.message,
+            };
+          }
+          throw err;
+        }
 
         const startLineNumber = offset ?? 1;
 

@@ -6,6 +6,7 @@ import { createFileReadTool } from "./file_read";
 import type { FileReadToolArgs, FileReadToolResult } from "@/types/tools";
 import type { ToolCallOptions } from "ai";
 import { TestTempDir } from "./testHelpers";
+import { LocalRuntime } from "@/runtime/LocalRuntime";
 
 // Mock ToolCallOptions for testing
 const mockToolCallOptions: ToolCallOptions = {
@@ -19,6 +20,7 @@ function createTestFileReadTool(options?: { cwd?: string }) {
   const tempDir = new TestTempDir("test-file-read");
   const tool = createFileReadTool({
     cwd: options?.cwd ?? process.cwd(),
+    runtime: new LocalRuntime(),
     tempDir: tempDir.path,
   });
 
