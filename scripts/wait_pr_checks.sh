@@ -11,6 +11,15 @@ fi
 
 PR_NUMBER=$1
 echo "⏳ Waiting for PR #$PR_NUMBER checks to complete..."
+
+# Warn if there are unstaged changes
+if ! git diff --quiet 2>/dev/null; then
+  echo "⚠️  Warning: You have unstaged changes that are not pushed!"
+  echo "   Run 'git status' to see what changes are pending."
+  echo ""
+fi
+
+
 echo ""
 
 while true; do
