@@ -112,6 +112,10 @@ const ModelDisplayWrapper = styled.div`
   height: 11px;
 `;
 
+export interface ChatInputAPI {
+  focus: () => void;
+}
+
 export interface ChatInputProps {
   workspaceId: string;
   onMessageSent?: () => void; // Optional callback after successful send
@@ -123,6 +127,7 @@ export interface ChatInputProps {
   editingMessage?: { id: string; content: string };
   onCancelEdit?: () => void;
   canInterrupt?: boolean; // Whether Esc can be used to interrupt streaming
+  onReady?: (api: ChatInputAPI) => void; // Callback with focus method
 }
 
 // Helper function to convert parsed command to display toast
@@ -287,6 +292,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   editingMessage,
   onCancelEdit,
   canInterrupt = false,
+  onReady,
 }) => {
   const [input, setInput] = usePersistedState(getInputKey(workspaceId), "");
   const [isSending, setIsSending] = useState(false);
@@ -330,6 +336,13 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       element.style.height = Math.min(element.scrollHeight, window.innerHeight * 0.5) + "px";
     });
   }, []);
+
+  // Provide API to parent via callback
+  useEffect(() => {
+    if (onReady) {
+      onReady({ focus: focusMessageInput });
+    }
+  }, [onReady, focusMessageInput]);
 
   useEffect(() => {
     const handleGlobalKeyDown = (event: KeyboardEvent) => {

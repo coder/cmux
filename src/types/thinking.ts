@@ -8,6 +8,12 @@
 export type ThinkingLevel = "off" | "low" | "medium" | "high";
 
 /**
+ * Active thinking levels (excludes "off")
+ * Used for storing/restoring the last-used thinking level per model
+ */
+export type ThinkingLevelOn = Exclude<ThinkingLevel, "off">;
+
+/**
  * Anthropic thinking token budget mapping
  *
  * These heuristics balance thinking depth with response time and cost:
@@ -22,6 +28,12 @@ export const ANTHROPIC_THINKING_BUDGETS: Record<ThinkingLevel, number> = {
   medium: 10000,
   high: 20000,
 };
+
+/**
+ * Default thinking level to use when toggling thinking on
+ * if no previous value is stored for the model
+ */
+export const DEFAULT_THINKING_LEVEL: ThinkingLevelOn = "medium";
 
 /**
  * OpenAI reasoning_effort mapping

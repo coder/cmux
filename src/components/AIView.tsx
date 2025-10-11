@@ -1,20 +1,21 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import styled from "@emotion/styled";
 import { MessageRenderer } from "./Messages/MessageRenderer";
 import { InterruptedBarrier } from "./Messages/ChatBarrier/InterruptedBarrier";
 import { StreamingBarrier } from "./Messages/ChatBarrier/StreamingBarrier";
 import { RetryBarrier } from "./Messages/ChatBarrier/RetryBarrier";
 import { getAutoRetryKey } from "@/constants/storage";
-import { ChatInput } from "./ChatInput";
+import { ChatInput, type ChatInputAPI } from "./ChatInput";
 import { ChatMetaSidebar } from "./ChatMetaSidebar";
 import { shouldShowInterruptedBarrier } from "@/utils/messages/messageUtils";
 import { hasInterruptedStream } from "@/utils/messages/retryEligibility";
 import { ChatProvider } from "@/contexts/ChatContext";
 import { ThinkingProvider } from "@/contexts/ThinkingContext";
 import { ModeProvider } from "@/contexts/ModeContext";
-import { matchesKeybind, formatKeybind, KEYBINDS, isEditableElement } from "@/utils/ui/keybinds";
+import { formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
 import { useAutoScroll } from "@/hooks/useAutoScroll";
 import { usePersistedState } from "@/hooks/usePersistedState";
+import { useThinking } from "@/contexts/ThinkingContext";
 import type { WorkspaceState } from "@/hooks/useWorkspaceAggregators";
 import { StatusIndicator } from "./StatusIndicator";
 import { getModelName } from "@/utils/ai/models";
@@ -22,6 +23,7 @@ import { GitStatusIndicator } from "./GitStatusIndicator";
 import { useGitStatus } from "@/contexts/GitStatusContext";
 import { TooltipWrapper, Tooltip } from "./Tooltip";
 import type { DisplayedMessage } from "@/types/message";
+import { useAIViewKeybinds } from "@/hooks/useAIViewKeybinds";
 
 const ViewContainer = styled.div`
   flex: 1;
@@ -230,6 +232,15 @@ const AIViewInner: React.FC<AIViewProps> = ({
   // Uses same logic as useResumeManager for DRY
   const showRetryBarrier = !canInterrupt && hasInterruptedStream(messages);
 
+  // ChatInput API for focus management
+  const chatInputAPI = useRef<ChatInputAPI | null>(null);
+  const handleChatInputReady = useCallback((api: ChatInputAPI) => {
+    chatInputAPI.current = api;
+  }, []);
+
+  // Thinking level state from context
+  const { thinkingLevel: currentWorkspaceThinking, setThinkingLevel } = useThinking();
+
   // Auto-scroll when messages update (during streaming)
   useEffect(() => {
     if (autoScroll) {
@@ -304,36 +315,18 @@ const AIViewInner: React.FC<AIViewProps> = ({
   }, [workspaceId, loading]);
 
   // Handle keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Interrupt stream works anywhere (even in input fields)
-      if (matchesKeybind(e, KEYBINDS.INTERRUPT_STREAM)) {
-        e.preventDefault();
-        // If there's a stream or auto-retry in progress, stop it and disable auto-retry
-        if (canInterrupt || showRetryBarrier) {
-          setAutoRetry(false); // User explicitly stopped - don't auto-retry
-          void window.api.workspace.sendMessage(workspaceId, "");
-        }
-        return;
-      }
-
-      // Don't handle other shortcuts if user is typing in an input field
-      if (isEditableElement(e.target)) {
-        return;
-      }
-
-      if (matchesKeybind(e, KEYBINDS.JUMP_TO_BOTTOM)) {
-        e.preventDefault();
-        jumpToBottom();
-      } else if (matchesKeybind(e, KEYBINDS.OPEN_TERMINAL)) {
-        e.preventDefault();
-        handleOpenTerminal();
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [jumpToBottom, handleOpenTerminal, workspaceId, canInterrupt, showRetryBarrier, setAutoRetry]);
+  useAIViewKeybinds({
+    workspaceId,
+    currentModel,
+    canInterrupt,
+    showRetryBarrier,
+    currentWorkspaceThinking,
+    setThinkingLevel,
+    setAutoRetry,
+    chatInputAPI,
+    jumpToBottom,
+    handleOpenTerminal,
+  });
 
   if (loading) {
     return (
@@ -466,6 +459,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
             editingMessage={editingMessage}
             onCancelEdit={handleCancelEdit}
             canInterrupt={canInterrupt}
+            onReady={handleChatInputReady}
           />
         </ChatArea>
 
