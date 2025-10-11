@@ -18,21 +18,21 @@ import type {
 // Tool-output from AI SDK is often wrapped like: { type: 'json', value: <payload> }
 // Keep this helper local so all redactors handle both wrapped and plain objects consistently.
 function unwrapJsonContainer(output: unknown): { wrapped: boolean; value: unknown } {
-  if (
-    output &&
-    typeof output === "object" &&
-    "type" in output &&
-    // @ts-expect-error - runtime check only
-    (output as any).type === "json" &&
-    "value" in output
-  ) {
-    return { wrapped: true, value: (output as { value: unknown }).value };
+  if (output && typeof output === "object" && "type" in output && "value" in output) {
+    const obj = output as { type: unknown; value: unknown };
+    if (obj.type === "json") {
+      return { wrapped: true, value: obj.value };
+    }
   }
   return { wrapped: false, value: output };
 }
 
 function rewrapJsonContainer(wrapped: boolean, value: unknown): unknown {
-  return wrapped ? { type: "json", value } : value;
+  if (wrapped) {
+    const result: { type: string; value: unknown } = { type: "json", value };
+    return result;
+  }
+  return value;
 }
 
 // Narrowing helpers for our tool result types
