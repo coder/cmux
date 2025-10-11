@@ -33,6 +33,7 @@ import type { StreamErrorMessage, SendMessageOptions, DeleteMessage } from "@/ty
 import { Ok, Err, type Result } from "@/types/result";
 import { validateWorkspaceName } from "@/utils/validation/workspaceValidation";
 import { createBashTool } from "@/services/tools/bash";
+import { LocalRuntime } from "@/runtime/LocalRuntime";
 import type { BashToolResult } from "@/types/tools";
 import { BASH_DEFAULT_MAX_LINES, BASH_HARD_MAX_LINES } from "@/constants/toolLimits";
 import { secretsToRecord } from "@/types/secrets";
@@ -788,6 +789,7 @@ export class IpcMain {
           // Create bash tool with workspace's cwd and secrets
           const bashTool = createBashTool({
             cwd: workspacePath,
+            runtime: new LocalRuntime(),
             secrets: secretsToRecord(projectSecrets),
             niceness: options?.niceness,
           });
