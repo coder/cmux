@@ -379,8 +379,10 @@ interface ProjectSidebarProps {
   onAddProject: () => void;
   onAddWorkspace: (projectPath: string) => void;
   onRemoveProject: (path: string) => void;
-  onRemoveWorkspace: (workspaceId: string) => Promise<{ success: boolean; error?: string }>;
-  onRemoveWorkspaceForce: (workspaceId: string) => Promise<{ success: boolean; error?: string }>;
+  onRemoveWorkspace: (
+    workspaceId: string,
+    options?: { force?: boolean }
+  ) => Promise<{ success: boolean; error?: string }>;
   onRenameWorkspace: (
     workspaceId: string,
     newName: string
@@ -401,7 +403,6 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
   onAddWorkspace,
   onRemoveProject,
   onRemoveWorkspace,
-  onRemoveWorkspaceForce,
   onRenameWorkspace,
   getWorkspaceState,
   collapsed,
@@ -558,7 +559,7 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
     setForceDeleteModal(null);
 
     // Use the same state update logic as regular removal
-    const result = await onRemoveWorkspaceForce(workspaceId);
+    const result = await onRemoveWorkspace(workspaceId, { force: true });
     if (!result.success) {
       // Force delete failed - show error in console
       console.error("Force delete failed:", result.error);

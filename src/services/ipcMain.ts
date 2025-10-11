@@ -249,13 +249,12 @@ export class IpcMain {
       }
     );
 
-    ipcMain.handle(IPC_CHANNELS.WORKSPACE_REMOVE, async (_event, workspaceId: string) => {
-      return this.removeWorkspaceInternal(workspaceId, { force: false });
-    });
-
-    ipcMain.handle(IPC_CHANNELS.WORKSPACE_REMOVE_FORCE, async (_event, workspaceId: string) => {
-      return this.removeWorkspaceInternal(workspaceId, { force: true });
-    });
+    ipcMain.handle(
+      IPC_CHANNELS.WORKSPACE_REMOVE,
+      async (_event, workspaceId: string, options?: { force?: boolean }) => {
+        return this.removeWorkspaceInternal(workspaceId, { force: options?.force ?? false });
+      }
+    );
 
     ipcMain.handle(
       IPC_CHANNELS.WORKSPACE_RENAME,

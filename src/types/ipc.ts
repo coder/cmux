@@ -179,8 +179,10 @@ export interface IPCApi {
       branchName: string,
       trunkBranch: string
     ): Promise<{ success: true; metadata: WorkspaceMetadata } | { success: false; error: string }>;
-    remove(workspaceId: string): Promise<{ success: boolean; error?: string }>;
-    removeForce(workspaceId: string): Promise<{ success: boolean; error?: string }>;
+    remove(
+      workspaceId: string,
+      options?: { force?: boolean }
+    ): Promise<{ success: boolean; error?: string }>;
     rename(
       workspaceId: string,
       newName: string
