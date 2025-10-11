@@ -5,7 +5,7 @@ import { InterruptedBarrier } from "./Messages/ChatBarrier/InterruptedBarrier";
 import { StreamingBarrier } from "./Messages/ChatBarrier/StreamingBarrier";
 import { RetryBarrier } from "./Messages/ChatBarrier/RetryBarrier";
 import { getAutoRetryKey, getLastThinkingByModelKey } from "@/constants/storage";
-import { ChatInput, type ChatInputRef } from "./ChatInput";
+import { ChatInput, type ChatInputAPI } from "./ChatInput";
 import { ChatMetaSidebar } from "./ChatMetaSidebar";
 import { shouldShowInterruptedBarrier } from "@/utils/messages/messageUtils";
 import { hasInterruptedStream } from "@/utils/messages/retryEligibility";
@@ -237,8 +237,11 @@ const AIViewInner: React.FC<AIViewProps> = ({
   // Uses same logic as useResumeManager for DRY
   const showRetryBarrier = !canInterrupt && hasInterruptedStream(messages);
 
-  // Ref to ChatInput for focus management
-  const chatInputRef = useRef<ChatInputRef>(null);
+  // ChatInput API for focus management
+  const chatInputAPI = useRef<ChatInputAPI | null>(null);
+  const handleChatInputReady = useCallback((api: ChatInputAPI) => {
+    chatInputAPI.current = api;
+  }, []);
 
   // Thinking level state from context
   const { thinkingLevel: currentWorkspaceThinking, setThinkingLevel } = useThinking();
@@ -333,7 +336,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
       // Focus chat input works anywhere (even in input fields)
       if (matchesKeybind(e, KEYBINDS.FOCUS_CHAT)) {
         e.preventDefault();
-        chatInputRef.current?.focus();
+        chatInputAPI.current?.focus();
         return;
       }
 
@@ -509,7 +512,6 @@ const AIViewInner: React.FC<AIViewProps> = ({
           </OutputContainer>
 
           <ChatInput
-            ref={chatInputRef}
             workspaceId={workspaceId}
             onMessageSent={handleMessageSent}
             onTruncateHistory={handleClearHistory}
@@ -519,6 +521,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
             editingMessage={editingMessage}
             onCancelEdit={handleCancelEdit}
             canInterrupt={canInterrupt}
+            onReady={handleChatInputReady}
           />
         </ChatArea>
 
