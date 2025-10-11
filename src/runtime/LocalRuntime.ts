@@ -142,19 +142,14 @@ export class LocalRuntime implements Runtime {
 
         // Check if aborted
         if (options.abortSignal?.aborted) {
-          rejectOnce(
-            new RuntimeErrorClass("Command execution was aborted", "exec")
-          );
+          rejectOnce(new RuntimeErrorClass("Command execution was aborted", "exec"));
           return;
         }
 
         // Check if timed out
         if (signal === "SIGTERM" && options.timeout !== undefined) {
           rejectOnce(
-            new RuntimeErrorClass(
-              `Command exceeded timeout of ${options.timeout} seconds`,
-              "exec"
-            )
+            new RuntimeErrorClass(`Command exceeded timeout of ${options.timeout} seconds`, "exec")
           );
           return;
         }
@@ -233,4 +228,3 @@ export class LocalRuntime implements Runtime {
     }
   }
 }
-
