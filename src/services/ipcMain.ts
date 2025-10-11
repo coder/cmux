@@ -819,7 +819,7 @@ export class IpcMain {
         if (worktreeExists) {
           // Use optimized removal unless force is explicitly requested
           let gitResult: Awaited<ReturnType<typeof removeWorktreeSafe>>;
-          
+
           if (options.force) {
             // Force deletion: Use git worktree remove --force directly
             gitResult = await removeWorktree(foundProjectPath, workspacePath, { force: true });
@@ -835,7 +835,7 @@ export class IpcMain {
               },
             });
           }
-          
+
           if (!gitResult.success) {
             const errorMessage = gitResult.error ?? "Unknown error";
             const normalizedError = errorMessage.toLowerCase();
