@@ -6,7 +6,7 @@ export const SLASH_COMMAND_PROMPTS = {
 } as const;
 
 export const COMPACTION_MESSAGE =
-  "Summarize this conversation into a compact form for a new Assistant to continue helping the user. Use approximately 385 words. Keep technical details";
+  "Summarize this conversation into a compact form for a new Assistant to continue helping the user. Use approximately 385 words.";
 
 export const COMPACT_SUMMARY_TEXT =
   "Compact summary: The assistant read project files, listed directory contents, created and inspected test.txt, then confirmed the contents remained 'hello'. Technical details preserved.";
@@ -38,7 +38,6 @@ const compactConversationTurn: ScenarioTurn = {
         toolName: "compact_summary",
         args: {
           targetWords: 385,
-          instructions: "Keep technical details",
         },
       },
       {
@@ -78,7 +77,6 @@ const compactConversationTurn: ScenarioTurn = {
             state: "output-available",
             input: {
               targetWords: 385,
-              instructions: "Keep technical details",
             },
             output: {
               summary: COMPACT_SUMMARY_TEXT,

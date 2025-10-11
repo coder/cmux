@@ -17,6 +17,8 @@ import { useWorkspaceManagement } from "./hooks/useWorkspaceManagement";
 import { useWorkspaceAggregators } from "./hooks/useWorkspaceAggregators";
 import { useResumeManager } from "./hooks/useResumeManager";
 import { useUnreadTracking } from "./hooks/useUnreadTracking";
+import { useAutoCompactContinue } from "./hooks/useAutoCompactContinue";
+
 import { CommandRegistryProvider, useCommandRegistry } from "./contexts/CommandRegistryContext";
 import type { CommandAction } from "./contexts/CommandRegistryContext";
 import { CommandPalette } from "./components/CommandPalette";
@@ -173,6 +175,9 @@ function AppInner() {
 
   // Auto-resume interrupted streams on app startup and when failures occur
   useResumeManager(workspaceStates);
+
+  // Handle auto-continue after compaction (when user uses /compact -c)
+  const { handleCompactStart } = useAutoCompactContinue(workspaceStates);
 
   const streamingModels = new Map<string, string>();
   for (const metadata of workspaceMetadata.values()) {
@@ -519,6 +524,9 @@ function AppInner() {
                     branch={selectedWorkspace.workspacePath.split("/").pop() ?? ""}
                     workspacePath={selectedWorkspace.workspacePath}
                     workspaceState={getWorkspaceState(selectedWorkspace.workspaceId)}
+                    onCompactStart={(continueMessage) =>
+                      handleCompactStart(selectedWorkspace.workspaceId, continueMessage)
+                    }
                   />
                 </ErrorBoundary>
               ) : (

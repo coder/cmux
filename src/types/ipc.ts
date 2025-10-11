@@ -196,6 +196,7 @@ export interface IPCApi {
       workspaceId: string,
       options: SendMessageOptions
     ): Promise<Result<void, SendMessageError>>;
+    interruptStream(workspaceId: string): Promise<Result<void, string>>;
     truncateHistory(workspaceId: string, percentage?: number): Promise<Result<void, string>>;
     replaceChatHistory(
       workspaceId: string,

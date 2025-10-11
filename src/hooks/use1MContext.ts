@@ -1,4 +1,5 @@
 import { usePersistedState } from "@/hooks/usePersistedState";
+import { USE_1M_CONTEXT_KEY } from "@/constants/storage";
 
 /**
  * Custom hook for 1M context state.
@@ -7,5 +8,5 @@ import { usePersistedState } from "@/hooks/usePersistedState";
  * @returns [use1MContext, setUse1MContext] tuple
  */
 export function use1MContext(): [boolean, (value: boolean) => void] {
-  return usePersistedState<boolean>("use1MContext", false, { listener: true });
+  return usePersistedState<boolean>(USE_1M_CONTEXT_KEY, false, { listener: true });
 }

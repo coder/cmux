@@ -376,7 +376,7 @@ export function buildCoreSources(p: BuildSourcesParams): Array<() => CommandActi
         title: "Interrupt Streaming",
         section: section.chat,
         run: async () => {
-          await window.api.workspace.sendMessage(id, "");
+          await window.api.workspace.interruptStream(id);
         },
       });
       list.push({

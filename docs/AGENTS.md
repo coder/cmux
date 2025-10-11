@@ -16,6 +16,8 @@ This ensures transparency about AI-generated contributions.
 
 ## PR Management
 
+**Prefer to reuse existing PRs** by force-pushing to the same branch, even if the branch name becomes irrelevant. Avoid closing and recreating PRs unnecessarily - PR spam clutters the repository history.
+
 After submitting or updating PRs, **always check merge status**:
 
 ```bash
@@ -302,6 +304,10 @@ This project uses **Make** as the primary build orchestrator. See `Makefile` for
 
 - This pattern maximizes type safety and prevents runtime errors from typos or missing cases
 
+## Component State Management
+
+**For per-operation state tied to async workflows, parent components should own all localStorage operations.** Child components should notify parents of user intent without manipulating storage directly, preventing bugs from stale or orphaned state across component lifecycles.
+
 ## Module Imports
 
 - **NEVER use dynamic imports** - Always use static `import` statements at the top of files. Dynamic imports (`await import()`) are a code smell that indicates improper module structure.
@@ -453,7 +459,9 @@ The IPC layer is the boundary between backend and frontend. Follow these rules t
 
 Notice when you've made the same change many times, refactor to create a shared function
 or component, update all the duplicated code, and then continue on with the original work.
-When repeating string literals (especially in error messages or UI text), extract them to named constants for maintainability and consistency.
+When repeating string literals (especially in error messages, UI text, or system instructions), extract them to named constants in a relevant constants/utils file - never define the same string literal multiple times across files.
+
+**Avoid unnecessary callback indirection**: If a hook detects a condition and has access to all data needed to handle it, let it handle the action directly rather than passing callbacks up to parent components. Keep hooks self-contained when possible.
 
 ## UX Considerations
 

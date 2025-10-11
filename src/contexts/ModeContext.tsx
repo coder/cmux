@@ -3,6 +3,7 @@ import React, { createContext, useContext, useEffect } from "react";
 import type { UIMode } from "@/types/mode";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { matchesKeybind, KEYBINDS } from "@/utils/ui/keybinds";
+import { getModeKey } from "@/constants/storage";
 
 type ModeContextType = [UIMode, (mode: UIMode) => void];
 
@@ -14,7 +15,7 @@ interface ModeProviderProps {
 }
 
 export const ModeProvider: React.FC<ModeProviderProps> = ({ workspaceId, children }) => {
-  const [mode, setMode] = usePersistedState<UIMode>(`mode:${workspaceId}`, "exec", {
+  const [mode, setMode] = usePersistedState<UIMode>(getModeKey(workspaceId), "exec", {
     listener: true, // Listen for changes from command palette and other sources
   });
 

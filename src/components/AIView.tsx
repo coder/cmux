@@ -180,6 +180,7 @@ interface AIViewProps {
   branch: string;
   workspacePath: string;
   workspaceState: WorkspaceState;
+  onCompactStart?: (continueMessage: string | undefined) => void;
   className?: string;
 }
 
@@ -189,6 +190,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
   branch,
   workspacePath,
   workspaceState,
+  onCompactStart,
   className,
 }) => {
   // Get git status from context
@@ -454,6 +456,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
             onMessageSent={handleMessageSent}
             onTruncateHistory={handleClearHistory}
             onProviderConfig={handleProviderConfig}
+            onCompactStart={onCompactStart}
             disabled={!projectName || !branch}
             isCompacting={isCompacting}
             editingMessage={editingMessage}

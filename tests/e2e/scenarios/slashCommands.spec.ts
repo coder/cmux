@@ -83,7 +83,7 @@ test.describe("slash command flows", () => {
 
     const timeline = await ui.chat.captureStreamTimeline(
       async () => {
-        await ui.chat.sendMessage("/compact 500 Keep technical details");
+        await ui.chat.sendMessage("/compact -t 500");
       },
       { timeoutMs: 20_000 }
     );

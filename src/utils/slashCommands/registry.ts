@@ -8,6 +8,7 @@ import type {
   SlashSuggestion,
   SuggestionDefinition,
 } from "./types";
+import minimist from "minimist";
 
 // Model abbreviations for common models
 export const MODEL_ABBREVIATIONS: Record<string, string> = {
@@ -168,29 +169,63 @@ const truncateCommandDefinition: SlashCommandDefinition = {
 
 const compactCommandDefinition: SlashCommandDefinition = {
   key: "compact",
-  description: "Compact conversation history using AI summarization",
+  description:
+    "Compact conversation history using AI summarization. Use -t <tokens> to set max output tokens, -c <message> to continue with custom prompt after compaction",
   handler: ({ cleanRemainingTokens }): ParsedCommand => {
-    // Parse optional maxOutputTokens (first arg, must be a number)
-    let maxOutputTokens: number | undefined;
-    let instructionsStart = 0;
+    // Parse flags using minimist
+    const parsed = minimist(cleanRemainingTokens, {
+      string: ["t", "c"],
+      unknown: (arg: string) => {
+        // Unknown flags starting with - are errors
+        if (arg.startsWith("-")) {
+          return false;
+        }
+        return true;
+      },
+    });
 
-    if (cleanRemainingTokens.length > 0) {
-      const firstToken = cleanRemainingTokens[0];
-      const parsed = parseInt(firstToken, 10);
-
-      if (!isNaN(parsed) && parsed > 0) {
-        maxOutputTokens = parsed;
-        instructionsStart = 1;
-      }
+    // Check for unknown flags
+    const unknownFlags = cleanRemainingTokens.filter(
+      (token) => token.startsWith("-") && token !== "-t" && token !== "-c"
+    );
+    if (unknownFlags.length > 0) {
+      return {
+        type: "unknown-command",
+        command: "compact",
+        subcommand: `Unknown flag: ${unknownFlags[0]}`,
+      };
     }
 
-    // Parse optional instructions (remaining args joined)
-    const instructions =
-      cleanRemainingTokens.length > instructionsStart
-        ? cleanRemainingTokens.slice(instructionsStart).join(" ")
+    // Validate -t value if present
+    let maxOutputTokens: number | undefined;
+    if (parsed.t !== undefined) {
+      const tokens = parseInt(parsed.t as string, 10);
+      if (isNaN(tokens) || tokens <= 0) {
+        return {
+          type: "unknown-command",
+          command: "compact",
+          subcommand: `-t requires a positive number, got ${parsed.t}`,
+        };
+      }
+      maxOutputTokens = tokens;
+    }
+
+    // Reject extra positional arguments
+    if (parsed._.length > 0) {
+      return {
+        type: "unknown-command",
+        command: "compact",
+        subcommand: `Unexpected argument: ${parsed._[0]}`,
+      };
+    }
+
+    // Get continue message if -c flag present
+    const continueMessage =
+      parsed.c !== undefined && typeof parsed.c === "string" && parsed.c.trim().length > 0
+        ? parsed.c.trim()
         : undefined;
 
-    return { type: "compact", maxOutputTokens, instructions };
+    return { type: "compact", maxOutputTokens, continueMessage };
   },
 };
 
