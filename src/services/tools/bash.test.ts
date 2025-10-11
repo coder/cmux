@@ -1,7 +1,7 @@
 import { describe, it, expect } from "bun:test";
 import { createBashTool } from "./bash";
 import type { BashToolArgs, BashToolResult } from "@/types/tools";
-import { BASH_HARD_MAX_LINES, BASH_MAX_TOTAL_BYTES } from "@/constants/toolLimits";
+import { BASH_MAX_TOTAL_BYTES } from "@/constants/toolLimits";
 import * as fs from "fs";
 
 import type { ToolCallOptions } from "ai";
@@ -18,7 +18,6 @@ describe("bash tool", () => {
     const args: BashToolArgs = {
       script: "echo hello",
       timeout_secs: 5,
-      max_lines: 100,
     };
 
     const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
@@ -35,7 +34,6 @@ describe("bash tool", () => {
     const args: BashToolArgs = {
       script: "echo line1 && echo line2 && echo line3",
       timeout_secs: 5,
-      max_lines: 100,
     };
 
     const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
@@ -46,20 +44,19 @@ describe("bash tool", () => {
     }
   });
 
-  it("should fail when max_lines is exceeded", async () => {
+  it("should fail when hard cap (300 lines) is exceeded", async () => {
     const tool = createBashTool({ cwd: process.cwd() });
     const args: BashToolArgs = {
-      script: "for i in {1..10}; do echo line$i; done",
+      script: "for i in {1..400}; do echo line$i; done", // Exceeds 300 line hard cap
       timeout_secs: 5,
-      max_lines: 5,
     };
 
     const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      // Should contain specific overflow reason
-      expect(result.error).toMatch(/Line count exceeded limit|OUTPUT OVERFLOW/);
+      expect(result.error).toContain("Line count exceeded limit");
+      expect(result.error).toContain("300 lines");
       expect(result.exitCode).toBe(-1);
     }
   });
@@ -67,9 +64,8 @@ describe("bash tool", () => {
   it("should save overflow output to temp file with short ID", async () => {
     const tool = createBashTool({ cwd: process.cwd() });
     const args: BashToolArgs = {
-      script: "for i in {1..400}; do echo line$i; done",
+      script: "for i in {1..400}; do echo line$i; done", // Exceeds 300 line hard cap
       timeout_secs: 5,
-      max_lines: 300,
     };
 
     const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
@@ -113,15 +109,14 @@ describe("bash tool", () => {
     }
   });
 
-  it("should fail early when max_lines is reached", async () => {
+  it("should fail early when hard cap is reached", async () => {
     const tool = createBashTool({ cwd: process.cwd() });
     const startTime = performance.now();
 
     const args: BashToolArgs = {
-      // This command would take ~10 seconds if it ran to completion
-      script: "for i in {1..100}; do echo line$i; sleep 0.1; done",
-      timeout_secs: 20,
-      max_lines: 3,
+      // This will generate 500 lines quickly - should fail at 300
+      script: "for i in {1..500}; do echo line$i; done",
+      timeout_secs: 5,
     };
 
     const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
@@ -129,9 +124,11 @@ describe("bash tool", () => {
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error).toMatch(/Line count exceeded limit|OUTPUT OVERFLOW/);
-      // Should complete much faster than 10 seconds (give it 2 seconds buffer)
-      expect(duration).toBeLessThan(2000);
+      // Should complete quickly since we stop at 300 lines
+      expect(duration).toBeLessThan(4000);
+      expect(result.error).toContain("Line count exceeded limit");
+      expect(result.error).toContain("300 lines");
+      expect(result.exitCode).toBe(-1);
     }
   });
 
@@ -140,7 +137,6 @@ describe("bash tool", () => {
     const args: BashToolArgs = {
       script: "echo stdout1 && echo stderr1 >&2 && echo stdout2 && echo stderr2 >&2",
       timeout_secs: 5,
-      max_lines: 100,
     };
 
     const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
@@ -160,7 +156,6 @@ describe("bash tool", () => {
     const args: BashToolArgs = {
       script: "exit 42",
       timeout_secs: 5,
-      max_lines: 100,
     };
 
     const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
@@ -177,7 +172,6 @@ describe("bash tool", () => {
     const args: BashToolArgs = {
       script: "sleep 10",
       timeout_secs: 1,
-      max_lines: 100,
     };
 
     const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
@@ -194,7 +188,6 @@ describe("bash tool", () => {
     const args: BashToolArgs = {
       script: "true",
       timeout_secs: 5,
-      max_lines: 100,
     };
 
     const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
@@ -215,7 +208,6 @@ describe("bash tool", () => {
     const args: BashToolArgs = {
       script: "echo 'test:first-child' | grep ':first-child'",
       timeout_secs: 5,
-      max_lines: 100,
     };
 
     const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
@@ -239,7 +231,6 @@ describe("bash tool", () => {
     const args: BashToolArgs = {
       script: "echo test | cat",
       timeout_secs: 5,
-      max_lines: 100,
     };
 
     const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
@@ -273,7 +264,7 @@ describe("bash tool", () => {
     `;
 
     const result = (await tool.execute!(
-      { script, timeout_secs: 5, max_lines: 100 },
+      { script, timeout_secs: 5 },
       mockToolCallOptions
     )) as BashToolResult;
 
@@ -283,52 +274,12 @@ describe("bash tool", () => {
     expect(result).toBeDefined();
   });
 
-  it("should accept stdin input and avoid shell escaping issues", async () => {
-    const tool = createBashTool({ cwd: process.cwd() });
-    const complexInput = "test'with\"quotes\nand$variables";
-
-    const args: BashToolArgs = {
-      script: "cat",
-      timeout_secs: 5,
-      max_lines: 100,
-      stdin: complexInput,
-    };
-
-    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
-
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.output).toBe(complexInput);
-    }
-  });
-
-  it("should handle multi-line stdin input", async () => {
-    const tool = createBashTool({ cwd: process.cwd() });
-    const multiLineInput = "line1\nline2\nline3";
-
-    const args: BashToolArgs = {
-      script: "cat",
-      timeout_secs: 5,
-      max_lines: 100,
-      stdin: multiLineInput,
-    };
-
-    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
-
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.output).toBe(multiLineInput);
-    }
-  });
-
-  it("should work without stdin when not provided (backward compatibility)", async () => {
+  it("should work with just script and timeout", async () => {
     const tool = createBashTool({ cwd: process.cwd() });
 
     const args: BashToolArgs = {
       script: "echo test",
       timeout_secs: 5,
-      max_lines: 100,
-      // stdin not provided
     };
 
     const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
@@ -346,7 +297,6 @@ describe("bash tool", () => {
     const args: BashToolArgs = {
       script: `cd ${cwd} && echo test`,
       timeout_secs: 5,
-      max_lines: 100,
     };
 
     const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
@@ -365,7 +315,6 @@ describe("bash tool", () => {
     const args: BashToolArgs = {
       script: `cd ${cwd}; echo test`,
       timeout_secs: 5,
-      max_lines: 100,
     };
 
     const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
@@ -382,7 +331,6 @@ describe("bash tool", () => {
     const args: BashToolArgs = {
       script: "cd . && echo test",
       timeout_secs: 5,
-      max_lines: 100,
     };
 
     const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
@@ -400,7 +348,6 @@ describe("bash tool", () => {
     const args: BashToolArgs = {
       script: `cd '${cwd}' && echo test`,
       timeout_secs: 5,
-      max_lines: 100,
     };
 
     const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
@@ -417,7 +364,6 @@ describe("bash tool", () => {
     const args: BashToolArgs = {
       script: "cd /tmp && pwd",
       timeout_secs: 5,
-      max_lines: 100,
     };
 
     const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
@@ -434,7 +380,6 @@ describe("bash tool", () => {
     const args: BashToolArgs = {
       script: "echo 'cd' && echo test",
       timeout_secs: 5,
-      max_lines: 100,
     };
 
     const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
@@ -454,7 +399,6 @@ describe("bash tool", () => {
       // Background process that would block if we waited for it
       script: "sleep 100 > /dev/null 2>&1 &",
       timeout_secs: 5,
-      max_lines: 100,
     };
 
     const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
@@ -474,7 +418,6 @@ describe("bash tool", () => {
       // Should not wait for the background process
       script: "sleep 100 > /dev/null 2>&1 & echo $!",
       timeout_secs: 5,
-      max_lines: 100,
     };
 
     const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
@@ -497,7 +440,6 @@ describe("bash tool", () => {
       // Background process with output redirected but still blocking
       script: "sleep 10 & wait",
       timeout_secs: 1,
-      max_lines: 100,
     };
 
     const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
@@ -516,7 +458,6 @@ describe("bash tool", () => {
     const args: BashToolArgs = {
       script: `echo '${longLine}'`,
       timeout_secs: 5,
-      max_lines: 10,
     };
 
     const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
@@ -535,7 +476,6 @@ describe("bash tool", () => {
     const args: BashToolArgs = {
       script: `for i in {1..${numLines}}; do echo '${lineContent}'; done`,
       timeout_secs: 5,
-      max_lines: BASH_HARD_MAX_LINES,
     };
 
     const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
@@ -552,7 +492,6 @@ describe("bash tool", () => {
     const args: BashToolArgs = {
       script: `for i in {1..1000}; do echo 'This is line number '$i' with some content'; done`,
       timeout_secs: 5,
-      max_lines: BASH_HARD_MAX_LINES,
     };
 
     const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
@@ -569,7 +508,6 @@ describe("bash tool", () => {
     const args: BashToolArgs = {
       script: "",
       timeout_secs: 5,
-      max_lines: 100,
     };
 
     const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
@@ -588,7 +526,6 @@ describe("bash tool", () => {
     const args: BashToolArgs = {
       script: "   \n\t  ",
       timeout_secs: 5,
-      max_lines: 100,
     };
 
     const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
@@ -606,7 +543,6 @@ describe("bash tool", () => {
     const args = {
       script: "echo hello",
       timeout_secs: undefined,
-      max_lines: 100,
     };
 
     const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
@@ -625,7 +561,6 @@ describe("bash tool", () => {
     const args = {
       script: "echo hello",
       timeout_secs: null as unknown as number,
-      max_lines: 100,
     };
 
     const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
@@ -644,7 +579,6 @@ describe("bash tool", () => {
     const args: BashToolArgs = {
       script: "echo hello",
       timeout_secs: 0,
-      max_lines: 100,
     };
 
     const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
@@ -663,7 +597,6 @@ describe("bash tool", () => {
     const args: BashToolArgs = {
       script: "echo hello",
       timeout_secs: -5,
-      max_lines: 100,
     };
 
     const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
@@ -705,7 +638,6 @@ echo "$VALUE"
 echo "$RESULT"
 `,
       timeout_secs: 5,
-      max_lines: 100,
     };
 
     const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
@@ -732,7 +664,6 @@ if [ $? -ne 0 ]; then
 fi
 `,
       timeout_secs: 5,
-      max_lines: 100,
     };
 
     const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
@@ -750,7 +681,6 @@ fi
     const args: BashToolArgs = {
       script: "echo hello",
       timeout_secs: 5,
-      max_lines: 100,
     };
 
     const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;

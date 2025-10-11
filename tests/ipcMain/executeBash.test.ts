@@ -1,7 +1,6 @@
 import { shouldRunIntegrationTests, createTestEnvironment, cleanupTestEnvironment } from "./setup";
 import { IPC_CHANNELS } from "../../src/constants/ipc-constants";
 import { createTempGitRepo, cleanupTempGitRepo, createWorkspace } from "./helpers";
-import { BASH_HARD_MAX_LINES } from "../../src/constants/toolLimits";
 import type { WorkspaceMetadata } from "../../src/types/workspace";
 
 type WorkspaceCreationResult = Awaited<ReturnType<typeof createWorkspace>>;
@@ -163,7 +162,7 @@ describeIntegration("IpcMain executeBash integration tests", () => {
   );
 
   test.concurrent(
-    "should respect max_lines option",
+    "should respect 300 line hard cap",
     async () => {
       const env = await createTestEnvironment();
       const tempGitRepo = await createTempGitRepo();
@@ -173,16 +172,15 @@ describeIntegration("IpcMain executeBash integration tests", () => {
         const createResult = await createWorkspace(
           env.mockIpcRenderer,
           tempGitRepo,
-          "test-maxlines"
+          "test-hardcap"
         );
         const workspaceId = expectWorkspaceCreationSuccess(createResult).id;
 
-        // Execute a command that produces many lines
+        // Execute a command that exceeds 300 line hard cap
         const maxLinesResult = await env.mockIpcRenderer.invoke(
           IPC_CHANNELS.WORKSPACE_EXECUTE_BASH,
           workspaceId,
-          "for i in {1..100}; do echo line$i; done",
-          { max_lines: 10 }
+          "for i in {1..400}; do echo line$i; done"
         );
 
         expect(maxLinesResult.success).toBe(true);
@@ -191,41 +189,6 @@ describeIntegration("IpcMain executeBash integration tests", () => {
         expect(maxLinesResult.data.exitCode).toBe(-1);
 
         // Clean up
-        await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, workspaceId);
-      } finally {
-        await cleanupTestEnvironment(env);
-        await cleanupTempGitRepo(tempGitRepo);
-      }
-    },
-    15000
-  );
-
-  test.concurrent(
-    "should clamp max_lines to the hard cap",
-    async () => {
-      const env = await createTestEnvironment();
-      const tempGitRepo = await createTempGitRepo();
-
-      try {
-        const createResult = await createWorkspace(
-          env.mockIpcRenderer,
-          tempGitRepo,
-          "test-maxlines-hardcap"
-        );
-        const workspaceId = expectWorkspaceCreationSuccess(createResult).id;
-
-        const oversizedResult = await env.mockIpcRenderer.invoke(
-          IPC_CHANNELS.WORKSPACE_EXECUTE_BASH,
-          workspaceId,
-          "for i in {1..1100}; do echo line$i; done",
-          { max_lines: BASH_HARD_MAX_LINES * 5 }
-        );
-
-        expect(oversizedResult.success).toBe(true);
-        expect(oversizedResult.data.success).toBe(false);
-        expect(oversizedResult.data.error).toMatch(/Line count exceeded limit|OUTPUT OVERFLOW/);
-        expect(oversizedResult.data.exitCode).toBe(-1);
-
         await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, workspaceId);
       } finally {
         await cleanupTestEnvironment(env);

@@ -6,7 +6,6 @@ import * as path from "path";
 import * as fs from "fs";
 import * as os from "os";
 import {
-  BASH_DEFAULT_MAX_LINES,
   BASH_HARD_MAX_LINES,
   BASH_MAX_LINE_BYTES,
   BASH_MAX_TOTAL_BYTES,
@@ -42,10 +41,7 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
   return tool({
     description: TOOL_DEFINITIONS.bash.description + "\nRuns in " + config.cwd + " - no cd needed",
     inputSchema: TOOL_DEFINITIONS.bash.schema,
-    execute: async (
-      { script, timeout_secs, max_lines = BASH_DEFAULT_MAX_LINES, stdin },
-      { abortSignal }
-    ): Promise<BashToolResult> => {
+    execute: async ({ script, timeout_secs }, { abortSignal }): Promise<BashToolResult> => {
       // Validate script is not empty - likely indicates a malformed tool call
       if (!script || script.trim().length === 0) {
         return {
@@ -68,8 +64,7 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
       }
 
       const startTime = performance.now();
-      const normalizedMaxLines = Math.max(1, Math.floor(max_lines));
-      const effectiveMaxLines = Math.min(normalizedMaxLines, BASH_HARD_MAX_LINES);
+      const effectiveMaxLines = BASH_HARD_MAX_LINES;
       let totalBytesAccumulated = 0;
       let overflowReason: string | null = null;
 
@@ -119,15 +114,9 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
             // Without this, git can hang waiting for user input if credentials aren't configured
             GIT_TERMINAL_PROMPT: "0", // Disables git credential prompts
           },
-          stdio: [stdin !== undefined ? "pipe" : "ignore", "pipe", "pipe"], // stdin: pipe if provided, else ignore
+          stdio: ["ignore", "pipe", "pipe"],
         })
       );
-
-      // Write stdin if provided
-      if (stdin !== undefined && childProcess.child.stdin) {
-        childProcess.child.stdin.write(stdin);
-        childProcess.child.stdin.end();
-      }
 
       // Use a promise to wait for completion
       return await new Promise<BashToolResult>((resolve) => {

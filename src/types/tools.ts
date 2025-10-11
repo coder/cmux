@@ -7,8 +7,6 @@
 export interface BashToolArgs {
   script: string;
   timeout_secs: number;
-  max_lines: number;
-  stdin?: string;
 }
 
 interface CommonBashFields {

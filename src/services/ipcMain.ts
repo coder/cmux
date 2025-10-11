@@ -34,7 +34,7 @@ import { Ok, Err, type Result } from "@/types/result";
 import { validateWorkspaceName } from "@/utils/validation/workspaceValidation";
 import { createBashTool } from "@/services/tools/bash";
 import type { BashToolResult } from "@/types/tools";
-import { BASH_DEFAULT_MAX_LINES, BASH_HARD_MAX_LINES } from "@/constants/toolLimits";
+
 import { secretsToRecord } from "@/types/secrets";
 
 const createUnknownSendMessageError = (raw: string): SendMessageError => ({
@@ -691,7 +691,7 @@ export class IpcMain {
         _event,
         workspaceId: string,
         script: string,
-        options?: { timeout_secs?: number; max_lines?: number; stdin?: string; niceness?: number }
+        options?: { timeout_secs?: number; niceness?: number }
       ) => {
         try {
           // Get workspace metadata to find workspacePath
@@ -716,16 +716,10 @@ export class IpcMain {
           });
 
           // Execute the script with provided options
-          const requestedMaxLines = options?.max_lines ?? BASH_DEFAULT_MAX_LINES;
-          const normalizedMaxLines = Math.max(1, Math.floor(requestedMaxLines));
-          const clampedMaxLines = Math.min(normalizedMaxLines, BASH_HARD_MAX_LINES);
-
           const result = (await bashTool.execute!(
             {
               script,
               timeout_secs: options?.timeout_secs ?? 120,
-              max_lines: clampedMaxLines,
-              stdin: options?.stdin,
             },
             {
               toolCallId: `bash-${Date.now()}`,
