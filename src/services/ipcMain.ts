@@ -1,3 +1,4 @@
+import assert from "node:assert/strict";
 import type { BrowserWindow, IpcMain as ElectronIpcMain } from "electron";
 import { spawn, spawnSync } from "child_process";
 import * as path from "path";
@@ -14,32 +15,17 @@ import { removeWorktreeSafe, removeWorktree, pruneWorktrees } from "@/services/g
 import { AIService } from "@/services/aiService";
 import { HistoryService } from "@/services/historyService";
 import { PartialService } from "@/services/partialService";
-import { createCmuxMessage, type CmuxMessage } from "@/types/message";
+import { AgentSession } from "@/services/agentSession";
+import type { CmuxMessage } from "@/types/message";
 import { log } from "@/services/log";
-import type {
-  StreamStartEvent,
-  StreamDeltaEvent,
-  StreamEndEvent,
-  StreamAbortEvent,
-  ToolCallStartEvent,
-  ToolCallDeltaEvent,
-  ToolCallEndEvent,
-  ErrorEvent,
-} from "@/types/stream";
 import { IPC_CHANNELS, getChatChannel } from "@/constants/ipc-constants";
 import type { SendMessageError } from "@/types/errors";
-import type { StreamErrorMessage, SendMessageOptions, DeleteMessage } from "@/types/ipc";
-import { Ok, Err, type Result } from "@/types/result";
+import type { SendMessageOptions, DeleteMessage } from "@/types/ipc";
+import { Ok, Err } from "@/types/result";
 import { validateWorkspaceName } from "@/utils/validation/workspaceValidation";
 import { createBashTool } from "@/services/tools/bash";
 import type { BashToolResult } from "@/types/tools";
-
 import { secretsToRecord } from "@/types/secrets";
-
-const createUnknownSendMessageError = (raw: string): SendMessageError => ({
-  type: "unknown",
-  raw,
-});
 
 /**
  * IpcMain - Manages all IPC handlers and service coordination
@@ -59,6 +45,11 @@ export class IpcMain {
   private readonly historyService: HistoryService;
   private readonly partialService: PartialService;
   private readonly aiService: AIService;
+  private readonly sessions = new Map<string, AgentSession>();
+  private readonly sessionSubscriptions = new Map<
+    string,
+    { chat: () => void; metadata: () => void }
+  >();
   private mainWindow: BrowserWindow | null = null;
   private registered = false;
 
@@ -67,6 +58,68 @@ export class IpcMain {
     this.historyService = new HistoryService(config);
     this.partialService = new PartialService(config, this.historyService);
     this.aiService = new AIService(config, this.historyService, this.partialService);
+  }
+
+  private getOrCreateSession(workspaceId: string): AgentSession {
+    assert(typeof workspaceId === "string", "workspaceId must be a string");
+    const trimmed = workspaceId.trim();
+    assert(trimmed.length > 0, "workspaceId must not be empty");
+
+    let session = this.sessions.get(trimmed);
+    if (session) {
+      return session;
+    }
+
+    session = new AgentSession({
+      workspaceId: trimmed,
+      config: this.config,
+      historyService: this.historyService,
+      partialService: this.partialService,
+      aiService: this.aiService,
+    });
+
+    const chatUnsubscribe = session.onChatEvent((event) => {
+      if (!this.mainWindow) {
+        return;
+      }
+      const channel = getChatChannel(event.workspaceId);
+      this.mainWindow.webContents.send(channel, event.message);
+    });
+
+    const metadataUnsubscribe = session.onMetadataEvent((event) => {
+      if (!this.mainWindow) {
+        return;
+      }
+      this.mainWindow.webContents.send(IPC_CHANNELS.WORKSPACE_METADATA, {
+        workspaceId: event.workspaceId,
+        metadata: event.metadata,
+      });
+    });
+
+    this.sessions.set(trimmed, session);
+    this.sessionSubscriptions.set(trimmed, {
+      chat: chatUnsubscribe,
+      metadata: metadataUnsubscribe,
+    });
+
+    return session;
+  }
+
+  private disposeSession(workspaceId: string): void {
+    const session = this.sessions.get(workspaceId);
+    if (!session) {
+      return;
+    }
+
+    const subscriptions = this.sessionSubscriptions.get(workspaceId);
+    if (subscriptions) {
+      subscriptions.chat();
+      subscriptions.metadata();
+      this.sessionSubscriptions.delete(workspaceId);
+    }
+
+    session.dispose();
+    this.sessions.delete(workspaceId);
   }
 
   /**
@@ -90,7 +143,6 @@ export class IpcMain {
     this.registerProviderHandlers(ipcMain);
     this.registerProjectHandlers(ipcMain);
     this.registerSubscriptionHandlers(ipcMain);
-    this.setupEventForwarding();
     this.registered = true;
   }
 
@@ -119,65 +171,6 @@ export class IpcMain {
       if (!this.mainWindow) return;
       this.mainWindow.setTitle(title);
     });
-  }
-
-  /**
-   * Helper method: Stream AI response with history
-   * Shared logic between sendMessage and resumeStream handlers
-   */
-  private async streamWithHistory(
-    workspaceId: string,
-    modelString: string,
-    options?: SendMessageOptions
-  ): Promise<Result<void, SendMessageError>> {
-    const {
-      thinkingLevel,
-      toolPolicy,
-      additionalSystemInstructions,
-      maxOutputTokens,
-      providerOptions,
-      mode,
-    } = options ?? {};
-
-    // Commit any existing partial to history BEFORE loading
-    // This ensures interrupted messages are included in the AI's context
-    await this.partialService.commitToHistory(workspaceId);
-
-    // Get full conversation history
-    const historyResult = await this.historyService.getHistory(workspaceId);
-    if (!historyResult.success) {
-      log.error("Failed to get conversation history:", historyResult.error);
-      return {
-        success: false,
-        error: createUnknownSendMessageError(historyResult.error),
-      };
-    }
-
-    // Stream the AI response
-    log.debug("Calling aiService.streamMessage", {
-      workspaceId,
-      thinkingLevel,
-      modelString,
-      toolPolicy,
-      additionalSystemInstructions,
-      maxOutputTokens,
-      providerOptions,
-    });
-
-    const streamResult = await this.aiService.streamMessage(
-      historyResult.data,
-      workspaceId,
-      modelString,
-      thinkingLevel,
-      toolPolicy,
-      undefined,
-      additionalSystemInstructions,
-      maxOutputTokens,
-      providerOptions,
-      mode
-    );
-    log.debug("Stream completed", { workspaceId });
-    return streamResult;
   }
 
   private registerWorkspaceHandlers(ipcMain: ElectronIpcMain): void {
@@ -235,10 +228,8 @@ export class IpcMain {
           });
 
           // Emit metadata event for new workspace
-          this.mainWindow?.webContents.send(IPC_CHANNELS.WORKSPACE_METADATA, {
-            workspaceId,
-            metadata,
-          });
+          const session = this.getOrCreateSession(workspaceId);
+          session.emitMetadata(metadata);
 
           return {
             success: true,
@@ -380,16 +371,20 @@ export class IpcMain {
           });
 
           // Emit metadata event for old workspace deletion
-          this.mainWindow?.webContents.send(IPC_CHANNELS.WORKSPACE_METADATA, {
-            workspaceId,
-            metadata: null,
-          });
+          const oldSession = this.sessions.get(workspaceId);
+          if (oldSession) {
+            oldSession.emitMetadata(null);
+            this.disposeSession(workspaceId);
+          } else if (this.mainWindow) {
+            this.mainWindow.webContents.send(IPC_CHANNELS.WORKSPACE_METADATA, {
+              workspaceId,
+              metadata: null,
+            });
+          }
 
           // Emit metadata event for new workspace
-          this.mainWindow?.webContents.send(IPC_CHANNELS.WORKSPACE_METADATA, {
-            workspaceId: newWorkspaceId,
-            metadata: newMetadata,
-          });
+          const newSession = this.getOrCreateSession(newWorkspaceId);
+          newSession.emitMetadata(newMetadata);
 
           return Ok({ newWorkspaceId });
         } catch (error) {
@@ -421,113 +416,23 @@ export class IpcMain {
         message: string,
         options?: SendMessageOptions & { imageParts?: Array<{ image: string; mimeType: string }> }
       ) => {
-        const {
-          editMessageId,
-          thinkingLevel,
-          model,
-          toolPolicy,
-          additionalSystemInstructions,
-          maxOutputTokens,
-          providerOptions,
-          imageParts,
-          mode, // Passed to streamWithHistory for plan file loading
-        } = options ?? {};
         log.debug("sendMessage handler: Received", {
           workspaceId,
           messagePreview: message.substring(0, 50),
-          editMessageId,
-          thinkingLevel,
-          model,
-          toolPolicy,
-          mode,
-          additionalSystemInstructions,
-          maxOutputTokens,
-          providerOptions,
+          mode: options?.mode,
+          options,
         });
         try {
-          // Reject empty messages - use interruptStream() to interrupt active streams
-          if (!message.trim() && (!imageParts || imageParts.length === 0)) {
-            log.debug("sendMessage handler: Rejected empty message (use interruptStream instead)");
-            return {
-              success: false,
-              error: {
-                type: "unknown",
-                raw: "Empty message not allowed. Use interruptStream() to interrupt active streams.",
-              },
-            };
-          }
-
-          // If editing, truncate history after the message being edited
-          if (editMessageId) {
-            const truncateResult = await this.historyService.truncateAfterMessage(
+          const session = this.getOrCreateSession(workspaceId);
+          const result = await session.sendMessage(message, options);
+          if (!result.success) {
+            log.error("sendMessage handler: session returned error", {
               workspaceId,
-              editMessageId
-            );
-            if (!truncateResult.success) {
-              log.error("Failed to truncate history for edit:", truncateResult.error);
-              return {
-                success: false,
-                error: createUnknownSendMessageError(truncateResult.error),
-              };
-            }
-            // Note: We don't send a clear event here. The aggregator will handle
-            // replacement automatically when the new message arrives with the same historySequence
-          }
-
-          // Create user message with text and optional image parts
-          const messageId = `user-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
-          const additionalParts = imageParts?.map((img) => ({
-            type: "image" as const,
-            image: img.image,
-            mimeType: img.mimeType,
-          }));
-          if (additionalParts && additionalParts.length > 0) {
-            log.debug("sendMessage: Creating message with images", {
-              imageCount: additionalParts.length,
-              mimeTypes: additionalParts.map((p) => p.mimeType),
+              error: result.error,
             });
           }
-          const userMessage = createCmuxMessage(
-            messageId,
-            "user",
-            message,
-            {
-              // historySequence will be assigned by historyService.appendToHistory()
-              timestamp: Date.now(),
-              toolPolicy, // Store for historical record and compaction detection
-            },
-            additionalParts
-          );
-
-          // Append user message to history
-          const appendResult = await this.historyService.appendToHistory(workspaceId, userMessage);
-          if (!appendResult.success) {
-            log.error("Failed to append message to history:", appendResult.error);
-            return {
-              success: false,
-              error: createUnknownSendMessageError(appendResult.error),
-            };
-          }
-
-          // Broadcast the user message immediately to the frontend
-          if (this.mainWindow) {
-            this.mainWindow.webContents.send(getChatChannel(workspaceId), userMessage);
-          }
-
-          // Stream the AI response
-          if (!model) {
-            log.error("No model provided by frontend");
-            return {
-              success: false,
-              error: createUnknownSendMessageError(
-                "No model specified. Please select a model using /model command."
-              ),
-            };
-          }
-
-          return await this.streamWithHistory(workspaceId, model, options);
+          return result;
         } catch (error) {
-          // Convert to SendMessageError for typed error handling
           const errorMessage = error instanceof Error ? error.message : String(error);
           log.error("Unexpected error in sendMessage handler:", error);
           const sendError: SendMessageError = {
@@ -547,15 +452,15 @@ export class IpcMain {
           options,
         });
         try {
-          // Idempotent: if stream already active, return success (not error)
-          // This makes client code simpler and more resilient
-          if (this.aiService.isStreaming(workspaceId)) {
-            log.debug("resumeStream handler: Stream already active, returning success");
-            return { success: true };
+          const session = this.getOrCreateSession(workspaceId);
+          const result = await session.resumeStream(options);
+          if (!result.success) {
+            log.error("resumeStream handler: session returned error", {
+              workspaceId,
+              error: result.error,
+            });
           }
-
-          // Stream the AI response with existing history (no new user message)
-          return await this.streamWithHistory(workspaceId, options.model, options);
+          return result;
         } catch (error) {
           // Convert to SendMessageError for typed error handling
           const errorMessage = error instanceof Error ? error.message : String(error);
@@ -572,13 +477,8 @@ export class IpcMain {
     ipcMain.handle(IPC_CHANNELS.WORKSPACE_INTERRUPT_STREAM, async (_event, workspaceId: string) => {
       log.debug("interruptStream handler: Received", { workspaceId });
       try {
-        // Idempotent: if not streaming, return success (not error)
-        if (!this.aiService.isStreaming(workspaceId)) {
-          log.debug("interruptStream handler: Not streaming, returning success");
-          return { success: true, data: undefined };
-        }
-
-        const stopResult = await this.aiService.stopStream(workspaceId);
+        const session = this.getOrCreateSession(workspaceId);
+        const stopResult = await session.interruptStream();
         if (!stopResult.success) {
           log.error("Failed to stop stream:", stopResult.error);
           return { success: false, error: stopResult.error };
@@ -896,10 +796,17 @@ export class IpcMain {
       }
 
       // Emit metadata event for workspace removal (with null metadata to indicate deletion)
-      this.mainWindow?.webContents.send(IPC_CHANNELS.WORKSPACE_METADATA, {
-        workspaceId,
-        metadata: null, // null indicates workspace was deleted
-      });
+      const existingSession = this.sessions.get(workspaceId);
+      if (existingSession) {
+        existingSession.emitMetadata(null);
+      } else if (this.mainWindow) {
+        this.mainWindow.webContents.send(IPC_CHANNELS.WORKSPACE_METADATA, {
+          workspaceId,
+          metadata: null,
+        });
+      }
+
+      this.disposeSession(workspaceId);
 
       return { success: true };
     } catch (error) {
@@ -1072,31 +979,15 @@ export class IpcMain {
     // Handle subscription events for chat history
     ipcMain.on(`workspace:chat:subscribe`, (_event, workspaceId: string) => {
       void (async () => {
+        const session = this.getOrCreateSession(workspaceId);
         const chatChannel = getChatChannel(workspaceId);
 
-        const history = await this.historyService.getHistory(workspaceId);
-        if (history.success) {
-          for (const msg of history.data) {
-            this.mainWindow?.webContents.send(chatChannel, msg);
+        await session.replayHistory((event) => {
+          if (!this.mainWindow) {
+            return;
           }
-
-          // Check if there's an active stream or a partial message
-          const streamInfo = this.aiService.getStreamInfo(workspaceId);
-          const partial = await this.partialService.readPartial(workspaceId);
-
-          if (streamInfo) {
-            // Stream is actively running - replay events to re-establish streaming context
-            // Events flow: StreamManager → AIService → IpcMain → renderer
-            // This ensures frontend receives stream-start and creates activeStream entry
-            // so that stream-end can properly clean up the streaming indicator
-            this.aiService.replayStream(workspaceId);
-          } else if (partial) {
-            // No active stream but there's a partial - send as regular message (shows CONTINUE)
-            this.mainWindow?.webContents.send(chatChannel, partial);
-          }
-        }
-
-        this.mainWindow?.webContents.send(chatChannel, { type: "caught-up" });
+          this.mainWindow.webContents.send(chatChannel, event.message);
+        });
       })();
     });
 
@@ -1114,89 +1005,6 @@ export class IpcMain {
         }
       } catch (error) {
         console.error("Failed to emit current metadata:", error);
-      }
-    });
-  }
-
-  private setupEventForwarding(): void {
-    // Set up event listeners for AI service
-    this.aiService.on("stream-start", (data: StreamStartEvent) => {
-      if (this.mainWindow) {
-        // Send the actual stream-start event
-        this.mainWindow.webContents.send(getChatChannel(data.workspaceId), data);
-      }
-    });
-
-    this.aiService.on("stream-delta", (data: StreamDeltaEvent) => {
-      if (this.mainWindow) {
-        // Send ONLY the delta event - efficient IPC usage
-        this.mainWindow.webContents.send(getChatChannel(data.workspaceId), data);
-      }
-    });
-
-    this.aiService.on("stream-end", (data: StreamEndEvent) => {
-      if (this.mainWindow) {
-        // Send the stream-end event with final content and metadata
-        this.mainWindow.webContents.send(getChatChannel(data.workspaceId), data);
-      }
-    });
-
-    // Forward tool events to renderer
-    this.aiService.on("tool-call-start", (data: ToolCallStartEvent) => {
-      if (this.mainWindow) {
-        this.mainWindow.webContents.send(getChatChannel(data.workspaceId), data);
-      }
-    });
-
-    this.aiService.on("tool-call-delta", (data: ToolCallDeltaEvent) => {
-      if (this.mainWindow) {
-        this.mainWindow.webContents.send(getChatChannel(data.workspaceId), data);
-      }
-    });
-
-    this.aiService.on("tool-call-end", (data: ToolCallEndEvent) => {
-      if (this.mainWindow) {
-        this.mainWindow.webContents.send(getChatChannel(data.workspaceId), data);
-      }
-    });
-
-    // Forward reasoning events to renderer
-    this.aiService.on(
-      "reasoning-delta",
-      (data: { type: string; workspaceId: string; messageId: string; delta: string }) => {
-        if (this.mainWindow) {
-          this.mainWindow.webContents.send(getChatChannel(data.workspaceId), data);
-        }
-      }
-    );
-
-    this.aiService.on(
-      "reasoning-end",
-      (data: { type: string; workspaceId: string; messageId: string }) => {
-        if (this.mainWindow) {
-          this.mainWindow.webContents.send(getChatChannel(data.workspaceId), data);
-        }
-      }
-    );
-
-    this.aiService.on("error", (data: ErrorEvent) => {
-      if (this.mainWindow) {
-        // Send properly typed StreamErrorMessage
-        const errorMessage: StreamErrorMessage = {
-          type: "stream-error",
-          messageId: data.messageId,
-          error: data.error,
-          errorType: data.errorType ?? "unknown",
-        };
-        this.mainWindow.webContents.send(getChatChannel(data.workspaceId), errorMessage);
-      }
-    });
-
-    // Handle stream abort events
-    this.aiService.on("stream-abort", (data: StreamAbortEvent) => {
-      if (this.mainWindow) {
-        // Forward complete abort event including metadata (usage, duration)
-        this.mainWindow.webContents.send(getChatChannel(data.workspaceId), data);
       }
     });
   }

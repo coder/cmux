@@ -509,6 +509,12 @@ export class AIService extends EventEmitter {
 
       // Apply tool policy to filter tools (if policy provided)
       const tools = applyToolPolicy(allTools, toolPolicy);
+      log.info("AIService.streamMessage: tool configuration", {
+        workspaceId,
+        model: modelString,
+        toolNames: Object.keys(tools),
+        hasToolPolicy: Boolean(toolPolicy),
+      });
 
       // Create assistant message placeholder with historySequence from backend
       const assistantMessageId = `assistant-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;

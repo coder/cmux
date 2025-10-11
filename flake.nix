@@ -129,6 +129,10 @@
             git
             bash
             nixfmt-rfc-style
+
+            # Terminal bench
+            uv
+            asciinema
           ];
         };
       }

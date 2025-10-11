@@ -93,7 +93,7 @@ export function buildProviderOptions(
         }),
       },
     };
-    log.info("buildProviderOptions: Returning Anthropic options", options);
+    log.debug("buildProviderOptions: Returning Anthropic options", options);
     return options;
   }
 
