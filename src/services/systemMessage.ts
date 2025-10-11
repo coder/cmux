@@ -54,7 +54,7 @@ function getSystemDirectory(): string {
  * Instruction sources are layered in this order:
  * 1. Global instructions: ~/.cmux/AGENTS.md (+ AGENTS.local.md)
  * 2. Workspace instructions: <workspace>/AGENTS.md (+ AGENTS.local.md)
- * 3. Plan context: First found from:
+ * 3. Plan context (plan mode only): First found from:
  *    - ~/.cmux/.cmux/PLAN.md
  *    - <workspace>/.cmux/PLAN.md
  *    - ~/.cmux/.cmux/PLAN.local.md
@@ -69,12 +69,14 @@ function getSystemDirectory(): string {
  * checked and appended (useful for personal preferences not committed to git).
  *
  * @param metadata - Workspace metadata containing the workspace path
+ * @param mode - UI permission mode ("edit" | "plan") - plan files only loaded in plan mode
  * @param additionalSystemInstructions - Optional additional system instructions to append at the end
  * @returns System message string with all instruction sources combined
  * @throws Error if metadata is invalid or workspace path is missing
  */
 export async function buildSystemMessage(
   metadata: WorkspaceMetadata,
+  mode?: "edit" | "plan",
   additionalSystemInstructions?: string
 ): Promise<string> {
   // Validate metadata early
@@ -91,9 +93,9 @@ export async function buildSystemMessage(
   const instructionSegments = await gatherInstructionSets(instructionDirectories);
   const customInstructions = instructionSegments.join("\n\n");
 
-  // Look for plan files in both system and workspace directories
+  // Look for plan files only in plan mode
   // Plan files live in .cmux/PLAN.md (or .local.md variant)
-  const planContent = await readPlanFile([systemDir, workspaceDir]);
+  const planContent = mode === "plan" ? await readPlanFile([systemDir, workspaceDir]) : null;
 
   // Build the final system message
   const environmentContext = buildEnvironmentContext(workspaceDir);

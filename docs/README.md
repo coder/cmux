@@ -40,40 +40,7 @@ docs/
 
 ## Writing Guidelines
 
-**Focus on what matters. Avoid documenting trivia.**
-
-- **Don't document expected behavior** - If your target audience already expects it, don't state it
-- **Don't document obvious details** - Implementation details that "just work" don't need explanation
-- **Assume technical competence** - Don't show how to create files, edit configs, or perform basic tasks
-- **State mechanics once** - If implications or use cases are clear from the description, don't list them separately
-- **Document what's different** - Deviations from expectations, gotchas, design decisions
-- **Document what's complex** - Multi-step workflows, non-obvious interactions, tradeoffs
-
-### Examples of What NOT to Document
-
-❌ "The cursor is always visible, even on empty text" - Expected Vim behavior, trivial detail
-
-❌ "The save button is in the top right" - Obvious from UI, no cognitive value
-
-❌ "Press Enter to submit" - Universal convention, doesn't need stating
-
-### Examples of What TO Document
-
-✅ "ESC exits normal mode instead of canceling edits (use Ctrl-Q)" - Different from expected behavior
-
-✅ "Column position is preserved when moving up/down" - Non-obvious Vim feature some users don't know
-
-✅ "Operators compose with motions: d + w = dw" - Core concept that unlocks understanding
-
-### Example Mermaid Diagram
-
-````markdown
-```mermaid
-graph LR
-    A[Start] --> B[Process]
-    B --> C[End]
-```
-````
+See [STYLE.md](./STYLE.md) for documentation writing guidelines.
 
 ## CI/CD
 
