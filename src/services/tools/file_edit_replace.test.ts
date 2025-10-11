@@ -5,6 +5,7 @@ import * as os from "os";
 import { createFileEditReplaceTool } from "./file_edit_replace";
 import type { FileEditReplaceToolArgs, FileEditReplaceToolResult } from "@/types/tools";
 import type { ToolCallOptions } from "ai";
+import { LocalRuntime } from "@/runtime/LocalRuntime";
 
 // Mock ToolCallOptions for testing
 const mockToolCallOptions: ToolCallOptions = {
@@ -47,7 +48,7 @@ describe("file_edit_replace tool", () => {
 
   it("should apply a single edit successfully", async () => {
     await setupFile(testFilePath, "Hello world\nThis is a test\nGoodbye world");
-    const tool = createFileEditReplaceTool({ cwd: testDir });
+    const tool = createFileEditReplaceTool({ cwd: testDir, runtime: new LocalRuntime() });
 
     const result = await executeReplace(tool, testFilePath, [
       { old_string: "Hello world", new_string: "Hello universe" },
@@ -63,7 +64,7 @@ describe("file_edit_replace tool", () => {
 
   it("should apply multiple edits sequentially", async () => {
     await setupFile(testFilePath, "foo bar baz");
-    const tool = createFileEditReplaceTool({ cwd: testDir });
+    const tool = createFileEditReplaceTool({ cwd: testDir, runtime: new LocalRuntime() });
 
     const result = await executeReplace(tool, testFilePath, [
       { old_string: "foo", new_string: "FOO" },
@@ -86,7 +87,7 @@ describe("file_edit_replace tool", () => {
     const initialContent = "foo bar baz";
     await fs.writeFile(testFilePath, initialContent);
 
-    const tool = createFileEditReplaceTool({ cwd: testDir });
+    const tool = createFileEditReplaceTool({ cwd: testDir, runtime: new LocalRuntime() });
     const args: FileEditReplaceToolArgs = {
       file_path: testFilePath,
       edits: [
@@ -125,7 +126,7 @@ describe("file_edit_replace tool", () => {
     const initialContent = "cat dog cat bird cat";
     await fs.writeFile(testFilePath, initialContent);
 
-    const tool = createFileEditReplaceTool({ cwd: testDir });
+    const tool = createFileEditReplaceTool({ cwd: testDir, runtime: new LocalRuntime() });
     const args: FileEditReplaceToolArgs = {
       file_path: testFilePath,
       edits: [
@@ -155,7 +156,7 @@ describe("file_edit_replace tool", () => {
     const initialContent = "cat dog bird";
     await fs.writeFile(testFilePath, initialContent);
 
-    const tool = createFileEditReplaceTool({ cwd: testDir });
+    const tool = createFileEditReplaceTool({ cwd: testDir, runtime: new LocalRuntime() });
     const args: FileEditReplaceToolArgs = {
       file_path: testFilePath,
       edits: [
@@ -185,7 +186,7 @@ describe("file_edit_replace tool", () => {
     const initialContent = "Hello world";
     await fs.writeFile(testFilePath, initialContent);
 
-    const tool = createFileEditReplaceTool({ cwd: testDir });
+    const tool = createFileEditReplaceTool({ cwd: testDir, runtime: new LocalRuntime() });
     const args: FileEditReplaceToolArgs = {
       file_path: testFilePath,
       edits: [
@@ -215,7 +216,7 @@ describe("file_edit_replace tool", () => {
     const initialContent = "cat dog cat bird cat";
     await fs.writeFile(testFilePath, initialContent);
 
-    const tool = createFileEditReplaceTool({ cwd: testDir });
+    const tool = createFileEditReplaceTool({ cwd: testDir, runtime: new LocalRuntime() });
     const args: FileEditReplaceToolArgs = {
       file_path: testFilePath,
       edits: [
@@ -248,7 +249,7 @@ describe("file_edit_replace tool", () => {
     const initialContent = "cat dog cat bird cat";
     await fs.writeFile(testFilePath, initialContent);
 
-    const tool = createFileEditReplaceTool({ cwd: testDir });
+    const tool = createFileEditReplaceTool({ cwd: testDir, runtime: new LocalRuntime() });
     const args: FileEditReplaceToolArgs = {
       file_path: testFilePath,
       edits: [
@@ -278,7 +279,7 @@ describe("file_edit_replace tool", () => {
     const initialContent = "cat dog bird";
     await fs.writeFile(testFilePath, initialContent);
 
-    const tool = createFileEditReplaceTool({ cwd: testDir });
+    const tool = createFileEditReplaceTool({ cwd: testDir, runtime: new LocalRuntime() });
     const args: FileEditReplaceToolArgs = {
       file_path: testFilePath,
       edits: [
@@ -309,7 +310,7 @@ describe("file_edit_replace tool", () => {
     // Setup
     const nonExistentPath = path.join(testDir, "nonexistent.txt");
 
-    const tool = createFileEditReplaceTool({ cwd: testDir });
+    const tool = createFileEditReplaceTool({ cwd: testDir, runtime: new LocalRuntime() });
     const args: FileEditReplaceToolArgs = {
       file_path: nonExistentPath,
       edits: [
@@ -326,7 +327,7 @@ describe("file_edit_replace tool", () => {
     // Assert
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error).toContain("File not found");
+      expect(result.error).toContain("Failed to stat");
     }
   });
 
@@ -335,7 +336,7 @@ describe("file_edit_replace tool", () => {
     const initialContent = "line1\nline2\nline3\nline4";
     await fs.writeFile(testFilePath, initialContent);
 
-    const tool = createFileEditReplaceTool({ cwd: testDir });
+    const tool = createFileEditReplaceTool({ cwd: testDir, runtime: new LocalRuntime() });
     const args: FileEditReplaceToolArgs = {
       file_path: testFilePath,
       edits: [
@@ -364,7 +365,7 @@ describe("file_edit_replace tool", () => {
     const initialContent = "Hello [DELETE_ME] world";
     await fs.writeFile(testFilePath, initialContent);
 
-    const tool = createFileEditReplaceTool({ cwd: testDir });
+    const tool = createFileEditReplaceTool({ cwd: testDir, runtime: new LocalRuntime() });
     const args: FileEditReplaceToolArgs = {
       file_path: testFilePath,
       edits: [
@@ -393,7 +394,7 @@ describe("file_edit_replace tool", () => {
     const initialContent = "step1";
     await fs.writeFile(testFilePath, initialContent);
 
-    const tool = createFileEditReplaceTool({ cwd: testDir });
+    const tool = createFileEditReplaceTool({ cwd: testDir, runtime: new LocalRuntime() });
     const args: FileEditReplaceToolArgs = {
       file_path: testFilePath,
       edits: [
@@ -426,7 +427,7 @@ describe("file_edit_replace tool", () => {
     const initialContent = "line1\nline2\nline3\nline4\nline5\nline6\nline7\nline8\nline9";
     await fs.writeFile(testFilePath, initialContent);
 
-    const tool = createFileEditReplaceTool({ cwd: testDir });
+    const tool = createFileEditReplaceTool({ cwd: testDir, runtime: new LocalRuntime() });
     const args: FileEditReplaceToolArgs = {
       file_path: testFilePath,
       edits: [

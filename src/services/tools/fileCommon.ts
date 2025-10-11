@@ -1,7 +1,7 @@
 import * as crypto from "crypto";
-import type * as fs from "fs";
 import * as path from "path";
 import { createPatch } from "diff";
+import type { FileStat } from "@/runtime/Runtime";
 
 /**
  * Maximum file size for file operations (1MB)
@@ -40,10 +40,10 @@ export function generateDiff(filePath: string, oldContent: string, newContent: s
  * Validates that a file size is within the allowed limit.
  * Returns an error object if the file is too large, null if valid.
  *
- * @param stats - File stats from fs.stat()
+ * @param stats - File stats from runtime.stat()
  * @returns Error object if file is too large, null if valid
  */
-export function validateFileSize(stats: fs.Stats): { error: string } | null {
+export function validateFileSize(stats: FileStat): { error: string } | null {
   if (stats.size > MAX_FILE_SIZE) {
     const sizeMB = (stats.size / (1024 * 1024)).toFixed(2);
     const maxMB = (MAX_FILE_SIZE / (1024 * 1024)).toFixed(2);

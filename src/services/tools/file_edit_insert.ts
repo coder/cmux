@@ -1,11 +1,10 @@
 import { tool } from "ai";
-import * as fs from "fs/promises";
 import * as path from "path";
-import writeFileAtomic from "write-file-atomic";
 import type { FileEditInsertToolResult } from "@/types/tools";
 import type { ToolConfiguration, ToolFactory } from "@/utils/tools/tools";
 import { TOOL_DEFINITIONS } from "@/utils/tools/toolDefinitions";
 import { generateDiff, validatePathInCwd, validateFileSize } from "./fileCommon";
+import { RuntimeError } from "@/runtime/Runtime";
 
 /**
  * File edit insert tool factory for AI assistant
@@ -33,8 +32,20 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
           : path.resolve(config.cwd, file_path);
 
         // Check if file exists
-        const stats = await fs.stat(resolvedPath);
-        if (!stats.isFile()) {
+        let fileStat;
+        try {
+          fileStat = await config.runtime.stat(resolvedPath);
+        } catch (err) {
+          if (err instanceof RuntimeError) {
+            return {
+              success: false,
+              error: err.message,
+            };
+          }
+          throw err;
+        }
+
+        if (!fileStat.isFile) {
           return {
             success: false,
             error: `Path exists but is not a file: ${resolvedPath}`,
@@ -42,7 +53,7 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
         }
 
         // Validate file size
-        const sizeValidation = validateFileSize(stats);
+        const sizeValidation = validateFileSize(fileStat);
         if (sizeValidation) {
           return {
             success: false,
@@ -51,7 +62,18 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
         }
 
         // Read file content
-        const originalContent = await fs.readFile(resolvedPath, { encoding: "utf-8" });
+        let originalContent: string;
+        try {
+          originalContent = await config.runtime.readFile(resolvedPath);
+        } catch (err) {
+          if (err instanceof RuntimeError) {
+            return {
+              success: false,
+              error: err.message,
+            };
+          }
+          throw err;
+        }
         const lines = originalContent.split("\n");
 
         // Validate line_offset
@@ -76,7 +98,17 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
         const newContent = newLines.join("\n");
 
         // Write the modified content back to file atomically
-        await writeFileAtomic(resolvedPath, newContent, { encoding: "utf-8" });
+        try {
+          await config.runtime.writeFile(resolvedPath, newContent);
+        } catch (err) {
+          if (err instanceof RuntimeError) {
+            return {
+              success: false,
+              error: err.message,
+            };
+          }
+          throw err;
+        }
 
         // Generate diff
         const diff = generateDiff(resolvedPath, originalContent, newContent);
