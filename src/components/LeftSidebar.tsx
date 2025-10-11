@@ -37,6 +37,8 @@ interface LeftSidebarProps {
     newName: string
   ) => Promise<{ success: boolean; error?: string }>;
   getWorkspaceState: (workspaceId: string) => WorkspaceState;
+  unreadStatus: Map<string, boolean>;
+  onToggleUnread: (workspaceId: string) => void;
   collapsed: boolean;
   onToggleCollapsed: () => void;
   onGetSecrets: (projectPath: string) => Promise<Secret[]>;
