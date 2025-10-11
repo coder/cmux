@@ -1,23 +1,23 @@
 import { useEffect } from "react";
 import type { WorkspaceState } from "@/hooks/useWorkspaceAggregators";
 import { getCompactContinueMessageKey } from "@/constants/storage";
+import { buildSendMessageOptions } from "@/hooks/useSendMessageOptions";
 
 /**
  * Hook to manage auto-continue after compaction
  *
  * Stateless reactive approach:
  * - Watches all workspaces for single compacted message
- * - Returns list of workspaces that need auto-continue
- * - Parent (App.tsx) handles sendMessage with proper options
+ * - Builds sendMessage options from localStorage
+ * - Sends continue message automatically
+ *
+ * Self-contained: No callback needed. Hook detects condition and handles action.
  *
  * IMPORTANT: sendMessage options (model, thinking level, mode, etc.) are managed by the
- * frontend via useSendMessageOptions hook. The backend does NOT fall back to workspace
+ * frontend via buildSendMessageOptions. The backend does NOT fall back to workspace
  * metadata - frontend must pass complete options.
  */
-export function useAutoCompactContinue(
-  workspaceStates: Map<string, WorkspaceState>,
-  onContinue: (workspaceId: string, message: string) => void
-) {
+export function useAutoCompactContinue(workspaceStates: Map<string, WorkspaceState>) {
   useEffect(() => {
     // Check all workspaces for completed compaction
     for (const [workspaceId, state] of workspaceStates) {
@@ -33,12 +33,15 @@ export function useAutoCompactContinue(
           // Clean up first to prevent duplicate sends
           localStorage.removeItem(getCompactContinueMessageKey(workspaceId));
 
-          // Notify parent to send the message with proper options
-          onContinue(workspaceId, continueMessage);
+          // Build options and send message directly
+          const options = buildSendMessageOptions(workspaceId);
+          window.api.workspace.sendMessage(workspaceId, continueMessage, options).catch((error) => {
+            console.error("Failed to send continue message:", error);
+          });
         }
       }
     }
-  }, [workspaceStates, onContinue]);
+  }, [workspaceStates]);
 
   // Simple callback to store continue message in localStorage
   // Called by ChatInput when /compact is parsed

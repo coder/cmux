@@ -463,6 +463,8 @@ Notice when you've made the same change many times, refactor to create a shared 
 or component, update all the duplicated code, and then continue on with the original work.
 When repeating string literals (especially in error messages, UI text, or system instructions), extract them to named constants in a relevant constants/utils file - never define the same string literal multiple times across files.
 
+**Avoid unnecessary callback indirection**: If a hook detects a condition and has access to all data needed to handle it, let it handle the action directly rather than passing callbacks up to parent components. Keep hooks self-contained when possible.
+
 ## UX Considerations
 
 - For every operation in the frontend, there should be a keyboard shortcut.
