@@ -59,6 +59,16 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
     return aggregatorsRef.current.get(workspaceId)!;
   }, []);
 
+  // Expose aggregators for dev console debugging
+  useEffect(() => {
+    if (process.env.NODE_ENV === "development") {
+      (window as any).__cmux_debug = {
+        aggregators: aggregatorsRef.current,
+        getAggregator,
+      };
+    }
+  }, [getAggregator]);
+
   // Get state for a specific workspace
   const getWorkspaceState = useCallback(
     (workspaceId: string): WorkspaceState => {
