@@ -16,10 +16,11 @@ export function applyToolOutputRedaction(messages: CmuxMessage[]): CmuxMessage[]
       const toolPart = part as DynamicToolPart;
       if (toolPart.state !== "output-available") return part;
 
-      return {
+      const redacted: typeof toolPart = {
         ...toolPart,
         output: redactToolOutput(toolPart.toolName, toolPart.output),
-      } as typeof toolPart;
+      };
+      return redacted;
     });
 
     return {
