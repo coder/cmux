@@ -3,32 +3,32 @@ import styled from "@emotion/styled";
 import { Modal, ModalInfo, ModalActions, CancelButton, PrimaryButton } from "./Modal";
 
 const ErrorCodeBlock = styled.pre`
-  background: #1a1a1a;
-  border: 1px solid #444;
+  background: var(--color-background-secondary);
+  border: 1px solid var(--color-error);
   border-radius: 4px;
   padding: 12px;
   margin: 16px 0;
   font-size: 12px;
   font-family: var(--font-monospace);
-  color: #d4d4d4;
+  color: var(--color-text);
   overflow-x: auto;
   white-space: pre-wrap;
   word-break: break-word;
 `;
 
 const WarningText = styled.p`
-  color: #f48771;
+  color: var(--color-error);
   font-size: 13px;
   margin: 12px 0;
   line-height: 1.5;
 `;
 
-const DangerButton = styled(PrimaryButton)`
-  background: #d32f2f;
-  color: white;
+const ForceDeleteButton = styled(PrimaryButton)`
+  background: var(--color-error);
+  color: var(--color-background);
 
   &:hover:not(:disabled) {
-    background: #b71c1c;
+    background: color-mix(in srgb, var(--color-error), #fff 20%);
   }
 `;
 
@@ -86,9 +86,9 @@ export const ForceDeleteModal: React.FC<ForceDeleteModalProps> = ({
         <CancelButton onClick={onClose} disabled={isDeleting}>
           Cancel
         </CancelButton>
-        <DangerButton onClick={handleForceDelete} disabled={isDeleting}>
+        <ForceDeleteButton onClick={handleForceDelete} disabled={isDeleting}>
           {isDeleting ? "Deleting..." : "Force Delete"}
-        </DangerButton>
+        </ForceDeleteButton>
       </ModalActions>
     </Modal>
   );
