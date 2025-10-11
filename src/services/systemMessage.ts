@@ -69,14 +69,14 @@ function getSystemDirectory(): string {
  * checked and appended (useful for personal preferences not committed to git).
  *
  * @param metadata - Workspace metadata containing the workspace path
- * @param mode - UI permission mode ("edit" | "plan") - plan files only loaded in plan mode
+ * @param mode - UI permission mode ("exec" | "plan") - plan files only loaded in plan mode
  * @param additionalSystemInstructions - Optional additional system instructions to append at the end
  * @returns System message string with all instruction sources combined
  * @throws Error if metadata is invalid or workspace path is missing
  */
 export async function buildSystemMessage(
   metadata: WorkspaceMetadata,
-  mode?: "edit" | "plan",
+  mode?: "exec" | "plan",
   additionalSystemInstructions?: string
 ): Promise<string> {
   // Validate metadata early

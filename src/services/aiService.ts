@@ -389,7 +389,7 @@ export class AIService extends EventEmitter {
    * @param additionalSystemInstructions Optional additional system instructions to append
    * @param maxOutputTokens Optional maximum tokens for model output
    * @param cmuxProviderOptions Optional provider-specific options
-   * @param mode Optional UI permission mode ("edit" | "plan") - affects system message
+   * @param mode Optional UI permission mode ("exec" | "plan") - affects system message
    * @returns Promise that resolves when streaming completes or fails
    */
   async streamMessage(
@@ -402,7 +402,7 @@ export class AIService extends EventEmitter {
     additionalSystemInstructions?: string,
     maxOutputTokens?: number,
     cmuxProviderOptions?: CmuxProviderOptions,
-    mode?: "edit" | "plan"
+    mode?: "exec" | "plan"
   ): Promise<Result<void, SendMessageError>> {
     try {
       if (this.mockModeEnabled && this.mockScenarioPlayer) {

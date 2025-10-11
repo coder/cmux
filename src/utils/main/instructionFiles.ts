@@ -13,7 +13,6 @@ export const INSTRUCTION_FILE_NAMES = ["AGENTS.md", "AGENT.md", "CLAUDE.md"] as 
  *
  * Example: If AGENTS.md exists, we also check for AGENTS.local.md
  */
-const LOCAL_INSTRUCTION_SUFFIX = ".local.md";
 const LOCAL_INSTRUCTION_FILENAME = "AGENTS.local.md";
 
 /**

@@ -138,7 +138,7 @@ export interface SendMessageOptions {
   additionalSystemInstructions?: string;
   maxOutputTokens?: number;
   providerOptions?: CmuxProviderOptions;
-  mode?: "edit" | "plan"; // UI permission mode
+  mode?: "exec" | "plan"; // UI permission mode
 }
 
 // API method signatures (shared between main and preload)

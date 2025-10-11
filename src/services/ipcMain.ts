@@ -431,7 +431,7 @@ export class IpcMain {
           maxOutputTokens,
           providerOptions,
           imageParts,
-          mode,
+          mode, // Passed to streamWithHistory for plan file loading
         } = options ?? {};
         log.debug("sendMessage handler: Received", {
           workspaceId,
@@ -440,6 +440,7 @@ export class IpcMain {
           thinkingLevel,
           model,
           toolPolicy,
+          mode,
           additionalSystemInstructions,
           maxOutputTokens,
           providerOptions,
