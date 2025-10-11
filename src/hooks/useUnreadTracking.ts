@@ -83,11 +83,15 @@ export function useUnreadTracking(
         continue;
       }
 
-      // Check if there are any assistant messages newer than last-read timestamp
-      // This works for all workspaces including the selected one
+      // Check for any assistant-originated content newer than last-read timestamp:
+      // assistant text, tool calls/results (e.g., propose_plan), reasoning, and errors.
+      // Exclude user's own messages and UI markers.
       const lastRead = lastReadMap[workspaceId] ?? 0;
       const hasUnread = state.messages.some(
-        (msg) => msg.type === "assistant" && (msg.timestamp ?? 0) > lastRead
+        (msg) =>
+          msg.type !== "user" &&
+          msg.type !== "history-hidden" &&
+          (msg.timestamp ?? 0) > lastRead
       );
 
       result.set(workspaceId, hasUnread);
@@ -102,10 +106,13 @@ export function useUnreadTracking(
       const lastRead = lastReadMap[workspaceId] ?? 0;
       const state = workspaceStates.get(workspaceId);
 
-      // Calculate if currently unread
+      // Calculate if currently unread (same logic as unreadStatus)
       const isCurrentlyUnread =
         state?.messages.some(
-          (msg) => msg.type === "assistant" && (msg.timestamp ?? 0) > lastRead
+          (msg) =>
+            msg.type !== "user" &&
+            msg.type !== "history-hidden" &&
+            (msg.timestamp ?? 0) > lastRead
         ) ?? false;
 
       if (isCurrentlyUnread) {
