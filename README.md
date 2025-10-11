@@ -34,13 +34,7 @@ of cmux as the IDE of the future. We go beyond Claude Code with:
   - LaTeX
   - Toggles!
 
-## Documentation
-
 📚 **[Read the full documentation →](https://cmux.io)**
-
-- [Installation](https://cmux.io/install.html)
-- [Keyboard Shortcuts](https://cmux.io/keybinds.html)
-- [Developer Guide](https://cmux.io/AGENTS.html)
 
 ## Quick Install
 
@@ -49,6 +43,12 @@ Download pre-built binaries from [the releases page](https://github.com/coder/cm
 - **macOS**: Signed and notarized DMG (separate builds for Intel/Apple Silicon)
 - **Linux**: AppImage
 - **Windows**: not implemented, coming soon
+
+## Screenshots
+
+![Screenshot of mermaid diagram](./docs/img/plan-mermaid.webp)
+
+> Mermaid diagrams make it easier to review complex proposals from the Agent
 
 ## Development
 
