@@ -4,7 +4,7 @@ import { MessageRenderer } from "./Messages/MessageRenderer";
 import { InterruptedBarrier } from "./Messages/ChatBarrier/InterruptedBarrier";
 import { StreamingBarrier } from "./Messages/ChatBarrier/StreamingBarrier";
 import { RetryBarrier } from "./Messages/ChatBarrier/RetryBarrier";
-import { getAutoRetryKey, getThinkingLevelKey, getThinkingByModelKey } from "@/constants/storage";
+import { getAutoRetryKey, getThinkingByModelKey } from "@/constants/storage";
 import { ChatInput, type ChatInputRef } from "./ChatInput";
 import { ChatMetaSidebar } from "./ChatMetaSidebar";
 import { shouldShowInterruptedBarrier } from "@/utils/messages/messageUtils";
@@ -19,6 +19,7 @@ import {
   updatePersistedState,
   readPersistedState,
 } from "@/hooks/usePersistedState";
+import { useThinking } from "@/contexts/ThinkingContext";
 import type { WorkspaceState } from "@/hooks/useWorkspaceAggregators";
 import { StatusIndicator } from "./StatusIndicator";
 import { getModelName } from "@/utils/ai/models";
@@ -238,6 +239,9 @@ const AIViewInner: React.FC<AIViewProps> = ({
   // Ref to ChatInput for focus management
   const chatInputRef = useRef<ChatInputRef>(null);
 
+  // Thinking level state from context
+  const { thinkingLevel: currentWorkspaceThinking, setThinkingLevel } = useThinking();
+
   // Auto-scroll when messages update (during streaming)
   useEffect(() => {
     if (autoScroll) {
@@ -335,20 +339,21 @@ const AIViewInner: React.FC<AIViewProps> = ({
       // Toggle thinking works even when focused in input fields
       if (matchesKeybind(e, KEYBINDS.TOGGLE_THINKING)) {
         e.preventDefault();
-        // Get current thinking level for the workspace
-        const thinkingKey = getThinkingLevelKey(workspaceId);
-        const currentThinking = readPersistedState<ThinkingLevel | null>(thinkingKey, null);
 
-        if (currentThinking && currentThinking !== "off") {
-          // If thinking is on, save it for this model and turn it off
-          const modelKey = getThinkingByModelKey(currentModel);
-          updatePersistedState(modelKey, currentThinking);
-          updatePersistedState(thinkingKey, "off");
+        // Storage key for remembering this model's last-used thinking level
+        const modelThinkingMemoryKey = getThinkingByModelKey(currentModel);
+
+        if (currentWorkspaceThinking && currentWorkspaceThinking !== "off") {
+          // Thinking is currently ON - save the level for this model and turn it off
+          updatePersistedState(modelThinkingMemoryKey, currentWorkspaceThinking);
+          setThinkingLevel("off");
         } else {
-          // If thinking is off, restore the last value for this model (default to "medium")
-          const modelKey = getThinkingByModelKey(currentModel);
-          const lastThinking = readPersistedState<ThinkingLevel>(modelKey, "medium");
-          updatePersistedState(thinkingKey, lastThinking);
+          // Thinking is currently OFF - restore the last level used for this model
+          const lastUsedThinkingForModel = readPersistedState<ThinkingLevel>(
+            modelThinkingMemoryKey,
+            "medium"
+          );
+          setThinkingLevel(lastUsedThinkingForModel);
         }
         return;
       }
