@@ -41,10 +41,7 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
   return tool({
     description: TOOL_DEFINITIONS.bash.description + "\nRuns in " + config.cwd + " - no cd needed",
     inputSchema: TOOL_DEFINITIONS.bash.schema,
-    execute: async (
-      { script, timeout_secs },
-      { abortSignal }
-    ): Promise<BashToolResult> => {
+    execute: async ({ script, timeout_secs }, { abortSignal }): Promise<BashToolResult> => {
       // Validate script is not empty - likely indicates a malformed tool call
       if (!script || script.trim().length === 0) {
         return {
