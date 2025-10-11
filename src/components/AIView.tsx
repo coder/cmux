@@ -181,7 +181,7 @@ interface AIViewProps {
   branch: string;
   workspacePath: string;
   workspaceState: WorkspaceState;
-  onCompactStart?: (continueMessage: string) => void;
+  onCompactStart?: (continueMessage: string | undefined) => void;
   className?: string;
 }
 

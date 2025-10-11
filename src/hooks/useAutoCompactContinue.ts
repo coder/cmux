@@ -40,10 +40,17 @@ export function useAutoCompactContinue(
   }, [workspaceId, messages]);
 
   // Simple callback to store continue message in localStorage
-  // Called by ChatInput when /compact -c is parsed
-  const handleCompactStart = (continueMessage: string) => {
+  // Called by ChatInput when /compact is parsed
+  const handleCompactStart = (continueMessage: string | undefined) => {
     if (!workspaceId) return;
-    localStorage.setItem(getCompactContinueMessageKey(workspaceId), continueMessage);
+    
+    if (continueMessage) {
+      localStorage.setItem(getCompactContinueMessageKey(workspaceId), continueMessage);
+    } else {
+      // Clear any pending continue message if -c flag not provided
+      // Ensures stored message reflects latest user intent
+      localStorage.removeItem(getCompactContinueMessageKey(workspaceId));
+    }
   };
 
   return { handleCompactStart };

@@ -123,7 +123,7 @@ export interface ChatInputProps {
   onTruncateHistory: (percentage?: number) => Promise<void>;
   onProviderConfig?: (provider: string, keyPath: string[], value: string) => Promise<void>;
   onModelChange?: (model: string) => void;
-  onCompactStart?: (continueMessage: string) => void; // Called when compaction starts with continue message
+  onCompactStart?: (continueMessage: string | undefined) => void; // Called when compaction starts to update continue message state
   disabled?: boolean;
   isCompacting?: boolean;
   editingMessage?: { id: string; content: string };
@@ -633,8 +633,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
               setToast(createErrorToast(result.error));
               setInput(messageText); // Restore input on error
             } else {
-              // Notify parent if continue message was provided (parent handles storage)
-              if (parsed.continueMessage && onCompactStart) {
+              // Notify parent to update continue message state (parent handles storage)
+              if (onCompactStart) {
                 onCompactStart(parsed.continueMessage);
               }
 
