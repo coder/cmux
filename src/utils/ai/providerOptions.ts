@@ -10,6 +10,7 @@ import type { ThinkingLevel } from "@/types/thinking";
 import { ANTHROPIC_THINKING_BUDGETS, OPENAI_REASONING_EFFORT } from "@/types/thinking";
 import { log } from "@/services/log";
 import type { CmuxMessage } from "@/types/message";
+import { enforceThinkingPolicy } from "@/utils/thinking/policy";
 
 /**
  * Extended OpenAI Responses provider options to include truncation
@@ -55,6 +56,8 @@ export function buildProviderOptions(
   thinkingLevel: ThinkingLevel,
   messages?: CmuxMessage[]
 ): ProviderOptions {
+  // Always clamp to the model's supported thinking policy (e.g., gpt-5-pro = HIGH only)
+  const effectiveThinking = enforceThinkingPolicy(modelString, thinkingLevel);
   // Parse provider from model string
   const [provider] = modelString.split(":");
 
@@ -71,10 +74,10 @@ export function buildProviderOptions(
 
   // Build Anthropic-specific options
   if (provider === "anthropic") {
-    const budgetTokens = ANTHROPIC_THINKING_BUDGETS[thinkingLevel];
+    const budgetTokens = ANTHROPIC_THINKING_BUDGETS[effectiveThinking];
     log.debug("buildProviderOptions: Anthropic config", {
       budgetTokens,
-      thinkingLevel,
+      thinkingLevel: effectiveThinking,
     });
 
     const options: ProviderOptions = {
@@ -96,7 +99,7 @@ export function buildProviderOptions(
 
   // Build OpenAI-specific options
   if (provider === "openai") {
-    const reasoningEffort = OPENAI_REASONING_EFFORT[thinkingLevel];
+    const reasoningEffort = OPENAI_REASONING_EFFORT[effectiveThinking];
 
     // Extract previousResponseId from last assistant message for persistence
     let previousResponseId: string | undefined;
@@ -119,7 +122,7 @@ export function buildProviderOptions(
 
     log.debug("buildProviderOptions: OpenAI config", {
       reasoningEffort,
-      thinkingLevel,
+      thinkingLevel: effectiveThinking,
       previousResponseId,
     });
 
