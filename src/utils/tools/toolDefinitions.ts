@@ -102,6 +102,10 @@ export const TOOL_DEFINITIONS = {
         .min(0)
         .describe("1-indexed line position (0 = insert at top, N = insert after line N)"),
       content: z.string().describe("The content to insert"),
+      create: z
+        .boolean()
+        .optional()
+        .describe("If true, create the file if it doesn't exist (default: false)"),
     }),
   },
   propose_plan: {
