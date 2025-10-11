@@ -26,7 +26,7 @@ export function getThinkingPolicyForModel(modelString: string): ThinkingPolicy {
   const [provider, modelId = ""] = modelString.split(":");
 
   // Be tolerant of future version suffixes (e.g., gpt-5-pro-2025-10-06)
-  if (provider === "openai" && /gpt-5-pro/.test(modelId)) {
+  if (provider === "openai" && /\bgpt-5-pro\b/.test(modelId)) {
     return { variant: "fixed", level: "high" };
   }
 

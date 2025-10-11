@@ -23,10 +23,7 @@ export function getSendOptionsFromStorage(workspaceId: string): SendMessageOptio
   const model = readPersistedState<string>(getModelKey(workspaceId), defaultModel);
 
   // Read thinking level (workspace-specific)
-  let thinkingLevel = readPersistedState<ThinkingLevel>(
-    getThinkingLevelKey(workspaceId),
-    "medium"
-  );
+  let thinkingLevel = readPersistedState<ThinkingLevel>(getThinkingLevelKey(workspaceId), "medium");
 
   // Read mode (workspace-specific)
   const mode = readPersistedState<UIMode>(getModeKey(workspaceId), "exec");
