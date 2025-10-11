@@ -305,3 +305,85 @@ describe("StreamManager - Concurrent Stream Prevention", () => {
     }
   });
 });
+
+
+describe("StreamManager - Unavailable Tool Handling", () => {
+  let streamManager: StreamManager;
+  let mockHistoryService: HistoryService;
+  let mockPartialService: PartialService;
+
+  beforeEach(() => {
+    mockHistoryService = createMockHistoryService();
+    mockPartialService = createMockPartialService();
+    streamManager = new StreamManager(mockHistoryService, mockPartialService);
+  });
+
+  test("should emit tool-call-end with error for unavailable tools", async () => {
+    const workspaceId = "test-workspace-unavailable-tool";
+    
+    // Track emitted events
+    const events: Array<{ type: string; toolName?: string; result?: unknown }> = [];
+    
+    streamManager.on("tool-call-start", (data) => {
+      events.push({ type: "tool-call-start", toolName: data.toolName });
+    });
+    
+    streamManager.on("tool-call-end", (data) => {
+      events.push({ type: "tool-call-end", toolName: data.toolName, result: data.result });
+    });
+    
+    // Mock a stream that will request an unavailable tool
+    // We'll create a mock streamText result that emits tool-call events
+    const mockStreamResult = {
+      fullStream: (async function* () {
+        // Simulate model requesting a tool that doesn't exist
+        yield {
+          type: "tool-call",
+          toolCallId: "test-call-1",
+          toolName: "file_edit_replace",
+          input: { file_path: "/test", edits: [] },
+        };
+        // In real scenario, SDK would fail to execute this tool
+        // Our fix should catch it and emit error
+      })(),
+      usage: Promise.resolve(undefined),
+      providerMetadata: Promise.resolve({}),
+    };
+
+    // Manually call processStreamWithCleanup to test the logic
+    // We need to create streamInfo with empty tools object
+    const streamInfo = {
+      state: 2, // STREAMING
+      streamResult: mockStreamResult,
+      abortController: new AbortController(),
+      messageId: "test-message-1",
+      token: "test-token",
+      startTime: Date.now(),
+      model: "test-model",
+      historySequence: 1,
+      parts: [],
+      lastPartialWriteTime: 0,
+      processingPromise: Promise.resolve(),
+      tools: {}, // Empty tools - file_edit_replace is not available
+    };
+
+    // Access private method for testing
+    // @ts-expect-error - accessing private method for testing
+    await streamManager.processStreamWithCleanup(workspaceId, streamInfo, 1);
+
+    // Verify events were emitted correctly
+    expect(events.length).toBeGreaterThanOrEqual(2);
+    expect(events[0]).toMatchObject({
+      type: "tool-call-start",
+      toolName: "file_edit_replace",
+    });
+    expect(events[1]).toMatchObject({
+      type: "tool-call-end",
+      toolName: "file_edit_replace",
+    });
+    
+    // Verify error result
+    const errorResult = events[1].result as { error?: string };
+    expect(errorResult?.error).toContain("not available");
+  });
+});
