@@ -56,16 +56,16 @@ export function useUnreadTracking(
 
     const workspaceId = selectedWorkspace.workspaceId;
     const state = workspaceStates.get(workspaceId);
-    
+
     if (state) {
       const wasStreaming = prevStreamingRef.current.get(workspaceId) ?? false;
       const isStreaming = state.canInterrupt;
-      
+
       // Only mark as read when transitioning from streaming→idle
       if (wasStreaming && !isStreaming && state.messages.length > 0) {
         markAsRead(workspaceId);
       }
-      
+
       // Update tracking state
       prevStreamingRef.current.set(workspaceId, isStreaming);
     }

@@ -2,16 +2,17 @@ import React from "react";
 import styled from "@emotion/styled";
 import { TooltipWrapper, Tooltip } from "./Tooltip";
 
-const Indicator = styled.div<{ streaming?: boolean; unread?: boolean; clickable?: boolean; size?: number }>`
+const Indicator = styled.div<{
+  streaming?: boolean;
+  unread?: boolean;
+  clickable?: boolean;
+  size?: number;
+}>`
   width: ${(props) => props.size ?? 8}px;
   height: ${(props) => props.size ?? 8}px;
   border-radius: 50%;
   background: ${(props) =>
-    props.streaming
-      ? "var(--color-assistant-border)"
-      : props.unread
-        ? "#ffffff"
-        : "#6e6e6e"};
+    props.streaming ? "var(--color-assistant-border)" : props.unread ? "#ffffff" : "#6e6e6e"};
   flex-shrink: 0;
   transition: background 0.2s ease;
   cursor: ${(props) => (props.clickable && !props.streaming ? "pointer" : "default")};

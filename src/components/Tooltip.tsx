@@ -163,7 +163,7 @@ export const Tooltip: React.FC<TooltipProps> = ({
 
     // Try immediate measurement first
     measure();
-    
+
     // If fonts aren't loaded yet, measure again after RAF
     // This handles the edge case of first render before fonts load
     const rafId = requestAnimationFrame(measure);
