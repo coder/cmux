@@ -5,6 +5,7 @@ import { getLastThinkingByModelKey } from "@/constants/storage";
 import { updatePersistedState, readPersistedState } from "@/hooks/usePersistedState";
 import type { ThinkingLevel, ThinkingLevelOn } from "@/types/thinking";
 import { DEFAULT_THINKING_LEVEL } from "@/types/thinking";
+import { hasFixedThinkingPolicy } from "@/utils/thinking/policy";
 
 interface UseAIViewKeybindsParams {
   workspaceId: string;
@@ -68,7 +69,7 @@ export function useAIViewKeybinds({
 
         // Special-case: if model has fixed HIGH thinking (e.g., openai:gpt-5-pro),
         // the toggle is a no-op to avoid confusing state transitions.
-        if (/^openai:\s*.*\bgpt-5-pro\b/.test(currentModel)) {
+        if (hasFixedThinkingPolicy(currentModel)) {
           return; // No toggle for fixed policy models
         }
 

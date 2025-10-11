@@ -16,6 +16,20 @@ export type ThinkingPolicy =
   | { variant: "selectable"; allowed: ThinkingLevelOn[]; default: ThinkingLevelOn };
 
 /**
+ * Check if a model has a fixed thinking policy (e.g., gpt-5-pro only supports HIGH)
+ *
+ * Used by UI components that need to disable controls for fixed-policy models.
+ * Tolerates version suffixes (e.g., gpt-5-pro-2025-10-06).
+ * Does NOT match gpt-5-pro-mini (uses negative lookahead to exclude -mini suffix).
+ */
+export function hasFixedThinkingPolicy(modelString: string): boolean {
+  // Match "openai:" followed by optional whitespace and "gpt-5-pro"
+  // Allow version suffixes like "-2025-10-06" but NOT "-mini" or other text suffixes
+  // Use negative lookahead to exclude -mini/-micro etc.
+  return /^openai:\s*gpt-5-pro(?!-[a-z])/.test(modelString);
+}
+
+/**
  * Returns the thinking policy for a given model.
  *
  * Rules:
@@ -23,10 +37,7 @@ export type ThinkingPolicy =
  * - default → selectable [low, medium, high] (UI may still toggle off globally)
  */
 export function getThinkingPolicyForModel(modelString: string): ThinkingPolicy {
-  const [provider, modelId = ""] = modelString.split(":");
-
-  // Be tolerant of future version suffixes (e.g., gpt-5-pro-2025-10-06)
-  if (provider === "openai" && /\bgpt-5-pro\b/.test(modelId)) {
+  if (hasFixedThinkingPolicy(modelString)) {
     return { variant: "fixed", level: "high" };
   }
 
@@ -42,7 +53,7 @@ export function enforceThinkingPolicy(
   requested: ThinkingLevel
 ): ThinkingLevel {
   const policy = getThinkingPolicyForModel(modelString);
-  if (policy.variant == "fixed") {
+  if (policy.variant === "fixed") {
     return policy.level;
   }
 

@@ -9,6 +9,7 @@ import type { SendMessageOptions } from "@/types/ipc";
 import type { UIMode } from "@/types/mode";
 import type { ThinkingLevel } from "@/types/thinking";
 import { getSendOptionsFromStorage } from "@/utils/messages/sendOptions";
+import { enforceThinkingPolicy } from "@/utils/thinking/policy";
 
 /**
  * Construct SendMessageOptions from raw values
@@ -27,10 +28,7 @@ function constructSendMessageOptions(
     typeof preferredModel === "string" && preferredModel ? preferredModel : defaultModel;
 
   // Enforce thinking policy at the UI boundary as well (e.g., gpt-5-pro → high only)
-  let uiThinking = thinkingLevel;
-  if (/^openai:\s*.*\bgpt-5-pro\b/.test(model)) {
-    uiThinking = "high";
-  }
+  const uiThinking = enforceThinkingPolicy(model, thinkingLevel);
 
   return {
     thinkingLevel: uiThinking,

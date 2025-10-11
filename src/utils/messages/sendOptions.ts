@@ -10,6 +10,7 @@ import { readPersistedState } from "@/hooks/usePersistedState";
 import type { SendMessageOptions } from "@/types/ipc";
 import type { UIMode } from "@/types/mode";
 import type { ThinkingLevel } from "@/types/thinking";
+import { enforceThinkingPolicy } from "@/utils/thinking/policy";
 
 /**
  * Get send options from localStorage
@@ -23,7 +24,7 @@ export function getSendOptionsFromStorage(workspaceId: string): SendMessageOptio
   const model = readPersistedState<string>(getModelKey(workspaceId), defaultModel);
 
   // Read thinking level (workspace-specific)
-  let thinkingLevel = readPersistedState<ThinkingLevel>(getThinkingLevelKey(workspaceId), "medium");
+  const thinkingLevel = readPersistedState<ThinkingLevel>(getThinkingLevelKey(workspaceId), "medium");
 
   // Read mode (workspace-specific)
   const mode = readPersistedState<UIMode>(getModeKey(workspaceId), "exec");
@@ -35,13 +36,11 @@ export function getSendOptionsFromStorage(workspaceId: string): SendMessageOptio
   const additionalSystemInstructions = mode === "plan" ? PLAN_MODE_INSTRUCTION : undefined;
 
   // Enforce thinking policy (gpt-5-pro → high only)
-  if (/^openai:\s*.*\bgpt-5-pro\b/.test(model)) {
-    thinkingLevel = "high";
-  }
+  const effectiveThinkingLevel = enforceThinkingPolicy(model, thinkingLevel);
 
   return {
     model,
-    thinkingLevel,
+    thinkingLevel: effectiveThinkingLevel,
     toolPolicy: modeToToolPolicy(mode),
     additionalSystemInstructions,
     providerOptions: {
