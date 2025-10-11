@@ -236,10 +236,11 @@ const AIViewInner: React.FC<AIViewProps> = ({
   const aggregator = getAggregator(workspaceId);
 
   // Get active stream message ID for token counting
+  // Find any streaming message (assistant, reasoning, or tool) since we track tokens for the whole stream
   const activeStream = aggregator.getActiveStreams()[0];
   const streamingMessage = messages.find(
-    (msg): msg is Extract<DisplayedMessage, { type: "assistant" }> =>
-      msg.type === "assistant" && msg.isStreaming
+    (msg) =>
+      "isStreaming" in msg && msg.isStreaming
   );
   const activeStreamMessageId = activeStream ? streamingMessage?.historyId : undefined;
 
