@@ -107,4 +107,3 @@ export class RuntimeError extends Error {
     this.name = "RuntimeError";
   }
 }
-
