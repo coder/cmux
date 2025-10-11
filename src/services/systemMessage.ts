@@ -1,4 +1,5 @@
 import * as fs from "fs/promises";
+import * as os from "os";
 import * as path from "path";
 import type { WorkspaceMetadata } from "@/types/workspace";
 
@@ -39,17 +40,52 @@ You are in a git worktree at ${workspacePath}
 
 const CUSTOM_INSTRUCTION_FILES = ["AGENTS.md", "AGENT.md", "CLAUDE.md"];
 
+async function readInstructionSet(rootDirectory: string): Promise<string | null> {
+  if (!rootDirectory) {
+    throw new Error("Invalid rootDirectory: expected non-empty string");
+  }
+
+  let baseContent: string | null = null;
+
+  for (const filename of CUSTOM_INSTRUCTION_FILES) {
+    try {
+      const filePath = path.join(rootDirectory, filename);
+      const content = await fs.readFile(filePath, "utf-8");
+      baseContent = content;
+      break;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (_error) {
+      continue;
+    }
+  }
+
+  if (!baseContent) {
+    return null;
+  }
+
+  try {
+    const localFilePath = path.join(rootDirectory, "AGENTS.local.md");
+    const localContent = await fs.readFile(localFilePath, "utf-8");
+    return `${baseContent}\n\n${localContent}`;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  } catch (_error) {
+    return baseContent;
+  }
+}
+
 /**
  * Builds a system message for the AI model by combining a placeholder message
- * with custom instructions from the workspace (if found).
+ * with custom instructions from the workspace (if found) and from the
+ * default cmux configuration directory (~/.cmux).
  *
- * Searches for custom instruction files in priority order:
+ * Searches each location for custom instruction files in priority order:
  * 1. AGENTS.md
  * 2. AGENT.md
  * 3. CLAUDE.md
  *
- * If any of the above files are found, it also looks for AGENTS.local.md
- * and appends its contents (useful for local-only instructions).
+ * If any of the above files are found in a location, it also looks for
+ * AGENTS.local.md in that same directory and appends its contents (useful
+ * for local-only instructions).
  *
  * @param metadata - Workspace metadata containing the workspace path
  * @param additionalSystemInstructions - Optional additional system instructions to append at the end
@@ -66,33 +102,25 @@ export async function buildSystemMessage(
   }
 
   const environmentContext = buildEnvironmentContext(metadata.workspacePath);
-  let customInstructions = "";
+  const instructionSegments: string[] = [];
 
-  // Try to read custom instruction files in order
-  for (const filename of CUSTOM_INSTRUCTION_FILES) {
-    try {
-      const filePath = path.join(metadata.workspacePath, filename);
-      const content = await fs.readFile(filePath, "utf-8");
-      customInstructions = content;
-      break; // Use first found file
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch (_error) {
-      // File doesn't exist or can't be read, try next file
-      continue;
+  const defaultCmuxDirectory = path.join(os.homedir(), ".cmux");
+  if (
+    defaultCmuxDirectory &&
+    path.resolve(defaultCmuxDirectory) !== path.resolve(metadata.workspacePath)
+  ) {
+    const globalInstructions = await readInstructionSet(defaultCmuxDirectory);
+    if (globalInstructions) {
+      instructionSegments.push(globalInstructions);
     }
   }
 
-  // If we found a base instruction file, also look for AGENTS.local.md
-  if (customInstructions) {
-    try {
-      const localFilePath = path.join(metadata.workspacePath, "AGENTS.local.md");
-      const localContent = await fs.readFile(localFilePath, "utf-8");
-      customInstructions += `\n\n${localContent}`;
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch (_error) {
-      // AGENTS.local.md doesn't exist or can't be read, that's fine
-    }
+  const workspaceInstructions = await readInstructionSet(metadata.workspacePath);
+  if (workspaceInstructions) {
+    instructionSegments.push(workspaceInstructions);
   }
+
+  const customInstructions = instructionSegments.join("\n\n");
 
   // Build the final system message
   const trimmedPrelude = PRELUDE.trim();
