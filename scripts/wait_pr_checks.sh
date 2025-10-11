@@ -19,7 +19,6 @@ if ! git diff --quiet 2>/dev/null; then
   echo ""
 fi
 
-
 echo ""
 
 while true; do
