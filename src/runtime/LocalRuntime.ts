@@ -2,7 +2,6 @@ import { spawn } from "child_process";
 import type { ChildProcess } from "child_process";
 import { createInterface } from "readline";
 import * as fs from "fs/promises";
-import * as path from "path";
 import writeFileAtomic from "write-file-atomic";
 import type { Runtime, ExecOptions, ExecResult, FileStat, RuntimeError } from "./Runtime";
 import { RuntimeError as RuntimeErrorClass } from "./Runtime";
