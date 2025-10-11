@@ -1,66 +1,17 @@
 import React, { useState } from "react";
 import styled from "@emotion/styled";
-import { Modal, ModalActions, CancelButton, PrimaryButton } from "./Modal";
-
-const ErrorSection = styled.div`
-  margin: 16px 0;
-`;
-
-const ErrorLabel = styled.div`
-  font-size: 11px;
-  color: var(--color-text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 8px;
-`;
-
-const ErrorCodeBlock = styled.pre`
-  background: var(--color-background-secondary);
-  border: 1px solid var(--color-border);
-  border-radius: 4px;
-  padding: 12px;
-  font-size: 12px;
-  font-family: var(--font-monospace);
-  color: var(--color-text);
-  overflow-x: auto;
-  white-space: pre-wrap;
-  word-break: break-word;
-  line-height: 1.4;
-`;
-
-const WarningBox = styled.div`
-  background: var(--color-error-bg);
-  border-left: 3px solid var(--color-error);
-  border-radius: 4px;
-  padding: 12px 16px;
-  margin: 16px 0;
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
-`;
-
-const WarningIcon = styled.span`
-  font-size: 18px;
-  line-height: 1;
-  flex-shrink: 0;
-`;
-
-const WarningContent = styled.div`
-  flex: 1;
-`;
-
-const WarningTitle = styled.div`
-  font-weight: 600;
-  font-size: 13px;
-  color: var(--color-error);
-  margin-bottom: 4px;
-`;
-
-const WarningText = styled.div`
-  font-size: 12px;
-  color: var(--color-text-secondary);
-  line-height: 1.5;
-`;
+import {
+  Modal,
+  ModalActions,
+  CancelButton,
+  PrimaryButton,
+  ErrorSection,
+  ErrorLabel,
+  ErrorCodeBlock,
+  WarningBox,
+  WarningTitle,
+  WarningText,
+} from "./Modal";
 
 const CenteredActions = styled(ModalActions)`
   justify-content: center;
@@ -121,13 +72,10 @@ export const ForceDeleteModal: React.FC<ForceDeleteModalProps> = ({
       </ErrorSection>
 
       <WarningBox>
-        <WarningIcon>⚠️</WarningIcon>
-        <WarningContent>
-          <WarningTitle>This action cannot be undone</WarningTitle>
-          <WarningText>
-            Force deleting will permanently remove the worktree, discarding any uncommitted work.
-          </WarningText>
-        </WarningContent>
+        <WarningTitle>This action cannot be undone</WarningTitle>
+        <WarningText>
+          Force deleting will permanently remove the worktree, discarding any uncommitted work.
+        </WarningText>
       </WarningBox>
 
       <CenteredActions>
