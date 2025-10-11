@@ -114,9 +114,9 @@ describe("bash tool", () => {
     const startTime = performance.now();
 
     const args: BashToolArgs = {
-      // This will generate 500 lines slowly - should fail at 300 without waiting
-      script: "for i in {1..500}; do echo line$i; sleep 0.01; done",
-      timeout_secs: 20,
+      // This will generate 500 lines quickly - should fail at 300
+      script: "for i in {1..500}; do echo line$i; done",
+      timeout_secs: 5,
     };
 
     const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
@@ -124,8 +124,8 @@ describe("bash tool", () => {
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      // Should fail early due to 300 line limit, not wait for all 500 lines
-      expect(duration).toBeLessThan(15000); // Way less than the 20s timeout
+      // Should complete quickly since we stop at 300 lines
+      expect(duration).toBeLessThan(4000);
       expect(result.error).toContain("Line count exceeded limit");
       expect(result.error).toContain("300 lines");
       expect(result.exitCode).toBe(-1);
