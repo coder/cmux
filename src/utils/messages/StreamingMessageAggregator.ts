@@ -101,6 +101,16 @@ export class StreamingMessageAggregator {
     return Array.from(this.activeStreams.values());
   }
 
+  // Debug method to inspect internal state
+  _debugState() {
+    return {
+      activeStreamCount: this.activeStreams.size,
+      activeStreamIds: Array.from(this.activeStreams.keys()),
+      messageCount: this.messages.size,
+      messageIds: Array.from(this.messages.keys()),
+    };
+  }
+
   isCompacting(): boolean {
     for (const context of this.activeStreams.values()) {
       if (context.isCompacting) {
