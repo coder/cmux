@@ -84,7 +84,7 @@ const listDirectoryTurn: ScenarioTurn = {
         delay: STREAM_BASE_DELAY,
         toolCallId: "tool-bash-ls",
         toolName: "bash",
-        args: { script: "ls -1", timeout_secs: 10, max_lines: 200 },
+        args: { script: "ls -1", timeout_secs: 10 },
       },
       {
         kind: "tool-end",
@@ -158,7 +158,7 @@ const createTestFileTurn: ScenarioTurn = {
         delay: STREAM_BASE_DELAY,
         toolCallId: "tool-bash-create-test-file",
         toolName: "bash",
-        args: { script: "printf 'hello' > test.txt", timeout_secs: 10, max_lines: 200 },
+        args: { script: "printf 'hello' > test.txt", timeout_secs: 10 },
       },
       {
         kind: "tool-end",

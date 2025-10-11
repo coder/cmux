@@ -48,17 +48,15 @@ describe("bash tool", () => {
   it("should fail when hard cap (300 lines) is exceeded", async () => {
     const tool = createBashTool({ cwd: process.cwd() });
     const args: BashToolArgs = {
-      script: "for i in {1..10}; do echo line$i; done",
+      script: "seq 1 400", // Exceeds 300 line hard cap
       timeout_secs: 5,
-
     };
 
     const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      // Should contain specific overflow reason
-      expect(result.error).toMatch(/Line count exceeded limit|OUTPUT OVERFLOW/);
+      expect(result.error).toContain("Output exceeded 300 lines");
       expect(result.exitCode).toBe(-1);
     }
   });
@@ -282,14 +280,12 @@ describe("bash tool", () => {
     expect(result).toBeDefined();
   });
 
-  it("should work without explicit max_lines (uses default)", async () => {
+  it("should work with just script and timeout", async () => {
     const tool = createBashTool({ cwd: process.cwd() });
 
     const args: BashToolArgs = {
       script: "echo test",
       timeout_secs: 5,
-
-      // stdin not provided
     };
 
     const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
