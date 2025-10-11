@@ -23,6 +23,10 @@ const WarningText = styled.p`
   line-height: 1.5;
 `;
 
+const CenteredActions = styled(ModalActions)`
+  justify-content: center;
+`;
+
 const ForceDeleteButton = styled(PrimaryButton)`
   background: var(--color-error);
   color: var(--color-background);
@@ -82,14 +86,14 @@ export const ForceDeleteModal: React.FC<ForceDeleteModalProps> = ({
         issues. This action cannot be undone.
       </WarningText>
 
-      <ModalActions>
+      <CenteredActions>
         <CancelButton onClick={onClose} disabled={isDeleting}>
           Cancel
         </CancelButton>
         <ForceDeleteButton onClick={handleForceDelete} disabled={isDeleting}>
           {isDeleting ? "Deleting..." : "Force Delete"}
         </ForceDeleteButton>
-      </ModalActions>
+      </CenteredActions>
     </Modal>
   );
 };
