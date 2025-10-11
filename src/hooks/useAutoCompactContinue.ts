@@ -7,11 +7,17 @@ import { getCompactContinueMessageKey } from "@/constants/storage";
  *
  * Stateless reactive approach:
  * - Watches all workspaces for single compacted message
- * - Checks localStorage for pending continue message
- * - Sends continue message with workspace's current settings
- * - Works even if user switches workspaces during compaction
+ * - Returns list of workspaces that need auto-continue
+ * - Parent (App.tsx) handles sendMessage with proper options
+ *
+ * IMPORTANT: sendMessage options (model, thinking level, mode, etc.) are managed by the
+ * frontend via useSendMessageOptions hook. The backend does NOT fall back to workspace
+ * metadata - frontend must pass complete options.
  */
-export function useAutoCompactContinue(workspaceStates: Map<string, WorkspaceState>) {
+export function useAutoCompactContinue(
+  workspaceStates: Map<string, WorkspaceState>,
+  onContinue: (workspaceId: string, message: string) => void
+) {
   useEffect(() => {
     // Check all workspaces for completed compaction
     for (const [workspaceId, state] of workspaceStates) {
@@ -27,17 +33,12 @@ export function useAutoCompactContinue(workspaceStates: Map<string, WorkspaceSta
           // Clean up first to prevent duplicate sends
           localStorage.removeItem(getCompactContinueMessageKey(workspaceId));
 
-          // Send continue message with workspace's current model
-          // Other options (thinking level, etc.) will use workspace defaults
-          window.api.workspace
-            .sendMessage(workspaceId, continueMessage, { model: state.currentModel })
-            .catch((error) => {
-              console.error("Failed to send continue message:", error);
-            });
+          // Notify parent to send the message with proper options
+          onContinue(workspaceId, continueMessage);
         }
       }
     }
-  }, [workspaceStates]);
+  }, [workspaceStates, onContinue]);
 
   // Simple callback to store continue message in localStorage
   // Called by ChatInput when /compact is parsed

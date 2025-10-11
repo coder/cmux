@@ -18,6 +18,7 @@ import { useWorkspaceAggregators } from "./hooks/useWorkspaceAggregators";
 import { useResumeManager } from "./hooks/useResumeManager";
 import { useUnreadTracking } from "./hooks/useUnreadTracking";
 import { useAutoCompactContinue } from "./hooks/useAutoCompactContinue";
+import { buildSendMessageOptions } from "./hooks/useSendMessageOptions";
 import { CommandRegistryProvider, useCommandRegistry } from "./contexts/CommandRegistryContext";
 import type { CommandAction } from "./contexts/CommandRegistryContext";
 import { CommandPalette } from "./components/CommandPalette";
@@ -176,7 +177,17 @@ function AppInner() {
   useResumeManager(workspaceStates);
 
   // Handle auto-continue after compaction (when user uses /compact -c)
-  const { handleCompactStart } = useAutoCompactContinue(workspaceStates);
+  // CRITICAL: Frontend manages ALL sendMessage options via buildSendMessageOptions.
+  // Backend does NOT fall back to workspace metadata - all options must be passed explicitly.
+  const handleContinue = useCallback(async (workspaceId: string, message: string) => {
+    const options = buildSendMessageOptions(workspaceId);
+    const result = await window.api.workspace.sendMessage(workspaceId, message, options);
+    if (!result.success) {
+      console.error("Failed to send continue message:", result.error);
+    }
+  }, []);
+
+  const { handleCompactStart } = useAutoCompactContinue(workspaceStates, handleContinue);
 
   const streamingModels = new Map<string, string>();
   for (const metadata of workspaceMetadata.values()) {

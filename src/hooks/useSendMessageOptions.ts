@@ -6,6 +6,40 @@ import { modeToToolPolicy } from "@/utils/ui/modeUtils";
 import { defaultModel } from "@/utils/ai/models";
 import { getModelKey } from "@/constants/storage";
 import type { SendMessageOptions } from "@/types/ipc";
+import type { UIMode } from "@/types/mode";
+import type { ThinkingLevel } from "@/types/thinking";
+
+/**
+ * Construct SendMessageOptions from raw values
+ * Shared logic for both hook and non-hook versions
+ */
+function constructSendMessageOptions(
+  mode: UIMode,
+  thinkingLevel: ThinkingLevel,
+  preferredModel: string | null | undefined,
+  use1M: boolean
+): SendMessageOptions {
+  const additionalSystemInstructions =
+    mode === "plan"
+      ? "You are in Plan Mode. You may use tools to research and understand the task, but you MUST call the propose_plan tool with your findings before completing your response. Do not provide a text response without calling propose_plan."
+      : undefined;
+
+  // Ensure model is always a valid string (defensive against corrupted localStorage)
+  const model =
+    typeof preferredModel === "string" && preferredModel ? preferredModel : defaultModel;
+
+  return {
+    thinkingLevel,
+    model,
+    toolPolicy: modeToToolPolicy(mode),
+    additionalSystemInstructions,
+    providerOptions: {
+      anthropic: {
+        use1MContext: use1M,
+      },
+    },
+  };
+}
 
 /**
  * Build SendMessageOptions from current user preferences
@@ -27,24 +61,24 @@ export function useSendMessageOptions(workspaceId: string): SendMessageOptions {
     { listener: true } // Listen for changes from ModelSelector and other sources
   );
 
-  const additionalSystemInstructions =
-    mode === "plan"
-      ? "You are in Plan Mode. You may use tools to research and understand the task, but you MUST call the propose_plan tool with your findings before completing your response. Do not provide a text response without calling propose_plan."
-      : undefined;
+  return constructSendMessageOptions(mode, thinkingLevel, preferredModel, use1M);
+}
 
-  // Ensure model is always a valid string (defensive against corrupted localStorage)
-  const model =
-    typeof preferredModel === "string" && preferredModel ? preferredModel : defaultModel;
+/**
+ * Build SendMessageOptions from localStorage (non-hook version)
+ * 
+ * CRITICAL: Frontend is responsible for managing ALL sendMessage options.
+ * Backend does NOT fall back to workspace metadata - all options must be passed explicitly.
+ * 
+ * This function mirrors useSendMessageOptions logic but reads from localStorage directly,
+ * allowing it to be called outside React component lifecycle (e.g., in callbacks).
+ */
+export function buildSendMessageOptions(workspaceId: string): SendMessageOptions {
+  // Read from localStorage matching the keys used by useSendMessageOptions
+  const use1M = localStorage.getItem("use1MContext") === "true";
+  const thinkingLevel = (localStorage.getItem(`thinkingLevel:${workspaceId}`) as ThinkingLevel) || "medium";
+  const mode = (localStorage.getItem(`mode:${workspaceId}`) as UIMode) || "edit";
+  const preferredModel = localStorage.getItem(getModelKey(workspaceId));
 
-  return {
-    thinkingLevel,
-    model,
-    toolPolicy: modeToToolPolicy(mode),
-    additionalSystemInstructions,
-    providerOptions: {
-      anthropic: {
-        use1MContext: use1M,
-      },
-    },
-  };
+  return constructSendMessageOptions(mode, thinkingLevel, preferredModel, use1M);
 }
