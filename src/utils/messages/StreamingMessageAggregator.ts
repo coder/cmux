@@ -18,7 +18,7 @@ import type {
   DynamicToolPartAvailable,
 } from "@/types/toolParts";
 import { isDynamicToolPart } from "@/types/toolParts";
-import { getTokenizerForModel, type Tokenizer } from "@/utils/tokens/tokenizer";
+import { StreamingTokenTracker } from "@/utils/tokens/StreamingTokenTracker";
 
 // Maximum number of messages to display in the DOM for performance
 // Full history is still maintained internally for token counting and stats
@@ -30,29 +30,6 @@ interface StreamingContext {
   isCompacting: boolean;
   model: string;
 }
-
-/**
- * Token tracking state for streaming messages
- * Tracks tokens incrementally with batching for performance
- */
-interface StreamingTokenState {
-  textTokens: number; // Tokenized text tokens
-  reasoningTokens: number; // Tokenized reasoning tokens
-  toolArgsTokens: number; // Tokenized tool argument tokens
-  lastUpdate: number; // Timestamp of last tokenization
-  lastTokenCount: number; // Token count at last TPS calculation
-  lastTpsUpdate: number; // Timestamp of last TPS calculation
-  tpsSamples: number[]; // Circular buffer of recent TPS samples for smoothing
-  tpsSampleIndex: number; // Current index in circular buffer
-  accumulatedText: string; // Buffer for batching text deltas
-  accumulatedReasoning: string; // Buffer for batching reasoning deltas
-  accumulatedToolArgs: string; // Buffer for batching tool arg deltas
-}
-
-// Throttle parameters for tokenization
-const TOKENIZE_INTERVAL_MS = 100; // Tokenize every 100ms
-const TOKENIZE_CHAR_THRESHOLD = 400; // Or when 400 chars (~100 tokens) accumulated
-const TPS_SAMPLE_COUNT = 5; // Number of TPS samples to average for smoothing
 
 /**
  * StreamingMessageAggregator - Simplified for User/Assistant Messages Only
@@ -76,8 +53,7 @@ export class StreamingMessageAggregator {
   private cachedMessages: CmuxMessage[] | null = null;
 
   // Token tracking for streaming messages
-  private streamTokenState = new Map<string, StreamingTokenState>();
-  private tokenizer: Tokenizer | null = null;
+  private tokenTracker = new StreamingTokenTracker();
 
   // Invalidate cache on any mutation
   private invalidateCache(): void {
@@ -623,33 +599,7 @@ export class StreamingMessageAggregator {
    * Should be called when model changes or on first stream
    */
   setModel(model: string): void {
-    if (!this.tokenizer || this.tokenizer.name === "approximation") {
-      this.tokenizer = getTokenizerForModel(model);
-    }
-  }
-
-  /**
-   * Get or create token state for a streaming message
-   */
-  private getOrCreateTokenState(messageId: string): StreamingTokenState {
-    let state = this.streamTokenState.get(messageId);
-    if (!state) {
-      state = {
-        textTokens: 0,
-        reasoningTokens: 0,
-        toolArgsTokens: 0,
-        lastUpdate: Date.now(),
-        lastTokenCount: 0,
-        lastTpsUpdate: Date.now(),
-        tpsSamples: new Array(TPS_SAMPLE_COUNT).fill(0) as number[],
-        tpsSampleIndex: 0,
-        accumulatedText: "",
-        accumulatedReasoning: "",
-        accumulatedToolArgs: "",
-      };
-      this.streamTokenState.set(messageId, state);
-    }
-    return state;
+    this.tokenTracker.setModel(model);
   }
 
   /**
@@ -660,117 +610,34 @@ export class StreamingMessageAggregator {
     delta: string,
     type: "text" | "reasoning" | "tool-args"
   ): void {
-    const state = this.getOrCreateTokenState(messageId);
-
-    // Accumulate delta
-    switch (type) {
-      case "text":
-        state.accumulatedText += delta;
-        break;
-      case "reasoning":
-        state.accumulatedReasoning += delta;
-        break;
-      case "tool-args":
-        state.accumulatedToolArgs += delta;
-        break;
-    }
-
-    // Throttle: only tokenize if enough time/chars accumulated
-    const now = Date.now();
-    const totalChars =
-      state.accumulatedText.length +
-      state.accumulatedReasoning.length +
-      state.accumulatedToolArgs.length;
-
-    if (now - state.lastUpdate > TOKENIZE_INTERVAL_MS || totalChars > TOKENIZE_CHAR_THRESHOLD) {
-      this.tokenizeAccumulated(messageId);
-      state.lastUpdate = now;
-    }
-  }
-
-  /**
-   * Tokenize accumulated buffers and update token counts
-   */
-  private tokenizeAccumulated(messageId: string): void {
-    if (!this.tokenizer) return;
-    const state = this.streamTokenState.get(messageId);
-    if (!state) return;
-
-    // Tokenize each accumulated buffer if non-empty
-    if (state.accumulatedText) {
-      state.textTokens += this.tokenizer.countTokens(state.accumulatedText);
-      state.accumulatedText = "";
-    }
-    if (state.accumulatedReasoning) {
-      state.reasoningTokens += this.tokenizer.countTokens(state.accumulatedReasoning);
-      state.accumulatedReasoning = "";
-    }
-    if (state.accumulatedToolArgs) {
-      state.toolArgsTokens += this.tokenizer.countTokens(state.accumulatedToolArgs);
-      state.accumulatedToolArgs = "";
-    }
-
-    // Update TPS calculation
-    const now = Date.now();
-    const newTotal = state.textTokens + state.reasoningTokens + state.toolArgsTokens;
-    const tokensDelta = newTotal - state.lastTokenCount;
-    const timeDelta = (now - state.lastTpsUpdate) / 1000; // Convert to seconds
-
-    if (timeDelta > 0 && tokensDelta > 0) {
-      const currentTps = tokensDelta / timeDelta;
-
-      // Add to circular buffer for smoothing
-      state.tpsSamples[state.tpsSampleIndex] = currentTps;
-      state.tpsSampleIndex = (state.tpsSampleIndex + 1) % TPS_SAMPLE_COUNT;
-
-      state.lastTokenCount = newTotal;
-      state.lastTpsUpdate = now;
-    }
+    this.tokenTracker.trackDelta(messageId, delta, type);
   }
 
   /**
    * Finalize streaming tokens by tokenizing any remaining buffered content
    */
   finalizeStreamingTokens(messageId: string): void {
-    this.tokenizeAccumulated(messageId);
+    this.tokenTracker.finalize(messageId);
   }
 
   /**
    * Get current token count estimate (includes buffered chars as approximation)
    */
   getStreamingTokenCount(messageId: string): number {
-    const state = this.streamTokenState.get(messageId);
-    if (!state) return 0;
-
-    // Actual tokens + estimate for buffered content
-    const bufferedChars =
-      state.accumulatedText.length +
-      state.accumulatedReasoning.length +
-      state.accumulatedToolArgs.length;
-    const bufferedEstimate = Math.ceil(bufferedChars / 4);
-
-    return state.textTokens + state.reasoningTokens + state.toolArgsTokens + bufferedEstimate;
+    return this.tokenTracker.getTokenCount(messageId);
   }
 
   /**
    * Get smoothed tokens per second rate for a streaming message
    */
   getStreamingTPS(messageId: string): number {
-    const state = this.streamTokenState.get(messageId);
-    if (!state) return 0;
-
-    // Calculate average TPS from samples (smoothing)
-    const validSamples = state.tpsSamples.filter((sample) => sample > 0);
-    if (validSamples.length === 0) return 0;
-
-    const avgTps = validSamples.reduce((sum, sample) => sum + sample, 0) / validSamples.length;
-    return Math.round(avgTps); // Round to whole number
+    return this.tokenTracker.getTPS(messageId);
   }
 
   /**
    * Clear token state for a message (call on stream end/abort)
    */
   clearTokenState(messageId: string): void {
-    this.streamTokenState.delete(messageId);
+    this.tokenTracker.clear(messageId);
   }
 }
