@@ -502,7 +502,7 @@ export class StreamManager extends EventEmitter {
 
           default: {
             // Handle tool-call-delta which may not be in the type definition yet
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
             if ((part as any).type === "tool-call-delta") {
               // Tool call arguments streaming (for tools like compact_summary)
               // eslint-disable-next-line @typescript-eslint/no-explicit-any

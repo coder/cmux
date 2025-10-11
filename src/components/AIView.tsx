@@ -17,6 +17,7 @@ import { useAutoScroll } from "@/hooks/useAutoScroll";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { useThinking } from "@/contexts/ThinkingContext";
 import type { WorkspaceState } from "@/hooks/useWorkspaceAggregators";
+import type { StreamingMessageAggregator } from "@/utils/messages/StreamingMessageAggregator";
 import { StatusIndicator } from "./StatusIndicator";
 import { getModelName } from "@/utils/ai/models";
 import { GitStatusIndicator } from "./GitStatusIndicator";
@@ -181,7 +182,9 @@ interface AIViewProps {
   branch: string;
   workspacePath: string;
   workspaceState: WorkspaceState;
-  getAggregator: (workspaceId: string) => import("@/utils/messages/StreamingMessageAggregator").StreamingMessageAggregator;
+  getAggregator: (
+    workspaceId: string
+  ) => import("@/utils/messages/StreamingMessageAggregator").StreamingMessageAggregator;
   onCompactStart?: (continueMessage: string | undefined) => void;
   className?: string;
 }
@@ -233,12 +236,13 @@ const AIViewInner: React.FC<AIViewProps> = ({
   const { messages, canInterrupt, isCompacting, loading, cmuxMessages, currentModel } =
     workspaceState;
   const aggregator = getAggregator(workspaceId);
-  
+
   // Get active stream message ID for token counting
   const activeStream = aggregator.getActiveStreams()[0];
   const activeStreamMessageId = activeStream
-    ? messages.find((msg): msg is Extract<DisplayedMessage, { type: "assistant" }> => 
-        msg.type === "assistant" && msg.isStreaming
+    ? messages.find(
+        (msg): msg is Extract<DisplayedMessage, { type: "assistant" }> =>
+          msg.type === "assistant" && msg.isStreaming
       )?.historyId
     : undefined;
 

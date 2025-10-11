@@ -641,7 +641,7 @@ export class StreamingMessageAggregator {
         lastUpdate: Date.now(),
         lastTokenCount: 0,
         lastTpsUpdate: Date.now(),
-        tpsSamples: new Array(TPS_SAMPLE_COUNT).fill(0),
+        tpsSamples: new Array(TPS_SAMPLE_COUNT).fill(0) as number[],
         tpsSampleIndex: 0,
         accumulatedText: "",
         accumulatedReasoning: "",
