@@ -26,6 +26,7 @@ import { validateWorkspaceName } from "@/utils/validation/workspaceValidation";
 import { createBashTool } from "@/services/tools/bash";
 import type { BashToolResult } from "@/types/tools";
 import { secretsToRecord } from "@/types/secrets";
+import { DisposableTempDir } from "@/services/tempDir";
 
 /**
  * IpcMain - Manages all IPC handlers and service coordination
@@ -611,11 +612,15 @@ export class IpcMain {
             ? this.config.getProjectSecrets(workspaceInfo.projectPath)
             : [];
 
+          // Create scoped temp directory for this IPC call
+          using tempDir = new DisposableTempDir("cmux-ipc-bash");
+
           // Create bash tool with workspace's cwd and secrets
           const bashTool = createBashTool({
             cwd: workspacePath,
             secrets: secretsToRecord(projectSecrets),
             niceness: options?.niceness,
+            tempDir: tempDir.path,
           });
 
           // Execute the script with provided options

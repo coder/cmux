@@ -5,12 +5,30 @@ import * as os from "os";
 import { createFileEditInsertTool } from "./file_edit_insert";
 import type { FileEditInsertToolArgs, FileEditInsertToolResult } from "@/types/tools";
 import type { ToolCallOptions } from "ai";
+import { TestTempDir } from "./testHelpers";
 
 // Mock ToolCallOptions for testing
 const mockToolCallOptions: ToolCallOptions = {
   toolCallId: "test-call-id",
   messages: [],
 };
+
+// Helper to create file_edit_insert tool with test configuration
+// Returns both tool and disposable temp directory
+function createTestFileEditInsertTool(options?: { cwd?: string }) {
+  const tempDir = new TestTempDir("test-file-edit-insert");
+  const tool = createFileEditInsertTool({
+    cwd: options?.cwd ?? process.cwd(),
+    tempDir: tempDir.path,
+  });
+
+  return {
+    tool,
+    [Symbol.dispose]() {
+      tempDir[Symbol.dispose]();
+    },
+  };
+}
 
 describe("file_edit_insert tool", () => {
   let testDir: string;
@@ -32,7 +50,8 @@ describe("file_edit_insert tool", () => {
     const initialContent = "line1\nline2\nline3";
     await fs.writeFile(testFilePath, initialContent);
 
-    const tool = createFileEditInsertTool({ cwd: testDir });
+    using testEnv = createTestFileEditInsertTool({ cwd: testDir });
+    const tool = testEnv.tool;
     const args: FileEditInsertToolArgs = {
       file_path: testFilePath,
       line_offset: 0,
@@ -54,7 +73,8 @@ describe("file_edit_insert tool", () => {
     const initialContent = "line1\nline2\nline3";
     await fs.writeFile(testFilePath, initialContent);
 
-    const tool = createFileEditInsertTool({ cwd: testDir });
+    using testEnv = createTestFileEditInsertTool({ cwd: testDir });
+    const tool = testEnv.tool;
     const args: FileEditInsertToolArgs = {
       file_path: testFilePath,
       line_offset: 1,
@@ -76,7 +96,8 @@ describe("file_edit_insert tool", () => {
     const initialContent = "line1\nline2\nline3";
     await fs.writeFile(testFilePath, initialContent);
 
-    const tool = createFileEditInsertTool({ cwd: testDir });
+    using testEnv = createTestFileEditInsertTool({ cwd: testDir });
+    const tool = testEnv.tool;
     const args: FileEditInsertToolArgs = {
       file_path: testFilePath,
       line_offset: 2,
@@ -98,7 +119,8 @@ describe("file_edit_insert tool", () => {
     const initialContent = "line1\nline2\nline3";
     await fs.writeFile(testFilePath, initialContent);
 
-    const tool = createFileEditInsertTool({ cwd: testDir });
+    using testEnv = createTestFileEditInsertTool({ cwd: testDir });
+    const tool = testEnv.tool;
     const args: FileEditInsertToolArgs = {
       file_path: testFilePath,
       line_offset: 3,
@@ -120,7 +142,8 @@ describe("file_edit_insert tool", () => {
     const initialContent = "line1\nline2";
     await fs.writeFile(testFilePath, initialContent);
 
-    const tool = createFileEditInsertTool({ cwd: testDir });
+    using testEnv = createTestFileEditInsertTool({ cwd: testDir });
+    const tool = testEnv.tool;
     const args: FileEditInsertToolArgs = {
       file_path: testFilePath,
       line_offset: 1,
@@ -141,7 +164,8 @@ describe("file_edit_insert tool", () => {
     // Setup
     await fs.writeFile(testFilePath, "");
 
-    const tool = createFileEditInsertTool({ cwd: testDir });
+    using testEnv = createTestFileEditInsertTool({ cwd: testDir });
+    const tool = testEnv.tool;
     const args: FileEditInsertToolArgs = {
       file_path: testFilePath,
       line_offset: 0,
@@ -162,7 +186,8 @@ describe("file_edit_insert tool", () => {
     // Setup
     const nonExistentPath = path.join(testDir, "nonexistent.txt");
 
-    const tool = createFileEditInsertTool({ cwd: testDir });
+    using testEnv = createTestFileEditInsertTool({ cwd: testDir });
+    const tool = testEnv.tool;
     const args: FileEditInsertToolArgs = {
       file_path: nonExistentPath,
       line_offset: 0,
@@ -252,7 +277,8 @@ describe("file_edit_insert tool", () => {
     const initialContent = "line1\nline2";
     await fs.writeFile(testFilePath, initialContent);
 
-    const tool = createFileEditInsertTool({ cwd: testDir });
+    using testEnv = createTestFileEditInsertTool({ cwd: testDir });
+    const tool = testEnv.tool;
     const args: FileEditInsertToolArgs = {
       file_path: testFilePath,
       line_offset: -1,
@@ -274,7 +300,8 @@ describe("file_edit_insert tool", () => {
     const initialContent = "line1\nline2";
     await fs.writeFile(testFilePath, initialContent);
 
-    const tool = createFileEditInsertTool({ cwd: testDir });
+    using testEnv = createTestFileEditInsertTool({ cwd: testDir });
+    const tool = testEnv.tool;
     const args: FileEditInsertToolArgs = {
       file_path: testFilePath,
       line_offset: 10, // File only has 2 lines

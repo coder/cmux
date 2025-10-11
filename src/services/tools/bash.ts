@@ -4,7 +4,6 @@ import type { ChildProcess } from "child_process";
 import { createInterface } from "readline";
 import * as path from "path";
 import * as fs from "fs";
-import * as os from "os";
 import {
   BASH_DEFAULT_TIMEOUT_SECS,
   BASH_HARD_MAX_LINES,
@@ -325,20 +324,9 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
             // We don't show ANY of the actual output to avoid overwhelming context.
             // Instead, save it to a temp file and encourage the agent to use filtering tools.
             try {
-              // Use ~/.cmux-tmp for overflow files (not in ~/.cmux to prevent accidental
-              // deletion/modification of configuration). Avoids /tmp for security since
-              // command output may contain sensitive data and /tmp is world-readable.
-              const homeDir = os.homedir();
-              const tmpDir = path.join(homeDir, ".cmux-tmp");
-
-              // Ensure directory exists with secure permissions (user-only)
-              if (!fs.existsSync(tmpDir)) {
-                fs.mkdirSync(tmpDir, { mode: 0o700 });
-              }
-
               // Use 8 hex characters for short, memorable temp file IDs
               const fileId = Math.random().toString(16).substring(2, 10);
-              const overflowPath = path.join(tmpDir, `bash-${fileId}.txt`);
+              const overflowPath = path.join(config.tempDir, `bash-${fileId}.txt`);
               const fullOutput = lines.join("\n");
               fs.writeFileSync(overflowPath, fullOutput, "utf-8");
 
@@ -348,7 +336,7 @@ Full output (${lines.length} lines) saved to ${overflowPath}
 
 Use selective filtering tools (e.g. grep) to extract relevant information and continue your task
 
-When done, clean up: rm ${overflowPath}`;
+File will be automatically cleaned up when stream ends.`;
 
               resolveOnce({
                 success: false,

@@ -508,10 +508,16 @@ export class AIService extends EventEmitter {
         ? this.config.getProjectSecrets(workspaceInfo.projectPath)
         : [];
 
+      // Generate stream token and create temp directory for tools
+      const streamToken = this.streamManager.generateStreamToken();
+      const tempDir = this.streamManager.createTempDirForStream(streamToken);
+
       // Get model-specific tools with workspace path configuration and secrets
       const allTools = await getToolsForModel(modelString, {
         cwd: workspacePath,
         secrets: secretsToRecord(projectSecrets),
+        niceness: 19,
+        tempDir,
       });
 
       // Apply tool policy to filter tools (if policy provided)
@@ -685,7 +691,8 @@ export class AIService extends EventEmitter {
         },
         providerOptions,
         maxOutputTokens,
-        toolPolicy
+        toolPolicy,
+        streamToken // Pass the pre-generated stream token
       );
 
       if (!streamResult.success) {
