@@ -210,6 +210,15 @@ const compactCommandDefinition: SlashCommandDefinition = {
       maxOutputTokens = tokens;
     }
 
+    // Reject extra positional arguments
+    if (parsed._.length > 0) {
+      return {
+        type: "unknown-command",
+        command: "compact",
+        subcommand: `Unexpected argument: ${parsed._[0]}`,
+      };
+    }
+
     // Get continue message if -c flag present
     const continueMessage =
       parsed.c !== undefined && typeof parsed.c === "string" && parsed.c.trim().length > 0

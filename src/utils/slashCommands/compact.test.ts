@@ -114,3 +114,22 @@ describe("compact command parser", () => {
     });
   });
 });
+
+  it("rejects extra positional arguments", () => {
+    const result = parseCommand("/compact extra");
+    expect(result).toEqual({
+      type: "unknown-command",
+      command: "compact",
+      subcommand: "Unexpected argument: extra",
+    });
+  });
+
+  it("rejects positional arguments with flags", () => {
+    const result = parseCommand("/compact -t 5000 extra");
+    expect(result).toEqual({
+      type: "unknown-command",
+      command: "compact",
+      subcommand: "Unexpected argument: extra",
+    });
+  });
+
