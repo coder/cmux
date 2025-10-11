@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, createContext, useContext } from "react";
+import React, { useState, useRef, useEffect, useLayoutEffect, createContext, useContext } from "react";
 import { createPortal } from "react-dom";
 import styled from "@emotion/styled";
 
@@ -60,99 +60,114 @@ export const Tooltip: React.FC<TooltipProps> = ({
 }) => {
   const { isHovered, triggerRef } = useContext(TooltipContext);
   const tooltipRef = useRef<HTMLDivElement>(null);
-  const [style, setStyle] = useState<React.CSSProperties>({});
-  const [arrowStyle, setArrowStyle] = useState<React.CSSProperties>({});
-  const [isPositioned, setIsPositioned] = useState(false);
+  const [tooltipState, setTooltipState] = useState<{
+    style: React.CSSProperties;
+    arrowStyle: React.CSSProperties;
+    isPositioned: boolean;
+  }>({
+    style: {},
+    arrowStyle: {},
+    isPositioned: false,
+  });
 
-  useEffect(() => {
+  // Use useLayoutEffect to measure and position synchronously before paint
+  useLayoutEffect(() => {
     if (!isHovered || !triggerRef?.current || !tooltipRef.current) {
-      setIsPositioned(false); // Reset when hidden
+      // Reset when hidden
+      setTooltipState({ style: {}, arrowStyle: {}, isPositioned: false });
       return;
     }
 
-    // Double RAF to ensure layout is stable (especially for fonts on first render)
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        if (!triggerRef?.current || !tooltipRef.current) return;
+    // Measure and position immediately in useLayoutEffect
+    // This runs synchronously before browser paint, preventing flash
+    const measure = () => {
+      if (!triggerRef?.current || !tooltipRef.current) return;
 
-        const trigger = triggerRef.current.getBoundingClientRect();
-        const tooltip = tooltipRef.current.getBoundingClientRect();
-        const viewportWidth = window.innerWidth;
-        const viewportHeight = window.innerHeight;
+      const trigger = triggerRef.current.getBoundingClientRect();
+      const tooltip = tooltipRef.current.getBoundingClientRect();
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
 
-        let top: number;
-        let left: number;
-        let finalPosition = position;
-        const gap = 8; // Gap between trigger and tooltip
+      let top: number;
+      let left: number;
+      let finalPosition = position;
+      const gap = 8; // Gap between trigger and tooltip
 
-    // Vertical positioning with collision detection
-    if (position === "bottom") {
-      top = trigger.bottom + gap;
-      // Check if tooltip would overflow bottom of viewport
-      if (top + tooltip.height > viewportHeight) {
-        // Flip to top
-        finalPosition = "top";
-        top = trigger.top - tooltip.height - gap;
-      }
-    } else {
-      // position === "top"
-      top = trigger.top - tooltip.height - gap;
-      // Check if tooltip would overflow top of viewport
-      if (top < 0) {
-        // Flip to bottom
-        finalPosition = "bottom";
+      // Vertical positioning with collision detection
+      if (position === "bottom") {
         top = trigger.bottom + gap;
+        // Check if tooltip would overflow bottom of viewport
+        if (top + tooltip.height > viewportHeight) {
+          // Flip to top
+          finalPosition = "top";
+          top = trigger.top - tooltip.height - gap;
+        }
+      } else {
+        // position === "top"
+        top = trigger.top - tooltip.height - gap;
+        // Check if tooltip would overflow top of viewport
+        if (top < 0) {
+          // Flip to bottom
+          finalPosition = "bottom";
+          top = trigger.bottom + gap;
+        }
       }
-    }
 
-    // Horizontal positioning based on align
-    if (align === "left") {
-      left = trigger.left;
-    } else if (align === "right") {
-      left = trigger.right - tooltip.width;
-    } else {
-      // center
-      left = trigger.left + trigger.width / 2 - tooltip.width / 2;
-    }
+      // Horizontal positioning based on align
+      if (align === "left") {
+        left = trigger.left;
+      } else if (align === "right") {
+        left = trigger.right - tooltip.width;
+      } else {
+        // center
+        left = trigger.left + trigger.width / 2 - tooltip.width / 2;
+      }
 
-    // Horizontal collision detection
-    const minLeft = 8; // Min distance from viewport edge
-    const maxLeft = viewportWidth - tooltip.width - 8;
-    const originalLeft = left;
-    left = Math.max(minLeft, Math.min(maxLeft, left));
+      // Horizontal collision detection
+      const minLeft = 8; // Min distance from viewport edge
+      const maxLeft = viewportWidth - tooltip.width - 8;
+      const originalLeft = left;
+      left = Math.max(minLeft, Math.min(maxLeft, left));
 
-    // Calculate arrow position - stays aligned with trigger even if tooltip shifts
-    let arrowLeft: number;
-    if (align === "center") {
-      arrowLeft = trigger.left + trigger.width / 2 - left;
-    } else if (align === "right") {
-      arrowLeft = tooltip.width - 15; // 10px from right + 5px arrow width
-    } else {
-      // left
-      arrowLeft = Math.max(10, Math.min(originalLeft - left + 10, tooltip.width - 15));
-    }
+      // Calculate arrow position - stays aligned with trigger even if tooltip shifts
+      let arrowLeft: number;
+      if (align === "center") {
+        arrowLeft = trigger.left + trigger.width / 2 - left;
+      } else if (align === "right") {
+        arrowLeft = tooltip.width - 15; // 10px from right + 5px arrow width
+      } else {
+        // left
+        arrowLeft = Math.max(10, Math.min(originalLeft - left + 10, tooltip.width - 15));
+      }
 
-        setStyle({
+      // Update all state atomically to prevent flashing
+      setTooltipState({
+        style: {
           position: "fixed",
           top: `${top}px`,
           left: `${left}px`,
           visibility: "visible",
           opacity: 1,
-        });
-
-        setArrowStyle({
+        },
+        arrowStyle: {
           left: `${arrowLeft}px`,
           [finalPosition === "bottom" ? "bottom" : "top"]: "100%",
           borderColor:
             finalPosition === "bottom"
               ? "transparent transparent #2d2d30 transparent"
               : "#2d2d30 transparent transparent transparent",
-        });
-
-        // Mark as positioned - now safe to show
-        setIsPositioned(true);
+        },
+        isPositioned: true,
       });
-    });
+    };
+
+    // Try immediate measurement first
+    measure();
+    
+    // If fonts aren't loaded yet, measure again after RAF
+    // This handles the edge case of first render before fonts load
+    const rafId = requestAnimationFrame(measure);
+    return () => cancelAnimationFrame(rafId);
   }, [isHovered, align, position, triggerRef]);
 
   if (!isHovered) {
@@ -163,16 +178,18 @@ export const Tooltip: React.FC<TooltipProps> = ({
     <StyledTooltip
       ref={tooltipRef}
       style={{
-        ...style,
-        // Override visibility until positioned to prevent flash
-        visibility: isPositioned ? style.visibility : "hidden",
-        opacity: isPositioned ? style.opacity : 0,
+        // Always include position styles for measurement
+        position: "fixed",
+        ...tooltipState.style,
+        // Keep hidden until positioned
+        visibility: tooltipState.isPositioned ? "visible" : "hidden",
+        opacity: tooltipState.isPositioned ? 1 : 0,
       }}
       width={width}
       className={className}
     >
       {children}
-      <Arrow style={arrowStyle} />
+      <Arrow style={tooltipState.arrowStyle} />
     </StyledTooltip>,
     document.body
   );
@@ -192,10 +209,8 @@ const StyledTooltip = styled.div<{ width: string }>`
   font-family: var(--font-primary);
   border: 1px solid #464647;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
-  transition: opacity 0.2s;
   pointer-events: none;
-  visibility: hidden;
-  opacity: 0;
+  /* No default visibility/opacity - controlled via inline styles */
 `;
 
 const Arrow = styled.div`
