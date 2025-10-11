@@ -144,6 +144,8 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
         // Handle streaming events
         if (isStreamStart(data)) {
           aggregator.handleStreamStart(data);
+          // Initialize tokenizer for this model
+          aggregator.setModel(data.model);
           // Track model in LRU cache
           addModel(data.model);
           // Clear retry state on successful stream start (fixes retry barrier persistence)
@@ -157,12 +159,18 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
 
         if (isStreamDelta(data)) {
           aggregator.handleStreamDelta(data);
+          // Track tokens for live count/TPS
+          aggregator.trackTokenDelta(data.messageId, data.delta, "text");
           forceUpdate();
           return;
         }
 
         if (isStreamEnd(data)) {
+          // Finalize streaming token counts
+          aggregator.finalizeStreamingTokens(data.messageId);
           aggregator.handleStreamEnd(data);
+          // Clear token state after stream completes
+          aggregator.clearTokenState(data.messageId);
 
           // Handle compact_summary completion - check if any tool in parts is compact_summary
           // Tool results may come in stream-end rather than as separate tool-call-end events
@@ -206,6 +214,8 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
         }
 
         if (isStreamAbort(data)) {
+          // Clear token state on abort
+          aggregator.clearTokenState(data.messageId);
           aggregator.handleStreamAbort(data);
           forceUpdate();
 
@@ -228,6 +238,8 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
 
         if (isToolCallDelta(data)) {
           aggregator.handleToolCallDelta(data);
+          // Track tool args tokens for live count/TPS
+          aggregator.trackTokenDelta(data.messageId, String(data.delta), "tool-args");
           forceUpdate();
           return;
         }
@@ -253,6 +265,8 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
         // Handle reasoning events
         if (isReasoningDelta(data)) {
           aggregator.handleReasoningDelta(data);
+          // Track reasoning tokens for live count/TPS
+          aggregator.trackTokenDelta(data.messageId, data.delta, "reasoning");
           forceUpdate();
           return;
         }
@@ -299,6 +313,8 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
 
   return {
     getWorkspaceState,
+    getAggregator,
     workspaceStates,
+    forceUpdate,
   };
 }

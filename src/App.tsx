@@ -168,7 +168,7 @@ function AppInner() {
     });
 
   // Use workspace aggregators hook for message state
-  const { getWorkspaceState, workspaceStates } = useWorkspaceAggregators(workspaceMetadata);
+  const { getWorkspaceState, getAggregator, workspaceStates } = useWorkspaceAggregators(workspaceMetadata);
 
   // Track unread message status for all workspaces
   const { unreadStatus, toggleUnread } = useUnreadTracking(selectedWorkspace, workspaceStates);
@@ -524,6 +524,7 @@ function AppInner() {
                     branch={selectedWorkspace.workspacePath.split("/").pop() ?? ""}
                     workspacePath={selectedWorkspace.workspacePath}
                     workspaceState={getWorkspaceState(selectedWorkspace.workspaceId)}
+                    getAggregator={getAggregator}
                     onCompactStart={(continueMessage) =>
                       handleCompactStart(selectedWorkspace.workspaceId, continueMessage)
                     }

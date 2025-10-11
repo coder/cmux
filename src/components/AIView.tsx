@@ -20,6 +20,7 @@ import type { WorkspaceState } from "@/hooks/useWorkspaceAggregators";
 import { StatusIndicator } from "./StatusIndicator";
 import { getModelName } from "@/utils/ai/models";
 import { GitStatusIndicator } from "./GitStatusIndicator";
+import { StreamingTokenCount } from "./StreamingTokenCount";
 import { useGitStatus } from "@/contexts/GitStatusContext";
 import { TooltipWrapper, Tooltip } from "./Tooltip";
 import type { DisplayedMessage } from "@/types/message";
@@ -180,6 +181,7 @@ interface AIViewProps {
   branch: string;
   workspacePath: string;
   workspaceState: WorkspaceState;
+  getAggregator: (workspaceId: string) => import("@/utils/messages/StreamingMessageAggregator").StreamingMessageAggregator;
   onCompactStart?: (continueMessage: string | undefined) => void;
   className?: string;
 }
@@ -190,6 +192,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
   branch,
   workspacePath,
   workspaceState,
+  getAggregator,
   onCompactStart,
   className,
 }) => {
@@ -229,6 +232,15 @@ const AIViewInner: React.FC<AIViewProps> = ({
   // Extract state from workspace state prop
   const { messages, canInterrupt, isCompacting, loading, cmuxMessages, currentModel } =
     workspaceState;
+  const aggregator = getAggregator(workspaceId);
+  
+  // Get active stream message ID for token counting
+  const activeStream = aggregator.getActiveStreams()[0];
+  const activeStreamMessageId = activeStream
+    ? messages.find((msg): msg is Extract<DisplayedMessage, { type: "assistant" }> => 
+        msg.type === "assistant" && msg.isStreaming
+      )?.historyId
+    : undefined;
 
   // Track if last message was interrupted or errored (for RetryBarrier)
   // Uses same logic as useResumeManager for DRY
@@ -367,6 +379,13 @@ const AIViewInner: React.FC<AIViewProps> = ({
                 tooltipPosition="bottom"
               />
               {projectName} / {branch}
+              {canInterrupt && activeStreamMessageId && (
+                <StreamingTokenCount
+                  messageId={activeStreamMessageId}
+                  aggregator={aggregator}
+                  isStreaming={canInterrupt}
+                />
+              )}
               <WorkspacePath>{workspacePath}</WorkspacePath>
               <TooltipWrapper inline>
                 <TerminalIconButton onClick={handleOpenTerminal}>

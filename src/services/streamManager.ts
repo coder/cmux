@@ -500,6 +500,30 @@ export class StreamManager extends EventEmitter {
             void this.schedulePartialWrite(workspaceId, streamInfo);
             break;
 
+          default: {
+            // Handle tool-call-delta which may not be in the type definition yet
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            if ((part as any).type === "tool-call-delta") {
+              // Tool call arguments streaming (for tools like compact_summary)
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const toolCallDeltaPart = part as any as {
+                toolCallId: string;
+                toolName: string;
+                argsTextDelta: string;
+              };
+
+              this.emit("tool-call-delta", {
+                type: "tool-call-delta",
+                workspaceId: workspaceId as string,
+                messageId: streamInfo.messageId,
+                toolCallId: toolCallDeltaPart.toolCallId,
+                toolName: toolCallDeltaPart.toolName,
+                delta: toolCallDeltaPart.argsTextDelta,
+              });
+            }
+            break;
+          }
+
           case "reasoning-delta": {
             // Both Anthropic and OpenAI use reasoning-delta for streaming reasoning content
             const delta = (part as ReasoningDeltaPart).text ?? "";
