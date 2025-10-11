@@ -34,15 +34,6 @@ export const CUSTOM_EVENTS = {
    * useResumeManager handles this idempotently - safe to emit multiple times
    */
   RESUME_CHECK_REQUESTED: "cmux:resumeCheckRequested",
-
-  /**
-   * Event emitted when compaction successfully completes
-   * Detail: { workspaceId: string }
-   *
-   * Emitted after replaceChatHistory is called with the compaction summary.
-   * Used to trigger auto-continue if the -c flag was used.
-   */
-  COMPACTION_COMPLETE: "cmux:compactionComplete",
 } as const;
 
 /**

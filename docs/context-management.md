@@ -53,7 +53,7 @@ Compress conversation history using AI summarization. Replaces the conversation 
 ### Options
 
 - `-t <tokens>` - Maximum output tokens for the summary (default: ~2000 words)
-- `-c <message>` - Continue after compaction with this user message (persists across restarts)
+- `-c <message>` - Continue after compaction with this user message
 
 ### Examples
 
@@ -73,7 +73,7 @@ Limit summary to ~5000 tokens.
 /compact -c "Continue implementing the auth system"
 ```
 
-Compact and auto-continue with custom prompt. The continue message is stored and reused on future compactions.
+Compact and automatically send a follow-up message after compaction completes.
 
 ```
 /compact -t 3000 -c "Keep going"
@@ -86,7 +86,7 @@ Combine token limit and auto-continue.
 - Uses the selected LLM to summarize conversation history
 - Preserves actionable context and specific details
 - **Irreversible** - original messages are replaced
-- Continue message persists in localStorage until changed
+- Continue message is used once per compaction (not persisted)
 
 ---
 

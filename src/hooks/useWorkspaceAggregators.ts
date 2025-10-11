@@ -193,13 +193,6 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
                   );
 
                   void window.api.workspace.replaceChatHistory(workspaceId, summaryMessage);
-
-                  // Emit compaction complete event for auto-continue support
-                  window.dispatchEvent(
-                    new CustomEvent(CUSTOM_EVENTS.COMPACTION_COMPLETE, {
-                      detail: { workspaceId },
-                    })
-                  );
                 } else {
                   console.log("[useWorkspaceAggregators] No summary in tool output");
                 }
