@@ -182,9 +182,7 @@ interface AIViewProps {
   branch: string;
   workspacePath: string;
   workspaceState: WorkspaceState;
-  getAggregator: (
-    workspaceId: string
-  ) => import("@/utils/messages/StreamingMessageAggregator").StreamingMessageAggregator;
+  getAggregator: (workspaceId: string) => StreamingMessageAggregator;
   onCompactStart?: (continueMessage: string | undefined) => void;
   className?: string;
 }
