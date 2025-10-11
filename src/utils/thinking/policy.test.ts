@@ -1,9 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import {
-  hasFixedThinkingPolicy,
-  getThinkingPolicyForModel,
-  enforceThinkingPolicy,
-} from "./policy";
+import { hasFixedThinkingPolicy, getThinkingPolicyForModel, enforceThinkingPolicy } from "./policy";
 
 describe("hasFixedThinkingPolicy", () => {
   test("returns true for gpt-5-pro base model", () => {
@@ -95,4 +91,3 @@ describe("enforceThinkingPolicy", () => {
     // Runtime behavior defaults to medium for unexpected values, but this is not a realistic scenario
   });
 });
-
