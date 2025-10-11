@@ -1,10 +1,9 @@
-import * as fs from "fs/promises";
 import * as path from "path";
-import writeFileAtomic from "write-file-atomic";
 import type { FileEditDiffSuccessBase, FileEditErrorResult } from "@/types/tools";
 import { WRITE_DENIED_PREFIX } from "@/types/tools";
 import type { ToolConfiguration } from "@/utils/tools/tools";
 import { generateDiff, validateFileSize, validatePathInCwd } from "./fileCommon";
+import { RuntimeError } from "@/runtime/Runtime";
 
 type FileEditOperationResult<TMetadata> =
   | {
@@ -47,15 +46,28 @@ export async function executeFileEditOperation<TMetadata>({
 
     const resolvedPath = path.isAbsolute(filePath) ? filePath : path.resolve(config.cwd, filePath);
 
-    const stats = await fs.stat(resolvedPath);
-    if (!stats.isFile()) {
+    // Check if file exists and get stats using runtime
+    let fileStat;
+    try {
+      fileStat = await config.runtime.stat(resolvedPath);
+    } catch (err) {
+      if (err instanceof RuntimeError) {
+        return {
+          success: false,
+          error: `${WRITE_DENIED_PREFIX} ${err.message}`,
+        };
+      }
+      throw err;
+    }
+
+    if (!fileStat.isFile) {
       return {
         success: false,
         error: `${WRITE_DENIED_PREFIX} Path exists but is not a file: ${resolvedPath}`,
       };
     }
 
-    const sizeValidation = validateFileSize(stats);
+    const sizeValidation = validateFileSize(fileStat);
     if (sizeValidation) {
       return {
         success: false,
@@ -63,7 +75,19 @@ export async function executeFileEditOperation<TMetadata>({
       };
     }
 
-    const originalContent = await fs.readFile(resolvedPath, { encoding: "utf-8" });
+    // Read file content using runtime
+    let originalContent: string;
+    try {
+      originalContent = await config.runtime.readFile(resolvedPath);
+    } catch (err) {
+      if (err instanceof RuntimeError) {
+        return {
+          success: false,
+          error: `${WRITE_DENIED_PREFIX} ${err.message}`,
+        };
+      }
+      throw err;
+    }
 
     const operationResult = await Promise.resolve(operation(originalContent));
     if (!operationResult.success) {
@@ -73,7 +97,18 @@ export async function executeFileEditOperation<TMetadata>({
       };
     }
 
-    await writeFileAtomic(resolvedPath, operationResult.newContent, { encoding: "utf-8" });
+    // Write file using runtime
+    try {
+      await config.runtime.writeFile(resolvedPath, operationResult.newContent);
+    } catch (err) {
+      if (err instanceof RuntimeError) {
+        return {
+          success: false,
+          error: `${WRITE_DENIED_PREFIX} ${err.message}`,
+        };
+      }
+      throw err;
+    }
 
     const diff = generateDiff(resolvedPath, originalContent, operationResult.newContent);
 

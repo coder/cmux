@@ -1,29 +1,38 @@
 import { describe, it, expect } from "bun:test";
-import type * as fs from "fs";
+import type { FileStat } from "@/runtime/Runtime";
 import { validatePathInCwd, validateFileSize, MAX_FILE_SIZE } from "./fileCommon";
 
 describe("fileCommon", () => {
   describe("validateFileSize", () => {
     it("should return null for files within size limit", () => {
-      const stats = {
+      const stats: FileStat = {
         size: 1024, // 1KB
-      } satisfies Partial<fs.Stats> as fs.Stats;
+        modifiedTime: new Date(),
+        isFile: true,
+        isDirectory: false,
+      };
 
       expect(validateFileSize(stats)).toBeNull();
     });
 
     it("should return null for files at exactly the limit", () => {
-      const stats = {
+      const stats: FileStat = {
         size: MAX_FILE_SIZE,
-      } satisfies Partial<fs.Stats> as fs.Stats;
+        modifiedTime: new Date(),
+        isFile: true,
+        isDirectory: false,
+      };
 
       expect(validateFileSize(stats)).toBeNull();
     });
 
     it("should return error for files exceeding size limit", () => {
-      const stats = {
+      const stats: FileStat = {
         size: MAX_FILE_SIZE + 1,
-      } satisfies Partial<fs.Stats> as fs.Stats;
+        modifiedTime: new Date(),
+        isFile: true,
+        isDirectory: false,
+      };
 
       const result = validateFileSize(stats);
       expect(result).not.toBeNull();
@@ -32,9 +41,12 @@ describe("fileCommon", () => {
     });
 
     it("should include size information in error message", () => {
-      const stats = {
+      const stats: FileStat = {
         size: MAX_FILE_SIZE * 2, // 2MB
-      } satisfies Partial<fs.Stats> as fs.Stats;
+        modifiedTime: new Date(),
+        isFile: true,
+        isDirectory: false,
+      };
 
       const result = validateFileSize(stats);
       expect(result?.error).toContain("2.00MB");
@@ -42,9 +54,12 @@ describe("fileCommon", () => {
     });
 
     it("should suggest alternative tools in error message", () => {
-      const stats = {
+      const stats: FileStat = {
         size: MAX_FILE_SIZE + 1,
-      } satisfies Partial<fs.Stats> as fs.Stats;
+        modifiedTime: new Date(),
+        isFile: true,
+        isDirectory: false,
+      };
 
       const result = validateFileSize(stats);
       expect(result?.error).toContain("grep");

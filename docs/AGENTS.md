@@ -110,7 +110,7 @@ Verify with React DevTools Profiler - MarkdownCore should only re-render when co
 
 ## Documentation Guidelines
 
-**Free-floating markdown docs are not permitted.** Documentation must be organized:
+**Free-floating markdown docs are not permitted.** Documentation must be organized. Do not create standalone markdown files in the project root or random locations, even for implementation summaries or planning documents - use the propose_plan tool or inline comments instead.
 
 - **User-facing docs** → `./docs/` directory
   - **IMPORTANT**: Read `docs/README.md` first before writing user-facing documentation

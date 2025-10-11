@@ -1,6 +1,6 @@
-import type * as fs from "fs";
 import * as path from "path";
 import { createPatch } from "diff";
+import type { FileStat } from "@/runtime/Runtime";
 
 // WRITE_DENIED_PREFIX moved to @/types/tools for frontend/backend sharing
 
@@ -36,7 +36,7 @@ export function generateDiff(filePath: string, oldContent: string, newContent: s
  * @param stats - File stats from fs.stat()
  * @returns Error object if file is too large, null if valid
  */
-export function validateFileSize(stats: fs.Stats): { error: string } | null {
+export function validateFileSize(stats: FileStat): { error: string } | null {
   if (stats.size > MAX_FILE_SIZE) {
     const sizeMB = (stats.size / (1024 * 1024)).toFixed(2);
     const maxMB = (MAX_FILE_SIZE / (1024 * 1024)).toFixed(2);

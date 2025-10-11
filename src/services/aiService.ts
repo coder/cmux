@@ -13,6 +13,7 @@ import type { Config } from "@/config";
 import { StreamManager } from "./streamManager";
 import type { SendMessageError } from "@/types/errors";
 import { getToolsForModel } from "@/utils/tools/tools";
+import { LocalRuntime } from "@/runtime/LocalRuntime";
 import { secretsToRecord } from "@/types/secrets";
 import type { CmuxProviderOptions } from "@/types/providerOptions";
 import { log } from "./log";
@@ -520,6 +521,7 @@ export class AIService extends EventEmitter {
       // Get model-specific tools with workspace path configuration and secrets
       const allTools = await getToolsForModel(modelString, {
         cwd: workspacePath,
+        runtime: new LocalRuntime(),
         secrets: secretsToRecord(projectSecrets),
         tempDir,
       });
