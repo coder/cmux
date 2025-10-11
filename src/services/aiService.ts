@@ -2,6 +2,7 @@ import * as fs from "fs/promises";
 import * as path from "path";
 import { EventEmitter } from "events";
 import { convertToModelMessages, wrapLanguageModel, type LanguageModel } from "ai";
+import { applyToolOutputRedaction } from "@/utils/messages/applyToolOutputRedaction";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import type { Result } from "@/types/result";
 import { Ok, Err } from "@/types/result";
@@ -443,10 +444,15 @@ export class AIService extends EventEmitter {
       // Add [CONTINUE] sentinel to partial messages (for model context)
       const messagesWithSentinel = addInterruptedSentinel(filteredMessages);
 
+      // Apply centralized tool-output redaction BEFORE converting to provider ModelMessages
+      // This keeps the persisted/UI history intact while trimming heavy fields for the request
+      const redactedForProvider = applyToolOutputRedaction(messagesWithSentinel);
+      log.debug_obj(`${workspaceId}/2a_redacted_messages.json`, redactedForProvider);
+
       // Convert CmuxMessage to ModelMessage format using Vercel AI SDK utility
       // Type assertion needed because CmuxMessage has custom tool parts for interrupted tools
       // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
-      const modelMessages = convertToModelMessages(messagesWithSentinel as any);
+      const modelMessages = convertToModelMessages(redactedForProvider as any);
       log.debug_obj(`${workspaceId}/2_model_messages.json`, modelMessages);
 
       // Apply ModelMessage transforms based on provider requirements
