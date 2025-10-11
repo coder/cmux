@@ -610,7 +610,6 @@ export class StreamingMessageAggregator {
     delta: string,
     type: "text" | "reasoning" | "tool-args"
   ): void {
-    console.log(`[StreamingMessageAggregator] trackTokenDelta messageId=${messageId} type=${type} delta.length=${delta.length}`);
     this.tokenTracker.trackDelta(messageId, delta, type);
   }
 
