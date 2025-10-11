@@ -154,7 +154,7 @@ export const PrimaryButton = styled(Button)`
 
 export const DangerButton = styled(Button)`
   background: var(--color-error);
-  color: var(--color-text-secondary);
+  color: white;
 
   &:hover:not(:disabled) {
     background: color-mix(in srgb, var(--color-error), #fff 20%);
