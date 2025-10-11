@@ -1,6 +1,6 @@
-import { getModelKey, getThinkingLevelKey } from "@/constants/storage";
+import { getModelKey, getThinkingLevelKey, getModeKey, USE_1M_CONTEXT_KEY } from "@/constants/storage";
 import { defaultModel } from "@/utils/ai/models";
-import { modeToToolPolicy } from "@/utils/ui/modeUtils";
+import { modeToToolPolicy, PLAN_MODE_INSTRUCTION } from "@/utils/ui/modeUtils";
 import { readPersistedState } from "@/hooks/usePersistedState";
 import type { SendMessageOptions } from "@/types/ipc";
 import type { UIMode } from "@/types/mode";
@@ -24,16 +24,13 @@ export function getSendOptionsFromStorage(workspaceId: string): SendMessageOptio
   );
 
   // Read mode (workspace-specific)
-  const mode = readPersistedState<UIMode>(`mode:${workspaceId}`, "exec");
+  const mode = readPersistedState<UIMode>(getModeKey(workspaceId), "exec");
 
   // Read 1M context (global)
-  const use1M = readPersistedState<boolean>("use1MContext", false);
+  const use1M = readPersistedState<boolean>(USE_1M_CONTEXT_KEY, false);
 
   // Plan mode system instructions
-  const additionalSystemInstructions =
-    mode === "plan"
-      ? "You are in Plan Mode. You may use tools to research and understand the task, but you MUST call the propose_plan tool with your findings before completing your response. Do not provide a text response without calling propose_plan."
-      : undefined;
+  const additionalSystemInstructions = mode === "plan" ? PLAN_MODE_INSTRUCTION : undefined;
 
   return {
     model,

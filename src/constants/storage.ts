@@ -47,6 +47,21 @@ export function getLastThinkingByModelKey(modelName: string): string {
   return `lastThinkingByModel:${modelName}`;
 }
 
+/**
+ * Get the localStorage key for the UI mode for a workspace
+ * Format: "mode:{workspaceId}"
+ */
+export function getModeKey(workspaceId: string): string {
+  return `mode:${workspaceId}`;
+}
+
+/**
+ * Get the localStorage key for the 1M context preference (global)
+ * Format: "use1MContext"
+ */
+export const USE_1M_CONTEXT_KEY = "use1MContext";
+
+
 
 /**
  * Get the localStorage key for the compact continue message for a workspace
