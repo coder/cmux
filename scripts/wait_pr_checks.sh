@@ -43,7 +43,7 @@ if [[ "$LOCAL_HASH" != "$REMOTE_HASH" ]]; then
   echo "Local:  $LOCAL_HASH" >&2
   echo "Remote: $REMOTE_HASH" >&2
   echo "" >&2
-  
+
   # Check if we're ahead, behind, or diverged
   if git merge-base --is-ancestor "$REMOTE_HASH" HEAD 2>/dev/null; then
     AHEAD=$(git rev-list --count "$REMOTE_BRANCH"..HEAD)
@@ -57,7 +57,7 @@ if [[ "$LOCAL_HASH" != "$REMOTE_HASH" ]]; then
     echo "Your branch has diverged from '$REMOTE_BRANCH'." >&2
     echo "You may need to rebase or merge." >&2
   fi
-  
+
   exit 1
 fi
 
