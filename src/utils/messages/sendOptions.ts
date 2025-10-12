@@ -10,6 +10,7 @@ import { readPersistedState } from "@/hooks/usePersistedState";
 import type { SendMessageOptions } from "@/types/ipc";
 import type { UIMode } from "@/types/mode";
 import type { ThinkingLevel } from "@/types/thinking";
+import { enforceThinkingPolicy } from "@/utils/thinking/policy";
 
 /**
  * Get send options from localStorage
@@ -37,9 +38,12 @@ export function getSendOptionsFromStorage(workspaceId: string): SendMessageOptio
   // Plan mode system instructions
   const additionalSystemInstructions = mode === "plan" ? PLAN_MODE_INSTRUCTION : undefined;
 
+  // Enforce thinking policy (gpt-5-pro → high only)
+  const effectiveThinkingLevel = enforceThinkingPolicy(model, thinkingLevel);
+
   return {
     model,
-    thinkingLevel,
+    thinkingLevel: effectiveThinkingLevel,
     toolPolicy: modeToToolPolicy(mode),
     additionalSystemInstructions,
     providerOptions: {

@@ -9,6 +9,7 @@ import type { SendMessageOptions } from "@/types/ipc";
 import type { UIMode } from "@/types/mode";
 import type { ThinkingLevel } from "@/types/thinking";
 import { getSendOptionsFromStorage } from "@/utils/messages/sendOptions";
+import { enforceThinkingPolicy } from "@/utils/thinking/policy";
 
 /**
  * Construct SendMessageOptions from raw values
@@ -26,8 +27,11 @@ function constructSendMessageOptions(
   const model =
     typeof preferredModel === "string" && preferredModel ? preferredModel : defaultModel;
 
+  // Enforce thinking policy at the UI boundary as well (e.g., gpt-5-pro → high only)
+  const uiThinking = enforceThinkingPolicy(model, thinkingLevel);
+
   return {
-    thinkingLevel,
+    thinkingLevel: uiThinking,
     model,
     mode: mode === "exec" || mode === "plan" ? mode : "exec", // Only pass exec/plan to backend
     toolPolicy: modeToToolPolicy(mode),

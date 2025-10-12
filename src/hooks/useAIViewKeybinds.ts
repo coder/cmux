@@ -5,6 +5,7 @@ import { getLastThinkingByModelKey } from "@/constants/storage";
 import { updatePersistedState, readPersistedState } from "@/hooks/usePersistedState";
 import type { ThinkingLevel, ThinkingLevelOn } from "@/types/thinking";
 import { DEFAULT_THINKING_LEVEL } from "@/types/thinking";
+import { getThinkingPolicyForModel } from "@/utils/thinking/policy";
 
 interface UseAIViewKeybindsParams {
   workspaceId: string;
@@ -65,6 +66,13 @@ export function useAIViewKeybinds({
 
         // Storage key for remembering this model's last-used active thinking level
         const lastThinkingKey = getLastThinkingByModelKey(currentModel);
+
+        // Special-case: if model has single-option policy (e.g., gpt-5-pro only supports HIGH),
+        // the toggle is a no-op to avoid confusing state transitions.
+        const allowed = getThinkingPolicyForModel(currentModel);
+        if (allowed.length === 1) {
+          return; // No toggle for single-option policies
+        }
 
         if (currentWorkspaceThinking !== "off") {
           // Thinking is currently ON - save the level for this model and turn it off

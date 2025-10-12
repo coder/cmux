@@ -1,9 +1,10 @@
-import React, { useId } from "react";
+import React, { useEffect, useId } from "react";
 import styled from "@emotion/styled";
 import type { ThinkingLevel } from "@/types/thinking";
 import { useThinkingLevel } from "@/hooks/useThinkingLevel";
 import { TooltipWrapper, Tooltip } from "./Tooltip";
 import { formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
+import { getThinkingPolicyForModel } from "@/utils/thinking/policy";
 
 const ThinkingSliderContainer = styled.div`
   display: flex;
@@ -150,11 +151,47 @@ const valueToThinkingLevel = (value: number): ThinkingLevel => {
   return THINKING_LEVELS[value] || "off";
 };
 
-export const ThinkingSliderComponent: React.FC = () => {
+interface ThinkingControlProps {
+  modelString: string;
+}
+
+export const ThinkingSliderComponent: React.FC<ThinkingControlProps> = ({ modelString }) => {
   const [thinkingLevel, setThinkingLevel] = useThinkingLevel();
+  const sliderId = useId();
+  const allowed = getThinkingPolicyForModel(modelString);
+
+  // If policy has single level (e.g., gpt-5-pro), force to that level
+  useEffect(() => {
+    if (allowed.length === 1 && thinkingLevel !== allowed[0]) {
+      setThinkingLevel(allowed[0]);
+    }
+  }, [allowed, thinkingLevel, setThinkingLevel]);
+
+  if (allowed.length === 1) {
+    // Render non-interactive badge for single-option policies with explanatory tooltip
+    const fixedLevel = allowed[0];
+    const value = thinkingLevelToValue(fixedLevel);
+    const formattedLevel = fixedLevel === "off" ? "Off" : fixedLevel;
+    const tooltipMessage = `Model ${modelString} locks thinking at ${formattedLevel.toUpperCase()} to match its capabilities.`;
+
+    return (
+      <TooltipWrapper>
+        <ThinkingSliderContainer>
+          <ThinkingLabel>Thinking:</ThinkingLabel>
+          <ThinkingLevelText
+            value={value}
+            aria-live="polite"
+            aria-label={`Thinking level fixed to ${fixedLevel}`}
+          >
+            {fixedLevel}
+          </ThinkingLevelText>
+        </ThinkingSliderContainer>
+        <Tooltip align="center">{tooltipMessage}</Tooltip>
+      </TooltipWrapper>
+    );
+  }
 
   const value = thinkingLevelToValue(thinkingLevel);
-  const sliderId = useId();
 
   return (
     <TooltipWrapper>

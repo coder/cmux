@@ -18,7 +18,7 @@ export const ChatToggles: React.FC<ChatTogglesProps> = ({ modelString, children 
   return (
     <TogglesContainer>
       {children}
-      <ThinkingSliderComponent />
+      <ThinkingSliderComponent modelString={modelString} />
       <Context1MCheckbox modelString={modelString} />
     </TogglesContainer>
   );
