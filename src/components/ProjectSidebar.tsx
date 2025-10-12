@@ -6,11 +6,15 @@ import type { ProjectConfig } from "@/config";
 import type { WorkspaceMetadata } from "@/types/workspace";
 import { useGitStatus } from "@/contexts/GitStatusContext";
 import { usePersistedState } from "@/hooks/usePersistedState";
+import { DndProvider } from "react-dnd";
+import { HTML5Backend, getEmptyImage } from "react-dnd-html5-backend";
+import { useDrag, useDrop, useDragLayer } from "react-dnd";
+import { sortProjectsByOrder, reorderProjects, normalizeOrder } from "@/utils/projectOrdering";
 import { matchesKeybind, formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
 import { abbreviatePath } from "@/utils/ui/pathAbbreviation";
 import { TooltipWrapper, Tooltip } from "./Tooltip";
 import { StatusIndicator } from "./StatusIndicator";
-import { getModelName } from "@/utils/ai/models";
+// Removed: import { getModelName } from "@/utils/ai/models";
 import { GitStatusIndicator } from "./GitStatusIndicator";
 import type { WorkspaceState } from "@/hooks/useWorkspaceAggregators";
 import SecretsModal from "./SecretsModal";
@@ -121,13 +125,15 @@ const ProjectGroup = styled.div`
   border-bottom: 1px solid #2a2a2b;
 `;
 
-const ProjectItem = styled.div<{ selected?: boolean }>`
-  padding: 8px 12px;
-  cursor: pointer;
+const ProjectItem = styled.div<{ selected?: boolean; isDragging?: boolean; isOver?: boolean }>`
+  padding: 6px 12px;
+  cursor: ${(props) => (props.isDragging ? "grabbing" : "grab")};
   display: flex;
   align-items: center;
   border-left: 3px solid transparent;
   transition: all 0.15s;
+  opacity: ${(props) => (props.isDragging ? 0.4 : 1)};
+  background: ${(props) => (props.isOver ? "rgba(0, 122, 204, 0.08)" : "transparent")};
 
   ${(props) =>
     props.selected &&
@@ -136,10 +142,23 @@ const ProjectItem = styled.div<{ selected?: boolean }>`
       border-left-color: #007acc;
     `}
 
+  ${(props) =>
+    props.isDragging &&
+    css`
+      * {
+        cursor: grabbing !important;
+      }
+    `}
+
   &:hover {
     background: #2a2a2b;
 
     button {
+      opacity: 1;
+    }
+
+    /* Show drag handle on hover - target by data attribute */
+    [data-drag-handle] {
       opacity: 1;
     }
   }
@@ -157,6 +176,41 @@ const ExpandIcon = styled.span<{ expanded?: boolean }>`
     css`
       transform: rotate(90deg);
     `}
+`;
+
+// Global DnD drag layer to render a semi-transparent preview of the dragged project
+const DragLayerContainer = styled.div`
+  position: fixed;
+  pointer-events: none;
+  z-index: 9999;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+`;
+
+const DragPreviewItem = styled.div`
+  background: rgba(42, 42, 43, 0.95);
+  color: #ccc;
+  padding: 6px 12px;
+  border-left: 3px solid #007acc;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 280px;
+  min-width: 180px;
+`;
+
+const DragHandle = styled.span`
+  color: #666;
+  font-size: 12px;
+  margin-right: 6px;
+  cursor: grab;
+  opacity: 0;
+  user-select: none;
+  transition: opacity 0.15s;
 `;
 
 const ProjectInfo = styled.div`
@@ -364,6 +418,143 @@ const WorkspaceRemoveBtn = styled(RemoveBtn)`
   opacity: 0;
 `;
 
+// Draggable project item moved to module scope to avoid remounting on every parent render.
+// Defining components inside another component causes a new function identity each render,
+// which forces React to unmount/remount the subtree. That led to hover flicker and high CPU.
+type DraggableProjectItemProps = React.PropsWithChildren<{
+  projectPath: string;
+  onReorder: (draggedPath: string, targetPath: string) => void;
+  selected?: boolean;
+  onClick?: () => void;
+  onKeyDown?: (e: React.KeyboardEvent) => void;
+  role?: string;
+  tabIndex?: number;
+  "aria-expanded"?: boolean;
+  "aria-controls"?: string;
+  "data-project-path"?: string;
+}>;
+
+const DraggableProjectItemBase: React.FC<DraggableProjectItemProps> = ({
+  projectPath,
+  onReorder,
+  children,
+  ...rest
+}) => {
+  const [{ isDragging }, drag, dragPreview] = useDrag(
+    () => ({
+      type: "PROJECT",
+      item: { projectPath },
+      collect: (monitor) => ({ isDragging: monitor.isDragging() }),
+    }),
+    [projectPath]
+  );
+
+  // Hide native drag preview; we render a custom preview via DragLayer
+  useEffect(() => {
+    dragPreview(getEmptyImage(), { captureDraggingState: true });
+  }, [dragPreview]);
+
+  const [{ isOver }, drop] = useDrop(
+    () => ({
+      accept: "PROJECT",
+      drop: (item: { projectPath: string }) => {
+        if (item.projectPath !== projectPath) {
+          onReorder(item.projectPath, projectPath);
+        }
+      },
+      collect: (monitor) => ({ isOver: monitor.isOver({ shallow: true }) }),
+    }),
+    [projectPath, onReorder]
+  );
+
+  return (
+    <ProjectItem ref={(node) => drag(drop(node))} isDragging={isDragging} isOver={isOver} {...rest}>
+      {children}
+    </ProjectItem>
+  );
+};
+
+const DraggableProjectItem = React.memo(
+  DraggableProjectItemBase,
+  (prev, next) =>
+    prev.projectPath === next.projectPath &&
+    prev.onReorder === next.onReorder &&
+    (prev["aria-expanded"] ?? false) === (next["aria-expanded"] ?? false)
+);
+
+// Custom drag layer to show a semi-transparent preview and enforce grabbing cursor
+type DragItem = { projectPath: string } | null;
+
+const ProjectDragLayer: React.FC = () => {
+  const dragState = useDragLayer<{
+    isDragging: boolean;
+    item: unknown;
+    currentOffset: { x: number; y: number } | null;
+  }>((monitor) => ({
+    isDragging: monitor.isDragging(),
+    item: monitor.getItem(),
+    currentOffset: monitor.getClientOffset(),
+  }));
+  const isDragging = dragState.isDragging;
+  const item = dragState.item as DragItem;
+  const currentOffset = dragState.currentOffset;
+
+  React.useEffect(() => {
+    if (!isDragging) return;
+    const originalBody = document.body.style.cursor;
+    const originalHtml = document.documentElement.style.cursor;
+    document.body.style.cursor = "grabbing";
+    document.documentElement.style.cursor = "grabbing";
+    return () => {
+      document.body.style.cursor = originalBody;
+      document.documentElement.style.cursor = originalHtml;
+    };
+  }, [isDragging]);
+
+  if (!isDragging || !currentOffset || !item?.projectPath) return null;
+
+  const name = item.projectPath.split("/").pop() ?? item.projectPath;
+  const abbrevPath = abbreviatePath(item.projectPath);
+
+  return (
+    <DragLayerContainer style={{ cursor: "grabbing" }}>
+      <div style={{ transform: `translate(${currentOffset.x + 10}px, ${currentOffset.y + 10}px)` }}>
+        <DragPreviewItem>
+          <span style={{ marginRight: 6, color: "#666", fontSize: 12 }}>⠿</span>
+          <span style={{ marginRight: 8, color: "#888", fontSize: 10 }}>▶</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div
+              style={{
+                color: "#cccccc",
+                fontSize: 14,
+                fontWeight: 500,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              {name}
+            </div>
+            <div
+              style={{
+                color: "#6e6e6e",
+                fontSize: 11,
+                marginTop: 2,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                fontFamily: "var(--font-monospace)",
+              }}
+            >
+              {abbrevPath}
+            </div>
+          </div>
+        </DragPreviewItem>
+      </div>
+    </DragLayerContainer>
+  );
+};
+
 export interface WorkspaceSelection {
   projectPath: string;
   projectName: string;
@@ -408,7 +599,7 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
   onRenameWorkspace,
   getWorkspaceState,
   unreadStatus,
-  onToggleUnread,
+  onToggleUnread: _onToggleUnread,
   collapsed,
   onToggleCollapsed,
   onGetSecrets,
@@ -597,6 +788,7 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
     if (!result.success) {
       const errorMessage = result.error ?? "Failed to remove workspace";
       console.error("Force delete failed:", result.error);
+
       showRemoveError(workspaceId, errorMessage, modalState?.anchor ?? undefined);
     }
   };
@@ -610,6 +802,43 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
   const handleCloseSecrets = () => {
     setSecretsModalState(null);
   };
+
+  // UI preference: project order persists in localStorage
+  const [projectOrder, setProjectOrder] = usePersistedState<string[]>("cmux:projectOrder", []);
+
+  // Build a stable signature of the project keys so effects don't fire on Map identity churn
+  const projectPathsSignature = React.useMemo(() => {
+    // sort to avoid order-related churn
+    const keys = Array.from(projects.keys()).sort();
+    return keys.join("\u0001"); // use non-printable separator
+  }, [projects]);
+
+  // Normalize order when the set of projects changes (not on every parent render)
+  useEffect(() => {
+    const normalized = normalizeOrder(projectOrder, projects);
+    if (
+      normalized.length !== projectOrder.length ||
+      normalized.some((p, i) => p !== projectOrder[i])
+    ) {
+      setProjectOrder(normalized);
+    }
+    // Only re-run when project keys change
+  }, [projectPathsSignature]);
+
+  // Memoize sorted project PATHS (not entries) to avoid capturing stale config objects.
+  // Sorting depends only on keys + order; we read configs from the live Map during render.
+  const sortedProjectPaths = React.useMemo(
+    () => sortProjectsByOrder(projects, projectOrder).map(([p]) => p),
+    [projectPathsSignature, projectOrder]
+  );
+
+  const handleReorder = useCallback(
+    (draggedPath: string, targetPath: string) => {
+      const next = reorderProjects(projectOrder, projects, draggedPath, targetPath);
+      setProjectOrder(next);
+    },
+    [projectOrder, projects, setProjectOrder]
+  );
 
   // Handle keyboard shortcuts
   useEffect(() => {
@@ -626,252 +855,262 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
   }, [selectedWorkspace, onAddWorkspace]);
 
   return (
-    <SidebarContent role="navigation" aria-label="Projects">
-      {!collapsed && (
-        <>
-          <SidebarHeader>
-            <h2>Projects</h2>
-            <AddProjectBtn onClick={onAddProject} title="Add Project" aria-label="Add project">
-              +
-            </AddProjectBtn>
-          </SidebarHeader>
-          <ProjectsList>
-            {projects.size === 0 ? (
-              <EmptyState>
-                <p>No projects</p>
-                <AddFirstProjectBtn onClick={onAddProject}>Add Project</AddFirstProjectBtn>
-              </EmptyState>
-            ) : (
-              Array.from(projects.entries()).map(([projectPath, config]) => {
-                const projectName = getProjectName(projectPath);
-                const sanitizedProjectId = projectPath.replace(/[^a-zA-Z0-9_-]/g, "-") || "root";
-                const workspaceListId = `workspace-list-${sanitizedProjectId}`;
-                const isExpanded = expandedProjects.has(projectPath);
+    <DndProvider backend={HTML5Backend}>
+      <ProjectDragLayer />
+      <SidebarContent role="navigation" aria-label="Projects">
+        {!collapsed && (
+          <>
+            <SidebarHeader>
+              <h2>Projects</h2>
+              <AddProjectBtn onClick={onAddProject} title="Add Project" aria-label="Add project">
+                +
+              </AddProjectBtn>
+            </SidebarHeader>
+            <ProjectsList>
+              {projects.size === 0 ? (
+                <EmptyState>
+                  <p>No projects</p>
+                  <AddFirstProjectBtn onClick={onAddProject}>Add Project</AddFirstProjectBtn>
+                </EmptyState>
+              ) : (
+                sortedProjectPaths.map((projectPath) => {
+                  const config = projects.get(projectPath);
+                  if (!config) return null;
+                  const projectName = getProjectName(projectPath);
+                  const sanitizedProjectId = projectPath.replace(/[^a-zA-Z0-9_-]/g, "-") || "root";
+                  const workspaceListId = `workspace-list-${sanitizedProjectId}`;
+                  const isExpanded = expandedProjects.has(projectPath);
 
-                return (
-                  <ProjectGroup key={projectPath}>
-                    <ProjectItem
-                      onClick={() => toggleProject(projectPath)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault();
-                          toggleProject(projectPath);
-                        }
-                      }}
-                      role="button"
-                      tabIndex={0}
-                      aria-expanded={isExpanded}
-                      aria-controls={workspaceListId}
-                      data-project-path={projectPath}
-                    >
-                      <ExpandIcon
-                        expanded={isExpanded}
+                  return (
+                    <ProjectGroup key={projectPath}>
+                      <DraggableProjectItem
+                        projectPath={projectPath}
+                        onReorder={handleReorder}
+                        onClick={() => toggleProject(projectPath)}
+                        onKeyDown={(e: React.KeyboardEvent) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            toggleProject(projectPath);
+                          }
+                        }}
+                        role="button"
+                        tabIndex={0}
+                        aria-expanded={isExpanded}
+                        aria-controls={workspaceListId}
                         data-project-path={projectPath}
-                        aria-hidden="true"
                       >
-                        ▶
-                      </ExpandIcon>
-                      <ProjectInfo>
-                        <ProjectName>{projectName}</ProjectName>
+                        <DragHandle data-drag-handle aria-hidden>
+                          ⠿
+                        </DragHandle>
+                        <ExpandIcon
+                          expanded={isExpanded}
+                          data-project-path={projectPath}
+                          aria-hidden="true"
+                        >
+                          ▶
+                        </ExpandIcon>
+                        <ProjectInfo>
+                          <ProjectName>{projectName}</ProjectName>
+                          <TooltipWrapper inline>
+                            <ProjectPath>{abbreviatePath(projectPath)}</ProjectPath>
+                            <Tooltip className="tooltip" align="left">
+                              {projectPath}
+                            </Tooltip>
+                          </TooltipWrapper>
+                        </ProjectInfo>
                         <TooltipWrapper inline>
-                          <ProjectPath>{abbreviatePath(projectPath)}</ProjectPath>
-                          <Tooltip className="tooltip" align="left">
-                            {projectPath}
+                          <SecretsBtn
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              void handleOpenSecrets(projectPath);
+                            }}
+                            aria-label={`Manage secrets for ${projectName}`}
+                            data-project-path={projectPath}
+                          >
+                            🔑
+                          </SecretsBtn>
+                          <Tooltip className="tooltip" align="right">
+                            Manage secrets
                           </Tooltip>
                         </TooltipWrapper>
-                      </ProjectInfo>
-                      <TooltipWrapper inline>
-                        <SecretsBtn
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            void handleOpenSecrets(projectPath);
-                          }}
-                          aria-label={`Manage secrets for ${projectName}`}
-                          data-project-path={projectPath}
-                        >
-                          🔑
-                        </SecretsBtn>
-                        <Tooltip className="tooltip" align="right">
-                          Manage secrets
-                        </Tooltip>
-                      </TooltipWrapper>
-                      <TooltipWrapper inline>
-                        <RemoveBtn
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            onRemoveProject(projectPath);
-                          }}
-                          title="Remove project"
-                          aria-label={`Remove project ${projectName}`}
-                          data-project-path={projectPath}
-                        >
-                          ×
-                        </RemoveBtn>
-                        <Tooltip className="tooltip" align="right">
-                          Remove project
-                        </Tooltip>
-                      </TooltipWrapper>
-                    </ProjectItem>
-
-                    {isExpanded && (
-                      <WorkspacesContainer id={workspaceListId}>
-                        <WorkspaceHeader>
-                          <AddWorkspaceBtn
-                            onClick={() => onAddWorkspace(projectPath)}
+                        <TooltipWrapper inline>
+                          <RemoveBtn
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              onRemoveProject(projectPath);
+                            }}
+                            title="Remove project"
+                            aria-label={`Remove project ${projectName}`}
                             data-project-path={projectPath}
-                            aria-label={`Add workspace to ${projectName}`}
                           >
-                            + New Workspace
-                            {selectedWorkspace?.projectPath === projectPath &&
-                              ` (${formatKeybind(KEYBINDS.NEW_WORKSPACE)})`}
-                          </AddWorkspaceBtn>
-                        </WorkspaceHeader>
-                        {config.workspaces.map((workspace) => {
-                          const metadata = workspaceMetadata.get(workspace.path);
-                          if (!metadata) return null;
+                            ×
+                          </RemoveBtn>
+                          <Tooltip className="tooltip" align="right">
+                            Remove project
+                          </Tooltip>
+                        </TooltipWrapper>
+                      </DraggableProjectItem>
 
-                          const workspaceId = metadata.id;
-                          const displayName = getWorkspaceDisplayName(workspace.path);
-                          const workspaceState = getWorkspaceState(workspaceId);
-                          const isStreaming = workspaceState.canInterrupt;
-                          const streamingModel = workspaceState.currentModel;
-                          const isUnread = unreadStatus.get(workspaceId) ?? false;
-                          const isEditing = editingWorkspaceId === workspaceId;
-                          const isSelected = selectedWorkspace?.workspacePath === workspace.path;
+                      {isExpanded && (
+                        <WorkspacesContainer id={workspaceListId}>
+                          <WorkspaceHeader>
+                            <AddWorkspaceBtn
+                              onClick={() => onAddWorkspace(projectPath)}
+                              data-project-path={projectPath}
+                              aria-label={`Add workspace to ${projectName}`}
+                            >
+                              + New Workspace
+                              {selectedWorkspace?.projectPath === projectPath &&
+                                ` (${formatKeybind(KEYBINDS.NEW_WORKSPACE)})`}
+                            </AddWorkspaceBtn>
+                          </WorkspaceHeader>
+                          {config.workspaces.map((workspace) => {
+                            const metadata = workspaceMetadata.get(workspace.path);
+                            if (!metadata) return null;
 
-                          return (
-                            <React.Fragment key={workspace.path}>
-                              <WorkspaceItem
-                                selected={isSelected}
-                                onClick={() =>
-                                  onSelectWorkspace({
-                                    projectPath,
-                                    projectName,
-                                    workspacePath: workspace.path,
-                                    workspaceId,
-                                  })
-                                }
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter" || e.key === " ") {
-                                    e.preventDefault();
+                            const workspaceId = metadata.id;
+                            const displayName = getWorkspaceDisplayName(workspace.path);
+                            const workspaceState = getWorkspaceState(workspaceId);
+                            const isStreaming = workspaceState.canInterrupt;
+                            // const streamingModel = workspaceState.currentModel; // Unused
+                            const isUnread = unreadStatus.get(workspaceId) ?? false;
+                            const isEditing = editingWorkspaceId === workspaceId;
+                            const isSelected = selectedWorkspace?.workspacePath === workspace.path;
+
+                            return (
+                              <React.Fragment key={workspace.path}>
+                                <WorkspaceItem
+                                  selected={isSelected}
+                                  onClick={() =>
                                     onSelectWorkspace({
                                       projectPath,
                                       projectName,
                                       workspacePath: workspace.path,
                                       workspaceId,
-                                    });
+                                    })
                                   }
-                                }}
-                                role="button"
-                                tabIndex={0}
-                                aria-current={isSelected ? "true" : undefined}
-                                data-workspace-path={workspace.path}
-                                data-workspace-id={workspaceId}
-                              >
-                                <TooltipWrapper inline>
-                                  <WorkspaceRemoveBtn
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      void handleRemoveWorkspace(workspaceId, e.currentTarget);
-                                    }}
-                                    aria-label={`Remove workspace ${displayName}`}
-                                    data-workspace-id={workspaceId}
-                                  >
-                                    ×
-                                  </WorkspaceRemoveBtn>
-                                  <Tooltip className="tooltip" align="right">
-                                    Remove workspace
-                                  </Tooltip>
-                                </TooltipWrapper>
-                                <GitStatusIndicator
-                                  gitStatus={gitStatus.get(metadata.id) ?? null}
-                                  workspaceId={workspaceId}
-                                  tooltipPosition="right"
-                                />
-                                {isEditing ? (
-                                  <WorkspaceNameInput
-                                    value={editingName}
-                                    onChange={(e) => setEditingName(e.target.value)}
-                                    onKeyDown={(e) => handleRenameKeyDown(e, workspaceId)}
-                                    onBlur={() => void confirmRename(workspaceId)}
-                                    autoFocus
-                                    onClick={(e) => e.stopPropagation()}
-                                    aria-label={`Rename workspace ${displayName}`}
-                                    data-workspace-id={workspaceId}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter" || e.key === " ") {
+                                      e.preventDefault();
+                                      onSelectWorkspace({
+                                        projectPath,
+                                        projectName,
+                                        workspacePath: workspace.path,
+                                        workspaceId,
+                                      });
+                                    }
+                                  }}
+                                  role="button"
+                                  tabIndex={0}
+                                  aria-current={isSelected ? "true" : undefined}
+                                  data-workspace-path={workspace.path}
+                                  data-workspace-id={workspaceId}
+                                >
+                                  <TooltipWrapper inline>
+                                    <WorkspaceRemoveBtn
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        void handleRemoveWorkspace(workspaceId, e.currentTarget);
+                                      }}
+                                      aria-label={`Remove workspace ${displayName}`}
+                                      data-workspace-id={workspaceId}
+                                    >
+                                      ×
+                                    </WorkspaceRemoveBtn>
+                                    <Tooltip className="tooltip" align="right">
+                                      Remove workspace
+                                    </Tooltip>
+                                  </TooltipWrapper>
+                                  <GitStatusIndicator
+                                    gitStatus={gitStatus.get(metadata.id) ?? null}
+                                    workspaceId={workspaceId}
+                                    tooltipPosition="right"
                                   />
-                                ) : (
-                                  <WorkspaceName
-                                    onDoubleClick={(e) => {
-                                      e.stopPropagation();
-                                      startRenaming(workspaceId, displayName);
-                                    }}
-                                    title="Double-click to rename"
-                                  >
-                                    {displayName}
-                                  </WorkspaceName>
+                                  {isEditing ? (
+                                    <WorkspaceNameInput
+                                      value={editingName}
+                                      onChange={(e) => setEditingName(e.target.value)}
+                                      onKeyDown={(e) => handleRenameKeyDown(e, workspaceId)}
+                                      onBlur={() => void confirmRename(workspaceId)}
+                                      autoFocus
+                                      onClick={(e) => e.stopPropagation()}
+                                      aria-label={`Rename workspace ${displayName}`}
+                                      data-workspace-id={workspaceId}
+                                    />
+                                  ) : (
+                                    <WorkspaceName
+                                      onDoubleClick={(e) => {
+                                        e.stopPropagation();
+                                        startRenaming(workspaceId, displayName);
+                                      }}
+                                      title="Double-click to rename"
+                                    >
+                                      {displayName}
+                                    </WorkspaceName>
+                                  )}
+                                  <WorkspaceStatusIndicator
+                                    streaming={isStreaming}
+                                    unread={isUnread}
+                                    onClick={() => _onToggleUnread(workspaceId)}
+                                    title={
+                                      isStreaming
+                                        ? "Assistant is responding"
+                                        : isUnread
+                                          ? "Unread messages"
+                                          : "Idle"
+                                    }
+                                  />
+                                </WorkspaceItem>
+                                {renameError && editingWorkspaceId === workspaceId && (
+                                  <WorkspaceErrorContainer>{renameError}</WorkspaceErrorContainer>
                                 )}
-                                <WorkspaceStatusIndicator
-                                  streaming={isStreaming}
-                                  unread={isUnread}
-                                  title={
-                                    isStreaming && streamingModel
-                                      ? `${getModelName(streamingModel)} streaming`
-                                      : isUnread
-                                        ? "Unread messages (click to mark as read)"
-                                        : "Idle (click to mark as unread)"
-                                  }
-                                  onClick={() => onToggleUnread(workspaceId)}
-                                />
-                              </WorkspaceItem>
-                              {isEditing && renameError && (
-                                <WorkspaceErrorContainer>{renameError}</WorkspaceErrorContainer>
-                              )}
-                            </React.Fragment>
-                          );
-                        })}
-                      </WorkspacesContainer>
-                    )}
-                  </ProjectGroup>
-                );
-              })
-            )}
-          </ProjectsList>
-        </>
-      )}
-      <TooltipWrapper inline>
-        <CollapseButton onClick={onToggleCollapsed}>{collapsed ? "»" : "«"}</CollapseButton>
-        <Tooltip className="tooltip" align="center">
-          {collapsed ? "Expand sidebar" : "Collapse sidebar"} (
-          {formatKeybind(KEYBINDS.TOGGLE_SIDEBAR)})
-        </Tooltip>
-      </TooltipWrapper>
-      {secretsModalState && (
-        <SecretsModal
-          isOpen={secretsModalState.isOpen}
-          projectPath={secretsModalState.projectPath}
-          projectName={secretsModalState.projectName}
-          initialSecrets={secretsModalState.secrets}
-          onClose={handleCloseSecrets}
-          onSave={handleSaveSecrets}
-        />
-      )}
-      {forceDeleteModal && (
-        <ForceDeleteModal
-          isOpen={forceDeleteModal.isOpen}
-          workspaceId={forceDeleteModal.workspaceId}
-          error={forceDeleteModal.error}
-          onClose={() => setForceDeleteModal(null)}
-          onForceDelete={handleForceDelete}
-        />
-      )}
-      {removeError &&
-        createPortal(
-          <RemoveErrorToast top={removeError.position.top} left={removeError.position.left}>
-            Failed to remove workspace: {removeError.error}
-          </RemoveErrorToast>,
-          document.body
+                              </React.Fragment>
+                            );
+                          })}
+                        </WorkspacesContainer>
+                      )}
+                    </ProjectGroup>
+                  );
+                })
+              )}
+            </ProjectsList>
+          </>
         )}
-    </SidebarContent>
+        <TooltipWrapper inline>
+          <CollapseButton onClick={onToggleCollapsed}>{collapsed ? "»" : "«"}</CollapseButton>
+          <Tooltip className="tooltip" align="center">
+            {collapsed ? "Expand sidebar" : "Collapse sidebar"} (
+            {formatKeybind(KEYBINDS.TOGGLE_SIDEBAR)})
+          </Tooltip>
+        </TooltipWrapper>
+        {secretsModalState && (
+          <SecretsModal
+            isOpen={secretsModalState.isOpen}
+            projectPath={secretsModalState.projectPath}
+            projectName={secretsModalState.projectName}
+            initialSecrets={secretsModalState.secrets}
+            onClose={handleCloseSecrets}
+            onSave={handleSaveSecrets}
+          />
+        )}
+        {forceDeleteModal && (
+          <ForceDeleteModal
+            isOpen={forceDeleteModal.isOpen}
+            workspaceId={forceDeleteModal.workspaceId}
+            error={forceDeleteModal.error}
+            onClose={() => setForceDeleteModal(null)}
+            onForceDelete={handleForceDelete}
+          />
+        )}
+        {removeError &&
+          createPortal(
+            <RemoveErrorToast top={removeError.position.top} left={removeError.position.left}>
+              Failed to remove workspace: {removeError.error}
+            </RemoveErrorToast>,
+            document.body
+          )}
+      </SidebarContent>
+    </DndProvider>
   );
 };
 
