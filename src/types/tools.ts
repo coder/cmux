@@ -6,7 +6,7 @@
 // Bash Tool Types
 export interface BashToolArgs {
   script: string;
-  timeout_secs: number;
+  timeout_secs?: number; // Optional: defaults to 3 seconds for interactivity
 }
 
 interface CommonBashFields {

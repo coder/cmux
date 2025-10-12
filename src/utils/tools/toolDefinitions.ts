@@ -40,8 +40,9 @@ export const TOOL_DEFINITIONS = {
       timeout_secs: z
         .number()
         .positive()
+        .optional()
         .describe(
-          "Timeout (seconds). Start small and increase on retry; avoid large initial values to keep UX responsive"
+          "Timeout (seconds, default: 3). Start small and increase on retry; avoid large initial values to keep UX responsive"
         ),
     }),
   },

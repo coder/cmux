@@ -52,16 +52,10 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
         };
       }
 
-      // Validate timeout_secs is present and valid
-      if (timeout_secs === undefined || timeout_secs === null || timeout_secs <= 0) {
-        return {
-          success: false,
-          error:
-            "timeout_secs parameter is missing or invalid. This likely indicates a malformed tool call.",
-          exitCode: -1,
-          wall_duration_ms: 0,
-        };
-      }
+      // Default timeout to 3 seconds for interactivity
+      // OpenAI models often don't provide timeout_secs even when marked required,
+      // so we make it optional with a sensible default.
+      const effectiveTimeout = timeout_secs ?? 3;
 
       const startTime = performance.now();
       const effectiveMaxLines = BASH_HARD_MAX_LINES;
@@ -156,7 +150,7 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
             childProcess.child.kill();
             // The close event will fire and handle finalization with timeout error
           }
-        }, timeout_secs * 1000);
+        }, effectiveTimeout * 1000);
 
         // Set up readline for both stdout and stderr to handle line buffering
         const stdoutReader = createInterface({ input: childProcess.child.stdout! });
@@ -309,7 +303,7 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
           // Check if this was aborted (stream cancelled)
           const wasAborted = abortSignal?.aborted ?? false;
           // Check if this was a timeout (process killed and no natural exit code)
-          const timedOut = !wasAborted && wall_duration_ms >= timeout_secs * 1000 - 10; // 10ms tolerance
+          const timedOut = !wasAborted && wall_duration_ms >= effectiveTimeout * 1000 - 10; // 10ms tolerance
 
           if (wasAborted) {
             resolveOnce({
@@ -321,7 +315,7 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
           } else if (timedOut) {
             resolveOnce({
               success: false,
-              error: `Command timed out after ${timeout_secs} seconds`,
+              error: `Command timed out after ${effectiveTimeout} seconds`,
               exitCode: -1,
               wall_duration_ms,
             });
