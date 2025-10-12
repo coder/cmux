@@ -168,20 +168,26 @@ export const ThinkingSliderComponent: React.FC<ThinkingControlProps> = ({ modelS
   }, [allowed, thinkingLevel, setThinkingLevel]);
 
   if (allowed.length === 1) {
-    // Render non-interactive badge for single-option policies
+    // Render non-interactive badge for single-option policies with explanatory tooltip
     const fixedLevel = allowed[0];
     const value = thinkingLevelToValue(fixedLevel);
+    const formattedLevel = fixedLevel === "off" ? "Off" : fixedLevel;
+    const tooltipMessage = `Model ${modelString} locks thinking at ${formattedLevel.toUpperCase()} to match its capabilities.`;
+
     return (
-      <ThinkingSliderContainer>
-        <ThinkingLabel>Thinking:</ThinkingLabel>
-        <ThinkingLevelText
-          value={value}
-          aria-live="polite"
-          aria-label={`Thinking level fixed to ${fixedLevel}`}
-        >
-          {fixedLevel}
-        </ThinkingLevelText>
-      </ThinkingSliderContainer>
+      <TooltipWrapper>
+        <ThinkingSliderContainer>
+          <ThinkingLabel>Thinking:</ThinkingLabel>
+          <ThinkingLevelText
+            value={value}
+            aria-live="polite"
+            aria-label={`Thinking level fixed to ${fixedLevel}`}
+          >
+            {fixedLevel}
+          </ThinkingLevelText>
+        </ThinkingSliderContainer>
+        <Tooltip align="center">{tooltipMessage}</Tooltip>
+      </TooltipWrapper>
     );
   }
 
