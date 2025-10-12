@@ -611,8 +611,7 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
     test.concurrent(
       "mode-specific instructions are included only when mode matches",
       async () => {
-        const { env, workspaceId, workspacePath, cleanup } =
-          await setupWorkspace(provider);
+        const { env, workspaceId, workspacePath, cleanup } = await setupWorkspace(provider);
         try {
           // Write instruction file with Mode: Plan section containing a special marker
           await fs.writeFile(

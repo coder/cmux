@@ -28,7 +28,7 @@ export function extractModeSection(markdown: string, mode: string): string | nul
     if (text !== target) continue;
 
     // Start content after the heading block ends
-    const headingEndLine = (inline.map?.[1] ?? t.map?.[1] ?? ((t.map?.[0] ?? 0) + 1));
+    const headingEndLine = inline.map?.[1] ?? t.map?.[1] ?? (t.map?.[0] ?? 0) + 1;
 
     // Find the next heading of same or higher level to bound the section
     let endLine = lines.length; // exclusive
@@ -49,4 +49,3 @@ export function extractModeSection(markdown: string, mode: string): string | nul
 
   return null;
 }
-

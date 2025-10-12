@@ -139,10 +139,7 @@ describe("instructionFiles", () => {
       await fs.writeFile(path.join(dir2, "AGENTS.local.md"), "workspace local");
 
       const result = await gatherInstructionSets([dir1, dir2]);
-      expect(result).toEqual([
-        "global base\n\nglobal local",
-        "workspace base\n\nworkspace local",
-      ]);
+      expect(result).toEqual(["global base\n\nglobal local", "workspace base\n\nworkspace local"]);
     });
 
     it("should skip directories without instruction files", async () => {

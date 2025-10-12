@@ -15,7 +15,6 @@ export const INSTRUCTION_FILE_NAMES = ["AGENTS.md", "AGENT.md", "CLAUDE.md"] as 
  */
 const LOCAL_INSTRUCTION_FILENAME = "AGENTS.local.md";
 
-
 /**
  * Attempts to read the first available file from a list of filenames in a directory.
  *
@@ -138,5 +137,3 @@ export async function gatherInstructionSets(directories: string[]): Promise<stri
 
   return segments;
 }
-
-
