@@ -1,10 +1,12 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import type { WorkspaceState } from "./useWorkspaceAggregators";
 import { usePersistedState } from "./usePersistedState";
 
 /**
- * Tracks last stream start timestamp per workspace for recency-based sorting.
- * Returns map of workspaceId → timestamp (0 if never streamed).
+ * Tracks last assistant message timestamp per workspace for recency-based sorting.
+ * Timestamps come from persisted message metadata, so they survive app restarts
+ * and are correct during history replay.
+ * Returns map of workspaceId → timestamp (0 if no assistant messages yet).
  * Automatically cleans up timestamps for deleted workspaces.
  */
 export function useWorkspaceRecency(workspaceStates: Map<string, WorkspaceState>) {
@@ -13,26 +15,30 @@ export function useWorkspaceRecency(workspaceStates: Map<string, WorkspaceState>
     {},
     { listener: true }
   );
-  const prevStreaming = useRef(new Map<string, boolean>());
 
   useEffect(() => {
-    // Track stream starts
-    for (const [id, state] of workspaceStates) {
-      const was = prevStreaming.current.get(id) ?? false;
-      const is = state.canInterrupt;
-      if (!was && is) setTimestamps((prev) => ({ ...prev, [id]: Date.now() }));
-      prevStreaming.current.set(id, is);
-    }
-
-    // Clean up timestamps for deleted workspaces
     setTimestamps((prev) => {
-      const currentIds = new Set(workspaceStates.keys());
-      const staleIds = Object.keys(prev).filter((id) => !currentIds.has(id));
-      if (staleIds.length === 0) return prev; // No cleanup needed
+      const updated = { ...prev };
+      let changed = false;
 
-      const cleaned = { ...prev };
-      for (const id of staleIds) delete cleaned[id];
-      return cleaned;
+      // Update timestamps from workspace states
+      for (const [id, state] of workspaceStates) {
+        if (state.lastStreamStart && updated[id] !== state.lastStreamStart) {
+          updated[id] = state.lastStreamStart;
+          changed = true;
+        }
+      }
+
+      // Clean up timestamps for deleted workspaces
+      const currentIds = new Set(workspaceStates.keys());
+      for (const id of Object.keys(updated)) {
+        if (!currentIds.has(id)) {
+          delete updated[id];
+          changed = true;
+        }
+      }
+
+      return changed ? updated : prev;
     });
   }, [workspaceStates, setTimestamps]);
 

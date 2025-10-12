@@ -30,6 +30,7 @@ export interface WorkspaceState {
   loading: boolean;
   cmuxMessages: CmuxMessage[];
   currentModel: string;
+  lastStreamStart: number | null; // Timestamp of most recent stream start (null if never streamed)
 }
 
 /**
@@ -65,14 +66,23 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
       const aggregator = getAggregator(workspaceId);
       const hasMessages = aggregator.hasMessages();
       const isCaughtUp = caughtUpRef.current.get(workspaceId) ?? false;
+      const activeStreams = aggregator.getActiveStreams();
+
+      // Get most recent assistant message timestamp (persisted, survives restarts)
+      const messages = aggregator.getAllMessages();
+      const lastAssistantMsg = [...messages]
+        .reverse()
+        .find((m) => m.role === "assistant" && m.metadata?.timestamp);
+      const lastStreamStart = lastAssistantMsg?.metadata?.timestamp ?? null;
 
       return {
         messages: aggregator.getDisplayedMessages(),
-        canInterrupt: aggregator.getActiveStreams().length > 0,
+        canInterrupt: activeStreams.length > 0,
         isCompacting: aggregator.isCompacting(),
         loading: !hasMessages && !isCaughtUp,
         cmuxMessages: aggregator.getAllMessages(),
         currentModel: aggregator.getCurrentModel() ?? "claude-sonnet-4-5",
+        lastStreamStart,
       };
     },
     [getAggregator]
