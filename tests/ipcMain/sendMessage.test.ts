@@ -15,6 +15,7 @@ import {
   assertError,
   waitFor,
   buildLargeHistory,
+  clearHistory,
 } from "./helpers";
 import type { StreamDeltaEvent } from "../../src/types/stream";
 import { IPC_CHANNELS } from "../../src/constants/ipc-constants";
@@ -606,6 +607,74 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
         await cleanup();
       }
     });
+
+    test.concurrent(
+      "mode-specific instructions are included only when mode matches",
+      async () => {
+        const { env, workspaceId, workspacePath, cleanup } =
+          await setupWorkspace(provider);
+        try {
+          // Write instruction file with Mode: Plan section containing a special marker
+          await fs.writeFile(
+            path.join(workspacePath, "AGENTS.md"),
+            `# General Instructions
+Always be helpful.
+
+# Mode: Plan
+IMPORTANT: When planning, always include the word "PLANMARKER" in your response.
+`
+          );
+
+          // Test 1: Send message WITH mode="plan" - should include PLANMARKER instruction
+          const planResult = await sendMessageWithModel(
+            env.mockIpcRenderer,
+            workspaceId,
+            "Say hello",
+            provider,
+            model,
+            { mode: "plan" }
+          );
+          expect(planResult.success).toBe(true);
+
+          // Wait for stream to complete
+          const planCollector = createEventCollector(env.sentEvents, workspaceId);
+          await planCollector.waitForEvent("stream-end", 15000);
+          assertStreamSuccess(planCollector);
+
+          // Verify PLANMARKER is in the response
+          const planDeltas = planCollector.getDeltas() as StreamDeltaEvent[];
+          const planContent = planDeltas.map((d) => d.delta).join("");
+          expect(planContent).toContain("PLANMARKER");
+
+          // Clear events and history for next test
+          env.sentEvents.length = 0;
+          await clearHistory(env.mockIpcRenderer, workspaceId);
+
+          // Test 2: Send message WITHOUT mode - should NOT include PLANMARKER instruction
+          const noModeResult = await sendMessageWithModel(
+            env.mockIpcRenderer,
+            workspaceId,
+            "Say hello",
+            provider,
+            model
+          );
+          expect(noModeResult.success).toBe(true);
+
+          // Wait for stream to complete
+          const noModeCollector = createEventCollector(env.sentEvents, workspaceId);
+          await noModeCollector.waitForEvent("stream-end", 15000);
+          assertStreamSuccess(noModeCollector);
+
+          // Verify PLANMARKER is NOT in the response
+          const noModeDeltas = noModeCollector.getDeltas() as StreamDeltaEvent[];
+          const noModeContent = noModeDeltas.map((d) => d.delta).join("");
+          expect(noModeContent).not.toContain("PLANMARKER");
+        } finally {
+          await cleanup();
+        }
+      },
+      30000
+    );
   });
 
   // Provider parity tests - ensure both providers handle the same scenarios
@@ -854,86 +923,6 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
       30000
     );
   });
-
-
-    test.concurrent(
-      "mode-specific instructions are included only when mode matches",
-      async () => {
-        const { env, workspaceId, cleanup } = await setupWorkspace(provider);
-        try {
-          // Get workspace path from metadata
-          const metadataResult = await env.mockIpcRenderer.invoke(
-            IPC_CHANNELS.WORKSPACE_GET_METADATA,
-            workspaceId
-          );
-          expect(metadataResult.success).toBe(true);
-          if (!metadataResult.success) throw new Error("Failed to get metadata");
-
-          const workspacePath = metadataResult.metadata.workspacePath;
-
-          // Write instruction file with Mode: Plan section containing a special marker
-          await fs.writeFile(
-            path.join(workspacePath, "AGENTS.md"),
-            `# General Instructions
-Always be helpful.
-
-# Mode: Plan
-IMPORTANT: When planning, always include the word "PLANMARKER" in your response.
-`
-          );
-
-          // Test 1: Send message WITH mode="plan" - should include PLANMARKER instruction
-          const planResult = await sendMessageWithModel(
-            env.mockIpcRenderer,
-            workspaceId,
-            "Say hello",
-            provider,
-            model,
-            { mode: "plan" }
-          );
-          expect(planResult.success).toBe(true);
-
-          // Wait for stream to complete
-          const planCollector = createEventCollector(env.sentEvents, workspaceId);
-          await planCollector.waitForEvent("stream-end", 15000);
-          assertStreamSuccess(planCollector);
-
-          // Verify PLANMARKER is in the response
-          const planDeltas = planCollector.getDeltas();
-          const planContent = planDeltas.map((d) => d.textDelta).join("");
-          expect(planContent).toContain("PLANMARKER");
-
-          // Clear events for next test
-          env.sentEvents.length = 0;
-
-          // Clear history
-          await env.mockIpcRenderer.invoke(IPC_CHANNELS.HISTORY_CLEAR, workspaceId);
-
-          // Test 2: Send message WITHOUT mode - should NOT include PLANMARKER instruction
-          const noModeResult = await sendMessageWithModel(
-            env.mockIpcRenderer,
-            workspaceId,
-            "Say hello",
-            provider,
-            model
-          );
-          expect(noModeResult.success).toBe(true);
-
-          // Wait for stream to complete
-          const noModeCollector = createEventCollector(env.sentEvents, workspaceId);
-          await noModeCollector.waitForEvent("stream-end", 15000);
-          assertStreamSuccess(noModeCollector);
-
-          // Verify PLANMARKER is NOT in the response
-          const noModeDeltas = noModeCollector.getDeltas();
-          const noModeContent = noModeDeltas.map((d) => d.textDelta).join("");
-          expect(noModeContent).not.toContain("PLANMARKER");
-        } finally {
-          await cleanup();
-        }
-      },
-      30000
-    );
 
   // Tool policy tests
   describe("tool policy", () => {
