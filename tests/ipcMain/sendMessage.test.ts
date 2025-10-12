@@ -1333,10 +1333,11 @@ These are general instructions that apply to all modes.
               e !== null &&
               "type" in e &&
               (e as any).type === "tool-call-end" &&
-              (e as any).toolName === "file_edit_replace"
+              ((e as any).toolName === "file_edit_replace_string" ||
+                (e as any).toolName === "file_edit_replace_lines")
           ) as any[];
 
-          // Find the last successful file_edit_replace event (model may retry)
+          // Find the last successful file_edit_replace_* event (model may retry)
           const successfulEdits = allFileEditEvents.filter((e) => {
             const result = e?.result;
             const payload = result && result.value ? result.value : result;
