@@ -39,7 +39,24 @@ When planning:
 - Focus on goals, constraints, and trade-offs
 - Propose alternatives with pros/cons
 - Defer implementation detail unless asked
+
+## Mode: Compact
+
+When compacting conversation history:
+
+- Preserve key decisions and their rationale
+- Keep code snippets that are still relevant
+- Maintain context about ongoing tasks
+- Be extremely concise—prioritize information density
 ```
+
+### Available modes
+
+- **exec** - Default mode for normal operations
+- **plan** - Activated when the user toggles plan mode in the UI
+- **compact** - Automatically used during `/compact` operations to guide how the AI summarizes conversation history
+
+Customizing the `compact` mode is particularly useful for controlling what information is preserved during automatic history compaction.
 
 ## Practical layout
 
