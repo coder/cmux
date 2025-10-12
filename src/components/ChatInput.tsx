@@ -296,7 +296,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   canInterrupt = false,
   onReady,
 }) => {
-  const [input, setInput] = usePersistedState(getInputKey(workspaceId), "");
+  const [input, setInput] = usePersistedState(getInputKey(workspaceId), "", { listener: true });
   const [isSending, setIsSending] = useState(false);
   const [showCommandSuggestions, setShowCommandSuggestions] = useState(false);
   const [commandSuggestions, setCommandSuggestions] = useState<SlashSuggestion[]>([]);
@@ -524,8 +524,20 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
   const handleSend = async () => {
     // Allow sending if there's text or images
-    if ((!input.trim() && imageAttachments.length === 0) || disabled || isSending || isCompacting)
+    if ((!input.trim() && imageAttachments.length === 0) || disabled || isSending) return;
+
+    if (isCompacting) {
+      // If compaction is in progress, we let the user edit the draft but not send.
+      // Surface an informational toast and keep focus in the input.
+      setToast({
+        id: Date.now().toString(),
+        type: "success",
+        title: "Message Queued",
+        message:
+          "Compaction is running. Your message is queued—keep editing and send when ready once compaction finishes.",
+      });
       return;
+    }
 
     const messageText = input.trim();
 
@@ -818,7 +830,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           onPaste={handlePaste}
           suppressKeys={showCommandSuggestions ? COMMAND_SUGGESTION_KEYS : undefined}
           placeholder={placeholder}
-          disabled={disabled || isSending || isCompacting}
+          disabled={disabled || isSending /* allow editing while compacting */}
           aria-label={editingMessage ? "Edit your last message" : "Message Claude"}
           aria-autocomplete="list"
           aria-controls={
