@@ -137,6 +137,7 @@ in `/tmp/ai-sdk-docs/**.mdx`.
   - Add packages: `bun add <package>`
   - Run scripts: `bun run <script>`
   - etc.
+- If you hit missing module/type errors locally or in CI, run `bun install` before diving into deeper debugging.
 
 ## Development Commands
 
