@@ -606,6 +606,78 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
         await cleanup();
       }
     });
+
+    test.concurrent(
+      "should handle mode-specific instruction sections",
+      async () => {
+        // Setup test environment
+        const { env, workspaceId, workspacePath, cleanup } = await setupWorkspace(provider);
+        try {
+          // Write AGENTS.md with mode-specific section
+          const agentsMdPath = path.join(workspacePath, "AGENTS.md");
+          const agentsMdContent = `# Instructions
+
+## General Instructions
+
+These are general instructions that apply to all modes.
+
+## Mode: plan
+
+These are plan-specific instructions that should only be included when mode=plan.
+
+## Mode: edit
+
+These are edit-specific instructions for edit mode.
+`;
+          await fs.writeFile(agentsMdPath, agentsMdContent);
+
+          // Test 1: Send message WITH mode="plan"
+          const resultWithMode = await sendMessageWithModel(
+            env.mockIpcRenderer,
+            workspaceId,
+            "Say 'test with mode' and nothing else",
+            provider,
+            model,
+            { mode: "plan" }
+          );
+          expect(resultWithMode.success).toBe(true);
+
+          // Wait for stream to complete
+          const collectorWithMode = createEventCollector(env.sentEvents, workspaceId);
+          const streamEndWithMode = await collectorWithMode.waitForEvent("stream-end", 10000);
+          expect(streamEndWithMode).toBeDefined();
+          assertStreamSuccess(collectorWithMode);
+
+          // Clear events for next test
+          env.sentEvents.length = 0;
+
+          // Test 2: Send message WITHOUT mode
+          const resultWithoutMode = await sendMessageWithModel(
+            env.mockIpcRenderer,
+            workspaceId,
+            "Say 'test without mode' and nothing else",
+            provider,
+            model,
+            undefined // no mode
+          );
+          expect(resultWithoutMode.success).toBe(true);
+
+          // Wait for stream to complete
+          const collectorWithoutMode = createEventCollector(env.sentEvents, workspaceId);
+          const streamEndWithoutMode =
+            await collectorWithoutMode.waitForEvent("stream-end", 10000);
+          expect(streamEndWithoutMode).toBeDefined();
+          assertStreamSuccess(collectorWithoutMode);
+
+          // Both requests succeeded - mode parsing didn't break the integration
+          // (Unit tests verify the actual mode section extraction logic)
+        } finally {
+          await cleanup();
+        }
+      },
+      25000
+    );
+
   });
 
   // Provider parity tests - ensure both providers handle the same scenarios
