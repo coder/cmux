@@ -21,7 +21,12 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
   return tool({
     description: TOOL_DEFINITIONS.file_edit_insert.description,
     inputSchema: TOOL_DEFINITIONS.file_edit_insert.schema,
-    execute: async ({ file_path, line_offset, content }): Promise<FileEditInsertToolResult> => {
+    execute: async ({
+      file_path,
+      line_offset,
+      content,
+      create,
+    }): Promise<FileEditInsertToolResult> => {
       try {
         // Validate that the path is within the working directory
         const pathValidation = validatePathInCwd(file_path, config.cwd);
@@ -38,25 +43,48 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
           : path.resolve(config.cwd, file_path);
 
         // Check if file exists
-        const stats = await fs.stat(resolvedPath);
-        if (!stats.isFile()) {
-          return {
-            success: false,
-            error: `${WRITE_DENIED_PREFIX} Path exists but is not a file: ${resolvedPath}`,
-          };
+        let originalContent = "";
+
+        try {
+          const stats = await fs.stat(resolvedPath);
+          if (!stats.isFile()) {
+            return {
+              success: false,
+              error: `${WRITE_DENIED_PREFIX} Path exists but is not a file: ${resolvedPath}`,
+            };
+          }
+
+          // Validate file size
+          const sizeValidation = validateFileSize(stats);
+          if (sizeValidation) {
+            return {
+              success: false,
+              error: `${WRITE_DENIED_PREFIX} ${sizeValidation.error}`,
+            };
+          }
+
+          // Read file content
+          originalContent = await fs.readFile(resolvedPath, { encoding: "utf-8" });
+        } catch (error) {
+          // If file doesn't exist and create is not true, return error with suggestion
+          if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") {
+            if (!create) {
+              return {
+                success: false,
+                error: `${WRITE_DENIED_PREFIX} File not found: ${file_path}. To create it, set create: true`,
+              };
+            }
+            // File doesn't exist but create is true, so we'll create it
+            // Ensure parent directory exists
+            const parentDir = path.dirname(resolvedPath);
+            await fs.mkdir(parentDir, { recursive: true });
+            originalContent = "";
+          } else {
+            // Re-throw other errors
+            throw error;
+          }
         }
 
-        // Validate file size
-        const sizeValidation = validateFileSize(stats);
-        if (sizeValidation) {
-          return {
-            success: false,
-            error: `${WRITE_DENIED_PREFIX} ${sizeValidation.error}`,
-          };
-        }
-
-        // Read file content
-        const originalContent = await fs.readFile(resolvedPath, { encoding: "utf-8" });
         const lines = originalContent.split("\n");
 
         // Validate line_offset
@@ -93,12 +121,7 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
       } catch (error) {
         // Handle specific errors
         if (error && typeof error === "object" && "code" in error) {
-          if (error.code === "ENOENT") {
-            return {
-              success: false,
-              error: `${WRITE_DENIED_PREFIX} File not found: ${file_path}`,
-            };
-          } else if (error.code === "EACCES") {
+          if (error.code === "EACCES") {
             return {
               success: false,
               error: `${WRITE_DENIED_PREFIX} Permission denied: ${file_path}`,

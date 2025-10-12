@@ -158,7 +158,7 @@ describe("file_edit_insert tool", () => {
     expect(updatedContent).toBe("INSERTED\n");
   });
 
-  it("should fail when file does not exist", async () => {
+  it("should fail when file does not exist and create is not set", async () => {
     // Setup
     const nonExistentPath = path.join(testDir, "nonexistent.txt");
 
@@ -176,7 +176,75 @@ describe("file_edit_insert tool", () => {
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.error).toContain("File not found");
+      expect(result.error).toContain("set create: true");
     }
+  });
+
+  it("should create file when create is true and file does not exist", async () => {
+    // Setup
+    const nonExistentPath = path.join(testDir, "newfile.txt");
+
+    const tool = createFileEditInsertTool({ cwd: testDir });
+    const args: FileEditInsertToolArgs = {
+      file_path: nonExistentPath,
+      line_offset: 0,
+      content: "INSERTED",
+      create: true,
+    };
+
+    // Execute
+    const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditInsertToolResult;
+
+    // Assert
+    expect(result.success).toBe(true);
+
+    const fileContent = await fs.readFile(nonExistentPath, "utf-8");
+    expect(fileContent).toBe("INSERTED\n");
+  });
+
+  it("should create parent directories when create is true", async () => {
+    // Setup
+    const nestedPath = path.join(testDir, "nested", "dir", "newfile.txt");
+
+    const tool = createFileEditInsertTool({ cwd: testDir });
+    const args: FileEditInsertToolArgs = {
+      file_path: nestedPath,
+      line_offset: 0,
+      content: "INSERTED",
+      create: true,
+    };
+
+    // Execute
+    const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditInsertToolResult;
+
+    // Assert
+    expect(result.success).toBe(true);
+
+    const fileContent = await fs.readFile(nestedPath, "utf-8");
+    expect(fileContent).toBe("INSERTED\n");
+  });
+
+  it("should work normally with create: true when file already exists", async () => {
+    // Setup
+    const initialContent = "line1\nline2";
+    await fs.writeFile(testFilePath, initialContent);
+
+    const tool = createFileEditInsertTool({ cwd: testDir });
+    const args: FileEditInsertToolArgs = {
+      file_path: testFilePath,
+      line_offset: 1,
+      content: "INSERTED",
+      create: true,
+    };
+
+    // Execute
+    const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditInsertToolResult;
+
+    // Assert
+    expect(result.success).toBe(true);
+
+    const updatedContent = await fs.readFile(testFilePath, "utf-8");
+    expect(updatedContent).toBe("line1\nINSERTED\nline2");
   });
 
   it("should fail when line_offset is negative", async () => {

@@ -76,6 +76,7 @@ export interface FileEditInsertToolArgs {
   file_path: string;
   line_offset: number; // 1-indexed line position (0 = insert at top, N = insert after line N)
   content: string;
+  create?: boolean; // If true, create the file if it doesn't exist (default: false)
 }
 
 export type FileEditInsertToolResult =
