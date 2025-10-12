@@ -101,6 +101,14 @@ export class StreamingMessageAggregator {
     return Array.from(this.activeStreams.values());
   }
 
+  /**
+   * Get the messageId of the first active stream (for token tracking)
+   * Returns undefined if no streams are active
+   */
+  getActiveStreamMessageId(): string | undefined {
+    return this.activeStreams.keys().next().value;
+  }
+
   isCompacting(): boolean {
     for (const context of this.activeStreams.values()) {
       if (context.isCompacting) {
