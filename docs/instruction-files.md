@@ -1,58 +1,70 @@
 # Instruction Files
 
-## Instruction Files
+## Overview
 
 cmux layers instructions from two locations:
 
 1. `~/.cmux/AGENTS.md` (+ optional `AGENTS.local.md`) — global defaults
 2. `<workspace>/AGENTS.md` (+ optional `AGENTS.local.md`) — workspace-specific context
 
-**Priority:** `AGENTS.md` → `AGENT.md` → `CLAUDE.md` (first match wins per directory)
+Priority within each location: `AGENTS.md` → `AGENT.md` → `CLAUDE.md` (first match wins). If the base file is found, cmux also appends `AGENTS.local.md` from the same directory when present.
 
-## Plan Files (Plan Mode Only)
+## Mode-specific sections (no separate files)
 
-Plan mode adds `.cmux/PLAN.md` files to influence planning behavior. The search order mirrors instruction layering:
+Instead of separate files like `PLAN.md`, cmux reads mode context from sections inside your instruction files. Add a heading titled:
 
-1. `~/.cmux/PLAN.md`
-2. `<workspace>/.cmux/PLAN.md` (+ optional `PLAN.local.md`)
+- `Mode: <mode>` (case-insensitive), at any heading level (`#` .. `######`)
 
-## Loading Flow
+Rules:
+- Workspace instructions are checked first, then global instructions
+- The first matching section wins (at most one section is used)
+- The section’s content is everything until the next heading of the same or higher level
+- Missing sections are ignored (no error)
+
+Example (in either `~/.cmux/AGENTS.md` or `my-project/AGENTS.md`):
+
+```markdown
+# General Instructions
+- Be concise
+- Prefer TDD
+
+## Mode: Plan
+When planning:
+- Focus on goals, constraints, and trade-offs
+- Propose alternatives with pros/cons
+- Defer implementation detail unless asked
+```
+
+## Loading flow
 
 ```mermaid
 graph TD
-    A[Start] --> B{Mode?}
-    B -->|Any Mode| C[Load ~/.cmux/AGENTS.*]
-    C --> D[Load <workspace>/AGENTS.*]
+    A[Start] --> B[Load ~/.cmux/AGENTS.*]
+    B --> C[Load <workspace>/AGENTS.*]
+    C --> D[Combine Instruction Segments]
+    D --> E{Mode provided?}
+    E -->|Yes| F[Extract "Mode: <mode>" from <workspace>/AGENTS.*]
+    F --> G{Found?}
+    G -->|No| H[Extract from ~/.cmux/AGENTS.*]
+    G -->|Yes| I[Use workspace section]
+    H --> I[Use global section if found]
+    I --> J[Build System Message]
+    E -->|No| J
 
-    B -->|Plan| E[Load ~/.cmux/PLAN.md]
-    E --> F[Load <workspace>/.cmux/PLAN.md]
-    F --> G[Append <workspace>/.cmux/PLAN.local.md]
-
-    D --> H[Combine Instruction Segments]
-    G --> I[Combine Plan Segments]
-    H --> J[Build System Message]
-    I --> J
-
-    style C fill:#e3f2fd,color:#0d47a1
-    style D fill:#e1bee7,color:#4a148c
-    style E fill:#fff3e0,color:#e65100
-    style F fill:#fff8e1,color:#f57c00
-    style G fill:#ffe0b2,color:#bf360c
+    style B fill:#e3f2fd,color:#0d47a1
+    style C fill:#e1bee7,color:#4a148c
+    style F fill:#fff3e0,color:#e65100
+    style H fill:#fff8e1,color:#f57c00
 ```
 
-Missing files are simply skipped; nothing overrides previously loaded content.
-
-## Example Layout
+## Practical layout
 
 ```
 ~/.cmux/
-  AGENTS.md          # Global prompts
-  PLAN.md            # Global plan guidance (optional)
+  AGENTS.md          # Global instructions
+  AGENTS.local.md    # Personal tweaks (gitignored)
 
 my-project/
-  AGENTS.md          # Project prompts
-  AGENTS.local.md    # Local overrides (gitignored)
-  .cmux/
-    PLAN.md          # Project plan behavior
-    PLAN.local.md    # Local plan tweaks (gitignored)
+  AGENTS.md          # Project instructions (may include "Mode: Plan", etc.)
+  AGENTS.local.md    # Personal tweaks (gitignored)
 ```
