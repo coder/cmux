@@ -625,6 +625,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
               thinkingLevel: isAnthropic ? "off" : sendMessageOptions.thinkingLevel,
               toolPolicy: [{ regex_match: "compact_summary", action: "require" }],
               maxOutputTokens: parsed.maxOutputTokens, // Pass to model directly
+              mode: "compact" as const, // Allow users to customize compaction behavior via Mode: compact in AGENTS.md
             });
 
             if (!result.success) {
