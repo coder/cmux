@@ -1141,6 +1141,16 @@ export class IpcMain {
       }
     });
 
+    // Forward stream-stats events for live token counting
+    this.aiService.on(
+      "stream-stats",
+      (data: { type: string; workspaceId: string; messageId: string; tokenCount: number; tps: number }) => {
+        if (this.mainWindow) {
+          this.mainWindow.webContents.send(getChatChannel(data.workspaceId), data);
+        }
+      }
+    );
+
     // Forward tool events to renderer
     this.aiService.on("tool-call-start", (data: ToolCallStartEvent) => {
       if (this.mainWindow) {

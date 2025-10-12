@@ -123,6 +123,78 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
     );
 
     test.concurrent(
+      "should emit stream-stats events during streaming",
+      async () => {
+        // Setup test environment
+        const { env, workspaceId, cleanup } = await setupWorkspace(provider);
+        try {
+          // Send a message that will generate a reasonable amount of tokens
+          void sendMessageWithModel(
+            env.mockIpcRenderer,
+            workspaceId,
+            "Write a short paragraph about TypeScript",
+            provider,
+            model
+          );
+
+          // Wait for stream to start
+          const collector = createEventCollector(env.sentEvents, workspaceId);
+          await collector.waitForEvent("stream-start", 5000);
+
+          // Wait for stream-stats events
+          const statsEvent = await collector.waitForEvent("stream-stats", 5000);
+          expect(statsEvent).toBeDefined();
+
+          // Verify stream-stats event structure
+          if (statsEvent && "type" in statsEvent && statsEvent.type === "stream-stats") {
+            expect("tokenCount" in statsEvent).toBe(true);
+            expect("tps" in statsEvent).toBe(true);
+            expect("messageId" in statsEvent).toBe(true);
+            expect("workspaceId" in statsEvent).toBe(true);
+
+            // Verify values are numbers
+            if ("tokenCount" in statsEvent) {
+              expect(typeof statsEvent.tokenCount).toBe("number");
+              expect(statsEvent.tokenCount).toBeGreaterThanOrEqual(0);
+            }
+            if ("tps" in statsEvent) {
+              expect(typeof statsEvent.tps).toBe("number");
+              expect(statsEvent.tps).toBeGreaterThanOrEqual(0);
+            }
+          }
+
+          // Collect all events and count stream-stats
+          await collector.waitForEvent("stream-end", 10000);
+          const allEvents = collector.getEvents();
+          const statsEvents = allEvents.filter(
+            (e) => "type" in e && e.type === "stream-stats"
+          );
+
+          // Should have received multiple stats updates (streaming for a few seconds)
+          expect(statsEvents.length).toBeGreaterThan(0);
+
+          // Verify token counts are increasing over time (or staying the same)
+          let lastTokenCount = 0;
+          for (const event of statsEvents) {
+            if ("tokenCount" in event && typeof event.tokenCount === "number") {
+              expect(event.tokenCount).toBeGreaterThanOrEqual(lastTokenCount);
+              lastTokenCount = event.tokenCount;
+            }
+          }
+
+          // Final token count should be greater than 0
+          expect(lastTokenCount).toBeGreaterThan(0);
+
+          // Verify stream completed successfully
+          assertStreamSuccess(collector);
+        } finally {
+          await cleanup();
+        }
+      },
+      15000
+    );
+
+    test.concurrent(
       "should include usage data in stream-abort events",
       async () => {
         // Setup test environment
