@@ -856,82 +856,84 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
   });
 
 
-  test.concurrent("mode-specific instructions are included only when mode matches", async () => {
-    const { env, mockIpcRenderer } = await setup();
+    test.concurrent(
+      "mode-specific instructions are included only when mode matches",
+      async () => {
+        const { env, workspaceId, cleanup } = await setupWorkspace(provider);
+        try {
+          // Get workspace path from metadata
+          const metadataResult = await env.mockIpcRenderer.invoke(
+            IPC_CHANNELS.WORKSPACE_GET_METADATA,
+            workspaceId
+          );
+          expect(metadataResult.success).toBe(true);
+          if (!metadataResult.success) throw new Error("Failed to get metadata");
 
-    // Create a workspace
-    const projectPath = await createTestProject(env.testDir);
-    const createResult = await mockIpcRenderer.invoke(
-      IPC_CHANNELS.WORKSPACE_CREATE,
-      projectPath,
-      "test-branch",
-      "main"
-    );
-    expect(createResult.success).toBe(true);
-    if (!createResult.success) throw new Error("Workspace creation failed");
+          const workspacePath = metadataResult.metadata.workspacePath;
 
-    const workspaceId = createResult.metadata.id;
-    const workspacePath = createResult.metadata.workspacePath;
-
-    // Write instruction file with Mode: Plan section containing a special marker
-    await fs.writeFile(
-      path.join(workspacePath, "AGENTS.md"),
-      `# General Instructions
+          // Write instruction file with Mode: Plan section containing a special marker
+          await fs.writeFile(
+            path.join(workspacePath, "AGENTS.md"),
+            `# General Instructions
 Always be helpful.
 
 # Mode: Plan
 IMPORTANT: When planning, always include the word "PLANMARKER" in your response.
 `
+          );
+
+          // Test 1: Send message WITH mode="plan" - should include PLANMARKER instruction
+          const planResult = await sendMessageWithModel(
+            env.mockIpcRenderer,
+            workspaceId,
+            "Say hello",
+            provider,
+            model,
+            { mode: "plan" }
+          );
+          expect(planResult.success).toBe(true);
+
+          // Wait for stream to complete
+          const planCollector = createEventCollector(env.sentEvents, workspaceId);
+          await planCollector.waitForEvent("stream-end", 15000);
+          assertStreamSuccess(planCollector);
+
+          // Verify PLANMARKER is in the response
+          const planDeltas = planCollector.getDeltas();
+          const planContent = planDeltas.map((d) => d.textDelta).join("");
+          expect(planContent).toContain("PLANMARKER");
+
+          // Clear events for next test
+          env.sentEvents.length = 0;
+
+          // Clear history
+          await env.mockIpcRenderer.invoke(IPC_CHANNELS.HISTORY_CLEAR, workspaceId);
+
+          // Test 2: Send message WITHOUT mode - should NOT include PLANMARKER instruction
+          const noModeResult = await sendMessageWithModel(
+            env.mockIpcRenderer,
+            workspaceId,
+            "Say hello",
+            provider,
+            model
+          );
+          expect(noModeResult.success).toBe(true);
+
+          // Wait for stream to complete
+          const noModeCollector = createEventCollector(env.sentEvents, workspaceId);
+          await noModeCollector.waitForEvent("stream-end", 15000);
+          assertStreamSuccess(noModeCollector);
+
+          // Verify PLANMARKER is NOT in the response
+          const noModeDeltas = noModeCollector.getDeltas();
+          const noModeContent = noModeDeltas.map((d) => d.textDelta).join("");
+          expect(noModeContent).not.toContain("PLANMARKER");
+        } finally {
+          await cleanup();
+        }
+      },
+      30000
     );
-
-    // Test 1: Send message WITH mode="plan" - should include PLANMARKER instruction
-    const planResult = await mockIpcRenderer.invoke(
-      IPC_CHANNELS.SEND_MESSAGE,
-      workspaceId,
-      "What should I do?",
-      {
-        providerOptions: env.providerOptions,
-        mode: "plan",
-      }
-    );
-    expect(planResult.success).toBe(true);
-    if (!planResult.success) throw new Error("Plan message failed");
-
-    // Wait for the stream to complete and get the response
-    await new Promise((resolve) => setTimeout(resolve, 100));
-    const planHistory = await mockIpcRenderer.invoke(IPC_CHANNELS.HISTORY_GET, workspaceId);
-    expect(planHistory.success).toBe(true);
-    if (!planHistory.success) throw new Error("Failed to get history");
-
-    const planResponse = planHistory.messages.find((m: UIMessage) => m.role === "assistant");
-    expect(planResponse).toBeDefined();
-    expect(planResponse?.content).toContain("PLANMARKER");
-
-    // Clear history for next test
-    await mockIpcRenderer.invoke(IPC_CHANNELS.HISTORY_CLEAR, workspaceId);
-
-    // Test 2: Send message WITHOUT mode - should NOT include PLANMARKER instruction
-    const noModeResult = await mockIpcRenderer.invoke(
-      IPC_CHANNELS.SEND_MESSAGE,
-      workspaceId,
-      "What should I do?",
-      {
-        providerOptions: env.providerOptions,
-      }
-    );
-    expect(noModeResult.success).toBe(true);
-    if (!noModeResult.success) throw new Error("No-mode message failed");
-
-    // Wait for the stream to complete
-    await new Promise((resolve) => setTimeout(resolve, 100));
-    const noModeHistory = await mockIpcRenderer.invoke(IPC_CHANNELS.HISTORY_GET, workspaceId);
-    expect(noModeHistory.success).toBe(true);
-    if (!noModeHistory.success) throw new Error("Failed to get history");
-
-    const noModeResponse = noModeHistory.messages.find((m: UIMessage) => m.role === "assistant");
-    expect(noModeResponse).toBeDefined();
-    expect(noModeResponse?.content).not.toContain("PLANMARKER");
-  });
 
   // Tool policy tests
   describe("tool policy", () => {
