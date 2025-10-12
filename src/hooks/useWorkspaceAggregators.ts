@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import type { DisplayedMessage, CmuxMessage } from "@/types/message";
 import { createCmuxMessage } from "@/types/message";
 import type { WorkspaceMetadata } from "@/types/workspace";
@@ -30,6 +30,7 @@ export interface WorkspaceState {
   loading: boolean;
   cmuxMessages: CmuxMessage[];
   currentModel: string;
+  lastUserMessageAt: number | null; // Timestamp of most recent user message (null if no user messages)
 }
 
 /**
@@ -41,7 +42,7 @@ export interface WorkspaceState {
 export function useWorkspaceAggregators(workspaceMetadata: Map<string, WorkspaceMetadata>) {
   const aggregatorsRef = useRef<Map<string, StreamingMessageAggregator>>(new Map());
   // Force re-render when messages change for the selected workspace
-  const [, setUpdateCounter] = useState(0);
+  const [updateCounter, setUpdateCounter] = useState(0);
 
   // Track recently used models
   const { addModel } = useModelLRU();
@@ -65,14 +66,25 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
       const aggregator = getAggregator(workspaceId);
       const hasMessages = aggregator.hasMessages();
       const isCaughtUp = caughtUpRef.current.get(workspaceId) ?? false;
+      const activeStreams = aggregator.getActiveStreams();
+
+      // Get most recent user message timestamp (persisted, survives restarts)
+      // Using user messages instead of assistant messages avoids constant reordering
+      // when multiple concurrent streams are running
+      const messages = aggregator.getAllMessages();
+      const lastUserMsg = [...messages]
+        .reverse()
+        .find((m) => m.role === "user" && m.metadata?.timestamp);
+      const lastUserMessageAt = lastUserMsg?.metadata?.timestamp ?? null;
 
       return {
         messages: aggregator.getDisplayedMessages(),
-        canInterrupt: aggregator.getActiveStreams().length > 0,
+        canInterrupt: activeStreams.length > 0,
         isCompacting: aggregator.isCompacting(),
         loading: !hasMessages && !isCaughtUp,
         cmuxMessages: aggregator.getAllMessages(),
         currentModel: aggregator.getCurrentModel() ?? "claude-sonnet-4-5",
+        lastUserMessageAt,
       };
     },
     [getAggregator]
@@ -296,15 +308,49 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
 
   // Build workspaceStates map for consumers that need all states
   // Key by metadata.id (short format like 'cmux-md-toggles') to match localStorage keys
-  const workspaceStates = new Map<string, WorkspaceState>();
-  for (const [_key, metadata] of workspaceMetadata) {
-    workspaceStates.set(metadata.id, getWorkspaceState(metadata.id));
-  }
+  // Memoized to prevent unnecessary re-renders of consumers (e.g., ProjectSidebar sorting)
+  // Updates when messages change (updateCounter) or workspaces are added/removed (workspaceMetadata)
+  const workspaceStates = useMemo(() => {
+    const states = new Map<string, WorkspaceState>();
+    for (const [_key, metadata] of workspaceMetadata) {
+      states.set(metadata.id, getWorkspaceState(metadata.id));
+    }
+    return states;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workspaceMetadata, getWorkspaceState, updateCounter]);
+
+  // Extract recency timestamps for sorting - only updates when timestamps actually change
+  // This prevents unnecessary sort recomputation when unrelated workspace state changes
+  const workspaceRecencyRef = useRef<Record<string, number>>({});
+  const workspaceRecency = useMemo(() => {
+    const timestamps: Record<string, number> = {};
+    for (const [id, state] of workspaceStates) {
+      if (state.lastUserMessageAt !== null) {
+        timestamps[id] = state.lastUserMessageAt;
+      }
+    }
+
+    // Only return new object if timestamps actually changed
+    const prev = workspaceRecencyRef.current;
+    const prevKeys = Object.keys(prev);
+    const newKeys = Object.keys(timestamps);
+
+    if (
+      prevKeys.length === newKeys.length &&
+      prevKeys.every((key) => prev[key] === timestamps[key])
+    ) {
+      return prev; // No change, return previous reference
+    }
+
+    workspaceRecencyRef.current = timestamps;
+    return timestamps;
+  }, [workspaceStates]);
 
   return {
     getWorkspaceState,
     getAggregator,
     workspaceStates,
+    workspaceRecency,
     forceUpdate,
   };
 }
