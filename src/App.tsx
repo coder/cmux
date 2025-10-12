@@ -190,7 +190,9 @@ function AppInner() {
   // Update window title when workspace changes
   useEffect(() => {
     if (selectedWorkspace) {
-      const title = `${selectedWorkspace.workspaceId} - ${selectedWorkspace.projectName} - cmux`;
+      // Extract branch name from workspace path (last path component)
+      const branch = selectedWorkspace.workspacePath.split("/").pop() ?? "unknown";
+      const title = `${branch} - ${selectedWorkspace.projectName} - cmux`;
       void window.api.window.setTitle(title);
     } else {
       void window.api.window.setTitle("cmux");
