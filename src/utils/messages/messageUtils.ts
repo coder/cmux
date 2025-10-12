@@ -49,3 +49,57 @@ export function isStreamingPart(part: unknown): part is { type: "text"; state: "
 export function isStreamingMessage(message: CmuxMessage): boolean {
   return message.parts.some(isStreamingPart);
 }
+
+/**
+ * Merges consecutive stream-error messages with identical content.
+ * Returns a new array where consecutive identical errors are represented as a single message
+ * with an errorCount field indicating how many times it occurred.
+ *
+ * @param messages - Array of DisplayedMessages to process
+ * @returns Array with consecutive identical errors merged (errorCount added to stream-error variants)
+ */
+export function mergeConsecutiveStreamErrors(messages: DisplayedMessage[]): DisplayedMessage[] {
+  if (messages.length === 0) return [];
+
+  const result: DisplayedMessage[] = [];
+  let i = 0;
+
+  while (i < messages.length) {
+    const msg = messages[i];
+
+    // If it's not a stream-error, just add it and move on
+    if (msg.type !== "stream-error") {
+      result.push(msg);
+      i++;
+      continue;
+    }
+
+    // Count consecutive identical errors
+    let count = 1;
+    let j = i + 1;
+    while (j < messages.length) {
+      const nextMsg = messages[j];
+      if (
+        nextMsg.type === "stream-error" &&
+        nextMsg.error === msg.error &&
+        nextMsg.errorType === msg.errorType
+      ) {
+        count++;
+        j++;
+      } else {
+        break;
+      }
+    }
+
+    // Add the error with count
+    result.push({
+      ...msg,
+      errorCount: count,
+    });
+
+    // Skip all the merged errors
+    i = j;
+  }
+
+  return result;
+}
