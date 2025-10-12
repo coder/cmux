@@ -118,7 +118,8 @@ export async function buildSystemMessage(
 
   // Add mode-specific content if found
   if (modeContent) {
-    systemMessage += `\n\n<${mode}>\n${modeContent}\n</${mode}>`;
+    const tag = (mode ?? "mode").toLowerCase().replace(/[^a-z0-9_-]/gi, "-");
+    systemMessage += `\n\n<${tag}>\n${modeContent}\n</${tag}>`;
   }
 
   // Add additional system instructions at the end (highest priority)
