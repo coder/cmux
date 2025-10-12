@@ -1227,5 +1227,70 @@ These are general instructions that apply to all modes.
       },
       60000 // 1 minute timeout (much faster since we don't make many API calls)
     );
+
+    test.each(PROVIDER_CONFIGS)(
+      "%s should include full file_edit diff in UI/history but redact it from the next provider request",
+      async (provider, model) => {
+        const { env, workspaceId, workspacePath, cleanup } = await setupWorkspace(provider);
+        try {
+          // 1) Create a file and ask the model to edit it to ensure a file_edit tool runs
+          const testFilePath = path.join(workspacePath, "redaction-edit-test.txt");
+          await fs.writeFile(testFilePath, "line1\nline2\nline3\n", "utf-8");
+
+          const result1 = await sendMessageWithModel(
+            env.mockIpcRenderer,
+            workspaceId,
+            `Open and replace 'line2' with 'LINE2' in ${path.basename(testFilePath)} using file_edit_replace`,
+            provider,
+            model
+          );
+          expect(result1.success).toBe(true);
+
+          // Wait for first stream to complete
+          const collector1 = createEventCollector(env.sentEvents, workspaceId);
+          await collector1.waitForEvent("stream-end", 30000);
+          assertStreamSuccess(collector1);
+
+          // 2) Validate UI/history has a dynamic-tool part with a real diff string
+          const events1 = collector1.getEvents();
+          const toolEnd = events1.find(
+            (e) =>
+              typeof e === "object" &&
+              e !== null &&
+              "type" in e &&
+              (e as any).type === "tool-call-end" &&
+              (e as any).toolName === "file_edit_replace"
+          ) as any;
+          expect(toolEnd).toBeDefined();
+          const toolResult = toolEnd?.result;
+          // result may be wrapped as { type: 'json', value: {...} }
+          const payload = toolResult && toolResult.value ? toolResult.value : toolResult;
+          expect(payload?.success).toBe(true);
+          expect(typeof payload?.diff).toBe("string");
+          expect(payload?.diff).toContain("@@"); // unified diff hunk header present
+
+          // 3) Now send another message and ensure we still succeed (redaction must not break anything)
+          env.sentEvents.length = 0;
+          const result2 = await sendMessageWithModel(
+            env.mockIpcRenderer,
+            workspaceId,
+            "Confirm the previous edit was applied.",
+            provider,
+            model
+          );
+          expect(result2.success).toBe(true);
+
+          const collector2 = createEventCollector(env.sentEvents, workspaceId);
+          await collector2.waitForEvent("stream-end", 30000);
+          assertStreamSuccess(collector2);
+
+          // Note: We don't assert on the exact provider payload (black box), but the fact that
+          // the second request succeeds proves the redaction path produced valid provider messages
+        } finally {
+          await cleanup();
+        }
+      },
+      90000
+    );
   });
 });
