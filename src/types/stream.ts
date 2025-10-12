@@ -25,6 +25,8 @@ export interface StreamDeltaEvent {
   workspaceId: string;
   messageId: string;
   delta: string;
+  tokens: number; // Token count for this delta
+  timestamp: number; // When delta was received (Date.now())
 }
 
 export interface StreamEndEvent {
@@ -79,6 +81,8 @@ export interface ToolCallDeltaEvent {
   toolCallId: string;
   toolName: string;
   delta: unknown;
+  tokens: number; // Token count for this delta
+  timestamp: number; // When delta was received (Date.now())
 }
 
 export interface ToolCallEndEvent {
@@ -102,20 +106,14 @@ export interface ReasoningDeltaEvent {
   workspaceId: string;
   messageId: string;
   delta: string;
+  tokens: number; // Token count for this delta
+  timestamp: number; // When delta was received (Date.now())
 }
 
 export interface ReasoningEndEvent {
   type: "reasoning-end";
   workspaceId: string;
   messageId: string;
-}
-
-export interface StreamStatsEvent {
-  type: "stream-stats";
-  workspaceId: string;
-  messageId: string;
-  tokenCount: number;
-  tps: number;
 }
 
 export type AIServiceEvent =
@@ -129,5 +127,4 @@ export type AIServiceEvent =
   | ToolCallEndEvent
   | ReasoningStartEvent
   | ReasoningDeltaEvent
-  | ReasoningEndEvent
-  | StreamStatsEvent;
+  | ReasoningEndEvent;

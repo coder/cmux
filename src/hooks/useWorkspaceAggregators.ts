@@ -20,7 +20,6 @@ import {
   isToolCallEnd,
   isReasoningDelta,
   isReasoningEnd,
-  isStreamStats,
 } from "@/types/ipc";
 import { useModelLRU } from "./useModelLRU";
 
@@ -264,13 +263,6 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
 
         if (isReasoningEnd(data)) {
           aggregator.handleReasoningEnd(data);
-          forceUpdate();
-          return;
-        }
-
-        // Handle token statistics from main process
-        if (isStreamStats(data)) {
-          aggregator.setTokenStats(data.messageId, data.tokenCount, data.tps);
           forceUpdate();
           return;
         }

@@ -123,8 +123,6 @@ export class StreamManager extends EventEmitter {
   private readonly partialService: PartialService;
   // Token tracker for live streaming statistics
   private tokenTracker = new StreamingTokenTracker();
-  // Interval for emitting stats during streaming
-  private statsIntervals = new Map<string, NodeJS.Timeout>();
 
   constructor(historyService: HistoryService, partialService: PartialService) {
     super();
@@ -468,20 +466,6 @@ export class StreamManager extends EventEmitter {
       // Initialize token tracker for this model
       this.tokenTracker.setModel(streamInfo.model);
 
-      // Start periodic stats emission (every 100ms)
-      const statsInterval = setInterval(() => {
-        const tokenCount = this.tokenTracker.getTokenCount(streamInfo.messageId);
-        const tps = this.tokenTracker.getTPS(streamInfo.messageId);
-        this.emit("stream-stats", {
-          type: "stream-stats",
-          workspaceId: workspaceId as string,
-          messageId: streamInfo.messageId,
-          tokenCount,
-          tps,
-        });
-      }, 100);
-      this.statsIntervals.set(streamInfo.messageId, statsInterval);
-
       // Use fullStream to capture all events including tool calls
       const toolCalls = new Map<
         string,
@@ -504,16 +488,19 @@ export class StreamManager extends EventEmitter {
         // });
 
         switch (part.type) {
-          case "text-delta":
+          case "text-delta": {
+            // Tokenize immediately (synchronous, <1ms per delta)
+            const tokens = this.tokenTracker.countTokens(part.text);
+            const timestamp = Date.now();
+
             this.emit("stream-delta", {
               type: "stream-delta",
               workspaceId: workspaceId as string,
               messageId: streamInfo.messageId,
               delta: part.text,
+              tokens,
+              timestamp,
             } as StreamDeltaEvent);
-
-            // Track tokens for live statistics
-            this.tokenTracker.trackDelta(streamInfo.messageId, part.text, "text");
 
             // Append each delta as a new part (merging happens at display time)
             streamInfo.parts.push({
@@ -524,6 +511,7 @@ export class StreamManager extends EventEmitter {
             // Schedule partial write (throttled, fire-and-forget to not block stream)
             void this.schedulePartialWrite(workspaceId, streamInfo);
             break;
+          }
 
           default: {
             // Handle tool-call-delta which may not be in the type definition yet
@@ -537,6 +525,11 @@ export class StreamManager extends EventEmitter {
                 argsTextDelta: string;
               };
 
+              // Tokenize tool args delta
+              const deltaText = String(toolCallDeltaPart.argsTextDelta);
+              const tokens = this.tokenTracker.countTokens(deltaText);
+              const timestamp = Date.now();
+
               this.emit("tool-call-delta", {
                 type: "tool-call-delta",
                 workspaceId: workspaceId as string,
@@ -544,14 +537,9 @@ export class StreamManager extends EventEmitter {
                 toolCallId: toolCallDeltaPart.toolCallId,
                 toolName: toolCallDeltaPart.toolName,
                 delta: toolCallDeltaPart.argsTextDelta,
+                tokens,
+                timestamp,
               });
-
-              // Track tokens for live statistics
-              this.tokenTracker.trackDelta(
-                streamInfo.messageId,
-                String(toolCallDeltaPart.argsTextDelta),
-                "tool-args"
-              );
             }
             break;
           }
@@ -566,15 +554,18 @@ export class StreamManager extends EventEmitter {
               text: delta,
             });
 
+            // Tokenize reasoning delta
+            const tokens = this.tokenTracker.countTokens(delta);
+            const timestamp = Date.now();
+
             this.emit("reasoning-delta", {
               type: "reasoning-delta",
               workspaceId: workspaceId as string,
               messageId: streamInfo.messageId,
               delta,
+              tokens,
+              timestamp,
             });
-
-            // Track tokens for live statistics
-            this.tokenTracker.trackDelta(streamInfo.messageId, delta, "reasoning");
 
             void this.schedulePartialWrite(workspaceId, streamInfo);
             break;
@@ -878,17 +869,6 @@ export class StreamManager extends EventEmitter {
         streamInfo.partialWriteTimer = undefined;
       }
 
-      // Stop stats interval
-      const statsInterval = this.statsIntervals.get(streamInfo.messageId);
-      if (statsInterval) {
-        clearInterval(statsInterval);
-        this.statsIntervals.delete(streamInfo.messageId);
-      }
-
-      // Finalize token tracking
-      this.tokenTracker.finalize(streamInfo.messageId);
-      this.tokenTracker.clear(streamInfo.messageId);
-
       this.workspaceStreams.delete(workspaceId);
     }
   }
@@ -1175,6 +1155,8 @@ export class StreamManager extends EventEmitter {
           workspaceId,
           messageId: streamInfo.messageId,
           delta: part.text,
+          tokens: 0, // Replay - tokens already counted
+          timestamp: Date.now(),
         });
       } else if (part.type === "reasoning") {
         this.emit("reasoning-delta", {
@@ -1182,6 +1164,8 @@ export class StreamManager extends EventEmitter {
           workspaceId,
           messageId: streamInfo.messageId,
           delta: part.text,
+          tokens: 0, // Replay - tokens already counted
+          timestamp: Date.now(),
         });
       } else if (part.type === "dynamic-tool") {
         // Emit tool-call-start

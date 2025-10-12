@@ -162,6 +162,8 @@ export class MockScenarioPlayer {
           workspaceId,
           messageId,
           delta: event.text,
+          tokens: 0, // Mock scenario
+          timestamp: Date.now(),
         };
         this.deps.aiService.emit("reasoning-delta", payload);
         break;
@@ -196,6 +198,8 @@ export class MockScenarioPlayer {
           workspaceId,
           messageId,
           delta: event.text,
+          tokens: 0, // Mock scenario
+          timestamp: Date.now(),
         };
         this.deps.aiService.emit("stream-delta", payload);
         break;

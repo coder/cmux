@@ -123,12 +123,12 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
     );
 
     test.concurrent(
-      "should emit stream-stats events during streaming",
+      "should include tokens and timestamp in delta events",
       async () => {
         // Setup test environment
         const { env, workspaceId, cleanup } = await setupWorkspace(provider);
         try {
-          // Send a message that will generate a reasonable amount of tokens
+          // Send a message that will generate text deltas
           void sendMessageWithModel(
             env.mockIpcRenderer,
             workspaceId,
@@ -141,47 +141,51 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
           const collector = createEventCollector(env.sentEvents, workspaceId);
           await collector.waitForEvent("stream-start", 5000);
 
-          // Wait for stream-stats events
-          const statsEvent = await collector.waitForEvent("stream-stats", 5000);
-          expect(statsEvent).toBeDefined();
+          // Wait for first delta event
+          const deltaEvent = await collector.waitForEvent("stream-delta", 5000);
+          expect(deltaEvent).toBeDefined();
 
-          // Verify stream-stats event structure
-          if (statsEvent && "type" in statsEvent && statsEvent.type === "stream-stats") {
-            expect("tokenCount" in statsEvent).toBe(true);
-            expect("tps" in statsEvent).toBe(true);
-            expect("messageId" in statsEvent).toBe(true);
-            expect("workspaceId" in statsEvent).toBe(true);
+          // Verify delta event has tokens and timestamp
+          if (deltaEvent && "type" in deltaEvent && deltaEvent.type === "stream-delta") {
+            expect("tokens" in deltaEvent).toBe(true);
+            expect("timestamp" in deltaEvent).toBe(true);
+            expect("delta" in deltaEvent).toBe(true);
 
-            // Verify values are numbers
-            if ("tokenCount" in statsEvent) {
-              expect(typeof statsEvent.tokenCount).toBe("number");
-              expect(statsEvent.tokenCount).toBeGreaterThanOrEqual(0);
+            // Verify types
+            if ("tokens" in deltaEvent) {
+              expect(typeof deltaEvent.tokens).toBe("number");
+              expect(deltaEvent.tokens).toBeGreaterThanOrEqual(0);
             }
-            if ("tps" in statsEvent) {
-              expect(typeof statsEvent.tps).toBe("number");
-              expect(statsEvent.tps).toBeGreaterThanOrEqual(0);
+            if ("timestamp" in deltaEvent) {
+              expect(typeof deltaEvent.timestamp).toBe("number");
+              expect(deltaEvent.timestamp).toBeGreaterThan(0);
             }
           }
 
-          // Collect all events and count stream-stats
+          // Collect all events and sum tokens
           await collector.waitForEvent("stream-end", 10000);
           const allEvents = collector.getEvents();
-          const statsEvents = allEvents.filter((e) => "type" in e && e.type === "stream-stats");
+          const deltaEvents = allEvents.filter(
+            (e) =>
+              "type" in e &&
+              (e.type === "stream-delta" ||
+                e.type === "reasoning-delta" ||
+                e.type === "tool-call-delta")
+          );
 
-          // Should have received multiple stats updates (streaming for a few seconds)
-          expect(statsEvents.length).toBeGreaterThan(0);
+          // Should have received multiple delta events
+          expect(deltaEvents.length).toBeGreaterThan(0);
 
-          // Verify token counts are increasing over time (or staying the same)
-          let lastTokenCount = 0;
-          for (const event of statsEvents) {
-            if ("tokenCount" in event && typeof event.tokenCount === "number") {
-              expect(event.tokenCount).toBeGreaterThanOrEqual(lastTokenCount);
-              lastTokenCount = event.tokenCount;
+          // Calculate total tokens from deltas
+          let totalTokens = 0;
+          for (const event of deltaEvents) {
+            if ("tokens" in event && typeof event.tokens === "number") {
+              totalTokens += event.tokens;
             }
           }
 
-          // Final token count should be greater than 0
-          expect(lastTokenCount).toBeGreaterThan(0);
+          // Total should be greater than 0
+          expect(totalTokens).toBeGreaterThan(0);
 
           // Verify stream completed successfully
           assertStreamSuccess(collector);

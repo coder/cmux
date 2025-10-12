@@ -18,7 +18,6 @@ import type {
   ToolCallEndEvent,
   ReasoningDeltaEvent,
   ReasoningEndEvent,
-  StreamStatsEvent,
 } from "./stream";
 
 // Import constants from constants module (single source of truth)
@@ -68,8 +67,7 @@ export type WorkspaceChatMessage =
   | ToolCallDeltaEvent
   | ToolCallEndEvent
   | ReasoningDeltaEvent
-  | ReasoningEndEvent
-  | StreamStatsEvent;
+  | ReasoningEndEvent;
 
 // Type guard for caught up messages
 export function isCaughtUpMessage(msg: WorkspaceChatMessage): msg is CaughtUpMessage {
@@ -132,9 +130,6 @@ export function isReasoningEnd(msg: WorkspaceChatMessage): msg is ReasoningEndEv
 }
 
 // Type guard for stream stats events
-export function isStreamStats(msg: WorkspaceChatMessage): msg is StreamStatsEvent {
-  return "type" in msg && msg.type === "stream-stats";
-}
 
 // Options for sendMessage and resumeStream
 export interface SendMessageOptions {
