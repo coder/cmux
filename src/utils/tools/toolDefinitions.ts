@@ -7,6 +7,7 @@
 
 import { z } from "zod";
 import {
+  BASH_DEFAULT_TIMEOUT_SECS,
   BASH_HARD_MAX_LINES,
   BASH_MAX_LINE_BYTES,
   BASH_MAX_TOTAL_BYTES,
@@ -42,7 +43,7 @@ export const TOOL_DEFINITIONS = {
         .positive()
         .optional()
         .describe(
-          "Timeout (seconds, default: 3). Start small and increase on retry; avoid large initial values to keep UX responsive"
+          `Timeout (seconds, default: ${BASH_DEFAULT_TIMEOUT_SECS}). Start small and increase on retry; avoid large initial values to keep UX responsive`
         ),
     }),
   },

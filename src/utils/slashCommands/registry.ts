@@ -204,7 +204,7 @@ const compactCommandDefinition: SlashCommandDefinition = {
         return {
           type: "unknown-command",
           command: "compact",
-          subcommand: `-t requires a positive number, got ${parsed.t}`,
+          subcommand: `-t requires a positive number, got ${String(parsed.t)}`,
         };
       }
       maxOutputTokens = tokens;

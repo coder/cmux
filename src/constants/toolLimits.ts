@@ -1,3 +1,4 @@
+export const BASH_DEFAULT_TIMEOUT_SECS = 3;
 export const BASH_DEFAULT_MAX_LINES = 300;
 export const BASH_HARD_MAX_LINES = 300;
 export const BASH_MAX_LINE_BYTES = 1024; // 1KB per line

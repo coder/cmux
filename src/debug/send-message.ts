@@ -60,7 +60,7 @@ export function sendMessageCommand(
   } else if (workspaceIds.size === 1 && !workspaceIds.has(workspaceId)) {
     console.log(`ℹ️  INFO: Workspace ID mismatch detected`);
     console.log(`  Current workspace: ${workspaceId}`);
-    console.log(`  Message workspace IDs: ${Array.from(workspaceIds)[0]}`);
+    console.log(`  Message workspace IDs: ${Array.from(workspaceIds)[0] ?? "unknown"}`);
     console.log(`  This workspace may have been renamed. Workspace IDs in messages are cosmetic`);
     console.log(`  and get updated automatically during history operations.\n`);
   }
@@ -93,7 +93,7 @@ export function sendMessageCommand(
     console.log(`  Role: ${messageToEdit.role}`);
     console.log(`  Sequence: ${messageToEdit.metadata?.historySequence ?? "?"}`);
     console.log(
-      `  Content: ${messageToEdit.parts.find((p) => p.type === "text")?.text?.substring(0, 100)}`
+      `  Content: ${messageToEdit.parts.find((p) => p.type === "text")?.text?.substring(0, 100) ?? "(no text)"}`
     );
   }
 
@@ -116,12 +116,12 @@ export function sendMessageCommand(
     `  window.api.workspace.sendMessage("${workspaceId}", "${textToSend}", ${JSON.stringify(options)})`
   );
   console.log(
-    `\nThis would truncate history after message ${editMessageId} and send the new message.`
+    `\nThis would truncate history after message ${editMessageId ?? "unknown"} and send the new message.`
   );
 
   console.log(`\nTo test in the app:`);
   console.log(`1. Open the workspace "${workspaceId}"`);
-  console.log(`2. Click edit on message ${editMessageId}`);
+  console.log(`2. Click edit on message ${editMessageId ?? "unknown"}`);
   console.log(`3. Make changes and send`);
   console.log();
 }
