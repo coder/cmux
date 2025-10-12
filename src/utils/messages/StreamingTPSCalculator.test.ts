@@ -23,9 +23,9 @@ describe("StreamingTPSCalculator", () => {
     });
 
     test("returns 0 when all deltas are outside window", () => {
-      const now = 20000;
+      const now = 70000;
       const deltas: DeltaRecord[] = [
-        { tokens: 100, timestamp: 1000, type: "text" }, // 19s ago, outside 10s window
+        { tokens: 100, timestamp: 1000, type: "text" }, // 69s ago, outside 60s window
       ];
       expect(calculateTPS(deltas, now)).toBe(0);
     });
@@ -40,11 +40,11 @@ describe("StreamingTPSCalculator", () => {
       expect(calculateTPS(deltas, now)).toBe(20);
     });
 
-    test("filters out deltas outside 10s window", () => {
-      const now = 15000;
+    test("filters out deltas outside 60s window", () => {
+      const now = 70000;
       const deltas: DeltaRecord[] = [
-        { tokens: 100, timestamp: 1000, type: "text" }, // 14s ago, excluded
-        { tokens: 50, timestamp: 10000, type: "text" }, // 5s ago, included
+        { tokens: 100, timestamp: 1000, type: "text" }, // 69s ago, excluded
+        { tokens: 50, timestamp: 65000, type: "text" }, // 5s ago, included
       ];
       // Only 50 tokens over 5 seconds = 10 t/s
       expect(calculateTPS(deltas, now)).toBe(10);
