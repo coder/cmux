@@ -12,8 +12,7 @@
 
 import type {
   FileEditInsertToolResult,
-  FileEditReplaceLinesToolResult,
-  FileEditReplaceStringToolResult,
+  FileEditReplaceToolResult,
 } from "@/types/tools";
 
 // Tool-output from AI SDK is often wrapped like: { type: 'json', value: <payload> }
@@ -37,16 +36,7 @@ function rewrapJsonContainer(wrapped: boolean, value: unknown): unknown {
 }
 
 // Narrowing helpers for our tool result types
-function isFileEditReplaceStringResult(v: unknown): v is FileEditReplaceStringToolResult {
-  return (
-    typeof v === "object" &&
-    v !== null &&
-    "success" in v &&
-    typeof (v as { success: unknown }).success === "boolean"
-  );
-}
-
-function isFileEditReplaceLinesResult(v: unknown): v is FileEditReplaceLinesToolResult {
+function isFileEditReplaceResult(v: unknown): v is FileEditReplaceToolResult {
   return (
     typeof v === "object" &&
     v !== null &&
@@ -65,14 +55,14 @@ function isFileEditInsertResult(v: unknown): v is FileEditInsertToolResult {
 }
 
 // Redactors per tool
-function redactFileEditReplaceString(output: unknown): unknown {
+function redactFileEditReplace(output: unknown): unknown {
   const unwrapped = unwrapJsonContainer(output);
   const val = unwrapped.value;
 
-  if (!isFileEditReplaceStringResult(val)) return output; // unknown structure, leave as-is
+  if (!isFileEditReplaceResult(val)) return output; // unknown structure, leave as-is
 
   if (val.success) {
-    const compact: FileEditReplaceStringToolResult = {
+    const compact: FileEditReplaceToolResult = {
       success: true,
       edits_applied: val.edits_applied,
       diff: "[diff omitted in context - call file_read on the target file if needed]",
@@ -81,26 +71,6 @@ function redactFileEditReplaceString(output: unknown): unknown {
   }
 
   // Failure payloads are small; pass through unchanged
-  return output;
-}
-
-function redactFileEditReplaceLines(output: unknown): unknown {
-  const unwrapped = unwrapJsonContainer(output);
-  const val = unwrapped.value;
-
-  if (!isFileEditReplaceLinesResult(val)) return output;
-
-  if (val.success) {
-    const compact: FileEditReplaceLinesToolResult = {
-      success: true,
-      edits_applied: val.edits_applied,
-      lines_replaced: val.lines_replaced,
-      line_delta: val.line_delta,
-      diff: "[diff omitted in context - call file_read on the target file if needed]",
-    };
-    return rewrapJsonContainer(unwrapped.wrapped, compact);
-  }
-
   return output;
 }
 
@@ -124,10 +94,8 @@ function redactFileEditInsert(output: unknown): unknown {
 // Public API - registry entrypoint. Add new tools here as needed.
 export function redactToolOutput(toolName: string, output: unknown): unknown {
   switch (toolName) {
-    case "file_edit_replace_string":
-      return redactFileEditReplaceString(output);
-    case "file_edit_replace_lines":
-      return redactFileEditReplaceLines(output);
+    case "file_edit_replace":
+      return redactFileEditReplace(output);
     case "file_edit_insert":
       return redactFileEditInsert(output);
     default:

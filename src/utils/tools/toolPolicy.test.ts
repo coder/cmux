@@ -14,14 +14,9 @@ const mockTools = {
     inputSchema: z.object({ path: z.string() }),
     execute: () => Promise.resolve({ content: "test" }),
   }),
-  file_edit_replace_string: tool({
-    description: "Replace content in files (string)",
-    inputSchema: z.object({ path: z.string() }),
-    execute: () => Promise.resolve({ success: true }),
-  }),
-  file_edit_replace_lines: tool({
-    description: "Replace content in files (lines)",
-    inputSchema: z.object({ path: z.string() }),
+  file_edit_replace: tool({
+    description: "Replace content in files",
+    inputSchema: z.object({ path: z.string(), mode: z.string() }),
     execute: () => Promise.resolve({ success: true }),
   }),
   file_edit_insert: tool({
@@ -56,8 +51,8 @@ describe("applyToolPolicy", () => {
 
       expect(result.bash).toBeUndefined();
       expect(result.file_read).toBeDefined();
-      expect(result.file_edit_replace_string).toBeDefined();
-      expect(result.file_edit_replace_lines).toBeDefined();
+      expect(result.file_edit_replace).toBeDefined();
+      expect(result.file_edit_replace).toBeDefined();
       expect(result.file_edit_insert).toBeDefined();
       expect(result.web_search).toBeDefined();
     });
@@ -72,8 +67,8 @@ describe("applyToolPolicy", () => {
       expect(result.bash).toBeUndefined();
       expect(result.web_search).toBeUndefined();
       expect(result.file_read).toBeDefined();
-      expect(result.file_edit_replace_string).toBeDefined();
-      expect(result.file_edit_replace_lines).toBeDefined();
+      expect(result.file_edit_replace).toBeDefined();
+      expect(result.file_edit_replace).toBeDefined();
       expect(result.file_edit_insert).toBeDefined();
     });
   });
@@ -83,8 +78,8 @@ describe("applyToolPolicy", () => {
       const policy: ToolPolicy = [{ regex_match: "file_edit_.*", action: "disable" }];
       const result = applyToolPolicy(mockTools, policy);
 
-      expect(result.file_edit_replace_string).toBeUndefined();
-      expect(result.file_edit_replace_lines).toBeUndefined();
+      expect(result.file_edit_replace).toBeUndefined();
+      expect(result.file_edit_insert).toBeUndefined();
       expect(result.file_edit_insert).toBeUndefined();
       expect(result.bash).toBeDefined();
       expect(result.file_read).toBeDefined();
@@ -103,8 +98,8 @@ describe("applyToolPolicy", () => {
       const result = applyToolPolicy(mockTools, policy);
 
       expect(result.file_read).toBeUndefined();
-      expect(result.file_edit_replace_string).toBeUndefined();
-      expect(result.file_edit_replace_lines).toBeUndefined();
+      expect(result.file_edit_replace).toBeUndefined();
+      expect(result.file_edit_insert).toBeUndefined();
       expect(result.file_edit_insert).toBeUndefined();
       expect(result.bash).toBeDefined();
       expect(result.web_search).toBeDefined();
@@ -121,21 +116,20 @@ describe("applyToolPolicy", () => {
 
       expect(result.bash).toBeDefined();
       expect(result.file_read).toBeUndefined();
-      expect(result.file_edit_replace_string).toBeUndefined();
-      expect(result.file_edit_replace_lines).toBeUndefined();
+      expect(result.file_edit_replace).toBeUndefined();
+      expect(result.file_edit_insert).toBeUndefined();
       expect(result.file_edit_insert).toBeUndefined();
       expect(result.web_search).toBeUndefined();
     });
 
-    test("disables file_edit_.* then enables file_edit_replace_string", () => {
+    test("disables file_edit_.* then enables file_edit_replace", () => {
       const policy: ToolPolicy = [
         { regex_match: "file_edit_.*", action: "disable" },
-        { regex_match: "file_edit_replace_string", action: "enable" },
+        { regex_match: "file_edit_replace", action: "enable" },
       ];
       const result = applyToolPolicy(mockTools, policy);
 
-      expect(result.file_edit_replace_string).toBeDefined();
-      expect(result.file_edit_replace_lines).toBeUndefined();
+      expect(result.file_edit_replace).toBeDefined();
       expect(result.file_edit_insert).toBeUndefined();
       expect(result.bash).toBeDefined();
       expect(result.file_read).toBeDefined();
@@ -160,8 +154,8 @@ describe("applyToolPolicy", () => {
 
       expect(result.file_read).toBeDefined();
       expect(result.bash).toBeDefined();
-      expect(result.file_edit_replace_string).toBeUndefined();
-      expect(result.file_edit_replace_lines).toBeUndefined();
+      expect(result.file_edit_replace).toBeUndefined();
+      expect(result.file_edit_insert).toBeUndefined();
       expect(result.file_edit_insert).toBeUndefined();
     });
 
@@ -170,8 +164,8 @@ describe("applyToolPolicy", () => {
 
       expect(result.bash).toBeDefined();
       expect(result.file_read).toBeDefined();
-      expect(result.file_edit_replace_string).toBeDefined();
-      expect(result.file_edit_replace_lines).toBeDefined();
+      expect(result.file_edit_replace).toBeDefined();
+      expect(result.file_edit_replace).toBeDefined();
       expect(result.file_edit_insert).toBeDefined();
     });
 
@@ -185,8 +179,8 @@ describe("applyToolPolicy", () => {
 
       expect(result.bash).toBeDefined();
       expect(result.file_read).toBeDefined();
-      expect(result.file_edit_replace_string).toBeUndefined();
-      expect(result.file_edit_replace_lines).toBeUndefined();
+      expect(result.file_edit_replace).toBeUndefined();
+      expect(result.file_edit_insert).toBeUndefined();
       expect(result.file_edit_insert).toBeUndefined();
       expect(result.web_search).toBeUndefined();
     });
@@ -216,8 +210,8 @@ describe("applyToolPolicy", () => {
       expect(result.bash).toBeDefined();
       expect(Object.keys(result)).toHaveLength(1);
       expect(result.file_read).toBeUndefined();
-      expect(result.file_edit_replace_string).toBeUndefined();
-      expect(result.file_edit_replace_lines).toBeUndefined();
+      expect(result.file_edit_replace).toBeUndefined();
+      expect(result.file_edit_insert).toBeUndefined();
       expect(result.file_edit_insert).toBeUndefined();
       expect(result.web_search).toBeUndefined();
     });

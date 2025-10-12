@@ -344,14 +344,14 @@ describe("StreamManager - Unavailable Tool Handling", () => {
         yield {
           type: "tool-call",
           toolCallId: "test-call-1",
-          toolName: "file_edit_replace_string",
+          toolName: "file_edit_replace",
           input: { file_path: "/test", old_string: "foo", new_string: "bar" },
         };
         // SDK emits tool-error when tool execution fails
         yield {
           type: "tool-error",
           toolCallId: "test-call-1",
-          toolName: "file_edit_replace_string",
+          toolName: "file_edit_replace",
           error: "Tool not found",
         };
       })(),
@@ -382,11 +382,11 @@ describe("StreamManager - Unavailable Tool Handling", () => {
     expect(events.length).toBeGreaterThanOrEqual(2);
     expect(events[0]).toMatchObject({
       type: "tool-call-start",
-      toolName: "file_edit_replace_string",
+      toolName: "file_edit_replace",
     });
     expect(events[1]).toMatchObject({
       type: "tool-call-end",
-      toolName: "file_edit_replace_string",
+      toolName: "file_edit_replace",
     });
 
     // Verify error result

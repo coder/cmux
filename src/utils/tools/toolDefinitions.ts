@@ -66,51 +66,43 @@ export const TOOL_DEFINITIONS = {
         .describe("Number of lines to return from offset (optional, returns all if not specified)"),
     }),
   },
-  file_edit_replace_string: {
+  file_edit_replace: {
     description:
-      "Replace text in a file by providing the exact string to find and the replacement. The old_string must exist exactly as written in the file.",
-    schema: z.object({
-      file_path: z.string().describe("The absolute path to the file to edit"),
-      old_string: z
-        .string()
-        .describe(
-          "The exact text to replace. Include enough context (indentation, surrounding lines) to make it unique."
-        ),
-      new_string: z.string().describe("The replacement text"),
-      replace_count: z
-        .number()
-        .int()
-        .optional()
-        .describe(
-          "Number of occurrences to replace (default: 1). Use -1 to replace all occurrences. If 1, old_string must be unique in the file."
-        ),
-    }),
-  },
-  file_edit_replace_lines: {
-    description:
-      "Replace a range of lines in a file. Line numbers refer to the state of the file before the edit.",
-    schema: z.object({
-      file_path: z.string().describe("The absolute path to the file to edit"),
-      start_line: z
-        .number()
-        .int()
-        .min(1)
-        .describe("1-indexed start line (inclusive) to replace"),
-      end_line: z
-        .number()
-        .int()
-        .min(1)
-        .describe("1-indexed end line (inclusive) to replace"),
-      new_lines: z
-        .array(z.string())
-        .describe("Replacement lines. Provide an empty array to delete the specified range."),
-      expected_lines: z
-        .array(z.string())
-        .optional()
-        .describe(
-          "Optional safety check. When provided, the current lines in the specified range must match exactly."
-        ),
-    }),
+      "Replace content in a file using either exact string matching or line ranges. Choose mode='string' for text replacements or mode='lines' for line-range updates.",
+    schema: z.discriminatedUnion("mode", [
+      z.object({
+        mode: z.literal("string"),
+        file_path: z.string().describe("The absolute path to the file to edit"),
+        old_string: z
+          .string()
+          .describe(
+            "The exact text to replace. Include enough context (indentation, surrounding lines) to make it unique."
+          ),
+        new_string: z.string().describe("The replacement text"),
+        replace_count: z
+          .number()
+          .int()
+          .optional()
+          .describe(
+            "Number of occurrences to replace (default: 1). Use -1 to replace all occurrences. If 1, old_string must be unique in the file."
+          ),
+      }),
+      z.object({
+        mode: z.literal("lines"),
+        file_path: z.string().describe("The absolute path to the file to edit"),
+        start_line: z.number().int().min(1).describe("1-indexed start line (inclusive) to replace"),
+        end_line: z.number().int().min(1).describe("1-indexed end line (inclusive) to replace"),
+        new_lines: z
+          .array(z.string())
+          .describe("Replacement lines. Provide an empty array to delete the specified range."),
+        expected_lines: z
+          .array(z.string())
+          .optional()
+          .describe(
+            "Optional safety check. When provided, the current lines in the specified range must match exactly."
+          ),
+      }),
+    ]),
   },
   file_edit_insert: {
     description:
@@ -193,8 +185,7 @@ export function getAvailableTools(modelString: string): string[] {
   const baseTools = [
     "bash",
     "file_read",
-    "file_edit_replace_string",
-    "file_edit_replace_lines",
+    "file_edit_replace",
     "file_edit_insert",
     "propose_plan",
     "compact_summary",

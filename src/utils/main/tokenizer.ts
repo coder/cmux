@@ -155,8 +155,7 @@ export function getToolDefinitionTokens(toolName: string, modelString: string): 
     const fallbackSizes: Record<string, number> = {
       bash: 65,
       file_read: 45,
-      file_edit_replace_string: 70,
-      file_edit_replace_lines: 65,
+      file_edit_replace: 70,
       file_edit_insert: 50,
       web_search: 50,
       google_search: 50,
