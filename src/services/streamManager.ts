@@ -472,7 +472,6 @@ export class StreamManager extends EventEmitter {
       const statsInterval = setInterval(() => {
         const tokenCount = this.tokenTracker.getTokenCount(streamInfo.messageId);
         const tps = this.tokenTracker.getTPS(streamInfo.messageId);
-        log.debug(`[streamManager] Emitting stream-stats: ${tokenCount} tokens, ${tps} t/s`);
         this.emit("stream-stats", {
           type: "stream-stats",
           workspaceId: workspaceId as string,
