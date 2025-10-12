@@ -112,10 +112,12 @@ Verify with React DevTools Profiler - MarkdownCore should only re-render when co
 - **Developer docs** → inline with the code its documenting as comments. Consider them notes as notes to future Assistants to understand the logic more quickly.
   **DO NOT** create standalone documentation files in the project root or random locations.
 
+**NEVER create markdown documentation files (README, guides, summaries, etc.) in the project root during feature development unless the user explicitly requests documentation.** Code + tests + inline comments are complete documentation.
+
 ### External API Docs
 
 DO NOT visit https://sdk.vercel.ai/docs/ai-sdk-core. All of that content is already
-in `./ai-sdk-docs/**.mdx`.
+in `/tmp/ai-sdk-docs/**.mdx`.
 
 (Generate them with `./scripts/update_vercel_docs.sh` if they don't exist.)
 
@@ -137,6 +139,7 @@ in `./ai-sdk-docs/**.mdx`.
   - Add packages: `bun add <package>`
   - Run scripts: `bun run <script>`
   - etc.
+- If you hit missing module/type errors locally or in CI, run `bun install` before diving into deeper debugging.
 
 ## Development Commands
 
@@ -304,6 +307,8 @@ This project uses **Make** as the primary build orchestrator. See `Makefile` for
   ```
 
 - This pattern maximizes type safety and prevents runtime errors from typos or missing cases
+
+- **Centralize magic constants** - Define in `src/constants/` and import everywhere. Never duplicate numbers/strings across backend, UI, tests, and schema descriptions.
 
 ## Component State Management
 

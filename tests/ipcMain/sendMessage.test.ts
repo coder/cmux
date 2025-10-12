@@ -123,6 +123,80 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
     );
 
     test.concurrent(
+      "should include tokens and timestamp in delta events",
+      async () => {
+        // Setup test environment
+        const { env, workspaceId, cleanup } = await setupWorkspace(provider);
+        try {
+          // Send a message that will generate text deltas
+          void sendMessageWithModel(
+            env.mockIpcRenderer,
+            workspaceId,
+            "Write a short paragraph about TypeScript",
+            provider,
+            model
+          );
+
+          // Wait for stream to start
+          const collector = createEventCollector(env.sentEvents, workspaceId);
+          await collector.waitForEvent("stream-start", 5000);
+
+          // Wait for first delta event
+          const deltaEvent = await collector.waitForEvent("stream-delta", 5000);
+          expect(deltaEvent).toBeDefined();
+
+          // Verify delta event has tokens and timestamp
+          if (deltaEvent && "type" in deltaEvent && deltaEvent.type === "stream-delta") {
+            expect("tokens" in deltaEvent).toBe(true);
+            expect("timestamp" in deltaEvent).toBe(true);
+            expect("delta" in deltaEvent).toBe(true);
+
+            // Verify types
+            if ("tokens" in deltaEvent) {
+              expect(typeof deltaEvent.tokens).toBe("number");
+              expect(deltaEvent.tokens).toBeGreaterThanOrEqual(0);
+            }
+            if ("timestamp" in deltaEvent) {
+              expect(typeof deltaEvent.timestamp).toBe("number");
+              expect(deltaEvent.timestamp).toBeGreaterThan(0);
+            }
+          }
+
+          // Collect all events and sum tokens
+          await collector.waitForEvent("stream-end", 10000);
+          const allEvents = collector.getEvents();
+          const deltaEvents = allEvents.filter(
+            (e) =>
+              "type" in e &&
+              (e.type === "stream-delta" ||
+                e.type === "reasoning-delta" ||
+                e.type === "tool-call-delta")
+          );
+
+          // Should have received multiple delta events
+          expect(deltaEvents.length).toBeGreaterThan(0);
+
+          // Calculate total tokens from deltas
+          let totalTokens = 0;
+          for (const event of deltaEvents) {
+            if ("tokens" in event && typeof event.tokens === "number") {
+              totalTokens += event.tokens;
+            }
+          }
+
+          // Total should be greater than 0
+          expect(totalTokens).toBeGreaterThan(0);
+
+          // Verify stream completed successfully
+          assertStreamSuccess(collector);
+        } finally {
+          await cleanup();
+        }
+      },
+      15000
+    );
+
+    test.concurrent(
       "should include usage data in stream-abort events",
       async () => {
         // Setup test environment
@@ -1253,15 +1327,24 @@ These are general instructions that apply to all modes.
 
           // 2) Validate UI/history has a dynamic-tool part with a real diff string
           const events1 = collector1.getEvents();
-          const toolEnd = events1.find(
+          const allFileEditEvents = events1.filter(
             (e) =>
               typeof e === "object" &&
               e !== null &&
               "type" in e &&
               (e as any).type === "tool-call-end" &&
               (e as any).toolName === "file_edit_replace"
-          ) as any;
-          expect(toolEnd).toBeDefined();
+          ) as any[];
+
+          // Find the last successful file_edit_replace event (model may retry)
+          const successfulEdits = allFileEditEvents.filter((e) => {
+            const result = e?.result;
+            const payload = result && result.value ? result.value : result;
+            return payload?.success === true;
+          });
+
+          expect(successfulEdits.length).toBeGreaterThan(0);
+          const toolEnd = successfulEdits[successfulEdits.length - 1];
           const toolResult = toolEnd?.result;
           // result may be wrapped as { type: 'json', value: {...} }
           const payload = toolResult && toolResult.value ? toolResult.value : toolResult;

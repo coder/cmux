@@ -129,6 +129,8 @@ describe("StreamingMessageAggregator", () => {
       workspaceId: "test-ws",
       messageId: "msg-interleaved",
       delta: "Let me search for that. ",
+      tokens: 0,
+      timestamp: Date.now(),
     });
 
     // Tool call interrupts
@@ -139,6 +141,8 @@ describe("StreamingMessageAggregator", () => {
       toolCallId: "tool-search",
       toolName: "searchFiles",
       args: { query: "test" },
+      tokens: 0,
+      timestamp: Date.now(),
     });
 
     // More text after tool call
@@ -147,6 +151,8 @@ describe("StreamingMessageAggregator", () => {
       workspaceId: "test-ws",
       messageId: "msg-interleaved",
       delta: "I found the following results: ",
+      tokens: 0,
+      timestamp: Date.now(),
     });
 
     aggregator.handleStreamDelta({
@@ -154,6 +160,8 @@ describe("StreamingMessageAggregator", () => {
       workspaceId: "test-ws",
       messageId: "msg-interleaved",
       delta: "file1.ts and file2.ts",
+      tokens: 0,
+      timestamp: Date.now(),
     });
 
     // Tool call completes
@@ -236,6 +244,8 @@ describe("StreamingMessageAggregator", () => {
       workspaceId: "test-ws",
       messageId: "msg-end-test",
       delta: "First part. ",
+      tokens: 0,
+      timestamp: Date.now(),
     });
 
     // Tool interrupts
@@ -246,6 +256,8 @@ describe("StreamingMessageAggregator", () => {
       toolCallId: "tool-1",
       toolName: "readFile",
       args: { file: "test.ts" },
+      tokens: 0,
+      timestamp: Date.now(),
     });
 
     // More text after tool
@@ -254,6 +266,8 @@ describe("StreamingMessageAggregator", () => {
       workspaceId: "test-ws",
       messageId: "msg-end-test",
       delta: "Second part after tool.",
+      tokens: 0,
+      timestamp: Date.now(),
     });
 
     // End stream with complete content - should preserve temporal ordering
@@ -326,6 +340,8 @@ describe("StreamingMessageAggregator", () => {
       workspaceId: "test-ws",
       messageId: "msg-2",
       delta: "Hello, ",
+      tokens: 0,
+      timestamp: Date.now(),
     });
 
     aggregator.handleStreamDelta({
@@ -333,6 +349,8 @@ describe("StreamingMessageAggregator", () => {
       workspaceId: "test-ws",
       messageId: "msg-2",
       delta: "world!",
+      tokens: 0,
+      timestamp: Date.now(),
     });
 
     // End streaming
@@ -415,6 +433,8 @@ describe("StreamingMessageAggregator", () => {
       workspaceId: "test-ws",
       messageId: "new-msg",
       delta: "New streaming content",
+      tokens: 0,
+      timestamp: Date.now(),
     });
 
     // Verify new message has correct history sequence (from backend)

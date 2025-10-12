@@ -347,7 +347,7 @@ export class IpcMain {
           if (!moveResult.success) {
             // Rollback session directory rename
             await fsPromises.rename(newSessionDir, oldSessionDir);
-            return Err(`Failed to move worktree: ${moveResult.error}`);
+            return Err(`Failed to move worktree: ${moveResult.error ?? "unknown error"}`);
           }
 
           // Update metadata with new ID and path

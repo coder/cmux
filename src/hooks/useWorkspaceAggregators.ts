@@ -163,6 +163,8 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
 
         if (isStreamEnd(data)) {
           aggregator.handleStreamEnd(data);
+          // Clear token state after stream completes
+          aggregator.clearTokenState(data.messageId);
 
           // Handle compact_summary completion - check if any tool in parts is compact_summary
           // Tool results may come in stream-end rather than as separate tool-call-end events
@@ -206,6 +208,8 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
         }
 
         if (isStreamAbort(data)) {
+          // Clear token state on abort
+          aggregator.clearTokenState(data.messageId);
           aggregator.handleStreamAbort(data);
           forceUpdate();
 
@@ -299,6 +303,8 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
 
   return {
     getWorkspaceState,
+    getAggregator,
     workspaceStates,
+    forceUpdate,
   };
 }

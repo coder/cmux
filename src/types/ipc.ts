@@ -129,6 +129,8 @@ export function isReasoningEnd(msg: WorkspaceChatMessage): msg is ReasoningEndEv
   return "type" in msg && msg.type === "reasoning-end";
 }
 
+// Type guard for stream stats events
+
 // Options for sendMessage and resumeStream
 export interface SendMessageOptions {
   editMessageId?: string;

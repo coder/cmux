@@ -190,6 +190,18 @@ export default defineConfig([
             "Dynamic imports are not allowed. Use static imports at the top of the file instead. Dynamic imports hide circular dependencies and improper module structure.",
         },
       ],
+
+      // Prevent accidentally interpolating undefined/null in template literals and JSX
+      "@typescript-eslint/restrict-template-expressions": [
+        "error",
+        {
+          allowNumber: true,
+          allowBoolean: true,
+          allowAny: false,
+          allowNullish: false, // Catch undefined/null interpolations
+          allowRegExp: false,
+        },
+      ],
     },
   },
   {

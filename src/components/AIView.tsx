@@ -7,7 +7,10 @@ import { RetryBarrier } from "./Messages/ChatBarrier/RetryBarrier";
 import { getAutoRetryKey } from "@/constants/storage";
 import { ChatInput, type ChatInputAPI } from "./ChatInput";
 import { ChatMetaSidebar } from "./ChatMetaSidebar";
-import { shouldShowInterruptedBarrier } from "@/utils/messages/messageUtils";
+import {
+  shouldShowInterruptedBarrier,
+  mergeConsecutiveStreamErrors,
+} from "@/utils/messages/messageUtils";
 import { hasInterruptedStream } from "@/utils/messages/retryEligibility";
 import { ChatProvider } from "@/contexts/ChatContext";
 import { ThinkingProvider } from "@/contexts/ThinkingContext";
@@ -17,9 +20,11 @@ import { useAutoScroll } from "@/hooks/useAutoScroll";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { useThinking } from "@/contexts/ThinkingContext";
 import type { WorkspaceState } from "@/hooks/useWorkspaceAggregators";
+import type { StreamingMessageAggregator } from "@/utils/messages/StreamingMessageAggregator";
 import { StatusIndicator } from "./StatusIndicator";
 import { getModelName } from "@/utils/ai/models";
 import { GitStatusIndicator } from "./GitStatusIndicator";
+
 import { useGitStatus } from "@/contexts/GitStatusContext";
 import { TooltipWrapper, Tooltip } from "./Tooltip";
 import type { DisplayedMessage } from "@/types/message";
@@ -180,6 +185,7 @@ interface AIViewProps {
   branch: string;
   workspacePath: string;
   workspaceState: WorkspaceState;
+  getAggregator: (workspaceId: string) => StreamingMessageAggregator;
   onCompactStart?: (continueMessage: string | undefined) => void;
   className?: string;
 }
@@ -190,6 +196,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
   branch,
   workspacePath,
   workspaceState,
+  getAggregator,
   onCompactStart,
   className,
 }) => {
@@ -229,6 +236,11 @@ const AIViewInner: React.FC<AIViewProps> = ({
   // Extract state from workspace state prop
   const { messages, canInterrupt, isCompacting, loading, cmuxMessages, currentModel } =
     workspaceState;
+  const aggregator = getAggregator(workspaceId);
+
+  // Get active stream message ID for token counting
+  // Use getActiveStreamMessageId() which returns the messageId directly
+  const activeStreamMessageId = aggregator.getActiveStreamMessageId();
 
   // Track if last message was interrupted or errored (for RetryBarrier)
   // Uses same logic as useResumeManager for DRY
@@ -263,9 +275,12 @@ const AIViewInner: React.FC<AIViewProps> = ({
     setEditingMessage(undefined);
   }, []);
 
+  // Merge consecutive identical stream errors
+  const mergedMessages = mergeConsecutiveStreamErrors(messages);
+
   // When editing, find the cutoff point
   const editCutoffHistoryId = editingMessage
-    ? messages.find(
+    ? mergedMessages.find(
         (msg): msg is Exclude<DisplayedMessage, { type: "history-hidden" }> =>
           msg.type !== "history-hidden" && msg.historyId === editingMessage.id
       )?.historyId
@@ -393,14 +408,14 @@ const AIViewInner: React.FC<AIViewProps> = ({
               aria-label="Conversation transcript"
               tabIndex={0}
             >
-              {messages.length === 0 ? (
+              {mergedMessages.length === 0 ? (
                 <EmptyState>
                   <h3>No Messages Yet</h3>
                   <p>Send a message below to begin</p>
                 </EmptyState>
               ) : (
                 <>
-                  {messages.map((msg) => {
+                  {mergedMessages.map((msg) => {
                     const isAtCutoff =
                       editCutoffHistoryId !== undefined &&
                       msg.type !== "history-hidden" &&
@@ -436,10 +451,19 @@ const AIViewInner: React.FC<AIViewProps> = ({
               )}
               {canInterrupt && (
                 <StreamingBarrier
-                  text={
-                    isCompacting
-                      ? `compacting... hit ${formatKeybind(KEYBINDS.INTERRUPT_STREAM)} to cancel`
-                      : `${getModelName(currentModel)} streaming... hit ${formatKeybind(KEYBINDS.INTERRUPT_STREAM)} to cancel`
+                  statusText={
+                    isCompacting ? "compacting..." : `${getModelName(currentModel)} streaming...`
+                  }
+                  cancelText={`hit ${formatKeybind(KEYBINDS.INTERRUPT_STREAM)} to cancel`}
+                  tokenCount={
+                    activeStreamMessageId
+                      ? aggregator.getStreamingTokenCount(activeStreamMessageId)
+                      : undefined
+                  }
+                  tps={
+                    activeStreamMessageId
+                      ? aggregator.getStreamingTPS(activeStreamMessageId)
+                      : undefined
                   }
                 />
               )}

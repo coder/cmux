@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import styled from "@emotion/styled";
 import type { BashToolArgs, BashToolResult } from "@/types/tools";
+import { BASH_DEFAULT_TIMEOUT_SECS } from "@/constants/toolLimits";
 import {
   ToolContainer,
   ToolHeader,
@@ -118,7 +119,7 @@ export const BashToolCall: React.FC<BashToolCallProps> = ({ args, result, status
         </TooltipWrapper>
         <ScriptPreview>{args.script}</ScriptPreview>
         <TimeoutInfo status={isPending ? status : undefined}>
-          timeout: {args.timeout_secs}s
+          timeout: {args.timeout_secs ?? BASH_DEFAULT_TIMEOUT_SECS}s
           {result && ` • took ${formatDuration(result.wall_duration_ms)}`}
           {!result && isPending && elapsedTime > 0 && ` • ${formatDuration(elapsedTime)}`}
         </TimeoutInfo>
