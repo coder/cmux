@@ -46,3 +46,49 @@ export function calculateTokenCount(deltas: DeltaRecord[]): number {
   if (!deltas || deltas.length === 0) return 0;
   return deltas.reduce((sum, d) => sum + (d.tokens || 0), 0);
 }
+
+export interface DeltaRecordStorage {
+  addDelta(record: DeltaRecord): void;
+  getTokenCount(): number;
+  calculateTPS(now?: number): number;
+  getRecentDeltas(): DeltaRecord[];
+}
+
+export function createDeltaStorage(windowMs: number = TPS_WINDOW_MS): DeltaRecordStorage {
+  let recentDeltas: DeltaRecord[] = [];
+  let olderTokenCount = 0;
+
+  const prune = (now: number): void => {
+    if (recentDeltas.length === 0) return;
+    const threshold = now - windowMs;
+    let pruneCount = 0;
+    for (const delta of recentDeltas) {
+      if (delta.timestamp < threshold) {
+        olderTokenCount += delta.tokens || 0;
+        pruneCount += 1;
+      } else {
+        break;
+      }
+    }
+    if (pruneCount > 0) {
+      recentDeltas = recentDeltas.slice(pruneCount);
+    }
+  };
+
+  return {
+    addDelta(record: DeltaRecord) {
+      recentDeltas.push(record);
+      prune(record.timestamp);
+    },
+    getTokenCount() {
+      return olderTokenCount + calculateTokenCount(recentDeltas);
+    },
+    calculateTPS(now: number = Date.now()) {
+      prune(now);
+      return calculateTPS(recentDeltas, now);
+    },
+    getRecentDeltas() {
+      return recentDeltas;
+    },
+  };
+}

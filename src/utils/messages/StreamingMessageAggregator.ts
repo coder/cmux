@@ -11,7 +11,7 @@ import type {
   ReasoningDeltaEvent,
   ReasoningEndEvent,
 } from "@/types/stream";
-import { calculateTPS, calculateTokenCount, type DeltaRecord } from "./StreamingTPSCalculator";
+
 import type { WorkspaceChatMessage, StreamErrorMessage, DeleteMessage } from "@/types/ipc";
 import type {
   DynamicToolPart,
@@ -19,6 +19,7 @@ import type {
   DynamicToolPartAvailable,
 } from "@/types/toolParts";
 import { isDynamicToolPart } from "@/types/toolParts";
+import { createDeltaStorage, type DeltaRecordStorage } from "./StreamingTPSCalculator";
 
 // Maximum number of messages to display in the DOM for performance
 // Full history is still maintained internally for token counting and stats
@@ -31,19 +32,6 @@ interface StreamingContext {
   model: string;
 }
 
-/**
- * StreamingMessageAggregator - Simplified for User/Assistant Messages Only
- *
- * PURPOSE:
- * This class aggregates messages and handles streaming state for a simple
- * chat interface with only user and assistant messages.
- *
- * RULES:
- * 1. NO FORMATTING: Do not add emojis, format text, or create display strings
- * 2. NO PRESENTATION LOGIC: Do not make decisions about how messages should look
- * 3. RAW DATA ONLY: Store messages as close to their original format as possible
- * 4. STRUCTURE ONLY: Only transform data structure (e.g., streaming to final messages)
- */
 export class StreamingMessageAggregator {
   private messages = new Map<string, CmuxMessage>();
   private activeStreams = new Map<string, StreamingContext>();
@@ -53,7 +41,7 @@ export class StreamingMessageAggregator {
   private cachedMessages: CmuxMessage[] | null = null;
 
   // Delta history for token counting and TPS calculation
-  private deltaHistory = new Map<string, DeltaRecord[]>();
+  private deltaHistory = new Map<string, DeltaRecordStorage>();
 
   // Invalidate cache on any mutation
   private invalidateCache(): void {
@@ -632,28 +620,28 @@ export class StreamingMessageAggregator {
     timestamp: number,
     type: "text" | "reasoning" | "tool-args"
   ): void {
-    let deltas = this.deltaHistory.get(messageId);
-    if (!deltas) {
-      deltas = [];
-      this.deltaHistory.set(messageId, deltas);
+    let storage = this.deltaHistory.get(messageId);
+    if (!storage) {
+      storage = createDeltaStorage();
+      this.deltaHistory.set(messageId, storage);
     }
-    deltas.push({ tokens, timestamp, type });
+    storage.addDelta({ tokens, timestamp, type });
   }
 
   /**
    * Get streaming token count (sum of all deltas)
    */
   getStreamingTokenCount(messageId: string): number {
-    const deltas = this.deltaHistory.get(messageId);
-    return deltas ? calculateTokenCount(deltas) : 0;
+    const storage = this.deltaHistory.get(messageId);
+    return storage ? storage.getTokenCount() : 0;
   }
 
   /**
    * Get tokens-per-second rate (10-second trailing window)
    */
   getStreamingTPS(messageId: string): number {
-    const deltas = this.deltaHistory.get(messageId);
-    return deltas ? calculateTPS(deltas, Date.now()) : 0;
+    const storage = this.deltaHistory.get(messageId);
+    return storage ? storage.calculateTPS(Date.now()) : 0;
   }
 
   /**

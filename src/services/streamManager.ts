@@ -230,6 +230,44 @@ export class StreamManager extends EventEmitter {
    * Usage is only available after stream completes naturally.
    * On abort, the usage promise may hang - we use a timeout to return quickly.
    */
+  private emitToolCallDeltaIfPresent(
+    workspaceId: WorkspaceId,
+    streamInfo: WorkspaceStreamInfo,
+    part: unknown
+  ): boolean {
+    const maybeDelta = part as { type?: string } | undefined;
+    if (!maybeDelta || maybeDelta.type !== "tool-call-delta") {
+      return false;
+    }
+
+    const toolDelta = part as {
+      toolCallId: string;
+      toolName: string;
+      argsTextDelta: string;
+    };
+
+    const deltaText = String(toolDelta.argsTextDelta ?? "");
+    if (deltaText.length === 0) {
+      return true;
+    }
+
+    const tokens = this.tokenTracker.countTokens(deltaText);
+    const timestamp = Date.now();
+
+    this.emit("tool-call-delta", {
+      type: "tool-call-delta",
+      workspaceId: workspaceId as string,
+      messageId: streamInfo.messageId,
+      toolCallId: toolDelta.toolCallId,
+      toolName: toolDelta.toolName,
+      delta: toolDelta.argsTextDelta,
+      tokens,
+      timestamp,
+    });
+
+    return true;
+  }
+
   private async getStreamMetadata(
     streamInfo: WorkspaceStreamInfo,
     timeoutMs = 1000
@@ -571,36 +609,8 @@ export class StreamManager extends EventEmitter {
           }
 
           default: {
-            // Handle tool-call-delta which may not be in the type definition yet
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
-            if ((part as any).type === "tool-call-delta") {
-              // Tool call arguments streaming (for tools like compact_summary)
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              const toolCallDeltaPart = part as any as {
-                toolCallId: string;
-                toolName: string;
-                argsTextDelta: string;
-              };
-
-              // Tokenize tool args delta
-              const deltaText = String(toolCallDeltaPart.argsTextDelta);
-              const tokens = this.tokenTracker.countTokens(deltaText);
-              const timestamp = Date.now();
-
-              log.debug(
-                `[StreamManager] tool-call-delta: toolName=${toolCallDeltaPart.toolName}, delta=${deltaText.substring(0, 20)}..., tokens=${tokens}`
-              );
-
-              this.emit("tool-call-delta", {
-                type: "tool-call-delta",
-                workspaceId: workspaceId as string,
-                messageId: streamInfo.messageId,
-                toolCallId: toolCallDeltaPart.toolCallId,
-                toolName: toolCallDeltaPart.toolName,
-                delta: toolCallDeltaPart.argsTextDelta,
-                tokens,
-                timestamp,
-              });
+            if (this.emitToolCallDeltaIfPresent(workspaceId, streamInfo, part)) {
+              break;
             }
             break;
           }
