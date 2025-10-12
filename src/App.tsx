@@ -194,36 +194,36 @@ function AppInner() {
       // Update URL with workspace ID
       const newHash = `#workspace=${encodeURIComponent(selectedWorkspace.workspaceId)}`;
       if (window.location.hash !== newHash) {
-        window.history.replaceState(null, '', newHash);
+        window.history.replaceState(null, "", newHash);
       }
-      
+
       // Update window title
       const title = `${selectedWorkspace.workspaceId} - ${selectedWorkspace.projectName} - cmux`;
       void window.api.window.setTitle(title);
     } else {
       // Clear hash when no workspace selected
       if (window.location.hash) {
-        window.history.replaceState(null, '', window.location.pathname);
+        window.history.replaceState(null, "", window.location.pathname);
       }
       void window.api.window.setTitle("cmux");
     }
   }, [selectedWorkspace]);
-  
+
   // Restore workspace from URL on mount (if valid)
   useEffect(() => {
     const hash = window.location.hash;
-    if (hash.startsWith('#workspace=')) {
-      const workspaceId = decodeURIComponent(hash.substring('#workspace='.length));
-      
+    if (hash.startsWith("#workspace=")) {
+      const workspaceId = decodeURIComponent(hash.substring("#workspace=".length));
+
       // Find workspace in metadata
-      const metadata = Array.from(workspaceMetadata.values()).find(
-        (ws) => ws.id === workspaceId
-      );
-      
+      const metadata = Array.from(workspaceMetadata.values()).find((ws) => ws.id === workspaceId);
+
       if (metadata) {
         // Find project for this workspace
         for (const [projectPath, projectConfig] of projects.entries()) {
-          const workspace = projectConfig.workspaces.find((ws) => ws.path === metadata.workspacePath);
+          const workspace = projectConfig.workspaces.find(
+            (ws) => ws.path === metadata.workspacePath
+          );
           if (workspace) {
             setSelectedWorkspace({
               workspaceId: metadata.id,

@@ -450,8 +450,16 @@ const AIViewInner: React.FC<AIViewProps> = ({
                       ? `compacting... hit ${formatKeybind(KEYBINDS.INTERRUPT_STREAM)} to cancel`
                       : `${getModelName(currentModel)} streaming... hit ${formatKeybind(KEYBINDS.INTERRUPT_STREAM)} to cancel`
                   }
-                  tokenCount={activeStreamMessageId ? aggregator.getStreamingTokenCount(activeStreamMessageId) : undefined}
-                  tps={activeStreamMessageId ? aggregator.getStreamingTPS(activeStreamMessageId) : undefined}
+                  tokenCount={
+                    activeStreamMessageId
+                      ? aggregator.getStreamingTokenCount(activeStreamMessageId)
+                      : undefined
+                  }
+                  tps={
+                    activeStreamMessageId
+                      ? aggregator.getStreamingTPS(activeStreamMessageId)
+                      : undefined
+                  }
                 />
               )}
             </OutputContent>
