@@ -23,6 +23,7 @@ import type {
   ToolCallEndEvent,
   CompletedMessagePart,
 } from "@/types/stream";
+
 import type { SendMessageError, StreamErrorType } from "@/types/errors";
 import type { CmuxMetadata, CmuxMessage } from "@/types/message";
 import type { PartialService } from "./partialService";
@@ -257,6 +258,68 @@ export class StreamManager extends EventEmitter {
    * This ensures the old stream fully exits before a new stream can start,
    * preventing concurrent streams and race conditions.
    */
+  /**
+   * Convert a part to an event and emit it.
+   * Shared between live streaming and replay to ensure consistent event emission.
+   * This guarantees replay reconstructs the exact stream using the same tokenization logic.
+   *
+   * @param workspaceId - Workspace identifier
+   * @param messageId - Message identifier
+   * @param part - The part to emit (text, reasoning, or tool)
+   */
+  private emitPartAsEvent(
+    workspaceId: WorkspaceId,
+    messageId: string,
+    part: CompletedMessagePart
+  ): void {
+    if (part.type === "text") {
+      const tokens = this.tokenTracker.countTokens(part.text);
+      this.emit("stream-delta", {
+        type: "stream-delta",
+        workspaceId: workspaceId as string,
+        messageId,
+        delta: part.text,
+        tokens,
+        timestamp: Date.now(),
+      });
+    } else if (part.type === "reasoning") {
+      const tokens = this.tokenTracker.countTokens(part.text);
+      this.emit("reasoning-delta", {
+        type: "reasoning-delta",
+        workspaceId: workspaceId as string,
+        messageId,
+        delta: part.text,
+        tokens,
+        timestamp: Date.now(),
+      });
+    } else if (part.type === "dynamic-tool") {
+      const inputText = JSON.stringify(part.input);
+      const tokens = this.tokenTracker.countTokens(inputText);
+      this.emit("tool-call-start", {
+        type: "tool-call-start",
+        workspaceId: workspaceId as string,
+        messageId,
+        toolCallId: part.toolCallId,
+        toolName: part.toolName,
+        args: part.input,
+        tokens,
+        timestamp: Date.now(),
+      });
+
+      // If tool has output, emit completion
+      if (part.state === "output-available") {
+        this.emit("tool-call-end", {
+          type: "tool-call-end",
+          workspaceId: workspaceId as string,
+          messageId,
+          toolCallId: part.toolCallId,
+          toolName: part.toolName,
+          result: part.output,
+        });
+      }
+    }
+  }
+
   private async cancelStreamSafely(
     workspaceId: WorkspaceId,
     streamInfo: WorkspaceStreamInfo
@@ -489,24 +552,15 @@ export class StreamManager extends EventEmitter {
 
         switch (part.type) {
           case "text-delta": {
-            // Tokenize immediately (synchronous, <1ms per delta)
-            const tokens = this.tokenTracker.countTokens(part.text);
-            const timestamp = Date.now();
-
-            this.emit("stream-delta", {
-              type: "stream-delta",
-              workspaceId: workspaceId as string,
-              messageId: streamInfo.messageId,
-              delta: part.text,
-              tokens,
-              timestamp,
-            } as StreamDeltaEvent);
-
             // Append each delta as a new part (merging happens at display time)
-            streamInfo.parts.push({
-              type: "text",
+            const textPart = {
+              type: "text" as const,
               text: part.text,
-            });
+            };
+            streamInfo.parts.push(textPart);
+
+            // Emit using shared logic (ensures replay consistency)
+            this.emitPartAsEvent(workspaceId, streamInfo.messageId, textPart);
 
             // Schedule partial write (throttled, fire-and-forget to not block stream)
             void this.schedulePartialWrite(workspaceId, streamInfo);
@@ -553,23 +607,14 @@ export class StreamManager extends EventEmitter {
             const delta = (part as ReasoningDeltaPart).text ?? "";
 
             // Append each delta as a new part (merging happens at display time)
-            streamInfo.parts.push({
-              type: "reasoning",
+            const reasoningPart = {
+              type: "reasoning" as const,
               text: delta,
-            });
+            };
+            streamInfo.parts.push(reasoningPart);
 
-            // Tokenize reasoning delta
-            const tokens = this.tokenTracker.countTokens(delta);
-            const timestamp = Date.now();
-
-            this.emit("reasoning-delta", {
-              type: "reasoning-delta",
-              workspaceId: workspaceId as string,
-              messageId: streamInfo.messageId,
-              delta,
-              tokens,
-              timestamp,
-            });
+            // Emit using shared logic (ensures replay consistency)
+            this.emitPartAsEvent(workspaceId, streamInfo.messageId, reasoningPart);
 
             void this.schedulePartialWrite(workspaceId, streamInfo);
             break;
@@ -608,26 +653,12 @@ export class StreamManager extends EventEmitter {
             };
             streamInfo.parts.push(toolPart);
 
-            // Tokenize tool input (for providers like Anthropic that return complete tool calls)
-            // Convert input object to JSON string for tokenization
+            // Emit using shared logic (ensures replay consistency)
             const inputText = JSON.stringify(part.input);
-            const tokens = this.tokenTracker.countTokens(inputText);
-            const timestamp = Date.now();
-
             log.debug(
-              `[StreamManager] tool-call: toolName=${part.toolName}, input length=${inputText.length}, tokens=${tokens}`
+              `[StreamManager] tool-call: toolName=${part.toolName}, input length=${inputText.length}`
             );
-
-            this.emit("tool-call-start", {
-              type: "tool-call-start",
-              workspaceId: workspaceId as string,
-              messageId: streamInfo.messageId,
-              toolCallId: part.toolCallId,
-              toolName: part.toolName,
-              args: part.input,
-              tokens,
-              timestamp,
-            } as ToolCallStartEvent);
+            this.emitPartAsEvent(workspaceId, streamInfo.messageId, toolPart);
             break;
           }
 
@@ -1163,51 +1194,10 @@ export class StreamManager extends EventEmitter {
       historySequence: streamInfo.historySequence,
     });
 
-    // Replay accumulated parts as events
+    // Replay accumulated parts as events using shared emission logic
+    // This guarantees replay produces identical events to the original stream
     for (const part of streamInfo.parts) {
-      if (part.type === "text") {
-        this.emit("stream-delta", {
-          type: "stream-delta",
-          workspaceId,
-          messageId: streamInfo.messageId,
-          delta: part.text,
-          tokens: 0, // Replay - tokens already counted
-          timestamp: Date.now(),
-        });
-      } else if (part.type === "reasoning") {
-        this.emit("reasoning-delta", {
-          type: "reasoning-delta",
-          workspaceId,
-          messageId: streamInfo.messageId,
-          delta: part.text,
-          tokens: 0, // Replay - tokens already counted
-          timestamp: Date.now(),
-        });
-      } else if (part.type === "dynamic-tool") {
-        // Emit tool-call-start
-        this.emit("tool-call-start", {
-          type: "tool-call-start",
-          workspaceId,
-          messageId: streamInfo.messageId,
-          toolCallId: part.toolCallId,
-          toolName: part.toolName,
-          args: part.input,
-          tokens: 0, // Replay - tokens already counted
-          timestamp: Date.now(),
-        });
-
-        // If tool has output, emit tool-call-end
-        if (part.state === "output-available") {
-          this.emit("tool-call-end", {
-            type: "tool-call-end",
-            workspaceId,
-            messageId: streamInfo.messageId,
-            toolCallId: part.toolCallId,
-            toolName: part.toolName,
-            result: part.output,
-          });
-        }
-      }
+      this.emitPartAsEvent(typedWorkspaceId, streamInfo.messageId, part);
     }
   }
 }
