@@ -558,7 +558,7 @@ export function validateAnthropicCompliance(messages: ModelMessage[]): {
           if (callIndex !== i - 1) {
             return {
               valid: false,
-              error: `Message ${i}: tool_result for ${toolCallId} is not immediately after its tool_use (was in message ${callIndex})`,
+              error: `Message ${i}: tool_result for ${toolCallId} is not immediately after its tool_use (was in message ${callIndex ?? "unknown"})`,
             };
           }
 

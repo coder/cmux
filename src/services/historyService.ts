@@ -168,7 +168,7 @@ export class HistoryService {
 
       // DEBUG: Log assigned sequence number
       log.debug(
-        `[HISTORY APPEND] Assigned historySequence=${message.metadata.historySequence} role=${message.role}`
+        `[HISTORY APPEND] Assigned historySequence=${message.metadata.historySequence ?? "unknown"} role=${message.role}`
       );
 
       await fs.appendFile(historyPath, JSON.stringify(historyEntry) + "\n");

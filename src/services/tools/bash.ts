@@ -342,7 +342,7 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
               const fullOutput = lines.join("\n");
               fs.writeFileSync(overflowPath, fullOutput, "utf-8");
 
-              const output = `[OUTPUT OVERFLOW - ${overflowReason}]
+              const output = `[OUTPUT OVERFLOW - ${overflowReason ?? "unknown reason"}]
 
 Full output (${lines.length} lines) saved to ${overflowPath}
 
@@ -360,7 +360,7 @@ When done, clean up: rm ${overflowPath}`;
               // If temp file creation fails, fall back to original error
               resolveOnce({
                 success: false,
-                error: `Command output overflow: ${overflowReason}. Failed to save overflow to temp file: ${String(err)}`,
+                error: `Command output overflow: ${overflowReason ?? "unknown reason"}. Failed to save overflow to temp file: ${String(err)}`,
                 exitCode: -1,
                 wall_duration_ms,
               });
