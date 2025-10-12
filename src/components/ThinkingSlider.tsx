@@ -158,23 +158,28 @@ interface ThinkingControlProps {
 export const ThinkingSliderComponent: React.FC<ThinkingControlProps> = ({ modelString }) => {
   const [thinkingLevel, setThinkingLevel] = useThinkingLevel();
   const sliderId = useId();
-  const policy = getThinkingPolicyForModel(modelString);
+  const allowed = getThinkingPolicyForModel(modelString);
 
-  // If policy is fixed (e.g., gpt-5-pro), force level to the fixed value
+  // If policy has single level (e.g., gpt-5-pro), force to that level
   useEffect(() => {
-    if (policy.variant === "fixed" && thinkingLevel !== policy.level) {
-      setThinkingLevel(policy.level);
+    if (allowed.length === 1 && thinkingLevel !== allowed[0]) {
+      setThinkingLevel(allowed[0]);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [policy.variant, policy.variant === "fixed" ? policy.level : null]);
+  }, [allowed, thinkingLevel, setThinkingLevel]);
 
-  if (policy.variant === "fixed") {
-    // Render non-interactive badge for fixed policy
+  if (allowed.length === 1) {
+    // Render non-interactive badge for single-option policies
+    const fixedLevel = allowed[0];
+    const value = thinkingLevelToValue(fixedLevel);
     return (
       <ThinkingSliderContainer>
         <ThinkingLabel>Thinking:</ThinkingLabel>
-        <ThinkingLevelText value={3} aria-live="polite" aria-label="Thinking level fixed to high">
-          high
+        <ThinkingLevelText
+          value={value}
+          aria-live="polite"
+          aria-label={`Thinking level fixed to ${fixedLevel}`}
+        >
+          {fixedLevel}
         </ThinkingLevelText>
       </ThinkingSliderContainer>
     );

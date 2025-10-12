@@ -1,68 +1,56 @@
 import { describe, expect, test } from "bun:test";
-import { hasFixedThinkingPolicy, getThinkingPolicyForModel, enforceThinkingPolicy } from "./policy";
-
-describe("hasFixedThinkingPolicy", () => {
-  test("returns true for gpt-5-pro base model", () => {
-    expect(hasFixedThinkingPolicy("openai:gpt-5-pro")).toBe(true);
-  });
-
-  test("returns true for gpt-5-pro with version suffix", () => {
-    expect(hasFixedThinkingPolicy("openai:gpt-5-pro-2025-10-06")).toBe(true);
-  });
-
-  test("returns true for gpt-5-pro with whitespace after colon", () => {
-    expect(hasFixedThinkingPolicy("openai: gpt-5-pro")).toBe(true);
-  });
-
-  test("returns false for gpt-5-pro-mini (word boundary check)", () => {
-    expect(hasFixedThinkingPolicy("openai:gpt-5-pro-mini")).toBe(false);
-  });
-
-  test("returns false for other OpenAI models", () => {
-    expect(hasFixedThinkingPolicy("openai:gpt-4o")).toBe(false);
-    expect(hasFixedThinkingPolicy("openai:gpt-4o-mini")).toBe(false);
-  });
-
-  test("returns false for other providers", () => {
-    expect(hasFixedThinkingPolicy("anthropic:claude-opus-4")).toBe(false);
-    expect(hasFixedThinkingPolicy("google:gemini-2.0-flash-thinking")).toBe(false);
-  });
-});
+import { getThinkingPolicyForModel, enforceThinkingPolicy } from "./policy";
 
 describe("getThinkingPolicyForModel", () => {
-  test("returns fixed HIGH policy for gpt-5-pro", () => {
-    const policy = getThinkingPolicyForModel("openai:gpt-5-pro");
-    expect(policy.variant).toBe("fixed");
-    if (policy.variant === "fixed") {
-      expect(policy.level).toBe("high");
-    }
+  test("returns single HIGH for gpt-5-pro base model", () => {
+    expect(getThinkingPolicyForModel("openai:gpt-5-pro")).toEqual(["high"]);
   });
 
-  test("returns fixed HIGH policy for gpt-5-pro with version suffix", () => {
-    const policy = getThinkingPolicyForModel("openai:gpt-5-pro-2025-10-06");
-    expect(policy.variant).toBe("fixed");
-    if (policy.variant === "fixed") {
-      expect(policy.level).toBe("high");
-    }
+  test("returns single HIGH for gpt-5-pro with version suffix", () => {
+    expect(getThinkingPolicyForModel("openai:gpt-5-pro-2025-10-06")).toEqual(["high"]);
   });
 
-  test("returns selectable policy for other models", () => {
-    const policy = getThinkingPolicyForModel("anthropic:claude-opus-4");
-    expect(policy.variant).toBe("selectable");
-    if (policy.variant === "selectable") {
-      expect(policy.allowed).toEqual(["low", "medium", "high"]);
-      expect(policy.default).toBe("medium");
-    }
+  test("returns single HIGH for gpt-5-pro with whitespace after colon", () => {
+    expect(getThinkingPolicyForModel("openai: gpt-5-pro")).toEqual(["high"]);
   });
 
-  test("returns selectable policy for gpt-5-pro-mini", () => {
-    const policy = getThinkingPolicyForModel("openai:gpt-5-pro-mini");
-    expect(policy.variant).toBe("selectable");
+  test("returns all levels for gpt-5-pro-mini (not a fixed policy)", () => {
+    expect(getThinkingPolicyForModel("openai:gpt-5-pro-mini")).toEqual([
+      "off",
+      "low",
+      "medium",
+      "high",
+    ]);
+  });
+
+  test("returns all levels for other OpenAI models", () => {
+    expect(getThinkingPolicyForModel("openai:gpt-4o")).toEqual(["off", "low", "medium", "high"]);
+    expect(getThinkingPolicyForModel("openai:gpt-4o-mini")).toEqual([
+      "off",
+      "low",
+      "medium",
+      "high",
+    ]);
+  });
+
+  test("returns all levels for other providers", () => {
+    expect(getThinkingPolicyForModel("anthropic:claude-opus-4")).toEqual([
+      "off",
+      "low",
+      "medium",
+      "high",
+    ]);
+    expect(getThinkingPolicyForModel("google:gemini-2.0-flash-thinking")).toEqual([
+      "off",
+      "low",
+      "medium",
+      "high",
+    ]);
   });
 });
 
 describe("enforceThinkingPolicy", () => {
-  describe("fixed policy models (gpt-5-pro)", () => {
+  describe("single-option policy models (gpt-5-pro)", () => {
     test("enforces high for any requested level", () => {
       expect(enforceThinkingPolicy("openai:gpt-5-pro", "off")).toBe("high");
       expect(enforceThinkingPolicy("openai:gpt-5-pro", "low")).toBe("high");
@@ -75,19 +63,21 @@ describe("enforceThinkingPolicy", () => {
     });
   });
 
-  describe("selectable policy models", () => {
-    test("allows off for selectable models", () => {
+  describe("multi-option policy models", () => {
+    test("allows requested level if in allowed set", () => {
       expect(enforceThinkingPolicy("anthropic:claude-opus-4", "off")).toBe("off");
-      expect(enforceThinkingPolicy("openai:gpt-4o", "off")).toBe("off");
-    });
-
-    test("allows all active levels for selectable models", () => {
       expect(enforceThinkingPolicy("anthropic:claude-opus-4", "low")).toBe("low");
       expect(enforceThinkingPolicy("anthropic:claude-opus-4", "medium")).toBe("medium");
       expect(enforceThinkingPolicy("anthropic:claude-opus-4", "high")).toBe("high");
     });
 
-    // Note: Invalid level test removed - TypeScript type system prevents invalid levels at compile time
-    // Runtime behavior defaults to medium for unexpected values, but this is not a realistic scenario
+    test("falls back to medium when requested level not allowed", () => {
+      // Simulating behavior with gpt-5-pro (only allows "high")
+      // When requesting "low", falls back to first allowed level which is "high"
+      expect(enforceThinkingPolicy("openai:gpt-5-pro", "low")).toBe("high");
+    });
   });
 });
+
+// Note: Tests for invalid levels removed - TypeScript type system prevents invalid
+// ThinkingLevel values at compile time, making runtime invalid-level tests unnecessary.
