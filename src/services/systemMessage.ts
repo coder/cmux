@@ -92,6 +92,7 @@ export async function buildSystemMessage(
   const customInstructions = instructionSegments.join("\n\n");
 
   // Look for a "Mode: <mode>" section inside instruction sets, preferring workspace over global
+  // This behavior is documented in docs/instruction-files.md - keep both in sync when changing.
   let modeContent: string | null = null;
   if (mode) {
     const workspaceInstructions = await readInstructionSet(workspaceDir);
