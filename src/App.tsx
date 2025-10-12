@@ -18,6 +18,7 @@ import { useWorkspaceAggregators } from "./hooks/useWorkspaceAggregators";
 import { useResumeManager } from "./hooks/useResumeManager";
 import { useUnreadTracking } from "./hooks/useUnreadTracking";
 import { useAutoCompactContinue } from "./hooks/useAutoCompactContinue";
+import { useWorkspaceRecency } from "./hooks/useWorkspaceRecency";
 
 import { CommandRegistryProvider, useCommandRegistry } from "./contexts/CommandRegistryContext";
 import type { CommandAction } from "./contexts/CommandRegistryContext";
@@ -173,6 +174,9 @@ function AppInner() {
 
   // Track unread message status for all workspaces
   const { unreadStatus, toggleUnread } = useUnreadTracking(selectedWorkspace, workspaceStates);
+
+  // Track workspace recency for sorting (timestamp map)
+  const workspaceRecency = useWorkspaceRecency(workspaceStates);
 
   // Auto-resume interrupted streams on app startup and when failures occur
   useResumeManager(workspaceStates);
@@ -554,6 +558,7 @@ function AppInner() {
             onToggleCollapsed={() => setSidebarCollapsed((prev) => !prev)}
             onGetSecrets={handleGetSecrets}
             onUpdateSecrets={handleUpdateSecrets}
+            workspaceRecency={workspaceRecency}
           />
           <MainContent>
             <ContentArea>

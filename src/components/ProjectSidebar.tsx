@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { createPortal } from "react-dom";
 import styled from "@emotion/styled";
 import { css } from "@emotion/react";
-import type { ProjectConfig } from "@/config";
+import type { ProjectConfig, Workspace } from "@/config";
 import type { WorkspaceMetadata } from "@/types/workspace";
 import { useGitStatus } from "@/contexts/GitStatusContext";
 import { usePersistedState } from "@/hooks/usePersistedState";
@@ -585,6 +585,7 @@ interface ProjectSidebarProps {
   onToggleCollapsed: () => void;
   onGetSecrets: (projectPath: string) => Promise<Secret[]>;
   onUpdateSecrets: (projectPath: string, secrets: Secret[]) => Promise<void>;
+  workspaceRecency: Record<string, number>;
 }
 
 const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
@@ -604,9 +605,27 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
   onToggleCollapsed,
   onGetSecrets,
   onUpdateSecrets,
+  workspaceRecency,
 }) => {
   // Subscribe to git status updates (causes this component to re-render every 10s)
   const gitStatus = useGitStatus();
+
+  // Sort workspaces by last stream start (most recent first)
+  const sortedWorkspacesByProject = useMemo(() => {
+    const result = new Map<string, Workspace[]>();
+    for (const [projectPath, config] of projects) {
+      result.set(
+        projectPath,
+        config.workspaces.slice().sort((a, b) => {
+          const aMeta = workspaceMetadata.get(a.path);
+          const bMeta = workspaceMetadata.get(b.path);
+          if (!aMeta || !bMeta) return 0;
+          return (workspaceRecency[bMeta.id] ?? 0) - (workspaceRecency[aMeta.id] ?? 0);
+        })
+      );
+    }
+    return result;
+  }, [projects, workspaceMetadata, workspaceRecency]);
 
   // Store as array in localStorage, convert to Set for usage
   const [expandedProjectsArray, setExpandedProjectsArray] = usePersistedState<string[]>(
@@ -964,11 +983,12 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                                 ` (${formatKeybind(KEYBINDS.NEW_WORKSPACE)})`}
                             </AddWorkspaceBtn>
                           </WorkspaceHeader>
-                          {config.workspaces.map((workspace) => {
-                            const metadata = workspaceMetadata.get(workspace.path);
-                            if (!metadata) return null;
+                          {(sortedWorkspacesByProject.get(projectPath) ?? config.workspaces).map(
+                            (workspace) => {
+                              const metadata = workspaceMetadata.get(workspace.path);
+                              if (!metadata) return null;
 
-                            const workspaceId = metadata.id;
+                              const workspaceId = metadata.id;
                             const displayName = getWorkspaceDisplayName(workspace.path);
                             const workspaceState = getWorkspaceState(workspaceId);
                             const isStreaming = workspaceState.canInterrupt;

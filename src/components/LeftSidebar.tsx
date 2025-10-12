@@ -43,6 +43,7 @@ interface LeftSidebarProps {
   onToggleCollapsed: () => void;
   onGetSecrets: (projectPath: string) => Promise<Secret[]>;
   onUpdateSecrets: (projectPath: string, secrets: Secret[]) => Promise<void>;
+  workspaceRecency: Record<string, number>;
 }
 
 export function LeftSidebar(props: LeftSidebarProps) {
