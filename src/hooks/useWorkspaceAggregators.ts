@@ -20,6 +20,7 @@ import {
   isToolCallEnd,
   isReasoningDelta,
   isReasoningEnd,
+  isStreamStats,
 } from "@/types/ipc";
 import { useModelLRU } from "./useModelLRU";
 
@@ -146,8 +147,6 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
         // Handle streaming events
         if (isStreamStart(data)) {
           aggregator.handleStreamStart(data);
-          // Initialize tokenizer for this model
-          aggregator.setModel(data.model);
           // Track model in LRU cache
           addModel(data.model);
           // Clear retry state on successful stream start (fixes retry barrier persistence)
@@ -161,15 +160,11 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
 
         if (isStreamDelta(data)) {
           aggregator.handleStreamDelta(data);
-          // Track tokens for live count/TPS
-          aggregator.trackTokenDelta(data.messageId, data.delta, "text");
           forceUpdate();
           return;
         }
 
         if (isStreamEnd(data)) {
-          // Finalize streaming token counts
-          aggregator.finalizeStreamingTokens(data.messageId);
           aggregator.handleStreamEnd(data);
           // Clear token state after stream completes
           aggregator.clearTokenState(data.messageId);
@@ -240,8 +235,6 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
 
         if (isToolCallDelta(data)) {
           aggregator.handleToolCallDelta(data);
-          // Track tool args tokens for live count/TPS
-          aggregator.trackTokenDelta(data.messageId, String(data.delta), "tool-args");
           forceUpdate();
           return;
         }
@@ -267,14 +260,19 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
         // Handle reasoning events
         if (isReasoningDelta(data)) {
           aggregator.handleReasoningDelta(data);
-          // Track reasoning tokens for live count/TPS
-          aggregator.trackTokenDelta(data.messageId, data.delta, "reasoning");
           forceUpdate();
           return;
         }
 
         if (isReasoningEnd(data)) {
           aggregator.handleReasoningEnd(data);
+          forceUpdate();
+          return;
+        }
+        
+        // Handle token statistics from main process
+        if (isStreamStats(data)) {
+          aggregator.setTokenStats(data.messageId, data.tokenCount, data.tps);
           forceUpdate();
           return;
         }

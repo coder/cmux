@@ -110,14 +110,24 @@ export interface ReasoningEndEvent {
   messageId: string;
 }
 
+export interface StreamStatsEvent {
+  type: "stream-stats";
+  workspaceId: string;
+  messageId: string;
+  tokenCount: number;
+  tps: number;
+}
+
 export type AIServiceEvent =
   | StreamStartEvent
   | StreamDeltaEvent
   | StreamEndEvent
+  | StreamAbortEvent
   | ErrorEvent
   | ToolCallStartEvent
   | ToolCallDeltaEvent
   | ToolCallEndEvent
   | ReasoningStartEvent
   | ReasoningDeltaEvent
-  | ReasoningEndEvent;
+  | ReasoningEndEvent
+  | StreamStatsEvent;

@@ -18,7 +18,7 @@ import type {
   DynamicToolPartAvailable,
 } from "@/types/toolParts";
 import { isDynamicToolPart } from "@/types/toolParts";
-import { StreamingTokenTracker } from "@/utils/tokens/StreamingTokenTracker";
+
 
 // Maximum number of messages to display in the DOM for performance
 // Full history is still maintained internally for token counting and stats
@@ -52,8 +52,8 @@ export class StreamingMessageAggregator {
   // Cache for getAllMessages() to maintain stable array references
   private cachedMessages: CmuxMessage[] | null = null;
 
-  // Token tracking for streaming messages
-  private tokenTracker = new StreamingTokenTracker();
+  // Token statistics from main process (received via stream-stats events)
+  private tokenStats = new Map<string, { tokenCount: number; tps: number }>();
 
   // Invalidate cache on any mutation
   private invalidateCache(): void {
@@ -603,49 +603,30 @@ export class StreamingMessageAggregator {
   }
 
   /**
-   * Initialize tokenizer for the current model
-   * Should be called when model changes or on first stream
+   * Update token statistics from main process
    */
-  setModel(model: string): void {
-    this.tokenTracker.setModel(model);
+  setTokenStats(messageId: string, tokenCount: number, tps: number): void {
+    this.tokenStats.set(messageId, { tokenCount, tps });
   }
 
   /**
-   * Track token deltas for live counting and TPS calculation
-   */
-  trackTokenDelta(
-    messageId: string,
-    delta: string,
-    type: "text" | "reasoning" | "tool-args"
-  ): void {
-    this.tokenTracker.trackDelta(messageId, delta, type);
-  }
-
-  /**
-   * Finalize streaming tokens by tokenizing any remaining buffered content
-   */
-  finalizeStreamingTokens(messageId: string): void {
-    this.tokenTracker.finalize(messageId);
-  }
-
-  /**
-   * Get current token count estimate (includes buffered chars as approximation)
+   * Get streaming token count
    */
   getStreamingTokenCount(messageId: string): number {
-    return this.tokenTracker.getTokenCount(messageId);
+    return this.tokenStats.get(messageId)?.tokenCount ?? 0;
   }
 
   /**
-   * Get smoothed tokens per second rate for a streaming message
+   * Get smoothed tokens-per-second rate
    */
   getStreamingTPS(messageId: string): number {
-    return this.tokenTracker.getTPS(messageId);
+    return this.tokenStats.get(messageId)?.tps ?? 0;
   }
 
   /**
-   * Clear token state for a message (call on stream end/abort)
+   * Clear token state for a message
    */
   clearTokenState(messageId: string): void {
-    this.tokenTracker.clear(messageId);
+    this.tokenStats.delete(messageId);
   }
 }
