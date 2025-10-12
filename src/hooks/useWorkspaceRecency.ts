@@ -25,4 +25,3 @@ export function useWorkspaceRecency(workspaceStates: Map<string, WorkspaceState>
 
   return timestamps;
 }
-
