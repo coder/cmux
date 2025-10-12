@@ -35,7 +35,7 @@ export interface LineReplaceArgs {
   file_path: string;
   start_line: number;
   end_line: number;
-  new_lines: string[];
+  new_lines: string[] | string; // Accept both array and newline-delimited string
   expected_lines?: string[];
 }
 
@@ -111,6 +111,7 @@ export function handleStringReplace(
 
 /**
  * Handle line-range replacement
+ * Accepts new_lines as either an array or a newline-delimited string for robustness
  */
 export function handleLineReplace(
   args: LineReplaceArgs,
@@ -142,6 +143,10 @@ export function handleLineReplace(
     };
   }
 
+  // Normalize new_lines to array - accept both array and newline-delimited string
+  const newLinesArray =
+    typeof args.new_lines === "string" ? args.new_lines.split("\n") : args.new_lines;
+
   const clampedEndIndex = Math.min(endIndex, lines.length - 1);
   const currentRange = lines.slice(startIndex, clampedEndIndex + 1);
 
@@ -154,9 +159,9 @@ export function handleLineReplace(
 
   const before = lines.slice(0, startIndex);
   const after = lines.slice(clampedEndIndex + 1);
-  const updatedLines = [...before, ...args.new_lines, ...after];
+  const updatedLines = [...before, ...newLinesArray, ...after];
   const linesReplaced = currentRange.length;
-  const totalDelta = args.new_lines.length - currentRange.length;
+  const totalDelta = newLinesArray.length - currentRange.length;
 
   return {
     success: true,

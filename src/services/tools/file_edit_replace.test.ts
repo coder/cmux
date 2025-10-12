@@ -88,7 +88,7 @@ describe("file_edit_replace_lines tool", () => {
     await fs.rm(testDir, { recursive: true, force: true });
   });
 
-  it("should replace a line range successfully", async () => {
+  it("should replace a line range successfully with array", async () => {
     await setupFile(testFilePath, "line1\nline2\nline3\nline4");
     const tool = createFileEditReplaceLinesTool({ cwd: testDir });
 
@@ -108,5 +108,54 @@ describe("file_edit_replace_lines tool", () => {
     }
 
     expect(await readFile(testFilePath)).toBe("line1\nLINE2\nLINE3\nline4");
+  });
+
+  it("should accept new_lines as newline-delimited string", async () => {
+    await setupFile(testFilePath, "line1\nline2\nline3\nline4");
+    const tool = createFileEditReplaceLinesTool({ cwd: testDir });
+
+    // Pass new_lines as a string instead of array - this tests the robust behavior
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const payload: any = {
+      file_path: testFilePath,
+      start_line: 2,
+      end_line: 3,
+      new_lines: "LINE2\nLINE3", // String instead of array
+    };
+
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+    const result = await executeLinesReplace(tool, payload);
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.lines_replaced).toBe(2);
+      expect(result.line_delta).toBe(0);
+    }
+
+    expect(await readFile(testFilePath)).toBe("line1\nLINE2\nLINE3\nline4");
+  });
+
+  it("should handle empty string (delete lines)", async () => {
+    await setupFile(testFilePath, "line1\nline2\nline3\nline4");
+    const tool = createFileEditReplaceLinesTool({ cwd: testDir });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const payload: any = {
+      file_path: testFilePath,
+      start_line: 2,
+      end_line: 3,
+      new_lines: "", // Empty string means delete
+    };
+
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+    const result = await executeLinesReplace(tool, payload);
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.lines_replaced).toBe(2);
+      expect(result.line_delta).toBe(-1); // 2 lines removed, 1 empty line added
+    }
+
+    expect(await readFile(testFilePath)).toBe("line1\n\nline4");
   });
 });
