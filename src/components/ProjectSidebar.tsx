@@ -486,7 +486,11 @@ const DraggableProjectItem = React.memo(
 type DragItem = { projectPath: string } | null;
 
 const ProjectDragLayer: React.FC = () => {
-  const dragState = useDragLayer<{ isDragging: boolean; item: unknown; currentOffset: { x: number; y: number } | null }>((monitor) => ({
+  const dragState = useDragLayer<{
+    isDragging: boolean;
+    item: unknown;
+    currentOffset: { x: number; y: number } | null;
+  }>((monitor) => ({
     isDragging: monitor.isDragging(),
     item: monitor.getItem(),
     currentOffset: monitor.getClientOffset(),
@@ -519,8 +523,31 @@ const ProjectDragLayer: React.FC = () => {
           <span style={{ marginRight: 6, color: "#666", fontSize: 12 }}>⠿</span>
           <span style={{ marginRight: 8, color: "#888", fontSize: 10 }}>▶</span>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ color: "#cccccc", fontSize: 14, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{name}</div>
-            <div style={{ color: "#6e6e6e", fontSize: 11, marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontFamily: "var(--font-monospace)" }}>{abbrevPath}</div>
+            <div
+              style={{
+                color: "#cccccc",
+                fontSize: 14,
+                fontWeight: 500,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              {name}
+            </div>
+            <div
+              style={{
+                color: "#6e6e6e",
+                fontSize: 11,
+                marginTop: 2,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                fontFamily: "var(--font-monospace)",
+              }}
+            >
+              {abbrevPath}
+            </div>
           </div>
         </DragPreviewItem>
       </div>
