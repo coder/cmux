@@ -331,6 +331,10 @@ export class StreamingMessageAggregator {
       return;
     }
 
+    console.log(
+      `[Aggregator] tool-call-start: toolName=${data.toolName}, args=${JSON.stringify(data.args).substring(0, 50)}..., tokens=${data.tokens}`
+    );
+
     // Add tool part to maintain temporal order
     const toolPart: DynamicToolPartPending = {
       type: "dynamic-tool",
@@ -340,12 +344,17 @@ export class StreamingMessageAggregator {
       input: data.args,
     };
     message.parts.push(toolPart as never);
+
+    // Track tokens for tool input
+    this.trackDelta(data.messageId, data.tokens, data.timestamp, "tool-args");
+
     this.invalidateCache();
   }
 
   handleToolCallDelta(data: ToolCallDeltaEvent): void {
+    const deltaStr = String(data.delta);
     console.log(
-      `[Aggregator] tool-call-delta: toolName=${data.toolName}, delta=${data.delta.substring(0, 20)}..., tokens=${data.tokens}`
+      `[Aggregator] tool-call-delta: toolName=${data.toolName}, delta=${deltaStr.substring(0, 20)}..., tokens=${data.tokens}`
     );
     // Track delta for token counting and TPS calculation
     this.trackDelta(data.messageId, data.tokens, data.timestamp, "tool-args");

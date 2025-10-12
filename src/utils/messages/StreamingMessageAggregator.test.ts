@@ -141,6 +141,8 @@ describe("StreamingMessageAggregator", () => {
       toolCallId: "tool-search",
       toolName: "searchFiles",
       args: { query: "test" },
+      tokens: 0,
+      timestamp: Date.now(),
     });
 
     // More text after tool call
@@ -254,6 +256,8 @@ describe("StreamingMessageAggregator", () => {
       toolCallId: "tool-1",
       toolName: "readFile",
       args: { file: "test.ts" },
+      tokens: 0,
+      timestamp: Date.now(),
     });
 
     // More text after tool

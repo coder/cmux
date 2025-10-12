@@ -72,6 +72,8 @@ export interface ToolCallStartEvent {
   toolCallId: string;
   toolName: string;
   args: unknown;
+  tokens: number; // Token count for tool input
+  timestamp: number; // When tool call started (Date.now())
 }
 
 export interface ToolCallDeltaEvent {

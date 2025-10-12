@@ -176,6 +176,8 @@ export class MockScenarioPlayer {
           toolCallId: event.toolCallId,
           toolName: event.toolName,
           args: event.args,
+          tokens: 0, // Mock scenario
+          timestamp: Date.now(),
         };
         this.deps.aiService.emit("tool-call-start", payload);
         break;

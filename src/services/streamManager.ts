@@ -608,6 +608,16 @@ export class StreamManager extends EventEmitter {
             };
             streamInfo.parts.push(toolPart);
 
+            // Tokenize tool input (for providers like Anthropic that return complete tool calls)
+            // Convert input object to JSON string for tokenization
+            const inputText = JSON.stringify(part.input);
+            const tokens = this.tokenTracker.countTokens(inputText);
+            const timestamp = Date.now();
+
+            log.debug(
+              `[StreamManager] tool-call: toolName=${part.toolName}, input length=${inputText.length}, tokens=${tokens}`
+            );
+
             this.emit("tool-call-start", {
               type: "tool-call-start",
               workspaceId: workspaceId as string,
@@ -615,6 +625,8 @@ export class StreamManager extends EventEmitter {
               toolCallId: part.toolCallId,
               toolName: part.toolName,
               args: part.input,
+              tokens,
+              timestamp,
             } as ToolCallStartEvent);
             break;
           }
@@ -1180,6 +1192,8 @@ export class StreamManager extends EventEmitter {
           toolCallId: part.toolCallId,
           toolName: part.toolName,
           args: part.input,
+          tokens: 0, // Replay - tokens already counted
+          timestamp: Date.now(),
         });
 
         // If tool has output, emit tool-call-end
