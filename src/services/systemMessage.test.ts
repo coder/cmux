@@ -1,0 +1,190 @@
+import * as fs from "fs/promises";
+import * as os from "os";
+import * as path from "path";
+import { buildSystemMessage } from "./systemMessage";
+import type { WorkspaceMetadata } from "@/types/workspace";
+
+// Mock os.homedir before imports
+jest.mock("os", () => {
+  // eslint-disable-next-line @typescript-eslint/consistent-type-imports
+  const actual = jest.requireActual<typeof import("os")>("os");
+  return {
+    ...actual,
+    homedir: jest.fn(),
+  };
+});
+
+const mockHomedir = os.homedir as jest.MockedFunction<typeof os.homedir>;
+
+describe("buildSystemMessage", () => {
+  let tempDir: string;
+  let workspaceDir: string;
+  let globalDir: string;
+
+  beforeEach(async () => {
+    // Create temp directory for test
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "systemMessage-test-"));
+    workspaceDir = path.join(tempDir, "workspace");
+    globalDir = path.join(tempDir, ".cmux");
+    await fs.mkdir(workspaceDir, { recursive: true });
+    await fs.mkdir(globalDir, { recursive: true });
+
+    // Mock homedir to return our test directory (getSystemDirectory will append .cmux)
+    mockHomedir.mockReturnValue(tempDir);
+  });
+
+  afterEach(async () => {
+    // Clean up temp directory
+    await fs.rm(tempDir, { recursive: true, force: true });
+    jest.clearAllMocks();
+  });
+
+  test("includes mode-specific section when mode is provided", async () => {
+    // Write instruction file with mode section
+    await fs.writeFile(
+      path.join(workspaceDir, "AGENTS.md"),
+      `# General Instructions
+Always be helpful.
+
+## Mode: Plan
+Focus on planning and design.
+Use diagrams where appropriate.
+`
+    );
+
+    const metadata: WorkspaceMetadata = {
+      id: "test-workspace",
+      projectName: "test-project",
+      workspacePath: workspaceDir,
+    };
+
+    const systemMessage = await buildSystemMessage(metadata, "plan");
+
+    // Should include the mode-specific content
+    expect(systemMessage).toContain("<plan>");
+    expect(systemMessage).toContain("Focus on planning and design");
+    expect(systemMessage).toContain("Use diagrams where appropriate");
+    expect(systemMessage).toContain("</plan>");
+
+    // Should also include general instructions
+    expect(systemMessage).toContain("Always be helpful");
+  });
+
+  test("excludes mode-specific section when mode is not provided", async () => {
+    // Write instruction file with mode section
+    await fs.writeFile(
+      path.join(workspaceDir, "AGENTS.md"),
+      `# General Instructions
+Always be helpful.
+
+## Mode: Plan
+Focus on planning and design.
+`
+    );
+
+    const metadata: WorkspaceMetadata = {
+      id: "test-workspace",
+      projectName: "test-project",
+      workspacePath: workspaceDir,
+    };
+
+    const systemMessage = await buildSystemMessage(metadata);
+
+    // Should NOT include the <plan> mode-specific tag
+    expect(systemMessage).not.toContain("<plan>");
+    expect(systemMessage).not.toContain("</plan>");
+
+    // All instructions are still in <custom-instructions> (both general and mode section)
+    expect(systemMessage).toContain("Always be helpful");
+    expect(systemMessage).toContain("Focus on planning and design");
+  });
+
+  test("prefers workspace mode section over global mode section", async () => {
+    // Write global instruction file with mode section
+    await fs.writeFile(
+      path.join(globalDir, "AGENTS.md"),
+      `# Global Instructions
+
+## Mode: Plan
+Global plan instructions.
+`
+    );
+
+    // Write workspace instruction file with mode section
+    await fs.writeFile(
+      path.join(workspaceDir, "AGENTS.md"),
+      `# Workspace Instructions
+
+## Mode: Plan
+Workspace plan instructions (should win).
+`
+    );
+
+    const metadata: WorkspaceMetadata = {
+      id: "test-workspace",
+      projectName: "test-project",
+      workspacePath: workspaceDir,
+    };
+
+    const systemMessage = await buildSystemMessage(metadata, "plan");
+
+    // Should include workspace mode section in the <plan> tag (workspace wins)
+    expect(systemMessage).toMatch(/<plan>\s*Workspace plan instructions \(should win\)\./s);
+    // Global instructions are still present in <custom-instructions> section (that's correct)
+    // But the mode-specific <plan> section should only have workspace content
+    expect(systemMessage).not.toMatch(/<plan>[^<]*Global plan instructions/s);
+  });
+
+  test("falls back to global mode section when workspace has none", async () => {
+    // Write global instruction file with mode section
+    await fs.writeFile(
+      path.join(globalDir, "AGENTS.md"),
+      `# Global Instructions
+
+## Mode: Plan
+Global plan instructions.
+`
+    );
+
+    // Write workspace instruction file WITHOUT mode section
+    await fs.writeFile(
+      path.join(workspaceDir, "AGENTS.md"),
+      `# Workspace Instructions
+Just general workspace stuff.
+`
+    );
+
+    const metadata: WorkspaceMetadata = {
+      id: "test-workspace",
+      projectName: "test-project",
+      workspacePath: workspaceDir,
+    };
+
+    const systemMessage = await buildSystemMessage(metadata, "plan");
+
+    // Should include global mode section as fallback
+    expect(systemMessage).toContain("Global plan instructions");
+  });
+
+  test("handles mode with special characters by sanitizing tag name", async () => {
+    await fs.writeFile(
+      path.join(workspaceDir, "AGENTS.md"),
+      `## Mode: My-Special_Mode!
+Special mode instructions.
+`
+    );
+
+    const metadata: WorkspaceMetadata = {
+      id: "test-workspace",
+      projectName: "test-project",
+      workspacePath: workspaceDir,
+    };
+
+    const systemMessage = await buildSystemMessage(metadata, "My-Special_Mode!");
+
+    // Tag should be sanitized to only contain valid characters
+    expect(systemMessage).toContain("<my-special_mode->");
+    expect(systemMessage).toContain("Special mode instructions");
+    expect(systemMessage).toContain("</my-special_mode->");
+  });
+});
