@@ -79,6 +79,7 @@ interface BashToolCallProps {
   args: BashToolArgs;
   result?: BashToolResult;
   status?: ToolStatus;
+  startedAt?: number;
 }
 
 function formatDuration(ms: number): string {
@@ -88,16 +89,22 @@ function formatDuration(ms: number): string {
   return `${Math.round(ms / 1000)}s`;
 }
 
-export const BashToolCall: React.FC<BashToolCallProps> = ({ args, result, status = "pending" }) => {
+export const BashToolCall: React.FC<BashToolCallProps> = ({
+  args,
+  result,
+  status = "pending",
+  startedAt,
+}) => {
   const { expanded, toggleExpanded } = useToolExpansion();
   const [elapsedTime, setElapsedTime] = useState(0);
-  const startTimeRef = useRef<number>(Date.now());
+  const startTimeRef = useRef<number>(startedAt ?? Date.now());
 
   // Track elapsed time for pending/executing status
   useEffect(() => {
     if (status === "executing" || status === "pending") {
-      startTimeRef.current = Date.now();
-      setElapsedTime(0);
+      const baseStart = startedAt ?? Date.now();
+      startTimeRef.current = baseStart;
+      setElapsedTime(Date.now() - baseStart);
 
       const timer = setInterval(() => {
         setElapsedTime(Date.now() - startTimeRef.current);
@@ -105,7 +112,10 @@ export const BashToolCall: React.FC<BashToolCallProps> = ({ args, result, status
 
       return () => clearInterval(timer);
     }
-  }, [status]);
+
+    setElapsedTime(0);
+    return undefined;
+  }, [status, startedAt]);
 
   const isPending = status === "executing" || status === "pending";
 
