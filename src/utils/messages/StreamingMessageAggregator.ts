@@ -11,6 +11,7 @@ import type {
   ReasoningDeltaEvent,
   ReasoningEndEvent,
 } from "@/types/stream";
+
 import type { WorkspaceChatMessage, StreamErrorMessage, DeleteMessage } from "@/types/ipc";
 import type {
   DynamicToolPart,
@@ -18,6 +19,7 @@ import type {
   DynamicToolPartAvailable,
 } from "@/types/toolParts";
 import { isDynamicToolPart } from "@/types/toolParts";
+import { createDeltaStorage, type DeltaRecordStorage } from "./StreamingTPSCalculator";
 
 // Maximum number of messages to display in the DOM for performance
 // Full history is still maintained internally for token counting and stats
@@ -30,19 +32,6 @@ interface StreamingContext {
   model: string;
 }
 
-/**
- * StreamingMessageAggregator - Simplified for User/Assistant Messages Only
- *
- * PURPOSE:
- * This class aggregates messages and handles streaming state for a simple
- * chat interface with only user and assistant messages.
- *
- * RULES:
- * 1. NO FORMATTING: Do not add emojis, format text, or create display strings
- * 2. NO PRESENTATION LOGIC: Do not make decisions about how messages should look
- * 3. RAW DATA ONLY: Store messages as close to their original format as possible
- * 4. STRUCTURE ONLY: Only transform data structure (e.g., streaming to final messages)
- */
 export class StreamingMessageAggregator {
   private messages = new Map<string, CmuxMessage>();
   private activeStreams = new Map<string, StreamingContext>();
@@ -50,11 +39,13 @@ export class StreamingMessageAggregator {
 
   // Cache for getAllMessages() to maintain stable array references
   private cachedMessages: CmuxMessage[] | null = null;
-  private cachedDisplayedMessages: DisplayedMessage[] | null = null;
+
+  // Delta history for token counting and TPS calculation
+  private deltaHistory = new Map<string, DeltaRecordStorage>();
+
   // Invalidate cache on any mutation
   private invalidateCache(): void {
     this.cachedMessages = null;
-    this.cachedDisplayedMessages = null;
   }
 
   addMessage(message: CmuxMessage): void {
@@ -98,6 +89,14 @@ export class StreamingMessageAggregator {
     return Array.from(this.activeStreams.values());
   }
 
+  /**
+   * Get the messageId of the first active stream (for token tracking)
+   * Returns undefined if no streams are active
+   */
+  getActiveStreamMessageId(): string | undefined {
+    return this.activeStreams.keys().next().value;
+  }
+
   isCompacting(): boolean {
     for (const context of this.activeStreams.values()) {
       if (context.isCompacting) {
@@ -127,7 +126,6 @@ export class StreamingMessageAggregator {
 
   clearActiveStreams(): void {
     this.activeStreams.clear();
-    this.invalidateCache();
   }
 
   clear(): void {
@@ -198,6 +196,10 @@ export class StreamingMessageAggregator {
       type: "text",
       text: data.delta,
     });
+
+    // Track delta for token counting and TPS calculation
+    this.trackDelta(data.messageId, data.tokens, data.timestamp, "text");
+
     this.invalidateCache();
   }
 
@@ -317,6 +319,10 @@ export class StreamingMessageAggregator {
       return;
     }
 
+    console.log(
+      `[Aggregator] tool-call-start: toolName=${data.toolName}, args=${JSON.stringify(data.args).substring(0, 50)}..., tokens=${data.tokens}`
+    );
+
     // Add tool part to maintain temporal order
     const toolPart: DynamicToolPartPending = {
       type: "dynamic-tool",
@@ -324,14 +330,24 @@ export class StreamingMessageAggregator {
       toolName: data.toolName,
       state: "input-available",
       input: data.args,
+      timestamp: data.timestamp,
     };
     message.parts.push(toolPart as never);
+
+    // Track tokens for tool input
+    this.trackDelta(data.messageId, data.tokens, data.timestamp, "tool-args");
+
     this.invalidateCache();
   }
 
-  handleToolCallDelta(_data: ToolCallDeltaEvent): void {
-    // Tool deltas could be handled here if needed for streaming tool results
-    // For now, we wait for the complete result in handleToolCallEnd
+  handleToolCallDelta(data: ToolCallDeltaEvent): void {
+    const deltaStr = String(data.delta);
+    console.log(
+      `[Aggregator] tool-call-delta: toolName=${data.toolName}, delta=${deltaStr.substring(0, 20)}..., tokens=${data.tokens}`
+    );
+    // Track delta for token counting and TPS calculation
+    this.trackDelta(data.messageId, data.tokens, data.timestamp, "tool-args");
+    // Tool deltas are for display - args are in dynamic-tool part
   }
 
   handleToolCallEnd(data: ToolCallEndEvent): void {
@@ -361,6 +377,10 @@ export class StreamingMessageAggregator {
       type: "reasoning",
       text: data.delta,
     });
+
+    // Track delta for token counting and TPS calculation
+    this.trackDelta(data.messageId, data.tokens, data.timestamp, "reasoning");
+
     this.invalidateCache();
   }
 
@@ -413,15 +433,9 @@ export class StreamingMessageAggregator {
    * while preserving temporal ordering through sequence numbers
    */
   getDisplayedMessages(): DisplayedMessage[] {
-    const cached = this.cachedDisplayedMessages;
-    if (cached) {
-      return cached;
-    }
-
-    const messages = this.getAllMessages();
     const displayedMessages: DisplayedMessage[] = [];
 
-    for (const message of messages) {
+    for (const message of this.getAllMessages()) {
       const baseTimestamp = message.metadata?.timestamp;
       // Get historySequence from backend (required field)
       const historySequence = message.metadata?.historySequence ?? 0;
@@ -556,7 +570,7 @@ export class StreamingMessageAggregator {
               historySequence,
               streamSequence: streamSeq++,
               isLastPartOfMessage: isLastPart,
-              timestamp: baseTimestamp,
+              timestamp: part.timestamp ?? baseTimestamp,
             });
           }
         });
@@ -584,18 +598,57 @@ export class StreamingMessageAggregator {
       const hiddenCount = displayedMessages.length - MAX_DISPLAYED_MESSAGES;
       const slicedMessages = displayedMessages.slice(-MAX_DISPLAYED_MESSAGES);
 
+      // Add history-hidden indicator as the first message
       const historyHiddenMessage: DisplayedMessage = {
         type: "history-hidden",
         id: "history-hidden",
         hiddenCount,
         historySequence: -1, // Place it before all messages
       };
-      this.cachedDisplayedMessages = [historyHiddenMessage, ...slicedMessages];
-    } else {
-      this.cachedDisplayedMessages = displayedMessages;
+
+      return [historyHiddenMessage, ...slicedMessages];
     }
 
-    return this.cachedDisplayedMessages.slice();
+    return displayedMessages;
+  }
+
+  /**
+   * Track a delta for token counting and TPS calculation
+   */
+  private trackDelta(
+    messageId: string,
+    tokens: number,
+    timestamp: number,
+    type: "text" | "reasoning" | "tool-args"
+  ): void {
+    let storage = this.deltaHistory.get(messageId);
+    if (!storage) {
+      storage = createDeltaStorage();
+      this.deltaHistory.set(messageId, storage);
+    }
+    storage.addDelta({ tokens, timestamp, type });
+  }
+
+  /**
+   * Get streaming token count (sum of all deltas)
+   */
+  getStreamingTokenCount(messageId: string): number {
+    const storage = this.deltaHistory.get(messageId);
+    return storage ? storage.getTokenCount() : 0;
+  }
+
+  /**
+   * Get tokens-per-second rate (10-second trailing window)
+   */
+  getStreamingTPS(messageId: string): number {
+    const storage = this.deltaHistory.get(messageId);
+    return storage ? storage.calculateTPS(Date.now()) : 0;
+  }
+
+  /**
+   * Clear delta history for a message
+   */
+  clearTokenState(messageId: string): void {
+    this.deltaHistory.delete(messageId);
   }
 }
-
