@@ -61,6 +61,7 @@ export const ToolMessage: React.FC<ToolMessageProps> = ({ message, className, wo
           args={message.args}
           result={message.result as BashToolResult | undefined}
           status={message.status}
+          startedAt={message.timestamp}
         />
       </div>
     );
