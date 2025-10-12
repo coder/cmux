@@ -1,49 +1,55 @@
-import MarkdownIt from "markdown-it";
-
 /**
  * Extract the content under a heading titled "Mode: <mode>" (case-insensitive).
- * - Matches any heading level (#..######)
- * - Returns raw markdown content between this heading and the next heading
- *   of the same or higher level in the same document
- * - If multiple sections match, the first one wins
- * - The heading line itself is excluded from the returned content
+ *
+ * We intentionally avoid pulling in a full Markdown parser here. The instruction
+ * files we ingest are authored by humans and use simple ATX headings (`#`), so a
+ * lightweight line-based parser keeps the implementation dependency-free while
+ * remaining easy to reason about and test.
  */
 export function extractModeSection(markdown: string, mode: string): string | null {
-  if (!markdown || !mode) return null;
+  if (markdown.trim().length === 0 || mode.trim().length === 0) {
+    return null;
+  }
 
-  const md = new MarkdownIt({ html: false, linkify: false, typographer: false });
-  const tokens = md.parse(markdown, {});
-  const lines = markdown.split(/\r?\n/);
   const target = `mode: ${mode}`.toLowerCase();
+  const lines = markdown.split(/\r?\n/);
 
-  for (let i = 0; i < tokens.length; i++) {
-    const t = tokens[i];
-    if (t.type !== "heading_open") continue;
+  const headingRegex = /^\s*(#{1,6})\s+(.+?)\s*$/;
+  const trailingHashesRegex = /\s+#+\s*$/;
 
-    const level = Number(t.tag?.replace(/^h/, "")) || 1;
-    const inline = tokens[i + 1];
-    if (!inline || inline.type !== "inline") continue;
+  for (let index = 0; index < lines.length; index++) {
+    const headingMatch = headingRegex.exec(lines[index]);
+    if (!headingMatch) {
+      continue;
+    }
 
-    const text = (inline.content || "").trim().toLowerCase();
-    if (text !== target) continue;
+    const headingLevel = headingMatch[1].length;
+    const headingText = headingMatch[2]
+      .replace(trailingHashesRegex, "")
+      .trim()
+      .toLowerCase();
 
-    // Start content after the heading block ends
-    const headingEndLine = inline.map?.[1] ?? t.map?.[1] ?? (t.map?.[0] ?? 0) + 1;
+    if (headingText !== target) {
+      continue;
+    }
 
-    // Find the next heading of same or higher level to bound the section
-    let endLine = lines.length; // exclusive
-    for (let j = i + 1; j < tokens.length; j++) {
-      const tt = tokens[j];
-      if (tt.type === "heading_open") {
-        const nextLevel = Number(tt.tag?.replace(/^h/, "")) || 1;
-        if (nextLevel <= level) {
-          endLine = tt.map?.[0] ?? endLine;
-          break;
-        }
+    const contentStart = index + 1;
+    let contentEnd = lines.length;
+
+    for (let next = contentStart; next < lines.length; next++) {
+      const nextMatch = headingRegex.exec(lines[next]);
+      if (!nextMatch) {
+        continue;
+      }
+
+      const nextLevel = nextMatch[1].length;
+      if (nextLevel <= headingLevel) {
+        contentEnd = next;
+        break;
       }
     }
 
-    const slice = lines.slice(headingEndLine, endLine).join("\n").trim();
+    const slice = lines.slice(contentStart, contentEnd).join("\n").trim();
     return slice.length > 0 ? slice : null;
   }
 

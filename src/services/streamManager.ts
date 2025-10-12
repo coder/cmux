@@ -16,10 +16,8 @@ import { Ok, Err } from "@/types/result";
 import { log } from "./log";
 import type {
   StreamStartEvent,
-  StreamDeltaEvent,
   StreamEndEvent,
   ErrorEvent,
-  ToolCallStartEvent,
   ToolCallEndEvent,
   CompletedMessagePart,
 } from "@/types/stream";
