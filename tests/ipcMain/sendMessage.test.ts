@@ -1335,14 +1335,14 @@ These are general instructions that apply to all modes.
               (e as any).type === "tool-call-end" &&
               (e as any).toolName === "file_edit_replace"
           ) as any[];
-          
+
           // Find the last successful file_edit_replace event (model may retry)
           const successfulEdits = allFileEditEvents.filter((e) => {
             const result = e?.result;
             const payload = result && result.value ? result.value : result;
             return payload?.success === true;
           });
-          
+
           expect(successfulEdits.length).toBeGreaterThan(0);
           const toolEnd = successfulEdits[successfulEdits.length - 1];
           const toolResult = toolEnd?.result;
