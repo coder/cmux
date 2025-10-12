@@ -272,16 +272,17 @@ export class StreamManager extends EventEmitter {
     messageId: string,
     part: CompletedMessagePart
   ): void {
+    const timestamp = part.timestamp ?? Date.now();
+
     if (part.type === "text") {
       const tokens = this.tokenTracker.countTokens(part.text);
-      log.debug(`[emitPartAsEvent] text part: ${part.text.substring(0, 20)}..., tokens=${tokens}`);
       this.emit("stream-delta", {
         type: "stream-delta",
         workspaceId: workspaceId as string,
         messageId,
         delta: part.text,
         tokens,
-        timestamp: Date.now(),
+        timestamp,
       });
     } else if (part.type === "reasoning") {
       const tokens = this.tokenTracker.countTokens(part.text);
@@ -291,14 +292,11 @@ export class StreamManager extends EventEmitter {
         messageId,
         delta: part.text,
         tokens,
-        timestamp: Date.now(),
+        timestamp,
       });
     } else if (part.type === "dynamic-tool") {
       const inputText = JSON.stringify(part.input);
       const tokens = this.tokenTracker.countTokens(inputText);
-      log.debug(
-        `[emitPartAsEvent] tool part: name=${part.toolName}, inputText=${inputText.substring(0, 50)}, tokens=${tokens}`
-      );
       this.emit("tool-call-start", {
         type: "tool-call-start",
         workspaceId: workspaceId as string,
@@ -307,7 +305,7 @@ export class StreamManager extends EventEmitter {
         toolName: part.toolName,
         args: part.input,
         tokens,
-        timestamp: Date.now(),
+        timestamp,
       });
 
       // If tool has output, emit completion
@@ -560,6 +558,7 @@ export class StreamManager extends EventEmitter {
             const textPart = {
               type: "text" as const,
               text: part.text,
+              timestamp: Date.now(),
             };
             streamInfo.parts.push(textPart);
 
@@ -614,6 +613,7 @@ export class StreamManager extends EventEmitter {
             const reasoningPart = {
               type: "reasoning" as const,
               text: delta,
+              timestamp: Date.now(),
             };
             streamInfo.parts.push(reasoningPart);
 
@@ -654,6 +654,7 @@ export class StreamManager extends EventEmitter {
               state: "input-available" as const,
               // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
               input: part.input,
+              timestamp: Date.now(),
             };
             streamInfo.parts.push(toolPart);
 

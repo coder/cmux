@@ -29,18 +29,21 @@ export interface CmuxToolPart {
   state: "input-available" | "output-available";
   input: unknown;
   output?: unknown;
+  timestamp?: number; // When the tool call was emitted
 }
 
 // Text part type
 export interface CmuxTextPart {
   type: "text";
   text: string;
+  timestamp?: number;
 }
 
 // Reasoning part type for extended thinking content
 export interface CmuxReasoningPart {
   type: "reasoning";
   text: string;
+  timestamp?: number;
 }
 
 // Image part type for multimodal messages
