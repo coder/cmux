@@ -6,6 +6,7 @@ import * as path from "path";
 import * as fs from "fs";
 import * as os from "os";
 import {
+  BASH_DEFAULT_TIMEOUT_SECS,
   BASH_HARD_MAX_LINES,
   BASH_MAX_LINE_BYTES,
   BASH_MAX_TOTAL_BYTES,
@@ -55,7 +56,7 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
       // Default timeout to 3 seconds for interactivity
       // OpenAI models often don't provide timeout_secs even when marked required,
       // so we make it optional with a sensible default.
-      const effectiveTimeout = timeout_secs ?? 3;
+      const effectiveTimeout = timeout_secs ?? BASH_DEFAULT_TIMEOUT_SECS;
 
       const startTime = performance.now();
       const effectiveMaxLines = BASH_HARD_MAX_LINES;

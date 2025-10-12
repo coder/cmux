@@ -306,6 +306,8 @@ This project uses **Make** as the primary build orchestrator. See `Makefile` for
 
 - This pattern maximizes type safety and prevents runtime errors from typos or missing cases
 
+- **Centralize magic constants** - Define in `src/constants/` and import everywhere. Never duplicate numbers/strings across backend, UI, tests, and schema descriptions.
+
 ## Component State Management
 
 **For per-operation state tied to async workflows, parent components should own all localStorage operations.** Child components should notify parents of user intent without manipulating storage directly, preventing bugs from stale or orphaned state across component lifecycles.
