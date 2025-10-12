@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import type { DisplayedMessage, CmuxMessage } from "@/types/message";
 import { createCmuxMessage } from "@/types/message";
 import type { WorkspaceMetadata } from "@/types/workspace";
@@ -42,7 +42,7 @@ export interface WorkspaceState {
 export function useWorkspaceAggregators(workspaceMetadata: Map<string, WorkspaceMetadata>) {
   const aggregatorsRef = useRef<Map<string, StreamingMessageAggregator>>(new Map());
   // Force re-render when messages change for the selected workspace
-  const [, setUpdateCounter] = useState(0);
+  const [updateCounter, setUpdateCounter] = useState(0);
 
   // Track recently used models
   const { addModel } = useModelLRU();
@@ -308,15 +308,49 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
 
   // Build workspaceStates map for consumers that need all states
   // Key by metadata.id (short format like 'cmux-md-toggles') to match localStorage keys
-  const workspaceStates = new Map<string, WorkspaceState>();
-  for (const [_key, metadata] of workspaceMetadata) {
-    workspaceStates.set(metadata.id, getWorkspaceState(metadata.id));
-  }
+  // Memoized to prevent unnecessary re-renders of consumers (e.g., ProjectSidebar sorting)
+  // Updates when messages change (updateCounter) or workspaces are added/removed (workspaceMetadata)
+  const workspaceStates = useMemo(() => {
+    const states = new Map<string, WorkspaceState>();
+    for (const [_key, metadata] of workspaceMetadata) {
+      states.set(metadata.id, getWorkspaceState(metadata.id));
+    }
+    return states;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workspaceMetadata, getWorkspaceState, updateCounter]);
+
+  // Extract recency timestamps for sorting - only updates when timestamps actually change
+  // This prevents unnecessary sort recomputation when unrelated workspace state changes
+  const workspaceRecencyRef = useRef<Record<string, number>>({});
+  const workspaceRecency = useMemo(() => {
+    const timestamps: Record<string, number> = {};
+    for (const [id, state] of workspaceStates) {
+      if (state.lastUserMessageAt !== null) {
+        timestamps[id] = state.lastUserMessageAt;
+      }
+    }
+
+    // Only return new object if timestamps actually changed
+    const prev = workspaceRecencyRef.current;
+    const prevKeys = Object.keys(prev);
+    const newKeys = Object.keys(timestamps);
+
+    if (
+      prevKeys.length === newKeys.length &&
+      prevKeys.every((key) => prev[key] === timestamps[key])
+    ) {
+      return prev; // No change, return previous reference
+    }
+
+    workspaceRecencyRef.current = timestamps;
+    return timestamps;
+  }, [workspaceStates]);
 
   return {
     getWorkspaceState,
     getAggregator,
     workspaceStates,
+    workspaceRecency,
     forceUpdate,
   };
 }

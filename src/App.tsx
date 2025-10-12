@@ -168,7 +168,7 @@ function AppInner() {
     });
 
   // Use workspace aggregators hook for message state
-  const { getWorkspaceState, getAggregator, workspaceStates } =
+  const { getWorkspaceState, getAggregator, workspaceStates, workspaceRecency } =
     useWorkspaceAggregators(workspaceMetadata);
 
   // Track unread message status for all workspaces
@@ -554,7 +554,7 @@ function AppInner() {
             onToggleCollapsed={() => setSidebarCollapsed((prev) => !prev)}
             onGetSecrets={handleGetSecrets}
             onUpdateSecrets={handleUpdateSecrets}
-            workspaceStates={workspaceStates}
+            workspaceRecency={workspaceRecency}
           />
           <MainContent>
             <ContentArea>
