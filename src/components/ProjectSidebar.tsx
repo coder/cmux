@@ -1024,6 +1024,7 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                                   <WorkspaceStatusIndicator
                                     streaming={isStreaming}
                                     unread={isUnread}
+                                    onClick={() => _onToggleUnread(workspaceId)}
                                     title={
                                       isStreaming
                                         ? "Assistant is responding"
