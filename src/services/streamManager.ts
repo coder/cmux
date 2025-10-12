@@ -530,6 +530,10 @@ export class StreamManager extends EventEmitter {
               const tokens = this.tokenTracker.countTokens(deltaText);
               const timestamp = Date.now();
 
+              log.debug(
+                `[StreamManager] tool-call-delta: toolName=${toolCallDeltaPart.toolName}, delta=${deltaText.substring(0, 20)}..., tokens=${tokens}`
+              );
+
               this.emit("tool-call-delta", {
                 type: "tool-call-delta",
                 workspaceId: workspaceId as string,

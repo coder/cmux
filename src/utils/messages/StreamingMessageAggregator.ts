@@ -344,6 +344,9 @@ export class StreamingMessageAggregator {
   }
 
   handleToolCallDelta(data: ToolCallDeltaEvent): void {
+    console.log(
+      `[Aggregator] tool-call-delta: toolName=${data.toolName}, delta=${data.delta.substring(0, 20)}..., tokens=${data.tokens}`
+    );
     // Track delta for token counting and TPS calculation
     this.trackDelta(data.messageId, data.tokens, data.timestamp, "tool-args");
     // Tool deltas are for display - args are in dynamic-tool part
