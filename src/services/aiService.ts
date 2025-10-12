@@ -124,6 +124,7 @@ export class AIService extends EventEmitter {
     this.streamManager.on("stream-start", (data) => this.emit("stream-start", data));
     this.streamManager.on("stream-delta", (data) => this.emit("stream-delta", data));
     this.streamManager.on("stream-end", (data) => this.emit("stream-end", data));
+    this.streamManager.on("stream-stats", (data) => this.emit("stream-stats", data));
 
     // Handle stream-abort: commit partial to history before forwarding
     this.streamManager.on("stream-abort", (data: StreamAbortEvent) => {
