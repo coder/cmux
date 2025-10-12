@@ -144,8 +144,13 @@ export function handleLineReplace(
   }
 
   // Normalize new_lines to array - accept both array and newline-delimited string
+  // Empty string should map to empty array (no lines), not [""]
   const newLinesArray =
-    typeof args.new_lines === "string" ? args.new_lines.split("\n") : args.new_lines;
+    typeof args.new_lines === "string"
+      ? args.new_lines === ""
+        ? []
+        : args.new_lines.split("\n")
+      : args.new_lines;
 
   const clampedEndIndex = Math.min(endIndex, lines.length - 1);
   const currentRange = lines.slice(startIndex, clampedEndIndex + 1);

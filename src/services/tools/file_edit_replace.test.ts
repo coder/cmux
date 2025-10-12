@@ -153,9 +153,9 @@ describe("file_edit_replace_lines tool", () => {
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.lines_replaced).toBe(2);
-      expect(result.line_delta).toBe(-1); // 2 lines removed, 1 empty line added
+      expect(result.line_delta).toBe(-2); // 2 lines removed, 0 lines added
     }
 
-    expect(await readFile(testFilePath)).toBe("line1\n\nline4");
+    expect(await readFile(testFilePath)).toBe("line1\nline4");
   });
 });
