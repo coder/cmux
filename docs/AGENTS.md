@@ -115,7 +115,7 @@ Verify with React DevTools Profiler - MarkdownCore should only re-render when co
 ### External API Docs
 
 DO NOT visit https://sdk.vercel.ai/docs/ai-sdk-core. All of that content is already
-in `./ai-sdk-docs/**.mdx`.
+in `/tmp/ai-sdk-docs/**.mdx`.
 
 (Generate them with `./scripts/update_vercel_docs.sh` if they don't exist.)
 
@@ -137,6 +137,7 @@ in `./ai-sdk-docs/**.mdx`.
   - Add packages: `bun add <package>`
   - Run scripts: `bun run <script>`
   - etc.
+- If you hit missing module/type errors locally or in CI, run `bun install` before diving into deeper debugging.
 
 ## Development Commands
 

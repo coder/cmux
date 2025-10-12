@@ -27,7 +27,7 @@ import { applyCacheControl } from "@/utils/ai/cacheStrategy";
 import type { HistoryService } from "./historyService";
 import type { PartialService } from "./partialService";
 import { buildSystemMessage } from "./systemMessage";
-import { getTokenizerForModel } from "@/utils/tokens/tokenizer";
+import { getTokenizerForModel } from "@/utils/main/tokenizer";
 import { buildProviderOptions } from "@/utils/ai/providerOptions";
 import type { ThinkingLevel } from "@/types/thinking";
 import { createOpenAI } from "@ai-sdk/openai";
@@ -612,6 +612,8 @@ export class AIService extends EventEmitter {
             workspaceId,
             messageId: assistantMessageId,
             delta: textPart.text,
+            tokens: 0, // Mock scenario - actual tokenization happens in streamManager
+            timestamp: Date.now(),
           };
           this.emit("stream-delta", streamDeltaEvent);
         }

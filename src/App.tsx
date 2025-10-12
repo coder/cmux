@@ -168,7 +168,8 @@ function AppInner() {
     });
 
   // Use workspace aggregators hook for message state
-  const { getWorkspaceState, workspaceStates } = useWorkspaceAggregators(workspaceMetadata);
+  const { getWorkspaceState, getAggregator, workspaceStates } =
+    useWorkspaceAggregators(workspaceMetadata);
 
   // Track unread message status for all workspaces
   const { unreadStatus, toggleUnread } = useUnreadTracking(selectedWorkspace, workspaceStates);
@@ -187,15 +188,57 @@ function AppInner() {
     }
   }
 
-  // Update window title when workspace changes
+  // Sync selectedWorkspace with URL hash
   useEffect(() => {
     if (selectedWorkspace) {
+      // Update URL with workspace ID
+      const newHash = `#workspace=${encodeURIComponent(selectedWorkspace.workspaceId)}`;
+      if (window.location.hash !== newHash) {
+        window.history.replaceState(null, "", newHash);
+      }
+
+      // Update window title
       const title = `${selectedWorkspace.workspaceId} - ${selectedWorkspace.projectName} - cmux`;
       void window.api.window.setTitle(title);
     } else {
+      // Clear hash when no workspace selected
+      if (window.location.hash) {
+        window.history.replaceState(null, "", window.location.pathname);
+      }
       void window.api.window.setTitle("cmux");
     }
   }, [selectedWorkspace]);
+
+  // Restore workspace from URL on mount (if valid)
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash.startsWith("#workspace=")) {
+      const workspaceId = decodeURIComponent(hash.substring("#workspace=".length));
+
+      // Find workspace in metadata
+      const metadata = Array.from(workspaceMetadata.values()).find((ws) => ws.id === workspaceId);
+
+      if (metadata) {
+        // Find project for this workspace
+        for (const [projectPath, projectConfig] of projects.entries()) {
+          const workspace = projectConfig.workspaces.find(
+            (ws) => ws.path === metadata.workspacePath
+          );
+          if (workspace) {
+            setSelectedWorkspace({
+              workspaceId: metadata.id,
+              projectPath,
+              projectName: metadata.projectName,
+              workspacePath: metadata.workspacePath,
+            });
+            break;
+          }
+        }
+      }
+    }
+    // Only run on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const openWorkspaceInTerminal = useCallback((workspacePath: string) => {
     void window.api.workspace.openTerminal(workspacePath);
@@ -524,6 +567,7 @@ function AppInner() {
                     branch={selectedWorkspace.workspacePath.split("/").pop() ?? ""}
                     workspacePath={selectedWorkspace.workspacePath}
                     workspaceState={getWorkspaceState(selectedWorkspace.workspaceId)}
+                    getAggregator={getAggregator}
                     onCompactStart={(continueMessage) =>
                       handleCompactStart(selectedWorkspace.workspaceId, continueMessage)
                     }

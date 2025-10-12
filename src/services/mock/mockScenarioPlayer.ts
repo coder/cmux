@@ -15,6 +15,7 @@ import { allScenarios } from "./scenarios";
 import type { StreamStartEvent, StreamDeltaEvent, StreamEndEvent } from "@/types/stream";
 import type { ToolCallStartEvent, ToolCallEndEvent } from "@/types/stream";
 import type { ReasoningDeltaEvent } from "@/types/stream";
+import { getTokenizerForModel } from "@/utils/main/tokenizer";
 
 interface MockPlayerDeps {
   aiService: AIService;
@@ -157,16 +158,25 @@ export class MockScenarioPlayer {
         break;
       }
       case "reasoning-delta": {
+        // Mock scenarios use the same tokenization logic as real streams for consistency
+        const tokenizer = getTokenizerForModel("gpt-4"); // Mock uses GPT-4 tokenizer
+        const tokens = tokenizer.countTokens(event.text);
         const payload: ReasoningDeltaEvent = {
           type: "reasoning-delta",
           workspaceId,
           messageId,
           delta: event.text,
+          tokens,
+          timestamp: Date.now(),
         };
         this.deps.aiService.emit("reasoning-delta", payload);
         break;
       }
       case "tool-start": {
+        // Mock scenarios use the same tokenization logic as real streams for consistency
+        const inputText = JSON.stringify(event.args);
+        const tokenizer = getTokenizerForModel("gpt-4"); // Mock uses GPT-4 tokenizer
+        const tokens = tokenizer.countTokens(inputText);
         const payload: ToolCallStartEvent = {
           type: "tool-call-start",
           workspaceId,
@@ -174,6 +184,8 @@ export class MockScenarioPlayer {
           toolCallId: event.toolCallId,
           toolName: event.toolName,
           args: event.args,
+          tokens,
+          timestamp: Date.now(),
         };
         this.deps.aiService.emit("tool-call-start", payload);
         break;
@@ -191,11 +203,16 @@ export class MockScenarioPlayer {
         break;
       }
       case "stream-delta": {
+        // Mock scenarios use the same tokenization logic as real streams for consistency
+        const tokenizer = getTokenizerForModel("gpt-4"); // Mock uses GPT-4 tokenizer
+        const tokens = tokenizer.countTokens(event.text);
         const payload: StreamDeltaEvent = {
           type: "stream-delta",
           workspaceId,
           messageId,
           delta: event.text,
+          tokens,
+          timestamp: Date.now(),
         };
         this.deps.aiService.emit("stream-delta", payload);
         break;

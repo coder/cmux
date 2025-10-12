@@ -17,9 +17,11 @@ import { useAutoScroll } from "@/hooks/useAutoScroll";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { useThinking } from "@/contexts/ThinkingContext";
 import type { WorkspaceState } from "@/hooks/useWorkspaceAggregators";
+import type { StreamingMessageAggregator } from "@/utils/messages/StreamingMessageAggregator";
 import { StatusIndicator } from "./StatusIndicator";
 import { getModelName } from "@/utils/ai/models";
 import { GitStatusIndicator } from "./GitStatusIndicator";
+
 import { useGitStatus } from "@/contexts/GitStatusContext";
 import { TooltipWrapper, Tooltip } from "./Tooltip";
 import type { DisplayedMessage } from "@/types/message";
@@ -180,6 +182,7 @@ interface AIViewProps {
   branch: string;
   workspacePath: string;
   workspaceState: WorkspaceState;
+  getAggregator: (workspaceId: string) => StreamingMessageAggregator;
   onCompactStart?: (continueMessage: string | undefined) => void;
   className?: string;
 }
@@ -190,6 +193,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
   branch,
   workspacePath,
   workspaceState,
+  getAggregator,
   onCompactStart,
   className,
 }) => {
@@ -229,6 +233,11 @@ const AIViewInner: React.FC<AIViewProps> = ({
   // Extract state from workspace state prop
   const { messages, canInterrupt, isCompacting, loading, cmuxMessages, currentModel } =
     workspaceState;
+  const aggregator = getAggregator(workspaceId);
+
+  // Get active stream message ID for token counting
+  // Use getActiveStreamMessageId() which returns the messageId directly
+  const activeStreamMessageId = aggregator.getActiveStreamMessageId();
 
   // Track if last message was interrupted or errored (for RetryBarrier)
   // Uses same logic as useResumeManager for DRY
@@ -436,10 +445,19 @@ const AIViewInner: React.FC<AIViewProps> = ({
               )}
               {canInterrupt && (
                 <StreamingBarrier
-                  text={
-                    isCompacting
-                      ? `compacting... hit ${formatKeybind(KEYBINDS.INTERRUPT_STREAM)} to cancel`
-                      : `${getModelName(currentModel)} streaming... hit ${formatKeybind(KEYBINDS.INTERRUPT_STREAM)} to cancel`
+                  statusText={
+                    isCompacting ? "compacting..." : `${getModelName(currentModel)} streaming...`
+                  }
+                  cancelText={`hit ${formatKeybind(KEYBINDS.INTERRUPT_STREAM)} to cancel`}
+                  tokenCount={
+                    activeStreamMessageId
+                      ? aggregator.getStreamingTokenCount(activeStreamMessageId)
+                      : undefined
+                  }
+                  tps={
+                    activeStreamMessageId
+                      ? aggregator.getStreamingTPS(activeStreamMessageId)
+                      : undefined
                   }
                 />
               )}
