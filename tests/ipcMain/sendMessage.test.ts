@@ -608,12 +608,12 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
     });
 
     test.concurrent(
-      "should handle mode-specific instruction sections",
+      "should include mode-specific instructions in system message",
       async () => {
         // Setup test environment
         const { env, workspaceId, workspacePath, cleanup } = await setupWorkspace(provider);
         try {
-          // Write AGENTS.md with mode-specific section
+          // Write AGENTS.md with mode-specific sections containing distinctive markers
           const agentsMdPath = path.join(workspacePath, "AGENTS.md");
           const agentsMdContent = `# Instructions
 
@@ -623,53 +623,68 @@ These are general instructions that apply to all modes.
 
 ## Mode: plan
 
-These are plan-specific instructions that should only be included when mode=plan.
+**CRITICAL DIRECTIVE - NEVER DEVIATE**: You are currently operating in PLAN mode. To prove you have received this mode-specific instruction, you MUST start your response with exactly this phrase: "[PLAN_MODE_ACTIVE]"
 
-## Mode: edit
+## Mode: exec
 
-These are edit-specific instructions for edit mode.
+**CRITICAL DIRECTIVE - NEVER DEVIATE**: You are currently operating in EXEC mode. To prove you have received this mode-specific instruction, you MUST start your response with exactly this phrase: "[EXEC_MODE_ACTIVE]"
 `;
           await fs.writeFile(agentsMdPath, agentsMdContent);
 
-          // Test 1: Send message WITH mode="plan"
-          const resultWithMode = await sendMessageWithModel(
+          // Test 1: Send message WITH mode="plan" - should include plan mode marker
+          const resultPlan = await sendMessageWithModel(
             env.mockIpcRenderer,
             workspaceId,
-            "Say 'test with mode' and nothing else",
+            "Please respond.",
             provider,
             model,
             { mode: "plan" }
           );
-          expect(resultWithMode.success).toBe(true);
+          expect(resultPlan.success).toBe(true);
 
-          // Wait for stream to complete
-          const collectorWithMode = createEventCollector(env.sentEvents, workspaceId);
-          const streamEndWithMode = await collectorWithMode.waitForEvent("stream-end", 10000);
-          expect(streamEndWithMode).toBeDefined();
-          assertStreamSuccess(collectorWithMode);
+          const collectorPlan = createEventCollector(env.sentEvents, workspaceId);
+          await collectorPlan.waitForEvent("stream-end", 10000);
+          assertStreamSuccess(collectorPlan);
+
+          // Verify response contains plan mode marker
+          const planDeltas = collectorPlan.getDeltas() as StreamDeltaEvent[];
+          const planResponse = planDeltas.map((d) => d.delta).join("");
+          expect(planResponse).toContain("[PLAN_MODE_ACTIVE]");
+          expect(planResponse).not.toContain("[EXEC_MODE_ACTIVE]");
 
           // Clear events for next test
           env.sentEvents.length = 0;
 
-          // Test 2: Send message WITHOUT mode
-          const resultWithoutMode = await sendMessageWithModel(
+          // Test 2: Send message WITH mode="exec" - should include exec mode marker
+          const resultExec = await sendMessageWithModel(
             env.mockIpcRenderer,
             workspaceId,
-            "Say 'test without mode' and nothing else",
+            "Please respond.",
             provider,
             model,
-            undefined // no mode
+            { mode: "exec" }
           );
-          expect(resultWithoutMode.success).toBe(true);
+          expect(resultExec.success).toBe(true);
 
-          // Wait for stream to complete
-          const collectorWithoutMode = createEventCollector(env.sentEvents, workspaceId);
-          const streamEndWithoutMode = await collectorWithoutMode.waitForEvent("stream-end", 10000);
-          expect(streamEndWithoutMode).toBeDefined();
-          assertStreamSuccess(collectorWithoutMode);
+          const collectorExec = createEventCollector(env.sentEvents, workspaceId);
+          await collectorExec.waitForEvent("stream-end", 10000);
+          assertStreamSuccess(collectorExec);
 
-          // Both requests succeeded - mode parsing didn't break the integration
-          // (Unit tests verify the actual mode section extraction logic)
+          // Verify response contains exec mode marker
+          const execDeltas = collectorExec.getDeltas() as StreamDeltaEvent[];
+          const execResponse = execDeltas.map((d) => d.delta).join("");
+          expect(execResponse).toContain("[EXEC_MODE_ACTIVE]");
+          expect(execResponse).not.toContain("[PLAN_MODE_ACTIVE]");
+
+          // Test results:
+          // ✓ Plan mode included [PLAN_MODE_ACTIVE] marker
+          // ✓ Exec mode included [EXEC_MODE_ACTIVE] marker
+          // ✓ Each mode only included its own marker, not the other
+          //
+          // This proves:
+          // 1. Mode-specific sections are extracted from AGENTS.md
+          // 2. The correct mode section is included based on the mode parameter
+          // 3. Mode sections are mutually exclusive
         } finally {
           await cleanup();
         }
