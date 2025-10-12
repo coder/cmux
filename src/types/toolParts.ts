@@ -9,6 +9,7 @@ export interface DynamicToolPartAvailable {
   state: "output-available";
   input: unknown;
   output: unknown;
+  timestamp?: number;
 }
 
 export interface DynamicToolPartPending {
@@ -17,6 +18,7 @@ export interface DynamicToolPartPending {
   toolName: string;
   state: "input-available";
   input: unknown;
+  timestamp?: number;
 }
 
 export type DynamicToolPart = DynamicToolPartAvailable | DynamicToolPartPending;

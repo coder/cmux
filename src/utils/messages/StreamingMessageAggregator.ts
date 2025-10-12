@@ -330,6 +330,7 @@ export class StreamingMessageAggregator {
       toolName: data.toolName,
       state: "input-available",
       input: data.args,
+      timestamp: data.timestamp,
     };
     message.parts.push(toolPart as never);
 
@@ -569,7 +570,7 @@ export class StreamingMessageAggregator {
               historySequence,
               streamSequence: streamSeq++,
               isLastPartOfMessage: isLastPart,
-              timestamp: baseTimestamp,
+              timestamp: part.timestamp ?? baseTimestamp,
             });
           }
         });
