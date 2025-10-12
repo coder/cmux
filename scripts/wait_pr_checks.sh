@@ -10,15 +10,58 @@ if [ $# -eq 0 ]; then
 fi
 
 PR_NUMBER=$1
-echo "⏳ Waiting for PR #$PR_NUMBER checks to complete..."
 
-# Warn if there are unstaged changes
-if ! git diff --quiet 2>/dev/null; then
-  echo "⚠️  Warning: You have unstaged changes that are not pushed!"
-  echo "   Run 'git status' to see what changes are pending."
-  echo ""
+# Check for dirty working tree
+if ! git diff-index --quiet HEAD --; then
+  echo "❌ Error: You have uncommitted changes in your working directory." >&2
+  echo "" >&2
+  git status --short >&2
+  echo "" >&2
+  echo "Please commit or stash your changes before checking PR status." >&2
+  exit 1
 fi
 
+# Get current branch name
+CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+
+# Get remote tracking branch
+REMOTE_BRANCH=$(git rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null || echo "")
+
+if [[ -z "$REMOTE_BRANCH" ]]; then
+  echo "❌ Error: Current branch '$CURRENT_BRANCH' has no upstream branch." >&2
+  echo "Set an upstream with: git push -u origin $CURRENT_BRANCH" >&2
+  exit 1
+fi
+
+# Check if local and remote are in sync
+LOCAL_HASH=$(git rev-parse HEAD)
+REMOTE_HASH=$(git rev-parse "$REMOTE_BRANCH")
+
+if [[ "$LOCAL_HASH" != "$REMOTE_HASH" ]]; then
+  echo "❌ Error: Local branch is not in sync with remote." >&2
+  echo "" >&2
+  echo "Local:  $LOCAL_HASH" >&2
+  echo "Remote: $REMOTE_HASH" >&2
+  echo "" >&2
+  
+  # Check if we're ahead, behind, or diverged
+  if git merge-base --is-ancestor "$REMOTE_HASH" HEAD 2>/dev/null; then
+    AHEAD=$(git rev-list --count "$REMOTE_BRANCH"..HEAD)
+    echo "Your branch is $AHEAD commit(s) ahead of '$REMOTE_BRANCH'." >&2
+    echo "Push your changes with: git push" >&2
+  elif git merge-base --is-ancestor HEAD "$REMOTE_HASH" 2>/dev/null; then
+    BEHIND=$(git rev-list --count HEAD.."$REMOTE_BRANCH")
+    echo "Your branch is $BEHIND commit(s) behind '$REMOTE_BRANCH'." >&2
+    echo "Pull the latest changes with: git pull" >&2
+  else
+    echo "Your branch has diverged from '$REMOTE_BRANCH'." >&2
+    echo "You may need to rebase or merge." >&2
+  fi
+  
+  exit 1
+fi
+
+echo "⏳ Waiting for PR #$PR_NUMBER checks to complete..."
 echo ""
 
 while true; do
