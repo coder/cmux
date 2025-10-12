@@ -41,28 +41,6 @@ When planning:
 - Defer implementation detail unless asked
 ```
 
-## Loading flow
-
-```mermaid
-graph TD
-    A[Start] --> B[Load ~/.cmux/AGENTS.*]
-    B --> C[Load <workspace>/AGENTS.*]
-    C --> D[Combine Instruction Segments]
-    D --> E{Mode provided?}
-    E -->|Yes| F["Extract 'Mode: mode' from workspace AGENTS"]
-    F --> G{Found?}
-    G -->|No| H["Extract from global AGENTS"]
-    G -->|Yes| I[Use workspace section]
-    H --> I[Use global section if found]
-    I --> J[Build System Message]
-    E -->|No| J
-
-    style B fill:#e3f2fd,color:#0d47a1
-    style C fill:#e1bee7,color:#4a148c
-    style F fill:#fff3e0,color:#e65100
-    style H fill:#fff8e1,color:#f57c00
-```
-
 ## Practical layout
 
 ```
