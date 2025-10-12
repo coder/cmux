@@ -664,8 +664,7 @@ These are edit-specific instructions for edit mode.
 
           // Wait for stream to complete
           const collectorWithoutMode = createEventCollector(env.sentEvents, workspaceId);
-          const streamEndWithoutMode =
-            await collectorWithoutMode.waitForEvent("stream-end", 10000);
+          const streamEndWithoutMode = await collectorWithoutMode.waitForEvent("stream-end", 10000);
           expect(streamEndWithoutMode).toBeDefined();
           assertStreamSuccess(collectorWithoutMode);
 
@@ -677,7 +676,6 @@ These are edit-specific instructions for edit mode.
       },
       25000
     );
-
   });
 
   // Provider parity tests - ensure both providers handle the same scenarios
