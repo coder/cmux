@@ -274,6 +274,7 @@ export class StreamManager extends EventEmitter {
   ): void {
     if (part.type === "text") {
       const tokens = this.tokenTracker.countTokens(part.text);
+      log.debug(`[emitPartAsEvent] text part: ${part.text.substring(0, 20)}..., tokens=${tokens}`);
       this.emit("stream-delta", {
         type: "stream-delta",
         workspaceId: workspaceId as string,
@@ -295,6 +296,9 @@ export class StreamManager extends EventEmitter {
     } else if (part.type === "dynamic-tool") {
       const inputText = JSON.stringify(part.input);
       const tokens = this.tokenTracker.countTokens(inputText);
+      log.debug(
+        `[emitPartAsEvent] tool part: name=${part.toolName}, inputText=${inputText.substring(0, 50)}, tokens=${tokens}`
+      );
       this.emit("tool-call-start", {
         type: "tool-call-start",
         workspaceId: workspaceId as string,
@@ -1184,6 +1188,9 @@ export class StreamManager extends EventEmitter {
     ) {
       return;
     }
+
+    // Initialize token tracker for this model (required for tokenization)
+    this.tokenTracker.setModel(streamInfo.model);
 
     // Emit stream-start event
     this.emit("stream-start", {

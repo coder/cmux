@@ -27,7 +27,7 @@ export function calculateTPS(deltas: DeltaRecord[], now: number = Date.now()): n
   if (recentDeltas.length === 0) return 0;
 
   // Calculate total tokens in window
-  const totalTokens = recentDeltas.reduce((sum, d) => sum + d.tokens, 0);
+  const totalTokens = recentDeltas.reduce((sum, d) => sum + (d.tokens || 0), 0);
 
   // Calculate time span from first delta in window to now
   const timeSpanMs = now - recentDeltas[0].timestamp;
@@ -43,5 +43,6 @@ export function calculateTPS(deltas: DeltaRecord[], now: number = Date.now()): n
  * Calculate cumulative token count from delta records
  */
 export function calculateTokenCount(deltas: DeltaRecord[]): number {
-  return deltas.reduce((sum, d) => sum + d.tokens, 0);
+  if (!deltas || deltas.length === 0) return 0;
+  return deltas.reduce((sum, d) => sum + (d.tokens || 0), 0);
 }
