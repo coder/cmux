@@ -1,11 +1,8 @@
 import * as os from "os";
 import * as path from "path";
 import type { WorkspaceMetadata } from "@/types/workspace";
-import {
-  gatherInstructionSets,
-  getDefaultModeSources,
-  readModeFiles,
-} from "@/utils/main/instructionFiles";
+import { gatherInstructionSets, readInstructionSet } from "@/utils/main/instructionFiles";
+import { extractModeSection } from "@/utils/main/markdown";
 
 // The PRELUDE is intentionally minimal to not conflict with the user's instructions.
 // cmux is designed to be model agnostic, and models have shown large inconsistency in how they
@@ -57,9 +54,9 @@ function getSystemDirectory(): string {
  * Instruction sources are layered in this order:
  * 1. Global instructions: ~/.cmux/AGENTS.md (+ AGENTS.local.md)
  * 2. Workspace instructions: <workspace>/AGENTS.md (+ AGENTS.local.md)
- * 3. Mode-specific context (if mode provided): {MODE}.md files:
- *    - ~/.cmux/{MODE}.md
- *    - <workspace>/.cmux/{MODE}.md (+ {MODE}.local.md)
+ * 3. Mode-specific context (if mode provided): Extract a section titled "Mode: <mode>"
+ *    (case-insensitive) from the instruction file. We search at most one section in
+ *    precedence order: workspace instructions first, then global instructions.
  *
  * Each instruction file location is searched for in priority order:
  * - AGENTS.md
@@ -67,7 +64,7 @@ function getSystemDirectory(): string {
  * - CLAUDE.md
  *
  * If a base instruction file is found, its corresponding .local.md variant is also
- * checked and appended (useful for personal preferences not committed to git).
+ * checked and appended when building the instruction set (useful for personal preferences not committed to git).
  *
  * @param metadata - Workspace metadata containing the workspace path
  * @param mode - Optional mode name (e.g., "plan", "exec") - looks for {MODE}.md files if provided
@@ -94,11 +91,19 @@ export async function buildSystemMessage(
   const instructionSegments = await gatherInstructionSets(instructionDirectories);
   const customInstructions = instructionSegments.join("\n\n");
 
-  // Look for mode-specific files if mode is provided
+  // Look for a "Mode: <mode>" section inside instruction sets, preferring workspace over global
   let modeContent: string | null = null;
   if (mode) {
-    const modeSources = getDefaultModeSources(mode, systemDir, workspaceDir);
-    modeContent = await readModeFiles(modeSources);
+    const workspaceInstructions = await readInstructionSet(workspaceDir);
+    if (workspaceInstructions) {
+      modeContent = extractModeSection(workspaceInstructions, mode);
+    }
+    if (!modeContent) {
+      const globalInstructions = await readInstructionSet(systemDir);
+      if (globalInstructions) {
+        modeContent = extractModeSection(globalInstructions, mode);
+      }
+    }
   }
 
   // Build the final system message
