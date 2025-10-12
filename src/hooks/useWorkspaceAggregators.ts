@@ -59,7 +59,7 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
     return aggregatorsRef.current.get(workspaceId)!;
   }, []);
 
-  // Expose aggregators for dev console debugging
+  // Expose aggregators for dev console debugging (once on mount)
   useEffect(() => {
     if (process.env.NODE_ENV === "development") {
       (window as any).__cmux_debug = {
@@ -67,7 +67,8 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
         getAggregator,
       };
     }
-  }, [getAggregator]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Get state for a specific workspace
   const getWorkspaceState = useCallback(

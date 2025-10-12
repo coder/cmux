@@ -21,7 +21,7 @@ import type { StreamingMessageAggregator } from "@/utils/messages/StreamingMessa
 import { StatusIndicator } from "./StatusIndicator";
 import { getModelName } from "@/utils/ai/models";
 import { GitStatusIndicator } from "./GitStatusIndicator";
-import { StreamingTokenCount } from "./StreamingTokenCount";
+
 import { useGitStatus } from "@/contexts/GitStatusContext";
 import { TooltipWrapper, Tooltip } from "./Tooltip";
 import type { DisplayedMessage } from "@/types/message";
@@ -381,13 +381,6 @@ const AIViewInner: React.FC<AIViewProps> = ({
                 tooltipPosition="bottom"
               />
               {projectName} / {branch}
-              {canInterrupt && activeStreamMessageId && (
-                <StreamingTokenCount
-                  messageId={activeStreamMessageId}
-                  aggregator={aggregator}
-                  isStreaming={canInterrupt}
-                />
-              )}
               <WorkspacePath>{workspacePath}</WorkspacePath>
               <TooltipWrapper inline>
                 <TerminalIconButton onClick={handleOpenTerminal}>
@@ -462,6 +455,8 @@ const AIViewInner: React.FC<AIViewProps> = ({
                       ? `compacting... hit ${formatKeybind(KEYBINDS.INTERRUPT_STREAM)} to cancel`
                       : `${getModelName(currentModel)} streaming... hit ${formatKeybind(KEYBINDS.INTERRUPT_STREAM)} to cancel`
                   }
+                  tokenCount={activeStreamMessageId ? aggregator.getStreamingTokenCount(activeStreamMessageId) : undefined}
+                  tps={activeStreamMessageId ? aggregator.getStreamingTPS(activeStreamMessageId) : undefined}
                 />
               )}
             </OutputContent>
