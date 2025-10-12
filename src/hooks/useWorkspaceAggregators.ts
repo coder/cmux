@@ -30,7 +30,7 @@ export interface WorkspaceState {
   loading: boolean;
   cmuxMessages: CmuxMessage[];
   currentModel: string;
-  lastStreamStart: number | null; // Timestamp of most recent stream start (null if never streamed)
+  lastUserMessageAt: number | null; // Timestamp of most recent user message (null if no user messages)
 }
 
 /**
@@ -68,12 +68,14 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
       const isCaughtUp = caughtUpRef.current.get(workspaceId) ?? false;
       const activeStreams = aggregator.getActiveStreams();
 
-      // Get most recent assistant message timestamp (persisted, survives restarts)
+      // Get most recent user message timestamp (persisted, survives restarts)
+      // Using user messages instead of assistant messages avoids constant reordering
+      // when multiple concurrent streams are running
       const messages = aggregator.getAllMessages();
-      const lastAssistantMsg = [...messages]
+      const lastUserMsg = [...messages]
         .reverse()
-        .find((m) => m.role === "assistant" && m.metadata?.timestamp);
-      const lastStreamStart = lastAssistantMsg?.metadata?.timestamp ?? null;
+        .find((m) => m.role === "user" && m.metadata?.timestamp);
+      const lastUserMessageAt = lastUserMsg?.metadata?.timestamp ?? null;
 
       return {
         messages: aggregator.getDisplayedMessages(),
@@ -82,7 +84,7 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
         loading: !hasMessages && !isCaughtUp,
         cmuxMessages: aggregator.getAllMessages(),
         currentModel: aggregator.getCurrentModel() ?? "claude-sonnet-4-5",
-        lastStreamStart,
+        lastUserMessageAt,
       };
     },
     [getAggregator]

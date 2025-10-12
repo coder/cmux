@@ -585,7 +585,7 @@ interface ProjectSidebarProps {
   onToggleCollapsed: () => void;
   onGetSecrets: (projectPath: string) => Promise<Secret[]>;
   onUpdateSecrets: (projectPath: string, secrets: Secret[]) => Promise<void>;
-  workspaceRecency: Record<string, number>;
+  workspaceStates: Map<string, WorkspaceState>;
 }
 
 const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
@@ -605,12 +605,13 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
   onToggleCollapsed,
   onGetSecrets,
   onUpdateSecrets,
-  workspaceRecency,
+  workspaceStates,
 }) => {
   // Subscribe to git status updates (causes this component to re-render every 10s)
   const gitStatus = useGitStatus();
 
-  // Sort workspaces by last stream start (most recent first)
+  // Sort workspaces by last user message (most recent first)
+  // Computed synchronously from workspaceStates to avoid layout shift on first render
   const sortedWorkspacesByProject = useMemo(() => {
     const result = new Map<string, Workspace[]>();
     for (const [projectPath, config] of projects) {
@@ -620,12 +621,16 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
           const aMeta = workspaceMetadata.get(a.path);
           const bMeta = workspaceMetadata.get(b.path);
           if (!aMeta || !bMeta) return 0;
-          return (workspaceRecency[bMeta.id] ?? 0) - (workspaceRecency[aMeta.id] ?? 0);
+
+          // Get timestamp of most recent user message from workspaceStates
+          const aTimestamp = workspaceStates.get(aMeta.id)?.lastUserMessageAt ?? 0;
+          const bTimestamp = workspaceStates.get(bMeta.id)?.lastUserMessageAt ?? 0;
+          return bTimestamp - aTimestamp;
         })
       );
     }
     return result;
-  }, [projects, workspaceMetadata, workspaceRecency]);
+  }, [projects, workspaceMetadata, workspaceStates]);
 
   // Store as array in localStorage, convert to Set for usage
   const [expandedProjectsArray, setExpandedProjectsArray] = usePersistedState<string[]>(
