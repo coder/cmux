@@ -60,8 +60,6 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
     return aggregatorsRef.current.get(workspaceId)!;
   }, []);
 
-
-
   // Get state for a specific workspace
   const getWorkspaceState = useCallback(
     (workspaceId: string): WorkspaceState => {
@@ -269,7 +267,7 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
           forceUpdate();
           return;
         }
-        
+
         // Handle token statistics from main process
         if (isStreamStats(data)) {
           aggregator.setTokenStats(data.messageId, data.tokenCount, data.tps);

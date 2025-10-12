@@ -166,9 +166,7 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
           // Collect all events and count stream-stats
           await collector.waitForEvent("stream-end", 10000);
           const allEvents = collector.getEvents();
-          const statsEvents = allEvents.filter(
-            (e) => "type" in e && e.type === "stream-stats"
-          );
+          const statsEvents = allEvents.filter((e) => "type" in e && e.type === "stream-stats");
 
           // Should have received multiple stats updates (streaming for a few seconds)
           expect(statsEvents.length).toBeGreaterThan(0);

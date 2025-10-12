@@ -545,7 +545,7 @@ export class StreamManager extends EventEmitter {
                 toolName: toolCallDeltaPart.toolName,
                 delta: toolCallDeltaPart.argsTextDelta,
               });
-              
+
               // Track tokens for live statistics
               this.tokenTracker.trackDelta(
                 streamInfo.messageId,
@@ -572,10 +572,10 @@ export class StreamManager extends EventEmitter {
               messageId: streamInfo.messageId,
               delta,
             });
-            
+
             // Track tokens for live statistics
             this.tokenTracker.trackDelta(streamInfo.messageId, delta, "reasoning");
-            
+
             void this.schedulePartialWrite(workspaceId, streamInfo);
             break;
           }
@@ -877,18 +877,18 @@ export class StreamManager extends EventEmitter {
         clearTimeout(streamInfo.partialWriteTimer);
         streamInfo.partialWriteTimer = undefined;
       }
-      
+
       // Stop stats interval
       const statsInterval = this.statsIntervals.get(streamInfo.messageId);
       if (statsInterval) {
         clearInterval(statsInterval);
         this.statsIntervals.delete(streamInfo.messageId);
       }
-      
+
       // Finalize token tracking
       this.tokenTracker.finalize(streamInfo.messageId);
       this.tokenTracker.clear(streamInfo.messageId);
-      
+
       this.workspaceStreams.delete(workspaceId);
     }
   }

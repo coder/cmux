@@ -19,7 +19,6 @@ import type {
 } from "@/types/toolParts";
 import { isDynamicToolPart } from "@/types/toolParts";
 
-
 // Maximum number of messages to display in the DOM for performance
 // Full history is still maintained internally for token counting and stats
 const MAX_DISPLAYED_MESSAGES = 128;

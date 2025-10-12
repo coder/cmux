@@ -134,10 +134,11 @@ export class StreamingTokenTracker {
     const tokensDelta = newTotal - state.lastTokenCount;
     const timeDelta = (now - state.lastTpsUpdate) / 1000; // Convert to seconds
 
-    if (timeDelta > 0 && tokensDelta > 0) {
-      const currentTps = tokensDelta / timeDelta;
+    if (timeDelta > 0) {
+      // Calculate TPS (0 if no new tokens)
+      const currentTps = tokensDelta > 0 ? tokensDelta / timeDelta : 0;
 
-      // Add to circular buffer for smoothing
+      // Add to circular buffer for smoothing (includes zeros)
       state.tpsSamples[state.tpsSampleIndex] = currentTps;
       state.tpsSampleIndex = (state.tpsSampleIndex + 1) % TPS_SAMPLE_COUNT;
 
@@ -172,16 +173,15 @@ export class StreamingTokenTracker {
 
   /**
    * Get smoothed tokens per second rate for a streaming message
+   * Returns 0 when no tokens are being generated (e.g., reasoning, tool execution)
    */
   getTPS(messageId: string): number {
     const state = this.tokenState.get(messageId);
     if (!state) return 0;
 
-    // Calculate average TPS from samples (smoothing)
-    const validSamples = state.tpsSamples.filter((sample) => sample > 0);
-    if (validSamples.length === 0) return 0;
-
-    const avgTps = validSamples.reduce((sum, sample) => sum + sample, 0) / validSamples.length;
+    // Calculate average TPS from all samples (including zeros)
+    // This allows TPS to drop to 0 when streaming pauses
+    const avgTps = state.tpsSamples.reduce((sum, sample) => sum + sample, 0) / TPS_SAMPLE_COUNT;
     return Math.round(avgTps); // Round to whole number
   }
 
