@@ -49,15 +49,11 @@ export type FileReadToolResult =
     };
 
 // File Edit Replace (String) Tool Types
-export interface FileEditReplaceStringEdit {
+export interface FileEditReplaceStringToolArgs {
+  file_path: string;
   old_string: string;
   new_string: string;
   replace_count?: number; // Default: 1, -1 means replace all
-}
-
-export interface FileEditReplaceStringToolArgs {
-  file_path: string;
-  edits: FileEditReplaceStringEdit[];
 }
 
 export interface FileEditDiffSuccessBase {
@@ -77,16 +73,12 @@ export type FileEditReplaceStringToolResult =
   | FileEditErrorResult;
 
 // File Edit Replace (Lines) Tool Types
-export interface FileEditReplaceLinesEdit {
+export interface FileEditReplaceLinesToolArgs {
+  file_path: string;
   start_line: number; // 1-indexed inclusive start line
   end_line: number; // 1-indexed inclusive end line
   new_lines: string[]; // Replacement lines (empty array deletes the range)
   expected_lines?: string[]; // Optional safety check of current lines prior to replacement
-}
-
-export interface FileEditReplaceLinesToolArgs {
-  file_path: string;
-  edits: FileEditReplaceLinesEdit[];
 }
 
 export type FileEditReplaceLinesToolResult =

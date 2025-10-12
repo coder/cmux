@@ -6,7 +6,7 @@ import { executeFileEditOperation } from "./file_edit_operation";
 
 /**
  * File edit replace (lines) tool factory for AI assistant
- * Applies line-range replacements sequentially with optional content validation.
+ * Applies a single line-range replacement with optional content validation.
  */
 export const createFileEditReplaceLinesTool: ToolFactory = (config: ToolConfiguration) => {
   return tool({
@@ -19,59 +19,53 @@ export const createFileEditReplaceLinesTool: ToolFactory = (config: ToolConfigur
         config,
         filePath: args.file_path,
         operation: (originalContent) => {
-          let lines = originalContent.split("\n");
-          let linesReplaced = 0;
-          let totalDelta = 0;
+          const startIndex = args.start_line - 1;
+          const endIndex = args.end_line - 1;
 
-          for (let i = 0; i < args.edits.length; i++) {
-            const edit = args.edits[i];
-            const startIndex = edit.start_line - 1;
-            const endIndex = edit.end_line - 1;
-
-            if (edit.start_line <= 0) {
-              return {
-                success: false,
-                error: `Edit ${i + 1}: start_line must be >= 1 (received ${edit.start_line}).`,
-              };
-            }
-
-            if (edit.end_line < edit.start_line) {
-              return {
-                success: false,
-                error: `Edit ${i + 1}: end_line must be >= start_line (received start ${edit.start_line}, end ${edit.end_line}).`,
-              };
-            }
-
-            if (startIndex >= lines.length) {
-              return {
-                success: false,
-                error: `Edit ${i + 1}: start_line ${edit.start_line} exceeds current file length (${lines.length}).`,
-              };
-            }
-
-            const clampedEndIndex = Math.min(endIndex, lines.length - 1);
-            const currentRange = lines.slice(startIndex, clampedEndIndex + 1);
-
-            if (edit.expected_lines && !arraysEqual(currentRange, edit.expected_lines)) {
-              return {
-                success: false,
-                error: `Edit ${i + 1}: expected_lines validation failed. Current lines [${currentRange.join("\n")}] differ from expected [${edit.expected_lines.join("\n")}].`,
-              };
-            }
-
-            const before = lines.slice(0, startIndex);
-            const after = lines.slice(clampedEndIndex + 1);
-            lines = [...before, ...edit.new_lines, ...after];
-
-            linesReplaced += currentRange.length;
-            totalDelta += edit.new_lines.length - currentRange.length;
+          if (args.start_line <= 0) {
+            return {
+              success: false,
+              error: `start_line must be >= 1 (received ${args.start_line}).`,
+            };
           }
+
+          if (args.end_line < args.start_line) {
+            return {
+              success: false,
+              error: `end_line must be >= start_line (received start ${args.start_line}, end ${args.end_line}).`,
+            };
+          }
+
+          const lines = originalContent.split("\n");
+
+          if (startIndex >= lines.length) {
+            return {
+              success: false,
+              error: `start_line ${args.start_line} exceeds current file length (${lines.length}).`,
+            };
+          }
+
+          const clampedEndIndex = Math.min(endIndex, lines.length - 1);
+          const currentRange = lines.slice(startIndex, clampedEndIndex + 1);
+
+          if (args.expected_lines && !arraysEqual(currentRange, args.expected_lines)) {
+            return {
+              success: false,
+              error: `expected_lines validation failed. Current lines [${currentRange.join("\n")}] differ from expected [${args.expected_lines.join("\n")}].`,
+            };
+          }
+
+          const before = lines.slice(0, startIndex);
+          const after = lines.slice(clampedEndIndex + 1);
+          const updatedLines = [...before, ...args.new_lines, ...after];
+          const linesReplaced = currentRange.length;
+          const totalDelta = args.new_lines.length - currentRange.length;
 
           return {
             success: true,
-            newContent: lines.join("\n"),
+            newContent: updatedLines.join("\n"),
             metadata: {
-              edits_applied: args.edits.length,
+              edits_applied: 1,
               lines_replaced: linesReplaced,
               line_delta: totalDelta,
             },

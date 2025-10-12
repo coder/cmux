@@ -24,9 +24,9 @@ const readFile = async (filePath: string): Promise<string> => {
 const executeReplace = async (
   tool: ReturnType<typeof createFileEditReplaceStringTool>,
   filePath: string,
-  edits: FileEditReplaceStringToolArgs["edits"]
+  edit: Pick<FileEditReplaceStringToolArgs, "old_string" | "new_string" | "replace_count">
 ): Promise<FileEditReplaceStringToolResult> => {
-  const args: FileEditReplaceStringToolArgs = { file_path: filePath, edits };
+  const args: FileEditReplaceStringToolArgs = { file_path: filePath, ...edit };
   return (await tool.execute!(args, mockToolCallOptions)) as FileEditReplaceStringToolResult;
 };
 
@@ -49,9 +49,10 @@ describe("file_edit_replace_string tool", () => {
     await setupFile(testFilePath, "Hello world\nThis is a test\nGoodbye world");
     const tool = createFileEditReplaceStringTool({ cwd: testDir });
 
-    const result = await executeReplace(tool, testFilePath, [
-      { old_string: "Hello world", new_string: "Hello universe" },
-    ]);
+    const result = await executeReplace(tool, testFilePath, {
+      old_string: "Hello world",
+      new_string: "Hello universe",
+    });
 
     expect(result.success).toBe(true);
     if (result.success) {
@@ -65,38 +66,51 @@ describe("file_edit_replace_string tool", () => {
     await setupFile(testFilePath, "foo bar baz");
     const tool = createFileEditReplaceStringTool({ cwd: testDir });
 
-    const result = await executeReplace(tool, testFilePath, [
-      { old_string: "foo", new_string: "FOO" },
-      { old_string: "bar", new_string: "BAR" },
-      { old_string: "baz", new_string: "BAZ" },
-    ]);
+    const firstResult = await executeReplace(tool, testFilePath, {
+      old_string: "foo",
+      new_string: "FOO",
+    });
 
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.edits_applied).toBe(3);
+    expect(firstResult.success).toBe(true);
+    if (firstResult.success) {
+      expect(firstResult.edits_applied).toBe(1);
+    }
+
+    const secondResult = await executeReplace(tool, testFilePath, {
+      old_string: "bar",
+      new_string: "BAR",
+    });
+
+    expect(secondResult.success).toBe(true);
+    if (secondResult.success) {
+      expect(secondResult.edits_applied).toBe(1);
+    }
+
+    const thirdResult = await executeReplace(tool, testFilePath, {
+      old_string: "baz",
+      new_string: "BAZ",
+    });
+
+    expect(thirdResult.success).toBe(true);
+    if (thirdResult.success) {
+      expect(thirdResult.edits_applied).toBe(1);
     }
 
     expect(await readFile(testFilePath)).toBe("FOO BAR BAZ");
   });
 
-  it("should rollback if later edit fails (first edit breaks second edit search)", async () => {
+  it("should fail when old_string is missing", async () => {
     const initialContent = "foo bar baz";
     await fs.writeFile(testFilePath, initialContent);
 
     const tool = createFileEditReplaceStringTool({ cwd: testDir });
-    const args: FileEditReplaceStringToolArgs = {
-      file_path: testFilePath,
-      edits: [
-        { old_string: "foo", new_string: "FOO" },
-        { old_string: "foo", new_string: "qux" },
-      ],
-    };
-
-    const result = await executeReplace(tool, testFilePath, args.edits);
+    const result = await executeReplace(tool, testFilePath, {
+      old_string: "missing",
+      new_string: "qux",
+    });
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error).toContain("Edit 2");
       expect(result.error).toContain("old_string not found");
     }
 
@@ -109,12 +123,11 @@ describe("file_edit_replace_string tool", () => {
     await fs.writeFile(testFilePath, initialContent);
 
     const tool = createFileEditReplaceStringTool({ cwd: testDir });
-    const args: FileEditReplaceStringToolArgs = {
-      file_path: testFilePath,
-      edits: [{ old_string: "cat", new_string: "mouse", replace_count: -1 }],
-    };
-
-    const result = await executeReplace(tool, testFilePath, args.edits);
+    const result = await executeReplace(tool, testFilePath, {
+      old_string: "cat",
+      new_string: "mouse",
+      replace_count: -1,
+    });
 
     expect(result.success).toBe(true);
     if (result.success) {
@@ -130,12 +143,10 @@ describe("file_edit_replace_string tool", () => {
     await fs.writeFile(testFilePath, initialContent);
 
     const tool = createFileEditReplaceStringTool({ cwd: testDir });
-    const args: FileEditReplaceStringToolArgs = {
-      file_path: testFilePath,
-      edits: [{ old_string: "cat", new_string: "mouse" }],
-    };
-
-    const result = await executeReplace(tool, testFilePath, args.edits);
+    const result = await executeReplace(tool, testFilePath, {
+      old_string: "cat",
+      new_string: "mouse",
+    });
 
     expect(result.success).toBe(true);
     if (result.success) {
@@ -151,12 +162,10 @@ describe("file_edit_replace_string tool", () => {
     await fs.writeFile(testFilePath, initialContent);
 
     const tool = createFileEditReplaceStringTool({ cwd: testDir });
-    const args: FileEditReplaceStringToolArgs = {
-      file_path: testFilePath,
-      edits: [{ old_string: "nonexistent", new_string: "replacement" }],
-    };
-
-    const result = await executeReplace(tool, testFilePath, args.edits);
+    const result = await executeReplace(tool, testFilePath, {
+      old_string: "nonexistent",
+      new_string: "replacement",
+    });
 
     expect(result.success).toBe(false);
     if (!result.success) {
@@ -172,12 +181,11 @@ describe("file_edit_replace_string tool", () => {
     await fs.writeFile(testFilePath, initialContent);
 
     const tool = createFileEditReplaceStringTool({ cwd: testDir });
-    const args: FileEditReplaceStringToolArgs = {
-      file_path: testFilePath,
-      edits: [{ old_string: "cat", new_string: "mouse", replace_count: 1 }],
-    };
-
-    const result = await executeReplace(tool, testFilePath, args.edits);
+    const result = await executeReplace(tool, testFilePath, {
+      old_string: "cat",
+      new_string: "mouse",
+      replace_count: 1,
+    });
 
     expect(result.success).toBe(false);
     if (!result.success) {
@@ -194,12 +202,11 @@ describe("file_edit_replace_string tool", () => {
     await fs.writeFile(testFilePath, initialContent);
 
     const tool = createFileEditReplaceStringTool({ cwd: testDir });
-    const args: FileEditReplaceStringToolArgs = {
-      file_path: testFilePath,
-      edits: [{ old_string: "cat", new_string: "mouse", replace_count: 2 }],
-    };
-
-    const result = await executeReplace(tool, testFilePath, args.edits);
+    const result = await executeReplace(tool, testFilePath, {
+      old_string: "cat",
+      new_string: "mouse",
+      replace_count: 2,
+    });
 
     expect(result.success).toBe(true);
     if (result.success) {
@@ -215,12 +222,11 @@ describe("file_edit_replace_string tool", () => {
     await fs.writeFile(testFilePath, initialContent);
 
     const tool = createFileEditReplaceStringTool({ cwd: testDir });
-    const args: FileEditReplaceStringToolArgs = {
-      file_path: testFilePath,
-      edits: [{ old_string: "cat", new_string: "mouse", replace_count: 5 }],
-    };
-
-    const result = await executeReplace(tool, testFilePath, args.edits);
+    const result = await executeReplace(tool, testFilePath, {
+      old_string: "cat",
+      new_string: "mouse",
+      replace_count: 5,
+    });
 
     expect(result.success).toBe(false);
     if (!result.success) {
@@ -236,12 +242,10 @@ describe("file_edit_replace_string tool", () => {
     const nonExistentPath = path.join(testDir, "nonexistent.txt");
 
     const tool = createFileEditReplaceStringTool({ cwd: testDir });
-    const args: FileEditReplaceStringToolArgs = {
-      file_path: nonExistentPath,
-      edits: [{ old_string: "foo", new_string: "bar" }],
-    };
-
-    const result = await executeReplace(tool, nonExistentPath, args.edits);
+    const result = await executeReplace(tool, nonExistentPath, {
+      old_string: "foo",
+      new_string: "bar",
+    });
 
     expect(result.success).toBe(false);
     if (!result.success) {
@@ -254,12 +258,10 @@ describe("file_edit_replace_string tool", () => {
     await fs.writeFile(testFilePath, initialContent);
 
     const tool = createFileEditReplaceStringTool({ cwd: testDir });
-    const args: FileEditReplaceStringToolArgs = {
-      file_path: testFilePath,
-      edits: [{ old_string: "line2\nline3", new_string: "REPLACED" }],
-    };
-
-    const result = await executeReplace(tool, testFilePath, args.edits);
+    const result = await executeReplace(tool, testFilePath, {
+      old_string: "line2\nline3",
+      new_string: "REPLACED",
+    });
 
     expect(result.success).toBe(true);
     if (result.success) {
@@ -275,12 +277,10 @@ describe("file_edit_replace_string tool", () => {
     await fs.writeFile(testFilePath, initialContent);
 
     const tool = createFileEditReplaceStringTool({ cwd: testDir });
-    const args: FileEditReplaceStringToolArgs = {
-      file_path: testFilePath,
-      edits: [{ old_string: "[DELETE_ME] ", new_string: "" }],
-    };
-
-    const result = await executeReplace(tool, testFilePath, args.edits);
+    const result = await executeReplace(tool, testFilePath, {
+      old_string: "[DELETE_ME] ",
+      new_string: "",
+    });
 
     expect(result.success).toBe(true);
     if (result.success) {
@@ -296,19 +296,24 @@ describe("file_edit_replace_string tool", () => {
     await fs.writeFile(testFilePath, initialContent);
 
     const tool = createFileEditReplaceStringTool({ cwd: testDir });
-    const args: FileEditReplaceStringToolArgs = {
-      file_path: testFilePath,
-      edits: [
-        { old_string: "step1", new_string: "step2" },
-        { old_string: "step2", new_string: "step3" },
-      ],
-    };
+    const firstResult = await executeReplace(tool, testFilePath, {
+      old_string: "step1",
+      new_string: "step2",
+    });
 
-    const result = await executeReplace(tool, testFilePath, args.edits);
+    expect(firstResult.success).toBe(true);
+    if (firstResult.success) {
+      expect(firstResult.edits_applied).toBe(1);
+    }
 
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.edits_applied).toBe(2);
+    const secondResult = await executeReplace(tool, testFilePath, {
+      old_string: "step2",
+      new_string: "step3",
+    });
+
+    expect(secondResult.success).toBe(true);
+    if (secondResult.success) {
+      expect(secondResult.edits_applied).toBe(1);
     }
 
     const updatedContent = await fs.readFile(testFilePath, "utf-8");
@@ -320,12 +325,10 @@ describe("file_edit_replace_string tool", () => {
     await fs.writeFile(testFilePath, initialContent);
 
     const tool = createFileEditReplaceStringTool({ cwd: testDir });
-    const args: FileEditReplaceStringToolArgs = {
-      file_path: testFilePath,
-      edits: [{ old_string: "line5", new_string: "LINE5_MODIFIED" }],
-    };
-
-    const result = await executeReplace(tool, testFilePath, args.edits);
+    const result = await executeReplace(tool, testFilePath, {
+      old_string: "line5",
+      new_string: "LINE5_MODIFIED",
+    });
 
     expect(result.success).toBe(true);
     if (result.success) {
