@@ -2,10 +2,12 @@ import React from "react";
 import styled from "@emotion/styled";
 import { parsePatch } from "diff";
 import type {
-  FileEditReplaceToolArgs,
-  FileEditReplaceToolResult,
   FileEditInsertToolArgs,
   FileEditInsertToolResult,
+  FileEditReplaceStringToolArgs,
+  FileEditReplaceStringToolResult,
+  FileEditReplaceLinesToolArgs,
+  FileEditReplaceLinesToolResult,
 } from "@/types/tools";
 import {
   ToolContainer,
@@ -177,12 +179,19 @@ const ButtonGroup = styled.div`
   margin-right: 8px;
 `;
 
-type FileEditToolArgs = FileEditReplaceToolArgs | FileEditInsertToolArgs;
-type FileEditToolResult = FileEditReplaceToolResult | FileEditInsertToolResult;
+type FileEditOperationArgs =
+  | FileEditReplaceStringToolArgs
+  | FileEditReplaceLinesToolArgs
+  | FileEditInsertToolArgs;
+
+type FileEditToolResult =
+  | FileEditReplaceStringToolResult
+  | FileEditReplaceLinesToolResult
+  | FileEditInsertToolResult;
 
 interface FileEditToolCallProps {
-  toolName: "file_edit_replace" | "file_edit_insert";
-  args: FileEditToolArgs;
+  toolName: "file_edit_replace_string" | "file_edit_replace_lines" | "file_edit_insert";
+  args: FileEditOperationArgs;
   result?: FileEditToolResult;
   status?: ToolStatus;
 }
@@ -262,7 +271,7 @@ export const FileEditToolCall: React.FC<FileEditToolCallProps> = ({
   const [showRaw, setShowRaw] = React.useState(false);
   const [copied, setCopied] = React.useState(false);
 
-  const filePath = args.file_path;
+  const filePath = "file_path" in args ? args.file_path : undefined;
 
   const handleCopyPatch = async () => {
     if (result && result.success && result.diff) {

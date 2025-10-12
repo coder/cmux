@@ -10,7 +10,11 @@
  * - Type safety: if a tool's result type changes, these redactors should fail type-checks.
  */
 
-import type { FileEditInsertToolResult, FileEditReplaceToolResult } from "@/types/tools";
+import type {
+  FileEditInsertToolResult,
+  FileEditReplaceStringToolResult,
+  FileEditReplaceLinesToolResult,
+} from "@/types/tools";
 
 // Tool-output from AI SDK is often wrapped like: { type: 'json', value: <payload> }
 // Keep this helper local so all redactors handle both wrapped and plain objects consistently.
@@ -33,7 +37,9 @@ function rewrapJsonContainer(wrapped: boolean, value: unknown): unknown {
 }
 
 // Narrowing helpers for our tool result types
-function isFileEditReplaceResult(v: unknown): v is FileEditReplaceToolResult {
+function isFileEditResult(
+  v: unknown
+): v is FileEditReplaceStringToolResult | FileEditReplaceLinesToolResult {
   return (
     typeof v === "object" &&
     v !== null &&
@@ -51,21 +57,29 @@ function isFileEditInsertResult(v: unknown): v is FileEditInsertToolResult {
   );
 }
 
-// Redactors per tool
+// Redactors per tool - unified for both string and line replace
 function redactFileEditReplace(output: unknown): unknown {
   const unwrapped = unwrapJsonContainer(output);
   const val = unwrapped.value;
 
-  if (!isFileEditReplaceResult(val)) return output; // unknown structure, leave as-is
+  if (!isFileEditResult(val)) return output; // unknown structure, leave as-is
 
-  if (val.success) {
-    // Keep metadata but compact the diff to avoid huge context windows
-    const compact: FileEditReplaceToolResult = {
+  if (val.success && "edits_applied" in val) {
+    // Build base compact result
+    const compact: Record<string, unknown> = {
       success: true,
       edits_applied: val.edits_applied,
-      // Replace the unified diff with a sentinel that tells the model how to fetch details if needed
       diff: "[diff omitted in context - call file_read on the target file if needed]",
     };
+
+    // Preserve line metadata for line-based edits (only if present)
+    if ("lines_replaced" in val) {
+      compact.lines_replaced = val.lines_replaced;
+    }
+    if ("line_delta" in val) {
+      compact.line_delta = val.line_delta;
+    }
+
     return rewrapJsonContainer(unwrapped.wrapped, compact);
   }
 
@@ -93,7 +107,8 @@ function redactFileEditInsert(output: unknown): unknown {
 // Public API - registry entrypoint. Add new tools here as needed.
 export function redactToolOutput(toolName: string, output: unknown): unknown {
   switch (toolName) {
-    case "file_edit_replace":
+    case "file_edit_replace_string":
+    case "file_edit_replace_lines":
       return redactFileEditReplace(output);
     case "file_edit_insert":
       return redactFileEditInsert(output);

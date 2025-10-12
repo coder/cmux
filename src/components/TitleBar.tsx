@@ -30,6 +30,20 @@ const BuildInfo = styled.div`
   cursor: default;
 `;
 
+interface VersionMetadata {
+  buildTime: string;
+  git_describe?: unknown;
+}
+
+function hasBuildInfo(value: unknown): value is VersionMetadata {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+
+  const candidate = value as Record<string, unknown>;
+  return typeof candidate.buildTime === "string";
+}
+
 function formatUSDate(isoDate: string): string {
   const date = new Date(isoDate);
   const month = String(date.getUTCMonth() + 1).padStart(2, "0");
@@ -51,13 +65,31 @@ function formatExtendedTimestamp(isoDate: string): string {
   });
 }
 
+function parseBuildInfo(version: unknown) {
+  if (hasBuildInfo(version)) {
+    const { buildTime, git_describe } = version;
+    const gitDescribe = typeof git_describe === "string" ? git_describe : undefined;
+
+    return {
+      buildDate: formatUSDate(buildTime),
+      extendedTimestamp: formatExtendedTimestamp(buildTime),
+      gitDescribe,
+    };
+  }
+
+  return {
+    buildDate: "unknown",
+    extendedTimestamp: "Unknown build time",
+    gitDescribe: undefined,
+  };
+}
+
 export function TitleBar() {
-  const buildDate = formatUSDate(VERSION.buildTime);
-  const extendedTimestamp = formatExtendedTimestamp(VERSION.buildTime);
+  const { buildDate, extendedTimestamp, gitDescribe } = parseBuildInfo(VERSION satisfies unknown);
 
   return (
     <TitleBarContainer>
-      <TitleText>cmux {VERSION.git_describe}</TitleText>
+      <TitleText>cmux {gitDescribe ?? "(dev)"}</TitleText>
       <TooltipWrapper>
         <BuildInfo>{buildDate}</BuildInfo>
         <Tooltip align="right">Built at {extendedTimestamp}</Tooltip>

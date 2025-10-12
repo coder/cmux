@@ -345,7 +345,7 @@ describe("StreamManager - Unavailable Tool Handling", () => {
           type: "tool-call",
           toolCallId: "test-call-1",
           toolName: "file_edit_replace",
-          input: { file_path: "/test", edits: [] },
+          input: { file_path: "/test", old_string: "foo", new_string: "bar" },
         };
         // SDK emits tool-error when tool execution fails
         yield {

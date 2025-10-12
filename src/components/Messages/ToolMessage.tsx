@@ -11,10 +11,12 @@ import type {
   BashToolResult,
   FileReadToolArgs,
   FileReadToolResult,
-  FileEditReplaceToolArgs,
   FileEditInsertToolArgs,
-  FileEditReplaceToolResult,
   FileEditInsertToolResult,
+  FileEditReplaceStringToolArgs,
+  FileEditReplaceStringToolResult,
+  FileEditReplaceLinesToolArgs,
+  FileEditReplaceLinesToolResult,
   ProposePlanToolArgs,
   ProposePlanToolResult,
 } from "@/types/tools";
@@ -37,9 +39,20 @@ function isFileReadTool(toolName: string, args: unknown): args is FileReadToolAr
   return TOOL_DEFINITIONS.file_read.schema.safeParse(args).success;
 }
 
-function isFileEditReplaceTool(toolName: string, args: unknown): args is FileEditReplaceToolArgs {
-  if (toolName !== "file_edit_replace") return false;
-  return TOOL_DEFINITIONS.file_edit_replace.schema.safeParse(args).success;
+function isFileEditReplaceStringTool(
+  toolName: string,
+  args: unknown
+): args is FileEditReplaceStringToolArgs {
+  if (toolName !== "file_edit_replace_string") return false;
+  return TOOL_DEFINITIONS.file_edit_replace_string.schema.safeParse(args).success;
+}
+
+function isFileEditReplaceLinesTool(
+  toolName: string,
+  args: unknown
+): args is FileEditReplaceLinesToolArgs {
+  if (toolName !== "file_edit_replace_lines") return false;
+  return TOOL_DEFINITIONS.file_edit_replace_lines.schema.safeParse(args).success;
 }
 
 function isFileEditInsertTool(toolName: string, args: unknown): args is FileEditInsertToolArgs {
@@ -79,13 +92,26 @@ export const ToolMessage: React.FC<ToolMessageProps> = ({ message, className, wo
     );
   }
 
-  if (isFileEditReplaceTool(message.toolName, message.args)) {
+  if (isFileEditReplaceStringTool(message.toolName, message.args)) {
     return (
       <div className={className}>
         <FileEditToolCall
-          toolName="file_edit_replace"
+          toolName="file_edit_replace_string"
           args={message.args}
-          result={message.result as FileEditReplaceToolResult | undefined}
+          result={message.result as FileEditReplaceStringToolResult | undefined}
+          status={message.status}
+        />
+      </div>
+    );
+  }
+
+  if (isFileEditReplaceLinesTool(message.toolName, message.args)) {
+    return (
+      <div className={className}>
+        <FileEditToolCall
+          toolName="file_edit_replace_lines"
+          args={message.args}
+          result={message.result as FileEditReplaceLinesToolResult | undefined}
           status={message.status}
         />
       </div>
