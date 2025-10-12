@@ -469,7 +469,9 @@ export class AIService extends EventEmitter {
       if (providerName === "anthropic") {
         const validation = validateAnthropicCompliance(finalMessages);
         if (!validation.valid) {
-          log.error(`Anthropic compliance validation failed: ${validation.error ?? "unknown error"}`);
+          log.error(
+            `Anthropic compliance validation failed: ${validation.error ?? "unknown error"}`
+          );
           // Continue anyway, as the API might be more lenient
         }
       }
