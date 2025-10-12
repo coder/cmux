@@ -136,6 +136,7 @@ export class IpcMain {
       additionalSystemInstructions,
       maxOutputTokens,
       providerOptions,
+      mode,
     } = options ?? {};
 
     // Commit any existing partial to history BEFORE loading
@@ -172,7 +173,8 @@ export class IpcMain {
       undefined,
       additionalSystemInstructions,
       maxOutputTokens,
-      providerOptions
+      providerOptions,
+      mode
     );
     log.debug("Stream completed", { workspaceId });
     return streamResult;
@@ -428,6 +430,7 @@ export class IpcMain {
           maxOutputTokens,
           providerOptions,
           imageParts,
+          mode, // Passed to streamWithHistory for plan file loading
         } = options ?? {};
         log.debug("sendMessage handler: Received", {
           workspaceId,
@@ -436,6 +439,7 @@ export class IpcMain {
           thinkingLevel,
           model,
           toolPolicy,
+          mode,
           additionalSystemInstructions,
           maxOutputTokens,
           providerOptions,

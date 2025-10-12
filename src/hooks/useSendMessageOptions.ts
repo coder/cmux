@@ -29,6 +29,7 @@ function constructSendMessageOptions(
   return {
     thinkingLevel,
     model,
+    mode: mode === "exec" || mode === "plan" ? mode : "exec", // Only pass exec/plan to backend
     toolPolicy: modeToToolPolicy(mode),
     additionalSystemInstructions,
     providerOptions: {

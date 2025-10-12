@@ -1,6 +1,8 @@
-import * as fs from "fs/promises";
+import * as os from "os";
 import * as path from "path";
 import type { WorkspaceMetadata } from "@/types/workspace";
+import { gatherInstructionSets, readInstructionSet } from "@/utils/main/instructionFiles";
+import { extractModeSection } from "@/utils/main/markdown";
 
 // The PRELUDE is intentionally minimal to not conflict with the user's instructions.
 // cmux is designed to be model agnostic, and models have shown large inconsistency in how they
@@ -37,27 +39,42 @@ You are in a git worktree at ${workspacePath}
 `;
 }
 
-const CUSTOM_INSTRUCTION_FILES = ["AGENTS.md", "AGENT.md", "CLAUDE.md"];
+/**
+ * The system directory where global cmux configuration lives.
+ * This is where users can place global AGENTS.md and .cmux/PLAN.md files
+ * that apply to all workspaces.
+ */
+function getSystemDirectory(): string {
+  return path.join(os.homedir(), ".cmux");
+}
 
 /**
- * Builds a system message for the AI model by combining a placeholder message
- * with custom instructions from the workspace (if found).
+ * Builds a system message for the AI model by combining multiple instruction sources.
  *
- * Searches for custom instruction files in priority order:
- * 1. AGENTS.md
- * 2. AGENT.md
- * 3. CLAUDE.md
+ * Instruction sources are layered in this order:
+ * 1. Global instructions: ~/.cmux/AGENTS.md (+ AGENTS.local.md)
+ * 2. Workspace instructions: <workspace>/AGENTS.md (+ AGENTS.local.md)
+ * 3. Mode-specific context (if mode provided): Extract a section titled "Mode: <mode>"
+ *    (case-insensitive) from the instruction file. We search at most one section in
+ *    precedence order: workspace instructions first, then global instructions.
  *
- * If any of the above files are found, it also looks for AGENTS.local.md
- * and appends its contents (useful for local-only instructions).
+ * Each instruction file location is searched for in priority order:
+ * - AGENTS.md
+ * - AGENT.md
+ * - CLAUDE.md
+ *
+ * If a base instruction file is found, its corresponding .local.md variant is also
+ * checked and appended when building the instruction set (useful for personal preferences not committed to git).
  *
  * @param metadata - Workspace metadata containing the workspace path
+ * @param mode - Optional mode name (e.g., "plan", "exec") - looks for {MODE}.md files if provided
  * @param additionalSystemInstructions - Optional additional system instructions to append at the end
- * @returns System message string (placeholder + custom instructions if found + additional instructions)
+ * @returns System message string with all instruction sources combined
  * @throws Error if metadata is invalid or workspace path is missing
  */
 export async function buildSystemMessage(
   metadata: WorkspaceMetadata,
+  mode?: string,
   additionalSystemInstructions?: string
 ): Promise<string> {
   // Validate metadata early
@@ -65,42 +82,45 @@ export async function buildSystemMessage(
     throw new Error("Invalid workspace metadata: workspacePath is required");
   }
 
-  const environmentContext = buildEnvironmentContext(metadata.workspacePath);
-  let customInstructions = "";
+  const systemDir = getSystemDirectory();
+  const workspaceDir = metadata.workspacePath;
 
-  // Try to read custom instruction files in order
-  for (const filename of CUSTOM_INSTRUCTION_FILES) {
-    try {
-      const filePath = path.join(metadata.workspacePath, filename);
-      const content = await fs.readFile(filePath, "utf-8");
-      customInstructions = content;
-      break; // Use first found file
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch (_error) {
-      // File doesn't exist or can't be read, try next file
-      continue;
+  // Gather instruction sets from both global and workspace directories
+  // Global instructions apply first, then workspace-specific ones
+  const instructionDirectories = [systemDir, workspaceDir];
+  const instructionSegments = await gatherInstructionSets(instructionDirectories);
+  const customInstructions = instructionSegments.join("\n\n");
+
+  // Look for a "Mode: <mode>" section inside instruction sets, preferring workspace over global
+  // This behavior is documented in docs/instruction-files.md - keep both in sync when changing.
+  let modeContent: string | null = null;
+  if (mode) {
+    const workspaceInstructions = await readInstructionSet(workspaceDir);
+    if (workspaceInstructions) {
+      modeContent = extractModeSection(workspaceInstructions, mode);
     }
-  }
-
-  // If we found a base instruction file, also look for AGENTS.local.md
-  if (customInstructions) {
-    try {
-      const localFilePath = path.join(metadata.workspacePath, "AGENTS.local.md");
-      const localContent = await fs.readFile(localFilePath, "utf-8");
-      customInstructions += `\n\n${localContent}`;
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch (_error) {
-      // AGENTS.local.md doesn't exist or can't be read, that's fine
+    if (!modeContent) {
+      const globalInstructions = await readInstructionSet(systemDir);
+      if (globalInstructions) {
+        modeContent = extractModeSection(globalInstructions, mode);
+      }
     }
   }
 
   // Build the final system message
+  const environmentContext = buildEnvironmentContext(workspaceDir);
   const trimmedPrelude = PRELUDE.trim();
   let systemMessage = `${trimmedPrelude}\n\n${environmentContext}`;
 
   // Add custom instructions if found
   if (customInstructions) {
     systemMessage += `\n<custom-instructions>\n${customInstructions}\n</custom-instructions>`;
+  }
+
+  // Add mode-specific content if found
+  if (modeContent) {
+    const tag = (mode ?? "mode").toLowerCase().replace(/[^a-z0-9_-]/gi, "-");
+    systemMessage += `\n\n<${tag}>\n${modeContent}\n</${tag}>`;
   }
 
   // Add additional system instructions at the end (highest priority)

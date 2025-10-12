@@ -388,6 +388,8 @@ export class AIService extends EventEmitter {
    * @param abortSignal Optional signal to abort the stream
    * @param additionalSystemInstructions Optional additional system instructions to append
    * @param maxOutputTokens Optional maximum tokens for model output
+   * @param cmuxProviderOptions Optional provider-specific options
+   * @param mode Optional UI permission mode ("exec" | "plan") - affects system message
    * @returns Promise that resolves when streaming completes or fails
    */
   async streamMessage(
@@ -399,7 +401,8 @@ export class AIService extends EventEmitter {
     abortSignal?: AbortSignal,
     additionalSystemInstructions?: string,
     maxOutputTokens?: number,
-    cmuxProviderOptions?: CmuxProviderOptions
+    cmuxProviderOptions?: CmuxProviderOptions,
+    mode?: "exec" | "plan"
   ): Promise<Result<void, SendMessageError>> {
     try {
       if (this.mockModeEnabled && this.mockScenarioPlayer) {
@@ -474,6 +477,7 @@ export class AIService extends EventEmitter {
       // Build system message from workspace metadata
       const systemMessage = await buildSystemMessage(
         metadataResult.data,
+        mode,
         additionalSystemInstructions
       );
 
