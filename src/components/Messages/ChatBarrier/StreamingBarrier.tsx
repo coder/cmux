@@ -5,6 +5,7 @@ import { BaseBarrier } from "./BaseBarrier";
 const BarrierWithTokens = styled.div`
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 16px;
 `;
 
@@ -15,6 +16,7 @@ const TokenInfo = styled.div`
   display: flex;
   gap: 12px;
   user-select: none;
+  margin-left: auto;
 `;
 
 const TokenCount = styled.span`
@@ -41,7 +43,7 @@ export const StreamingBarrier: React.FC<StreamingBarrierProps> = ({
   return (
     <BarrierWithTokens className={className}>
       <BaseBarrier text={text} color="var(--color-assistant-border)" animate />
-      {tokenCount !== undefined && tokenCount > 0 && (
+      {tokenCount !== undefined && (
         <TokenInfo>
           <TokenCount>~{tokenCount.toLocaleString()} tokens</TokenCount>
           {tps !== undefined && tps > 0 && <TPS>@ {tps} t/s</TPS>}
