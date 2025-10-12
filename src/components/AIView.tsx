@@ -238,6 +238,11 @@ const AIViewInner: React.FC<AIViewProps> = ({
   // Get active stream message ID for token counting
   // Use getActiveStreamMessageId() which returns the messageId directly
   const activeStreamMessageId = aggregator.getActiveStreamMessageId();
+  if (activeStreamMessageId && canInterrupt) {
+    const tokenCount = aggregator.getStreamingTokenCount(activeStreamMessageId);
+    const tps = aggregator.getStreamingTPS(activeStreamMessageId);
+    console.log(`[AIView] Active stream ${activeStreamMessageId}: ${tokenCount} tokens, ${tps} t/s`);
+  }
 
   // Track if last message was interrupted or errored (for RetryBarrier)
   // Uses same logic as useResumeManager for DRY

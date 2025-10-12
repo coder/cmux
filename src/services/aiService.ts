@@ -27,7 +27,7 @@ import { applyCacheControl } from "@/utils/ai/cacheStrategy";
 import type { HistoryService } from "./historyService";
 import type { PartialService } from "./partialService";
 import { buildSystemMessage } from "./systemMessage";
-import { getTokenizerForModel } from "@/utils/tokens/tokenizer";
+import { getTokenizerForModel } from "@/utils/main/tokenizer";
 import { buildProviderOptions } from "@/utils/ai/providerOptions";
 import type { ThinkingLevel } from "@/types/thinking";
 import { createOpenAI } from "@ai-sdk/openai";

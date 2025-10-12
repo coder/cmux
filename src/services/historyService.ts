@@ -6,7 +6,7 @@ import type { CmuxMessage } from "@/types/message";
 import type { Config } from "@/config";
 import { workspaceFileLocks } from "@/utils/concurrency/workspaceFileLocks";
 import { log } from "./log";
-import { getTokenizerForModel } from "@/utils/tokens/tokenizer";
+import { getTokenizerForModel } from "@/utils/main/tokenizer";
 
 /**
  * HistoryService - Manages chat history persistence and sequence numbering

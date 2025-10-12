@@ -272,6 +272,7 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
         
         // Handle token statistics from main process
         if (isStreamStats(data)) {
+          console.log(`[useWorkspaceAggregators] Received stream-stats: ${data.tokenCount} tokens, ${data.tps} t/s for message ${data.messageId}`);
           aggregator.setTokenStats(data.messageId, data.tokenCount, data.tps);
           forceUpdate();
           return;

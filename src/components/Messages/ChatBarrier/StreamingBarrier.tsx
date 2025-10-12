@@ -40,6 +40,7 @@ export const StreamingBarrier: React.FC<StreamingBarrierProps> = ({
   tokenCount,
   tps,
 }) => {
+  console.log(`[StreamingBarrier] Rendering with tokenCount=${tokenCount}, tps=${tps}`);
   return (
     <BarrierWithTokens className={className}>
       <BaseBarrier text={text} color="var(--color-assistant-border)" animate />

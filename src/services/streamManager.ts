@@ -29,7 +29,7 @@ import type { PartialService } from "./partialService";
 import type { HistoryService } from "./historyService";
 import { AsyncMutex } from "@/utils/concurrency/asyncMutex";
 import type { ToolPolicy } from "@/utils/tools/toolPolicy";
-import { StreamingTokenTracker } from "@/utils/tokens/StreamingTokenTracker";
+import { StreamingTokenTracker } from "@/utils/main/StreamingTokenTracker";
 
 // Type definitions for stream parts with extended properties
 interface ReasoningDeltaPart {
@@ -472,6 +472,7 @@ export class StreamManager extends EventEmitter {
       const statsInterval = setInterval(() => {
         const tokenCount = this.tokenTracker.getTokenCount(streamInfo.messageId);
         const tps = this.tokenTracker.getTPS(streamInfo.messageId);
+        log.debug(`[streamManager] Emitting stream-stats: ${tokenCount} tokens, ${tps} t/s`);
         this.emit("stream-stats", {
           type: "stream-stats",
           workspaceId: workspaceId as string,

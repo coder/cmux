@@ -10,7 +10,7 @@
 import type { CmuxMessage } from "@/types/message";
 import type { ChatStats, TokenConsumer } from "@/types/chatStats";
 import type { LanguageModelV2Usage } from "@ai-sdk/provider";
-import { getTokenizerForModel, countTokensForData, getToolDefinitionTokens } from "./tokenizer";
+import { getTokenizerForModel, countTokensForData, getToolDefinitionTokens } from "@/utils/main/tokenizer";
 import { getModelStats } from "./modelStats";
 import type { ChatUsageDisplay } from "./usageAggregator";
 
