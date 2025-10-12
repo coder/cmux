@@ -1,13 +1,9 @@
-import { tool } from "ai";
-import type {
-  FileEditReplaceToolArgs,
-  FileEditReplaceToolResult,
-  FileEditReplaceLinesPayload,
-  FileEditReplaceStringPayload,
-} from "@/types/tools";
-import type { ToolConfiguration, ToolFactory } from "@/utils/tools/tools";
-import { TOOL_DEFINITIONS } from "@/utils/tools/toolDefinitions";
-import { executeFileEditOperation } from "./file_edit_operation";
+/**
+ * Shared implementation for file edit replace tools
+ *
+ * These helpers are used by both string-based and line-based replace tools,
+ * providing the core logic while keeping the tool definitions simple for AI providers.
+ */
 
 interface OperationMetadata {
   edits_applied: number;
@@ -15,47 +11,41 @@ interface OperationMetadata {
   line_delta?: number;
 }
 
-interface OperationResult {
+export interface OperationResult {
   success: true;
   newContent: string;
   metadata: OperationMetadata;
 }
 
+export interface OperationError {
+  success: false;
+  error: string;
+}
+
+export type OperationOutcome = OperationResult | OperationError;
+
+export interface StringReplaceArgs {
+  file_path: string;
+  old_string: string;
+  new_string: string;
+  replace_count?: number;
+}
+
+export interface LineReplaceArgs {
+  file_path: string;
+  start_line: number;
+  end_line: number;
+  new_lines: string[];
+  expected_lines?: string[];
+}
+
 /**
- * File edit replace tool factory for AI assistant.
- * Supports string replacements and line range replacements using a discriminated union payload.
+ * Handle string-based replacement
  */
-export const createFileEditReplaceTool: ToolFactory = (config: ToolConfiguration) => {
-  return tool({
-    description: TOOL_DEFINITIONS.file_edit_replace.description,
-    inputSchema: TOOL_DEFINITIONS.file_edit_replace.schema,
-    execute: async (args: FileEditReplaceToolArgs): Promise<FileEditReplaceToolResult> => {
-      return executeFileEditOperation<OperationMetadata>({
-        config,
-        filePath: args.file_path,
-        operation: (originalContent) => {
-          if (args.mode === "string") {
-            return handleStringReplace(args, originalContent);
-          }
-
-          if (args.mode === "lines") {
-            return handleLineReplace(args, originalContent);
-          }
-
-          return {
-            success: false,
-            error: `Unsupported mode: ${(args as { mode?: string }).mode ?? "<missing>"}`,
-          };
-        },
-      });
-    },
-  });
-};
-
-function handleStringReplace(
-  args: FileEditReplaceStringPayload,
+export function handleStringReplace(
+  args: StringReplaceArgs,
   originalContent: string
-): OperationResult | { success: false; error: string } {
+): OperationOutcome {
   const replaceCount = args.replace_count ?? 1;
 
   if (!originalContent.includes(args.old_string)) {
@@ -119,10 +109,13 @@ function handleStringReplace(
   };
 }
 
-function handleLineReplace(
-  args: FileEditReplaceLinesPayload,
+/**
+ * Handle line-range replacement
+ */
+export function handleLineReplace(
+  args: LineReplaceArgs,
   originalContent: string
-): OperationResult | { success: false; error: string } {
+): OperationOutcome {
   const startIndex = args.start_line - 1;
   const endIndex = args.end_line - 1;
 

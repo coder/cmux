@@ -58,16 +58,20 @@ export interface FileEditErrorResult {
   error: string;
 }
 
-export interface FileEditReplaceStringPayload {
-  mode: "string";
+export interface FileEditReplaceStringToolArgs {
   file_path: string;
   old_string: string;
   new_string: string;
   replace_count?: number;
 }
 
-export interface FileEditReplaceLinesPayload {
-  mode: "lines";
+export type FileEditReplaceStringToolResult =
+  | (FileEditDiffSuccessBase & {
+      edits_applied: number;
+    })
+  | FileEditErrorResult;
+
+export interface FileEditReplaceLinesToolArgs {
   file_path: string;
   start_line: number;
   end_line: number;
@@ -75,19 +79,24 @@ export interface FileEditReplaceLinesPayload {
   expected_lines?: string[];
 }
 
-export type FileEditReplaceToolArgs = FileEditReplaceStringPayload | FileEditReplaceLinesPayload;
-
-export type FileEditReplaceToolResult =
+export type FileEditReplaceLinesToolResult =
   | (FileEditDiffSuccessBase & {
       edits_applied: number;
-      lines_replaced?: number;
-      line_delta?: number;
+      lines_replaced: number;
+      line_delta: number;
     })
   | FileEditErrorResult;
 
-export type FileEditSharedToolResult = FileEditReplaceToolResult | FileEditInsertToolResult;
+export type FileEditSharedToolResult =
+  | FileEditReplaceStringToolResult
+  | FileEditReplaceLinesToolResult
+  | FileEditInsertToolResult;
 
-export const FILE_EDIT_TOOL_NAMES = ["file_edit_replace", "file_edit_insert"] as const;
+export const FILE_EDIT_TOOL_NAMES = [
+  "file_edit_replace_string",
+  "file_edit_replace_lines",
+  "file_edit_insert",
+] as const;
 
 export type FileEditToolName = (typeof FILE_EDIT_TOOL_NAMES)[number];
 
@@ -100,7 +109,10 @@ export interface FileEditInsertToolArgs {
 
 export type FileEditInsertToolResult = FileEditDiffSuccessBase | FileEditErrorResult;
 
-export type FileEditToolArgs = FileEditReplaceToolArgs | FileEditInsertToolArgs;
+export type FileEditToolArgs =
+  | FileEditReplaceStringToolArgs
+  | FileEditReplaceLinesToolArgs
+  | FileEditInsertToolArgs;
 
 export interface FileEditToolMessage {
   toolName: FileEditToolName;

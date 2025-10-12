@@ -4,8 +4,10 @@ import { parsePatch } from "diff";
 import type {
   FileEditInsertToolArgs,
   FileEditInsertToolResult,
-  FileEditReplaceToolArgs,
-  FileEditReplaceToolResult,
+  FileEditReplaceStringToolArgs,
+  FileEditReplaceStringToolResult,
+  FileEditReplaceLinesToolArgs,
+  FileEditReplaceLinesToolResult,
 } from "@/types/tools";
 import {
   ToolContainer,
@@ -177,12 +179,18 @@ const ButtonGroup = styled.div`
   margin-right: 8px;
 `;
 
-type FileEditOperationArgs = FileEditReplaceToolArgs | FileEditInsertToolArgs;
+type FileEditOperationArgs =
+  | FileEditReplaceStringToolArgs
+  | FileEditReplaceLinesToolArgs
+  | FileEditInsertToolArgs;
 
-type FileEditToolResult = FileEditReplaceToolResult | FileEditInsertToolResult;
+type FileEditToolResult =
+  | FileEditReplaceStringToolResult
+  | FileEditReplaceLinesToolResult
+  | FileEditInsertToolResult;
 
 interface FileEditToolCallProps {
-  toolName: "file_edit_replace" | "file_edit_insert";
+  toolName: "file_edit_replace_string" | "file_edit_replace_lines" | "file_edit_insert";
   args: FileEditOperationArgs;
   result?: FileEditToolResult;
   status?: ToolStatus;

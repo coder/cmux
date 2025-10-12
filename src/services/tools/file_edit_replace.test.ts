@@ -2,12 +2,13 @@ import { describe, it, expect, beforeEach, afterEach } from "bun:test";
 import * as fs from "fs/promises";
 import * as path from "path";
 import * as os from "os";
-import { createFileEditReplaceTool } from "./file_edit_replace";
+import { createFileEditReplaceStringTool } from "./file_edit_replace_string";
+import { createFileEditReplaceLinesTool } from "./file_edit_replace_lines";
 import type {
-  FileEditReplaceLinesPayload,
-  FileEditReplaceStringPayload,
-  FileEditReplaceToolArgs,
-  FileEditReplaceToolResult,
+  FileEditReplaceStringToolArgs,
+  FileEditReplaceStringToolResult,
+  FileEditReplaceLinesToolArgs,
+  FileEditReplaceLinesToolResult,
 } from "@/types/tools";
 import type { ToolCallOptions } from "ai";
 
@@ -26,14 +27,21 @@ const readFile = async (filePath: string): Promise<string> => {
   return await fs.readFile(filePath, "utf-8");
 };
 
-const executeReplace = async (
-  tool: ReturnType<typeof createFileEditReplaceTool>,
-  args: FileEditReplaceToolArgs
-): Promise<FileEditReplaceToolResult> => {
-  return (await tool.execute!(args, mockToolCallOptions)) as FileEditReplaceToolResult;
+const executeStringReplace = async (
+  tool: ReturnType<typeof createFileEditReplaceStringTool>,
+  args: FileEditReplaceStringToolArgs
+): Promise<FileEditReplaceStringToolResult> => {
+  return (await tool.execute!(args, mockToolCallOptions)) as FileEditReplaceStringToolResult;
 };
 
-describe("file_edit_replace tool (string mode)", () => {
+const executeLinesReplace = async (
+  tool: ReturnType<typeof createFileEditReplaceLinesTool>,
+  args: FileEditReplaceLinesToolArgs
+): Promise<FileEditReplaceLinesToolResult> => {
+  return (await tool.execute!(args, mockToolCallOptions)) as FileEditReplaceLinesToolResult;
+};
+
+describe("file_edit_replace_string tool", () => {
   let testDir: string;
   let testFilePath: string;
 
@@ -48,16 +56,15 @@ describe("file_edit_replace tool (string mode)", () => {
 
   it("should apply a single edit successfully", async () => {
     await setupFile(testFilePath, "Hello world\nThis is a test\nGoodbye world");
-    const tool = createFileEditReplaceTool({ cwd: testDir });
+    const tool = createFileEditReplaceStringTool({ cwd: testDir });
 
-    const payload: FileEditReplaceStringPayload = {
-      mode: "string",
+    const payload: FileEditReplaceStringToolArgs = {
       file_path: testFilePath,
       old_string: "Hello world",
       new_string: "Hello universe",
     };
 
-    const result = await executeReplace(tool, payload);
+    const result = await executeStringReplace(tool, payload);
 
     expect(result.success).toBe(true);
     if (result.success) {
@@ -68,7 +75,7 @@ describe("file_edit_replace tool (string mode)", () => {
   });
 });
 
-describe("file_edit_replace tool (lines mode)", () => {
+describe("file_edit_replace_lines tool", () => {
   let testDir: string;
   let testFilePath: string;
 
@@ -83,17 +90,16 @@ describe("file_edit_replace tool (lines mode)", () => {
 
   it("should replace a line range successfully", async () => {
     await setupFile(testFilePath, "line1\nline2\nline3\nline4");
-    const tool = createFileEditReplaceTool({ cwd: testDir });
+    const tool = createFileEditReplaceLinesTool({ cwd: testDir });
 
-    const payload: FileEditReplaceLinesPayload = {
-      mode: "lines",
+    const payload: FileEditReplaceLinesToolArgs = {
       file_path: testFilePath,
       start_line: 2,
       end_line: 3,
       new_lines: ["LINE2", "LINE3"],
     };
 
-    const result = await executeReplace(tool, payload);
+    const result = await executeLinesReplace(tool, payload);
 
     expect(result.success).toBe(true);
     if (result.success) {
