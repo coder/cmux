@@ -11,11 +11,11 @@ export interface DeltaRecord {
   type: "text" | "reasoning" | "tool-args";
 }
 
-const TPS_WINDOW_MS = 10000; // 10 second trailing window
+const TPS_WINDOW_MS = 60000; // 60 second trailing window
 
 /**
  * Calculate tokens-per-second from a history of delta records
- * Uses a 10-second trailing window
+ * Uses a 60-second trailing window
  */
 export function calculateTPS(deltas: DeltaRecord[], now: number = Date.now()): number {
   if (deltas.length === 0) return 0;
