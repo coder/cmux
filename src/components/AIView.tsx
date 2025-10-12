@@ -445,11 +445,10 @@ const AIViewInner: React.FC<AIViewProps> = ({
               )}
               {canInterrupt && (
                 <StreamingBarrier
-                  text={
-                    isCompacting
-                      ? `compacting... hit ${formatKeybind(KEYBINDS.INTERRUPT_STREAM)} to cancel`
-                      : `${getModelName(currentModel)} streaming... hit ${formatKeybind(KEYBINDS.INTERRUPT_STREAM)} to cancel`
+                  statusText={
+                    isCompacting ? "compacting..." : `${getModelName(currentModel)} streaming...`
                   }
+                  cancelText={`hit ${formatKeybind(KEYBINDS.INTERRUPT_STREAM)} to cancel`}
                   tokenCount={
                     activeStreamMessageId
                       ? aggregator.getStreamingTokenCount(activeStreamMessageId)
