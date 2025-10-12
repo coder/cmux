@@ -22,8 +22,9 @@ Rules:
 - The section's content is everything until the next heading of the same or higher level
 - Missing sections are ignored (no error)
 
-> **Note to developers:** This behavior is implemented in `src/services/systemMessage.ts` (search for `extractModeSection`). Keep this documentation in sync with code changes.
-> Example (in either `~/.cmux/AGENTS.md` or `my-project/AGENTS.md`):
+<!-- Note to developers: This behavior is implemented in src/services/systemMessage.ts (search for extractModeSection). Keep this documentation in sync with code changes. -->
+
+Example (in either `~/.cmux/AGENTS.md` or `my-project/AGENTS.md`):
 
 ```markdown
 # General Instructions
@@ -48,9 +49,9 @@ graph TD
     B --> C[Load <workspace>/AGENTS.*]
     C --> D[Combine Instruction Segments]
     D --> E{Mode provided?}
-    E -->|Yes| F[Extract "Mode: <mode>" from <workspace>/AGENTS.*]
+    E -->|Yes| F["Extract 'Mode: mode' from workspace AGENTS"]
     F --> G{Found?}
-    G -->|No| H[Extract from ~/.cmux/AGENTS.*]
+    G -->|No| H["Extract from global AGENTS"]
     G -->|Yes| I[Use workspace section]
     H --> I[Use global section if found]
     I --> J[Build System Message]
