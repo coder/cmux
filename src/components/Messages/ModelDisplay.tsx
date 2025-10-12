@@ -1,6 +1,7 @@
 import React from "react";
 import styled from "@emotion/styled";
 import AnthropicIcon from "@/assets/icons/anthropic.svg?react";
+import OpenAIIcon from "@/assets/icons/openai.svg?react";
 
 const ModelContainer = styled.span`
   display: inline-flex;
@@ -22,7 +23,13 @@ const IconWrapper = styled.span`
     width: 100%;
     height: 100%;
     
+    /* Anthropic icon uses .st0 class */
     .st0 {
+      fill: currentColor;
+    }
+    
+    /* Generic SVGs with fill attribute */
+    path[fill], circle[fill], rect[fill] {
       fill: currentColor;
     }
   }
@@ -41,7 +48,19 @@ export const ModelDisplay: React.FC<ModelDisplayProps> = ({ modelString }) => {
     ? modelString.split(":", 2)
     : ["", modelString];
 
-  const providerIcon = provider === "anthropic" ? <AnthropicIcon /> : null;
+  // Map provider names to their icons
+  const getProviderIcon = () => {
+    switch (provider) {
+      case "anthropic":
+        return <AnthropicIcon />;
+      case "openai":
+        return <OpenAIIcon />;
+      default:
+        return null;
+    }
+  };
+
+  const providerIcon = getProviderIcon();
 
   return (
     <ModelContainer>
