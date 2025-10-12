@@ -3,23 +3,14 @@ import * as os from "os";
 import * as path from "path";
 import { buildSystemMessage } from "./systemMessage";
 import type { WorkspaceMetadata } from "@/types/workspace";
-
-// Mock os.homedir before imports
-jest.mock("os", () => {
-  // eslint-disable-next-line @typescript-eslint/consistent-type-imports
-  const actual = jest.requireActual<typeof import("os")>("os");
-  return {
-    ...actual,
-    homedir: jest.fn(),
-  };
-});
-
-const mockHomedir = os.homedir as jest.MockedFunction<typeof os.homedir>;
+import { spyOn, describe, test, expect, beforeEach, afterEach } from "bun:test";
+import type { Mock } from "bun:test";
 
 describe("buildSystemMessage", () => {
   let tempDir: string;
   let workspaceDir: string;
   let globalDir: string;
+  let mockHomedir: Mock<typeof os.homedir>;
 
   beforeEach(async () => {
     // Create temp directory for test
@@ -30,13 +21,15 @@ describe("buildSystemMessage", () => {
     await fs.mkdir(globalDir, { recursive: true });
 
     // Mock homedir to return our test directory (getSystemDirectory will append .cmux)
+    mockHomedir = spyOn(os, "homedir");
     mockHomedir.mockReturnValue(tempDir);
   });
 
   afterEach(async () => {
     // Clean up temp directory
     await fs.rm(tempDir, { recursive: true, force: true });
-    jest.clearAllMocks();
+    // Restore the original homedir
+    mockHomedir?.mockRestore();
   });
 
   test("includes mode-specific section when mode is provided", async () => {
