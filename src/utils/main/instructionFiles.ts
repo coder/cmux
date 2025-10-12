@@ -15,11 +15,6 @@ export const INSTRUCTION_FILE_NAMES = ["AGENTS.md", "AGENT.md", "CLAUDE.md"] as 
  */
 const LOCAL_INSTRUCTION_FILENAME = "AGENTS.local.md";
 
-interface FileSource {
-  directory: string | null | undefined;
-  baseFilenames: readonly string[];
-  localFilename?: string;
-}
 
 /**
  * Attempts to read the first available file from a list of filenames in a directory.
@@ -144,68 +139,4 @@ export async function gatherInstructionSets(directories: string[]): Promise<stri
   return segments;
 }
 
-/**
- * Reads mode-specific files (e.g., PLAN.md for plan mode, EXEC.md for exec mode) from multiple sources.
- *
- * Sources are processed in order, with deduplication to avoid loading the same directory twice.
- * This allows for layered mode files where global defaults are overridden by workspace-specific ones.
- *
- * @param sources - Array of file sources to search
- * @returns Combined content from all sources, or null if none found
- */
-export async function readModeFiles(sources: FileSource[]): Promise<string | null> {
-  const segments: string[] = [];
-  const visited = new Set<string>();
 
-  for (const source of sources) {
-    const { directory, baseFilenames, localFilename } = source;
-    if (!directory) {
-      continue;
-    }
-
-    const resolved = path.resolve(directory);
-    if (visited.has(resolved)) {
-      continue;
-    }
-    visited.add(resolved);
-
-    const content = await readFileWithLocalVariant(resolved, baseFilenames, localFilename);
-
-    if (content) {
-      segments.push(content);
-    }
-  }
-
-  return segments.length > 0 ? segments.join("\n\n") : null;
-}
-
-/**
- * Creates default file sources for a mode-specific file.
- *
- * This looks for {mode}.md in the global directory and .cmux/{mode}.md (+ .local variant) in the workspace.
- *
- * @param mode - Mode name (will be uppercased, e.g., "plan" → "PLAN.md")
- * @param systemDir - Global system directory (~/.cmux)
- * @param workspaceDir - Workspace directory
- * @returns Array of file sources to search
- */
-export function getDefaultModeSources(
-  mode: string,
-  systemDir: string,
-  workspaceDir: string
-): FileSource[] {
-  const modeFilename = `${mode.toUpperCase()}.md`;
-  const modeLocalFilename = `${mode.toUpperCase()}.local.md`;
-
-  return [
-    {
-      directory: systemDir,
-      baseFilenames: [modeFilename],
-    },
-    {
-      directory: workspaceDir,
-      baseFilenames: [path.join(".cmux", modeFilename)],
-      localFilename: path.join(".cmux", modeLocalFilename),
-    },
-  ];
-}
