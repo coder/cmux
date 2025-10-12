@@ -83,6 +83,7 @@ while true; do
   if ! ./scripts/check_pr_reviews.sh "$PR_NUMBER" >/dev/null 2>&1; then
     echo ""
     echo "❌ Unresolved review comments found!"
+    echo "   👉 Tip: run ./scripts/check_pr_reviews.sh "$PR_NUMBER" to list them."
     ./scripts/check_pr_reviews.sh "$PR_NUMBER"
     exit 1
   fi
@@ -103,6 +104,7 @@ while true; do
       else
         echo ""
         echo "❌ Please resolve Codex comments before merging."
+        echo "   👉 Tip: use ./scripts/resolve_codex_comment.sh "$PR_NUMBER" to apply Codex suggestions from the CLI."
         exit 1
       fi
     elif [ "$MERGE_STATE" = "BLOCKED" ]; then

@@ -1,16 +1,11 @@
 import { tool } from "ai";
 import * as fs from "fs/promises";
 import * as path from "path";
-import writeFileAtomic from "write-file-atomic";
 import type { FileEditInsertToolResult } from "@/types/tools";
 import type { ToolConfiguration, ToolFactory } from "@/utils/tools/tools";
 import { TOOL_DEFINITIONS } from "@/utils/tools/toolDefinitions";
-import {
-  generateDiff,
-  validatePathInCwd,
-  validateFileSize,
-  WRITE_DENIED_PREFIX,
-} from "./fileCommon";
+import { validatePathInCwd, WRITE_DENIED_PREFIX } from "./fileCommon";
+import { executeFileEditOperation } from "./file_edit_operation";
 
 /**
  * File edit insert tool factory for AI assistant
@@ -28,7 +23,6 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
       create,
     }): Promise<FileEditInsertToolResult> => {
       try {
-        // Validate that the path is within the working directory
         const pathValidation = validatePathInCwd(file_path, config.cwd);
         if (pathValidation) {
           return {
@@ -37,57 +31,6 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
           };
         }
 
-        // Resolve path (but expect absolute paths)
-        const resolvedPath = path.isAbsolute(file_path)
-          ? file_path
-          : path.resolve(config.cwd, file_path);
-
-        // Check if file exists
-        let originalContent = "";
-
-        try {
-          const stats = await fs.stat(resolvedPath);
-          if (!stats.isFile()) {
-            return {
-              success: false,
-              error: `${WRITE_DENIED_PREFIX} Path exists but is not a file: ${resolvedPath}`,
-            };
-          }
-
-          // Validate file size
-          const sizeValidation = validateFileSize(stats);
-          if (sizeValidation) {
-            return {
-              success: false,
-              error: `${WRITE_DENIED_PREFIX} ${sizeValidation.error}`,
-            };
-          }
-
-          // Read file content
-          originalContent = await fs.readFile(resolvedPath, { encoding: "utf-8" });
-        } catch (error) {
-          // If file doesn't exist and create is not true, return error with suggestion
-          if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") {
-            if (!create) {
-              return {
-                success: false,
-                error: `${WRITE_DENIED_PREFIX} File not found: ${file_path}. To create it, set create: true`,
-              };
-            }
-            // File doesn't exist but create is true, so we'll create it
-            // Ensure parent directory exists
-            const parentDir = path.dirname(resolvedPath);
-            await fs.mkdir(parentDir, { recursive: true });
-            originalContent = "";
-          } else {
-            // Re-throw other errors
-            throw error;
-          }
-        }
-
-        const lines = originalContent.split("\n");
-
-        // Validate line_offset
         if (line_offset < 0) {
           return {
             success: false,
@@ -95,41 +38,60 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
           };
         }
 
-        if (line_offset > lines.length) {
+        const resolvedPath = path.isAbsolute(file_path)
+          ? file_path
+          : path.resolve(config.cwd, file_path);
+
+        let fileExists = await fs
+          .stat(resolvedPath)
+          .then((stats) => stats.isFile())
+          .catch(() => false);
+
+        if (!fileExists) {
+          if (!create) {
+            return {
+              success: false,
+              error: `${WRITE_DENIED_PREFIX} File not found: ${file_path}. To create it, set create: true`,
+            };
+          }
+
+          const parentDir = path.dirname(resolvedPath);
+          await fs.mkdir(parentDir, { recursive: true });
+          await fs.writeFile(resolvedPath, "");
+          fileExists = true;
+        }
+
+        return executeFileEditOperation({
+          config,
+          filePath: file_path,
+          operation: (originalContent) => {
+            const lines = originalContent.split("\n");
+
+            if (line_offset > lines.length) {
+              return {
+                success: false,
+                error: `line_offset ${line_offset} is beyond file length (${lines.length} lines)`,
+              };
+            }
+
+            const newLines = [...lines.slice(0, line_offset), content, ...lines.slice(line_offset)];
+            const newContent = newLines.join("\n");
+
+            return {
+              success: true,
+              newContent,
+              metadata: {},
+            };
+          },
+        });
+      } catch (error) {
+        if (error && typeof error === "object" && "code" in error && error.code === "EACCES") {
           return {
             success: false,
-            error: `${WRITE_DENIED_PREFIX} line_offset ${line_offset} is beyond file length (${lines.length} lines)`,
+            error: `${WRITE_DENIED_PREFIX} Permission denied: ${file_path}`,
           };
         }
 
-        // Insert content at specified line
-        // line_offset = 0: insert at top (before line 1)
-        // line_offset = N: insert after line N
-        const newLines = [...lines.slice(0, line_offset), content, ...lines.slice(line_offset)];
-        const newContent = newLines.join("\n");
-
-        // Write the modified content back to file atomically
-        await writeFileAtomic(resolvedPath, newContent, { encoding: "utf-8" });
-
-        // Generate diff
-        const diff = generateDiff(resolvedPath, originalContent, newContent);
-
-        return {
-          success: true,
-          diff,
-        };
-      } catch (error) {
-        // Handle specific errors
-        if (error && typeof error === "object" && "code" in error) {
-          if (error.code === "EACCES") {
-            return {
-              success: false,
-              error: `${WRITE_DENIED_PREFIX} Permission denied: ${file_path}`,
-            };
-          }
-        }
-
-        // Generic error
         const message = error instanceof Error ? error.message : String(error);
         return {
           success: false,

@@ -48,28 +48,67 @@ export type FileReadToolResult =
       error: string;
     };
 
-// File Edit Replace Tool Types
-export interface FileEditReplaceEdit {
+// File Edit Replace (String) Tool Types
+export interface FileEditReplaceStringEdit {
   old_string: string;
   new_string: string;
   replace_count?: number; // Default: 1, -1 means replace all
 }
 
-export interface FileEditReplaceToolArgs {
+export interface FileEditReplaceStringToolArgs {
   file_path: string;
-  edits: FileEditReplaceEdit[];
+  edits: FileEditReplaceStringEdit[];
 }
 
-export type FileEditReplaceToolResult =
-  | {
-      success: true;
+export interface FileEditDiffSuccessBase {
+  success: true;
+  diff: string;
+}
+
+export interface FileEditErrorResult {
+  success: false;
+  error: string;
+}
+
+export type FileEditReplaceStringToolResult =
+  | (FileEditDiffSuccessBase & {
       edits_applied: number;
-      diff: string;
-    }
-  | {
-      success: false;
-      error: string;
-    };
+    })
+  | FileEditErrorResult;
+
+// File Edit Replace (Lines) Tool Types
+export interface FileEditReplaceLinesEdit {
+  start_line: number; // 1-indexed inclusive start line
+  end_line: number; // 1-indexed inclusive end line
+  new_lines: string[]; // Replacement lines (empty array deletes the range)
+  expected_lines?: string[]; // Optional safety check of current lines prior to replacement
+}
+
+export interface FileEditReplaceLinesToolArgs {
+  file_path: string;
+  edits: FileEditReplaceLinesEdit[];
+}
+
+export type FileEditReplaceLinesToolResult =
+  | (FileEditDiffSuccessBase & {
+      edits_applied: number;
+      lines_replaced: number;
+      line_delta: number;
+    })
+  | FileEditErrorResult;
+
+export type FileEditSharedToolResult =
+  | FileEditReplaceStringToolResult
+  | FileEditReplaceLinesToolResult
+  | FileEditInsertToolResult;
+
+export const FILE_EDIT_TOOL_NAMES = [
+  "file_edit_replace_string",
+  "file_edit_replace_lines",
+  "file_edit_insert",
+] as const;
+
+export type FileEditToolName = (typeof FILE_EDIT_TOOL_NAMES)[number];
 
 // File Edit Insert Tool Types
 export interface FileEditInsertToolArgs {
@@ -79,15 +118,22 @@ export interface FileEditInsertToolArgs {
   create?: boolean; // If true, create the file if it doesn't exist (default: false)
 }
 
-export type FileEditInsertToolResult =
-  | {
-      success: true;
-      diff: string;
-    }
-  | {
-      success: false;
-      error: string;
-    };
+export type FileEditInsertToolResult = FileEditDiffSuccessBase | FileEditErrorResult;
+
+export type FileEditToolArgs =
+  | FileEditReplaceStringToolArgs
+  | FileEditReplaceLinesToolArgs
+  | FileEditInsertToolArgs;
+
+export interface FileEditToolMessage {
+  toolName: FileEditToolName;
+  args: FileEditToolArgs;
+  result?: FileEditSharedToolResult;
+}
+
+export function isFileEditToolName(value: string): value is FileEditToolName {
+  return (FILE_EDIT_TOOL_NAMES as readonly string[]).includes(value);
+}
 
 // Propose Plan Tool Types
 export interface ProposePlanToolArgs {

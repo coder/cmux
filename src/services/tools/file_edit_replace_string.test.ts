@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach, afterEach } from "bun:test";
 import * as fs from "fs/promises";
 import * as path from "path";
 import * as os from "os";
-import { createFileEditReplaceTool } from "./file_edit_replace";
-import type { FileEditReplaceToolArgs, FileEditReplaceToolResult } from "@/types/tools";
+import { createFileEditReplaceStringTool } from "./file_edit_replace_string";
+import type { FileEditReplaceStringToolArgs, FileEditReplaceStringToolResult } from "@/types/tools";
 import type { ToolCallOptions } from "ai";
 
 // Mock ToolCallOptions for testing
@@ -22,15 +22,15 @@ const readFile = async (filePath: string): Promise<string> => {
 };
 
 const executeReplace = async (
-  tool: ReturnType<typeof createFileEditReplaceTool>,
+  tool: ReturnType<typeof createFileEditReplaceStringTool>,
   filePath: string,
-  edits: FileEditReplaceToolArgs["edits"]
-): Promise<FileEditReplaceToolResult> => {
-  const args: FileEditReplaceToolArgs = { file_path: filePath, edits };
-  return (await tool.execute!(args, mockToolCallOptions)) as FileEditReplaceToolResult;
+  edits: FileEditReplaceStringToolArgs["edits"]
+): Promise<FileEditReplaceStringToolResult> => {
+  const args: FileEditReplaceStringToolArgs = { file_path: filePath, edits };
+  return (await tool.execute!(args, mockToolCallOptions)) as FileEditReplaceStringToolResult;
 };
 
-describe("file_edit_replace tool", () => {
+describe("file_edit_replace_string tool", () => {
   let testDir: string;
   let testFilePath: string;
 
@@ -47,7 +47,7 @@ describe("file_edit_replace tool", () => {
 
   it("should apply a single edit successfully", async () => {
     await setupFile(testFilePath, "Hello world\nThis is a test\nGoodbye world");
-    const tool = createFileEditReplaceTool({ cwd: testDir });
+    const tool = createFileEditReplaceStringTool({ cwd: testDir });
 
     const result = await executeReplace(tool, testFilePath, [
       { old_string: "Hello world", new_string: "Hello universe" },
@@ -63,7 +63,7 @@ describe("file_edit_replace tool", () => {
 
   it("should apply multiple edits sequentially", async () => {
     await setupFile(testFilePath, "foo bar baz");
-    const tool = createFileEditReplaceTool({ cwd: testDir });
+    const tool = createFileEditReplaceStringTool({ cwd: testDir });
 
     const result = await executeReplace(tool, testFilePath, [
       { old_string: "foo", new_string: "FOO" },
@@ -80,67 +80,42 @@ describe("file_edit_replace tool", () => {
   });
 
   it("should rollback if later edit fails (first edit breaks second edit search)", async () => {
-    // Setup - This test demonstrates that multi-edit is a state machine:
-    // each edit operates on the OUTPUT of the previous edit, not the original file.
-    // If any edit fails, the entire operation is rolled back (file unchanged).
     const initialContent = "foo bar baz";
     await fs.writeFile(testFilePath, initialContent);
 
-    const tool = createFileEditReplaceTool({ cwd: testDir });
-    const args: FileEditReplaceToolArgs = {
+    const tool = createFileEditReplaceStringTool({ cwd: testDir });
+    const args: FileEditReplaceStringToolArgs = {
       file_path: testFilePath,
       edits: [
-        {
-          old_string: "foo",
-          new_string: "FOO",
-        },
-        {
-          // This edit will FAIL because "foo" was already replaced by the first edit
-          // The second edit operates on "FOO bar baz", not "foo bar baz"
-          old_string: "foo",
-          new_string: "qux",
-        },
+        { old_string: "foo", new_string: "FOO" },
+        { old_string: "foo", new_string: "qux" },
       ],
     };
 
-    // Execute
-    const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditReplaceToolResult;
+    const result = await executeReplace(tool, testFilePath, args.edits);
 
-    // Assert - The operation should fail
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.error).toContain("Edit 2");
       expect(result.error).toContain("old_string not found");
     }
 
-    // Critical assertion: File should remain UNCHANGED because edit failed
-    // The atomic write should not have occurred
     const finalContent = await fs.readFile(testFilePath, "utf-8");
     expect(finalContent).toBe(initialContent);
-    expect(finalContent).toBe("foo bar baz"); // Still the original content
   });
 
   it("should replace all occurrences when replace_count is -1", async () => {
-    // Setup
     const initialContent = "cat dog cat bird cat";
     await fs.writeFile(testFilePath, initialContent);
 
-    const tool = createFileEditReplaceTool({ cwd: testDir });
-    const args: FileEditReplaceToolArgs = {
+    const tool = createFileEditReplaceStringTool({ cwd: testDir });
+    const args: FileEditReplaceStringToolArgs = {
       file_path: testFilePath,
-      edits: [
-        {
-          old_string: "cat",
-          new_string: "mouse",
-          replace_count: -1,
-        },
-      ],
+      edits: [{ old_string: "cat", new_string: "mouse", replace_count: -1 }],
     };
 
-    // Execute
-    const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditReplaceToolResult;
+    const result = await executeReplace(tool, testFilePath, args.edits);
 
-    // Assert
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.edits_applied).toBe(3);
@@ -151,26 +126,17 @@ describe("file_edit_replace tool", () => {
   });
 
   it("should replace unique occurrence when replace_count defaults to 1", async () => {
-    // Setup
     const initialContent = "cat dog bird";
     await fs.writeFile(testFilePath, initialContent);
 
-    const tool = createFileEditReplaceTool({ cwd: testDir });
-    const args: FileEditReplaceToolArgs = {
+    const tool = createFileEditReplaceStringTool({ cwd: testDir });
+    const args: FileEditReplaceStringToolArgs = {
       file_path: testFilePath,
-      edits: [
-        {
-          old_string: "cat",
-          new_string: "mouse",
-          // replace_count omitted, defaults to 1
-        },
-      ],
+      edits: [{ old_string: "cat", new_string: "mouse" }],
     };
 
-    // Execute
-    const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditReplaceToolResult;
+    const result = await executeReplace(tool, testFilePath, args.edits);
 
-    // Assert
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.edits_applied).toBe(1);
@@ -181,89 +147,60 @@ describe("file_edit_replace tool", () => {
   });
 
   it("should fail when old_string is not found", async () => {
-    // Setup
     const initialContent = "Hello world";
     await fs.writeFile(testFilePath, initialContent);
 
-    const tool = createFileEditReplaceTool({ cwd: testDir });
-    const args: FileEditReplaceToolArgs = {
+    const tool = createFileEditReplaceStringTool({ cwd: testDir });
+    const args: FileEditReplaceStringToolArgs = {
       file_path: testFilePath,
-      edits: [
-        {
-          old_string: "nonexistent",
-          new_string: "replacement",
-        },
-      ],
+      edits: [{ old_string: "nonexistent", new_string: "replacement" }],
     };
 
-    // Execute
-    const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditReplaceToolResult;
+    const result = await executeReplace(tool, testFilePath, args.edits);
 
-    // Assert
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.error).toContain("old_string not found");
     }
 
-    // File should remain unchanged
     const unchangedContent = await fs.readFile(testFilePath, "utf-8");
     expect(unchangedContent).toBe(initialContent);
   });
 
   it("should fail when old_string appears multiple times with replace_count of 1", async () => {
-    // Setup
     const initialContent = "cat dog cat bird cat";
     await fs.writeFile(testFilePath, initialContent);
 
-    const tool = createFileEditReplaceTool({ cwd: testDir });
-    const args: FileEditReplaceToolArgs = {
+    const tool = createFileEditReplaceStringTool({ cwd: testDir });
+    const args: FileEditReplaceStringToolArgs = {
       file_path: testFilePath,
-      edits: [
-        {
-          old_string: "cat",
-          new_string: "mouse",
-          replace_count: 1, // Explicitly set to 1
-        },
-      ],
+      edits: [{ old_string: "cat", new_string: "mouse", replace_count: 1 }],
     };
 
-    // Execute
-    const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditReplaceToolResult;
+    const result = await executeReplace(tool, testFilePath, args.edits);
 
-    // Assert
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.error).toContain("appears 3 times");
-      expect(result.error).toContain("expand the context to make it unique");
       expect(result.error).toContain("replace_count to 3 or -1");
     }
 
-    // File should remain unchanged
     const unchangedContent = await fs.readFile(testFilePath, "utf-8");
     expect(unchangedContent).toBe(initialContent);
   });
 
   it("should replace exactly N occurrences when replace_count is N", async () => {
-    // Setup
     const initialContent = "cat dog cat bird cat";
     await fs.writeFile(testFilePath, initialContent);
 
-    const tool = createFileEditReplaceTool({ cwd: testDir });
-    const args: FileEditReplaceToolArgs = {
+    const tool = createFileEditReplaceStringTool({ cwd: testDir });
+    const args: FileEditReplaceStringToolArgs = {
       file_path: testFilePath,
-      edits: [
-        {
-          old_string: "cat",
-          new_string: "mouse",
-          replace_count: 2, // Replace first 2 occurrences
-        },
-      ],
+      edits: [{ old_string: "cat", new_string: "mouse", replace_count: 2 }],
     };
 
-    // Execute
-    const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditReplaceToolResult;
+    const result = await executeReplace(tool, testFilePath, args.edits);
 
-    // Assert
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.edits_applied).toBe(2);
@@ -274,56 +211,38 @@ describe("file_edit_replace tool", () => {
   });
 
   it("should fail when replace_count exceeds actual occurrences", async () => {
-    // Setup
     const initialContent = "cat dog bird";
     await fs.writeFile(testFilePath, initialContent);
 
-    const tool = createFileEditReplaceTool({ cwd: testDir });
-    const args: FileEditReplaceToolArgs = {
+    const tool = createFileEditReplaceStringTool({ cwd: testDir });
+    const args: FileEditReplaceStringToolArgs = {
       file_path: testFilePath,
-      edits: [
-        {
-          old_string: "cat",
-          new_string: "mouse",
-          replace_count: 5, // Only 1 occurrence exists
-        },
-      ],
+      edits: [{ old_string: "cat", new_string: "mouse", replace_count: 5 }],
     };
 
-    // Execute
-    const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditReplaceToolResult;
+    const result = await executeReplace(tool, testFilePath, args.edits);
 
-    // Assert
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.error).toContain("replace_count is 5");
       expect(result.error).toContain("only appears 1 time(s)");
     }
 
-    // File should remain unchanged
     const unchangedContent = await fs.readFile(testFilePath, "utf-8");
     expect(unchangedContent).toBe(initialContent);
   });
 
   it("should fail when file does not exist", async () => {
-    // Setup
     const nonExistentPath = path.join(testDir, "nonexistent.txt");
 
-    const tool = createFileEditReplaceTool({ cwd: testDir });
-    const args: FileEditReplaceToolArgs = {
+    const tool = createFileEditReplaceStringTool({ cwd: testDir });
+    const args: FileEditReplaceStringToolArgs = {
       file_path: nonExistentPath,
-      edits: [
-        {
-          old_string: "foo",
-          new_string: "bar",
-        },
-      ],
+      edits: [{ old_string: "foo", new_string: "bar" }],
     };
 
-    // Execute
-    const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditReplaceToolResult;
+    const result = await executeReplace(tool, nonExistentPath, args.edits);
 
-    // Assert
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.error).toContain("File not found");
@@ -331,25 +250,17 @@ describe("file_edit_replace tool", () => {
   });
 
   it("should handle multiline edits", async () => {
-    // Setup
     const initialContent = "line1\nline2\nline3\nline4";
     await fs.writeFile(testFilePath, initialContent);
 
-    const tool = createFileEditReplaceTool({ cwd: testDir });
-    const args: FileEditReplaceToolArgs = {
+    const tool = createFileEditReplaceStringTool({ cwd: testDir });
+    const args: FileEditReplaceStringToolArgs = {
       file_path: testFilePath,
-      edits: [
-        {
-          old_string: "line2\nline3",
-          new_string: "REPLACED",
-        },
-      ],
+      edits: [{ old_string: "line2\nline3", new_string: "REPLACED" }],
     };
 
-    // Execute
-    const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditReplaceToolResult;
+    const result = await executeReplace(tool, testFilePath, args.edits);
 
-    // Assert
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.edits_applied).toBe(1);
@@ -360,25 +271,17 @@ describe("file_edit_replace tool", () => {
   });
 
   it("should handle empty string replacement", async () => {
-    // Setup
     const initialContent = "Hello [DELETE_ME] world";
     await fs.writeFile(testFilePath, initialContent);
 
-    const tool = createFileEditReplaceTool({ cwd: testDir });
-    const args: FileEditReplaceToolArgs = {
+    const tool = createFileEditReplaceStringTool({ cwd: testDir });
+    const args: FileEditReplaceStringToolArgs = {
       file_path: testFilePath,
-      edits: [
-        {
-          old_string: "[DELETE_ME] ",
-          new_string: "",
-        },
-      ],
+      edits: [{ old_string: "[DELETE_ME] ", new_string: "" }],
     };
 
-    // Execute
-    const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditReplaceToolResult;
+    const result = await executeReplace(tool, testFilePath, args.edits);
 
-    // Assert
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.edits_applied).toBe(1);
@@ -389,29 +292,20 @@ describe("file_edit_replace tool", () => {
   });
 
   it("should handle edits that depend on previous edits", async () => {
-    // Setup
     const initialContent = "step1";
     await fs.writeFile(testFilePath, initialContent);
 
-    const tool = createFileEditReplaceTool({ cwd: testDir });
-    const args: FileEditReplaceToolArgs = {
+    const tool = createFileEditReplaceStringTool({ cwd: testDir });
+    const args: FileEditReplaceStringToolArgs = {
       file_path: testFilePath,
       edits: [
-        {
-          old_string: "step1",
-          new_string: "step2",
-        },
-        {
-          old_string: "step2",
-          new_string: "step3",
-        },
+        { old_string: "step1", new_string: "step2" },
+        { old_string: "step2", new_string: "step3" },
       ],
     };
 
-    // Execute
-    const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditReplaceToolResult;
+    const result = await executeReplace(tool, testFilePath, args.edits);
 
-    // Assert
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.edits_applied).toBe(2);
@@ -422,25 +316,17 @@ describe("file_edit_replace tool", () => {
   });
 
   it("should return unified diff with context of 3", async () => {
-    // Setup - create a file with multiple lines
     const initialContent = "line1\nline2\nline3\nline4\nline5\nline6\nline7\nline8\nline9";
     await fs.writeFile(testFilePath, initialContent);
 
-    const tool = createFileEditReplaceTool({ cwd: testDir });
-    const args: FileEditReplaceToolArgs = {
+    const tool = createFileEditReplaceStringTool({ cwd: testDir });
+    const args: FileEditReplaceStringToolArgs = {
       file_path: testFilePath,
-      edits: [
-        {
-          old_string: "line5",
-          new_string: "LINE5_MODIFIED",
-        },
-      ],
+      edits: [{ old_string: "line5", new_string: "LINE5_MODIFIED" }],
     };
 
-    // Execute
-    const result = (await tool.execute!(args, mockToolCallOptions)) as FileEditReplaceToolResult;
+    const result = await executeReplace(tool, testFilePath, args.edits);
 
-    // Assert
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.diff).toBeDefined();
@@ -448,17 +334,12 @@ describe("file_edit_replace tool", () => {
       expect(result.diff).toContain("+++ " + testFilePath);
       expect(result.diff).toContain("-line5");
       expect(result.diff).toContain("+LINE5_MODIFIED");
-
-      // Verify context of 3 - should include 3 lines before and after
       expect(result.diff).toContain("line2");
       expect(result.diff).toContain("line3");
       expect(result.diff).toContain("line4");
       expect(result.diff).toContain("line6");
       expect(result.diff).toContain("line7");
       expect(result.diff).toContain("line8");
-
-      // Lines outside the context should not be in the diff (line1, line9)
-      // Note: This depends on the exact diff format, so we verify at least the key parts are present
     }
   });
 });

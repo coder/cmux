@@ -66,7 +66,7 @@ export const TOOL_DEFINITIONS = {
         .describe("Number of lines to return from offset (optional, returns all if not specified)"),
     }),
   },
-  file_edit_replace: {
+  file_edit_replace_string: {
     description:
       "Apply one or more edits to a file by replacing exact text matches. All edits are applied sequentially. Each old_string must be unique in the file unless replace_count > 1 or replace_count is -1.",
     schema: z.object({
@@ -91,6 +91,35 @@ export const TOOL_DEFINITIONS = {
         )
         .min(1)
         .describe("Array of edits to apply sequentially"),
+    }),
+  },
+  file_edit_replace_lines: {
+    description:
+      "Apply one or more edits to a file by replacing lines in a specific range. All edits are applied sequentially and line numbers refer to the file state after previous edits.",
+    schema: z.object({
+      file_path: z.string().describe("The absolute path to the file to edit"),
+      edits: z
+        .array(
+          z.object({
+            start_line: z
+              .number()
+              .int()
+              .min(1)
+              .describe("1-indexed start line (inclusive) to replace"),
+            end_line: z.number().int().min(1).describe("1-indexed end line (inclusive) to replace"),
+            new_lines: z
+              .array(z.string())
+              .describe("Replacement lines. Provide an empty array to delete the specified range."),
+            expected_lines: z
+              .array(z.string())
+              .optional()
+              .describe(
+                "Optional safety check. When provided, the current lines in the specified range must match exactly."
+              ),
+          })
+        )
+        .min(1)
+        .describe("Array of line replacement edits to apply sequentially"),
     }),
   },
   file_edit_insert: {
@@ -174,7 +203,8 @@ export function getAvailableTools(modelString: string): string[] {
   const baseTools = [
     "bash",
     "file_read",
-    "file_edit_replace",
+    "file_edit_replace_string",
+    "file_edit_replace_lines",
     "file_edit_insert",
     "propose_plan",
     "compact_summary",

@@ -10,7 +10,11 @@
  * - Type safety: if a tool's result type changes, these redactors should fail type-checks.
  */
 
-import type { FileEditInsertToolResult, FileEditReplaceToolResult } from "@/types/tools";
+import type {
+  FileEditInsertToolResult,
+  FileEditReplaceLinesToolResult,
+  FileEditReplaceStringToolResult,
+} from "@/types/tools";
 
 // Tool-output from AI SDK is often wrapped like: { type: 'json', value: <payload> }
 // Keep this helper local so all redactors handle both wrapped and plain objects consistently.
@@ -33,7 +37,16 @@ function rewrapJsonContainer(wrapped: boolean, value: unknown): unknown {
 }
 
 // Narrowing helpers for our tool result types
-function isFileEditReplaceResult(v: unknown): v is FileEditReplaceToolResult {
+function isFileEditReplaceStringResult(v: unknown): v is FileEditReplaceStringToolResult {
+  return (
+    typeof v === "object" &&
+    v !== null &&
+    "success" in v &&
+    typeof (v as { success: unknown }).success === "boolean"
+  );
+}
+
+function isFileEditReplaceLinesResult(v: unknown): v is FileEditReplaceLinesToolResult {
   return (
     typeof v === "object" &&
     v !== null &&
@@ -52,24 +65,42 @@ function isFileEditInsertResult(v: unknown): v is FileEditInsertToolResult {
 }
 
 // Redactors per tool
-function redactFileEditReplace(output: unknown): unknown {
+function redactFileEditReplaceString(output: unknown): unknown {
   const unwrapped = unwrapJsonContainer(output);
   const val = unwrapped.value;
 
-  if (!isFileEditReplaceResult(val)) return output; // unknown structure, leave as-is
+  if (!isFileEditReplaceStringResult(val)) return output; // unknown structure, leave as-is
 
   if (val.success) {
-    // Keep metadata but compact the diff to avoid huge context windows
-    const compact: FileEditReplaceToolResult = {
+    const compact: FileEditReplaceStringToolResult = {
       success: true,
       edits_applied: val.edits_applied,
-      // Replace the unified diff with a sentinel that tells the model how to fetch details if needed
       diff: "[diff omitted in context - call file_read on the target file if needed]",
     };
     return rewrapJsonContainer(unwrapped.wrapped, compact);
   }
 
   // Failure payloads are small; pass through unchanged
+  return output;
+}
+
+function redactFileEditReplaceLines(output: unknown): unknown {
+  const unwrapped = unwrapJsonContainer(output);
+  const val = unwrapped.value;
+
+  if (!isFileEditReplaceLinesResult(val)) return output;
+
+  if (val.success) {
+    const compact: FileEditReplaceLinesToolResult = {
+      success: true,
+      edits_applied: val.edits_applied,
+      lines_replaced: val.lines_replaced,
+      line_delta: val.line_delta,
+      diff: "[diff omitted in context - call file_read on the target file if needed]",
+    };
+    return rewrapJsonContainer(unwrapped.wrapped, compact);
+  }
+
   return output;
 }
 
@@ -93,8 +124,10 @@ function redactFileEditInsert(output: unknown): unknown {
 // Public API - registry entrypoint. Add new tools here as needed.
 export function redactToolOutput(toolName: string, output: unknown): unknown {
   switch (toolName) {
-    case "file_edit_replace":
-      return redactFileEditReplace(output);
+    case "file_edit_replace_string":
+      return redactFileEditReplaceString(output);
+    case "file_edit_replace_lines":
+      return redactFileEditReplaceLines(output);
     case "file_edit_insert":
       return redactFileEditInsert(output);
     default:

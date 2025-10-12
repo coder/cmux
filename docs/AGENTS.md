@@ -200,31 +200,34 @@ This project uses **Make** as the primary build orchestrator. See `Makefile` for
   const config = env.config.loadConfigOrDefault();
   config.projects.set(projectPath, { path: projectPath, workspaces: [] });
   env.config.saveConfig(config);
-
-  // ❌ BAD - Directly accessing services
-  const history = await env.historyService.getHistory(workspaceId);
-  await env.historyService.appendToHistory(workspaceId, message);
   ```
 
-  **Correct approach (DO THIS):**
+// ❌ BAD - Directly accessing services
+const history = await env.historyService.getHistory(workspaceId);
+await env.historyService.appendToHistory(workspaceId, message);
 
-  ```typescript
-  // ✅ GOOD - Use IPC to save config
-  await env.mockIpcRenderer.invoke(IPC_CHANNELS.CONFIG_SAVE, {
-    projects: Array.from(projectsConfig.projects.entries()),
-  });
+````
 
-  // ✅ GOOD - Use IPC to interact with services
-  await env.mockIpcRenderer.invoke(IPC_CHANNELS.HISTORY_GET, workspaceId);
-  await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_CREATE, projectPath, branchName);
-  ```
+**Correct approach (DO THIS):**
 
-  **Acceptable exceptions:**
-  - Reading context (like `env.config.loadConfigOrDefault()`) to prepare IPC call parameters
-  - Verifying filesystem state (like checking if files exist) after IPC operations complete
-  - Loading existing data to avoid expensive API calls in test setup
+```typescript
+// ✅ GOOD - Use IPC to save config
+await env.mockIpcRenderer.invoke(IPC_CHANNELS.CONFIG_SAVE, {
+  projects: Array.from(projectsConfig.projects.entries()),
+});
 
-  If IPC is hard to test, fix the test infrastructure or IPC layer, don't work around it by bypassing IPC.
+// ✅ GOOD - Use IPC to interact with services
+await env.mockIpcRenderer.invoke(IPC_CHANNELS.HISTORY_GET, workspaceId);
+await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_CREATE, projectPath, branchName);
+````
+
+**Acceptable exceptions:**
+
+- Reading context (like `env.config.loadConfigOrDefault()`) to prepare IPC call parameters
+- Verifying filesystem state (like checking if files exist) after IPC operations complete
+- Loading existing data to avoid expensive API calls in test setup
+
+If IPC is hard to test, fix the test infrastructure or IPC layer, don't work around it by bypassing IPC.
 
 ## Command Palette (Cmd+Shift+P)
 
@@ -486,3 +489,7 @@ should go through `log.debug()`.
 - If you're fixing via simplifcation, a new test case is generally not necessary.
 - If fixing through additional complexity, add a test case if an existing convenient harness exists.
   - Otherwise if creating complexity, propose a new test harness to contain the new tests.
+
+## Mode: Exec
+
+If a user requests `wait_pr_checks`, treat it as a directive to keep running that process and address failures continuously. Do not return to the user until the checks succeed or you encounter a blocker you cannot resolve alone. This mode signals that the user expects persistent execution without further prompting. If static checks fail remotely, reproduce the error locally with `make static-check` before responding. If formatting issues are flagged, run `make fmt` to fix them before retrying CI.
