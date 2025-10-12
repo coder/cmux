@@ -75,7 +75,7 @@ export interface FileEditReplaceLinesToolArgs {
   file_path: string;
   start_line: number;
   end_line: number;
-  new_lines: string[];
+  new_lines: string[] | string;
   expected_lines?: string[];
 }
 

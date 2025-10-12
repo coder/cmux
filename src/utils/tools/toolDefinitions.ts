@@ -94,8 +94,10 @@ export const TOOL_DEFINITIONS = {
       start_line: z.number().int().min(1).describe("1-indexed start line (inclusive) to replace"),
       end_line: z.number().int().min(1).describe("1-indexed end line (inclusive) to replace"),
       new_lines: z
-        .array(z.string())
-        .describe("Replacement lines. Provide an empty array to delete the specified range."),
+        .union([z.array(z.string()), z.string()])
+        .describe(
+          "Replacement lines as an array, or a newline-delimited string. Provide an empty array or empty string to delete the specified range."
+        ),
       expected_lines: z
         .array(z.string())
         .optional()

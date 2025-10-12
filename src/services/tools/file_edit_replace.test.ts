@@ -115,15 +115,13 @@ describe("file_edit_replace_lines tool", () => {
     const tool = createFileEditReplaceLinesTool({ cwd: testDir });
 
     // Pass new_lines as a string instead of array - this tests the robust behavior
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const payload: any = {
+    const payload: FileEditReplaceLinesToolArgs = {
       file_path: testFilePath,
       start_line: 2,
       end_line: 3,
       new_lines: "LINE2\nLINE3", // String instead of array
     };
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     const result = await executeLinesReplace(tool, payload);
 
     expect(result.success).toBe(true);
@@ -139,15 +137,13 @@ describe("file_edit_replace_lines tool", () => {
     await setupFile(testFilePath, "line1\nline2\nline3\nline4");
     const tool = createFileEditReplaceLinesTool({ cwd: testDir });
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const payload: any = {
+    const payload: FileEditReplaceLinesToolArgs = {
       file_path: testFilePath,
       start_line: 2,
       end_line: 3,
       new_lines: "", // Empty string means delete
     };
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     const result = await executeLinesReplace(tool, payload);
 
     expect(result.success).toBe(true);
