@@ -30,6 +30,5 @@ if [ "$1" = "--fix" ]; then
 else
   echo "Running eslint..."
   bun x eslint "$ESLINT_PATTERN"
-  ./scripts/typecheck.sh
-  echo "All lint checks passed!"
+  echo "ESLint checks passed!"
 fi

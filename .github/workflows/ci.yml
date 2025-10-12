@@ -18,16 +18,36 @@ jobs:
         with:
           bun-version: latest
 
+      - name: Cache bun dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
       - name: Generate version file
         run: ./scripts/generate-version.sh
 
+      - name: Cache shfmt
+        id: cache-shfmt
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/bin/shfmt
+          key: ${{ runner.os }}-shfmt-3.8.0
+          restore-keys: |
+            ${{ runner.os }}-shfmt-
+
       - name: Install shfmt
+        if: steps.cache-shfmt.outputs.cache-hit != 'true'
         run: |
           curl -sS https://webinstall.dev/shfmt | bash
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Add shfmt to PATH
+        run: echo "$HOME/.local/bin" >> $GITHUB_PATH
 
       - name: Install Nix
         uses: cachix/install-nix-action@v27
@@ -50,6 +70,14 @@ jobs:
         with:
           bun-version: latest
 
+      - name: Cache bun dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
@@ -67,6 +95,14 @@ jobs:
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
+
+      - name: Cache bun dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -88,6 +124,14 @@ jobs:
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
+
+      - name: Cache bun dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
