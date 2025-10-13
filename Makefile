@@ -58,7 +58,7 @@ dev: node_modules/.installed build-main ## Start development server (Vite + Type
 		"bun x concurrently \"bun x tsc -w -p tsconfig.main.json\" \"bun x tsc-alias -w -p tsconfig.main.json\"" \
 		"vite"
 
-start: node_modules/.installed build-main build-preload ## Build and start Electron app
+start: node_modules/.installed build-main build-preload build-static ## Build and start Electron app
 	@bun x electron --remote-debugging-port=9222 .
 
 ## Build targets (can run in parallel)

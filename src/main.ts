@@ -190,6 +190,7 @@ function createMenu() {
  * No IPC, no React, no heavy dependencies - just immediate user feedback.
  */
 function showSplashScreen() {
+  console.log("Showing splash screen...");
   splashWindow = new BrowserWindow({
     width: 400,
     height: 300,
@@ -216,6 +217,7 @@ function showSplashScreen() {
  */
 function closeSplashScreen() {
   if (splashWindow) {
+    console.log("Closing splash screen...");
     splashWindow.close();
     splashWindow = null;
   }
