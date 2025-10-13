@@ -206,7 +206,23 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
                     }
                   );
 
-                  void window.api.workspace.replaceChatHistory(workspaceId, summaryMessage);
+                  // Wait for history replacement to complete before triggering React re-render
+                  // This prevents useAutoCompactContinue from racing with the compaction IPC call
+                  //
+                  // We handle the async operation in an IIFE to avoid making the callback async
+                  // (which would violate the IPC callback type contract)
+                  void (async () => {
+                    try {
+                      await window.api.workspace.replaceChatHistory(workspaceId, summaryMessage);
+                    } catch (error) {
+                      console.error("[useWorkspaceAggregators] Failed to replace history:", error);
+                    } finally {
+                      // Trigger re-render after history replacement completes (or fails)
+                      forceUpdate();
+                    }
+                  })();
+                  // Return early - forceUpdate() will be called by the async handler above
+                  return;
                 } else {
                   console.log("[useWorkspaceAggregators] No summary in tool output");
                 }
