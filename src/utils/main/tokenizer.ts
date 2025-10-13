@@ -34,8 +34,10 @@ let tokenizerLoadPromise: Promise<void> | null = null;
  * Load tokenizer modules asynchronously
  * Dynamic imports are intentional here to defer loading heavy tokenizer modules
  * until first use, reducing app startup time from ~8.8s to <1s
+ *
+ * @returns Promise that resolves when tokenizer modules are loaded
  */
-async function loadTokenizerModules(): Promise<void> {
+export async function loadTokenizerModules(): Promise<void> {
   if (tokenizerModules) return;
   if (tokenizerLoadPromise) return tokenizerLoadPromise;
 

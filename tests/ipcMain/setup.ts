@@ -9,6 +9,7 @@ import { IpcMain } from "../../src/services/ipcMain";
 import { IPC_CHANNELS } from "../../src/constants/ipc-constants";
 import { generateBranchName, createWorkspace } from "./helpers";
 import { shouldRunIntegrationTests, validateApiKeys, getApiKey } from "../testUtils";
+import { loadTokenizerModules } from "../../src/utils/main/tokenizer";
 
 export interface TestEnvironment {
   config: Config;
@@ -51,6 +52,10 @@ function createMockBrowserWindow(): {
  * Create a test environment with temporary config and mocked IPC
  */
 export async function createTestEnvironment(): Promise<TestEnvironment> {
+  // Preload tokenizer modules to ensure accurate token counts
+  // Without this, tests would use /4 approximation which can cause API errors
+  await loadTokenizerModules();
+
   // Create temporary directory for test config
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "cmux-test-"));
 
