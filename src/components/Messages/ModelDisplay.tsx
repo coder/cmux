@@ -31,10 +31,10 @@ const IconWrapper = styled.span`
       fill: currentColor;
     }
 
-    /* Generic SVGs with fill attribute - use !important to override inline styles */
-    path[fill],
-    circle[fill],
-    rect[fill] {
+    /* Generic SVG elements - override any fill attributes */
+    path,
+    circle,
+    rect {
       fill: currentColor !important;
     }
   }

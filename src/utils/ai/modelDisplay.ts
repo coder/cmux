@@ -62,8 +62,8 @@ export function formatModelDisplayName(modelName: string): string {
     const parts = lower.replace("gemini-", "").split("-");
 
     // Try to detect version pattern (numbers at start)
-    let versionParts: string[] = [];
-    let nameParts: string[] = [];
+    const versionParts: string[] = [];
+    const nameParts: string[] = [];
 
     for (const part of parts) {
       if (versionParts.length < 2 && /^\d+$/.test(part)) {
