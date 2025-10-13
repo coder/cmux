@@ -31,7 +31,7 @@ export interface WorkspaceState {
   loading: boolean;
   cmuxMessages: CmuxMessage[];
   currentModel: string;
-  lastUserMessageAt: number | null; // Timestamp of most recent user message (null if no user messages)
+  recencyTimestamp: number | null; // Timestamp for sorting: most recent user message, or compacted message if no user messages
 }
 
 /**
@@ -69,14 +69,27 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
       const isCaughtUp = caughtUpRef.current.get(workspaceId) ?? false;
       const activeStreams = aggregator.getActiveStreams();
 
-      // Get most recent user message timestamp (persisted, survives restarts)
-      // Using user messages instead of assistant messages avoids constant reordering
-      // when multiple concurrent streams are running
+      // Get recency timestamp for sorting:
+      // 1. Prefer most recent user message (avoids constant reordering during concurrent streams)
+      // 2. Fallback to most recent compacted message (prevents workspace from dropping to bottom after compaction)
+      // 3. null if no messages with timestamps
       const messages = aggregator.getAllMessages();
       const lastUserMsg = [...messages]
         .reverse()
         .find((m) => m.role === "user" && m.metadata?.timestamp);
-      const lastUserMessageAt = lastUserMsg?.metadata?.timestamp ?? null;
+
+      let recencyTimestamp: number | null = null;
+      if (lastUserMsg?.metadata?.timestamp) {
+        recencyTimestamp = lastUserMsg.metadata.timestamp;
+      } else {
+        // No user messages - check for compacted messages
+        const lastCompactedMsg = [...messages]
+          .reverse()
+          .find((m) => m.metadata?.compacted === true && m.metadata?.timestamp);
+        if (lastCompactedMsg?.metadata?.timestamp) {
+          recencyTimestamp = lastCompactedMsg.metadata.timestamp;
+        }
+      }
 
       return {
         messages: aggregator.getDisplayedMessages(),
@@ -85,7 +98,7 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
         loading: !hasMessages && !isCaughtUp,
         cmuxMessages: aggregator.getAllMessages(),
         currentModel: aggregator.getCurrentModel() ?? "claude-sonnet-4-5",
-        lastUserMessageAt,
+        recencyTimestamp,
       };
     },
     [getAggregator]
@@ -343,8 +356,8 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
     () => {
       const timestamps: Record<string, number> = {};
       for (const [id, state] of workspaceStates) {
-        if (state.lastUserMessageAt !== null) {
-          timestamps[id] = state.lastUserMessageAt;
+        if (state.recencyTimestamp !== null) {
+          timestamps[id] = state.recencyTimestamp;
         }
       }
       return timestamps;
