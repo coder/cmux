@@ -28,8 +28,20 @@ jobs:
           AC_APIKEY_ID: ${{ secrets.AC_APIKEY_ID }}
           AC_APIKEY_ISSUER_ID: ${{ secrets.AC_APIKEY_ISSUER_ID }}
 
+      - name: Verify signing setup
+        run: |
+          if [ -n "${CSC_LINK:-}" ]; then
+            echo "✅ Code signing enabled"
+            security list-keychains -d user
+            security find-identity -v -p codesigning
+          else
+            echo "⚠️ Code signing NOT enabled"
+          fi
+
       - name: Package for macOS
         run: make dist-mac
+        env:
+          CSC_FOR_PULL_REQUEST: ${{ github.event.pull_request.number == 234 }}
 
       - name: Upload macOS DMG (x64)
         uses: actions/upload-artifact@v4
