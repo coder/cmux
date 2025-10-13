@@ -122,7 +122,7 @@ build/icon.icns: docs/img/logo.webp
 ## Quality checks (can run in parallel)
 static-check: lint typecheck fmt-check ## Run all static checks
 
-lint: node_modules/.installed ## Run linter and typecheck
+lint: node_modules/.installed ## Run ESLint (typecheck runs in separate target)
 	@./scripts/lint.sh
 
 lint-fix: node_modules/.installed ## Run linter with --fix

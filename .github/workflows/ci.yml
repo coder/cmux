@@ -13,21 +13,29 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
+      - uses: ./.github/actions/setup-cmux
 
       - name: Generate version file
         run: ./scripts/generate-version.sh
 
-      - name: Install shfmt
+      - name: Cache shfmt
+        id: cache-shfmt
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/bin/shfmt
+          # We install latest via webinstall; reflect that in the cache key to avoid pinning mismatches
+          key: ${{ runner.os }}-shfmt-latest
+          restore-keys: |
+            ${{ runner.os }}-shfmt-
+
+      - name: Install and setup shfmt
         run: |
-          curl -sS https://webinstall.dev/shfmt | bash
+          if [[ ! -f "$HOME/.local/bin/shfmt" ]]; then
+            curl -sS https://webinstall.dev/shfmt | bash
+          fi
           echo "$HOME/.local/bin" >> $GITHUB_PATH
+          # Verify shfmt is available
+          "$HOME/.local/bin/shfmt" --version
 
       - name: Install Nix
         uses: cachix/install-nix-action@v27
@@ -45,13 +53,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
+      - uses: ./.github/actions/setup-cmux
 
       - name: Run tests
         run: make test-unit
@@ -63,13 +65,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
+      - uses: ./.github/actions/setup-cmux
 
       - name: Run integration tests
         run: make test-integration
@@ -84,13 +80,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
+      - uses: ./.github/actions/setup-cmux
 
       - name: Install system dependencies
         run: |
