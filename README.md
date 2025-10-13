@@ -58,13 +58,13 @@ Download pre-built binaries from [the releases page](https://github.com/coder/cm
 ## Screenshots
 
 <div align="center">
-  <p><em>Mermaid diagrams make it easier to review complex proposals from the Agent:</em></p>
-  <img src="./docs/img/plan-mermaid.webp" alt="Screenshot of mermaid diagram" />
+  <p><em>Git divergence UI keeps you looped in on changes and potential conflicts:</em></p>
+  <img src="./docs/img/git-status.webp" alt="Screenshot of git status" />
 </div>
 
 <div align="center">
-  <p><em>Git divergence UI keeps you looped in on changes and potential conflicts:</em></p>
-  <img src="./docs/img/git-status.webp" alt="Screenshot of git status" />
+  <p><em>Mermaid diagrams make it easier to review complex proposals from the Agent:</em></p>
+  <img src="./docs/img/plan-mermaid.webp" alt="Screenshot of mermaid diagram" />
 </div>
 
 <div align="center">
