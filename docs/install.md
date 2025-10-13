@@ -2,6 +2,14 @@
 
 ## Downloads
 
+### Release Builds
+
+Download pre-built binaries from [the releases page](https://github.com/coder/cmux/releases):
+
+- **macOS**: Signed and notarized DMG (separate builds for Intel/Apple Silicon)
+- **Linux**: AppImage
+- **Windows**: not implemented, coming soon
+
 ### Development Builds
 
 Pre-built binaries are available from [GitHub Actions](https://github.com/coder/cmux/actions/workflows/build.yml):
