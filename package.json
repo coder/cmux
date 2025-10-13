@@ -60,7 +60,8 @@
     "undici": "^7.16.0",
     "write-file-atomic": "^6.0.0",
     "zod": "^4.1.11",
-    "zod-to-json-schema": "^3.24.6"
+    "zod-to-json-schema": "^3.24.6",
+    "ai-tokenizer": "^1.0.3"
   },
   "devDependencies": {
     "@eslint/js": "^9.36.0",
@@ -79,7 +80,6 @@
     "@typescript-eslint/eslint-plugin": "^8.44.1",
     "@typescript-eslint/parser": "^8.44.1",
     "@vitejs/plugin-react": "^4.0.0",
-    "ai-tokenizer": "^1.0.3",
     "concurrently": "^8.2.0",
     "dotenv": "^17.2.3",
     "electron": "^38.2.1",
