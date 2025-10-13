@@ -28,6 +28,9 @@ export interface Workspace {
   /** Absolute path to workspace directory - REQUIRED for backward compatibility */
   path: string;
 
+  /** Branch to rebase onto (populated automatically via migration) */
+  trunkBranch?: string;
+
   /** Stable workspace ID (10 hex chars for new workspaces) - optional for legacy */
   id?: string;
 

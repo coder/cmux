@@ -5,7 +5,10 @@ import type { FrontendWorkspaceMetadata } from "@/types/workspace";
 const mk = (over: Partial<Parameters<typeof buildCoreSources>[0]> = {}) => {
   const projects = new Map<string, ProjectConfig>();
   projects.set("/repo/a", {
-    workspaces: [{ path: "/repo/a/feat-x" }, { path: "/repo/a/feat-y" }],
+    workspaces: [
+      { path: "/repo/a/feat-x", trunkBranch: "main" },
+      { path: "/repo/a/feat-y", trunkBranch: "main" },
+    ],
   });
   const workspaceMetadata = new Map<string, FrontendWorkspaceMetadata>();
   workspaceMetadata.set("w1", {

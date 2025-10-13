@@ -351,6 +351,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
               gitStatus={gitStatus}
               workspaceId={workspaceId}
               tooltipPosition="bottom"
+              isStreaming={canInterrupt}
             />
             <RuntimeBadge runtimeConfig={runtimeConfig} />
             <span className="min-w-0 truncate font-mono text-xs">

@@ -1,5 +1,8 @@
+import assert from "node:assert/strict";
+import * as fs from "fs";
 import * as fsPromises from "fs/promises";
 import * as path from "path";
+import type { Config } from "@/config";
 import { execAsync } from "@/utils/disposableExec";
 
 export interface WorktreeResult {
@@ -8,26 +11,65 @@ export interface WorktreeResult {
   error?: string;
 }
 
-/**
- * Check if a worktree has uncommitted changes or untracked files
- * Returns true if the worktree is clean (safe to delete), false otherwise
- */
+export async function createWorktree(
+  config: Config,
+  projectPath: string,
+  branchName: string
+): Promise<WorktreeResult> {
+  try {
+    const workspacePath = config.getWorkspacePath(projectPath, branchName);
+
+    if (!fs.existsSync(path.dirname(workspacePath))) {
+      fs.mkdirSync(path.dirname(workspacePath), { recursive: true });
+    }
+
+    if (fs.existsSync(workspacePath)) {
+      return {
+        success: false,
+        error: `Workspace already exists at ${workspacePath}`,
+      };
+    }
+
+    using branchesProc = execAsync(`git -C "${projectPath}" branch -a`);
+    const { stdout: branches } = await branchesProc.result;
+    const branchExists = branches
+      .split("\n")
+      .some(
+        (b) =>
+          b.trim() === branchName ||
+          b.trim() === `* ${branchName}` ||
+          b.trim() === `remotes/origin/${branchName}`
+      );
+
+    if (branchExists) {
+      using proc = execAsync(
+        `git -C "${projectPath}" worktree add "${workspacePath}" "${branchName}"`
+      );
+      await proc.result;
+    } else {
+      using proc = execAsync(
+        `git -C "${projectPath}" worktree add -b "${branchName}" "${workspacePath}"`
+      );
+      await proc.result;
+    }
+
+    return { success: true, path: workspacePath };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return { success: false, error: message };
+  }
+}
+
 export async function isWorktreeClean(workspacePath: string): Promise<boolean> {
   try {
-    // Check for uncommitted changes (staged or unstaged)
     using proc = execAsync(`git -C "${workspacePath}" status --porcelain`);
     const { stdout: statusOutput } = await proc.result;
     return statusOutput.trim() === "";
   } catch {
-    // If git command fails, assume not clean (safer default)
     return false;
   }
 }
 
-/**
- * Check if a worktree contains submodules
- * Returns true if .gitmodules file exists, false otherwise
- */
 export async function hasSubmodules(workspacePath: string): Promise<boolean> {
   try {
     const gitmodulesPath = path.join(workspacePath, ".gitmodules");
@@ -44,7 +86,6 @@ export async function removeWorktree(
   options: { force: boolean } = { force: false }
 ): Promise<WorktreeResult> {
   try {
-    // Remove the worktree (from the main repository context)
     using proc = execAsync(
       `git -C "${projectPath}" worktree remove "${workspacePath}" ${options.force ? "--force" : ""}`
     );
@@ -67,74 +108,40 @@ export async function pruneWorktrees(projectPath: string): Promise<WorktreeResul
   }
 }
 
-/**
- * Remove a worktree with optimized UX for clean worktrees.
- *
- * Strategy:
- * - Clean worktrees (no uncommitted changes): Instant removal via rename+background delete
- * - Dirty worktrees: Standard git removal (blocks UI but prevents data loss)
- * - Missing worktrees: Prune from git records
- *
- * This provides instant feedback for the common case (clean worktrees) while
- * preserving git's safety checks for uncommitted changes.
- *
- * IMPORTANT: This function NEVER uses --force. It will fail and return an error if:
- * - Worktree has uncommitted changes
- * - Worktree contains submodules (git refuses to remove without --force)
- * The caller (frontend) will show a force delete modal, and the user can retry with force: true.
- *
- * @param projectPath - Path to the main git repository
- * @param workspacePath - Path to the worktree to remove
- * @param options.onBackgroundDelete - Optional callback for background deletion (for logging)
- * @returns WorktreeResult indicating success or failure
- */
 export async function removeWorktreeSafe(
   projectPath: string,
   workspacePath: string,
   options?: { onBackgroundDelete?: (tempDir: string, error?: Error) => void }
 ): Promise<WorktreeResult> {
-  // Check if worktree exists
   const worktreeExists = await fsPromises
     .access(workspacePath)
     .then(() => true)
     .catch(() => false);
 
   if (!worktreeExists) {
-    // Worktree already deleted - prune git records
     const pruneResult = await pruneWorktrees(projectPath);
     if (!pruneResult.success) {
-      // Log but don't fail - worktree is gone which is what we wanted
       options?.onBackgroundDelete?.(workspacePath, new Error(pruneResult.error));
     }
     return { success: true };
   }
 
-  // Check if worktree is clean (no uncommitted changes)
   const isClean = await isWorktreeClean(workspacePath);
 
   if (isClean) {
-    // Strategy: Instant removal for clean worktrees
-    // Rename to temp directory (instant), prune git records, delete in background
     const tempDir = path.join(
       path.dirname(workspacePath),
       `.deleting-${path.basename(workspacePath)}-${Date.now()}`
     );
 
     try {
-      // Rename to temp location (instant operation)
       await fsPromises.rename(workspacePath, tempDir);
-
-      // Prune the worktree from git's records
       await pruneWorktrees(projectPath);
-
-      // Delete the temp directory in the background
       void fsPromises.rm(tempDir, { recursive: true, force: true }).catch((err) => {
         options?.onBackgroundDelete?.(tempDir, err as Error);
       });
-
       return { success: true };
     } catch {
-      // Rollback rename if it succeeded
       const tempExists = await fsPromises
         .access(tempDir)
         .then(() => true)
@@ -142,24 +149,18 @@ export async function removeWorktreeSafe(
 
       if (tempExists) {
         await fsPromises.rename(tempDir, workspacePath).catch(() => {
-          // If rollback fails, fall through to sync removal
+          // Best effort rollback
         });
       }
-      // Fall through to sync removal below
     }
   }
 
-  // For dirty worktrees OR if instant removal failed:
-  // Use regular git worktree remove (respects git safety checks)
   const stillExists = await fsPromises
     .access(workspacePath)
     .then(() => true)
     .catch(() => false);
 
   if (stillExists) {
-    // Try normal git removal without force
-    // If worktree has uncommitted changes or submodules, this will fail
-    // and the error will be shown to the user who can then force delete
     const gitResult = await removeWorktree(projectPath, workspacePath, { force: false });
 
     if (!gitResult.success) {
@@ -171,7 +172,6 @@ export async function removeWorktreeSafe(
         normalizedError.includes("no such file");
 
       if (looksLikeMissingWorktree) {
-        // Path is missing from git's perspective - prune it
         const pruneResult = await pruneWorktrees(projectPath);
         if (!pruneResult.success) {
           options?.onBackgroundDelete?.(workspacePath, new Error(pruneResult.error));
@@ -179,10 +179,312 @@ export async function removeWorktreeSafe(
         return { success: true };
       }
 
-      // Real git error (e.g., uncommitted changes) - propagate to caller
       return gitResult;
     }
   }
 
   return { success: true };
+}
+
+export async function moveWorktree(
+  projectPath: string,
+  oldPath: string,
+  newPath: string
+): Promise<WorktreeResult> {
+  try {
+    if (fs.existsSync(newPath)) {
+      return {
+        success: false,
+        error: `Target path already exists: ${newPath}`,
+      };
+    }
+
+    const parentDir = path.dirname(newPath);
+    if (!fs.existsSync(parentDir)) {
+      fs.mkdirSync(parentDir, { recursive: true });
+    }
+
+    using proc = execAsync(`git -C "${projectPath}" worktree move "${oldPath}" "${newPath}"`);
+    await proc.result;
+    return { success: true, path: newPath };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return { success: false, error: message };
+  }
+}
+
+export async function listWorktrees(projectPath: string): Promise<string[]> {
+  try {
+    using proc = execAsync(`git -C "${projectPath}" worktree list --porcelain`);
+    const { stdout } = await proc.result;
+    const worktrees: string[] = [];
+    const lines = stdout.split("\n");
+
+    for (const line of lines) {
+      if (line.startsWith("worktree ")) {
+        const candidate = line.slice("worktree ".length);
+        if (candidate !== projectPath) {
+          worktrees.push(candidate);
+        }
+      }
+    }
+
+    return worktrees;
+  } catch (error) {
+    console.error("Error listing worktrees:", error);
+    return [];
+  }
+}
+
+export async function isGitRepository(projectPath: string): Promise<boolean> {
+  try {
+    using proc = execAsync(`git -C "${projectPath}" rev-parse --git-dir`);
+    await proc.result;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function getMainWorktreeFromWorktree(worktreePath: string): Promise<string | null> {
+  try {
+    using proc = execAsync(`git -C "${worktreePath}" worktree list --porcelain`);
+    const { stdout } = await proc.result;
+    const lines = stdout.split("\n");
+
+    for (const line of lines) {
+      if (line.startsWith("worktree ")) {
+        return line.slice("worktree ".length);
+      }
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export interface RebaseResult {
+  success: boolean;
+  status: "completed" | "conflicts" | "aborted";
+  conflictFiles?: string[];
+  error?: string;
+  errorStack?: string;
+  step?: string;
+  stashed?: boolean;
+}
+
+async function resolveGitDir(workspacePath: string): Promise<string> {
+  const defaultGitPath = path.join(workspacePath, ".git");
+
+  try {
+    using proc = execAsync(`git -C "${workspacePath}" rev-parse --absolute-git-dir`);
+    const { stdout } = await proc.result;
+    const resolved = stdout.trim();
+    if (resolved) {
+      return resolved;
+    }
+  } catch {
+    // Fallback to default path
+  }
+
+  return defaultGitPath;
+}
+
+export async function isRebaseInProgress(workspacePath: string): Promise<boolean> {
+  assert(workspacePath, "workspacePath required");
+  assert(typeof workspacePath === "string", "workspacePath must be a string");
+  assert(workspacePath.trim().length > 0, "workspacePath must not be empty");
+  assert(fs.existsSync(workspacePath), `Workspace path does not exist: ${workspacePath}`);
+
+  const gitDir = await resolveGitDir(workspacePath);
+  const rebaseMerge = path.join(gitDir, "rebase-merge");
+  const rebaseApply = path.join(gitDir, "rebase-apply");
+  return fs.existsSync(rebaseMerge) || fs.existsSync(rebaseApply);
+}
+
+export async function gatherGitDiagnostics(workspacePath: string): Promise<string> {
+  const diagnostics: string[] = [];
+
+  try {
+    using branchProc = execAsync(`git -C "${workspacePath}" rev-parse --abbrev-ref HEAD 2>&1`);
+    const { stdout: branch } = await branchProc.result;
+    diagnostics.push(`Current branch: ${branch.trim()}`);
+  } catch (error) {
+    diagnostics.push(
+      `Current branch: Error - ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+
+  try {
+    using statusProc = execAsync(`git -C "${workspacePath}" status --short 2>&1`);
+    const { stdout: status } = await statusProc.result;
+    diagnostics.push(
+      status.trim() ? `\nGit status:\n${status.trim()}` : "\nGit status: Working tree clean"
+    );
+  } catch (error) {
+    diagnostics.push(
+      `\nGit status: Error - ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+
+  try {
+    const rebaseInProgress = await isRebaseInProgress(workspacePath);
+    if (rebaseInProgress) {
+      diagnostics.push("\nRebase state: IN PROGRESS");
+    }
+  } catch {
+    // Ignore rebase state errors
+  }
+
+  try {
+    using stashProc = execAsync(`git -C "${workspacePath}" stash list 2>&1`);
+    const { stdout: stashList } = await stashProc.result;
+    const trimmed = stashList.trim();
+    if (trimmed) {
+      const stashes = trimmed.split("\n");
+      diagnostics.push(`\nStash entries: ${stashes.length}`);
+      if (stashes.length > 0) {
+        diagnostics.push(`Latest stash: ${stashes[0]}`);
+      }
+    }
+  } catch {
+    // Ignore stash errors
+  }
+
+  return diagnostics.join("\n");
+}
+
+export async function abortRebase(workspacePath: string): Promise<WorktreeResult> {
+  assert(workspacePath, "workspacePath required");
+  assert(typeof workspacePath === "string", "workspacePath must be a string");
+  assert(workspacePath.trim().length > 0, "workspacePath must not be empty");
+  assert(fs.existsSync(workspacePath), `Workspace path does not exist: ${workspacePath}`);
+
+  try {
+    using proc = execAsync(`git -C "${workspacePath}" rebase --abort`);
+    await proc.result;
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+export async function rebaseOntoTrunk(
+  workspacePath: string,
+  trunkBranch: string
+): Promise<RebaseResult> {
+  let currentStep = "validation";
+
+  assert(workspacePath, "workspacePath required");
+  assert(typeof workspacePath === "string", "workspacePath must be a string");
+  assert(workspacePath.trim().length > 0, "workspacePath must not be empty");
+  assert(trunkBranch, "trunkBranch required");
+  assert(typeof trunkBranch === "string", "trunkBranch must be a string");
+  assert(trunkBranch.trim().length > 0, "trunkBranch must not be empty");
+  assert(fs.existsSync(workspacePath), `Workspace path does not exist: ${workspacePath}`);
+
+  try {
+    currentStep = "checking HEAD state";
+    try {
+      using headProc = execAsync(`git -C "${workspacePath}" symbolic-ref -q HEAD`);
+      const { stdout: headCheck } = await headProc.result;
+      if (!headCheck.trim()) {
+        return {
+          success: false,
+          status: "aborted",
+          error: "Cannot rebase in detached HEAD state",
+          step: currentStep,
+        };
+      }
+    } catch (headError) {
+      return {
+        success: false,
+        status: "aborted",
+        error:
+          headError instanceof Error && headError.message
+            ? headError.message
+            : "Cannot rebase in detached HEAD state",
+        step: currentStep,
+      };
+    }
+
+    currentStep = "checking for existing rebase";
+    const rebaseInProgress = await isRebaseInProgress(workspacePath);
+    assert(!rebaseInProgress, "Cannot start rebase - rebase already in progress");
+
+    currentStep = "fetching from origin";
+    try {
+      using fetchProc = execAsync(`git -C "${workspacePath}" fetch origin`);
+      await fetchProc.result;
+    } catch {
+      // Fetch failures are not fatal – continue with existing refs
+    }
+
+    currentStep = `rebasing onto origin/${trunkBranch}`;
+    try {
+      using rebaseProc = execAsync(
+        `git -C "${workspacePath}" rebase --autostash origin/${trunkBranch}`
+      );
+      await rebaseProc.result;
+
+      const result: RebaseResult = {
+        success: true,
+        status: "completed",
+        stashed: false,
+      };
+
+      assert(result.success === true, "Success result must have success=true");
+      assert(result.status === "completed", "Completed rebase must have status='completed'");
+
+      return result;
+    } catch (error) {
+      let conflictFiles: string[] = [];
+      try {
+        using conflictsProc = execAsync(
+          `git -C "${workspacePath}" diff --name-only --diff-filter=U`
+        );
+        const { stdout: conflicts } = await conflictsProc.result;
+        conflictFiles = conflicts
+          .split("\n")
+          .map((f) => f.trim())
+          .filter((f) => f.length > 0);
+      } catch {
+        conflictFiles = [];
+      }
+
+      const result: RebaseResult = {
+        success: false,
+        status: "conflicts",
+        conflictFiles,
+        error: `Rebase conflicts detected${error instanceof Error ? `: ${error.message}` : ""}`,
+        stashed: false,
+        step: currentStep,
+      };
+
+      assert(result.success === false, "Conflict result must have success=false");
+      assert(result.status === "conflicts", "Conflict result must have status='conflicts'");
+
+      return result;
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    const stack = error instanceof Error ? error.stack : undefined;
+    const result: RebaseResult = {
+      success: false,
+      status: "aborted",
+      error: message,
+      errorStack: stack,
+      step: currentStep,
+    };
+
+    assert(result.success === false, "Aborted result must have success=false");
+    assert(result.status === "aborted", "Aborted result must have status='aborted'");
+    assert(result.error, "Aborted result must have error message");
+
+    return result;
+  }
 }
