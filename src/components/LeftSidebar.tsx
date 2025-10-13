@@ -43,7 +43,6 @@ interface LeftSidebarProps {
   onToggleCollapsed: () => void;
   onGetSecrets: (projectPath: string) => Promise<Secret[]>;
   onUpdateSecrets: (projectPath: string, secrets: Secret[]) => Promise<void>;
-  workspaceRecency: Record<string, number>;
   sortedWorkspacesByProject: Map<string, ProjectConfig["workspaces"]>;
 }
 

@@ -577,7 +577,6 @@ function AppInner() {
             onToggleCollapsed={() => setSidebarCollapsed((prev) => !prev)}
             onGetSecrets={handleGetSecrets}
             onUpdateSecrets={handleUpdateSecrets}
-            workspaceRecency={workspaceRecency}
             sortedWorkspacesByProject={sortedWorkspacesByProject}
           />
           <MainContent>

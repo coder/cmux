@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import styled from "@emotion/styled";
 import { css } from "@emotion/react";
@@ -585,7 +585,6 @@ interface ProjectSidebarProps {
   onToggleCollapsed: () => void;
   onGetSecrets: (projectPath: string) => Promise<Secret[]>;
   onUpdateSecrets: (projectPath: string, secrets: Secret[]) => Promise<void>;
-  workspaceRecency: Record<string, number>;
   sortedWorkspacesByProject: Map<string, Workspace[]>;
 }
 
@@ -606,7 +605,6 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
   onToggleCollapsed,
   onGetSecrets,
   onUpdateSecrets,
-  workspaceRecency,
   sortedWorkspacesByProject,
 }) => {
   // Subscribe to git status updates (causes this component to re-render every 10s)
