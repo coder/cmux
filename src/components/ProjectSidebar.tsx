@@ -21,6 +21,29 @@ import type { WorkspaceState } from "@/hooks/useWorkspaceAggregators";
 import SecretsModal from "./SecretsModal";
 import type { Secret } from "@/types/secrets";
 import { ForceDeleteModal } from "./ForceDeleteModal";
+import { AIViewPreview } from "./AIViewPreview";
+
+// HoverPreviewRenderer isolates preview mount logic to avoid re-render storms and keeps
+// the ProjectSidebar lean. It renders a Tooltip portal whose contents are the AIViewPreview.
+const HoverPreviewRenderer: React.FC<{
+  workspaceId: string;
+  projectName: string;
+  branch: string;
+  workspacePath: string;
+  workspaceState: WorkspaceState;
+}> = ({ workspaceId, projectName, branch, workspacePath, workspaceState }) => {
+  return (
+    <Tooltip className="tooltip" align="right" width="wide">
+      <AIViewPreview
+        workspaceId={workspaceId}
+        projectName={projectName}
+        branch={branch}
+        workspacePath={workspacePath}
+        workspaceState={workspaceState}
+      />
+    </Tooltip>
+  );
+};
 
 // Styled Components
 const SidebarContent = styled.div`
@@ -982,100 +1005,159 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                               const isSelected =
                                 selectedWorkspace?.workspacePath === workspace.path;
 
+                              // Compute preview props early to avoid re-computation in hover handlers
+                              const previewProps = {
+                                workspaceId,
+                                projectName,
+                                branch: displayName,
+                                workspacePath: workspace.path,
+                                workspaceState,
+                              } as const;
+
                               return (
                                 <React.Fragment key={workspace.path}>
-                                  <WorkspaceItem
-                                    selected={isSelected}
-                                    onClick={() =>
-                                      onSelectWorkspace({
-                                        projectPath,
-                                        projectName,
-                                        workspacePath: workspace.path,
-                                        workspaceId,
-                                      })
-                                    }
-                                    onKeyDown={(e) => {
-                                      if (e.key === "Enter" || e.key === " ") {
-                                        e.preventDefault();
+                                  <TooltipWrapper inline>
+                                    <WorkspaceItem
+                                      selected={isSelected}
+                                      onClick={() =>
                                         onSelectWorkspace({
                                           projectPath,
                                           projectName,
                                           workspacePath: workspace.path,
                                           workspaceId,
-                                        });
+                                        })
                                       }
-                                    }}
-                                    role="button"
-                                    tabIndex={0}
-                                    aria-current={isSelected ? "true" : undefined}
-                                    data-workspace-path={workspace.path}
-                                    data-workspace-id={workspaceId}
-                                  >
-                                    <TooltipWrapper inline>
-                                      <WorkspaceRemoveBtn
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          void handleRemoveWorkspace(workspaceId, e.currentTarget);
-                                        }}
-                                        aria-label={`Remove workspace ${displayName}`}
-                                        data-workspace-id={workspaceId}
-                                      >
-                                        ×
-                                      </WorkspaceRemoveBtn>
-                                      <Tooltip className="tooltip" align="right">
-                                        Remove workspace
+                                      onKeyDown={(e) => {
+                                        if (e.key === "Enter" || e.key === " ") {
+                                          e.preventDefault();
+                                          onSelectWorkspace({
+                                            projectPath,
+                                            projectName,
+                                            workspacePath: workspace.path,
+                                            workspaceId,
+                                          });
+                                        }
+                                      }}
+                                      role="button"
+                                      tabIndex={0}
+                                      aria-current={isSelected ? "true" : undefined}
+                                      data-workspace-path={workspace.path}
+                                      data-workspace-id={workspaceId}
+                                    >
+                                      <Tooltip className="tooltip" align="right" width="wide">
+                                        {/* Lazy import to avoid bundle growth in main path */}
+                                        {/* We avoid dynamic imports per repo rules; component is small */}
+                                        {/* Render compact AIViewPreview inside tooltip for hover glance */}
+                                        {/* eslint-disable-next-line @typescript-eslint/ban-ts-comment */}
+                                        {/* @ts-ignore - imported at top-level */}
+                                        {(() => {
+                                          // Inline require to avoid circulars; still static import at file top not allowed per size?
+                                          // We already created component at src/components/AIViewPreview.tsx
+                                          // Importing statically:
+                                          return null;
+                                        })()}
                                       </Tooltip>
-                                    </TooltipWrapper>
-                                    <GitStatusIndicator
-                                      gitStatus={gitStatus.get(metadata.id) ?? null}
-                                      workspaceId={workspaceId}
-                                      tooltipPosition="right"
-                                    />
-                                    {isEditing ? (
-                                      <WorkspaceNameInput
-                                        value={editingName}
-                                        onChange={(e) => setEditingName(e.target.value)}
-                                        onKeyDown={(e) => handleRenameKeyDown(e, workspaceId)}
-                                        onBlur={() => void confirmRename(workspaceId)}
-                                        autoFocus
-                                        onClick={(e) => e.stopPropagation()}
-                                        aria-label={`Rename workspace ${displayName}`}
-                                        data-workspace-id={workspaceId}
+                                      <TooltipWrapper inline>
+                                        <WorkspaceRemoveBtn
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            void handleRemoveWorkspace(workspaceId, e.currentTarget);
+                                          }}
+                                          aria-label={`Remove workspace ${displayName}`}
+                                          data-workspace-id={workspaceId}
+                                        >
+                                          ×
+                                        </WorkspaceRemoveBtn>
+                                        <Tooltip className="tooltip" align="right">
+                                          Remove workspace
+                                        </Tooltip>
+                                      </TooltipWrapper>
+                                      <GitStatusIndicator
+                                        gitStatus={gitStatus.get(metadata.id) ?? null}
+                                        workspaceId={workspaceId}
+                                        tooltipPosition="right"
                                       />
-                                    ) : (
-                                      <WorkspaceName
-                                        onDoubleClick={(e) => {
-                                          e.stopPropagation();
-                                          startRenaming(workspaceId, displayName);
-                                        }}
-                                        title="Double-click to rename"
-                                      >
-                                        {displayName}
-                                      </WorkspaceName>
-                                    )}
-                                    <WorkspaceStatusIndicator
-                                      streaming={isStreaming}
-                                      unread={isUnread}
-                                      onClick={() => _onToggleUnread(workspaceId)}
-                                      title={
-                                        isStreaming && streamingModel ? (
-                                          <span>
-                                            <ModelDisplay
-                                              modelString={streamingModel}
-                                              showTooltip={false}
-                                            />{" "}
-                                            is responding
-                                          </span>
-                                        ) : isStreaming ? (
-                                          "Assistant is responding"
-                                        ) : isUnread ? (
-                                          "Unread messages"
-                                        ) : (
-                                          "Idle"
-                                        )
-                                      }
-                                    />
-                                  </WorkspaceItem>
+                                      />
+                                      {isEditing ? (
+                                        <WorkspaceNameInput
+                                          value={editingName}
+                                          onChange={(e) => setEditingName(e.target.value)}
+                                          onKeyDown={(e) => handleRenameKeyDown(e, workspaceId)}
+                                          onBlur={() => void confirmRename(workspaceId)}
+                                          autoFocus
+                                          onClick={(e) => e.stopPropagation()}
+                                          aria-label={`Rename workspace ${displayName}`}
+                                          data-workspace-id={workspaceId}
+                                        />
+                                      ) : (
+                                        <WorkspaceName
+                                          onDoubleClick={(e) => {
+                                            e.stopPropagation();
+                                            startRenaming(workspaceId, displayName);
+                                          }}
+                                          title="Double-click to rename"
+                                        >
+                                          {displayName}
+                                        </WorkspaceName>
+                                      )}
+                                      <WorkspaceStatusIndicator
+                                        streaming={isStreaming}
+                                        unread={isUnread}
+                                        onClick={() => _onToggleUnread(workspaceId)}
+                                        title={
+                                          isStreaming && streamingModel ? (
+                                            <span>
+                                              <ModelDisplay
+                                                modelString={streamingModel}
+                                                showTooltip={false}
+                                              />{" "}
+                                              is responding
+                                            </span>
+                                          ) : isStreaming ? (
+                                            "Assistant is responding"
+                                          ) : isUnread ? (
+                                            "Unread messages"
+                                          ) : (
+                                            "Idle"
+                                          )
+                                        }
+                                      />
+                                    </WorkspaceItem>
+                                    {/* Hover preview portal */}
+                                    <HoverPreviewRenderer {...previewProps} />
+                                  </TooltipWrapper>
+                                          onClick={(e) => e.stopPropagation()}
+                                          aria-label={`Rename workspace ${displayName}`}
+                                          data-workspace-id={workspaceId}
+                                        />
+                                      ) : (
+                                        <WorkspaceName
+                                          onDoubleClick={(e) => {
+                                            e.stopPropagation();
+                                            startRenaming(workspaceId, displayName);
+                                          }}
+                                          title="Double-click to rename"
+                                        >
+                                          {displayName}
+                                        </WorkspaceName>
+                                      )}
+                                      <WorkspaceStatusIndicator
+                                        streaming={isStreaming}
+                                        unread={isUnread}
+                                        onClick={() => _onToggleUnread(workspaceId)}
+                                        title={
+                                          isStreaming
+                                            ? "Assistant is responding"
+                                            : isUnread
+                                              ? "Unread messages"
+                                              : "Idle"
+                                        }
+                                      />
+                                    </WorkspaceItem>
+                                    {/* Hover preview portal */}
+                                    <HoverPreviewRenderer {...previewProps} />
+                                  </TooltipWrapper>
+>>>>>>> e2cecb3d (🤖 Hover AIView preview in sidebar: show recent messages on workspace hover without altering active view\n\n- Add AIViewPreview (read-only, last N messages, ChatProvider for parity)\n- Integrate preview as Tooltip content around WorkspaceItem\n- Keep non-interactive/pointer-events:none to avoid stealing focus\n- Uses existing MessageRenderer for full parity\n\nGenerated with)
                                   {renameError && editingWorkspaceId === workspaceId && (
                                     <WorkspaceErrorContainer>{renameError}</WorkspaceErrorContainer>
                                   )}
@@ -1083,11 +1165,6 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                               );
                             }
                           )}
-                        </WorkspacesContainer>
-                      )}
-                    </ProjectGroup>
-                  );
-                })
               )}
             </ProjectsList>
           </>
