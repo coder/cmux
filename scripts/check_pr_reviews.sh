@@ -19,6 +19,7 @@ UNRESOLVED=$(gh api graphql -f query="
     pullRequest(number: $PR_NUMBER) {
       reviewThreads(first: 100) {
         nodes {
+          id
           isResolved
           comments(first: 1) {
             nodes {
@@ -32,11 +33,14 @@ UNRESOLVED=$(gh api graphql -f query="
       }
     }
   }
-}" --jq '.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false) | .comments.nodes[0] | {user: .author.login, body: .body, diff_hunk: .diffHunk, commit_id: .commit.oid}')
+}" --jq '.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false) | {thread_id: .id, user: .comments.nodes[0].author.login, body: .comments.nodes[0].body, diff_hunk: .comments.nodes[0].diffHunk, commit_id: .comments.nodes[0].commit.oid}')
 
 if [ -n "$UNRESOLVED" ]; then
   echo "❌ Unresolved review comments found:"
   echo "$UNRESOLVED" | jq -r '"  \(.user): \(.body)"'
+  echo ""
+  echo "To resolve a comment thread, use:"
+  echo "$UNRESOLVED" | jq -r '"  ./scripts/resolve_codex_comment.sh \(.thread_id)"'
   echo ""
   echo "View PR: https://github.com/coder/cmux/pull/$PR_NUMBER"
   exit 1
