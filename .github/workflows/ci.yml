@@ -30,8 +30,7 @@ jobs:
 
       - name: Install shfmt
         if: steps.cache-shfmt.outputs.cache-hit != 'true'
-        run: |
-          curl -sS https://webinstall.dev/shfmt | bash
+        run: curl -sS https://webinstall.dev/shfmt | bash
 
       - name: Add shfmt to PATH
         run: echo "$HOME/.local/bin" >> $GITHUB_PATH
