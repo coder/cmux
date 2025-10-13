@@ -14,13 +14,9 @@ cmux helps you work with AI coding assistants more effectively by:
 - 💬 **Session History** - Full chat history persistence across sessions
 - 🔄 **Flexible Workflows** - Support for different AI models and providers
 
-## Why cmux?
-
-- Effective use of many simultaneous agents
-- Richer dialogue with assistant due to GUI (e.g. native mermaid diagrams)
-
 ## Quick Links
 
 - [Install](./install.md) - Download and installation instructions
+- [Why Parallelize?](./why-parallelize.md) - Why parallelize?
 - [Keyboard Shortcuts](./keybinds.md) - Complete keyboard reference
 - [AGENTS](./AGENTS.md) - Developer guide for AI assistants

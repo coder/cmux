@@ -56,30 +56,34 @@ Download pre-built binaries from [the releases page](https://github.com/coder/cm
 
 ## Screenshots
 
-<figure>
+<div align="center">
+  <p><em>Mermaid diagrams make it easier to review complex proposals from the Agent:</em></p>
   <img src="./docs/img/plan-mermaid.webp" alt="Screenshot of mermaid diagram" />
-  <figcaption>Mermaid diagrams make it easier to review complex proposals from the Agent</figcaption>
-</figure>
+</div>
 
-<figure>
+<div align="center">
+  <p><em>Git divergence UI keeps you looped in on changes and potential conflicts:</em></p>
   <img src="./docs/img/git-status.webp" alt="Screenshot of git status" />
-  <figcaption>Git divergence UI keeps you looped in on changes and potential conflicts</figcaption>
-</figure>
+</div>
 
-<figure>
+<div align="center">
+  <p><em>Project secrets help split your Human and Agent identities:</em></p>
   <img src="./docs/img/project-secrets.webp" alt="Screenshot of project secrets" />
-  <figcaption>Project secrets help split your Human and Agent identities</figcaption>
-</figure>
+</div>
 
-<figure>
+<div align="center">
+  <p><em>Stay looped in on costs and token consumption:</em></p>
   <img src="./docs/img/costs-tab.webp" alt="Screenshot of costs table" />
-  <figcaption>Stay looped in on costs and token consumption</figcaption>
-</figure>
+</div>
 
-<figure>
+<div align="center">
+  <p><em>Opportunistic compaction helps keep context small:</em></p>
   <img src="./docs/img/opportunistic-compaction.webp" alt="Screenshot of opportunistic compaction" />
-  <figcaption>Opportunistic compaction helps keep context small</figcaption>
-</figure>
+</div>
+
+## More reading
+
+See [the documentation](https://cmux.io) for more details.
 
 ## Development
 
