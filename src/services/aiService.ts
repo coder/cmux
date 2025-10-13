@@ -22,6 +22,7 @@ import {
   validateAnthropicCompliance,
   addInterruptedSentinel,
   filterEmptyAssistantMessages,
+  injectModeTransition,
 } from "@/utils/messages/modelMessageTransform";
 import { applyCacheControl } from "@/utils/ai/cacheStrategy";
 import type { HistoryService } from "./historyService";
@@ -450,9 +451,12 @@ export class AIService extends EventEmitter {
       // Add [CONTINUE] sentinel to partial messages (for model context)
       const messagesWithSentinel = addInterruptedSentinel(filteredMessages);
 
+      // Inject mode transition context if mode changed from last assistant message
+      const messagesWithModeContext = injectModeTransition(messagesWithSentinel, mode);
+
       // Apply centralized tool-output redaction BEFORE converting to provider ModelMessages
       // This keeps the persisted/UI history intact while trimming heavy fields for the request
-      const redactedForProvider = applyToolOutputRedaction(messagesWithSentinel);
+      const redactedForProvider = applyToolOutputRedaction(messagesWithModeContext);
       log.debug_obj(`${workspaceId}/2a_redacted_messages.json`, redactedForProvider);
 
       // Convert CmuxMessage to ModelMessage format using Vercel AI SDK utility
@@ -485,30 +489,11 @@ export class AIService extends EventEmitter {
         return Err({ type: "unknown", raw: metadataResult.error });
       }
 
-      // Detect mode transitions by checking the last assistant message's mode
-      // If mode changed, inject transition context to help the model understand the switch
-      let enhancedSystemInstructions = additionalSystemInstructions;
-      if (mode) {
-        // Find the last assistant message to check its mode
-        // We look in the original messages (not filtered) to preserve mode state
-        const lastAssistantMessage = [...messages].reverse().find((m) => m.role === "assistant");
-        const lastMode = lastAssistantMessage?.metadata?.mode;
-
-        // If we have a previous mode and it's different from current mode, inject transition context
-        if (lastMode && lastMode !== mode) {
-          const transitionNote = `\n\nIMPORTANT: The user has switched from ${lastMode} mode to ${mode} mode. Ignore any previous mode state from conversation history and follow the current mode instructions.`;
-          enhancedSystemInstructions = enhancedSystemInstructions
-            ? enhancedSystemInstructions + transitionNote
-            : transitionNote;
-          log.info(`Mode transition detected: ${lastMode} → ${mode}`, { workspaceId });
-        }
-      }
-
       // Build system message from workspace metadata
       const systemMessage = await buildSystemMessage(
         metadataResult.data,
         mode,
-        enhancedSystemInstructions
+        additionalSystemInstructions
       );
 
       // Count system message tokens for cost tracking
