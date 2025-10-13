@@ -52,6 +52,7 @@ function isFileEditReplaceLinesTool(
   args: unknown
 ): args is FileEditReplaceLinesToolArgs {
   if (toolName !== "file_edit_replace_lines") return false;
+  // @ts-expect-error - Tool is disabled, kept for backwards compatibility with old history
   return TOOL_DEFINITIONS.file_edit_replace_lines.schema.safeParse(args).success;
 }
 

@@ -24,7 +24,9 @@ export type FileEditReplaceLinesToolResult = FileEditReplaceLinesResult | FileEd
  */
 export const createFileEditReplaceLinesTool: ToolFactory = (config: ToolConfiguration) => {
   return tool({
+    // @ts-expect-error - Tool is disabled, kept for backwards compatibility
     description: TOOL_DEFINITIONS.file_edit_replace_lines.description,
+    // @ts-expect-error - Tool is disabled, kept for backwards compatibility
     inputSchema: TOOL_DEFINITIONS.file_edit_replace_lines.schema,
     execute: async (args: LineReplaceArgs): Promise<FileEditReplaceLinesToolResult> => {
       const result = await executeFileEditOperation({
