@@ -5,10 +5,10 @@ import type { MenuItemConstructorOptions } from "electron";
 import { app, BrowserWindow, ipcMain as electronIpcMain, Menu, shell, dialog } from "electron";
 import * as fs from "fs";
 import * as path from "path";
-import { Config } from "./config";
-import { IpcMain } from "./services/ipcMain";
+import type { Config } from "./config";
+import type { IpcMain } from "./services/ipcMain";
 import { VERSION } from "./version";
-import { loadTokenizerModules } from "./utils/main/tokenizer";
+import type { loadTokenizerModules } from "./utils/main/tokenizer";
 
 // React DevTools for development profiling
 // Using require() instead of import since it's dev-only and conditionally loaded
@@ -39,13 +39,20 @@ if (!app.isPackaged) {
   }
 }
 
-const config = new Config();
-const ipcMain = new IpcMain(config);
+// Lazy-load Config and IpcMain to avoid loading heavy AI SDK dependencies at startup
+// These will be loaded on-demand when createWindow() is called
+let config: Config | null = null;
+let ipcMain: IpcMain | null = null;
+let loadTokenizerModulesFn: typeof loadTokenizerModules | null = null;
 const isE2ETest = process.env.CMUX_E2E === "1";
 const forceDistLoad = process.env.CMUX_E2E_LOAD_DIST === "1";
 
 if (isE2ETest) {
-  const e2eUserData = path.join(config.rootDir, "user-data");
+  // For e2e tests, use a test-specific userData directory
+  // Note: We can't use config.rootDir here because config isn't loaded yet
+  // However, we must respect CMUX_TEST_ROOT to maintain test isolation
+  const testRoot = process.env.CMUX_TEST_ROOT ?? path.join(process.env.HOME ?? "~", ".cmux");
+  const e2eUserData = path.join(testRoot, "user-data");
   try {
     fs.mkdirSync(e2eUserData, { recursive: true });
     app.setPath("userData", e2eUserData);
@@ -175,7 +182,30 @@ function createMenu() {
   Menu.setApplicationMenu(menu);
 }
 
-function createWindow() {
+async function createWindow() {
+  // Lazy-load Config and IpcMain only when window is created
+  // This defers loading heavy AI SDK dependencies until actually needed
+  if (!config || !ipcMain || !loadTokenizerModulesFn) {
+    /* eslint-disable no-restricted-syntax */
+    // Dynamic imports are justified here for performance:
+    // - IpcMain transitively imports the entire AI SDK (ai, @ai-sdk/anthropic, etc.)
+    // - These are large modules that would block app startup if loaded statically
+    // - Loading happens once on first window creation, then cached
+    const [
+      { Config: ConfigClass },
+      { IpcMain: IpcMainClass },
+      { loadTokenizerModules: loadTokenizerFn },
+    ] = await Promise.all([
+      import("./config"),
+      import("./services/ipcMain"),
+      import("./utils/main/tokenizer"),
+    ]);
+    /* eslint-enable no-restricted-syntax */
+    config = new ConfigClass();
+    ipcMain = new IpcMainClass(config);
+    loadTokenizerModulesFn = loadTokenizerFn;
+  }
+
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
@@ -235,13 +265,6 @@ if (gotTheLock) {
   void app.whenReady().then(async () => {
     console.log("App ready, creating window...");
 
-    // Start loading tokenizer modules in background
-    // This ensures accurate token counts for first API calls (especially in e2e tests)
-    // Loading happens asynchronously and won't block window creation
-    void loadTokenizerModules().then(() => {
-      console.log("Tokenizer modules loaded");
-    });
-
     // Install React DevTools in development
     if (!app.isPackaged && installExtension && REACT_DEVELOPER_TOOLS) {
       try {
@@ -255,7 +278,16 @@ if (gotTheLock) {
     }
 
     createMenu();
-    createWindow();
+    await createWindow();
+
+    // Start loading tokenizer modules in background after window is created
+    // This ensures accurate token counts for first API calls (especially in e2e tests)
+    // Loading happens asynchronously and won't block the UI
+    if (loadTokenizerModulesFn) {
+      void loadTokenizerModulesFn().then(() => {
+        console.log("Tokenizer modules loaded");
+      });
+    }
     // No need to auto-start workspaces anymore - they start on demand
   });
 
@@ -269,7 +301,7 @@ if (gotTheLock) {
     // Only create window if app is ready and no window exists
     // This prevents "Cannot create BrowserWindow before app is ready" error
     if (app.isReady() && mainWindow === null) {
-      createWindow();
+      void createWindow();
     }
   });
 }
