@@ -8,6 +8,7 @@ import { formatModelDisplayName } from "@/utils/ai/modelDisplay";
 const ModelContainer = styled.span<{
   fontSize: number;
   gap: number;
+  verticalAlign: string;
 }>`
   display: inline-flex;
   align-items: center;
@@ -16,7 +17,7 @@ const ModelContainer = styled.span<{
   font-weight: inherit;
   color: inherit;
   text-transform: none; /* Override parent's uppercase */
-  vertical-align: middle; /* Align with timestamp baseline */
+  vertical-align: ${(props) => props.verticalAlign};
 `;
 
 const IconWrapper = styled.span<{ size: number }>`
@@ -51,6 +52,8 @@ interface ModelDisplayProps {
   iconSize?: number;
   /** Gap between icon and text in pixels (default: 6 for message headers, use smaller like 4 for tooltips) */
   gap?: number;
+  /** Vertical alignment (default: "middle" for message headers, use "baseline" for inline text) */
+  verticalAlign?: string;
 }
 
 /**
@@ -62,6 +65,7 @@ export const ModelDisplay: React.FC<ModelDisplayProps> = ({
   fontSize = 11,
   iconSize = 14,
   gap = 6,
+  verticalAlign = "middle",
 }) => {
   const [provider, modelName] = modelString.includes(":")
     ? modelString.split(":", 2)
@@ -84,7 +88,7 @@ export const ModelDisplay: React.FC<ModelDisplayProps> = ({
 
   return (
     <TooltipWrapper inline>
-      <ModelContainer fontSize={fontSize} gap={gap}>
+      <ModelContainer fontSize={fontSize} gap={gap} verticalAlign={verticalAlign}>
         {providerIcon && <IconWrapper size={iconSize}>{providerIcon}</IconWrapper>}
         {displayName}
       </ModelContainer>

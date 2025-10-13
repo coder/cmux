@@ -1087,6 +1087,7 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                                               fontSize={10}
                                               iconSize={10}
                                               gap={4}
+                                              verticalAlign="baseline"
                                             />{" "}
                                             is responding
                                           </span>
