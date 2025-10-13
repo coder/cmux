@@ -406,9 +406,7 @@ if (gotTheLock) {
 
       // Show error dialog to user
       const errorMessage =
-        error instanceof Error
-          ? `${error.message}\n\n${error.stack ?? ""}`
-          : String(error);
+        error instanceof Error ? `${error.message}\n\n${error.stack ?? ""}` : String(error);
 
       dialog.showErrorBox(
         "Startup Failed",
