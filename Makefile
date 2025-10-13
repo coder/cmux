@@ -163,7 +163,7 @@ dist: build ## Build distributable packages
 
 # Parallel macOS builds - notarization happens concurrently
 dist-mac: build ## Build macOS distributables (x64 + arm64)
-	@if [ -n "$$CSC_LINK" ]; then \
+	@if [ -n "$$CSC_LINK" ] || [ "$$CSC_FOR_PULL_REQUEST" = "true" ]; then \
 		echo "🔐 Code signing enabled - building sequentially to avoid keychain conflicts..."; \
 		bun x electron-builder --mac --x64 --publish never && \
 		bun x electron-builder --mac --arm64 --publish never; \
