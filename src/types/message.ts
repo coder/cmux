@@ -18,6 +18,7 @@ export interface CmuxMetadata {
   errorType?: StreamErrorType; // Error type/category if stream failed
   compacted?: boolean; // Whether this message is a compacted summary of previous history
   toolPolicy?: ToolPolicy; // Tool policy active when this message was sent (user messages only)
+  mode?: string; // The mode (plan/exec/etc) active when this message was sent (assistant messages only)
 }
 
 // Extended tool part type that supports interrupted tool calls (input-available state)

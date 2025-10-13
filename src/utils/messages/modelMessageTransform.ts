@@ -107,6 +107,84 @@ export function addInterruptedSentinel(messages: CmuxMessage[]): CmuxMessage[] {
 }
 
 /**
+ * Inject mode transition context when mode changes mid-conversation.
+ * Inserts a synthetic user message before the final user message to signal the mode switch.
+ * This provides temporal context that helps models understand they should follow new mode instructions.
+ *
+ * @param messages The conversation history
+ * @param currentMode The mode for the upcoming assistant response (e.g., "plan", "exec")
+ * @returns Messages with mode transition context injected if needed
+ */
+export function injectModeTransition(messages: CmuxMessage[], currentMode?: string): CmuxMessage[] {
+  // No mode specified, nothing to do
+  if (!currentMode) {
+    return messages;
+  }
+
+  // Need at least one message to have a conversation
+  if (messages.length === 0) {
+    return messages;
+  }
+
+  // Find the last assistant message to check its mode
+  const lastAssistantMessage = [...messages].reverse().find((m) => m.role === "assistant");
+  const lastMode = lastAssistantMessage?.metadata?.mode;
+
+  // No mode transition if no previous mode or same mode
+  if (!lastMode || lastMode === currentMode) {
+    return messages;
+  }
+
+  // Mode transition detected! Inject a synthetic user message before the last user message
+  // This provides temporal context: user says "switch modes" before their actual request
+
+  // Find the index of the last user message
+  let lastUserIndex = -1;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].role === "user") {
+      lastUserIndex = i;
+      break;
+    }
+  }
+
+  // If there's no user message, can't inject transition (nothing to inject before)
+  if (lastUserIndex === -1) {
+    return messages;
+  }
+
+  const result: CmuxMessage[] = [];
+
+  // Add all messages up to (but not including) the last user message
+  for (let i = 0; i < lastUserIndex; i++) {
+    result.push(messages[i]);
+  }
+
+  // Inject mode transition message right before the last user message
+  const transitionMessage: CmuxMessage = {
+    id: `mode-transition-${Date.now()}`,
+    role: "user",
+    parts: [
+      {
+        type: "text",
+        text: `[Mode switched from ${lastMode} to ${currentMode}. Follow ${currentMode} mode instructions.]`,
+      },
+    ],
+    metadata: {
+      timestamp: Date.now(),
+      synthetic: true,
+    },
+  };
+  result.push(transitionMessage);
+
+  // Add the last user message and any remaining messages
+  for (let i = lastUserIndex; i < messages.length; i++) {
+    result.push(messages[i]);
+  }
+
+  return result;
+}
+
+/**
  * Split assistant messages with mixed text and tool calls into separate messages
  * to comply with Anthropic's requirement that tool_use blocks must be immediately
  * followed by their tool_result blocks without intervening text.

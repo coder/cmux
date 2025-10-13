@@ -22,6 +22,7 @@ import {
   validateAnthropicCompliance,
   addInterruptedSentinel,
   filterEmptyAssistantMessages,
+  injectModeTransition,
 } from "@/utils/messages/modelMessageTransform";
 import { applyCacheControl } from "@/utils/ai/cacheStrategy";
 import type { HistoryService } from "./historyService";
@@ -450,9 +451,12 @@ export class AIService extends EventEmitter {
       // Add [CONTINUE] sentinel to partial messages (for model context)
       const messagesWithSentinel = addInterruptedSentinel(filteredMessages);
 
+      // Inject mode transition context if mode changed from last assistant message
+      const messagesWithModeContext = injectModeTransition(messagesWithSentinel, mode);
+
       // Apply centralized tool-output redaction BEFORE converting to provider ModelMessages
       // This keeps the persisted/UI history intact while trimming heavy fields for the request
-      const redactedForProvider = applyToolOutputRedaction(messagesWithSentinel);
+      const redactedForProvider = applyToolOutputRedaction(messagesWithModeContext);
       log.debug_obj(`${workspaceId}/2a_redacted_messages.json`, redactedForProvider);
 
       // Convert CmuxMessage to ModelMessage format using Vercel AI SDK utility
@@ -525,6 +529,7 @@ export class AIService extends EventEmitter {
         timestamp: Date.now(),
         model: modelString,
         systemMessageTokens,
+        mode, // Track the mode for this assistant response
       });
 
       // Append to history to get historySequence assigned
@@ -676,6 +681,7 @@ export class AIService extends EventEmitter {
         {
           systemMessageTokens,
           timestamp: Date.now(),
+          mode, // Pass mode so it persists in final history entry
         },
         providerOptions,
         maxOutputTokens,
