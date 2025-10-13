@@ -189,33 +189,34 @@ function createMenu() {
  * Shows a lightweight native window with static HTML while services load.
  * No IPC, no React, no heavy dependencies - just immediate user feedback.
  */
-function showSplashScreen() {
-  console.log("Showing splash screen...");
+async function showSplashScreen() {
+  const startTime = Date.now();
+  console.log(`[${startTime}] Showing splash screen...`);
+  
   splashWindow = new BrowserWindow({
     width: 400,
     height: 300,
     frame: false,
-    transparent: false, // Changed to false for better visibility
+    transparent: false,
     alwaysOnTop: true,
     center: true,
     resizable: false,
-    show: true, // Explicitly show immediately
+    show: false, // Don't show until HTML is loaded
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
     },
   });
 
-  splashWindow.loadFile(path.join(__dirname, "splash.html"))
-    .then(() => {
-      console.log("Splash screen HTML loaded successfully");
-    })
-    .catch((err) => {
-      console.error("Failed to load splash screen:", err);
-    });
+  // Wait for splash HTML to load before showing
+  await splashWindow.loadFile(path.join(__dirname, "splash.html"));
+  splashWindow.show();
+  
+  const loadTime = Date.now() - startTime;
+  console.log(`[${Date.now()}] Splash screen loaded and visible (${loadTime}ms)`);
 
   splashWindow.on("closed", () => {
-    console.log("Splash screen closed event");
+    console.log(`[${Date.now()}] Splash screen closed event`);
     splashWindow = null;
   });
 }
@@ -225,7 +226,7 @@ function showSplashScreen() {
  */
 function closeSplashScreen() {
   if (splashWindow) {
-    console.log("Closing splash screen...");
+    console.log(`[${Date.now()}] Closing splash screen...`);
     splashWindow.close();
     splashWindow = null;
   }
@@ -240,8 +241,8 @@ function closeSplashScreen() {
 async function loadServices(): Promise<void> {
   if (config && ipcMain && loadTokenizerModulesFn) return; // Already loaded
 
-  console.log("Loading services...");
   const startTime = Date.now();
+  console.log(`[${startTime}] Loading services...`);
 
   /* eslint-disable no-restricted-syntax */
   // Dynamic imports are justified here for performance:
@@ -262,7 +263,8 @@ async function loadServices(): Promise<void> {
   ipcMain = new IpcMainClass(config);
   loadTokenizerModulesFn = loadTokenizerFn;
 
-  console.log(`Services loaded in ${Date.now() - startTime}ms`);
+  const loadTime = Date.now() - startTime;
+  console.log(`[${Date.now()}] Services loaded in ${loadTime}ms`);
 }
 
 function createWindow() {
@@ -290,7 +292,7 @@ function createWindow() {
 
   // Show window once it's ready and close splash
   mainWindow.once("ready-to-show", () => {
-    console.log("Main window ready to show");
+    console.log(`[${Date.now()}] Main window ready to show`);
     mainWindow?.show();
     closeSplashScreen();
   });
@@ -352,11 +354,11 @@ if (gotTheLock) {
     createMenu();
 
     // Three-phase startup:
-    // 1. Show splash immediately (<100ms)
+    // 1. Show splash immediately (<100ms) and wait for it to load
     // 2. Load services while splash visible (fast - ~100ms)
     // 3. Create window and start loading content (splash stays visible)
     // 4. When window ready-to-show: close splash, show main window
-    showSplashScreen();
+    await showSplashScreen(); // Wait for splash to actually load
     await loadServices();
     createWindow();
     // Note: splash closes in ready-to-show event handler
@@ -366,7 +368,7 @@ if (gotTheLock) {
     // Loading happens asynchronously and won't block the UI
     if (loadTokenizerModulesFn) {
       void loadTokenizerModulesFn().then(() => {
-        console.log("Tokenizer modules loaded");
+        console.log(`[${Date.now()}] Tokenizer modules loaded`);
       });
     }
     // No need to auto-start workspaces anymore - they start on demand
@@ -382,11 +384,11 @@ if (gotTheLock) {
     // Only create window if app is ready and no window exists
     // This prevents "Cannot create BrowserWindow before app is ready" error
     if (app.isReady() && mainWindow === null) {
-      showSplashScreen();
-      void loadServices().then(() => {
+      void (async () => {
+        await showSplashScreen();
+        await loadServices();
         createWindow();
-        // Note: splash closes in ready-to-show event handler
-      });
+      })();
     }
   });
 }
