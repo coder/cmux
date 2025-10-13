@@ -8,18 +8,18 @@ import { formatModelDisplayName } from "@/utils/ai/modelDisplay";
 const ModelContainer = styled.span`
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  color: var(--color-text-secondary);
-  font-weight: normal;
-  font-size: 10px;
+  gap: 6px;
+  color: #cccccc; /* Match MessageHeader color */
+  font-weight: 500; /* Match MessageHeader weight */
+  font-size: 11px; /* Match MessageHeader size */
   text-transform: none; /* Override parent's uppercase */
 `;
 
 const IconWrapper = styled.span`
   display: inline-flex;
   align-items: center;
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
   
   svg {
     width: 100%;

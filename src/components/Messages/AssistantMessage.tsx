@@ -138,7 +138,6 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({
 
     return (
       <LabelContainer>
-        <span>ASSISTANT</span>
         {modelName && <ModelDisplay modelString={modelName} />}
         {isCompacted && <CompactedBadge>{COMPACTED_EMOJI} compacted</CompactedBadge>}
       </LabelContainer>
