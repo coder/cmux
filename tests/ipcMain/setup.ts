@@ -9,6 +9,7 @@ import { IpcMain } from "../../src/services/ipcMain";
 import { IPC_CHANNELS } from "../../src/constants/ipc-constants";
 import { generateBranchName, createWorkspace } from "./helpers";
 import { shouldRunIntegrationTests, validateApiKeys, getApiKey } from "../testUtils";
+import { loadTokenizerModules } from "../../src/utils/main/tokenizer";
 
 export interface TestEnvironment {
   config: Config;
@@ -148,6 +149,10 @@ export async function setupWorkspace(
   cleanup: () => Promise<void>;
 }> {
   const { createTempGitRepo, cleanupTempGitRepo } = await import("./helpers");
+
+  // Preload tokenizer modules to ensure accurate token counts for API calls
+  // Without this, tests would use /4 approximation which can cause API errors
+  await loadTokenizerModules();
 
   // Create dedicated temp git repo for this test
   const tempGitRepo = await createTempGitRepo();

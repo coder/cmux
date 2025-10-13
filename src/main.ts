@@ -8,6 +8,7 @@ import * as path from "path";
 import { Config } from "./config";
 import { IpcMain } from "./services/ipcMain";
 import { VERSION } from "./version";
+import { loadTokenizerModules } from "./utils/main/tokenizer";
 
 // React DevTools for development profiling
 // Using require() instead of import since it's dev-only and conditionally loaded
@@ -60,6 +61,13 @@ console.log(
   `Cmux starting - version: ${(VERSION as { git?: string; buildTime?: string }).git ?? "(dev)"} (built: ${(VERSION as { git?: string; buildTime?: string }).buildTime ?? "dev-mode"})`
 );
 console.log("Main process starting...");
+
+// Debug: abort immediately if CMUX_DEBUG_START_TIME is set
+// This is used to measure baseline startup time without full initialization
+if (process.env.CMUX_DEBUG_START_TIME === "1") {
+  console.log("CMUX_DEBUG_START_TIME is set - aborting immediately");
+  process.exit(0);
+}
 
 // Global error handlers for better error reporting
 process.on("uncaughtException", (error) => {
@@ -226,6 +234,13 @@ function createWindow() {
 if (gotTheLock) {
   void app.whenReady().then(async () => {
     console.log("App ready, creating window...");
+
+    // Start loading tokenizer modules in background
+    // This ensures accurate token counts for first API calls (especially in e2e tests)
+    // Loading happens asynchronously and won't block window creation
+    void loadTokenizerModules().then(() => {
+      console.log("Tokenizer modules loaded");
+    });
 
     // Install React DevTools in development
     if (!app.isPackaged && installExtension && REACT_DEVELOPER_TOOLS) {
