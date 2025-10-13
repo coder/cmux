@@ -128,6 +128,18 @@ if (!gotTheLock) {
 let mainWindow: BrowserWindow | null = null;
 let splashWindow: BrowserWindow | null = null;
 
+/**
+ * Format timestamp as HH:MM:SS.mmm for readable logging
+ */
+function timestamp(): string {
+  const now = new Date();
+  const hours = String(now.getHours()).padStart(2, "0");
+  const minutes = String(now.getMinutes()).padStart(2, "0");
+  const seconds = String(now.getSeconds()).padStart(2, "0");
+  const ms = String(now.getMilliseconds()).padStart(3, "0");
+  return `${hours}:${minutes}:${seconds}.${ms}`;
+}
+
 function createMenu() {
   const template: MenuItemConstructorOptions[] = [
     {
@@ -191,7 +203,7 @@ function createMenu() {
  */
 async function showSplashScreen() {
   const startTime = Date.now();
-  console.log(`[${startTime}] Showing splash screen...`);
+  console.log(`[${timestamp()}] Showing splash screen...`);
   
   splashWindow = new BrowserWindow({
     width: 400,
@@ -213,10 +225,10 @@ async function showSplashScreen() {
   splashWindow.show();
   
   const loadTime = Date.now() - startTime;
-  console.log(`[${Date.now()}] Splash screen loaded and visible (${loadTime}ms)`);
+  console.log(`[${timestamp()}] Splash screen loaded and visible (${loadTime}ms)`);
 
   splashWindow.on("closed", () => {
-    console.log(`[${Date.now()}] Splash screen closed event`);
+    console.log(`[${timestamp()}] Splash screen closed event`);
     splashWindow = null;
   });
 }
@@ -226,7 +238,7 @@ async function showSplashScreen() {
  */
 function closeSplashScreen() {
   if (splashWindow) {
-    console.log(`[${Date.now()}] Closing splash screen...`);
+    console.log(`[${timestamp()}] Closing splash screen...`);
     splashWindow.close();
     splashWindow = null;
   }
@@ -242,7 +254,7 @@ async function loadServices(): Promise<void> {
   if (config && ipcMain && loadTokenizerModulesFn) return; // Already loaded
 
   const startTime = Date.now();
-  console.log(`[${startTime}] Loading services...`);
+  console.log(`[${timestamp()}] Loading services...`);
 
   /* eslint-disable no-restricted-syntax */
   // Dynamic imports are justified here for performance:
@@ -264,7 +276,7 @@ async function loadServices(): Promise<void> {
   loadTokenizerModulesFn = loadTokenizerFn;
 
   const loadTime = Date.now() - startTime;
-  console.log(`[${Date.now()}] Services loaded in ${loadTime}ms`);
+  console.log(`[${timestamp()}] Services loaded in ${loadTime}ms`);
 }
 
 function createWindow() {
@@ -292,7 +304,7 @@ function createWindow() {
 
   // Show window once it's ready and close splash
   mainWindow.once("ready-to-show", () => {
-    console.log(`[${Date.now()}] Main window ready to show`);
+    console.log(`[${timestamp()}] Main window ready to show`);
     mainWindow?.show();
     closeSplashScreen();
   });
@@ -368,7 +380,7 @@ if (gotTheLock) {
     // Loading happens asynchronously and won't block the UI
     if (loadTokenizerModulesFn) {
       void loadTokenizerModulesFn().then(() => {
-        console.log(`[${Date.now()}] Tokenizer modules loaded`);
+        console.log(`[${timestamp()}] Tokenizer modules loaded`);
       });
     }
     // No need to auto-start workspaces anymore - they start on demand
