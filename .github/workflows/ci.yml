@@ -12,6 +12,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Required for git describe to find tags
 
       - uses: ./.github/actions/setup-cmux
 
@@ -52,6 +54,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Required for git describe to find tags
 
       - uses: ./.github/actions/setup-cmux
 
@@ -64,6 +68,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Required for git describe to find tags
 
       - uses: ./.github/actions/setup-cmux
 
@@ -79,6 +85,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Required for git describe to find tags
 
       - uses: ./.github/actions/setup-cmux
 
@@ -105,6 +113,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Required for git describe to find tags
 
       - name: Check for unresolved Codex comments
         env:
