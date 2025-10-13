@@ -29,7 +29,7 @@ jobs:
           AC_APIKEY_ISSUER_ID: ${{ secrets.AC_APIKEY_ISSUER_ID }}
 
       - name: Package for macOS
-        run: make -j dist-mac
+        run: make dist-mac
 
       - name: Upload macOS DMG (x64)
         uses: actions/upload-artifact@v4

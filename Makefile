@@ -162,13 +162,18 @@ dist: build ## Build distributable packages
 	@bun x electron-builder --publish never
 
 # Parallel macOS builds - notarization happens concurrently
-dist-mac: build dist-mac-x64 dist-mac-arm64 ## Build macOS distributables (x64 + arm64)
+dist-mac: build ## Build macOS distributables (x64 + arm64 in parallel)
+	@echo "Building macOS architectures in parallel..."
+	@bun x electron-builder --mac --x64 --publish never & \
+	 bun x electron-builder --mac --arm64 --publish never & \
+	 wait
+	@echo "✅ Both architectures built successfully"
 
-dist-mac-x64: ## Build macOS x64 distributable (use via dist-mac)
+dist-mac-x64: build ## Build macOS x64 distributable only
 	@echo "Building macOS x64..."
 	@bun x electron-builder --mac --x64 --publish never
 
-dist-mac-arm64: ## Build macOS arm64 distributable (use via dist-mac)
+dist-mac-arm64: build ## Build macOS arm64 distributable only
 	@echo "Building macOS arm64..."
 	@bun x electron-builder --mac --arm64 --publish never
 
