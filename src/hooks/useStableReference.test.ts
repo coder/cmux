@@ -5,7 +5,13 @@
  * The comparator functions are the critical logic and are thoroughly tested here.
  * The hook itself is a thin wrapper around useMemo and useRef with manual testing.
  */
-import { compareMaps, compareRecords, compareArrays } from "./useStableReference";
+import {
+  compareMaps,
+  compareRecords,
+  compareArrays,
+  compareGitStatus,
+} from "./useStableReference";
+import type { GitStatus } from "@/types/workspace";
 
 describe("compareMaps", () => {
   it("returns true for empty maps", () => {
@@ -131,8 +137,50 @@ describe("compareArrays", () => {
   });
 });
 
+describe("compareGitStatus", () => {
+  it("returns true for two null values", () => {
+    expect(compareGitStatus(null, null)).toBe(true);
+  });
+
+  it("returns false when one is null and the other is not", () => {
+    const status: GitStatus = { ahead: 0, behind: 0, dirty: false };
+    expect(compareGitStatus(null, status)).toBe(false);
+    expect(compareGitStatus(status, null)).toBe(false);
+  });
+
+  it("returns true for identical git status", () => {
+    const a: GitStatus = { ahead: 1, behind: 2, dirty: true };
+    const b: GitStatus = { ahead: 1, behind: 2, dirty: true };
+    expect(compareGitStatus(a, b)).toBe(true);
+  });
+
+  it("returns false when ahead differs", () => {
+    const a: GitStatus = { ahead: 1, behind: 2, dirty: false };
+    const b: GitStatus = { ahead: 2, behind: 2, dirty: false };
+    expect(compareGitStatus(a, b)).toBe(false);
+  });
+
+  it("returns false when behind differs", () => {
+    const a: GitStatus = { ahead: 1, behind: 2, dirty: false };
+    const b: GitStatus = { ahead: 1, behind: 3, dirty: false };
+    expect(compareGitStatus(a, b)).toBe(false);
+  });
+
+  it("returns false when dirty differs", () => {
+    const a: GitStatus = { ahead: 1, behind: 2, dirty: false };
+    const b: GitStatus = { ahead: 1, behind: 2, dirty: true };
+    expect(compareGitStatus(a, b)).toBe(false);
+  });
+
+  it("returns true for clean status (all zeros)", () => {
+    const a: GitStatus = { ahead: 0, behind: 0, dirty: false };
+    const b: GitStatus = { ahead: 0, behind: 0, dirty: false };
+    expect(compareGitStatus(a, b)).toBe(true);
+  });
+});
+
 // Hook integration tests would require jsdom setup with bun.
 // The comparator functions above are the critical logic and are thoroughly tested.
-// The hook itself is tested manually through its usage in useUnreadTracking and
-// useWorkspaceAggregators.
+// The hook itself is tested manually through its usage in useUnreadTracking,
+// useWorkspaceAggregators, and GitStatusContext.
 

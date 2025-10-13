@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from "react";
 import type { WorkspaceMetadata, GitStatus } from "@/types/workspace";
+import { useStableReference, compareMaps, compareGitStatus } from "@/hooks/useStableReference";
 import { parseGitShowBranchForStatus } from "@/utils/git/parseGitStatus";
 import {
   GIT_STATUS_SCRIPT,
@@ -45,8 +46,19 @@ interface FetchState {
 }
 
 export function GitStatusProvider({ workspaceMetadata, children }: GitStatusProviderProps) {
-  const [gitStatus, setGitStatus] = useState<Map<string, GitStatus | null>>(new Map());
+  // Internal state holds the raw results from git status checks
+  const [gitStatusResults, setGitStatusResults] = useState<Map<string, GitStatus | null>>(
+    new Map()
+  );
   const fetchCache = useRef<Map<string, FetchState>>(new Map());
+
+  // Stabilize Map identity - only return new Map when values actually change
+  // This prevents unnecessary re-renders in components using useGitStatus()
+  const gitStatus = useStableReference(
+    () => gitStatusResults,
+    (prev, next) => compareMaps(prev, next, compareGitStatus),
+    [gitStatusResults]
+  );
 
   // Helper: Check if project should be fetched
   const shouldFetch = useCallback((projectName: string): boolean => {
@@ -252,7 +264,7 @@ export function GitStatusProvider({ workspaceMetadata, children }: GitStatusProv
 
       if (!isActive) return; // Don't update state if unmounted
 
-      setGitStatus(new Map(results));
+      setGitStatusResults(new Map(results));
     };
 
     // Run immediately on mount or when workspaces change

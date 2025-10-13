@@ -1,4 +1,5 @@
 import { useRef, useMemo, type DependencyList } from "react";
+import type { GitStatus } from "@/types/workspace";
 
 /**
  * Compare two Maps for deep equality (same keys and values).
@@ -72,6 +73,21 @@ export function compareArrays<V>(
   }
 
   return true;
+}
+
+/**
+ * Compare two GitStatus objects for equality.
+ * Used to stabilize git status Map identity when values haven't changed.
+ *
+ * @param a Previous GitStatus
+ * @param b Next GitStatus
+ * @returns true if GitStatus objects are equal, false otherwise
+ */
+export function compareGitStatus(a: GitStatus | null, b: GitStatus | null): boolean {
+  if (a === null && b === null) return true;
+  if (a === null || b === null) return false;
+
+  return a.ahead === b.ahead && a.behind === b.behind && a.dirty === b.dirty;
 }
 
 /**
