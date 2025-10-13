@@ -15,7 +15,7 @@ const ModelContainer = styled.span`
 
 const IconWrapper = styled.span`
   display: inline-block;
-  vertical-align: -0.125em; /* Align icon slightly above baseline for visual centering */
+  vertical-align: -0.19em; /* Align icon slightly above baseline for visual centering */
   width: 1.1em; /* Slightly larger than text for visibility */
   height: 1.1em;
   margin-right: 0.3em; /* Gap after icon */
