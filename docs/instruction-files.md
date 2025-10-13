@@ -9,9 +9,11 @@ cmux layers instructions from two locations:
 
 Priority within each location: `AGENTS.md` → `AGENT.md` → `CLAUDE.md` (first match wins). If the base file is found, cmux also appends `AGENTS.local.md` from the same directory when present.
 
-## Mode-specific sections (no separate files)
+## Mode Prompts
 
-Instead of separate files like `PLAN.md`, cmux reads mode context from sections inside your instruction files. Add a heading titled:
+> Use mode-specific sections to optimize context and customize the behavior specific modes.
+
+cmux reads mode context from sections inside your instruction files. Add a heading titled:
 
 - `Mode: <mode>` (case-insensitive), at any heading level (`#` .. `######`)
 

@@ -4,10 +4,12 @@ import type { WorkspaceMetadata } from "@/types/workspace";
 import { gatherInstructionSets, readInstructionSet } from "@/utils/main/instructionFiles";
 import { extractModeSection } from "@/utils/main/markdown";
 
+// NOTE: keep this in sync with the docs/models.md file
+
 // The PRELUDE is intentionally minimal to not conflict with the user's instructions.
 // cmux is designed to be model agnostic, and models have shown large inconsistency in how they
 // follow instructions.
-const PRELUDE = `
+const PRELUDE = ` 
 <prelude>
 You are a coding agent.
   
