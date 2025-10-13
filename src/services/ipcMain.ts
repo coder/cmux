@@ -857,7 +857,7 @@ export class IpcMain {
       try {
         // Return all supported providers, not just configured ones
         // This matches the providers defined in the registry
-        return ["anthropic", "openai", "google"];
+        return ["anthropic", "openai"];
       } catch (error) {
         log.error("Failed to list providers:", error);
         return [];

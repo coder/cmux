@@ -29,6 +29,7 @@ include fmt.mk
 .PHONY: docs docs-build docs-watch
 .PHONY: benchmark-terminal
 .PHONY: ensure-deps
+.PHONY: check-eager-imports check-bundle-size check-startup
 
 TS_SOURCES := $(shell find src -type f \( -name '*.ts' -o -name '*.tsx' \))
 
@@ -126,7 +127,7 @@ build/icon.icns: docs/img/logo.webp
 	@rm -rf build/icon.iconset
 
 ## Quality checks (can run in parallel)
-static-check: lint typecheck fmt-check ## Run all static checks
+static-check: lint typecheck fmt-check check-eager-imports ## Run all static checks (includes startup performance checks)
 
 lint: node_modules/.installed ## Run ESLint (typecheck runs in separate target)
 	@./scripts/lint.sh
@@ -218,6 +219,15 @@ clean: ## Clean build artifacts
 	@echo "Cleaning build artifacts..."
 	@rm -rf dist release build/icon.icns build/icon.png
 	@echo "Done!"
+
+## Startup Performance Checks
+check-eager-imports: ## Check for eager AI SDK imports in critical files
+	@./scripts/check_eager_imports.sh
+
+check-bundle-size: build ## Check that bundle sizes are within limits
+	@./scripts/check_bundle_size.sh
+
+check-startup: check-eager-imports check-bundle-size ## Run all startup performance checks
 
 # Parallel build optimization - these can run concurrently
 .NOTPARALLEL: build-main  # TypeScript can handle its own parallelism
