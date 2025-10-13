@@ -1044,24 +1044,18 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                                       data-workspace-path={workspace.path}
                                       data-workspace-id={workspaceId}
                                     >
+                                      {/* Hover preview tooltip (does not steal hover) */}
                                       <Tooltip className="tooltip" align="right" width="wide">
-                                        {/* Lazy import to avoid bundle growth in main path */}
-                                        {/* We avoid dynamic imports per repo rules; component is small */}
-                                        {/* Render compact AIViewPreview inside tooltip for hover glance */}
-                                        {/* eslint-disable-next-line @typescript-eslint/ban-ts-comment */}
-                                        {/* @ts-ignore - imported at top-level */}
-                                        {(() => {
-                                          // Inline require to avoid circulars; still static import at file top not allowed per size?
-                                          // We already created component at src/components/AIViewPreview.tsx
-                                          // Importing statically:
-                                          return null;
-                                        })()}
+                                        <AIViewPreview {...previewProps} />
                                       </Tooltip>
                                       <TooltipWrapper inline>
                                         <WorkspaceRemoveBtn
                                           onClick={(e) => {
                                             e.stopPropagation();
-                                            void handleRemoveWorkspace(workspaceId, e.currentTarget);
+                                            void handleRemoveWorkspace(
+                                              workspaceId,
+                                              e.currentTarget
+                                            );
                                           }}
                                           aria-label={`Remove workspace ${displayName}`}
                                           data-workspace-id={workspaceId}
@@ -1076,7 +1070,6 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                                         gitStatus={gitStatus.get(metadata.id) ?? null}
                                         workspaceId={workspaceId}
                                         tooltipPosition="right"
-                                      />
                                       />
                                       {isEditing ? (
                                         <WorkspaceNameInput
@@ -1126,38 +1119,6 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                                     {/* Hover preview portal */}
                                     <HoverPreviewRenderer {...previewProps} />
                                   </TooltipWrapper>
-                                          onClick={(e) => e.stopPropagation()}
-                                          aria-label={`Rename workspace ${displayName}`}
-                                          data-workspace-id={workspaceId}
-                                        />
-                                      ) : (
-                                        <WorkspaceName
-                                          onDoubleClick={(e) => {
-                                            e.stopPropagation();
-                                            startRenaming(workspaceId, displayName);
-                                          }}
-                                          title="Double-click to rename"
-                                        >
-                                          {displayName}
-                                        </WorkspaceName>
-                                      )}
-                                      <WorkspaceStatusIndicator
-                                        streaming={isStreaming}
-                                        unread={isUnread}
-                                        onClick={() => _onToggleUnread(workspaceId)}
-                                        title={
-                                          isStreaming
-                                            ? "Assistant is responding"
-                                            : isUnread
-                                              ? "Unread messages"
-                                              : "Idle"
-                                        }
-                                      />
-                                    </WorkspaceItem>
-                                    {/* Hover preview portal */}
-                                    <HoverPreviewRenderer {...previewProps} />
-                                  </TooltipWrapper>
->>>>>>> e2cecb3d (🤖 Hover AIView preview in sidebar: show recent messages on workspace hover without altering active view\n\n- Add AIViewPreview (read-only, last N messages, ChatProvider for parity)\n- Integrate preview as Tooltip content around WorkspaceItem\n- Keep non-interactive/pointer-events:none to avoid stealing focus\n- Uses existing MessageRenderer for full parity\n\nGenerated with)
                                   {renameError && editingWorkspaceId === workspaceId && (
                                     <WorkspaceErrorContainer>{renameError}</WorkspaceErrorContainer>
                                   )}
@@ -1165,6 +1126,11 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                               );
                             }
                           )}
+                        </WorkspacesContainer>
+                      )}
+                    </ProjectGroup>
+                  );
+                })
               )}
             </ProjectsList>
           </>

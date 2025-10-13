@@ -85,15 +85,16 @@ export const AIViewPreview: React.FC<AIViewPreviewProps> = ({
   maxMessages = 6,
   className,
 }) => {
-  const merged = useMemo(() => mergeConsecutiveStreamErrors(workspaceState.messages), [
-    workspaceState.messages,
-  ]);
+  const merged = useMemo(
+    () => mergeConsecutiveStreamErrors(workspaceState.messages),
+    [workspaceState.messages]
+  );
 
   // Select only the last N messages for brevity
-  const messages = useMemo(() => merged.slice(Math.max(0, merged.length - maxMessages)), [
-    merged,
-    maxMessages,
-  ]);
+  const messages = useMemo(
+    () => merged.slice(Math.max(0, merged.length - maxMessages)),
+    [merged, maxMessages]
+  );
 
   return (
     <ChatProvider
@@ -134,4 +135,3 @@ export const AIViewPreview: React.FC<AIViewPreviewProps> = ({
     </ChatProvider>
   );
 };
-
