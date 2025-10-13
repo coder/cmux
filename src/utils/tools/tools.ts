@@ -5,7 +5,7 @@ import { google } from "@ai-sdk/google";
 import { createFileReadTool } from "@/services/tools/file_read";
 import { createBashTool } from "@/services/tools/bash";
 import { createFileEditReplaceStringTool } from "@/services/tools/file_edit_replace_string";
-import { createFileEditReplaceLinesTool } from "@/services/tools/file_edit_replace_lines";
+// DISABLED: import { createFileEditReplaceLinesTool } from "@/services/tools/file_edit_replace_lines";
 import { createFileEditInsertTool } from "@/services/tools/file_edit_insert";
 import { createProposePlanTool } from "@/services/tools/propose_plan";
 import { createCompactSummaryTool } from "@/services/tools/compact_summary";
@@ -45,7 +45,10 @@ export function getToolsForModel(
     // Use snake_case for tool names to match what seems to be the convention.
     file_read: createFileReadTool(config),
     file_edit_replace_string: createFileEditReplaceStringTool(config),
-    file_edit_replace_lines: createFileEditReplaceLinesTool(config),
+    // DISABLED: file_edit_replace_lines - causes models (particularly GPT-5-Codex)
+    // to leave repository in broken state due to issues with concurrent file modifications
+    // and line number miscalculations. Use file_edit_replace_string or file_edit_insert instead.
+    // file_edit_replace_lines: createFileEditReplaceLinesTool(config),
     file_edit_insert: createFileEditInsertTool(config),
     bash: createBashTool(config),
     propose_plan: createProposePlanTool(config),
