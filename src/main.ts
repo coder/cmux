@@ -220,16 +220,20 @@ async function showSplashScreen() {
     },
   });
 
-  // Wait for splash HTML to load before showing
+  // Wait for splash HTML to load
   await splashWindow.loadFile(path.join(__dirname, "splash.html"));
-  splashWindow.show();
   
-  const loadTime = Date.now() - startTime;
-  console.log(`[${timestamp()}] Splash screen loaded and visible (${loadTime}ms)`);
-  
-  // Give the OS/Electron time to actually render the splash window before continuing
-  // Without this delay, the window is created but not visible until much later
-  await new Promise((resolve) => setTimeout(resolve, 100));
+  // Wait for the window to actually be shown and rendered before continuing
+  // This ensures the splash is visible before we block the event loop with heavy work
+  await new Promise<void>((resolve) => {
+    splashWindow!.once("show", () => {
+      const loadTime = Date.now() - startTime;
+      console.log(`[${timestamp()}] Splash screen shown (${loadTime}ms)`);
+      // Give one more event loop tick for the window to actually paint
+      setImmediate(resolve);
+    });
+    splashWindow!.show();
+  });
 
   splashWindow.on("closed", () => {
     console.log(`[${timestamp()}] Splash screen closed event`);
