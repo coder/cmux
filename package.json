@@ -1,6 +1,6 @@
 {
   "name": "cmux",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "cmux - coder multiplexer",
   "main": "dist/main.js",
   "license": "AGPL-3.0-only",
