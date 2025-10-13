@@ -5,9 +5,7 @@ import OpenAIIcon from "@/assets/icons/openai.svg?react";
 import { TooltipWrapper, Tooltip } from "@/components/Tooltip";
 import { formatModelDisplayName } from "@/utils/ai/modelDisplay";
 
-const ModelContainer = styled.span<{
-  verticalAlign: string;
-}>`
+const ModelContainer = styled.span`
   display: inline-flex;
   align-items: center;
   gap: 0.4em; /* Scales with font size */
@@ -15,7 +13,6 @@ const ModelContainer = styled.span<{
   font-weight: inherit;
   color: inherit;
   text-transform: none; /* Override parent's uppercase */
-  vertical-align: ${(props) => props.verticalAlign};
 `;
 
 const IconWrapper = styled.span`
@@ -44,8 +41,6 @@ const IconWrapper = styled.span`
 
 interface ModelDisplayProps {
   modelString: string;
-  /** Vertical alignment (default: "middle" for message headers, use "baseline" for inline text) */
-  verticalAlign?: string;
   /** Whether to show the tooltip on hover (default: true, set to false when used within another tooltip) */
   showTooltip?: boolean;
 }
@@ -59,7 +54,6 @@ interface ModelDisplayProps {
  */
 export const ModelDisplay: React.FC<ModelDisplayProps> = ({
   modelString,
-  verticalAlign = "middle",
   showTooltip = true,
 }) => {
   const [provider, modelName] = modelString.includes(":")
@@ -82,7 +76,7 @@ export const ModelDisplay: React.FC<ModelDisplayProps> = ({
   const displayName = formatModelDisplayName(modelName);
 
   const content = (
-    <ModelContainer verticalAlign={verticalAlign}>
+    <ModelContainer>
       {providerIcon && <IconWrapper>{providerIcon}</IconWrapper>}
       {displayName}
     </ModelContainer>

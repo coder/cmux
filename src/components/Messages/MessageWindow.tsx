@@ -34,6 +34,7 @@ const LeftSection = styled.div`
 `;
 
 const MessageTypeLabel = styled.div`
+  display: inline-flex;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 `;
