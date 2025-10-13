@@ -186,7 +186,7 @@ export function getAvailableTools(modelString: string): string[] {
     "bash",
     "file_read",
     "file_edit_replace_string",
-    "file_edit_replace_lines",
+    // "file_edit_replace_lines", // DISABLED: causes models to break repo state
     "file_edit_insert",
     "propose_plan",
     "compact_summary",
