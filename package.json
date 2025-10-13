@@ -120,16 +120,6 @@
     ],
     "mac": {
       "category": "public.app-category.developer-tools",
-      "target": [
-        {
-          "target": "dmg",
-          "arch": "x64"
-        },
-        {
-          "target": "dmg",
-          "arch": "arm64"
-        }
-      ],
       "icon": "build/icon.icns",
       "artifactName": "${productName}-${version}-${arch}.${ext}",
       "hardenedRuntime": true,
