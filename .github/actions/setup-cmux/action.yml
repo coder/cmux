@@ -42,3 +42,15 @@ runs:
         else
           echo "ImageMagick already installed (cached)"
         fi
+
+    - name: Install ImageMagick (Linux)
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        if ! command -v convert &> /dev/null; then
+          echo "Installing ImageMagick..."
+          sudo apt-get update -qq
+          sudo apt-get install -y imagemagick
+        else
+          echo "ImageMagick already installed"
+        fi

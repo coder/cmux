@@ -56,9 +56,6 @@ jobs:
 
       - uses: ./.github/actions/setup-cmux
 
-      - name: Install ImageMagick
-        run: sudo apt-get update && sudo apt-get install -y imagemagick
-
       - name: Build application
         run: bun run build
 
