@@ -714,138 +714,137 @@ describe("modelMessageTransform", () => {
   });
 });
 
-  describe("injectModeTransition", () => {
-    it("should inject transition message when mode changes", () => {
-      const messages: CmuxMessage[] = [
-        {
-          id: "user-1",
-          role: "user",
-          parts: [{ type: "text", text: "Let's plan a feature" }],
-          metadata: { timestamp: 1000 },
-        },
-        {
-          id: "assistant-1",
-          role: "assistant",
-          parts: [{ type: "text", text: "Here's the plan..." }],
-          metadata: { timestamp: 2000, mode: "plan" },
-        },
-        {
-          id: "user-2",
-          role: "user",
-          parts: [{ type: "text", text: "Now execute it" }],
-          metadata: { timestamp: 3000 },
-        },
-      ];
+describe("injectModeTransition", () => {
+  it("should inject transition message when mode changes", () => {
+    const messages: CmuxMessage[] = [
+      {
+        id: "user-1",
+        role: "user",
+        parts: [{ type: "text", text: "Let's plan a feature" }],
+        metadata: { timestamp: 1000 },
+      },
+      {
+        id: "assistant-1",
+        role: "assistant",
+        parts: [{ type: "text", text: "Here's the plan..." }],
+        metadata: { timestamp: 2000, mode: "plan" },
+      },
+      {
+        id: "user-2",
+        role: "user",
+        parts: [{ type: "text", text: "Now execute it" }],
+        metadata: { timestamp: 3000 },
+      },
+    ];
 
-      const result = injectModeTransition(messages, "exec");
+    const result = injectModeTransition(messages, "exec");
 
-      // Should have 4 messages: user, assistant, mode-transition, user
-      expect(result.length).toBe(4);
+    // Should have 4 messages: user, assistant, mode-transition, user
+    expect(result.length).toBe(4);
 
-      // Third message should be mode transition
-      expect(result[2].role).toBe("user");
-      expect(result[2].metadata?.synthetic).toBe(true);
-      expect(result[2].parts[0]).toMatchObject({
-        type: "text",
-        text: "[Mode switched from plan to exec. Follow exec mode instructions.]",
-      });
-
-      // Original messages should be preserved
-      expect(result[0]).toEqual(messages[0]);
-      expect(result[1]).toEqual(messages[1]);
-      expect(result[3]).toEqual(messages[2]); // Last user message shifted
+    // Third message should be mode transition
+    expect(result[2].role).toBe("user");
+    expect(result[2].metadata?.synthetic).toBe(true);
+    expect(result[2].parts[0]).toMatchObject({
+      type: "text",
+      text: "[Mode switched from plan to exec. Follow exec mode instructions.]",
     });
 
-    it("should not inject transition when mode is the same", () => {
-      const messages: CmuxMessage[] = [
-        {
-          id: "user-1",
-          role: "user",
-          parts: [{ type: "text", text: "Let's plan" }],
-          metadata: { timestamp: 1000 },
-        },
-        {
-          id: "assistant-1",
-          role: "assistant",
-          parts: [{ type: "text", text: "Planning..." }],
-          metadata: { timestamp: 2000, mode: "plan" },
-        },
-        {
-          id: "user-2",
-          role: "user",
-          parts: [{ type: "text", text: "Continue planning" }],
-          metadata: { timestamp: 3000 },
-        },
-      ];
-
-      const result = injectModeTransition(messages, "plan");
-
-      // Should be unchanged
-      expect(result.length).toBe(3);
-      expect(result).toEqual(messages);
-    });
-
-    it("should not inject transition when no previous mode exists", () => {
-      const messages: CmuxMessage[] = [
-        {
-          id: "user-1",
-          role: "user",
-          parts: [{ type: "text", text: "Hello" }],
-          metadata: { timestamp: 1000 },
-        },
-      ];
-
-      const result = injectModeTransition(messages, "exec");
-
-      // Should be unchanged (no assistant message to compare)
-      expect(result.length).toBe(1);
-      expect(result).toEqual(messages);
-    });
-
-    it("should not inject transition when no mode specified", () => {
-      const messages: CmuxMessage[] = [
-        {
-          id: "user-1",
-          role: "user",
-          parts: [{ type: "text", text: "Hello" }],
-          metadata: { timestamp: 1000 },
-        },
-        {
-          id: "assistant-1",
-          role: "assistant",
-          parts: [{ type: "text", text: "Hi" }],
-          metadata: { timestamp: 2000, mode: "plan" },
-        },
-        {
-          id: "user-2",
-          role: "user",
-          parts: [{ type: "text", text: "Continue" }],
-          metadata: { timestamp: 3000 },
-        },
-      ];
-
-      const result = injectModeTransition(messages, undefined);
-
-      // Should be unchanged
-      expect(result.length).toBe(3);
-      expect(result).toEqual(messages);
-    });
-
-    it("should handle conversation with no user messages", () => {
-      const messages: CmuxMessage[] = [
-        {
-          id: "assistant-1",
-          role: "assistant",
-          parts: [{ type: "text", text: "Hi" }],
-          metadata: { timestamp: 2000, mode: "plan" },
-        },
-      ];
-
-      const result = injectModeTransition(messages, "exec");
-
-      // Should be unchanged (no user message to inject before)
-      expect(result.length).toBe(1);
-      expect(result).toEqual(messages);
-    });
+    // Original messages should be preserved
+    expect(result[0]).toEqual(messages[0]);
+    expect(result[1]).toEqual(messages[1]);
+    expect(result[3]).toEqual(messages[2]); // Last user message shifted
   });
 
+  it("should not inject transition when mode is the same", () => {
+    const messages: CmuxMessage[] = [
+      {
+        id: "user-1",
+        role: "user",
+        parts: [{ type: "text", text: "Let's plan" }],
+        metadata: { timestamp: 1000 },
+      },
+      {
+        id: "assistant-1",
+        role: "assistant",
+        parts: [{ type: "text", text: "Planning..." }],
+        metadata: { timestamp: 2000, mode: "plan" },
+      },
+      {
+        id: "user-2",
+        role: "user",
+        parts: [{ type: "text", text: "Continue planning" }],
+        metadata: { timestamp: 3000 },
+      },
+    ];
+
+    const result = injectModeTransition(messages, "plan");
+
+    // Should be unchanged
+    expect(result.length).toBe(3);
+    expect(result).toEqual(messages);
+  });
+
+  it("should not inject transition when no previous mode exists", () => {
+    const messages: CmuxMessage[] = [
+      {
+        id: "user-1",
+        role: "user",
+        parts: [{ type: "text", text: "Hello" }],
+        metadata: { timestamp: 1000 },
+      },
+    ];
+
+    const result = injectModeTransition(messages, "exec");
+
+    // Should be unchanged (no assistant message to compare)
+    expect(result.length).toBe(1);
+    expect(result).toEqual(messages);
+  });
+
+  it("should not inject transition when no mode specified", () => {
+    const messages: CmuxMessage[] = [
+      {
+        id: "user-1",
+        role: "user",
+        parts: [{ type: "text", text: "Hello" }],
+        metadata: { timestamp: 1000 },
+      },
+      {
+        id: "assistant-1",
+        role: "assistant",
+        parts: [{ type: "text", text: "Hi" }],
+        metadata: { timestamp: 2000, mode: "plan" },
+      },
+      {
+        id: "user-2",
+        role: "user",
+        parts: [{ type: "text", text: "Continue" }],
+        metadata: { timestamp: 3000 },
+      },
+    ];
+
+    const result = injectModeTransition(messages, undefined);
+
+    // Should be unchanged
+    expect(result.length).toBe(3);
+    expect(result).toEqual(messages);
+  });
+
+  it("should handle conversation with no user messages", () => {
+    const messages: CmuxMessage[] = [
+      {
+        id: "assistant-1",
+        role: "assistant",
+        parts: [{ type: "text", text: "Hi" }],
+        metadata: { timestamp: 2000, mode: "plan" },
+      },
+    ];
+
+    const result = injectModeTransition(messages, "exec");
+
+    // Should be unchanged (no user message to inject before)
+    expect(result.length).toBe(1);
+    expect(result).toEqual(messages);
+  });
+});
