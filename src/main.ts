@@ -223,28 +223,43 @@ function closeSplashScreen() {
   }
 }
 
-async function createWindow() {
-  // Lazy-load Config and IpcMain only when window is created
-  // This defers loading heavy AI SDK dependencies until actually needed
-  if (!config || !ipcMain || !loadTokenizerModulesFn) {
-    /* eslint-disable no-restricted-syntax */
-    // Dynamic imports are justified here for performance:
-    // - IpcMain transitively imports the entire AI SDK (ai, @ai-sdk/anthropic, etc.)
-    // - These are large modules that would block app startup if loaded statically
-    // - Loading happens once on first window creation, then cached
-    const [
-      { Config: ConfigClass },
-      { IpcMain: IpcMainClass },
-      { loadTokenizerModules: loadTokenizerFn },
-    ] = await Promise.all([
-      import("./config"),
-      import("./services/ipcMain"),
-      import("./utils/main/tokenizer"),
-    ]);
-    /* eslint-enable no-restricted-syntax */
-    config = new ConfigClass();
-    ipcMain = new IpcMainClass(config);
-    loadTokenizerModulesFn = loadTokenizerFn;
+/**
+ * Load backend services (Config, IpcMain, AI SDK, tokenizer)
+ *
+ * Heavy initialization (~6-13s) happens here while splash is visible.
+ * This is the slow part that delays app startup.
+ */
+async function loadServices(): Promise<void> {
+  if (config && ipcMain && loadTokenizerModulesFn) return; // Already loaded
+
+  console.log("Loading services...");
+  const startTime = Date.now();
+
+  /* eslint-disable no-restricted-syntax */
+  // Dynamic imports are justified here for performance:
+  // - IpcMain transitively imports the entire AI SDK (ai, @ai-sdk/anthropic, etc.)
+  // - These are large modules (~6-13s load time) that would block splash from appearing
+  // - Loading happens once, then cached
+  const [
+    { Config: ConfigClass },
+    { IpcMain: IpcMainClass },
+    { loadTokenizerModules: loadTokenizerFn },
+  ] = await Promise.all([
+    import("./config"),
+    import("./services/ipcMain"),
+    import("./utils/main/tokenizer"),
+  ]);
+  /* eslint-enable no-restricted-syntax */
+  config = new ConfigClass();
+  ipcMain = new IpcMainClass(config);
+  loadTokenizerModulesFn = loadTokenizerFn;
+
+  console.log(`Services loaded in ${Date.now() - startTime}ms`);
+}
+
+function createWindow() {
+  if (!ipcMain) {
+    throw new Error("Services must be loaded before creating window");
   }
 
   mainWindow = new BrowserWindow({
@@ -326,10 +341,13 @@ if (gotTheLock) {
 
     createMenu();
 
-    // Show splash screen immediately, then load services, then show main window
-    // This gives instant visual feedback (<100ms) while services load (~6-13s)
+    // Three-phase startup:
+    // 1. Show splash immediately (<100ms)
+    // 2. Load services while splash visible (~6-13s)
+    // 3. Show main window, close splash
     showSplashScreen();
-    await createWindow();
+    await loadServices();
+    createWindow();
     closeSplashScreen();
 
     // Start loading tokenizer modules in background after window is created
@@ -354,7 +372,8 @@ if (gotTheLock) {
     // This prevents "Cannot create BrowserWindow before app is ready" error
     if (app.isReady() && mainWindow === null) {
       showSplashScreen();
-      void createWindow().then(() => {
+      void loadServices().then(() => {
+        createWindow();
         closeSplashScreen();
       });
     }
