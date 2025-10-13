@@ -485,11 +485,30 @@ export class AIService extends EventEmitter {
         return Err({ type: "unknown", raw: metadataResult.error });
       }
 
+      // Detect mode transitions by checking the last assistant message's mode
+      // If mode changed, inject transition context to help the model understand the switch
+      let enhancedSystemInstructions = additionalSystemInstructions;
+      if (mode) {
+        // Find the last assistant message to check its mode
+        // We look in the original messages (not filtered) to preserve mode state
+        const lastAssistantMessage = [...messages].reverse().find((m) => m.role === "assistant");
+        const lastMode = lastAssistantMessage?.metadata?.mode;
+
+        // If we have a previous mode and it's different from current mode, inject transition context
+        if (lastMode && lastMode !== mode) {
+          const transitionNote = `\n\nIMPORTANT: The user has switched from ${lastMode} mode to ${mode} mode. Ignore any previous mode state from conversation history and follow the current mode instructions.`;
+          enhancedSystemInstructions = enhancedSystemInstructions
+            ? enhancedSystemInstructions + transitionNote
+            : transitionNote;
+          log.info(`Mode transition detected: ${lastMode} → ${mode}`, { workspaceId });
+        }
+      }
+
       // Build system message from workspace metadata
       const systemMessage = await buildSystemMessage(
         metadataResult.data,
         mode,
-        additionalSystemInstructions
+        enhancedSystemInstructions
       );
 
       // Count system message tokens for cost tracking
@@ -525,6 +544,7 @@ export class AIService extends EventEmitter {
         timestamp: Date.now(),
         model: modelString,
         systemMessageTokens,
+        mode, // Track the mode for this assistant response
       });
 
       // Append to history to get historySequence assigned
