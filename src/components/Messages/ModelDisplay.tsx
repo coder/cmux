@@ -3,6 +3,7 @@ import styled from "@emotion/styled";
 import AnthropicIcon from "@/assets/icons/anthropic.svg?react";
 import OpenAIIcon from "@/assets/icons/openai.svg?react";
 import { TooltipWrapper, Tooltip } from "@/components/Tooltip";
+import { formatModelDisplayName } from "@/utils/ai/modelDisplay";
 
 const ModelContainer = styled.span`
   display: inline-flex;
@@ -10,7 +11,6 @@ const ModelContainer = styled.span`
   gap: 4px;
   color: var(--color-text-secondary);
   font-weight: normal;
-  text-transform: lowercase;
   font-size: 10px;
 `;
 
@@ -62,12 +62,13 @@ export const ModelDisplay: React.FC<ModelDisplayProps> = ({ modelString }) => {
   };
 
   const providerIcon = getProviderIcon();
+  const displayName = formatModelDisplayName(modelName);
 
   return (
     <TooltipWrapper inline>
       <ModelContainer>
         {providerIcon && <IconWrapper>{providerIcon}</IconWrapper>}
-        {modelName.toLowerCase()}
+        {displayName}
       </ModelContainer>
       <Tooltip align="center">{modelString}</Tooltip>
     </TooltipWrapper>

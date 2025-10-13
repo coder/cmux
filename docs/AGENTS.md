@@ -183,6 +183,7 @@ This project uses **Make** as the primary build orchestrator. See `Makefile` for
 
 - Always run `make typecheck` after making changes to verify types (checks both main and renderer)
 - **Unit tests should be colocated with their business logic** - Place unit test files (\*.test.ts) in the same directory as the code they test (e.g., `aiService.test.ts` next to `aiService.ts`)
+- **Don't test simple mapping operations** - If the test just verifies the code does what it obviously does from reading it, skip the test.
 - E2E and integration tests may live in `./tests/` directory, but unit tests must be colocated
 - Strive to decompose complex logic away from the components and into `.src/utils/`
   - utils should be either pure functions or easily isolated (e.g. if they operate on the FS they accept
