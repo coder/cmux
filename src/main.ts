@@ -126,6 +126,7 @@ if (!gotTheLock) {
 }
 
 let mainWindow: BrowserWindow | null = null;
+let splashWindow: BrowserWindow | null = null;
 
 function createMenu() {
   const template: MenuItemConstructorOptions[] = [
@@ -182,6 +183,44 @@ function createMenu() {
   Menu.setApplicationMenu(menu);
 }
 
+/**
+ * Create and show splash screen - instant visual feedback (<100ms)
+ *
+ * Shows a lightweight native window with static HTML while services load.
+ * No IPC, no React, no heavy dependencies - just immediate user feedback.
+ */
+function showSplashScreen() {
+  splashWindow = new BrowserWindow({
+    width: 400,
+    height: 300,
+    frame: false,
+    transparent: true,
+    alwaysOnTop: true,
+    center: true,
+    resizable: false,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+    },
+  });
+
+  void splashWindow.loadFile(path.join(__dirname, "splash.html"));
+
+  splashWindow.on("closed", () => {
+    splashWindow = null;
+  });
+}
+
+/**
+ * Close splash screen
+ */
+function closeSplashScreen() {
+  if (splashWindow) {
+    splashWindow.close();
+    splashWindow = null;
+  }
+}
+
 async function createWindow() {
   // Lazy-load Config and IpcMain only when window is created
   // This defers loading heavy AI SDK dependencies until actually needed
@@ -218,10 +257,16 @@ async function createWindow() {
     // Hide menu bar on Linux by default (like VS Code)
     // User can press Alt to toggle it
     autoHideMenuBar: process.platform === "linux",
+    show: false, // Don't show until ready-to-show event
   });
 
   // Register IPC handlers with the main window
   ipcMain.register(electronIpcMain, mainWindow);
+
+  // Show window once it's ready to avoid white flash
+  mainWindow.once("ready-to-show", () => {
+    mainWindow?.show();
+  });
 
   // Open all external links in default browser
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
@@ -278,7 +323,12 @@ if (gotTheLock) {
     }
 
     createMenu();
+
+    // Show splash screen immediately, then load services, then show main window
+    // This gives instant visual feedback (<100ms) while services load (~6-13s)
+    showSplashScreen();
     await createWindow();
+    closeSplashScreen();
 
     // Start loading tokenizer modules in background after window is created
     // This ensures accurate token counts for first API calls (especially in e2e tests)
@@ -301,7 +351,10 @@ if (gotTheLock) {
     // Only create window if app is ready and no window exists
     // This prevents "Cannot create BrowserWindow before app is ready" error
     if (app.isReady() && mainWindow === null) {
-      void createWindow();
+      showSplashScreen();
+      void createWindow().then(() => {
+        closeSplashScreen();
+      });
     }
   });
 }

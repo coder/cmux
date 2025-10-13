@@ -22,7 +22,7 @@
 include fmt.mk
 
 .PHONY: all build dev start clean help
-.PHONY: build-renderer version build-icons
+.PHONY: build-renderer version build-icons build-static
 .PHONY: lint lint-fix typecheck static-check
 .PHONY: test test-unit test-integration test-watch test-coverage test-e2e
 .PHONY: dist dist-mac dist-win dist-linux
@@ -62,7 +62,7 @@ start: node_modules/.installed build-main build-preload ## Build and start Elect
 	@bun x electron --remote-debugging-port=9222 .
 
 ## Build targets (can run in parallel)
-build: node_modules/.installed src/version.ts build-renderer build-main build-preload build-icons ## Build all targets
+build: node_modules/.installed src/version.ts build-renderer build-main build-preload build-icons build-static ## Build all targets
 
 build-main: node_modules/.installed dist/main.js ## Build main process
 
@@ -85,6 +85,10 @@ dist/preload.js: src/preload.ts $(TS_SOURCES)
 build-renderer: node_modules/.installed src/version.ts ## Build renderer process
 	@echo "Building renderer..."
 	@bun x vite build
+
+build-static: ## Copy static assets to dist
+	@echo "Copying static assets..."
+	@cp static/splash.html dist/splash.html
 
 # Always regenerate version file (marked as .PHONY above)
 version: ## Generate version file
