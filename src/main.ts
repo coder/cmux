@@ -280,9 +280,11 @@ function createWindow() {
   // Register IPC handlers with the main window
   ipcMain.register(electronIpcMain, mainWindow);
 
-  // Show window once it's ready to avoid white flash
+  // Show window once it's ready and close splash
   mainWindow.once("ready-to-show", () => {
+    console.log("Main window ready to show");
     mainWindow?.show();
+    closeSplashScreen();
   });
 
   // Open all external links in default browser
@@ -343,12 +345,13 @@ if (gotTheLock) {
 
     // Three-phase startup:
     // 1. Show splash immediately (<100ms)
-    // 2. Load services while splash visible (~6-13s)
-    // 3. Show main window, close splash
+    // 2. Load services while splash visible (fast - ~100ms)
+    // 3. Create window and start loading content (splash stays visible)
+    // 4. When window ready-to-show: close splash, show main window
     showSplashScreen();
     await loadServices();
     createWindow();
-    closeSplashScreen();
+    // Note: splash closes in ready-to-show event handler
 
     // Start loading tokenizer modules in background after window is created
     // This ensures accurate token counts for first API calls (especially in e2e tests)
@@ -374,7 +377,7 @@ if (gotTheLock) {
       showSplashScreen();
       void loadServices().then(() => {
         createWindow();
-        closeSplashScreen();
+        // Note: splash closes in ready-to-show event handler
       });
     }
   });
