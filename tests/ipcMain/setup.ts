@@ -10,6 +10,7 @@ import { IPC_CHANNELS } from "../../src/constants/ipc-constants";
 import { generateBranchName, createWorkspace } from "./helpers";
 import { shouldRunIntegrationTests, validateApiKeys, getApiKey } from "../testUtils";
 import { loadTokenizerModules } from "../../src/utils/main/tokenizer";
+import { loadProviders } from "../../src/utils/ai/providers";
 
 export interface TestEnvironment {
   config: Config;
@@ -150,9 +151,9 @@ export async function setupWorkspace(
 }> {
   const { createTempGitRepo, cleanupTempGitRepo } = await import("./helpers");
 
-  // Preload tokenizer modules to ensure accurate token counts for API calls
-  // Without this, tests would use /4 approximation which can cause API errors
-  await loadTokenizerModules();
+  // Preload heavy modules (tokenizer + AI SDKs) to ensure they're ready for API calls
+  // Without this, tests would use /4 approximation (tokenizer) and hang (AI SDKs)
+  await Promise.all([loadTokenizerModules(), loadProviders()]);
 
   // Create dedicated temp git repo for this test
   const tempGitRepo = await createTempGitRepo();

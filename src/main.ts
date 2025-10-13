@@ -9,6 +9,7 @@ import { Config } from "./config";
 import { IpcMain } from "./services/ipcMain";
 import { VERSION } from "./version";
 import { loadTokenizerModules } from "./utils/main/tokenizer";
+import { loadProviders } from "./utils/ai/providers";
 
 // React DevTools for development profiling
 // Using require() instead of import since it's dev-only and conditionally loaded
@@ -235,11 +236,11 @@ if (gotTheLock) {
   void app.whenReady().then(async () => {
     console.log("App ready, creating window...");
 
-    // Start loading tokenizer modules in background
-    // This ensures accurate token counts for first API calls (especially in e2e tests)
+    // Start loading heavy modules in background
+    // This ensures they're ready for first API calls (especially in e2e/integration tests)
     // Loading happens asynchronously and won't block window creation
-    void loadTokenizerModules().then(() => {
-      console.log("Tokenizer modules loaded");
+    void Promise.all([loadTokenizerModules(), loadProviders()]).then(() => {
+      console.log("Heavy modules loaded (tokenizer + AI SDKs)");
     });
 
     // Install React DevTools in development
