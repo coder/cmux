@@ -44,6 +44,7 @@ interface LeftSidebarProps {
   onGetSecrets: (projectPath: string) => Promise<Secret[]>;
   onUpdateSecrets: (projectPath: string, secrets: Secret[]) => Promise<void>;
   workspaceRecency: Record<string, number>;
+  sortedWorkspacesByProject: Map<string, ProjectConfig["workspaces"]>;
 }
 
 export function LeftSidebar(props: LeftSidebarProps) {

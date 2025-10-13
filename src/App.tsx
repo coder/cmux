@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import styled from "@emotion/styled";
 import { Global, css } from "@emotion/react";
 import { GlobalColors } from "./styles/colors";
@@ -287,15 +287,38 @@ function AppInner() {
     []
   );
 
+  // Sort workspaces by recency (most recent first)
+  // This ensures navigation follows the visual order displayed in the sidebar
+  const sortedWorkspacesByProject = useMemo(() => {
+    const result = new Map<string, ProjectConfig["workspaces"]>();
+    for (const [projectPath, config] of projects) {
+      result.set(
+        projectPath,
+        config.workspaces.slice().sort((a, b) => {
+          const aMeta = workspaceMetadata.get(a.path);
+          const bMeta = workspaceMetadata.get(b.path);
+          if (!aMeta || !bMeta) return 0;
+
+          // Get timestamp of most recent user message (0 if never used)
+          const aTimestamp = workspaceRecency[aMeta.id] ?? 0;
+          const bTimestamp = workspaceRecency[bMeta.id] ?? 0;
+          return bTimestamp - aTimestamp;
+        })
+      );
+    }
+    return result;
+  }, [projects, workspaceMetadata, workspaceRecency]);
+
   const handleNavigateWorkspace = useCallback(
     (direction: "next" | "prev") => {
       if (!selectedWorkspace) return;
 
-      const projectConfig = projects.get(selectedWorkspace.projectPath);
-      if (!projectConfig || projectConfig.workspaces.length <= 1) return;
+      // Use sorted workspaces to match visual order in sidebar
+      const sortedWorkspaces = sortedWorkspacesByProject.get(selectedWorkspace.projectPath);
+      if (!sortedWorkspaces || sortedWorkspaces.length <= 1) return;
 
-      // Find current workspace index
-      const currentIndex = projectConfig.workspaces.findIndex(
+      // Find current workspace index in sorted list
+      const currentIndex = sortedWorkspaces.findIndex(
         (ws) => ws.path === selectedWorkspace.workspacePath
       );
       if (currentIndex === -1) return;
@@ -303,12 +326,12 @@ function AppInner() {
       // Calculate next/prev index with wrapping
       let targetIndex: number;
       if (direction === "next") {
-        targetIndex = (currentIndex + 1) % projectConfig.workspaces.length;
+        targetIndex = (currentIndex + 1) % sortedWorkspaces.length;
       } else {
-        targetIndex = currentIndex === 0 ? projectConfig.workspaces.length - 1 : currentIndex - 1;
+        targetIndex = currentIndex === 0 ? sortedWorkspaces.length - 1 : currentIndex - 1;
       }
 
-      const targetWorkspace = projectConfig.workspaces[targetIndex];
+      const targetWorkspace = sortedWorkspaces[targetIndex];
       if (!targetWorkspace) return;
 
       const metadata = workspaceMetadata.get(targetWorkspace.path);
@@ -321,7 +344,7 @@ function AppInner() {
         workspaceId: metadata.id,
       });
     },
-    [selectedWorkspace, projects, workspaceMetadata, setSelectedWorkspace]
+    [selectedWorkspace, sortedWorkspacesByProject, workspaceMetadata, setSelectedWorkspace]
   );
 
   // Register command sources with registry
@@ -555,6 +578,7 @@ function AppInner() {
             onGetSecrets={handleGetSecrets}
             onUpdateSecrets={handleUpdateSecrets}
             workspaceRecency={workspaceRecency}
+            sortedWorkspacesByProject={sortedWorkspacesByProject}
           />
           <MainContent>
             <ContentArea>
