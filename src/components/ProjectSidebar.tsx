@@ -1084,10 +1084,7 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                                           <span>
                                             <ModelDisplay
                                               modelString={streamingModel}
-                                              fontSize={10}
-                                              iconSize={10}
-                                              gap={4}
-                                              verticalAlign="baseline"
+                                              showTooltip={false}
                                             />{" "}
                                             is responding
                                           </span>

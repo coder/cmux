@@ -54,6 +54,8 @@ interface ModelDisplayProps {
   gap?: number;
   /** Vertical alignment (default: "middle" for message headers, use "baseline" for inline text) */
   verticalAlign?: string;
+  /** Whether to show the tooltip on hover (default: true, set to false when used within another tooltip) */
+  showTooltip?: boolean;
 }
 
 /**
@@ -66,6 +68,7 @@ export const ModelDisplay: React.FC<ModelDisplayProps> = ({
   iconSize = 14,
   gap = 6,
   verticalAlign = "middle",
+  showTooltip = true,
 }) => {
   const [provider, modelName] = modelString.includes(":")
     ? modelString.split(":", 2)
@@ -86,12 +89,20 @@ export const ModelDisplay: React.FC<ModelDisplayProps> = ({
   const providerIcon = getProviderIcon();
   const displayName = formatModelDisplayName(modelName);
 
+  const content = (
+    <ModelContainer fontSize={fontSize} gap={gap} verticalAlign={verticalAlign}>
+      {providerIcon && <IconWrapper size={iconSize}>{providerIcon}</IconWrapper>}
+      {displayName}
+    </ModelContainer>
+  );
+
+  if (!showTooltip) {
+    return content;
+  }
+
   return (
     <TooltipWrapper inline>
-      <ModelContainer fontSize={fontSize} gap={gap} verticalAlign={verticalAlign}>
-        {providerIcon && <IconWrapper size={iconSize}>{providerIcon}</IconWrapper>}
-        {displayName}
-      </ModelContainer>
+      {content}
       <Tooltip align="center">{modelString}</Tooltip>
     </TooltipWrapper>
   );
