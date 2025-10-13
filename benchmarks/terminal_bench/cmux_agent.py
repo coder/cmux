@@ -1,12 +1,9 @@
 from __future__ import annotations
 
-import io
 import os
 import shlex
-import tarfile
-import tempfile
 from pathlib import Path
-from typing import Any
+from typing import Any, Sequence
 
 from terminal_bench.agents.base_agent import AgentResult
 from terminal_bench.agents.installed_agents.abstract_installed_agent import (
@@ -14,6 +11,8 @@ from terminal_bench.agents.installed_agents.abstract_installed_agent import (
 )
 from terminal_bench.terminal.models import TerminalCommand
 from terminal_bench.terminal.tmux_session import TmuxSession
+
+from .cmux_payload import build_app_archive, stage_payload
 
 
 class CmuxAgent(AbstractInstalledAgent):
@@ -25,10 +24,51 @@ class CmuxAgent(AbstractInstalledAgent):
     _ARCHIVE_NAME = "cmux-app.tar.gz"
     _RUNNER_NAME = "cmux-run.sh"
     _DEFAULT_TRUNK = "main"
-    _DEFAULT_MODEL = "anthropic/claude-sonnet-4-5"
+    _DEFAULT_MODEL = "anthropic:claude-sonnet-4-5"
+    _DEFAULT_PROJECT_CANDIDATES = "/workspace:/app:/workspaces:/root/project"
+    _INCLUDE_PATHS: Sequence[str] = (
+        "package.json",
+        "bun.lock",
+        "bunfig.toml",
+        "tsconfig.json",
+        "tsconfig.main.json",
+        "src",
+    )
+
+    _PROVIDER_ENV_KEYS: Sequence[str] = (
+        "ANTHROPIC_API_KEY",
+        "ANTHROPIC_BASE_URL",
+        "OPENAI_API_KEY",
+        "OPENAI_BASE_URL",
+        "OPENAI_API_BASE",
+        "OPENAI_ORG_ID",
+        "AZURE_OPENAI_API_KEY",
+        "AZURE_OPENAI_ENDPOINT",
+        "AZURE_OPENAI_DEPLOYMENT",
+        "AZURE_OPENAI_API_VERSION",
+    )
+
+    _CONFIG_ENV_KEYS: Sequence[str] = (
+        "CMUX_AGENT_GIT_URL",
+        "CMUX_BUN_INSTALL_URL",
+        "CMUX_PROJECT_PATH",
+        "CMUX_PROJECT_CANDIDATES",
+        "CMUX_TRUNK",
+        "CMUX_MODEL",
+        "CMUX_TIMEOUT_MS",
+        "CMUX_THINKING_LEVEL",
+        "CMUX_CONFIG_ROOT",
+        "CMUX_APP_ROOT",
+        "CMUX_WORKSPACE_ID",
+        "CMUX_MODE",
+    )
 
     def __init__(
-        self, mode: str | None = None, thinking_level: str | None = None, **kwargs: Any
+        self,
+        model_name: str = "anthropic:claude-sonnet-4-5",
+        mode: str | None = None,
+        thinking_level: str | None = None,
+        **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
         repo_root_env = os.environ.get("CMUX_AGENT_REPO_ROOT")
@@ -40,11 +80,17 @@ class CmuxAgent(AbstractInstalledAgent):
         if not repo_root.exists():
             raise RuntimeError(f"cmux repo root {repo_root} does not exist")
 
+        runner_path = Path(__file__).with_name(self._RUNNER_NAME)
+        if not runner_path.is_file():
+            raise RuntimeError(f"cmux runner script missing at {runner_path}")
+
+        self._runner_path = runner_path
         self._repo_root = repo_root
         self._archive_bytes: bytes | None = None
-        self._prepared_container_id: str | None = None
+        self._staged_container_id: str | None = None
         self._mode = mode.lower() if mode else None
         self._thinking_level = thinking_level.lower() if thinking_level else None
+        self._model_name = (model_name or "").strip()
 
     @staticmethod
     def name() -> str:
@@ -52,35 +98,9 @@ class CmuxAgent(AbstractInstalledAgent):
 
     @property
     def _env(self) -> dict[str, str]:
-        keys = [
-            "ANTHROPIC_API_KEY",
-            "ANTHROPIC_BASE_URL",
-            "OPENAI_API_KEY",
-            "OPENAI_BASE_URL",
-            "OPENAI_API_BASE",
-            "OPENAI_ORG_ID",
-            "AZURE_OPENAI_API_KEY",
-            "AZURE_OPENAI_ENDPOINT",
-            "AZURE_OPENAI_DEPLOYMENT",
-            "AZURE_OPENAI_API_VERSION",
-            "MISTRAL_API_KEY",
-            "GOOGLE_API_KEY",
-            "OPENROUTER_API_KEY",
-            "CMUX_AGENT_GIT_URL",
-            "CMUX_BUN_INSTALL_URL",
-            "CMUX_PROJECT_PATH",
-            "CMUX_PROJECT_CANDIDATES",
-            "CMUX_TRUNK",
-            "CMUX_MODEL",
-            "CMUX_TIMEOUT_MS",
-            "CMUX_THINKING_LEVEL",
-            "CMUX_CONFIG_ROOT",
-            "CMUX_APP_ROOT",
-            "CMUX_WORKSPACE_ID",
-        ]
-
         env: dict[str, str] = {}
-        for key in keys:
+
+        for key in (*self._PROVIDER_ENV_KEYS, *self._CONFIG_ENV_KEYS):
             value = os.environ.get(key)
             if value:
                 env[key] = value
@@ -92,30 +112,61 @@ class CmuxAgent(AbstractInstalledAgent):
         env.setdefault("CMUX_WORKSPACE_ID", "cmux-bench")
         env.setdefault("CMUX_THINKING_LEVEL", "high")
         env.setdefault("CMUX_MODE", "exec")
+        env.setdefault("CMUX_PROJECT_CANDIDATES", self._DEFAULT_PROJECT_CANDIDATES)
 
-        model_value = env.get("CMUX_MODEL")
-        if model_value and "/" in model_value and ":" not in model_value:
+        model_value = self._model_name or env["CMUX_MODEL"]
+        model_value = model_value.strip()
+        if not model_value:
+            raise ValueError("CMUX_MODEL must be a non-empty string")
+        if "/" in model_value and ":" not in model_value:
             provider, model_name = model_value.split("/", 1)
-            env["CMUX_MODEL"] = f"{provider}:{model_name}"
+            model_value = f"{provider}:{model_name}"
+        env["CMUX_MODEL"] = model_value
 
-        thinking_value = self._thinking_level or env.get("CMUX_THINKING_LEVEL")
-        if thinking_value:
-            normalized = thinking_value.strip().lower()
-            if normalized not in {"off", "low", "medium", "high"}:
-                raise ValueError(
-                    "CMUX_THINKING_LEVEL must be one of off, low, medium, high"
-                )
-            env["CMUX_THINKING_LEVEL"] = normalized
+        thinking_value = self._thinking_level or env["CMUX_THINKING_LEVEL"]
+        normalized_thinking = thinking_value.strip().lower()
+        if normalized_thinking not in {"off", "low", "medium", "high"}:
+            raise ValueError(
+                "CMUX_THINKING_LEVEL must be one of off, low, medium, high"
+            )
+        env["CMUX_THINKING_LEVEL"] = normalized_thinking
 
-        mode_value = self._mode or env.get("CMUX_MODE")
-        if mode_value:
-            normalized_mode = mode_value.strip().lower()
-            if normalized_mode in {"exec", "execute"}:
-                env["CMUX_MODE"] = "exec"
-            elif normalized_mode == "plan":
-                env["CMUX_MODE"] = "plan"
-            else:
-                raise ValueError("CMUX_MODE must be one of plan, exec, or execute")
+        mode_value = self._mode or env["CMUX_MODE"]
+        normalized_mode = mode_value.strip().lower()
+        if normalized_mode in {"exec", "execute"}:
+            env["CMUX_MODE"] = "exec"
+        elif normalized_mode == "plan":
+            env["CMUX_MODE"] = "plan"
+        else:
+            raise ValueError("CMUX_MODE must be one of plan, exec, or execute")
+
+        config_root = env["CMUX_CONFIG_ROOT"].strip()
+        app_root = env["CMUX_APP_ROOT"].strip()
+        workspace_id = env["CMUX_WORKSPACE_ID"].strip()
+        project_candidates = env["CMUX_PROJECT_CANDIDATES"].strip()
+        if not config_root:
+            raise ValueError("CMUX_CONFIG_ROOT must be set")
+        if not app_root:
+            raise ValueError("CMUX_APP_ROOT must be set")
+        if not workspace_id:
+            raise ValueError("CMUX_WORKSPACE_ID must be set")
+        if not project_candidates:
+            raise ValueError("CMUX_PROJECT_CANDIDATES must be set")
+        env["CMUX_CONFIG_ROOT"] = config_root
+        env["CMUX_APP_ROOT"] = app_root
+        env["CMUX_WORKSPACE_ID"] = workspace_id
+        env["CMUX_PROJECT_CANDIDATES"] = project_candidates
+
+        timeout_value = env.get("CMUX_TIMEOUT_MS")
+        if timeout_value:
+            timeout_value = timeout_value.strip()
+            if not timeout_value.isdigit():
+                raise ValueError("CMUX_TIMEOUT_MS must be an integer expressed in ms")
+            env["CMUX_TIMEOUT_MS"] = timeout_value
+
+        project_path = env.get("CMUX_PROJECT_PATH")
+        if project_path is not None and not project_path.strip():
+            raise ValueError("CMUX_PROJECT_PATH must be non-empty when provided")
 
         return env
 
@@ -132,80 +183,34 @@ class CmuxAgent(AbstractInstalledAgent):
         if not instruction or not instruction.strip():
             raise ValueError("instruction must be a non-empty string")
 
-        self._prepare_payloads(session)
+        self._ensure_payload_staged(session)
         return super().perform_task(
             instruction=instruction, session=session, logging_dir=logging_dir
         )
 
-    def _prepare_payloads(self, session: TmuxSession) -> None:
+    def _ensure_payload_staged(self, session: TmuxSession) -> None:
         container_id = getattr(session.container, "id", None)
-        if container_id and container_id == self._prepared_container_id:
+        if container_id and container_id == self._staged_container_id:
             return
 
         archive = self._build_archive()
-        temp_path: Path | None = None
-        try:
-            with tempfile.NamedTemporaryFile(
-                suffix=".tar.gz", delete=False
-            ) as temp_file:
-                temp_file.write(archive)
-                temp_path = Path(temp_file.name)
-        except Exception as error:
-            raise RuntimeError(
-                f"failed to materialize cmux archive: {error}"
-            ) from error
-
-        try:
-            assert temp_path is not None, "temporary archive path missing"
-            session.copy_to_container(
-                paths=temp_path,
-                container_dir="/installed-agent",
-                container_filename=self._ARCHIVE_NAME,
-            )
-        finally:
-            if temp_path is not None:
-                temp_path.unlink(missing_ok=True)
-
-        runner_path = Path(__file__).with_name(self._RUNNER_NAME)
-        if not runner_path.exists():
-            raise RuntimeError(f"cmux runner script missing at {runner_path}")
-
-        session.copy_to_container(
-            paths=runner_path,
-            container_dir="/installed-agent",
-            container_filename=self._RUNNER_NAME,
+        stage_payload(
+            session=session,
+            archive_bytes=archive,
+            archive_name=self._ARCHIVE_NAME,
+            runner_path=self._runner_path,
         )
 
         if container_id:
-            self._prepared_container_id = container_id
+            self._staged_container_id = container_id
 
     def _build_archive(self) -> bytes:
         if self._archive_bytes is not None:
             return self._archive_bytes
 
-        include_paths = [
-            "package.json",
-            "bun.lock",
-            "bunfig.toml",
-            "tsconfig.json",
-            "tsconfig.main.json",
-            "src",
-        ]
-
-        buffer = io.BytesIO()
-        with tarfile.open(fileobj=buffer, mode="w:gz") as tar:
-            for relative in include_paths:
-                source_path = self._repo_root / relative
-                if not source_path.exists():
-                    raise FileNotFoundError(f"Required file {source_path} not found")
-                tar.add(
-                    source_path,
-                    arcname=relative,
-                    recursive=True,
-                )
-        buffer.seek(0)
-        self._archive_bytes = buffer.getvalue()
-        return self._archive_bytes
+        archive = build_app_archive(self._repo_root, self._INCLUDE_PATHS)
+        self._archive_bytes = archive
+        return archive
 
     def _run_agent_commands(self, instruction: str) -> list[TerminalCommand]:
         escaped = shlex.quote(instruction)
