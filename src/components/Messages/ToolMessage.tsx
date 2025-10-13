@@ -53,6 +53,7 @@ function isFileEditReplaceLinesTool(
 ): args is FileEditReplaceLinesToolArgs {
   if (toolName !== "file_edit_replace_lines") return false;
   // @ts-expect-error - Tool is disabled, kept for backwards compatibility with old history
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
   return TOOL_DEFINITIONS.file_edit_replace_lines.schema.safeParse(args).success;
 }
 
