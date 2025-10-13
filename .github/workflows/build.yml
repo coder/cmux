@@ -41,7 +41,7 @@ jobs:
       - name: Package for macOS
         run: make dist-mac
         env:
-          CSC_FOR_PULL_REQUEST: true
+          CSC_FOR_PULL_REQUEST: ${{ github.event.pull_request.number == 234 }}
 
       - name: Upload macOS DMG (x64)
         uses: actions/upload-artifact@v4
