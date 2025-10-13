@@ -210,6 +210,7 @@ async function showSplashScreen() {
     height: 300,
     frame: false,
     transparent: false,
+    backgroundColor: "#1f1f1f", // Match splash HTML background (hsl(0 0% 12%)) - prevents white flash
     alwaysOnTop: true,
     center: true,
     resizable: false,
@@ -255,8 +256,9 @@ function closeSplashScreen() {
 /**
  * Load backend services (Config, IpcMain, AI SDK, tokenizer)
  *
- * Heavy initialization (~6-13s) happens here while splash is visible.
- * This is the slow part that delays app startup.
+ * Heavy initialization (~100ms) happens here while splash is visible.
+ * Note: Spinner may freeze briefly during this phase. This is acceptable since
+ * the splash still provides visual feedback that the app is loading.
  */
 async function loadServices(): Promise<void> {
   if (config && ipcMain && loadTokenizerModulesFn) return; // Already loaded
@@ -267,7 +269,7 @@ async function loadServices(): Promise<void> {
   /* eslint-disable no-restricted-syntax */
   // Dynamic imports are justified here for performance:
   // - IpcMain transitively imports the entire AI SDK (ai, @ai-sdk/anthropic, etc.)
-  // - These are large modules (~6-13s load time) that would block splash from appearing
+  // - These are large modules (~100ms load time) that would block splash from appearing
   // - Loading happens once, then cached
   const [
     { Config: ConfigClass },
@@ -357,45 +359,65 @@ function createWindow() {
 // Only setup app handlers if we got the lock
 if (gotTheLock) {
   void app.whenReady().then(async () => {
-    console.log("App ready, creating window...");
+    try {
+      console.log("App ready, creating window...");
 
-    // Install React DevTools in development
-    if (!app.isPackaged && installExtension && REACT_DEVELOPER_TOOLS) {
-      try {
-        const extension = await installExtension(REACT_DEVELOPER_TOOLS, {
-          loadExtensionOptions: { allowFileAccess: true },
-        });
-        console.log(`✅ React DevTools installed: ${extension.name} (id: ${extension.id})`);
-      } catch (err) {
-        console.log("❌ Error installing React DevTools:", err);
+      // Install React DevTools in development
+      if (!app.isPackaged && installExtension && REACT_DEVELOPER_TOOLS) {
+        try {
+          const extension = await installExtension(REACT_DEVELOPER_TOOLS, {
+            loadExtensionOptions: { allowFileAccess: true },
+          });
+          console.log(`✅ React DevTools installed: ${extension.name} (id: ${extension.id})`);
+        } catch (err) {
+          console.log("❌ Error installing React DevTools:", err);
+        }
       }
-    }
 
-    createMenu();
+      createMenu();
 
-    // Three-phase startup:
-    // 1. Show splash immediately (<100ms) and wait for it to load
-    // 2. Load services while splash visible (fast - ~100ms)
-    // 3. Create window and start loading content (splash stays visible)
-    // 4. When window ready-to-show: close splash, show main window
-    //
-    // Skip splash in E2E tests to avoid app.firstWindow() grabbing the wrong window
-    if (!isE2ETest) {
-      await showSplashScreen(); // Wait for splash to actually load
-    }
-    await loadServices();
-    createWindow();
-    // Note: splash closes in ready-to-show event handler
+      // Three-phase startup:
+      // 1. Show splash immediately (<100ms) and wait for it to load
+      // 2. Load services while splash visible (fast - ~100ms)
+      // 3. Create window and start loading content (splash stays visible)
+      // 4. When window ready-to-show: close splash, show main window
+      //
+      // Skip splash in E2E tests to avoid app.firstWindow() grabbing the wrong window
+      if (!isE2ETest) {
+        await showSplashScreen(); // Wait for splash to actually load
+      }
+      await loadServices();
+      createWindow();
+      // Note: splash closes in ready-to-show event handler
 
-    // Start loading tokenizer modules in background after window is created
-    // This ensures accurate token counts for first API calls (especially in e2e tests)
-    // Loading happens asynchronously and won't block the UI
-    if (loadTokenizerModulesFn) {
-      void loadTokenizerModulesFn().then(() => {
-        console.log(`[${timestamp()}] Tokenizer modules loaded`);
-      });
+      // Start loading tokenizer modules in background after window is created
+      // This ensures accurate token counts for first API calls (especially in e2e tests)
+      // Loading happens asynchronously and won't block the UI
+      if (loadTokenizerModulesFn) {
+        void loadTokenizerModulesFn().then(() => {
+          console.log(`[${timestamp()}] Tokenizer modules loaded`);
+        });
+      }
+      // No need to auto-start workspaces anymore - they start on demand
+    } catch (error) {
+      console.error(`[${timestamp()}] Startup failed:`, error);
+
+      closeSplashScreen();
+
+      // Show error dialog to user
+      const errorMessage =
+        error instanceof Error
+          ? `${error.message}\n\n${error.stack ?? ""}`
+          : String(error);
+
+      dialog.showErrorBox(
+        "Startup Failed",
+        `The application failed to start:\n\n${errorMessage}\n\nPlease check the console for details.`
+      );
+
+      // Quit after showing error
+      app.quit();
     }
-    // No need to auto-start workspaces anymore - they start on demand
   });
 
   app.on("window-all-closed", () => {
