@@ -5,12 +5,7 @@
  * The comparator functions are the critical logic and are thoroughly tested here.
  * The hook itself is a thin wrapper around useMemo and useRef with manual testing.
  */
-import {
-  compareMaps,
-  compareRecords,
-  compareArrays,
-  compareGitStatus,
-} from "./useStableReference";
+import { compareMaps, compareRecords, compareArrays, compareGitStatus } from "./useStableReference";
 import type { GitStatus } from "@/types/workspace";
 
 describe("compareMaps", () => {
@@ -183,4 +178,3 @@ describe("compareGitStatus", () => {
 // The comparator functions above are the critical logic and are thoroughly tested.
 // The hook itself is tested manually through its usage in useUnreadTracking,
 // useWorkspaceAggregators, and GitStatusContext.
-
