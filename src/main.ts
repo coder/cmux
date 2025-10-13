@@ -428,6 +428,37 @@ if (gotTheLock) {
       // Quit after showing error
       app.quit();
     }
+    createMenu();
+
+    // Three-phase startup:
+    // 1. Show splash immediately (<100ms) and wait for it to load
+    // 2. Load services while splash visible (fast - ~100ms)
+    // 3. Create window and start loading content (splash stays visible)
+    // 4. When window ready-to-show: close splash, show main window
+    await showSplashScreen(); // Wait for splash to actually load
+    await loadServices();
+
+    // Migrate workspace configs to include trunk branch (after config is loaded)
+    try {
+      if (config) {
+        await config.migrateWorkspaceTrunkBranches();
+      }
+    } catch (error) {
+      console.error("Failed to migrate workspace trunk branches:", error);
+      // Don't block app startup - user can still use the app
+    }
+    createWindow();
+    // Note: splash closes in ready-to-show event handler
+
+    // Start loading tokenizer modules in background after window is created
+    // This ensures accurate token counts for first API calls (especially in e2e tests)
+    // Loading happens asynchronously and won't block the UI
+    if (loadTokenizerModulesFn) {
+      void loadTokenizerModulesFn().then(() => {
+        console.log(`[${timestamp()}] Tokenizer modules loaded`);
+      });
+    }
+    // No need to auto-start workspaces anymore - they start on demand
   });
 
   app.on("window-all-closed", () => {

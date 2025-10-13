@@ -3,8 +3,9 @@ import { createPortal } from "react-dom";
 import styled from "@emotion/styled";
 import type { GitStatus } from "@/types/workspace";
 import type { GitCommit, GitBranchHeader } from "@/utils/git/parseGitLog";
+import RefreshIcon from "@/assets/icons/refresh.svg?react";
 
-const Container = styled.span`
+const Container = styled.span<{ clickable?: boolean; isRebasing?: boolean }>`
   color: #569cd6;
   font-size: 11px;
   display: flex;
@@ -13,12 +14,74 @@ const Container = styled.span`
   margin-right: 6px;
   font-family: var(--font-monospace);
   position: relative;
+  cursor: ${(props) => (props.isRebasing ? "wait" : props.clickable ? "pointer" : "default")};
+  transition: opacity 0.2s;
+
+  ${(props) =>
+    props.clickable &&
+    !props.isRebasing &&
+    `
+    &:hover .status-indicators {
+      display: none !important;
+    }
+    &:hover .refresh-icon-wrapper {
+      display: flex !important;
+    }
+  `}
+
+  ${(props) =>
+    props.isRebasing &&
+    `
+    .status-indicators {
+      display: none !important;
+    }
+    .refresh-icon-wrapper {
+      display: flex !important;
+    }
+  `}
+`;
+
+const pulseAnimation = `
+  @keyframes pulse {
+    0%, 100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.7;
+      transform: scale(1.1);
+    }
+  }
+`;
+
+const StatusIndicators = styled.span`
+  display: flex;
+  align-items: center;
+  gap: 4px;
 `;
 
 const Arrow = styled.span`
   display: flex;
   align-items: center;
   font-weight: normal;
+`;
+
+const RefreshIconWrapper = styled.span<{ isRebasing?: boolean }>`
+  display: none;
+  align-items: center;
+
+  svg {
+    width: 14px;
+    height: 14px;
+    color: currentColor;
+  }
+
+  ${(props) =>
+    props.isRebasing &&
+    `
+    ${pulseAnimation}
+    animation: pulse 1.5s ease-in-out infinite;
+  `}
 `;
 
 const DirtyIndicator = styled.span`
@@ -50,6 +113,16 @@ const Tooltip = styled.div<{ show: boolean }>`
   transition:
     opacity 0.2s,
     visibility 0.2s;
+`;
+
+const ErrorMessage = styled.div`
+  background: var(--color-error-bg);
+  border-left: 3px solid var(--color-error);
+  color: var(--color-error);
+  padding: 6px 8px;
+  margin-bottom: 8px;
+  font-family: var(--font-monospace);
+  white-space: normal;
 `;
 
 const BranchHeader = styled.div`
@@ -168,13 +241,11 @@ const CommitSubject = styled.span`
 export interface GitStatusIndicatorViewProps {
   gitStatus: GitStatus | null;
   tooltipPosition?: "right" | "bottom";
-  // Tooltip data
   branchHeaders: GitBranchHeader[] | null;
   commits: GitCommit[] | null;
   dirtyFiles: string[] | null;
   isLoading: boolean;
   errorMessage: string | null;
-  // Interaction
   showTooltip: boolean;
   tooltipCoords: { top: number; left: number };
   onMouseEnter: () => void;
@@ -182,6 +253,10 @@ export interface GitStatusIndicatorViewProps {
   onTooltipMouseEnter: () => void;
   onTooltipMouseLeave: () => void;
   onContainerRef: (el: HTMLSpanElement | null) => void;
+  canRebase: boolean;
+  isRebasing: boolean;
+  onRebaseClick: () => void;
+  rebaseError: string | null;
 }
 
 /**
@@ -204,31 +279,29 @@ export const GitStatusIndicatorView: React.FC<GitStatusIndicatorViewProps> = ({
   onTooltipMouseEnter,
   onTooltipMouseLeave,
   onContainerRef,
+  canRebase,
+  isRebasing,
+  onRebaseClick,
+  rebaseError,
 }) => {
-  // Handle null gitStatus (loading state)
   if (!gitStatus) {
     return <Container aria-hidden="true" />;
   }
 
-  // Render empty placeholder when nothing to show (prevents layout shift)
   if (gitStatus.ahead === 0 && gitStatus.behind === 0 && !gitStatus.dirty) {
     return <Container aria-hidden="true" />;
   }
 
-  // Render colored indicator characters
-  const renderIndicators = (indicators: string) => {
-    return (
-      <CommitIndicators>
-        {Array.from(indicators).map((char, index) => (
-          <IndicatorChar key={index} branch={index}>
-            {char}
-          </IndicatorChar>
-        ))}
-      </CommitIndicators>
-    );
-  };
+  const renderIndicators = (indicators: string) => (
+    <CommitIndicators>
+      {Array.from(indicators).map((char, index) => (
+        <IndicatorChar key={index} branch={index}>
+          {char}
+        </IndicatorChar>
+      ))}
+    </CommitIndicators>
+  );
 
-  // Render branch header showing which column corresponds to which branch
   const renderBranchHeaders = () => {
     if (!branchHeaders || branchHeaders.length === 0) {
       return null;
@@ -239,7 +312,6 @@ export const GitStatusIndicatorView: React.FC<GitStatusIndicatorViewProps> = ({
         {branchHeaders.map((header, index) => (
           <BranchHeaderLine key={index}>
             <CommitIndicators>
-              {/* Create spacing to align with column */}
               {Array.from({ length: header.columnIndex }).map((_, i) => (
                 <IndicatorChar key={i} branch={i}>
                   {" "}
@@ -254,7 +326,6 @@ export const GitStatusIndicatorView: React.FC<GitStatusIndicatorViewProps> = ({
     );
   };
 
-  // Render dirty files section
   const renderDirtySection = () => {
     if (!dirtyFiles || dirtyFiles.length === 0) {
       return null;
@@ -281,22 +352,32 @@ export const GitStatusIndicatorView: React.FC<GitStatusIndicatorViewProps> = ({
     );
   };
 
-  // Render tooltip content
   const renderTooltipContent = () => {
     if (isLoading) {
       return "Loading...";
     }
 
     if (errorMessage) {
-      return errorMessage;
+      return (
+        <>
+          {rebaseError && <ErrorMessage role="alert">{rebaseError}</ErrorMessage>}
+          {errorMessage}
+        </>
+      );
     }
 
     if (!commits || commits.length === 0) {
-      return "No commits to display";
+      return (
+        <>
+          {rebaseError && <ErrorMessage role="alert">{rebaseError}</ErrorMessage>}
+          {"No commits to display"}
+        </>
+      );
     }
 
     return (
       <>
+        {rebaseError && <ErrorMessage role="alert">{rebaseError}</ErrorMessage>}
         {renderDirtySection()}
         {renderBranchHeaders()}
         <CommitList>
@@ -315,9 +396,9 @@ export const GitStatusIndicatorView: React.FC<GitStatusIndicatorViewProps> = ({
     );
   };
 
-  // Render tooltip via portal to bypass overflow constraints
   const tooltipElement = (
     <Tooltip
+      data-git-tooltip
       show={showTooltip}
       style={{
         top: `${tooltipCoords.top}px`,
@@ -333,9 +414,41 @@ export const GitStatusIndicatorView: React.FC<GitStatusIndicatorViewProps> = ({
 
   return (
     <>
-      <Container ref={onContainerRef} onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
-        {gitStatus.ahead > 0 && <Arrow>↑{gitStatus.ahead}</Arrow>}
-        {gitStatus.behind > 0 && <Arrow>↓{gitStatus.behind}</Arrow>}
+      <Container
+        ref={onContainerRef}
+        onMouseEnter={onMouseEnter}
+        onMouseLeave={onMouseLeave}
+        clickable={canRebase}
+        isRebasing={isRebasing}
+        onClick={
+          canRebase
+            ? () => {
+                void onRebaseClick();
+              }
+            : undefined
+        }
+        role={canRebase ? "button" : undefined}
+        tabIndex={canRebase ? 0 : undefined}
+        onKeyDown={
+          canRebase
+            ? (event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  void onRebaseClick();
+                }
+              }
+            : undefined
+        }
+        aria-busy={isRebasing ? "true" : undefined}
+        className="git-status-wrapper"
+      >
+        <StatusIndicators className="status-indicators">
+          {gitStatus.ahead > 0 && <Arrow>↑{gitStatus.ahead}</Arrow>}
+          {gitStatus.behind > 0 && <Arrow>↓{gitStatus.behind}</Arrow>}
+        </StatusIndicators>
+        <RefreshIconWrapper className="refresh-icon-wrapper" isRebasing={isRebasing}>
+          <RefreshIcon />
+        </RefreshIconWrapper>
         {gitStatus.dirty && <DirtyIndicator>*</DirtyIndicator>}
       </Container>
 

@@ -2,19 +2,26 @@ import assert from "node:assert/strict";
 import type { BrowserWindow, IpcMain as ElectronIpcMain } from "electron";
 import { spawn, spawnSync } from "child_process";
 import * as fsPromises from "fs/promises";
-import type { Config, ProjectConfig } from "@/config";
+import type { Config, ProjectConfig, Workspace } from "@/config";
 import {
   createWorktree,
   listLocalBranches,
   detectDefaultTrunkBranch,
   getMainWorktreeFromWorktree,
 } from "@/git";
-import { removeWorktreeSafe, removeWorktree, pruneWorktrees } from "@/services/gitService";
+import {
+  removeWorktreeSafe,
+  removeWorktree,
+  pruneWorktrees,
+  rebaseOntoTrunk,
+  gatherGitDiagnostics,
+} from "@/services/gitService";
 import { AIService } from "@/services/aiService";
 import { HistoryService } from "@/services/historyService";
 import { PartialService } from "@/services/partialService";
 import { AgentSession } from "@/services/agentSession";
 import type { CmuxMessage } from "@/types/message";
+import { createCmuxMessage } from "@/types/message";
 import { log } from "@/services/log";
 import { IPC_CHANNELS, getChatChannel } from "@/constants/ipc-constants";
 import type { SendMessageError } from "@/types/errors";
@@ -182,9 +189,9 @@ export class IpcMain {
           return { success: false, error: validation.error };
         }
 
-        if (typeof trunkBranch !== "string" || trunkBranch.trim().length === 0) {
-          return { success: false, error: "Trunk branch is required" };
-        }
+        // Defensive assertions for trunk branch
+        assert(typeof trunkBranch === "string", "trunkBranch must be a string");
+        assert(trunkBranch.trim().length > 0, "trunkBranch must not be empty");
 
         const normalizedTrunkBranch = trunkBranch.trim();
 
@@ -224,6 +231,7 @@ export class IpcMain {
             // Add workspace to project config with full metadata
             projectConfig.workspaces.push({
               path: result.path!,
+              trunkBranch: normalizedTrunkBranch,
               id: workspaceId,
               name: branchName,
               createdAt: metadata.createdAt,
@@ -706,6 +714,185 @@ export class IpcMain {
         log.error(`Failed to open terminal: ${message}`);
       }
     });
+
+    ipcMain.handle(IPC_CHANNELS.WORKSPACE_REBASE, async (_event, workspaceId: string) => {
+      let workspacePath: string | undefined;
+      let trunkBranch: string | undefined;
+      let operationStep = "initialization";
+
+      try {
+        // Defensive assertions
+        assert(typeof workspaceId === "string", "workspaceId must be a string");
+        assert(workspaceId.trim().length > 0, "workspaceId must not be empty");
+
+        // Verify agent is idle
+        operationStep = "checking agent state";
+        if (this.aiService.isStreaming(workspaceId)) {
+          return {
+            success: false,
+            status: "aborted" as const,
+            error: "Cannot rebase while agent is active",
+            step: operationStep,
+          };
+        }
+
+        // Lookup workspace paths
+        operationStep = "looking up workspace configuration";
+        const workspace = this.config.findWorkspace(workspaceId);
+        if (!workspace) {
+          return {
+            success: false,
+            status: "aborted" as const,
+            error: `Workspace not found: ${workspaceId}`,
+            step: operationStep,
+          };
+        }
+
+        workspacePath = workspace.workspacePath;
+
+        // Get trunk branch from config
+        operationStep = "retrieving trunk branch";
+        const retrievedTrunkBranch = this.config.getTrunkBranch(workspaceId);
+        if (!retrievedTrunkBranch) {
+          return {
+            success: false,
+            status: "aborted" as const,
+            error: `Trunk branch not found for workspace: ${workspaceId}`,
+            step: operationStep,
+          };
+        }
+        trunkBranch = retrievedTrunkBranch;
+
+        // Perform rebase
+        operationStep = "executing git rebase";
+        const result = await rebaseOntoTrunk(workspacePath, trunkBranch);
+
+        // If conflicts, inject message into chat history
+        if (result.status === "conflicts" && result.conflictFiles) {
+          const conflictList = result.conflictFiles.map((f) => `- ${f}`).join("\n");
+          const content = `Git rebase onto origin/${trunkBranch} has conflicts in the following files:\n${conflictList}\n\nPlease resolve these conflicts and then run:\ngit rebase --continue`;
+
+          // Generate a unique ID for this message
+          const messageId = `rebase-conflict-${Date.now()}`;
+          const userMessage = createCmuxMessage(messageId, "user", content);
+
+          await this.historyService.appendToHistory(workspaceId, userMessage);
+
+          // Emit to UI through the main window
+          if (this.mainWindow) {
+            const channel = getChatChannel(workspaceId);
+            this.mainWindow.webContents.send(channel, { type: "history" as const, ...userMessage });
+          }
+        }
+
+        // If any other error occurred, inject comprehensive diagnostic message
+        if (!result.success && result.status === "aborted") {
+          await this.injectRebaseErrorMessage(
+            workspaceId,
+            workspacePath,
+            trunkBranch,
+            result.error ?? "Unknown error",
+            result.errorStack,
+            result.step ?? operationStep
+          );
+        }
+
+        return result;
+      } catch (error) {
+        // Catch ALL errors including assertion failures
+        log.error("Failed to rebase workspace:", error);
+
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorStack = error instanceof Error ? error.stack : undefined;
+
+        // Inject comprehensive error message for agent to resolve
+        if (workspacePath && trunkBranch) {
+          try {
+            await this.injectRebaseErrorMessage(
+              workspaceId,
+              workspacePath,
+              trunkBranch,
+              errorMessage,
+              errorStack,
+              operationStep
+            );
+          } catch (injectionError) {
+            log.error("Failed to inject error message:", injectionError);
+          }
+        }
+
+        return {
+          success: false,
+          status: "aborted" as const,
+          error: errorMessage,
+          errorStack,
+          step: operationStep,
+        };
+      }
+    });
+  }
+
+  /**
+   * Inject a comprehensive error message into chat history when rebase fails.
+   * Provides the agent with full context to diagnose and resolve the issue.
+   */
+  private async injectRebaseErrorMessage(
+    workspaceId: string,
+    workspacePath: string,
+    trunkBranch: string,
+    error: string,
+    errorStack: string | undefined,
+    step: string
+  ): Promise<void> {
+    try {
+      let gitDiagnostics = "";
+      try {
+        gitDiagnostics = await gatherGitDiagnostics(workspacePath);
+      } catch (diagError) {
+        gitDiagnostics = `Error gathering diagnostics: ${diagError instanceof Error ? diagError.message : String(diagError)}`;
+      }
+
+      // Build comprehensive error message
+      const content = `I attempted to automatically rebase the workspace onto origin/${trunkBranch}, but the operation failed.
+
+**Operation Details:**
+- Workspace: ${workspacePath}
+- Target branch: origin/${trunkBranch}
+- Failed at step: ${step}
+
+**Error:**
+${error}
+
+${errorStack ? `**Stack Trace:**\n\`\`\`\n${errorStack}\n\`\`\`\n\n` : ""}**Current Git State:**
+\`\`\`
+${gitDiagnostics}
+\`\`\`
+
+**What I need you to do:**
+Please investigate the error, check the git state in the workspace, and resolve any issues that are preventing the rebase from completing. You may need to:
+1. Check what went wrong at the "${step}" step
+2. Manually inspect the git state
+3. Fix any issues (e.g., abort a stuck rebase, resolve conflicts, restore stashed changes)
+4. Complete or retry the rebase operation
+
+Use the bash tool to run git commands in the workspace directory: ${workspacePath}`;
+
+      // Create and inject the message
+      const messageId = `rebase-error-${Date.now()}`;
+      const userMessage = createCmuxMessage(messageId, "user", content);
+
+      await this.historyService.appendToHistory(workspaceId, userMessage);
+
+      // Emit to UI
+      if (this.mainWindow) {
+        const channel = getChatChannel(workspaceId);
+        this.mainWindow.webContents.send(channel, { type: "history" as const, ...userMessage });
+      }
+
+      log.info(`Injected rebase error diagnostic message for workspace ${workspaceId}`);
+    } catch (injectionError) {
+      log.error("Failed to create diagnostic message:", injectionError);
+    }
   }
 
   /**

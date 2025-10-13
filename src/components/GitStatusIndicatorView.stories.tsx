@@ -149,6 +149,10 @@ export const AheadOnly: Story = {
     dirtyFiles: null,
     isLoading: false,
     errorMessage: null,
+    canRebase: false,
+    isRebasing: false,
+    rebaseError: null,
+    onRebaseClick: () => undefined,
   },
 };
 
@@ -162,6 +166,10 @@ export const BehindOnly: Story = {
     dirtyFiles: null,
     isLoading: false,
     errorMessage: null,
+    canRebase: true,
+    isRebasing: false,
+    rebaseError: null,
+    onRebaseClick: () => undefined,
   },
 };
 
@@ -175,6 +183,10 @@ export const AheadAndBehind: Story = {
     dirtyFiles: null,
     isLoading: false,
     errorMessage: null,
+    canRebase: true,
+    isRebasing: false,
+    rebaseError: null,
+    onRebaseClick: () => undefined,
   },
   play: async ({ canvasElement }) => {
     // Find the git status indicator element
@@ -223,6 +235,10 @@ export const DirtyOnly: Story = {
     dirtyFiles: mockDirtyFiles,
     isLoading: false,
     errorMessage: null,
+    canRebase: false,
+    isRebasing: false,
+    rebaseError: null,
+    onRebaseClick: () => undefined,
   },
 };
 
@@ -236,6 +252,10 @@ export const AllCombined: Story = {
     dirtyFiles: mockDirtyFiles,
     isLoading: false,
     errorMessage: null,
+    canRebase: true,
+    isRebasing: false,
+    rebaseError: null,
+    onRebaseClick: () => undefined,
   },
 };
 
@@ -250,6 +270,10 @@ export const LoadingState: Story = {
     dirtyFiles: null,
     isLoading: true,
     errorMessage: null,
+    canRebase: false,
+    isRebasing: false,
+    rebaseError: null,
+    onRebaseClick: () => undefined,
   },
 };
 
@@ -263,6 +287,10 @@ export const ErrorState: Story = {
     dirtyFiles: null,
     isLoading: false,
     errorMessage: "Branch info unavailable: git command failed",
+    canRebase: false,
+    isRebasing: false,
+    rebaseError: null,
+    onRebaseClick: () => undefined,
   },
 };
 
@@ -276,6 +304,10 @@ export const NoCommitsState: Story = {
     dirtyFiles: null,
     isLoading: false,
     errorMessage: null,
+    canRebase: false,
+    isRebasing: false,
+    rebaseError: null,
+    onRebaseClick: () => undefined,
   },
 };
 
@@ -290,6 +322,10 @@ export const WithDirtyFiles: Story = {
     dirtyFiles: mockDirtyFiles,
     isLoading: false,
     errorMessage: null,
+    canRebase: true,
+    isRebasing: false,
+    rebaseError: null,
+    onRebaseClick: () => undefined,
   },
 };
 
@@ -303,6 +339,10 @@ export const WithTruncatedDirtyFiles: Story = {
     dirtyFiles: mockManyDirtyFiles,
     isLoading: false,
     errorMessage: null,
+    canRebase: false,
+    isRebasing: false,
+    rebaseError: null,
+    onRebaseClick: () => undefined,
   },
 };
 
@@ -317,6 +357,10 @@ export const TooltipPositionRight: Story = {
     dirtyFiles: mockDirtyFiles,
     isLoading: false,
     errorMessage: null,
+    canRebase: true,
+    isRebasing: false,
+    rebaseError: null,
+    onRebaseClick: () => undefined,
   },
 };
 
@@ -330,6 +374,10 @@ export const TooltipPositionBottom: Story = {
     dirtyFiles: mockDirtyFiles,
     isLoading: false,
     errorMessage: null,
+    canRebase: true,
+    isRebasing: false,
+    rebaseError: null,
+    onRebaseClick: () => undefined,
   },
 };
 
@@ -344,6 +392,10 @@ export const HiddenState: Story = {
     dirtyFiles: null,
     isLoading: false,
     errorMessage: null,
+    canRebase: false,
+    isRebasing: false,
+    rebaseError: null,
+    onRebaseClick: () => undefined,
   },
 };
 
