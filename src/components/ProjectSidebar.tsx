@@ -1082,7 +1082,13 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                                       title={
                                         isStreaming && streamingModel ? (
                                           <span>
-                                            <ModelDisplay modelString={streamingModel} /> is responding
+                                            <ModelDisplay
+                                              modelString={streamingModel}
+                                              fontSize={10}
+                                              iconSize={10}
+                                              gap={4}
+                                            />{" "}
+                                            is responding
                                           </span>
                                         ) : isStreaming ? (
                                           "Assistant is responding"
