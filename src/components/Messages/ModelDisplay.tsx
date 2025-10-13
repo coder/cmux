@@ -9,7 +9,7 @@ const ModelContainer = styled.span`
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: #cccccc; /* Match MessageHeader color */
+  color: var(--color-message-header);
   font-weight: 500; /* Match MessageHeader weight */
   font-size: 11px; /* Match MessageHeader size */
   text-transform: none; /* Override parent's uppercase */
@@ -21,18 +21,20 @@ const IconWrapper = styled.span`
   align-items: center;
   width: 14px;
   height: 14px;
-  
+
   svg {
     width: 100%;
     height: 100%;
-    
+
     /* Anthropic icon uses .st0 class */
     .st0 {
       fill: currentColor;
     }
-    
+
     /* Generic SVGs with fill attribute */
-    path[fill], circle[fill], rect[fill] {
+    path[fill],
+    circle[fill],
+    rect[fill] {
       fill: currentColor;
     }
   }
@@ -76,4 +78,3 @@ export const ModelDisplay: React.FC<ModelDisplayProps> = ({ modelString }) => {
     </TooltipWrapper>
   );
 };
-
