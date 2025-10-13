@@ -8,7 +8,7 @@ import { formatModelDisplayName } from "@/utils/ai/modelDisplay";
 const ModelContainer = styled.span`
   display: inline-flex;
   align-items: center;
-  gap: 0.4em; /* Scales with font size */
+  gap: 0.3em; /* Scales with font size */
   font-size: inherit;
   font-weight: inherit;
   color: inherit;
@@ -18,8 +18,8 @@ const ModelContainer = styled.span`
 const IconWrapper = styled.span`
   display: inline-flex;
   align-items: center;
-  width: 1.2em; /* Scales with font size */
-  height: 1.2em;
+  width: 1em; /* Match font size exactly */
+  height: 1em;
 
   svg {
     width: 100%;
@@ -50,7 +50,7 @@ interface ModelDisplayProps {
  * Supports format "provider:model-name" (e.g., "anthropic:claude-sonnet-4-5")
  * 
  * Inherits font-size, color, and font-weight from parent context.
- * Icon and spacing scale proportionally using em units (1.2em icon, 0.4em gap).
+ * Icon and spacing scale proportionally using em units (1em icon, 0.3em gap).
  */
 export const ModelDisplay: React.FC<ModelDisplayProps> = ({
   modelString,
