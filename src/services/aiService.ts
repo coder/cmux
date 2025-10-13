@@ -681,6 +681,7 @@ export class AIService extends EventEmitter {
         {
           systemMessageTokens,
           timestamp: Date.now(),
+          mode, // Pass mode so it persists in final history entry
         },
         providerOptions,
         maxOutputTokens,

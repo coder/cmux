@@ -137,7 +137,6 @@ export function injectModeTransition(messages: CmuxMessage[], currentMode?: stri
 
   // Mode transition detected! Inject a synthetic user message before the last user message
   // This provides temporal context: user says "switch modes" before their actual request
-  const result: CmuxMessage[] = [];
   
   // Find the index of the last user message
   let lastUserIndex = -1;
@@ -147,6 +146,13 @@ export function injectModeTransition(messages: CmuxMessage[], currentMode?: stri
       break;
     }
   }
+
+  // If there's no user message, can't inject transition (nothing to inject before)
+  if (lastUserIndex === -1) {
+    return messages;
+  }
+
+  const result: CmuxMessage[] = [];
 
   // Add all messages up to (but not including) the last user message
   for (let i = 0; i < lastUserIndex; i++) {
