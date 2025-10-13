@@ -2,9 +2,6 @@
  * Token calculation utilities for chat statistics
  */
 
-import AITokenizer, { type Encoding, models } from "ai-tokenizer";
-import * as o200k_base from "ai-tokenizer/encoding/o200k_base";
-import * as claude from "ai-tokenizer/encoding/claude";
 import { LRUCache } from "lru-cache";
 import CRC32 from "crc-32";
 import { getToolSchemas, getAvailableTools } from "@/utils/tools/toolDefinitions";
@@ -12,6 +9,45 @@ import { getToolSchemas, getAvailableTools } from "@/utils/tools/toolDefinitions
 export interface Tokenizer {
   name: string;
   countTokens: (text: string) => number;
+}
+
+/**
+ * Lazy-loaded tokenizer modules to reduce startup time
+ * These are loaded on first use with /4 approximation fallback
+ */
+let tokenizerModules: {
+  AITokenizer: typeof import("ai-tokenizer").default;
+  models: typeof import("ai-tokenizer").models;
+  o200k_base: typeof import("ai-tokenizer/encoding/o200k_base");
+  claude: typeof import("ai-tokenizer/encoding/claude");
+} | null = null;
+
+let tokenizerLoadPromise: Promise<void> | null = null;
+
+/**
+ * Load tokenizer modules asynchronously
+ */
+async function loadTokenizerModules(): Promise<void> {
+  if (tokenizerModules) return;
+  if (tokenizerLoadPromise) return tokenizerLoadPromise;
+
+  tokenizerLoadPromise = (async () => {
+    const [AITokenizerModule, modelsModule, o200k_base, claude] = await Promise.all([
+      import("ai-tokenizer"),
+      import("ai-tokenizer"),
+      import("ai-tokenizer/encoding/o200k_base"),
+      import("ai-tokenizer/encoding/claude"),
+    ]);
+
+    tokenizerModules = {
+      AITokenizer: AITokenizerModule.default,
+      models: modelsModule.models,
+      o200k_base,
+      claude,
+    };
+  })();
+
+  return tokenizerLoadPromise;
 }
 
 /**
@@ -63,44 +99,52 @@ function countTokensCached(text: string, tokenizeFn: () => number | Promise<numb
  * @returns Tokenizer interface with name and countTokens function
  */
 export function getTokenizerForModel(modelString: string): Tokenizer {
-  const [provider, modelId] = modelString.split(":");
-  let model = models[`${provider}/${modelId}` as keyof typeof models];
-  let hasExactTokenizer = true;
-  if (!model) {
-    switch (modelString) {
-      case "anthropic:claude-sonnet-4-5":
-        model = models["anthropic/claude-sonnet-4.5"];
-        break;
-      default:
-        // GPT-4o has pretty good approximation for most models.
-        model = models["openai/gpt-4o"];
-        hasExactTokenizer = false;
-    }
-  }
-
-  let encoding: Encoding;
-  switch (model.encoding) {
-    case "o200k_base":
-      encoding = o200k_base;
-      break;
-    case "claude":
-      encoding = claude;
-      break;
-    default:
-      // Do not include all encodings, as they are pretty big.
-      // The most common one is o200k_base.
-      encoding = o200k_base;
-      break;
-  }
-  const tokenizer = new AITokenizer(encoding);
+  // Start loading tokenizer modules in background (idempotent)
+  void loadTokenizerModules();
 
   return {
     get name() {
-      return hasExactTokenizer ? model.encoding : "approximation";
+      return tokenizerModules ? "loaded" : "approximation";
     },
     countTokens: (text: string) => {
-      return countTokensCached(text, () => {
+      return countTokensCached(text, async () => {
+        // If tokenizer not loaded yet, load it now
+        if (!tokenizerModules) {
+          await loadTokenizerModules();
+        }
+
         try {
+          const modules = tokenizerModules!;
+          const [provider, modelId] = modelString.split(":");
+          let model = modules.models[`${provider}/${modelId}` as keyof typeof modules.models];
+          let hasExactTokenizer = true;
+          if (!model) {
+            switch (modelString) {
+              case "anthropic:claude-sonnet-4-5":
+                model = modules.models["anthropic/claude-sonnet-4.5"];
+                break;
+              default:
+                // GPT-4o has pretty good approximation for most models.
+                model = modules.models["openai/gpt-4o"];
+                hasExactTokenizer = false;
+            }
+          }
+
+          let encoding: typeof modules.o200k_base | typeof modules.claude;
+          switch (model.encoding) {
+            case "o200k_base":
+              encoding = modules.o200k_base;
+              break;
+            case "claude":
+              encoding = modules.claude;
+              break;
+            default:
+              // Do not include all encodings, as they are pretty big.
+              // The most common one is o200k_base.
+              encoding = modules.o200k_base;
+              break;
+          }
+          const tokenizer = new modules.AITokenizer(encoding);
           return tokenizer.count(text);
         } catch (error) {
           // Unexpected error during tokenization, fallback to approximation
