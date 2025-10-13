@@ -1,7 +1,5 @@
 import { type Tool } from "ai";
-import { anthropic } from "@ai-sdk/anthropic";
-import { openai } from "@ai-sdk/openai";
-import { google } from "@ai-sdk/google";
+import { loadProviders } from "@/utils/ai/providers";
 import { createFileReadTool } from "@/services/tools/file_read";
 import { createBashTool } from "@/services/tools/bash";
 import { createFileEditReplaceStringTool } from "@/services/tools/file_edit_replace_string";
@@ -34,10 +32,10 @@ export type ToolFactory = (config: ToolConfiguration) => Tool;
  * @param config Required configuration for tools
  * @returns Record of tools available for the model
  */
-export function getToolsForModel(
+export async function getToolsForModel(
   modelString: string,
   config: ToolConfiguration
-): Record<string, Tool> {
+): Promise<Record<string, Tool>> {
   const [provider, modelId] = modelString.split(":");
 
   // Base tools available for all models
@@ -54,6 +52,9 @@ export function getToolsForModel(
     propose_plan: createProposePlanTool(config),
     compact_summary: createCompactSummaryTool(config),
   };
+
+  // Load AI SDK providers (lazy-loaded for performance)
+  const { anthropic, openai, google } = await loadProviders();
 
   // Try to add provider-specific web search tools if available
   // This doesn't break if the provider isn't recognized

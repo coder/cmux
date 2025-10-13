@@ -102,7 +102,7 @@
   },
   "build": {
     "appId": "com.cmux.app",
-    "productName": "Cmux",
+    "productName": "cmux",
     "publish": {
       "provider": "github",
       "releaseType": "release"

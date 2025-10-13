@@ -3,7 +3,7 @@ import * as path from "path";
 import { EventEmitter } from "events";
 import { convertToModelMessages, wrapLanguageModel, type LanguageModel } from "ai";
 import { applyToolOutputRedaction } from "@/utils/messages/applyToolOutputRedaction";
-import { createAnthropic } from "@ai-sdk/anthropic";
+import { loadProviders } from "@/utils/ai/providers";
 import type { Result } from "@/types/result";
 import { Ok, Err } from "@/types/result";
 import type { WorkspaceMetadata } from "@/types/workspace";
@@ -30,7 +30,6 @@ import { buildSystemMessage } from "./systemMessage";
 import { getTokenizerForModel } from "@/utils/main/tokenizer";
 import { buildProviderOptions } from "@/utils/ai/providerOptions";
 import type { ThinkingLevel } from "@/types/thinking";
-import { createOpenAI } from "@ai-sdk/openai";
 import type {
   StreamAbortEvent,
   StreamDeltaEvent,
@@ -219,10 +218,10 @@ export class AIService extends EventEmitter {
    * constructor, ensuring automatic parity with Vercel AI SDK - any configuration options
    * supported by the provider will work without modification.
    */
-  private createModel(
+  private async createModel(
     modelString: string,
     cmuxProviderOptions?: CmuxProviderOptions
-  ): Result<LanguageModel, SendMessageError> {
+  ): Promise<Result<LanguageModel, SendMessageError>> {
     try {
       // Parse model string (format: "provider:model-id")
       const [providerName, modelId] = modelString.split(":");
@@ -237,6 +236,9 @@ export class AIService extends EventEmitter {
       // Load providers configuration - the ONLY source of truth
       const providersConfig = this.config.loadProvidersConfig();
       const providerConfig = providersConfig?.[providerName] ?? {};
+
+      // Load AI SDK provider modules (lazy-loaded for performance)
+      const { createAnthropic, createOpenAI } = await loadProviders();
 
       // Handle Anthropic provider
       if (providerName === "anthropic") {
@@ -424,7 +426,7 @@ export class AIService extends EventEmitter {
       await this.partialService.commitToHistory(workspaceId);
 
       // Create model instance with early API key validation
-      const modelResult = this.createModel(modelString, cmuxProviderOptions);
+      const modelResult = await this.createModel(modelString, cmuxProviderOptions);
       if (!modelResult.success) {
         return Err(modelResult.error);
       }
@@ -505,7 +507,7 @@ export class AIService extends EventEmitter {
         : [];
 
       // Get model-specific tools with workspace path configuration and secrets
-      const allTools = getToolsForModel(modelString, {
+      const allTools = await getToolsForModel(modelString, {
         cwd: workspacePath,
         secrets: secretsToRecord(projectSecrets),
       });
