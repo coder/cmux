@@ -15,9 +15,9 @@ const ModelContainer = styled.span`
 
 const IconWrapper = styled.span`
   display: inline-block;
-  vertical-align: middle; /* Center icon with text baseline */
-  width: 1em; /* Match font size exactly */
-  height: 1em;
+  vertical-align: -0.125em; /* Align icon slightly above baseline for visual centering */
+  width: 1.1em; /* Slightly larger than text for visibility */
+  height: 1.1em;
   margin-right: 0.3em; /* Gap after icon */
 
   svg {
