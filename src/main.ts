@@ -8,6 +8,7 @@ import * as path from "path";
 import { Config } from "./config";
 import { IpcMain } from "./services/ipcMain";
 import { VERSION } from "./version";
+import { loadTokenizerModules } from "./utils/main/tokenizer";
 
 // React DevTools for development profiling
 // Using require() instead of import since it's dev-only and conditionally loaded
@@ -233,6 +234,13 @@ function createWindow() {
 if (gotTheLock) {
   void app.whenReady().then(async () => {
     console.log("App ready, creating window...");
+
+    // Start loading tokenizer modules in background
+    // This ensures accurate token counts for first API calls (especially in e2e tests)
+    // Loading happens asynchronously and won't block window creation
+    void loadTokenizerModules().then(() => {
+      console.log("Tokenizer modules loaded");
+    });
 
     // Install React DevTools in development
     if (!app.isPackaged && installExtension && REACT_DEVELOPER_TOOLS) {
