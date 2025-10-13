@@ -32,7 +32,7 @@ interface StatusIndicatorProps {
   unread?: boolean;
   size?: number;
   className?: string;
-  title?: string;
+  title?: React.ReactNode;
   onClick?: (e: React.MouseEvent) => void;
 }
 

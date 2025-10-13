@@ -16,6 +16,7 @@ import { TooltipWrapper, Tooltip } from "./Tooltip";
 import { StatusIndicator } from "./StatusIndicator";
 // Removed: import { getModelName } from "@/utils/ai/models";
 import { GitStatusIndicator } from "./GitStatusIndicator";
+import { ModelDisplay } from "./Messages/ModelDisplay";
 import type { WorkspaceState } from "@/hooks/useWorkspaceAggregators";
 import SecretsModal from "./SecretsModal";
 import type { Secret } from "@/types/secrets";
@@ -997,7 +998,7 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                               const displayName = getWorkspaceDisplayName(workspace.path);
                               const workspaceState = getWorkspaceState(workspaceId);
                               const isStreaming = workspaceState.canInterrupt;
-                              // const streamingModel = workspaceState.currentModel; // Unused
+                              const streamingModel = workspaceState.currentModel;
                               const isUnread = unreadStatus.get(workspaceId) ?? false;
                               const isEditing = editingWorkspaceId === workspaceId;
                               const isSelected =
@@ -1079,11 +1080,17 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                                       unread={isUnread}
                                       onClick={() => _onToggleUnread(workspaceId)}
                                       title={
-                                        isStreaming
-                                          ? "Assistant is responding"
-                                          : isUnread
-                                            ? "Unread messages"
-                                            : "Idle"
+                                        isStreaming && streamingModel ? (
+                                          <span>
+                                            <ModelDisplay modelString={streamingModel} /> is responding
+                                          </span>
+                                        ) : isStreaming ? (
+                                          "Assistant is responding"
+                                        ) : isUnread ? (
+                                          "Unread messages"
+                                        ) : (
+                                          "Idle"
+                                        )
                                       }
                                     />
                                   </WorkspaceItem>
