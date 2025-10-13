@@ -20,13 +20,10 @@ runs:
       if: runner.os == 'macOS'
       uses: actions/cache@v4
       with:
-        path: |
-          ~/Library/Caches/Homebrew
-          /usr/local/Cellar/imagemagick
-          /opt/homebrew/Cellar/imagemagick
-        key: ${{ runner.os }}-brew-imagemagick-7.1
+        path: ~/Library/Caches/Homebrew
+        key: ${{ runner.os }}-brew-cache-${{ hashFiles('**/bun.lock') }}
         restore-keys: |
-          ${{ runner.os }}-brew-imagemagick-
+          ${{ runner.os }}-brew-cache-
 
     - name: Install dependencies
       shell: bash
@@ -36,12 +33,16 @@ runs:
       if: runner.os == 'macOS'
       shell: bash
       run: |
-        if ! command -v magick &> /dev/null && ! command -v convert &> /dev/null; then
-          echo "Installing ImageMagick..."
-          brew install imagemagick
+        if ! brew list imagemagick &>/dev/null; then
+          echo "📦 Installing ImageMagick..."
+          time brew install imagemagick
         else
-          echo "ImageMagick already installed (cached)"
+          echo "✅ ImageMagick already installed"
+          brew list imagemagick --versions
         fi
+        # Verify it's in PATH
+        which magick
+        magick --version | head -1
 
     - name: Install ImageMagick (Linux)
       if: runner.os == 'Linux'
