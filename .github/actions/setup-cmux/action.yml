@@ -12,8 +12,7 @@ runs:
       uses: actions/cache@v4
       with:
         path: ~/.bun/install/cache
-        # Bun's lockfile is bun.lockb; hash it for accurate cache busting
-        key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lockb') }}
+        key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
         restore-keys: |
           ${{ runner.os }}-bun-
 
