@@ -23,7 +23,7 @@ const MessageHeader = styled.div`
   justify-content: space-between;
   align-items: center;
   font-size: 11px;
-  color: #cccccc;
+  color: var(--color-message-header);
   font-weight: 500;
 `;
 
@@ -34,6 +34,7 @@ const LeftSection = styled.div`
 `;
 
 const MessageTypeLabel = styled.div`
+  display: inline-flex;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 `;

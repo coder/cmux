@@ -79,6 +79,9 @@ export const GlobalColors = () => (
           white 15%
         );
 
+        /* Message Header Colors */
+        --color-message-header: hsl(0 0% 80%);
+
         /* Token Usage Colors */
         --color-token-prompt: hsl(0 0% 40%);
         --color-token-completion: linear-gradient(

@@ -7,6 +7,7 @@ import type { ButtonConfig } from "./MessageWindow";
 import { MessageWindow } from "./MessageWindow";
 import { useStartHere } from "@/hooks/useStartHere";
 import { COMPACTED_EMOJI } from "@/constants/ui";
+import { ModelDisplay } from "./ModelDisplay";
 
 const RawContent = styled.pre`
   font-family: var(--font-monospace);
@@ -32,13 +33,6 @@ const LabelContainer = styled.div`
   display: flex;
   align-items: center;
   gap: 8px;
-`;
-
-const ModelName = styled.span`
-  color: var(--color-text-secondary);
-  font-weight: normal;
-  text-transform: lowercase;
-  font-size: 10px;
 `;
 
 const CompactedBadge = styled.span`
@@ -144,8 +138,7 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({
 
     return (
       <LabelContainer>
-        <span>ASSISTANT</span>
-        {modelName && <ModelName>{modelName.toLowerCase()}</ModelName>}
+        {modelName && <ModelDisplay modelString={modelName} />}
         {isCompacted && <CompactedBadge>{COMPACTED_EMOJI} compacted</CompactedBadge>}
       </LabelContainer>
     );

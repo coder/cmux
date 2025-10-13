@@ -1,6 +1,7 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import topLevelAwait from "vite-plugin-top-level-await";
+import svgr from "vite-plugin-svgr";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -19,7 +20,7 @@ if (disableMermaid) {
 
 export default defineConfig(({ mode }) => ({
   // This prevents mermaid initialization errors in production while allowing dev to work
-  plugins: mode === "development" ? [react(), topLevelAwait()] : [react()],
+  plugins: mode === "development" ? [svgr(), react(), topLevelAwait()] : [svgr(), react()],
   resolve: {
     alias,
   },
