@@ -204,7 +204,7 @@ function createMenu() {
 async function showSplashScreen() {
   const startTime = Date.now();
   console.log(`[${timestamp()}] Showing splash screen...`);
-  
+
   splashWindow = new BrowserWindow({
     width: 400,
     height: 300,
@@ -222,7 +222,7 @@ async function showSplashScreen() {
 
   // Wait for splash HTML to load
   await splashWindow.loadFile(path.join(__dirname, "splash.html"));
-  
+
   // Wait for the window to actually be shown and rendered before continuing
   // This ensures the splash is visible before we block the event loop with heavy work
   await new Promise<void>((resolve) => {
