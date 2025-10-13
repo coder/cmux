@@ -13,6 +13,7 @@ const ModelContainer = styled.span`
   font-weight: 500; /* Match MessageHeader weight */
   font-size: 11px; /* Match MessageHeader size */
   text-transform: none; /* Override parent's uppercase */
+  vertical-align: middle; /* Align with timestamp baseline */
 `;
 
 const IconWrapper = styled.span`
