@@ -378,7 +378,11 @@ if (gotTheLock) {
     // 2. Load services while splash visible (fast - ~100ms)
     // 3. Create window and start loading content (splash stays visible)
     // 4. When window ready-to-show: close splash, show main window
-    await showSplashScreen(); // Wait for splash to actually load
+    //
+    // Skip splash in E2E tests to avoid app.firstWindow() grabbing the wrong window
+    if (!isE2ETest) {
+      await showSplashScreen(); // Wait for splash to actually load
+    }
     await loadServices();
     createWindow();
     // Note: splash closes in ready-to-show event handler
