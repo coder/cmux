@@ -10,5 +10,6 @@
 - [System Prompt](./system-prompt.md)
 - [Instruction Files](./instruction-files.md)
 - [Project Secrets](./project-secrets.md)
-  - [Agentic Git Identity](./agentic-git-identity.md)
+- [Agentic Git Identity](./agentic-git-identity.md)
+- [Terminal Benchmarking](./benchmarking.md)
 - [AGENTS](./AGENTS.md)

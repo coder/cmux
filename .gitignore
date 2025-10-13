@@ -87,3 +87,10 @@ CODE_CHANGES.md
 README_COMPACT_HERE.md
 artifacts/
 tests/e2e/tmp/
+runs/
+
+# Python
+__pycache__
+
+tmpfork
+.cmux-agent-cli

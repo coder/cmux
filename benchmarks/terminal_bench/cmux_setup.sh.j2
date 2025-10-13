@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+log() {
+  printf '[cmux-setup] %s\n' "$1"
+}
+
+ensure_tool() {
+  if command -v "$1" >/dev/null 2>&1; then
+    return 0
+  fi
+
+  if ! command -v apt-get >/dev/null 2>&1; then
+    printf 'Required tool "%s" missing and apt-get unavailable\n' "$1" >&2
+    return 1
+  fi
+
+  log "installing missing dependency: $1"
+  export DEBIAN_FRONTEND=noninteractive
+  apt-get update
+  apt-get install -y "$1"
+}
+
+ensure_tool curl
+ensure_tool git
+ensure_tool unzip
+export BUN_INSTALL="${BUN_INSTALL:-/root/.bun}"
+export PATH="${BUN_INSTALL}/bin:${PATH}"
+
+if ! command -v bun >/dev/null 2>&1; then
+  log "installing bun"
+  curl -fsSL "${CMUX_BUN_INSTALL_URL:-https://bun.sh/install}" | bash
+fi
+
+CMUX_APP_ROOT="${CMUX_APP_ROOT:-/opt/cmux-app}"
+CMUX_CONFIG_ROOT="${CMUX_CONFIG_ROOT:-/root/.cmux}"
+CMUX_AGENT_VERSION="{{ version if version is not none else '' }}"
+
+mkdir -p "$CMUX_APP_ROOT"
+
+if [[ -n "${CMUX_AGENT_VERSION}" ]]; then
+  : "${CMUX_AGENT_GIT_URL:?CMUX_AGENT_GIT_URL must be set when version is provided}"
+  log "cloning cmux from ${CMUX_AGENT_GIT_URL} @ ${CMUX_AGENT_VERSION}"
+  rm -rf "${CMUX_APP_ROOT}"
+  git clone --depth 1 --branch "${CMUX_AGENT_VERSION}" "${CMUX_AGENT_GIT_URL}" "${CMUX_APP_ROOT}"
+else
+  ARCHIVE_PATH="/installed-agent/cmux-app.tar.gz"
+  if [[ ! -s "${ARCHIVE_PATH}" ]]; then
+    printf 'Expected cmux archive at %s\n' "${ARCHIVE_PATH}" >&2
+    exit 1
+  fi
+  log "extracting cmux archive"
+  rm -rf "${CMUX_APP_ROOT}"
+  mkdir -p "${CMUX_APP_ROOT}"
+  tar -xzf "${ARCHIVE_PATH}" -C "${CMUX_APP_ROOT}"
+fi
+
+cd "${CMUX_APP_ROOT}"
+
+log "installing cmux dependencies via bun"
+bun install --frozen-lockfile
+
+mkdir -p "${CMUX_CONFIG_ROOT}"
+
+chmod +x /installed-agent/cmux-run.sh
+
+log "setup complete"

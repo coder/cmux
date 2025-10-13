@@ -27,6 +27,7 @@ include fmt.mk
 .PHONY: test test-unit test-integration test-watch test-coverage test-e2e
 .PHONY: dist dist-mac dist-win dist-linux
 .PHONY: docs docs-build docs-watch
+.PHONY: benchmark-terminal
 .PHONY: ensure-deps
 
 TS_SOURCES := $(shell find src -type f \( -name '*.ts' -o -name '*.tsx' \))
@@ -174,6 +175,19 @@ docs-build: ## Build documentation
 docs-watch: ## Watch and rebuild documentation
 	@cd docs && mdbook watch
 
+## Benchmarks
+benchmark-terminal: ## Run Terminal-Bench with the cmux agent (use TB_DATASET/TB_ARGS to customize)
+	@TB_DATASET=$${TB_DATASET:-terminal-bench-core==0.1.1}; \
+	CONCURRENCY_FLAG=$${TB_CONCURRENCY:+--n-concurrent $$TB_CONCURRENCY}; \
+	LIVESTREAM_FLAG=$${TB_LIVESTREAM:+--livestream}; \
+	echo "Running Terminal-Bench with dataset $$TB_DATASET"; \
+	uvx terminal-bench run \
+		--dataset "$$TB_DATASET" \
+		--agent-import-path benchmarks.terminal_bench.cmux_agent:CmuxAgent \
+		$$CONCURRENCY_FLAG \
+		$$LIVESTREAM_FLAG \
+		$${TB_ARGS}
+
 ## Clean
 clean: ## Clean build artifacts
 	@echo "Cleaning build artifacts..."
@@ -182,5 +196,3 @@ clean: ## Clean build artifacts
 
 # Parallel build optimization - these can run concurrently
 .NOTPARALLEL: build-main  # TypeScript can handle its own parallelism
-
-
