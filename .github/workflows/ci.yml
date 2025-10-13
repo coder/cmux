@@ -28,12 +28,14 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-shfmt-
 
-      - name: Install shfmt
-        if: steps.cache-shfmt.outputs.cache-hit != 'true'
-        run: curl -sS https://webinstall.dev/shfmt | bash
-
-      - name: Add shfmt to PATH
-        run: echo "$HOME/.local/bin" >> $GITHUB_PATH
+      - name: Install and setup shfmt
+        run: |
+          if [[ ! -f "$HOME/.local/bin/shfmt" ]]; then
+            curl -sS https://webinstall.dev/shfmt | bash
+          fi
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          # Verify shfmt is available
+          "$HOME/.local/bin/shfmt" --version
 
       - name: Install Nix
         uses: cachix/install-nix-action@v27
