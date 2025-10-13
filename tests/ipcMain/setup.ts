@@ -52,10 +52,6 @@ function createMockBrowserWindow(): {
  * Create a test environment with temporary config and mocked IPC
  */
 export async function createTestEnvironment(): Promise<TestEnvironment> {
-  // Preload tokenizer modules to ensure accurate token counts
-  // Without this, tests would use /4 approximation which can cause API errors
-  await loadTokenizerModules();
-
   // Create temporary directory for test config
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "cmux-test-"));
 
@@ -153,6 +149,10 @@ export async function setupWorkspace(
   cleanup: () => Promise<void>;
 }> {
   const { createTempGitRepo, cleanupTempGitRepo } = await import("./helpers");
+
+  // Preload tokenizer modules to ensure accurate token counts for API calls
+  // Without this, tests would use /4 approximation which can cause API errors
+  await loadTokenizerModules();
 
   // Create dedicated temp git repo for this test
   const tempGitRepo = await createTempGitRepo();
