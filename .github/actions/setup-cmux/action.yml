@@ -1,7 +1,7 @@
-name: 'Setup Cmux'
-description: 'Setup Bun and install dependencies with caching'
+name: "Setup Cmux"
+description: "Setup Bun and install dependencies with caching"
 runs:
-  using: 'composite'
+  using: "composite"
   steps:
     - name: Setup Bun
       uses: oven-sh/setup-bun@v2

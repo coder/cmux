@@ -44,6 +44,10 @@ like [opportunistic compaction](https://cmux.io/context-management.html) and [mo
 
 ## Quick Install
 
+> [!WARNING]  
+> cmux is in a Preview state. You will encounter bugs and performance issues.
+> It's still possible to be highly productive. We are using it almost exclusively for our own development.
+
 Download pre-built binaries from [the releases page](https://github.com/coder/cmux/releases):
 
 - **macOS**: Signed and notarized DMG (separate builds for Intel/Apple Silicon)

@@ -23,6 +23,7 @@
   --color-interrupted: hsl(38 92% 50%);
 
   /* Docs-specific tokens */
+  --color-code: hsl(214.52deg 100% 71.11%);
   --link-color: var(--color-plan-mode);
   --link-hover: var(--color-plan-mode-hover);
   --content-max-width: 78ch;
@@ -48,6 +49,7 @@
   --sidebar-fg: var(--color-text) !important;
   --icons: var(--color-text-secondary) !important;
   --table-alternate-bg: var(--color-background-secondary) !important;
+  --line-height: 1.6;
 }
 
 /* Base layout and typography */
@@ -63,6 +65,7 @@ body {
 
 .content .page,
 .content {
+  line-height: var(--line-height);
   background: var(--color-background) !important;
 }
 
@@ -70,7 +73,7 @@ body {
   max-width: var(--content-max-width);
   margin: 0 auto;
   padding: 2rem 2.25rem;
-  line-height: 1.65;
+  line-height: var(--line-height);
   letter-spacing: 0.01em;
 }
 
@@ -142,6 +145,10 @@ a:focus-visible {
   background: var(--sidebar-bg) !important;
   border-right: 1px solid var(--color-border) !important;
 }
+.sidebar .part-title {
+  color: color-mix(in srgb, var(--color-text), white 20%) !important;
+  font-weight: 700;
+}
 .sidebar .chapter li.chapter-item a {
   color: var(--color-text) !important;
 }
@@ -150,8 +157,8 @@ a:focus-visible {
   background: transparent !important;
 }
 .sidebar .chapter li.chapter-item a:hover {
-  color: var(--color-text) !important;
-  background: color-mix(in srgb, var(--color-background-secondary), white 2%);
+  color: var(--link-hover) !important;
+  background: color-mix(in srgb, var(--color-background-secondary), white 8%);
 }
 .sidebar-resize-handle {
   background: var(--color-background-secondary) !important;
@@ -205,16 +212,25 @@ a:focus-visible {
 }
 
 .content ul {
-  line-height: 2;
+  margin-block-start: 0;
+  line-height: 1.6;
+}
+
+.content p {
+  line-height: var(--line-height);
+}
+
+/* Remove margin between p and following list */
+p:has(+ ul),
+p:has(+ ol) {
+  margin-block-end: 0.5em;
 }
 
 /* Inline code */
 :not(pre) > code {
   background: var(--color-background-secondary) !important;
-  color: var(--color-edit-mode) !important;
-  border-radius: var(--radius-xs);
+  color: var(--color-code) !important;
   padding: 2px 6px;
-  border: 1px solid var(--color-border);
   font-family: var(--font-monospace);
   font-size: 0.92em;
 }
@@ -223,14 +239,13 @@ a:focus-visible {
 pre {
   background: var(--color-background-secondary) !important;
   border: 1px solid var(--color-border) !important;
-  border-radius: var(--radius-md);
   box-shadow: var(--shadow-1);
   overflow: auto;
   margin: 1rem 0;
 }
 pre > code {
   background: transparent !important;
-  color: var(--color-text) !important;
+  color: var(--color-code) !important;
   display: block;
   padding: 0.9rem 1rem;
   font-family: var(--font-monospace);
@@ -251,7 +266,7 @@ table {
   border-radius: var(--radius-md);
 }
 table thead {
-  background: color-mix(in srgb, var(--color-background-secondary), black 5%);
+  background: color-mix(in srgb, var(--color-background-secondary), white 8%);
   border-bottom: 2px solid var(--color-border) !important;
 }
 table th,
@@ -262,26 +277,28 @@ table td {
   color: var(--color-text) !important;
 }
 table th {
-  font-weight: 600;
+  font-weight: 700;
+  font-size: 1.05em;
+  color: color-mix(in srgb, var(--color-text), white 10%) !important;
 }
 table tbody tr:hover {
   background: color-mix(in srgb, var(--color-background-secondary), white 2%) !important;
 }
 table code {
   background: var(--color-background) !important;
-  color: var(--color-interrupted) !important;
+  color: var(--color-code) !important;
   font-family: var(--font-monospace);
   font-size: 0.9em;
 }
 
 /* Blockquotes (callout style) */
 blockquote {
+  border: 1px solid var(--color-border) !important;
   border-left: 4px solid var(--color-plan-mode) !important;
   background: color-mix(in srgb, var(--color-background-secondary), white 1.5%) !important;
-  padding: 1rem 1.2rem;
+  padding: 0.5rem 0.6rem;
   margin: 1.2rem 0;
   color: color-mix(in srgb, var(--color-text), white 6%) !important;
-  border-radius: 0 var(--radius-md) var(--radius-md) 0;
 }
 blockquote strong {
   color: var(--color-plan-mode) !important;

@@ -5,7 +5,7 @@ on:
     types: [published]
 
 permissions:
-  contents: write  # Required for electron-builder to upload release assets
+  contents: write # Required for electron-builder to upload release assets
 
 jobs:
   build-macos:

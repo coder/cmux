@@ -11,10 +11,7 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: isCI,
   retries: isCI ? 1 : 0,
-  reporter: [
-    ["list"],
-    ["html", { outputFolder: "artifacts/playwright-report", open: "never" }],
-  ],
+  reporter: [["list"], ["html", { outputFolder: "artifacts/playwright-report", open: "never" }]],
   use: {
     trace: isCI ? "on-first-retry" : "retain-on-failure",
     screenshot: "only-on-failure",
