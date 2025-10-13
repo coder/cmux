@@ -190,12 +190,15 @@ async function createWindow() {
     // - IpcMain transitively imports the entire AI SDK (ai, @ai-sdk/anthropic, etc.)
     // - These are large modules that would block app startup if loaded statically
     // - Loading happens once on first window creation, then cached
-    const [{ Config: ConfigClass }, { IpcMain: IpcMainClass }, { loadTokenizerModules: loadTokenizerFn }] =
-      await Promise.all([
-        import("./config"),
-        import("./services/ipcMain"),
-        import("./utils/main/tokenizer"),
-      ]);
+    const [
+      { Config: ConfigClass },
+      { IpcMain: IpcMainClass },
+      { loadTokenizerModules: loadTokenizerFn },
+    ] = await Promise.all([
+      import("./config"),
+      import("./services/ipcMain"),
+      import("./utils/main/tokenizer"),
+    ]);
     /* eslint-enable no-restricted-syntax */
     config = new ConfigClass();
     ipcMain = new IpcMainClass(config);
