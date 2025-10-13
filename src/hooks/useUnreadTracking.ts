@@ -1,7 +1,8 @@
-import { useEffect, useCallback, useMemo, useRef } from "react";
+import { useEffect, useCallback, useRef } from "react";
 import type { WorkspaceSelection } from "@/components/ProjectSidebar";
 import type { WorkspaceState } from "./useWorkspaceAggregators";
 import { usePersistedState } from "./usePersistedState";
+import { useStableReference, compareMaps } from "./useStableReference";
 
 /**
  * Hook to track unread message status for all workspaces.
@@ -73,47 +74,35 @@ export function useUnreadTracking(
   }, [selectedWorkspace?.workspaceId, workspaceStates, markAsRead]);
 
   // Calculate unread status for all workspaces
-  const unreadStatusRef = useRef<Map<string, boolean>>(new Map());
-  const unreadStatus = useMemo(() => {
-    const next = new Map<string, boolean>();
+  // Use stable reference to prevent unnecessary re-renders when values haven't changed
+  const unreadStatus = useStableReference(
+    () => {
+      const map = new Map<string, boolean>();
 
-    for (const [workspaceId, state] of workspaceStates) {
-      // Streaming workspaces are never unread
-      if (state.canInterrupt) {
-        next.set(workspaceId, false);
-        continue;
-      }
-
-      // Check for any assistant-originated content newer than last-read timestamp:
-      // assistant text, tool calls/results (e.g., propose_plan), reasoning, and errors.
-      // Exclude user's own messages and UI markers.
-      const lastRead = lastReadMap[workspaceId] ?? 0;
-      const hasUnread = state.messages.some(
-        (msg) =>
-          msg.type !== "user" && msg.type !== "history-hidden" && (msg.timestamp ?? 0) > lastRead
-      );
-
-      next.set(workspaceId, hasUnread);
-    }
-
-    // Return previous Map reference if nothing actually changed to keep identity stable
-    const prev = unreadStatusRef.current;
-    if (prev.size === next.size) {
-      let same = true;
-      for (const [k, v] of next) {
-        if (prev.get(k) !== v) {
-          same = false;
-          break;
+      for (const [workspaceId, state] of workspaceStates) {
+        // Streaming workspaces are never unread
+        if (state.canInterrupt) {
+          map.set(workspaceId, false);
+          continue;
         }
-      }
-      if (same) {
-        return prev;
-      }
-    }
 
-    unreadStatusRef.current = next;
-    return next;
-  }, [workspaceStates, lastReadMap]);
+        // Check for any assistant-originated content newer than last-read timestamp:
+        // assistant text, tool calls/results (e.g., propose_plan), reasoning, and errors.
+        // Exclude user's own messages and UI markers.
+        const lastRead = lastReadMap[workspaceId] ?? 0;
+        const hasUnread = state.messages.some(
+          (msg) =>
+            msg.type !== "user" && msg.type !== "history-hidden" && (msg.timestamp ?? 0) > lastRead
+        );
+
+        map.set(workspaceId, hasUnread);
+      }
+
+      return map;
+    },
+    compareMaps,
+    [workspaceStates, lastReadMap]
+  );
 
   // Manual toggle function for clicking the indicator
   const toggleUnread = useCallback(

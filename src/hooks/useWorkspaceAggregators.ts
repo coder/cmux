@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useStableReference, compareRecords } from "./useStableReference";
 import type { DisplayedMessage, CmuxMessage } from "@/types/message";
 import { createCmuxMessage } from "@/types/message";
 import type { WorkspaceMetadata } from "@/types/workspace";
@@ -337,30 +338,20 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
 
   // Extract recency timestamps for sorting - only updates when timestamps actually change
   // This prevents unnecessary sort recomputation when unrelated workspace state changes
-  const workspaceRecencyRef = useRef<Record<string, number>>({});
-  const workspaceRecency = useMemo(() => {
-    const timestamps: Record<string, number> = {};
-    for (const [id, state] of workspaceStates) {
-      if (state.lastUserMessageAt !== null) {
-        timestamps[id] = state.lastUserMessageAt;
+  // Use stable reference to maintain object identity when values haven't changed
+  const workspaceRecency = useStableReference(
+    () => {
+      const timestamps: Record<string, number> = {};
+      for (const [id, state] of workspaceStates) {
+        if (state.lastUserMessageAt !== null) {
+          timestamps[id] = state.lastUserMessageAt;
+        }
       }
-    }
-
-    // Only return new object if timestamps actually changed
-    const prev = workspaceRecencyRef.current;
-    const prevKeys = Object.keys(prev);
-    const newKeys = Object.keys(timestamps);
-
-    if (
-      prevKeys.length === newKeys.length &&
-      prevKeys.every((key) => prev[key] === timestamps[key])
-    ) {
-      return prev; // No change, return previous reference
-    }
-
-    workspaceRecencyRef.current = timestamps;
-    return timestamps;
-  }, [workspaceStates]);
+      return timestamps;
+    },
+    compareRecords,
+    [workspaceStates]
+  );
 
   return {
     getWorkspaceState,
