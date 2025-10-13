@@ -59,7 +59,10 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
     }
     return aggregatorsRef.current.get(workspaceId)!;
   }, []);
-
+  
+  // Compaction state is managed in this hook (not in the aggregator)
+  const compactingRef = useRef<Map<string, boolean>>(new Map());
+  const pendingSummaryRef = useRef<Map<string, string>>(new Map());
   // Get state for a specific workspace
   const getWorkspaceState = useCallback(
     (workspaceId: string): WorkspaceState => {
@@ -77,10 +80,12 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
         .find((m) => m.role === "user" && m.metadata?.timestamp);
       const lastUserMessageAt = lastUserMsg?.metadata?.timestamp ?? null;
 
+      const isCompacting = compactingRef.current.get(workspaceId) ?? false;
+
       return {
         messages: aggregator.getDisplayedMessages(),
         canInterrupt: activeStreams.length > 0,
-        isCompacting: aggregator.isCompacting(),
+        isCompacting,
         loading: !hasMessages && !isCaughtUp,
         cmuxMessages: aggregator.getAllMessages(),
         currentModel: aggregator.getCurrentModel() ?? "claude-sonnet-4-5",
@@ -117,6 +122,7 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
       aggregator.clearActiveStreams();
 
       // Subscribe to this workspace's chat events
+      // Subscribe to this workspace's chat events
       const unsubscribe = window.api.workspace.onChat(workspaceId, (data: WorkspaceChatMessage) => {
         const isCaughtUp = caughtUpRef.current.get(workspaceId) ?? false;
         const historicalMessages = historicalMessagesRef.current.get(workspaceId) ?? [];
@@ -135,6 +141,9 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
         // Handle stream errors
         if (isStreamError(data)) {
           aggregator.handleStreamError(data);
+          // Clear compaction state on error
+          pendingSummaryRef.current.delete(workspaceId);
+          compactingRef.current.delete(workspaceId);
           forceUpdate();
 
           // Trigger resume check
@@ -178,18 +187,32 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
           // Clear token state after stream completes
           aggregator.clearTokenState(data.messageId);
 
-          // Handle compact_summary completion - check if any tool in parts is compact_summary
-          // Tool results may come in stream-end rather than as separate tool-call-end events
-          if (data.parts) {
+          // Prefer pendingSummaryRef if present; fallback to scanning parts if we were compacting
+          const pending = pendingSummaryRef.current.get(workspaceId);
+          const isCompacting = compactingRef.current.get(workspaceId) ?? false;
+          if (pending) {
+            const summaryMessage = createCmuxMessage(
+              `summary-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
+              "assistant",
+              pending,
+              {
+                timestamp: Date.now(),
+                compacted: true,
+                model: aggregator.getCurrentModel(),
+                usage: data.metadata.usage,
+                providerMetadata: data.metadata.providerMetadata,
+                duration: data.metadata.duration,
+                systemMessageTokens: data.metadata.systemMessageTokens,
+              }
+            );
+            void window.api.workspace.replaceChatHistory(workspaceId, summaryMessage);
+            pendingSummaryRef.current.delete(workspaceId);
+          } else if (isCompacting && data.parts) {
+            // Fallback: scan parts for compact_summary only if we were compacting
             for (const part of data.parts) {
               if (part.type === "dynamic-tool" && part.toolName === "compact_summary") {
-                console.log("[useWorkspaceAggregators] Found compact_summary in stream-end parts");
                 const output = part.output as { summary?: string } | undefined;
-                console.log("[useWorkspaceAggregators] Tool output:", output);
                 if (output?.summary) {
-                  console.log(
-                    "[useWorkspaceAggregators] Calling replaceChatHistory with summary from stream-end"
-                  );
                   const summaryMessage = createCmuxMessage(
                     `summary-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
                     "assistant",
@@ -198,22 +221,20 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
                       timestamp: Date.now(),
                       compacted: true,
                       model: aggregator.getCurrentModel(),
-                      // Copy usage metadata so users can see tokens/costs for the compaction operation
                       usage: data.metadata.usage,
                       providerMetadata: data.metadata.providerMetadata,
                       duration: data.metadata.duration,
                       systemMessageTokens: data.metadata.systemMessageTokens,
                     }
                   );
-
                   void window.api.workspace.replaceChatHistory(workspaceId, summaryMessage);
-                } else {
-                  console.log("[useWorkspaceAggregators] No summary in tool output");
                 }
                 break; // Only one compact_summary per stream
               }
             }
           }
+          // Clear compaction state at stream end
+          compactingRef.current.delete(workspaceId);
 
           forceUpdate();
           return;
@@ -223,6 +244,9 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
           // Clear token state on abort
           aggregator.clearTokenState(data.messageId);
           aggregator.handleStreamAbort(data);
+          // Clear compaction state on abort
+          pendingSummaryRef.current.delete(workspaceId);
+          compactingRef.current.delete(workspaceId);
           forceUpdate();
 
           // Trigger resume check
@@ -233,11 +257,12 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
           );
           return;
         }
-
         // Handle tool call events
         if (isToolCallStart(data)) {
-          console.log("[useWorkspaceAggregators] Tool call start:", data.toolName);
           aggregator.handleToolCallStart(data);
+          if (data.toolName === "compact_summary") {
+            compactingRef.current.set(workspaceId, true);
+          }
           forceUpdate();
           return;
         }
@@ -249,19 +274,30 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
         }
 
         if (isToolCallEnd(data)) {
-          console.log(
-            "[useWorkspaceAggregators] Tool call end:",
-            data.toolName,
-            "result:",
-            data.result
-          );
           aggregator.handleToolCallEnd(data);
-
-          // Note: compact_summary handling removed from tool-call-end
-          // Compaction is handled in stream-end to prevent infinite loops
-          // (calling replaceChatHistory during streaming causes the model to see
-          // cleared history and trigger compaction again)
-
+          if (data.toolName === "compact_summary") {
+            const result = data.result as { summary?: string } | undefined;
+            if (result?.summary) {
+              pendingSummaryRef.current.set(workspaceId, result.summary);
+              // If for some reason there is no active stream (reconnection case), apply immediately
+              if (aggregator.getActiveStreams().length === 0) {
+                const summaryMessage = createCmuxMessage(
+                  `summary-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
+                  "assistant",
+                  result.summary,
+                  {
+                    timestamp: Date.now(),
+                    compacted: true,
+                    model: aggregator.getCurrentModel(),
+                  }
+                );
+                void window.api.workspace.replaceChatHistory(workspaceId, summaryMessage);
+                pendingSummaryRef.current.delete(workspaceId);
+                compactingRef.current.delete(workspaceId);
+              }
+            }
+          }
+          // Finalization generally occurs at stream-end
           forceUpdate();
           return;
         }
@@ -278,6 +314,9 @@ export function useWorkspaceAggregators(workspaceMetadata: Map<string, Workspace
           forceUpdate();
           return;
         }
+
+
+        // Handle tool call events
 
         // Regular messages
         if (!isCaughtUp) {

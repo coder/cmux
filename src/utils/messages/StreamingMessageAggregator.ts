@@ -28,7 +28,6 @@ const MAX_DISPLAYED_MESSAGES = 128;
 interface StreamingContext {
   startTime: number;
   isComplete: boolean;
-  isCompacting: boolean;
   model: string;
 }
 
@@ -97,14 +96,8 @@ export class StreamingMessageAggregator {
     return this.activeStreams.keys().next().value;
   }
 
-  isCompacting(): boolean {
-    for (const context of this.activeStreams.values()) {
-      if (context.isCompacting) {
-        return true;
-      }
-    }
-    return false;
-  }
+  // Compaction state is no longer tracked in the aggregator; UI hook owns it.
+
 
   getCurrentModel(): string | undefined {
     // If there's an active stream, return its model
@@ -155,23 +148,12 @@ export class StreamingMessageAggregator {
 
   // Unified event handlers that encapsulate all complex logic
   handleStreamStart(data: StreamStartEvent): void {
-    // Detect if this stream is compacting by checking last user message's toolPolicy
-    const messages = this.getAllMessages();
-    const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
-    const isCompacting =
-      lastUserMsg?.metadata?.toolPolicy?.some(
-        (filter) =>
-          filter.action === "require" &&
-          new RegExp(`^${filter.regex_match}$`).test("compact_summary")
-      ) ?? false;
-
+    // Compaction detection removed; UI hook owns compaction state
     const context: StreamingContext = {
       startTime: Date.now(),
       isComplete: false,
-      isCompacting,
       model: data.model,
     };
-
     // Use messageId as key - ensures only ONE stream per message
     // If called twice (e.g., during replay), second call safely overwrites first
     this.activeStreams.set(data.messageId, context);
