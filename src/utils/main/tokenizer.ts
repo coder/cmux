@@ -104,6 +104,46 @@ function countTokensCached(text: string, tokenizeFn: () => number | Promise<numb
 }
 
 /**
+ * Count tokens using loaded tokenizer modules
+ * Assumes tokenizerModules is not null
+ */
+function countTokensWithLoadedModules(
+  text: string,
+  modelString: string,
+  modules: NonNullable<typeof tokenizerModules>
+): number {
+  const [provider, modelId] = modelString.split(":");
+  let model = modules.models[`${provider}/${modelId}` as keyof typeof modules.models];
+  if (!model) {
+    switch (modelString) {
+      case "anthropic:claude-sonnet-4-5":
+        model = modules.models["anthropic/claude-sonnet-4.5"];
+        break;
+      default:
+        // GPT-4o has pretty good approximation for most models.
+        model = modules.models["openai/gpt-4o"];
+    }
+  }
+
+  let encoding: typeof modules.o200k_base | typeof modules.claude;
+  switch (model.encoding) {
+    case "o200k_base":
+      encoding = modules.o200k_base;
+      break;
+    case "claude":
+      encoding = modules.claude;
+      break;
+    default:
+      // Do not include all encodings, as they are pretty big.
+      // The most common one is o200k_base.
+      encoding = modules.o200k_base;
+      break;
+  }
+  const tokenizer = new modules.AITokenizer(encoding);
+  return tokenizer.count(text);
+}
+
+/**
  * Get the appropriate tokenizer for a given model string
  *
  * @param modelString - Model identifier (e.g., "anthropic:claude-opus-4-1", "openai:gpt-4")
@@ -118,46 +158,27 @@ export function getTokenizerForModel(modelString: string): Tokenizer {
       return tokenizerModules ? "loaded" : "approximation";
     },
     countTokens: (text: string) => {
+      // If tokenizer already loaded, use synchronous path for accurate counts
+      if (tokenizerModules) {
+        return countTokensCached(text, () => {
+          try {
+            return countTokensWithLoadedModules(text, modelString, tokenizerModules!);
+          } catch (error) {
+            // Unexpected error during tokenization, fallback to approximation
+            console.error("Failed to tokenize, falling back to approximation:", error);
+            return Math.ceil(text.length / 4);
+          }
+        });
+      }
+
+      // Tokenizer not yet loaded - use async path (returns approximation immediately)
       return countTokensCached(text, async () => {
-        // If tokenizer not loaded yet, load it now
-        if (!tokenizerModules) {
-          await loadTokenizerModules();
-        }
-
+        await loadTokenizerModules();
         try {
-          const modules = tokenizerModules!;
-          const [provider, modelId] = modelString.split(":");
-          let model = modules.models[`${provider}/${modelId}` as keyof typeof modules.models];
-          if (!model) {
-            switch (modelString) {
-              case "anthropic:claude-sonnet-4-5":
-                model = modules.models["anthropic/claude-sonnet-4.5"];
-                break;
-              default:
-                // GPT-4o has pretty good approximation for most models.
-                model = modules.models["openai/gpt-4o"];
-            }
-          }
-
-          let encoding: typeof modules.o200k_base | typeof modules.claude;
-          switch (model.encoding) {
-            case "o200k_base":
-              encoding = modules.o200k_base;
-              break;
-            case "claude":
-              encoding = modules.claude;
-              break;
-            default:
-              // Do not include all encodings, as they are pretty big.
-              // The most common one is o200k_base.
-              encoding = modules.o200k_base;
-              break;
-          }
-          const tokenizer = new modules.AITokenizer(encoding);
-          return tokenizer.count(text);
+          return countTokensWithLoadedModules(text, modelString, tokenizerModules!);
         } catch (error) {
           // Unexpected error during tokenization, fallback to approximation
-          console.error("Failed to tokenize with tiktoken, falling back to approximation:", error);
+          console.error("Failed to tokenize, falling back to approximation:", error);
           return Math.ceil(text.length / 4);
         }
       });
