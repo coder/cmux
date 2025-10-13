@@ -31,7 +31,7 @@ interface GitStatusProviderProps {
  * - Max 5 concurrent git status checks to prevent bash process explosion
  */
 // Configuration - enabled by default, no env variables needed
-const GIT_STATUS_INTERVAL_MS = 3000; // 3 seconds
+const GIT_STATUS_INTERVAL_MS = 3000; // 3 seconds - interactive updates
 const MAX_CONCURRENT_GIT_OPS = 5;
 
 // Fetch configuration - aggressive intervals for fresh data
