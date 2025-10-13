@@ -195,19 +195,27 @@ function showSplashScreen() {
     width: 400,
     height: 300,
     frame: false,
-    transparent: true,
+    transparent: false, // Changed to false for better visibility
     alwaysOnTop: true,
     center: true,
     resizable: false,
+    show: true, // Explicitly show immediately
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
     },
   });
 
-  void splashWindow.loadFile(path.join(__dirname, "splash.html"));
+  splashWindow.loadFile(path.join(__dirname, "splash.html"))
+    .then(() => {
+      console.log("Splash screen HTML loaded successfully");
+    })
+    .catch((err) => {
+      console.error("Failed to load splash screen:", err);
+    });
 
   splashWindow.on("closed", () => {
+    console.log("Splash screen closed event");
     splashWindow = null;
   });
 }
