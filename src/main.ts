@@ -39,6 +39,17 @@ if (!app.isPackaged) {
   }
 }
 
+// IMPORTANT: Lazy-load heavy dependencies to maintain fast startup time
+//
+// To keep startup time under 4s, avoid importing AI SDK packages at the top level.
+// These files MUST use dynamic import():
+//   - main.ts, config.ts, preload.ts (startup-critical)
+//
+// ✅ GOOD: const { createAnthropic } = await import("@ai-sdk/anthropic");
+// ❌ BAD:  import { createAnthropic } from "@ai-sdk/anthropic";
+//
+// Enforcement: scripts/check_eager_imports.sh validates this in CI
+//
 // Lazy-load Config and IpcMain to avoid loading heavy AI SDK dependencies at startup
 // These will be loaded on-demand when createWindow() is called
 let config: Config | null = null;

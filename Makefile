@@ -29,6 +29,7 @@ include fmt.mk
 .PHONY: docs docs-build docs-watch
 .PHONY: benchmark-terminal
 .PHONY: ensure-deps
+.PHONY: check-eager-imports check-bundle-size check-startup
 
 TS_SOURCES := $(shell find src -type f \( -name '*.ts' -o -name '*.tsx' \))
 
@@ -126,7 +127,7 @@ build/icon.icns: docs/img/logo.webp
 	@rm -rf build/icon.iconset
 
 ## Quality checks (can run in parallel)
-static-check: lint typecheck fmt-check ## Run all static checks
+static-check: lint typecheck fmt-check check-eager-imports ## Run all static checks (includes startup performance checks)
 
 lint: node_modules/.installed ## Run ESLint (typecheck runs in separate target)
 	@./scripts/lint.sh
@@ -161,8 +162,28 @@ test-e2e: ## Run end-to-end tests
 dist: build ## Build distributable packages
 	@bun x electron-builder --publish never
 
-dist-mac: build ## Build macOS distributable
-	@bun x electron-builder --mac --publish never
+# Parallel macOS builds - notarization happens concurrently
+dist-mac: build ## Build macOS distributables (x64 + arm64 in parallel)
+	@echo "Building macOS architectures in parallel..."
+	@bun x electron-builder --mac --x64 --publish never & \
+	 bun x electron-builder --mac --arm64 --publish never & \
+	 wait
+	@echo "✅ Both architectures built successfully"
+
+dist-mac-release: build ## Build and publish macOS distributables (x64 + arm64 in parallel)
+	@echo "Building and publishing macOS architectures in parallel..."
+	@bun x electron-builder --mac --x64 --publish always & \
+	 bun x electron-builder --mac --arm64 --publish always & \
+	 wait
+	@echo "✅ Both architectures built and published successfully"
+
+dist-mac-x64: build ## Build macOS x64 distributable only
+	@echo "Building macOS x64..."
+	@bun x electron-builder --mac --x64 --publish never
+
+dist-mac-arm64: build ## Build macOS arm64 distributable only
+	@echo "Building macOS arm64..."
+	@bun x electron-builder --mac --arm64 --publish never
 
 dist-win: build ## Build Windows distributable
 	@bun x electron-builder --win --publish never
@@ -198,6 +219,15 @@ clean: ## Clean build artifacts
 	@echo "Cleaning build artifacts..."
 	@rm -rf dist release build/icon.icns build/icon.png
 	@echo "Done!"
+
+## Startup Performance Checks
+check-eager-imports: ## Check for eager AI SDK imports in critical files
+	@./scripts/check_eager_imports.sh
+
+check-bundle-size: build ## Check that bundle sizes are within limits
+	@./scripts/check_bundle_size.sh
+
+check-startup: check-eager-imports check-bundle-size ## Run all startup performance checks
 
 # Parallel build optimization - these can run concurrently
 .NOTPARALLEL: build-main  # TypeScript can handle its own parallelism

@@ -31,13 +31,11 @@
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.20",
-    "@ai-sdk/google": "^2.0.17",
     "@ai-sdk/openai": "^2.0.40",
-    "@anthropic-ai/sdk": "^0.63.1",
-    "@dqbd/tiktoken": "^1.0.21",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "ai": "^5.0.56",
+    "ai-tokenizer": "^1.0.3",
     "cmdk": "^1.0.0",
     "crc-32": "^1.2.2",
     "diff": "^8.0.2",
@@ -61,13 +59,11 @@
     "undici": "^7.16.0",
     "write-file-atomic": "^6.0.0",
     "zod": "^4.1.11",
-    "zod-to-json-schema": "^3.24.6",
-    "ai-tokenizer": "^1.0.3"
+    "zod-to-json-schema": "^3.24.6"
   },
   "devDependencies": {
     "@eslint/js": "^9.36.0",
     "@playwright/test": "^1.56.0",
-    "@testing-library/react": "^16.3.0",
     "@types/bun": "^1.2.23",
     "@types/diff": "^8.0.0",
     "@types/jest": "^30.0.0",
@@ -120,16 +116,7 @@
     ],
     "mac": {
       "category": "public.app-category.developer-tools",
-      "target": [
-        {
-          "target": "dmg",
-          "arch": "x64"
-        },
-        {
-          "target": "dmg",
-          "arch": "arm64"
-        }
-      ],
+      "target": "dmg",
       "icon": "build/icon.icns",
       "artifactName": "${productName}-${version}-${arch}.${ext}",
       "hardenedRuntime": true,

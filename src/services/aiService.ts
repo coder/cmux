@@ -3,7 +3,6 @@ import * as path from "path";
 import { EventEmitter } from "events";
 import { convertToModelMessages, wrapLanguageModel, type LanguageModel } from "ai";
 import { applyToolOutputRedaction } from "@/utils/messages/applyToolOutputRedaction";
-import { createAnthropic } from "@ai-sdk/anthropic";
 import type { Result } from "@/types/result";
 import { Ok, Err } from "@/types/result";
 import type { WorkspaceMetadata } from "@/types/workspace";
@@ -31,7 +30,6 @@ import { buildSystemMessage } from "./systemMessage";
 import { getTokenizerForModel } from "@/utils/main/tokenizer";
 import { buildProviderOptions } from "@/utils/ai/providerOptions";
 import type { ThinkingLevel } from "@/types/thinking";
-import { createOpenAI } from "@ai-sdk/openai";
 import type {
   StreamAbortEvent,
   StreamDeltaEvent,
@@ -220,10 +218,10 @@ export class AIService extends EventEmitter {
    * constructor, ensuring automatic parity with Vercel AI SDK - any configuration options
    * supported by the provider will work without modification.
    */
-  private createModel(
+  private async createModel(
     modelString: string,
     cmuxProviderOptions?: CmuxProviderOptions
-  ): Result<LanguageModel, SendMessageError> {
+  ): Promise<Result<LanguageModel, SendMessageError>> {
     try {
       // Parse model string (format: "provider:model-id")
       const [providerName, modelId] = modelString.split(":");
@@ -259,8 +257,8 @@ export class AIService extends EventEmitter {
               ? { "anthropic-beta": "context-1m-2025-08-07" }
               : existingHeaders;
 
-        // Pass configuration verbatim to the provider, ensuring parity with Vercel AI SDK
-
+        // Lazy-load Anthropic provider to reduce startup time
+        const { createAnthropic } = await import("@ai-sdk/anthropic");
         const provider = createAnthropic({ ...providerConfig, headers });
         return Ok(provider(modelId));
       }
@@ -356,6 +354,8 @@ export class AIService extends EventEmitter {
             : {}
         );
 
+        // Lazy-load OpenAI provider to reduce startup time
+        const { createOpenAI } = await import("@ai-sdk/openai");
         const provider = createOpenAI({
           ...providerConfig,
           // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-explicit-any
@@ -425,7 +425,7 @@ export class AIService extends EventEmitter {
       await this.partialService.commitToHistory(workspaceId);
 
       // Create model instance with early API key validation
-      const modelResult = this.createModel(modelString, cmuxProviderOptions);
+      const modelResult = await this.createModel(modelString, cmuxProviderOptions);
       if (!modelResult.success) {
         return Err(modelResult.error);
       }
@@ -509,7 +509,7 @@ export class AIService extends EventEmitter {
         : [];
 
       // Get model-specific tools with workspace path configuration and secrets
-      const allTools = getToolsForModel(modelString, {
+      const allTools = await getToolsForModel(modelString, {
         cwd: workspacePath,
         secrets: secretsToRecord(projectSecrets),
       });
