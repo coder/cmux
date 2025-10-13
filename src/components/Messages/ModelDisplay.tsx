@@ -12,6 +12,7 @@ const ModelContainer = styled.span`
   color: var(--color-text-secondary);
   font-weight: normal;
   font-size: 10px;
+  text-transform: none; /* Override parent's uppercase */
 `;
 
 const IconWrapper = styled.span`
