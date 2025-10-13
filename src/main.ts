@@ -226,6 +226,10 @@ async function showSplashScreen() {
   
   const loadTime = Date.now() - startTime;
   console.log(`[${timestamp()}] Splash screen loaded and visible (${loadTime}ms)`);
+  
+  // Give the OS/Electron time to actually render the splash window before continuing
+  // Without this delay, the window is created but not visible until much later
+  await new Promise((resolve) => setTimeout(resolve, 100));
 
   splashWindow.on("closed", () => {
     console.log(`[${timestamp()}] Splash screen closed event`);
