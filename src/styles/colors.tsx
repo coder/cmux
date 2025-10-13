@@ -78,7 +78,7 @@ export const GlobalColors = () => (
           var(--color-assistant-border),
           white 15%
         );
-        
+
         /* Message Header Colors */
         --color-message-header: hsl(0 0% 80%);
 

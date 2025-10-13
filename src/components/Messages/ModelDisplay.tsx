@@ -48,14 +48,11 @@ interface ModelDisplayProps {
 /**
  * Display a model name with its provider icon.
  * Supports format "provider:model-name" (e.g., "anthropic:claude-sonnet-4-5")
- * 
+ *
  * Uses standard inline layout for natural text alignment.
  * Icon is 1em (matches font size) with vertical-align: middle.
  */
-export const ModelDisplay: React.FC<ModelDisplayProps> = ({
-  modelString,
-  showTooltip = true,
-}) => {
+export const ModelDisplay: React.FC<ModelDisplayProps> = ({ modelString, showTooltip = true }) => {
   const [provider, modelName] = modelString.includes(":")
     ? modelString.split(":", 2)
     : ["", modelString];
@@ -89,7 +86,9 @@ export const ModelDisplay: React.FC<ModelDisplayProps> = ({
   return (
     <TooltipWrapper inline data-model-display-tooltip>
       {content}
-      <Tooltip align="center" data-model-tooltip-text>{modelString}</Tooltip>
+      <Tooltip align="center" data-model-tooltip-text>
+        {modelString}
+      </Tooltip>
     </TooltipWrapper>
   );
 };
