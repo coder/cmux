@@ -68,7 +68,6 @@ if (process.env.CMUX_DEBUG_START_TIME === "1") {
   process.exit(0);
 }
 
-
 // Global error handlers for better error reporting
 process.on("uncaughtException", (error) => {
   console.error("Uncaught Exception:", error);
