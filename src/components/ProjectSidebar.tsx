@@ -1071,8 +1071,8 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                                           "Assistant is responding"
                                         ) : isUnread ? (
                                           "Unread messages"
-                                        ) : workspaceState.lastUserMessageAt ? (
-                                          `Idle • Last used ${formatRelativeTime(workspaceState.lastUserMessageAt)}`
+                                        ) : workspaceState.recencyTimestamp ? (
+                                          `Idle • Last used ${formatRelativeTime(workspaceState.recencyTimestamp)}`
                                         ) : (
                                           "Idle"
                                         )
