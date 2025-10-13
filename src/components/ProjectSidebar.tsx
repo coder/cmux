@@ -1085,6 +1085,7 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                                             <ModelDisplay
                                               modelString={streamingModel}
                                               showTooltip={false}
+                                              verticalAlign="baseline"
                                             />{" "}
                                             is responding
                                           </span>
