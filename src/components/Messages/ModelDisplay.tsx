@@ -31,11 +31,11 @@ const IconWrapper = styled.span`
       fill: currentColor;
     }
 
-    /* Generic SVGs with fill attribute */
+    /* Generic SVGs with fill attribute - use !important to override inline styles */
     path[fill],
     circle[fill],
     rect[fill] {
-      fill: currentColor;
+      fill: currentColor !important;
     }
   }
 `;
