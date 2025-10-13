@@ -61,6 +61,14 @@ console.log(
 );
 console.log("Main process starting...");
 
+// Debug: abort immediately if CMUX_DEBUG_START_TIME is set
+// This is used to measure baseline startup time without full initialization
+if (process.env.CMUX_DEBUG_START_TIME === "1") {
+  console.log("CMUX_DEBUG_START_TIME is set - aborting immediately");
+  process.exit(0);
+}
+
+
 // Global error handlers for better error reporting
 process.on("uncaughtException", (error) => {
   console.error("Uncaught Exception:", error);
