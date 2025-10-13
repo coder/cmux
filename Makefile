@@ -169,6 +169,13 @@ dist-mac: build ## Build macOS distributables (x64 + arm64 in parallel)
 	 wait
 	@echo "✅ Both architectures built successfully"
 
+dist-mac-release: build ## Build and publish macOS distributables (x64 + arm64 in parallel)
+	@echo "Building and publishing macOS architectures in parallel..."
+	@bun x electron-builder --mac --x64 --publish always & \
+	 bun x electron-builder --mac --arm64 --publish always & \
+	 wait
+	@echo "✅ Both architectures built and published successfully"
+
 dist-mac-x64: build ## Build macOS x64 distributable only
 	@echo "Building macOS x64..."
 	@bun x electron-builder --mac --x64 --publish never
