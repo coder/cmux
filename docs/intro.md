@@ -20,3 +20,9 @@ cmux helps you work with AI coding assistants more effectively by:
 - [Why Parallelize?](./why-parallelize.md) - Why parallelize?
 - [Keyboard Shortcuts](./keybinds.md) - Complete keyboard reference
 - [AGENTS](./AGENTS.md) - Developer guide for AI assistants
+
+## License
+
+cmux is licensed under the [GNU Affero General Public License v3.0 (AGPL-3.0)](https://github.com/coder/cmux/blob/main/LICENSE).
+
+Copyright (C) 2025 Coder Technologies, Inc.

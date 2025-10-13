@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "description": "cmux - coder multiplexer",
   "main": "dist/main.js",
+  "license": "AGPL-3.0-only",
   "scripts": {
     "dev": "make dev",
     "prebuild:main": "./scripts/generate-version.sh",

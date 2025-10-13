@@ -6,6 +6,7 @@
 
 [![CI](https://github.com/coder/cmux/actions/workflows/ci.yml/badge.svg)](https://github.com/coder/cmux/actions/workflows/ci.yml)
 [![Build](https://github.com/coder/cmux/actions/workflows/build.yml/badge.svg)](https://github.com/coder/cmux/actions/workflows/build.yml)
+[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL%203.0-blue.svg)](LICENSE)
 
 </div>
 
@@ -88,3 +89,11 @@ See [the documentation](https://cmux.io) for more details.
 ## Development
 
 See [AGENTS.md](./AGENTS.md) for development setup and guidelines.
+
+## License
+
+Copyright (C) 2025 Coder Technologies, Inc.
+
+This program is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License as published by the Free Software Foundation, version 3 of the License.
+
+See [LICENSE](./LICENSE) for details.
