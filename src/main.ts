@@ -50,8 +50,9 @@ const forceDistLoad = process.env.CMUX_E2E_LOAD_DIST === "1";
 if (isE2ETest) {
   // For e2e tests, use a test-specific userData directory
   // Note: We can't use config.rootDir here because config isn't loaded yet
-  // Instead, we'll use a hardcoded path relative to home directory
-  const e2eUserData = path.join(process.env.HOME ?? "~", ".cmux", "user-data");
+  // However, we must respect CMUX_TEST_ROOT to maintain test isolation
+  const testRoot = process.env.CMUX_TEST_ROOT ?? path.join(process.env.HOME ?? "~", ".cmux");
+  const e2eUserData = path.join(testRoot, "user-data");
   try {
     fs.mkdirSync(e2eUserData, { recursive: true });
     app.setPath("userData", e2eUserData);
