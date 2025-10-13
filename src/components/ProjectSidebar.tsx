@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import styled from "@emotion/styled";
 import { css } from "@emotion/react";
@@ -585,7 +585,7 @@ interface ProjectSidebarProps {
   onToggleCollapsed: () => void;
   onGetSecrets: (projectPath: string) => Promise<Secret[]>;
   onUpdateSecrets: (projectPath: string, secrets: Secret[]) => Promise<void>;
-  workspaceRecency: Record<string, number>;
+  sortedWorkspacesByProject: Map<string, Workspace[]>;
 }
 
 const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
@@ -605,32 +605,10 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
   onToggleCollapsed,
   onGetSecrets,
   onUpdateSecrets,
-  workspaceRecency,
+  sortedWorkspacesByProject,
 }) => {
   // Subscribe to git status updates (causes this component to re-render every 10s)
   const gitStatus = useGitStatus();
-
-  // Sort workspaces by last user message (most recent first)
-  // workspaceRecency only updates when timestamps actually change (stable reference optimization)
-  const sortedWorkspacesByProject = useMemo(() => {
-    const result = new Map<string, Workspace[]>();
-    for (const [projectPath, config] of projects) {
-      result.set(
-        projectPath,
-        config.workspaces.slice().sort((a, b) => {
-          const aMeta = workspaceMetadata.get(a.path);
-          const bMeta = workspaceMetadata.get(b.path);
-          if (!aMeta || !bMeta) return 0;
-
-          // Get timestamp of most recent user message (0 if never used)
-          const aTimestamp = workspaceRecency[aMeta.id] ?? 0;
-          const bTimestamp = workspaceRecency[bMeta.id] ?? 0;
-          return bTimestamp - aTimestamp;
-        })
-      );
-    }
-    return result;
-  }, [projects, workspaceMetadata, workspaceRecency]);
 
   // Store as array in localStorage, convert to Set for usage
   const [expandedProjectsArray, setExpandedProjectsArray] = usePersistedState<string[]>(
