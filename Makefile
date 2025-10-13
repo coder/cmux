@@ -165,11 +165,11 @@ dist: build ## Build distributable packages
 dist-mac: build ## Build macOS distributables (parallel x64 + arm64)
 	@$(MAKE) -j2 dist-mac-x64 dist-mac-arm64
 
-dist-mac-x64: build ## Build macOS x64 distributable
+dist-mac-x64: ## Build macOS x64 distributable (use via dist-mac)
 	@echo "Building macOS x64..."
 	@bun x electron-builder --mac --x64 --publish never
 
-dist-mac-arm64: build ## Build macOS arm64 distributable
+dist-mac-arm64: ## Build macOS arm64 distributable (use via dist-mac)
 	@echo "Building macOS arm64..."
 	@bun x electron-builder --mac --arm64 --publish never
 
