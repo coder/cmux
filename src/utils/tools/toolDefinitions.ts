@@ -90,25 +90,25 @@ export const TOOL_DEFINITIONS = {
   // to leave the repository in a broken state. Models struggle with line-based edits
   // when files are modified concurrently or when they miscalculate line numbers.
   // Use file_edit_replace_string or file_edit_insert instead.
-  //
-  // file_edit_replace_lines: {
-  //   description:
-  //     "Replace a range of lines in a file. Use this for line-based edits when you know the exact line numbers to modify.",
-  //   schema: z.object({
-  //     file_path: z.string().describe("The absolute path to the file to edit"),
-  //     start_line: z.number().int().min(1).describe("1-indexed start line (inclusive) to replace"),
-  //     end_line: z.number().int().min(1).describe("1-indexed end line (inclusive) to replace"),
-  //     new_lines: z
-  //       .array(z.string())
-  //       .describe("Replacement lines. Provide an empty array to delete the specified range."),
-  //     expected_lines: z
-  //       .array(z.string())
-  //       .optional()
-  //       .describe(
-  //         "Optional safety check. When provided, the current lines in the specified range must match exactly."
-  //       ),
-  //   }),
-  // },
+  // Kept as stub for backwards compatibility with old history.
+  file_edit_replace_lines: {
+    description:
+      "Replace a range of lines in a file. Use this for line-based edits when you know the exact line numbers to modify.",
+    schema: z.object({
+      file_path: z.string().describe("The absolute path to the file to edit"),
+      start_line: z.number().int().min(1).describe("1-indexed start line (inclusive) to replace"),
+      end_line: z.number().int().min(1).describe("1-indexed end line (inclusive) to replace"),
+      new_lines: z
+        .array(z.string())
+        .describe("Replacement lines. Provide an empty array to delete the specified range."),
+      expected_lines: z
+        .array(z.string())
+        .optional()
+        .describe(
+          "Optional safety check. When provided, the current lines in the specified range must match exactly."
+        ),
+    }),
+  },
   file_edit_insert: {
     description:
       "Insert content at a specific line position in a file. Line offset is 1-indexed: 0 inserts at the top, 1 inserts after line 1, etc.",
