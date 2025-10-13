@@ -12,6 +12,7 @@ import { useDrag, useDrop, useDragLayer } from "react-dnd";
 import { sortProjectsByOrder, reorderProjects, normalizeOrder } from "@/utils/projectOrdering";
 import { matchesKeybind, formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
 import { abbreviatePath } from "@/utils/ui/pathAbbreviation";
+import { formatRelativeTime } from "@/utils/ui/dateTime";
 import { TooltipWrapper, Tooltip } from "./Tooltip";
 import { StatusIndicator } from "./StatusIndicator";
 // Removed: import { getModelName } from "@/utils/ai/models";
@@ -1070,6 +1071,8 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                                           "Assistant is responding"
                                         ) : isUnread ? (
                                           "Unread messages"
+                                        ) : workspaceState.recencyTimestamp ? (
+                                          `Idle • Last used ${formatRelativeTime(workspaceState.recencyTimestamp)}`
                                         ) : (
                                           "Idle"
                                         )
