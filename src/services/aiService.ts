@@ -101,6 +101,9 @@ export class AIService extends EventEmitter {
 
   constructor(config: Config, historyService: HistoryService, partialService: PartialService) {
     super();
+    // Increase max listeners to accommodate multiple concurrent workspace listeners
+    // Each workspace subscribes to stream events, and we expect >10 concurrent workspaces
+    this.setMaxListeners(50);
     this.config = config;
     this.historyService = historyService;
     this.partialService = partialService;
