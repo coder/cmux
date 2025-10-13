@@ -76,8 +76,8 @@ export const ModelDisplay: React.FC<ModelDisplayProps> = ({
   const displayName = formatModelDisplayName(modelName);
 
   const content = (
-    <ModelContainer>
-      {providerIcon && <IconWrapper>{providerIcon}</IconWrapper>}
+    <ModelContainer data-model-display>
+      {providerIcon && <IconWrapper data-model-icon>{providerIcon}</IconWrapper>}
       {displayName}
     </ModelContainer>
   );
@@ -87,9 +87,9 @@ export const ModelDisplay: React.FC<ModelDisplayProps> = ({
   }
 
   return (
-    <TooltipWrapper inline>
+    <TooltipWrapper inline data-model-display-tooltip>
       {content}
-      <Tooltip align="center">{modelString}</Tooltip>
+      <Tooltip align="center" data-model-tooltip-text>{modelString}</Tooltip>
     </TooltipWrapper>
   );
 };
