@@ -73,13 +73,14 @@ export function useUnreadTracking(
   }, [selectedWorkspace?.workspaceId, workspaceStates, markAsRead]);
 
   // Calculate unread status for all workspaces
+  const unreadStatusRef = useRef<Map<string, boolean>>(new Map());
   const unreadStatus = useMemo(() => {
-    const result = new Map<string, boolean>();
+    const next = new Map<string, boolean>();
 
     for (const [workspaceId, state] of workspaceStates) {
       // Streaming workspaces are never unread
       if (state.canInterrupt) {
-        result.set(workspaceId, false);
+        next.set(workspaceId, false);
         continue;
       }
 
@@ -92,10 +93,26 @@ export function useUnreadTracking(
           msg.type !== "user" && msg.type !== "history-hidden" && (msg.timestamp ?? 0) > lastRead
       );
 
-      result.set(workspaceId, hasUnread);
+      next.set(workspaceId, hasUnread);
     }
 
-    return result;
+    // Return previous Map reference if nothing actually changed to keep identity stable
+    const prev = unreadStatusRef.current;
+    if (prev.size === next.size) {
+      let same = true;
+      for (const [k, v] of next) {
+        if (prev.get(k) !== v) {
+          same = false;
+          break;
+        }
+      }
+      if (same) {
+        return prev;
+      }
+    }
+
+    unreadStatusRef.current = next;
+    return next;
   }, [workspaceStates, lastReadMap]);
 
   // Manual toggle function for clicking the indicator
