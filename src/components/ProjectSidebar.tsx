@@ -4,7 +4,7 @@ import styled from "@emotion/styled";
 import { css } from "@emotion/react";
 import type { ProjectConfig, Workspace } from "@/config";
 import type { WorkspaceMetadata } from "@/types/workspace";
-import { useGitStatus } from "@/contexts/GitStatusContext";
+import { useGitStatus } from "@/stores/GitStatusStore";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend, getEmptyImage } from "react-dnd-html5-backend";
@@ -18,10 +18,16 @@ import { StatusIndicator } from "./StatusIndicator";
 // Removed: import { getModelName } from "@/utils/ai/models";
 import { GitStatusIndicator } from "./GitStatusIndicator";
 import { ModelDisplay } from "./Messages/ModelDisplay";
-import type { WorkspaceState } from "@/hooks/useWorkspaceAggregators";
+import { useWorkspaceSidebarState } from "@/stores/WorkspaceStore";
 import SecretsModal from "./SecretsModal";
 import type { Secret } from "@/types/secrets";
 import { ForceDeleteModal } from "./ForceDeleteModal";
+
+// Helper function to extract workspace display name from path
+function getWorkspaceDisplayName(workspacePath: string): string {
+  const pathParts = workspacePath.split("/");
+  return pathParts[pathParts.length - 1] || "Unknown";
+}
 
 // Styled Components
 const SidebarContent = styled.div`
@@ -580,7 +586,6 @@ interface ProjectSidebarProps {
     workspaceId: string,
     newName: string
   ) => Promise<{ success: boolean; error?: string }>;
-  getWorkspaceState: (workspaceId: string) => WorkspaceState;
   unreadStatus: Map<string, boolean>;
   onToggleUnread: (workspaceId: string) => void;
   collapsed: boolean;
@@ -589,6 +594,153 @@ interface ProjectSidebarProps {
   onUpdateSecrets: (projectPath: string, secrets: Secret[]) => Promise<void>;
   sortedWorkspacesByProject: Map<string, Workspace[]>;
 }
+
+// WorkspaceListItem - Subscribes to specific workspace state
+interface WorkspaceListItemProps {
+  workspace: Workspace;
+  metadata: WorkspaceMetadata;
+  workspaceId: string;
+  projectPath: string;
+  projectName: string;
+  isSelected: boolean;
+  isUnread: boolean;
+  isEditing: boolean;
+  editingName: string;
+  originalName: string;
+  renameError: string | null;
+  setEditingName: (name: string) => void;
+  onSelectWorkspace: (selection: WorkspaceSelection) => void;
+  handleRemoveWorkspace: (workspaceId: string, button: HTMLElement) => Promise<void>;
+  startRenaming: (workspaceId: string, currentName: string) => void;
+  confirmRename: (workspaceId: string) => Promise<void>;
+  handleRenameKeyDown: (e: React.KeyboardEvent, workspaceId: string) => void;
+  _onToggleUnread: (workspaceId: string) => void;
+}
+
+const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
+  workspace,
+  workspaceId,
+  projectPath,
+  projectName,
+  isSelected,
+  isUnread,
+  isEditing,
+  editingName,
+  renameError,
+  setEditingName,
+  onSelectWorkspace,
+  handleRemoveWorkspace,
+  startRenaming,
+  confirmRename,
+  handleRenameKeyDown,
+  _onToggleUnread,
+}) => {
+  // Subscribe to this specific workspace's sidebar state (streaming status, model, recency)
+  const sidebarState = useWorkspaceSidebarState(workspaceId);
+  const gitStatus = useGitStatus(workspaceId);
+
+  const displayName = getWorkspaceDisplayName(workspace.path);
+  const isStreaming = sidebarState.canInterrupt;
+  const streamingModel = sidebarState.currentModel;
+
+  return (
+    <React.Fragment>
+      <WorkspaceItem
+        selected={isSelected}
+        onClick={() =>
+          onSelectWorkspace({
+            projectPath,
+            projectName,
+            workspacePath: workspace.path,
+            workspaceId,
+          })
+        }
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onSelectWorkspace({
+              projectPath,
+              projectName,
+              workspacePath: workspace.path,
+              workspaceId,
+            });
+          }
+        }}
+        role="button"
+        tabIndex={0}
+        aria-current={isSelected ? "true" : undefined}
+        data-workspace-path={workspace.path}
+        data-workspace-id={workspaceId}
+      >
+        <TooltipWrapper inline>
+          <WorkspaceRemoveBtn
+            onClick={(e) => {
+              e.stopPropagation();
+              void handleRemoveWorkspace(workspaceId, e.currentTarget);
+            }}
+            aria-label={`Remove workspace ${displayName}`}
+            data-workspace-id={workspaceId}
+          >
+            ×
+          </WorkspaceRemoveBtn>
+          <Tooltip className="tooltip" align="right">
+            Remove workspace
+          </Tooltip>
+        </TooltipWrapper>
+        <GitStatusIndicator
+          gitStatus={gitStatus}
+          workspaceId={workspaceId}
+          tooltipPosition="right"
+        />
+        {isEditing ? (
+          <WorkspaceNameInput
+            value={editingName}
+            onChange={(e) => setEditingName(e.target.value)}
+            onKeyDown={(e) => handleRenameKeyDown(e, workspaceId)}
+            onBlur={() => void confirmRename(workspaceId)}
+            autoFocus
+            onClick={(e) => e.stopPropagation()}
+            aria-label={`Rename workspace ${displayName}`}
+            data-workspace-id={workspaceId}
+          />
+        ) : (
+          <WorkspaceName
+            onDoubleClick={(e) => {
+              e.stopPropagation();
+              startRenaming(workspaceId, displayName);
+            }}
+            title="Double-click to rename"
+          >
+            {displayName}
+          </WorkspaceName>
+        )}
+        <WorkspaceStatusIndicator
+          streaming={isStreaming}
+          unread={isUnread}
+          onClick={() => _onToggleUnread(workspaceId)}
+          title={
+            isStreaming && streamingModel ? (
+              <span>
+                <ModelDisplay modelString={streamingModel} showTooltip={false} /> is responding
+              </span>
+            ) : isStreaming ? (
+              "Assistant is responding"
+            ) : isUnread ? (
+              "Unread messages"
+            ) : sidebarState.recencyTimestamp ? (
+              `Idle • Last used ${formatRelativeTime(sidebarState.recencyTimestamp)}`
+            ) : (
+              "Idle"
+            )
+          }
+        />
+      </WorkspaceItem>
+      {renameError && isEditing && <WorkspaceErrorContainer>{renameError}</WorkspaceErrorContainer>}
+    </React.Fragment>
+  );
+};
+
+const WorkspaceListItem = React.memo(WorkspaceListItemInner);
 
 const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
   projects,
@@ -600,7 +752,6 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
   onRemoveProject,
   onRemoveWorkspace,
   onRenameWorkspace,
-  getWorkspaceState,
   unreadStatus,
   onToggleUnread: _onToggleUnread,
   collapsed,
@@ -609,8 +760,7 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
   onUpdateSecrets,
   sortedWorkspacesByProject,
 }) => {
-  // Subscribe to git status updates (causes this component to re-render every 10s)
-  const gitStatus = useGitStatus();
+  // Workspace-specific subscriptions moved to WorkspaceListItem component
 
   // Store as array in localStorage, convert to Set for usage
   const [expandedProjectsArray, setExpandedProjectsArray] = usePersistedState<string[]>(
@@ -654,12 +804,6 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
     return path.split("/").pop() ?? path.split("\\").pop() ?? path;
   };
 
-  const getWorkspaceDisplayName = (workspacePath: string) => {
-    // Extract display name from workspace path (e.g., "~/.cmux/src/cmux/main" -> "main")
-    const parts = workspacePath.split("/");
-    return parts[parts.length - 1] ?? workspacePath;
-  };
-
   const toggleProject = (projectPath: string) => {
     const newExpanded = new Set(expandedProjects);
     if (newExpanded.has(projectPath)) {
@@ -670,12 +814,12 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
     setExpandedProjects(newExpanded);
   };
 
-  const startRenaming = (workspaceId: string, currentName: string) => {
+  const startRenaming = useCallback((workspaceId: string, currentName: string) => {
     setEditingWorkspaceId(workspaceId);
     setEditingName(currentName);
     setOriginalName(currentName);
     setRenameError(null);
-  };
+  }, []);
 
   const cancelRenaming = () => {
     setEditingWorkspaceId(null);
@@ -684,34 +828,40 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
     setRenameError(null);
   };
 
-  const confirmRename = async (workspaceId: string) => {
-    const trimmedName = editingName.trim();
-    if (trimmedName && trimmedName !== "") {
-      // Short-circuit if name hasn't changed
-      if (trimmedName === originalName) {
-        cancelRenaming();
-        return;
-      }
+  const confirmRename = useCallback(
+    async (workspaceId: string) => {
+      const trimmedName = editingName.trim();
+      if (trimmedName && trimmedName !== "") {
+        // Short-circuit if name hasn't changed
+        if (trimmedName === originalName) {
+          cancelRenaming();
+          return;
+        }
 
-      const result = await onRenameWorkspace(workspaceId, trimmedName);
-      if (result.success) {
-        cancelRenaming();
-      } else {
-        // Keep field open and show error
-        setRenameError(result.error ?? "Failed to rename workspace");
+        const result = await onRenameWorkspace(workspaceId, trimmedName);
+        if (result.success) {
+          cancelRenaming();
+        } else {
+          // Keep field open and show error
+          setRenameError(result.error ?? "Failed to rename workspace");
+        }
       }
-    }
-  };
+    },
+    [editingName, originalName, onRenameWorkspace]
+  );
 
-  const handleRenameKeyDown = (e: React.KeyboardEvent, workspaceId: string) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      void confirmRename(workspaceId);
-    } else if (e.key === "Escape") {
-      e.preventDefault();
-      cancelRenaming();
-    }
-  };
+  const handleRenameKeyDown = useCallback(
+    (e: React.KeyboardEvent, workspaceId: string) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        void confirmRename(workspaceId);
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        cancelRenaming();
+      }
+    },
+    [confirmRename]
+  );
 
   const showRemoveError = useCallback(
     (workspaceId: string, error: string, anchor?: { top: number; left: number }) => {
@@ -746,26 +896,29 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
     };
   }, []);
 
-  const handleRemoveWorkspace = async (workspaceId: string, buttonElement: HTMLElement) => {
-    const result = await onRemoveWorkspace(workspaceId);
-    if (!result.success) {
-      const error = result.error ?? "Failed to remove workspace";
-      const rect = buttonElement.getBoundingClientRect();
-      const anchor = {
-        top: rect.top + window.scrollY,
-        left: rect.right + 10, // 10px to the right of button
-      };
+  const handleRemoveWorkspace = useCallback(
+    async (workspaceId: string, buttonElement: HTMLElement) => {
+      const result = await onRemoveWorkspace(workspaceId);
+      if (!result.success) {
+        const error = result.error ?? "Failed to remove workspace";
+        const rect = buttonElement.getBoundingClientRect();
+        const anchor = {
+          top: rect.top + window.scrollY,
+          left: rect.right + 10, // 10px to the right of button
+        };
 
-      // Show force delete modal on any error to handle all cases
-      // (uncommitted changes, submodules, etc.)
-      setForceDeleteModal({
-        isOpen: true,
-        workspaceId,
-        error,
-        anchor,
-      });
-    }
-  };
+        // Show force delete modal on any error to handle all cases
+        // (uncommitted changes, submodules, etc.)
+        setForceDeleteModal({
+          isOpen: true,
+          workspaceId,
+          error,
+          anchor,
+        });
+      }
+    },
+    [onRemoveWorkspace]
+  );
 
   const handleOpenSecrets = async (projectPath: string) => {
     const secrets = await onGetSecrets(projectPath);
@@ -821,13 +974,16 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
     ) {
       setProjectOrder(normalized);
     }
-    // Only re-run when project keys change
+    // Only re-run when project keys change (projectPathsSignature captures projects Map keys)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectPathsSignature]);
 
   // Memoize sorted project PATHS (not entries) to avoid capturing stale config objects.
   // Sorting depends only on keys + order; we read configs from the live Map during render.
   const sortedProjectPaths = React.useMemo(
     () => sortProjectsByOrder(projects, projectOrder).map(([p]) => p),
+    // projectPathsSignature captures projects Map keys
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [projectPathsSignature, projectOrder]
   );
 
@@ -969,115 +1125,33 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                               if (!metadata) return null;
 
                               const workspaceId = metadata.id;
-                              const displayName = getWorkspaceDisplayName(workspace.path);
-                              const workspaceState = getWorkspaceState(workspaceId);
-                              const isStreaming = workspaceState.canInterrupt;
-                              const streamingModel = workspaceState.currentModel;
                               const isUnread = unreadStatus.get(workspaceId) ?? false;
                               const isEditing = editingWorkspaceId === workspaceId;
                               const isSelected =
                                 selectedWorkspace?.workspacePath === workspace.path;
 
                               return (
-                                <React.Fragment key={workspace.path}>
-                                  <WorkspaceItem
-                                    selected={isSelected}
-                                    onClick={() =>
-                                      onSelectWorkspace({
-                                        projectPath,
-                                        projectName,
-                                        workspacePath: workspace.path,
-                                        workspaceId,
-                                      })
-                                    }
-                                    onKeyDown={(e) => {
-                                      if (e.key === "Enter" || e.key === " ") {
-                                        e.preventDefault();
-                                        onSelectWorkspace({
-                                          projectPath,
-                                          projectName,
-                                          workspacePath: workspace.path,
-                                          workspaceId,
-                                        });
-                                      }
-                                    }}
-                                    role="button"
-                                    tabIndex={0}
-                                    aria-current={isSelected ? "true" : undefined}
-                                    data-workspace-path={workspace.path}
-                                    data-workspace-id={workspaceId}
-                                  >
-                                    <TooltipWrapper inline>
-                                      <WorkspaceRemoveBtn
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          void handleRemoveWorkspace(workspaceId, e.currentTarget);
-                                        }}
-                                        aria-label={`Remove workspace ${displayName}`}
-                                        data-workspace-id={workspaceId}
-                                      >
-                                        ×
-                                      </WorkspaceRemoveBtn>
-                                      <Tooltip className="tooltip" align="right">
-                                        Remove workspace
-                                      </Tooltip>
-                                    </TooltipWrapper>
-                                    <GitStatusIndicator
-                                      gitStatus={gitStatus.get(metadata.id) ?? null}
-                                      workspaceId={workspaceId}
-                                      tooltipPosition="right"
-                                    />
-                                    {isEditing ? (
-                                      <WorkspaceNameInput
-                                        value={editingName}
-                                        onChange={(e) => setEditingName(e.target.value)}
-                                        onKeyDown={(e) => handleRenameKeyDown(e, workspaceId)}
-                                        onBlur={() => void confirmRename(workspaceId)}
-                                        autoFocus
-                                        onClick={(e) => e.stopPropagation()}
-                                        aria-label={`Rename workspace ${displayName}`}
-                                        data-workspace-id={workspaceId}
-                                      />
-                                    ) : (
-                                      <WorkspaceName
-                                        onDoubleClick={(e) => {
-                                          e.stopPropagation();
-                                          startRenaming(workspaceId, displayName);
-                                        }}
-                                        title="Double-click to rename"
-                                      >
-                                        {displayName}
-                                      </WorkspaceName>
-                                    )}
-                                    <WorkspaceStatusIndicator
-                                      streaming={isStreaming}
-                                      unread={isUnread}
-                                      onClick={() => _onToggleUnread(workspaceId)}
-                                      title={
-                                        isStreaming && streamingModel ? (
-                                          <span>
-                                            <ModelDisplay
-                                              modelString={streamingModel}
-                                              showTooltip={false}
-                                            />{" "}
-                                            is responding
-                                          </span>
-                                        ) : isStreaming ? (
-                                          "Assistant is responding"
-                                        ) : isUnread ? (
-                                          "Unread messages"
-                                        ) : workspaceState.recencyTimestamp ? (
-                                          `Idle • Last used ${formatRelativeTime(workspaceState.recencyTimestamp)}`
-                                        ) : (
-                                          "Idle"
-                                        )
-                                      }
-                                    />
-                                  </WorkspaceItem>
-                                  {renameError && editingWorkspaceId === workspaceId && (
-                                    <WorkspaceErrorContainer>{renameError}</WorkspaceErrorContainer>
-                                  )}
-                                </React.Fragment>
+                                <WorkspaceListItem
+                                  key={workspace.path}
+                                  workspace={workspace}
+                                  metadata={metadata}
+                                  workspaceId={workspaceId}
+                                  projectPath={projectPath}
+                                  projectName={projectName}
+                                  isSelected={isSelected}
+                                  isUnread={isUnread}
+                                  isEditing={isEditing}
+                                  editingName={editingName}
+                                  originalName={originalName}
+                                  renameError={renameError}
+                                  setEditingName={setEditingName}
+                                  onSelectWorkspace={onSelectWorkspace}
+                                  handleRemoveWorkspace={handleRemoveWorkspace}
+                                  startRenaming={startRenaming}
+                                  confirmRename={confirmRename}
+                                  handleRenameKeyDown={handleRenameKeyDown}
+                                  _onToggleUnread={_onToggleUnread}
+                                />
                               );
                             }
                           )}

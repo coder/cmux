@@ -16,7 +16,7 @@ export interface BuildSourcesParams {
     workspacePath: string;
     workspaceId: string;
   } | null;
-  streamingModels: Map<string, string>;
+  streamingModels?: Map<string, string>;
   // UI actions
   getThinkingLevel: (workspaceId: string) => ThinkingLevel;
   onSetThinkingLevel: (workspaceId: string, level: ThinkingLevel) => void;
@@ -138,7 +138,7 @@ export function buildCoreSources(p: BuildSourcesParams): Array<() => CommandActi
         const meta = p.workspaceMetadata.get(ws.path);
         if (!meta) continue;
         const isCurrent = selected?.workspaceId === meta.id;
-        const isStreaming = p.streamingModels.has(meta.id);
+        const isStreaming = p.streamingModels?.has(meta.id) ?? false;
         list.push({
           id: `ws:switch:${meta.id}`,
           title: `${isCurrent ? "• " : ""}Switch to ${ws.path.split("/").pop() ?? ws.path}`,
