@@ -1,9 +1,5 @@
 import * as fs from "fs";
-import {
-  setupWorkspace,
-  shouldRunIntegrationTests,
-  validateApiKeys,
-} from "./setup";
+import { setupWorkspace, shouldRunIntegrationTests, validateApiKeys } from "./setup";
 import {
   sendMessageWithModel,
   createEventCollector,
@@ -37,7 +33,7 @@ describeIntegration("Temp directory cleanup integration tests", () => {
           "anthropic",
           "claude-sonnet-4-5"
         );
-        
+
         // Wait for stream to complete
         await collector.waitForEvent("stream-end", 30000);
         assertStreamSuccess(collector);
@@ -48,7 +44,13 @@ describeIntegration("Temp directory cleanup integration tests", () => {
         for (const e of allEvents) {
           if ("type" in e && e.type === "stream-delta" && "delta" in e) {
             const delta = e.delta as unknown;
-            if (delta && typeof delta === "object" && "type" in delta && delta.type === "text-delta" && "text" in delta) {
+            if (
+              delta &&
+              typeof delta === "object" &&
+              "type" in delta &&
+              delta.type === "text-delta" &&
+              "text" in delta
+            ) {
               fullText += (delta as { text: string }).text;
             }
           }
@@ -58,7 +60,9 @@ describeIntegration("Temp directory cleanup integration tests", () => {
         const pathMatch = fullText.match(/saved to (\/[^\s]+bash-[a-f0-9]{8}\.txt)/);
         expect(pathMatch).toBeTruthy();
         if (!pathMatch) {
-          throw new Error(`Could not extract overflow file path from response. Text: ${fullText.substring(0, 500)}`);
+          throw new Error(
+            `Could not extract overflow file path from response. Text: ${fullText.substring(0, 500)}`
+          );
         }
         overflowFilePath = pathMatch[1];
 
@@ -72,7 +76,7 @@ describeIntegration("Temp directory cleanup integration tests", () => {
         // This starts a NEW stream, which should trigger cleanup of the first stream's temp dir
         env.sentEvents.length = 0; // Clear previous events
         const secondCollector = createEventCollector(env.sentEvents, workspaceId);
-        
+
         const secondMessage = await sendMessageWithModel(
           env.mockIpcRenderer,
           workspaceId,
@@ -80,7 +84,7 @@ describeIntegration("Temp directory cleanup integration tests", () => {
           "anthropic",
           "claude-sonnet-4-5"
         );
-        
+
         await secondCollector.waitForEvent("stream-end", 30000);
         assertStreamSuccess(secondCollector);
 
@@ -90,12 +94,18 @@ describeIntegration("Temp directory cleanup integration tests", () => {
         for (const e of secondEvents) {
           if ("type" in e && e.type === "stream-delta" && "delta" in e) {
             const delta = e.delta as unknown;
-            if (delta && typeof delta === "object" && "type" in delta && delta.type === "text-delta" && "text" in delta) {
+            if (
+              delta &&
+              typeof delta === "object" &&
+              "type" in delta &&
+              delta.type === "text-delta" &&
+              "text" in delta
+            ) {
               secondText += (delta as { text: string }).text;
             }
           }
         }
-        
+
         // Agent should have successfully read the file (it existed when the stream started)
         expect(secondText).toContain("line1");
 
