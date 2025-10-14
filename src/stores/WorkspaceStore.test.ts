@@ -251,4 +251,191 @@ describe("WorkspaceStore", () => {
       unsubscribe();
     });
   });
+
+  describe("cache invalidation", () => {
+    it("invalidates getWorkspaceState() cache when workspace changes", async () => {
+      const metadata: WorkspaceMetadata = {
+        id: "test-workspace",
+        projectName: "test-project",
+        workspacePath: "/test/path",
+      };
+      store.addWorkspace(metadata);
+
+      const state1 = store.getWorkspaceState("test-workspace");
+
+      // Trigger change
+      const onChatCallback = getOnChatCallback<{
+        type: string;
+        messageId: string;
+        model: string;
+      }>();
+      onChatCallback({
+        type: "stream-start",
+        messageId: "msg1",
+        model: "claude-sonnet-4",
+      });
+
+      // Wait for queueMicrotask to complete
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      const state2 = store.getWorkspaceState("test-workspace");
+      expect(state1).not.toBe(state2); // Cache should be invalidated
+      expect(state2.canInterrupt).toBe(true); // Stream started, so can interrupt
+    });
+
+    it("invalidates getAllStates() cache when workspace changes", async () => {
+      const metadata: WorkspaceMetadata = {
+        id: "test-workspace",
+        projectName: "test-project",
+        workspacePath: "/test/path",
+      };
+      store.addWorkspace(metadata);
+
+      const states1 = store.getAllStates();
+
+      // Trigger change
+      const onChatCallback = getOnChatCallback<{
+        type: string;
+        messageId: string;
+        model: string;
+      }>();
+      onChatCallback({
+        type: "stream-start",
+        messageId: "msg1",
+        model: "claude-sonnet-4",
+      });
+
+      // Wait for queueMicrotask to complete
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      const states2 = store.getAllStates();
+      expect(states1).not.toBe(states2); // Cache should be invalidated
+    });
+
+    it("invalidates getWorkspaceRecency() cache when workspace changes", async () => {
+      const metadata: WorkspaceMetadata = {
+        id: "test-workspace",
+        projectName: "test-project",
+        workspacePath: "/test/path",
+      };
+      store.addWorkspace(metadata);
+
+      const recency1 = store.getWorkspaceRecency();
+
+      // Trigger change (caught-up message)
+      const onChatCallback = getOnChatCallback();
+      onChatCallback({ type: "caught-up" });
+
+      // Wait for queueMicrotask to complete
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      const recency2 = store.getWorkspaceRecency();
+      expect(recency1).not.toBe(recency2); // Cache should be invalidated
+    });
+
+    it("maintains cache when no changes occur", () => {
+      const metadata: WorkspaceMetadata = {
+        id: "test-workspace",
+        projectName: "test-project",
+        workspacePath: "/test/path",
+      };
+      store.addWorkspace(metadata);
+
+      const state1 = store.getWorkspaceState("test-workspace");
+      const state2 = store.getWorkspaceState("test-workspace");
+      const allStates1 = store.getAllStates();
+      const allStates2 = store.getAllStates();
+      const recency1 = store.getWorkspaceRecency();
+      const recency2 = store.getWorkspaceRecency();
+
+      // All should return same references (cached)
+      expect(state1).toBe(state2);
+      expect(allStates1).toBe(allStates2);
+      expect(recency1).toBe(recency2);
+    });
+  });
+
+  describe("race conditions", () => {
+    it("handles IPC message for removed workspace gracefully", async () => {
+      const metadata: WorkspaceMetadata = {
+        id: "test-workspace",
+        projectName: "test-project",
+        workspacePath: "/test/path",
+      };
+      store.addWorkspace(metadata);
+
+      const onChatCallback = getOnChatCallback();
+
+      // Remove workspace (clears aggregator and unsubscribes IPC)
+      store.removeWorkspace("test-workspace");
+
+      // IPC message arrives after removal - should not throw
+      // Note: In practice, the IPC unsubscribe should prevent this,
+      // but if a message was already queued, it should handle gracefully
+      const onChatCallbackTyped = onChatCallback as (data: {
+        type: string;
+        messageId: string;
+        model: string;
+      }) => void;
+      expect(() => {
+        onChatCallbackTyped({
+          type: "stream-start",
+          messageId: "msg1",
+          model: "claude-sonnet-4",
+        });
+      }).not.toThrow();
+
+      // Wait for queueMicrotask to complete
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      // The message handler will have created a new aggregator (lazy init)
+      // because getOrCreateAggregator always creates if not exists.
+      // This is actually fine - the workspace just has no IPC subscription.
+      const allStates = store.getAllStates();
+      expect(allStates.size).toBe(1); // Aggregator exists but not subscribed
+      expect(allStates.get("test-workspace")?.canInterrupt).toBe(true); // Stream started
+    });
+
+    it("handles concurrent workspace additions", () => {
+      const metadata1: WorkspaceMetadata = {
+        id: "workspace-1",
+        projectName: "project-1",
+        workspacePath: "/path/1",
+      };
+      const metadata2: WorkspaceMetadata = {
+        id: "workspace-2",
+        projectName: "project-2",
+        workspacePath: "/path/2",
+      };
+
+      // Add workspaces concurrently
+      store.addWorkspace(metadata1);
+      store.addWorkspace(metadata2);
+
+      const allStates = store.getAllStates();
+      expect(allStates.size).toBe(2);
+      expect(allStates.has("workspace-1")).toBe(true);
+      expect(allStates.has("workspace-2")).toBe(true);
+    });
+
+    it("handles workspace removal during state access", () => {
+      const metadata: WorkspaceMetadata = {
+        id: "test-workspace",
+        projectName: "test-project",
+        workspacePath: "/test/path",
+      };
+      store.addWorkspace(metadata);
+
+      const state1 = store.getWorkspaceState("test-workspace");
+      expect(state1).toBeDefined();
+
+      // Remove workspace
+      store.removeWorkspace("test-workspace");
+
+      // Accessing state after removal should create new aggregator (lazy init)
+      const state2 = store.getWorkspaceState("test-workspace");
+      expect(state2).toBeDefined();
+      expect(state2.loading).toBe(true); // Fresh workspace, not caught up
+    });
+  });
 });

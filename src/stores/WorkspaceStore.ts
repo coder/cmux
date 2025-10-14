@@ -21,6 +21,9 @@ import {
   isReasoningDelta,
   isReasoningEnd,
 } from "@/types/ipc";
+import { CacheManager } from "@/utils/messages/CacheManager";
+import { computeRecencyTimestamp } from "@/utils/messages/recency";
+import { arraysEqualByReference } from "@/utils/arrays";
 
 export interface WorkspaceState {
   messages: DisplayedMessage[];
@@ -57,10 +60,8 @@ export class WorkspaceStore {
   private caughtUp = new Map<string, boolean>();
   private historicalMessages = new Map<string, CmuxMessage[]>();
 
-  // Cache for stable references - only return new object when values change
-  private stateCache = new Map<string, WorkspaceState>();
-  private allStatesCache: Map<string, WorkspaceState> | null = null;
-  private recencyCache: { value: Record<string, number>; hash: string } | null = null;
+  // Centralized cache management - all caches invalidated together
+  private cache = new CacheManager();
 
   // Track model usage (injected dependency for useModelLRU integration)
   private readonly onModelUsed?: (model: string) => void;
@@ -83,47 +84,23 @@ export class WorkspaceStore {
    * Returns cached reference if state hasn't changed (prevents unnecessary re-renders).
    */
   getWorkspaceState(workspaceId: string): WorkspaceState {
-    const aggregator = this.getOrCreateAggregator(workspaceId);
-    const hasMessages = aggregator.hasMessages();
-    const isCaughtUp = this.caughtUp.get(workspaceId) ?? false;
-    const activeStreams = aggregator.getActiveStreams();
+    return this.cache.get(`state-${workspaceId}`, () => {
+      const aggregator = this.getOrCreateAggregator(workspaceId);
+      const hasMessages = aggregator.hasMessages();
+      const isCaughtUp = this.caughtUp.get(workspaceId) ?? false;
+      const activeStreams = aggregator.getActiveStreams();
+      const messages = aggregator.getAllMessages();
 
-    // Compute recency timestamp
-    const messages = aggregator.getAllMessages();
-    const lastUserMsg = [...messages]
-      .reverse()
-      .find((m) => m.role === "user" && m.metadata?.timestamp);
-
-    let recencyTimestamp: number | null = null;
-    if (lastUserMsg?.metadata?.timestamp) {
-      recencyTimestamp = lastUserMsg.metadata.timestamp;
-    } else {
-      const lastCompactedMsg = [...messages]
-        .reverse()
-        .find((m) => m.metadata?.compacted === true && m.metadata?.timestamp);
-      if (lastCompactedMsg?.metadata?.timestamp) {
-        recencyTimestamp = lastCompactedMsg.metadata.timestamp;
-      }
-    }
-
-    const currentState: WorkspaceState = {
-      messages: aggregator.getDisplayedMessages(),
-      canInterrupt: activeStreams.length > 0,
-      isCompacting: aggregator.isCompacting(),
-      loading: !hasMessages && !isCaughtUp,
-      cmuxMessages: aggregator.getAllMessages(),
-      currentModel: aggregator.getCurrentModel() ?? "claude-sonnet-4-5",
-      recencyTimestamp,
-    };
-
-    // Check cache for stable reference
-    const cached = this.stateCache.get(workspaceId);
-    if (cached && this.statesEqual(cached, currentState)) {
-      return cached;
-    }
-
-    this.stateCache.set(workspaceId, currentState);
-    return currentState;
+      return {
+        messages: aggregator.getDisplayedMessages(),
+        canInterrupt: activeStreams.length > 0,
+        isCompacting: aggregator.isCompacting(),
+        loading: !hasMessages && !isCaughtUp,
+        cmuxMessages: messages,
+        currentModel: aggregator.getCurrentModel() ?? "claude-sonnet-4-5",
+        recencyTimestamp: computeRecencyTimestamp(messages),
+      };
+    });
   }
 
   /**
@@ -131,37 +108,13 @@ export class WorkspaceStore {
    * Used by components that need full state (e.g., ProjectSidebar).
    */
   getAllStates(): Map<string, WorkspaceState> {
-    // Check if cache is still valid
-    if (this.allStatesCache) {
-      // Verify cache has same keys
-      if (this.allStatesCache.size === this.aggregators.size) {
-        let allMatch = true;
-        for (const workspaceId of this.aggregators.keys()) {
-          if (!this.allStatesCache.has(workspaceId)) {
-            allMatch = false;
-            break;
-          }
-          // getWorkspaceState returns cached reference if unchanged
-          const currentState = this.getWorkspaceState(workspaceId);
-          const cachedState = this.allStatesCache.get(workspaceId);
-          if (currentState !== cachedState) {
-            allMatch = false;
-            break;
-          }
-        }
-        if (allMatch) {
-          return this.allStatesCache;
-        }
+    return this.cache.get("all-states", () => {
+      const states = new Map<string, WorkspaceState>();
+      for (const workspaceId of this.aggregators.keys()) {
+        states.set(workspaceId, this.getWorkspaceState(workspaceId));
       }
-    }
-
-    // Cache invalid - rebuild
-    const states = new Map<string, WorkspaceState>();
-    for (const workspaceId of this.aggregators.keys()) {
-      states.set(workspaceId, this.getWorkspaceState(workspaceId));
-    }
-    this.allStatesCache = states;
-    return states;
+      return states;
+    });
   }
 
   /**
@@ -169,22 +122,16 @@ export class WorkspaceStore {
    * Returns cached object with stable identity if values haven't changed.
    */
   getWorkspaceRecency(): Record<string, number> {
-    const timestamps: Record<string, number> = {};
-    for (const workspaceId of this.aggregators.keys()) {
-      const state = this.getWorkspaceState(workspaceId);
-      if (state.recencyTimestamp !== null) {
-        timestamps[workspaceId] = state.recencyTimestamp;
+    return this.cache.get("recency", () => {
+      const timestamps: Record<string, number> = {};
+      for (const workspaceId of this.aggregators.keys()) {
+        const state = this.getWorkspaceState(workspaceId);
+        if (state.recencyTimestamp !== null) {
+          timestamps[workspaceId] = state.recencyTimestamp;
+        }
       }
-    }
-
-    // Create hash for comparison
-    const hash = JSON.stringify(timestamps);
-    if (this.recencyCache && this.recencyCache.hash === hash) {
-      return this.recencyCache.value;
-    }
-
-    this.recencyCache = { value: timestamps, hash };
-    return timestamps;
+      return timestamps;
+    });
   }
 
   /**
@@ -244,7 +191,6 @@ export class WorkspaceStore {
     this.aggregators.delete(workspaceId);
     this.caughtUp.delete(workspaceId);
     this.historicalMessages.delete(workspaceId);
-    this.stateCache.delete(workspaceId);
 
     this.emit();
   }
@@ -282,7 +228,7 @@ export class WorkspaceStore {
     this.aggregators.clear();
     this.caughtUp.clear();
     this.historicalMessages.clear();
-    this.stateCache.clear();
+    this.cache.invalidateAll();
     this.listeners.clear();
   }
 
@@ -296,6 +242,9 @@ export class WorkspaceStore {
   }
 
   private emit(): void {
+    // Invalidate all caches on any state change
+    this.cache.invalidateAll();
+
     // Notify all listeners synchronously (required by useSyncExternalStore)
     // React handles equality checks via getSnapshot
     // IPC handlers use queueMicrotask to prevent updates during render
@@ -303,38 +252,15 @@ export class WorkspaceStore {
   }
 
   private statesEqual(a: WorkspaceState, b: WorkspaceState): boolean {
-    // Compare primitive fields
-    if (
-      a.canInterrupt !== b.canInterrupt ||
-      a.isCompacting !== b.isCompacting ||
-      a.loading !== b.loading ||
-      a.currentModel !== b.currentModel ||
-      a.recencyTimestamp !== b.recencyTimestamp
-    ) {
-      return false;
-    }
-
-    // Compare arrays by length and reference equality of elements
-    // (aggregator returns new arrays but reuses message objects)
-    if (a.messages.length !== b.messages.length) {
-      return false;
-    }
-    for (let i = 0; i < a.messages.length; i++) {
-      if (a.messages[i] !== b.messages[i]) {
-        return false;
-      }
-    }
-
-    if (a.cmuxMessages.length !== b.cmuxMessages.length) {
-      return false;
-    }
-    for (let i = 0; i < a.cmuxMessages.length; i++) {
-      if (a.cmuxMessages[i] !== b.cmuxMessages[i]) {
-        return false;
-      }
-    }
-
-    return true;
+    return (
+      a.canInterrupt === b.canInterrupt &&
+      a.isCompacting === b.isCompacting &&
+      a.loading === b.loading &&
+      a.currentModel === b.currentModel &&
+      a.recencyTimestamp === b.recencyTimestamp &&
+      arraysEqualByReference(a.messages, b.messages) &&
+      arraysEqualByReference(a.cmuxMessages, b.cmuxMessages)
+    );
   }
 
   private handleChatMessage(workspaceId: string, data: WorkspaceChatMessage): void {
