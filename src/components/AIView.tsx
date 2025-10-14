@@ -19,8 +19,8 @@ import { formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
 import { useAutoScroll } from "@/hooks/useAutoScroll";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { useThinking } from "@/contexts/ThinkingContext";
-import type { WorkspaceState } from "@/hooks/useWorkspaceAggregators";
-import type { StreamingMessageAggregator } from "@/utils/messages/StreamingMessageAggregator";
+import type { WorkspaceState } from "@/stores/WorkspaceStore";
+import { useWorkspaceState, useWorkspaceAggregator } from "@/hooks/useWorkspaceStore";
 import { StatusIndicator } from "./StatusIndicator";
 import { getModelName } from "@/utils/ai/models";
 import { GitStatusIndicator } from "./GitStatusIndicator";
@@ -92,6 +92,15 @@ const TerminalIconButton = styled.button`
     width: 16px;
     height: 16px;
   }
+`;
+
+const LoadingIndicator = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #888;
+  font-size: 14px;
 `;
 
 const OutputContainer = styled.div`
@@ -184,8 +193,6 @@ interface AIViewProps {
   projectName: string;
   branch: string;
   workspacePath: string;
-  workspaceState: WorkspaceState;
-  getAggregator: (workspaceId: string) => StreamingMessageAggregator;
   onCompactStart?: (continueMessage: string | undefined) => void;
   className?: string;
 }
@@ -195,11 +202,13 @@ const AIViewInner: React.FC<AIViewProps> = ({
   projectName,
   branch,
   workspacePath,
-  workspaceState,
-  getAggregator,
   onCompactStart,
   className,
 }) => {
+  // NEW: Get workspace state from store (only re-renders when THIS workspace changes)
+  const workspaceState = useWorkspaceState(workspaceId);
+  const aggregator = useWorkspaceAggregator(workspaceId);
+
   // Get git status from context
   const gitStatusMap = useGitStatus();
   const gitStatus = gitStatusMap.get(workspaceId) ?? null;
@@ -233,10 +242,22 @@ const AIViewInner: React.FC<AIViewProps> = ({
     markUserInteraction,
   } = useAutoScroll();
 
-  // Extract state from workspace state prop
+  // Return early if workspace state not loaded yet
+  if (!workspaceState) {
+    return (
+      <ViewContainer className={className}>
+        <ChatArea>
+          <OutputContainer>
+            <LoadingIndicator>Loading workspace...</LoadingIndicator>
+          </OutputContainer>
+        </ChatArea>
+      </ViewContainer>
+    );
+  }
+
+  // Extract state from workspace state
   const { messages, canInterrupt, isCompacting, loading, cmuxMessages, currentModel } =
     workspaceState;
-  const aggregator = getAggregator(workspaceId);
 
   // Get active stream message ID for token counting
   // Use getActiveStreamMessageId() which returns the messageId directly
