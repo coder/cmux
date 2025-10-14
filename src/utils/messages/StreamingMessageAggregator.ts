@@ -18,6 +18,7 @@ import type {
   DynamicToolPartPending,
   DynamicToolPartAvailable,
 } from "@/types/toolParts";
+import { CacheManager } from "./CacheManager";
 import { isDynamicToolPart } from "@/types/toolParts";
 import { createDeltaStorage, type DeltaRecordStorage } from "./StreamingTPSCalculator";
 
@@ -37,21 +38,16 @@ export class StreamingMessageAggregator {
   private activeStreams = new Map<string, StreamingContext>();
   private streamSequenceCounter = 0; // For ordering parts within a streaming message
 
-  // Cache for getAllMessages() to maintain stable array references
-  private cachedMessages: CmuxMessage[] | null = null;
+  // Centralized cache management - prevents bugs from forgetting to invalidate
+  private cache = new CacheManager();
 
   // Delta history for token counting and TPS calculation
   private deltaHistory = new Map<string, DeltaRecordStorage>();
 
-  // Invalidate cache on any mutation
-  private invalidateCache(): void {
-    this.cachedMessages = null;
-  }
-
   addMessage(message: CmuxMessage): void {
     // Just store the message - backend assigns historySequence
     this.messages.set(message.id, message);
-    this.invalidateCache();
+    this.cache.invalidateAll();
   }
 
   /**
@@ -62,18 +58,15 @@ export class StreamingMessageAggregator {
     for (const message of messages) {
       this.messages.set(message.id, message);
     }
-    this.invalidateCache();
+    this.cache.invalidateAll();
   }
 
   getAllMessages(): CmuxMessage[] {
-    if (this.cachedMessages) {
-      return this.cachedMessages;
-    }
-
-    this.cachedMessages = Array.from(this.messages.values()).sort(
-      (a, b) => (a.metadata?.historySequence ?? 0) - (b.metadata?.historySequence ?? 0)
-    );
-    return this.cachedMessages;
+    return this.cache.get('allMessages', () => {
+      return Array.from(this.messages.values()).sort(
+        (a, b) => (a.metadata?.historySequence ?? 0) - (b.metadata?.historySequence ?? 0)
+      );
+    });
   }
 
   // Efficient methods to check message state without creating arrays
@@ -132,7 +125,7 @@ export class StreamingMessageAggregator {
     this.messages.clear();
     this.activeStreams.clear();
     this.streamSequenceCounter = 0;
-    this.invalidateCache();
+    this.cache.invalidateAll();
   }
 
   /**
@@ -150,7 +143,7 @@ export class StreamingMessageAggregator {
       }
     }
 
-    this.invalidateCache();
+    this.cache.invalidateAll();
   }
 
   // Unified event handlers that encapsulate all complex logic
@@ -184,7 +177,7 @@ export class StreamingMessageAggregator {
     });
 
     this.messages.set(data.messageId, streamingMessage);
-    this.invalidateCache();
+    this.cache.invalidateAll();
   }
 
   handleStreamDelta(data: StreamDeltaEvent): void {
@@ -200,7 +193,7 @@ export class StreamingMessageAggregator {
     // Track delta for token counting and TPS calculation
     this.trackDelta(data.messageId, data.tokens, data.timestamp, "text");
 
-    this.invalidateCache();
+    this.cache.invalidateAll();
   }
 
   handleStreamEnd(data: StreamEndEvent): void {
@@ -261,7 +254,7 @@ export class StreamingMessageAggregator {
 
       this.messages.set(data.messageId, message);
     }
-    this.invalidateCache();
+    this.cache.invalidateAll();
   }
 
   handleStreamAbort(data: StreamAbortEvent): void {
@@ -281,7 +274,7 @@ export class StreamingMessageAggregator {
 
       // Clean up active stream - direct delete by messageId
       this.activeStreams.delete(data.messageId);
-      this.invalidateCache();
+      this.cache.invalidateAll();
     }
   }
 
@@ -300,7 +293,7 @@ export class StreamingMessageAggregator {
 
       // Clean up active stream - direct delete by messageId
       this.activeStreams.delete(data.messageId);
-      this.invalidateCache();
+      this.cache.invalidateAll();
     }
   }
 
@@ -337,7 +330,7 @@ export class StreamingMessageAggregator {
     // Track tokens for tool input
     this.trackDelta(data.messageId, data.tokens, data.timestamp, "tool-args");
 
-    this.invalidateCache();
+    this.cache.invalidateAll();
   }
 
   handleToolCallDelta(data: ToolCallDeltaEvent): void {
@@ -364,7 +357,7 @@ export class StreamingMessageAggregator {
         (toolPart as DynamicToolPartAvailable).state = "output-available";
         (toolPart as DynamicToolPartAvailable).output = data.result;
       }
-      this.invalidateCache();
+      this.cache.invalidateAll();
     }
   }
 
@@ -381,13 +374,13 @@ export class StreamingMessageAggregator {
     // Track delta for token counting and TPS calculation
     this.trackDelta(data.messageId, data.tokens, data.timestamp, "reasoning");
 
-    this.invalidateCache();
+    this.cache.invalidateAll();
   }
 
   handleReasoningEnd(_data: ReasoningEndEvent): void {
     // Reasoning-end is just a signal - no state to update
     // Streaming status is inferred from activeStreams in getDisplayedMessages
-    this.invalidateCache();
+    this.cache.invalidateAll();
   }
 
   handleMessage(data: WorkspaceChatMessage): void {
@@ -431,9 +424,13 @@ export class StreamingMessageAggregator {
    * Transform CmuxMessages into DisplayedMessages for UI consumption
    * This splits complex messages with multiple parts into separate UI blocks
    * while preserving temporal ordering through sequence numbers
+   * 
+   * IMPORTANT: Result is cached to ensure stable references for React.
+   * Cache is invalidated whenever messages change (via cache.invalidateAll()).
    */
   getDisplayedMessages(): DisplayedMessage[] {
-    const displayedMessages: DisplayedMessage[] = [];
+    return this.cache.get('displayedMessages', () => {
+      const displayedMessages: DisplayedMessage[] = [];
 
     for (const message of this.getAllMessages()) {
       const baseTimestamp = message.metadata?.timestamp;
@@ -609,7 +606,9 @@ export class StreamingMessageAggregator {
       return [historyHiddenMessage, ...slicedMessages];
     }
 
+    // Return the full array
     return displayedMessages;
+    });
   }
 
   /**

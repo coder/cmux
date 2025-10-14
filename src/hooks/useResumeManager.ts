@@ -1,6 +1,5 @@
 import { useEffect, useRef } from "react";
-import type { WorkspaceState } from "@/stores/WorkspaceStore";
-import { useAllWorkspaceStates } from "./useWorkspaceStore";
+import { useWorkspaceStoreZustand } from "@/stores/workspaceStoreZustand";
 import { CUSTOM_EVENTS } from "@/constants/events";
 import { getAutoRetryKey, getRetryStateKey } from "@/constants/storage";
 import { getSendOptionsFromStorage } from "@/utils/messages/sendOptions";
@@ -55,8 +54,8 @@ const MAX_DELAY = 60000; // 60 seconds
  * - Manual retry button (event from RetryBarrier)
  */
 export function useResumeManager() {
-  // Get workspace states from store
-  const workspaceStates = useAllWorkspaceStates();
+  // Get workspace states from store (subscribe to all changes)
+  const workspaceStates = useWorkspaceStoreZustand((state) => state.store.getAllStates());
 
   // Use ref to avoid effect re-running on every state change
   const workspaceStatesRef = useRef(workspaceStates);
@@ -72,12 +71,6 @@ export function useResumeManager() {
   const isEligibleForResume = (workspaceId: string): boolean => {
     const state = workspaceStatesRef.current.get(workspaceId);
     if (!state) {
-      // Debug: Log why workspace not found
-      const allWorkspaceIds = Array.from(workspaceStatesRef.current.keys());
-      console.debug(
-        `[useResumeManager] Workspace ${workspaceId} not in Map. Available:`,
-        allWorkspaceIds
-      );
       return false;
     }
 
@@ -85,13 +78,6 @@ export function useResumeManager() {
     if (state.canInterrupt) return false; // Currently streaming
 
     if (!hasInterruptedStream(state.messages)) {
-      const lastMessage =
-        state.messages.length > 0 ? state.messages[state.messages.length - 1] : null;
-      console.debug(
-        `[useResumeManager] ${workspaceId} not eligible: last message type=${
-          lastMessage?.type ?? "none"
-        } isPartial=${lastMessage && "isPartial" in lastMessage ? lastMessage.isPartial : "N/A"}`
-      );
       return false;
     }
 
@@ -135,14 +121,12 @@ export function useResumeManager() {
 
     const { attempt } = retryState;
 
-    console.log(`[useResumeManager] Attempting resume for ${workspaceId} (attempt ${attempt + 1})`);
 
     try {
       const options = getSendOptionsFromStorage(workspaceId);
       const result = await window.api.workspace.resumeStream(workspaceId, options);
 
       if (!result.success) {
-        console.error(`[useResumeManager] Resume failed for ${workspaceId}:`, result.error);
         // Increment attempt and reset timer for next retry
         const newState: RetryState = {
           attempt: attempt + 1,
@@ -150,13 +134,11 @@ export function useResumeManager() {
         };
         localStorage.setItem(getRetryStateKey(workspaceId), JSON.stringify(newState));
       } else {
-        console.log(`[useResumeManager] Resume succeeded for ${workspaceId}`);
         // Success - clear retry state entirely
         // If stream fails again, we'll start fresh (immediately eligible)
         localStorage.removeItem(getRetryStateKey(workspaceId));
       }
-    } catch (error) {
-      console.error(`[useResumeManager] Unexpected error resuming ${workspaceId}:`, error);
+    } catch {
       // Increment attempt on error
       const newState: RetryState = {
         attempt: attempt + 1,
@@ -171,8 +153,6 @@ export function useResumeManager() {
 
   useEffect(() => {
     // Initial scan on mount - check all workspaces for interrupted streams
-    const workspaceIds = Array.from(workspaceStatesRef.current.keys());
-    console.log("[useResumeManager] Initial scan on mount for workspaces:", workspaceIds);
     for (const [workspaceId] of workspaceStatesRef.current) {
       void attemptResume(workspaceId);
     }
@@ -181,7 +161,6 @@ export function useResumeManager() {
     const handleResumeCheck = (event: Event) => {
       const customEvent = event as CustomEvent<{ workspaceId: string }>;
       const { workspaceId } = customEvent.detail;
-      console.log(`[useResumeManager] Resume check requested for ${workspaceId}`);
       void attemptResume(workspaceId);
     };
 

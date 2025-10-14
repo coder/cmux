@@ -19,13 +19,12 @@ import { formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
 import { useAutoScroll } from "@/hooks/useAutoScroll";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { useThinking } from "@/contexts/ThinkingContext";
-import type { WorkspaceState } from "@/stores/WorkspaceStore";
-import { useWorkspaceState, useWorkspaceAggregator } from "@/hooks/useWorkspaceStore";
+import { useWorkspaceState, useWorkspaceAggregator } from "@/stores/workspaceStoreZustand";
 import { StatusIndicator } from "./StatusIndicator";
 import { getModelName } from "@/utils/ai/models";
 import { GitStatusIndicator } from "./GitStatusIndicator";
 
-import { useGitStatus } from "@/contexts/GitStatusContext";
+import { useGitStatus } from "@/stores/gitStatusStoreZustand";
 import { TooltipWrapper, Tooltip } from "./Tooltip";
 import type { DisplayedMessage } from "@/types/message";
 import { useAIViewKeybinds } from "@/hooks/useAIViewKeybinds";
@@ -209,9 +208,8 @@ const AIViewInner: React.FC<AIViewProps> = ({
   const workspaceState = useWorkspaceState(workspaceId);
   const aggregator = useWorkspaceAggregator(workspaceId);
 
-  // Get git status from context
-  const gitStatusMap = useGitStatus();
-  const gitStatus = gitStatusMap.get(workspaceId) ?? null;
+  // Get git status for this workspace
+  const gitStatus = useGitStatus(workspaceId);
   const [editingMessage, setEditingMessage] = useState<{ id: string; content: string } | undefined>(
     undefined
   );
