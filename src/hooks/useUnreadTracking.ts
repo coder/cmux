@@ -1,7 +1,6 @@
 import { useEffect, useCallback, useRef } from "react";
 import type { WorkspaceSelection } from "@/components/ProjectSidebar";
-import type { WorkspaceState } from "@/stores/WorkspaceStore";
-import { useAllWorkspaceStates } from "./useWorkspaceStore";
+import { useWorkspaceStoreZustand } from "@/stores/workspaceStoreZustand";
 import { usePersistedState } from "./usePersistedState";
 import { useStableReference, compareMaps } from "./useStableReference";
 
@@ -19,8 +18,8 @@ import { useStableReference, compareMaps } from "./useStableReference";
  *   - toggleUnread: Function to manually toggle unread state for a workspace
  */
 export function useUnreadTracking(selectedWorkspace: WorkspaceSelection | null) {
-  // Get workspace states from store
-  const workspaceStates = useAllWorkspaceStates();
+  // Get workspace states from store (subscribe to all changes)
+  const workspaceStates = useWorkspaceStoreZustand((state) => state.store.getAllStates());
   // Store all last-read timestamps in a single Record
   // Format: { [workspaceId]: timestamp }
   const [lastReadMap, setLastReadMap] = usePersistedState<Record<string, number>>(

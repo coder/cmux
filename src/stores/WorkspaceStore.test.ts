@@ -34,7 +34,7 @@ describe("WorkspaceStore", () => {
   });
 
   describe("subscription", () => {
-    it("should call listener when workspace state changes", () => {
+    it("should call listener when workspace state changes", async () => {
       const listener = jest.fn();
       const unsubscribe = store.subscribe(listener);
 
@@ -51,6 +51,9 @@ describe("WorkspaceStore", () => {
       // Simulate a caught-up message (triggers emit)
       const onChatCallback = (mockWindow.api.workspace.onChat as jest.Mock).mock.calls[0][1];
       onChatCallback({ type: "caught-up" });
+
+      // Wait for queueMicrotask to complete
+      await new Promise((resolve) => setTimeout(resolve, 0));
 
       expect(listener).toHaveBeenCalled();
 
@@ -156,7 +159,7 @@ describe("WorkspaceStore", () => {
   });
 
   describe("model tracking", () => {
-    it("should call onModelUsed when stream starts", () => {
+    it("should call onModelUsed when stream starts", async () => {
       const metadata: WorkspaceMetadata = {
         id: "test-workspace",
         projectName: "test-project",
@@ -171,6 +174,9 @@ describe("WorkspaceStore", () => {
         messageId: "msg-1",
         model: "claude-opus-4",
       });
+
+      // Wait for queueMicrotask to complete
+      await new Promise((resolve) => setTimeout(resolve, 0));
 
       expect(mockOnModelUsed).toHaveBeenCalledWith("claude-opus-4");
     });

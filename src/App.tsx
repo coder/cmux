@@ -17,20 +17,13 @@ import { useWorkspaceManagement } from "./hooks/useWorkspaceManagement";
 import { useResumeManager } from "./hooks/useResumeManager";
 import { useUnreadTracking } from "./hooks/useUnreadTracking";
 import { useAutoCompactContinue } from "./hooks/useAutoCompactContinue";
-import { useModelLRU } from "./hooks/useModelLRU";
-import { WorkspaceStore } from "./stores/WorkspaceStore";
-import {
-  WorkspaceStoreProvider,
-  useWorkspaceStoreRaw,
-  useAllWorkspaceStates,
-  useWorkspaceRecency,
-} from "./hooks/useWorkspaceStore";
+import { useWorkspaceStoreRaw, useWorkspaceRecency, useWorkspaceStoreZustand } from "./stores/workspaceStoreZustand";
+import { useGitStatusStoreRaw } from "./stores/gitStatusStoreZustand";
 
 import { CommandRegistryProvider, useCommandRegistry } from "./contexts/CommandRegistryContext";
 import type { CommandAction } from "./contexts/CommandRegistryContext";
 import { CommandPalette } from "./components/CommandPalette";
 import { buildCoreSources, type BuildSourcesParams } from "./utils/commands/sources";
-import { GitStatusProvider } from "./contexts/GitStatusContext";
 
 import type { ThinkingLevel } from "./types/thinking";
 import { CUSTOM_EVENTS } from "./constants/events";
@@ -174,11 +167,23 @@ function AppInner() {
       onSelectedWorkspaceUpdate: setSelectedWorkspace,
     });
 
-  // NEW: Sync workspace metadata with the store
+  // NEW: Sync workspace metadata with the stores
   const workspaceStore = useWorkspaceStoreRaw();
+  const gitStatusStore = useGitStatusStoreRaw();
+  
   useEffect(() => {
-    workspaceStore.syncWorkspaces(workspaceMetadata);
+    // Only sync when metadata has actually loaded (not empty initial state)
+    if (workspaceMetadata.size > 0) {
+      workspaceStore.syncWorkspaces(workspaceMetadata);
+    }
   }, [workspaceMetadata, workspaceStore]);
+
+  useEffect(() => {
+    // Only sync when metadata has actually loaded (not empty initial state)
+    if (workspaceMetadata.size > 0) {
+      gitStatusStore.syncWorkspaces(workspaceMetadata);
+    }
+  }, [workspaceMetadata, gitStatusStore]);
 
   // Track unread message status for all workspaces
   const { unreadStatus, toggleUnread } = useUnreadTracking(selectedWorkspace);
@@ -190,8 +195,7 @@ function AppInner() {
   const { handleCompactStart } = useAutoCompactContinue();
 
   // Build map of currently streaming models (for command palette display)
-  // NEW: Use store directly instead of old hook
-  const allWorkspaceStates = useAllWorkspaceStates();
+  const allWorkspaceStates = useWorkspaceStoreZustand((state) => state.store.getAllStates());
   const streamingModels = useMemo(() => {
     const models = new Map<string, string>();
     for (const [workspaceId, state] of allWorkspaceStates) {
@@ -575,94 +579,75 @@ function AppInner() {
       <GlobalFonts />
       <GlobalScrollbars />
       <Global styles={globalStyles} />
-      <GitStatusProvider workspaceMetadata={workspaceMetadata}>
-        <AppContainer>
-          <LeftSidebar
-            projects={projects}
-            workspaceMetadata={workspaceMetadata}
-            selectedWorkspace={selectedWorkspace}
-            onSelectWorkspace={setSelectedWorkspace}
-            onAddProject={() => void addProject()}
-            onAddWorkspace={(projectPath) => void handleAddWorkspace(projectPath)}
-            onRemoveProject={(path) => void handleRemoveProject(path)}
-            onRemoveWorkspace={removeWorkspace}
-            onRenameWorkspace={renameWorkspace}
-            unreadStatus={unreadStatus}
-            onToggleUnread={toggleUnread}
-            collapsed={sidebarCollapsed}
-            onToggleCollapsed={() => setSidebarCollapsed((prev) => !prev)}
-            onGetSecrets={handleGetSecrets}
-            onUpdateSecrets={handleUpdateSecrets}
-            sortedWorkspacesByProject={sortedWorkspacesByProject}
+      <AppContainer>
+        <LeftSidebar
+          projects={projects}
+          workspaceMetadata={workspaceMetadata}
+          selectedWorkspace={selectedWorkspace}
+          onSelectWorkspace={setSelectedWorkspace}
+          onAddProject={() => void addProject()}
+          onAddWorkspace={(projectPath) => void handleAddWorkspace(projectPath)}
+          onRemoveProject={(path) => void handleRemoveProject(path)}
+          onRemoveWorkspace={removeWorkspace}
+          onRenameWorkspace={renameWorkspace}
+          unreadStatus={unreadStatus}
+          onToggleUnread={toggleUnread}
+          collapsed={sidebarCollapsed}
+          onToggleCollapsed={() => setSidebarCollapsed((prev) => !prev)}
+          onGetSecrets={handleGetSecrets}
+          onUpdateSecrets={handleUpdateSecrets}
+          sortedWorkspacesByProject={sortedWorkspacesByProject}
+        />
+        <MainContent>
+          <ContentArea>
+            {selectedWorkspace ? (
+              <ErrorBoundary
+                workspaceInfo={`${selectedWorkspace.projectName}/${selectedWorkspace.workspacePath.split("/").pop() ?? ""}`}
+              >
+                <AIView
+                  workspaceId={selectedWorkspace.workspaceId}
+                  projectName={selectedWorkspace.projectName}
+                  branch={selectedWorkspace.workspacePath.split("/").pop() ?? ""}
+                  workspacePath={selectedWorkspace.workspacePath}
+                  onCompactStart={(continueMessage) =>
+                    handleCompactStart(selectedWorkspace.workspaceId, continueMessage)
+                  }
+                />
+              </ErrorBoundary>
+            ) : (
+              <WelcomeView>
+                <h2>Welcome to Cmux</h2>
+                <p>Select a workspace from the sidebar or add a new one to get started.</p>
+              </WelcomeView>
+            )}
+          </ContentArea>
+        </MainContent>
+        <CommandPalette
+          getSlashContext={() => ({
+            providerNames: [],
+            workspaceId: selectedWorkspace?.workspaceId,
+          })}
+        />
+        {workspaceModalOpen && workspaceModalProject && (
+          <NewWorkspaceModal
+            isOpen={workspaceModalOpen}
+            projectPath={workspaceModalProject}
+            onClose={() => {
+              setWorkspaceModalOpen(false);
+              setWorkspaceModalProject(null);
+            }}
+            onAdd={handleCreateWorkspace}
           />
-          <MainContent>
-            <ContentArea>
-              {selectedWorkspace ? (
-                <ErrorBoundary
-                  workspaceInfo={`${selectedWorkspace.projectName}/${selectedWorkspace.workspacePath.split("/").pop() ?? ""}`}
-                >
-                  <AIView
-                    workspaceId={selectedWorkspace.workspaceId}
-                    projectName={selectedWorkspace.projectName}
-                    branch={selectedWorkspace.workspacePath.split("/").pop() ?? ""}
-                    workspacePath={selectedWorkspace.workspacePath}
-                    onCompactStart={(continueMessage) =>
-                      handleCompactStart(selectedWorkspace.workspaceId, continueMessage)
-                    }
-                  />
-                </ErrorBoundary>
-              ) : (
-                <WelcomeView>
-                  <h2>Welcome to Cmux</h2>
-                  <p>Select a workspace from the sidebar or add a new one to get started.</p>
-                </WelcomeView>
-              )}
-            </ContentArea>
-          </MainContent>
-          <CommandPalette
-            getSlashContext={() => ({
-              providerNames: [],
-              workspaceId: selectedWorkspace?.workspaceId,
-            })}
-          />
-          {workspaceModalOpen && workspaceModalProject && (
-            <NewWorkspaceModal
-              isOpen={workspaceModalOpen}
-              projectPath={workspaceModalProject}
-              onClose={() => {
-                setWorkspaceModalOpen(false);
-                setWorkspaceModalProject(null);
-              }}
-              onAdd={handleCreateWorkspace}
-            />
-          )}
-        </AppContainer>
-      </GitStatusProvider>
+        )}
+      </AppContainer>
     </>
   );
 }
 
 function App() {
-  // Create workspace store instance (stable across renders)
-  const workspaceStoreRef = useRef<WorkspaceStore | null>(null);
-  const { addModel } = useModelLRU();
-
-  if (!workspaceStoreRef.current) {
-    workspaceStoreRef.current = new WorkspaceStore(addModel);
-  }
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      workspaceStoreRef.current?.dispose();
-    };
-  }, []);
-
   return (
     <CommandRegistryProvider>
-      <WorkspaceStoreProvider store={workspaceStoreRef.current}>
-        <AppInner />
-      </WorkspaceStoreProvider>
+      <AppInner />
     </CommandRegistryProvider>
   );
 }

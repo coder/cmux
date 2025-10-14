@@ -50,6 +50,7 @@ export default defineConfig(({ mode }) => ({
     port: devServerPort,
     strictPort: true,
     allowedHosts: ["localhost", "127.0.0.1"],
+    sourcemapIgnoreList: () => false, // Show all sources in DevTools
   },
   preview: {
     host: "127.0.0.1",

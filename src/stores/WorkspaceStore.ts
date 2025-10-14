@@ -22,7 +22,7 @@ import {
 } from "@/types/ipc";
 
 export interface WorkspaceState {
-  messages: import("@/types/message").DisplayedMessage[];
+  messages: Array<import("@/types/message").DisplayedMessage>;
   canInterrupt: boolean;
   isCompacting: boolean;
   loading: boolean;
@@ -48,10 +48,11 @@ export class WorkspaceStore {
 
   // Cache for stable references - only return new object when values change
   private stateCache = new Map<string, WorkspaceState>();
+  private allStatesCache: Map<string, WorkspaceState> | null = null;
   private recencyCache: { value: Record<string, number>; hash: string } | null = null;
 
   // Track model usage (injected dependency for useModelLRU integration)
-  private onModelUsed?: (model: string) => void;
+  private readonly onModelUsed?: (model: string) => void;
 
   constructor(onModelUsed?: (model: string) => void) {
     this.onModelUsed = onModelUsed;
@@ -119,10 +120,36 @@ export class WorkspaceStore {
    * Used by components that need full state (e.g., ProjectSidebar).
    */
   getAllStates(): Map<string, WorkspaceState> {
+    // Check if cache is still valid
+    if (this.allStatesCache) {
+      // Verify cache has same keys
+      if (this.allStatesCache.size === this.aggregators.size) {
+        let allMatch = true;
+        for (const workspaceId of this.aggregators.keys()) {
+          if (!this.allStatesCache.has(workspaceId)) {
+            allMatch = false;
+            break;
+          }
+          // getWorkspaceState returns cached reference if unchanged
+          const currentState = this.getWorkspaceState(workspaceId);
+          const cachedState = this.allStatesCache.get(workspaceId);
+          if (currentState !== cachedState) {
+            allMatch = false;
+            break;
+          }
+        }
+        if (allMatch) {
+          return this.allStatesCache;
+        }
+      }
+    }
+
+    // Cache invalid - rebuild
     const states = new Map<string, WorkspaceState>();
     for (const workspaceId of this.aggregators.keys()) {
       states.set(workspaceId, this.getWorkspaceState(workspaceId));
     }
+    this.allStatesCache = states;
     return states;
   }
 
@@ -181,8 +208,11 @@ export class WorkspaceStore {
     aggregator.clearActiveStreams();
 
     // Subscribe to IPC events
+    // Wrap in queueMicrotask to ensure IPC events don't update during React render
     const unsubscribe = window.api.workspace.onChat(workspaceId, (data: WorkspaceChatMessage) => {
-      this.handleChatMessage(workspaceId, data);
+      queueMicrotask(() => {
+        this.handleChatMessage(workspaceId, data);
+      });
     });
 
     this.ipcUnsubscribers.set(workspaceId, unsubscribe);
@@ -255,20 +285,45 @@ export class WorkspaceStore {
   }
 
   private emit(): void {
-    // Notify all listeners (React handles equality checks via getSnapshot)
+    // Notify all listeners synchronously (required by useSyncExternalStore)
+    // React handles equality checks via getSnapshot
+    // IPC handlers use queueMicrotask to prevent updates during render
     this.listeners.forEach((listener) => listener());
   }
 
   private statesEqual(a: WorkspaceState, b: WorkspaceState): boolean {
-    return (
-      a.canInterrupt === b.canInterrupt &&
-      a.isCompacting === b.isCompacting &&
-      a.loading === b.loading &&
-      a.currentModel === b.currentModel &&
-      a.recencyTimestamp === b.recencyTimestamp &&
-      a.messages === b.messages && // Reference equality (aggregator maintains stability)
-      a.cmuxMessages === b.cmuxMessages
-    );
+    // Compare primitive fields
+    if (
+      a.canInterrupt !== b.canInterrupt ||
+      a.isCompacting !== b.isCompacting ||
+      a.loading !== b.loading ||
+      a.currentModel !== b.currentModel ||
+      a.recencyTimestamp !== b.recencyTimestamp
+    ) {
+      return false;
+    }
+
+    // Compare arrays by length and reference equality of elements
+    // (aggregator returns new arrays but reuses message objects)
+    if (a.messages.length !== b.messages.length) {
+      return false;
+    }
+    for (let i = 0; i < a.messages.length; i++) {
+      if (a.messages[i] !== b.messages[i]) {
+        return false;
+      }
+    }
+
+    if (a.cmuxMessages.length !== b.cmuxMessages.length) {
+      return false;
+    }
+    for (let i = 0; i < a.cmuxMessages.length; i++) {
+      if (a.cmuxMessages[i] !== b.cmuxMessages[i]) {
+        return false;
+      }
+    }
+
+    return true;
   }
 
   private handleChatMessage(workspaceId: string, data: WorkspaceChatMessage): void {
