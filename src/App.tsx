@@ -18,6 +18,9 @@ import { useWorkspaceAggregators } from "./hooks/useWorkspaceAggregators";
 import { useResumeManager } from "./hooks/useResumeManager";
 import { useUnreadTracking } from "./hooks/useUnreadTracking";
 import { useAutoCompactContinue } from "./hooks/useAutoCompactContinue";
+import { useModelLRU } from "./hooks/useModelLRU";
+import { WorkspaceStore } from "./stores/WorkspaceStore";
+import { WorkspaceStoreProvider, useWorkspaceStoreRaw } from "./hooks/useWorkspaceStore";
 
 import { CommandRegistryProvider, useCommandRegistry } from "./contexts/CommandRegistryContext";
 import type { CommandAction } from "./contexts/CommandRegistryContext";
@@ -167,9 +170,16 @@ function AppInner() {
       onSelectedWorkspaceUpdate: setSelectedWorkspace,
     });
 
-  // Use workspace aggregators hook for message state
+  // Use workspace aggregators hook for message state (OLD - will migrate away from this)
   const { getWorkspaceState, getAggregator, workspaceStates, workspaceRecency } =
     useWorkspaceAggregators(workspaceMetadata);
+
+  // NEW: Sync workspace metadata with the store
+  // This will be the primary mechanism once migration is complete
+  const workspaceStore = useWorkspaceStoreRaw();
+  useEffect(() => {
+    workspaceStore.syncWorkspaces(workspaceMetadata);
+  }, [workspaceMetadata, workspaceStore]);
 
   // Track unread message status for all workspaces
   const { unreadStatus, toggleUnread } = useUnreadTracking(selectedWorkspace, workspaceStates);
@@ -590,8 +600,6 @@ function AppInner() {
                     projectName={selectedWorkspace.projectName}
                     branch={selectedWorkspace.workspacePath.split("/").pop() ?? ""}
                     workspacePath={selectedWorkspace.workspacePath}
-                    workspaceState={getWorkspaceState(selectedWorkspace.workspaceId)}
-                    getAggregator={getAggregator}
                     onCompactStart={(continueMessage) =>
                       handleCompactStart(selectedWorkspace.workspaceId, continueMessage)
                     }
@@ -629,9 +637,26 @@ function AppInner() {
 }
 
 function App() {
+  // Create workspace store instance (stable across renders)
+  const workspaceStoreRef = useRef<WorkspaceStore | null>(null);
+  const { addModel } = useModelLRU();
+
+  if (!workspaceStoreRef.current) {
+    workspaceStoreRef.current = new WorkspaceStore(addModel);
+  }
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      workspaceStoreRef.current?.dispose();
+    };
+  }, []);
+
   return (
     <CommandRegistryProvider>
-      <AppInner />
+      <WorkspaceStoreProvider store={workspaceStoreRef.current}>
+        <AppInner />
+      </WorkspaceStoreProvider>
     </CommandRegistryProvider>
   );
 }
