@@ -113,9 +113,14 @@ export function addInterruptedSentinel(messages: CmuxMessage[]): CmuxMessage[] {
  *
  * @param messages The conversation history
  * @param currentMode The mode for the upcoming assistant response (e.g., "plan", "exec")
+ * @param toolNames Optional list of available tool names to include in transition message
  * @returns Messages with mode transition context injected if needed
  */
-export function injectModeTransition(messages: CmuxMessage[], currentMode?: string): CmuxMessage[] {
+export function injectModeTransition(
+  messages: CmuxMessage[],
+  currentMode?: string,
+  toolNames?: string[]
+): CmuxMessage[] {
   // No mode specified, nothing to do
   if (!currentMode) {
     return messages;
@@ -160,13 +165,22 @@ export function injectModeTransition(messages: CmuxMessage[], currentMode?: stri
   }
 
   // Inject mode transition message right before the last user message
+  let transitionText = `[Mode switched from ${lastMode} to ${currentMode}. Follow ${currentMode} mode instructions.`;
+
+  // Append tool availability if provided
+  if (toolNames && toolNames.length > 0) {
+    transitionText += ` Available tools: ${toolNames.join(", ")}.]`;
+  } else {
+    transitionText += "]";
+  }
+
   const transitionMessage: CmuxMessage = {
     id: `mode-transition-${Date.now()}`,
     role: "user",
     parts: [
       {
         type: "text",
-        text: `[Mode switched from ${lastMode} to ${currentMode}. Follow ${currentMode} mode instructions.]`,
+        text: transitionText,
       },
     ],
     metadata: {

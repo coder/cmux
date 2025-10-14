@@ -847,4 +847,105 @@ describe("injectModeTransition", () => {
     expect(result.length).toBe(1);
     expect(result).toEqual(messages);
   });
+
+  it("should include tool names in transition message when provided", () => {
+    const messages: CmuxMessage[] = [
+      {
+        id: "user-1",
+        role: "user",
+        parts: [{ type: "text", text: "Let's plan a feature" }],
+        metadata: { timestamp: 1000 },
+      },
+      {
+        id: "assistant-1",
+        role: "assistant",
+        parts: [{ type: "text", text: "Here's the plan..." }],
+        metadata: { timestamp: 2000, mode: "plan" },
+      },
+      {
+        id: "user-2",
+        role: "user",
+        parts: [{ type: "text", text: "Now execute it" }],
+        metadata: { timestamp: 3000 },
+      },
+    ];
+
+    const toolNames = ["file_read", "bash", "file_edit_replace_string", "web_search"];
+    const result = injectModeTransition(messages, "exec", toolNames);
+
+    // Should have 4 messages: user, assistant, mode-transition, user
+    expect(result.length).toBe(4);
+
+    // Third message should be mode transition with tool names
+    expect(result[2].role).toBe("user");
+    expect(result[2].metadata?.synthetic).toBe(true);
+    expect(result[2].parts[0]).toMatchObject({
+      type: "text",
+      text: "[Mode switched from plan to exec. Follow exec mode instructions. Available tools: file_read, bash, file_edit_replace_string, web_search.]",
+    });
+  });
+
+  it("should handle mode transition without tools parameter (backward compatibility)", () => {
+    const messages: CmuxMessage[] = [
+      {
+        id: "user-1",
+        role: "user",
+        parts: [{ type: "text", text: "Let's plan" }],
+        metadata: { timestamp: 1000 },
+      },
+      {
+        id: "assistant-1",
+        role: "assistant",
+        parts: [{ type: "text", text: "Planning..." }],
+        metadata: { timestamp: 2000, mode: "plan" },
+      },
+      {
+        id: "user-2",
+        role: "user",
+        parts: [{ type: "text", text: "Execute" }],
+        metadata: { timestamp: 3000 },
+      },
+    ];
+
+    const result = injectModeTransition(messages, "exec");
+
+    // Should have 4 messages with transition, but no tool info
+    expect(result.length).toBe(4);
+    expect(result[2].parts[0]).toMatchObject({
+      type: "text",
+      text: "[Mode switched from plan to exec. Follow exec mode instructions.]",
+    });
+  });
+
+  it("should handle mode transition with empty tool list", () => {
+    const messages: CmuxMessage[] = [
+      {
+        id: "user-1",
+        role: "user",
+        parts: [{ type: "text", text: "Let's plan" }],
+        metadata: { timestamp: 1000 },
+      },
+      {
+        id: "assistant-1",
+        role: "assistant",
+        parts: [{ type: "text", text: "Planning..." }],
+        metadata: { timestamp: 2000, mode: "plan" },
+      },
+      {
+        id: "user-2",
+        role: "user",
+        parts: [{ type: "text", text: "Execute" }],
+        metadata: { timestamp: 3000 },
+      },
+    ];
+
+    const result = injectModeTransition(messages, "exec", []);
+
+    // Should have 4 messages with transition, but no tool info (empty array handled gracefully)
+    expect(result.length).toBe(4);
+    expect(result[2].parts[0]).toMatchObject({
+      type: "text",
+      text: "[Mode switched from plan to exec. Follow exec mode instructions.]",
+    });
+  });
 });
