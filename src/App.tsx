@@ -197,7 +197,7 @@ function AppInner() {
   useResumeManager();
 
   // Handle auto-continue after compaction (when user uses /compact -c)
-  const { handleCompactStart } = useAutoCompactContinue();
+  useAutoCompactContinue();
 
   // Sync selectedWorkspace with URL hash
   useEffect(() => {
@@ -641,13 +641,11 @@ function AppInner() {
                 workspaceInfo={`${selectedWorkspace.projectName}/${selectedWorkspace.workspacePath.split("/").pop() ?? ""}`}
               >
                 <AIView
+                  key={selectedWorkspace.workspaceId}
                   workspaceId={selectedWorkspace.workspaceId}
                   projectName={selectedWorkspace.projectName}
                   branch={selectedWorkspace.workspacePath.split("/").pop() ?? ""}
                   workspacePath={selectedWorkspace.workspacePath}
-                  onCompactStart={(continueMessage) =>
-                    handleCompactStart(selectedWorkspace.workspaceId, continueMessage)
-                  }
                 />
               </ErrorBoundary>
             ) : (

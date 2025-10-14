@@ -192,7 +192,6 @@ interface AIViewProps {
   projectName: string;
   branch: string;
   workspacePath: string;
-  onCompactStart?: (continueMessage: string | undefined) => void;
   className?: string;
 }
 
@@ -201,7 +200,6 @@ const AIViewInner: React.FC<AIViewProps> = ({
   projectName,
   branch,
   workspacePath,
-  onCompactStart,
   className,
 }) => {
   // NEW: Get workspace state from store (only re-renders when THIS workspace changes)
@@ -326,6 +324,23 @@ const AIViewInner: React.FC<AIViewProps> = ({
     handleOpenTerminal,
   });
 
+  // Clear editing state if the message being edited no longer exists
+  // Must be before early return to satisfy React Hooks rules
+  useEffect(() => {
+    if (!workspaceState || !editingMessage) return;
+
+    const mergedMessages = mergeConsecutiveStreamErrors(workspaceState.messages);
+    const editCutoffHistoryId = mergedMessages.find(
+      (msg): msg is Exclude<DisplayedMessage, { type: "history-hidden" }> =>
+        msg.type !== "history-hidden" && msg.historyId === editingMessage.id
+    )?.historyId;
+
+    if (!editCutoffHistoryId) {
+      // Message was replaced or deleted - clear editing state
+      setEditingMessage(undefined);
+    }
+  }, [workspaceState, editingMessage]);
+
   // Return early if workspace state not loaded yet
   if (!workspaceState) {
     return (
@@ -344,7 +359,6 @@ const AIViewInner: React.FC<AIViewProps> = ({
     workspaceState;
 
   // Get active stream message ID for token counting
-  // Use getActiveStreamMessageId() which returns the messageId directly
   const activeStreamMessageId = aggregator.getActiveStreamMessageId();
 
   // Track if last message was interrupted or errored (for RetryBarrier)
@@ -451,6 +465,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
                           onEditUserMessage={handleEditUserMessage}
                           workspaceId={workspaceId}
                           model={currentModel ?? undefined}
+                          isCompacting={isCompacting}
                         />
                         {isAtCutoff && (
                           <EditBarrier>
@@ -507,7 +522,6 @@ const AIViewInner: React.FC<AIViewProps> = ({
             onMessageSent={handleMessageSent}
             onTruncateHistory={handleClearHistory}
             onProviderConfig={handleProviderConfig}
-            onCompactStart={onCompactStart}
             disabled={!projectName || !branch}
             isCompacting={isCompacting}
             editingMessage={editingMessage}

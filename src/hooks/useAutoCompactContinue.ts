@@ -1,17 +1,22 @@
 import { useRef, useEffect } from "react";
 import { useWorkspaceStoreRaw, type WorkspaceState } from "@/stores/WorkspaceStore";
-import { getCompactContinueMessageKey } from "@/constants/storage";
 import { buildSendMessageOptions } from "@/hooks/useSendMessageOptions";
 
 /**
- * Hook to manage auto-continue after compaction
+ * Hook to manage auto-continue after compaction using structured message metadata
  *
- * Stateless reactive approach:
- * - Watches all workspaces for single compacted message
- * - Builds sendMessage options from localStorage
+ * Approach:
+ * - Watches all workspaces for single compacted message (compaction just completed)
+ * - Reads continueMessage from the summary message's compaction-result metadata
  * - Sends continue message automatically
  *
+ * Why summary metadata? When compaction completes, history is replaced with just the
+ * summary message. The original compaction-request message is deleted. To preserve
+ * the continueMessage across this replacement, we extract it before replacement and
+ * store it in the summary's metadata.
+ *
  * Self-contained: No callback needed. Hook detects condition and handles action.
+ * No localStorage - metadata is the single source of truth.
  *
  * IMPORTANT: sendMessage options (model, thinking level, mode, etc.) are managed by the
  * frontend via buildSendMessageOptions. The backend does NOT fall back to workspace
@@ -51,22 +56,24 @@ export function useAutoCompactContinue() {
       // Only proceed once per compaction completion
       if (firedForWorkspace.current.has(workspaceId)) continue;
 
-      const continueMessage = localStorage.getItem(getCompactContinueMessageKey(workspaceId));
+      // After compaction, history is replaced with a single summary message
+      // The summary message has compaction-result metadata with the continueMessage
+      const summaryMessage = state.cmuxMessages[0]; // Single compacted message
+      const cmuxMeta = summaryMessage?.metadata?.cmuxMetadata;
 
-      if (continueMessage) {
+      if (cmuxMeta?.type === "compaction-result" && cmuxMeta.continueMessage) {
         // Mark as fired immediately to avoid re-entry on rapid renders
         firedForWorkspace.current.add(workspaceId);
 
-        // Clean up first to prevent duplicate sends (source of truth becomes history)
-        localStorage.removeItem(getCompactContinueMessageKey(workspaceId));
-
         // Build options and send message directly
         const options = buildSendMessageOptions(workspaceId);
-        window.api.workspace.sendMessage(workspaceId, continueMessage, options).catch((error) => {
-          console.error("Failed to send continue message:", error);
-          // If sending failed, allow another attempt on next render by clearing the guard
-          firedForWorkspace.current.delete(workspaceId);
-        });
+        window.api.workspace
+          .sendMessage(workspaceId, cmuxMeta.continueMessage, options)
+          .catch((error) => {
+            console.error("Failed to send continue message:", error);
+            // If sending failed, allow another attempt on next render by clearing the guard
+            firedForWorkspace.current.delete(workspaceId);
+          });
       }
     }
   };
@@ -83,18 +90,4 @@ export function useAutoCompactContinue() {
 
     return unsubscribe;
   }, [store]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Simple callback to store continue message in localStorage
-  // Called by ChatInput when /compact is parsed
-  const handleCompactStart = (workspaceId: string, continueMessage: string | undefined) => {
-    if (continueMessage) {
-      localStorage.setItem(getCompactContinueMessageKey(workspaceId), continueMessage);
-    } else {
-      // Clear any pending continue message if -c flag not provided
-      // Ensures stored message reflects latest user intent
-      localStorage.removeItem(getCompactContinueMessageKey(workspaceId));
-    }
-  };
-
-  return { handleCompactStart };
 }
