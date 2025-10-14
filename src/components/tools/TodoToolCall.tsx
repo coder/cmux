@@ -14,27 +14,27 @@ import { useToolExpansion, getStatusDisplay, type ToolStatus } from "./shared/to
 const TodoList = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 8px;
+  gap: 3px;
+  padding: 6px 8px;
 `;
 
 const TodoItemContainer = styled.div<{ status: TodoItem["status"] }>`
   display: flex;
   align-items: flex-start;
-  gap: 8px;
-  padding: 8px 12px;
+  gap: 6px;
+  padding: 4px 8px;
   background: ${(props) => {
     switch (props.status) {
       case "completed":
-        return "color-mix(in srgb, #4caf50, transparent 90%)";
+        return "color-mix(in srgb, #4caf50, transparent 92%)";
       case "in_progress":
-        return "color-mix(in srgb, #2196f3, transparent 90%)";
+        return "color-mix(in srgb, #2196f3, transparent 92%)";
       case "pending":
       default:
-        return "color-mix(in srgb, #888, transparent 95%)";
+        return "color-mix(in srgb, #888, transparent 96%)";
     }
   }};
-  border-left: 3px solid
+  border-left: 2px solid
     ${(props) => {
       switch (props.status) {
         case "completed":
@@ -43,35 +43,40 @@ const TodoItemContainer = styled.div<{ status: TodoItem["status"] }>`
           return "#2196f3";
         case "pending":
         default:
-          return "#888";
+          return "#666";
       }
     }};
-  border-radius: 4px;
+  border-radius: 3px;
   font-family: var(--font-monospace);
-  font-size: 12px;
-  line-height: 1.5;
+  font-size: 11px;
+  line-height: 1.35;
   color: var(--color-text);
 `;
 
 const TodoIcon = styled.div`
-  font-size: 14px;
+  font-size: 12px;
   flex-shrink: 0;
-  margin-top: 2px;
+  margin-top: 1px;
+  opacity: 0.8;
 `;
 
 const TodoContent = styled.div`
   flex: 1;
+  min-width: 0;
 `;
 
 const TodoText = styled.div<{ status: TodoItem["status"] }>`
   color: ${(props) => (props.status === "completed" ? "#888" : "var(--color-text)")};
   text-decoration: ${(props) => (props.status === "completed" ? "line-through" : "none")};
+  opacity: ${(props) => (props.status === "completed" ? "0.7" : "1")};
 `;
 
 const TodoActiveForm = styled.div`
   color: #2196f3;
   font-weight: 500;
-  margin-top: 2px;
+  margin-top: 1px;
+  font-size: 10px;
+  opacity: 0.9;
 `;
 
 interface TodoToolCallProps {
