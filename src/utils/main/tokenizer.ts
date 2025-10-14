@@ -7,7 +7,7 @@ import CRC32 from "crc-32";
 import { getToolSchemas, getAvailableTools } from "@/utils/tools/toolDefinitions";
 
 export interface Tokenizer {
-  name: string;
+  encoding: string;
   countTokens: (text: string) => number;
 }
 
@@ -107,20 +107,11 @@ function countTokensCached(text: string, tokenizeFn: () => number | Promise<numb
   return approximation;
 }
 
-interface TokenizerModelInfo {
-  name: string;
-  encoding: string;
-  [key: string]: unknown;
-}
-
 type TokenizerModules = TokenizerModuleImports;
-type TokenizerModelRecord = Record<string, TokenizerModelInfo>;
+type TokenizerModelRecord = Record<string, { encoding: string } | undefined>;
 
 const FALLBACK_MODEL_KEY = "openai/gpt-4o";
-const FALLBACK_MODEL_INFO: TokenizerModelInfo = {
-  name: "GPT-4o",
-  encoding: "o200k_base",
-};
+const FALLBACK_ENCODING = "o200k_base";
 
 const MODEL_KEY_OVERRIDES: Record<string, string> = {
   "anthropic:claude-sonnet-4-5": "anthropic/claude-sonnet-4.5",
@@ -134,10 +125,7 @@ function getTokenizerModels(modules: TokenizerModules): TokenizerModelRecord {
   return modules.models as TokenizerModelRecord;
 }
 
-function resolveTokenizerModel(
-  modelString: string,
-  modules: TokenizerModules
-): { key: string; model: TokenizerModelInfo } {
+function resolveTokenizerEncoding(modelString: string, modules: TokenizerModules): string {
   const models = getTokenizerModels(modules);
 
   const candidates: Array<string | undefined> = [];
@@ -148,21 +136,24 @@ function resolveTokenizerModel(
     candidates.push(normalizeModelKey(modelString));
   }
   candidates.push(MODEL_KEY_OVERRIDES[modelString]);
-  candidates.push(FALLBACK_MODEL_KEY);
 
   for (const key of candidates) {
     if (!key) continue;
-    const model = models[key];
-    if (model) {
-      return { key, model };
+    const entry = models[key];
+    if (entry?.encoding) {
+      return entry.encoding;
     }
   }
 
-  return { key: FALLBACK_MODEL_KEY, model: FALLBACK_MODEL_INFO };
+  return models[FALLBACK_MODEL_KEY]?.encoding ?? FALLBACK_ENCODING;
 }
 
-function formatApproximationName(modelString: string): string {
-  return normalizeModelKey(modelString);
+function getTokenizerEncoding(modelString: string, modules: TokenizerModules | null): string {
+  if (!modules) {
+    return normalizeModelKey(modelString);
+  }
+
+  return resolveTokenizerEncoding(modelString, modules);
 }
 
 /**
@@ -174,22 +165,9 @@ function countTokensWithLoadedModules(
   modelString: string,
   modules: NonNullable<typeof tokenizerModules>
 ): number {
-  const { model } = resolveTokenizerModel(modelString, modules);
+  const encodingName = getTokenizerEncoding(modelString, modules);
 
-  let encoding: typeof modules.o200k_base | typeof modules.claude;
-  switch (model.encoding) {
-    case "o200k_base":
-      encoding = modules.o200k_base;
-      break;
-    case "claude":
-      encoding = modules.claude;
-      break;
-    default:
-      // Do not include all encodings, as they are pretty big.
-      // The most common one is o200k_base.
-      encoding = modules.o200k_base;
-      break;
-  }
+  const encoding = encodingName === "claude" ? modules.claude : modules.o200k_base;
   const tokenizer = new modules.AITokenizer(encoding);
   return tokenizer.count(text);
 }
@@ -205,13 +183,8 @@ export function getTokenizerForModel(modelString: string): Tokenizer {
   void loadTokenizerModules();
 
   return {
-    get name() {
-      if (tokenizerModules) {
-        const { key, model } = resolveTokenizerModel(modelString, tokenizerModules);
-        return `${model.name} (${key})`;
-      }
-
-      return `${formatApproximationName(modelString)} (estimated)`;
+    get encoding() {
+      return getTokenizerEncoding(modelString, tokenizerModules);
     },
     countTokens: (text: string) => {
       // If tokenizer already loaded, use synchronous path for accurate counts

@@ -12,6 +12,6 @@ export interface ChatStats {
   consumers: TokenConsumer[]; // Sorted descending by token count
   totalTokens: number;
   model: string;
-  tokenizerName: string; // e.g., "Anthropic Claude", "OpenAI GPT-4"
+  tokenizerName: string; // e.g., "o200k_base", "claude"
   usageHistory: ChatUsageDisplay[]; // Ordered array of actual usage statistics from API responses
 }

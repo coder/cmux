@@ -18,7 +18,7 @@ export class StreamingTokenTracker {
    * Should be called when model changes or on first stream
    */
   setModel(model: string): void {
-    if (!this.tokenizer || this.tokenizer.name === "approximation") {
+    if (!this.tokenizer) {
       this.tokenizer = getTokenizerForModel(model);
     }
   }

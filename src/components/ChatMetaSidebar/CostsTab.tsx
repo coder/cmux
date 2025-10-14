@@ -33,7 +33,6 @@ const TokenizerInfo = styled.div`
   color: #888888;
   font-size: 12px;
   margin-bottom: 8px;
-  font-style: italic;
 `;
 
 const ConsumerList = styled.div`
@@ -580,7 +579,7 @@ export const CostsTab: React.FC = () => {
       <Section>
         <SectionTitle dimmed>Breakdown by Consumer</SectionTitle>
         <TokenizerInfo>
-          Estimated using tokenizer: <span>{stats.tokenizerName}</span>
+          Using tokenizer encoding: <span>{stats.tokenizerName}</span>
         </TokenizerInfo>
         <ConsumerList>
           {stats.consumers.map((consumer) => {

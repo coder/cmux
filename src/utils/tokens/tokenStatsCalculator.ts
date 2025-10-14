@@ -281,7 +281,7 @@ export function calculateTokenStats(messages: CmuxMessage[], model: string): Cha
     consumers,
     totalTokens,
     model,
-    tokenizerName: tokenizer.name,
+    tokenizerName: tokenizer.encoding,
     usageHistory,
   };
 }

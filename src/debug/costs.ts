@@ -42,7 +42,7 @@ export function costsCommand(workspaceId: string) {
 
   // Display results
   console.log(`Model: ${stats.model}`);
-  console.log(`Tokenizer: ${stats.tokenizerName}`);
+  console.log(`Tokenizer encoding: ${stats.tokenizerName}`);
   console.log(`\nTotal Messages: ${messages.length}`);
   console.log(`\nContent Tokens (Estimated): ${stats.totalTokens.toLocaleString()}`);
   console.log(`(Actual API costs include system overhead)\n`);
