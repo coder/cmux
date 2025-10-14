@@ -372,6 +372,14 @@ const AIViewInner: React.FC<AIViewProps> = ({
       )?.historyId
     : undefined;
 
+  // Clear editing state if the message being edited no longer exists
+  useEffect(() => {
+    if (editingMessage && !editCutoffHistoryId) {
+      // Message was replaced or deleted - clear editing state
+      setEditingMessage(undefined);
+    }
+  }, [editingMessage, editCutoffHistoryId]);
+
   if (loading) {
     return (
       <ViewContainer className={className}>
