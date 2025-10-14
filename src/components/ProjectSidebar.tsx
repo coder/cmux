@@ -23,7 +23,6 @@ import SecretsModal from "./SecretsModal";
 import type { Secret } from "@/types/secrets";
 import { ForceDeleteModal } from "./ForceDeleteModal";
 
-
 // Helper function to extract workspace display name from path
 function getWorkspaceDisplayName(workspacePath: string): string {
   const pathParts = workspacePath.split("/");
@@ -596,7 +595,6 @@ interface ProjectSidebarProps {
   sortedWorkspacesByProject: Map<string, Workspace[]>;
 }
 
-
 // WorkspaceListItem - Subscribes to specific workspace state
 interface WorkspaceListItemProps {
   workspace: Workspace;
@@ -640,7 +638,7 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
   // Subscribe to this specific workspace's sidebar state (streaming status, model, recency)
   const sidebarState = useWorkspaceSidebarState(workspaceId);
   const gitStatus = useGitStatus(workspaceId);
-  
+
   const displayName = getWorkspaceDisplayName(workspace.path);
   const isStreaming = sidebarState.canInterrupt;
   const streamingModel = sidebarState.currentModel;
@@ -723,11 +721,7 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
           title={
             isStreaming && streamingModel ? (
               <span>
-                <ModelDisplay
-                  modelString={streamingModel}
-                  showTooltip={false}
-                />{" "}
-                is responding
+                <ModelDisplay modelString={streamingModel} showTooltip={false} /> is responding
               </span>
             ) : isStreaming ? (
               "Assistant is responding"
@@ -741,9 +735,7 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
           }
         />
       </WorkspaceItem>
-      {renameError && isEditing && (
-        <WorkspaceErrorContainer>{renameError}</WorkspaceErrorContainer>
-      )}
+      {renameError && isEditing && <WorkspaceErrorContainer>{renameError}</WorkspaceErrorContainer>}
     </React.Fragment>
   );
 };
@@ -812,8 +804,6 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
     return path.split("/").pop() ?? path.split("\\").pop() ?? path;
   };
 
-
-
   const toggleProject = (projectPath: string) => {
     const newExpanded = new Set(expandedProjects);
     if (newExpanded.has(projectPath)) {
@@ -838,34 +828,40 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
     setRenameError(null);
   };
 
-  const confirmRename = useCallback(async (workspaceId: string) => {
-    const trimmedName = editingName.trim();
-    if (trimmedName && trimmedName !== "") {
-      // Short-circuit if name hasn't changed
-      if (trimmedName === originalName) {
-        cancelRenaming();
-        return;
-      }
+  const confirmRename = useCallback(
+    async (workspaceId: string) => {
+      const trimmedName = editingName.trim();
+      if (trimmedName && trimmedName !== "") {
+        // Short-circuit if name hasn't changed
+        if (trimmedName === originalName) {
+          cancelRenaming();
+          return;
+        }
 
-      const result = await onRenameWorkspace(workspaceId, trimmedName);
-      if (result.success) {
-        cancelRenaming();
-      } else {
-        // Keep field open and show error
-        setRenameError(result.error ?? "Failed to rename workspace");
+        const result = await onRenameWorkspace(workspaceId, trimmedName);
+        if (result.success) {
+          cancelRenaming();
+        } else {
+          // Keep field open and show error
+          setRenameError(result.error ?? "Failed to rename workspace");
+        }
       }
-    }
-  }, [editingName, originalName, onRenameWorkspace]);
+    },
+    [editingName, originalName, onRenameWorkspace]
+  );
 
-  const handleRenameKeyDown = useCallback((e: React.KeyboardEvent, workspaceId: string) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      void confirmRename(workspaceId);
-    } else if (e.key === "Escape") {
-      e.preventDefault();
-      cancelRenaming();
-    }
-  }, [confirmRename]);
+  const handleRenameKeyDown = useCallback(
+    (e: React.KeyboardEvent, workspaceId: string) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        void confirmRename(workspaceId);
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        cancelRenaming();
+      }
+    },
+    [confirmRename]
+  );
 
   const showRemoveError = useCallback(
     (workspaceId: string, error: string, anchor?: { top: number; left: number }) => {
@@ -900,26 +896,29 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
     };
   }, []);
 
-  const handleRemoveWorkspace = useCallback(async (workspaceId: string, buttonElement: HTMLElement) => {
-    const result = await onRemoveWorkspace(workspaceId);
-    if (!result.success) {
-      const error = result.error ?? "Failed to remove workspace";
-      const rect = buttonElement.getBoundingClientRect();
-      const anchor = {
-        top: rect.top + window.scrollY,
-        left: rect.right + 10, // 10px to the right of button
-      };
+  const handleRemoveWorkspace = useCallback(
+    async (workspaceId: string, buttonElement: HTMLElement) => {
+      const result = await onRemoveWorkspace(workspaceId);
+      if (!result.success) {
+        const error = result.error ?? "Failed to remove workspace";
+        const rect = buttonElement.getBoundingClientRect();
+        const anchor = {
+          top: rect.top + window.scrollY,
+          left: rect.right + 10, // 10px to the right of button
+        };
 
-      // Show force delete modal on any error to handle all cases
-      // (uncommitted changes, submodules, etc.)
-      setForceDeleteModal({
-        isOpen: true,
-        workspaceId,
-        error,
-        anchor,
-      });
-    }
-  }, [onRemoveWorkspace]);
+        // Show force delete modal on any error to handle all cases
+        // (uncommitted changes, submodules, etc.)
+        setForceDeleteModal({
+          isOpen: true,
+          workspaceId,
+          error,
+          anchor,
+        });
+      }
+    },
+    [onRemoveWorkspace]
+  );
 
   const handleOpenSecrets = async (projectPath: string) => {
     const secrets = await onGetSecrets(projectPath);
