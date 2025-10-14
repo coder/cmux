@@ -562,7 +562,7 @@ function AppInner() {
       const allStates = workspaceStore.getAllStates();
       const streamingModels = new Map<string, string>();
       for (const [workspaceId, state] of allStates) {
-        if (state.canInterrupt) {
+        if (state.canInterrupt && state.currentModel) {
           streamingModels.set(workspaceId, state.currentModel);
         }
       }

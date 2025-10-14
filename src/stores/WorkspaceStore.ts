@@ -29,7 +29,7 @@ export interface WorkspaceState {
   isCompacting: boolean;
   loading: boolean;
   cmuxMessages: CmuxMessage[];
-  currentModel: string;
+  currentModel: string | null;
   recencyTimestamp: number | null;
 }
 
@@ -39,7 +39,7 @@ export interface WorkspaceState {
  */
 export interface WorkspaceSidebarState {
   canInterrupt: boolean;
-  currentModel: string;
+  currentModel: string | null;
   recencyTimestamp: number | null;
 }
 
@@ -51,7 +51,7 @@ function extractSidebarState(
 ): WorkspaceSidebarState {
   return {
     canInterrupt: aggregator.getActiveStreams().length > 0,
-    currentModel: aggregator.getCurrentModel() ?? "claude-sonnet-4-5",
+    currentModel: aggregator.getCurrentModel() ?? null,
     recencyTimestamp: aggregator.getRecencyTimestamp(),
   };
 }
@@ -178,7 +178,7 @@ export class WorkspaceStore {
         isCompacting: aggregator.isCompacting(),
         loading: !hasMessages && !isCaughtUp,
         cmuxMessages: messages,
-        currentModel: aggregator.getCurrentModel() ?? "claude-sonnet-4-5",
+        currentModel: aggregator.getCurrentModel() ?? null,
         recencyTimestamp: aggregator.getRecencyTimestamp(),
       };
     });
