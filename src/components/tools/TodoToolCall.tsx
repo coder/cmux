@@ -74,9 +74,30 @@ const TodoText = styled.div<{ status: TodoItem["status"] }>`
 const TodoActiveForm = styled.div`
   color: #2196f3;
   font-weight: 500;
-  margin-top: 1px;
-  font-size: 10px;
-  opacity: 0.9;
+  font-size: 11px;
+  opacity: 0.95;
+
+  &::after {
+    content: "...";
+    display: inline-block;
+    width: 1.2em;
+    animation: ellipsis 1.5s infinite;
+  }
+
+  @keyframes ellipsis {
+    0% {
+      content: "";
+    }
+    25% {
+      content: ".";
+    }
+    50% {
+      content: "..";
+    }
+    75% {
+      content: "...";
+    }
+  }
 `;
 
 interface TodoToolCallProps {
@@ -120,9 +141,10 @@ export const TodoToolCall: React.FC<TodoToolCallProps> = ({
               <TodoItemContainer key={index} status={todo.status}>
                 <TodoIcon>{getStatusIcon(todo.status)}</TodoIcon>
                 <TodoContent>
-                  <TodoText status={todo.status}>{todo.content}</TodoText>
-                  {todo.status === "in_progress" && (
+                  {todo.status === "in_progress" ? (
                     <TodoActiveForm>{todo.activeForm}</TodoActiveForm>
+                  ) : (
+                    <TodoText status={todo.status}>{todo.content}</TodoText>
                   )}
                 </TodoContent>
               </TodoItemContainer>
