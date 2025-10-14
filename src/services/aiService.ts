@@ -1,5 +1,6 @@
 import * as fs from "fs/promises";
 import * as path from "path";
+import * as os from "os";
 import { EventEmitter } from "events";
 import { convertToModelMessages, wrapLanguageModel, type LanguageModel } from "ai";
 import { applyToolOutputRedaction } from "@/utils/messages/applyToolOutputRedaction";
@@ -436,6 +437,15 @@ export class AIService extends EventEmitter {
       // Extract provider name from modelString (e.g., "anthropic:claude-opus-4-1" -> "anthropic")
       const [providerName] = modelString.split(":");
 
+      // Get tool names early for mode transition sentinel (stub config, no workspace context needed)
+      const earlyAllTools = await getToolsForModel(modelString, {
+        cwd: process.cwd(),
+        tempDir: os.tmpdir(),
+        secrets: {},
+      });
+      const earlyTools = applyToolPolicy(earlyAllTools, toolPolicy);
+      const toolNamesForSentinel = Object.keys(earlyTools);
+
       // Filter out assistant messages with only reasoning (no text/tools)
       const filteredMessages = filterEmptyAssistantMessages(messages);
       log.debug(`Filtered ${messages.length - filteredMessages.length} empty assistant messages`);
@@ -452,7 +462,12 @@ export class AIService extends EventEmitter {
       const messagesWithSentinel = addInterruptedSentinel(filteredMessages);
 
       // Inject mode transition context if mode changed from last assistant message
-      const messagesWithModeContext = injectModeTransition(messagesWithSentinel, mode);
+      // Include tool names so model knows what tools are available in the new mode
+      const messagesWithModeContext = injectModeTransition(
+        messagesWithSentinel,
+        mode,
+        toolNamesForSentinel
+      );
 
       // Apply centralized tool-output redaction BEFORE converting to provider ModelMessages
       // This keeps the persisted/UI history intact while trimming heavy fields for the request
