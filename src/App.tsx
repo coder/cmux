@@ -17,7 +17,7 @@ import { useWorkspaceManagement } from "./hooks/useWorkspaceManagement";
 import { useResumeManager } from "./hooks/useResumeManager";
 import { useUnreadTracking } from "./hooks/useUnreadTracking";
 import { useAutoCompactContinue } from "./hooks/useAutoCompactContinue";
-import { useWorkspaceStoreRaw, useWorkspaceRecency, useWorkspaceStoreZustand } from "./stores/WorkspaceStore";
+import { useWorkspaceStoreRaw, useWorkspaceRecency } from "./stores/WorkspaceStore";
 import { useGitStatusStoreRaw } from "./stores/GitStatusStore";
 
 import { CommandRegistryProvider, useCommandRegistry } from "./contexts/CommandRegistryContext";
@@ -170,7 +170,7 @@ function AppInner() {
   // NEW: Sync workspace metadata with the stores
   const workspaceStore = useWorkspaceStoreRaw();
   const gitStatusStore = useGitStatusStoreRaw();
-  
+
   useEffect(() => {
     // Only sync when metadata has actually loaded (not empty initial state)
     if (workspaceMetadata.size > 0) {
@@ -518,7 +518,7 @@ function AppInner() {
     const unregister = registerSource(() => {
       const params = registerParamsRef.current;
       if (!params) return [];
-      
+
       // Compute streaming models here (only when command palette opens)
       const allStates = workspaceStore.getAllStates();
       const streamingModels = new Map<string, string>();
@@ -527,7 +527,7 @@ function AppInner() {
           streamingModels.set(workspaceId, state.currentModel);
         }
       }
-      
+
       const factories = buildCoreSources({ ...params, streamingModels });
       const actions: CommandAction[] = [];
       for (const factory of factories) {

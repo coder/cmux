@@ -240,31 +240,6 @@ const AIViewInner: React.FC<AIViewProps> = ({
     markUserInteraction,
   } = useAutoScroll();
 
-  // Return early if workspace state not loaded yet
-  if (!workspaceState) {
-    return (
-      <ViewContainer className={className}>
-        <ChatArea>
-          <OutputContainer>
-            <LoadingIndicator>Loading workspace...</LoadingIndicator>
-          </OutputContainer>
-        </ChatArea>
-      </ViewContainer>
-    );
-  }
-
-  // Extract state from workspace state
-  const { messages, canInterrupt, isCompacting, loading, cmuxMessages, currentModel } =
-    workspaceState;
-
-  // Get active stream message ID for token counting
-  // Use getActiveStreamMessageId() which returns the messageId directly
-  const activeStreamMessageId = aggregator.getActiveStreamMessageId();
-
-  // Track if last message was interrupted or errored (for RetryBarrier)
-  // Uses same logic as useResumeManager for DRY
-  const showRetryBarrier = !canInterrupt && hasInterruptedStream(messages);
-
   // ChatInput API for focus management
   const chatInputAPI = useRef<ChatInputAPI | null>(null);
   const handleChatInputReady = useCallback((api: ChatInputAPI) => {
@@ -274,17 +249,6 @@ const AIViewInner: React.FC<AIViewProps> = ({
   // Thinking level state from context
   const { thinkingLevel: currentWorkspaceThinking, setThinkingLevel } = useThinking();
 
-  // Auto-scroll when messages update (during streaming)
-  useEffect(() => {
-    if (autoScroll) {
-      performAutoScroll();
-    }
-  }, [messages, autoScroll, performAutoScroll]);
-
-  // Note: We intentionally do NOT reset autoRetry when streams start.
-  // If user pressed Ctrl+C, autoRetry stays false until they manually retry.
-  // This makes state transitions explicit and predictable.
-
   // Handlers for editing messages
   const handleEditUserMessage = useCallback((messageId: string, content: string) => {
     setEditingMessage({ id: messageId, content });
@@ -293,17 +257,6 @@ const AIViewInner: React.FC<AIViewProps> = ({
   const handleCancelEdit = useCallback(() => {
     setEditingMessage(undefined);
   }, []);
-
-  // Merge consecutive identical stream errors
-  const mergedMessages = mergeConsecutiveStreamErrors(messages);
-
-  // When editing, find the cutoff point
-  const editCutoffHistoryId = editingMessage
-    ? mergedMessages.find(
-        (msg): msg is Exclude<DisplayedMessage, { type: "history-hidden" }> =>
-          msg.type !== "history-hidden" && msg.historyId === editingMessage.id
-      )?.historyId
-    : undefined;
 
   const handleMessageSent = useCallback(() => {
     // Enable auto-scroll when user sends a message
@@ -339,23 +292,32 @@ const AIViewInner: React.FC<AIViewProps> = ({
     void window.api.workspace.openTerminal(workspacePath);
   }, [workspacePath]);
 
+  // Auto-scroll when messages update (during streaming)
+  useEffect(() => {
+    if (workspaceState && autoScroll) {
+      performAutoScroll();
+    }
+  }, [workspaceState?.messages, autoScroll, performAutoScroll, workspaceState]);
+
   // Scroll to bottom when workspace loads or changes
   useEffect(() => {
-    if (!loading && messages.length > 0) {
+    if (workspaceState && !workspaceState.loading && workspaceState.messages.length > 0) {
       // Give React time to render messages before scrolling
       requestAnimationFrame(() => {
         jumpToBottom();
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [workspaceId, loading]);
+  }, [workspaceId, workspaceState?.loading]);
 
-  // Handle keyboard shortcuts
+  // Handle keyboard shortcuts (using optional refs that are safe even if not initialized)
   useAIViewKeybinds({
     workspaceId,
-    currentModel,
-    canInterrupt,
-    showRetryBarrier,
+    currentModel: workspaceState?.currentModel ?? "claude-sonnet-4-5",
+    canInterrupt: workspaceState?.canInterrupt ?? false,
+    showRetryBarrier: workspaceState
+      ? !workspaceState.canInterrupt && hasInterruptedStream(workspaceState.messages)
+      : false,
     currentWorkspaceThinking,
     setThinkingLevel,
     setAutoRetry,
@@ -363,6 +325,46 @@ const AIViewInner: React.FC<AIViewProps> = ({
     jumpToBottom,
     handleOpenTerminal,
   });
+
+  // Return early if workspace state not loaded yet
+  if (!workspaceState) {
+    return (
+      <ViewContainer className={className}>
+        <ChatArea>
+          <OutputContainer>
+            <LoadingIndicator>Loading workspace...</LoadingIndicator>
+          </OutputContainer>
+        </ChatArea>
+      </ViewContainer>
+    );
+  }
+
+  // Extract state from workspace state
+  const { messages, canInterrupt, isCompacting, loading, cmuxMessages, currentModel } =
+    workspaceState;
+
+  // Get active stream message ID for token counting
+  // Use getActiveStreamMessageId() which returns the messageId directly
+  const activeStreamMessageId = aggregator.getActiveStreamMessageId();
+
+  // Track if last message was interrupted or errored (for RetryBarrier)
+  // Uses same logic as useResumeManager for DRY
+  const showRetryBarrier = !canInterrupt && hasInterruptedStream(messages);
+
+  // Note: We intentionally do NOT reset autoRetry when streams start.
+  // If user pressed Ctrl+C, autoRetry stays false until they manually retry.
+  // This makes state transitions explicit and predictable.
+
+  // Merge consecutive identical stream errors
+  const mergedMessages = mergeConsecutiveStreamErrors(messages);
+
+  // When editing, find the cutoff point
+  const editCutoffHistoryId = editingMessage
+    ? mergedMessages.find(
+        (msg): msg is Exclude<DisplayedMessage, { type: "history-hidden" }> =>
+          msg.type !== "history-hidden" && msg.historyId === editingMessage.id
+      )?.historyId
+    : undefined;
 
   if (loading) {
     return (

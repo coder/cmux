@@ -1,5 +1,5 @@
 import { GitStatusStore } from "./GitStatusStore";
-import type { WorkspaceMetadata, GitStatus } from "@/types/workspace";
+import type { WorkspaceMetadata } from "@/types/workspace";
 
 /**
  * Unit tests for GitStatusStore.

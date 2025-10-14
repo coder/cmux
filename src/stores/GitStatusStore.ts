@@ -92,10 +92,7 @@ export class GitStatusStore {
     // Check if any status changed
     let hasChanges = false;
 
-    if (
-      !this.allStatusCache ||
-      this.allStatusCache.size !== this.gitStatusMap.size
-    ) {
+    if (!this.allStatusCache || this.allStatusCache.size !== this.gitStatusMap.size) {
       hasChanges = true;
     } else {
       for (const [id, status] of this.gitStatusMap) {
@@ -126,7 +123,7 @@ export class GitStatusStore {
     if (!this.isActive && metadata.size > 0) {
       this.isActive = true;
     }
-    
+
     this.workspaceMetadata = metadata;
 
     // Remove statuses for deleted workspaces (only emit if we actually remove something)
@@ -201,9 +198,7 @@ export class GitStatusStore {
       if (!this.isActive) break; // Stop if disposed
 
       const batch = workspaces.slice(i, i + MAX_CONCURRENT_GIT_OPS);
-      const batchPromises = batch.map((metadata) =>
-        this.checkWorkspaceStatus(metadata)
-      );
+      const batchPromises = batch.map((metadata) => this.checkWorkspaceStatus(metadata));
 
       const batchResults = await Promise.all(batchPromises);
       results.push(...batchResults);
@@ -225,14 +220,10 @@ export class GitStatusStore {
     metadata: WorkspaceMetadata
   ): Promise<[string, GitStatus | null]> {
     try {
-      const result = await window.api.workspace.executeBash(
-        metadata.id,
-        GIT_STATUS_SCRIPT,
-        {
-          timeout_secs: 5,
-          niceness: 19, // Lowest priority - don't interfere with user operations
-        }
-      );
+      const result = await window.api.workspace.executeBash(metadata.id, GIT_STATUS_SCRIPT, {
+        timeout_secs: 5,
+        niceness: 19, // Lowest priority - don't interfere with user operations
+      });
 
       if (!result.success) {
         console.debug(`[gitStatus] IPC failed for ${metadata.id}:`, result.error);
@@ -296,9 +287,7 @@ export class GitStatusStore {
   /**
    * Try to fetch the project that needs it most urgently.
    */
-  private tryFetchNextProject(
-    projectGroups: Map<string, WorkspaceMetadata[]>
-  ): void {
+  private tryFetchNextProject(projectGroups: Map<string, WorkspaceMetadata[]>): void {
     let targetProject: string | null = null;
     let targetWorkspaceId: string | null = null;
     let oldestTime = Date.now();
@@ -343,10 +332,7 @@ export class GitStatusStore {
   /**
    * Fetch updates for a project (one workspace is sufficient).
    */
-  private async fetchProject(
-    projectName: string,
-    workspaceId: string
-  ): Promise<void> {
+  private async fetchProject(projectName: string, workspaceId: string): Promise<void> {
     const cache = this.fetchCache.get(projectName) ?? {
       lastFetch: 0,
       inProgress: false,
@@ -359,14 +345,10 @@ export class GitStatusStore {
     this.fetchCache.set(projectName, { ...cache, inProgress: true });
 
     try {
-      const result = await window.api.workspace.executeBash(
-        workspaceId,
-        GIT_FETCH_SCRIPT,
-        {
-          timeout_secs: 30,
-          niceness: 19, // Lowest priority - don't interfere with user operations
-        }
-      );
+      const result = await window.api.workspace.executeBash(workspaceId, GIT_FETCH_SCRIPT, {
+        timeout_secs: 30,
+        niceness: 19, // Lowest priority - don't interfere with user operations
+      });
 
       if (!result.success) {
         throw new Error(result.error);
@@ -409,18 +391,11 @@ export class GitStatusStore {
   /**
    * Compare two GitStatus objects for equality.
    */
-  private compareGitStatus(
-    a: GitStatus | null,
-    b: GitStatus | null
-  ): boolean {
+  private compareGitStatus(a: GitStatus | null, b: GitStatus | null): boolean {
     if (a === b) return true;
     if (!a || !b) return false;
 
-    return (
-      a.ahead === b.ahead &&
-      a.behind === b.behind &&
-      a.dirty === b.dirty
-    );
+    return a.ahead === b.ahead && a.behind === b.behind && a.dirty === b.dirty;
   }
 
   /**
@@ -447,12 +422,11 @@ export class GitStatusStore {
   }
 }
 
-
 // ============================================================================
 // Zustand Integration
 // ============================================================================
 
-import { create } from 'zustand';
+import { create } from "zustand";
 
 interface GitStatusStoreState {
   store: GitStatusStore;
@@ -490,4 +464,3 @@ export function useGitStatus(workspaceId: string): GitStatus | null {
 export function useGitStatusStoreRaw(): GitStatusStore {
   return useGitStatusStoreZustand((state) => state.store);
 }
-

@@ -121,7 +121,6 @@ export function useResumeManager() {
 
     const { attempt } = retryState;
 
-
     try {
       const options = getSendOptionsFromStorage(workspaceId);
       const result = await window.api.workspace.resumeStream(workspaceId, options);

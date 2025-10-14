@@ -5,9 +5,11 @@ import type { WorkspaceMetadata } from "@/types/workspace";
 const mockWindow = {
   api: {
     workspace: {
-      onChat: jest.fn((workspaceId, callback) => {
+      onChat: jest.fn((_workspaceId, _callback) => {
         // Return unsubscribe function
-        return () => {};
+        return () => {
+          // Empty unsubscribe
+        };
       }),
       replaceChatHistory: jest.fn(),
     },
@@ -18,6 +20,15 @@ global.window = mockWindow as unknown as Window & typeof globalThis;
 
 // Mock dispatchEvent
 global.window.dispatchEvent = jest.fn();
+
+// Helper to get IPC callback in a type-safe way
+function getOnChatCallback<T = { type: string }>(): (data: T) => void {
+  const mock = mockWindow.api.workspace.onChat as jest.Mock<
+    () => void,
+    [string, (data: T) => void]
+  >;
+  return mock.mock.calls[0][1];
+}
 
 describe("WorkspaceStore", () => {
   let store: WorkspaceStore;
@@ -49,7 +60,7 @@ describe("WorkspaceStore", () => {
       store.addWorkspace(metadata);
 
       // Simulate a caught-up message (triggers emit)
-      const onChatCallback = (mockWindow.api.workspace.onChat as jest.Mock).mock.calls[0][1];
+      const onChatCallback = getOnChatCallback();
       onChatCallback({ type: "caught-up" });
 
       // Wait for queueMicrotask to complete
@@ -75,7 +86,7 @@ describe("WorkspaceStore", () => {
       // Unsubscribe before emitting
       unsubscribe();
 
-      const onChatCallback = (mockWindow.api.workspace.onChat as jest.Mock).mock.calls[0][1];
+      const onChatCallback = getOnChatCallback();
       onChatCallback({ type: "caught-up" });
 
       expect(listener).not.toHaveBeenCalled();
@@ -168,7 +179,11 @@ describe("WorkspaceStore", () => {
 
       store.addWorkspace(metadata);
 
-      const onChatCallback = (mockWindow.api.workspace.onChat as jest.Mock).mock.calls[0][1];
+      const onChatCallback = getOnChatCallback<{
+        type: string;
+        messageId?: string;
+        model?: string;
+      }>();
       onChatCallback({
         type: "stream-start",
         messageId: "msg-1",
@@ -237,4 +252,3 @@ describe("WorkspaceStore", () => {
     });
   });
 });
-

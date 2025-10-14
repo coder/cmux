@@ -1,4 +1,4 @@
-import type { CmuxMessage } from "@/types/message";
+import type { CmuxMessage, DisplayedMessage } from "@/types/message";
 import { createCmuxMessage } from "@/types/message";
 import type { WorkspaceMetadata } from "@/types/workspace";
 import type { WorkspaceChatMessage } from "@/types/ipc";
@@ -23,7 +23,7 @@ import {
 } from "@/types/ipc";
 
 export interface WorkspaceState {
-  messages: Array<import("@/types/message").DisplayedMessage>;
+  messages: DisplayedMessage[];
   canInterrupt: boolean;
   isCompacting: boolean;
   loading: boolean;
@@ -31,7 +31,6 @@ export interface WorkspaceState {
   currentModel: string;
   recencyTimestamp: number | null;
 }
-
 
 /**
  * Subset of WorkspaceState needed for sidebar display.
@@ -489,29 +488,28 @@ export class WorkspaceStore {
   }
 }
 
-
 // ============================================================================
 // Zustand Integration
 // ============================================================================
 
-import { create } from 'zustand';
+import { create } from "zustand";
 
 interface WorkspaceStoreState {
   // The underlying store instance
   store: WorkspaceStore;
-  
+
   // Trigger for subscribers (increment to notify changes)
   version: number;
 }
 
 /**
  * Zustand wrapper around WorkspaceStore.
- * 
+ *
  * Benefits:
  * - Automatic subscription management
  * - Selector-based rendering (only re-render when selector result changes)
  * - Simpler hook API
- * 
+ *
  * The WorkspaceStore class handles the complex IPC and aggregator logic.
  * Zustand handles the React integration.
  */
@@ -537,7 +535,7 @@ export const useWorkspaceStoreZustand = create<WorkspaceStoreState>((set) => {
  */
 export function useWorkspaceState(workspaceId: string): WorkspaceState {
   return useWorkspaceStoreZustand(
-    (state) => state.store.getWorkspaceState(workspaceId),
+    (state) => state.store.getWorkspaceState(workspaceId)
     // Zustand's shallow comparison works because getWorkspaceState returns cached references
   );
 }
@@ -555,8 +553,6 @@ export function useWorkspaceStoreRaw(): WorkspaceStore {
 export function useWorkspaceRecency(): Record<string, number> {
   return useWorkspaceStoreZustand((state) => state.store.getWorkspaceRecency());
 }
-
-/**
 
 /**
  * Hook to get sidebar-specific state for a workspace.
@@ -582,4 +578,3 @@ export function useWorkspaceAggregator(workspaceId: string) {
   const store = useWorkspaceStoreRaw();
   return store.getAggregator(workspaceId);
 }
-
