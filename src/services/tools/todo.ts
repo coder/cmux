@@ -27,9 +27,63 @@ async function readTodos(tempDir: string): Promise<TodoItem[]> {
 }
 
 /**
+ * Validate todo sequencing rules before persisting.
+ */
+function validateTodos(todos: TodoItem[]): void {
+  if (!Array.isArray(todos)) {
+    throw new Error("Invalid todos payload: expected an array");
+  }
+
+  let phase: "pending" | "in_progress" | "completed" = "pending";
+  let inProgressCount = 0;
+
+  if (todos.length === 0) {
+    return;
+  }
+
+  todos.forEach((todo, index) => {
+    const status = todo.status;
+
+    switch (status) {
+      case "pending": {
+        if (phase !== "pending") {
+          throw new Error(
+            `Invalid todo order at index ${index}: pending tasks must appear before in-progress or completed tasks`
+          );
+        }
+        break;
+      }
+      case "in_progress": {
+        if (phase === "completed") {
+          throw new Error(
+            `Invalid todo order at index ${index}: in-progress tasks must appear before completed tasks`
+          );
+        }
+        inProgressCount += 1;
+        if (inProgressCount > 1) {
+          throw new Error(
+            "Invalid todo list: only one task can be marked as in_progress at a time"
+          );
+        }
+        phase = "in_progress";
+        break;
+      }
+      case "completed": {
+        phase = "completed";
+        break;
+      }
+      default: {
+        throw new Error(`Invalid todo status at index ${index}: ${status}`);
+      }
+    }
+  });
+}
+
+/**
  * Write todos to filesystem
  */
 async function writeTodos(tempDir: string, todos: TodoItem[]): Promise<void> {
+  validateTodos(todos);
   const todoFile = getTodoFilePath(tempDir);
   await fs.writeFile(todoFile, JSON.stringify(todos, null, 2), "utf-8");
 }

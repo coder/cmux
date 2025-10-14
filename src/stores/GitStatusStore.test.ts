@@ -1,3 +1,7 @@
+import type { Result } from "@/types/result";
+import type { BashToolResult } from "@/types/tools";
+
+import { describe, it, test, expect, beforeEach, afterEach, jest } from "@jest/globals";
 import { GitStatusStore } from "./GitStatusStore";
 import type { WorkspaceMetadata } from "@/types/workspace";
 
@@ -13,15 +17,42 @@ import type { WorkspaceMetadata } from "@/types/workspace";
  * - Cleanup on dispose
  */
 
+const mockExecuteBash: jest.Mock<
+  Promise<Result<BashToolResult, string>>,
+  [string, string, { timeout_secs?: number; niceness?: number }?]
+> = jest.fn();
+
 describe("GitStatusStore", () => {
   let store: GitStatusStore;
 
   beforeEach(() => {
+    mockExecuteBash.mockReset();
+    mockExecuteBash.mockResolvedValue({
+      success: true as const,
+      data: {
+        success: true as const,
+        output: "",
+        exitCode: 0 as const,
+        wall_duration_ms: 0,
+      },
+    });
+
+    (globalThis as unknown as { window: unknown }).window = {
+      api: {
+        workspace: {
+          executeBash: mockExecuteBash,
+        },
+      },
+    } as unknown as Window & typeof globalThis;
+
     store = new GitStatusStore();
   });
 
   afterEach(() => {
     store.dispose();
+    // Cleanup mocked window to avoid leaking between tests
+    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+    delete (globalThis as { window?: unknown }).window;
   });
 
   test("subscribe and unsubscribe", () => {
