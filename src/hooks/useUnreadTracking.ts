@@ -1,6 +1,6 @@
 import { useEffect, useCallback, useRef } from "react";
 import type { WorkspaceSelection } from "@/components/ProjectSidebar";
-import { useWorkspaceStoreZustand } from "@/stores/workspaceStoreZustand";
+import { useWorkspaceStoreZustand } from "@/stores/WorkspaceStore";
 import { usePersistedState } from "./usePersistedState";
 import { useStableReference, compareMaps } from "./useStableReference";
 

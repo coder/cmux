@@ -17,8 +17,8 @@ import { useWorkspaceManagement } from "./hooks/useWorkspaceManagement";
 import { useResumeManager } from "./hooks/useResumeManager";
 import { useUnreadTracking } from "./hooks/useUnreadTracking";
 import { useAutoCompactContinue } from "./hooks/useAutoCompactContinue";
-import { useWorkspaceStoreRaw, useWorkspaceRecency, useWorkspaceStoreZustand } from "./stores/workspaceStoreZustand";
-import { useGitStatusStoreRaw } from "./stores/gitStatusStoreZustand";
+import { useWorkspaceStoreRaw, useWorkspaceRecency, useWorkspaceStoreZustand } from "./stores/WorkspaceStore";
+import { useGitStatusStoreRaw } from "./stores/GitStatusStore";
 
 import { CommandRegistryProvider, useCommandRegistry } from "./contexts/CommandRegistryContext";
 import type { CommandAction } from "./contexts/CommandRegistryContext";

@@ -1,5 +1,5 @@
 import { useRef, useEffect } from "react";
-import { useWorkspaceStoreZustand } from "@/stores/workspaceStoreZustand";
+import { useWorkspaceStoreZustand } from "@/stores/WorkspaceStore";
 import { getCompactContinueMessageKey } from "@/constants/storage";
 import { buildSendMessageOptions } from "@/hooks/useSendMessageOptions";
 

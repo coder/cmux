@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { useWorkspaceStoreZustand } from "@/stores/workspaceStoreZustand";
+import { useWorkspaceStoreZustand } from "@/stores/WorkspaceStore";
 import { CUSTOM_EVENTS } from "@/constants/events";
 import { getAutoRetryKey, getRetryStateKey } from "@/constants/storage";
 import { getSendOptionsFromStorage } from "@/utils/messages/sendOptions";

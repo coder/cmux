@@ -19,12 +19,12 @@ import { formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
 import { useAutoScroll } from "@/hooks/useAutoScroll";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { useThinking } from "@/contexts/ThinkingContext";
-import { useWorkspaceState, useWorkspaceAggregator } from "@/stores/workspaceStoreZustand";
+import { useWorkspaceState, useWorkspaceAggregator } from "@/stores/WorkspaceStore";
 import { StatusIndicator } from "./StatusIndicator";
 import { getModelName } from "@/utils/ai/models";
 import { GitStatusIndicator } from "./GitStatusIndicator";
 
-import { useGitStatus } from "@/stores/gitStatusStoreZustand";
+import { useGitStatus } from "@/stores/GitStatusStore";
 import { TooltipWrapper, Tooltip } from "./Tooltip";
 import type { DisplayedMessage } from "@/types/message";
 import { useAIViewKeybinds } from "@/hooks/useAIViewKeybinds";
