@@ -494,7 +494,7 @@ interface ProjectSidebarProps {
   sortedWorkspacesByProject: Map<string, Workspace[]>;
 }
 
-const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
+const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
   projects,
   workspaceMetadata,
   selectedWorkspace,
@@ -892,5 +892,8 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
     </RenameProvider>
   );
 };
+
+// Memoize to prevent re-renders when props haven't changed
+const ProjectSidebar = React.memo(ProjectSidebarInner);
 
 export default ProjectSidebar;

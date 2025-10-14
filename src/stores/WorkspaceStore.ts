@@ -95,10 +95,9 @@ export class WorkspaceStore {
   constructor(onModelUsed?: (model: string) => void) {
     this.onModelUsed = onModelUsed;
 
-    // Auto-invalidate derived state when any workspace changes
-    this.states.subscribeAny(() => {
-      this.checkAndBumpRecencyIfChanged();
-    });
+    // Note: We DON'T auto-check recency on every state bump.
+    // Instead, checkAndBumpRecencyIfChanged() is called explicitly after
+    // message completion events (not on deltas) to prevent App.tsx re-renders.
   }
 
   /**
@@ -366,6 +365,7 @@ export class WorkspaceStore {
       }
       this.caughtUp.set(workspaceId, true);
       this.states.bump(workspaceId);
+      this.checkAndBumpRecencyIfChanged(); // Messages loaded, update recency
       return;
     }
 
@@ -383,6 +383,7 @@ export class WorkspaceStore {
     if (isDeleteMessage(data)) {
       aggregator.handleDeleteMessage(data);
       this.states.bump(workspaceId);
+      this.checkAndBumpRecencyIfChanged(); // Message deleted, update recency
       return;
     }
 
@@ -448,6 +449,7 @@ export class WorkspaceStore {
       }
 
       this.states.bump(workspaceId);
+      this.checkAndBumpRecencyIfChanged(); // Stream ended, update recency
       return;
     }
 
@@ -502,6 +504,7 @@ export class WorkspaceStore {
     } else {
       aggregator.handleMessage(data);
       this.states.bump(workspaceId);
+      this.checkAndBumpRecencyIfChanged(); // New message, update recency
     }
   }
 }
