@@ -664,6 +664,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
               ...sendMessageOptions,
               ...options,
               cmuxMetadata: metadata,
+              editMessageId: editingMessage?.id, // Support editing compaction messages
             });
 
             if (!result.success) {
@@ -679,6 +680,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                     ? "Compaction started. Will continue automatically after completion."
                     : "Compaction started. AI will summarize the conversation.",
               });
+              // Clear editing state on success
+              if (editingMessage && onCancelEdit) {
+                onCancelEdit();
+              }
             }
           } catch (error) {
             console.error("Compaction error:", error);

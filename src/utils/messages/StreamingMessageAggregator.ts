@@ -172,15 +172,10 @@ export class StreamingMessageAggregator {
 
   // Unified event handlers that encapsulate all complex logic
   handleStreamStart(data: StreamStartEvent): void {
-    // Detect if this stream is compacting by checking last user message's toolPolicy
+    // Detect if this stream is compacting by checking if last user message is a compaction-request
     const messages = this.getAllMessages();
     const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
-    const isCompacting =
-      lastUserMsg?.metadata?.toolPolicy?.some(
-        (filter) =>
-          filter.action === "require" &&
-          new RegExp(`^${filter.regex_match}$`).test("compact_summary")
-      ) ?? false;
+    const isCompacting = lastUserMsg?.metadata?.cmuxMetadata?.type === "compaction-request";
 
     const context: StreamingContext = {
       startTime: Date.now(),
