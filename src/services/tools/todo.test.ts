@@ -1,17 +1,25 @@
-import { describe, it, expect, beforeEach } from "@jest/globals";
-import { clearTodosForWorkspace, getTodosForWorkspace, setTodosForWorkspace } from "./todo";
+import { describe, it, expect, beforeEach, afterEach } from "@jest/globals";
+import * as fs from "fs/promises";
+import * as os from "os";
+import * as path from "path";
+import { clearTodosForTempDir, getTodosForTempDir, setTodosForTempDir } from "./todo";
 import type { TodoItem } from "@/types/tools";
 
 describe("Todo Storage", () => {
-  const workspaceId = "test-workspace";
+  let tempDir: string;
 
-  beforeEach(() => {
-    // Clear todos before each test
-    clearTodosForWorkspace(workspaceId);
+  beforeEach(async () => {
+    // Create a temporary directory for each test
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "todo-test-"));
   });
 
-  describe("setTodosForWorkspace", () => {
-    it("should store todo list for workspace", () => {
+  afterEach(async () => {
+    // Clean up temporary directory after each test
+    await fs.rm(tempDir, { recursive: true, force: true });
+  });
+
+  describe("setTodosForTempDir", () => {
+    it("should store todo list in temp directory", async () => {
       const todos: TodoItem[] = [
         {
           content: "Install dependencies",
@@ -30,13 +38,13 @@ describe("Todo Storage", () => {
         },
       ];
 
-      setTodosForWorkspace(workspaceId, todos);
+      await setTodosForTempDir(tempDir, todos);
 
-      const storedTodos = getTodosForWorkspace(workspaceId);
+      const storedTodos = await getTodosForTempDir(tempDir);
       expect(storedTodos).toEqual(todos);
     });
 
-    it("should replace entire todo list on update", () => {
+    it("should replace entire todo list on update", async () => {
       // Create initial list
       const initialTodos: TodoItem[] = [
         {
@@ -51,7 +59,7 @@ describe("Todo Storage", () => {
         },
       ];
 
-      setTodosForWorkspace(workspaceId, initialTodos);
+      await setTodosForTempDir(tempDir, initialTodos);
 
       // Replace with updated list
       const updatedTodos: TodoItem[] = [
@@ -72,16 +80,16 @@ describe("Todo Storage", () => {
         },
       ];
 
-      setTodosForWorkspace(workspaceId, updatedTodos);
+      await setTodosForTempDir(tempDir, updatedTodos);
 
       // Verify list was replaced, not merged
-      const storedTodos = getTodosForWorkspace(workspaceId);
+      const storedTodos = await getTodosForTempDir(tempDir);
       expect(storedTodos).toEqual(updatedTodos);
     });
 
-    it("should handle empty todo list", () => {
+    it("should handle empty todo list", async () => {
       // Create initial list
-      setTodosForWorkspace(workspaceId, [
+      await setTodosForTempDir(tempDir, [
         {
           content: "Task 1",
           status: "pending",
@@ -90,20 +98,20 @@ describe("Todo Storage", () => {
       ]);
 
       // Clear list
-      setTodosForWorkspace(workspaceId, []);
+      await setTodosForTempDir(tempDir, []);
 
-      const storedTodos = getTodosForWorkspace(workspaceId);
+      const storedTodos = await getTodosForTempDir(tempDir);
       expect(storedTodos).toEqual([]);
     });
   });
 
-  describe("getTodosForWorkspace", () => {
-    it("should return empty array when no todos exist", () => {
-      const todos = getTodosForWorkspace(workspaceId);
+  describe("getTodosForTempDir", () => {
+    it("should return empty array when no todos exist", async () => {
+      const todos = await getTodosForTempDir(tempDir);
       expect(todos).toEqual([]);
     });
 
-    it("should return current todo list", () => {
+    it("should return current todo list", async () => {
       const todos: TodoItem[] = [
         {
           content: "Task 1",
@@ -117,53 +125,55 @@ describe("Todo Storage", () => {
         },
       ];
 
-      setTodosForWorkspace(workspaceId, todos);
+      await setTodosForTempDir(tempDir, todos);
 
-      const retrievedTodos = getTodosForWorkspace(workspaceId);
+      const retrievedTodos = await getTodosForTempDir(tempDir);
       expect(retrievedTodos).toEqual(todos);
     });
   });
 
-  describe("workspace isolation", () => {
-    it("should isolate todos between workspaces", () => {
-      const workspace1Id = "workspace-1";
-      const workspace2Id = "workspace-2";
+  describe("stream isolation", () => {
+    it("should isolate todos between different temp directories", async () => {
+      const tempDir1 = await fs.mkdtemp(path.join(os.tmpdir(), "todo-test-1-"));
+      const tempDir2 = await fs.mkdtemp(path.join(os.tmpdir(), "todo-test-2-"));
 
-      // Create different todos in each workspace
-      const todos1: TodoItem[] = [
-        {
-          content: "Workspace 1 task",
-          status: "pending",
-          activeForm: "Working on workspace 1",
-        },
-      ];
+      try {
+        // Create different todos in each temp directory
+        const todos1: TodoItem[] = [
+          {
+            content: "Stream 1 task",
+            status: "pending",
+            activeForm: "Working on stream 1",
+          },
+        ];
 
-      const todos2: TodoItem[] = [
-        {
-          content: "Workspace 2 task",
-          status: "pending",
-          activeForm: "Working on workspace 2",
-        },
-      ];
+        const todos2: TodoItem[] = [
+          {
+            content: "Stream 2 task",
+            status: "pending",
+            activeForm: "Working on stream 2",
+          },
+        ];
 
-      setTodosForWorkspace(workspace1Id, todos1);
-      setTodosForWorkspace(workspace2Id, todos2);
+        await setTodosForTempDir(tempDir1, todos1);
+        await setTodosForTempDir(tempDir2, todos2);
 
-      // Verify each workspace has its own todos
-      const retrievedTodos1 = getTodosForWorkspace(workspace1Id);
-      const retrievedTodos2 = getTodosForWorkspace(workspace2Id);
+        // Verify each temp directory has its own todos
+        const retrievedTodos1 = await getTodosForTempDir(tempDir1);
+        const retrievedTodos2 = await getTodosForTempDir(tempDir2);
 
-      expect(retrievedTodos1).toEqual(todos1);
-      expect(retrievedTodos2).toEqual(todos2);
-
-      // Clean up
-      clearTodosForWorkspace(workspace1Id);
-      clearTodosForWorkspace(workspace2Id);
+        expect(retrievedTodos1).toEqual(todos1);
+        expect(retrievedTodos2).toEqual(todos2);
+      } finally {
+        // Clean up
+        await fs.rm(tempDir1, { recursive: true, force: true });
+        await fs.rm(tempDir2, { recursive: true, force: true });
+      }
     });
   });
 
-  describe("clearTodosForWorkspace", () => {
-    it("should clear todos for specific workspace", () => {
+  describe("clearTodosForTempDir", () => {
+    it("should clear todos for specific temp directory", async () => {
       const todos: TodoItem[] = [
         {
           content: "Task 1",
@@ -172,11 +182,11 @@ describe("Todo Storage", () => {
         },
       ];
 
-      setTodosForWorkspace(workspaceId, todos);
-      expect(getTodosForWorkspace(workspaceId)).toEqual(todos);
+      await setTodosForTempDir(tempDir, todos);
+      expect(await getTodosForTempDir(tempDir)).toEqual(todos);
 
-      clearTodosForWorkspace(workspaceId);
-      expect(getTodosForWorkspace(workspaceId)).toEqual([]);
+      await clearTodosForTempDir(tempDir);
+      expect(await getTodosForTempDir(tempDir)).toEqual([]);
     });
   });
 });
