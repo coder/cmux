@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import type { WorkspaceMetadata } from "@/types/workspace";
 import type { WorkspaceSelection } from "@/components/ProjectSidebar";
 import type { ProjectConfig } from "@/config";
@@ -65,7 +65,7 @@ export function useWorkspaceManagement({
     }
   };
 
-  const removeWorkspace = async (
+  const removeWorkspace = useCallback(async (
     workspaceId: string,
     options?: { force?: boolean }
   ): Promise<{ success: boolean; error?: string }> => {
@@ -88,9 +88,9 @@ export function useWorkspaceManagement({
       console.error("Failed to remove workspace:", result.error);
       return { success: false, error: result.error };
     }
-  };
+  }, [loadWorkspaceMetadata, onProjectsUpdate, onSelectedWorkspaceUpdate, selectedWorkspace]);
 
-  const renameWorkspace = async (
+  const renameWorkspace = useCallback(async (
     workspaceId: string,
     newName: string
   ): Promise<{ success: boolean; error?: string }> => {
@@ -124,7 +124,7 @@ export function useWorkspaceManagement({
       console.error("Failed to rename workspace:", result.error);
       return { success: false, error: result.error };
     }
-  };
+  }, [loadWorkspaceMetadata, onProjectsUpdate, onSelectedWorkspaceUpdate, selectedWorkspace]);
 
   return {
     workspaceMetadata,

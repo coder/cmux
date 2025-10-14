@@ -270,6 +270,25 @@ function AppInner() {
     setWorkspaceModalOpen(true);
   }, []);
 
+  // Memoize callbacks to prevent LeftSidebar/ProjectSidebar re-renders
+  const handleAddProjectCallback = useCallback(() => {
+    void addProject();
+  }, [addProject]);
+
+  const handleAddWorkspaceCallback = useCallback(
+    (projectPath: string) => {
+      void handleAddWorkspace(projectPath);
+    },
+    [handleAddWorkspace]
+  );
+
+  const handleRemoveProjectCallback = useCallback(
+    (path: string) => {
+      void handleRemoveProject(path);
+    },
+    [handleRemoveProject]
+  );
+
   const handleCreateWorkspace = async (branchName: string, trunkBranch: string) => {
     if (!workspaceModalProject) return;
 
@@ -602,9 +621,9 @@ function AppInner() {
           workspaceMetadata={workspaceMetadata}
           selectedWorkspace={selectedWorkspace}
           onSelectWorkspace={setSelectedWorkspace}
-          onAddProject={() => void addProject()}
-          onAddWorkspace={(projectPath) => void handleAddWorkspace(projectPath)}
-          onRemoveProject={(path) => void handleRemoveProject(path)}
+          onAddProject={handleAddProjectCallback}
+          onAddWorkspace={handleAddWorkspaceCallback}
+          onRemoveProject={handleRemoveProjectCallback}
           onRemoveWorkspace={removeWorkspace}
           onRenameWorkspace={renameWorkspace}
           lastReadTimestamps={lastReadTimestamps}
