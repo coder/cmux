@@ -73,7 +73,7 @@ function validateTodos(todos: TodoItem[]): void {
         break;
       }
       default: {
-        throw new Error(`Invalid todo status at index ${index}: ${status}`);
+        throw new Error(`Invalid todo status at index ${index}: ${String(status)}`);
       }
     }
   });

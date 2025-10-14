@@ -17,9 +17,7 @@ import type { WorkspaceMetadata } from "@/types/workspace";
  * - Cleanup on dispose
  */
 
-const mockExecuteBash = jest.fn<
-  () => Promise<Result<BashToolResult, string>>
->();
+const mockExecuteBash = jest.fn<() => Promise<Result<BashToolResult, string>>>();
 
 describe("GitStatusStore", () => {
   let store: GitStatusStore;
