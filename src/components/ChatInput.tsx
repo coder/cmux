@@ -27,6 +27,7 @@ import { ImageAttachments, type ImageAttachment } from "./ImageAttachments";
 
 import type { ThinkingLevel } from "@/types/thinking";
 import type { CmuxFrontendMetadata } from "@/types/message";
+import type { SendMessageOptions } from "@/types/ipc";
 
 
 const InputSection = styled.div`
@@ -282,6 +283,49 @@ const createErrorToast = (error: SendMessageErrorType): Toast => {
       };
   }
 };
+
+/**
+ * Prepare compaction message from /compact command
+ * Returns the actual message text (summarization request), metadata, and options
+ */
+function prepareCompactionMessage(
+  command: string,
+  sendMessageOptions: SendMessageOptions
+): {
+  messageText: string;
+  metadata: CmuxFrontendMetadata;
+  options: Partial<SendMessageOptions>;
+} {
+  const parsed = parseCommand(command);
+  if (parsed?.type !== "compact") {
+    throw new Error("Not a compact command");
+  }
+
+  const targetWords = parsed.maxOutputTokens ? Math.round(parsed.maxOutputTokens / 1.3) : 2000;
+
+  const messageText = `Summarize this conversation into a compact form for a new Assistant to continue helping the user. Use approximately ${targetWords} words.`;
+
+  const metadata: CmuxFrontendMetadata = {
+    type: "compaction-request",
+    command,
+    parsed: {
+      maxOutputTokens: parsed.maxOutputTokens,
+      continueMessage: parsed.continueMessage,
+    },
+  };
+
+  const isAnthropic = sendMessageOptions.model.startsWith("anthropic:");
+  const options: Partial<SendMessageOptions> = {
+    thinkingLevel: isAnthropic ? "off" : sendMessageOptions.thinkingLevel,
+    toolPolicy: [{ regex_match: "compact_summary", action: "require" }],
+    maxOutputTokens: parsed.maxOutputTokens,
+    mode: "compact" as const,
+  };
+
+  return { messageText, metadata, options };
+}
+
+
 
 export const ChatInput: React.FC<ChatInputProps> = ({
   workspaceId,
@@ -611,31 +655,15 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           setIsSending(true);
 
           try {
-            // Construct message asking for summarization
-            const targetWords = parsed.maxOutputTokens
-              ? Math.round(parsed.maxOutputTokens / 1.3)
-              : 2000;
-            const compactionMessage = `Summarize this conversation into a compact form for a new Assistant to continue helping the user. Use approximately ${targetWords} words.`;
+            const { messageText: compactionMessage, metadata, options } = prepareCompactionMessage(
+              messageText,
+              sendMessageOptions
+            );
 
-            // Send message with compact_summary tool required and maxOutputTokens in options
-            // Note: Anthropic doesn't support extended thinking with required tool_choice,
-            // so disable thinking for Anthropic models during compaction
-            const isAnthropic = sendMessageOptions.model.startsWith("anthropic:");
             const result = await window.api.workspace.sendMessage(workspaceId, compactionMessage, {
               ...sendMessageOptions,
-              thinkingLevel: isAnthropic ? "off" : sendMessageOptions.thinkingLevel,
-              toolPolicy: [{ regex_match: "compact_summary", action: "require" }],
-              maxOutputTokens: parsed.maxOutputTokens, // Pass to model directly
-              mode: "compact" as const, // Allow users to customize compaction behavior via Mode: compact in AGENTS.md
-              // NEW: Structured metadata for frontend use
-              cmuxMetadata: {
-                type: "compaction-request",
-                command: messageText, // Original "/compact -c ..." for display
-                parsed: {
-                  maxOutputTokens: parsed.maxOutputTokens,
-                  continueMessage: parsed.continueMessage,
-                },
-              },
+              ...options,
+              cmuxMetadata: metadata,
             });
 
             if (!result.success) {
@@ -646,9 +674,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
               setToast({
                 id: Date.now().toString(),
                 type: "success",
-                message: parsed.continueMessage
-                  ? "Compaction started. Will continue automatically after completion."
-                  : "Compaction started. AI will summarize the conversation.",
+                message:
+                  metadata.type === "compaction-request" && metadata.parsed.continueMessage
+                    ? "Compaction started. Will continue automatically after completion."
+                    : "Compaction started. AI will summarize the conversation.",
               });
             }
           } catch (error) {
@@ -691,28 +720,13 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         if (editingMessage && messageText.startsWith("/")) {
           const parsed = parseCommand(messageText);
           if (parsed?.type === "compact") {
-            // Regenerate the summarization request (not the command text)
-            const targetWords = parsed.maxOutputTokens
-              ? Math.round(parsed.maxOutputTokens / 1.3)
-              : 2000;
-            actualMessageText = `Summarize this conversation into a compact form for a new Assistant to continue helping the user. Use approximately ${targetWords} words.`;
-
-            cmuxMetadata = {
-              type: "compaction-request",
-              command: messageText, // Store the command for display
-              parsed: {
-                maxOutputTokens: parsed.maxOutputTokens,
-                continueMessage: parsed.continueMessage,
-              },
-            };
-
-            // Include compaction-specific options
-            const isAnthropic = sendMessageOptions.model.startsWith("anthropic:");
-            compactionOptions = {
-              thinkingLevel: isAnthropic ? "off" : sendMessageOptions.thinkingLevel,
-              toolPolicy: [{ regex_match: "compact_summary", action: "require" }],
-              mode: "compact" as const,
-            };
+            const { messageText: regeneratedText, metadata, options } = prepareCompactionMessage(
+              messageText,
+              sendMessageOptions
+            );
+            actualMessageText = regeneratedText;
+            cmuxMetadata = metadata;
+            compactionOptions = options;
           }
         }
 
