@@ -39,6 +39,7 @@ interface SlashCommandHandlerArgs {
   path: readonly SlashCommandDefinition[];
   remainingTokens: string[];
   cleanRemainingTokens: string[];
+  rawInput: string; // Raw input after command name, preserving newlines
 }
 
 export type SlashCommandHandler = (input: SlashCommandHandlerArgs) => ParsedCommand;

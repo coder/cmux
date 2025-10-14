@@ -170,9 +170,15 @@ const truncateCommandDefinition: SlashCommandDefinition = {
 const compactCommandDefinition: SlashCommandDefinition = {
   key: "compact",
   description:
-    "Compact conversation history using AI summarization. Use -t <tokens> to set max output tokens, -c <message> to continue with custom prompt after compaction",
-  handler: ({ cleanRemainingTokens }): ParsedCommand => {
-    // Parse flags using minimist
+    "Compact conversation history using AI summarization. Use -t <tokens> to set max output tokens. Add continue message on lines after the command.",
+  handler: ({ cleanRemainingTokens, rawInput }): ParsedCommand => {
+    // Split rawInput into first line (for flags) and remaining lines (for multiline continue)
+    // rawInput format: "-t 5000\nContinue here" or "\nContinue here" (starts with newline if no flags)
+    const lines = rawInput.split("\n");
+    // Note: firstLine could be empty string if rawInput starts with \n (which is fine)
+    const remainingLines = lines.slice(1).join("\n").trim();
+
+    // Parse flags from first line using minimist
     const parsed = minimist(cleanRemainingTokens, {
       string: ["t", "c"],
       unknown: (arg: string) => {
@@ -219,11 +225,18 @@ const compactCommandDefinition: SlashCommandDefinition = {
       };
     }
 
-    // Get continue message if -c flag present
-    const continueMessage =
-      parsed.c !== undefined && typeof parsed.c === "string" && parsed.c.trim().length > 0
-        ? parsed.c.trim()
-        : undefined;
+    // Determine continue message:
+    // 1. If -c flag present (backwards compat), use it
+    // 2. Otherwise, use multiline content (new behavior)
+    let continueMessage: string | undefined;
+
+    if (parsed.c !== undefined && typeof parsed.c === "string" && parsed.c.trim().length > 0) {
+      // -c flag takes precedence (backwards compatibility)
+      continueMessage = parsed.c.trim();
+    } else if (remainingLines.length > 0) {
+      // Use multiline content
+      continueMessage = remainingLines;
+    }
 
     return { type: "compact", maxOutputTokens, continueMessage };
   },
