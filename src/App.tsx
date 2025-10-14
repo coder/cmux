@@ -194,18 +194,6 @@ function AppInner() {
   // Handle auto-continue after compaction (when user uses /compact -c)
   const { handleCompactStart } = useAutoCompactContinue();
 
-  // Build map of currently streaming models (for command palette display)
-  const allWorkspaceStates = useWorkspaceStoreZustand((state) => state.store.getAllStates());
-  const streamingModels = useMemo(() => {
-    const models = new Map<string, string>();
-    for (const [workspaceId, state] of allWorkspaceStates) {
-      if (state.canInterrupt) {
-        models.set(workspaceId, state.currentModel);
-      }
-    }
-    return models;
-  }, [allWorkspaceStates]);
-
   // Sync selectedWorkspace with URL hash
   useEffect(() => {
     if (selectedWorkspace) {
@@ -511,7 +499,6 @@ function AppInner() {
     projects,
     workspaceMetadata,
     selectedWorkspace,
-    streamingModels,
     getThinkingLevel: getThinkingLevelForWorkspace,
     onSetThinkingLevel: setThinkingLevelFromPalette,
     onOpenNewWorkspaceModal: openNewWorkspaceFromPalette,
@@ -531,7 +518,17 @@ function AppInner() {
     const unregister = registerSource(() => {
       const params = registerParamsRef.current;
       if (!params) return [];
-      const factories = buildCoreSources(params);
+      
+      // Compute streaming models here (only when command palette opens)
+      const allStates = workspaceStore.getAllStates();
+      const streamingModels = new Map<string, string>();
+      for (const [workspaceId, state] of allStates) {
+        if (state.canInterrupt) {
+          streamingModels.set(workspaceId, state.currentModel);
+        }
+      }
+      
+      const factories = buildCoreSources({ ...params, streamingModels });
       const actions: CommandAction[] = [];
       for (const factory of factories) {
         actions.push(...factory());
@@ -539,7 +536,7 @@ function AppInner() {
       return actions;
     });
     return unregister;
-  }, [registerSource]);
+  }, [registerSource, workspaceStore]);
 
   // Handle keyboard shortcuts
   useEffect(() => {
