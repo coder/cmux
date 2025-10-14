@@ -17,10 +17,9 @@ import type { WorkspaceMetadata } from "@/types/workspace";
  * - Cleanup on dispose
  */
 
-const mockExecuteBash: jest.Mock<
-  Promise<Result<BashToolResult, string>>,
-  [string, string, { timeout_secs?: number; niceness?: number }?]
-> = jest.fn();
+const mockExecuteBash = jest.fn<
+  () => Promise<Result<BashToolResult, string>>
+>();
 
 describe("GitStatusStore", () => {
   let store: GitStatusStore;
@@ -28,14 +27,14 @@ describe("GitStatusStore", () => {
   beforeEach(() => {
     mockExecuteBash.mockReset();
     mockExecuteBash.mockResolvedValue({
-      success: true as const,
+      success: true,
       data: {
-        success: true as const,
+        success: true,
         output: "",
-        exitCode: 0 as const,
+        exitCode: 0,
         wall_duration_ms: 0,
       },
-    });
+    } as Result<BashToolResult, string>);
 
     (globalThis as unknown as { window: unknown }).window = {
       api: {
