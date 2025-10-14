@@ -812,11 +812,7 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
     return path.split("/").pop() ?? path.split("\\").pop() ?? path;
   };
 
-  const getWorkspaceDisplayName = (workspacePath: string) => {
-    // Extract display name from workspace path (e.g., "~/.cmux/src/cmux/main" -> "main")
-    const parts = workspacePath.split("/");
-    return parts[parts.length - 1] ?? workspacePath;
-  };
+
 
   const toggleProject = (projectPath: string) => {
     const newExpanded = new Set(expandedProjects);
@@ -923,7 +919,7 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
         anchor,
       });
     }
-  }, [onRemoveWorkspace, showRemoveError]);
+  }, [onRemoveWorkspace]);
 
   const handleOpenSecrets = async (projectPath: string) => {
     const secrets = await onGetSecrets(projectPath);
@@ -979,13 +975,16 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
     ) {
       setProjectOrder(normalized);
     }
-    // Only re-run when project keys change
+    // Only re-run when project keys change (projectPathsSignature captures projects Map keys)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectPathsSignature]);
 
   // Memoize sorted project PATHS (not entries) to avoid capturing stale config objects.
   // Sorting depends only on keys + order; we read configs from the live Map during render.
   const sortedProjectPaths = React.useMemo(
     () => sortProjectsByOrder(projects, projectOrder).map(([p]) => p),
+    // projectPathsSignature captures projects Map keys
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [projectPathsSignature, projectOrder]
   );
 
