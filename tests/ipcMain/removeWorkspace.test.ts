@@ -6,6 +6,7 @@ import {
   createWorkspace,
   generateBranchName,
   waitForFileNotExists,
+  addSubmodule,
 } from "./helpers";
 import * as fs from "fs/promises";
 
@@ -135,5 +136,124 @@ describeIntegration("IpcMain remove workspace integration tests", () => {
       }
     },
     15000
+  );
+
+  test.concurrent(
+    "should successfully remove clean workspace with submodule",
+    async () => {
+      const env = await createTestEnvironment();
+      const tempGitRepo = await createTempGitRepo();
+
+      try {
+        // Add a real submodule (leftpad) to the main repo
+        await addSubmodule(tempGitRepo);
+
+        const branchName = generateBranchName("remove-submodule-clean");
+
+        // Create a workspace with the repo that has a submodule
+        const createResult = await createWorkspace(env.mockIpcRenderer, tempGitRepo, branchName);
+        expect(createResult.success).toBe(true);
+        if (!createResult.success) {
+          throw new Error("Failed to create workspace");
+        }
+
+        const { metadata } = createResult;
+        const workspacePath = metadata.workspacePath;
+
+        // Initialize submodule in the worktree
+        const { exec } = await import("child_process");
+        const { promisify } = await import("util");
+        const execAsync = promisify(exec);
+        await execAsync("git submodule update --init", { cwd: workspacePath });
+
+        // Verify submodule is initialized
+        const submodulePath = await fs
+          .access(`${workspacePath}/vendor/left-pad`)
+          .then(() => true)
+          .catch(() => false);
+        expect(submodulePath).toBe(true);
+
+        // Worktree is clean (no uncommitted changes)
+        // Should succeed via rename strategy (bypasses git worktree remove)
+        const removeResult = await env.mockIpcRenderer.invoke(
+          IPC_CHANNELS.WORKSPACE_REMOVE,
+          metadata.id
+        );
+        expect(removeResult.success).toBe(true);
+
+        // Verify the worktree no longer exists
+        const worktreeRemoved = await waitForFileNotExists(workspacePath, 5000);
+        expect(worktreeRemoved).toBe(true);
+      } finally {
+        await cleanupTestEnvironment(env);
+        await cleanupTempGitRepo(tempGitRepo);
+      }
+    },
+    30000
+  );
+
+  test.concurrent(
+    "should fail to remove dirty workspace with submodule, succeed with force",
+    async () => {
+      const env = await createTestEnvironment();
+      const tempGitRepo = await createTempGitRepo();
+
+      try {
+        // Add a real submodule (leftpad) to the main repo
+        await addSubmodule(tempGitRepo);
+
+        const branchName = generateBranchName("remove-submodule-dirty");
+
+        // Create a workspace with the repo that has a submodule
+        const createResult = await createWorkspace(env.mockIpcRenderer, tempGitRepo, branchName);
+        expect(createResult.success).toBe(true);
+        if (!createResult.success) {
+          throw new Error("Failed to create workspace");
+        }
+
+        const { metadata } = createResult;
+        const workspacePath = metadata.workspacePath;
+
+        // Initialize submodule in the worktree
+        const { exec } = await import("child_process");
+        const { promisify } = await import("util");
+        const execAsync = promisify(exec);
+        await execAsync("git submodule update --init", { cwd: workspacePath });
+
+        // Make worktree "dirty" to prevent the rename optimization
+        await fs.appendFile(`${workspacePath}/README.md`, "\\nmodified");
+
+        // First attempt should fail (dirty worktree with submodules)
+        const removeResult = await env.mockIpcRenderer.invoke(
+          IPC_CHANNELS.WORKSPACE_REMOVE,
+          metadata.id
+        );
+        expect(removeResult.success).toBe(false);
+        expect(removeResult.error).toContain("submodule");
+
+        // Verify worktree still exists
+        const worktreeStillExists = await fs
+          .access(workspacePath)
+          .then(() => true)
+          .catch(() => false);
+        expect(worktreeStillExists).toBe(true);
+
+        // Retry with force should succeed
+        const forceRemoveResult = await env.mockIpcRenderer.invoke(
+          IPC_CHANNELS.WORKSPACE_REMOVE,
+          metadata.id,
+          { force: true }
+        );
+        expect(forceRemoveResult.success).toBe(true);
+
+        // Verify the worktree no longer exists
+        const worktreeRemoved = await waitForFileNotExists(workspacePath, 5000);
+        expect(worktreeRemoved).toBe(true);
+      } finally {
+        await cleanupTestEnvironment(env);
+        await cleanupTempGitRepo(tempGitRepo);
+      }
+    },
+    30000
   );
 });

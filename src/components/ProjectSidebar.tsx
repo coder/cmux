@@ -756,19 +756,14 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
         left: rect.right + 10, // 10px to the right of button
       };
 
-      // Check if this is a git --force error (uncommitted changes, etc.)
-      if (error.includes("--force")) {
-        // Show force delete modal instead of toast, preserve anchor for later reuse
-        setForceDeleteModal({
-          isOpen: true,
-          workspaceId,
-          error,
-          anchor,
-        });
-      } else {
-        // Show regular error toast
-        showRemoveError(workspaceId, error, anchor);
-      }
+      // Show force delete modal on any error to handle all cases
+      // (uncommitted changes, submodules, etc.)
+      setForceDeleteModal({
+        isOpen: true,
+        workspaceId,
+        error,
+        anchor,
+      });
     }
   };
 

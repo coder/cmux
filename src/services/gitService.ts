@@ -77,6 +77,20 @@ export async function isWorktreeClean(workspacePath: string): Promise<boolean> {
   }
 }
 
+/**
+ * Check if a worktree contains submodules
+ * Returns true if .gitmodules file exists, false otherwise
+ */
+export async function hasSubmodules(workspacePath: string): Promise<boolean> {
+  try {
+    const gitmodulesPath = path.join(workspacePath, ".gitmodules");
+    await fsPromises.access(gitmodulesPath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function removeWorktree(
   projectPath: string,
   workspacePath: string,
@@ -114,6 +128,11 @@ export async function pruneWorktrees(projectPath: string): Promise<WorktreeResul
  *
  * This provides instant feedback for the common case (clean worktrees) while
  * preserving git's safety checks for uncommitted changes.
+ *
+ * IMPORTANT: This function NEVER uses --force. It will fail and return an error if:
+ * - Worktree has uncommitted changes
+ * - Worktree contains submodules (git refuses to remove without --force)
+ * The caller (frontend) will show a force delete modal, and the user can retry with force: true.
  *
  * @param projectPath - Path to the main git repository
  * @param workspacePath - Path to the worktree to remove
@@ -189,6 +208,9 @@ export async function removeWorktreeSafe(
     .catch(() => false);
 
   if (stillExists) {
+    // Try normal git removal without force
+    // If worktree has uncommitted changes or submodules, this will fail
+    // and the error will be shown to the user who can then force delete
     const gitResult = await removeWorktree(projectPath, workspacePath, { force: false });
 
     if (!gitResult.success) {

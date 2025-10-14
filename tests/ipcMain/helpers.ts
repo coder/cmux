@@ -338,6 +338,25 @@ export async function createTempGitRepo(): Promise<string> {
 }
 
 /**
+ * Add a git submodule to a repository
+ * @param repoPath - Path to the repository to add the submodule to
+ * @param submoduleUrl - URL of the submodule repository (defaults to leftpad)
+ * @param submoduleName - Name/path for the submodule
+ */
+export async function addSubmodule(
+  repoPath: string,
+  submoduleUrl: string = "https://github.com/left-pad/left-pad.git",
+  submoduleName: string = "vendor/left-pad"
+): Promise<void> {
+  const { exec } = await import("child_process");
+  const { promisify } = await import("util");
+  const execAsync = promisify(exec);
+
+  await execAsync(`git submodule add "${submoduleUrl}" "${submoduleName}"`, { cwd: repoPath });
+  await execAsync(`git commit -m "Add submodule ${submoduleName}"`, { cwd: repoPath });
+}
+
+/**
  * Cleanup temporary git repository with retry logic
  */
 export async function cleanupTempGitRepo(repoPath: string): Promise<void> {
