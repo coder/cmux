@@ -1412,7 +1412,7 @@ These are general instructions that apply to all modes.
 
         // Use event collector to get messages sent to frontend
         const collector = createEventCollector(env.sentEvents, workspaceId);
-        
+
         // Wait for the user message to appear in the chat channel
         await waitFor(() => {
           const messages = collector.collect();
@@ -1421,7 +1421,7 @@ These are general instructions that apply to all modes.
 
         // Get all messages for this workspace
         const allMessages = collector.collect();
-        
+
         // Find the user message we just sent
         const userMessage = allMessages.find((msg) => "role" in msg && msg.role === "user");
         expect(userMessage).toBeDefined();
@@ -1443,5 +1443,4 @@ These are general instructions that apply to all modes.
     },
     5000
   );
-
 });

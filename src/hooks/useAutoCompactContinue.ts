@@ -57,7 +57,9 @@ export function useAutoCompactContinue() {
       // Find the most recent compaction request message from the raw message list
       const compactRequestMessage = [...state.cmuxMessages]
         .reverse()
-        .find((msg) => msg.role === "user" && msg.metadata?.cmuxMetadata?.type === "compaction-request");
+        .find(
+          (msg) => msg.role === "user" && msg.metadata?.cmuxMetadata?.type === "compaction-request"
+        );
 
       if (compactRequestMessage) {
         const cmuxMeta = compactRequestMessage.metadata?.cmuxMetadata;
@@ -83,11 +85,13 @@ export function useAutoCompactContinue() {
 
             // Build options and send message directly
             const options = buildSendMessageOptions(workspaceId);
-            window.api.workspace.sendMessage(workspaceId, continueMessage, options).catch((error) => {
-              console.error("Failed to send continue message:", error);
-              // If sending failed, allow another attempt on next render by clearing the guard
-              firedForWorkspace.current.delete(workspaceId);
-            });
+            window.api.workspace
+              .sendMessage(workspaceId, continueMessage, options)
+              .catch((error) => {
+                console.error("Failed to send continue message:", error);
+                // If sending failed, allow another attempt on next render by clearing the guard
+                firedForWorkspace.current.delete(workspaceId);
+              });
           }
         }
       }
