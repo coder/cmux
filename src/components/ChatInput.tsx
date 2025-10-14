@@ -122,7 +122,6 @@ export interface ChatInputProps {
   onTruncateHistory: (percentage?: number) => Promise<void>;
   onProviderConfig?: (provider: string, keyPath: string[], value: string) => Promise<void>;
   onModelChange?: (model: string) => void;
-  onCompactStart?: (continueMessage: string | undefined) => void; // Called when compaction starts to update continue message state
   disabled?: boolean;
   isCompacting?: boolean;
   editingMessage?: { id: string; content: string };
@@ -288,7 +287,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   onTruncateHistory,
   onProviderConfig,
   onModelChange,
-  onCompactStart,
   disabled = false,
   isCompacting = false,
   editingMessage,
@@ -638,6 +636,15 @@ export const ChatInput: React.FC<ChatInputProps> = ({
               toolPolicy: [{ regex_match: "compact_summary", action: "require" }],
               maxOutputTokens: parsed.maxOutputTokens, // Pass to model directly
               mode: "compact" as const, // Allow users to customize compaction behavior via Mode: compact in AGENTS.md
+              // NEW: Structured metadata for frontend use
+              cmuxMetadata: {
+                type: "compaction-request",
+                command: messageText, // Original "/compact -c ..." for display
+                parsed: {
+                  maxOutputTokens: parsed.maxOutputTokens,
+                  continueMessage: parsed.continueMessage,
+                },
+              },
             });
 
             if (!result.success) {
@@ -645,11 +652,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
               setToast(createErrorToast(result.error));
               setInput(messageText); // Restore input on error
             } else {
-              // Notify parent to update continue message state (parent handles storage)
-              if (onCompactStart) {
-                onCompactStart(parsed.continueMessage);
-              }
-
               setToast({
                 id: Date.now().toString(),
                 type: "success",

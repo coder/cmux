@@ -3,6 +3,21 @@ import type { LanguageModelV2Usage } from "@ai-sdk/provider";
 import type { StreamErrorType } from "./errors";
 import type { ToolPolicy } from "@/utils/tools/toolPolicy";
 
+// Frontend-specific metadata stored in cmuxMetadata field
+// Backend stores this as-is without interpretation (black-box)
+export type CmuxFrontendMetadata =
+  | {
+      type: "compaction-request";
+      command: string; // The original /compact command for display
+      parsed: {
+        maxOutputTokens?: number;
+        continueMessage?: string;
+      };
+    }
+  | {
+      type: "normal"; // Regular messages
+    };
+
 // Our custom metadata type
 export interface CmuxMetadata {
   historySequence?: number; // Assigned by backend for global message ordering (required when writing to history)
@@ -19,6 +34,7 @@ export interface CmuxMetadata {
   compacted?: boolean; // Whether this message is a compacted summary of previous history
   toolPolicy?: ToolPolicy; // Tool policy active when this message was sent (user messages only)
   mode?: string; // The mode (plan/exec/etc) active when this message was sent (assistant messages only)
+  cmuxMetadata?: CmuxFrontendMetadata; // Frontend-defined metadata, backend treats as black-box
 }
 
 // Extended tool part type that supports interrupted tool calls (input-available state)
@@ -71,6 +87,14 @@ export type DisplayedMessage =
       imageParts?: Array<{ image: string; mimeType?: string }>; // Optional image attachments
       historySequence: number; // Global ordering across all messages
       timestamp?: number;
+      compactionRequest?: {
+        // Present if this is a /compact command
+        command: string;
+        parsed: {
+          maxOutputTokens?: number;
+          continueMessage?: string;
+        };
+      };
     }
   | {
       type: "assistant";

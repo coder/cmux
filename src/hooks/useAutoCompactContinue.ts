@@ -1,17 +1,20 @@
 import { useRef, useEffect } from "react";
 import { useWorkspaceStoreRaw, type WorkspaceState } from "@/stores/WorkspaceStore";
-import { getCompactContinueMessageKey } from "@/constants/storage";
 import { buildSendMessageOptions } from "@/hooks/useSendMessageOptions";
+import { parseCommand } from "@/utils/slashCommands/parser";
+import type { CmuxTextPart } from "@/types/message";
 
 /**
- * Hook to manage auto-continue after compaction
+ * Hook to manage auto-continue after compaction using structured message metadata
  *
- * Stateless reactive approach:
- * - Watches all workspaces for single compacted message
- * - Builds sendMessage options from localStorage
+ * Approach:
+ * - Watches all workspaces for single compacted message (compaction just completed)
+ * - Finds the compaction request message in history with structured metadata
+ * - Extracts continueMessage from metadata.parsed.continueMessage
  * - Sends continue message automatically
  *
  * Self-contained: No callback needed. Hook detects condition and handles action.
+ * No localStorage - metadata is the single source of truth.
  *
  * IMPORTANT: sendMessage options (model, thinking level, mode, etc.) are managed by the
  * frontend via buildSendMessageOptions. The backend does NOT fall back to workspace
@@ -51,22 +54,42 @@ export function useAutoCompactContinue() {
       // Only proceed once per compaction completion
       if (firedForWorkspace.current.has(workspaceId)) continue;
 
-      const continueMessage = localStorage.getItem(getCompactContinueMessageKey(workspaceId));
+      // Find the most recent compaction request message from the raw message list
+      const compactRequestMessage = [...state.cmuxMessages]
+        .reverse()
+        .find((msg) => msg.role === "user" && msg.metadata?.cmuxMetadata?.type === "compaction-request");
 
-      if (continueMessage) {
-        // Mark as fired immediately to avoid re-entry on rapid renders
-        firedForWorkspace.current.add(workspaceId);
+      if (compactRequestMessage) {
+        const cmuxMeta = compactRequestMessage.metadata?.cmuxMetadata;
+        if (cmuxMeta?.type === "compaction-request") {
+          let continueMessage = cmuxMeta.parsed.continueMessage;
 
-        // Clean up first to prevent duplicate sends (source of truth becomes history)
-        localStorage.removeItem(getCompactContinueMessageKey(workspaceId));
+          // If user edited the message after compaction, re-parse the current content
+          // This ensures the latest command is used, not the original
+          const currentContent = compactRequestMessage.parts
+            .filter((p): p is CmuxTextPart => p.type === "text")
+            .map((p) => p.text)
+            .join("");
 
-        // Build options and send message directly
-        const options = buildSendMessageOptions(workspaceId);
-        window.api.workspace.sendMessage(workspaceId, continueMessage, options).catch((error) => {
-          console.error("Failed to send continue message:", error);
-          // If sending failed, allow another attempt on next render by clearing the guard
-          firedForWorkspace.current.delete(workspaceId);
-        });
+          if (currentContent !== cmuxMeta.command) {
+            // Message was edited - re-parse
+            const parsed = parseCommand(currentContent);
+            continueMessage = parsed?.type === "compact" ? parsed.continueMessage : undefined;
+          }
+
+          if (continueMessage) {
+            // Mark as fired immediately to avoid re-entry on rapid renders
+            firedForWorkspace.current.add(workspaceId);
+
+            // Build options and send message directly
+            const options = buildSendMessageOptions(workspaceId);
+            window.api.workspace.sendMessage(workspaceId, continueMessage, options).catch((error) => {
+              console.error("Failed to send continue message:", error);
+              // If sending failed, allow another attempt on next render by clearing the guard
+              firedForWorkspace.current.delete(workspaceId);
+            });
+          }
+        }
       }
     }
   };
@@ -83,18 +106,4 @@ export function useAutoCompactContinue() {
 
     return unsubscribe;
   }, [store]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Simple callback to store continue message in localStorage
-  // Called by ChatInput when /compact is parsed
-  const handleCompactStart = (workspaceId: string, continueMessage: string | undefined) => {
-    if (continueMessage) {
-      localStorage.setItem(getCompactContinueMessageKey(workspaceId), continueMessage);
-    } else {
-      // Clear any pending continue message if -c flag not provided
-      // Ensures stored message reflects latest user intent
-      localStorage.removeItem(getCompactContinueMessageKey(workspaceId));
-    }
-  };
-
-  return { handleCompactStart };
 }

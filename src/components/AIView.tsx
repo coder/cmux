@@ -192,7 +192,6 @@ interface AIViewProps {
   projectName: string;
   branch: string;
   workspacePath: string;
-  onCompactStart?: (continueMessage: string | undefined) => void;
   className?: string;
 }
 
@@ -201,7 +200,6 @@ const AIViewInner: React.FC<AIViewProps> = ({
   projectName,
   branch,
   workspacePath,
-  onCompactStart,
   className,
 }) => {
   // NEW: Get workspace state from store (only re-renders when THIS workspace changes)
@@ -507,7 +505,6 @@ const AIViewInner: React.FC<AIViewProps> = ({
             onMessageSent={handleMessageSent}
             onTruncateHistory={handleClearHistory}
             onProviderConfig={handleProviderConfig}
-            onCompactStart={onCompactStart}
             disabled={!projectName || !branch}
             isCompacting={isCompacting}
             editingMessage={editingMessage}

@@ -197,7 +197,7 @@ function AppInner() {
   useResumeManager();
 
   // Handle auto-continue after compaction (when user uses /compact -c)
-  const { handleCompactStart } = useAutoCompactContinue();
+  useAutoCompactContinue();
 
   // Sync selectedWorkspace with URL hash
   useEffect(() => {
@@ -674,6 +674,45 @@ function AppInner() {
             }}
             onAdd={handleCreateWorkspace}
           />
+          <MainContent>
+            <ContentArea>
+              {selectedWorkspace ? (
+                <ErrorBoundary
+                  workspaceInfo={`${selectedWorkspace.projectName}/${selectedWorkspace.workspacePath.split("/").pop() ?? ""}`}
+                >
+                  <AIView
+                    key={selectedWorkspace.workspaceId}
+                    workspaceId={selectedWorkspace.workspaceId}
+                    projectName={selectedWorkspace.projectName}
+                    branch={selectedWorkspace.workspacePath.split("/").pop() ?? ""}
+                    workspacePath={selectedWorkspace.workspacePath}
+                  />
+                </ErrorBoundary>
+              ) : (
+                <WelcomeView>
+                  <h2>Welcome to Cmux</h2>
+                  <p>Select a workspace from the sidebar or add a new one to get started.</p>
+                </WelcomeView>
+              )}
+            </ContentArea>
+          </MainContent>
+          <CommandPalette
+            getSlashContext={() => ({
+              providerNames: [],
+              workspaceId: selectedWorkspace?.workspaceId,
+            })}
+          />
+          {workspaceModalOpen && workspaceModalProject && (
+            <NewWorkspaceModal
+              isOpen={workspaceModalOpen}
+              projectPath={workspaceModalProject}
+              onClose={() => {
+                setWorkspaceModalOpen(false);
+                setWorkspaceModalProject(null);
+              }}
+              onAdd={handleCreateWorkspace}
+            />
+          )}
         )}
       </AppContainer>
     </>

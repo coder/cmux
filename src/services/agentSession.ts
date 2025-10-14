@@ -233,6 +233,7 @@ export class AgentSession {
       {
         timestamp: Date.now(),
         toolPolicy: options?.toolPolicy,
+        cmuxMetadata: options?.cmuxMetadata, // Pass through frontend metadata as black-box
       },
       additionalParts
     );
