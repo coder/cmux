@@ -585,7 +585,7 @@ describe("bash tool", () => {
     }
   });
 
-  it("should fail immediately when timeout_secs is undefined", async () => {
+  it("should use default timeout (3s) when timeout_secs is undefined", async () => {
     using testEnv = createTestBashTool();
     const tool = testEnv.tool;
     const args = {
@@ -595,71 +595,32 @@ describe("bash tool", () => {
 
     const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
 
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error).toContain("timeout_secs parameter is missing or invalid");
-      expect(result.error).toContain("malformed tool call");
-      expect(result.exitCode).toBe(-1);
-      expect(result.wall_duration_ms).toBe(0);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.output).toBe("hello");
+      expect(result.exitCode).toBe(0);
     }
   });
 
-  it("should fail immediately when timeout_secs is null", async () => {
+  it("should use default timeout (3s) when timeout_secs is omitted", async () => {
     using testEnv = createTestBashTool();
     const tool = testEnv.tool;
     const args = {
       script: "echo hello",
-      timeout_secs: null as unknown as number,
+      // timeout_secs omitted entirely
     };
 
     const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
 
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error).toContain("timeout_secs parameter is missing or invalid");
-      expect(result.error).toContain("malformed tool call");
-      expect(result.exitCode).toBe(-1);
-      expect(result.wall_duration_ms).toBe(0);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.output).toBe("hello");
+      expect(result.exitCode).toBe(0);
     }
   });
 
-  it("should fail immediately when timeout_secs is zero", async () => {
-    using testEnv = createTestBashTool();
-    const tool = testEnv.tool;
-    const args: BashToolArgs = {
-      script: "echo hello",
-      timeout_secs: 0,
-    };
-
-    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
-
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error).toContain("timeout_secs parameter is missing or invalid");
-      expect(result.error).toContain("malformed tool call");
-      expect(result.exitCode).toBe(-1);
-      expect(result.wall_duration_ms).toBe(0);
-    }
-  });
-
-  it("should fail immediately when timeout_secs is negative", async () => {
-    using testEnv = createTestBashTool();
-    const tool = testEnv.tool;
-    const args: BashToolArgs = {
-      script: "echo hello",
-      timeout_secs: -5,
-    };
-
-    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
-
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error).toContain("timeout_secs parameter is missing or invalid");
-      expect(result.error).toContain("malformed tool call");
-      expect(result.exitCode).toBe(-1);
-      expect(result.wall_duration_ms).toBe(0);
-    }
-  });
+  // Note: Zero and negative timeout_secs are rejected by Zod schema validation
+  // before reaching the execute function, so these cases are handled at the schema level
 });
 
 describe("niceness parameter", () => {

@@ -513,7 +513,7 @@ export class AIService extends EventEmitter {
       const tempDir = this.streamManager.createTempDirForStream(streamToken);
 
       // Get model-specific tools with workspace path configuration and secrets
-      const allTools = await getToolsForModel(modelString, {
+      const allTools = getToolsForModel(modelString, {
         cwd: workspacePath,
         secrets: secretsToRecord(projectSecrets),
         niceness: 19,
