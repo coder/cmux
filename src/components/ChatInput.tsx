@@ -522,18 +522,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
   const handleSend = async () => {
     // Allow sending if there's text or images
-    if ((!input.trim() && imageAttachments.length === 0) || disabled || isSending) return;
-
-    if (isCompacting) {
-      // If compaction is in progress, we let the user edit the draft but not send.
-      // Surface an informational toast and keep focus in the input.
-      setToast({
-        id: Date.now().toString(),
-        type: "success",
-        title: "Message Queued",
-        message:
-          "Compaction is running. Your message is queued—keep editing and send when ready once compaction finishes.",
-      });
+    if ((!input.trim() && imageAttachments.length === 0) || disabled || isSending || isCompacting) {
       return;
     }
 
@@ -796,7 +785,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       return `Edit your message... (${formatKeybind(KEYBINDS.CANCEL)} to cancel edit, ${formatKeybind(KEYBINDS.SEND_MESSAGE)} to send)`;
     }
     if (isCompacting) {
-      return "Compacting conversation...";
+      return `Compacting... (${formatKeybind(KEYBINDS.INTERRUPT_STREAM)} to cancel)`;
     }
 
     // Build hints for normal input
@@ -832,7 +821,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           onPaste={handlePaste}
           suppressKeys={showCommandSuggestions ? COMMAND_SUGGESTION_KEYS : undefined}
           placeholder={placeholder}
-          disabled={disabled || isSending /* allow editing while compacting */}
+          disabled={disabled || isSending || isCompacting}
           aria-label={editingMessage ? "Edit your last message" : "Message Claude"}
           aria-autocomplete="list"
           aria-controls={
