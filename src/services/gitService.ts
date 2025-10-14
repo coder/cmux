@@ -77,6 +77,20 @@ export async function isWorktreeClean(workspacePath: string): Promise<boolean> {
   }
 }
 
+/**
+ * Check if a worktree contains submodules
+ * Returns true if .gitmodules file exists, false otherwise
+ */
+export async function hasSubmodules(workspacePath: string): Promise<boolean> {
+  try {
+    const gitmodulesPath = path.join(workspacePath, ".gitmodules");
+    await fsPromises.access(gitmodulesPath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function removeWorktree(
   projectPath: string,
   workspacePath: string,
@@ -189,7 +203,12 @@ export async function removeWorktreeSafe(
     .catch(() => false);
 
   if (stillExists) {
-    const gitResult = await removeWorktree(projectPath, workspacePath, { force: false });
+    // Check if worktree has submodules
+    // Git refuses to remove worktrees with submodules without --force
+    const containsSubmodules = await hasSubmodules(workspacePath);
+    const forceRequired = containsSubmodules;
+
+    const gitResult = await removeWorktree(projectPath, workspacePath, { force: forceRequired });
 
     if (!gitResult.success) {
       const errorMessage = gitResult.error ?? "Unknown error";

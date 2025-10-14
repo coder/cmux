@@ -2,7 +2,7 @@ import { describe, test, expect, beforeEach, afterEach } from "@jest/globals";
 import * as fs from "fs/promises";
 import * as path from "path";
 import { execSync } from "child_process";
-import { removeWorktreeSafe, isWorktreeClean, createWorktree } from "./gitService";
+import { removeWorktreeSafe, isWorktreeClean, createWorktree, hasSubmodules } from "./gitService";
 import type { Config } from "@/config";
 
 // Helper to create a test git repo
@@ -205,5 +205,43 @@ describe("isWorktreeClean", () => {
   test("should return false for non-existent path", async () => {
     const isClean = await isWorktreeClean("/non/existent/path");
     expect(isClean).toBe(false);
+  });
+});
+
+describe("hasSubmodules", () => {
+  let tempDir: string;
+
+  beforeEach(async () => {
+    tempDir = await fs.mkdtemp(path.join(__dirname, "..", "test-temp-"));
+  });
+
+  afterEach(async () => {
+    try {
+      await fs.rm(tempDir, { recursive: true, force: true });
+    } catch {
+      // Ignore cleanup errors
+    }
+  });
+
+  test("should return true when .gitmodules exists", async () => {
+    const testDir = path.join(tempDir, "with-submodule");
+    await fs.mkdir(testDir, { recursive: true });
+    await fs.writeFile(path.join(testDir, ".gitmodules"), '[submodule "test"]\n\tpath = test\n');
+
+    const result = await hasSubmodules(testDir);
+    expect(result).toBe(true);
+  });
+
+  test("should return false when .gitmodules does not exist", async () => {
+    const testDir = path.join(tempDir, "no-submodule");
+    await fs.mkdir(testDir, { recursive: true });
+
+    const result = await hasSubmodules(testDir);
+    expect(result).toBe(false);
+  });
+
+  test("should return false for non-existent path", async () => {
+    const result = await hasSubmodules("/non/existent/path");
+    expect(result).toBe(false);
   });
 });
