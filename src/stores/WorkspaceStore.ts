@@ -45,8 +45,9 @@ export interface WorkspaceSidebarState {
 
 /**
  * Derived state values stored in the derived MapStore.
+ * Currently only recency timestamps for workspace sorting.
  */
-type DerivedState = Map<string, WorkspaceState> | Record<string, number>;
+type DerivedState = Record<string, number>;
 
 /**
  * External store for workspace aggregators and streaming state.
@@ -80,7 +81,6 @@ export class WorkspaceStore {
 
     // Auto-invalidate derived state when any workspace changes
     this.states.subscribeAny(() => {
-      this.derived.bump("all-states");
       this.checkAndBumpRecencyIfChanged();
     });
   }
@@ -186,16 +186,15 @@ export class WorkspaceStore {
 
   /**
    * Get all workspace states as a Map.
-   * Derived on-demand from individual workspace states.
+   * Returns a new Map on each call - not cached/reactive.
+   * Used by imperative code, not for React subscriptions.
    */
   getAllStates(): Map<string, WorkspaceState> {
-    return this.derived.get("all-states", () => {
-      const allStates = new Map<string, WorkspaceState>();
-      for (const workspaceId of this.aggregators.keys()) {
-        allStates.set(workspaceId, this.getWorkspaceState(workspaceId));
-      }
-      return allStates;
-    }) as Map<string, WorkspaceState>;
+    const allStates = new Map<string, WorkspaceState>();
+    for (const workspaceId of this.aggregators.keys()) {
+      allStates.set(workspaceId, this.getWorkspaceState(workspaceId));
+    }
+    return allStates;
   }
 
   /**

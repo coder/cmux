@@ -185,8 +185,8 @@ function AppInner() {
     }
   }, [workspaceMetadata, gitStatusStore]);
 
-  // Track unread message status for all workspaces
-  const { unreadStatus, toggleUnread } = useUnreadTracking(selectedWorkspace);
+  // Track last-read timestamps for unread indicators
+  const { lastReadTimestamps, onToggleUnread } = useUnreadTracking(selectedWorkspace);
 
   // Auto-resume interrupted streams on app startup and when failures occur
   useResumeManager();
@@ -587,8 +587,8 @@ function AppInner() {
           onRemoveProject={(path) => void handleRemoveProject(path)}
           onRemoveWorkspace={removeWorkspace}
           onRenameWorkspace={renameWorkspace}
-          unreadStatus={unreadStatus}
-          onToggleUnread={toggleUnread}
+          lastReadTimestamps={lastReadTimestamps}
+          onToggleUnread={onToggleUnread}
           collapsed={sidebarCollapsed}
           onToggleCollapsed={() => setSidebarCollapsed((prev) => !prev)}
           onGetSecrets={handleGetSecrets}

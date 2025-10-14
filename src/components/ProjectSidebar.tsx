@@ -586,7 +586,7 @@ interface ProjectSidebarProps {
     workspaceId: string,
     newName: string
   ) => Promise<{ success: boolean; error?: string }>;
-  unreadStatus: Map<string, boolean>;
+  lastReadTimestamps: Record<string, number>;
   onToggleUnread: (workspaceId: string) => void;
   collapsed: boolean;
   onToggleCollapsed: () => void;
@@ -603,7 +603,7 @@ interface WorkspaceListItemProps {
   projectPath: string;
   projectName: string;
   isSelected: boolean;
-  isUnread: boolean;
+  lastReadTimestamp: number;
   isEditing: boolean;
   editingName: string;
   originalName: string;
@@ -623,7 +623,7 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
   projectPath,
   projectName,
   isSelected,
-  isUnread,
+  lastReadTimestamp,
   isEditing,
   editingName,
   renameError,
@@ -642,6 +642,12 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
   const displayName = getWorkspaceDisplayName(workspace.path);
   const isStreaming = sidebarState.canInterrupt;
   const streamingModel = sidebarState.currentModel;
+
+  // Compute unread status locally based on recency vs last read timestamp
+  // Note: We don't check !isSelected here because user should be able to see
+  // and toggle unread status even for the selected workspace
+  const isUnread =
+    sidebarState.recencyTimestamp !== null && sidebarState.recencyTimestamp > lastReadTimestamp;
 
   return (
     <React.Fragment>
@@ -752,7 +758,7 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
   onRemoveProject,
   onRemoveWorkspace,
   onRenameWorkspace,
-  unreadStatus,
+  lastReadTimestamps,
   onToggleUnread: _onToggleUnread,
   collapsed,
   onToggleCollapsed,
@@ -1125,7 +1131,6 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                               if (!metadata) return null;
 
                               const workspaceId = metadata.id;
-                              const isUnread = unreadStatus.get(workspaceId) ?? false;
                               const isEditing = editingWorkspaceId === workspaceId;
                               const isSelected =
                                 selectedWorkspace?.workspacePath === workspace.path;
@@ -1139,7 +1144,7 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                                   projectPath={projectPath}
                                   projectName={projectName}
                                   isSelected={isSelected}
-                                  isUnread={isUnread}
+                                  lastReadTimestamp={lastReadTimestamps[metadata.id] ?? 0}
                                   isEditing={isEditing}
                                   editingName={editingName}
                                   originalName={originalName}

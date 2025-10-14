@@ -1,46 +1,32 @@
-import { useEffect, useCallback, useRef, useSyncExternalStore } from "react";
+import { useEffect, useCallback } from "react";
 import type { WorkspaceSelection } from "@/components/ProjectSidebar";
-import { useWorkspaceStoreRaw } from "@/stores/WorkspaceStore";
 import { usePersistedState } from "./usePersistedState";
-import { useStableReference, compareMaps } from "./useStableReference";
 
 /**
- * Hook to track unread message status for all workspaces.
+ * Track last-read timestamps for workspaces.
+ * Individual WorkspaceListItem components compute their own unread state
+ * by comparing their recency timestamp with the last-read timestamp.
  *
- * Automatically marks workspaces as read when:
- * - User switches to a workspace
- * - A stream completes in the currently selected workspace
- *
- * Also supports manual toggling via the returned toggle function.
- *
- * @returns {Object} Object containing:
- *   - unreadStatus: Map<workspaceId, boolean> indicating unread state
- *   - toggleUnread: Function to manually toggle unread state for a workspace
+ * This hook only manages the timestamps, not the unread computation.
  */
 export function useUnreadTracking(selectedWorkspace: WorkspaceSelection | null) {
-  // Get workspace states from store (subscribe to all changes)
-  const store = useWorkspaceStoreRaw();
-  const workspaceStates = useSyncExternalStore(store.subscribe, () => store.getAllStates());
   // Store all last-read timestamps in a single Record
   // Format: { [workspaceId]: timestamp }
-  const [lastReadMap, setLastReadMap] = usePersistedState<Record<string, number>>(
+  const [lastReadTimestamps, setLastReadTimestamps] = usePersistedState<Record<string, number>>(
     "workspaceLastRead",
     {},
     { listener: true } // Enable cross-component/tab sync
   );
 
-  // Track previous streaming state to detect when stream completes
-  const prevStreamingRef = useRef<Map<string, boolean>>(new Map());
-
   // Mark workspace as read by storing current timestamp
   const markAsRead = useCallback(
     (workspaceId: string) => {
-      setLastReadMap((prev) => ({
+      setLastReadTimestamps((prev) => ({
         ...prev,
         [workspaceId]: Date.now(),
       }));
     },
-    [setLastReadMap]
+    [setLastReadTimestamps]
   );
 
   // Mark workspace as read when user switches to it
@@ -51,88 +37,27 @@ export function useUnreadTracking(selectedWorkspace: WorkspaceSelection | null) 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedWorkspace?.workspaceId, markAsRead]);
 
-  // Mark workspace as read when stream completes in the selected workspace
-  useEffect(() => {
-    if (!selectedWorkspace) return;
-
-    const workspaceId = selectedWorkspace.workspaceId;
-    const state = workspaceStates.get(workspaceId);
-
-    if (state) {
-      const wasStreaming = prevStreamingRef.current.get(workspaceId) ?? false;
-      const isStreaming = state.canInterrupt;
-
-      // Only mark as read when transitioning from streaming→idle
-      if (wasStreaming && !isStreaming && state.messages.length > 0) {
-        markAsRead(workspaceId);
-      }
-
-      // Update tracking state
-      prevStreamingRef.current.set(workspaceId, isStreaming);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedWorkspace?.workspaceId, workspaceStates, markAsRead]);
-
-  // Calculate unread status for all workspaces
-  // Use stable reference to prevent unnecessary re-renders when values haven't changed
-  const unreadStatus = useStableReference(
-    () => {
-      const map = new Map<string, boolean>();
-
-      for (const [workspaceId, state] of workspaceStates) {
-        // Streaming workspaces are never unread
-        if (state.canInterrupt) {
-          map.set(workspaceId, false);
-          continue;
-        }
-
-        // Check for any assistant-originated content newer than last-read timestamp:
-        // assistant text, tool calls/results (e.g., propose_plan), reasoning, and errors.
-        // Exclude user's own messages and UI markers.
-        const lastRead = lastReadMap[workspaceId] ?? 0;
-        const hasUnread = state.messages.some(
-          (msg) =>
-            msg.type !== "user" && msg.type !== "history-hidden" && (msg.timestamp ?? 0) > lastRead
-        );
-
-        map.set(workspaceId, hasUnread);
-      }
-
-      return map;
-    },
-    compareMaps,
-    [workspaceStates, lastReadMap]
-  );
-
   // Manual toggle function for clicking the indicator
-  const toggleUnread = useCallback(
+  const onToggleUnread = useCallback(
     (workspaceId: string) => {
-      const lastRead = lastReadMap[workspaceId] ?? 0;
-      const state = workspaceStates.get(workspaceId);
+      const lastRead = lastReadTimestamps[workspaceId] ?? 0;
 
-      // Calculate if currently unread (same logic as unreadStatus)
-      const isCurrentlyUnread =
-        state?.messages.some(
-          (msg) =>
-            msg.type !== "user" && msg.type !== "history-hidden" && (msg.timestamp ?? 0) > lastRead
-        ) ?? false;
-
-      if (isCurrentlyUnread) {
-        // Mark as read
-        markAsRead(workspaceId);
-      } else {
+      if (lastRead > 0) {
         // Mark as unread by setting timestamp to 0 (older than any message)
-        setLastReadMap((prev) => ({
+        setLastReadTimestamps((prev) => ({
           ...prev,
           [workspaceId]: 0,
         }));
+      } else {
+        // Mark as read
+        markAsRead(workspaceId);
       }
     },
-    [lastReadMap, workspaceStates, markAsRead, setLastReadMap]
+    [lastReadTimestamps, markAsRead, setLastReadTimestamps]
   );
 
   return {
-    unreadStatus,
-    toggleUnread,
+    lastReadTimestamps,
+    onToggleUnread,
   };
 }

@@ -1,7 +1,8 @@
 import { useRef, useEffect, useSyncExternalStore } from "react";
-import { useWorkspaceStoreRaw } from "@/stores/WorkspaceStore";
+import { useWorkspaceStoreRaw, type WorkspaceState } from "@/stores/WorkspaceStore";
 import { getCompactContinueMessageKey } from "@/constants/storage";
 import { buildSendMessageOptions } from "@/hooks/useSendMessageOptions";
+import { compareMaps } from "./useStableReference";
 
 /**
  * Hook to manage auto-continue after compaction
@@ -20,7 +21,20 @@ import { buildSendMessageOptions } from "@/hooks/useSendMessageOptions";
 export function useAutoCompactContinue() {
   // Get workspace states from store (subscribe to all changes)
   const store = useWorkspaceStoreRaw();
-  const workspaceStates = useSyncExternalStore(store.subscribe, () => store.getAllStates());
+
+  // Cache the Map to avoid infinite re-renders (getAllStates returns new Map each time)
+  const cachedStatesRef = useRef<Map<string, WorkspaceState>>(new Map());
+  const getSnapshot = (): Map<string, WorkspaceState> => {
+    const newStates = store.getAllStates();
+    // Only return new reference if something actually changed (compare by reference)
+    if (compareMaps(cachedStatesRef.current, newStates)) {
+      return cachedStatesRef.current;
+    }
+    cachedStatesRef.current = newStates;
+    return newStates;
+  };
+
+  const workspaceStates = useSyncExternalStore(store.subscribe, getSnapshot);
 
   // Prevent duplicate auto-sends if effect runs more than once while the same
   // compacted summary is visible (e.g., rapid state updates after replaceHistory)
