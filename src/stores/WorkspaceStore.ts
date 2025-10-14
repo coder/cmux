@@ -31,6 +31,17 @@ export interface WorkspaceState {
   recencyTimestamp: number | null;
 }
 
+
+/**
+ * Subset of WorkspaceState needed for sidebar display.
+ * Subscribing to only these fields prevents re-renders when messages update.
+ */
+export interface WorkspaceSidebarState {
+  canInterrupt: boolean;
+  currentModel: string;
+  recencyTimestamp: number | null;
+}
+
 /**
  * External store for workspace aggregators and streaming state.
  *
@@ -542,6 +553,23 @@ export function useWorkspaceStoreRaw(): WorkspaceStore {
  */
 export function useWorkspaceRecency(): Record<string, number> {
   return useWorkspaceStoreZustand((state) => state.store.getWorkspaceRecency());
+}
+
+/**
+
+/**
+ * Hook to get sidebar-specific state for a workspace.
+ * Only re-renders when sidebar-relevant fields change (not on every message).
+ */
+export function useWorkspaceSidebarState(workspaceId: string): WorkspaceSidebarState {
+  return useWorkspaceStoreZustand((state) => {
+    const fullState = state.store.getWorkspaceState(workspaceId);
+    return {
+      canInterrupt: fullState.canInterrupt,
+      currentModel: fullState.currentModel,
+      recencyTimestamp: fullState.recencyTimestamp,
+    };
+  });
 }
 
 /**

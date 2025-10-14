@@ -18,7 +18,7 @@ import { StatusIndicator } from "./StatusIndicator";
 // Removed: import { getModelName } from "@/utils/ai/models";
 import { GitStatusIndicator } from "./GitStatusIndicator";
 import { ModelDisplay } from "./Messages/ModelDisplay";
-import { useWorkspaceState } from "@/stores/WorkspaceStore";
+import { useWorkspaceSidebarState } from "@/stores/WorkspaceStore";
 import SecretsModal from "./SecretsModal";
 import type { Secret } from "@/types/secrets";
 import { ForceDeleteModal } from "./ForceDeleteModal";
@@ -637,13 +637,13 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
   handleRenameKeyDown,
   _onToggleUnread,
 }) => {
-  // Subscribe to this specific workspace's state
-  const workspaceState = useWorkspaceState(workspaceId);
+  // Subscribe to this specific workspace's sidebar state (streaming status, model, recency)
+  const sidebarState = useWorkspaceSidebarState(workspaceId);
   const gitStatus = useGitStatus(workspaceId);
   
   const displayName = getWorkspaceDisplayName(workspace.path);
-  const isStreaming = workspaceState?.canInterrupt ?? false;
-  const streamingModel = workspaceState?.currentModel ?? "claude-sonnet-4-5";
+  const isStreaming = sidebarState.canInterrupt;
+  const streamingModel = sidebarState.currentModel;
 
   return (
     <React.Fragment>
@@ -733,8 +733,8 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
               "Assistant is responding"
             ) : isUnread ? (
               "Unread messages"
-            ) : workspaceState?.recencyTimestamp ? (
-              `Idle • Last used ${formatRelativeTime(workspaceState.recencyTimestamp)}`
+            ) : sidebarState.recencyTimestamp ? (
+              `Idle • Last used ${formatRelativeTime(sidebarState.recencyTimestamp)}`
             ) : (
               "Idle"
             )
