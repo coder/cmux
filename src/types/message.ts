@@ -8,7 +8,7 @@ import type { ToolPolicy } from "@/utils/tools/toolPolicy";
 export type CmuxFrontendMetadata =
   | {
       type: "compaction-request";
-      command: string; // The original /compact command for display
+      rawCommand: string; // The original /compact command as typed by user (for display)
       parsed: {
         maxOutputTokens?: number;
         continueMessage?: string;
@@ -89,7 +89,7 @@ export type DisplayedMessage =
       timestamp?: number;
       compactionRequest?: {
         // Present if this is a /compact command
-        command: string;
+        rawCommand: string;
         parsed: {
           maxOutputTokens?: number;
           continueMessage?: string;

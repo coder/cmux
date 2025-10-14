@@ -73,7 +73,7 @@ export function useAutoCompactContinue() {
             .map((p) => p.text)
             .join("");
 
-          if (currentContent !== cmuxMeta.command) {
+          if (currentContent !== cmuxMeta.rawCommand) {
             // Message was edited - re-parse
             const parsed = parseCommand(currentContent);
             continueMessage = parsed?.type === "compact" ? parsed.continueMessage : undefined;

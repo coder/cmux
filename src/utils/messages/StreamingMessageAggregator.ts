@@ -38,21 +38,16 @@ export class StreamingMessageAggregator {
   private activeStreams = new Map<string, StreamingContext>();
   private streamSequenceCounter = 0; // For ordering parts within a streaming message
 
-  // Cache for getAllMessages() to maintain stable array references
-  private cachedMessages: CmuxMessage[] | null = null;
-
-  // Cache for getDisplayedMessages() to maintain stable array references  
+  // Simple cache for derived values (invalidated on every mutation)
+  private cachedAllMessages: CmuxMessage[] | null = null;
   private cachedDisplayedMessages: DisplayedMessage[] | null = null;
-
-  // Recency timestamp for workspace sorting
   private recencyTimestamp: number | null = null;
 
   // Delta history for token counting and TPS calculation
   private deltaHistory = new Map<string, DeltaRecordStorage>();
 
-  // Invalidate cache on any mutation
   private invalidateCache(): void {
-    this.cachedMessages = null;
+    this.cachedAllMessages = null;
     this.cachedDisplayedMessages = null;
     this.updateRecency();
   }
@@ -92,14 +87,10 @@ export class StreamingMessageAggregator {
   }
 
   getAllMessages(): CmuxMessage[] {
-    if (this.cachedMessages) {
-      return this.cachedMessages;
-    }
-
-    this.cachedMessages = Array.from(this.messages.values()).sort(
+    this.cachedAllMessages ??= Array.from(this.messages.values()).sort(
       (a, b) => (a.metadata?.historySequence ?? 0) - (b.metadata?.historySequence ?? 0)
     );
-    return this.cachedMessages;
+    return this.cachedAllMessages;
   }
 
   // Efficient methods to check message state without creating arrays
@@ -466,193 +457,193 @@ export class StreamingMessageAggregator {
       const displayedMessages: DisplayedMessage[] = [];
 
       for (const message of this.getAllMessages()) {
-      const baseTimestamp = message.metadata?.timestamp;
-      // Get historySequence from backend (required field)
-      const historySequence = message.metadata?.historySequence ?? 0;
+        const baseTimestamp = message.metadata?.timestamp;
+        // Get historySequence from backend (required field)
+        const historySequence = message.metadata?.historySequence ?? 0;
 
-      if (message.role === "user") {
-        // User messages: combine all text parts into single block, extract images
-        const content = message.parts
-          .filter((p) => p.type === "text")
-          .map((p) => p.text)
-          .join("");
+        if (message.role === "user") {
+          // User messages: combine all text parts into single block, extract images
+          const content = message.parts
+            .filter((p) => p.type === "text")
+            .map((p) => p.text)
+            .join("");
 
-        const imageParts = message.parts
-          .filter((p) => p.type === "image")
-          .map((p) => ({
-            image: typeof p.image === "string" ? p.image : "",
-            mimeType: p.mimeType,
-          }));
+          const imageParts = message.parts
+            .filter((p) => p.type === "image")
+            .map((p) => ({
+              image: typeof p.image === "string" ? p.image : "",
+              mimeType: p.mimeType,
+            }));
 
-        // Check if this is a compaction request message
-        const cmuxMeta = message.metadata?.cmuxMetadata;
-        const compactionRequest =
-          cmuxMeta?.type === "compaction-request"
-            ? {
-                command: cmuxMeta.command,
-                parsed: cmuxMeta.parsed,
-              }
-            : undefined;
+          // Check if this is a compaction request message
+          const cmuxMeta = message.metadata?.cmuxMetadata;
+          const compactionRequest =
+            cmuxMeta?.type === "compaction-request"
+              ? {
+                  rawCommand: cmuxMeta.rawCommand,
+                  parsed: cmuxMeta.parsed,
+                }
+              : undefined;
 
-        displayedMessages.push({
-          type: "user",
-          id: message.id,
-          historyId: message.id,
-          content: compactionRequest ? compactionRequest.command : content, // Show command for compaction requests
-          imageParts: imageParts.length > 0 ? imageParts : undefined,
-          historySequence,
-          timestamp: baseTimestamp,
-          compactionRequest,
-        });
-      } else if (message.role === "assistant") {
-        // Assistant messages: each part becomes a separate DisplayedMessage
-        // Use streamSequence to order parts within this message
-        let streamSeq = 0;
-
-        // Check if this message has an active stream (for inferring streaming status)
-        // Direct Map.has() check - O(1) instead of O(n) iteration
-        const hasActiveStream = this.activeStreams.has(message.id);
-
-        // Merge adjacent parts of same type (text with text, reasoning with reasoning)
-        // This is where all merging happens - streaming just appends raw deltas
-        const mergedParts: typeof message.parts = [];
-        for (const part of message.parts) {
-          const lastMerged = mergedParts[mergedParts.length - 1];
-
-          // Try to merge with last part if same type
-          if (lastMerged?.type === "text" && part.type === "text") {
-            // Merge text parts
-            mergedParts[mergedParts.length - 1] = {
-              type: "text",
-              text: lastMerged.text + part.text,
-            };
-          } else if (lastMerged?.type === "reasoning" && part.type === "reasoning") {
-            // Merge reasoning parts
-            mergedParts[mergedParts.length - 1] = {
-              type: "reasoning",
-              text: lastMerged.text + part.text,
-            };
-          } else {
-            // Different type or tool part - add new part
-            mergedParts.push(part);
-          }
-        }
-
-        // Find the last part that will produce a DisplayedMessage
-        // (reasoning, text parts with content, OR tool parts)
-        let lastPartIndex = -1;
-        for (let i = mergedParts.length - 1; i >= 0; i--) {
-          const part = mergedParts[i];
-          if (
-            part.type === "reasoning" ||
-            (part.type === "text" && part.text) ||
-            isDynamicToolPart(part)
-          ) {
-            lastPartIndex = i;
-            break;
-          }
-        }
-
-        mergedParts.forEach((part, partIndex) => {
-          const isLastPart = partIndex === lastPartIndex;
-          // Part is streaming if: active stream exists AND this is the last part
-          const isStreaming = hasActiveStream && isLastPart;
-
-          if (part.type === "reasoning") {
-            // Reasoning part - shows thinking/reasoning content
-            displayedMessages.push({
-              type: "reasoning",
-              id: `${message.id}-${partIndex}`,
-              historyId: message.id,
-              content: part.text,
-              historySequence,
-              streamSequence: streamSeq++,
-              isStreaming,
-              isPartial: message.metadata?.partial ?? false,
-              isLastPartOfMessage: isLastPart,
-              timestamp: baseTimestamp,
-            });
-          } else if (part.type === "text" && part.text) {
-            // Skip empty text parts
-            displayedMessages.push({
-              type: "assistant",
-              id: `${message.id}-${partIndex}`,
-              historyId: message.id,
-              content: part.text,
-              historySequence,
-              streamSequence: streamSeq++,
-              isStreaming,
-              isPartial: message.metadata?.partial ?? false,
-              isLastPartOfMessage: isLastPart,
-              isCompacted: message.metadata?.compacted ?? false,
-              model: message.metadata?.model,
-              timestamp: baseTimestamp,
-            });
-          } else if (isDynamicToolPart(part)) {
-            const status =
-              part.state === "output-available"
-                ? "completed"
-                : part.state === "input-available" && message.metadata?.partial
-                  ? "interrupted"
-                  : part.state === "input-available"
-                    ? "executing"
-                    : "pending";
-
-            displayedMessages.push({
-              type: "tool",
-              id: `${message.id}-${partIndex}`,
-              historyId: message.id,
-              toolCallId: part.toolCallId,
-              toolName: part.toolName,
-              args: part.input,
-              result: part.state === "output-available" ? part.output : undefined,
-              status,
-              isPartial: message.metadata?.partial ?? false,
-              historySequence,
-              streamSequence: streamSeq++,
-              isLastPartOfMessage: isLastPart,
-              timestamp: part.timestamp ?? baseTimestamp,
-            });
-          }
-        });
-
-        // Create stream-error DisplayedMessage if message has error metadata
-        // This happens after all parts are displayed, so error appears at the end
-        if (message.metadata?.error) {
           displayedMessages.push({
-            type: "stream-error",
-            id: `${message.id}-error`,
+            type: "user",
+            id: message.id,
             historyId: message.id,
-            error: message.metadata.error,
-            errorType: message.metadata.errorType ?? "unknown",
+            content: compactionRequest ? compactionRequest.rawCommand : content,
+            imageParts: imageParts.length > 0 ? imageParts : undefined,
             historySequence,
-            model: message.metadata.model,
             timestamp: baseTimestamp,
+            compactionRequest,
           });
+        } else if (message.role === "assistant") {
+          // Assistant messages: each part becomes a separate DisplayedMessage
+          // Use streamSequence to order parts within this message
+          let streamSeq = 0;
+
+          // Check if this message has an active stream (for inferring streaming status)
+          // Direct Map.has() check - O(1) instead of O(n) iteration
+          const hasActiveStream = this.activeStreams.has(message.id);
+
+          // Merge adjacent parts of same type (text with text, reasoning with reasoning)
+          // This is where all merging happens - streaming just appends raw deltas
+          const mergedParts: typeof message.parts = [];
+          for (const part of message.parts) {
+            const lastMerged = mergedParts[mergedParts.length - 1];
+
+            // Try to merge with last part if same type
+            if (lastMerged?.type === "text" && part.type === "text") {
+              // Merge text parts
+              mergedParts[mergedParts.length - 1] = {
+                type: "text",
+                text: lastMerged.text + part.text,
+              };
+            } else if (lastMerged?.type === "reasoning" && part.type === "reasoning") {
+              // Merge reasoning parts
+              mergedParts[mergedParts.length - 1] = {
+                type: "reasoning",
+                text: lastMerged.text + part.text,
+              };
+            } else {
+              // Different type or tool part - add new part
+              mergedParts.push(part);
+            }
+          }
+
+          // Find the last part that will produce a DisplayedMessage
+          // (reasoning, text parts with content, OR tool parts)
+          let lastPartIndex = -1;
+          for (let i = mergedParts.length - 1; i >= 0; i--) {
+            const part = mergedParts[i];
+            if (
+              part.type === "reasoning" ||
+              (part.type === "text" && part.text) ||
+              isDynamicToolPart(part)
+            ) {
+              lastPartIndex = i;
+              break;
+            }
+          }
+
+          mergedParts.forEach((part, partIndex) => {
+            const isLastPart = partIndex === lastPartIndex;
+            // Part is streaming if: active stream exists AND this is the last part
+            const isStreaming = hasActiveStream && isLastPart;
+
+            if (part.type === "reasoning") {
+              // Reasoning part - shows thinking/reasoning content
+              displayedMessages.push({
+                type: "reasoning",
+                id: `${message.id}-${partIndex}`,
+                historyId: message.id,
+                content: part.text,
+                historySequence,
+                streamSequence: streamSeq++,
+                isStreaming,
+                isPartial: message.metadata?.partial ?? false,
+                isLastPartOfMessage: isLastPart,
+                timestamp: baseTimestamp,
+              });
+            } else if (part.type === "text" && part.text) {
+              // Skip empty text parts
+              displayedMessages.push({
+                type: "assistant",
+                id: `${message.id}-${partIndex}`,
+                historyId: message.id,
+                content: part.text,
+                historySequence,
+                streamSequence: streamSeq++,
+                isStreaming,
+                isPartial: message.metadata?.partial ?? false,
+                isLastPartOfMessage: isLastPart,
+                isCompacted: message.metadata?.compacted ?? false,
+                model: message.metadata?.model,
+                timestamp: baseTimestamp,
+              });
+            } else if (isDynamicToolPart(part)) {
+              const status =
+                part.state === "output-available"
+                  ? "completed"
+                  : part.state === "input-available" && message.metadata?.partial
+                    ? "interrupted"
+                    : part.state === "input-available"
+                      ? "executing"
+                      : "pending";
+
+              displayedMessages.push({
+                type: "tool",
+                id: `${message.id}-${partIndex}`,
+                historyId: message.id,
+                toolCallId: part.toolCallId,
+                toolName: part.toolName,
+                args: part.input,
+                result: part.state === "output-available" ? part.output : undefined,
+                status,
+                isPartial: message.metadata?.partial ?? false,
+                historySequence,
+                streamSequence: streamSeq++,
+                isLastPartOfMessage: isLastPart,
+                timestamp: part.timestamp ?? baseTimestamp,
+              });
+            }
+          });
+
+          // Create stream-error DisplayedMessage if message has error metadata
+          // This happens after all parts are displayed, so error appears at the end
+          if (message.metadata?.error) {
+            displayedMessages.push({
+              type: "stream-error",
+              id: `${message.id}-error`,
+              historyId: message.id,
+              error: message.metadata.error,
+              errorType: message.metadata.errorType ?? "unknown",
+              historySequence,
+              model: message.metadata.model,
+              timestamp: baseTimestamp,
+            });
+          }
         }
       }
-    }
 
-    // Limit to last N messages for DOM performance
-    // Full history is still maintained internally for token counting
-    if (displayedMessages.length > MAX_DISPLAYED_MESSAGES) {
-      const hiddenCount = displayedMessages.length - MAX_DISPLAYED_MESSAGES;
-      const slicedMessages = displayedMessages.slice(-MAX_DISPLAYED_MESSAGES);
+      // Limit to last N messages for DOM performance
+      // Full history is still maintained internally for token counting
+      if (displayedMessages.length > MAX_DISPLAYED_MESSAGES) {
+        const hiddenCount = displayedMessages.length - MAX_DISPLAYED_MESSAGES;
+        const slicedMessages = displayedMessages.slice(-MAX_DISPLAYED_MESSAGES);
 
-      // Add history-hidden indicator as the first message
-      const historyHiddenMessage: DisplayedMessage = {
-        type: "history-hidden",
-        id: "history-hidden",
-        hiddenCount,
-        historySequence: -1, // Place it before all messages
-      };
+        // Add history-hidden indicator as the first message
+        const historyHiddenMessage: DisplayedMessage = {
+          type: "history-hidden",
+          id: "history-hidden",
+          hiddenCount,
+          historySequence: -1, // Place it before all messages
+        };
 
-      return [historyHiddenMessage, ...slicedMessages];
-    }
+        return [historyHiddenMessage, ...slicedMessages];
+      }
 
+      // Return the full array
       this.cachedDisplayedMessages = displayedMessages;
     }
-
     return this.cachedDisplayedMessages;
   }
 

@@ -307,7 +307,7 @@ function prepareCompactionMessage(
 
   const metadata: CmuxFrontendMetadata = {
     type: "compaction-request",
-    command,
+    rawCommand: command,
     parsed: {
       maxOutputTokens: parsed.maxOutputTokens,
       continueMessage: parsed.continueMessage,

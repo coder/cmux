@@ -1387,7 +1387,7 @@ These are general instructions that apply to all modes.
         // Create structured metadata
         const testMetadata = {
           type: "compaction-request" as const,
-          command: "/compact -c continue working",
+          rawCommand: "/compact -c continue working",
           parsed: {
             maxOutputTokens: 5000,
             continueMessage: "continue working",
@@ -1434,7 +1434,7 @@ These are general instructions that apply to all modes.
 
         // Verify structured fields are accessible
         expect(metadata.cmuxMetadata.type).toBe("compaction-request");
-        expect(metadata.cmuxMetadata.command).toBe("/compact -c continue working");
+        expect(metadata.cmuxMetadata.rawCommand).toBe("/compact -c continue working");
         expect(metadata.cmuxMetadata.parsed.continueMessage).toBe("continue working");
         expect(metadata.cmuxMetadata.parsed.maxOutputTokens).toBe(5000);
       } finally {
