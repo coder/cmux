@@ -1,11 +1,10 @@
-import { useEffect, useRef, useSyncExternalStore } from "react";
+import { useEffect, useRef } from "react";
 import { useWorkspaceStoreRaw, type WorkspaceState } from "@/stores/WorkspaceStore";
 import { CUSTOM_EVENTS } from "@/constants/events";
 import { getAutoRetryKey, getRetryStateKey } from "@/constants/storage";
 import { getSendOptionsFromStorage } from "@/utils/messages/sendOptions";
 import { readPersistedState } from "./usePersistedState";
 import { hasInterruptedStream } from "@/utils/messages/retryEligibility";
-import { compareMaps } from "./useStableReference";
 
 interface RetryState {
   attempt: number;
@@ -55,26 +54,29 @@ const MAX_DELAY = 60000; // 60 seconds
  * - Manual retry button (event from RetryBarrier)
  */
 export function useResumeManager() {
-  // Get workspace states from store (subscribe to all changes)
+  // Get workspace states from store
+  // NOTE: We use a ref-based approach instead of useSyncExternalStore to avoid
+  // re-rendering AppInner on every workspace state change. This hook only needs
+  // to check eligibility periodically (polling) and on events.
   const store = useWorkspaceStoreRaw();
+  const workspaceStatesRef = useRef<Map<string, WorkspaceState>>(new Map());
 
-  // Cache the Map to avoid infinite re-renders (getAllStates returns new Map each time)
-  const cachedStatesRef = useRef<Map<string, WorkspaceState>>(new Map());
-  const getSnapshot = (): Map<string, WorkspaceState> => {
-    const newStates = store.getAllStates();
-    // Only return new reference if something actually changed (compare by reference)
-    if (compareMaps(cachedStatesRef.current, newStates)) {
-      return cachedStatesRef.current;
-    }
-    cachedStatesRef.current = newStates;
-    return newStates;
+  // Update ref whenever store changes (but don't trigger re-render)
+  const updateStatesRef = () => {
+    workspaceStatesRef.current = store.getAllStates();
   };
-
-  const workspaceStates = useSyncExternalStore(store.subscribe, getSnapshot);
-
-  // Use ref to avoid effect re-running on every state change
-  const workspaceStatesRef = useRef(workspaceStates);
-  workspaceStatesRef.current = workspaceStates;
+  
+  useEffect(() => {
+    // Initial load
+    updateStatesRef();
+    
+    // Subscribe to keep ref fresh, but don't cause re-renders
+    const unsubscribe = store.subscribe(() => {
+      updateStatesRef();
+    });
+    
+    return unsubscribe;
+  }, [store]);
 
   // Track which workspaces are currently retrying (prevent concurrent retries)
   const retryingRef = useRef<Set<string>>(new Set());
