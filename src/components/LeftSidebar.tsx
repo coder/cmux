@@ -3,7 +3,6 @@ import styled from "@emotion/styled";
 import type { ProjectConfig } from "@/config";
 import type { WorkspaceMetadata } from "@/types/workspace";
 import type { WorkspaceSelection } from "./ProjectSidebar";
-import type { WorkspaceState } from "@/hooks/useWorkspaceAggregators";
 import type { Secret } from "@/types/secrets";
 import ProjectSidebar from "./ProjectSidebar";
 import { TitleBar } from "./TitleBar";
@@ -36,7 +35,6 @@ interface LeftSidebarProps {
     workspaceId: string,
     newName: string
   ) => Promise<{ success: boolean; error?: string }>;
-  getWorkspaceState: (workspaceId: string) => WorkspaceState;
   unreadStatus: Map<string, boolean>;
   onToggleUnread: (workspaceId: string) => void;
   collapsed: boolean;

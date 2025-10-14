@@ -14,13 +14,17 @@ import { usePersistedState, updatePersistedState } from "./hooks/usePersistedSta
 import { matchesKeybind, KEYBINDS } from "./utils/ui/keybinds";
 import { useProjectManagement } from "./hooks/useProjectManagement";
 import { useWorkspaceManagement } from "./hooks/useWorkspaceManagement";
-import { useWorkspaceAggregators } from "./hooks/useWorkspaceAggregators";
 import { useResumeManager } from "./hooks/useResumeManager";
 import { useUnreadTracking } from "./hooks/useUnreadTracking";
 import { useAutoCompactContinue } from "./hooks/useAutoCompactContinue";
 import { useModelLRU } from "./hooks/useModelLRU";
 import { WorkspaceStore } from "./stores/WorkspaceStore";
-import { WorkspaceStoreProvider, useWorkspaceStoreRaw } from "./hooks/useWorkspaceStore";
+import {
+  WorkspaceStoreProvider,
+  useWorkspaceStoreRaw,
+  useAllWorkspaceStates,
+  useWorkspaceRecency,
+} from "./hooks/useWorkspaceStore";
 
 import { CommandRegistryProvider, useCommandRegistry } from "./contexts/CommandRegistryContext";
 import type { CommandAction } from "./contexts/CommandRegistryContext";
@@ -170,33 +174,33 @@ function AppInner() {
       onSelectedWorkspaceUpdate: setSelectedWorkspace,
     });
 
-  // Use workspace aggregators hook for message state (OLD - will migrate away from this)
-  const { getWorkspaceState, getAggregator, workspaceStates, workspaceRecency } =
-    useWorkspaceAggregators(workspaceMetadata);
-
   // NEW: Sync workspace metadata with the store
-  // This will be the primary mechanism once migration is complete
   const workspaceStore = useWorkspaceStoreRaw();
   useEffect(() => {
     workspaceStore.syncWorkspaces(workspaceMetadata);
   }, [workspaceMetadata, workspaceStore]);
 
   // Track unread message status for all workspaces
-  const { unreadStatus, toggleUnread } = useUnreadTracking(selectedWorkspace, workspaceStates);
+  const { unreadStatus, toggleUnread } = useUnreadTracking(selectedWorkspace);
 
   // Auto-resume interrupted streams on app startup and when failures occur
-  useResumeManager(workspaceStates);
+  useResumeManager();
 
   // Handle auto-continue after compaction (when user uses /compact -c)
-  const { handleCompactStart } = useAutoCompactContinue(workspaceStates);
+  const { handleCompactStart } = useAutoCompactContinue();
 
-  const streamingModels = new Map<string, string>();
-  for (const metadata of workspaceMetadata.values()) {
-    const state = getWorkspaceState(metadata.id);
-    if (state.canInterrupt) {
-      streamingModels.set(metadata.id, state.currentModel);
+  // Build map of currently streaming models (for command palette display)
+  // NEW: Use store directly instead of old hook
+  const allWorkspaceStates = useAllWorkspaceStates();
+  const streamingModels = useMemo(() => {
+    const models = new Map<string, string>();
+    for (const [workspaceId, state] of allWorkspaceStates) {
+      if (state.canInterrupt) {
+        models.set(workspaceId, state.currentModel);
+      }
     }
-  }
+    return models;
+  }, [allWorkspaceStates]);
 
   // Sync selectedWorkspace with URL hash
   useEffect(() => {
@@ -296,6 +300,9 @@ function AppInner() {
     },
     []
   );
+
+  // NEW: Get workspace recency from store
+  const workspaceRecency = useWorkspaceRecency();
 
   // Sort workspaces by recency (most recent first)
   // This ensures navigation follows the visual order displayed in the sidebar
@@ -580,7 +587,6 @@ function AppInner() {
             onRemoveProject={(path) => void handleRemoveProject(path)}
             onRemoveWorkspace={removeWorkspace}
             onRenameWorkspace={renameWorkspace}
-            getWorkspaceState={getWorkspaceState}
             unreadStatus={unreadStatus}
             onToggleUnread={toggleUnread}
             collapsed={sidebarCollapsed}
