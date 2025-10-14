@@ -619,7 +619,7 @@ interface WorkspaceListItemProps {
   _onToggleUnread: (workspaceId: string) => void;
 }
 
-const WorkspaceListItem: React.FC<WorkspaceListItemProps> = ({
+const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
   workspace,
   workspaceId,
   projectPath,
@@ -748,6 +748,7 @@ const WorkspaceListItem: React.FC<WorkspaceListItemProps> = ({
   );
 };
 
+const WorkspaceListItem = React.memo(WorkspaceListItemInner);
 
 const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
   projects,
@@ -827,12 +828,12 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
     setExpandedProjects(newExpanded);
   };
 
-  const startRenaming = (workspaceId: string, currentName: string) => {
+  const startRenaming = useCallback((workspaceId: string, currentName: string) => {
     setEditingWorkspaceId(workspaceId);
     setEditingName(currentName);
     setOriginalName(currentName);
     setRenameError(null);
-  };
+  }, []);
 
   const cancelRenaming = () => {
     setEditingWorkspaceId(null);
@@ -841,7 +842,7 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
     setRenameError(null);
   };
 
-  const confirmRename = async (workspaceId: string) => {
+  const confirmRename = useCallback(async (workspaceId: string) => {
     const trimmedName = editingName.trim();
     if (trimmedName && trimmedName !== "") {
       // Short-circuit if name hasn't changed
@@ -858,9 +859,9 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
         setRenameError(result.error ?? "Failed to rename workspace");
       }
     }
-  };
+  }, [editingName, originalName, onRenameWorkspace]);
 
-  const handleRenameKeyDown = (e: React.KeyboardEvent, workspaceId: string) => {
+  const handleRenameKeyDown = useCallback((e: React.KeyboardEvent, workspaceId: string) => {
     if (e.key === "Enter") {
       e.preventDefault();
       void confirmRename(workspaceId);
@@ -868,7 +869,7 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
       e.preventDefault();
       cancelRenaming();
     }
-  };
+  }, [confirmRename]);
 
   const showRemoveError = useCallback(
     (workspaceId: string, error: string, anchor?: { top: number; left: number }) => {
@@ -903,7 +904,7 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
     };
   }, []);
 
-  const handleRemoveWorkspace = async (workspaceId: string, buttonElement: HTMLElement) => {
+  const handleRemoveWorkspace = useCallback(async (workspaceId: string, buttonElement: HTMLElement) => {
     const result = await onRemoveWorkspace(workspaceId);
     if (!result.success) {
       const error = result.error ?? "Failed to remove workspace";
@@ -922,7 +923,7 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
         anchor,
       });
     }
-  };
+  }, [onRemoveWorkspace, showRemoveError]);
 
   const handleOpenSecrets = async (projectPath: string) => {
     const secrets = await onGetSecrets(projectPath);
