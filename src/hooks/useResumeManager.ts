@@ -1,10 +1,11 @@
-import { useEffect, useRef } from "react";
-import { useWorkspaceStoreZustand } from "@/stores/WorkspaceStore";
+import { useEffect, useRef, useSyncExternalStore } from "react";
+import { useWorkspaceStoreRaw, type WorkspaceState } from "@/stores/WorkspaceStore";
 import { CUSTOM_EVENTS } from "@/constants/events";
 import { getAutoRetryKey, getRetryStateKey } from "@/constants/storage";
 import { getSendOptionsFromStorage } from "@/utils/messages/sendOptions";
 import { readPersistedState } from "./usePersistedState";
 import { hasInterruptedStream } from "@/utils/messages/retryEligibility";
+import { compareMaps } from "./useStableReference";
 
 interface RetryState {
   attempt: number;
@@ -55,7 +56,21 @@ const MAX_DELAY = 60000; // 60 seconds
  */
 export function useResumeManager() {
   // Get workspace states from store (subscribe to all changes)
-  const workspaceStates = useWorkspaceStoreZustand((state) => state.store.getAllStates());
+  const store = useWorkspaceStoreRaw();
+
+  // Cache the Map to avoid infinite re-renders (getAllStates returns new Map each time)
+  const cachedStatesRef = useRef<Map<string, WorkspaceState>>(new Map());
+  const getSnapshot = (): Map<string, WorkspaceState> => {
+    const newStates = store.getAllStates();
+    // Only return new reference if something actually changed (compare by reference)
+    if (compareMaps(cachedStatesRef.current, newStates)) {
+      return cachedStatesRef.current;
+    }
+    cachedStatesRef.current = newStates;
+    return newStates;
+  };
+
+  const workspaceStates = useSyncExternalStore(store.subscribe, getSnapshot);
 
   // Use ref to avoid effect re-running on every state change
   const workspaceStatesRef = useRef(workspaceStates);

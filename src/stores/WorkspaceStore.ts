@@ -6,7 +6,7 @@ import { StreamingMessageAggregator } from "@/utils/messages/StreamingMessageAgg
 import { updatePersistedState } from "@/hooks/usePersistedState";
 import { getRetryStateKey } from "@/constants/storage";
 import { CUSTOM_EVENTS } from "@/constants/events";
-import { useShallow } from "zustand/react/shallow";
+import { useSyncExternalStore } from "react";
 import {
   isCaughtUpMessage,
   isStreamError,
@@ -21,9 +21,7 @@ import {
   isReasoningDelta,
   isReasoningEnd,
 } from "@/types/ipc";
-import { CacheManager } from "@/utils/messages/CacheManager";
-import { computeRecencyTimestamp } from "@/utils/messages/recency";
-import { arraysEqualByReference } from "@/utils/arrays";
+import { MapStore } from "./MapStore";
 
 export interface WorkspaceState {
   messages: DisplayedMessage[];
@@ -46,6 +44,12 @@ export interface WorkspaceSidebarState {
 }
 
 /**
+ * Derived state values stored in the derived MapStore.
+ * Currently only recency timestamps for workspace sorting.
+ */
+type DerivedState = Record<string, number>;
+
+/**
  * External store for workspace aggregators and streaming state.
  *
  * This store lives outside React's lifecycle and manages all workspace
@@ -54,37 +58,76 @@ export interface WorkspaceSidebarState {
  * components re-render when workspace state changes.
  */
 export class WorkspaceStore {
+  // Per-workspace state (lazy computed on get)
+  private states = new MapStore<string, WorkspaceState>();
+
+  // Derived aggregate state (computed from multiple workspaces)
+  private derived = new MapStore<string, DerivedState>();
+
+  // Supporting data structures
   private aggregators = new Map<string, StreamingMessageAggregator>();
-  private listeners = new Set<() => void>();
   private ipcUnsubscribers = new Map<string, () => void>();
   private caughtUp = new Map<string, boolean>();
   private historicalMessages = new Map<string, CmuxMessage[]>();
 
-  // Centralized cache management - all caches invalidated together
-  private cache = new CacheManager();
+  // Cache of last known recency per workspace (for change detection)
+  private recencyCache = new Map<string, number | null>();
 
   // Track model usage (injected dependency for useModelLRU integration)
   private readonly onModelUsed?: (model: string) => void;
 
   constructor(onModelUsed?: (model: string) => void) {
     this.onModelUsed = onModelUsed;
+
+    // Auto-invalidate derived state when any workspace changes
+    this.states.subscribeAny(() => {
+      this.checkAndBumpRecencyIfChanged();
+    });
   }
 
   /**
-   * Subscribe to store changes. Returns unsubscribe function.
-   * All listeners are called on any workspace update (React handles equality checks).
+   * Check if any workspace's recency changed and bump global recency if so.
+   * Uses cached recency values from aggregators for O(1) comparison per workspace.
    */
-  subscribe = (listener: () => void): (() => void) => {
-    this.listeners.add(listener);
-    return () => this.listeners.delete(listener);
+  private checkAndBumpRecencyIfChanged(): void {
+    let recencyChanged = false;
+
+    for (const workspaceId of this.aggregators.keys()) {
+      const aggregator = this.aggregators.get(workspaceId)!;
+      const currentRecency = aggregator.getRecencyTimestamp();
+      const cachedRecency = this.recencyCache.get(workspaceId);
+
+      if (currentRecency !== cachedRecency) {
+        this.recencyCache.set(workspaceId, currentRecency);
+        recencyChanged = true;
+      }
+    }
+
+    if (recencyChanged) {
+      this.derived.bump("recency");
+    }
+  }
+
+  /**
+   * Subscribe to store changes (any workspace).
+   * Delegates to MapStore's subscribeAny.
+   */
+  subscribe = this.states.subscribeAny;
+
+  /**
+   * Subscribe to changes for a specific workspace.
+   * Only notified when this workspace's state changes.
+   */
+  subscribeKey = (workspaceId: string, listener: () => void) => {
+    return this.states.subscribeKey(workspaceId, listener);
   };
 
   /**
    * Get state for a specific workspace.
-   * Returns cached reference if state hasn't changed (prevents unnecessary re-renders).
+   * Lazy computation - only runs when version changes.
    */
   getWorkspaceState(workspaceId: string): WorkspaceState {
-    return this.cache.get(`state-${workspaceId}`, () => {
+    return this.states.get(workspaceId, () => {
       const aggregator = this.getOrCreateAggregator(workspaceId);
       const hasMessages = aggregator.hasMessages();
       const isCaughtUp = this.caughtUp.get(workspaceId) ?? false;
@@ -98,31 +141,68 @@ export class WorkspaceStore {
         loading: !hasMessages && !isCaughtUp,
         cmuxMessages: messages,
         currentModel: aggregator.getCurrentModel() ?? "claude-sonnet-4-5",
-        recencyTimestamp: computeRecencyTimestamp(messages),
+        recencyTimestamp: aggregator.getRecencyTimestamp(),
       };
     });
   }
 
   /**
-   * Get all workspace states as a Map.
-   * Used by components that need full state (e.g., ProjectSidebar).
+   * Get sidebar state for a workspace (subset of full state).
+   * This returns a stable reference that only changes when relevant fields change.
+   * Used by sidebar components to avoid re-renders when messages update.
    */
-  getAllStates(): Map<string, WorkspaceState> {
-    return this.cache.get("all-states", () => {
-      const states = new Map<string, WorkspaceState>();
-      for (const workspaceId of this.aggregators.keys()) {
-        states.set(workspaceId, this.getWorkspaceState(workspaceId));
+  private sidebarStateCache = new Map<
+    string,
+    { state: WorkspaceSidebarState; sourceVersion: number }
+  >();
+
+  getWorkspaceSidebarState(workspaceId: string): WorkspaceSidebarState {
+    const fullState = this.getWorkspaceState(workspaceId);
+    const cached = this.sidebarStateCache.get(workspaceId);
+
+    // Check if we have a cached sidebar state for this workspace
+    if (cached) {
+      // Check if relevant fields haven't changed
+      if (
+        cached.state.canInterrupt === fullState.canInterrupt &&
+        cached.state.currentModel === fullState.currentModel &&
+        cached.state.recencyTimestamp === fullState.recencyTimestamp
+      ) {
+        // Return cached sidebar state (stable reference)
+        return cached.state;
       }
-      return states;
-    });
+    }
+
+    // Create new sidebar state
+    const sidebarState: WorkspaceSidebarState = {
+      canInterrupt: fullState.canInterrupt,
+      currentModel: fullState.currentModel,
+      recencyTimestamp: fullState.recencyTimestamp,
+    };
+
+    this.sidebarStateCache.set(workspaceId, { state: sidebarState, sourceVersion: 0 });
+    return sidebarState;
   }
 
   /**
-   * Get recency timestamps for all workspaces (for sorting).
-   * Returns cached object with stable identity if values haven't changed.
+   * Get all workspace states as a Map.
+   * Returns a new Map on each call - not cached/reactive.
+   * Used by imperative code, not for React subscriptions.
+   */
+  getAllStates(): Map<string, WorkspaceState> {
+    const allStates = new Map<string, WorkspaceState>();
+    for (const workspaceId of this.aggregators.keys()) {
+      allStates.set(workspaceId, this.getWorkspaceState(workspaceId));
+    }
+    return allStates;
+  }
+
+  /**
+   * Get recency timestamps for all workspaces (for sorting in command palette).
+   * Derived on-demand from individual workspace states.
    */
   getWorkspaceRecency(): Record<string, number> {
-    return this.cache.get("recency", () => {
+    return this.derived.get("recency", () => {
       const timestamps: Record<string, number> = {};
       for (const workspaceId of this.aggregators.keys()) {
         const state = this.getWorkspaceState(workspaceId);
@@ -131,7 +211,7 @@ export class WorkspaceStore {
         }
       }
       return timestamps;
-    });
+    }) as Record<string, number>;
   }
 
   /**
@@ -188,11 +268,11 @@ export class WorkspaceStore {
     }
 
     // Clean up state
+    this.states.delete(workspaceId);
     this.aggregators.delete(workspaceId);
     this.caughtUp.delete(workspaceId);
     this.historicalMessages.delete(workspaceId);
-
-    this.emit();
+    this.recencyCache.delete(workspaceId);
   }
 
   /**
@@ -225,11 +305,11 @@ export class WorkspaceStore {
       unsubscribe();
     }
     this.ipcUnsubscribers.clear();
+    this.states.clear();
+    this.derived.clear();
     this.aggregators.clear();
     this.caughtUp.clear();
     this.historicalMessages.clear();
-    this.cache.invalidateAll();
-    this.listeners.clear();
   }
 
   // Private methods
@@ -239,28 +319,6 @@ export class WorkspaceStore {
       this.aggregators.set(workspaceId, new StreamingMessageAggregator());
     }
     return this.aggregators.get(workspaceId)!;
-  }
-
-  private emit(): void {
-    // Invalidate all caches on any state change
-    this.cache.invalidateAll();
-
-    // Notify all listeners synchronously (required by useSyncExternalStore)
-    // React handles equality checks via getSnapshot
-    // IPC handlers use queueMicrotask to prevent updates during render
-    this.listeners.forEach((listener) => listener());
-  }
-
-  private statesEqual(a: WorkspaceState, b: WorkspaceState): boolean {
-    return (
-      a.canInterrupt === b.canInterrupt &&
-      a.isCompacting === b.isCompacting &&
-      a.loading === b.loading &&
-      a.currentModel === b.currentModel &&
-      a.recencyTimestamp === b.recencyTimestamp &&
-      arraysEqualByReference(a.messages, b.messages) &&
-      arraysEqualByReference(a.cmuxMessages, b.cmuxMessages)
-    );
   }
 
   private handleChatMessage(workspaceId: string, data: WorkspaceChatMessage): void {
@@ -274,13 +332,13 @@ export class WorkspaceStore {
         this.historicalMessages.set(workspaceId, []);
       }
       this.caughtUp.set(workspaceId, true);
-      this.emit();
+      this.states.bump(workspaceId);
       return;
     }
 
     if (isStreamError(data)) {
       aggregator.handleStreamError(data);
-      this.emit();
+      this.states.bump(workspaceId);
       window.dispatchEvent(
         new CustomEvent(CUSTOM_EVENTS.RESUME_CHECK_REQUESTED, {
           detail: { workspaceId },
@@ -291,7 +349,7 @@ export class WorkspaceStore {
 
     if (isDeleteMessage(data)) {
       aggregator.handleDeleteMessage(data);
-      this.emit();
+      this.states.bump(workspaceId);
       return;
     }
 
@@ -304,13 +362,13 @@ export class WorkspaceStore {
         attempt: 0,
         retryStartTime: Date.now(),
       });
-      this.emit();
+      this.states.bump(workspaceId);
       return;
     }
 
     if (isStreamDelta(data)) {
       aggregator.handleStreamDelta(data);
-      this.emit();
+      this.states.bump(workspaceId);
       return;
     }
 
@@ -345,7 +403,7 @@ export class WorkspaceStore {
                 } catch (error) {
                   console.error("[WorkspaceStore] Failed to replace history:", error);
                 } finally {
-                  this.emit();
+                  this.states.bump(workspaceId);
                 }
               })();
               return;
@@ -355,14 +413,14 @@ export class WorkspaceStore {
         }
       }
 
-      this.emit();
+      this.states.bump(workspaceId);
       return;
     }
 
     if (isStreamAbort(data)) {
       aggregator.clearTokenState(data.messageId);
       aggregator.handleStreamAbort(data);
-      this.emit();
+      this.states.bump(workspaceId);
       window.dispatchEvent(
         new CustomEvent(CUSTOM_EVENTS.RESUME_CHECK_REQUESTED, {
           detail: { workspaceId },
@@ -373,31 +431,31 @@ export class WorkspaceStore {
 
     if (isToolCallStart(data)) {
       aggregator.handleToolCallStart(data);
-      this.emit();
+      this.states.bump(workspaceId);
       return;
     }
 
     if (isToolCallDelta(data)) {
       aggregator.handleToolCallDelta(data);
-      this.emit();
+      this.states.bump(workspaceId);
       return;
     }
 
     if (isToolCallEnd(data)) {
       aggregator.handleToolCallEnd(data);
-      this.emit();
+      this.states.bump(workspaceId);
       return;
     }
 
     if (isReasoningDelta(data)) {
       aggregator.handleReasoningDelta(data);
-      this.emit();
+      this.states.bump(workspaceId);
       return;
     }
 
     if (isReasoningEnd(data)) {
       aggregator.handleReasoningEnd(data);
-      this.emit();
+      this.states.bump(workspaceId);
       return;
     }
 
@@ -409,60 +467,41 @@ export class WorkspaceStore {
       }
     } else {
       aggregator.handleMessage(data);
-      this.emit();
+      this.states.bump(workspaceId);
     }
   }
 }
 
 // ============================================================================
-// Zustand Integration
+// React Integration with useSyncExternalStore
 // ============================================================================
 
-import { create } from "zustand";
-
-interface WorkspaceStoreState {
-  // The underlying store instance
-  store: WorkspaceStore;
-
-  // Trigger for subscribers (increment to notify changes)
-  version: number;
-}
+// Singleton store instance
+let storeInstance: WorkspaceStore | null = null;
 
 /**
- * Zustand wrapper around WorkspaceStore.
- *
- * Benefits:
- * - Automatic subscription management
- * - Selector-based rendering (only re-render when selector result changes)
- * - Simpler hook API
- *
- * The WorkspaceStore class handles the complex IPC and aggregator logic.
- * Zustand handles the React integration.
+ * Get or create the singleton WorkspaceStore instance.
  */
-export const useWorkspaceStoreZustand = create<WorkspaceStoreState>((set) => {
-  const store = new WorkspaceStore(() => {
+function getStoreInstance(): WorkspaceStore {
+  storeInstance ??= new WorkspaceStore(() => {
     // Model tracking callback - can hook into other systems if needed
   });
-
-  // Subscribe to store changes and increment version to trigger React updates
-  store.subscribe(() => {
-    set((state) => ({ version: state.version + 1 }));
-  });
-
-  return {
-    store,
-    version: 0,
-  };
-});
+  return storeInstance;
+}
 
 /**
  * Hook to get state for a specific workspace.
  * Only re-renders when THIS workspace's state changes.
+ *
+ * Uses per-key subscription for surgical updates - only notified when
+ * this specific workspace's state changes.
  */
 export function useWorkspaceState(workspaceId: string): WorkspaceState {
-  return useWorkspaceStoreZustand(
-    (state) => state.store.getWorkspaceState(workspaceId)
-    // Zustand's shallow comparison works because getWorkspaceState returns cached references
+  const store = getStoreInstance();
+
+  return useSyncExternalStore(
+    (listener) => store.subscribeKey(workspaceId, listener),
+    () => store.getWorkspaceState(workspaceId)
   );
 }
 
@@ -470,30 +509,30 @@ export function useWorkspaceState(workspaceId: string): WorkspaceState {
  * Hook to access the raw store for imperative operations.
  */
 export function useWorkspaceStoreRaw(): WorkspaceStore {
-  return useWorkspaceStoreZustand((state) => state.store);
+  return getStoreInstance();
 }
 
 /**
  * Hook to get workspace recency timestamps.
  */
 export function useWorkspaceRecency(): Record<string, number> {
-  return useWorkspaceStoreZustand((state) => state.store.getWorkspaceRecency());
+  const store = getStoreInstance();
+
+  return useSyncExternalStore(store.subscribe, () => store.getWorkspaceRecency());
 }
 
 /**
  * Hook to get sidebar-specific state for a workspace.
  * Only re-renders when sidebar-relevant fields change (not on every message).
+ *
+ * Uses per-key subscription + derived selector.
  */
 export function useWorkspaceSidebarState(workspaceId: string): WorkspaceSidebarState {
-  return useWorkspaceStoreZustand(
-    useShallow((state) => {
-      const fullState = state.store.getWorkspaceState(workspaceId);
-      return {
-        canInterrupt: fullState.canInterrupt,
-        currentModel: fullState.currentModel,
-        recencyTimestamp: fullState.recencyTimestamp,
-      };
-    })
+  const store = getStoreInstance();
+
+  return useSyncExternalStore(
+    (listener) => store.subscribeKey(workspaceId, listener),
+    () => store.getWorkspaceSidebarState(workspaceId)
   );
 }
 

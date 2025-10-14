@@ -5,7 +5,8 @@ import {
   GIT_FETCH_SCRIPT,
   parseGitStatusScriptOutput,
 } from "@/utils/git/gitStatus";
-import { CacheManager } from "@/utils/messages/CacheManager";
+import { useSyncExternalStore } from "react";
+import { MapStore } from "./MapStore";
 
 /**
  * External store for git status of all workspaces.
@@ -37,54 +38,48 @@ interface FetchState {
   consecutiveFailures: number;
 }
 
-type Listener = () => void;
-
 export class GitStatusStore {
-  private gitStatusMap = new Map<string, GitStatus | null>();
+  private statuses = new MapStore<string, GitStatus | null>();
   private fetchCache = new Map<string, FetchState>();
-  private listeners = new Set<Listener>();
   private pollInterval: NodeJS.Timeout | null = null;
   private workspaceMetadata = new Map<string, WorkspaceMetadata>();
   private isActive = true;
-
-  // Centralized cache management
-  private cache = new CacheManager();
 
   constructor() {
     // Store is ready for workspace sync
   }
 
   /**
-   * Subscribe to git status changes.
-   * Called by React's useSyncExternalStore.
-   * Arrow function ensures stable reference for useSyncExternalStore.
+   * Subscribe to git status changes (any workspace).
+   * Delegates to MapStore's subscribeAny.
    */
-  subscribe = (listener: Listener): (() => void) => {
-    this.listeners.add(listener);
-    return () => {
-      this.listeners.delete(listener);
-    };
+  subscribe = this.statuses.subscribeAny;
+
+  /**
+   * Subscribe to git status changes for a specific workspace.
+   * Only notified when this workspace's status changes.
+   */
+  subscribeKey = (workspaceId: string, listener: () => void) => {
+    return this.statuses.subscribeKey(workspaceId, listener);
   };
 
   /**
    * Get git status for a specific workspace.
-   * Returns cached reference if status unchanged.
+   * Returns cached status or null if never fetched.
    */
   getStatus(workspaceId: string): GitStatus | null {
-    return this.cache.get(`status-${workspaceId}`, () => {
-      return this.gitStatusMap.get(workspaceId) ?? null;
+    // If workspace has never been checked, return null
+    if (!this.statuses.has(workspaceId)) {
+      return null;
+    }
+
+    // Return cached status (lazy computation)
+    return this.statuses.get(workspaceId, () => {
+      return this.statusCache.get(workspaceId) ?? null;
     });
   }
 
-  /**
-   * Get all git statuses as a Map.
-   * Returns cached reference if no statuses changed.
-   */
-  getAllStatuses(): Map<string, GitStatus | null> {
-    return this.cache.get("all-statuses", () => {
-      return new Map(this.gitStatusMap);
-    });
-  }
+  private statusCache = new Map<string, GitStatus | null>();
 
   /**
    * Sync workspaces with metadata.
@@ -99,18 +94,13 @@ export class GitStatusStore {
 
     this.workspaceMetadata = metadata;
 
-    // Remove statuses for deleted workspaces (only emit if we actually remove something)
-    let removedAny = false;
-    for (const id of this.gitStatusMap.keys()) {
+    // Remove statuses for deleted workspaces
+    // Iterate plain map (statusCache) for membership, not reactive store
+    for (const id of Array.from(this.statusCache.keys())) {
       if (!metadata.has(id)) {
-        this.gitStatusMap.delete(id);
-        removedAny = true;
+        this.statusCache.delete(id);
+        this.statuses.delete(id); // Also clean up reactive state
       }
-    }
-
-    // Only emit if we removed workspaces (subscribers need to know)
-    if (removedAny) {
-      this.emit();
     }
 
     // Start polling only once (not on every sync)
@@ -178,11 +168,27 @@ export class GitStatusStore {
 
     if (!this.isActive) return; // Don't update state if disposed
 
-    // Update map
-    this.gitStatusMap = new Map(results);
+    // Update statuses - bump version if changed
+    for (const [workspaceId, newStatus] of results) {
+      const oldStatus = this.statusCache.get(workspaceId) ?? null;
 
-    // Notify subscribers
-    this.emit();
+      // Check if status actually changed (cheap for simple objects)
+      if (!this.areStatusesEqual(oldStatus, newStatus)) {
+        this.statusCache.set(workspaceId, newStatus);
+        this.statuses.bump(workspaceId); // Invalidate cache + notify
+      }
+    }
+  }
+
+  /**
+   * Compare two git statuses for equality.
+   * Returns true if they're effectively the same.
+   */
+  private areStatusesEqual(a: GitStatus | null, b: GitStatus | null): boolean {
+    if (a === null && b === null) return true;
+    if (a === null || b === null) return false;
+
+    return a.ahead === b.ahead && a.behind === b.behind && a.dirty === b.dirty;
   }
 
   /**
@@ -358,68 +364,50 @@ export class GitStatusStore {
   }
 
   /**
-   * Notify all subscribers.
-   * Must be synchronous for useSyncExternalStore to work correctly.
-   */
-  private emit(): void {
-    this.cache.invalidateAll();
-    for (const listener of this.listeners) {
-      listener();
-    }
-  }
-
-  /**
    * Cleanup resources.
    */
   dispose(): void {
     this.isActive = false;
     this.stopPolling();
-    this.listeners.clear();
-    this.gitStatusMap.clear();
+    this.statuses.clear();
     this.fetchCache.clear();
-    this.cache.invalidateAll();
   }
 }
 
 // ============================================================================
-// Zustand Integration
+// React Integration with useSyncExternalStore
 // ============================================================================
 
-import { create } from "zustand";
-
-interface GitStatusStoreState {
-  store: GitStatusStore;
-  version: number;
-}
+// Singleton store instance
+let gitStoreInstance: GitStatusStore | null = null;
 
 /**
- * Zustand wrapper around GitStatusStore.
+ * Get or create the singleton GitStatusStore instance.
  */
-export const useGitStatusStoreZustand = create<GitStatusStoreState>((set) => {
-  const store = new GitStatusStore();
-
-  // Subscribe to store changes
-  store.subscribe(() => {
-    set((state) => ({ version: state.version + 1 }));
-  });
-
-  return {
-    store,
-    version: 0,
-  };
-});
+function getGitStoreInstance(): GitStatusStore {
+  gitStoreInstance ??= new GitStatusStore();
+  return gitStoreInstance;
+}
 
 /**
  * Hook to get git status for a specific workspace.
  * Only re-renders when THIS workspace's status changes.
+ *
+ * Uses per-key subscription for surgical updates - only notified when
+ * this specific workspace's git status changes.
  */
 export function useGitStatus(workspaceId: string): GitStatus | null {
-  return useGitStatusStoreZustand((state) => state.store.getStatus(workspaceId));
+  const store = getGitStoreInstance();
+
+  return useSyncExternalStore(
+    (listener) => store.subscribeKey(workspaceId, listener),
+    () => store.getStatus(workspaceId)
+  );
 }
 
 /**
  * Hook to access the raw store for imperative operations.
  */
 export function useGitStatusStoreRaw(): GitStatusStore {
-  return useGitStatusStoreZustand((state) => state.store);
+  return getGitStoreInstance();
 }

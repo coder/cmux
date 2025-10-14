@@ -198,10 +198,12 @@ describe("WorkspaceStore", () => {
   });
 
   describe("reference stability", () => {
-    it("getAllStates() returns same reference when no changes", () => {
+    it("getAllStates() returns new Map on each call", () => {
       const states1 = store.getAllStates();
       const states2 = store.getAllStates();
-      expect(states1).toBe(states2);
+      // Should return new Map each time (not cached/reactive)
+      expect(states1).not.toBe(states2);
+      expect(states1).toEqual(states2); // But contents are equal
     });
 
     it("getWorkspaceState() returns same reference when state hasn't changed", () => {
@@ -343,15 +345,18 @@ describe("WorkspaceStore", () => {
 
       const state1 = store.getWorkspaceState("test-workspace");
       const state2 = store.getWorkspaceState("test-workspace");
-      const allStates1 = store.getAllStates();
-      const allStates2 = store.getAllStates();
       const recency1 = store.getWorkspaceRecency();
       const recency2 = store.getWorkspaceRecency();
 
-      // All should return same references (cached)
+      // Cached values should return same references
       expect(state1).toBe(state2);
-      expect(allStates1).toBe(allStates2);
       expect(recency1).toBe(recency2);
+
+      // getAllStates returns new Map each time (not cached)
+      const allStates1 = store.getAllStates();
+      const allStates2 = store.getAllStates();
+      expect(allStates1).not.toBe(allStates2);
+      expect(allStates1).toEqual(allStates2);
     });
   });
 
