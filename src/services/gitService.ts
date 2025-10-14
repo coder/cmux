@@ -1,11 +1,8 @@
-import { exec } from "child_process";
-import { promisify } from "util";
 import * as fs from "fs";
 import * as fsPromises from "fs/promises";
 import * as path from "path";
 import type { Config } from "@/config";
-
-const execAsync = promisify(exec);
+import { execAsync } from "@/utils/disposableExec";
 
 export interface WorktreeResult {
   success: boolean;
@@ -35,7 +32,8 @@ export async function createWorktree(
     }
 
     // Check if branch exists
-    const { stdout: branches } = await execAsync(`git -C "${projectPath}" branch -a`);
+    using branchesProc = execAsync(`git -C "${projectPath}" branch -a`);
+    const { stdout: branches } = await branchesProc.result;
     const branchExists = branches
       .split("\n")
       .some(
@@ -47,10 +45,16 @@ export async function createWorktree(
 
     if (branchExists) {
       // Branch exists, create worktree with existing branch
-      await execAsync(`git -C "${projectPath}" worktree add "${workspacePath}" "${branchName}"`);
+      using proc = execAsync(
+        `git -C "${projectPath}" worktree add "${workspacePath}" "${branchName}"`
+      );
+      await proc.result;
     } else {
       // Branch doesn't exist, create new branch with worktree
-      await execAsync(`git -C "${projectPath}" worktree add -b "${branchName}" "${workspacePath}"`);
+      using proc = execAsync(
+        `git -C "${projectPath}" worktree add -b "${branchName}" "${workspacePath}"`
+      );
+      await proc.result;
     }
 
     return { success: true, path: workspacePath };
@@ -67,9 +71,8 @@ export async function createWorktree(
 export async function isWorktreeClean(workspacePath: string): Promise<boolean> {
   try {
     // Check for uncommitted changes (staged or unstaged)
-    const { stdout: statusOutput } = await execAsync(
-      `git -C "${workspacePath}" status --porcelain`
-    );
+    using proc = execAsync(`git -C "${workspacePath}" status --porcelain`);
+    const { stdout: statusOutput } = await proc.result;
     return statusOutput.trim() === "";
   } catch {
     // If git command fails, assume not clean (safer default)
@@ -98,9 +101,10 @@ export async function removeWorktree(
 ): Promise<WorktreeResult> {
   try {
     // Remove the worktree (from the main repository context)
-    await execAsync(
+    using proc = execAsync(
       `git -C "${projectPath}" worktree remove "${workspacePath}" ${options.force ? "--force" : ""}`
     );
+    await proc.result;
     return { success: true };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -110,7 +114,8 @@ export async function removeWorktree(
 
 export async function pruneWorktrees(projectPath: string): Promise<WorktreeResult> {
   try {
-    await execAsync(`git -C "${projectPath}" worktree prune`);
+    using proc = execAsync(`git -C "${projectPath}" worktree prune`);
+    await proc.result;
     return { success: true };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -259,7 +264,8 @@ export async function moveWorktree(
     }
 
     // Move the worktree using git (from the main repository context)
-    await execAsync(`git -C "${projectPath}" worktree move "${oldPath}" "${newPath}"`);
+    using proc = execAsync(`git -C "${projectPath}" worktree move "${oldPath}" "${newPath}"`);
+    await proc.result;
     return { success: true, path: newPath };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -269,7 +275,8 @@ export async function moveWorktree(
 
 export async function listWorktrees(projectPath: string): Promise<string[]> {
   try {
-    const { stdout } = await execAsync(`git -C "${projectPath}" worktree list --porcelain`);
+    using proc = execAsync(`git -C "${projectPath}" worktree list --porcelain`);
+    const { stdout } = await proc.result;
     const worktrees: string[] = [];
     const lines = stdout.split("\n");
 
@@ -292,7 +299,8 @@ export async function listWorktrees(projectPath: string): Promise<string[]> {
 
 export async function isGitRepository(projectPath: string): Promise<boolean> {
   try {
-    await execAsync(`git -C "${projectPath}" rev-parse --git-dir`);
+    using proc = execAsync(`git -C "${projectPath}" rev-parse --git-dir`);
+    await proc.result;
     return true;
   } catch {
     return false;
@@ -307,7 +315,8 @@ export async function isGitRepository(projectPath: string): Promise<boolean> {
 export async function getMainWorktreeFromWorktree(worktreePath: string): Promise<string | null> {
   try {
     // Get the worktree list from the worktree itself
-    const { stdout } = await execAsync(`git -C "${worktreePath}" worktree list --porcelain`);
+    using proc = execAsync(`git -C "${worktreePath}" worktree list --porcelain`);
+    const { stdout } = await proc.result;
     const lines = stdout.split("\n");
 
     // The first worktree in the list is always the main worktree

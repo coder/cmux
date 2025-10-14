@@ -7,6 +7,7 @@ import * as fs from "fs/promises";
 import { exec } from "child_process";
 import { promisify } from "util";
 
+// eslint-disable-next-line local/no-unsafe-child-process -- Test file needs direct exec access for setup
 const execAsync = promisify(exec);
 
 describe("createWorktree", () => {

@@ -1,10 +1,7 @@
-import { exec } from "child_process";
-import { promisify } from "util";
 import * as fs from "fs";
 import * as path from "path";
 import type { Config } from "./config";
-
-const execAsync = promisify(exec);
+import { execAsync } from "./utils/disposableExec";
 
 export interface WorktreeResult {
   success: boolean;
@@ -17,9 +14,10 @@ export interface CreateWorktreeOptions {
 }
 
 export async function listLocalBranches(projectPath: string): Promise<string[]> {
-  const { stdout } = await execAsync(
+  using proc = execAsync(
     `git -C "${projectPath}" for-each-ref --format="%(refname:short)" refs/heads`
   );
+  const { stdout } = await proc.result;
   return stdout
     .split("\n")
     .map((line) => line.trim())
@@ -29,7 +27,8 @@ export async function listLocalBranches(projectPath: string): Promise<string[]> 
 
 async function getCurrentBranch(projectPath: string): Promise<string | null> {
   try {
-    const { stdout } = await execAsync(`git -C "${projectPath}" rev-parse --abbrev-ref HEAD`);
+    using proc = execAsync(`git -C "${projectPath}" rev-parse --abbrev-ref HEAD`);
+    const { stdout } = await proc.result;
     const branch = stdout.trim();
     if (!branch || branch === "HEAD") {
       return null;
@@ -108,19 +107,26 @@ export async function createWorktree(
 
     // If branch already exists locally, reuse it instead of creating a new one
     if (localBranches.includes(branchName)) {
-      await execAsync(`git -C "${projectPath}" worktree add "${workspacePath}" "${branchName}"`);
+      using proc = execAsync(
+        `git -C "${projectPath}" worktree add "${workspacePath}" "${branchName}"`
+      );
+      await proc.result;
       return { success: true, path: workspacePath };
     }
 
     // Check if branch exists remotely (origin/<branchName>)
-    const { stdout: remoteBranchesRaw } = await execAsync(`git -C "${projectPath}" branch -a`);
+    using remoteBranchesProc = execAsync(`git -C "${projectPath}" branch -a`);
+    const { stdout: remoteBranchesRaw } = await remoteBranchesProc.result;
     const branchExists = remoteBranchesRaw
       .split("\n")
       .map((b) => b.trim().replace(/^(\*)\s+/, ""))
       .some((b) => b === branchName || b === `remotes/origin/${branchName}`);
 
     if (branchExists) {
-      await execAsync(`git -C "${projectPath}" worktree add "${workspacePath}" "${branchName}"`);
+      using proc = execAsync(
+        `git -C "${projectPath}" worktree add "${workspacePath}" "${branchName}"`
+      );
+      await proc.result;
       return { success: true, path: workspacePath };
     }
 
@@ -131,9 +137,10 @@ export async function createWorktree(
       };
     }
 
-    await execAsync(
+    using proc = execAsync(
       `git -C "${projectPath}" worktree add -b "${branchName}" "${workspacePath}" "${normalizedTrunkBranch}"`
     );
+    await proc.result;
 
     return { success: true, path: workspacePath };
   } catch (error) {
@@ -149,9 +156,10 @@ export async function removeWorktree(
 ): Promise<WorktreeResult> {
   try {
     // Remove the worktree (from the main repository context)
-    await execAsync(
+    using proc = execAsync(
       `git -C "${projectPath}" worktree remove "${workspacePath}" ${options.force ? "--force" : ""}`
     );
+    await proc.result;
     return { success: true };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -161,7 +169,8 @@ export async function removeWorktree(
 
 export async function pruneWorktrees(projectPath: string): Promise<WorktreeResult> {
   try {
-    await execAsync(`git -C "${projectPath}" worktree prune`);
+    using proc = execAsync(`git -C "${projectPath}" worktree prune`);
+    await proc.result;
     return { success: true };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -190,7 +199,8 @@ export async function moveWorktree(
     }
 
     // Move the worktree using git (from the main repository context)
-    await execAsync(`git -C "${projectPath}" worktree move "${oldPath}" "${newPath}"`);
+    using proc = execAsync(`git -C "${projectPath}" worktree move "${oldPath}" "${newPath}"`);
+    await proc.result;
     return { success: true, path: newPath };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -200,7 +210,8 @@ export async function moveWorktree(
 
 export async function listWorktrees(projectPath: string): Promise<string[]> {
   try {
-    const { stdout } = await execAsync(`git -C "${projectPath}" worktree list --porcelain`);
+    using proc = execAsync(`git -C "${projectPath}" worktree list --porcelain`);
+    const { stdout } = await proc.result;
     const worktrees: string[] = [];
     const lines = stdout.split("\n");
 
@@ -223,7 +234,8 @@ export async function listWorktrees(projectPath: string): Promise<string[]> {
 
 export async function isGitRepository(projectPath: string): Promise<boolean> {
   try {
-    await execAsync(`git -C "${projectPath}" rev-parse --git-dir`);
+    using proc = execAsync(`git -C "${projectPath}" rev-parse --git-dir`);
+    await proc.result;
     return true;
   } catch {
     return false;
@@ -238,7 +250,8 @@ export async function isGitRepository(projectPath: string): Promise<boolean> {
 export async function getMainWorktreeFromWorktree(worktreePath: string): Promise<string | null> {
   try {
     // Get the worktree list from the worktree itself
-    const { stdout } = await execAsync(`git -C "${worktreePath}" worktree list --porcelain`);
+    using proc = execAsync(`git -C "${worktreePath}" worktree list --porcelain`);
+    const { stdout } = await proc.result;
     const lines = stdout.split("\n");
 
     // The first worktree in the list is always the main worktree

@@ -319,12 +319,14 @@ export async function createTempGitRepo(): Promise<string> {
   const fs = await import("fs/promises");
   const { exec } = await import("child_process");
   const { promisify } = await import("util");
+  // eslint-disable-next-line local/no-unsafe-child-process
   const execAsync = promisify(exec);
 
   // Use mkdtemp to avoid race conditions and ensure unique directory
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "cmux-test-repo-"));
 
-  // Batch git commands where possible to reduce overhead
+  // Use promisify(exec) for test setup - DisposableExec has issues in CI
+  // TODO: Investigate why DisposableExec causes empty git output in CI
   await execAsync(`git init`, { cwd: tempDir });
   await execAsync(`git config user.email "test@example.com" && git config user.name "Test User"`, {
     cwd: tempDir,
