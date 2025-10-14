@@ -683,24 +683,42 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           mimeType: img.mimeType,
         }));
 
-        // Parse command even when editing to preserve metadata for special commands like /compact
+        // When editing a /compact command, regenerate the actual summarization request
+        let actualMessageText = messageText;
         let cmuxMetadata: CmuxFrontendMetadata | undefined;
-        if (messageText.startsWith("/")) {
+        let compactionOptions = {};
+
+        if (editingMessage && messageText.startsWith("/")) {
           const parsed = parseCommand(messageText);
           if (parsed?.type === "compact") {
+            // Regenerate the summarization request (not the command text)
+            const targetWords = parsed.maxOutputTokens
+              ? Math.round(parsed.maxOutputTokens / 1.3)
+              : 2000;
+            actualMessageText = `Summarize this conversation into a compact form for a new Assistant to continue helping the user. Use approximately ${targetWords} words.`;
+
             cmuxMetadata = {
               type: "compaction-request",
-              command: messageText,
+              command: messageText, // Store the command for display
               parsed: {
                 maxOutputTokens: parsed.maxOutputTokens,
                 continueMessage: parsed.continueMessage,
               },
             };
+
+            // Include compaction-specific options
+            const isAnthropic = sendMessageOptions.model.startsWith("anthropic:");
+            compactionOptions = {
+              thinkingLevel: isAnthropic ? "off" : sendMessageOptions.thinkingLevel,
+              toolPolicy: [{ regex_match: "compact_summary", action: "require" }],
+              mode: "compact" as const,
+            };
           }
         }
 
-        const result = await window.api.workspace.sendMessage(workspaceId, messageText, {
+        const result = await window.api.workspace.sendMessage(workspaceId, actualMessageText, {
           ...sendMessageOptions,
+          ...compactionOptions,
           editMessageId: editingMessage?.id,
           imageParts: imageParts.length > 0 ? imageParts : undefined,
           cmuxMetadata,
