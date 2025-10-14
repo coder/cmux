@@ -305,6 +305,8 @@ export class WorkspaceStore {
     this.caughtUp.delete(workspaceId);
     this.historicalMessages.delete(workspaceId);
     this.recencyCache.delete(workspaceId);
+    this.previousSidebarValues.delete(workspaceId);
+    this.sidebarStateCache.delete(workspaceId);
   }
 
   /**
