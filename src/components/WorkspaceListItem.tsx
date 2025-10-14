@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import styled from "@emotion/styled";
 import { css } from "@emotion/react";
 import type { Workspace } from "@/config";
@@ -216,6 +216,33 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
     }
   };
 
+  // Memoize toggle unread handler to prevent StatusIndicator re-renders
+  const handleToggleUnread = useCallback(
+    () => onToggleUnread(workspaceId),
+    [onToggleUnread, workspaceId]
+  );
+
+  // Memoize tooltip title to prevent creating new React elements on every render
+  const statusTooltipTitle = useMemo(() => {
+    if (isStreaming && streamingModel) {
+      return (
+        <span>
+          <ModelDisplay modelString={streamingModel} showTooltip={false} /> is responding
+        </span>
+      );
+    }
+    if (isStreaming) {
+      return "Assistant is responding";
+    }
+    if (isUnread) {
+      return "Unread messages";
+    }
+    if (sidebarState.recencyTimestamp) {
+      return `Idle • Last used ${formatRelativeTime(sidebarState.recencyTimestamp)}`;
+    }
+    return "Idle";
+  }, [isStreaming, streamingModel, isUnread, sidebarState.recencyTimestamp]);
+
   return (
     <React.Fragment>
       <WorkspaceItem
@@ -290,22 +317,8 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
         <WorkspaceStatusIndicator
           streaming={isStreaming}
           unread={isUnread}
-          onClick={() => onToggleUnread(workspaceId)}
-          title={
-            isStreaming && streamingModel ? (
-              <span>
-                <ModelDisplay modelString={streamingModel} showTooltip={false} /> is responding
-              </span>
-            ) : isStreaming ? (
-              "Assistant is responding"
-            ) : isUnread ? (
-              "Unread messages"
-            ) : sidebarState.recencyTimestamp ? (
-              `Idle • Last used ${formatRelativeTime(sidebarState.recencyTimestamp)}`
-            ) : (
-              "Idle"
-            )
-          }
+          onClick={handleToggleUnread}
+          title={statusTooltipTitle}
         />
       </WorkspaceItem>
       {renameError && isEditing && <WorkspaceErrorContainer>{renameError}</WorkspaceErrorContainer>}

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback } from "react";
 import styled from "@emotion/styled";
 import { TooltipWrapper, Tooltip } from "./Tooltip";
 
@@ -36,7 +36,7 @@ interface StatusIndicatorProps {
   onClick?: (e: React.MouseEvent) => void;
 }
 
-export const StatusIndicator: React.FC<StatusIndicatorProps> = ({
+const StatusIndicatorInner: React.FC<StatusIndicatorProps> = ({
   streaming,
   unread,
   size,
@@ -44,13 +44,16 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({
   title,
   onClick,
 }) => {
-  const handleClick = (e: React.MouseEvent) => {
-    // Only allow clicking when not streaming
-    if (!streaming && onClick) {
-      e.stopPropagation(); // Prevent workspace selection
-      onClick(e);
-    }
-  };
+  const handleClick = useCallback(
+    (e: React.MouseEvent) => {
+      // Only allow clicking when not streaming
+      if (!streaming && onClick) {
+        e.stopPropagation(); // Prevent workspace selection
+        onClick(e);
+      }
+    },
+    [streaming, onClick]
+  );
 
   const indicator = (
     <Indicator
@@ -77,3 +80,6 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({
 
   return indicator;
 };
+
+// Memoize to prevent re-renders when props haven't changed
+export const StatusIndicator = React.memo(StatusIndicatorInner);
