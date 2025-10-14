@@ -832,15 +832,14 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                                 return (
                                   <WorkspaceListItem
                                     key={workspace.path}
-                                    workspace={workspace}
-                                    metadata={metadata}
                                     workspaceId={workspaceId}
+                                    workspacePath={workspace.path}
                                     projectPath={projectPath}
                                     projectName={projectName}
                                     isSelected={isSelected}
                                     lastReadTimestamp={lastReadTimestamps[metadata.id] ?? 0}
                                     onSelectWorkspace={onSelectWorkspace}
-                                    handleRemoveWorkspace={handleRemoveWorkspace}
+                                    onRemoveWorkspace={handleRemoveWorkspace}
                                     onToggleUnread={_onToggleUnread}
                                   />
                                 );

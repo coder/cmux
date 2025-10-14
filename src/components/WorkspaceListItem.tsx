@@ -134,27 +134,28 @@ export interface WorkspaceSelection {
   workspaceId: string;
 }
 export interface WorkspaceListItemProps {
-  workspace: Workspace;
-  metadata: WorkspaceMetadata;
+  // Minimal data - component accesses stores directly for the rest
   workspaceId: string;
+  workspacePath: string;
   projectPath: string;
   projectName: string;
   isSelected: boolean;
   lastReadTimestamp: number;
+  // Event handlers
   onSelectWorkspace: (selection: WorkspaceSelection) => void;
-  handleRemoveWorkspace: (workspaceId: string, button: HTMLElement) => Promise<void>;
+  onRemoveWorkspace: (workspaceId: string, button: HTMLElement) => Promise<void>;
   onToggleUnread: (workspaceId: string) => void;
 }
 
 const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
-  workspace,
   workspaceId,
+  workspacePath,
   projectPath,
   projectName,
   isSelected,
   lastReadTimestamp,
   onSelectWorkspace,
-  handleRemoveWorkspace,
+  onRemoveWorkspace,
   onToggleUnread,
 }) => {
   // Subscribe to this specific workspace's sidebar state (streaming status, model, recency)
@@ -168,7 +169,7 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
   const [editingName, setEditingName] = useState<string>("");
   const [renameError, setRenameError] = useState<string | null>(null);
 
-  const displayName = getWorkspaceDisplayName(workspace.path);
+  const displayName = getWorkspaceDisplayName(workspacePath);
   const isStreaming = sidebarState.canInterrupt;
   const streamingModel = sidebarState.currentModel;
   const isEditing = editingWorkspaceId === workspaceId;
@@ -251,7 +252,7 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
           onSelectWorkspace({
             projectPath,
             projectName,
-            workspacePath: workspace.path,
+            workspacePath,
             workspaceId,
           })
         }
@@ -261,7 +262,7 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
             onSelectWorkspace({
               projectPath,
               projectName,
-              workspacePath: workspace.path,
+              workspacePath,
               workspaceId,
             });
           }
@@ -269,14 +270,14 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
         role="button"
         tabIndex={0}
         aria-current={isSelected ? "true" : undefined}
-        data-workspace-path={workspace.path}
+        data-workspace-path={workspacePath}
         data-workspace-id={workspaceId}
       >
         <TooltipWrapper inline>
           <WorkspaceRemoveBtn
             onClick={(e) => {
               e.stopPropagation();
-              void handleRemoveWorkspace(workspaceId, e.currentTarget);
+              void onRemoveWorkspace(workspaceId, e.currentTarget);
             }}
             aria-label={`Remove workspace ${displayName}`}
             data-workspace-id={workspaceId}
