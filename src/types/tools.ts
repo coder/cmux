@@ -136,3 +136,23 @@ export interface ProposePlanToolResult {
   plan: string;
   message: string;
 }
+
+// Todo Tool Types
+export interface TodoItem {
+  content: string;
+  status: "pending" | "in_progress" | "completed";
+  activeForm: string;
+}
+
+export interface TodoWriteToolArgs {
+  todos: TodoItem[];
+}
+
+export interface TodoWriteToolResult {
+  success: true;
+  count: number;
+}
+
+export interface TodoReadToolResult {
+  todos: TodoItem[];
+}

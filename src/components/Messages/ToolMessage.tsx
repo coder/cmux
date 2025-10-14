@@ -6,6 +6,7 @@ import { BashToolCall } from "../tools/BashToolCall";
 import { FileEditToolCall } from "../tools/FileEditToolCall";
 import { FileReadToolCall } from "../tools/FileReadToolCall";
 import { ProposePlanToolCall } from "../tools/ProposePlanToolCall";
+import { TodoToolCall } from "../tools/TodoToolCall";
 import type {
   BashToolArgs,
   BashToolResult,
@@ -19,6 +20,8 @@ import type {
   FileEditReplaceLinesToolResult,
   ProposePlanToolArgs,
   ProposePlanToolResult,
+  TodoWriteToolArgs,
+  TodoWriteToolResult,
 } from "@/types/tools";
 
 interface ToolMessageProps {
@@ -63,6 +66,11 @@ function isFileEditInsertTool(toolName: string, args: unknown): args is FileEdit
 function isProposePlanTool(toolName: string, args: unknown): args is ProposePlanToolArgs {
   if (toolName !== "propose_plan") return false;
   return TOOL_DEFINITIONS.propose_plan.schema.safeParse(args).success;
+}
+
+function isTodoWriteTool(toolName: string, args: unknown): args is TodoWriteToolArgs {
+  if (toolName !== "todo_write") return false;
+  return TOOL_DEFINITIONS.todo_write.schema.safeParse(args).success;
 }
 
 export const ToolMessage: React.FC<ToolMessageProps> = ({ message, className, workspaceId }) => {
@@ -139,6 +147,18 @@ export const ToolMessage: React.FC<ToolMessageProps> = ({ message, className, wo
           result={message.result as ProposePlanToolResult | undefined}
           status={message.status}
           workspaceId={workspaceId}
+        />
+      </div>
+    );
+  }
+
+  if (isTodoWriteTool(message.toolName, message.args)) {
+    return (
+      <div className={className}>
+        <TodoToolCall
+          args={message.args}
+          result={message.result as TodoWriteToolResult | undefined}
+          status={message.status}
         />
       </div>
     );

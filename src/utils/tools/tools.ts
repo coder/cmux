@@ -6,6 +6,7 @@ import { createFileEditReplaceStringTool } from "@/services/tools/file_edit_repl
 import { createFileEditInsertTool } from "@/services/tools/file_edit_insert";
 import { createProposePlanTool } from "@/services/tools/propose_plan";
 import { createCompactSummaryTool } from "@/services/tools/compact_summary";
+import { createTodoWriteTool, createTodoReadTool } from "@/services/tools/todo";
 import { log } from "@/services/log";
 
 /**
@@ -56,6 +57,8 @@ export async function getToolsForModel(
     bash: createBashTool(config),
     propose_plan: createProposePlanTool(config),
     compact_summary: createCompactSummaryTool(config),
+    todo_write: createTodoWriteTool(config),
+    todo_read: createTodoReadTool(config),
   };
 
   // Try to add provider-specific web search tools if available

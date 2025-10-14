@@ -152,6 +152,28 @@ export const TOOL_DEFINITIONS = {
         ),
     }),
   },
+  todo_write: {
+    description:
+      "Create or update the todo list for tracking multi-step tasks. " +
+      "Use this to track progress through complex operations. " +
+      "Replace the entire list on each call - the AI should track which tasks are completed. " +
+      "Mark ONE task as in_progress at a time.",
+    schema: z.object({
+      todos: z.array(
+        z.object({
+          content: z.string().describe("Task description"),
+          status: z.enum(["pending", "in_progress", "completed"]).describe("Task status"),
+          activeForm: z
+            .string()
+            .describe("Present progressive form of the task (e.g., 'Adding tests')"),
+        })
+      ),
+    }),
+  },
+  todo_read: {
+    description: "Read the current todo list",
+    schema: z.object({}),
+  },
 } as const;
 
 /**
@@ -190,6 +212,8 @@ export function getAvailableTools(modelString: string): string[] {
     "file_edit_insert",
     "propose_plan",
     "compact_summary",
+    "todo_write",
+    "todo_read",
   ];
 
   // Add provider-specific tools
