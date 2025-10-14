@@ -1,8 +1,7 @@
-import { useRef, useEffect, useSyncExternalStore } from "react";
+import { useRef, useEffect } from "react";
 import { useWorkspaceStoreRaw, type WorkspaceState } from "@/stores/WorkspaceStore";
 import { getCompactContinueMessageKey } from "@/constants/storage";
 import { buildSendMessageOptions } from "@/hooks/useSendMessageOptions";
-import { compareMaps } from "./useStableReference";
 
 /**
  * Hook to manage auto-continue after compaction
@@ -19,30 +18,24 @@ import { compareMaps } from "./useStableReference";
  * metadata - frontend must pass complete options.
  */
 export function useAutoCompactContinue() {
-  // Get workspace states from store (subscribe to all changes)
+  // Get workspace states from store
+  // NOTE: We use a ref-based approach instead of useSyncExternalStore to avoid
+  // re-rendering AppInner on every workspace state change. This hook only needs
+  // to react when messages change to a single compacted message state.
   const store = useWorkspaceStoreRaw();
-
-  // Cache the Map to avoid infinite re-renders (getAllStates returns new Map each time)
-  const cachedStatesRef = useRef<Map<string, WorkspaceState>>(new Map());
-  const getSnapshot = (): Map<string, WorkspaceState> => {
-    const newStates = store.getAllStates();
-    // Only return new reference if something actually changed (compare by reference)
-    if (compareMaps(cachedStatesRef.current, newStates)) {
-      return cachedStatesRef.current;
-    }
-    cachedStatesRef.current = newStates;
-    return newStates;
-  };
-
-  const workspaceStates = useSyncExternalStore(store.subscribe, getSnapshot);
+  const workspaceStatesRef = useRef<Map<string, WorkspaceState>>(new Map());
 
   // Prevent duplicate auto-sends if effect runs more than once while the same
   // compacted summary is visible (e.g., rapid state updates after replaceHistory)
   const firedForWorkspace = useRef<Set<string>>(new Set());
 
-  useEffect(() => {
+  // Update ref and check for auto-continue condition
+  const checkAutoCompact = () => {
+    const newStates = store.getAllStates();
+    workspaceStatesRef.current = newStates;
+
     // Check all workspaces for completed compaction
-    for (const [workspaceId, state] of workspaceStates) {
+    for (const [workspaceId, state] of newStates) {
       // Reset guard when compaction is no longer in the single-compacted-message state
       const isSingleCompacted =
         state.messages.length === 1 &&
@@ -76,7 +69,20 @@ export function useAutoCompactContinue() {
         });
       }
     }
-  }, [workspaceStates]);
+  };
+
+  useEffect(() => {
+    // Initial check
+    checkAutoCompact();
+
+    // Subscribe to store changes and check condition
+    // This doesn't trigger React re-renders, just our internal check
+    const unsubscribe = store.subscribe(() => {
+      checkAutoCompact();
+    });
+
+    return unsubscribe;
+  }, [store]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Simple callback to store continue message in localStorage
   // Called by ChatInput when /compact is parsed

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import type { ProjectConfig } from "@/config";
 
 /**
@@ -26,7 +26,7 @@ export function useProjectManagement() {
     }
   };
 
-  const addProject = async () => {
+  const addProject = useCallback(async () => {
     try {
       const selectedPath = await window.api.dialog.selectDirectory();
       if (!selectedPath) return;
@@ -47,24 +47,27 @@ export function useProjectManagement() {
     } catch (error) {
       console.error("Failed to add project:", error);
     }
-  };
+  }, [projects]);
 
-  const removeProject = async (path: string) => {
-    try {
-      const result = await window.api.projects.remove(path);
-      if (result.success) {
-        const newProjects = new Map(projects);
-        newProjects.delete(path);
-        setProjects(newProjects);
-      } else {
-        console.error("Failed to remove project:", result.error);
-        // Show error to user - they might need to remove workspaces first
-        alert(result.error);
+  const removeProject = useCallback(
+    async (path: string) => {
+      try {
+        const result = await window.api.projects.remove(path);
+        if (result.success) {
+          const newProjects = new Map(projects);
+          newProjects.delete(path);
+          setProjects(newProjects);
+        } else {
+          console.error("Failed to remove project:", result.error);
+          // Show error to user - they might need to remove workspaces first
+          alert(result.error);
+        }
+      } catch (error) {
+        console.error("Failed to remove project:", error);
       }
-    } catch (error) {
-      console.error("Failed to remove project:", error);
-    }
-  };
+    },
+    [projects]
+  );
 
   return {
     projects,

@@ -313,7 +313,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
   // Handle keyboard shortcuts (using optional refs that are safe even if not initialized)
   useAIViewKeybinds({
     workspaceId,
-    currentModel: workspaceState?.currentModel ?? "claude-sonnet-4-5",
+    currentModel: workspaceState?.currentModel ?? null,
     canInterrupt: workspaceState?.canInterrupt ?? false,
     showRetryBarrier: workspaceState
       ? !workspaceState.canInterrupt && hasInterruptedStream(workspaceState.messages)
@@ -388,14 +388,16 @@ const AIViewInner: React.FC<AIViewProps> = ({
   }
 
   return (
-    <ChatProvider messages={messages} cmuxMessages={cmuxMessages} model={currentModel}>
+    <ChatProvider messages={messages} cmuxMessages={cmuxMessages} model={currentModel ?? "unknown"}>
       <ViewContainer className={className}>
         <ChatArea>
           <ViewHeader>
             <WorkspaceTitle>
               <StatusIndicator
                 streaming={canInterrupt}
-                title={canInterrupt ? `${getModelName(currentModel)} streaming` : "Idle"}
+                title={
+                  canInterrupt && currentModel ? `${getModelName(currentModel)} streaming` : "Idle"
+                }
               />
               <GitStatusIndicator
                 gitStatus={gitStatus}
@@ -448,7 +450,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
                           message={msg}
                           onEditUserMessage={handleEditUserMessage}
                           workspaceId={workspaceId}
-                          model={currentModel}
+                          model={currentModel ?? undefined}
                         />
                         {isAtCutoff && (
                           <EditBarrier>
@@ -473,7 +475,11 @@ const AIViewInner: React.FC<AIViewProps> = ({
               {canInterrupt && (
                 <StreamingBarrier
                   statusText={
-                    isCompacting ? "compacting..." : `${getModelName(currentModel)} streaming...`
+                    isCompacting
+                      ? "compacting..."
+                      : currentModel
+                        ? `${getModelName(currentModel)} streaming...`
+                        : "streaming..."
                   }
                   cancelText={`hit ${formatKeybind(KEYBINDS.INTERRUPT_STREAM)} to cancel`}
                   tokenCount={

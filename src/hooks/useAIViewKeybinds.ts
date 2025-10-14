@@ -9,7 +9,7 @@ import { getThinkingPolicyForModel } from "@/utils/thinking/policy";
 
 interface UseAIViewKeybindsParams {
   workspaceId: string;
-  currentModel: string;
+  currentModel: string | null;
   canInterrupt: boolean;
   showRetryBarrier: boolean;
   currentWorkspaceThinking: ThinkingLevel;
@@ -63,6 +63,11 @@ export function useAIViewKeybinds({
       // Toggle thinking works even when focused in input fields
       if (matchesKeybind(e, KEYBINDS.TOGGLE_THINKING)) {
         e.preventDefault();
+
+        // Skip if no model set (workspace has no messages yet)
+        if (!currentModel) {
+          return;
+        }
 
         // Storage key for remembering this model's last-used active thinking level
         const lastThinkingKey = getLastThinkingByModelKey(currentModel);

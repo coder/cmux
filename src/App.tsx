@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import styled from "@emotion/styled";
 import { Global, css } from "@emotion/react";
 import { GlobalColors } from "./styles/colors";
@@ -20,6 +20,7 @@ import { useAutoCompactContinue } from "./hooks/useAutoCompactContinue";
 import { useWorkspaceStoreRaw, useWorkspaceRecency } from "./stores/WorkspaceStore";
 import { useGitStatusStoreRaw } from "./stores/GitStatusStore";
 
+import { useStableReference, compareMaps } from "./hooks/useStableReference";
 import { CommandRegistryProvider, useCommandRegistry } from "./contexts/CommandRegistryContext";
 import type { CommandAction } from "./contexts/CommandRegistryContext";
 import { CommandPalette } from "./components/CommandPalette";
@@ -149,6 +150,10 @@ function AppInner() {
   const [workspaceModalProject, setWorkspaceModalProject] = useState<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = usePersistedState("sidebarCollapsed", false);
 
+  const handleToggleSidebar = useCallback(() => {
+    setSidebarCollapsed((prev) => !prev);
+  }, [setSidebarCollapsed]);
+
   // Use custom hooks for project and workspace management
   const { projects, setProjects, addProject, removeProject } = useProjectManagement();
 
@@ -265,6 +270,25 @@ function AppInner() {
     setWorkspaceModalOpen(true);
   }, []);
 
+  // Memoize callbacks to prevent LeftSidebar/ProjectSidebar re-renders
+  const handleAddProjectCallback = useCallback(() => {
+    void addProject();
+  }, [addProject]);
+
+  const handleAddWorkspaceCallback = useCallback(
+    (projectPath: string) => {
+      void handleAddWorkspace(projectPath);
+    },
+    [handleAddWorkspace]
+  );
+
+  const handleRemoveProjectCallback = useCallback(
+    (path: string) => {
+      void handleRemoveProject(path);
+    },
+    [handleRemoveProject]
+  );
+
   const handleCreateWorkspace = async (branchName: string, trunkBranch: string) => {
     if (!workspaceModalProject) return;
 
@@ -297,26 +321,41 @@ function AppInner() {
   const workspaceRecency = useWorkspaceRecency();
 
   // Sort workspaces by recency (most recent first)
-  // This ensures navigation follows the visual order displayed in the sidebar
-  const sortedWorkspacesByProject = useMemo(() => {
-    const result = new Map<string, ProjectConfig["workspaces"]>();
-    for (const [projectPath, config] of projects) {
-      result.set(
-        projectPath,
-        config.workspaces.slice().sort((a, b) => {
-          const aMeta = workspaceMetadata.get(a.path);
-          const bMeta = workspaceMetadata.get(b.path);
-          if (!aMeta || !bMeta) return 0;
+  // Use stable reference to prevent sidebar re-renders when sort order hasn't changed
+  const sortedWorkspacesByProject = useStableReference(
+    () => {
+      const result = new Map<string, ProjectConfig["workspaces"]>();
+      for (const [projectPath, config] of projects) {
+        result.set(
+          projectPath,
+          config.workspaces.slice().sort((a, b) => {
+            const aMeta = workspaceMetadata.get(a.path);
+            const bMeta = workspaceMetadata.get(b.path);
+            if (!aMeta || !bMeta) return 0;
 
-          // Get timestamp of most recent user message (0 if never used)
-          const aTimestamp = workspaceRecency[aMeta.id] ?? 0;
-          const bTimestamp = workspaceRecency[bMeta.id] ?? 0;
-          return bTimestamp - aTimestamp;
+            // Get timestamp of most recent user message (0 if never used)
+            const aTimestamp = workspaceRecency[aMeta.id] ?? 0;
+            const bTimestamp = workspaceRecency[bMeta.id] ?? 0;
+            return bTimestamp - aTimestamp;
+          })
+        );
+      }
+      return result;
+    },
+    (prev, next) => {
+      // Compare Maps: check if both size and workspace order are the same
+      if (
+        !compareMaps(prev, next, (a, b) => {
+          if (a.length !== b.length) return false;
+          return a.every((workspace, i) => workspace.path === b[i].path);
         })
-      );
-    }
-    return result;
-  }, [projects, workspaceMetadata, workspaceRecency]);
+      ) {
+        return false;
+      }
+      return true;
+    },
+    [projects, workspaceMetadata, workspaceRecency]
+  );
 
   const handleNavigateWorkspace = useCallback(
     (direction: "next" | "prev") => {
@@ -523,7 +562,7 @@ function AppInner() {
       const allStates = workspaceStore.getAllStates();
       const streamingModels = new Map<string, string>();
       for (const [workspaceId, state] of allStates) {
-        if (state.canInterrupt) {
+        if (state.canInterrupt && state.currentModel) {
           streamingModels.set(workspaceId, state.currentModel);
         }
       }
@@ -582,15 +621,15 @@ function AppInner() {
           workspaceMetadata={workspaceMetadata}
           selectedWorkspace={selectedWorkspace}
           onSelectWorkspace={setSelectedWorkspace}
-          onAddProject={() => void addProject()}
-          onAddWorkspace={(projectPath) => void handleAddWorkspace(projectPath)}
-          onRemoveProject={(path) => void handleRemoveProject(path)}
+          onAddProject={handleAddProjectCallback}
+          onAddWorkspace={handleAddWorkspaceCallback}
+          onRemoveProject={handleRemoveProjectCallback}
           onRemoveWorkspace={removeWorkspace}
           onRenameWorkspace={renameWorkspace}
           lastReadTimestamps={lastReadTimestamps}
           onToggleUnread={onToggleUnread}
           collapsed={sidebarCollapsed}
-          onToggleCollapsed={() => setSidebarCollapsed((prev) => !prev)}
+          onToggleCollapsed={handleToggleSidebar}
           onGetSecrets={handleGetSecrets}
           onUpdateSecrets={handleUpdateSecrets}
           sortedWorkspacesByProject={sortedWorkspacesByProject}

@@ -140,7 +140,7 @@ describe("WorkspaceStore", () => {
         isCompacting: false,
         loading: true, // loading because not caught up
         cmuxMessages: [],
-        currentModel: "claude-sonnet-4-5",
+        currentModel: null,
         recencyTimestamp: null,
       });
     });

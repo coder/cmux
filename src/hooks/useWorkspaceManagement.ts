@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import type { WorkspaceMetadata } from "@/types/workspace";
 import type { WorkspaceSelection } from "@/components/ProjectSidebar";
 import type { ProjectConfig } from "@/config";
@@ -21,11 +21,7 @@ export function useWorkspaceManagement({
     new Map()
   );
 
-  useEffect(() => {
-    void loadWorkspaceMetadata();
-  }, []);
-
-  const loadWorkspaceMetadata = async () => {
+  const loadWorkspaceMetadata = useCallback(async () => {
     try {
       const metadataList = await window.api.workspace.list();
       const metadataMap = new Map();
@@ -36,7 +32,11 @@ export function useWorkspaceManagement({
     } catch (error) {
       console.error("Failed to load workspace metadata:", error);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    void loadWorkspaceMetadata();
+  }, [loadWorkspaceMetadata]);
 
   const createWorkspace = async (projectPath: string, branchName: string, trunkBranch: string) => {
     console.assert(
@@ -65,66 +65,69 @@ export function useWorkspaceManagement({
     }
   };
 
-  const removeWorkspace = async (
-    workspaceId: string,
-    options?: { force?: boolean }
-  ): Promise<{ success: boolean; error?: string }> => {
-    const result = await window.api.workspace.remove(workspaceId, options);
-    if (result.success) {
-      // Backend has already updated the config - reload projects to get updated state
-      const projectsList = await window.api.projects.list();
-      const loadedProjects = new Map(projectsList.map((p) => [p.path, p]));
-      onProjectsUpdate(loadedProjects);
+  const removeWorkspace = useCallback(
+    async (
+      workspaceId: string,
+      options?: { force?: boolean }
+    ): Promise<{ success: boolean; error?: string }> => {
+      const result = await window.api.workspace.remove(workspaceId, options);
+      if (result.success) {
+        // Backend has already updated the config - reload projects to get updated state
+        const projectsList = await window.api.projects.list();
+        const loadedProjects = new Map(projectsList.map((p) => [p.path, p]));
+        onProjectsUpdate(loadedProjects);
 
-      // Reload workspace metadata
-      await loadWorkspaceMetadata();
+        // Reload workspace metadata
+        await loadWorkspaceMetadata();
 
-      // Clear selected workspace if it was removed
-      if (selectedWorkspace?.workspaceId === workspaceId) {
-        onSelectedWorkspaceUpdate(null);
-      }
-      return { success: true };
-    } else {
-      console.error("Failed to remove workspace:", result.error);
-      return { success: false, error: result.error };
-    }
-  };
-
-  const renameWorkspace = async (
-    workspaceId: string,
-    newName: string
-  ): Promise<{ success: boolean; error?: string }> => {
-    const result = await window.api.workspace.rename(workspaceId, newName);
-    if (result.success) {
-      // Backend has already updated the config - reload projects to get updated state
-      const projectsList = await window.api.projects.list();
-      const loadedProjects = new Map(projectsList.map((p) => [p.path, p]));
-      onProjectsUpdate(loadedProjects);
-
-      // Reload workspace metadata
-      await loadWorkspaceMetadata();
-
-      // Update selected workspace if it was renamed
-      if (selectedWorkspace?.workspaceId === workspaceId) {
-        const newWorkspaceId = result.data.newWorkspaceId;
-
-        // Get updated workspace metadata from backend
-        const newMetadata = await window.api.workspace.getInfo(newWorkspaceId);
-        if (newMetadata) {
-          onSelectedWorkspaceUpdate({
-            projectPath: selectedWorkspace.projectPath,
-            projectName: newMetadata.projectName,
-            workspacePath: newMetadata.workspacePath,
-            workspaceId: newWorkspaceId,
-          });
+        // Clear selected workspace if it was removed
+        if (selectedWorkspace?.workspaceId === workspaceId) {
+          onSelectedWorkspaceUpdate(null);
         }
+        return { success: true };
+      } else {
+        console.error("Failed to remove workspace:", result.error);
+        return { success: false, error: result.error };
       }
-      return { success: true };
-    } else {
-      console.error("Failed to rename workspace:", result.error);
-      return { success: false, error: result.error };
-    }
-  };
+    },
+    [loadWorkspaceMetadata, onProjectsUpdate, onSelectedWorkspaceUpdate, selectedWorkspace]
+  );
+
+  const renameWorkspace = useCallback(
+    async (workspaceId: string, newName: string): Promise<{ success: boolean; error?: string }> => {
+      const result = await window.api.workspace.rename(workspaceId, newName);
+      if (result.success) {
+        // Backend has already updated the config - reload projects to get updated state
+        const projectsList = await window.api.projects.list();
+        const loadedProjects = new Map(projectsList.map((p) => [p.path, p]));
+        onProjectsUpdate(loadedProjects);
+
+        // Reload workspace metadata
+        await loadWorkspaceMetadata();
+
+        // Update selected workspace if it was renamed
+        if (selectedWorkspace?.workspaceId === workspaceId) {
+          const newWorkspaceId = result.data.newWorkspaceId;
+
+          // Get updated workspace metadata from backend
+          const newMetadata = await window.api.workspace.getInfo(newWorkspaceId);
+          if (newMetadata) {
+            onSelectedWorkspaceUpdate({
+              projectPath: selectedWorkspace.projectPath,
+              projectName: newMetadata.projectName,
+              workspacePath: newMetadata.workspacePath,
+              workspaceId: newWorkspaceId,
+            });
+          }
+        }
+        return { success: true };
+      } else {
+        console.error("Failed to rename workspace:", result.error);
+        return { success: false, error: result.error };
+      }
+    },
+    [loadWorkspaceMetadata, onProjectsUpdate, onSelectedWorkspaceUpdate, selectedWorkspace]
+  );
 
   return {
     workspaceMetadata,

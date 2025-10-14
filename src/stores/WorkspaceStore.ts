@@ -29,7 +29,7 @@ export interface WorkspaceState {
   isCompacting: boolean;
   loading: boolean;
   cmuxMessages: CmuxMessage[];
-  currentModel: string;
+  currentModel: string | null;
   recencyTimestamp: number | null;
 }
 
@@ -39,8 +39,19 @@ export interface WorkspaceState {
  */
 export interface WorkspaceSidebarState {
   canInterrupt: boolean;
-  currentModel: string;
+  currentModel: string | null;
   recencyTimestamp: number | null;
+}
+
+/**
+ * Helper to extract sidebar state from aggregator.
+ */
+function extractSidebarState(aggregator: StreamingMessageAggregator): WorkspaceSidebarState {
+  return {
+    canInterrupt: aggregator.getActiveStreams().length > 0,
+    currentModel: aggregator.getCurrentModel() ?? null,
+    recencyTimestamp: aggregator.getRecencyTimestamp(),
+  };
 }
 
 /**
@@ -73,16 +84,18 @@ export class WorkspaceStore {
   // Cache of last known recency per workspace (for change detection)
   private recencyCache = new Map<string, number | null>();
 
+  // Track previous sidebar state per workspace (to prevent unnecessary bumps)
+  private previousSidebarValues = new Map<string, WorkspaceSidebarState>();
+
   // Track model usage (injected dependency for useModelLRU integration)
   private readonly onModelUsed?: (model: string) => void;
 
   constructor(onModelUsed?: (model: string) => void) {
     this.onModelUsed = onModelUsed;
 
-    // Auto-invalidate derived state when any workspace changes
-    this.states.subscribeAny(() => {
-      this.checkAndBumpRecencyIfChanged();
-    });
+    // Note: We DON'T auto-check recency on every state bump.
+    // Instead, checkAndBumpRecencyIfChanged() is called explicitly after
+    // message completion events (not on deltas) to prevent App.tsx re-renders.
   }
 
   /**
@@ -105,6 +118,29 @@ export class WorkspaceStore {
 
     if (recencyChanged) {
       this.derived.bump("recency");
+    }
+  }
+
+  /**
+   * Only bump workspace state if sidebar-relevant fields changed.
+   * Prevents unnecessary re-renders during stream deltas.
+   */
+  private bumpIfSidebarChanged(workspaceId: string): void {
+    const aggregator = this.aggregators.get(workspaceId);
+    if (!aggregator) return;
+
+    const current = extractSidebarState(aggregator);
+    const previous = this.previousSidebarValues.get(workspaceId);
+
+    // First time or any relevant field changed
+    if (
+      !previous ||
+      previous.canInterrupt !== current.canInterrupt ||
+      previous.currentModel !== current.currentModel ||
+      previous.recencyTimestamp !== current.recencyTimestamp
+    ) {
+      this.previousSidebarValues.set(workspaceId, current);
+      this.states.bump(workspaceId);
     }
   }
 
@@ -140,48 +176,42 @@ export class WorkspaceStore {
         isCompacting: aggregator.isCompacting(),
         loading: !hasMessages && !isCaughtUp,
         cmuxMessages: messages,
-        currentModel: aggregator.getCurrentModel() ?? "claude-sonnet-4-5",
+        currentModel: aggregator.getCurrentModel() ?? null,
         recencyTimestamp: aggregator.getRecencyTimestamp(),
       };
     });
   }
 
+  // Cache sidebar state objects to return stable references
+  private sidebarStateCache = new Map<string, WorkspaceSidebarState>();
+
   /**
    * Get sidebar state for a workspace (subset of full state).
-   * This returns a stable reference that only changes when relevant fields change.
-   * Used by sidebar components to avoid re-renders when messages update.
+   * Returns cached reference if values haven't changed.
+   * This is critical for useSyncExternalStore - must return stable references.
    */
-  private sidebarStateCache = new Map<
-    string,
-    { state: WorkspaceSidebarState; sourceVersion: number }
-  >();
-
   getWorkspaceSidebarState(workspaceId: string): WorkspaceSidebarState {
     const fullState = this.getWorkspaceState(workspaceId);
     const cached = this.sidebarStateCache.get(workspaceId);
 
-    // Check if we have a cached sidebar state for this workspace
-    if (cached) {
-      // Check if relevant fields haven't changed
-      if (
-        cached.state.canInterrupt === fullState.canInterrupt &&
-        cached.state.currentModel === fullState.currentModel &&
-        cached.state.recencyTimestamp === fullState.recencyTimestamp
-      ) {
-        // Return cached sidebar state (stable reference)
-        return cached.state;
-      }
+    // Return cached if values match
+    if (
+      cached &&
+      cached.canInterrupt === fullState.canInterrupt &&
+      cached.currentModel === fullState.currentModel &&
+      cached.recencyTimestamp === fullState.recencyTimestamp
+    ) {
+      return cached;
     }
 
-    // Create new sidebar state
-    const sidebarState: WorkspaceSidebarState = {
+    // Create and cache new state
+    const newState: WorkspaceSidebarState = {
       canInterrupt: fullState.canInterrupt,
       currentModel: fullState.currentModel,
       recencyTimestamp: fullState.recencyTimestamp,
     };
-
-    this.sidebarStateCache.set(workspaceId, { state: sidebarState, sourceVersion: 0 });
-    return sidebarState;
+    this.sidebarStateCache.set(workspaceId, newState);
+    return newState;
   }
 
   /**
@@ -273,6 +303,8 @@ export class WorkspaceStore {
     this.caughtUp.delete(workspaceId);
     this.historicalMessages.delete(workspaceId);
     this.recencyCache.delete(workspaceId);
+    this.previousSidebarValues.delete(workspaceId);
+    this.sidebarStateCache.delete(workspaceId);
   }
 
   /**
@@ -333,6 +365,7 @@ export class WorkspaceStore {
       }
       this.caughtUp.set(workspaceId, true);
       this.states.bump(workspaceId);
+      this.checkAndBumpRecencyIfChanged(); // Messages loaded, update recency
       return;
     }
 
@@ -350,6 +383,7 @@ export class WorkspaceStore {
     if (isDeleteMessage(data)) {
       aggregator.handleDeleteMessage(data);
       this.states.bump(workspaceId);
+      this.checkAndBumpRecencyIfChanged(); // Message deleted, update recency
       return;
     }
 
@@ -368,6 +402,8 @@ export class WorkspaceStore {
 
     if (isStreamDelta(data)) {
       aggregator.handleStreamDelta(data);
+      // Always bump for chat components to see deltas
+      // Sidebar components won't re-render because getWorkspaceSidebarState() returns cached object
       this.states.bump(workspaceId);
       return;
     }
@@ -414,6 +450,7 @@ export class WorkspaceStore {
       }
 
       this.states.bump(workspaceId);
+      this.checkAndBumpRecencyIfChanged(); // Stream ended, update recency
       return;
     }
 
@@ -468,6 +505,7 @@ export class WorkspaceStore {
     } else {
       aggregator.handleMessage(data);
       this.states.bump(workspaceId);
+      this.checkAndBumpRecencyIfChanged(); // New message, update recency
     }
   }
 }
@@ -525,7 +563,8 @@ export function useWorkspaceRecency(): Record<string, number> {
  * Hook to get sidebar-specific state for a workspace.
  * Only re-renders when sidebar-relevant fields change (not on every message).
  *
- * Uses per-key subscription + derived selector.
+ * getWorkspaceSidebarState returns cached references, so this won't cause
+ * unnecessary re-renders even when the subscription fires.
  */
 export function useWorkspaceSidebarState(workspaceId: string): WorkspaceSidebarState {
   const store = getStoreInstance();
