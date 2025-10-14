@@ -5,6 +5,7 @@ import {
   GIT_FETCH_SCRIPT,
   parseGitStatusScriptOutput,
 } from "@/utils/git/gitStatus";
+import { CacheManager } from "@/utils/messages/CacheManager";
 
 /**
  * External store for git status of all workspaces.
@@ -46,9 +47,8 @@ export class GitStatusStore {
   private workspaceMetadata = new Map<string, WorkspaceMetadata>();
   private isActive = true;
 
-  // Cache for stable references
-  private statusCache = new Map<string, GitStatus | null>();
-  private allStatusCache: Map<string, GitStatus | null> | null = null;
+  // Centralized cache management
+  private cache = new CacheManager();
 
   constructor() {
     // Store is ready for workspace sync
@@ -71,17 +71,9 @@ export class GitStatusStore {
    * Returns cached reference if status unchanged.
    */
   getStatus(workspaceId: string): GitStatus | null {
-    const current = this.gitStatusMap.get(workspaceId) ?? null;
-    const cached = this.statusCache.get(workspaceId);
-
-    // Compare using deep equality
-    if (this.compareGitStatus(cached ?? null, current)) {
-      return cached ?? null;
-    }
-
-    // Status changed - update cache
-    this.statusCache.set(workspaceId, current);
-    return current;
+    return this.cache.get(`status-${workspaceId}`, () => {
+      return this.gitStatusMap.get(workspaceId) ?? null;
+    });
   }
 
   /**
@@ -89,28 +81,9 @@ export class GitStatusStore {
    * Returns cached reference if no statuses changed.
    */
   getAllStatuses(): Map<string, GitStatus | null> {
-    // Check if any status changed
-    let hasChanges = false;
-
-    if (!this.allStatusCache || this.allStatusCache.size !== this.gitStatusMap.size) {
-      hasChanges = true;
-    } else {
-      for (const [id, status] of this.gitStatusMap) {
-        const cached = this.allStatusCache.get(id);
-        if (!this.compareGitStatus(cached ?? null, status ?? null)) {
-          hasChanges = true;
-          break;
-        }
-      }
-    }
-
-    if (!hasChanges && this.allStatusCache) {
-      return this.allStatusCache;
-    }
-
-    // Create new Map with current statuses
-    this.allStatusCache = new Map(this.gitStatusMap);
-    return this.allStatusCache;
+    return this.cache.get("all-statuses", () => {
+      return new Map(this.gitStatusMap);
+    });
   }
 
   /**
@@ -131,7 +104,6 @@ export class GitStatusStore {
     for (const id of this.gitStatusMap.keys()) {
       if (!metadata.has(id)) {
         this.gitStatusMap.delete(id);
-        this.statusCache.delete(id);
         removedAny = true;
       }
     }
@@ -270,10 +242,7 @@ export class GitStatusStore {
     const groups = new Map<string, WorkspaceMetadata[]>();
 
     for (const m of metadata.values()) {
-      // Extract project name from workspace path
-      // Format: ~/.cmux/src/{projectName}/{branchName}
-      const parts = m.workspacePath.split("/");
-      const projectName = parts[parts.length - 2];
+      const projectName = m.projectName;
 
       if (!groups.has(projectName)) {
         groups.set(projectName, []);
@@ -389,20 +358,11 @@ export class GitStatusStore {
   }
 
   /**
-   * Compare two GitStatus objects for equality.
-   */
-  private compareGitStatus(a: GitStatus | null, b: GitStatus | null): boolean {
-    if (a === b) return true;
-    if (!a || !b) return false;
-
-    return a.ahead === b.ahead && a.behind === b.behind && a.dirty === b.dirty;
-  }
-
-  /**
    * Notify all subscribers.
    * Must be synchronous for useSyncExternalStore to work correctly.
    */
   private emit(): void {
+    this.cache.invalidateAll();
     for (const listener of this.listeners) {
       listener();
     }
@@ -417,8 +377,7 @@ export class GitStatusStore {
     this.listeners.clear();
     this.gitStatusMap.clear();
     this.fetchCache.clear();
-    this.statusCache.clear();
-    this.allStatusCache = null;
+    this.cache.invalidateAll();
   }
 }
 
