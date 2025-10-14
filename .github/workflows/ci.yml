@@ -79,6 +79,31 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 
+  storybook-test:
+    name: Storybook Interaction Tests
+    runs-on: ${{ github.repository_owner == 'coder' && 'depot-ubuntu-22.04-16' || 'ubuntu-latest' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Required for git describe to find tags
+
+      - uses: ./.github/actions/setup-cmux
+
+      - name: Install Playwright browsers
+        run: bun x playwright install --with-deps
+
+      - name: Build Storybook
+        run: make storybook-build
+
+      - name: Serve Storybook
+        run: |
+          bun x http-server storybook-static -p 6006 &
+          sleep 5
+
+      - name: Run Storybook tests
+        run: make test-storybook
+
   e2e-test:
     name: End-to-End Tests
     runs-on: ${{ github.repository_owner == 'coder' && 'depot-ubuntu-22.04-16' || 'ubuntu-latest' }}

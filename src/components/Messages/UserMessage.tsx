@@ -36,6 +36,16 @@ interface UserMessageProps {
   className?: string;
   onEdit?: (messageId: string, content: string) => void;
   isCompacting?: boolean;
+  clipboardWriteText?: (data: string) => Promise<void>;
+}
+
+async function defaultClipboardWriteText(data: string): Promise<void> {
+  if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(data);
+    return;
+  }
+
+  console.warn("Clipboard API is not available; skipping copy action.");
 }
 
 export const UserMessage: React.FC<UserMessageProps> = ({
@@ -43,10 +53,16 @@ export const UserMessage: React.FC<UserMessageProps> = ({
   className,
   onEdit,
   isCompacting,
+  clipboardWriteText = defaultClipboardWriteText,
 }) => {
   const [copied, setCopied] = useState(false);
 
   const content = message.content;
+
+  console.assert(
+    typeof clipboardWriteText === "function",
+    "UserMessage expects clipboardWriteText to be a callable function."
+  );
 
   // Check if this is a local command output
   const isLocalCommandOutput =
@@ -58,8 +74,13 @@ export const UserMessage: React.FC<UserMessageProps> = ({
     : "";
 
   const handleCopy = async () => {
+    console.assert(
+      typeof content === "string",
+      "UserMessage copy handler expects message content to be a string."
+    );
+
     try {
-      await navigator.clipboard.writeText(content);
+      await clipboardWriteText(content);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {

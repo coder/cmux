@@ -22,7 +22,7 @@ export function extractModeSection(markdown: string, mode: string): string | nul
 
     const level = Number(t.tag?.replace(/^h/, "")) || 1;
     const inline = tokens[i + 1];
-    if (!inline || inline.type !== "inline") continue;
+    if (inline?.type !== "inline") continue;
 
     const text = (inline.content || "").trim().toLowerCase();
     if (text !== target) continue;

@@ -202,6 +202,11 @@ export class GitStatusStore {
   private async checkWorkspaceStatus(
     metadata: WorkspaceMetadata
   ): Promise<[string, GitStatus | null]> {
+    // Defensive: Return null if window.api is unavailable (e.g., test environment)
+    if (typeof window === "undefined" || !window.api) {
+      return [metadata.id, null];
+    }
+
     try {
       const result = await window.api.workspace.executeBash(metadata.id, GIT_STATUS_SCRIPT, {
         timeout_secs: 5,
@@ -313,6 +318,11 @@ export class GitStatusStore {
    * Fetch updates for a project (one workspace is sufficient).
    */
   private async fetchProject(projectName: string, workspaceId: string): Promise<void> {
+    // Defensive: Return early if window.api is unavailable (e.g., test environment)
+    if (typeof window === "undefined" || !window.api) {
+      return;
+    }
+
     const cache = this.fetchCache.get(projectName) ?? {
       lastFetch: 0,
       inProgress: false,

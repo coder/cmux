@@ -43,7 +43,7 @@ export function calculateTPS(deltas: DeltaRecord[], now: number = Date.now()): n
  * Calculate cumulative token count from delta records
  */
 export function calculateTokenCount(deltas: DeltaRecord[]): number {
-  if (!deltas || deltas.length === 0) return 0;
+  if ((deltas?.length ?? 0) === 0) return 0;
   return deltas.reduce((sum, d) => sum + (d.tokens || 0), 0);
 }
 
