@@ -324,6 +324,7 @@ ${getDirtyFiles}
       const result = await window.api.workspace.executeBash(workspaceId, script, {
         timeout_secs: 5,
         niceness: 19, // Lowest priority - don't interfere with user operations
+        overflow_policy: "truncate", // Don't create temp files for git status popover
       });
 
       if (!result.success) {

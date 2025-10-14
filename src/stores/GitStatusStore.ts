@@ -206,6 +206,7 @@ export class GitStatusStore {
       const result = await window.api.workspace.executeBash(metadata.id, GIT_STATUS_SCRIPT, {
         timeout_secs: 5,
         niceness: 19, // Lowest priority - don't interfere with user operations
+        overflow_policy: "truncate", // Don't create temp files for background git status checks
       });
 
       if (!result.success) {
@@ -328,6 +329,7 @@ export class GitStatusStore {
       const result = await window.api.workspace.executeBash(workspaceId, GIT_FETCH_SCRIPT, {
         timeout_secs: 30,
         niceness: 19, // Lowest priority - don't interfere with user operations
+        overflow_policy: "truncate", // Don't create temp files for background git fetch
       });
 
       if (!result.success) {

@@ -595,7 +595,11 @@ export class IpcMain {
         _event,
         workspaceId: string,
         script: string,
-        options?: { timeout_secs?: number; niceness?: number }
+        options?: {
+          timeout_secs?: number;
+          niceness?: number;
+          overflow_policy?: "truncate" | "tmpfile";
+        }
       ) => {
         try {
           // Get workspace metadata to find workspacePath
@@ -621,6 +625,7 @@ export class IpcMain {
             secrets: secretsToRecord(projectSecrets),
             niceness: options?.niceness,
             tempDir: tempDir.path,
+            overflow_policy: options?.overflow_policy,
           });
 
           // Execute the script with provided options
