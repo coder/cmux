@@ -465,6 +465,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
                           onEditUserMessage={handleEditUserMessage}
                           workspaceId={workspaceId}
                           model={currentModel ?? undefined}
+                          isCompacting={isCompacting}
                         />
                         {isAtCutoff && (
                           <EditBarrier>

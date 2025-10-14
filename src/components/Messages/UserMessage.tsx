@@ -4,6 +4,7 @@ import type { DisplayedMessage } from "@/types/message";
 import type { ButtonConfig } from "./MessageWindow";
 import { MessageWindow } from "./MessageWindow";
 import { TerminalOutput } from "./TerminalOutput";
+import { formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
 
 const FormattedContent = styled.pre`
   margin: 0;
@@ -34,9 +35,10 @@ interface UserMessageProps {
   message: DisplayedMessage & { type: "user" };
   className?: string;
   onEdit?: (messageId: string, content: string) => void;
+  isCompacting?: boolean;
 }
 
-export const UserMessage: React.FC<UserMessageProps> = ({ message, className, onEdit }) => {
+export const UserMessage: React.FC<UserMessageProps> = ({ message, className, onEdit, isCompacting }) => {
   const [copied, setCopied] = useState(false);
 
   const content = message.content;
@@ -72,6 +74,10 @@ export const UserMessage: React.FC<UserMessageProps> = ({ message, className, on
           {
             label: "Edit",
             onClick: handleEdit,
+            disabled: isCompacting,
+            tooltip: isCompacting
+              ? `Cannot edit while compacting (press ${formatKeybind(KEYBINDS.INTERRUPT_STREAM)} to cancel)`
+              : undefined,
           },
         ]
       : []),
