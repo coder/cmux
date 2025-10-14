@@ -38,7 +38,12 @@ interface UserMessageProps {
   isCompacting?: boolean;
 }
 
-export const UserMessage: React.FC<UserMessageProps> = ({ message, className, onEdit, isCompacting }) => {
+export const UserMessage: React.FC<UserMessageProps> = ({
+  message,
+  className,
+  onEdit,
+  isCompacting,
+}) => {
   const [copied, setCopied] = useState(false);
 
   const content = message.content;

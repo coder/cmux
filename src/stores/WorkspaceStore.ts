@@ -466,9 +466,15 @@ export class WorkspaceStore {
               const messages = aggregator.getAllMessages();
               const compactRequestMsg = [...messages]
                 .reverse()
-                .find((m) => m.role === "user" && m.metadata?.cmuxMetadata?.type === "compaction-request");
+                .find(
+                  (m) =>
+                    m.role === "user" && m.metadata?.cmuxMetadata?.type === "compaction-request"
+                );
               const cmuxMeta = compactRequestMsg?.metadata?.cmuxMetadata;
-              const continueMessage = cmuxMeta?.type === "compaction-request" ? cmuxMeta.parsed.continueMessage : undefined;
+              const continueMessage =
+                cmuxMeta?.type === "compaction-request"
+                  ? cmuxMeta.parsed.continueMessage
+                  : undefined;
 
               const summaryMessage = createCmuxMessage(
                 `summary-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
@@ -483,7 +489,9 @@ export class WorkspaceStore {
                   duration: data.metadata.duration,
                   systemMessageTokens: data.metadata.systemMessageTokens,
                   // Store continueMessage in summary so it survives history replacement
-                  cmuxMetadata: continueMessage ? { type: "compaction-result", continueMessage } : { type: "normal" },
+                  cmuxMetadata: continueMessage
+                    ? { type: "compaction-result", continueMessage }
+                    : { type: "normal" },
                 }
               );
 

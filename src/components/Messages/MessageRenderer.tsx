@@ -22,7 +22,14 @@ export const MessageRenderer = React.memo<MessageRendererProps>(
     // Route based on message type
     switch (message.type) {
       case "user":
-        return <UserMessage message={message} className={className} onEdit={onEditUserMessage} isCompacting={isCompacting} />;
+        return (
+          <UserMessage
+            message={message}
+            className={className}
+            onEdit={onEditUserMessage}
+            isCompacting={isCompacting}
+          />
+        );
       case "assistant":
         return (
           <AssistantMessage message={message} className={className} workspaceId={workspaceId} />
