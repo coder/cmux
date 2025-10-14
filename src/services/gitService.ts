@@ -129,6 +129,11 @@ export async function pruneWorktrees(projectPath: string): Promise<WorktreeResul
  * This provides instant feedback for the common case (clean worktrees) while
  * preserving git's safety checks for uncommitted changes.
  *
+ * IMPORTANT: This function NEVER uses --force. It will fail and return an error if:
+ * - Worktree has uncommitted changes
+ * - Worktree contains submodules (git refuses to remove without --force)
+ * The caller (frontend) will show a force delete modal, and the user can retry with force: true.
+ *
  * @param projectPath - Path to the main git repository
  * @param workspacePath - Path to the worktree to remove
  * @param options.onBackgroundDelete - Optional callback for background deletion (for logging)
@@ -203,12 +208,10 @@ export async function removeWorktreeSafe(
     .catch(() => false);
 
   if (stillExists) {
-    // Check if worktree has submodules
-    // Git refuses to remove worktrees with submodules without --force
-    const containsSubmodules = await hasSubmodules(workspacePath);
-    const forceRequired = containsSubmodules;
-
-    const gitResult = await removeWorktree(projectPath, workspacePath, { force: forceRequired });
+    // Try normal git removal without force
+    // If worktree has uncommitted changes or submodules, this will fail
+    // and the error will be shown to the user who can then force delete
+    const gitResult = await removeWorktree(projectPath, workspacePath, { force: false });
 
     if (!gitResult.success) {
       const errorMessage = gitResult.error ?? "Unknown error";
