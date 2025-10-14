@@ -1,8 +1,6 @@
 import { useRef, useEffect } from "react";
 import { useWorkspaceStoreRaw, type WorkspaceState } from "@/stores/WorkspaceStore";
 import { buildSendMessageOptions } from "@/hooks/useSendMessageOptions";
-import { parseCommand } from "@/utils/slashCommands/parser";
-import type { CmuxTextPart } from "@/types/message";
 
 /**
  * Hook to manage auto-continue after compaction using structured message metadata
@@ -64,20 +62,7 @@ export function useAutoCompactContinue() {
       if (compactRequestMessage) {
         const cmuxMeta = compactRequestMessage.metadata?.cmuxMetadata;
         if (cmuxMeta?.type === "compaction-request") {
-          let continueMessage = cmuxMeta.parsed.continueMessage;
-
-          // If user edited the message after compaction, re-parse the current content
-          // This ensures the latest command is used, not the original
-          const currentContent = compactRequestMessage.parts
-            .filter((p): p is CmuxTextPart => p.type === "text")
-            .map((p) => p.text)
-            .join("");
-
-          if (currentContent !== cmuxMeta.rawCommand) {
-            // Message was edited - re-parse
-            const parsed = parseCommand(currentContent);
-            continueMessage = parsed?.type === "compact" ? parsed.continueMessage : undefined;
-          }
+          const continueMessage = cmuxMeta.parsed.continueMessage;
 
           if (continueMessage) {
             // Mark as fired immediately to avoid re-entry on rapid renders
