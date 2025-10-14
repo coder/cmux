@@ -20,6 +20,7 @@ import type {
 } from "@/types/toolParts";
 import { isDynamicToolPart } from "@/types/toolParts";
 import { createDeltaStorage, type DeltaRecordStorage } from "./StreamingTPSCalculator";
+import { computeRecencyTimestamp } from "./recency";
 
 // Maximum number of messages to display in the DOM for performance
 // Full history is still maintained internally for token counting and stats
@@ -40,12 +41,37 @@ export class StreamingMessageAggregator {
   // Cache for getAllMessages() to maintain stable array references
   private cachedMessages: CmuxMessage[] | null = null;
 
+  // Cache for getDisplayedMessages() to maintain stable array references  
+  private cachedDisplayedMessages: DisplayedMessage[] | null = null;
+
+  // Recency timestamp for workspace sorting
+  private recencyTimestamp: number | null = null;
+
   // Delta history for token counting and TPS calculation
   private deltaHistory = new Map<string, DeltaRecordStorage>();
 
   // Invalidate cache on any mutation
   private invalidateCache(): void {
     this.cachedMessages = null;
+    this.cachedDisplayedMessages = null;
+    this.updateRecency();
+  }
+
+  /**
+   * Recompute and cache recency from current messages.
+   * Called automatically when messages change.
+   */
+  private updateRecency(): void {
+    const messages = this.getAllMessages();
+    this.recencyTimestamp = computeRecencyTimestamp(messages);
+  }
+
+  /**
+   * Get the current recency timestamp (O(1) accessor).
+   * Used for workspace sorting by last user interaction.
+   */
+  getRecencyTimestamp(): number | null {
+    return this.recencyTimestamp;
   }
 
   addMessage(message: CmuxMessage): void {

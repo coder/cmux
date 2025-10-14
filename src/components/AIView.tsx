@@ -256,17 +256,6 @@ const AIViewInner: React.FC<AIViewProps> = ({
     setEditingMessage(undefined);
   }, []);
 
-  // Merge consecutive identical stream errors
-  const mergedMessages = mergeConsecutiveStreamErrors(messages);
-
-  // When editing, find the cutoff point
-  const editCutoffHistoryId = editingMessage
-    ? mergedMessages.find(
-        (msg): msg is Exclude<DisplayedMessage, { type: "history-hidden" }> =>
-          msg.type !== "history-hidden" && msg.historyId === editingMessage.id
-      )?.historyId
-    : undefined;
-
   const handleMessageSent = useCallback(() => {
     // Enable auto-scroll when user sends a message
     setAutoScroll(true);
@@ -355,6 +344,14 @@ const AIViewInner: React.FC<AIViewProps> = ({
   // Get active stream message ID for token counting
   // Use getActiveStreamMessageId() which returns the messageId directly
   const activeStreamMessageId = aggregator.getActiveStreamMessageId();
+  const activeTokenCount =
+    activeStreamMessageId !== undefined
+      ? aggregator.getStreamingTokenCount(activeStreamMessageId)
+      : undefined;
+  const activeTPS =
+    activeStreamMessageId !== undefined
+      ? aggregator.getStreamingTPS(activeStreamMessageId)
+      : undefined;
 
   // Track if last message was interrupted or errored (for RetryBarrier)
   // Uses same logic as useResumeManager for DRY
