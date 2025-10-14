@@ -7,7 +7,7 @@ import CRC32 from "crc-32";
 import { getToolSchemas, getAvailableTools } from "@/utils/tools/toolDefinitions";
 
 export interface Tokenizer {
-  name: string;
+  encoding: string;
   countTokens: (text: string) => number;
 }
 
@@ -17,7 +17,7 @@ export interface Tokenizer {
  *
  * eslint-disable-next-line @typescript-eslint/consistent-type-imports -- Dynamic imports are intentional for lazy loading
  */
-let tokenizerModules: {
+interface TokenizerModuleImports {
   // eslint-disable-next-line @typescript-eslint/consistent-type-imports
   AITokenizer: typeof import("ai-tokenizer").default;
   // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -26,7 +26,9 @@ let tokenizerModules: {
   o200k_base: typeof import("ai-tokenizer/encoding/o200k_base");
   // eslint-disable-next-line @typescript-eslint/consistent-type-imports
   claude: typeof import("ai-tokenizer/encoding/claude");
-} | null = null;
+}
+
+let tokenizerModules: TokenizerModuleImports | null = null;
 
 let tokenizerLoadPromise: Promise<void> | null = null;
 
@@ -105,6 +107,55 @@ function countTokensCached(text: string, tokenizeFn: () => number | Promise<numb
   return approximation;
 }
 
+type TokenizerModules = TokenizerModuleImports;
+type TokenizerModelRecord = Record<string, { encoding: string } | undefined>;
+
+const FALLBACK_MODEL_KEY = "openai/gpt-4o";
+const FALLBACK_ENCODING = "o200k_base";
+
+const MODEL_KEY_OVERRIDES: Record<string, string> = {
+  "anthropic:claude-sonnet-4-5": "anthropic/claude-sonnet-4.5",
+};
+
+function normalizeModelKey(modelString: string): string {
+  return modelString.includes(":") ? modelString.replace(":", "/") : modelString;
+}
+
+function getTokenizerModels(modules: TokenizerModules): TokenizerModelRecord {
+  return modules.models as TokenizerModelRecord;
+}
+
+function resolveTokenizerEncoding(modelString: string, modules: TokenizerModules): string {
+  const models = getTokenizerModels(modules);
+
+  const candidates: Array<string | undefined> = [];
+  if (modelString.includes("/")) {
+    candidates.push(modelString);
+  }
+  if (modelString.includes(":")) {
+    candidates.push(normalizeModelKey(modelString));
+  }
+  candidates.push(MODEL_KEY_OVERRIDES[modelString]);
+
+  for (const key of candidates) {
+    if (!key) continue;
+    const entry = models[key];
+    if (entry?.encoding) {
+      return entry.encoding;
+    }
+  }
+
+  return models[FALLBACK_MODEL_KEY]?.encoding ?? FALLBACK_ENCODING;
+}
+
+function getTokenizerEncoding(modelString: string, modules: TokenizerModules | null): string {
+  if (!modules) {
+    return normalizeModelKey(modelString);
+  }
+
+  return resolveTokenizerEncoding(modelString, modules);
+}
+
 /**
  * Count tokens using loaded tokenizer modules
  * Assumes tokenizerModules is not null
@@ -114,33 +165,9 @@ function countTokensWithLoadedModules(
   modelString: string,
   modules: NonNullable<typeof tokenizerModules>
 ): number {
-  const [provider, modelId] = modelString.split(":");
-  let model = modules.models[`${provider}/${modelId}` as keyof typeof modules.models];
-  if (!model) {
-    switch (modelString) {
-      case "anthropic:claude-sonnet-4-5":
-        model = modules.models["anthropic/claude-sonnet-4.5"];
-        break;
-      default:
-        // GPT-4o has pretty good approximation for most models.
-        model = modules.models["openai/gpt-4o"];
-    }
-  }
+  const encodingName = getTokenizerEncoding(modelString, modules);
 
-  let encoding: typeof modules.o200k_base | typeof modules.claude;
-  switch (model.encoding) {
-    case "o200k_base":
-      encoding = modules.o200k_base;
-      break;
-    case "claude":
-      encoding = modules.claude;
-      break;
-    default:
-      // Do not include all encodings, as they are pretty big.
-      // The most common one is o200k_base.
-      encoding = modules.o200k_base;
-      break;
-  }
+  const encoding = encodingName === "claude" ? modules.claude : modules.o200k_base;
   const tokenizer = new modules.AITokenizer(encoding);
   return tokenizer.count(text);
 }
@@ -156,8 +183,8 @@ export function getTokenizerForModel(modelString: string): Tokenizer {
   void loadTokenizerModules();
 
   return {
-    get name() {
-      return tokenizerModules ? "loaded" : "approximation";
+    get encoding() {
+      return getTokenizerEncoding(modelString, tokenizerModules);
     },
     countTokens: (text: string) => {
       // If tokenizer already loaded, use synchronous path for accurate counts
