@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
-import type { WorkspaceState } from "./useWorkspaceAggregators";
+import type { WorkspaceState } from "@/stores/WorkspaceStore";
+import { useAllWorkspaceStates } from "./useWorkspaceStore";
 import { CUSTOM_EVENTS } from "@/constants/events";
 import { getAutoRetryKey, getRetryStateKey } from "@/constants/storage";
 import { getSendOptionsFromStorage } from "@/utils/messages/sendOptions";
@@ -53,7 +54,10 @@ const MAX_DELAY = 60000; // 60 seconds
  * - Stream errors/aborts (events for fast response)
  * - Manual retry button (event from RetryBarrier)
  */
-export function useResumeManager(workspaceStates: Map<string, WorkspaceState>) {
+export function useResumeManager() {
+  // Get workspace states from store
+  const workspaceStates = useAllWorkspaceStates();
+
   // Use ref to avoid effect re-running on every state change
   const workspaceStatesRef = useRef(workspaceStates);
   workspaceStatesRef.current = workspaceStates;

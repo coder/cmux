@@ -1,5 +1,6 @@
 import { useRef, useEffect } from "react";
-import type { WorkspaceState } from "@/hooks/useWorkspaceAggregators";
+import type { WorkspaceState } from "@/stores/WorkspaceStore";
+import { useAllWorkspaceStates } from "./useWorkspaceStore";
 import { getCompactContinueMessageKey } from "@/constants/storage";
 import { buildSendMessageOptions } from "@/hooks/useSendMessageOptions";
 
@@ -17,7 +18,10 @@ import { buildSendMessageOptions } from "@/hooks/useSendMessageOptions";
  * frontend via buildSendMessageOptions. The backend does NOT fall back to workspace
  * metadata - frontend must pass complete options.
  */
-export function useAutoCompactContinue(workspaceStates: Map<string, WorkspaceState>) {
+export function useAutoCompactContinue() {
+  // Get workspace states from store
+  const workspaceStates = useAllWorkspaceStates();
+
   // Prevent duplicate auto-sends if effect runs more than once while the same
   // compacted summary is visible (e.g., rapid state updates after replaceHistory)
   const firedForWorkspace = useRef<Set<string>>(new Set());

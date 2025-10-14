@@ -14,7 +14,6 @@ const mockWindow = {
   },
 };
 
-// @ts-expect-error - Mocking global
 global.window = mockWindow as unknown as Window & typeof globalThis;
 
 // Mock dispatchEvent
@@ -44,8 +43,6 @@ describe("WorkspaceStore", () => {
         id: "test-workspace",
         projectName: "test-project",
         workspacePath: "/test/path",
-        permissionMode: "edit",
-        nextSequenceNumber: 1,
       };
 
       // Add workspace (should trigger IPC subscription)
@@ -68,8 +65,6 @@ describe("WorkspaceStore", () => {
         id: "test-workspace",
         projectName: "test-project",
         workspacePath: "/test/path",
-        permissionMode: "edit",
-        nextSequenceNumber: 1,
       };
 
       store.addWorkspace(metadata);
@@ -90,8 +85,6 @@ describe("WorkspaceStore", () => {
         id: "workspace-1",
         projectName: "project-1",
         workspacePath: "/path/1",
-        permissionMode: "edit",
-        nextSequenceNumber: 1,
       };
 
       const workspaceMap = new Map([[metadata1.id, metadata1]]);
@@ -108,8 +101,6 @@ describe("WorkspaceStore", () => {
         id: "workspace-1",
         projectName: "project-1",
         workspacePath: "/path/1",
-        permissionMode: "edit",
-        nextSequenceNumber: 1,
       };
 
       // Add workspace
@@ -170,8 +161,6 @@ describe("WorkspaceStore", () => {
         id: "test-workspace",
         projectName: "test-project",
         workspacePath: "/test/path",
-        permissionMode: "edit",
-        nextSequenceNumber: 1,
       };
 
       store.addWorkspace(metadata);

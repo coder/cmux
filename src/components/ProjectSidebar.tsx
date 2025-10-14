@@ -18,7 +18,7 @@ import { StatusIndicator } from "./StatusIndicator";
 // Removed: import { getModelName } from "@/utils/ai/models";
 import { GitStatusIndicator } from "./GitStatusIndicator";
 import { ModelDisplay } from "./Messages/ModelDisplay";
-import type { WorkspaceState } from "@/hooks/useWorkspaceAggregators";
+import { useAllWorkspaceStates } from "@/hooks/useWorkspaceStore";
 import SecretsModal from "./SecretsModal";
 import type { Secret } from "@/types/secrets";
 import { ForceDeleteModal } from "./ForceDeleteModal";
@@ -580,7 +580,6 @@ interface ProjectSidebarProps {
     workspaceId: string,
     newName: string
   ) => Promise<{ success: boolean; error?: string }>;
-  getWorkspaceState: (workspaceId: string) => WorkspaceState;
   unreadStatus: Map<string, boolean>;
   onToggleUnread: (workspaceId: string) => void;
   collapsed: boolean;
@@ -600,7 +599,6 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
   onRemoveProject,
   onRemoveWorkspace,
   onRenameWorkspace,
-  getWorkspaceState,
   unreadStatus,
   onToggleUnread: _onToggleUnread,
   collapsed,
@@ -611,6 +609,9 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
 }) => {
   // Subscribe to git status updates (causes this component to re-render every 10s)
   const gitStatus = useGitStatus();
+
+  // NEW: Get all workspace states from store
+  const allWorkspaceStates = useAllWorkspaceStates();
 
   // Store as array in localStorage, convert to Set for usage
   const [expandedProjectsArray, setExpandedProjectsArray] = usePersistedState<string[]>(
@@ -970,9 +971,9 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
 
                               const workspaceId = metadata.id;
                               const displayName = getWorkspaceDisplayName(workspace.path);
-                              const workspaceState = getWorkspaceState(workspaceId);
-                              const isStreaming = workspaceState.canInterrupt;
-                              const streamingModel = workspaceState.currentModel;
+                              const workspaceState = allWorkspaceStates.get(workspaceId);
+                              const isStreaming = workspaceState?.canInterrupt ?? false;
+                              const streamingModel = workspaceState?.currentModel ?? "claude-sonnet-4-5";
                               const isUnread = unreadStatus.get(workspaceId) ?? false;
                               const isEditing = editingWorkspaceId === workspaceId;
                               const isSelected =
@@ -1066,7 +1067,7 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                                           "Assistant is responding"
                                         ) : isUnread ? (
                                           "Unread messages"
-                                        ) : workspaceState.recencyTimestamp ? (
+                                        ) : workspaceState?.recencyTimestamp ? (
                                           `Idle • Last used ${formatRelativeTime(workspaceState.recencyTimestamp)}`
                                         ) : (
                                           "Idle"
