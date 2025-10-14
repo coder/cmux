@@ -402,8 +402,9 @@ export class WorkspaceStore {
 
     if (isStreamDelta(data)) {
       aggregator.handleStreamDelta(data);
-      // Only bump if sidebar state changed (prevents re-renders on every delta)
-      this.bumpIfSidebarChanged(workspaceId);
+      // Always bump for chat components to see deltas
+      // Sidebar components won't re-render because getWorkspaceSidebarState() returns cached object
+      this.states.bump(workspaceId);
       return;
     }
 
