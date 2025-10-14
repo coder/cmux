@@ -6,6 +6,7 @@ import { StreamingMessageAggregator } from "@/utils/messages/StreamingMessageAgg
 import { updatePersistedState } from "@/hooks/usePersistedState";
 import { getRetryStateKey } from "@/constants/storage";
 import { CUSTOM_EVENTS } from "@/constants/events";
+import { useShallow } from "zustand/react/shallow";
 import {
   isCaughtUpMessage,
   isStreamError,
@@ -562,14 +563,16 @@ export function useWorkspaceRecency(): Record<string, number> {
  * Only re-renders when sidebar-relevant fields change (not on every message).
  */
 export function useWorkspaceSidebarState(workspaceId: string): WorkspaceSidebarState {
-  return useWorkspaceStoreZustand((state) => {
-    const fullState = state.store.getWorkspaceState(workspaceId);
-    return {
-      canInterrupt: fullState.canInterrupt,
-      currentModel: fullState.currentModel,
-      recencyTimestamp: fullState.recencyTimestamp,
-    };
-  });
+  return useWorkspaceStoreZustand(
+    useShallow((state) => {
+      const fullState = state.store.getWorkspaceState(workspaceId);
+      return {
+        canInterrupt: fullState.canInterrupt,
+        currentModel: fullState.currentModel,
+        recencyTimestamp: fullState.recencyTimestamp,
+      };
+    })
+  );
 }
 
 /**
