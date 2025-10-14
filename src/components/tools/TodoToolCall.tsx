@@ -5,11 +5,11 @@ import {
   ToolContainer,
   ToolHeader,
   ExpandIcon,
-  ToolName,
   StatusIndicator,
   ToolDetails,
 } from "./shared/ToolPrimitives";
 import { useToolExpansion, getStatusDisplay, type ToolStatus } from "./shared/toolUtils";
+import { TooltipWrapper, Tooltip } from "../Tooltip";
 
 const TodoList = styled.div`
   display: flex;
@@ -131,7 +131,10 @@ export const TodoToolCall: React.FC<TodoToolCallProps> = ({
     <ToolContainer expanded={expanded}>
       <ToolHeader onClick={toggleExpanded}>
         <ExpandIcon expanded={expanded}>▶</ExpandIcon>
-        <ToolName>todo_write</ToolName>
+        <TooltipWrapper inline>
+          <span>📋</span>
+          <Tooltip>todo_write</Tooltip>
+        </TooltipWrapper>
         <StatusIndicator status={status}>{statusDisplay}</StatusIndicator>
       </ToolHeader>
 

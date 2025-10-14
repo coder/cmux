@@ -159,7 +159,8 @@ export const TOOL_DEFINITIONS = {
       "Replace the entire list on each call - the AI should track which tasks are completed. " +
       "Mark ONE task as in_progress at a time. " +
       "Order tasks as: completed first, then in_progress (max 1), then pending last. " +
-      "Update frequently as work progresses to provide visibility into ongoing operations.",
+      "Update frequently as work progresses to provide visibility into ongoing operations. " +
+      "Before finishing the stream, ensure all todos are marked as completed.",
     schema: z.object({
       todos: z.array(
         z.object({
