@@ -1,9 +1,5 @@
 import { describe, it, expect, beforeEach } from "@jest/globals";
-import {
-  clearTodosForWorkspace,
-  getTodosForWorkspace,
-  setTodosForWorkspace,
-} from "./todo";
+import { clearTodosForWorkspace, getTodosForWorkspace, setTodosForWorkspace } from "./todo";
 import type { TodoItem } from "@/types/tools";
 
 describe("Todo Storage", () => {
@@ -184,4 +180,3 @@ describe("Todo Storage", () => {
     });
   });
 });
-

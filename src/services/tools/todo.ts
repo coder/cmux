@@ -76,4 +76,3 @@ export function getTodosForWorkspace(workspaceId: string): TodoItem[] {
 export function clearTodosForWorkspace(workspaceId: string): void {
   todoStore.delete(workspaceId);
 }
-

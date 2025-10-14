@@ -128,4 +128,3 @@ export const TodoToolCall: React.FC<TodoToolCallProps> = ({
     </ToolContainer>
   );
 };
-
