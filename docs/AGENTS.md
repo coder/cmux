@@ -493,4 +493,14 @@ should go through `log.debug()`.
 
 ## Mode: Exec
 
-If a user requests `wait_pr_checks`, treat it as a directive to keep running that process and address failures continuously. Do not return to the user until the checks succeed or you encounter a blocker you cannot resolve alone. This mode signals that the user expects persistent execution without further prompting. If static checks fail remotely, reproduce the error locally with `make static-check` before responding. If formatting issues are flagged, run `make fmt` to fix them before retrying CI.
+If a user requests `wait_pr_checks`, treat it as a directive to keep running that process and address failures continuously. Do not return to the user until the checks succeed or you encounter a blocker you cannot resolve alone. This mode signals that the user expects persistent execution without further prompting.
+
+If static checks fail remotely, reproduce the error locally with `make static-check` before responding. If formatting issues are flagged, run `make fmt` to fix them before retrying CI.
+
+If any test or check fails in CI, see if you can reproduce the failure locally
+before returning to wait_pr_checks. Try to run the minimal set of tests to reproduce the failure. This is in an effort to move fast. Take note of how long commands take to run and adjust your workflow to minimize time spent waiting.
+
+## Mode: Plan
+
+In Plan Mode, attach a net LoC estimate to recommended approach(es). This estimate should be
+focussed on product code changes, not test code changes.
