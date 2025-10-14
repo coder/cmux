@@ -579,7 +579,7 @@ export const CostsTab: React.FC = () => {
       <Section>
         <SectionTitle dimmed>Breakdown by Consumer</SectionTitle>
         <TokenizerInfo>
-          Using tokenizer encoding: <span>{stats.tokenizerName}</span>
+          Tokenizer: <span>{stats.tokenizerName}</span>
         </TokenizerInfo>
         <ConsumerList>
           {stats.consumers.map((consumer) => {
