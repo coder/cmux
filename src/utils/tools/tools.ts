@@ -7,8 +7,6 @@ import { createFileEditInsertTool } from "@/services/tools/file_edit_insert";
 import { createProposePlanTool } from "@/services/tools/propose_plan";
 import { createCompactSummaryTool } from "@/services/tools/compact_summary";
 import { log } from "@/services/log";
-import { anthropic } from "@ai-sdk/anthropic";
-import { openai } from "@ai-sdk/openai";
 
 /**
  * Configuration for tools that need runtime context
@@ -32,14 +30,17 @@ export type ToolFactory = (config: ToolConfiguration) => Tool;
 /**
  * Get tools available for a specific model with configuration
  *
+ * Providers are lazy-loaded to reduce startup time. AI SDK providers are only
+ * imported when actually needed for a specific model.
+ *
  * @param modelString The model string in format "provider:model-id"
  * @param config Required configuration for tools
- * @returns Record of tools available for the model
+ * @returns Promise resolving to record of tools available for the model
  */
-export function getToolsForModel(
+export async function getToolsForModel(
   modelString: string,
   config: ToolConfiguration
-): Record<string, Tool> {
+): Promise<Record<string, Tool>> {
   const [provider, modelId] = modelString.split(":");
 
   // Base tools available for all models
@@ -58,9 +59,11 @@ export function getToolsForModel(
   };
 
   // Try to add provider-specific web search tools if available
+  // Lazy-load providers to avoid loading all AI SDKs at startup
   try {
     switch (provider) {
       case "anthropic": {
+        const { anthropic } = await import("@ai-sdk/anthropic");
         return {
           ...baseTools,
           web_search: anthropic.tools.webSearch_20250305({ maxUses: 1000 }),
@@ -70,6 +73,7 @@ export function getToolsForModel(
       case "openai": {
         // Only add web search for models that support it
         if (modelId.includes("gpt-5") || modelId.includes("gpt-4")) {
+          const { openai } = await import("@ai-sdk/openai");
           return {
             ...baseTools,
             web_search: openai.tools.webSearch({
