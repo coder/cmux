@@ -1,5 +1,5 @@
-import { useRef, useEffect } from "react";
-import { useWorkspaceStoreZustand } from "@/stores/WorkspaceStore";
+import { useRef, useEffect, useSyncExternalStore } from "react";
+import { useWorkspaceStoreRaw } from "@/stores/WorkspaceStore";
 import { getCompactContinueMessageKey } from "@/constants/storage";
 import { buildSendMessageOptions } from "@/hooks/useSendMessageOptions";
 
@@ -19,7 +19,8 @@ import { buildSendMessageOptions } from "@/hooks/useSendMessageOptions";
  */
 export function useAutoCompactContinue() {
   // Get workspace states from store (subscribe to all changes)
-  const workspaceStates = useWorkspaceStoreZustand((state) => state.store.getAllStates());
+  const store = useWorkspaceStoreRaw();
+  const workspaceStates = useSyncExternalStore(store.subscribe, () => store.getAllStates());
 
   // Prevent duplicate auto-sends if effect runs more than once while the same
   // compacted summary is visible (e.g., rapid state updates after replaceHistory)

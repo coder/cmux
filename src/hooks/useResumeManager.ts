@@ -1,5 +1,5 @@
-import { useEffect, useRef } from "react";
-import { useWorkspaceStoreZustand } from "@/stores/WorkspaceStore";
+import { useEffect, useRef, useSyncExternalStore } from "react";
+import { useWorkspaceStoreRaw } from "@/stores/WorkspaceStore";
 import { CUSTOM_EVENTS } from "@/constants/events";
 import { getAutoRetryKey, getRetryStateKey } from "@/constants/storage";
 import { getSendOptionsFromStorage } from "@/utils/messages/sendOptions";
@@ -55,7 +55,8 @@ const MAX_DELAY = 60000; // 60 seconds
  */
 export function useResumeManager() {
   // Get workspace states from store (subscribe to all changes)
-  const workspaceStates = useWorkspaceStoreZustand((state) => state.store.getAllStates());
+  const store = useWorkspaceStoreRaw();
+  const workspaceStates = useSyncExternalStore(store.subscribe, () => store.getAllStates());
 
   // Use ref to avoid effect re-running on every state change
   const workspaceStatesRef = useRef(workspaceStates);

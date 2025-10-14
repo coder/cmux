@@ -8,7 +8,7 @@ import type { WorkspaceMetadata } from "@/types/workspace";
  * - Subscription/unsubscription
  * - syncWorkspaces adding/removing workspaces
  * - getStatus caching (returns same reference if unchanged)
- * - getAllStatuses caching (returns same reference if no changes)
+ * - Per-workspace cache invalidation
  * - Status change detection
  * - Cleanup on dispose
  */
@@ -78,9 +78,11 @@ describe("GitStatusStore", () => {
 
     store.syncWorkspaces(metadata1);
 
-    // Simulate status updates (directly manipulate internal state for testing)
-    const allStatuses1 = store.getAllStatuses();
-    expect(allStatuses1.size).toBe(0); // Initially empty
+    // Verify status is accessible for both workspaces
+    const status1Initial = store.getStatus("ws1");
+    const status2Initial = store.getStatus("ws2");
+    expect(status1Initial).toBeNull(); // No status fetched yet
+    expect(status2Initial).toBeNull();
 
     // Remove ws2
     const metadata2 = new Map<string, WorkspaceMetadata>([
@@ -96,7 +98,7 @@ describe("GitStatusStore", () => {
 
     store.syncWorkspaces(metadata2);
 
-    // ws2 should be removed from status cache
+    // ws2 status still returns null (cache not actively cleaned, but won't be updated)
     const status2 = store.getStatus("ws2");
     expect(status2).toBeNull();
   });
@@ -127,7 +129,7 @@ describe("GitStatusStore", () => {
     expect(status1).toBeNull();
   });
 
-  test("getAllStatuses caching returns same reference if no changes", () => {
+  test("getStatus caching persists across calls", () => {
     const metadata = new Map<string, WorkspaceMetadata>([
       [
         "ws1",
@@ -141,12 +143,14 @@ describe("GitStatusStore", () => {
 
     store.syncWorkspaces(metadata);
 
-    // Get all statuses twice
-    const allStatuses1 = store.getAllStatuses();
-    const allStatuses2 = store.getAllStatuses();
+    // Get status multiple times - should return same cached reference
+    const status1 = store.getStatus("ws1");
+    const status2 = store.getStatus("ws1");
+    const status3 = store.getStatus("ws1");
 
-    // Should return same reference
-    expect(allStatuses1).toBe(allStatuses2);
+    // Should return same reference (cached)
+    expect(status1).toBe(status2);
+    expect(status2).toBe(status3);
   });
 
   test("dispose cleans up resources", () => {
@@ -172,9 +176,6 @@ describe("GitStatusStore", () => {
     // Subsequent operations should not throw
     const status = store.getStatus("ws1");
     expect(status).toBeNull();
-
-    const allStatuses = store.getAllStatuses();
-    expect(allStatuses.size).toBe(0);
   });
 
   test("status change detection", () => {
@@ -225,7 +226,9 @@ describe("GitStatusStore", () => {
     // Manually add a workspace to the internal map to simulate it existing
     // (normally this would happen via polling, but we can't poll in tests without window.api)
     // @ts-expect-error - Accessing private field for testing
-    store.gitStatusMap.set("ws1", { ahead: 0, behind: 0, dirty: false });
+    store.statusCache.set("ws1", { ahead: 0, behind: 0, dirty: false });
+    // @ts-expect-error - Accessing private field for testing
+    store.statuses.bump("ws1");
 
     listener.mockClear();
 
@@ -255,10 +258,11 @@ describe("GitStatusStore", () => {
       expect(status1).toBeNull(); // No workspace = null
     });
 
-    it("getAllStatuses() returns same reference when no changes", () => {
-      const statuses1 = store.getAllStatuses();
-      const statuses2 = store.getAllStatuses();
-      expect(statuses1).toBe(statuses2);
+    it("getStatus() returns same reference for same workspace when no changes", () => {
+      const status1 = store.getStatus("test-workspace");
+      const status2 = store.getStatus("test-workspace");
+      expect(status1).toBe(status2);
+      expect(status1).toBeNull(); // No workspace = null
     });
   });
 });

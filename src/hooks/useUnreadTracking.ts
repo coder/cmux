@@ -1,6 +1,6 @@
-import { useEffect, useCallback, useRef } from "react";
+import { useEffect, useCallback, useRef, useSyncExternalStore } from "react";
 import type { WorkspaceSelection } from "@/components/ProjectSidebar";
-import { useWorkspaceStoreZustand } from "@/stores/WorkspaceStore";
+import { useWorkspaceStoreRaw } from "@/stores/WorkspaceStore";
 import { usePersistedState } from "./usePersistedState";
 import { useStableReference, compareMaps } from "./useStableReference";
 
@@ -19,7 +19,8 @@ import { useStableReference, compareMaps } from "./useStableReference";
  */
 export function useUnreadTracking(selectedWorkspace: WorkspaceSelection | null) {
   // Get workspace states from store (subscribe to all changes)
-  const workspaceStates = useWorkspaceStoreZustand((state) => state.store.getAllStates());
+  const store = useWorkspaceStoreRaw();
+  const workspaceStates = useSyncExternalStore(store.subscribe, () => store.getAllStates());
   // Store all last-read timestamps in a single Record
   // Format: { [workspaceId]: timestamp }
   const [lastReadMap, setLastReadMap] = usePersistedState<Record<string, number>>(
