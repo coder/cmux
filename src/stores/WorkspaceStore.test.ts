@@ -181,5 +181,60 @@ describe("WorkspaceStore", () => {
       expect(mockOnModelUsed).toHaveBeenCalledWith("claude-opus-4");
     });
   });
+
+  describe("reference stability", () => {
+    it("getAllStates() returns same reference when no changes", () => {
+      const states1 = store.getAllStates();
+      const states2 = store.getAllStates();
+      expect(states1).toBe(states2);
+    });
+
+    it("getWorkspaceState() returns same reference when state hasn't changed", () => {
+      const metadata: WorkspaceMetadata = {
+        id: "test-workspace",
+        projectName: "test-project",
+        workspacePath: "/test/path",
+      };
+      store.addWorkspace(metadata);
+
+      const state1 = store.getWorkspaceState("test-workspace");
+      const state2 = store.getWorkspaceState("test-workspace");
+      expect(state1).toBe(state2);
+    });
+
+    it("syncWorkspaces() does not emit when workspaces unchanged", () => {
+      const listener = jest.fn();
+      store.subscribe(listener);
+
+      const metadata = new Map<string, WorkspaceMetadata>();
+      store.syncWorkspaces(metadata);
+      expect(listener).not.toHaveBeenCalled();
+
+      listener.mockClear();
+      store.syncWorkspaces(metadata);
+      expect(listener).not.toHaveBeenCalled();
+    });
+
+    it("getAggregator does not emit when creating new aggregator (no render side effects)", () => {
+      let emitCount = 0;
+      const unsubscribe = store.subscribe(() => {
+        emitCount++;
+      });
+
+      // Simulate what happens during render - component calls getAggregator
+      const aggregator1 = store.getAggregator("test-workspace");
+      expect(aggregator1).toBeDefined();
+
+      // Should NOT have emitted (would cause "Cannot update component while rendering" error)
+      expect(emitCount).toBe(0);
+
+      // Subsequent calls should return same aggregator
+      const aggregator2 = store.getAggregator("test-workspace");
+      expect(aggregator2).toBe(aggregator1);
+      expect(emitCount).toBe(0);
+
+      unsubscribe();
+    });
+  });
 });
 

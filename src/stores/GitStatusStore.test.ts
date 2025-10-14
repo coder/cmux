@@ -246,5 +246,19 @@ describe("GitStatusStore", () => {
 
     unsub();
   });
-});
 
+  describe("reference stability", () => {
+    it("getStatus() returns same reference when status hasn't changed", () => {
+      const status1 = store.getStatus("test-workspace");
+      const status2 = store.getStatus("test-workspace");
+      expect(status1).toBe(status2);
+      expect(status1).toBeNull(); // No workspace = null
+    });
+
+    it("getAllStatuses() returns same reference when no changes", () => {
+      const statuses1 = store.getAllStatuses();
+      const statuses2 = store.getAllStatuses();
+      expect(statuses1).toBe(statuses2);
+    });
+  });
+});
