@@ -18,11 +18,9 @@ export function parseCommand(input: string): ParsedCommand {
     return null;
   }
 
-  // Extract command from first line for parsing, but preserve full input for rawInput
-  const firstLine = trimmed.split("\n")[0];
-
   // Remove leading slash and split by spaces (respecting quotes)
-  const parts = (firstLine.substring(1).match(/(?:[^\s"]+|"[^"]*")+/g) ?? []) as string[];
+  // Parse tokens from full input to support multi-line commands like /providers
+  const parts = (trimmed.substring(1).match(/(?:[^\s"]+|"[^"]*")+/g) ?? []) as string[];
   if (parts.length === 0) {
     return null;
   }

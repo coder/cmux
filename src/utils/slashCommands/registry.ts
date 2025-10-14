@@ -174,6 +174,7 @@ const compactCommandDefinition: SlashCommandDefinition = {
   handler: ({ cleanRemainingTokens, rawInput }): ParsedCommand => {
     // Split rawInput into first line (for flags) and remaining lines (for multiline continue)
     // rawInput format: "-t 5000\nContinue here" or "\nContinue here" (starts with newline if no flags)
+    const hasMultilineContent = rawInput.includes("\n");
     const lines = rawInput.split("\n");
     // Note: firstLine could be empty string if rawInput starts with \n (which is fine)
     const remainingLines = lines.slice(1).join("\n").trim();
@@ -216,8 +217,9 @@ const compactCommandDefinition: SlashCommandDefinition = {
       maxOutputTokens = tokens;
     }
 
-    // Reject extra positional arguments
-    if (parsed._.length > 0) {
+    // Reject extra positional arguments UNLESS they're from multiline content
+    // (multiline content gets parsed as positional args by minimist since newlines become spaces)
+    if (parsed._.length > 0 && !hasMultilineContent) {
       return {
         type: "unknown-command",
         command: "compact",
