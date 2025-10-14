@@ -440,6 +440,7 @@ export class WorkspaceStore {
                   console.error("[WorkspaceStore] Failed to replace history:", error);
                 } finally {
                   this.states.bump(workspaceId);
+                  this.checkAndBumpRecencyIfChanged();
                 }
               })();
               return;
