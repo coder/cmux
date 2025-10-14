@@ -1311,10 +1311,13 @@ These are general instructions that apply to all modes.
           const testFilePath = path.join(workspacePath, "redaction-edit-test.txt");
           await fs.writeFile(testFilePath, "line1\nline2\nline3\n", "utf-8");
 
+          // Request confirmation to ensure AI generates text after tool calls
+          // This prevents flaky test failures where AI completes tools but doesn't emit stream-end
+
           const result1 = await sendMessageWithModel(
             env.mockIpcRenderer,
             workspaceId,
-            `Open and replace 'line2' with 'LINE2' in ${path.basename(testFilePath)} using file_edit_replace`,
+            `Open and replace 'line2' with 'LINE2' in ${path.basename(testFilePath)} using file_edit_replace, then confirm the change was successfully applied.`,
             provider,
             model
           );
