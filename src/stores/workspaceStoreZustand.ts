@@ -48,18 +48,7 @@ export function useWorkspaceState(workspaceId: string): WorkspaceState {
   );
 }
 
-/**
- * Hook to get all workspace IDs.
- * Re-renders when workspaces are added/removed (but not when their content changes).
- */
-export function useWorkspaceIds(): string[] {
-  return useWorkspaceStoreZustand(
-    (state) => {
-      const allStates = state.store.getAllStates();
-      return Array.from(allStates.keys());
-    },
-  );
-}
+
 
 /**
  * Hook to access the raw store for imperative operations.
