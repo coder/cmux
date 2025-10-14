@@ -324,6 +324,23 @@ const AIViewInner: React.FC<AIViewProps> = ({
     handleOpenTerminal,
   });
 
+  // Clear editing state if the message being edited no longer exists
+  // Must be before early return to satisfy React Hooks rules
+  useEffect(() => {
+    if (!workspaceState || !editingMessage) return;
+
+    const mergedMessages = mergeConsecutiveStreamErrors(workspaceState.messages);
+    const editCutoffHistoryId = mergedMessages.find(
+      (msg): msg is Exclude<DisplayedMessage, { type: "history-hidden" }> =>
+        msg.type !== "history-hidden" && msg.historyId === editingMessage.id
+    )?.historyId;
+
+    if (!editCutoffHistoryId) {
+      // Message was replaced or deleted - clear editing state
+      setEditingMessage(undefined);
+    }
+  }, [workspaceState, editingMessage]);
+
   // Return early if workspace state not loaded yet
   if (!workspaceState) {
     return (
@@ -342,16 +359,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
     workspaceState;
 
   // Get active stream message ID for token counting
-  // Use getActiveStreamMessageId() which returns the messageId directly
   const activeStreamMessageId = aggregator.getActiveStreamMessageId();
-  const activeTokenCount =
-    activeStreamMessageId !== undefined
-      ? aggregator.getStreamingTokenCount(activeStreamMessageId)
-      : undefined;
-  const activeTPS =
-    activeStreamMessageId !== undefined
-      ? aggregator.getStreamingTPS(activeStreamMessageId)
-      : undefined;
 
   // Track if last message was interrupted or errored (for RetryBarrier)
   // Uses same logic as useResumeManager for DRY
@@ -371,14 +379,6 @@ const AIViewInner: React.FC<AIViewProps> = ({
           msg.type !== "history-hidden" && msg.historyId === editingMessage.id
       )?.historyId
     : undefined;
-
-  // Clear editing state if the message being edited no longer exists
-  useEffect(() => {
-    if (editingMessage && !editCutoffHistoryId) {
-      // Message was replaced or deleted - clear editing state
-      setEditingMessage(undefined);
-    }
-  }, [editingMessage, editCutoffHistoryId]);
 
   if (loading) {
     return (

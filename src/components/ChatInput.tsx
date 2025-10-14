@@ -29,7 +29,6 @@ import type { ThinkingLevel } from "@/types/thinking";
 import type { CmuxFrontendMetadata } from "@/types/message";
 import type { SendMessageOptions } from "@/types/ipc";
 
-
 const InputSection = styled.div`
   position: relative;
   padding: 5px 15px 15px 15px; /* Reduced top padding from 15px to 5px */
@@ -324,8 +323,6 @@ function prepareCompactionMessage(
 
   return { messageText, metadata, options };
 }
-
-
 
 export const ChatInput: React.FC<ChatInputProps> = ({
   workspaceId,
@@ -655,10 +652,11 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           setIsSending(true);
 
           try {
-            const { messageText: compactionMessage, metadata, options } = prepareCompactionMessage(
-              messageText,
-              sendMessageOptions
-            );
+            const {
+              messageText: compactionMessage,
+              metadata,
+              options,
+            } = prepareCompactionMessage(messageText, sendMessageOptions);
 
             const result = await window.api.workspace.sendMessage(workspaceId, compactionMessage, {
               ...sendMessageOptions,
@@ -725,10 +723,11 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         if (editingMessage && messageText.startsWith("/")) {
           const parsed = parseCommand(messageText);
           if (parsed?.type === "compact") {
-            const { messageText: regeneratedText, metadata, options } = prepareCompactionMessage(
-              messageText,
-              sendMessageOptions
-            );
+            const {
+              messageText: regeneratedText,
+              metadata,
+              options,
+            } = prepareCompactionMessage(messageText, sendMessageOptions);
             actualMessageText = regeneratedText;
             cmuxMetadata = metadata;
             compactionOptions = options;
