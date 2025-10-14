@@ -516,7 +516,6 @@ export class AIService extends EventEmitter {
       const allTools = await getToolsForModel(modelString, {
         cwd: workspacePath,
         secrets: secretsToRecord(projectSecrets),
-        niceness: 19,
         tempDir,
       });
 
