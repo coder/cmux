@@ -22,9 +22,9 @@ describe("Todo Storage", () => {
     it("should store todo list in temp directory", async () => {
       const todos: TodoItem[] = [
         {
-          content: "Update documentation",
-          status: "pending",
-          activeForm: "Updating documentation",
+          content: "Install dependencies",
+          status: "completed",
+          activeForm: "Installing dependencies",
         },
         {
           content: "Write tests",
@@ -32,9 +32,9 @@ describe("Todo Storage", () => {
           activeForm: "Writing tests",
         },
         {
-          content: "Install dependencies",
-          status: "completed",
-          activeForm: "Installing dependencies",
+          content: "Update documentation",
+          status: "pending",
+          activeForm: "Updating documentation",
         },
       ];
 
@@ -64,9 +64,9 @@ describe("Todo Storage", () => {
       // Replace with updated list
       const updatedTodos: TodoItem[] = [
         {
-          content: "Task 3",
-          status: "pending",
-          activeForm: "Doing task 3",
+          content: "Task 1",
+          status: "completed",
+          activeForm: "Doing task 1",
         },
         {
           content: "Task 2",
@@ -74,9 +74,9 @@ describe("Todo Storage", () => {
           activeForm: "Doing task 2",
         },
         {
-          content: "Task 1",
-          status: "completed",
-          activeForm: "Doing task 1",
+          content: "Task 3",
+          status: "pending",
+          activeForm: "Doing task 3",
         },
       ];
 
@@ -136,41 +136,41 @@ describe("Todo Storage", () => {
       expect(await getTodosForTempDir(tempDir)).toEqual(validTodos);
     });
 
-    it("should reject when pending tasks appear after in_progress", async () => {
+    it("should reject when in_progress tasks appear after pending", async () => {
       const invalidTodos: TodoItem[] = [
         {
           content: "Step 1",
-          status: "in_progress",
+          status: "pending",
           activeForm: "Handling step 1",
         },
         {
           content: "Step 2",
-          status: "pending",
+          status: "in_progress",
           activeForm: "Handling step 2",
         },
       ];
 
       await expect(setTodosForTempDir(tempDir, invalidTodos)).rejects.toThrow(
-        /pending tasks must appear before in-progress or completed tasks/i
+        /in-progress tasks must appear before pending tasks/i
       );
     });
 
-    it("should reject when in_progress tasks appear after completed", async () => {
+    it("should reject when completed tasks appear after in_progress", async () => {
       const invalidTodos: TodoItem[] = [
         {
           content: "Step 1",
-          status: "completed",
+          status: "in_progress",
           activeForm: "Handling step 1",
         },
         {
           content: "Step 2",
-          status: "in_progress",
+          status: "completed",
           activeForm: "Handling step 2",
         },
       ];
 
       await expect(setTodosForTempDir(tempDir, invalidTodos)).rejects.toThrow(
-        /in-progress tasks must appear before completed tasks/i
+        /completed tasks must appear before in-progress or pending tasks/i
       );
     });
 
@@ -202,14 +202,14 @@ describe("Todo Storage", () => {
     it("should return current todo list", async () => {
       const todos: TodoItem[] = [
         {
-          content: "Task 2",
-          status: "in_progress",
-          activeForm: "Doing task 2",
-        },
-        {
           content: "Task 1",
           status: "completed",
           activeForm: "Doing task 1",
+        },
+        {
+          content: "Task 2",
+          status: "in_progress",
+          activeForm: "Doing task 2",
         },
       ];
 

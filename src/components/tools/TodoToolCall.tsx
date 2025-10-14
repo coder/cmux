@@ -76,23 +76,27 @@ const TodoActiveForm = styled.div`
   font-weight: 500;
   font-size: 11px;
   opacity: 0.95;
-  display: inline-block;
+  white-space: nowrap;
 
   &::after {
     content: "...";
-    display: inline-block;
-    width: 1em;
+    display: inline;
     overflow: hidden;
-    vertical-align: bottom;
     animation: ellipsis 1.5s steps(4, end) infinite;
   }
 
   @keyframes ellipsis {
     0% {
-      width: 0;
+      content: "";
     }
-    100% {
-      width: 1em;
+    25% {
+      content: ".";
+    }
+    50% {
+      content: "..";
+    }
+    75% {
+      content: "...";
     }
   }
 `;

@@ -28,35 +28,37 @@ async function readTodos(tempDir: string): Promise<TodoItem[]> {
 
 /**
  * Validate todo sequencing rules before persisting.
+ * Enforces order: completed → in_progress → pending (top to bottom)
  */
 function validateTodos(todos: TodoItem[]): void {
   if (!Array.isArray(todos)) {
     throw new Error("Invalid todos payload: expected an array");
   }
 
-  let phase: "pending" | "in_progress" | "completed" = "pending";
-  let inProgressCount = 0;
-
   if (todos.length === 0) {
     return;
   }
+
+  let phase: "completed" | "in_progress" | "pending" = "completed";
+  let inProgressCount = 0;
 
   todos.forEach((todo, index) => {
     const status = todo.status;
 
     switch (status) {
-      case "pending": {
-        if (phase !== "pending") {
+      case "completed": {
+        if (phase !== "completed") {
           throw new Error(
-            `Invalid todo order at index ${index}: pending tasks must appear before in-progress or completed tasks`
+            `Invalid todo order at index ${index}: completed tasks must appear before in-progress or pending tasks`
           );
         }
+        // Stay in completed phase
         break;
       }
       case "in_progress": {
-        if (phase === "completed") {
+        if (phase === "pending") {
           throw new Error(
-            `Invalid todo order at index ${index}: in-progress tasks must appear before completed tasks`
+            `Invalid todo order at index ${index}: in-progress tasks must appear before pending tasks`
           );
         }
         inProgressCount += 1;
@@ -65,11 +67,13 @@ function validateTodos(todos: TodoItem[]): void {
             "Invalid todo list: only one task can be marked as in_progress at a time"
           );
         }
+        // Transition to in_progress phase (from completed or stay in in_progress)
         phase = "in_progress";
         break;
       }
-      case "completed": {
-        phase = "completed";
+      case "pending": {
+        // Transition to pending phase (from completed, in_progress, or stay in pending)
+        phase = "pending";
         break;
       }
       default: {
