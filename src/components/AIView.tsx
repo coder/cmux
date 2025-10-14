@@ -256,6 +256,17 @@ const AIViewInner: React.FC<AIViewProps> = ({
     setEditingMessage(undefined);
   }, []);
 
+  // Merge consecutive identical stream errors
+  const mergedMessages = mergeConsecutiveStreamErrors(messages);
+
+  // When editing, find the cutoff point
+  const editCutoffHistoryId = editingMessage
+    ? mergedMessages.find(
+        (msg): msg is Exclude<DisplayedMessage, { type: "history-hidden" }> =>
+          msg.type !== "history-hidden" && msg.historyId === editingMessage.id
+      )?.historyId
+    : undefined;
+
   const handleMessageSent = useCallback(() => {
     // Enable auto-scroll when user sends a message
     setAutoScroll(true);

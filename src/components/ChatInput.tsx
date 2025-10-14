@@ -26,6 +26,8 @@ import { VimTextArea } from "./VimTextArea";
 import { ImageAttachments, type ImageAttachment } from "./ImageAttachments";
 
 import type { ThinkingLevel } from "@/types/thinking";
+import type { CmuxFrontendMetadata } from "@/types/message";
+
 
 const InputSection = styled.div`
   position: relative;
@@ -681,10 +683,27 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           mimeType: img.mimeType,
         }));
 
+        // Parse command even when editing to preserve metadata for special commands like /compact
+        let cmuxMetadata: CmuxFrontendMetadata | undefined;
+        if (messageText.startsWith("/")) {
+          const parsed = parseCommand(messageText);
+          if (parsed?.type === "compact") {
+            cmuxMetadata = {
+              type: "compaction-request",
+              command: messageText,
+              parsed: {
+                maxOutputTokens: parsed.maxOutputTokens,
+                continueMessage: parsed.continueMessage,
+              },
+            };
+          }
+        }
+
         const result = await window.api.workspace.sendMessage(workspaceId, messageText, {
           ...sendMessageOptions,
           editMessageId: editingMessage?.id,
           imageParts: imageParts.length > 0 ? imageParts : undefined,
+          cmuxMetadata,
         });
 
         if (!result.success) {
