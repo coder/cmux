@@ -24,7 +24,7 @@ export function useAutoCompactContinue() {
   // to react when messages change to a single compacted message state.
   const store = useWorkspaceStoreRaw();
   const workspaceStatesRef = useRef<Map<string, WorkspaceState>>(new Map());
-  
+
   // Prevent duplicate auto-sends if effect runs more than once while the same
   // compacted summary is visible (e.g., rapid state updates after replaceHistory)
   const firedForWorkspace = useRef<Set<string>>(new Set());
@@ -33,7 +33,7 @@ export function useAutoCompactContinue() {
   const checkAutoCompact = () => {
     const newStates = store.getAllStates();
     workspaceStatesRef.current = newStates;
-    
+
     // Check all workspaces for completed compaction
     for (const [workspaceId, state] of newStates) {
       // Reset guard when compaction is no longer in the single-compacted-message state
@@ -74,13 +74,13 @@ export function useAutoCompactContinue() {
   useEffect(() => {
     // Initial check
     checkAutoCompact();
-    
+
     // Subscribe to store changes and check condition
     // This doesn't trigger React re-renders, just our internal check
     const unsubscribe = store.subscribe(() => {
       checkAutoCompact();
     });
-    
+
     return unsubscribe;
   }, [store]); // eslint-disable-line react-hooks/exhaustive-deps
 

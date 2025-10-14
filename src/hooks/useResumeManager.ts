@@ -61,20 +61,20 @@ export function useResumeManager() {
   const store = useWorkspaceStoreRaw();
   const workspaceStatesRef = useRef<Map<string, WorkspaceState>>(new Map());
 
-  // Update ref whenever store changes (but don't trigger re-render)
-  const updateStatesRef = () => {
-    workspaceStatesRef.current = store.getAllStates();
-  };
-  
   useEffect(() => {
+    // Update ref whenever store changes (but don't trigger re-render)
+    const updateStatesRef = () => {
+      workspaceStatesRef.current = store.getAllStates();
+    };
+
     // Initial load
     updateStatesRef();
-    
+
     // Subscribe to keep ref fresh, but don't cause re-renders
     const unsubscribe = store.subscribe(() => {
       updateStatesRef();
     });
-    
+
     return unsubscribe;
   }, [store]);
 

@@ -46,9 +46,7 @@ export interface WorkspaceSidebarState {
 /**
  * Helper to extract sidebar state from aggregator.
  */
-function extractSidebarState(
-  aggregator: StreamingMessageAggregator
-): WorkspaceSidebarState {
+function extractSidebarState(aggregator: StreamingMessageAggregator): WorkspaceSidebarState {
   return {
     canInterrupt: aggregator.getActiveStreams().length > 0,
     currentModel: aggregator.getCurrentModel() ?? null,

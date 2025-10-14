@@ -395,7 +395,9 @@ const AIViewInner: React.FC<AIViewProps> = ({
             <WorkspaceTitle>
               <StatusIndicator
                 streaming={canInterrupt}
-                title={canInterrupt && currentModel ? `${getModelName(currentModel)} streaming` : "Idle"}
+                title={
+                  canInterrupt && currentModel ? `${getModelName(currentModel)} streaming` : "Idle"
+                }
               />
               <GitStatusIndicator
                 gitStatus={gitStatus}
@@ -473,7 +475,11 @@ const AIViewInner: React.FC<AIViewProps> = ({
               {canInterrupt && (
                 <StreamingBarrier
                   statusText={
-                    isCompacting ? "compacting..." : currentModel ? `${getModelName(currentModel)} streaming...` : "streaming..."
+                    isCompacting
+                      ? "compacting..."
+                      : currentModel
+                        ? `${getModelName(currentModel)} streaming...`
+                        : "streaming..."
                   }
                   cancelText={`hit ${formatKeybind(KEYBINDS.INTERRUPT_STREAM)} to cancel`}
                   tokenCount={

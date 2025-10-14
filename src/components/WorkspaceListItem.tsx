@@ -1,8 +1,6 @@
 import React, { useState, useCallback, useMemo } from "react";
 import styled from "@emotion/styled";
 import { css } from "@emotion/react";
-import type { Workspace } from "@/config";
-import type { WorkspaceMetadata } from "@/types/workspace";
 import { useWorkspaceSidebarState } from "@/stores/WorkspaceStore";
 import { useGitStatus } from "@/stores/GitStatusStore";
 import { formatRelativeTime } from "@/utils/ui/dateTime";
