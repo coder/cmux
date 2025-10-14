@@ -147,7 +147,7 @@ while true; do
       else
         echo ""
         echo "❌ Please resolve Codex comments before merging."
-        echo "   👉 Tip: use ./scripts/resolve_codex_comment.sh "$PR_NUMBER" to apply Codex suggestions from the CLI."
+        echo "   👉 Tip: use ./scripts/check_pr_reviews.sh "$PR_NUMBER" to list unresolved comments."
         exit 1
       fi
     elif [ "$MERGE_STATE" = "BLOCKED" ]; then

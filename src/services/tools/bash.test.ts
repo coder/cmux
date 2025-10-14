@@ -3,6 +3,7 @@ import { createBashTool } from "./bash";
 import type { BashToolArgs, BashToolResult } from "@/types/tools";
 import { BASH_MAX_TOTAL_BYTES } from "@/constants/toolLimits";
 import * as fs from "fs";
+import { TestTempDir } from "./testHelpers";
 
 import type { ToolCallOptions } from "ai";
 
@@ -12,9 +13,29 @@ const mockToolCallOptions: ToolCallOptions = {
   messages: [],
 };
 
+// Helper to create bash tool with test configuration
+// Returns both tool and disposable temp directory
+// Use with: using testEnv = createTestBashTool();
+function createTestBashTool(options?: { niceness?: number }) {
+  const tempDir = new TestTempDir("test-bash");
+  const tool = createBashTool({
+    cwd: process.cwd(),
+    tempDir: tempDir.path,
+    ...options,
+  });
+
+  return {
+    tool,
+    [Symbol.dispose]() {
+      tempDir[Symbol.dispose]();
+    },
+  };
+}
+
 describe("bash tool", () => {
   it("should execute a simple command successfully", async () => {
-    const tool = createBashTool({ cwd: process.cwd() });
+    using testEnv = createTestBashTool();
+    const tool = testEnv.tool;
     const args: BashToolArgs = {
       script: "echo hello",
       timeout_secs: 5,
@@ -30,7 +51,8 @@ describe("bash tool", () => {
   });
 
   it("should handle multi-line output", async () => {
-    const tool = createBashTool({ cwd: process.cwd() });
+    using testEnv = createTestBashTool();
+    const tool = testEnv.tool;
     const args: BashToolArgs = {
       script: "echo line1 && echo line2 && echo line3",
       timeout_secs: 5,
@@ -45,7 +67,8 @@ describe("bash tool", () => {
   });
 
   it("should fail when hard cap (300 lines) is exceeded", async () => {
-    const tool = createBashTool({ cwd: process.cwd() });
+    using testEnv = createTestBashTool();
+    const tool = testEnv.tool;
     const args: BashToolArgs = {
       script: "for i in {1..400}; do echo line$i; done", // Exceeds 300 line hard cap
       timeout_secs: 5,
@@ -62,7 +85,8 @@ describe("bash tool", () => {
   });
 
   it("should save overflow output to temp file with short ID", async () => {
-    const tool = createBashTool({ cwd: process.cwd() });
+    using testEnv = createTestBashTool();
+    const tool = testEnv.tool;
     const args: BashToolArgs = {
       script: "for i in {1..400}; do echo line$i; done", // Exceeds 300 line hard cap
       timeout_secs: 5,
@@ -81,7 +105,7 @@ describe("bash tool", () => {
       expect(result.error).toContain("lines) saved to");
       expect(result.error).toContain("bash-");
       expect(result.error).toContain(".txt");
-      expect(result.error).toContain("When done, clean up: rm");
+      expect(result.error).toContain("File will be automatically cleaned up when stream ends");
 
       // Extract file path from error message (handles both "lines saved to" and "lines) saved to")
       const match = /saved to (\/.+?\.txt)/.exec(result.error);
@@ -110,7 +134,8 @@ describe("bash tool", () => {
   });
 
   it("should fail early when hard cap is reached", async () => {
-    const tool = createBashTool({ cwd: process.cwd() });
+    using testEnv = createTestBashTool();
+    const tool = testEnv.tool;
     const startTime = performance.now();
 
     const args: BashToolArgs = {
@@ -133,7 +158,8 @@ describe("bash tool", () => {
   });
 
   it("should interleave stdout and stderr", async () => {
-    const tool = createBashTool({ cwd: process.cwd() });
+    using testEnv = createTestBashTool();
+    const tool = testEnv.tool;
     const args: BashToolArgs = {
       script: "echo stdout1 && echo stderr1 >&2 && echo stdout2 && echo stderr2 >&2",
       timeout_secs: 5,
@@ -152,7 +178,8 @@ describe("bash tool", () => {
   });
 
   it("should handle command failure with exit code", async () => {
-    const tool = createBashTool({ cwd: process.cwd() });
+    using testEnv = createTestBashTool();
+    const tool = testEnv.tool;
     const args: BashToolArgs = {
       script: "exit 42",
       timeout_secs: 5,
@@ -168,7 +195,8 @@ describe("bash tool", () => {
   });
 
   it("should timeout long-running commands", async () => {
-    const tool = createBashTool({ cwd: process.cwd() });
+    using testEnv = createTestBashTool();
+    const tool = testEnv.tool;
     const args: BashToolArgs = {
       script: "sleep 10",
       timeout_secs: 1,
@@ -184,7 +212,8 @@ describe("bash tool", () => {
   });
 
   it("should handle empty output", async () => {
-    const tool = createBashTool({ cwd: process.cwd() });
+    using testEnv = createTestBashTool();
+    const tool = testEnv.tool;
     const args: BashToolArgs = {
       script: "true",
       timeout_secs: 5,
@@ -200,7 +229,8 @@ describe("bash tool", () => {
   });
 
   it("should complete instantly for grep-like commands (regression test)", async () => {
-    const tool = createBashTool({ cwd: process.cwd() });
+    using testEnv = createTestBashTool();
+    const tool = testEnv.tool;
     const startTime = performance.now();
 
     // This test catches the bug where readline interface close events
@@ -223,7 +253,8 @@ describe("bash tool", () => {
   });
 
   it("should not hang on commands that read from stdin (cat test)", async () => {
-    const tool = createBashTool({ cwd: process.cwd() });
+    using testEnv = createTestBashTool();
+    const tool = testEnv.tool;
     const startTime = performance.now();
 
     // cat without input should complete immediately
@@ -248,7 +279,8 @@ describe("bash tool", () => {
   });
 
   it("should not hang on git rebase --continue", async () => {
-    const tool = createBashTool({ cwd: process.cwd() });
+    using testEnv = createTestBashTool();
+    const tool = testEnv.tool;
     const startTime = performance.now();
 
     // Extremely minimal case - just enough to trigger rebase --continue
@@ -275,7 +307,8 @@ describe("bash tool", () => {
   });
 
   it("should work with just script and timeout", async () => {
-    const tool = createBashTool({ cwd: process.cwd() });
+    using testEnv = createTestBashTool();
+    const tool = testEnv.tool;
 
     const args: BashToolArgs = {
       script: "echo test",
@@ -291,7 +324,8 @@ describe("bash tool", () => {
   });
 
   it("should reject redundant cd to working directory with &&", async () => {
-    const tool = createBashTool({ cwd: process.cwd() });
+    using testEnv = createTestBashTool();
+    const tool = testEnv.tool;
     const cwd = process.cwd();
 
     const args: BashToolArgs = {
@@ -309,7 +343,8 @@ describe("bash tool", () => {
   });
 
   it("should reject redundant cd to working directory with semicolon", async () => {
-    const tool = createBashTool({ cwd: process.cwd() });
+    using testEnv = createTestBashTool();
+    const tool = testEnv.tool;
     const cwd = process.cwd();
 
     const args: BashToolArgs = {
@@ -326,7 +361,8 @@ describe("bash tool", () => {
   });
 
   it("should reject redundant cd with relative path (.)", async () => {
-    const tool = createBashTool({ cwd: process.cwd() });
+    using testEnv = createTestBashTool();
+    const tool = testEnv.tool;
 
     const args: BashToolArgs = {
       script: "cd . && echo test",
@@ -342,7 +378,8 @@ describe("bash tool", () => {
   });
 
   it("should reject redundant cd with quoted path", async () => {
-    const tool = createBashTool({ cwd: process.cwd() });
+    using testEnv = createTestBashTool();
+    const tool = testEnv.tool;
     const cwd = process.cwd();
 
     const args: BashToolArgs = {
@@ -359,7 +396,8 @@ describe("bash tool", () => {
   });
 
   it("should allow cd to a different directory", async () => {
-    const tool = createBashTool({ cwd: process.cwd() });
+    using testEnv = createTestBashTool();
+    const tool = testEnv.tool;
 
     const args: BashToolArgs = {
       script: "cd /tmp && pwd",
@@ -375,7 +413,8 @@ describe("bash tool", () => {
   });
 
   it("should allow commands that don't start with cd", async () => {
-    const tool = createBashTool({ cwd: process.cwd() });
+    using testEnv = createTestBashTool();
+    const tool = testEnv.tool;
 
     const args: BashToolArgs = {
       script: "echo 'cd' && echo test",
@@ -392,7 +431,8 @@ describe("bash tool", () => {
   });
 
   it("should complete quickly when background process is spawned", async () => {
-    const tool = createBashTool({ cwd: process.cwd() });
+    using testEnv = createTestBashTool();
+    const tool = testEnv.tool;
     const startTime = performance.now();
 
     const args: BashToolArgs = {
@@ -410,7 +450,8 @@ describe("bash tool", () => {
   });
 
   it("should complete quickly with background process and PID echo", async () => {
-    const tool = createBashTool({ cwd: process.cwd() });
+    using testEnv = createTestBashTool();
+    const tool = testEnv.tool;
     const startTime = performance.now();
 
     const args: BashToolArgs = {
@@ -433,7 +474,8 @@ describe("bash tool", () => {
   });
 
   it("should timeout background processes that don't complete", async () => {
-    const tool = createBashTool({ cwd: process.cwd() });
+    using testEnv = createTestBashTool();
+    const tool = testEnv.tool;
     const startTime = performance.now();
 
     const args: BashToolArgs = {
@@ -453,7 +495,8 @@ describe("bash tool", () => {
   });
 
   it("should fail when line exceeds max line bytes", async () => {
-    const tool = createBashTool({ cwd: process.cwd() });
+    using testEnv = createTestBashTool();
+    const tool = testEnv.tool;
     const longLine = "x".repeat(2000);
     const args: BashToolArgs = {
       script: `echo '${longLine}'`,
@@ -470,7 +513,8 @@ describe("bash tool", () => {
   });
 
   it("should fail when total bytes limit exceeded", async () => {
-    const tool = createBashTool({ cwd: process.cwd() });
+    using testEnv = createTestBashTool();
+    const tool = testEnv.tool;
     const lineContent = "x".repeat(100);
     const numLines = Math.ceil(BASH_MAX_TOTAL_BYTES / 100) + 50;
     const args: BashToolArgs = {
@@ -488,7 +532,8 @@ describe("bash tool", () => {
   });
 
   it("should fail early when byte limit is reached", async () => {
-    const tool = createBashTool({ cwd: process.cwd() });
+    using testEnv = createTestBashTool();
+    const tool = testEnv.tool;
     const args: BashToolArgs = {
       script: `for i in {1..1000}; do echo 'This is line number '$i' with some content'; done`,
       timeout_secs: 5,
@@ -504,7 +549,8 @@ describe("bash tool", () => {
   });
 
   it("should fail immediately when script is empty", async () => {
-    const tool = createBashTool({ cwd: process.cwd() });
+    using testEnv = createTestBashTool();
+    const tool = testEnv.tool;
     const args: BashToolArgs = {
       script: "",
       timeout_secs: 5,
@@ -522,7 +568,8 @@ describe("bash tool", () => {
   });
 
   it("should fail immediately when script is only whitespace", async () => {
-    const tool = createBashTool({ cwd: process.cwd() });
+    using testEnv = createTestBashTool();
+    const tool = testEnv.tool;
     const args: BashToolArgs = {
       script: "   \n\t  ",
       timeout_secs: 5,
@@ -539,7 +586,8 @@ describe("bash tool", () => {
   });
 
   it("should use default timeout (3s) when timeout_secs is undefined", async () => {
-    const tool = createBashTool({ cwd: process.cwd() });
+    using testEnv = createTestBashTool();
+    const tool = testEnv.tool;
     const args = {
       script: "echo hello",
       timeout_secs: undefined,
@@ -555,7 +603,8 @@ describe("bash tool", () => {
   });
 
   it("should use default timeout (3s) when timeout_secs is omitted", async () => {
-    const tool = createBashTool({ cwd: process.cwd() });
+    using testEnv = createTestBashTool();
+    const tool = testEnv.tool;
     const args = {
       script: "echo hello",
       // timeout_secs omitted entirely
@@ -576,7 +625,8 @@ describe("bash tool", () => {
 
 describe("niceness parameter", () => {
   it("should execute complex multi-line scripts with niceness", async () => {
-    const tool = createBashTool({ cwd: process.cwd(), niceness: 19 });
+    using testEnv = createTestBashTool({ niceness: 19 });
+    const tool = testEnv.tool;
 
     // Complex script with conditionals, similar to GIT_STATUS_SCRIPT
     const args: BashToolArgs = {
@@ -615,7 +665,8 @@ echo "$RESULT"
   });
 
   it("should handle exit codes correctly with niceness", async () => {
-    const tool = createBashTool({ cwd: process.cwd(), niceness: 19 });
+    using testEnv = createTestBashTool({ niceness: 19 });
+    const tool = testEnv.tool;
 
     // Script that should exit with code 2
     const args: BashToolArgs = {
@@ -640,7 +691,8 @@ fi
   });
 
   it("should execute simple commands with niceness", async () => {
-    const tool = createBashTool({ cwd: process.cwd(), niceness: 10 });
+    using testEnv = createTestBashTool({ niceness: 10 });
+    const tool = testEnv.tool;
     const args: BashToolArgs = {
       script: "echo hello",
       timeout_secs: 5,

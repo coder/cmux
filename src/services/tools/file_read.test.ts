@@ -5,12 +5,30 @@ import * as os from "os";
 import { createFileReadTool } from "./file_read";
 import type { FileReadToolArgs, FileReadToolResult } from "@/types/tools";
 import type { ToolCallOptions } from "ai";
+import { TestTempDir } from "./testHelpers";
 
 // Mock ToolCallOptions for testing
 const mockToolCallOptions: ToolCallOptions = {
   toolCallId: "test-call-id",
   messages: [],
 };
+
+// Helper to create file_read tool with test configuration
+// Returns both tool and disposable temp directory
+function createTestFileReadTool(options?: { cwd?: string }) {
+  const tempDir = new TestTempDir("test-file-read");
+  const tool = createFileReadTool({
+    cwd: options?.cwd ?? process.cwd(),
+    tempDir: tempDir.path,
+  });
+
+  return {
+    tool,
+    [Symbol.dispose]() {
+      tempDir[Symbol.dispose]();
+    },
+  };
+}
 
 describe("file_read tool", () => {
   let testDir: string;
@@ -32,7 +50,8 @@ describe("file_read tool", () => {
     const content = "line one\nline two\nline three";
     await fs.writeFile(testFilePath, content);
 
-    const tool = createFileReadTool({ cwd: testDir });
+    using testEnv = createTestFileReadTool({ cwd: testDir });
+    const tool = testEnv.tool;
     const args: FileReadToolArgs = {
       filePath: testFilePath,
     };
@@ -54,7 +73,8 @@ describe("file_read tool", () => {
     const content = "line1\nline2\nline3\nline4\nline5";
     await fs.writeFile(testFilePath, content);
 
-    const tool = createFileReadTool({ cwd: testDir });
+    using testEnv = createTestFileReadTool({ cwd: testDir });
+    const tool = testEnv.tool;
     const args: FileReadToolArgs = {
       filePath: testFilePath,
       offset: 3, // Start from line 3
@@ -76,7 +96,8 @@ describe("file_read tool", () => {
     const content = "line1\nline2\nline3\nline4\nline5";
     await fs.writeFile(testFilePath, content);
 
-    const tool = createFileReadTool({ cwd: testDir });
+    using testEnv = createTestFileReadTool({ cwd: testDir });
+    const tool = testEnv.tool;
     const args: FileReadToolArgs = {
       filePath: testFilePath,
       limit: 2, // Read only first 2 lines
@@ -98,7 +119,8 @@ describe("file_read tool", () => {
     const content = "line1\nline2\nline3\nline4\nline5";
     await fs.writeFile(testFilePath, content);
 
-    const tool = createFileReadTool({ cwd: testDir });
+    using testEnv = createTestFileReadTool({ cwd: testDir });
+    const tool = testEnv.tool;
     const args: FileReadToolArgs = {
       filePath: testFilePath,
       offset: 2, // Start from line 2
@@ -121,7 +143,8 @@ describe("file_read tool", () => {
     const content = "single line";
     await fs.writeFile(testFilePath, content);
 
-    const tool = createFileReadTool({ cwd: testDir });
+    using testEnv = createTestFileReadTool({ cwd: testDir });
+    const tool = testEnv.tool;
     const args: FileReadToolArgs = {
       filePath: testFilePath,
     };
@@ -141,7 +164,8 @@ describe("file_read tool", () => {
     // Setup
     await fs.writeFile(testFilePath, "");
 
-    const tool = createFileReadTool({ cwd: testDir });
+    using testEnv = createTestFileReadTool({ cwd: testDir });
+    const tool = testEnv.tool;
     const args: FileReadToolArgs = {
       filePath: testFilePath,
     };
@@ -161,7 +185,8 @@ describe("file_read tool", () => {
     // Setup
     const nonExistentPath = path.join(testDir, "nonexistent.txt");
 
-    const tool = createFileReadTool({ cwd: testDir });
+    using testEnv = createTestFileReadTool({ cwd: testDir });
+    const tool = testEnv.tool;
     const args: FileReadToolArgs = {
       filePath: nonExistentPath,
     };
@@ -181,7 +206,8 @@ describe("file_read tool", () => {
     const content = "line1\nline2";
     await fs.writeFile(testFilePath, content);
 
-    const tool = createFileReadTool({ cwd: testDir });
+    using testEnv = createTestFileReadTool({ cwd: testDir });
+    const tool = testEnv.tool;
     const args: FileReadToolArgs = {
       filePath: testFilePath,
       offset: 10, // Beyond file length
@@ -203,7 +229,8 @@ describe("file_read tool", () => {
     const content = `short line\n${longLine}\nanother short line`;
     await fs.writeFile(testFilePath, content);
 
-    const tool = createFileReadTool({ cwd: testDir });
+    using testEnv = createTestFileReadTool({ cwd: testDir });
+    const tool = testEnv.tool;
     const args: FileReadToolArgs = {
       filePath: testFilePath,
     };
@@ -229,7 +256,8 @@ describe("file_read tool", () => {
     const content = lines.join("\n");
     await fs.writeFile(testFilePath, content);
 
-    const tool = createFileReadTool({ cwd: testDir });
+    using testEnv = createTestFileReadTool({ cwd: testDir });
+    const tool = testEnv.tool;
     const args: FileReadToolArgs = {
       filePath: testFilePath,
     };
@@ -252,7 +280,8 @@ describe("file_read tool", () => {
     const content = lines.join("\n");
     await fs.writeFile(testFilePath, content);
 
-    const tool = createFileReadTool({ cwd: testDir });
+    using testEnv = createTestFileReadTool({ cwd: testDir });
+    const tool = testEnv.tool;
     const args: FileReadToolArgs = {
       filePath: testFilePath,
     };
@@ -274,7 +303,8 @@ describe("file_read tool", () => {
     const content = lines.join("\n");
     await fs.writeFile(testFilePath, content);
 
-    const tool = createFileReadTool({ cwd: testDir });
+    using testEnv = createTestFileReadTool({ cwd: testDir });
+    const tool = testEnv.tool;
     const args: FileReadToolArgs = {
       filePath: testFilePath,
       limit: 500, // Read only 500 lines
@@ -300,7 +330,7 @@ describe("file_read tool", () => {
     await fs.mkdir(subDir);
 
     // Try to read file outside cwd by going up
-    const tool = createFileReadTool({ cwd: subDir });
+    const tool = createFileReadTool({ cwd: subDir, tempDir: "/tmp" });
     const args: FileReadToolArgs = {
       filePath: "../test.txt", // This goes outside subDir back to testDir
     };
@@ -318,7 +348,8 @@ describe("file_read tool", () => {
 
   it("should reject reading absolute paths outside cwd", async () => {
     // Setup
-    const tool = createFileReadTool({ cwd: testDir });
+    using testEnv = createTestFileReadTool({ cwd: testDir });
+    const tool = testEnv.tool;
     const args: FileReadToolArgs = {
       filePath: "/etc/passwd", // Absolute path outside cwd
     };
@@ -342,7 +373,8 @@ describe("file_read tool", () => {
     await fs.writeFile(subFilePath, content);
 
     // Read using relative path from cwd
-    const tool = createFileReadTool({ cwd: testDir });
+    using testEnv = createTestFileReadTool({ cwd: testDir });
+    const tool = testEnv.tool;
     const args: FileReadToolArgs = {
       filePath: "subdir/test.txt",
     };

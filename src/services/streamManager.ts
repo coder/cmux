@@ -1,5 +1,7 @@
 import { EventEmitter } from "events";
-import { randomUUID } from "crypto";
+import * as fs from "fs";
+import * as path from "path";
+import * as os from "os";
 import {
   streamText,
   stepCountIs,
@@ -104,6 +106,8 @@ interface WorkspaceStreamInfo {
   partialWritePromise?: Promise<void>;
   // Track background processing promise for guaranteed cleanup
   processingPromise: Promise<void>;
+  // Temporary directory for tool outputs (auto-cleaned when stream ends)
+  tempDir: string;
 }
 
 /**
@@ -218,8 +222,32 @@ export class StreamManager extends EventEmitter {
       await this.cancelStreamSafely(workspaceId, existing);
     }
 
-    // Generate unique token for this stream
-    return randomUUID() as StreamToken;
+    // Generate unique token for this stream (8 hex chars for context efficiency)
+    return Math.random().toString(16).substring(2, 10) as StreamToken;
+  }
+
+  /**
+   * Generate a unique stream token (8 hex characters)
+   * Used by callers that need to prepare resources (like tools) before starting the stream
+   * Uses 8 hex chars instead of UUID for context efficiency (shorter paths in agent output)
+   */
+  public generateStreamToken(): StreamToken {
+    return Math.random().toString(16).substring(2, 10) as StreamToken;
+  }
+
+  /**
+   * Create a temporary directory for a stream token
+   * Use ~/.cmux-tmp instead of system temp directory (e.g., /var/folders/...)
+   * because macOS user-scoped temp paths are extremely long, which leads to:
+   * - Agent mistakes when copying/manipulating paths
+   * - Harder to read in tool outputs
+   * - Potential path length issues on some systems
+   */
+  public createTempDirForStream(streamToken: StreamToken): string {
+    const homeDir = os.homedir();
+    const tempDir = path.join(homeDir, ".cmux-tmp", streamToken);
+    fs.mkdirSync(tempDir, { recursive: true, mode: 0o700 });
+    return tempDir;
   }
 
   /**
@@ -401,6 +429,7 @@ export class StreamManager extends EventEmitter {
   private createStreamAtomically(
     workspaceId: WorkspaceId,
     streamToken: StreamToken,
+    tempDir: string,
     messages: ModelMessage[],
     model: LanguageModel,
     modelString: string,
@@ -477,6 +506,7 @@ export class StreamManager extends EventEmitter {
       lastPartialWriteTime: 0, // Initialize to 0 to allow immediate first write
       partialWritePromise: undefined, // No write in flight initially
       processingPromise: Promise.resolve(), // Placeholder, overwritten in startStream
+      tempDir, // Stream-scoped temp directory for tool outputs
     };
 
     // Atomically register the stream
@@ -929,6 +959,17 @@ export class StreamManager extends EventEmitter {
         streamInfo.partialWriteTimer = undefined;
       }
 
+      // Clean up stream temp directory
+      if (streamInfo.tempDir && fs.existsSync(streamInfo.tempDir)) {
+        try {
+          fs.rmSync(streamInfo.tempDir, { recursive: true, force: true });
+          log.debug(`Cleaned up temp dir: ${streamInfo.tempDir}`);
+        } catch (error) {
+          log.error(`Failed to cleanup temp dir ${streamInfo.tempDir}:`, error);
+          // Don't throw - cleanup is best-effort
+        }
+      }
+
       this.workspaceStreams.delete(workspaceId);
     }
   }
@@ -1052,7 +1093,8 @@ export class StreamManager extends EventEmitter {
     initialMetadata?: Partial<CmuxMetadata>,
     providerOptions?: Record<string, unknown>,
     maxOutputTokens?: number,
-    toolPolicy?: ToolPolicy
+    toolPolicy?: ToolPolicy,
+    providedStreamToken?: StreamToken
   ): Promise<Result<StreamToken, SendMessageError>> {
     const typedWorkspaceId = workspaceId as WorkspaceId;
 
@@ -1072,12 +1114,25 @@ export class StreamManager extends EventEmitter {
         `[STREAM START] workspaceId=${workspaceId} historySequence=${historySequence} model=${modelString}`
       );
 
-      // Step 1: Atomic safety check (cancels any existing stream and waits for full exit)
-      const streamToken = await this.ensureStreamSafety(typedWorkspaceId);
-      // Step 2: Atomic stream creation and registration
+      // Step 1: Cancel any existing stream before proceeding
+      // This must happen regardless of whether a token was provided
+      await this.ensureStreamSafety(typedWorkspaceId);
+
+      // Step 2: Use provided stream token or generate a new one
+      const streamToken = providedStreamToken ?? this.generateStreamToken();
+
+      // Step 3: Create temp directory for this stream
+      // If token was provided, temp dir might already exist - that's fine
+      const tempDir = path.join(os.homedir(), ".cmux-tmp", streamToken);
+      if (!fs.existsSync(tempDir)) {
+        fs.mkdirSync(tempDir, { recursive: true, mode: 0o700 });
+      }
+
+      // Step 4: Atomic stream creation and registration
       const streamInfo = this.createStreamAtomically(
         typedWorkspaceId,
         streamToken,
+        tempDir,
         messages,
         model,
         modelString,
@@ -1091,7 +1146,7 @@ export class StreamManager extends EventEmitter {
         toolPolicy
       );
 
-      // Step 3: Track the processing promise for guaranteed cleanup
+      // Step 5: Track the processing promise for guaranteed cleanup
       // This allows cancelStreamSafely to wait for full exit
       streamInfo.processingPromise = this.processStreamWithCleanup(
         typedWorkspaceId,

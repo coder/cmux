@@ -5,7 +5,7 @@ import { WRITE_DENIED_PREFIX } from "./fileCommon";
 const TEST_CWD = "/tmp";
 
 function createConfig() {
-  return { cwd: TEST_CWD };
+  return { cwd: TEST_CWD, tempDir: "/tmp" };
 }
 
 describe("executeFileEditOperation", () => {

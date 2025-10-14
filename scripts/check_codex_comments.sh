@@ -78,7 +78,7 @@ if [ $TOTAL_UNRESOLVED -gt 0 ]; then
 
     echo "$THREAD_SUMMARY" | jq -r '.[] | "  - [\(.createdAt)] thread=\(.thread) comment=\(.comment) \(.path):\(.line) - \(.snippet)..."'
     echo ""
-    echo "Resolve review threads with: ./scripts/resolve_codex_comment.sh <thread_id>"
+    echo "Resolve review threads with: ./scripts/resolve_pr_comment.sh <thread_id>"
   fi
 
   echo ""
