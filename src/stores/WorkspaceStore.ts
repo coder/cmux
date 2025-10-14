@@ -418,6 +418,14 @@ export class WorkspaceStore {
           if (part.type === "dynamic-tool" && part.toolName === "compact_summary") {
             const output = part.output as { summary?: string } | undefined;
             if (output?.summary) {
+              // Extract continueMessage from compaction-request before history gets replaced
+              const messages = aggregator.getAllMessages();
+              const compactRequestMsg = [...messages]
+                .reverse()
+                .find((m) => m.role === "user" && m.metadata?.cmuxMetadata?.type === "compaction-request");
+              const cmuxMeta = compactRequestMsg?.metadata?.cmuxMetadata;
+              const continueMessage = cmuxMeta?.type === "compaction-request" ? cmuxMeta.parsed.continueMessage : undefined;
+
               const summaryMessage = createCmuxMessage(
                 `summary-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
                 "assistant",
@@ -430,6 +438,8 @@ export class WorkspaceStore {
                   providerMetadata: data.metadata.providerMetadata,
                   duration: data.metadata.duration,
                   systemMessageTokens: data.metadata.systemMessageTokens,
+                  // Store continueMessage in summary so it survives history replacement
+                  cmuxMetadata: continueMessage ? { type: "compaction-result", continueMessage } : { type: "normal" },
                 }
               );
 

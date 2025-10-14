@@ -7,9 +7,13 @@ import { buildSendMessageOptions } from "@/hooks/useSendMessageOptions";
  *
  * Approach:
  * - Watches all workspaces for single compacted message (compaction just completed)
- * - Finds the compaction request message in history with structured metadata
- * - Extracts continueMessage from metadata.parsed.continueMessage
+ * - Reads continueMessage from the summary message's compaction-result metadata
  * - Sends continue message automatically
+ *
+ * Why summary metadata? When compaction completes, history is replaced with just the
+ * summary message. The original compaction-request message is deleted. To preserve
+ * the continueMessage across this replacement, we extract it before replacement and
+ * store it in the summary's metadata.
  *
  * Self-contained: No callback needed. Hook detects condition and handles action.
  * No localStorage - metadata is the single source of truth.
@@ -52,33 +56,24 @@ export function useAutoCompactContinue() {
       // Only proceed once per compaction completion
       if (firedForWorkspace.current.has(workspaceId)) continue;
 
-      // Find the most recent compaction request message from the raw message list
-      const compactRequestMessage = [...state.cmuxMessages]
-        .reverse()
-        .find(
-          (msg) => msg.role === "user" && msg.metadata?.cmuxMetadata?.type === "compaction-request"
-        );
+      // After compaction, history is replaced with a single summary message
+      // The summary message has compaction-result metadata with the continueMessage
+      const summaryMessage = state.cmuxMessages[0]; // Single compacted message
+      const cmuxMeta = summaryMessage?.metadata?.cmuxMetadata;
 
-      if (compactRequestMessage) {
-        const cmuxMeta = compactRequestMessage.metadata?.cmuxMetadata;
-        if (cmuxMeta?.type === "compaction-request") {
-          const continueMessage = cmuxMeta.parsed.continueMessage;
+      if (cmuxMeta?.type === "compaction-result" && cmuxMeta.continueMessage) {
+        // Mark as fired immediately to avoid re-entry on rapid renders
+        firedForWorkspace.current.add(workspaceId);
 
-          if (continueMessage) {
-            // Mark as fired immediately to avoid re-entry on rapid renders
-            firedForWorkspace.current.add(workspaceId);
-
-            // Build options and send message directly
-            const options = buildSendMessageOptions(workspaceId);
-            window.api.workspace
-              .sendMessage(workspaceId, continueMessage, options)
-              .catch((error) => {
-                console.error("Failed to send continue message:", error);
-                // If sending failed, allow another attempt on next render by clearing the guard
-                firedForWorkspace.current.delete(workspaceId);
-              });
-          }
-        }
+        // Build options and send message directly
+        const options = buildSendMessageOptions(workspaceId);
+        window.api.workspace
+          .sendMessage(workspaceId, cmuxMeta.continueMessage, options)
+          .catch((error) => {
+            console.error("Failed to send continue message:", error);
+            // If sending failed, allow another attempt on next render by clearing the guard
+            firedForWorkspace.current.delete(workspaceId);
+          });
       }
     }
   };

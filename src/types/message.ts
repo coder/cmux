@@ -15,6 +15,10 @@ export type CmuxFrontendMetadata =
       };
     }
   | {
+      type: "compaction-result";
+      continueMessage: string; // Message to send after compaction completes
+    }
+  | {
       type: "normal"; // Regular messages
     };
 
