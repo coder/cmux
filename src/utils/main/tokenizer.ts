@@ -17,7 +17,7 @@ export interface Tokenizer {
  *
  * eslint-disable-next-line @typescript-eslint/consistent-type-imports -- Dynamic imports are intentional for lazy loading
  */
-type TokenizerModuleImports = {
+interface TokenizerModuleImports {
   // eslint-disable-next-line @typescript-eslint/consistent-type-imports
   AITokenizer: typeof import("ai-tokenizer").default;
   // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -26,7 +26,7 @@ type TokenizerModuleImports = {
   o200k_base: typeof import("ai-tokenizer/encoding/o200k_base");
   // eslint-disable-next-line @typescript-eslint/consistent-type-imports
   claude: typeof import("ai-tokenizer/encoding/claude");
-};
+}
 
 let tokenizerModules: TokenizerModuleImports | null = null;
 
