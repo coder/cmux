@@ -5,7 +5,7 @@ import { useWorkspaceStoreRaw } from "@/stores/WorkspaceStore";
 
 const PinnedContainer = styled.div`
   background: var(--color-panel-background);
-  border-top: 1px solid var(--color-border);
+  border-top: 1px dashed hsl(0deg 0% 28.64%);
   margin: 0;
   max-height: 300px;
   overflow-y: auto;
