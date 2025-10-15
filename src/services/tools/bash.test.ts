@@ -905,6 +905,7 @@ fi
 
     // Wait for all processes to be cleaned up (SIGKILL needs time to propagate in CI)
     // Retry with exponential backoff instead of fixed wait
+    // Use ps + grep to avoid pgrep matching itself
     let remainingProcesses = -1;
     for (let attempt = 0; attempt < 5; attempt++) {
       await new Promise((resolve) => setTimeout(resolve, 200 * (attempt + 1)));
@@ -912,7 +913,7 @@ fi
       using checkEnv = createTestBashTool();
       const checkResult = (await checkEnv.tool.execute!(
         {
-          script: `pgrep -f "${token}" | wc -l`,
+          script: `ps aux | grep "${token}" | grep -v grep | wc -l`,
           timeout_secs: 1,
         },
         mockToolCallOptions
