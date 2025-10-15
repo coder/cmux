@@ -765,6 +765,13 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                 message: `Forked to workspace "${parsed.newName}"`,
               });
 
+              // Get workspace paths using the API
+              const workspaceInfo = await window.api.workspace.getInfo(result.metadata.id);
+              if (!workspaceInfo) {
+                console.error("Failed to get workspace info after fork");
+                return;
+              }
+
               // Dispatch custom event to switch workspace
               window.dispatchEvent(
                 new CustomEvent(CUSTOM_EVENTS.WORKSPACE_FORK_SWITCH, {
@@ -772,7 +779,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                     workspaceId: result.metadata.id,
                     projectPath: result.projectPath,
                     projectName: result.metadata.projectName,
-                    workspacePath: result.metadata.workspacePath,
+                    workspacePath: workspaceInfo.stableWorkspacePath,
                     branch: parsed.newName,
                   },
                 })

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import type { BrowserWindow, IpcMain as ElectronIpcMain } from "electron";
 import { spawn, spawnSync } from "child_process";
 import * as fsPromises from "fs/promises";
+import * as path from "path";
 import type { Config, ProjectConfig } from "@/config";
 import {
   createWorktree,
@@ -378,13 +379,10 @@ export class IpcMain {
             return { success: false, error: validation.error };
           }
 
-          // Block fork if there's an active stream - must interrupt first
+          // If streaming, commit the partial response to history first
+          // This preserves the streamed content in both workspaces
           if (this.aiService.isStreaming(sourceWorkspaceId)) {
-            return {
-              success: false,
-              error:
-                "Cannot fork workspace while stream is active. Press Esc to stop the stream first.",
-            };
+            await this.partialService.commitToHistory(sourceWorkspaceId);
           }
 
           // Get source workspace metadata and paths
@@ -397,14 +395,13 @@ export class IpcMain {
             };
           }
           const sourceMetadata = sourceMetadataResult.data;
-          const sourceWorkspacePath = sourceMetadata.workspacePath;
-
-          // Find project path from config
-          const workspace = this.config.findWorkspace(sourceWorkspaceId);
-          if (!workspace) {
-            return { success: false, error: "Failed to find workspace in config" };
-          }
-          const foundProjectPath = workspace.projectPath;
+          const foundProjectPath = sourceMetadata.projectPath;
+          
+          // Compute source workspace path from metadata
+          const sourceWorkspacePath = this.config.getWorkspacePath(
+            foundProjectPath,
+            sourceWorkspaceId
+          );
 
           // Get current branch from source workspace (fork from current branch, not trunk)
           const sourceBranch = await getCurrentBranch(sourceWorkspacePath);
@@ -462,11 +459,11 @@ export class IpcMain {
           }
 
           // Initialize workspace metadata with stable ID and name
-          const metadata = {
+          const metadata: WorkspaceMetadata = {
             id: newWorkspaceId,
             name: newName, // Name is separate from ID
             projectName,
-            workspacePath: newWorkspacePath,
+            projectPath: foundProjectPath,
             createdAt: new Date().toISOString(),
           };
           await this.aiService.saveWorkspaceMetadata(newWorkspaceId, metadata);
