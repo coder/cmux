@@ -595,7 +595,10 @@ export class IpcMain {
         _event,
         workspaceId: string,
         script: string,
-        options?: { timeout_secs?: number; niceness?: number }
+        options?: {
+          timeout_secs?: number;
+          niceness?: number;
+        }
       ) => {
         try {
           // Get workspace metadata to find workspacePath
@@ -616,11 +619,13 @@ export class IpcMain {
           using tempDir = new DisposableTempDir("cmux-ipc-bash");
 
           // Create bash tool with workspace's cwd and secrets
+          // All IPC bash calls are from UI (background operations) - use truncate to avoid temp file spam
           const bashTool = createBashTool({
             cwd: workspacePath,
             secrets: secretsToRecord(projectSecrets),
             niceness: options?.niceness,
             tempDir: tempDir.path,
+            overflow_policy: "truncate",
           });
 
           // Execute the script with provided options

@@ -157,6 +157,76 @@ describe("bash tool", () => {
     }
   });
 
+  it("should truncate overflow output when overflow_policy is 'truncate'", async () => {
+    const tempDir = new TestTempDir("test-bash-truncate");
+    const tool = createBashTool({
+      cwd: process.cwd(),
+      tempDir: tempDir.path,
+      overflow_policy: "truncate",
+    });
+
+    const args: BashToolArgs = {
+      script: "for i in {1..400}; do echo line$i; done", // Exceeds 300 line hard cap
+      timeout_secs: 5,
+    };
+
+    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      // Should contain truncation notice
+      expect(result.error).toContain("[OUTPUT TRUNCATED");
+      expect(result.error).toContain("Showing first 50 of");
+      expect(result.error).toContain("lines:");
+
+      // Should contain first 50 lines
+      expect(result.error).toContain("line1");
+      expect(result.error).toContain("line50");
+
+      // Should NOT contain line 51 or beyond
+      expect(result.error).not.toContain("line51");
+      expect(result.error).not.toContain("line100");
+
+      // Should NOT create temp file
+      const files = fs.readdirSync(tempDir.path);
+      const bashFiles = files.filter((f) => f.startsWith("bash-"));
+      expect(bashFiles.length).toBe(0);
+    }
+
+    tempDir[Symbol.dispose]();
+  });
+
+  it("should use tmpfile policy by default when overflow_policy not specified", async () => {
+    const tempDir = new TestTempDir("test-bash-default");
+    const tool = createBashTool({
+      cwd: process.cwd(),
+      tempDir: tempDir.path,
+      // overflow_policy not specified - should default to tmpfile
+    });
+
+    const args: BashToolArgs = {
+      script: "for i in {1..400}; do echo line$i; done",
+      timeout_secs: 5,
+    };
+
+    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      // Should use tmpfile behavior
+      expect(result.error).toContain("[OUTPUT OVERFLOW");
+      expect(result.error).toContain("saved to");
+      expect(result.error).not.toContain("[OUTPUT TRUNCATED");
+
+      // Verify temp file was created
+      const files = fs.readdirSync(tempDir.path);
+      const bashFiles = files.filter((f) => f.startsWith("bash-"));
+      expect(bashFiles.length).toBe(1);
+    }
+
+    tempDir[Symbol.dispose]();
+  });
+
   it("should interleave stdout and stderr", async () => {
     using testEnv = createTestBashTool();
     const tool = testEnv.tool;

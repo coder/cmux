@@ -320,17 +320,34 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
               wall_duration_ms,
             });
           } else if (truncated) {
-            // Save overflow output to temp file instead of returning an error
-            // We don't show ANY of the actual output to avoid overwhelming context.
-            // Instead, save it to a temp file and encourage the agent to use filtering tools.
-            try {
-              // Use 8 hex characters for short, memorable temp file IDs
-              const fileId = Math.random().toString(16).substring(2, 10);
-              const overflowPath = path.join(config.tempDir, `bash-${fileId}.txt`);
-              const fullOutput = lines.join("\n");
-              fs.writeFileSync(overflowPath, fullOutput, "utf-8");
+            // Handle overflow based on policy
+            const overflowPolicy = config.overflow_policy ?? "tmpfile";
 
-              const output = `[OUTPUT OVERFLOW - ${overflowReason ?? "unknown reason"}]
+            if (overflowPolicy === "truncate") {
+              // Return truncated output with first 50 lines
+              const maxTruncateLines = 50;
+              const truncatedLines = lines.slice(0, maxTruncateLines);
+              const truncatedOutput = truncatedLines.join("\n");
+              const errorMessage = `[OUTPUT TRUNCATED - ${overflowReason ?? "unknown reason"}]\n\nShowing first ${maxTruncateLines} of ${lines.length} lines:\n\n${truncatedOutput}`;
+
+              resolveOnce({
+                success: false,
+                error: errorMessage,
+                exitCode: -1,
+                wall_duration_ms,
+              });
+            } else {
+              // tmpfile policy: Save overflow output to temp file instead of returning an error
+              // We don't show ANY of the actual output to avoid overwhelming context.
+              // Instead, save it to a temp file and encourage the agent to use filtering tools.
+              try {
+                // Use 8 hex characters for short, memorable temp file IDs
+                const fileId = Math.random().toString(16).substring(2, 10);
+                const overflowPath = path.join(config.tempDir, `bash-${fileId}.txt`);
+                const fullOutput = lines.join("\n");
+                fs.writeFileSync(overflowPath, fullOutput, "utf-8");
+
+                const output = `[OUTPUT OVERFLOW - ${overflowReason ?? "unknown reason"}]
 
 Full output (${lines.length} lines) saved to ${overflowPath}
 
@@ -338,20 +355,21 @@ Use selective filtering tools (e.g. grep) to extract relevant information and co
 
 File will be automatically cleaned up when stream ends.`;
 
-              resolveOnce({
-                success: false,
-                error: output,
-                exitCode: -1,
-                wall_duration_ms,
-              });
-            } catch (err) {
-              // If temp file creation fails, fall back to original error
-              resolveOnce({
-                success: false,
-                error: `Command output overflow: ${overflowReason ?? "unknown reason"}. Failed to save overflow to temp file: ${String(err)}`,
-                exitCode: -1,
-                wall_duration_ms,
-              });
+                resolveOnce({
+                  success: false,
+                  error: output,
+                  exitCode: -1,
+                  wall_duration_ms,
+                });
+              } catch (err) {
+                // If temp file creation fails, fall back to original error
+                resolveOnce({
+                  success: false,
+                  error: `Command output overflow: ${overflowReason ?? "unknown reason"}. Failed to save overflow to temp file: ${String(err)}`,
+                  exitCode: -1,
+                  wall_duration_ms,
+                });
+              }
             }
           } else if (exitCode === 0 || exitCode === null) {
             resolveOnce({

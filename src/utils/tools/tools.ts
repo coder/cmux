@@ -21,6 +21,8 @@ export interface ToolConfiguration {
   niceness?: number;
   /** Temporary directory for tool outputs (required) */
   tempDir: string;
+  /** Overflow policy for bash tool output (optional, not exposed to AI) */
+  overflow_policy?: "truncate" | "tmpfile";
 }
 
 /**

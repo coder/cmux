@@ -210,7 +210,10 @@ export interface IPCApi {
     executeBash(
       workspaceId: string,
       script: string,
-      options?: { timeout_secs?: number; niceness?: number }
+      options?: {
+        timeout_secs?: number;
+        niceness?: number;
+      }
     ): Promise<Result<BashToolResult, string>>;
     openTerminal(workspacePath: string): Promise<void>;
 
