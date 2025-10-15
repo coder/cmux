@@ -27,6 +27,7 @@ import { createBashTool } from "@/services/tools/bash";
 import type { BashToolResult } from "@/types/tools";
 import { secretsToRecord } from "@/types/secrets";
 import { DisposableTempDir } from "@/services/tempDir";
+import type { WorkspaceMetaEvent } from "@/types/workspace";
 
 /**
  * IpcMain - Manages all IPC handlers and service coordination
@@ -52,6 +53,147 @@ export class IpcMain {
     { chat: () => void; metadata: () => void }
   >();
   private mainWindow: BrowserWindow | null = null;
+  // Buffer of streaming meta events keyed by workspaceId. Used to replay to late subscribers.
+  private readonly metaEventBuffer: Map<string, WorkspaceMetaEvent[]> = new Map<
+    string,
+    WorkspaceMetaEvent[]
+  >();
+
+  // Helper to emit a workspace meta event to the renderer and buffer it for replay
+  private emitWorkspaceMeta(event: WorkspaceMetaEvent): void {
+    if (!event?.workspaceId) return;
+    const arr = this.metaEventBuffer.get(event.workspaceId) ?? [];
+    arr.push(event);
+    this.metaEventBuffer.set(event.workspaceId, arr);
+    this.mainWindow?.webContents.send(IPC_CHANNELS.WORKSPACE_STREAM_META, event);
+  }
+
+  // Run optional .cmux/init hook for a newly created workspace and stream its output
+  private async runWorkspaceInitHook(params: {
+    projectPath: string;
+    worktreePath: string;
+    workspaceId: string;
+  }): Promise<void> {
+    // Non-blocking fire-and-forget; errors are reported via meta stream
+    try {
+      const hookPath = path.join(params.projectPath, ".cmux", "init");
+      // Check if hook exists
+      const exists = await fsPromises
+        .access(hookPath)
+        .then(() => true)
+        .catch(() => false);
+      if (!exists) {
+        return; // Nothing to do
+      }
+
+      // Emit start event
+      this.emitWorkspaceMeta({
+        type: "workspace-init-start",
+        workspaceId: params.workspaceId,
+        timestamp: Date.now(),
+        hookPath,
+      });
+
+      // Spawn bash to run the hook in the new worktree directory
+      const child = spawn("bash", [hookPath], {
+        cwd: params.worktreePath,
+        env: {
+          ...process.env,
+          // Ensure non-interactive so hooks never block on prompts
+          GIT_EDITOR: "true",
+          GIT_SEQUENCE_EDITOR: "true",
+          EDITOR: "true",
+          VISUAL: "true",
+          GIT_TERMINAL_PROMPT: "0",
+        },
+      });
+
+      // Incremental line buffers
+      let outBuf = "";
+      let errBuf = "";
+
+      const flushLines = (buf: string, isErr: boolean): string => {
+        const lines = buf.split(/\r?\n/);
+        // Keep the last partial line in buffer; emit full lines
+        const partial = lines.pop() ?? "";
+        for (const line of lines) {
+          if (line.length === 0) continue;
+          this.emitWorkspaceMeta({
+            type: isErr ? "workspace-init-error" : "workspace-init-output",
+            workspaceId: params.workspaceId,
+            timestamp: Date.now(),
+            line,
+          });
+        }
+        return partial;
+      };
+
+      child.stdout?.on("data", (chunk: Buffer) => {
+        outBuf += chunk.toString("utf8");
+        outBuf = flushLines(outBuf, false);
+      });
+
+      child.stderr?.on("data", (chunk: Buffer) => {
+        errBuf += chunk.toString("utf8");
+        errBuf = flushLines(errBuf, true);
+      });
+
+      child.on("close", (code: number | null) => {
+        // Flush any remaining partials as lines
+        if (outBuf.trim().length > 0) {
+          this.emitWorkspaceMeta({
+            type: "workspace-init-output",
+            workspaceId: params.workspaceId,
+            timestamp: Date.now(),
+            line: outBuf,
+          });
+        }
+        if (errBuf.trim().length > 0) {
+          this.emitWorkspaceMeta({
+            type: "workspace-init-error",
+            workspaceId: params.workspaceId,
+            timestamp: Date.now(),
+            line: errBuf,
+          });
+        }
+
+        this.emitWorkspaceMeta({
+          type: "workspace-init-end",
+          workspaceId: params.workspaceId,
+          timestamp: Date.now(),
+          exitCode: typeof code === "number" ? code : -1,
+        });
+      });
+
+      child.on("error", (error: unknown) => {
+        this.emitWorkspaceMeta({
+          type: "workspace-init-error",
+          workspaceId: params.workspaceId,
+          timestamp: Date.now(),
+          error: error instanceof Error ? error.message : String(error),
+        });
+        this.emitWorkspaceMeta({
+          type: "workspace-init-end",
+          workspaceId: params.workspaceId,
+          timestamp: Date.now(),
+          exitCode: -1,
+        });
+      });
+    } catch (error) {
+      this.emitWorkspaceMeta({
+        type: "workspace-init-error",
+        workspaceId: params.workspaceId,
+        timestamp: Date.now(),
+        error: error instanceof Error ? error.message : String(error),
+      });
+      this.emitWorkspaceMeta({
+        type: "workspace-init-end",
+        workspaceId: params.workspaceId,
+        timestamp: Date.now(),
+        exitCode: -1,
+      });
+    }
+  }
   private registered = false;
 
   constructor(config: Config) {
@@ -231,6 +373,13 @@ export class IpcMain {
           // Emit metadata event for new workspace
           const session = this.getOrCreateSession(workspaceId);
           session.emitMetadata(metadata);
+
+          // Fire-and-forget: run optional .cmux/init hook and stream output to renderer
+          void this.runWorkspaceInitHook({
+            projectPath,
+            worktreePath: result.path,
+            workspaceId,
+          });
 
           return {
             success: true,
@@ -1009,6 +1158,19 @@ export class IpcMain {
           this.mainWindow.webContents.send(chatChannel, event.message);
         });
       })();
+    });
+
+    // Handle subscription events for workspace meta stream (init hook output)
+    ipcMain.on(`workspace:meta:subscribe`, (_event, workspaceId: string) => {
+      if (!workspaceId || typeof workspaceId !== "string") return;
+      const buffered = this.metaEventBuffer.get(workspaceId) ?? [];
+      for (const ev of buffered) {
+        this.mainWindow?.webContents.send(IPC_CHANNELS.WORKSPACE_STREAM_META, ev);
+      }
+    });
+
+    ipcMain.on(`workspace:meta:unsubscribe`, (_event, _workspaceId: string) => {
+      // No-op: we keep buffer for the session; it will be disposed with the session
     });
 
     // Handle subscription events for metadata
