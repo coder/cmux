@@ -88,7 +88,7 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
         const { env, workspaceId, cleanup } = await setupWorkspace(provider);
         try {
           // Start a long-running stream with a bash command that takes time
-          const longMessage = "Run this bash command: sleep 60 && echo done";
+          const longMessage = "Run this bash command: while true; do sleep 1; done";
           void sendMessageWithModel(env.mockIpcRenderer, workspaceId, longMessage, provider, model);
 
           // Wait for stream to start
@@ -263,11 +263,11 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
 
         const { env, workspaceId, cleanup } = await setupWorkspace(provider);
         try {
-          // Start a stream with tool call that takes 10 seconds
+          // Start a stream with tool call that takes a long time
           void sendMessageWithModel(
             env.mockIpcRenderer,
             workspaceId,
-            "Run this bash command: sleep 10",
+            "Run this bash command: while true; do sleep 0.1; done",
             provider,
             model
           );
@@ -279,7 +279,7 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
 
           await collector1.waitForEvent("tool-call-start", 10000);
 
-          // At this point, bash sleep is running (will take 10 seconds if abort doesn't work)
+          // At this point, bash loop is running (will run forever if abort doesn't work)
           // Get message ID for verification
           collector1.collect();
           const messageId =
@@ -344,8 +344,8 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
             expect(partialMessages.length).toBe(0);
           }
 
-          // Note: If test completes quickly (~5s), abort signal worked and killed sleep
-          // If test takes ~10s, abort signal didn't work and sleep ran to completion
+          // Note: If test completes quickly (~5s), abort signal worked and killed the loop
+          // If test takes much longer, abort signal didn't work
         } finally {
           await cleanup();
         }
@@ -448,7 +448,7 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
           const result1 = await sendMessageWithModel(
             env.mockIpcRenderer,
             workspaceId,
-            "Run this bash command: sleep 10 && echo done",
+            "Run this bash command: for i in {1..20}; do sleep 0.5; done && echo done",
             provider,
             model
           );
@@ -467,7 +467,7 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
           const result2 = await sendMessageWithModel(
             env.mockIpcRenderer,
             workspaceId,
-            "Run this bash command: sleep 5 && echo second",
+            "Run this bash command: for i in {1..10}; do sleep 0.5; done && echo second",
             provider,
             model,
             { editMessageId: (firstUserMessage as { id: string }).id }

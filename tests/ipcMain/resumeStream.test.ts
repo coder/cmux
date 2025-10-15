@@ -35,7 +35,7 @@ describeIntegration("IpcMain resumeStream integration tests", () => {
         void sendMessageWithModel(
           env.mockIpcRenderer,
           workspaceId,
-          `Run this bash command: sleep 5 && echo '${expectedWord}'`,
+          `Run this bash command: for i in 1 2 3; do sleep 0.5; done && echo '${expectedWord}'`,
           "anthropic",
           "claude-sonnet-4-5"
         );
