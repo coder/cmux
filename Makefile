@@ -69,7 +69,12 @@ build-main: node_modules/.installed dist/main.js ## Build main process
 
 dist/main.js: src/version.ts tsconfig.main.json tsconfig.json $(TS_SOURCES)
 	@echo "Building main process..."
-	@NODE_ENV=production bun x tsc -p tsconfig.main.json
+	@if [ -f "node_modules/@typescript/native-preview/bin/tsgo.js" ]; then \
+		NODE_ENV=production bun run node_modules/@typescript/native-preview/bin/tsgo.js -p tsconfig.main.json; \
+	else \
+		echo "⚠️  tsgo not found, falling back to tsc (slower)"; \
+		NODE_ENV=production bun x tsc -p tsconfig.main.json; \
+	fi
 	@NODE_ENV=production bun x tsc-alias -p tsconfig.main.json
 
 build-preload: node_modules/.installed dist/preload.js ## Build preload script
