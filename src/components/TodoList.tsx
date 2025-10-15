@@ -66,7 +66,7 @@ function calculateFadeOpacity(distance: number, minOpacity: number): number {
   return Math.max(minOpacity, 1 - distance * 0.15);
 }
 
-const TodoText = styled.div<{ 
+const TodoText = styled.div<{
   status: TodoItem["status"];
   completedIndex?: number;
   totalCompleted?: number;
@@ -87,10 +87,12 @@ const TodoText = styled.div<{
   opacity: ${(props) => {
     if (props.status === "completed") {
       // Apply gradient fade for old completed items (distant past)
-      if (props.completedIndex !== undefined && 
-          props.totalCompleted !== undefined && 
-          props.totalCompleted > 2 &&
-          props.completedIndex < props.totalCompleted - 2) {
+      if (
+        props.completedIndex !== undefined &&
+        props.totalCompleted !== undefined &&
+        props.totalCompleted > 2 &&
+        props.completedIndex < props.totalCompleted - 2
+      ) {
         const distance = props.totalCompleted - props.completedIndex;
         return calculateFadeOpacity(distance, 0.35);
       }
@@ -98,10 +100,12 @@ const TodoText = styled.div<{
     }
     if (props.status === "pending") {
       // Apply gradient fade for far future pending items (distant future)
-      if (props.pendingIndex !== undefined && 
-          props.totalPending !== undefined && 
-          props.totalPending > 2 &&
-          props.pendingIndex > 1) {
+      if (
+        props.pendingIndex !== undefined &&
+        props.totalPending !== undefined &&
+        props.totalPending > 2 &&
+        props.pendingIndex > 1
+      ) {
         const distance = props.pendingIndex - 1;
         return calculateFadeOpacity(distance, 0.5);
       }
@@ -176,7 +180,7 @@ export const TodoList: React.FC<TodoListProps> = ({ todos }) => {
           <TodoItemContainer key={index} status={todo.status}>
             <TodoIcon>{getStatusIcon(todo.status)}</TodoIcon>
             <TodoContent>
-              <TodoText 
+              <TodoText
                 status={todo.status}
                 completedIndex={currentCompletedIndex}
                 totalCompleted={completedCount}
