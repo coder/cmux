@@ -268,7 +268,7 @@ describe("bash tool", () => {
     using testEnv = createTestBashTool();
     const tool = testEnv.tool;
     const args: BashToolArgs = {
-      script: "sleep 10",
+      script: "while true; do sleep 0.1; done",
       timeout_secs: 1,
     };
 
@@ -507,7 +507,7 @@ describe("bash tool", () => {
 
     const args: BashToolArgs = {
       // Background process that would block if we waited for it
-      script: "sleep 100 > /dev/null 2>&1 &",
+      script: "while true; do sleep 1; done > /dev/null 2>&1 &",
       timeout_secs: 5,
     };
 
@@ -515,7 +515,7 @@ describe("bash tool", () => {
     const duration = performance.now() - startTime;
 
     expect(result.success).toBe(true);
-    // Should complete in well under 1 second, not wait for sleep 100
+    // Should complete in well under 1 second, not wait for infinite loop
     expect(duration).toBeLessThan(2000);
   });
 
@@ -527,7 +527,7 @@ describe("bash tool", () => {
     const args: BashToolArgs = {
       // Spawn background process, echo its PID, then exit
       // Should not wait for the background process
-      script: "sleep 100 > /dev/null 2>&1 & echo $!",
+      script: "while true; do sleep 1; done > /dev/null 2>&1 & echo $!",
       timeout_secs: 5,
     };
 
@@ -550,7 +550,7 @@ describe("bash tool", () => {
 
     const args: BashToolArgs = {
       // Background process with output redirected but still blocking
-      script: "sleep 10 & wait",
+      script: "while true; do sleep 0.1; done & wait",
       timeout_secs: 1,
     };
 
@@ -652,6 +652,44 @@ describe("bash tool", () => {
       expect(result.error).toContain("Script parameter is empty");
       expect(result.exitCode).toBe(-1);
       expect(result.wall_duration_ms).toBe(0);
+    }
+  });
+
+  it("should block sleep command at start of script", async () => {
+    using testEnv = createTestBashTool();
+    const tool = testEnv.tool;
+    const args: BashToolArgs = {
+      script: "sleep 5",
+      timeout_secs: 10,
+    };
+
+    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain("sleep commands are blocked");
+      expect(result.error).toContain("polling loops");
+      expect(result.error).toContain("while ! condition");
+      expect(result.exitCode).toBe(-1);
+      expect(result.wall_duration_ms).toBe(0);
+    }
+  });
+
+  it("should allow sleep in polling loops", async () => {
+    using testEnv = createTestBashTool();
+    const tool = testEnv.tool;
+    const args: BashToolArgs = {
+      script: "for i in 1 2 3; do echo $i; sleep 0.1; done",
+      timeout_secs: 5,
+    };
+
+    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.output).toContain("1");
+      expect(result.output).toContain("2");
+      expect(result.output).toContain("3");
     }
   });
 
