@@ -22,19 +22,16 @@ describe("Todo Storage", () => {
     it("should store todo list in temp directory", async () => {
       const todos: TodoItem[] = [
         {
-          content: "Install dependencies",
+          content: "Installed dependencies",
           status: "completed",
-          activeForm: "Installing dependencies",
         },
         {
-          content: "Write tests",
+          content: "Writing tests",
           status: "in_progress",
-          activeForm: "Writing tests",
         },
         {
           content: "Update documentation",
           status: "pending",
-          activeForm: "Updating documentation",
         },
       ];
 
@@ -50,12 +47,10 @@ describe("Todo Storage", () => {
         {
           content: "Task 1",
           status: "pending",
-          activeForm: "Doing task 1",
         },
         {
           content: "Task 2",
           status: "pending",
-          activeForm: "Doing task 2",
         },
       ];
 
@@ -66,17 +61,14 @@ describe("Todo Storage", () => {
         {
           content: "Task 1",
           status: "completed",
-          activeForm: "Doing task 1",
         },
         {
           content: "Task 2",
           status: "in_progress",
-          activeForm: "Doing task 2",
         },
         {
           content: "Task 3",
           status: "pending",
-          activeForm: "Doing task 3",
         },
       ];
 
@@ -93,7 +85,6 @@ describe("Todo Storage", () => {
         {
           content: "Task 1",
           status: "pending",
-          activeForm: "Doing task 1",
         },
       ]);
 
@@ -109,7 +100,6 @@ describe("Todo Storage", () => {
         {
           content: "Step 1",
           status: "pending",
-          activeForm: "Handling step 1",
         },
       ];
 
@@ -119,12 +109,10 @@ describe("Todo Storage", () => {
         {
           content: "Step 1",
           status: "in_progress",
-          activeForm: "Handling step 1",
         },
         {
           content: "Step 2",
           status: "in_progress",
-          activeForm: "Handling step 2",
         },
       ];
 
@@ -141,12 +129,10 @@ describe("Todo Storage", () => {
         {
           content: "Step 1",
           status: "pending",
-          activeForm: "Handling step 1",
         },
         {
           content: "Step 2",
           status: "in_progress",
-          activeForm: "Handling step 2",
         },
       ];
 
@@ -160,12 +146,10 @@ describe("Todo Storage", () => {
         {
           content: "Step 1",
           status: "in_progress",
-          activeForm: "Handling step 1",
         },
         {
           content: "Step 2",
           status: "completed",
-          activeForm: "Handling step 2",
         },
       ];
 
@@ -179,12 +163,10 @@ describe("Todo Storage", () => {
         {
           content: "Step 1",
           status: "completed",
-          activeForm: "Handling step 1",
         },
         {
           content: "Step 2",
           status: "completed",
-          activeForm: "Handling step 2",
         },
       ];
 
@@ -204,12 +186,10 @@ describe("Todo Storage", () => {
         {
           content: "Task 1",
           status: "completed",
-          activeForm: "Doing task 1",
         },
         {
           content: "Task 2",
           status: "in_progress",
-          activeForm: "Doing task 2",
         },
       ];
 
@@ -231,7 +211,6 @@ describe("Todo Storage", () => {
           {
             content: "Stream 1 task",
             status: "pending",
-            activeForm: "Working on stream 1",
           },
         ];
 
@@ -239,7 +218,6 @@ describe("Todo Storage", () => {
           {
             content: "Stream 2 task",
             status: "pending",
-            activeForm: "Working on stream 2",
           },
         ];
 
@@ -266,7 +244,6 @@ describe("Todo Storage", () => {
         {
           content: "Task 1",
           status: "pending",
-          activeForm: "Doing task 1",
         },
       ];
 

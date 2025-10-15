@@ -11,6 +11,7 @@ import type {
   ReasoningDeltaEvent,
   ReasoningEndEvent,
 } from "@/types/stream";
+import type { TodoItem } from "@/types/tools";
 
 import type { WorkspaceChatMessage, StreamErrorMessage, DeleteMessage } from "@/types/ipc";
 import type {
@@ -46,6 +47,9 @@ export class StreamingMessageAggregator {
   // Delta history for token counting and TPS calculation
   private deltaHistory = new Map<string, DeltaRecordStorage>();
 
+  // Current TODO list (updated when todo_write succeeds)
+  private currentTodos: TodoItem[] = [];
+
   private invalidateCache(): void {
     this.cachedAllMessages = null;
     this.cachedDisplayedMessages = null;
@@ -67,6 +71,23 @@ export class StreamingMessageAggregator {
    */
   getRecencyTimestamp(): number | null {
     return this.recencyTimestamp;
+  }
+
+  /**
+   * Get the current TODO list.
+   * Updated whenever todo_write succeeds.
+   */
+  getCurrentTodos(): TodoItem[] {
+    return this.currentTodos;
+  }
+
+  /**
+   * Clean up stream-scoped state when stream ends (normally or abnormally).
+   * Called by handleStreamEnd, handleStreamAbort, and handleStreamError.
+   */
+  private cleanupStreamState(messageId: string): void {
+    this.currentTodos = [];
+    this.activeStreams.delete(messageId);
   }
 
   addMessage(message: CmuxMessage): void {
@@ -252,8 +273,8 @@ export class StreamingMessageAggregator {
         }
       }
 
-      // Clean up active stream - direct delete by messageId
-      this.activeStreams.delete(data.messageId);
+      // Clean up stream-scoped state (TODOs, active stream tracking)
+      this.cleanupStreamState(data.messageId);
     } else {
       // Reconnection case: user reconnected after stream completed
       // We reconstruct the entire message from the stream-end event
@@ -291,8 +312,8 @@ export class StreamingMessageAggregator {
         };
       }
 
-      // Clean up active stream - direct delete by messageId
-      this.activeStreams.delete(data.messageId);
+      // Clean up stream-scoped state (TODOs, active stream tracking)
+      this.cleanupStreamState(data.messageId);
       this.invalidateCache();
     }
   }
@@ -310,8 +331,8 @@ export class StreamingMessageAggregator {
         message.metadata.errorType = data.errorType;
       }
 
-      // Clean up active stream - direct delete by messageId
-      this.activeStreams.delete(data.messageId);
+      // Clean up stream-scoped state (TODOs, active stream tracking)
+      this.cleanupStreamState(data.messageId);
       this.invalidateCache();
     }
   }
@@ -375,6 +396,18 @@ export class StreamingMessageAggregator {
         // Type assertion needed because TypeScript can't narrow the discriminated union
         (toolPart as DynamicToolPartAvailable).state = "output-available";
         (toolPart as DynamicToolPartAvailable).output = data.result;
+
+        // Update TODO state if this was a successful todo_write
+        if (
+          data.toolName === "todo_write" &&
+          typeof data.result === "object" &&
+          data.result !== null &&
+          "success" in data.result &&
+          data.result.success
+        ) {
+          const args = toolPart.input as { todos: TodoItem[] };
+          this.currentTodos = args.todos;
+        }
       }
       this.invalidateCache();
     }

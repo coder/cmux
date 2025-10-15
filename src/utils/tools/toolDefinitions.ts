@@ -160,15 +160,19 @@ export const TOOL_DEFINITIONS = {
       "Mark ONE task as in_progress at a time. " +
       "Order tasks as: completed first, then in_progress (max 1), then pending last. " +
       "Update frequently as work progresses to provide visibility into ongoing operations. " +
-      "Before finishing the stream, ensure all todos are marked as completed.",
+      "Before finishing your response, ensure all todos are marked as completed. " +
+      "Use appropriate tense in content: past tense for completed (e.g., 'Added tests'), " +
+      "present progressive for in_progress (e.g., 'Adding tests'), " +
+      "and imperative/infinitive for pending (e.g., 'Add tests').",
     schema: z.object({
       todos: z.array(
         z.object({
-          content: z.string().describe("Task description"),
-          status: z.enum(["pending", "in_progress", "completed"]).describe("Task status"),
-          activeForm: z
+          content: z
             .string()
-            .describe("Present progressive form of the task (e.g., 'Adding tests')"),
+            .describe(
+              "Task description with tense matching status: past for completed, present progressive for in_progress, imperative for pending"
+            ),
+          status: z.enum(["pending", "in_progress", "completed"]).describe("Task status"),
         })
       ),
     }),

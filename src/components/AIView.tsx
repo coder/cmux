@@ -4,6 +4,7 @@ import { MessageRenderer } from "./Messages/MessageRenderer";
 import { InterruptedBarrier } from "./Messages/ChatBarrier/InterruptedBarrier";
 import { StreamingBarrier } from "./Messages/ChatBarrier/StreamingBarrier";
 import { RetryBarrier } from "./Messages/ChatBarrier/RetryBarrier";
+import { PinnedTodoList } from "./PinnedTodoList";
 import { getAutoRetryKey } from "@/constants/storage";
 import { ChatInput, type ChatInputAPI } from "./ChatInput";
 import { ChatMetaSidebar } from "./ChatMetaSidebar";
@@ -487,6 +488,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
                   )}
                 </>
               )}
+              <PinnedTodoList workspaceId={workspaceId} />
               {canInterrupt && (
                 <StreamingBarrier
                   statusText={
