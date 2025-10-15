@@ -56,6 +56,16 @@ const TodoContent = styled.div`
   min-width: 0;
 `;
 
+/**
+ * Calculate opacity fade for items distant from the center (exponential decay).
+ * @param distance - How far from the center (higher = more fade)
+ * @param minOpacity - Minimum opacity floor
+ * @returns Opacity value between minOpacity and 1.0
+ */
+function calculateFadeOpacity(distance: number, minOpacity: number): number {
+  return Math.max(minOpacity, 1 - distance * 0.15);
+}
+
 const TodoText = styled.div<{ 
   status: TodoItem["status"];
   completedIndex?: number;
@@ -81,9 +91,8 @@ const TodoText = styled.div<{
           props.totalCompleted !== undefined && 
           props.totalCompleted > 2 &&
           props.completedIndex < props.totalCompleted - 2) {
-        // Fade older items more (exponential decay)
-        const recentIndex = props.totalCompleted - props.completedIndex;
-        return Math.max(0.35, 1 - (recentIndex * 0.15));
+        const distance = props.totalCompleted - props.completedIndex;
+        return calculateFadeOpacity(distance, 0.35);
       }
       return "0.7";
     }
@@ -93,9 +102,8 @@ const TodoText = styled.div<{
           props.totalPending !== undefined && 
           props.totalPending > 2 &&
           props.pendingIndex > 1) {
-        // Fade later items more (exponential decay)
-        const futureDistance = props.pendingIndex - 1;
-        return Math.max(0.5, 1 - (futureDistance * 0.15));
+        const distance = props.pendingIndex - 1;
+        return calculateFadeOpacity(distance, 0.5);
       }
     }
     return "1";
