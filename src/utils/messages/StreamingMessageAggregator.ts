@@ -14,6 +14,7 @@ import type {
 import type { TodoItem } from "@/types/tools";
 
 import type { WorkspaceChatMessage, StreamErrorMessage, DeleteMessage } from "@/types/ipc";
+import { isInitStart, isInitOutput, isInitEnd } from "@/types/ipc";
 import type {
   DynamicToolPart,
   DynamicToolPartPending,
@@ -49,6 +50,15 @@ export class StreamingMessageAggregator {
 
   // Current TODO list (updated when todo_write succeeds)
   private currentTodos: TodoItem[] = [];
+
+  // Workspace init hook state (ephemeral, not persisted to history)
+  private initState: {
+    status: "running" | "success" | "error";
+    hookPath: string;
+    lines: string[];
+    exitCode: number | null;
+    timestamp: number;
+  } | null = null;
 
   // Workspace creation timestamp (used for recency calculation)
   private readonly createdAt?: string;
@@ -495,6 +505,45 @@ export class StreamingMessageAggregator {
   }
 
   handleMessage(data: WorkspaceChatMessage): void {
+    // Handle init hook events (ephemeral, not persisted to history)
+    if (isInitStart(data)) {
+      this.initState = {
+        status: "running",
+        hookPath: data.hookPath,
+        lines: [],
+        exitCode: null,
+        timestamp: data.timestamp,
+      };
+      this.invalidateCache();
+      return;
+    }
+
+    if (isInitOutput(data)) {
+      if (this.initState) {
+        const line = data.isError ? `ERROR: ${data.line}` : data.line;
+        this.initState.lines.push(line.trimEnd());
+        this.invalidateCache();
+      }
+      return;
+    }
+
+    if (isInitEnd(data)) {
+      if (this.initState) {
+        this.initState.exitCode = data.exitCode;
+        this.initState.status = data.exitCode === 0 ? "success" : "error";
+        this.invalidateCache();
+
+        // Auto-dismiss on success after 800ms
+        if (data.exitCode === 0) {
+          setTimeout(() => {
+            this.initState = null;
+            this.invalidateCache();
+          }, 800);
+        }
+      }
+      return;
+    }
+
     // Handle regular messages (user messages, historical messages)
     // Check if it's a CmuxMessage (has role property but no type)
     if ("role" in data && !("type" in data)) {
@@ -715,6 +764,21 @@ export class StreamingMessageAggregator {
             });
           }
         }
+      }
+
+      // Add init state if present (ephemeral, appears at top)
+      if (this.initState) {
+        const initMessage: DisplayedMessage = {
+          type: "workspace-init",
+          id: "workspace-init",
+          historySequence: -1, // Appears before all history
+          status: this.initState.status,
+          hookPath: this.initState.hookPath,
+          lines: this.initState.lines,
+          exitCode: this.initState.exitCode,
+          timestamp: this.initState.timestamp,
+        };
+        displayedMessages.unshift(initMessage);
       }
 
       // Limit to last N messages for DOM performance

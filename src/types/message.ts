@@ -166,6 +166,16 @@ export type DisplayedMessage =
       id: string; // Display ID for UI/React keys
       hiddenCount: number; // Number of messages hidden
       historySequence: number; // Global ordering across all messages
+    }
+  | {
+      type: "workspace-init";
+      id: string; // Display ID for UI/React keys
+      historySequence: number; // Position in message stream (-1 for ephemeral, non-persisted events)
+      status: "running" | "success" | "error";
+      hookPath: string; // Path to the init script being executed
+      lines: string[]; // Accumulated output lines (stderr prefixed with "ERROR:")
+      exitCode: number | null; // Final exit code (null while running)
+      timestamp: number;
     };
 
 // Helper to create a simple text message

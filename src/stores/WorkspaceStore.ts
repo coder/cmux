@@ -22,6 +22,9 @@ import {
   isToolCallEnd,
   isReasoningDelta,
   isReasoningEnd,
+  isInitStart,
+  isInitOutput,
+  isInitEnd,
 } from "@/types/ipc";
 import { MapStore } from "./MapStore";
 import { createDisplayUsage } from "@/utils/tokens/displayUsage";
@@ -790,7 +793,10 @@ export class WorkspaceStore {
       isToolCallDelta(data) ||
       isToolCallEnd(data) ||
       isReasoningDelta(data) ||
-      isReasoningEnd(data)
+      isReasoningEnd(data) ||
+      isInitStart(data) ||
+      isInitOutput(data) ||
+      isInitEnd(data)
     );
   }
 
@@ -835,7 +841,20 @@ export class WorkspaceStore {
       return;
     }
 
-    // Buffer stream events until caught up (so they have full historical context)
+    // OPTIMIZATION: Buffer stream events until caught-up to reduce excess re-renders
+    // When first subscribing to a workspace, we receive:
+    // 1. Historical messages from chat.jsonl (potentially hundreds of messages)
+    // 2. Partial stream state (if stream was interrupted)
+    // 3. Active stream events (if currently streaming)
+    //
+    // Without buffering, each event would trigger a separate re-render as messages
+    // arrive one-by-one over IPC. By buffering until "caught-up", we:
+    // - Load all historical messages in one batch (O(1) render instead of O(N))
+    // - Replay buffered stream events after history is loaded
+    // - Provide correct context for stream continuation (history is complete)
+    //
+    // This is especially important for workspaces with long histories (100+ messages),
+    // where unbuffered rendering would cause visible lag and UI stutter.
     if (!isCaughtUp && this.isStreamEvent(data)) {
       const pending = this.pendingStreamEvents.get(workspaceId) ?? [];
       pending.push(data);
@@ -959,6 +978,15 @@ export class WorkspaceStore {
 
     if (isReasoningEnd(data)) {
       aggregator.handleReasoningEnd(data);
+      this.states.bump(workspaceId);
+      return;
+    }
+
+    // Handle init events
+    // Note: Init events are processed immediately in handleChatMessage() (not buffered)
+    // because they arrive during workspace creation before any chat history exists.
+    if (isInitStart(data) || isInitOutput(data) || isInitEnd(data)) {
+      aggregator.handleMessage(data);
       this.states.bump(workspaceId);
       return;
     }

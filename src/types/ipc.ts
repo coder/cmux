@@ -53,6 +53,25 @@ export interface DeleteMessage {
   historySequences: number[];
 }
 
+// Workspace init hook events (ephemeral, not persisted to history)
+export type WorkspaceInitEvent =
+  | {
+      type: "init-start";
+      hookPath: string;
+      timestamp: number;
+    }
+  | {
+      type: "init-output";
+      line: string;
+      timestamp: number;
+      isError?: boolean;
+    }
+  | {
+      type: "init-end";
+      exitCode: number;
+      timestamp: number;
+    };
+
 // Union type for workspace chat messages
 export type WorkspaceChatMessage =
   | CmuxMessage
@@ -67,7 +86,8 @@ export type WorkspaceChatMessage =
   | ToolCallDeltaEvent
   | ToolCallEndEvent
   | ReasoningDeltaEvent
-  | ReasoningEndEvent;
+  | ReasoningEndEvent
+  | WorkspaceInitEvent;
 
 // Type guard for caught up messages
 export function isCaughtUpMessage(msg: WorkspaceChatMessage): msg is CaughtUpMessage {
@@ -127,6 +147,25 @@ export function isReasoningDelta(msg: WorkspaceChatMessage): msg is ReasoningDel
 // Type guard for reasoning end events
 export function isReasoningEnd(msg: WorkspaceChatMessage): msg is ReasoningEndEvent {
   return "type" in msg && msg.type === "reasoning-end";
+}
+
+// Type guards for init events
+export function isInitStart(
+  msg: WorkspaceChatMessage
+): msg is Extract<WorkspaceInitEvent, { type: "init-start" }> {
+  return "type" in msg && msg.type === "init-start";
+}
+
+export function isInitOutput(
+  msg: WorkspaceChatMessage
+): msg is Extract<WorkspaceInitEvent, { type: "init-output" }> {
+  return "type" in msg && msg.type === "init-output";
+}
+
+export function isInitEnd(
+  msg: WorkspaceChatMessage
+): msg is Extract<WorkspaceInitEvent, { type: "init-end" }> {
+  return "type" in msg && msg.type === "init-end";
 }
 
 // Type guard for stream stats events

@@ -1,6 +1,111 @@
 import { describe, it, expect } from "bun:test";
 import { StreamingMessageAggregator } from "./StreamingMessageAggregator";
+import type { WorkspaceInitEvent } from "@/types/ipc";
 import type { StreamEndEvent } from "@/types/stream";
+
+describe("StreamingMessageAggregator - Init Events", () => {
+  it("should convert init events to workspace-init DisplayedMessage", () => {
+    const aggregator = new StreamingMessageAggregator();
+
+    // Send init-start
+    const startEvent: WorkspaceInitEvent = {
+      type: "init-start",
+      hookPath: "/project/.cmux/init",
+      timestamp: Date.now(),
+    };
+    aggregator.handleMessage(startEvent);
+
+    // Send init-output events
+    const outputEvent1: WorkspaceInitEvent = {
+      type: "init-output",
+      line: "Installing dependencies...",
+      timestamp: Date.now(),
+    };
+    aggregator.handleMessage(outputEvent1);
+
+    const outputEvent2: WorkspaceInitEvent = {
+      type: "init-output",
+      line: "Build complete!",
+      timestamp: Date.now(),
+    };
+    aggregator.handleMessage(outputEvent2);
+
+    const errorEvent: WorkspaceInitEvent = {
+      type: "init-output",
+      line: "Warning: deprecated package",
+      timestamp: Date.now(),
+      isError: true,
+    };
+    aggregator.handleMessage(errorEvent);
+
+    // Verify displayed message is created with status "running"
+    let displayedMessages = aggregator.getDisplayedMessages();
+    let initMessage = displayedMessages.find((msg) => msg.type === "workspace-init");
+    expect(initMessage).toBeDefined();
+    if (initMessage && initMessage.type === "workspace-init") {
+      expect(initMessage.status).toBe("running");
+      expect(initMessage.exitCode).toBeNull();
+      expect(initMessage.lines).toEqual([
+        "Installing dependencies...",
+        "Build complete!",
+        "ERROR: Warning: deprecated package",
+      ]);
+      expect(initMessage.historySequence).toBe(-1); // Ephemeral
+    }
+
+    // Send init-end with success
+    const endEvent: WorkspaceInitEvent = {
+      type: "init-end",
+      exitCode: 0,
+      timestamp: Date.now(),
+    };
+    aggregator.handleMessage(endEvent);
+
+    // Verify status updated to success
+    displayedMessages = aggregator.getDisplayedMessages();
+    initMessage = displayedMessages.find((msg) => msg.type === "workspace-init");
+    expect(initMessage).toBeDefined();
+    if (initMessage && initMessage.type === "workspace-init") {
+      expect(initMessage.status).toBe("success");
+      expect(initMessage.exitCode).toBe(0);
+    }
+  });
+
+  it("should set status to error on non-zero exit code", () => {
+    const aggregator = new StreamingMessageAggregator();
+
+    const startEvent: WorkspaceInitEvent = {
+      type: "init-start",
+      hookPath: "/project/.cmux/init",
+      timestamp: Date.now(),
+    };
+    aggregator.handleMessage(startEvent);
+
+    const errorEvent: WorkspaceInitEvent = {
+      type: "init-output",
+      line: "Failed to install dependencies",
+      timestamp: Date.now(),
+      isError: true,
+    };
+    aggregator.handleMessage(errorEvent);
+
+    const endEvent: WorkspaceInitEvent = {
+      type: "init-end",
+      exitCode: 1,
+      timestamp: Date.now(),
+    };
+    aggregator.handleMessage(endEvent);
+
+    const displayedMessages = aggregator.getDisplayedMessages();
+    const initMessage = displayedMessages.find((msg) => msg.type === "workspace-init");
+    expect(initMessage).toBeDefined();
+    if (initMessage && initMessage.type === "workspace-init") {
+      expect(initMessage.status).toBe("error");
+      expect(initMessage.exitCode).toBe(1);
+      expect(initMessage.lines).toContain("ERROR: Failed to install dependencies");
+    }
+  });
+});
 import type { DynamicToolPart } from "@/types/toolParts";
 
 describe("StreamingMessageAggregator", () => {

@@ -230,8 +230,10 @@ const AIViewInner: React.FC<AIViewProps> = ({
 
     const mergedMessages = mergeConsecutiveStreamErrors(workspaceState.messages);
     const editCutoffHistoryId = mergedMessages.find(
-      (msg): msg is Exclude<DisplayedMessage, { type: "history-hidden" }> =>
-        msg.type !== "history-hidden" && msg.historyId === editingMessage.id
+      (msg): msg is Exclude<DisplayedMessage, { type: "history-hidden" | "workspace-init" }> =>
+        msg.type !== "history-hidden" &&
+        msg.type !== "workspace-init" &&
+        msg.historyId === editingMessage.id
     )?.historyId;
 
     if (!editCutoffHistoryId) {
@@ -277,8 +279,10 @@ const AIViewInner: React.FC<AIViewProps> = ({
   // When editing, find the cutoff point
   const editCutoffHistoryId = editingMessage
     ? mergedMessages.find(
-        (msg): msg is Exclude<DisplayedMessage, { type: "history-hidden" }> =>
-          msg.type !== "history-hidden" && msg.historyId === editingMessage.id
+        (msg): msg is Exclude<DisplayedMessage, { type: "history-hidden" | "workspace-init" }> =>
+          msg.type !== "history-hidden" &&
+          msg.type !== "workspace-init" &&
+          msg.historyId === editingMessage.id
       )?.historyId
     : undefined;
 
@@ -381,6 +385,15 @@ const AIViewInner: React.FC<AIViewProps> = ({
               <div className="text-placeholder flex h-full flex-1 flex-col items-center justify-center text-center [&_h3]:m-0 [&_h3]:mb-2.5 [&_h3]:text-base [&_h3]:font-medium [&_p]:m-0 [&_p]:text-[13px]">
                 <h3>No Messages Yet</h3>
                 <p>Send a message below to begin</p>
+                <p className="mt-5 text-xs text-[#888]">
+                  💡 Tip: Add a{" "}
+                  <code className="rounded-[3px] bg-[#2d2d30] px-1.5 py-0.5 font-mono text-[11px] text-[#d7ba7d]">
+                    .cmux/init
+                  </code>{" "}
+                  hook to your project to run setup commands
+                  <br />
+                  (e.g., install dependencies, build) when creating new workspaces
+                </p>
               </div>
             ) : (
               <>
@@ -388,12 +401,17 @@ const AIViewInner: React.FC<AIViewProps> = ({
                   const isAtCutoff =
                     editCutoffHistoryId !== undefined &&
                     msg.type !== "history-hidden" &&
+                    msg.type !== "workspace-init" &&
                     msg.historyId === editCutoffHistoryId;
 
                   return (
                     <React.Fragment key={msg.id}>
                       <div
-                        data-message-id={msg.type !== "history-hidden" ? msg.historyId : undefined}
+                        data-message-id={
+                          msg.type !== "history-hidden" && msg.type !== "workspace-init"
+                            ? msg.historyId
+                            : undefined
+                        }
                       >
                         <MessageRenderer
                           message={msg}
