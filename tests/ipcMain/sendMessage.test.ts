@@ -129,12 +129,14 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
         const { env, workspaceId, cleanup } = await setupWorkspace(provider);
         try {
           // Send a message that will generate text deltas
+          // Disable reasoning for this test to avoid flakiness and encrypted content issues in CI
           void sendMessageWithModel(
             env.mockIpcRenderer,
             workspaceId,
             "Write a short paragraph about TypeScript",
             provider,
-            model
+            model,
+            { thinkingLevel: "off" }
           );
 
           // Wait for stream to start
@@ -193,7 +195,7 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
           await cleanup();
         }
       },
-      15000
+      30000 // Increased timeout for OpenAI models which can be slower in CI
     );
 
     test.concurrent(
