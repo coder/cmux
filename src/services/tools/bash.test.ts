@@ -903,8 +903,8 @@ fi
       expect(result.error).toContain("aborted");
     }
 
-    // Give a moment for cleanup to happen
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    // Give a moment for cleanup to happen (SIGKILL needs time to propagate)
+    await new Promise((resolve) => setTimeout(resolve, 1000));
 
     // Verify NO sleep processes with our token are still running
     using checkEnv = createTestBashTool();
