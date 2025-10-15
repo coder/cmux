@@ -81,6 +81,15 @@ export class StreamingMessageAggregator {
     return this.currentTodos;
   }
 
+  /**
+   * Clean up stream-scoped state when stream ends (normally or abnormally).
+   * Called by handleStreamEnd, handleStreamAbort, and handleStreamError.
+   */
+  private cleanupStreamState(messageId: string): void {
+    this.currentTodos = [];
+    this.activeStreams.delete(messageId);
+  }
+
   addMessage(message: CmuxMessage): void {
     // Just store the message - backend assigns historySequence
     this.messages.set(message.id, message);
@@ -228,9 +237,6 @@ export class StreamingMessageAggregator {
   }
 
   handleStreamEnd(data: StreamEndEvent): void {
-    // Clear TODOs when stream ends
-    this.currentTodos = [];
-
     // Direct lookup by messageId - O(1) instead of O(n) find
     const activeStream = this.activeStreams.get(data.messageId);
 
@@ -267,8 +273,8 @@ export class StreamingMessageAggregator {
         }
       }
 
-      // Clean up active stream - direct delete by messageId
-      this.activeStreams.delete(data.messageId);
+      // Clean up stream-scoped state (TODOs, active stream tracking)
+      this.cleanupStreamState(data.messageId);
     } else {
       // Reconnection case: user reconnected after stream completed
       // We reconstruct the entire message from the stream-end event
@@ -292,9 +298,6 @@ export class StreamingMessageAggregator {
   }
 
   handleStreamAbort(data: StreamAbortEvent): void {
-    // Clear TODOs when stream aborts
-    this.currentTodos = [];
-
     // Direct lookup by messageId
     const activeStream = this.activeStreams.get(data.messageId);
 
@@ -309,16 +312,13 @@ export class StreamingMessageAggregator {
         };
       }
 
-      // Clean up active stream - direct delete by messageId
-      this.activeStreams.delete(data.messageId);
+      // Clean up stream-scoped state (TODOs, active stream tracking)
+      this.cleanupStreamState(data.messageId);
       this.invalidateCache();
     }
   }
 
   handleStreamError(data: StreamErrorMessage): void {
-    // Clear TODOs when stream errors
-    this.currentTodos = [];
-
     // Direct lookup by messageId
     const activeStream = this.activeStreams.get(data.messageId);
 
@@ -331,8 +331,8 @@ export class StreamingMessageAggregator {
         message.metadata.errorType = data.errorType;
       }
 
-      // Clean up active stream - direct delete by messageId
-      this.activeStreams.delete(data.messageId);
+      // Clean up stream-scoped state (TODOs, active stream tracking)
+      this.cleanupStreamState(data.messageId);
       this.invalidateCache();
     }
   }
