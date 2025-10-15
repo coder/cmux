@@ -21,20 +21,28 @@ import { TOOL_DEFINITIONS } from "@/utils/tools/toolDefinitions";
  * SIGKILL cannot be caught or ignored, guaranteeing immediate cleanup.
  */
 class DisposableProcess implements Disposable {
+  private disposed = false;
+
   constructor(private readonly process: ChildProcess) {}
 
   [Symbol.dispose](): void {
-    if (this.process.pid !== undefined) {
+    // Prevent double-signalling if dispose is called multiple times
+    // (e.g., manually via abort/timeout, then automatically via `using`)
+    if (this.disposed || this.process.pid === undefined) {
+      return;
+    }
+
+    this.disposed = true;
+
+    try {
+      // Kill entire process group with SIGKILL - cannot be caught/ignored
+      process.kill(-this.process.pid, "SIGKILL");
+    } catch {
+      // Fallback: try killing just the main process
       try {
-        // Kill entire process group with SIGKILL - cannot be caught/ignored
-        process.kill(-this.process.pid, "SIGKILL");
+        this.process.kill("SIGKILL");
       } catch {
-        // Fallback: try killing just the main process
-        try {
-          this.process.kill("SIGKILL");
-        } catch {
-          // Process already dead - ignore
-        }
+        // Process already dead - ignore
       }
     }
   }
