@@ -1,0 +1,41 @@
+/* GitHub-style Alert Boxes
+   ------------------------
+   Styles blockquotes to look like GitHub's alert callouts.
+   
+   Usage in markdown:
+   > **Note**: This is a note
+   > **Tip**: This is a tip
+   > **Important**: This is important
+   > **Warning**: This is a warning
+   > **Caution**: This is a caution
+*/
+
+/* Base blockquote style - default blue "Note" appearance */
+blockquote {
+  border: 1px solid var(--color-border) !important;
+  border-left: 4px solid hsl(210, 70%, 55%) !important;
+  background: color-mix(in srgb, hsl(210, 70%, 55%), var(--color-background-secondary) 5%) !important;
+  padding: 0.75rem 1rem;
+  margin: 1.2rem 0;
+  border-radius: var(--radius-sm);
+  color: var(--color-text) !important;
+}
+
+/* Style the alert title (e.g., "**Note:**") */
+blockquote p:first-child > strong:first-child {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: hsl(210, 70%, 55%) !important;
+  font-size: 0.95em;
+  letter-spacing: 0.02em;
+}
+
+/* Default icon for Note alerts */
+blockquote p:first-child > strong:first-child::before {
+  content: "ℹ️";
+  font-size: 1em;
+  line-height: 1;
+  font-style: normal;
+}
+

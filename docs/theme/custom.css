@@ -291,18 +291,7 @@ table code {
   font-size: 0.9em;
 }
 
-/* Blockquotes (callout style) */
-blockquote {
-  border: 1px solid var(--color-border) !important;
-  border-left: 4px solid var(--color-plan-mode) !important;
-  background: color-mix(in srgb, var(--color-background-secondary), white 1.5%) !important;
-  padding: 0.5rem 0.6rem;
-  margin: 1.2rem 0;
-  color: color-mix(in srgb, var(--color-text), white 6%) !important;
-}
-blockquote strong {
-  color: var(--color-plan-mode) !important;
-}
+/* Blockquotes - See theme/alerts.css for GitHub-style alert boxes */
 
 /* kbd (for keybinds page) */
 kbd {
