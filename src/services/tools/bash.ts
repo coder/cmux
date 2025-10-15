@@ -16,14 +16,26 @@ import type { ToolConfiguration, ToolFactory } from "@/utils/tools/tools";
 import { TOOL_DEFINITIONS } from "@/utils/tools/toolDefinitions";
 
 /**
- * Wraps a ChildProcess to make it disposable for use with `using` statements
+ * Wraps a ChildProcess to make it disposable for use with `using` statements.
+ * Kills the entire process group to prevent zombie processes.
  */
 class DisposableProcess implements Disposable {
   constructor(private readonly process: ChildProcess) {}
 
   [Symbol.dispose](): void {
-    if (!this.process.killed) {
-      this.process.kill();
+    if (!this.process.killed && this.process.pid !== undefined) {
+      // Kill the entire process group by using negative PID
+      // This ensures all child processes (including backgrounded ones) are terminated
+      try {
+        process.kill(-this.process.pid);
+      } catch {
+        // If process group kill fails (e.g., process already exited), try killing just the process
+        try {
+          this.process.kill();
+        } catch {
+          // Ignore - process might have already exited
+        }
+      }
     }
   }
 
@@ -120,6 +132,12 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
             GIT_TERMINAL_PROMPT: "0", // Disables git credential prompts
           },
           stdio: ["ignore", "pipe", "pipe"],
+          // CRITICAL: Spawn as detached process group leader to prevent zombie processes.
+          // When a bash script spawns background processes (e.g., `sleep 100 &`), those
+          // children would normally be reparented to init when bash exits, becoming orphans.
+          // With detached:true, bash becomes a process group leader, allowing us to kill
+          // the entire group (including all backgrounded children) via process.kill(-pid).
+          detached: true,
         })
       );
 

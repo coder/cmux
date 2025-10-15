@@ -814,4 +814,46 @@ fi
       expect(result.exitCode).toBe(0);
     }
   });
+
+  it("should not create zombie processes when spawning background tasks", async () => {
+    using testEnv = createTestBashTool();
+    const tool = testEnv.tool;
+
+    // Spawn a background sleep process that would become a zombie if not cleaned up
+    // Use a unique marker to identify our test process
+    // Note: Start with echo to avoid triggering standalone sleep blocker
+    const marker = `zombie-test-${Date.now()}`;
+    const args: BashToolArgs = {
+      script: `echo "${marker}"; sleep 100 & echo $!`,
+      timeout_secs: 1,
+    };
+
+    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
+
+    // Tool should complete successfully
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.output).toContain(marker);
+      const lines = result.output.split("\n");
+      const bgPid = lines[1]; // Second line should be the background PID
+
+      // Give a moment for cleanup to happen
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // Verify the background process was killed (process group cleanup)
+      using checkEnv = createTestBashTool();
+      const checkResult = (await checkEnv.tool.execute!(
+        {
+          script: `ps -p ${bgPid} > /dev/null 2>&1 && echo "ALIVE" || echo "DEAD"`,
+          timeout_secs: 1,
+        },
+        mockToolCallOptions
+      )) as BashToolResult;
+
+      expect(checkResult.success).toBe(true);
+      if (checkResult.success) {
+        expect(checkResult.output).toBe("DEAD");
+      }
+    }
+  });
 });

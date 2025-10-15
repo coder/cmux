@@ -654,16 +654,26 @@ export class IpcMain {
           // macOS - try Ghostty first, fallback to Terminal.app
           const terminal = this.findAvailableCommand(["ghostty", "terminal"]);
           if (terminal === "ghostty") {
-            spawn("open", ["-a", "Ghostty", workspacePath], { detached: true });
+            const child = spawn("open", ["-a", "Ghostty", workspacePath], {
+              detached: true,
+              stdio: "ignore",
+            });
+            child.unref();
           } else {
-            spawn("open", ["-a", "Terminal", workspacePath], { detached: true });
+            const child = spawn("open", ["-a", "Terminal", workspacePath], {
+              detached: true,
+              stdio: "ignore",
+            });
+            child.unref();
           }
         } else if (process.platform === "win32") {
           // Windows
-          spawn("cmd", ["/c", "start", "cmd", "/K", "cd", "/D", workspacePath], {
+          const child = spawn("cmd", ["/c", "start", "cmd", "/K", "cd", "/D", workspacePath], {
             detached: true,
             shell: true,
+            stdio: "ignore",
           });
+          child.unref();
         } else {
           // Linux - try terminal emulators in order of preference
           // x-terminal-emulator is checked first as it respects user's system-wide preference

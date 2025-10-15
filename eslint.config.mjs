@@ -4,6 +4,46 @@ import react from "eslint-plugin-react";
 import reactHooks from "eslint-plugin-react-hooks";
 import tseslint from "typescript-eslint";
 
+/**
+ * Custom ESLint plugin for zombie process prevention
+ * Enforces safe child_process patterns
+ */
+const localPlugin = {
+  rules: {
+    "no-unsafe-child-process": {
+      meta: {
+        type: "problem",
+        docs: {
+          description: "Prevent unsafe child_process usage that can cause zombie processes",
+        },
+        messages: {
+          unsafePromisifyExec:
+            "Do not use promisify(exec) directly. Use DisposableExec wrapper with 'using' declaration to prevent zombie processes.",
+        },
+      },
+      create(context) {
+        return {
+          CallExpression(node) {
+            // Ban promisify(exec)
+            if (
+              node.callee.type === "Identifier" &&
+              node.callee.name === "promisify" &&
+              node.arguments.length > 0 &&
+              node.arguments[0].type === "Identifier" &&
+              node.arguments[0].name === "exec"
+            ) {
+              context.report({
+                node,
+                messageId: "unsafePromisifyExec",
+              });
+            }
+          },
+        };
+      },
+    },
+  },
+};
+
 export default defineConfig([
   {
     ignores: [
@@ -53,6 +93,7 @@ export default defineConfig([
     plugins: {
       react,
       "react-hooks": reactHooks,
+      local: localPlugin,
     },
     settings: {
       react: {
@@ -136,6 +177,9 @@ export default defineConfig([
       // React specific
       "react/react-in-jsx-scope": "off",
       "react/prop-types": "off",
+
+      // Zombie process prevention
+      "local/no-unsafe-child-process": "error",
 
       // Allow console for this app (it's a dev tool)
       "no-console": "off",
