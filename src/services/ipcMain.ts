@@ -72,14 +72,11 @@ export class IpcMain {
       // Dynamic import to avoid loading AI SDK at startup
       // Use relative path (not @/ alias) because require() runs at runtime after TS compilation
       // This is safe because AIService is only accessed after IPC handlers are registered
-      log.info("[IpcMain] Lazy-loading AIService...");
       /* eslint-disable-next-line @typescript-eslint/no-require-imports */
       const { AIService: AIServiceClass } = require("./aiService") as {
         AIService: typeof AIService;
       };
-      log.info("[IpcMain] AIService class loaded, creating instance...");
       this._aiService = new AIServiceClass(this.config, this.historyService, this.partialService);
-      log.info("[IpcMain] AIService instance created successfully");
     }
     return this._aiService;
   }
@@ -89,14 +86,12 @@ export class IpcMain {
     const trimmed = workspaceId.trim();
     assert(trimmed.length > 0, "workspaceId must not be empty");
 
-    log.info(`[IpcMain] getOrCreateSession called for workspaceId=${trimmed}`);
 
     let session = this.sessions.get(trimmed);
     if (session) {
       return session;
     }
 
-    log.info(`[IpcMain] Creating new session for workspaceId=${trimmed}`);
 
     session = new AgentSession({
       workspaceId: trimmed,
