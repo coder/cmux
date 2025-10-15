@@ -176,21 +176,22 @@ export class IpcMain {
   }
 
   private registerTokenHandlers(ipcMain: ElectronIpcMain): void {
-    ipcMain.handle(
-      IPC_CHANNELS.TOKENS_COUNT_BULK,
-      async (_event, model: string, texts: string[]) => {
-        try {
-          // Offload to worker thread - keeps main process responsive
-          // Dynamic import is acceptable here - worker pool is lazy-loaded on first use
-          /* eslint-disable-next-line no-restricted-syntax */
-          const { tokenizerWorkerPool } = await import("@/services/tokenizerWorkerPool");
-          return await tokenizerWorkerPool.countTokens(model, texts);
-        } catch (error) {
-          log.error(`Failed to count tokens for model ${model}:`, error);
-          return null; // Tokenizer not loaded or error occurred
-        }
-      }
-    );
+    ipcMain.handle(IPC_CHANNELS.TOKENS_COUNT_BULK, (_event, _model: string, _texts: string[]) => {
+      // TEMPORARY: Disable worker pool to test if it's causing E2E issues
+      // TODO: Re-enable once E2E tests pass
+      return null;
+
+      // try {
+      //   // Offload to worker thread - keeps main process responsive
+      //   // Dynamic import is acceptable here - worker pool is lazy-loaded on first use
+      //   /* eslint-disable-next-line no-restricted-syntax */
+      //   const { tokenizerWorkerPool } = await import("@/services/tokenizerWorkerPool");
+      //   return await tokenizerWorkerPool.countTokens(model, texts);
+      // } catch (error) {
+      //   log.error(`Failed to count tokens for model ${model}:`, error);
+      //   return null; // Tokenizer not loaded or error occurred
+      // }
+    });
   }
 
   private registerWorkspaceHandlers(ipcMain: ElectronIpcMain): void {

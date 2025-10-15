@@ -119,6 +119,13 @@ export const TokenConsumerBreakdown: React.FC<TokenConsumerBreakdownProps> = ({
     let cancelled = false;
 
     async function calculate() {
+      // Don't call IPC if there are no messages
+      if (messages.length === 0) {
+        setIsCalculating(false);
+        setStats(null);
+        return;
+      }
+
       setIsCalculating(true);
 
       try {
