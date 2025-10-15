@@ -70,9 +70,10 @@ export class IpcMain {
   private get aiService(): AIService {
     if (!this._aiService) {
       // Dynamic import to avoid loading AI SDK at startup
+      // Use relative path (not @/ alias) because require() runs at runtime after TS compilation
       // This is safe because AIService is only accessed after IPC handlers are registered
       /* eslint-disable-next-line @typescript-eslint/no-require-imports */
-      const { AIService: AIServiceClass } = require("@/services/aiService") as {
+      const { AIService: AIServiceClass } = require("./aiService") as {
         AIService: typeof AIService;
       };
       this._aiService = new AIServiceClass(this.config, this.historyService, this.partialService);
