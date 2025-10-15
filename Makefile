@@ -54,9 +54,9 @@ help: ## Show this help message
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
 ## Development
-dev: node_modules/.installed build-main ## Start development server (Vite + TypeScript watcher)
+dev: node_modules/.installed build-main ## Start development server (Vite + tsgo watcher for 10x faster type checking)
 	@bun x concurrently -k \
-		"bun x concurrently \"bun x tsc -w -p tsconfig.main.json\" \"bun x tsc-alias -w -p tsconfig.main.json\"" \
+		"bun x concurrently \"bun run node_modules/@typescript/native-preview/bin/tsgo.js -w -p tsconfig.main.json\" \"bun x tsc-alias -w -p tsconfig.main.json\"" \
 		"vite"
 
 start: node_modules/.installed build-main build-preload build-static ## Build and start Electron app
@@ -135,8 +135,17 @@ lint: node_modules/.installed ## Run ESLint (typecheck runs in separate target)
 lint-fix: node_modules/.installed ## Run linter with --fix
 	@./scripts/lint.sh --fix
 
-typecheck: node_modules/.installed src/version.ts ## Run TypeScript type checking
-	@./scripts/typecheck.sh
+typecheck: node_modules/.installed src/version.ts ## Run TypeScript type checking (uses tsgo for 10x speedup)
+	@if [ -f "node_modules/@typescript/native-preview/bin/tsgo.js" ]; then \
+		bun x concurrently -g \
+			"bun run node_modules/@typescript/native-preview/bin/tsgo.js --noEmit" \
+			"bun run node_modules/@typescript/native-preview/bin/tsgo.js --noEmit -p tsconfig.main.json"; \
+	else \
+		echo "⚠️  tsgo not found, falling back to tsc (slower)"; \
+		bun x concurrently -g \
+			"tsc --noEmit" \
+			"tsc --noEmit -p tsconfig.main.json"; \
+	fi
 
 ## Testing
 test-integration: node_modules/.installed ## Run all tests (unit + integration)
