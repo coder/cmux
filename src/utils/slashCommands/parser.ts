@@ -19,6 +19,7 @@ export function parseCommand(input: string): ParsedCommand {
   }
 
   // Remove leading slash and split by spaces (respecting quotes)
+  // Parse tokens from full input to support multi-line commands like /providers
   const parts = (trimmed.substring(1).match(/(?:[^\s"]+|"[^"]*")+/g) ?? []) as string[];
   if (parts.length === 0) {
     return null;
@@ -64,11 +65,23 @@ export function parseCommand(input: string): ParsedCommand {
 
   const cleanRemainingTokens = remainingTokens.map((token) => token.replace(/^"(.*)"$/, "$1"));
 
+  // Calculate rawInput: everything after the command key, preserving newlines
+  // For "/compact -t 5000\nContinue here", rawInput should be "-t 5000\nContinue here"
+  // For "/compact\nContinue here", rawInput should be "\nContinue here"
+  // We trim leading spaces on the first line only, not newlines
+  const commandKeyWithSlash = `/${commandKey}`;
+  let rawInput = trimmed.substring(commandKeyWithSlash.length);
+  // Only trim spaces at the start, not newlines
+  while (rawInput.startsWith(" ")) {
+    rawInput = rawInput.substring(1);
+  }
+
   return targetDefinition.handler({
     definition: targetDefinition,
     path,
     remainingTokens,
     cleanRemainingTokens,
+    rawInput,
   });
 }
 
