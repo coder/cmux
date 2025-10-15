@@ -903,23 +903,30 @@ fi
       expect(result.error).toContain("aborted");
     }
 
-    // Give a moment for cleanup to happen (SIGKILL needs time to propagate)
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    // Wait for all processes to be cleaned up (SIGKILL needs time to propagate in CI)
+    // Retry with exponential backoff instead of fixed wait
+    let remainingProcesses = -1;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      await new Promise((resolve) => setTimeout(resolve, 200 * (attempt + 1)));
 
-    // Verify NO sleep processes with our token are still running
-    using checkEnv = createTestBashTool();
-    const checkResult = (await checkEnv.tool.execute!(
-      {
-        script: `pgrep -f "${token}" | wc -l`,
-        timeout_secs: 1,
-      },
-      mockToolCallOptions
-    )) as BashToolResult;
+      using checkEnv = createTestBashTool();
+      const checkResult = (await checkEnv.tool.execute!(
+        {
+          script: `pgrep -f "${token}" | wc -l`,
+          timeout_secs: 1,
+        },
+        mockToolCallOptions
+      )) as BashToolResult;
 
-    expect(checkResult.success).toBe(true);
-    if (checkResult.success) {
-      const count = parseInt(checkResult.output.trim());
-      expect(count).toBe(0);
+      expect(checkResult.success).toBe(true);
+      if (checkResult.success) {
+        remainingProcesses = parseInt(checkResult.output.trim());
+        if (remainingProcesses === 0) {
+          break;
+        }
+      }
     }
+
+    expect(remainingProcesses).toBe(0);
   });
 });
