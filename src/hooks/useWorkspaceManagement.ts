@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import type { WorkspaceMetadata } from "@/types/workspace";
+import type { FrontendWorkspaceMetadata } from "@/types/workspace";
 import type { WorkspaceSelection } from "@/components/ProjectSidebar";
 import type { ProjectConfig } from "@/config";
 
@@ -17,16 +17,17 @@ export function useWorkspaceManagement({
   onProjectsUpdate,
   onSelectedWorkspaceUpdate,
 }: UseWorkspaceManagementProps) {
-  const [workspaceMetadata, setWorkspaceMetadata] = useState<Map<string, WorkspaceMetadata>>(
-    new Map()
-  );
+  const [workspaceMetadata, setWorkspaceMetadata] = useState<
+    Map<string, FrontendWorkspaceMetadata>
+  >(new Map());
 
   const loadWorkspaceMetadata = useCallback(async () => {
     try {
       const metadataList = await window.api.workspace.list();
       const metadataMap = new Map();
       for (const metadata of metadataList) {
-        metadataMap.set(metadata.workspacePath, metadata);
+        // Use stable workspace ID as key (not path, which can change)
+        metadataMap.set(metadata.id, metadata);
       }
       setWorkspaceMetadata(metadataMap);
     } catch (error) {
@@ -57,7 +58,7 @@ export function useWorkspaceManagement({
       return {
         projectPath,
         projectName: result.metadata.projectName,
-        workspacePath: result.metadata.workspacePath,
+        workspacePath: result.metadata.stableWorkspacePath,
         workspaceId: result.metadata.id,
       };
     } else {
@@ -115,7 +116,7 @@ export function useWorkspaceManagement({
             onSelectedWorkspaceUpdate({
               projectPath: selectedWorkspace.projectPath,
               projectName: newMetadata.projectName,
-              workspacePath: newMetadata.workspacePath,
+              workspacePath: newMetadata.stableWorkspacePath,
               workspaceId: newWorkspaceId,
             });
           }

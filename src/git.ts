@@ -11,6 +11,8 @@ export interface WorktreeResult {
 
 export interface CreateWorktreeOptions {
   trunkBranch: string;
+  /** Workspace ID to use for directory name (if not provided, uses branchName) */
+  workspaceId?: string;
 }
 
 export async function listLocalBranches(projectPath: string): Promise<string[]> {
@@ -74,7 +76,9 @@ export async function createWorktree(
   options: CreateWorktreeOptions
 ): Promise<WorktreeResult> {
   try {
-    const workspacePath = config.getWorkspacePath(projectPath, branchName);
+    // Use workspaceId for directory name if provided, otherwise fall back to branchName (legacy)
+    const directoryName = options.workspaceId ?? branchName;
+    const workspacePath = config.getWorkspacePath(projectPath, directoryName);
     const { trunkBranch } = options;
     const normalizedTrunkBranch = typeof trunkBranch === "string" ? trunkBranch.trim() : "";
 

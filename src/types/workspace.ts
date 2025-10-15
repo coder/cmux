@@ -5,33 +5,51 @@ import { z } from "zod";
  */
 export const WorkspaceMetadataSchema = z.object({
   id: z.string().min(1, "Workspace ID is required"),
+  name: z.string().min(1, "Workspace name is required"),
   projectName: z.string().min(1, "Project name is required"),
-  workspacePath: z.string().min(1, "Workspace path is required"),
+  projectPath: z.string().min(1, "Project path is required"),
+  createdAt: z.string().optional(), // ISO 8601 timestamp (optional for backward compatibility)
+  // Legacy field - ignored on load, removed on save
+  workspacePath: z.string().optional(),
 });
 
 /**
  * Unified workspace metadata type used throughout the application.
  * This is the single source of truth for workspace information.
  *
- * NOTE: This does NOT include branch name. Branch can be changed after workspace
- * creation (user can switch branches in the worktree), and we should not depend
- * on branch state in backend logic. Frontend can track branch for UI purposes.
+ * ID vs Name:
+ * - `id`: Stable unique identifier (10 hex chars for new workspaces, legacy format for old)
+ *   Generated once at creation, never changes
+ * - `name`: User-facing mutable name (e.g., "feature-branch")
+ *   Can be changed via rename operation
+ *
+ * For legacy workspaces created before stable IDs:
+ * - id and name are the same (e.g., "cmux-stable-ids")
+ * For new workspaces:
+ * - id is a random 10 hex char string (e.g., "a1b2c3d4e5")
+ * - name is the branch/workspace name (e.g., "feature-branch")
+ *
+ * Path handling:
+ * - Worktree paths are computed on-demand via config.getWorkspacePath(projectPath, id)
+ * - This avoids storing redundant derived data
+ * - Frontend can show symlink paths, backend uses real paths
  */
 export interface WorkspaceMetadata {
-  /** Unique workspace identifier (e.g., "project-branch") */
+  /** Stable unique identifier (10 hex chars for new workspaces, legacy format for old) */
   id: string;
 
-  /** Project name extracted from project path */
+  /** User-facing workspace name (e.g., "feature-branch") */
+  name: string;
+
+  /** Project name extracted from project path (for display) */
   projectName: string;
 
-  /** Absolute path to the workspace worktree directory */
-  workspacePath: string;
-}
+  /** Absolute path to the project (needed to compute worktree path) */
+  projectPath: string;
 
-/**
- * UI-facing workspace metadata.
- */
-export type WorkspaceMetadataUI = WorkspaceMetadata;
+  /** ISO 8601 timestamp of when workspace was created (optional for backward compatibility) */
+  createdAt?: string;
+}
 
 /**
  * Git status for a workspace (ahead/behind relative to origin's primary branch)
@@ -44,10 +62,27 @@ export interface GitStatus {
 }
 
 /**
+ * Frontend workspace metadata enriched with computed paths.
+ * Backend computes these paths to avoid duplication of path construction logic.
+ * Follows naming convention: Backend types vs Frontend types.
+ */
+export interface FrontendWorkspaceMetadata extends WorkspaceMetadata {
+  /** Actual worktree path with stable ID (for terminal/operations) */
+  stableWorkspacePath: string;
+  /** User-friendly symlink path with name (for display) */
+  namedWorkspacePath: string;
+}
+
+/**
+ * @deprecated Use FrontendWorkspaceMetadata instead
+ */
+export type WorkspaceMetadataWithPaths = FrontendWorkspaceMetadata;
+
+/**
  * Frontend-enriched workspace metadata with additional UI-specific data.
  * Extends backend WorkspaceMetadata with frontend-computed information.
  */
-export interface DisplayedWorkspaceMetadata extends WorkspaceMetadata {
+export interface DisplayedWorkspaceMetadata extends FrontendWorkspaceMetadata {
   /** Git status relative to origin's primary branch (null if not available) */
   gitStatus: GitStatus | null;
 }

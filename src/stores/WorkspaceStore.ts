@@ -1,6 +1,6 @@
 import type { CmuxMessage, DisplayedMessage } from "@/types/message";
 import { createCmuxMessage } from "@/types/message";
-import type { WorkspaceMetadata } from "@/types/workspace";
+import type { FrontendWorkspaceMetadata } from "@/types/workspace";
 import type { WorkspaceChatMessage } from "@/types/ipc";
 import type { TodoItem } from "@/types/tools";
 import { StreamingMessageAggregator } from "@/utils/messages/StreamingMessageAggregator";
@@ -265,7 +265,7 @@ export class WorkspaceStore {
   /**
    * Add a workspace and subscribe to its IPC events.
    */
-  addWorkspace(metadata: WorkspaceMetadata): void {
+  addWorkspace(metadata: FrontendWorkspaceMetadata): void {
     const workspaceId = metadata.id;
 
     // Skip if already subscribed
@@ -322,7 +322,7 @@ export class WorkspaceStore {
   /**
    * Sync workspaces with metadata - add new, remove deleted.
    */
-  syncWorkspaces(workspaceMetadata: Map<string, WorkspaceMetadata>): void {
+  syncWorkspaces(workspaceMetadata: Map<string, FrontendWorkspaceMetadata>): void {
     const metadataIds = new Set(Array.from(workspaceMetadata.values()).map((m) => m.id));
     const currentIds = new Set(this.ipcUnsubscribers.keys());
 

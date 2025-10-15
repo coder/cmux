@@ -90,6 +90,19 @@ if (typeof globalFetchWithExtras.certificate === "function") {
   defaultFetchWithExtras.certificate =
     globalFetchWithExtras.certificate.bind(globalFetchWithExtras);
 }
+
+/**
+ * Preload AI SDK provider modules to avoid race conditions in concurrent test environments.
+ * This function loads @ai-sdk/anthropic and @ai-sdk/openai eagerly so that subsequent
+ * dynamic imports in createModel() hit the module cache instead of racing.
+ *
+ * In production, providers are lazy-loaded on first use to optimize startup time.
+ * In tests, we preload them once during setup to ensure reliable concurrent execution.
+ */
+export async function preloadAISDKProviders(): Promise<void> {
+  await Promise.all([import("@ai-sdk/anthropic"), import("@ai-sdk/openai")]);
+}
+
 export class AIService extends EventEmitter {
   private readonly METADATA_FILE = "metadata.json";
   private readonly streamManager: StreamManager;
@@ -514,9 +527,14 @@ export class AIService extends EventEmitter {
         return Err({ type: "unknown", raw: metadataResult.error });
       }
 
+      const metadata = metadataResult.data;
+      // Compute worktree path from project path + workspace ID
+      const workspacePath = this.config.getWorkspacePath(metadata.projectPath, metadata.id);
+
       // Build system message from workspace metadata
       const systemMessage = await buildSystemMessage(
-        metadataResult.data,
+        metadata,
+        workspacePath,
         mode,
         additionalSystemInstructions
       );
@@ -525,13 +543,8 @@ export class AIService extends EventEmitter {
       const tokenizer = getTokenizerForModel(modelString);
       const systemMessageTokens = tokenizer.countTokens(systemMessage);
 
-      const workspacePath = metadataResult.data.workspacePath;
-
-      // Find project path for this workspace to load secrets
-      const workspaceInfo = this.config.findWorkspace(workspaceId);
-      const projectSecrets = workspaceInfo
-        ? this.config.getProjectSecrets(workspaceInfo.projectPath)
-        : [];
+      // Load project secrets
+      const projectSecrets = this.config.getProjectSecrets(metadata.projectPath);
 
       // Generate stream token and create temp directory for tools
       const streamToken = this.streamManager.generateStreamToken();

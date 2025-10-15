@@ -1,12 +1,10 @@
 import assert from "node:assert/strict";
 import type { BrowserWindow, IpcMain as ElectronIpcMain } from "electron";
 import { spawn, spawnSync } from "child_process";
-import * as path from "path";
 import * as fsPromises from "fs/promises";
 import type { Config, ProjectConfig } from "@/config";
 import {
   createWorktree,
-  moveWorktree,
   listLocalBranches,
   detectDefaultTrunkBranch,
   getMainWorktreeFromWorktree,
@@ -27,6 +25,7 @@ import { createBashTool } from "@/services/tools/bash";
 import type { BashToolResult } from "@/types/tools";
 import { secretsToRecord } from "@/types/secrets";
 import { DisposableTempDir } from "@/services/tempDir";
+import type { WorkspaceMetadata, FrontendWorkspaceMetadata } from "@/types/workspace";
 
 /**
  * IpcMain - Manages all IPC handlers and service coordination
@@ -124,6 +123,18 @@ export class IpcMain {
   }
 
   /**
+   * Enrich workspace metadata with computed paths for frontend use.
+   * Backend computes these to avoid duplicating path logic on frontend.
+   */
+  private enrichMetadataWithPaths(metadata: WorkspaceMetadata): FrontendWorkspaceMetadata {
+    const paths = this.config.getWorkspacePaths(metadata);
+    return {
+      ...metadata,
+      ...paths,
+    };
+  }
+
+  /**
    * Register all IPC handlers and setup event forwarding
    * @param ipcMain - Electron's ipcMain module
    * @param mainWindow - The main BrowserWindow for sending events
@@ -190,23 +201,26 @@ export class IpcMain {
 
         const normalizedTrunkBranch = trunkBranch.trim();
 
-        // First create the git worktree
+        // Generate stable workspace ID
+        const workspaceId = this.config.generateStableId();
+
+        // Create the git worktree with the stable ID as directory name
         const result = await createWorktree(this.config, projectPath, branchName, {
           trunkBranch: normalizedTrunkBranch,
+          workspaceId, // Use stable ID for directory name
         });
 
         if (result.success && result.path) {
           const projectName =
             projectPath.split("/").pop() ?? projectPath.split("\\").pop() ?? "unknown";
 
-          // Generate workspace ID using central method
-          const workspaceId = this.config.generateWorkspaceId(projectPath, result.path);
-
-          // Initialize workspace metadata
+          // Initialize workspace metadata with stable ID and name
           const metadata = {
             id: workspaceId,
+            name: branchName, // Name is separate from ID
             projectName,
-            workspacePath: result.path,
+            projectPath, // Full project path for computing worktree path
+            createdAt: new Date().toISOString(),
           };
           await this.aiService.saveWorkspaceMetadata(workspaceId, metadata);
 
@@ -222,20 +236,23 @@ export class IpcMain {
               config.projects.set(projectPath, projectConfig);
             }
             // Add workspace to project config
-            if (!projectConfig.workspaces) projectConfig.workspaces = [];
             projectConfig.workspaces.push({
               path: result.path!,
             });
             return config;
           });
 
+          // Create symlink from name to ID for convenience
+          this.config.createWorkspaceSymlink(projectPath, workspaceId, branchName);
+
           // Emit metadata event for new workspace
           const session = this.getOrCreateSession(workspaceId);
           session.emitMetadata(metadata);
 
+          // Return enriched metadata with computed paths for frontend
           return {
             success: true,
-            metadata,
+            metadata: this.enrichMetadataWithPaths(metadata),
           };
         }
 
@@ -260,138 +277,63 @@ export class IpcMain {
             return Err(validation.error ?? "Invalid workspace name");
           }
 
-          // Block rename if there's an active stream
-          if (this.aiService.isStreaming(workspaceId)) {
-            return Err(
-              "Cannot rename workspace while stream is active. Press Esc to stop the stream first."
-            );
-          }
-
           // Get current metadata
           const metadataResult = await this.aiService.getWorkspaceMetadata(workspaceId);
           if (!metadataResult.success) {
             return Err(`Failed to get workspace metadata: ${metadataResult.error}`);
           }
           const oldMetadata = metadataResult.data;
-
-          // Calculate new workspace ID
-          const newWorkspaceId = `${oldMetadata.projectName}-${newName}`;
+          const oldName = oldMetadata.name;
 
           // If renaming to itself, just return success (no-op)
-          if (newWorkspaceId === workspaceId) {
-            return Ok({ newWorkspaceId });
+          if (newName === oldName) {
+            return Ok({ newWorkspaceId: workspaceId });
           }
 
-          // Check if new workspace ID already exists
-          const existingMetadata = await this.aiService.getWorkspaceMetadata(newWorkspaceId);
-          if (existingMetadata.success) {
+          // Check if new name collides with existing workspace name or ID
+          const allWorkspaces = this.config.getAllWorkspaceMetadata();
+          const collision = allWorkspaces.find(
+            (ws) => (ws.name === newName || ws.id === newName) && ws.id !== workspaceId
+          );
+          if (collision) {
             return Err(`Workspace with name "${newName}" already exists`);
           }
 
-          // Get old and new session directory paths
-          const oldSessionDir = this.config.getSessionDir(workspaceId);
-          const newSessionDir = this.config.getSessionDir(newWorkspaceId);
-
-          // Find project path from config (needed for git operations)
-          const projectsConfig = this.config.loadConfigOrDefault();
-          let foundProjectPath: string | null = null;
-          let workspaceIndex = -1;
-
-          for (const [projectPath, projectConfig] of projectsConfig.projects.entries()) {
-            const idx = (projectConfig.workspaces ?? []).findIndex((w) => {
-              // If workspace has stored ID, use it (new format)
-              // Otherwise, generate ID from path (old format)
-              const workspaceIdToMatch =
-                w.id ?? this.config.generateWorkspaceId(projectPath, w.path);
-              return workspaceIdToMatch === workspaceId;
-            });
-
-            if (idx !== -1) {
-              foundProjectPath = projectPath;
-              workspaceIndex = idx;
-              break;
-            }
+          // Find project path from config
+          const workspace = this.config.findWorkspace(workspaceId);
+          if (!workspace) {
+            return Err("Failed to find workspace in config");
           }
+          const { projectPath } = workspace;
 
-          if (!foundProjectPath) {
-            return Err("Failed to find project path for workspace");
-          }
+          // Update symlink
+          this.config.updateWorkspaceSymlink(projectPath, oldName, newName, workspaceId);
 
-          // Rename session directory
-          await fsPromises.rename(oldSessionDir, newSessionDir);
-
-          // Migrate workspace IDs in history messages
-          const migrateResult = await this.historyService.migrateWorkspaceId(
-            workspaceId,
-            newWorkspaceId
-          );
-          if (!migrateResult.success) {
-            // Rollback session directory rename
-            await fsPromises.rename(newSessionDir, oldSessionDir);
-            return Err(`Failed to migrate message workspace IDs: ${migrateResult.error}`);
-          }
-
-          // Calculate new worktree path
-          const oldWorktreePath = oldMetadata.workspacePath;
-          const newWorktreePath = path.join(
-            path.dirname(oldWorktreePath),
-            newName // Use newName as the directory name
-          );
-
-          // Move worktree directory
-          const moveResult = await moveWorktree(foundProjectPath, oldWorktreePath, newWorktreePath);
-          if (!moveResult.success) {
-            // Rollback session directory rename
-            await fsPromises.rename(newSessionDir, oldSessionDir);
-            return Err(`Failed to move worktree: ${moveResult.error ?? "unknown error"}`);
-          }
-
-          // Update metadata with new ID and path
+          // Update metadata (only name changes, ID and path stay the same)
           const newMetadata = {
-            id: newWorkspaceId,
-            projectName: oldMetadata.projectName,
-            workspacePath: newWorktreePath,
+            ...oldMetadata,
+            name: newName,
           };
 
-          const saveResult = await this.aiService.saveWorkspaceMetadata(
-            newWorkspaceId,
-            newMetadata
-          );
+          const saveResult = await this.aiService.saveWorkspaceMetadata(workspaceId, newMetadata);
           if (!saveResult.success) {
-            // Rollback worktree and session directory
-            await moveWorktree(foundProjectPath, newWorktreePath, oldWorktreePath);
-            await fsPromises.rename(newSessionDir, oldSessionDir);
-            return Err(`Failed to save new metadata: ${saveResult.error}`);
+            // Rollback symlink
+            this.config.updateWorkspaceSymlink(projectPath, newName, oldName, workspaceId);
+            return Err(`Failed to save metadata: ${saveResult.error}`);
           }
 
-          // Update config with new workspace info using atomic edit
-          this.config.editConfig((config) => {
-            const projectConfig = config.projects.get(foundProjectPath);
-            if (projectConfig && workspaceIndex !== -1 && projectConfig.workspaces) {
-              projectConfig.workspaces[workspaceIndex] = {
-                path: newWorktreePath,
-              };
-            }
-            return config;
-          });
-
-          // Emit metadata event for old workspace deletion
-          const oldSession = this.sessions.get(workspaceId);
-          if (oldSession) {
-            oldSession.emitMetadata(null);
-            this.disposeSession(workspaceId);
+          // Emit metadata event with updated metadata (same workspace ID)
+          const session = this.sessions.get(workspaceId);
+          if (session) {
+            session.emitMetadata(newMetadata);
           } else if (this.mainWindow) {
             this.mainWindow.webContents.send(IPC_CHANNELS.WORKSPACE_METADATA, {
               workspaceId,
-              metadata: null,
+              metadata: newMetadata,
             });
           }
 
-          // Emit metadata event for new workspace
-          const newSession = this.getOrCreateSession(newWorkspaceId);
-          newSession.emitMetadata(newMetadata);
-
-          return Ok({ newWorkspaceId });
+          return Ok({ newWorkspaceId: workspaceId });
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
           return Err(`Failed to rename workspace: ${message}`);
@@ -401,7 +343,9 @@ export class IpcMain {
 
     ipcMain.handle(IPC_CHANNELS.WORKSPACE_LIST, () => {
       try {
-        return this.config.getAllWorkspaceMetadata();
+        const metadataList = this.config.getAllWorkspaceMetadata();
+        // Enrich all metadata with computed paths
+        return metadataList.map((metadata) => this.enrichMetadataWithPaths(metadata));
       } catch (error) {
         console.error("Failed to list workspaces:", error);
         return [];
@@ -410,7 +354,11 @@ export class IpcMain {
 
     ipcMain.handle(IPC_CHANNELS.WORKSPACE_GET_INFO, async (_event, workspaceId: string) => {
       const result = await this.aiService.getWorkspaceMetadata(workspaceId);
-      return result.success ? result.data : null;
+      if (!result.success) {
+        return null;
+      }
+      // Enrich metadata with computed paths
+      return this.enrichMetadataWithPaths(result.data);
     });
 
     ipcMain.handle(
@@ -605,19 +553,18 @@ export class IpcMain {
         }
       ) => {
         try {
-          // Get workspace metadata to find workspacePath
+          // Get workspace metadata
           const metadataResult = await this.aiService.getWorkspaceMetadata(workspaceId);
           if (!metadataResult.success) {
             return Err(`Failed to get workspace metadata: ${metadataResult.error}`);
           }
 
-          const workspacePath = metadataResult.data.workspacePath;
+          const metadata = metadataResult.data;
+          // Compute worktree path from project path + workspace ID
+          const workspacePath = this.config.getWorkspacePath(metadata.projectPath, metadata.id);
 
-          // Find project path for this workspace to load secrets
-          const workspaceInfo = this.config.findWorkspace(workspaceId);
-          const projectSecrets = workspaceInfo
-            ? this.config.getProjectSecrets(workspaceInfo.projectPath)
-            : [];
+          // Load project secrets
+          const projectSecrets = this.config.getProjectSecrets(metadata.projectPath);
 
           // Create scoped temp directory for this IPC call
           using tempDir = new DisposableTempDir("cmux-ipc-bash");
@@ -724,7 +671,7 @@ export class IpcMain {
     options: { force: boolean }
   ): Promise<{ success: boolean; error?: string }> {
     try {
-      // Get workspace path from metadata
+      // Get workspace metadata
       const metadataResult = await this.aiService.getWorkspaceMetadata(workspaceId);
       if (!metadataResult.success) {
         // If metadata doesn't exist, workspace is already gone - consider it success
@@ -732,7 +679,9 @@ export class IpcMain {
         return { success: true };
       }
 
-      const workspacePath = metadataResult.data.workspacePath;
+      const metadata = metadataResult.data;
+      // Compute worktree path from project path + workspace ID
+      const workspacePath = this.config.getWorkspacePath(metadata.projectPath, metadata.id);
 
       // Get project path from the worktree itself
       const foundProjectPath = await getMainWorktreeFromWorktree(workspacePath);
@@ -803,18 +752,25 @@ export class IpcMain {
         return { success: false, error: aiResult.error };
       }
 
+      // Remove symlink if we know the project path
+      if (foundProjectPath) {
+        this.config.removeWorkspaceSymlink(foundProjectPath, metadataResult.data.name);
+      }
+
       // Update config to remove the workspace from all projects
       // We iterate through all projects instead of relying on foundProjectPath
       // because the worktree might be deleted (so getMainWorktreeFromWorktree fails)
       const projectsConfig = this.config.loadConfigOrDefault();
       let configUpdated = false;
-      for (const [_projectPath, projectConfig] of projectsConfig.projects.entries()) {
-        const initialCount = (projectConfig.workspaces ?? []).length;
-        projectConfig.workspaces = (projectConfig.workspaces ?? []).filter(
-          (w) => w.path !== workspacePath
-        );
-        if ((projectConfig.workspaces ?? []).length < initialCount) {
+      for (const [projectPath, projectConfig] of projectsConfig.projects.entries()) {
+        const initialCount = projectConfig.workspaces.length;
+        projectConfig.workspaces = projectConfig.workspaces.filter((w) => w.path !== workspacePath);
+        if (projectConfig.workspaces.length < initialCount) {
           configUpdated = true;
+          // If we didn't have foundProjectPath earlier, try removing symlink now
+          if (!foundProjectPath) {
+            this.config.removeWorkspaceSymlink(projectPath, metadataResult.data.name);
+          }
         }
       }
       if (configUpdated) {
@@ -928,9 +884,9 @@ export class IpcMain {
         }
 
         // Check if project has any workspaces
-        if ((projectConfig.workspaces ?? []).length > 0) {
+        if (projectConfig.workspaces.length > 0) {
           return Err(
-            `Cannot remove project with active workspaces. Please remove all ${(projectConfig.workspaces ?? []).length} workspace(s) first.`
+            `Cannot remove project with active workspaces. Please remove all ${projectConfig.workspaces.length} workspace(s) first.`
           );
         }
 

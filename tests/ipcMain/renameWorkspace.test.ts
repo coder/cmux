@@ -9,6 +9,7 @@ import {
 import { IPC_CHANNELS } from "../../src/constants/ipc-constants";
 import type { CmuxMessage } from "../../src/types/message";
 import * as fs from "fs/promises";
+import * as fsSync from "fs";
 
 // Skip all tests if TEST_INTEGRATION is not set
 const describeIntegration = shouldRunIntegrationTests() ? describe : describe.skip;
@@ -33,7 +34,7 @@ describeIntegration("IpcMain rename workspace integration tests", () => {
           workspaceId
         );
         expect(oldMetadataResult).toBeTruthy();
-        const oldWorkspacePath = oldMetadataResult.workspacePath;
+        const oldWorkspacePath = oldMetadataResult.stableWorkspacePath;
 
         // Verify old session directory exists (with retry for timing)
         const oldDirExists = await waitForFileExists(oldSessionDir);
@@ -59,39 +60,30 @@ describeIntegration("IpcMain rename workspace integration tests", () => {
         const newWorkspaceId = renameResult.data.newWorkspaceId;
         const projectName = oldMetadataResult.projectName; // Still need this for assertions
 
-        // Verify new session directory exists (with retry for timing)
-        const newSessionDir = env.config.getSessionDir(newWorkspaceId);
-        const newDirExists = await waitForFileExists(newSessionDir);
-        expect(newDirExists).toBe(true);
+        // With stable IDs, workspace ID should NOT change during rename
+        expect(newWorkspaceId).toBe(workspaceId);
 
-        // Verify old session directory no longer exists (with retry for timing)
-        const oldDirGone = await waitForFileNotExists(oldSessionDir);
-        expect(oldDirGone).toBe(true);
+        // Session directory should still be the same (stable IDs don't move directories)
+        const sessionDir = env.config.getSessionDir(workspaceId);
+        expect(sessionDir).toBe(oldSessionDir);
+        expect(fsSync.existsSync(sessionDir)).toBe(true);
 
-        // Verify metadata was updated
+        // Verify metadata was updated (name changed, but ID and path stay the same)
         const newMetadataResult = await env.mockIpcRenderer.invoke(
           IPC_CHANNELS.WORKSPACE_GET_INFO,
-          newWorkspaceId
+          workspaceId // Use same workspace ID
         );
         expect(newMetadataResult).toBeTruthy();
-        expect(newMetadataResult.id).toBe(newWorkspaceId);
+        expect(newMetadataResult.id).toBe(workspaceId); // ID unchanged
+        expect(newMetadataResult.name).toBe(newName); // Name updated
         expect(newMetadataResult.projectName).toBe(projectName);
-        expect(newMetadataResult.workspacePath).not.toBe(oldWorkspacePath);
+        expect(newMetadataResult.stableWorkspacePath).toBe(oldWorkspacePath); // Path unchanged
 
-        // Verify old workspace no longer exists
-        const oldMetadataAfterRename = await env.mockIpcRenderer.invoke(
-          IPC_CHANNELS.WORKSPACE_GET_INFO,
-          workspaceId
-        );
-        expect(oldMetadataAfterRename).toBeNull();
-
-        // Verify config was updated - workspace path should match new metadata
+        // Verify config was NOT changed (workspace path stays the same)
         const config = env.config.loadConfigOrDefault();
         let foundWorkspace = false;
         for (const [, projectConfig] of config.projects.entries()) {
-          const workspace = projectConfig.workspaces.find(
-            (w) => w.path === newMetadataResult.workspacePath
-          );
+          const workspace = projectConfig.workspaces.find((w) => w.path === oldWorkspacePath);
           if (workspace) {
             foundWorkspace = true;
             break;
@@ -99,21 +91,17 @@ describeIntegration("IpcMain rename workspace integration tests", () => {
         }
         expect(foundWorkspace).toBe(true);
 
-        // Verify metadata events were emitted (delete old, create new)
+        // Verify metadata event was emitted (update existing workspace)
         const metadataEvents = env.sentEvents.filter(
           (e) => e.channel === IPC_CHANNELS.WORKSPACE_METADATA
         );
-        expect(metadataEvents.length).toBe(2);
-        // First event should be deletion of old workspace
-        expect(metadataEvents[0].data).toEqual({
+        expect(metadataEvents.length).toBe(1);
+        // Event should be update of existing workspace
+        expect(metadataEvents[0].data).toMatchObject({
           workspaceId,
-          metadata: null,
-        });
-        // Second event should be creation of new workspace
-        expect(metadataEvents[1].data).toMatchObject({
-          workspaceId: newWorkspaceId,
           metadata: expect.objectContaining({
-            id: newWorkspaceId,
+            id: workspaceId,
+            name: newName,
             projectName,
           }),
         });
@@ -193,7 +181,7 @@ describeIntegration("IpcMain rename workspace integration tests", () => {
         );
         expect(newMetadata).toBeTruthy();
         expect(newMetadata.id).toBe(workspaceId);
-        expect(newMetadata.workspacePath).toBe(oldMetadata.workspacePath);
+        expect(newMetadata.stableWorkspacePath).toBe(oldMetadata.stableWorkspacePath);
       } finally {
         await cleanup();
       }
@@ -214,43 +202,6 @@ describeIntegration("IpcMain rename workspace integration tests", () => {
         );
         expect(renameResult.success).toBe(false);
         expect(renameResult.error).toContain("metadata");
-      } finally {
-        await cleanup();
-      }
-    },
-    15000
-  );
-
-  test.concurrent(
-    "should block rename during active stream and require Esc first",
-    async () => {
-      const { env, workspaceId, cleanup } = await setupWorkspace("anthropic");
-      try {
-        // Clear events before starting stream
-        env.sentEvents.length = 0;
-
-        // Start a long-running stream
-        void sendMessageWithModel(
-          env.mockIpcRenderer,
-          workspaceId,
-          "Run this bash command: for i in {1..60}; do sleep 0.5; done && echo done"
-        );
-
-        // Wait for stream to start
-        const startCollector = createEventCollector(env.sentEvents, workspaceId);
-        await startCollector.waitForEvent("stream-start", 10000);
-
-        // Try to rename during active stream - should be blocked
-        const renameResult = await env.mockIpcRenderer.invoke(
-          IPC_CHANNELS.WORKSPACE_RENAME,
-          workspaceId,
-          "new-name"
-        );
-        expect(renameResult.success).toBe(false);
-        expect(renameResult.error).toContain("stream is active");
-        expect(renameResult.error).toContain("Press Esc");
-
-        // Test passed - rename was successfully blocked during active stream
       } finally {
         await cleanup();
       }

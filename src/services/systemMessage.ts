@@ -68,24 +68,29 @@ function getSystemDirectory(): string {
  * If a base instruction file is found, its corresponding .local.md variant is also
  * checked and appended when building the instruction set (useful for personal preferences not committed to git).
  *
- * @param metadata - Workspace metadata containing the workspace path
+ * @param metadata - Workspace metadata
+ * @param workspacePath - Absolute path to the workspace worktree directory
  * @param mode - Optional mode name (e.g., "plan", "exec") - looks for {MODE}.md files if provided
  * @param additionalSystemInstructions - Optional additional system instructions to append at the end
  * @returns System message string with all instruction sources combined
- * @throws Error if metadata is invalid or workspace path is missing
+ * @throws Error if metadata is invalid
  */
 export async function buildSystemMessage(
   metadata: WorkspaceMetadata,
+  workspacePath: string,
   mode?: string,
   additionalSystemInstructions?: string
 ): Promise<string> {
-  // Validate metadata early
-  if (!metadata?.workspacePath) {
-    throw new Error("Invalid workspace metadata: workspacePath is required");
+  // Validate inputs
+  if (!metadata) {
+    throw new Error("Invalid workspace metadata: metadata is required");
+  }
+  if (!workspacePath) {
+    throw new Error("Invalid workspace path: workspacePath is required");
   }
 
   const systemDir = getSystemDirectory();
-  const workspaceDir = metadata.workspacePath;
+  const workspaceDir = workspacePath;
 
   // Gather instruction sets from both global and workspace directories
   // Global instructions apply first, then workspace-specific ones

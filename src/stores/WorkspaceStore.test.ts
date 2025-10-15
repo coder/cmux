@@ -1,5 +1,5 @@
+import type { FrontendWorkspaceMetadata } from "@/types/workspace";
 import { WorkspaceStore } from "./WorkspaceStore";
-import type { WorkspaceMetadata } from "@/types/workspace";
 
 // Mock window.api
 const mockExecuteBash = jest.fn(() => ({
@@ -62,10 +62,13 @@ describe("WorkspaceStore", () => {
       const unsubscribe = store.subscribe(listener);
 
       // Create workspace metadata
-      const metadata: WorkspaceMetadata = {
+      const metadata: FrontendWorkspaceMetadata = {
         id: "test-workspace",
+        name: "test-workspace",
         projectName: "test-project",
-        workspacePath: "/test/path",
+        projectPath: "/test/project",
+        stableWorkspacePath: "/test/project/test-workspace",
+        namedWorkspacePath: "/test/project/test-workspace",
       };
 
       // Add workspace (should trigger IPC subscription)
@@ -87,10 +90,13 @@ describe("WorkspaceStore", () => {
       const listener = jest.fn();
       const unsubscribe = store.subscribe(listener);
 
-      const metadata: WorkspaceMetadata = {
+      const metadata: FrontendWorkspaceMetadata = {
         id: "test-workspace",
+        name: "test-workspace",
         projectName: "test-project",
-        workspacePath: "/test/path",
+        projectPath: "/test/project",
+        stableWorkspacePath: "/test/project/test-workspace",
+        namedWorkspacePath: "/test/project/test-workspace",
       };
 
       store.addWorkspace(metadata);
@@ -107,10 +113,13 @@ describe("WorkspaceStore", () => {
 
   describe("syncWorkspaces", () => {
     it("should add new workspaces", () => {
-      const metadata1: WorkspaceMetadata = {
+      const metadata1: FrontendWorkspaceMetadata = {
         id: "workspace-1",
+        name: "workspace-1",
         projectName: "project-1",
-        workspacePath: "/path/1",
+        projectPath: "/project-1",
+        stableWorkspacePath: "/path/1",
+        namedWorkspacePath: "/path/1",
       };
 
       const workspaceMap = new Map([[metadata1.id, metadata1]]);
@@ -123,10 +132,13 @@ describe("WorkspaceStore", () => {
     });
 
     it("should remove deleted workspaces", () => {
-      const metadata1: WorkspaceMetadata = {
+      const metadata1: FrontendWorkspaceMetadata = {
         id: "workspace-1",
+        name: "workspace-1",
         projectName: "project-1",
-        workspacePath: "/path/1",
+        projectPath: "/project-1",
+        stableWorkspacePath: "/path/1",
+        namedWorkspacePath: "/path/1",
       };
 
       // Add workspace
@@ -183,10 +195,13 @@ describe("WorkspaceStore", () => {
 
   describe("model tracking", () => {
     it("should call onModelUsed when stream starts", async () => {
-      const metadata: WorkspaceMetadata = {
+      const metadata: FrontendWorkspaceMetadata = {
         id: "test-workspace",
+        name: "test-workspace",
         projectName: "test-project",
-        workspacePath: "/test/path",
+        projectPath: "/test/project",
+        stableWorkspacePath: "/test/project/test-workspace",
+        namedWorkspacePath: "/test/project/test-workspace",
       };
 
       store.addWorkspace(metadata);
@@ -225,10 +240,13 @@ describe("WorkspaceStore", () => {
     });
 
     it("getWorkspaceState() returns same reference when state hasn't changed", () => {
-      const metadata: WorkspaceMetadata = {
+      const metadata: FrontendWorkspaceMetadata = {
         id: "test-workspace",
+        name: "test-workspace",
         projectName: "test-project",
-        workspacePath: "/test/path",
+        projectPath: "/test/project",
+        stableWorkspacePath: "/test/project/test-workspace",
+        namedWorkspacePath: "/test/project/test-workspace",
       };
       store.addWorkspace(metadata);
 
@@ -241,7 +259,7 @@ describe("WorkspaceStore", () => {
       const listener = jest.fn();
       store.subscribe(listener);
 
-      const metadata = new Map<string, WorkspaceMetadata>();
+      const metadata = new Map<string, FrontendWorkspaceMetadata>();
       store.syncWorkspaces(metadata);
       expect(listener).not.toHaveBeenCalled();
 
@@ -274,10 +292,13 @@ describe("WorkspaceStore", () => {
 
   describe("cache invalidation", () => {
     it("invalidates getWorkspaceState() cache when workspace changes", async () => {
-      const metadata: WorkspaceMetadata = {
+      const metadata: FrontendWorkspaceMetadata = {
         id: "test-workspace",
+        name: "test-workspace",
         projectName: "test-project",
-        workspacePath: "/test/path",
+        projectPath: "/test/project",
+        stableWorkspacePath: "/test/project/test-workspace",
+        namedWorkspacePath: "/test/project/test-workspace",
       };
       store.addWorkspace(metadata);
 
@@ -310,10 +331,13 @@ describe("WorkspaceStore", () => {
     });
 
     it("invalidates getAllStates() cache when workspace changes", async () => {
-      const metadata: WorkspaceMetadata = {
+      const metadata: FrontendWorkspaceMetadata = {
         id: "test-workspace",
+        name: "test-workspace",
         projectName: "test-project",
-        workspacePath: "/test/path",
+        projectPath: "/test/project",
+        stableWorkspacePath: "/test/project/test-workspace",
+        namedWorkspacePath: "/test/project/test-workspace",
       };
       store.addWorkspace(metadata);
 
@@ -345,10 +369,13 @@ describe("WorkspaceStore", () => {
     });
 
     it("invalidates getWorkspaceRecency() cache when workspace changes", async () => {
-      const metadata: WorkspaceMetadata = {
+      const metadata: FrontendWorkspaceMetadata = {
         id: "test-workspace",
+        name: "test-workspace",
         projectName: "test-project",
-        workspacePath: "/test/path",
+        projectPath: "/test/project",
+        stableWorkspacePath: "/test/project/test-workspace",
+        namedWorkspacePath: "/test/project/test-workspace",
       };
       store.addWorkspace(metadata);
 
@@ -366,10 +393,13 @@ describe("WorkspaceStore", () => {
     });
 
     it("maintains cache when no changes occur", () => {
-      const metadata: WorkspaceMetadata = {
+      const metadata: FrontendWorkspaceMetadata = {
         id: "test-workspace",
+        name: "test-workspace",
         projectName: "test-project",
-        workspacePath: "/test/path",
+        projectPath: "/test/project",
+        stableWorkspacePath: "/test/project/test-workspace",
+        namedWorkspacePath: "/test/project/test-workspace",
       };
       store.addWorkspace(metadata);
 
@@ -392,10 +422,13 @@ describe("WorkspaceStore", () => {
 
   describe("race conditions", () => {
     it("handles IPC message for removed workspace gracefully", async () => {
-      const metadata: WorkspaceMetadata = {
+      const metadata: FrontendWorkspaceMetadata = {
         id: "test-workspace",
+        name: "test-workspace",
         projectName: "test-project",
-        workspacePath: "/test/path",
+        projectPath: "/test/project",
+        stableWorkspacePath: "/test/project/test-workspace",
+        namedWorkspacePath: "/test/project/test-workspace",
       };
       store.addWorkspace(metadata);
 
@@ -436,15 +469,21 @@ describe("WorkspaceStore", () => {
     });
 
     it("handles concurrent workspace additions", () => {
-      const metadata1: WorkspaceMetadata = {
+      const metadata1: FrontendWorkspaceMetadata = {
         id: "workspace-1",
+        name: "workspace-1",
         projectName: "project-1",
-        workspacePath: "/path/1",
+        projectPath: "/project-1",
+        stableWorkspacePath: "/path/1",
+        namedWorkspacePath: "/path/1",
       };
-      const metadata2: WorkspaceMetadata = {
+      const metadata2: FrontendWorkspaceMetadata = {
         id: "workspace-2",
+        name: "workspace-2",
         projectName: "project-2",
-        workspacePath: "/path/2",
+        projectPath: "/project-2",
+        stableWorkspacePath: "/path/2",
+        namedWorkspacePath: "/path/2",
       };
 
       // Add workspaces concurrently
@@ -458,10 +497,13 @@ describe("WorkspaceStore", () => {
     });
 
     it("handles workspace removal during state access", () => {
-      const metadata: WorkspaceMetadata = {
+      const metadata: FrontendWorkspaceMetadata = {
         id: "test-workspace",
+        name: "test-workspace",
         projectName: "test-project",
-        workspacePath: "/test/path",
+        projectPath: "/test/project",
+        stableWorkspacePath: "/test/project/test-workspace",
+        namedWorkspacePath: "/test/project/test-workspace",
       };
       store.addWorkspace(metadata);
 

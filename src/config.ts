@@ -1,18 +1,16 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
+import * as crypto from "crypto";
 import * as jsonc from "jsonc-parser";
 import writeFileAtomic from "write-file-atomic";
 import type { WorkspaceMetadata } from "./types/workspace";
 import type { Secret, SecretsConfig } from "./types/secrets";
 
 export interface Workspace {
-  path: string; // Absolute path to workspace worktree
-  id?: string; // Optional: Stable ID from newer config format (for forward compat)
-  name?: string; // Optional: Friendly name from newer config format (for forward compat)
-  createdAt?: string; // Optional: Creation timestamp from newer config format
-  // NOTE: If id is not present, it's generated on-demand from path
-  // using generateWorkspaceId(). This ensures compatibility with both old and new formats.
+  path: string; // Absolute path to workspace worktree (format: ~/.cmux/src/{projectName}/{workspaceId})
+  // NOTE: The workspace ID is the basename of this path (stable random ID like 'a1b2c3d4e5').
+  // Use config.getWorkspacePath(projectPath, workspaceId) to construct paths consistently.
 }
 
 export interface ProjectConfig {
@@ -113,11 +111,22 @@ export class Config {
   }
 
   /**
-   * Generate workspace ID from project and workspace paths.
-   * This is the CENTRAL place for workspace ID generation.
-   * Format: ${projectBasename}-${workspaceBasename}
+   * Generate a stable unique workspace ID.
+   * Uses 10 random hex characters for readability while maintaining uniqueness.
    *
-   * NEVER duplicate this logic elsewhere - always call this method.
+   * Example: "a1b2c3d4e5"
+   */
+  generateStableId(): string {
+    // Generate 5 random bytes and convert to 10 hex chars
+    return crypto.randomBytes(5).toString("hex");
+  }
+
+  /**
+   * DEPRECATED: Generate workspace ID from project and workspace paths.
+   * This method is used only for legacy workspace migration.
+   * New workspaces should use generateStableId() instead.
+   *
+   * Format: ${projectBasename}-${workspaceBasename}
    */
   generateWorkspaceId(projectPath: string, workspacePath: string): string {
     const projectBasename = this.getProjectName(projectPath);
@@ -126,9 +135,101 @@ export class Config {
     return `${projectBasename}-${workspaceBasename}`;
   }
 
-  getWorkspacePath(projectPath: string, branch: string): string {
+  /**
+   * Get the workspace worktree path for a given workspace ID.
+   * New workspaces use stable IDs, legacy workspaces use the old format.
+   */
+  getWorkspacePath(projectPath: string, workspaceId: string): string {
     const projectName = this.getProjectName(projectPath);
-    return path.join(this.srcDir, projectName, branch);
+    return path.join(this.srcDir, projectName, workspaceId);
+  }
+
+  /**
+   * Get the user-friendly symlink path (using workspace name).
+   * This is the path users see and can navigate to.
+   */
+  getWorkspaceSymlinkPath(projectPath: string, workspaceName: string): string {
+    const projectName = this.getProjectName(projectPath);
+    return path.join(this.srcDir, projectName, workspaceName);
+  }
+
+  /**
+   * Compute both workspace paths from metadata.
+   * Returns an object with the stable ID path (for operations) and named path (for display).
+   */
+  getWorkspacePaths(metadata: WorkspaceMetadata): {
+    /** Actual worktree path with stable ID (for terminal/operations) */
+    stableWorkspacePath: string;
+    /** User-friendly symlink path with name (for display) */
+    namedWorkspacePath: string;
+  } {
+    return {
+      stableWorkspacePath: this.getWorkspacePath(metadata.projectPath, metadata.id),
+      namedWorkspacePath: this.getWorkspaceSymlinkPath(metadata.projectPath, metadata.name),
+    };
+  }
+
+  /**
+   * Create a symlink from workspace name to workspace ID.
+   * Example: ~/.cmux/src/cmux/feature-branch -> a1b2c3d4e5
+   */
+  createWorkspaceSymlink(projectPath: string, id: string, name: string): void {
+    const projectName = this.getProjectName(projectPath);
+    const projectDir = path.join(this.srcDir, projectName);
+    const symlinkPath = path.join(projectDir, name);
+    const targetPath = id; // Relative symlink
+
+    try {
+      // Remove existing symlink if it exists (use lstat to check if it's a symlink)
+      try {
+        const stats = fs.lstatSync(symlinkPath);
+        if (stats.isSymbolicLink() || stats.isFile() || stats.isDirectory()) {
+          fs.unlinkSync(symlinkPath);
+        }
+      } catch (e) {
+        // Symlink doesn't exist, which is fine
+        if (e && typeof e === "object" && "code" in e && e.code !== "ENOENT") {
+          throw e;
+        }
+      }
+
+      // Create new symlink (relative path)
+      fs.symlinkSync(targetPath, symlinkPath, "dir");
+    } catch (error) {
+      console.error(`Failed to create symlink ${symlinkPath} -> ${targetPath}:`, error);
+    }
+  }
+
+  /**
+   * Update a workspace symlink when renaming.
+   * Removes old symlink and creates new one.
+   */
+  updateWorkspaceSymlink(projectPath: string, oldName: string, newName: string, id: string): void {
+    // Remove old symlink, then create new one (createWorkspaceSymlink handles replacement)
+    this.removeWorkspaceSymlink(projectPath, oldName);
+    this.createWorkspaceSymlink(projectPath, id, newName);
+  }
+
+  /**
+   * Remove a workspace symlink.
+   */
+  removeWorkspaceSymlink(projectPath: string, name: string): void {
+    const projectName = this.getProjectName(projectPath);
+    const symlinkPath = path.join(this.srcDir, projectName, name);
+
+    try {
+      // Use lstat to avoid following the symlink
+      const stats = fs.lstatSync(symlinkPath);
+      if (stats.isSymbolicLink()) {
+        fs.unlinkSync(symlinkPath);
+      }
+    } catch (error) {
+      // ENOENT is expected if symlink doesn't exist
+      if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") {
+        return; // Silently succeed if symlink doesn't exist
+      }
+      console.error(`Failed to remove symlink ${symlinkPath}:`, error);
+    }
   }
 
   /**
@@ -139,13 +240,28 @@ export class Config {
     const config = this.loadConfigOrDefault();
 
     for (const [projectPath, project] of config.projects) {
-      for (const workspace of project.workspaces ?? []) {
-        // If workspace has stored ID, use it (new format)
-        // Otherwise, generate ID from path (old format)
-        const workspaceIdToMatch =
-          workspace.id ?? this.generateWorkspaceId(projectPath, workspace.path);
+      for (const workspace of project.workspaces) {
+        // Extract workspace basename (could be stable ID or legacy name)
+        const workspaceBasename =
+          workspace.path.split("/").pop() ?? workspace.path.split("\\").pop() ?? "unknown";
 
-        if (workspaceIdToMatch === workspaceId) {
+        // Try loading metadata with basename as ID (works for new workspaces)
+        const metadataPath = path.join(this.getSessionDir(workspaceBasename), "metadata.json");
+        if (fs.existsSync(metadataPath)) {
+          try {
+            const data = fs.readFileSync(metadataPath, "utf-8");
+            const metadata = JSON.parse(data) as WorkspaceMetadata;
+            if (metadata.id === workspaceId) {
+              return { workspacePath: workspace.path, projectPath };
+            }
+          } catch {
+            // Ignore parse errors, try next approach
+          }
+        }
+
+        // Try legacy ID format
+        const legacyId = this.generateWorkspaceId(projectPath, workspace.path);
+        if (legacyId === workspaceId) {
           return { workspacePath: workspace.path, projectPath };
         }
       }
@@ -155,17 +271,16 @@ export class Config {
   }
 
   /**
-   * WARNING: Never try to derive workspace path from workspace ID!
-   * This is a code smell that leads to bugs.
+   * Workspace Path Architecture:
    *
-   * The workspace path should always:
-   * 1. Be stored in WorkspaceMetadata when the workspace is created
-   * 2. Be retrieved from WorkspaceMetadata when needed
-   * 3. Be passed through the call stack explicitly
+   * Workspace paths are computed on-demand from projectPath + workspaceId using
+   * config.getWorkspacePath(). This ensures single source of truth for path format.
    *
-   * Parsing workspaceId strings to derive paths is fragile and error-prone.
-   * The workspace path is established when the git worktree is created,
-   * and that canonical path should be preserved and used throughout.
+   * Backend: Uses getWorkspacePath(metadata.projectPath, metadata.id) for operations
+   * Frontend: Gets enriched metadata with paths via IPC (FrontendWorkspaceMetadata)
+   *
+   * WorkspaceMetadata.workspacePath is deprecated and will be removed. Use computed
+   * paths from getWorkspacePath() or getWorkspacePaths() instead.
    */
 
   /**
@@ -176,11 +291,17 @@ export class Config {
   }
 
   /**
-   * Get all workspace metadata by loading config and generating IDs.
-   * This is the CENTRAL place for workspace ID generation.
+   * Get all workspace metadata by loading config and metadata files.
+   * Performs eager migration for legacy workspaces on startup.
    *
-   * IDs are generated using the formula: ${projectBasename}-${workspaceBasename}
-   * This ensures single source of truth and makes config format migration-free.
+   * Migration strategy:
+   * - For each workspace in config, try to load metadata.json from session dir
+   * - If metadata exists, use it (already migrated or new workspace)
+   * - If metadata doesn't exist, this is a legacy workspace:
+   *   - Generate legacy ID from path (for backward compatibility)
+   *   - Extract name from workspace path
+   *   - Create and save metadata.json
+   *   - Create symlink if name differs from ID (new workspaces only)
    */
   getAllWorkspaceMetadata(): WorkspaceMetadata[] {
     const config = this.loadConfigOrDefault();
@@ -189,15 +310,59 @@ export class Config {
     for (const [projectPath, projectConfig] of config.projects) {
       const projectName = this.getProjectName(projectPath);
 
-      for (const workspace of projectConfig.workspaces ?? []) {
-        // Use stored ID if available (new format), otherwise generate (old format)
-        const workspaceId = workspace.id ?? this.generateWorkspaceId(projectPath, workspace.path);
+      for (const workspace of projectConfig.workspaces) {
+        // Extract workspace basename from path (could be stable ID or legacy name)
+        const workspaceBasename =
+          workspace.path.split("/").pop() ?? workspace.path.split("\\").pop() ?? "unknown";
 
-        workspaceMetadata.push({
-          id: workspaceId,
-          projectName,
-          workspacePath: workspace.path,
-        });
+        try {
+          // Try to load metadata using workspace basename as ID (works for new workspaces with stable IDs)
+          let metadataPath = path.join(this.getSessionDir(workspaceBasename), "metadata.json");
+
+          if (fs.existsSync(metadataPath)) {
+            const data = fs.readFileSync(metadataPath, "utf-8");
+            const metadata = JSON.parse(data) as WorkspaceMetadata;
+            workspaceMetadata.push(metadata);
+          } else {
+            // Try legacy ID format (project-workspace)
+            const legacyId = this.generateWorkspaceId(projectPath, workspace.path);
+            metadataPath = path.join(this.getSessionDir(legacyId), "metadata.json");
+
+            if (fs.existsSync(metadataPath)) {
+              const data = fs.readFileSync(metadataPath, "utf-8");
+              const metadata = JSON.parse(data) as WorkspaceMetadata;
+              workspaceMetadata.push(metadata);
+            } else {
+              // No metadata found - create it for legacy workspace
+              const metadata: WorkspaceMetadata = {
+                id: legacyId, // Use legacy ID format for backward compatibility
+                name: workspaceBasename,
+                projectName,
+                projectPath, // Add full project path
+                // No createdAt for legacy workspaces (unknown)
+              };
+
+              // Save metadata for future loads
+              const sessionDir = this.getSessionDir(legacyId);
+              if (!fs.existsSync(sessionDir)) {
+                fs.mkdirSync(sessionDir, { recursive: true });
+              }
+              fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2));
+
+              workspaceMetadata.push(metadata);
+            }
+          }
+        } catch (error) {
+          console.error(`Failed to load/migrate workspace metadata:`, error);
+          // Fallback to basic metadata if migration fails
+          const legacyId = this.generateWorkspaceId(projectPath, workspace.path);
+          workspaceMetadata.push({
+            id: legacyId,
+            name: workspaceBasename,
+            projectName,
+            projectPath, // Add full project path
+          });
+        }
       }
     }
 

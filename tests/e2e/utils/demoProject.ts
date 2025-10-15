@@ -54,8 +54,9 @@ export function prepareDemoProject(
   const workspaceId = config.generateWorkspaceId(projectPath, workspacePath);
   const metadata = {
     id: workspaceId,
+    name: workspaceBranch,
     projectName,
-    workspacePath,
+    projectPath,
   };
 
   const configPayload = {

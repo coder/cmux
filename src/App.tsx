@@ -6,6 +6,7 @@ import { GlobalFonts } from "./styles/fonts";
 import { GlobalScrollbars } from "./styles/scrollbars";
 import type { ProjectConfig } from "./config";
 import type { WorkspaceSelection } from "./components/ProjectSidebar";
+import type { FrontendWorkspaceMetadata } from "./types/workspace";
 import { LeftSidebar } from "./components/LeftSidebar";
 import NewWorkspaceModal from "./components/NewWorkspaceModal";
 import { AIView } from "./components/AIView";
@@ -148,13 +149,6 @@ function AppInner() {
   );
   const [workspaceModalOpen, setWorkspaceModalOpen] = useState(false);
   const [workspaceModalProject, setWorkspaceModalProject] = useState<string | null>(null);
-  const [workspaceModalProjectName, setWorkspaceModalProjectName] = useState<string>("");
-  const [workspaceModalBranches, setWorkspaceModalBranches] = useState<string[]>([]);
-  const [workspaceModalDefaultTrunk, setWorkspaceModalDefaultTrunk] = useState<string | undefined>(
-    undefined
-  );
-  const [workspaceModalLoadError, setWorkspaceModalLoadError] = useState<string | null>(null);
-  const workspaceModalProjectRef = useRef<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = usePersistedState("sidebarCollapsed", false);
 
   const handleToggleSidebar = useCallback(() => {
@@ -237,26 +231,35 @@ function AppInner() {
       const metadata = Array.from(workspaceMetadata.values()).find((ws) => ws.id === workspaceId);
 
       if (metadata) {
-        // Find project for this workspace
-        for (const [projectPath, projectConfig] of projects.entries()) {
-          const workspace = (projectConfig.workspaces ?? []).find(
-            (ws) => ws.path === metadata.workspacePath
-          );
-          if (workspace) {
-            setSelectedWorkspace({
-              workspaceId: metadata.id,
-              projectPath,
-              projectName: metadata.projectName,
-              workspacePath: metadata.workspacePath,
-            });
-            break;
-          }
-        }
+        // Find project for this workspace (metadata now includes projectPath)
+        setSelectedWorkspace({
+          workspaceId: metadata.id,
+          projectPath: metadata.projectPath,
+          projectName: metadata.projectName,
+          workspacePath: metadata.stableWorkspacePath,
+        });
       }
     }
     // Only run on mount
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Validate selected workspace exists (clear if workspace was deleted)
+  useEffect(() => {
+    if (selectedWorkspace && workspaceMetadata.size > 0) {
+      const exists = workspaceMetadata.has(selectedWorkspace.workspaceId);
+      if (!exists) {
+        console.warn(
+          `Workspace ${selectedWorkspace.workspaceId} no longer exists, clearing selection`
+        );
+        setSelectedWorkspace(null);
+        // Also clear URL hash if present
+        if (window.location.hash) {
+          window.history.replaceState(null, "", window.location.pathname);
+        }
+      }
+    }
+  }, [selectedWorkspace, workspaceMetadata, setSelectedWorkspace]);
 
   const openWorkspaceInTerminal = useCallback((workspacePath: string) => {
     void window.api.workspace.openTerminal(workspacePath);
@@ -272,45 +275,9 @@ function AppInner() {
     [removeProject, selectedWorkspace, setSelectedWorkspace]
   );
 
-  const handleAddWorkspace = useCallback(async (projectPath: string) => {
-    const projectName = projectPath.split("/").pop() ?? projectPath.split("\\").pop() ?? "project";
-
-    workspaceModalProjectRef.current = projectPath;
+  const handleAddWorkspace = useCallback((projectPath: string) => {
     setWorkspaceModalProject(projectPath);
-    setWorkspaceModalProjectName(projectName);
-    setWorkspaceModalBranches([]);
-    setWorkspaceModalDefaultTrunk(undefined);
-    setWorkspaceModalLoadError(null);
     setWorkspaceModalOpen(true);
-
-    try {
-      const branchResult = await window.api.projects.listBranches(projectPath);
-
-      // Guard against race condition: only update state if this is still the active project
-      if (workspaceModalProjectRef.current !== projectPath) {
-        return;
-      }
-
-      const sanitizedBranches = Array.isArray(branchResult?.branches)
-        ? branchResult.branches.filter((branch): branch is string => typeof branch === "string")
-        : [];
-
-      const recommended =
-        typeof branchResult?.recommendedTrunk === "string" &&
-        sanitizedBranches.includes(branchResult.recommendedTrunk)
-          ? branchResult.recommendedTrunk
-          : sanitizedBranches[0];
-
-      setWorkspaceModalBranches(sanitizedBranches);
-      setWorkspaceModalDefaultTrunk(recommended);
-      setWorkspaceModalLoadError(null);
-    } catch (err) {
-      console.error("Failed to load branches for modal:", err);
-      const message = err instanceof Error ? err.message : "Unknown error";
-      setWorkspaceModalLoadError(
-        `Unable to load branches automatically: ${message}. You can still enter the trunk branch manually.`
-      );
-    }
   }, []);
 
   // Memoize callbacks to prevent LeftSidebar/ProjectSidebar re-renders
@@ -364,24 +331,32 @@ function AppInner() {
   const workspaceRecency = useWorkspaceRecency();
 
   // Sort workspaces by recency (most recent first)
+  // Returns Map<projectPath, FrontendWorkspaceMetadata[]> for direct component use
   // Use stable reference to prevent sidebar re-renders when sort order hasn't changed
   const sortedWorkspacesByProject = useStableReference(
     () => {
-      const result = new Map<string, ProjectConfig["workspaces"]>();
-      for (const [projectPath, config] of projects) {
-        result.set(
-          projectPath,
-          (config.workspaces ?? []).slice().sort((a, b) => {
-            const aMeta = workspaceMetadata.get(a.path);
-            const bMeta = workspaceMetadata.get(b.path);
-            if (!aMeta || !bMeta) return 0;
+      // Build path-to-metadata lookup map internally
+      const pathToMetadata = new Map<string, FrontendWorkspaceMetadata>();
+      for (const metadata of workspaceMetadata.values()) {
+        pathToMetadata.set(metadata.stableWorkspacePath, metadata);
+        pathToMetadata.set(metadata.namedWorkspacePath, metadata);
+      }
 
-            // Get timestamp of most recent user message (0 if never used)
-            const aTimestamp = workspaceRecency[aMeta.id] ?? 0;
-            const bTimestamp = workspaceRecency[bMeta.id] ?? 0;
-            return bTimestamp - aTimestamp;
-          })
-        );
+      const result = new Map<string, FrontendWorkspaceMetadata[]>();
+      for (const [projectPath, config] of projects) {
+        // Transform Workspace[] to FrontendWorkspaceMetadata[] and filter nulls
+        const metadataList = config.workspaces
+          .map((ws) => pathToMetadata.get(ws.path))
+          .filter((meta): meta is FrontendWorkspaceMetadata => meta !== undefined);
+
+        // Sort by recency
+        metadataList.sort((a, b) => {
+          const aTimestamp = workspaceRecency[a.id] ?? 0;
+          const bTimestamp = workspaceRecency[b.id] ?? 0;
+          return bTimestamp - aTimestamp;
+        });
+
+        result.set(projectPath, metadataList);
       }
       return result;
     },
@@ -390,7 +365,7 @@ function AppInner() {
       if (
         !compareMaps(prev, next, (a, b) => {
           if (a.length !== b.length) return false;
-          return a.every((workspace, i) => workspace.path === b[i].path);
+          return a.every((metadata, i) => metadata.id === b[i].id);
         })
       ) {
         return false;
@@ -410,7 +385,7 @@ function AppInner() {
 
       // Find current workspace index in sorted list
       const currentIndex = sortedWorkspaces.findIndex(
-        (ws) => ws.path === selectedWorkspace.workspacePath
+        (metadata) => metadata.id === selectedWorkspace.workspaceId
       );
       if (currentIndex === -1) return;
 
@@ -422,20 +397,17 @@ function AppInner() {
         targetIndex = currentIndex === 0 ? sortedWorkspaces.length - 1 : currentIndex - 1;
       }
 
-      const targetWorkspace = sortedWorkspaces[targetIndex];
-      if (!targetWorkspace) return;
-
-      const metadata = workspaceMetadata.get(targetWorkspace.path);
-      if (!metadata) return;
+      const targetMetadata = sortedWorkspaces[targetIndex];
+      if (!targetMetadata) return;
 
       setSelectedWorkspace({
         projectPath: selectedWorkspace.projectPath,
         projectName: selectedWorkspace.projectName,
-        workspacePath: targetWorkspace.path,
-        workspaceId: metadata.id,
+        workspacePath: targetMetadata.stableWorkspacePath,
+        workspaceId: targetMetadata.id,
       });
     },
-    [selectedWorkspace, sortedWorkspacesByProject, workspaceMetadata, setSelectedWorkspace]
+    [selectedWorkspace, sortedWorkspacesByProject, setSelectedWorkspace]
   );
 
   // Register command sources with registry
@@ -495,7 +467,7 @@ function AppInner() {
 
   const openNewWorkspaceFromPalette = useCallback(
     (projectPath: string) => {
-      void handleAddWorkspace(projectPath);
+      handleAddWorkspace(projectPath);
     },
     [handleAddWorkspace]
   );
@@ -679,19 +651,15 @@ function AppInner() {
         />
         <MainContent>
           <ContentArea>
-            {selectedWorkspace?.workspacePath ? (
+            {selectedWorkspace ? (
               <ErrorBoundary
-                workspaceInfo={`${selectedWorkspace.projectName}/${selectedWorkspace.workspacePath?.split("/").pop() ?? selectedWorkspace.workspaceId ?? "unknown"}`}
+                workspaceInfo={`${selectedWorkspace.projectName}/${selectedWorkspace.workspacePath.split("/").pop() ?? ""}`}
               >
                 <AIView
                   key={selectedWorkspace.workspaceId}
                   workspaceId={selectedWorkspace.workspaceId}
                   projectName={selectedWorkspace.projectName}
-                  branch={
-                    selectedWorkspace.workspacePath?.split("/").pop() ??
-                    selectedWorkspace.workspaceId ??
-                    ""
-                  }
+                  branch={selectedWorkspace.workspacePath.split("/").pop() ?? ""}
                   workspacePath={selectedWorkspace.workspacePath}
                 />
               </ErrorBoundary>
@@ -712,18 +680,10 @@ function AppInner() {
         {workspaceModalOpen && workspaceModalProject && (
           <NewWorkspaceModal
             isOpen={workspaceModalOpen}
-            projectName={workspaceModalProjectName}
-            branches={workspaceModalBranches}
-            defaultTrunkBranch={workspaceModalDefaultTrunk}
-            loadErrorMessage={workspaceModalLoadError}
+            projectPath={workspaceModalProject}
             onClose={() => {
-              workspaceModalProjectRef.current = null;
               setWorkspaceModalOpen(false);
               setWorkspaceModalProject(null);
-              setWorkspaceModalProjectName("");
-              setWorkspaceModalBranches([]);
-              setWorkspaceModalDefaultTrunk(undefined);
-              setWorkspaceModalLoadError(null);
             }}
             onAdd={handleCreateWorkspace}
           />

@@ -3,7 +3,7 @@ import { IPC_CHANNELS, getChatChannel } from "../../src/constants/ipc-constants"
 import type { SendMessageOptions, WorkspaceChatMessage } from "../../src/types/ipc";
 import type { Result } from "../../src/types/result";
 import type { SendMessageError } from "../../src/types/errors";
-import type { WorkspaceMetadata } from "../../src/types/workspace";
+import type { WorkspaceMetadataWithPaths } from "../../src/types/workspace";
 import * as path from "path";
 import * as os from "os";
 import { detectDefaultTrunkBranch } from "../../src/git";
@@ -67,7 +67,9 @@ export async function createWorkspace(
   projectPath: string,
   branchName: string,
   trunkBranch?: string
-): Promise<{ success: true; metadata: WorkspaceMetadata } | { success: false; error: string }> {
+): Promise<
+  { success: true; metadata: WorkspaceMetadataWithPaths } | { success: false; error: string }
+> {
   const resolvedTrunk =
     typeof trunkBranch === "string" && trunkBranch.trim().length > 0
       ? trunkBranch.trim()
@@ -78,7 +80,7 @@ export async function createWorkspace(
     projectPath,
     branchName,
     resolvedTrunk
-  )) as { success: true; metadata: WorkspaceMetadata } | { success: false; error: string };
+  )) as { success: true; metadata: WorkspaceMetadataWithPaths } | { success: false; error: string };
 }
 
 /**

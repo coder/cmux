@@ -1,7 +1,7 @@
 import React from "react";
 import styled from "@emotion/styled";
 import type { ProjectConfig } from "@/config";
-import type { WorkspaceMetadata } from "@/types/workspace";
+import type { FrontendWorkspaceMetadata } from "@/types/workspace";
 import type { WorkspaceSelection } from "./ProjectSidebar";
 import type { Secret } from "@/types/secrets";
 import ProjectSidebar from "./ProjectSidebar";
@@ -21,7 +21,7 @@ const LeftSidebarContainer = styled.div<{ collapsed?: boolean }>`
 
 interface LeftSidebarProps {
   projects: Map<string, ProjectConfig>;
-  workspaceMetadata: Map<string, WorkspaceMetadata>;
+  workspaceMetadata: Map<string, FrontendWorkspaceMetadata>;
   selectedWorkspace: WorkspaceSelection | null;
   onSelectWorkspace: (selection: WorkspaceSelection) => void;
   onAddProject: () => void;
@@ -41,7 +41,7 @@ interface LeftSidebarProps {
   onToggleCollapsed: () => void;
   onGetSecrets: (projectPath: string) => Promise<Secret[]>;
   onUpdateSecrets: (projectPath: string, secrets: Secret[]) => Promise<void>;
-  sortedWorkspacesByProject: Map<string, ProjectConfig["workspaces"]>;
+  sortedWorkspacesByProject: Map<string, FrontendWorkspaceMetadata[]>;
 }
 
 export function LeftSidebar(props: LeftSidebarProps) {
