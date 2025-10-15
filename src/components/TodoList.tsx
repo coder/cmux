@@ -9,10 +9,7 @@ const TodoListContainer = styled.div`
   padding: 6px 8px;
 `;
 
-const TodoItemContainer = styled.div<{ 
-  status: TodoItem["status"]; 
-  isSummary?: boolean;
-}>`
+const TodoItemContainer = styled.div<{ status: TodoItem["status"] }>`
   display: flex;
   align-items: flex-start;
   gap: 6px;
@@ -42,10 +39,9 @@ const TodoItemContainer = styled.div<{
     }};
   border-radius: 3px;
   font-family: var(--font-monospace);
-  font-size: ${(props) => (props.isSummary ? "10px" : "11px")};
+  font-size: 11px;
   line-height: 1.35;
   color: var(--color-text);
-  font-style: ${(props) => (props.isSummary ? "italic" : "normal")};
 `;
 
 const TodoIcon = styled.div`
@@ -64,7 +60,6 @@ const TodoText = styled.div<{
   status: TodoItem["status"];
   completedIndex?: number;
   totalCompleted?: number;
-  isSummary?: boolean;
 }>`
   color: ${(props) => {
     switch (props.status) {
@@ -88,9 +83,9 @@ const TodoText = styled.div<{
         const recentIndex = props.totalCompleted - props.completedIndex;
         return Math.max(0.35, 1 - (recentIndex * 0.15));
       }
-      return props.isSummary ? "0.5" : "0.7";
+      return "0.7";
     }
-    return props.isSummary ? "0.75" : "1";
+    return "1";
   }};
   font-weight: ${(props) => (props.status === "in_progress" ? "500" : "normal")};
   white-space: nowrap;
@@ -139,14 +134,6 @@ function getStatusIcon(status: TodoItem["status"]): string {
 }
 
 /**
- * Detect if a TODO item is a summary based on content pattern.
- * Matches patterns like: "(N items)", "(N tasks)", "(N steps)"
- */
-function isSummaryItem(content: string): boolean {
-  return /\(\d+\s+(items?|tasks?|steps?)\)/i.test(content);
-}
-
-/**
  * Shared TODO list component used by:
  * - TodoToolCall (in expanded tool history)
  * - PinnedTodoList (pinned at bottom of chat)
@@ -159,18 +146,16 @@ export const TodoList: React.FC<TodoListProps> = ({ todos }) => {
   return (
     <TodoListContainer>
       {todos.map((todo, index) => {
-        const isSummary = isSummaryItem(todo.content);
         const currentCompletedIndex = todo.status === "completed" ? completedIndex++ : undefined;
 
         return (
-          <TodoItemContainer key={index} status={todo.status} isSummary={isSummary}>
+          <TodoItemContainer key={index} status={todo.status}>
             <TodoIcon>{getStatusIcon(todo.status)}</TodoIcon>
             <TodoContent>
               <TodoText 
                 status={todo.status}
                 completedIndex={currentCompletedIndex}
                 totalCompleted={completedCount}
-                isSummary={isSummary}
               >
                 {todo.content}
               </TodoText>
