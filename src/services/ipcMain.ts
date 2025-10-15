@@ -66,12 +66,10 @@ export class IpcMain {
     const trimmed = workspaceId.trim();
     assert(trimmed.length > 0, "workspaceId must not be empty");
 
-
     let session = this.sessions.get(trimmed);
     if (session) {
       return session;
     }
-
 
     session = new AgentSession({
       workspaceId: trimmed,
