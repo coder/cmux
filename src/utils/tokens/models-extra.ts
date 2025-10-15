@@ -39,4 +39,20 @@ export const modelsExtra: Record<string, ModelData> = {
     knowledge_cutoff: "2024-09-30",
     supported_endpoints: ["/v1/responses"],
   },
+
+  // Claude Haiku 4.5 - Released October 15, 2025
+  // $1/M input, $5/M output
+  "claude-haiku-4-5": {
+    max_input_tokens: 200000,
+    max_output_tokens: 8192,
+    input_cost_per_token: 0.000001, // $1 per million input tokens
+    output_cost_per_token: 0.000005, // $5 per million output tokens
+    cache_creation_input_token_cost: 0.00000125, // $1.25 per million tokens
+    cache_read_input_token_cost: 0.0000001, // $0.10 per million tokens
+    litellm_provider: "anthropic",
+    mode: "chat",
+    supports_function_calling: true,
+    supports_vision: true,
+    supports_response_schema: true,
+  },
 };

@@ -6,7 +6,7 @@ import { updatePersistedState, readPersistedState } from "@/hooks/usePersistedSt
 import type { ThinkingLevel, ThinkingLevelOn } from "@/types/thinking";
 import { DEFAULT_THINKING_LEVEL } from "@/types/thinking";
 import { getThinkingPolicyForModel } from "@/utils/thinking/policy";
-import { defaultModel } from "@/utils/ai/models";
+import { getDefaultModelFromLRU } from "@/hooks/useModelLRU";
 
 interface UseAIViewKeybindsParams {
   workspaceId: string;
@@ -66,10 +66,10 @@ export function useAIViewKeybinds({
         e.preventDefault();
 
         // Get selected model from localStorage (what user sees in UI)
-        // Fall back to message history model, then to default model
+        // Fall back to message history model, then to most recent model from LRU
         // This matches the same logic as useSendMessageOptions
         const selectedModel = readPersistedState<string | null>(getModelKey(workspaceId), null);
-        const modelToUse = selectedModel ?? currentModel ?? defaultModel;
+        const modelToUse = selectedModel ?? currentModel ?? getDefaultModelFromLRU();
 
         // Storage key for remembering this model's last-used active thinking level
         const lastThinkingKey = getLastThinkingByModelKey(modelToUse);

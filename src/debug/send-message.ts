@@ -3,7 +3,7 @@ import * as path from "path";
 import { defaultConfig } from "@/config";
 import type { CmuxMessage } from "@/types/message";
 import type { SendMessageOptions } from "@/types/ipc";
-import { defaultModel } from "@/utils/ai/models";
+import { getDefaultModelFromLRU } from "@/hooks/useModelLRU";
 
 /**
  * Debug command to send a message to a workspace, optionally editing an existing message
@@ -103,7 +103,7 @@ export function sendMessageCommand(
 
   // Prepare options
   const options: SendMessageOptions = {
-    model: defaultModel,
+    model: getDefaultModelFromLRU(),
   };
 
   if (editMessageId) {

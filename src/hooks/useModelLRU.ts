@@ -1,12 +1,24 @@
 import { useCallback, useEffect } from "react";
-import { usePersistedState } from "./usePersistedState";
+import { usePersistedState, readPersistedState } from "./usePersistedState";
 import { MODEL_ABBREVIATIONS } from "@/utils/slashCommands/registry";
+import { defaultModel } from "@/utils/ai/models";
 
 const MAX_LRU_SIZE = 8;
 const LRU_KEY = "model-lru";
 
 // Default models from abbreviations (for initial LRU population)
 const DEFAULT_MODELS = Object.values(MODEL_ABBREVIATIONS);
+
+/**
+ * Get the default model from LRU (non-hook version for use outside React)
+ * This is the ONLY place that reads from LRU outside of the hook.
+ * 
+ * @returns The most recently used model, or defaultModel if LRU is empty
+ */
+export function getDefaultModelFromLRU(): string {
+  const lru = readPersistedState<string[]>(LRU_KEY, []);
+  return lru[0] ?? defaultModel;
+}
 
 /**
  * Hook to manage a Least Recently Used (LRU) cache of AI models.

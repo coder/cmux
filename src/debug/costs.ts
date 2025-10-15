@@ -3,7 +3,7 @@ import * as path from "path";
 import { defaultConfig } from "@/config";
 import type { CmuxMessage } from "@/types/message";
 import { calculateTokenStats } from "@/utils/tokens/tokenStatsCalculator";
-import { defaultModel } from "@/utils/ai/models";
+import { getDefaultModelFromLRU } from "@/hooks/useModelLRU";
 
 /**
  * Debug command to display cost/token statistics for a workspace
@@ -35,7 +35,7 @@ export function costsCommand(workspaceId: string) {
 
   // Detect model from first assistant message
   const firstAssistantMessage = messages.find((msg) => msg.role === "assistant");
-  const model = firstAssistantMessage?.metadata?.model ?? defaultModel;
+  const model = firstAssistantMessage?.metadata?.model ?? getDefaultModelFromLRU();
 
   // Calculate stats using shared logic (now synchronous)
   const stats = calculateTokenStats(messages, model);
