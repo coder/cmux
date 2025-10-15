@@ -6,13 +6,12 @@
 
 ## What is cmux?
 
-cmux helps you work with AI coding assistants more effectively by:
+cmux helps you work with multiple coding assistants more effectively via:
 
-- 🔀 **Git Worktree Integration** - Work on multiple branches simultaneously
-- 🤖 **Multiple Permission Modes** - Control how aggressively the AI can modify your code (plan/exec)
-- 📦 **Project Management** - Organize and switch between multiple projects seamlessly
-- 💬 **Session History** - Full chat history persistence across sessions
-- 🔄 **Flexible Workflows** - Support for different AI models and providers
+- Isolated workspaces with central view on git status updates
+- Multi-model (`sonnet-4-*`, `gpt-5-*`, `opus-4-*`) support
+- Supporting UI and keybinds for efficiently managing a suite of agents
+- Rich markdown outputs (mermaid diagrams, LaTeX, etc.)
 
 ## Quick Links
 
