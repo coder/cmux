@@ -598,7 +598,6 @@ export class IpcMain {
         options?: {
           timeout_secs?: number;
           niceness?: number;
-          overflow_policy?: "truncate" | "tmpfile";
         }
       ) => {
         try {
@@ -620,12 +619,13 @@ export class IpcMain {
           using tempDir = new DisposableTempDir("cmux-ipc-bash");
 
           // Create bash tool with workspace's cwd and secrets
+          // All IPC bash calls are from UI (background operations) - use truncate to avoid temp file spam
           const bashTool = createBashTool({
             cwd: workspacePath,
             secrets: secretsToRecord(projectSecrets),
             niceness: options?.niceness,
             tempDir: tempDir.path,
-            overflow_policy: options?.overflow_policy,
+            overflow_policy: "truncate",
           });
 
           // Execute the script with provided options

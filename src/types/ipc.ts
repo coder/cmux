@@ -213,7 +213,6 @@ export interface IPCApi {
       options?: {
         timeout_secs?: number;
         niceness?: number;
-        overflow_policy?: "truncate" | "tmpfile";
       }
     ): Promise<Result<BashToolResult, string>>;
     openTerminal(workspacePath: string): Promise<void>;
