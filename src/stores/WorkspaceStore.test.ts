@@ -184,6 +184,12 @@ describe("WorkspaceStore", () => {
         messageId?: string;
         model?: string;
       }>();
+
+      // Mark workspace as caught-up first (required for stream events to process)
+      onChatCallback({
+        type: "caught-up",
+      });
+
       onChatCallback({
         type: "stream-start",
         messageId: "msg-1",
@@ -268,9 +274,15 @@ describe("WorkspaceStore", () => {
       // Trigger change
       const onChatCallback = getOnChatCallback<{
         type: string;
-        messageId: string;
-        model: string;
+        messageId?: string;
+        model?: string;
       }>();
+
+      // Mark workspace as caught-up first
+      onChatCallback({
+        type: "caught-up",
+      });
+
       onChatCallback({
         type: "stream-start",
         messageId: "msg1",
@@ -298,9 +310,15 @@ describe("WorkspaceStore", () => {
       // Trigger change
       const onChatCallback = getOnChatCallback<{
         type: string;
-        messageId: string;
-        model: string;
+        messageId?: string;
+        model?: string;
       }>();
+
+      // Mark workspace as caught-up first
+      onChatCallback({
+        type: "caught-up",
+      });
+
       onChatCallback({
         type: "stream-start",
         messageId: "msg1",
@@ -379,10 +397,14 @@ describe("WorkspaceStore", () => {
       // but if a message was already queued, it should handle gracefully
       const onChatCallbackTyped = onChatCallback as (data: {
         type: string;
-        messageId: string;
-        model: string;
+        messageId?: string;
+        model?: string;
       }) => void;
       expect(() => {
+        // Mark as caught-up first
+        onChatCallbackTyped({
+          type: "caught-up",
+        });
         onChatCallbackTyped({
           type: "stream-start",
           messageId: "msg1",

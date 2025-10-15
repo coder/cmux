@@ -174,8 +174,13 @@ export class GitStatusStore {
 
       // Check if status actually changed (cheap for simple objects)
       if (!this.areStatusesEqual(oldStatus, newStatus)) {
-        this.statusCache.set(workspaceId, newStatus);
-        this.statuses.bump(workspaceId); // Invalidate cache + notify
+        // Only update cache on successful status check (preserve old status on failure)
+        // This prevents UI flicker when git operations timeout or fail transiently
+        if (newStatus !== null) {
+          this.statusCache.set(workspaceId, newStatus);
+          this.statuses.bump(workspaceId); // Invalidate cache + notify
+        }
+        // On failure (newStatus === null): keep old status, don't bump (no re-render)
       }
     }
   }

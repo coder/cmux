@@ -1,6 +1,6 @@
 import type { Result } from "./result";
 import type { WorkspaceMetadata } from "./workspace";
-import type { CmuxMessage } from "./message";
+import type { CmuxMessage, CmuxFrontendMetadata } from "./message";
 import type { ProjectConfig } from "@/config";
 import type { SendMessageError, StreamErrorType } from "./errors";
 import type { ThinkingLevel } from "./thinking";
@@ -141,6 +141,7 @@ export interface SendMessageOptions {
   maxOutputTokens?: number;
   providerOptions?: CmuxProviderOptions;
   mode?: string; // Mode name - frontend narrows to specific values, backend accepts any string
+  cmuxMetadata?: CmuxFrontendMetadata; // Frontend-defined metadata, backend treats as black-box
 }
 
 // API method signatures (shared between main and preload)

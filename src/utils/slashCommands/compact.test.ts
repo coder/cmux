@@ -132,3 +132,86 @@ it("rejects positional arguments with flags", () => {
     subcommand: "Unexpected argument: extra",
   });
 });
+
+describe("multiline continue messages", () => {
+  it("parses basic multiline continue message", () => {
+    const result = parseCommand("/compact\nContinue implementing the auth system");
+    expect(result).toEqual({
+      type: "compact",
+      maxOutputTokens: undefined,
+      continueMessage: "Continue implementing the auth system",
+    });
+  });
+
+  it("parses multiline with -t flag", () => {
+    const result = parseCommand("/compact -t 5000\nKeep working on the feature");
+    expect(result).toEqual({
+      type: "compact",
+      maxOutputTokens: 5000,
+      continueMessage: "Keep working on the feature",
+    });
+  });
+
+  it("parses multiline message with multiple lines", () => {
+    const result = parseCommand("/compact\nLine 1\nLine 2\nLine 3");
+    expect(result).toEqual({
+      type: "compact",
+      maxOutputTokens: undefined,
+      continueMessage: "Line 1\nLine 2\nLine 3",
+    });
+  });
+
+  it("handles empty lines in multiline message", () => {
+    const result = parseCommand("/compact\n\nContinue after empty line");
+    expect(result).toEqual({
+      type: "compact",
+      maxOutputTokens: undefined,
+      continueMessage: "Continue after empty line",
+    });
+  });
+
+  it("preserves whitespace in multiline content", () => {
+    const result = parseCommand("/compact\n  Indented message\n    More indented");
+    expect(result).toEqual({
+      type: "compact",
+      maxOutputTokens: undefined,
+      continueMessage: "Indented message\n    More indented",
+    });
+  });
+
+  it("prioritizes -c flag over multiline content (backwards compat)", () => {
+    const result = parseCommand('/compact -c "Flag message"\nMultiline message');
+    expect(result).toEqual({
+      type: "compact",
+      maxOutputTokens: undefined,
+      continueMessage: "Flag message",
+    });
+  });
+
+  it("handles -c flag with multiline (flag wins)", () => {
+    const result = parseCommand('/compact -t 3000 -c "Keep going"\nThis should be ignored');
+    expect(result).toEqual({
+      type: "compact",
+      maxOutputTokens: 3000,
+      continueMessage: "Keep going",
+    });
+  });
+
+  it("ignores trailing newlines", () => {
+    const result = parseCommand("/compact\nContinue here\n\n\n");
+    expect(result).toEqual({
+      type: "compact",
+      maxOutputTokens: undefined,
+      continueMessage: "Continue here",
+    });
+  });
+
+  it("returns undefined continueMessage when only whitespace after command", () => {
+    const result = parseCommand("/compact\n   \n  \n");
+    expect(result).toEqual({
+      type: "compact",
+      maxOutputTokens: undefined,
+      continueMessage: undefined,
+    });
+  });
+});

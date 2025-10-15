@@ -80,6 +80,7 @@ export class WorkspaceStore {
   private ipcUnsubscribers = new Map<string, () => void>();
   private caughtUp = new Map<string, boolean>();
   private historicalMessages = new Map<string, CmuxMessage[]>();
+  private pendingStreamEvents = new Map<string, WorkspaceChatMessage[]>();
 
   // Cache of last known recency per workspace (for change detection)
   private recencyCache = new Map<string, number | null>();
@@ -311,6 +312,7 @@ export class WorkspaceStore {
     this.aggregators.delete(workspaceId);
     this.caughtUp.delete(workspaceId);
     this.historicalMessages.delete(workspaceId);
+    this.pendingStreamEvents.delete(workspaceId);
     this.recencyCache.delete(workspaceId);
     this.previousSidebarValues.delete(workspaceId);
     this.sidebarStateCache.delete(workspaceId);
@@ -351,6 +353,7 @@ export class WorkspaceStore {
     this.aggregators.clear();
     this.caughtUp.clear();
     this.historicalMessages.clear();
+    this.pendingStreamEvents.clear();
   }
 
   // Private methods
@@ -362,22 +365,63 @@ export class WorkspaceStore {
     return this.aggregators.get(workspaceId)!;
   }
 
+  private isStreamEvent(data: WorkspaceChatMessage): boolean {
+    return (
+      isStreamStart(data) ||
+      isStreamDelta(data) ||
+      isStreamEnd(data) ||
+      isStreamAbort(data) ||
+      isToolCallStart(data) ||
+      isToolCallDelta(data) ||
+      isToolCallEnd(data) ||
+      isReasoningDelta(data) ||
+      isReasoningEnd(data)
+    );
+  }
+
   private handleChatMessage(workspaceId: string, data: WorkspaceChatMessage): void {
     const aggregator = this.getOrCreateAggregator(workspaceId);
     const isCaughtUp = this.caughtUp.get(workspaceId) ?? false;
     const historicalMsgs = this.historicalMessages.get(workspaceId) ?? [];
 
     if (isCaughtUpMessage(data)) {
+      // Load historical messages first
       if (historicalMsgs.length > 0) {
         aggregator.loadHistoricalMessages(historicalMsgs);
         this.historicalMessages.set(workspaceId, []);
       }
+
+      // Process buffered stream events now that history is loaded
+      const pendingEvents = this.pendingStreamEvents.get(workspaceId) ?? [];
+      for (const event of pendingEvents) {
+        this.processStreamEvent(workspaceId, aggregator, event);
+      }
+      this.pendingStreamEvents.set(workspaceId, []);
+
+      // Mark as caught up
       this.caughtUp.set(workspaceId, true);
       this.states.bump(workspaceId);
       this.checkAndBumpRecencyIfChanged(); // Messages loaded, update recency
       return;
     }
 
+    // Buffer stream events until caught up (so they have full historical context)
+    if (!isCaughtUp && this.isStreamEvent(data)) {
+      const pending = this.pendingStreamEvents.get(workspaceId) ?? [];
+      pending.push(data);
+      this.pendingStreamEvents.set(workspaceId, pending);
+      return;
+    }
+
+    // Process event immediately (already caught up or not a stream event)
+    this.processStreamEvent(workspaceId, aggregator, data);
+  }
+
+  private processStreamEvent(
+    workspaceId: string,
+    aggregator: StreamingMessageAggregator,
+    data: WorkspaceChatMessage
+  ): void {
     if (isStreamError(data)) {
       aggregator.handleStreamError(data);
       this.states.bump(workspaceId);
@@ -427,6 +471,20 @@ export class WorkspaceStore {
           if (part.type === "dynamic-tool" && part.toolName === "compact_summary") {
             const output = part.output as { summary?: string } | undefined;
             if (output?.summary) {
+              // Extract continueMessage from compaction-request before history gets replaced
+              const messages = aggregator.getAllMessages();
+              const compactRequestMsg = [...messages]
+                .reverse()
+                .find(
+                  (m) =>
+                    m.role === "user" && m.metadata?.cmuxMetadata?.type === "compaction-request"
+                );
+              const cmuxMeta = compactRequestMsg?.metadata?.cmuxMetadata;
+              const continueMessage =
+                cmuxMeta?.type === "compaction-request"
+                  ? cmuxMeta.parsed.continueMessage
+                  : undefined;
+
               const summaryMessage = createCmuxMessage(
                 `summary-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
                 "assistant",
@@ -439,6 +497,10 @@ export class WorkspaceStore {
                   providerMetadata: data.metadata.providerMetadata,
                   duration: data.metadata.duration,
                   systemMessageTokens: data.metadata.systemMessageTokens,
+                  // Store continueMessage in summary so it survives history replacement
+                  cmuxMetadata: continueMessage
+                    ? { type: "compaction-result", continueMessage }
+                    : { type: "normal" },
                 }
               );
 
@@ -449,6 +511,7 @@ export class WorkspaceStore {
                   console.error("[WorkspaceStore] Failed to replace history:", error);
                 } finally {
                   this.states.bump(workspaceId);
+                  this.checkAndBumpRecencyIfChanged();
                 }
               })();
               return;
@@ -505,9 +568,11 @@ export class WorkspaceStore {
       return;
     }
 
-    // Regular messages
+    // Regular messages (CmuxMessage without type field)
+    const isCaughtUp = this.caughtUp.get(workspaceId) ?? false;
     if (!isCaughtUp) {
       if ("role" in data && !("type" in data)) {
+        const historicalMsgs = this.historicalMessages.get(workspaceId) ?? [];
         historicalMsgs.push(data);
         this.historicalMessages.set(workspaceId, historicalMsgs);
       }

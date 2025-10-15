@@ -35,9 +35,15 @@ passes.
 ## Aggressively prune context
 
 Even though Sonnet 4.5 has up to 1M in potential context, we experience a noticeable improvement in
-quality when kept <100k tokens. We suggest running `/compact -c "<what you want next>"`
-often to keep context small. The `-c` flag will automatically send a follow up message post-compaction
-to keep the session flowing.
+quality when kept <100k tokens. We suggest running `/compact` with a continue message
+often to keep context small. For example:
+
+```
+/compact
+<what you want next>
+```
+
+This will automatically send a follow-up message after compaction to keep the session flowing.
 
 ## Keeping code clean
 

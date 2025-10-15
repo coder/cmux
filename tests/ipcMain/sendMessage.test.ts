@@ -1377,4 +1377,70 @@ These are general instructions that apply to all modes.
       90000
     );
   });
+
+  // Test frontend metadata round-trip (no provider needed - just verifies storage)
+  test.concurrent(
+    "should preserve arbitrary frontend metadata through IPC round-trip",
+    async () => {
+      const { env, workspaceId, cleanup } = await setupWorkspaceWithoutProvider();
+      try {
+        // Create structured metadata
+        const testMetadata = {
+          type: "compaction-request" as const,
+          rawCommand: "/compact -c continue working",
+          parsed: {
+            maxOutputTokens: 5000,
+            continueMessage: "continue working",
+          },
+        };
+
+        // Send a message with frontend metadata
+        // Use invalid model to fail fast - we only care about metadata storage
+        const result = await env.mockIpcRenderer.invoke(
+          IPC_CHANNELS.WORKSPACE_SEND_MESSAGE,
+          workspaceId,
+          "Test message with metadata",
+          {
+            model: "openai:gpt-4", // Valid format but provider not configured - will fail after storing message
+            cmuxMetadata: testMetadata,
+          }
+        );
+
+        // Note: IPC call will fail due to missing provider config, but that's okay
+        // We only care that the user message was written to history with metadata
+        // (sendMessage writes user message before attempting to stream)
+
+        // Use event collector to get messages sent to frontend
+        const collector = createEventCollector(env.sentEvents, workspaceId);
+
+        // Wait for the user message to appear in the chat channel
+        await waitFor(() => {
+          const messages = collector.collect();
+          return messages.some((m) => "role" in m && m.role === "user");
+        }, 2000);
+
+        // Get all messages for this workspace
+        const allMessages = collector.collect();
+
+        // Find the user message we just sent
+        const userMessage = allMessages.find((msg) => "role" in msg && msg.role === "user");
+        expect(userMessage).toBeDefined();
+
+        // Verify metadata was preserved exactly as sent (black-box)
+        expect(userMessage).toHaveProperty("metadata");
+        const metadata = (userMessage as any).metadata;
+        expect(metadata).toHaveProperty("cmuxMetadata");
+        expect(metadata.cmuxMetadata).toEqual(testMetadata);
+
+        // Verify structured fields are accessible
+        expect(metadata.cmuxMetadata.type).toBe("compaction-request");
+        expect(metadata.cmuxMetadata.rawCommand).toBe("/compact -c continue working");
+        expect(metadata.cmuxMetadata.parsed.continueMessage).toBe("continue working");
+        expect(metadata.cmuxMetadata.parsed.maxOutputTokens).toBe(5000);
+      } finally {
+        await cleanup();
+      }
+    },
+    5000
+  );
 });

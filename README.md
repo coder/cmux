@@ -82,6 +82,11 @@ Download pre-built binaries from [the releases page](https://github.com/coder/cm
   <img src="./docs/img/opportunistic-compaction.webp" alt="Screenshot of opportunistic compaction" />
 </div>
 
+<div align="center">
+  <p><em>TODO lists keep you informed on the agent's plan:</em></p>
+  <img src="./docs/img/todo.webp" alt="Screenshot of todo list" />
+</div>
+
 ## More reading
 
 See [the documentation](https://cmux.io) for more details.

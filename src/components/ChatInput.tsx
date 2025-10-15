@@ -26,6 +26,8 @@ import { VimTextArea } from "./VimTextArea";
 import { ImageAttachments, type ImageAttachment } from "./ImageAttachments";
 
 import type { ThinkingLevel } from "@/types/thinking";
+import type { CmuxFrontendMetadata } from "@/types/message";
+import type { SendMessageOptions } from "@/types/ipc";
 
 const InputSection = styled.div`
   position: relative;
@@ -122,7 +124,6 @@ export interface ChatInputProps {
   onTruncateHistory: (percentage?: number) => Promise<void>;
   onProviderConfig?: (provider: string, keyPath: string[], value: string) => Promise<void>;
   onModelChange?: (model: string) => void;
-  onCompactStart?: (continueMessage: string | undefined) => void; // Called when compaction starts to update continue message state
   disabled?: boolean;
   isCompacting?: boolean;
   editingMessage?: { id: string; content: string };
@@ -282,13 +283,53 @@ const createErrorToast = (error: SendMessageErrorType): Toast => {
   }
 };
 
+/**
+ * Prepare compaction message from /compact command
+ * Returns the actual message text (summarization request), metadata, and options
+ */
+function prepareCompactionMessage(
+  command: string,
+  sendMessageOptions: SendMessageOptions
+): {
+  messageText: string;
+  metadata: CmuxFrontendMetadata;
+  options: Partial<SendMessageOptions>;
+} {
+  const parsed = parseCommand(command);
+  if (parsed?.type !== "compact") {
+    throw new Error("Not a compact command");
+  }
+
+  const targetWords = parsed.maxOutputTokens ? Math.round(parsed.maxOutputTokens / 1.3) : 2000;
+
+  const messageText = `Summarize this conversation into a compact form for a new Assistant to continue helping the user. Use approximately ${targetWords} words.`;
+
+  const metadata: CmuxFrontendMetadata = {
+    type: "compaction-request",
+    rawCommand: command,
+    parsed: {
+      maxOutputTokens: parsed.maxOutputTokens,
+      continueMessage: parsed.continueMessage,
+    },
+  };
+
+  const isAnthropic = sendMessageOptions.model.startsWith("anthropic:");
+  const options: Partial<SendMessageOptions> = {
+    thinkingLevel: isAnthropic ? "off" : sendMessageOptions.thinkingLevel,
+    toolPolicy: [{ regex_match: "compact_summary", action: "require" }],
+    maxOutputTokens: parsed.maxOutputTokens,
+    mode: "compact" as const,
+  };
+
+  return { messageText, metadata, options };
+}
+
 export const ChatInput: React.FC<ChatInputProps> = ({
   workspaceId,
   onMessageSent,
   onTruncateHistory,
   onProviderConfig,
   onModelChange,
-  onCompactStart,
   disabled = false,
   isCompacting = false,
   editingMessage,
@@ -296,7 +337,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   canInterrupt = false,
   onReady,
 }) => {
-  const [input, setInput] = usePersistedState(getInputKey(workspaceId), "");
+  const [input, setInput] = usePersistedState(getInputKey(workspaceId), "", { listener: true });
   const [isSending, setIsSending] = useState(false);
   const [showCommandSuggestions, setShowCommandSuggestions] = useState(false);
   const [commandSuggestions, setCommandSuggestions] = useState<SlashSuggestion[]>([]);
@@ -524,8 +565,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
   const handleSend = async () => {
     // Allow sending if there's text or images
-    if ((!input.trim() && imageAttachments.length === 0) || disabled || isSending || isCompacting)
+    if ((!input.trim() && imageAttachments.length === 0) || disabled || isSending || isCompacting) {
       return;
+    }
 
     const messageText = input.trim();
 
@@ -610,22 +652,17 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           setIsSending(true);
 
           try {
-            // Construct message asking for summarization
-            const targetWords = parsed.maxOutputTokens
-              ? Math.round(parsed.maxOutputTokens / 1.3)
-              : 2000;
-            const compactionMessage = `Summarize this conversation into a compact form for a new Assistant to continue helping the user. Use approximately ${targetWords} words.`;
+            const {
+              messageText: compactionMessage,
+              metadata,
+              options,
+            } = prepareCompactionMessage(messageText, sendMessageOptions);
 
-            // Send message with compact_summary tool required and maxOutputTokens in options
-            // Note: Anthropic doesn't support extended thinking with required tool_choice,
-            // so disable thinking for Anthropic models during compaction
-            const isAnthropic = sendMessageOptions.model.startsWith("anthropic:");
             const result = await window.api.workspace.sendMessage(workspaceId, compactionMessage, {
               ...sendMessageOptions,
-              thinkingLevel: isAnthropic ? "off" : sendMessageOptions.thinkingLevel,
-              toolPolicy: [{ regex_match: "compact_summary", action: "require" }],
-              maxOutputTokens: parsed.maxOutputTokens, // Pass to model directly
-              mode: "compact" as const, // Allow users to customize compaction behavior via Mode: compact in AGENTS.md
+              ...options,
+              cmuxMetadata: metadata,
+              editMessageId: editingMessage?.id, // Support editing compaction messages
             });
 
             if (!result.success) {
@@ -633,18 +670,18 @@ export const ChatInput: React.FC<ChatInputProps> = ({
               setToast(createErrorToast(result.error));
               setInput(messageText); // Restore input on error
             } else {
-              // Notify parent to update continue message state (parent handles storage)
-              if (onCompactStart) {
-                onCompactStart(parsed.continueMessage);
-              }
-
               setToast({
                 id: Date.now().toString(),
                 type: "success",
-                message: parsed.continueMessage
-                  ? "Compaction started. Will continue automatically after completion."
-                  : "Compaction started. AI will summarize the conversation.",
+                message:
+                  metadata.type === "compaction-request" && metadata.parsed.continueMessage
+                    ? "Compaction started. Will continue automatically after completion."
+                    : "Compaction started. AI will summarize the conversation.",
               });
+              // Clear editing state on success
+              if (editingMessage && onCancelEdit) {
+                onCancelEdit();
+              }
             }
           } catch (error) {
             console.error("Compaction error:", error);
@@ -678,10 +715,31 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           mimeType: img.mimeType,
         }));
 
-        const result = await window.api.workspace.sendMessage(workspaceId, messageText, {
+        // When editing a /compact command, regenerate the actual summarization request
+        let actualMessageText = messageText;
+        let cmuxMetadata: CmuxFrontendMetadata | undefined;
+        let compactionOptions = {};
+
+        if (editingMessage && messageText.startsWith("/")) {
+          const parsed = parseCommand(messageText);
+          if (parsed?.type === "compact") {
+            const {
+              messageText: regeneratedText,
+              metadata,
+              options,
+            } = prepareCompactionMessage(messageText, sendMessageOptions);
+            actualMessageText = regeneratedText;
+            cmuxMetadata = metadata;
+            compactionOptions = options;
+          }
+        }
+
+        const result = await window.api.workspace.sendMessage(workspaceId, actualMessageText, {
           ...sendMessageOptions,
+          ...compactionOptions,
           editMessageId: editingMessage?.id,
           imageParts: imageParts.length > 0 ? imageParts : undefined,
+          cmuxMetadata,
         });
 
         if (!result.success) {
@@ -782,7 +840,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       return `Edit your message... (${formatKeybind(KEYBINDS.CANCEL)} to cancel edit, ${formatKeybind(KEYBINDS.SEND_MESSAGE)} to send)`;
     }
     if (isCompacting) {
-      return "Compacting conversation...";
+      return `Compacting... (${formatKeybind(KEYBINDS.INTERRUPT_STREAM)} to cancel)`;
     }
 
     // Build hints for normal input
@@ -818,7 +876,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           onPaste={handlePaste}
           suppressKeys={showCommandSuggestions ? COMMAND_SUGGESTION_KEYS : undefined}
           placeholder={placeholder}
-          disabled={disabled || isSending || isCompacting}
+          disabled={!editingMessage && (disabled || isSending || isCompacting)}
           aria-label={editingMessage ? "Edit your last message" : "Message Claude"}
           aria-autocomplete="list"
           aria-controls={

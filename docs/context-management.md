@@ -47,46 +47,60 @@ Compress conversation history using AI summarization. Replaces the conversation 
 ### Syntax
 
 ```
-/compact [-t <tokens>] [-c <message>]
+/compact [-t <tokens>]
+[continue message on subsequent lines]
 ```
 
 ### Options
 
 - `-t <tokens>` - Maximum output tokens for the summary (default: ~2000 words)
-- `-c <message>` - Continue after compaction with this user message
 
 ### Examples
+
+**Basic compaction:**
 
 ```
 /compact
 ```
 
-Basic compaction with defaults.
+**Limit summary size:**
 
 ```
 /compact -t 5000
 ```
 
-Limit summary to ~5000 tokens.
+**Auto-continue with custom message:**
 
 ```
-/compact -c "Continue implementing the auth system"
+/compact
+Continue implementing the auth system
 ```
 
-Compact and automatically send a follow-up message after compaction completes.
+After compaction completes, automatically sends "Continue implementing the auth system" as a follow-up message.
+
+**Multiline continue message:**
 
 ```
-/compact -t 3000 -c "Keep going"
+/compact
+Now let's refactor the middleware to use the new auth context.
+Make sure to add tests for the error cases.
 ```
 
-Combine token limit and auto-continue.
+Continue messages can span multiple lines for more detailed instructions.
+
+**Combine token limit and auto-continue:**
+
+```
+/compact -t 3000
+Keep working on the feature
+```
 
 ### Notes
 
 - Uses the selected LLM to summarize conversation history
 - Preserves actionable context and specific details
 - **Irreversible** - original messages are replaced
-- Continue message is used once per compaction (not persisted)
+- Continue message is sent once after compaction completes (not persisted)
 
 ---
 

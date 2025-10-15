@@ -1,11 +1,12 @@
 import { useEffect } from "react";
 import type { ChatInputAPI } from "@/components/ChatInput";
 import { matchesKeybind, KEYBINDS, isEditableElement } from "@/utils/ui/keybinds";
-import { getLastThinkingByModelKey } from "@/constants/storage";
+import { getLastThinkingByModelKey, getModelKey } from "@/constants/storage";
 import { updatePersistedState, readPersistedState } from "@/hooks/usePersistedState";
 import type { ThinkingLevel, ThinkingLevelOn } from "@/types/thinking";
 import { DEFAULT_THINKING_LEVEL } from "@/types/thinking";
 import { getThinkingPolicyForModel } from "@/utils/thinking/policy";
+import { defaultModel } from "@/utils/ai/models";
 
 interface UseAIViewKeybindsParams {
   workspaceId: string;
@@ -64,17 +65,18 @@ export function useAIViewKeybinds({
       if (matchesKeybind(e, KEYBINDS.TOGGLE_THINKING)) {
         e.preventDefault();
 
-        // Skip if no model set (workspace has no messages yet)
-        if (!currentModel) {
-          return;
-        }
+        // Get selected model from localStorage (what user sees in UI)
+        // Fall back to message history model, then to default model
+        // This matches the same logic as useSendMessageOptions
+        const selectedModel = readPersistedState<string | null>(getModelKey(workspaceId), null);
+        const modelToUse = selectedModel ?? currentModel ?? defaultModel;
 
         // Storage key for remembering this model's last-used active thinking level
-        const lastThinkingKey = getLastThinkingByModelKey(currentModel);
+        const lastThinkingKey = getLastThinkingByModelKey(modelToUse);
 
         // Special-case: if model has single-option policy (e.g., gpt-5-pro only supports HIGH),
         // the toggle is a no-op to avoid confusing state transitions.
-        const allowed = getThinkingPolicyForModel(currentModel);
+        const allowed = getThinkingPolicyForModel(modelToUse);
         if (allowed.length === 1) {
           return; // No toggle for single-option policies
         }
