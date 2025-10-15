@@ -252,6 +252,15 @@ export class WorkspaceStore {
   }
 
   /**
+   * Get current TODO list for a workspace.
+   * Returns empty array if workspace doesn't exist or has no TODOs.
+   */
+  getTodos(workspaceId: string): import("@/types/tools").TodoItem[] {
+    const aggregator = this.aggregators.get(workspaceId);
+    return aggregator ? aggregator.getCurrentTodos() : [];
+  }
+
+  /**
    * Add a workspace and subscribe to its IPC events.
    */
   addWorkspace(metadata: WorkspaceMetadata): void {
