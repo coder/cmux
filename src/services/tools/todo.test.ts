@@ -95,6 +95,42 @@ describe("Todo Storage", () => {
       expect(storedTodos).toEqual([]);
     });
 
+    it("should reject when exceeding MAX_TODOS limit", async () => {
+      // Create a list with 8 items (exceeds MAX_TODOS = 7)
+      const tooManyTodos: TodoItem[] = [
+        { content: "Task 1", status: "completed" },
+        { content: "Task 2", status: "completed" },
+        { content: "Task 3", status: "completed" },
+        { content: "Task 4", status: "completed" },
+        { content: "Task 5", status: "in_progress" },
+        { content: "Task 6", status: "pending" },
+        { content: "Task 7", status: "pending" },
+        { content: "Task 8", status: "pending" },
+      ];
+
+      await expect(setTodosForTempDir(tempDir, tooManyTodos)).rejects.toThrow(
+        /Too many TODOs \(8\/7\)/i
+      );
+      await expect(setTodosForTempDir(tempDir, tooManyTodos)).rejects.toThrow(
+        /Keep high precision at the center/i
+      );
+    });
+
+    it("should accept exactly MAX_TODOS items", async () => {
+      const maxTodos: TodoItem[] = [
+        { content: "Old work (2 tasks)", status: "completed" },
+        { content: "Recent task", status: "completed" },
+        { content: "Current work", status: "in_progress" },
+        { content: "Next step 1", status: "pending" },
+        { content: "Next step 2", status: "pending" },
+        { content: "Next step 3", status: "pending" },
+        { content: "Future work (5 items)", status: "pending" },
+      ];
+
+      await setTodosForTempDir(tempDir, maxTodos);
+      expect(await getTodosForTempDir(tempDir)).toEqual(maxTodos);
+    });
+
     it("should reject multiple in_progress tasks", async () => {
       const validTodos: TodoItem[] = [
         {

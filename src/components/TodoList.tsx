@@ -56,7 +56,23 @@ const TodoContent = styled.div`
   min-width: 0;
 `;
 
-const TodoText = styled.div<{ status: TodoItem["status"] }>`
+/**
+ * Calculate opacity fade for items distant from the center (exponential decay).
+ * @param distance - How far from the center (higher = more fade)
+ * @param minOpacity - Minimum opacity floor
+ * @returns Opacity value between minOpacity and 1.0
+ */
+function calculateFadeOpacity(distance: number, minOpacity: number): number {
+  return Math.max(minOpacity, 1 - distance * 0.15);
+}
+
+const TodoText = styled.div<{
+  status: TodoItem["status"];
+  completedIndex?: number;
+  totalCompleted?: number;
+  pendingIndex?: number;
+  totalPending?: number;
+}>`
   color: ${(props) => {
     switch (props.status) {
       case "completed":
@@ -68,7 +84,34 @@ const TodoText = styled.div<{ status: TodoItem["status"] }>`
     }
   }};
   text-decoration: ${(props) => (props.status === "completed" ? "line-through" : "none")};
-  opacity: ${(props) => (props.status === "completed" ? "0.7" : "1")};
+  opacity: ${(props) => {
+    if (props.status === "completed") {
+      // Apply gradient fade for old completed items (distant past)
+      if (
+        props.completedIndex !== undefined &&
+        props.totalCompleted !== undefined &&
+        props.totalCompleted > 2 &&
+        props.completedIndex < props.totalCompleted - 2
+      ) {
+        const distance = props.totalCompleted - props.completedIndex;
+        return calculateFadeOpacity(distance, 0.35);
+      }
+      return "0.7";
+    }
+    if (props.status === "pending") {
+      // Apply gradient fade for far future pending items (distant future)
+      if (
+        props.pendingIndex !== undefined &&
+        props.totalPending !== undefined &&
+        props.totalPending > 2 &&
+        props.pendingIndex > 1
+      ) {
+        const distance = props.pendingIndex - 1;
+        return calculateFadeOpacity(distance, 0.5);
+      }
+    }
+    return "1";
+  }};
   font-weight: ${(props) => (props.status === "in_progress" ? "500" : "normal")};
   white-space: nowrap;
 
@@ -121,16 +164,35 @@ function getStatusIcon(status: TodoItem["status"]): string {
  * - PinnedTodoList (pinned at bottom of chat)
  */
 export const TodoList: React.FC<TodoListProps> = ({ todos }) => {
+  // Count completed and pending items for fade effects
+  const completedCount = todos.filter((t) => t.status === "completed").length;
+  const pendingCount = todos.filter((t) => t.status === "pending").length;
+  let completedIndex = 0;
+  let pendingIndex = 0;
+
   return (
     <TodoListContainer>
-      {todos.map((todo, index) => (
-        <TodoItemContainer key={index} status={todo.status}>
-          <TodoIcon>{getStatusIcon(todo.status)}</TodoIcon>
-          <TodoContent>
-            <TodoText status={todo.status}>{todo.content}</TodoText>
-          </TodoContent>
-        </TodoItemContainer>
-      ))}
+      {todos.map((todo, index) => {
+        const currentCompletedIndex = todo.status === "completed" ? completedIndex++ : undefined;
+        const currentPendingIndex = todo.status === "pending" ? pendingIndex++ : undefined;
+
+        return (
+          <TodoItemContainer key={index} status={todo.status}>
+            <TodoIcon>{getStatusIcon(todo.status)}</TodoIcon>
+            <TodoContent>
+              <TodoText
+                status={todo.status}
+                completedIndex={currentCompletedIndex}
+                totalCompleted={completedCount}
+                pendingIndex={currentPendingIndex}
+                totalPending={pendingCount}
+              >
+                {todo.content}
+              </TodoText>
+            </TodoContent>
+          </TodoItemContainer>
+        );
+      })}
     </TodoListContainer>
   );
 };

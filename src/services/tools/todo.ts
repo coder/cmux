@@ -4,6 +4,7 @@ import * as path from "path";
 import type { ToolFactory } from "@/utils/tools/tools";
 import { TOOL_DEFINITIONS } from "@/utils/tools/toolDefinitions";
 import type { TodoItem } from "@/types/tools";
+import { MAX_TODOS } from "@/constants/toolLimits";
 
 /**
  * Get path to todos.json file in the stream's temporary directory
@@ -29,6 +30,7 @@ async function readTodos(tempDir: string): Promise<TodoItem[]> {
 /**
  * Validate todo sequencing rules before persisting.
  * Enforces order: completed → in_progress → pending (top to bottom)
+ * Enforces maximum count to encourage summarization.
  */
 function validateTodos(todos: TodoItem[]): void {
   if (!Array.isArray(todos)) {
@@ -37,6 +39,19 @@ function validateTodos(todos: TodoItem[]): void {
 
   if (todos.length === 0) {
     return;
+  }
+
+  // Enforce maximum TODO count
+  if (todos.length > MAX_TODOS) {
+    throw new Error(
+      `Too many TODOs (${todos.length}/${MAX_TODOS}). ` +
+        `Keep high precision at the center: ` +
+        `summarize old completed work (e.g., 'Setup phase (3 tasks)'), ` +
+        `keep recent completions detailed (1-2), ` +
+        `one in_progress, ` +
+        `immediate pending detailed (2-3), ` +
+        `and summarize far future work (e.g., 'Testing phase (4 items)').`
+    );
   }
 
   let phase: "completed" | "in_progress" | "pending" = "completed";
