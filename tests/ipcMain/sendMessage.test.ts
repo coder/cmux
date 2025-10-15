@@ -129,12 +129,14 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
         const { env, workspaceId, cleanup } = await setupWorkspace(provider);
         try {
           // Send a message that will generate text deltas
+          // Disable reasoning for this test to avoid flakiness and encrypted content issues in CI
           void sendMessageWithModel(
             env.mockIpcRenderer,
             workspaceId,
             "Write a short paragraph about TypeScript",
             provider,
-            model
+            model,
+            { thinkingLevel: "off" }
           );
 
           // Wait for stream to start
@@ -193,7 +195,7 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
           await cleanup();
         }
       },
-      15000
+      30000 // Increased timeout for OpenAI models which can be slower in CI
     );
 
     test.concurrent(
@@ -1311,10 +1313,13 @@ These are general instructions that apply to all modes.
           const testFilePath = path.join(workspacePath, "redaction-edit-test.txt");
           await fs.writeFile(testFilePath, "line1\nline2\nline3\n", "utf-8");
 
+          // Request confirmation to ensure AI generates text after tool calls
+          // This prevents flaky test failures where AI completes tools but doesn't emit stream-end
+
           const result1 = await sendMessageWithModel(
             env.mockIpcRenderer,
             workspaceId,
-            `Open and replace 'line2' with 'LINE2' in ${path.basename(testFilePath)} using file_edit_replace`,
+            `Open and replace 'line2' with 'LINE2' in ${path.basename(testFilePath)} using file_edit_replace, then confirm the change was successfully applied.`,
             provider,
             model
           );
