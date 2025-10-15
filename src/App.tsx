@@ -727,6 +727,45 @@ function AppInner() {
     openCommandPalette,
   ]);
 
+  // Handle workspace fork switch event
+  useEffect(() => {
+    const handleForkSwitch = (e: Event) => {
+      const customEvent = e as CustomEvent<{
+        workspaceId: string;
+        projectPath: string;
+        projectName: string;
+        workspacePath: string;
+        branch: string;
+      }>;
+      const { workspaceId, projectPath, projectName, workspacePath } = customEvent.detail;
+
+      // Find the project in config
+      const project = projects.get(projectPath);
+      if (!project) {
+        console.error(`Project not found for path: ${projectPath}`);
+        return;
+      }
+
+      // Switch to the new workspace
+      setSelectedWorkspace({
+        workspaceId,
+        projectPath,
+        projectName,
+        workspacePath,
+      });
+    };
+
+    window.addEventListener(
+      CUSTOM_EVENTS.WORKSPACE_FORK_SWITCH,
+      handleForkSwitch as EventListener
+    );
+    return () =>
+      window.removeEventListener(
+        CUSTOM_EVENTS.WORKSPACE_FORK_SWITCH,
+        handleForkSwitch as EventListener
+      );
+  }, [projects, setSelectedWorkspace]);
+
   return (
     <>
       <GlobalColors />

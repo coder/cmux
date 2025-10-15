@@ -8,6 +8,7 @@ import {
   listLocalBranches,
   detectDefaultTrunkBranch,
   getMainWorktreeFromWorktree,
+  getCurrentBranch,
 } from "@/git";
 import { removeWorktreeSafe, removeWorktree, pruneWorktrees } from "@/services/gitService";
 import { AIService } from "@/services/aiService";
@@ -363,6 +364,137 @@ export class IpcMain {
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
           return Err(`Failed to rename workspace: ${message}`);
+        }
+      }
+    );
+
+    ipcMain.handle(
+      IPC_CHANNELS.WORKSPACE_FORK,
+      async (_event, sourceWorkspaceId: string, newName: string) => {
+        try {
+          // Validate new workspace name
+          const validation = validateWorkspaceName(newName);
+          if (!validation.valid) {
+            return { success: false, error: validation.error };
+          }
+
+          // Block fork if there's an active stream - must interrupt first
+          if (this.aiService.isStreaming(sourceWorkspaceId)) {
+            return {
+              success: false,
+              error:
+                "Cannot fork workspace while stream is active. Press Esc to stop the stream first.",
+            };
+          }
+
+          // Get source workspace metadata and paths
+          const sourceMetadataResult =
+            await this.aiService.getWorkspaceMetadata(sourceWorkspaceId);
+          if (!sourceMetadataResult.success) {
+            return {
+              success: false,
+              error: `Failed to get source workspace metadata: ${sourceMetadataResult.error}`,
+            };
+          }
+          const sourceMetadata = sourceMetadataResult.data;
+          const sourceWorkspacePath = sourceMetadata.workspacePath;
+
+          // Find project path from config
+          const workspace = this.config.findWorkspace(sourceWorkspaceId);
+          if (!workspace) {
+            return { success: false, error: "Failed to find workspace in config" };
+          }
+          const foundProjectPath = workspace.projectPath;
+
+          // Get current branch from source workspace (fork from current branch, not trunk)
+          const sourceBranch = await getCurrentBranch(sourceWorkspacePath);
+          if (!sourceBranch) {
+            return {
+              success: false,
+              error: "Failed to detect current branch in source workspace",
+            };
+          }
+
+          // Generate stable workspace ID for the new workspace
+          const newWorkspaceId = this.config.generateStableId();
+
+          // Create new git worktree branching from source workspace's branch
+          const result = await createWorktree(this.config, foundProjectPath, newName, {
+            trunkBranch: sourceBranch,
+            workspaceId: newWorkspaceId, // Use stable ID for directory name
+          });
+
+          if (!result.success || !result.path) {
+            return { success: false, error: result.error ?? "Failed to create worktree" };
+          }
+
+          const newWorkspacePath = result.path;
+          const projectName = sourceMetadata.projectName;
+
+          // Copy chat history from source to destination
+          const sourceSessionDir = this.config.getSessionDir(sourceWorkspaceId);
+          const newSessionDir = this.config.getSessionDir(newWorkspaceId);
+
+          try {
+            // Create new session directory
+            await fsPromises.mkdir(newSessionDir, { recursive: true });
+
+            // Copy chat.jsonl if it exists
+            const sourceChatPath = path.join(sourceSessionDir, "chat.jsonl");
+            const newChatPath = path.join(newSessionDir, "chat.jsonl");
+            try {
+              await fsPromises.copyFile(sourceChatPath, newChatPath);
+            } catch (error) {
+              // chat.jsonl doesn't exist yet - that's okay, continue
+              if (
+                !(error && typeof error === "object" && "code" in error && error.code === "ENOENT")
+              ) {
+                throw error;
+              }
+            }
+
+            // Note: We deliberately don't copy partial.json - fork starts with a clean slate
+          } catch (copyError) {
+            // If copy fails, clean up the worktree we created
+            await removeWorktree(foundProjectPath, newWorkspacePath);
+            const message = copyError instanceof Error ? copyError.message : String(copyError);
+            return { success: false, error: `Failed to copy chat history: ${message}` };
+          }
+
+          // Initialize workspace metadata with stable ID and name
+          const metadata = {
+            id: newWorkspaceId,
+            name: newName, // Name is separate from ID
+            projectName,
+            workspacePath: newWorkspacePath,
+            createdAt: new Date().toISOString(),
+          };
+          await this.aiService.saveWorkspaceMetadata(newWorkspaceId, metadata);
+
+          // Update config to include the new workspace
+          const projectPath = foundProjectPath; // Capture for closure
+          this.config.editConfig((config) => {
+            const projectConfig = config.projects.get(projectPath);
+            if (projectConfig) {
+              projectConfig.workspaces.push({
+                path: newWorkspacePath,
+              });
+            }
+            return config;
+          });
+
+          // Emit metadata event for new workspace
+          const session = this.getOrCreateSession(newWorkspaceId);
+          session.emitMetadata(metadata);
+
+          return {
+            success: true,
+            metadata,
+            projectPath: foundProjectPath,
+          };
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          return { success: false, error: `Failed to fork workspace: ${message}` };
         }
       }
     );

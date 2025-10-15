@@ -10,7 +10,7 @@ import { usePersistedState, updatePersistedState } from "@/hooks/usePersistedSta
 import { useMode } from "@/contexts/ModeContext";
 import { ChatToggles } from "./ChatToggles";
 import { useSendMessageOptions } from "@/hooks/useSendMessageOptions";
-import { getModelKey, getInputKey } from "@/constants/storage";
+import { getModelKey, getInputKey, copyWorkspaceStorage } from "@/constants/storage";
 import { ToggleGroup } from "./ToggleGroup";
 import { CUSTOM_EVENTS } from "@/constants/events";
 import type { UIMode } from "@/types/mode";
@@ -730,6 +730,72 @@ export const ChatInput: React.FC<ChatInputProps> = ({
               id: Date.now().toString(),
               type: "error",
               message: error instanceof Error ? error.message : "Failed to start compaction",
+            });
+            setInput(messageText); // Restore input on error
+          } finally {
+            setIsSending(false);
+          }
+          return;
+        }
+
+        // Handle /fork command
+        if (parsed.type === "fork") {
+          setInput(""); // Clear input immediately
+          setIsSending(true);
+
+          try {
+            const result = await window.api.workspace.fork(workspaceId, parsed.newName);
+
+            if (!result.success) {
+              console.error("Failed to fork workspace:", result.error);
+              setToast({
+                id: Date.now().toString(),
+                type: "error",
+                title: "Fork Failed",
+                message: result.error,
+              });
+              setInput(messageText); // Restore input on error
+            } else {
+              // Copy UI state to the new workspace
+              copyWorkspaceStorage(workspaceId, result.metadata.id);
+
+              setToast({
+                id: Date.now().toString(),
+                type: "success",
+                message: `Forked to workspace "${parsed.newName}"`,
+              });
+
+              // Dispatch custom event to switch workspace
+              window.dispatchEvent(
+                new CustomEvent(CUSTOM_EVENTS.WORKSPACE_FORK_SWITCH, {
+                  detail: {
+                    workspaceId: result.metadata.id,
+                    projectPath: result.projectPath,
+                    projectName: result.metadata.projectName,
+                    workspacePath: result.metadata.workspacePath,
+                    branch: parsed.newName,
+                  },
+                })
+              );
+
+              // If there's a start message, send it after a short delay to let the workspace switch
+              if (parsed.startMessage) {
+                setTimeout(() => {
+                  void window.api.workspace
+                    .sendMessage(result.metadata.id, parsed.startMessage!, sendMessageOptions)
+                    .catch((error) => {
+                      console.error("Failed to send start message:", error);
+                    });
+                }, 300);
+              }
+            }
+          } catch (error) {
+            console.error("Fork error:", error);
+            setToast({
+              id: Date.now().toString(),
+              type: "error",
+              title: "Fork Failed",
+              message: error instanceof Error ? error.message : "Failed to fork workspace",
             });
             setInput(messageText); // Restore input on error
           } finally {

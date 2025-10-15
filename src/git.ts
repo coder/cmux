@@ -27,7 +27,7 @@ export async function listLocalBranches(projectPath: string): Promise<string[]> 
     .sort((a, b) => a.localeCompare(b));
 }
 
-async function getCurrentBranch(projectPath: string): Promise<string | null> {
+export async function getCurrentBranch(projectPath: string): Promise<string | null> {
   try {
     using proc = execAsync(`git -C "${projectPath}" rev-parse --abbrev-ref HEAD`);
     const { stdout } = await proc.result;

@@ -436,6 +436,37 @@ const telemetryCommandDefinition: SlashCommandDefinition = {
   },
 };
 
+const forkCommandDefinition: SlashCommandDefinition = {
+  key: "fork",
+  description: "Fork workspace with new name and optional start message",
+  handler: ({ cleanRemainingTokens, remainingTokens }): ParsedCommand => {
+    if (cleanRemainingTokens.length === 0) {
+      return {
+        type: "fork-help",
+      };
+    }
+
+    const newName = cleanRemainingTokens[0];
+
+    // Everything after the first token (workspace name) becomes the start message
+    // We need to reconstruct from remainingTokens to preserve quotes
+    const startMessage =
+      remainingTokens.length > 1
+        ? remainingTokens
+            .slice(1)
+            .map((token) => token.replace(/^"(.*)"$/, "$1"))
+            .join(" ")
+            .trim()
+        : undefined;
+
+    return {
+      type: "fork",
+      newName,
+      startMessage: startMessage && startMessage.length > 0 ? startMessage : undefined,
+    };
+  },
+};
+
 export const SLASH_COMMAND_DEFINITIONS: readonly SlashCommandDefinition[] = [
   clearCommandDefinition,
   truncateCommandDefinition,
@@ -443,6 +474,7 @@ export const SLASH_COMMAND_DEFINITIONS: readonly SlashCommandDefinition[] = [
   modelCommandDefinition,
   providersCommandDefinition,
   telemetryCommandDefinition,
+  forkCommandDefinition,
 ];
 
 export const SLASH_COMMAND_DEFINITION_MAP = new Map(

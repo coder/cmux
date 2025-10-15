@@ -69,3 +69,27 @@ export const USE_1M_CONTEXT_KEY = "use1MContext";
 export function getCompactContinueMessageKey(workspaceId: string): string {
   return `compactContinueMessage:${workspaceId}`;
 }
+
+
+/**
+ * Copy all workspace-specific localStorage keys from source to destination workspace
+ * This includes: model, input, mode, thinking level, auto-retry, retry state
+ */
+export function copyWorkspaceStorage(sourceWorkspaceId: string, destWorkspaceId: string): void {
+  const keys = [
+    { source: getModelKey(sourceWorkspaceId), dest: getModelKey(destWorkspaceId) },
+    { source: getInputKey(sourceWorkspaceId), dest: getInputKey(destWorkspaceId) },
+    { source: getModeKey(sourceWorkspaceId), dest: getModeKey(destWorkspaceId) },
+    { source: getThinkingLevelKey(sourceWorkspaceId), dest: getThinkingLevelKey(destWorkspaceId) },
+    { source: getAutoRetryKey(sourceWorkspaceId), dest: getAutoRetryKey(destWorkspaceId) },
+    { source: getRetryStateKey(sourceWorkspaceId), dest: getRetryStateKey(destWorkspaceId) },
+    // Note: We deliberately skip getCompactContinueMessageKey as it's ephemeral
+  ];
+
+  for (const { source, dest } of keys) {
+    const value = localStorage.getItem(source);
+    if (value !== null) {
+      localStorage.setItem(dest, value);
+    }
+  }
+}

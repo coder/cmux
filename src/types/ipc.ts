@@ -193,6 +193,13 @@ export interface IPCApi {
       workspaceId: string,
       newName: string
     ): Promise<Result<{ newWorkspaceId: string }, string>>;
+    fork(
+      sourceWorkspaceId: string,
+      newName: string
+    ): Promise<
+      | { success: true; metadata: WorkspaceMetadata; projectPath: string }
+      | { success: false; error: string }
+    >;
     sendMessage(
       workspaceId: string,
       message: string,
