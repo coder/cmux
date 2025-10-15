@@ -160,7 +160,7 @@ export const TOOL_DEFINITIONS = {
       "Mark ONE task as in_progress at a time. " +
       "Order tasks as: completed first, then in_progress (max 1), then pending last. " +
       "Update frequently as work progresses to provide visibility into ongoing operations. " +
-      "Before finishing the stream, ensure all todos are marked as completed. " +
+      "Before finishing your response, ensure all todos are marked as completed. " +
       "Use appropriate tense in content: past tense for completed (e.g., 'Added tests'), " +
       "present progressive for in_progress (e.g., 'Adding tests'), " +
       "and imperative/infinitive for pending (e.g., 'Add tests').",
