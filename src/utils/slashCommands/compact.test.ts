@@ -214,4 +214,23 @@ describe("multiline continue messages", () => {
       continueMessage: undefined,
     });
   });
+
+  it("does not parse lines after newline as flags", () => {
+    // Bug: multiline content starting with -t or -c should not be parsed as flags
+    const result = parseCommand("/compact\n-t should be treated as message content");
+    expect(result).toEqual({
+      type: "compact",
+      maxOutputTokens: undefined,
+      continueMessage: "-t should be treated as message content",
+    });
+  });
+
+  it("does not parse lines after newline as flags with existing flag", () => {
+    const result = parseCommand("/compact -t 5000\n-c this is not a flag");
+    expect(result).toEqual({
+      type: "compact",
+      maxOutputTokens: 5000,
+      continueMessage: "-c this is not a flag",
+    });
+  });
 });

@@ -173,16 +173,22 @@ const compactCommandDefinition: SlashCommandDefinition = {
   key: "compact",
   description:
     "Compact conversation history using AI summarization. Use -t <tokens> to set max output tokens. Add continue message on lines after the command.",
-  handler: ({ cleanRemainingTokens, rawInput }): ParsedCommand => {
+  handler: ({ rawInput }): ParsedCommand => {
     // Split rawInput into first line (for flags) and remaining lines (for multiline continue)
     // rawInput format: "-t 5000\nContinue here" or "\nContinue here" (starts with newline if no flags)
     const hasMultilineContent = rawInput.includes("\n");
     const lines = rawInput.split("\n");
-    // Note: firstLine could be empty string if rawInput starts with \n (which is fine)
+    const firstLine = lines[0]; // First line contains flags
     const remainingLines = lines.slice(1).join("\n").trim();
 
+    // Tokenize ONLY the first line to extract flags
+    // This prevents content after newlines from being parsed as flags
+    const firstLineTokens = (firstLine.match(/(?:[^\s"]+|"[^"]*")+/g) ?? []).map((token) =>
+      token.replace(/^"(.*)"$/, "$1")
+    );
+
     // Parse flags from first line using minimist
-    const parsed = minimist(cleanRemainingTokens, {
+    const parsed = minimist(firstLineTokens, {
       string: ["t", "c"],
       unknown: (arg: string) => {
         // Unknown flags starting with - are errors
@@ -193,8 +199,8 @@ const compactCommandDefinition: SlashCommandDefinition = {
       },
     });
 
-    // Check for unknown flags
-    const unknownFlags = cleanRemainingTokens.filter(
+    // Check for unknown flags (only from first line)
+    const unknownFlags = firstLineTokens.filter(
       (token) => token.startsWith("-") && token !== "-t" && token !== "-c"
     );
     if (unknownFlags.length > 0) {
