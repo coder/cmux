@@ -148,6 +148,13 @@ function AppInner() {
   );
   const [workspaceModalOpen, setWorkspaceModalOpen] = useState(false);
   const [workspaceModalProject, setWorkspaceModalProject] = useState<string | null>(null);
+  const [workspaceModalProjectName, setWorkspaceModalProjectName] = useState<string>("");
+  const [workspaceModalBranches, setWorkspaceModalBranches] = useState<string[]>([]);
+  const [workspaceModalDefaultTrunk, setWorkspaceModalDefaultTrunk] = useState<string | undefined>(
+    undefined
+  );
+  const [workspaceModalLoadError, setWorkspaceModalLoadError] = useState<string | null>(null);
+  const workspaceModalProjectRef = useRef<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = usePersistedState("sidebarCollapsed", false);
 
   const handleToggleSidebar = useCallback(() => {
@@ -265,9 +272,45 @@ function AppInner() {
     [removeProject, selectedWorkspace, setSelectedWorkspace]
   );
 
-  const handleAddWorkspace = useCallback((projectPath: string) => {
+  const handleAddWorkspace = useCallback(async (projectPath: string) => {
+    const projectName = projectPath.split("/").pop() ?? projectPath.split("\\").pop() ?? "project";
+
+    workspaceModalProjectRef.current = projectPath;
     setWorkspaceModalProject(projectPath);
+    setWorkspaceModalProjectName(projectName);
+    setWorkspaceModalBranches([]);
+    setWorkspaceModalDefaultTrunk(undefined);
+    setWorkspaceModalLoadError(null);
     setWorkspaceModalOpen(true);
+
+    try {
+      const branchResult = await window.api.projects.listBranches(projectPath);
+
+      // Guard against race condition: only update state if this is still the active project
+      if (workspaceModalProjectRef.current !== projectPath) {
+        return;
+      }
+
+      const sanitizedBranches = Array.isArray(branchResult?.branches)
+        ? branchResult.branches.filter((branch): branch is string => typeof branch === "string")
+        : [];
+
+      const recommended =
+        typeof branchResult?.recommendedTrunk === "string" &&
+        sanitizedBranches.includes(branchResult.recommendedTrunk)
+          ? branchResult.recommendedTrunk
+          : sanitizedBranches[0];
+
+      setWorkspaceModalBranches(sanitizedBranches);
+      setWorkspaceModalDefaultTrunk(recommended);
+      setWorkspaceModalLoadError(null);
+    } catch (err) {
+      console.error("Failed to load branches for modal:", err);
+      const message = err instanceof Error ? err.message : "Unknown error";
+      setWorkspaceModalLoadError(
+        `Unable to load branches automatically: ${message}. You can still enter the trunk branch manually.`
+      );
+    }
   }, []);
 
   // Memoize callbacks to prevent LeftSidebar/ProjectSidebar re-renders
@@ -452,7 +495,7 @@ function AppInner() {
 
   const openNewWorkspaceFromPalette = useCallback(
     (projectPath: string) => {
-      handleAddWorkspace(projectPath);
+      void handleAddWorkspace(projectPath);
     },
     [handleAddWorkspace]
   );
@@ -665,10 +708,18 @@ function AppInner() {
         {workspaceModalOpen && workspaceModalProject && (
           <NewWorkspaceModal
             isOpen={workspaceModalOpen}
-            projectPath={workspaceModalProject}
+            projectName={workspaceModalProjectName}
+            branches={workspaceModalBranches}
+            defaultTrunkBranch={workspaceModalDefaultTrunk}
+            loadErrorMessage={workspaceModalLoadError}
             onClose={() => {
+              workspaceModalProjectRef.current = null;
               setWorkspaceModalOpen(false);
               setWorkspaceModalProject(null);
+              setWorkspaceModalProjectName("");
+              setWorkspaceModalBranches([]);
+              setWorkspaceModalDefaultTrunk(undefined);
+              setWorkspaceModalLoadError(null);
             }}
             onAdd={handleCreateWorkspace}
           />

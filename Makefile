@@ -32,6 +32,7 @@ include fmt.mk
 .PHONY: test test-unit test-integration test-watch test-coverage test-e2e
 .PHONY: dist dist-mac dist-win dist-linux
 .PHONY: docs docs-build docs-watch
+.PHONY: storybook storybook-build test-storybook
 .PHONY: benchmark-terminal
 .PHONY: ensure-deps
 .PHONY: check-eager-imports check-bundle-size check-startup
@@ -222,6 +223,16 @@ docs-build: ## Build documentation
 
 docs-watch: ## Watch and rebuild documentation
 	@cd docs && mdbook watch
+
+## Storybook
+storybook: node_modules/.installed ## Start Storybook development server
+	@bun x storybook dev -p 6006
+
+storybook-build: node_modules/.installed ## Build static Storybook
+	@bun x storybook build
+
+test-storybook: node_modules/.installed ## Run Storybook interaction tests (requires Storybook to be running or built)
+	@bun x test-storybook
 
 ## Benchmarks
 benchmark-terminal: ## Run Terminal-Bench with the cmux agent (use TB_DATASET/TB_ARGS to customize)

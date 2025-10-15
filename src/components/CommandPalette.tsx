@@ -217,7 +217,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ getSlashContext 
   const handlePromptTextSubmit = useCallback(() => {
     if (!activePrompt) return;
     const field = activePrompt.fields[activePrompt.idx];
-    if (!field || field.type !== "text") return;
+    if (field?.type !== "text") return;
     const trimmed = query.trim();
     const err = field.validate?.(trimmed) ?? null;
     if (err) {
@@ -328,7 +328,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ getSlashContext 
     };
 
     const hydrateSelectOptions = async () => {
-      if (!currentField || currentField.type !== "select") {
+      if (currentField?.type !== "select") {
         resetState();
         return;
       }

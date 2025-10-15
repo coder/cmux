@@ -94,3 +94,4 @@ __pycache__
 
 tmpfork
 .cmux-agent-cli
+storybook-static/

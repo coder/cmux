@@ -49,12 +49,14 @@ interface AssistantMessageProps {
   message: DisplayedMessage & { type: "assistant" };
   className?: string;
   workspaceId?: string;
+  clipboardWriteText?: (data: string) => Promise<void>;
 }
 
 export const AssistantMessage: React.FC<AssistantMessageProps> = ({
   message,
   className,
   workspaceId,
+  clipboardWriteText = (data: string) => navigator.clipboard.writeText(data),
 }) => {
   const [showRaw, setShowRaw] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -74,7 +76,7 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({
 
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(content);
+      await clipboardWriteText(content);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {

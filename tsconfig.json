@@ -18,6 +18,12 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src/**/*.tsx", "src/**/*.ts", "tests/**/*.ts"],
+  "include": [
+    "src/**/*.tsx",
+    "src/**/*.ts",
+    "tests/**/*.ts",
+    ".storybook/**/*.ts",
+    ".storybook/**/*.tsx"
+  ],
   "exclude": ["node_modules", "dist"]
 }

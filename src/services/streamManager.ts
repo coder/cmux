@@ -262,7 +262,7 @@ export class StreamManager extends EventEmitter {
     part: unknown
   ): boolean {
     const maybeDelta = part as { type?: string } | undefined;
-    if (!maybeDelta || maybeDelta.type !== "tool-call-delta") {
+    if (maybeDelta?.type !== "tool-call-delta") {
       return false;
     }
 

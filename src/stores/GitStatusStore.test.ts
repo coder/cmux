@@ -48,7 +48,6 @@ describe("GitStatusStore", () => {
   afterEach(() => {
     store.dispose();
     // Cleanup mocked window to avoid leaking between tests
-
     delete (globalThis as { window?: unknown }).window;
   });
 

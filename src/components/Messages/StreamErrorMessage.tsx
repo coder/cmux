@@ -61,8 +61,6 @@ const ErrorCount = styled.span`
 interface StreamErrorMessageProps {
   message: DisplayedMessage & { type: "stream-error" };
   className?: string;
-  workspaceId?: string;
-  model?: string;
 }
 
 // Note: RetryBarrier now handles all retry UI. This component just displays the error.

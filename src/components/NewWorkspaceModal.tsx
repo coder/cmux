@@ -56,32 +56,55 @@ const InfoCode = styled.code`
 
 interface NewWorkspaceModalProps {
   isOpen: boolean;
-  projectPath: string;
+  projectName: string;
+  branches: string[];
+  defaultTrunkBranch?: string;
+  loadErrorMessage?: string | null;
   onClose: () => void;
   onAdd: (branchName: string, trunkBranch: string) => Promise<void>;
 }
 
 const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
   isOpen,
-  projectPath,
+  projectName,
+  branches,
+  defaultTrunkBranch,
+  loadErrorMessage,
   onClose,
   onAdd,
 }) => {
   const [branchName, setBranchName] = useState("");
-  const [trunkBranch, setTrunkBranch] = useState("");
-  const [defaultTrunkBranch, setDefaultTrunkBranch] = useState("");
-  const [branches, setBranches] = useState<string[]>([]);
-  const [isLoadingBranches, setIsLoadingBranches] = useState(false);
+  const [trunkBranch, setTrunkBranch] = useState(defaultTrunkBranch ?? branches[0] ?? "");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [branchesError, setBranchesError] = useState<string | null>(null);
   const infoId = useId();
+  const hasBranches = branches.length > 0;
+
+  useEffect(() => {
+    setError(loadErrorMessage ?? null);
+  }, [loadErrorMessage]);
+
+  useEffect(() => {
+    const fallbackTrunk = defaultTrunkBranch ?? branches[0] ?? "";
+    setTrunkBranch((current) => {
+      const trimmedCurrent = current.trim();
+
+      if (!hasBranches) {
+        return trimmedCurrent.length === 0 ? fallbackTrunk : current;
+      }
+
+      if (trimmedCurrent.length === 0 || !branches.includes(trimmedCurrent)) {
+        return fallbackTrunk;
+      }
+
+      return current;
+    });
+  }, [branches, defaultTrunkBranch, hasBranches]);
 
   const handleCancel = () => {
     setBranchName("");
-    setTrunkBranch(defaultTrunkBranch);
-    setError(null);
-    setBranchesError(null);
+    setTrunkBranch(defaultTrunkBranch ?? branches[0] ?? "");
+    setError(loadErrorMessage ?? null);
     onClose();
   };
 
@@ -108,7 +131,7 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
     try {
       await onAdd(trimmedBranchName, normalizedTrunkBranch);
       setBranchName("");
-      setTrunkBranch(defaultTrunkBranch);
+      setTrunkBranch(defaultTrunkBranch ?? branches[0] ?? "");
       onClose();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to create workspace";
@@ -117,62 +140,6 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
       setIsLoading(false);
     }
   };
-
-  // Load branches when modal opens
-  useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-
-    const loadBranches = async () => {
-      setIsLoadingBranches(true);
-      setBranchesError(null);
-      try {
-        const branchList = await window.api.projects.listBranches(projectPath);
-        const rawBranches = Array.isArray(branchList?.branches) ? branchList.branches : [];
-        const sanitizedBranches = rawBranches.filter(
-          (branch): branch is string => typeof branch === "string"
-        );
-
-        if (!Array.isArray(branchList?.branches)) {
-          console.warn("Expected listBranches to return BranchListResult", branchList);
-        }
-
-        setBranches(sanitizedBranches);
-
-        if (sanitizedBranches.length === 0) {
-          setTrunkBranch("");
-          setDefaultTrunkBranch("");
-          setBranchesError("No branches available in this project");
-          return;
-        }
-
-        const recommended =
-          typeof branchList?.recommendedTrunk === "string" &&
-          sanitizedBranches.includes(branchList.recommendedTrunk)
-            ? branchList.recommendedTrunk
-            : sanitizedBranches[0];
-
-        setBranchesError(null);
-        setDefaultTrunkBranch(recommended);
-        setTrunkBranch((current) =>
-          current && sanitizedBranches.includes(current) ? current : recommended
-        );
-      } catch (err) {
-        const message = err instanceof Error ? err.message : "Failed to load branches";
-        setBranches([]);
-        setTrunkBranch("");
-        setDefaultTrunkBranch("");
-        setBranchesError(message);
-      } finally {
-        setIsLoadingBranches(false);
-      }
-    };
-
-    void loadBranches();
-  }, [isOpen, projectPath]);
-
-  const projectName = projectPath.split("/").pop() ?? projectPath.split("\\").pop() ?? "project";
 
   return (
     <Modal
@@ -205,27 +172,38 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
 
         <FormGroup>
           <label htmlFor="trunkBranch">Trunk Branch:</label>
-          <select
-            id="trunkBranch"
-            value={trunkBranch}
-            onChange={(event) => setTrunkBranch(event.target.value)}
-            disabled={isLoading || isLoadingBranches || branches.length === 0}
-            required
-            aria-required="true"
-          >
-            {isLoadingBranches ? (
-              <option value="">Loading branches...</option>
-            ) : branches.length === 0 ? (
-              <option value="">No branches available</option>
-            ) : (
-              branches.map((branch) => (
+          {hasBranches ? (
+            <select
+              id="trunkBranch"
+              value={trunkBranch}
+              onChange={(event) => setTrunkBranch(event.target.value)}
+              disabled={isLoading}
+              required
+              aria-required="true"
+            >
+              {branches.map((branch) => (
                 <option key={branch} value={branch}>
                   {branch}
                 </option>
-              ))
-            )}
-          </select>
-          {branchesError && <ErrorMessage>{branchesError}</ErrorMessage>}
+              ))}
+            </select>
+          ) : (
+            <input
+              id="trunkBranch"
+              type="text"
+              value={trunkBranch}
+              onChange={(event) => setTrunkBranch(event.target.value)}
+              disabled={isLoading}
+              placeholder="Enter trunk branch (e.g., main)"
+              required
+              aria-required="true"
+            />
+          )}
+          {!hasBranches && (
+            <ErrorMessage>
+              No branches were detected automatically. Enter the trunk branch manually.
+            </ErrorMessage>
+          )}
         </FormGroup>
 
         <ModalInfo id={infoId}>
@@ -242,11 +220,7 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
           <PrimaryButton
             type="submit"
             disabled={
-              isLoading ||
-              isLoadingBranches ||
-              branchName.trim().length === 0 ||
-              trunkBranch.trim().length === 0 ||
-              branches.length === 0
+              isLoading || branchName.trim().length === 0 || trunkBranch.trim().length === 0
             }
           >
             {isLoading ? "Creating..." : "Create Workspace"}

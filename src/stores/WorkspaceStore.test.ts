@@ -2,6 +2,16 @@ import { WorkspaceStore } from "./WorkspaceStore";
 import type { WorkspaceMetadata } from "@/types/workspace";
 
 // Mock window.api
+const mockExecuteBash = jest.fn(() => ({
+  success: true,
+  data: {
+    success: false,
+    error: "executeBash is mocked in WorkspaceStore.test.ts",
+    output: "",
+    exitCode: 0,
+  },
+}));
+
 const mockWindow = {
   api: {
     workspace: {
@@ -12,6 +22,7 @@ const mockWindow = {
         };
       }),
       replaceChatHistory: jest.fn(),
+      executeBash: mockExecuteBash,
     },
   },
 };
@@ -36,6 +47,7 @@ describe("WorkspaceStore", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockExecuteBash.mockClear();
     mockOnModelUsed = jest.fn();
     store = new WorkspaceStore(mockOnModelUsed);
   });

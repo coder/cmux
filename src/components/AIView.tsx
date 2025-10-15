@@ -465,7 +465,6 @@ const AIViewInner: React.FC<AIViewProps> = ({
                           message={msg}
                           onEditUserMessage={handleEditUserMessage}
                           workspaceId={workspaceId}
-                          model={currentModel ?? undefined}
                           isCompacting={isCompacting}
                         />
                         {isAtCutoff && (

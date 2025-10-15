@@ -285,6 +285,7 @@ function splitMixedContentMessages(messages: ModelMessage[]): ModelMessage[] {
       for (const item of contentWithPositions) {
         const partType = item.content.type === "text" ? "text" : "tool-call";
 
+        // eslint-disable-next-line @typescript-eslint/prefer-optional-chain
         if (!currentGroup || currentGroup.type !== partType) {
           if (currentGroup) groups.push(currentGroup);
           currentGroup = { type: partType, parts: [] };
@@ -621,7 +622,7 @@ export function validateAnthropicCompliance(messages: ModelMessage[]): {
         const nextMsg = messages[i + 1];
 
         // The next message MUST be a tool result message if we have pending calls
-        if (!nextMsg || nextMsg.role !== "tool") {
+        if (nextMsg?.role !== "tool") {
           const pendingIds = Array.from(pendingToolCalls.keys()).join(", ");
           return {
             valid: false,

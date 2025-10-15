@@ -180,7 +180,7 @@ async function main(): Promise<void> {
   const messageArg =
     values.message && values.message.trim().length > 0 ? values.message : undefined;
   const messageText = messageArg ?? (await gatherMessageFromStdin());
-  if (!messageText || messageText.trim().length === 0) {
+  if (messageText?.trim().length === 0) {
     throw new Error("Message must be provided via --message or stdin");
   }
 

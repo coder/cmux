@@ -487,7 +487,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   useEffect(() => {
     const handler = (event: Event) => {
       const detail = (event as CustomEvent<{ workspaceId: string; level: ThinkingLevel }>).detail;
-      if (!detail || detail.workspaceId !== workspaceId || !detail.level) {
+      if (detail?.workspaceId !== workspaceId || !detail.level) {
         return;
       }
 

@@ -250,7 +250,11 @@ export default defineConfig([
   },
   {
     // Allow dynamic imports for lazy-loading AI SDK packages (startup optimization)
-    files: ["src/services/aiService.ts", "src/utils/tools/tools.ts", "src/utils/ai/providerFactory.ts"],
+    files: [
+      "src/services/aiService.ts",
+      "src/utils/tools/tools.ts",
+      "src/utils/ai/providerFactory.ts",
+    ],
     rules: {
       "no-restricted-syntax": "off",
     },

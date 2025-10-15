@@ -23,5 +23,6 @@
 
 # Development
 
+- [Storybook](./storybook.md)
 - [Terminal Benchmarking](./benchmarking.md)
 - [AGENTS](./AGENTS.md)
