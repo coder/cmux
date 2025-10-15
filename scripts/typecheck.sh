@@ -9,7 +9,7 @@ cd "$PROJECT_ROOT"
 
 # Use tsgo (TypeScript in Go) for 10x faster type checking
 # Falls back to tsc if tsgo is not available
-if command -v tsgo &> /dev/null || [ -f "node_modules/@typescript/native-preview/bin/tsgo.js" ]; then
+if command -v tsgo &>/dev/null || [ -f "node_modules/@typescript/native-preview/bin/tsgo.js" ]; then
   bun x concurrently -g \
     "bun run node_modules/@typescript/native-preview/bin/tsgo.js --noEmit" \
     "bun run node_modules/@typescript/native-preview/bin/tsgo.js --noEmit -p tsconfig.main.json"
