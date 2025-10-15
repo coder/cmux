@@ -12,13 +12,22 @@ import { getTokenizerForModel, type Tokenizer } from "./tokenizer";
  */
 export class StreamingTokenTracker {
   private tokenizer: Tokenizer | null = null;
+  private currentModel: string | null = null;
 
   /**
    * Initialize tokenizer for the current model
    * Should be called when model changes or on first stream
+   *
+   * IMPORTANT: Reinitializes tokenizer when model changes to ensure correct encoding.
+   * getTokenizerForModel() closes over the model string, so we must create a new
+   * tokenizer instance when switching models.
    */
   setModel(model: string): void {
-    this.tokenizer ??= getTokenizerForModel(model);
+    // Reinitialize if model changed or not yet initialized
+    if (this.currentModel !== model) {
+      this.currentModel = model;
+      this.tokenizer = getTokenizerForModel(model);
+    }
   }
 
   /**

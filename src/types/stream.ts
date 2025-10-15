@@ -39,7 +39,7 @@ export interface StreamEndEvent {
     usage?: LanguageModelV2Usage;
     providerMetadata?: Record<string, unknown>;
     duration?: number;
-    systemMessageTokens?: number;
+    systemMessageTokens?: number; // Deprecated: No longer populated
   };
   // Parts array preserves temporal ordering of reasoning, text, and tool calls
   parts: CompletedMessagePart[];

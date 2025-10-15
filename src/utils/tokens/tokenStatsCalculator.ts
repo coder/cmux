@@ -1,6 +1,6 @@
 /**
  * Shared token statistics calculation logic
- * Used by both frontend (ChatContext) and backend (debug commands)
+ * Used by backend (debug commands and IPC stats handler)
  *
  * IMPORTANT: This utility is intentionally abstracted so that the debug command
  * (`bun debug costs`) has exact parity with the UI display in the Costs tab.
@@ -9,89 +9,13 @@
 
 import type { CmuxMessage } from "@/types/message";
 import type { ChatStats, TokenConsumer } from "@/types/chatStats";
-import type { LanguageModelV2Usage } from "@ai-sdk/provider";
 import {
   getTokenizerForModel,
   countTokensForData,
   getToolDefinitionTokens,
 } from "@/utils/main/tokenizer";
-import { getModelStats } from "./modelStats";
-import type { ChatUsageDisplay } from "./usageAggregator";
-
-/**
- * Create a display-friendly usage object from AI SDK usage
- */
-export function createDisplayUsage(
-  usage: LanguageModelV2Usage | undefined,
-  model: string,
-  providerMetadata?: Record<string, unknown>
-): ChatUsageDisplay | undefined {
-  if (!usage) return undefined;
-
-  // Provider-specific token handling:
-  // - OpenAI: inputTokens is INCLUSIVE of cachedInputTokens
-  // - Anthropic: inputTokens EXCLUDES cachedInputTokens
-  const cachedTokens = usage.cachedInputTokens ?? 0;
-  const rawInputTokens = usage.inputTokens ?? 0;
-
-  // Detect provider from model string
-  const isOpenAI = model.startsWith("openai:");
-
-  // For OpenAI, subtract cached tokens to get uncached input tokens
-  const inputTokens = isOpenAI ? Math.max(0, rawInputTokens - cachedTokens) : rawInputTokens;
-
-  // Extract cache creation tokens from provider metadata (Anthropic-specific)
-  const cacheCreateTokens =
-    (providerMetadata?.anthropic as { cacheCreationInputTokens?: number } | undefined)
-      ?.cacheCreationInputTokens ?? 0;
-
-  // Calculate output tokens excluding reasoning
-  const outputWithoutReasoning = Math.max(
-    0,
-    (usage.outputTokens ?? 0) - (usage.reasoningTokens ?? 0)
-  );
-
-  // Get model stats for cost calculation
-  const modelStats = getModelStats(model);
-
-  // Calculate costs based on model stats (undefined if model unknown)
-  let inputCost: number | undefined;
-  let cachedCost: number | undefined;
-  let cacheCreateCost: number | undefined;
-  let outputCost: number | undefined;
-  let reasoningCost: number | undefined;
-
-  if (modelStats) {
-    inputCost = inputTokens * modelStats.input_cost_per_token;
-    cachedCost = cachedTokens * (modelStats.cache_read_input_token_cost ?? 0);
-    cacheCreateCost = cacheCreateTokens * (modelStats.cache_creation_input_token_cost ?? 0);
-    outputCost = outputWithoutReasoning * modelStats.output_cost_per_token;
-    reasoningCost = (usage.reasoningTokens ?? 0) * modelStats.output_cost_per_token;
-  }
-
-  return {
-    input: {
-      tokens: inputTokens,
-      cost_usd: inputCost,
-    },
-    cached: {
-      tokens: cachedTokens,
-      cost_usd: cachedCost,
-    },
-    cacheCreate: {
-      tokens: cacheCreateTokens,
-      cost_usd: cacheCreateCost,
-    },
-    output: {
-      tokens: outputWithoutReasoning,
-      cost_usd: outputCost,
-    },
-    reasoning: {
-      tokens: usage.reasoningTokens ?? 0,
-      cost_usd: reasoningCost,
-    },
-  };
-}
+import { getModelStats as _getModelStats } from "./modelStats";
+import { createDisplayUsage, type ChatUsageDisplay } from "./usageAggregator";
 
 /**
  * Calculate token statistics from raw CmuxMessages
@@ -118,7 +42,6 @@ export function calculateTokenStats(messages: CmuxMessage[], model: string): Cha
   const consumerMap = new Map<string, { fixed: number; variable: number }>();
   const toolsWithDefinitions = new Set<string>(); // Track which tools have definitions included
   const usageHistory: ChatUsageDisplay[] = [];
-  let systemMessageTokens = 0; // Accumulate system message tokens across all requests
 
   // Calculate tokens by content producer (User, Assistant, individual tools)
   // This shows what activities are consuming tokens, useful for debugging costs
@@ -135,11 +58,6 @@ export function calculateTokenStats(messages: CmuxMessage[], model: string): Cha
       const existing = consumerMap.get("User") ?? { fixed: 0, variable: 0 };
       consumerMap.set("User", { fixed: 0, variable: existing.variable + userTokens });
     } else if (message.role === "assistant") {
-      // Accumulate system message tokens from this request
-      if (message.metadata?.systemMessageTokens) {
-        systemMessageTokens += message.metadata.systemMessageTokens;
-      }
-
       // Store usage in history for comparison with estimates
       if (message.metadata?.usage) {
         const usage = createDisplayUsage(
@@ -250,11 +168,6 @@ export function calculateTokenStats(messages: CmuxMessage[], model: string): Cha
         }
       }
     }
-  }
-
-  // Add system message tokens as a consumer if present
-  if (systemMessageTokens > 0) {
-    consumerMap.set("System", { fixed: 0, variable: systemMessageTokens });
   }
 
   // Calculate total tokens

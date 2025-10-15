@@ -75,6 +75,9 @@ jobs:
       - name: Build application
         run: bun run build
 
+      - name: Check bundle sizes
+        run: ./scripts/check_bundle_size.sh
+
       - name: Package for Linux
         run: make dist-linux
 

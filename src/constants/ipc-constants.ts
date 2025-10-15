@@ -38,6 +38,9 @@ export const IPC_CHANNELS = {
   // Window channels
   WINDOW_SET_TITLE: "window:setTitle",
 
+  // Token channels
+  TOKENS_COUNT_BULK: "tokens:countBulk",
+
   // Dynamic channel prefixes
   WORKSPACE_CHAT_PREFIX: "workspace:chat:",
   WORKSPACE_METADATA: "workspace:metadata",

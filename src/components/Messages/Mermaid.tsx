@@ -1,32 +1,61 @@
 import type { CSSProperties, ReactNode } from "react";
 import React, { useContext, useEffect, useRef, useState } from "react";
-import mermaid from "mermaid";
 import { StreamingContext } from "./StreamingContext";
 import { usePersistedState } from "@/hooks/usePersistedState";
 
 const MIN_HEIGHT = 300;
 const MAX_HEIGHT = 1200;
 
-// Initialize mermaid
-mermaid.initialize({
-  startOnLoad: false,
-  theme: "dark",
-  layout: "elk",
-  securityLevel: "loose",
-  fontFamily: "var(--font-monospace)",
-  darkMode: true,
-  elk: {
-    nodePlacementStrategy: "LINEAR_SEGMENTS",
-    mergeEdges: true,
-  },
-  wrap: true,
-  markdownAutoWrap: true,
-  flowchart: {
-    nodeSpacing: 60,
-    curve: "linear",
-    defaultRenderer: "elk",
-  },
-});
+// Lazy-loaded mermaid module to reduce startup time
+// Mermaid is 64MB and loads heavy dependencies (cytoscape, elk, langium)
+// Only load when first diagram is actually rendered
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports -- Dynamic import type is intentional for lazy loading
+type MermaidModule = typeof import("mermaid").default;
+let mermaidInstance: MermaidModule | null = null;
+let mermaidLoadPromise: Promise<MermaidModule> | null = null;
+
+async function loadMermaid(): Promise<MermaidModule> {
+  // Return cached instance if already loaded
+  if (mermaidInstance) return mermaidInstance;
+
+  // Return in-flight promise if already loading
+  if (mermaidLoadPromise) return mermaidLoadPromise;
+
+  // Start loading mermaid
+  mermaidLoadPromise = (async () => {
+    /* eslint-disable no-restricted-syntax */
+    const mermaidModule = await import("mermaid");
+    /* eslint-enable no-restricted-syntax */
+
+    const mermaid = mermaidModule.default;
+
+    // Initialize mermaid after loading
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: "dark",
+      layout: "elk",
+      securityLevel: "loose",
+      fontFamily: "var(--font-monospace)",
+      darkMode: true,
+      elk: {
+        nodePlacementStrategy: "LINEAR_SEGMENTS",
+        mergeEdges: true,
+      },
+      wrap: true,
+      markdownAutoWrap: true,
+      flowchart: {
+        nodeSpacing: 60,
+        curve: "linear",
+        defaultRenderer: "elk",
+      },
+    });
+
+    mermaidInstance = mermaid;
+    return mermaid;
+  })();
+
+  return mermaidLoadPromise;
+}
 
 // Common button styles
 const getButtonStyle = (disabled = false): CSSProperties => ({
@@ -137,6 +166,8 @@ export const Mermaid: React.FC<{ chart: string }> = ({ chart }) => {
     const renderDiagram = async () => {
       try {
         setError(null);
+        // Load mermaid on-demand when first diagram is rendered
+        const mermaid = await loadMermaid();
         const id = `mermaid-${Math.random().toString(36).substr(2, 9)}`;
         const { svg: renderedSvg } = await mermaid.render(id, chart);
         setSvg(renderedSvg);

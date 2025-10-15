@@ -1,13 +1,13 @@
-import React from "react";
+import React, { useMemo } from "react";
 import styled from "@emotion/styled";
-import { useChatContext } from "@/contexts/ChatContext";
-import { TooltipWrapper, Tooltip, HelpIndicator } from "../Tooltip";
 import { getModelStats } from "@/utils/tokens/modelStats";
-import { sumUsageHistory } from "@/utils/tokens/usageAggregator";
+import { sumUsageHistory, extractUsageHistory } from "@/utils/tokens/usageAggregator";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { ToggleGroup, type ToggleOption } from "../ToggleGroup";
 import { use1MContext } from "@/hooks/use1MContext";
 import { supports1MContext } from "@/utils/ai/models";
+import { useWorkspaceAggregator } from "@/stores/WorkspaceStore";
+import { TokenConsumerBreakdown } from "./TokenConsumerBreakdown";
 
 const Container = styled.div`
   color: #d4d4d4;
@@ -18,21 +18,6 @@ const Container = styled.div`
 
 const Section = styled.div`
   margin-bottom: 24px;
-`;
-
-const SectionTitle = styled.h3<{ dimmed?: boolean }>`
-  color: ${(props) => (props.dimmed ? "#999999" : "#cccccc")};
-  font-size: 14px;
-  font-weight: 600;
-  margin: 0 0 12px 0;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-`;
-
-const TokenizerInfo = styled.div`
-  color: #888888;
-  font-size: 12px;
-  margin-bottom: 8px;
 `;
 
 const ConsumerList = styled.div`
@@ -94,20 +79,6 @@ const COMPONENT_COLORS = {
   thinking: "var(--color-thinking-mode)",
 } as const;
 
-const FixedSegment = styled.div<SegmentProps>`
-  height: 100%;
-  width: ${(props) => props.percentage}%;
-  background: var(--color-token-fixed);
-  transition: width 0.3s ease;
-`;
-
-const VariableSegment = styled.div<SegmentProps>`
-  height: 100%;
-  width: ${(props) => props.percentage}%;
-  background: var(--color-token-variable);
-  transition: width 0.3s ease;
-`;
-
 const InputSegment = styled.div<SegmentProps>`
   height: 100%;
   width: ${(props) => props.percentage}%;
@@ -136,22 +107,6 @@ const CachedSegment = styled.div<SegmentProps>`
   transition: width 0.3s ease;
 `;
 
-interface PercentageFillProps {
-  percentage: number;
-}
-
-const PercentageFill = styled.div<PercentageFillProps>`
-  height: 100%;
-  width: ${(props) => props.percentage}%;
-  background: var(--color-token-completion);
-  transition: width 0.3s ease;
-`;
-
-const LoadingState = styled.div`
-  color: #888888;
-  font-style: italic;
-`;
-
 const EmptyState = styled.div`
   color: #888888;
   text-align: center;
@@ -163,14 +118,6 @@ const ModelWarning = styled.div`
   font-size: 11px;
   margin-top: 8px;
   font-style: italic;
-`;
-
-const TokenDetails = styled.div`
-  color: #888888;
-  font-size: 11px;
-  margin-top: 6px;
-  padding-left: 4px;
-  line-height: 1.4;
 `;
 
 const DetailsTable = styled.table`
@@ -278,21 +225,22 @@ const VIEW_MODE_OPTIONS: Array<ToggleOption<ViewMode>> = [
   { value: "session", label: "Session" },
 ];
 
-export const CostsTab: React.FC = () => {
-  const { stats, isCalculating } = useChatContext();
+interface CostsTabProps {
+  workspaceId: string;
+}
+
+export const CostsTab: React.FC<CostsTabProps> = ({ workspaceId }) => {
   const [viewMode, setViewMode] = usePersistedState<ViewMode>("costsTab:viewMode", "last-request");
   const [use1M] = use1MContext();
 
-  // Only show loading if we don't have any stats yet
-  if (isCalculating && !stats) {
-    return (
-      <Container>
-        <LoadingState>Calculating token usage...</LoadingState>
-      </Container>
-    );
-  }
+  const aggregator = useWorkspaceAggregator(workspaceId);
+  const messages = useMemo(() => aggregator?.getAllMessages() ?? [], [aggregator]);
+  const model = aggregator?.getCurrentModel() ?? "unknown";
 
-  if (!stats || stats.totalTokens === 0) {
+  // Extract usage history from messages (API response data, no calculation needed)
+  const usageHistory = useMemo(() => extractUsageHistory(messages), [messages]);
+
+  if (usageHistory.length === 0) {
     return (
       <Container>
         <EmptyState>
@@ -306,12 +254,12 @@ export const CostsTab: React.FC = () => {
   // Compute displayUsage based on view mode
   const displayUsage =
     viewMode === "last-request"
-      ? stats.usageHistory[stats.usageHistory.length - 1]
-      : sumUsageHistory(stats.usageHistory);
+      ? usageHistory[usageHistory.length - 1]
+      : sumUsageHistory(usageHistory);
 
   return (
     <Container>
-      {stats.usageHistory.length > 0 && (
+      {usageHistory.length > 0 && (
         <Section>
           <SectionHeader>
             <ToggleGroup options={VIEW_MODE_OPTIONS} value={viewMode} onChange={setViewMode} />
@@ -319,10 +267,10 @@ export const CostsTab: React.FC = () => {
           <ConsumerList>
             {(() => {
               // Get max tokens for the model from the model stats database
-              const modelStats = getModelStats(stats.model);
+              const modelStats = getModelStats(model);
               const baseMaxTokens = modelStats?.max_input_tokens;
               // Check if 1M context is active and supported
-              const is1MActive = use1M && supports1MContext(stats.model);
+              const is1MActive = use1M && supports1MContext(model);
               const maxTokens = is1MActive ? 1_000_000 : baseMaxTokens;
               // Total tokens includes cache creation (they're input tokens sent for caching)
               const totalUsed = displayUsage
@@ -576,65 +524,7 @@ export const CostsTab: React.FC = () => {
         </Section>
       )}
 
-      <Section>
-        <SectionTitle dimmed>Breakdown by Consumer</SectionTitle>
-        <TokenizerInfo>
-          Tokenizer: <span>{stats.tokenizerName}</span>
-        </TokenizerInfo>
-        <ConsumerList>
-          {stats.consumers.map((consumer) => {
-            // Calculate percentages for fixed and variable segments
-            const fixedPercentage = consumer.fixedTokens
-              ? (consumer.fixedTokens / stats.totalTokens) * 100
-              : 0;
-            const variablePercentage = consumer.variableTokens
-              ? (consumer.variableTokens / stats.totalTokens) * 100
-              : 0;
-
-            const tokenDisplay = formatTokens(consumer.tokens);
-
-            return (
-              <ConsumerRow key={consumer.name}>
-                <ConsumerHeader>
-                  <ConsumerName>
-                    {consumer.name}
-                    {consumer.name === "web_search" && (
-                      <TooltipWrapper inline>
-                        <HelpIndicator>?</HelpIndicator>
-                        <Tooltip className="tooltip" align="center" width="wide">
-                          Web search results are encrypted and decrypted server-side. This estimate
-                          is approximate.
-                        </Tooltip>
-                      </TooltipWrapper>
-                    )}
-                  </ConsumerName>
-                  <ConsumerTokens>
-                    {tokenDisplay} ({consumer.percentage.toFixed(1)}%)
-                  </ConsumerTokens>
-                </ConsumerHeader>
-                <PercentageBarWrapper>
-                  <PercentageBar>
-                    {consumer.fixedTokens && consumer.variableTokens ? (
-                      <>
-                        <FixedSegment percentage={fixedPercentage} />
-                        <VariableSegment percentage={variablePercentage} />
-                      </>
-                    ) : (
-                      <PercentageFill percentage={consumer.percentage} />
-                    )}
-                  </PercentageBar>
-                  {consumer.fixedTokens && consumer.variableTokens && (
-                    <TokenDetails>
-                      Tool definition: {formatTokens(consumer.fixedTokens)} • Usage:{" "}
-                      {formatTokens(consumer.variableTokens)}
-                    </TokenDetails>
-                  )}
-                </PercentageBarWrapper>
-              </ConsumerRow>
-            );
-          })}
-        </ConsumerList>
-      </Section>
+      <TokenConsumerBreakdown messages={messages} model={model} />
     </Container>
   );
 };

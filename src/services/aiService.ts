@@ -28,7 +28,6 @@ import { applyCacheControl } from "@/utils/ai/cacheStrategy";
 import type { HistoryService } from "./historyService";
 import type { PartialService } from "./partialService";
 import { buildSystemMessage } from "./systemMessage";
-import { getTokenizerForModel } from "@/utils/main/tokenizer";
 import { buildProviderOptions } from "@/utils/ai/providerOptions";
 import type { ThinkingLevel } from "@/types/thinking";
 import type {
@@ -511,10 +510,6 @@ export class AIService extends EventEmitter {
         additionalSystemInstructions
       );
 
-      // Count system message tokens for cost tracking
-      const tokenizer = getTokenizerForModel(modelString);
-      const systemMessageTokens = tokenizer.countTokens(systemMessage);
-
       const workspacePath = metadataResult.data.workspacePath;
 
       // Find project path for this workspace to load secrets
@@ -548,7 +543,6 @@ export class AIService extends EventEmitter {
       const assistantMessage = createCmuxMessage(assistantMessageId, "assistant", "", {
         timestamp: Date.now(),
         model: modelString,
-        systemMessageTokens,
         mode, // Track the mode for this assistant response
       });
 
@@ -579,7 +573,6 @@ export class AIService extends EventEmitter {
             historySequence,
             timestamp: Date.now(),
             model: modelString,
-            systemMessageTokens,
             partial: true,
             error: errorMessage,
             errorType: "context_exceeded",
@@ -613,7 +606,6 @@ export class AIService extends EventEmitter {
         const noopMessage = createCmuxMessage(assistantMessageId, "assistant", "", {
           timestamp: Date.now(),
           model: modelString,
-          systemMessageTokens,
           toolPolicy,
         });
 
@@ -660,7 +652,6 @@ export class AIService extends EventEmitter {
           messageId: assistantMessageId,
           metadata: {
             model: modelString,
-            systemMessageTokens,
           },
           parts,
         };
@@ -699,7 +690,6 @@ export class AIService extends EventEmitter {
         abortSignal,
         tools,
         {
-          systemMessageTokens,
           timestamp: Date.now(),
           mode, // Pass mode so it persists in final history entry
         },

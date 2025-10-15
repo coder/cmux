@@ -110,11 +110,11 @@
       "output": "release"
     },
     "files": [
-      "dist/**/*"
+      "dist/**/*",
+      "!dist/**/*.map"
     ],
     "asarUnpack": [
-      "dist/**/*.wasm",
-      "dist/**/*.map"
+      "dist/**/*.wasm"
     ],
     "mac": {
       "category": "public.app-category.developer-tools",

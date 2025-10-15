@@ -118,8 +118,9 @@ export class GitStatusStore {
       clearInterval(this.pollInterval);
     }
 
-    // Run immediately
-    void this.updateGitStatus();
+    // Run first update immediately but asynchronously (don't block UI)
+    // setTimeout ensures this runs on next tick, allowing React to finish rendering
+    setTimeout(() => void this.updateGitStatus(), 0);
 
     // Poll at configured interval
     this.pollInterval = setInterval(() => {
@@ -209,12 +210,12 @@ export class GitStatusStore {
       });
 
       if (!result.success) {
-        console.debug(`[gitStatus] IPC failed for ${metadata.id}:`, result.error);
+        // IPC failed - silently fail, status will retry on next poll
         return [metadata.id, null];
       }
 
       if (!result.data.success) {
-        console.debug(`[gitStatus] Script failed for ${metadata.id}:`, result.data.error);
+        // Script execution failed - silently fail, status will retry on next poll
         return [metadata.id, null];
       }
 
@@ -222,7 +223,7 @@ export class GitStatusStore {
       const parsed = parseGitStatusScriptOutput(result.data.output);
 
       if (!parsed) {
-        console.debug(`[gitStatus] Could not parse output for ${metadata.id}`);
+        // Parse failed - silently fail, status will retry on next poll
         return [metadata.id, null];
       }
 
@@ -339,15 +340,13 @@ export class GitStatusStore {
       }
 
       // Success - reset failure counter
-      console.debug(`[fetch] Success for ${projectName}`);
       this.fetchCache.set(projectName, {
         lastFetch: Date.now(),
         inProgress: false,
         consecutiveFailures: 0,
       });
-    } catch (error) {
-      // All errors logged to console, never shown to user
-      console.debug(`[fetch] Failed for ${projectName}:`, error);
+    } catch {
+      // Fetch failed - silently retry with backoff
 
       const newFailures = cache.consecutiveFailures + 1;
       const nextDelay = Math.min(
