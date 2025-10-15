@@ -57,39 +57,46 @@ const TodoContent = styled.div`
 `;
 
 const TodoText = styled.div<{ status: TodoItem["status"] }>`
-  color: ${(props) => (props.status === "completed" ? "#888" : "var(--color-text)")};
+  color: ${(props) => {
+    switch (props.status) {
+      case "completed":
+        return "#888";
+      case "in_progress":
+        return "#2196f3";
+      default:
+        return "var(--color-text)";
+    }
+  }};
   text-decoration: ${(props) => (props.status === "completed" ? "line-through" : "none")};
   opacity: ${(props) => (props.status === "completed" ? "0.7" : "1")};
-`;
-
-const TodoActiveForm = styled.div`
-  color: #2196f3;
-  font-weight: 500;
-  font-size: 11px;
-  opacity: 0.95;
+  font-weight: ${(props) => (props.status === "in_progress" ? "500" : "normal")};
   white-space: nowrap;
 
-  &::after {
-    content: "...";
-    display: inline;
-    overflow: hidden;
-    animation: ellipsis 1.5s steps(4, end) infinite;
-  }
-
-  @keyframes ellipsis {
-    0% {
-      content: "";
-    }
-    25% {
-      content: ".";
-    }
-    50% {
-      content: "..";
-    }
-    75% {
+  ${(props) =>
+    props.status === "in_progress" &&
+    `
+    &::after {
       content: "...";
+      display: inline;
+      overflow: hidden;
+      animation: ellipsis 1.5s steps(4, end) infinite;
     }
-  }
+
+    @keyframes ellipsis {
+      0% {
+        content: "";
+      }
+      25% {
+        content: ".";
+      }
+      50% {
+        content: "..";
+      }
+      75% {
+        content: "...";
+      }
+    }
+  `}
 `;
 
 interface TodoListProps {
@@ -120,11 +127,7 @@ export const TodoList: React.FC<TodoListProps> = ({ todos }) => {
         <TodoItemContainer key={index} status={todo.status}>
           <TodoIcon>{getStatusIcon(todo.status)}</TodoIcon>
           <TodoContent>
-            {todo.status === "in_progress" ? (
-              <TodoActiveForm>{todo.activeForm}</TodoActiveForm>
-            ) : (
-              <TodoText status={todo.status}>{todo.content}</TodoText>
-            )}
+            <TodoText status={todo.status}>{todo.content}</TodoText>
           </TodoContent>
         </TodoItemContainer>
       ))}

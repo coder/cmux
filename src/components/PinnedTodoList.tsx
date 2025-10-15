@@ -2,6 +2,7 @@ import React, { useSyncExternalStore } from "react";
 import styled from "@emotion/styled";
 import { TodoList } from "./TodoList";
 import { useWorkspaceStoreRaw } from "@/stores/WorkspaceStore";
+import { usePersistedState } from "@/hooks/usePersistedState";
 
 const PinnedContainer = styled.div`
   background: var(--color-panel-background);
@@ -18,6 +19,22 @@ const TodoHeader = styled.div`
   color: var(--color-text-secondary);
   font-weight: 600;
   letter-spacing: 0.05em;
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+
+  &:hover {
+    opacity: 0.8;
+  }
+`;
+
+const Caret = styled.span<{ expanded: boolean }>`
+  display: inline-block;
+  transition: transform 0.2s;
+  transform: ${(props) => (props.expanded ? "rotate(90deg)" : "rotate(0deg)")};
+  font-size: 8px;
 `;
 
 interface PinnedTodoListProps {
@@ -31,6 +48,7 @@ interface PinnedTodoListProps {
  */
 export const PinnedTodoList: React.FC<PinnedTodoListProps> = ({ workspaceId }) => {
   const workspaceStore = useWorkspaceStoreRaw();
+  const [expanded, setExpanded] = usePersistedState("pinnedTodoExpanded", true);
 
   // Subscribe to workspace state changes to re-render when TODOs update
   useSyncExternalStore(
@@ -48,8 +66,11 @@ export const PinnedTodoList: React.FC<PinnedTodoListProps> = ({ workspaceId }) =
 
   return (
     <PinnedContainer>
-      <TodoHeader>TODO:</TodoHeader>
-      <TodoList todos={todos} />
+      <TodoHeader onClick={() => setExpanded(!expanded)}>
+        <Caret expanded={expanded}>▶</Caret>
+        TODO{expanded ? ":" : ""}
+      </TodoHeader>
+      {expanded && <TodoList todos={todos} />}
     </PinnedContainer>
   );
 };
