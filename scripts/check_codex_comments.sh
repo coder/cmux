@@ -12,13 +12,19 @@ BOT_LOGIN_GRAPHQL="chatgpt-codex-connector"
 
 echo "Checking for unresolved Codex comments in PR #${PR_NUMBER}..."
 
-REGULAR_COMMENTS=$(gh api "/repos/{owner}/{repo}/issues/${PR_NUMBER}/comments" \
-  --jq "[.[] | select(.user.login == \"${BOT_LOGIN_REST}\") | select(.body | test(\"Didn't find any major issues\") | not)]")
-REGULAR_COUNT=$(echo "$REGULAR_COMMENTS" | jq 'length')
-
+# Use GraphQL to get all comments (including minimized status)
 GRAPHQL_QUERY='query($owner: String!, $repo: String!, $pr: Int!) {
   repository(owner: $owner, name: $repo) {
     pullRequest(number: $pr) {
+      comments(first: 100) {
+        nodes {
+          id
+          author { login }
+          body
+          createdAt
+          isMinimized
+        }
+      }
       reviewThreads(first: 100) {
         nodes {
           id
@@ -43,17 +49,23 @@ REPO_INFO=$(gh repo view --json owner,name --jq '{owner: .owner.login, name: .na
 OWNER=$(echo "$REPO_INFO" | jq -r '.owner')
 REPO=$(echo "$REPO_INFO" | jq -r '.name')
 
-UNRESOLVED_THREADS=$(gh api graphql \
+RESULT=$(gh api graphql \
   -f query="$GRAPHQL_QUERY" \
   -F owner="$OWNER" \
   -F repo="$REPO" \
-  -F pr="$PR_NUMBER" \
-  --jq "[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false and .comments.nodes[0].author.login == \"${BOT_LOGIN_GRAPHQL}\")]")
+  -F pr="$PR_NUMBER")
+
+# Filter regular comments from bot that aren't minimized and don't say "Didn't find any major issues"
+REGULAR_COMMENTS=$(echo "$RESULT" | jq "[.data.repository.pullRequest.comments.nodes[] | select(.author.login == \"${BOT_LOGIN_GRAPHQL}\" and .isMinimized == false and (.body | test(\"Didn't find any major issues\") | not))]")
+REGULAR_COUNT=$(echo "$REGULAR_COMMENTS" | jq 'length')
+
+# Filter unresolved review threads from bot
+UNRESOLVED_THREADS=$(echo "$RESULT" | jq "[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false and .comments.nodes[0].author.login == \"${BOT_LOGIN_GRAPHQL}\")]")
 UNRESOLVED_COUNT=$(echo "$UNRESOLVED_THREADS" | jq 'length')
 
 TOTAL_UNRESOLVED=$((REGULAR_COUNT + UNRESOLVED_COUNT))
 
-echo "Found ${REGULAR_COUNT} regular comment(s) from bot"
+echo "Found ${REGULAR_COUNT} unminimized regular comment(s) from bot"
 echo "Found ${UNRESOLVED_COUNT} unresolved review thread(s) from bot"
 
 if [ $TOTAL_UNRESOLVED -gt 0 ]; then
