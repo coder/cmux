@@ -856,4 +856,70 @@ fi
       }
     }
   });
+
+  it("should kill all processes when aborted via AbortController", async () => {
+    using testEnv = createTestBashTool();
+    const tool = testEnv.tool;
+
+    // Create AbortController to simulate user interruption
+    const abortController = new AbortController();
+
+    // Use unique token to identify our test processes
+    const token = `test-abort-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+
+    // Spawn a command that creates child processes (simulating cargo build)
+    const args: BashToolArgs = {
+      script: `
+        # Simulate cargo spawning rustc processes
+        for i in {1..5}; do
+          (echo "child-\${i}"; exec -a "sleep-${token}" sleep 100) &
+          echo "SPAWNED:$!"
+        done
+        echo "ALL_SPAWNED"
+        # Wait so we can abort while children are running
+        exec -a "sleep-${token}" sleep 100
+      `,
+      timeout_secs: 10,
+    };
+
+    // Start the command
+    const resultPromise = tool.execute!(args, {
+      ...mockToolCallOptions,
+      abortSignal: abortController.signal,
+    }) as Promise<BashToolResult>;
+
+    // Wait for children to spawn
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    // Abort the operation (simulating Ctrl+C)
+    abortController.abort();
+
+    // Wait for the result
+    const result = await resultPromise;
+
+    // Command should be aborted
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain("aborted");
+    }
+
+    // Give a moment for cleanup to happen
+    await new Promise((resolve) => setTimeout(resolve, 200));
+
+    // Verify NO sleep processes with our token are still running
+    using checkEnv = createTestBashTool();
+    const checkResult = (await checkEnv.tool.execute!(
+      {
+        script: `pgrep -f "${token}" | wc -l`,
+        timeout_secs: 1,
+      },
+      mockToolCallOptions
+    )) as BashToolResult;
+
+    expect(checkResult.success).toBe(true);
+    if (checkResult.success) {
+      const count = parseInt(checkResult.output.trim());
+      expect(count).toBe(0);
+    }
+  });
 });
