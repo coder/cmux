@@ -135,8 +135,17 @@ lint: node_modules/.installed ## Run ESLint (typecheck runs in separate target)
 lint-fix: node_modules/.installed ## Run linter with --fix
 	@./scripts/lint.sh --fix
 
-typecheck: node_modules/.installed src/version.ts ## Run TypeScript type checking
-	@./scripts/typecheck.sh
+typecheck: node_modules/.installed src/version.ts ## Run TypeScript type checking (uses tsgo for 10x speedup)
+	@if [ -f "node_modules/@typescript/native-preview/bin/tsgo.js" ]; then \
+		bun x concurrently -g \
+			"bun run node_modules/@typescript/native-preview/bin/tsgo.js --noEmit" \
+			"bun run node_modules/@typescript/native-preview/bin/tsgo.js --noEmit -p tsconfig.main.json"; \
+	else \
+		echo "⚠️  tsgo not found, falling back to tsc (slower)"; \
+		bun x concurrently -g \
+			"tsc --noEmit" \
+			"tsc --noEmit -p tsconfig.main.json"; \
+	fi
 
 ## Testing
 test-integration: node_modules/.installed ## Run all tests (unit + integration)
