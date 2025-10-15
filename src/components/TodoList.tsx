@@ -9,7 +9,10 @@ const TodoListContainer = styled.div`
   padding: 6px 8px;
 `;
 
-const TodoItemContainer = styled.div<{ status: TodoItem["status"] }>`
+const TodoItemContainer = styled.div<{ 
+  status: TodoItem["status"]; 
+  isSummary?: boolean;
+}>`
   display: flex;
   align-items: flex-start;
   gap: 6px;
@@ -39,9 +42,10 @@ const TodoItemContainer = styled.div<{ status: TodoItem["status"] }>`
     }};
   border-radius: 3px;
   font-family: var(--font-monospace);
-  font-size: 11px;
+  font-size: ${(props) => (props.isSummary ? "10px" : "11px")};
   line-height: 1.35;
   color: var(--color-text);
+  font-style: ${(props) => (props.isSummary ? "italic" : "normal")};
 `;
 
 const TodoIcon = styled.div`
@@ -56,7 +60,12 @@ const TodoContent = styled.div`
   min-width: 0;
 `;
 
-const TodoText = styled.div<{ status: TodoItem["status"] }>`
+const TodoText = styled.div<{ 
+  status: TodoItem["status"];
+  completedIndex?: number;
+  totalCompleted?: number;
+  isSummary?: boolean;
+}>`
   color: ${(props) => {
     switch (props.status) {
       case "completed":
@@ -68,7 +77,21 @@ const TodoText = styled.div<{ status: TodoItem["status"] }>`
     }
   }};
   text-decoration: ${(props) => (props.status === "completed" ? "line-through" : "none")};
-  opacity: ${(props) => (props.status === "completed" ? "0.7" : "1")};
+  opacity: ${(props) => {
+    if (props.status === "completed") {
+      // Apply gradient fade for old completed items
+      if (props.completedIndex !== undefined && 
+          props.totalCompleted !== undefined && 
+          props.totalCompleted > 2 &&
+          props.completedIndex < props.totalCompleted - 2) {
+        // Fade older items more (exponential decay)
+        const recentIndex = props.totalCompleted - props.completedIndex;
+        return Math.max(0.35, 1 - (recentIndex * 0.15));
+      }
+      return props.isSummary ? "0.5" : "0.7";
+    }
+    return props.isSummary ? "0.75" : "1";
+  }};
   font-weight: ${(props) => (props.status === "in_progress" ? "500" : "normal")};
   white-space: nowrap;
 
@@ -116,21 +139,45 @@ function getStatusIcon(status: TodoItem["status"]): string {
 }
 
 /**
+ * Detect if a TODO item is a summary based on content pattern.
+ * Matches patterns like: "(N items)", "(N tasks)", "(N steps)"
+ */
+function isSummaryItem(content: string): boolean {
+  return /\(\d+\s+(items?|tasks?|steps?)\)/i.test(content);
+}
+
+/**
  * Shared TODO list component used by:
  * - TodoToolCall (in expanded tool history)
  * - PinnedTodoList (pinned at bottom of chat)
  */
 export const TodoList: React.FC<TodoListProps> = ({ todos }) => {
+  // Count completed items for fade effect
+  const completedCount = todos.filter((t) => t.status === "completed").length;
+  let completedIndex = 0;
+
   return (
     <TodoListContainer>
-      {todos.map((todo, index) => (
-        <TodoItemContainer key={index} status={todo.status}>
-          <TodoIcon>{getStatusIcon(todo.status)}</TodoIcon>
-          <TodoContent>
-            <TodoText status={todo.status}>{todo.content}</TodoText>
-          </TodoContent>
-        </TodoItemContainer>
-      ))}
+      {todos.map((todo, index) => {
+        const isSummary = isSummaryItem(todo.content);
+        const currentCompletedIndex = todo.status === "completed" ? completedIndex++ : undefined;
+
+        return (
+          <TodoItemContainer key={index} status={todo.status} isSummary={isSummary}>
+            <TodoIcon>{getStatusIcon(todo.status)}</TodoIcon>
+            <TodoContent>
+              <TodoText 
+                status={todo.status}
+                completedIndex={currentCompletedIndex}
+                totalCompleted={completedCount}
+                isSummary={isSummary}
+              >
+                {todo.content}
+              </TodoText>
+            </TodoContent>
+          </TodoItemContainer>
+        );
+      })}
     </TodoListContainer>
   );
 };

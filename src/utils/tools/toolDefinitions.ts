@@ -154,12 +154,23 @@ export const TOOL_DEFINITIONS = {
   },
   todo_write: {
     description:
-      "Create or update the todo list for tracking multi-step tasks. " +
+      "Create or update the todo list for tracking multi-step tasks (limit: 7 items). " +
       "Use this for ALL complex, multi-step plans to keep the user informed of progress. " +
       "Replace the entire list on each call - the AI should track which tasks are completed. " +
+      "\n\n" +
+      "Structure the list with high precision at the center:\n" +
+      "- Old completed work: Summarize into 1 overview item (e.g., 'Set up project infrastructure (4 tasks)')\n" +
+      "- Recent completions: Keep detailed (last 1-2 items)\n" +
+      "- Current work: One in_progress item with clear description\n" +
+      "- Immediate next steps: Detailed pending items (next 2-3 actions)\n" +
+      "- Far future work: Summarize into phase items (e.g., 'Testing and polish (3 items)')\n" +
+      "\n" +
+      "Update frequently as work progresses. As tasks complete, older completions should be " +
+      "condensed to make room. Similarly, summarized future work expands into detailed items " +
+      "as it becomes immediate. " +
+      "\n\n" +
       "Mark ONE task as in_progress at a time. " +
       "Order tasks as: completed first, then in_progress (max 1), then pending last. " +
-      "Update frequently as work progresses to provide visibility into ongoing operations. " +
       "Before finishing your response, ensure all todos are marked as completed. " +
       "Use appropriate tense in content: past tense for completed (e.g., 'Added tests'), " +
       "present progressive for in_progress (e.g., 'Adding tests'), " +
