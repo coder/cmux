@@ -182,32 +182,25 @@ export class AIService extends EventEmitter {
 
   async getWorkspaceMetadata(workspaceId: string): Promise<Result<WorkspaceMetadata>> {
     try {
-      const metadataPath = this.getMetadataPath(workspaceId);
-      const data = await fs.readFile(metadataPath, "utf-8");
+      // Get all workspace metadata (which includes migration logic)
+      // This ensures we always get complete metadata with all required fields
+      const allMetadata = this.config.getAllWorkspaceMetadata();
+      log.info(`[getWorkspaceMetadata] Looking for ${workspaceId} in ${allMetadata.length} workspaces`);
+      log.info(`[getWorkspaceMetadata] All IDs: ${allMetadata.map(m => m.id).join(", ")}`);
+      const metadata = allMetadata.find((m) => m.id === workspaceId);
 
-      // Parse and validate with Zod schema (handles any type safely)
-      const validated = WorkspaceMetadataSchema.parse(JSON.parse(data));
-
-      return Ok(validated);
-    } catch (error) {
-      if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") {
-        // Fallback: Try to reconstruct metadata from config (for forward compatibility)
-        // This handles workspaces created on newer branches that don't have metadata.json
-        const allMetadata = this.config.getAllWorkspaceMetadata();
-        const metadataFromConfig = allMetadata.find((m) => m.id === workspaceId);
-
-        if (metadataFromConfig) {
-          // Found in config - save it to metadata.json for future use
-          await this.saveWorkspaceMetadata(workspaceId, metadataFromConfig);
-          return Ok(metadataFromConfig);
-        }
-
-        // If metadata doesn't exist anywhere, workspace is not properly initialized
+      if (!metadata) {
+        log.info(`[getWorkspaceMetadata] NOT FOUND: ${workspaceId}`);
         return Err(
           `Workspace metadata not found for ${workspaceId}. Workspace may not be properly initialized.`
         );
       }
+
+      log.info(`[getWorkspaceMetadata] Found metadata for ${workspaceId}:`, JSON.stringify(metadata));
+      return Ok(metadata);
+    } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
+      log.info(`[getWorkspaceMetadata] Error:`, error);
       return Err(`Failed to read workspace metadata: ${message}`);
     }
   }

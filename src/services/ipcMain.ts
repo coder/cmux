@@ -224,20 +224,22 @@ export class IpcMain {
           };
           await this.aiService.saveWorkspaceMetadata(workspaceId, metadata);
 
-          // Update config to include the new workspace
+          // Update config to include the new workspace (with full metadata)
           this.config.editConfig((config) => {
             let projectConfig = config.projects.get(projectPath);
             if (!projectConfig) {
               // Create project config if it doesn't exist
               projectConfig = {
-                path: projectPath,
                 workspaces: [],
               };
               config.projects.set(projectPath, projectConfig);
             }
-            // Add workspace to project config
+            // Add workspace to project config with full metadata
             projectConfig.workspaces.push({
               path: result.path!,
+              id: workspaceId,
+              name: branchName,
+              createdAt: metadata.createdAt,
             });
             return config;
           });
@@ -321,6 +323,20 @@ export class IpcMain {
             this.config.updateWorkspaceSymlink(projectPath, newName, oldName, workspaceId);
             return Err(`Failed to save metadata: ${saveResult.error}`);
           }
+
+          // Update config with new name
+          this.config.editConfig((config) => {
+            const projectConfig = config.projects.get(projectPath);
+            if (projectConfig) {
+              const workspaceEntry = projectConfig.workspaces.find(
+                (w) => w.path === workspace.workspacePath
+              );
+              if (workspaceEntry) {
+                workspaceEntry.name = newName;
+              }
+            }
+            return config;
+          });
 
           // Emit metadata event with updated metadata (same workspace ID)
           const session = this.sessions.get(workspaceId);
@@ -553,13 +569,25 @@ export class IpcMain {
         }
       ) => {
         try {
+          log.info(`[WORKSPACE_EXECUTE_BASH] Getting metadata for ${workspaceId}`);
           // Get workspace metadata
           const metadataResult = await this.aiService.getWorkspaceMetadata(workspaceId);
+          log.info(`[WORKSPACE_EXECUTE_BASH] Metadata result for ${workspaceId}:`, metadataResult);
           if (!metadataResult.success) {
             return Err(`Failed to get workspace metadata: ${metadataResult.error}`);
           }
 
           const metadata = metadataResult.data;
+          log.info(`[WORKSPACE_EXECUTE_BASH] Metadata data for ${workspaceId}:`, JSON.stringify(metadata));
+
+          // Validate required fields for path computation
+          if (!metadata.projectPath) {
+            log.info(`[WORKSPACE_EXECUTE_BASH] MISSING projectPath for ${workspaceId}!`);
+            return Err(
+              `Workspace metadata missing projectPath for ${workspaceId}. Metadata: ${JSON.stringify(metadata)}`
+            );
+          }
+
           // Compute worktree path from project path + workspace ID
           const workspacePath = this.config.getWorkspacePath(metadata.projectPath, metadata.id);
 
@@ -859,7 +887,6 @@ export class IpcMain {
 
         // Create new project config
         const projectConfig: ProjectConfig = {
-          path: projectPath,
           workspaces: [],
         };
 
@@ -912,7 +939,8 @@ export class IpcMain {
     ipcMain.handle(IPC_CHANNELS.PROJECT_LIST, () => {
       try {
         const config = this.config.loadConfigOrDefault();
-        return Array.from(config.projects.values());
+        // Return array of [projectPath, projectConfig] tuples
+        return Array.from(config.projects.entries());
       } catch (error) {
         log.error("Failed to list projects:", error);
         return [];

@@ -5,7 +5,6 @@ import type { FrontendWorkspaceMetadata } from "@/types/workspace";
 const mk = (over: Partial<Parameters<typeof buildCoreSources>[0]> = {}) => {
   const projects = new Map<string, ProjectConfig>();
   projects.set("/repo/a", {
-    path: "/repo/a",
     workspaces: [{ path: "/repo/a/feat-x" }, { path: "/repo/a/feat-y" }],
   });
   const workspaceMetadata = new Map<string, FrontendWorkspaceMetadata>();

@@ -6,21 +6,10 @@ import * as jsonc from "jsonc-parser";
 import writeFileAtomic from "write-file-atomic";
 import type { WorkspaceMetadata } from "./types/workspace";
 import type { Secret, SecretsConfig } from "./types/secrets";
+import type { Workspace, ProjectConfig, ProjectsConfig } from "./types/project";
 
-export interface Workspace {
-  path: string; // Absolute path to workspace worktree (format: ~/.cmux/src/{projectName}/{workspaceId})
-  // NOTE: The workspace ID is the basename of this path (stable random ID like 'a1b2c3d4e5').
-  // Use config.getWorkspacePath(projectPath, workspaceId) to construct paths consistently.
-}
-
-export interface ProjectConfig {
-  path: string;
-  workspaces: Workspace[];
-}
-
-export interface ProjectsConfig {
-  projects: Map<string, ProjectConfig>;
-}
+// Re-export project types from dedicated types file (for preload usage)
+export type { Workspace, ProjectConfig, ProjectsConfig };
 
 export interface ProviderConfig {
   apiKey?: string;
@@ -292,20 +281,19 @@ export class Config {
 
   /**
    * Get all workspace metadata by loading config and metadata files.
-   * Performs eager migration for legacy workspaces on startup.
    *
-   * Migration strategy:
-   * - For each workspace in config, try to load metadata.json from session dir
-   * - If metadata exists, use it (already migrated or new workspace)
-   * - If metadata doesn't exist, this is a legacy workspace:
-   *   - Generate legacy ID from path (for backward compatibility)
-   *   - Extract name from workspace path
-   *   - Create and save metadata.json
-   *   - Create symlink if name differs from ID (new workspaces only)
+   * NEW BEHAVIOR: Config is the primary source of truth
+   * - If workspace has id/name/createdAt in config, use those directly
+   * - If workspace only has path, fall back to reading metadata.json
+   * - Migrate old workspaces by copying metadata from files to config
+   *
+   * This centralizes workspace metadata in config.json and eliminates the need
+   * for scattered metadata.json files (kept for backward compat with older versions).
    */
   getAllWorkspaceMetadata(): WorkspaceMetadata[] {
     const config = this.loadConfigOrDefault();
     const workspaceMetadata: WorkspaceMetadata[] = [];
+    let configModified = false;
 
     for (const [projectPath, projectConfig] of config.projects) {
       const projectName = this.getProjectName(projectPath);
@@ -316,41 +304,94 @@ export class Config {
           workspace.path.split("/").pop() ?? workspace.path.split("\\").pop() ?? "unknown";
 
         try {
-          // Try to load metadata using workspace basename as ID (works for new workspaces with stable IDs)
+          // NEW FORMAT: If workspace has metadata in config, use it directly
+          if (workspace.id && workspace.name) {
+            const metadata: WorkspaceMetadata = {
+              id: workspace.id,
+              name: workspace.name,
+              projectName,
+              projectPath,
+              createdAt: workspace.createdAt,
+            };
+            workspaceMetadata.push(metadata);
+            continue; // Skip metadata file lookup
+          }
+
+          // LEGACY FORMAT: Fall back to reading metadata.json
+          // Try workspace basename first (for new stable ID workspaces)
           let metadataPath = path.join(this.getSessionDir(workspaceBasename), "metadata.json");
+          let metadataFound = false;
 
           if (fs.existsSync(metadataPath)) {
             const data = fs.readFileSync(metadataPath, "utf-8");
-            const metadata = JSON.parse(data) as WorkspaceMetadata;
+            let metadata = JSON.parse(data) as WorkspaceMetadata;
+
+            // Ensure required fields are present
+            if (!metadata.name || !metadata.projectPath) {
+              metadata = {
+                ...metadata,
+                name: metadata.name ?? workspaceBasename,
+                projectPath: metadata.projectPath ?? projectPath,
+                projectName: metadata.projectName ?? projectName,
+              };
+            }
+
+            // Migrate to config for next load
+            workspace.id = metadata.id;
+            workspace.name = metadata.name;
+            workspace.createdAt = metadata.createdAt;
+            configModified = true;
+
             workspaceMetadata.push(metadata);
-          } else {
-            // Try legacy ID format (project-workspace)
+            metadataFound = true;
+          }
+
+          // Try legacy ID format (project-workspace)
+          if (!metadataFound) {
             const legacyId = this.generateWorkspaceId(projectPath, workspace.path);
             metadataPath = path.join(this.getSessionDir(legacyId), "metadata.json");
 
             if (fs.existsSync(metadataPath)) {
               const data = fs.readFileSync(metadataPath, "utf-8");
-              const metadata = JSON.parse(data) as WorkspaceMetadata;
-              workspaceMetadata.push(metadata);
-            } else {
-              // No metadata found - create it for legacy workspace
-              const metadata: WorkspaceMetadata = {
-                id: legacyId, // Use legacy ID format for backward compatibility
-                name: workspaceBasename,
-                projectName,
-                projectPath, // Add full project path
-                // No createdAt for legacy workspaces (unknown)
-              };
+              let metadata = JSON.parse(data) as WorkspaceMetadata;
 
-              // Save metadata for future loads
-              const sessionDir = this.getSessionDir(legacyId);
-              if (!fs.existsSync(sessionDir)) {
-                fs.mkdirSync(sessionDir, { recursive: true });
+              // Ensure required fields are present
+              if (!metadata.name || !metadata.projectPath) {
+                metadata = {
+                  ...metadata,
+                  name: metadata.name ?? workspaceBasename,
+                  projectPath: metadata.projectPath ?? projectPath,
+                  projectName: metadata.projectName ?? projectName,
+                };
               }
-              fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2));
+
+              // Migrate to config for next load
+              workspace.id = metadata.id;
+              workspace.name = metadata.name;
+              workspace.createdAt = metadata.createdAt;
+              configModified = true;
 
               workspaceMetadata.push(metadata);
+              metadataFound = true;
             }
+          }
+
+          // No metadata found anywhere - create basic metadata
+          if (!metadataFound) {
+            const legacyId = this.generateWorkspaceId(projectPath, workspace.path);
+            const metadata: WorkspaceMetadata = {
+              id: legacyId,
+              name: workspaceBasename,
+              projectName,
+              projectPath,
+            };
+
+            // Save to config for next load
+            workspace.id = metadata.id;
+            workspace.name = metadata.name;
+            configModified = true;
+
+            workspaceMetadata.push(metadata);
           }
         } catch (error) {
           console.error(`Failed to load/migrate workspace metadata:`, error);
@@ -360,10 +401,15 @@ export class Config {
             id: legacyId,
             name: workspaceBasename,
             projectName,
-            projectPath, // Add full project path
+            projectPath,
           });
         }
       }
+    }
+
+    // Save config if we migrated any workspaces
+    if (configModified) {
+      this.saveConfig(config);
     }
 
     return workspaceMetadata;

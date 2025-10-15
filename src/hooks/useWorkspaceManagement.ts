@@ -48,7 +48,7 @@ export function useWorkspaceManagement({
     if (result.success) {
       // Backend has already updated the config - reload projects to get updated state
       const projectsList = await window.api.projects.list();
-      const loadedProjects = new Map(projectsList.map((p) => [p.path, p]));
+      const loadedProjects = new Map<string, ProjectConfig>(projectsList);
       onProjectsUpdate(loadedProjects);
 
       // Reload workspace metadata to get the new workspace ID
@@ -75,7 +75,7 @@ export function useWorkspaceManagement({
       if (result.success) {
         // Backend has already updated the config - reload projects to get updated state
         const projectsList = await window.api.projects.list();
-        const loadedProjects = new Map(projectsList.map((p) => [p.path, p]));
+        const loadedProjects = new Map<string, ProjectConfig>(projectsList);
         onProjectsUpdate(loadedProjects);
 
         // Reload workspace metadata
@@ -100,7 +100,7 @@ export function useWorkspaceManagement({
       if (result.success) {
         // Backend has already updated the config - reload projects to get updated state
         const projectsList = await window.api.projects.list();
-        const loadedProjects = new Map(projectsList.map((p) => [p.path, p]));
+        const loadedProjects = new Map<string, ProjectConfig>(projectsList);
         onProjectsUpdate(loadedProjects);
 
         // Reload workspace metadata

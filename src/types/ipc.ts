@@ -169,7 +169,7 @@ export interface IPCApi {
   projects: {
     create(projectPath: string): Promise<Result<ProjectConfig, string>>;
     remove(projectPath: string): Promise<Result<void, string>>;
-    list(): Promise<ProjectConfig[]>;
+    list(): Promise<Array<[string, ProjectConfig]>>;
     listBranches(projectPath: string): Promise<BranchListResult>;
     secrets: {
       get(projectPath: string): Promise<Secret[]>;

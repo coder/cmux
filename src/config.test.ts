@@ -145,7 +145,6 @@ describe("Config", () => {
       // Add workspace to config without metadata file
       config.editConfig((cfg) => {
         cfg.projects.set(projectPath, {
-          path: projectPath,
           workspaces: [{ path: workspacePath }],
         });
         return cfg;
@@ -161,17 +160,14 @@ describe("Config", () => {
       expect(metadata.projectName).toBe("project");
       expect(metadata.projectPath).toBe(projectPath);
 
-      // Verify metadata file was created
-      const sessionDir = config.getSessionDir("project-feature-branch");
-      const metadataPath = path.join(sessionDir, "metadata.json");
-      expect(fs.existsSync(metadataPath)).toBe(true);
-
-      const savedMetadata = JSON.parse(fs.readFileSync(metadataPath, "utf-8")) as {
-        id: string;
-        name: string;
-      };
-      expect(savedMetadata.id).toBe("project-feature-branch");
-      expect(savedMetadata.name).toBe("feature-branch");
+      // Verify metadata was migrated to config
+      const configData = config.loadConfigOrDefault();
+      const projectConfig = configData.projects.get(projectPath);
+      expect(projectConfig).toBeDefined();
+      expect(projectConfig!.workspaces).toHaveLength(1);
+      const workspace = projectConfig!.workspaces[0];
+      expect(workspace.id).toBe("project-feature-branch");
+      expect(workspace.name).toBe("feature-branch");
     });
 
     it("should use existing metadata file if present", () => {
@@ -198,13 +194,12 @@ describe("Config", () => {
       // Add workspace to config
       config.editConfig((cfg) => {
         cfg.projects.set(projectPath, {
-          path: projectPath,
           workspaces: [{ path: workspacePath }],
         });
         return cfg;
       });
 
-      // Get all metadata (should use existing metadata)
+      // Get all metadata (should use existing metadata and migrate to config)
       const allMetadata = config.getAllWorkspaceMetadata();
 
       expect(allMetadata).toHaveLength(1);
@@ -212,6 +207,16 @@ describe("Config", () => {
       expect(metadata.id).toBe(workspaceId);
       expect(metadata.name).toBe("my-feature");
       expect(metadata.createdAt).toBe("2025-01-01T00:00:00.000Z");
+
+      // Verify metadata was migrated to config
+      const configData = config.loadConfigOrDefault();
+      const projectConfig = configData.projects.get(projectPath);
+      expect(projectConfig).toBeDefined();
+      expect(projectConfig!.workspaces).toHaveLength(1);
+      const workspace = projectConfig!.workspaces[0];
+      expect(workspace.id).toBe(workspaceId);
+      expect(workspace.name).toBe("my-feature");
+      expect(workspace.createdAt).toBe("2025-01-01T00:00:00.000Z");
     });
   });
 });

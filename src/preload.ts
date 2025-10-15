@@ -21,6 +21,7 @@
 import { contextBridge, ipcRenderer } from "electron";
 import type { IPCApi, WorkspaceChatMessage } from "./types/ipc";
 import type { FrontendWorkspaceMetadata } from "./types/workspace";
+import type { ProjectConfig } from "./types/project";
 import { IPC_CHANNELS, getChatChannel } from "./constants/ipc-constants";
 
 // Build the API implementation using the shared interface
@@ -36,7 +37,8 @@ const api: IPCApi = {
   projects: {
     create: (projectPath) => ipcRenderer.invoke(IPC_CHANNELS.PROJECT_CREATE, projectPath),
     remove: (projectPath) => ipcRenderer.invoke(IPC_CHANNELS.PROJECT_REMOVE, projectPath),
-    list: () => ipcRenderer.invoke(IPC_CHANNELS.PROJECT_LIST),
+    list: (): Promise<Array<[string, ProjectConfig]>> =>
+      ipcRenderer.invoke(IPC_CHANNELS.PROJECT_LIST),
     listBranches: (projectPath: string) =>
       ipcRenderer.invoke(IPC_CHANNELS.PROJECT_LIST_BRANCHES, projectPath),
     secrets: {
