@@ -24,7 +24,7 @@ export const PinnedTodoList: React.FC<PinnedTodoListProps> = ({ workspaceId }) =
   const workspaceStore = useWorkspaceStoreRaw();
 
   // Subscribe to workspace state changes to re-render when TODOs update
-  const workspaceState = useSyncExternalStore(
+  useSyncExternalStore(
     (callback) => workspaceStore.subscribeKey(workspaceId, callback),
     () => workspaceStore.getWorkspaceState(workspaceId)
   );
@@ -43,4 +43,3 @@ export const PinnedTodoList: React.FC<PinnedTodoListProps> = ({ workspaceId }) =
     </PinnedContainer>
   );
 };
-

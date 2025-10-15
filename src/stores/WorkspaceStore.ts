@@ -2,6 +2,7 @@ import type { CmuxMessage, DisplayedMessage } from "@/types/message";
 import { createCmuxMessage } from "@/types/message";
 import type { WorkspaceMetadata } from "@/types/workspace";
 import type { WorkspaceChatMessage } from "@/types/ipc";
+import type { TodoItem } from "@/types/tools";
 import { StreamingMessageAggregator } from "@/utils/messages/StreamingMessageAggregator";
 import { updatePersistedState } from "@/hooks/usePersistedState";
 import { getRetryStateKey } from "@/constants/storage";
@@ -256,7 +257,7 @@ export class WorkspaceStore {
    * Get current TODO list for a workspace.
    * Returns empty array if workspace doesn't exist or has no TODOs.
    */
-  getTodos(workspaceId: string): import("@/types/tools").TodoItem[] {
+  getTodos(workspaceId: string): TodoItem[] {
     const aggregator = this.aggregators.get(workspaceId);
     return aggregator ? aggregator.getCurrentTodos() : [];
   }

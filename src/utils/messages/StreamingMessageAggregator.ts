@@ -11,6 +11,7 @@ import type {
   ReasoningDeltaEvent,
   ReasoningEndEvent,
 } from "@/types/stream";
+import type { TodoItem } from "@/types/tools";
 
 import type { WorkspaceChatMessage, StreamErrorMessage, DeleteMessage } from "@/types/ipc";
 import type {
@@ -47,7 +48,7 @@ export class StreamingMessageAggregator {
   private deltaHistory = new Map<string, DeltaRecordStorage>();
 
   // Current TODO list (updated when todo_write succeeds)
-  private currentTodos: import("@/types/tools").TodoItem[] = [];
+  private currentTodos: TodoItem[] = [];
 
   private invalidateCache(): void {
     this.cachedAllMessages = null;
@@ -76,7 +77,7 @@ export class StreamingMessageAggregator {
    * Get the current TODO list.
    * Updated whenever todo_write succeeds.
    */
-  getCurrentTodos(): import("@/types/tools").TodoItem[] {
+  getCurrentTodos(): TodoItem[] {
     return this.currentTodos;
   }
 
@@ -404,7 +405,7 @@ export class StreamingMessageAggregator {
           "success" in data.result &&
           data.result.success
         ) {
-          const args = toolPart.input as { todos: import("@/types/tools").TodoItem[] };
+          const args = toolPart.input as { todos: TodoItem[] };
           this.currentTodos = args.todos;
         }
       }
