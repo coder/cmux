@@ -91,14 +91,12 @@ export class IpcMain {
 
     log.info(`[IpcMain] getOrCreateSession called for workspaceId=${trimmed}`);
 
-
     let session = this.sessions.get(trimmed);
     if (session) {
       return session;
     }
 
     log.info(`[IpcMain] Creating new session for workspaceId=${trimmed}`);
-
 
     session = new AgentSession({
       workspaceId: trimmed,
