@@ -110,6 +110,10 @@ const api: IPCApi = {
   window: {
     setTitle: (title: string) => ipcRenderer.invoke(IPC_CHANNELS.WINDOW_SET_TITLE, title),
   },
+  tokens: {
+    countBulk: (model: string, texts: string[]) =>
+      ipcRenderer.invoke(IPC_CHANNELS.TOKENS_COUNT_BULK, model, texts),
+  },
 };
 
 // Expose the API along with platform/versions

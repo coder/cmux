@@ -140,6 +140,7 @@ export class IpcMain {
 
     this.registerDialogHandlers(ipcMain);
     this.registerWindowHandlers(ipcMain);
+    this.registerTokenHandlers(ipcMain);
     this.registerWorkspaceHandlers(ipcMain);
     this.registerProviderHandlers(ipcMain);
     this.registerProjectHandlers(ipcMain);
@@ -172,6 +173,24 @@ export class IpcMain {
       if (!this.mainWindow) return;
       this.mainWindow.setTitle(title);
     });
+  }
+
+  private registerTokenHandlers(ipcMain: ElectronIpcMain): void {
+    ipcMain.handle(
+      IPC_CHANNELS.TOKENS_COUNT_BULK,
+      async (_event, model: string, texts: string[]) => {
+        try {
+          // Offload to worker thread - keeps main process responsive
+          // Dynamic import is acceptable here - worker pool is lazy-loaded on first use
+          /* eslint-disable-next-line no-restricted-syntax */
+          const { tokenizerWorkerPool } = await import("@/services/tokenizerWorkerPool");
+          return await tokenizerWorkerPool.countTokens(model, texts);
+        } catch (error) {
+          log.error(`Failed to count tokens for model ${model}:`, error);
+          return null; // Tokenizer not loaded or error occurred
+        }
+      }
+    );
   }
 
   private registerWorkspaceHandlers(ipcMain: ElectronIpcMain): void {
