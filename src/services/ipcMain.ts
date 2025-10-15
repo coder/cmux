@@ -81,10 +81,27 @@ export class IpcMain {
 
     const chatUnsubscribe = session.onChatEvent((event) => {
       if (!this.mainWindow) {
+        console.log("[IpcMain] Dropping chat event - mainWindow is null");
         return;
       }
       const channel = getChatChannel(event.workspaceId);
+      if (
+        typeof event.message === "object" &&
+        event.message !== null &&
+        "type" in event.message &&
+        event.message.type === "stream-end"
+      ) {
+        console.log("[IpcMain] Sending stream-end event to renderer:", channel);
+      }
       this.mainWindow.webContents.send(channel, event.message);
+      if (
+        typeof event.message === "object" &&
+        event.message !== null &&
+        "type" in event.message &&
+        event.message.type === "stream-end"
+      ) {
+        console.log("[IpcMain] stream-end event sent to renderer");
+      }
     });
 
     const metadataUnsubscribe = session.onMetadataEvent((event) => {

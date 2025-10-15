@@ -268,7 +268,13 @@ export class MockScenarioPlayer {
           }
         }
 
+        console.log("[MockScenarioPlayer] Emitting stream-end event:", {
+          workspaceId,
+          messageId,
+          eventType: payload.type,
+        });
         this.deps.aiService.emit("stream-end", payload);
+        console.log("[MockScenarioPlayer] stream-end event emitted");
         this.cleanup(workspaceId);
         break;
       }
