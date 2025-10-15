@@ -17,33 +17,13 @@ import { TOOL_DEFINITIONS } from "@/utils/tools/toolDefinitions";
 
 /**
  * Wraps a ChildProcess to make it disposable for use with `using` statements.
- * Kills the entire process group to prevent zombie processes.
+ * Always kills the entire process group with SIGKILL to prevent zombie processes.
+ * SIGKILL cannot be caught or ignored, guaranteeing immediate cleanup.
  */
 class DisposableProcess implements Disposable {
   constructor(private readonly process: ChildProcess) {}
 
   [Symbol.dispose](): void {
-    // Normal cleanup - graceful SIGTERM for process group
-    if (!this.process.killed && this.process.pid !== undefined) {
-      try {
-        process.kill(-this.process.pid);
-      } catch {
-        // If process group kill fails (e.g., process already exited), try killing just the process
-        try {
-          this.process.kill();
-        } catch {
-          // Ignore - process might have already exited
-        }
-      }
-    }
-  }
-
-  /**
-   * Forcefully kills the entire process group with SIGKILL.
-   * Use for interrupts/aborts/timeouts where immediate termination is needed.
-   * SIGKILL cannot be caught or ignored, guaranteeing process cleanup.
-   */
-  killGroup(): void {
     if (this.process.pid !== undefined) {
       try {
         // Kill entire process group with SIGKILL - cannot be caught/ignored
@@ -187,7 +167,7 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
         if (abortSignal) {
           abortListener = () => {
             if (!resolved) {
-              childProcess.killGroup();
+              childProcess[Symbol.dispose]();
               // The close event will fire and handle finalization with abort error
             }
           };
@@ -197,7 +177,7 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
         // Set up timeout - kill process and let close event handle cleanup
         const timeoutHandle = setTimeout(() => {
           if (!resolved) {
-            childProcess.killGroup();
+            childProcess[Symbol.dispose]();
             // The close event will fire and handle finalization with timeout error
           }
         }, effectiveTimeout * 1000);
@@ -213,7 +193,7 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
           overflowReason = reason;
           stdoutReader.close();
           stderrReader.close();
-          childProcess.killGroup();
+          childProcess[Symbol.dispose]();
         };
 
         stdoutReader.on("line", (line) => {
