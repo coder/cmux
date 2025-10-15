@@ -110,12 +110,15 @@ export class AIService extends EventEmitter {
     void this.ensureSessionsDir();
     this.setupStreamEventForwarding();
     this.mockModeEnabled = process.env.CMUX_MOCK_AI === "1";
+    log.info("AIService constructor: CMUX_MOCK_AI =", process.env.CMUX_MOCK_AI);
+    log.info("AIService constructor: mockModeEnabled =", this.mockModeEnabled);
     if (this.mockModeEnabled) {
       log.info("AIService running in CMUX_MOCK_AI mode");
       this.mockScenarioPlayer = new MockScenarioPlayer({
         aiService: this,
         historyService,
       });
+      log.info("MockScenarioPlayer created");
     }
   }
 
@@ -410,7 +413,10 @@ export class AIService extends EventEmitter {
     mode?: string
   ): Promise<Result<void, SendMessageError>> {
     try {
+      log.info("AIService.sendMessage: mockModeEnabled =", this.mockModeEnabled);
+      log.info("AIService.sendMessage: mockScenarioPlayer exists =", !!this.mockScenarioPlayer);
       if (this.mockModeEnabled && this.mockScenarioPlayer) {
+        log.info("AIService.sendMessage: Using MockScenarioPlayer");
         return await this.mockScenarioPlayer.play(messages, workspaceId);
       }
 
