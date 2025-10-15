@@ -324,8 +324,8 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
             const overflowPolicy = config.overflow_policy ?? "tmpfile";
 
             if (overflowPolicy === "truncate") {
-              // Return truncated output with first 50 lines
-              const maxTruncateLines = 50;
+              // Return truncated output with first 80 lines
+              const maxTruncateLines = 80;
               const truncatedLines = lines.slice(0, maxTruncateLines);
               const truncatedOutput = truncatedLines.join("\n");
               const errorMessage = `[OUTPUT TRUNCATED - ${overflowReason ?? "unknown reason"}]\n\nShowing first ${maxTruncateLines} of ${lines.length} lines:\n\n${truncatedOutput}`;

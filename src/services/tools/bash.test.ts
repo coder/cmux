@@ -176,15 +176,15 @@ describe("bash tool", () => {
     if (!result.success) {
       // Should contain truncation notice
       expect(result.error).toContain("[OUTPUT TRUNCATED");
-      expect(result.error).toContain("Showing first 50 of");
+      expect(result.error).toContain("Showing first 80 of");
       expect(result.error).toContain("lines:");
 
-      // Should contain first 50 lines
+      // Should contain first 80 lines
       expect(result.error).toContain("line1");
-      expect(result.error).toContain("line50");
+      expect(result.error).toContain("line80");
 
-      // Should NOT contain line 51 or beyond
-      expect(result.error).not.toContain("line51");
+      // Should NOT contain line 81 or beyond
+      expect(result.error).not.toContain("line81");
       expect(result.error).not.toContain("line100");
 
       // Should NOT create temp file
