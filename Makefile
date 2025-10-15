@@ -17,6 +17,11 @@
 #
 # Adding New Targets:
 #   Add `## Description` after the target to make it appear in `make help`
+#
+# Build Reproducibility:
+#   AVOID CONDITIONAL BRANCHES (if/else) IN BUILD TARGETS AT ALL COSTS.
+#   Branches reduce reproducibility - builds should fail fast with clear errors
+#   if dependencies are missing, not silently fall back to different behavior.
 
 # Include formatting rules
 include fmt.mk
@@ -30,6 +35,9 @@ include fmt.mk
 .PHONY: benchmark-terminal
 .PHONY: ensure-deps
 .PHONY: check-eager-imports check-bundle-size check-startup
+
+# Build tools
+TSGO := bun run node_modules/@typescript/native-preview/bin/tsgo.js
 
 TS_SOURCES := $(shell find src -type f \( -name '*.ts' -o -name '*.tsx' \))
 
@@ -56,7 +64,7 @@ help: ## Show this help message
 ## Development
 dev: node_modules/.installed build-main ## Start development server (Vite + tsgo watcher for 10x faster type checking)
 	@bun x concurrently -k \
-		"bun x concurrently \"bun run node_modules/@typescript/native-preview/bin/tsgo.js -w -p tsconfig.main.json\" \"bun x tsc-alias -w -p tsconfig.main.json\"" \
+		"bun x concurrently \"$(TSGO) -w -p tsconfig.main.json\" \"bun x tsc-alias -w -p tsconfig.main.json\"" \
 		"vite"
 
 start: node_modules/.installed build-main build-preload build-static ## Build and start Electron app
@@ -69,7 +77,7 @@ build-main: node_modules/.installed dist/main.js ## Build main process
 
 dist/main.js: src/version.ts tsconfig.main.json tsconfig.json $(TS_SOURCES)
 	@echo "Building main process..."
-	@NODE_ENV=production bun x tsc -p tsconfig.main.json
+	@NODE_ENV=production $(TSGO) -p tsconfig.main.json
 	@NODE_ENV=production bun x tsc-alias -p tsconfig.main.json
 
 build-preload: node_modules/.installed dist/preload.js ## Build preload script
@@ -136,16 +144,9 @@ lint-fix: node_modules/.installed ## Run linter with --fix
 	@./scripts/lint.sh --fix
 
 typecheck: node_modules/.installed src/version.ts ## Run TypeScript type checking (uses tsgo for 10x speedup)
-	@if [ -f "node_modules/@typescript/native-preview/bin/tsgo.js" ]; then \
-		bun x concurrently -g \
-			"bun run node_modules/@typescript/native-preview/bin/tsgo.js --noEmit" \
-			"bun run node_modules/@typescript/native-preview/bin/tsgo.js --noEmit -p tsconfig.main.json"; \
-	else \
-		echo "⚠️  tsgo not found, falling back to tsc (slower)"; \
-		bun x concurrently -g \
-			"tsc --noEmit" \
-			"tsc --noEmit -p tsconfig.main.json"; \
-	fi
+	@bun x concurrently -g \
+		"$(TSGO) --noEmit" \
+		"$(TSGO) --noEmit -p tsconfig.main.json"
 
 ## Testing
 test-integration: node_modules/.installed ## Run all tests (unit + integration)
