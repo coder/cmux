@@ -47,6 +47,9 @@ class TokenizerWorkerPool {
     this.worker = new Worker(workerPath);
     this.isTerminating = false;
 
+    // Allow Node to exit even if worker is still running (important for tests)
+    this.worker.unref();
+
     this.worker.on("message", (response: TokenizeResponse) => {
       this.handleResponse(response);
     });
