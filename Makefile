@@ -54,9 +54,9 @@ help: ## Show this help message
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
 ## Development
-dev: node_modules/.installed build-main ## Start development server (Vite + TypeScript watcher)
+dev: node_modules/.installed build-main ## Start development server (Vite + tsgo watcher for 10x faster type checking)
 	@bun x concurrently -k \
-		"bun x concurrently \"bun x tsc -w -p tsconfig.main.json\" \"bun x tsc-alias -w -p tsconfig.main.json\"" \
+		"bun x concurrently \"bun run node_modules/@typescript/native-preview/bin/tsgo.js -w -p tsconfig.main.json\" \"bun x tsc-alias -w -p tsconfig.main.json\"" \
 		"vite"
 
 start: node_modules/.installed build-main build-preload build-static ## Build and start Electron app

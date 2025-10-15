@@ -14,9 +14,8 @@
     "allowJs": true,
     "sourceMap": true,
     "inlineSources": true,
-    "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["./src/*"]
     }
   },
   "include": ["src/**/*.tsx", "src/**/*.ts", "tests/**/*.ts"],
