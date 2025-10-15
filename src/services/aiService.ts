@@ -185,22 +185,17 @@ export class AIService extends EventEmitter {
       // Get all workspace metadata (which includes migration logic)
       // This ensures we always get complete metadata with all required fields
       const allMetadata = this.config.getAllWorkspaceMetadata();
-      log.info(`[getWorkspaceMetadata] Looking for ${workspaceId} in ${allMetadata.length} workspaces`);
-      log.info(`[getWorkspaceMetadata] All IDs: ${allMetadata.map(m => m.id).join(", ")}`);
       const metadata = allMetadata.find((m) => m.id === workspaceId);
 
       if (!metadata) {
-        log.info(`[getWorkspaceMetadata] NOT FOUND: ${workspaceId}`);
         return Err(
           `Workspace metadata not found for ${workspaceId}. Workspace may not be properly initialized.`
         );
       }
 
-      log.info(`[getWorkspaceMetadata] Found metadata for ${workspaceId}:`, JSON.stringify(metadata));
       return Ok(metadata);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      log.info(`[getWorkspaceMetadata] Error:`, error);
       return Err(`Failed to read workspace metadata: ${message}`);
     }
   }
@@ -521,8 +516,16 @@ export class AIService extends EventEmitter {
       }
 
       const metadata = metadataResult.data;
-      // Compute worktree path from project path + workspace ID
-      const workspacePath = this.config.getWorkspacePath(metadata.projectPath, metadata.id);
+
+      // Get actual workspace path from config (handles both legacy and new format)
+      const workspace = this.config.findWorkspace(workspaceId);
+      if (!workspace) {
+        return Err({ type: "unknown", raw: `Workspace ${workspaceId} not found in config` });
+      }
+      
+      // Use named workspace path (symlink) for user-facing operations
+      // Agent commands should run in the path users see in the UI
+      const workspacePath = this.config.getWorkspaceSymlinkPath(metadata.projectPath, metadata.name);
 
       // Build system message from workspace metadata
       const systemMessage = await buildSystemMessage(

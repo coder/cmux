@@ -166,7 +166,7 @@ function AppInner() {
     [setProjects]
   );
 
-  const { workspaceMetadata, createWorkspace, removeWorkspace, renameWorkspace } =
+  const { workspaceMetadata, loading: metadataLoading, createWorkspace, removeWorkspace, renameWorkspace } =
     useWorkspaceManagement({
       selectedWorkspace,
       onProjectsUpdate: handleProjectsUpdate,
@@ -209,8 +209,10 @@ function AppInner() {
         window.history.replaceState(null, "", newHash);
       }
 
-      // Update window title
-      const title = `${selectedWorkspace.workspaceId} - ${selectedWorkspace.projectName} - cmux`;
+      // Update window title with workspace name
+      const workspaceName =
+        workspaceMetadata.get(selectedWorkspace.workspaceId)?.name ?? selectedWorkspace.workspaceId;
+      const title = `${workspaceName} - ${selectedWorkspace.projectName} - cmux`;
       void window.api.window.setTitle(title);
     } else {
       // Clear hash when no workspace selected
@@ -222,48 +224,76 @@ function AppInner() {
   }, [selectedWorkspace]);
 
   // Restore workspace from URL on mount (if valid)
+  // This effect runs once on mount to restore from hash, which takes priority over localStorage
+  const [hasRestoredFromHash, setHasRestoredFromHash] = useState(false);
+  
   useEffect(() => {
+    // Only run once
+    if (hasRestoredFromHash) return;
+    
+    // Wait for metadata to finish loading
+    if (metadataLoading) return;
+
     const hash = window.location.hash;
     if (hash.startsWith("#workspace=")) {
       const workspaceId = decodeURIComponent(hash.substring("#workspace=".length));
 
       // Find workspace in metadata
-      const metadata = Array.from(workspaceMetadata.values()).find((ws) => ws.id === workspaceId);
+      const metadata = workspaceMetadata.get(workspaceId);
 
       if (metadata) {
-        // Find project for this workspace (metadata now includes projectPath)
+        // Restore from hash (overrides localStorage)
         setSelectedWorkspace({
           workspaceId: metadata.id,
           projectPath: metadata.projectPath,
           projectName: metadata.projectName,
-          workspacePath: metadata.stableWorkspacePath,
+          namedWorkspacePath: metadata.namedWorkspacePath,
         });
       }
     }
-    // Only run on mount
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    
+    setHasRestoredFromHash(true);
+  }, [metadataLoading, workspaceMetadata, hasRestoredFromHash, setSelectedWorkspace]);
 
-  // Validate selected workspace exists (clear if workspace was deleted)
+  // Validate selected workspace exists and has all required fields
   useEffect(() => {
-    if (selectedWorkspace && workspaceMetadata.size > 0) {
-      const exists = workspaceMetadata.has(selectedWorkspace.workspaceId);
-      if (!exists) {
+    // Don't validate until metadata is loaded
+    if (metadataLoading) return;
+    
+    if (selectedWorkspace) {
+      const metadata = workspaceMetadata.get(selectedWorkspace.workspaceId);
+      
+      if (!metadata) {
+        // Workspace was deleted
         console.warn(
           `Workspace ${selectedWorkspace.workspaceId} no longer exists, clearing selection`
         );
         setSelectedWorkspace(null);
-        // Also clear URL hash if present
         if (window.location.hash) {
           window.history.replaceState(null, "", window.location.pathname);
         }
+      } else if (!selectedWorkspace.namedWorkspacePath && metadata.namedWorkspacePath) {
+        // Old localStorage entry missing namedWorkspacePath - update it once
+        console.log(
+          `Updating workspace ${selectedWorkspace.workspaceId} with missing fields`
+        );
+        setSelectedWorkspace({
+          workspaceId: metadata.id,
+          projectPath: metadata.projectPath,
+          projectName: metadata.projectName,
+          namedWorkspacePath: metadata.namedWorkspacePath,
+        });
       }
     }
-  }, [selectedWorkspace, workspaceMetadata, setSelectedWorkspace]);
+  }, [metadataLoading, selectedWorkspace, workspaceMetadata, setSelectedWorkspace]);
 
-  const openWorkspaceInTerminal = useCallback((workspacePath: string) => {
-    void window.api.workspace.openTerminal(workspacePath);
-  }, []);
+  const openWorkspaceInTerminal = useCallback((workspaceId: string) => {
+    // Look up workspace metadata to get the named path (user-friendly symlink)
+    const metadata = workspaceMetadata.get(workspaceId);
+    if (metadata) {
+      void window.api.workspace.openTerminal(metadata.namedWorkspacePath);
+    }
+  }, [workspaceMetadata]);
 
   const handleRemoveProject = useCallback(
     async (path: string) => {
@@ -335,18 +365,11 @@ function AppInner() {
   // Use stable reference to prevent sidebar re-renders when sort order hasn't changed
   const sortedWorkspacesByProject = useStableReference(
     () => {
-      // Build path-to-metadata lookup map internally
-      const pathToMetadata = new Map<string, FrontendWorkspaceMetadata>();
-      for (const metadata of workspaceMetadata.values()) {
-        pathToMetadata.set(metadata.stableWorkspacePath, metadata);
-        pathToMetadata.set(metadata.namedWorkspacePath, metadata);
-      }
-
       const result = new Map<string, FrontendWorkspaceMetadata[]>();
       for (const [projectPath, config] of projects) {
-        // Transform Workspace[] to FrontendWorkspaceMetadata[] and filter nulls
+        // Transform Workspace[] to FrontendWorkspaceMetadata[] using workspace ID
         const metadataList = config.workspaces
-          .map((ws) => pathToMetadata.get(ws.path))
+          .map((ws) => (ws.id ? workspaceMetadata.get(ws.id) : undefined))
           .filter((meta): meta is FrontendWorkspaceMetadata => meta !== undefined);
 
         // Sort by recency
@@ -361,11 +384,16 @@ function AppInner() {
       return result;
     },
     (prev, next) => {
-      // Compare Maps: check if both size and workspace order are the same
+      // Compare Maps: check if size, workspace order, and metadata content are the same
       if (
         !compareMaps(prev, next, (a, b) => {
           if (a.length !== b.length) return false;
-          return a.every((metadata, i) => metadata.id === b[i].id);
+          // Check both ID and name to detect renames
+          return a.every((metadata, i) => {
+            const bMeta = b[i];
+            if (!bMeta) return false;
+            return metadata.id === bMeta.id && metadata.name === bMeta.name;
+          });
         })
       ) {
         return false;
@@ -403,7 +431,7 @@ function AppInner() {
       setSelectedWorkspace({
         projectPath: selectedWorkspace.projectPath,
         projectName: selectedWorkspace.projectName,
-        workspacePath: targetMetadata.stableWorkspacePath,
+        namedWorkspacePath: targetMetadata.namedWorkspacePath,
         workspaceId: targetMetadata.id,
       });
     },
@@ -506,12 +534,7 @@ function AppInner() {
   );
 
   const selectWorkspaceFromPalette = useCallback(
-    (selection: {
-      projectPath: string;
-      projectName: string;
-      workspacePath: string;
-      workspaceId: string;
-    }) => {
+    (selection: WorkspaceSelection) => {
       setSelectedWorkspace(selection);
     },
     [setSelectedWorkspace]
@@ -653,14 +676,14 @@ function AppInner() {
           <ContentArea>
             {selectedWorkspace ? (
               <ErrorBoundary
-                workspaceInfo={`${selectedWorkspace.projectName}/${selectedWorkspace.workspacePath.split("/").pop() ?? ""}`}
+                workspaceInfo={`${selectedWorkspace.projectName}/${selectedWorkspace.namedWorkspacePath?.split("/").pop() ?? selectedWorkspace.workspaceId}`}
               >
                 <AIView
                   key={selectedWorkspace.workspaceId}
                   workspaceId={selectedWorkspace.workspaceId}
                   projectName={selectedWorkspace.projectName}
-                  branch={selectedWorkspace.workspacePath.split("/").pop() ?? ""}
-                  workspacePath={selectedWorkspace.workspacePath}
+                  branch={selectedWorkspace.namedWorkspacePath?.split("/").pop() ?? selectedWorkspace.workspaceId}
+                  namedWorkspacePath={selectedWorkspace.namedWorkspacePath ?? ""}
                 />
               </ErrorBoundary>
             ) : (

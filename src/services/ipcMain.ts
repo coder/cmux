@@ -122,17 +122,7 @@ export class IpcMain {
     this.sessions.delete(workspaceId);
   }
 
-  /**
-   * Enrich workspace metadata with computed paths for frontend use.
-   * Backend computes these to avoid duplicating path logic on frontend.
-   */
-  private enrichMetadataWithPaths(metadata: WorkspaceMetadata): FrontendWorkspaceMetadata {
-    const paths = this.config.getWorkspacePaths(metadata);
-    return {
-      ...metadata,
-      ...paths,
-    };
-  }
+
 
   /**
    * Register all IPC handlers and setup event forwarding
@@ -222,7 +212,7 @@ export class IpcMain {
             projectPath, // Full project path for computing worktree path
             createdAt: new Date().toISOString(),
           };
-          await this.aiService.saveWorkspaceMetadata(workspaceId, metadata);
+          // Note: metadata.json no longer written - config is the only source of truth
 
           // Update config to include the new workspace (with full metadata)
           this.config.editConfig((config) => {
@@ -247,14 +237,21 @@ export class IpcMain {
           // Create symlink from name to ID for convenience
           this.config.createWorkspaceSymlink(projectPath, workspaceId, branchName);
 
+          // Get complete metadata from config (includes paths)
+          const allMetadata = this.config.getAllWorkspaceMetadata();
+          const completeMetadata = allMetadata.find((m) => m.id === workspaceId);
+          if (!completeMetadata) {
+            return { success: false, error: "Failed to retrieve workspace metadata" };
+          }
+
           // Emit metadata event for new workspace
           const session = this.getOrCreateSession(workspaceId);
-          session.emitMetadata(metadata);
+          session.emitMetadata(completeMetadata);
 
-          // Return enriched metadata with computed paths for frontend
+          // Return complete metadata with paths for frontend
           return {
             success: true,
-            metadata: this.enrichMetadataWithPaths(metadata),
+            metadata: completeMetadata,
           };
         }
 
@@ -311,18 +308,7 @@ export class IpcMain {
           // Update symlink
           this.config.updateWorkspaceSymlink(projectPath, oldName, newName, workspaceId);
 
-          // Update metadata (only name changes, ID and path stay the same)
-          const newMetadata = {
-            ...oldMetadata,
-            name: newName,
-          };
-
-          const saveResult = await this.aiService.saveWorkspaceMetadata(workspaceId, newMetadata);
-          if (!saveResult.success) {
-            // Rollback symlink
-            this.config.updateWorkspaceSymlink(projectPath, newName, oldName, workspaceId);
-            return Err(`Failed to save metadata: ${saveResult.error}`);
-          }
+          // Note: metadata.json no longer written - config is the only source of truth
 
           // Update config with new name
           this.config.editConfig((config) => {
@@ -338,14 +324,21 @@ export class IpcMain {
             return config;
           });
 
+          // Get updated metadata from config (includes updated name and paths)
+          const allMetadata = this.config.getAllWorkspaceMetadata();
+          const updatedMetadata = allMetadata.find((m) => m.id === workspaceId);
+          if (!updatedMetadata) {
+            return Err("Failed to retrieve updated workspace metadata");
+          }
+
           // Emit metadata event with updated metadata (same workspace ID)
           const session = this.sessions.get(workspaceId);
           if (session) {
-            session.emitMetadata(newMetadata);
+            session.emitMetadata(updatedMetadata);
           } else if (this.mainWindow) {
             this.mainWindow.webContents.send(IPC_CHANNELS.WORKSPACE_METADATA, {
               workspaceId,
-              metadata: newMetadata,
+              metadata: updatedMetadata,
             });
           }
 
@@ -359,9 +352,8 @@ export class IpcMain {
 
     ipcMain.handle(IPC_CHANNELS.WORKSPACE_LIST, () => {
       try {
-        const metadataList = this.config.getAllWorkspaceMetadata();
-        // Enrich all metadata with computed paths
-        return metadataList.map((metadata) => this.enrichMetadataWithPaths(metadata));
+        // getAllWorkspaceMetadata now returns complete metadata with paths
+        return this.config.getAllWorkspaceMetadata();
       } catch (error) {
         console.error("Failed to list workspaces:", error);
         return [];
@@ -369,12 +361,9 @@ export class IpcMain {
     });
 
     ipcMain.handle(IPC_CHANNELS.WORKSPACE_GET_INFO, async (_event, workspaceId: string) => {
-      const result = await this.aiService.getWorkspaceMetadata(workspaceId);
-      if (!result.success) {
-        return null;
-      }
-      // Enrich metadata with computed paths
-      return this.enrichMetadataWithPaths(result.data);
+      // Get complete metadata from config (includes paths)
+      const allMetadata = this.config.getAllWorkspaceMetadata();
+      return allMetadata.find((m) => m.id === workspaceId) ?? null;
     });
 
     ipcMain.handle(
@@ -569,27 +558,25 @@ export class IpcMain {
         }
       ) => {
         try {
-          log.info(`[WORKSPACE_EXECUTE_BASH] Getting metadata for ${workspaceId}`);
           // Get workspace metadata
           const metadataResult = await this.aiService.getWorkspaceMetadata(workspaceId);
-          log.info(`[WORKSPACE_EXECUTE_BASH] Metadata result for ${workspaceId}:`, metadataResult);
           if (!metadataResult.success) {
             return Err(`Failed to get workspace metadata: ${metadataResult.error}`);
           }
 
           const metadata = metadataResult.data;
-          log.info(`[WORKSPACE_EXECUTE_BASH] Metadata data for ${workspaceId}:`, JSON.stringify(metadata));
 
-          // Validate required fields for path computation
-          if (!metadata.projectPath) {
-            log.info(`[WORKSPACE_EXECUTE_BASH] MISSING projectPath for ${workspaceId}!`);
-            return Err(
-              `Workspace metadata missing projectPath for ${workspaceId}. Metadata: ${JSON.stringify(metadata)}`
-            );
+          // Get actual workspace path from config (handles both legacy and new format)
+          // Legacy workspaces: path stored in config doesn't match computed path
+          // New workspaces: path can be computed, but config is still source of truth
+          const workspace = this.config.findWorkspace(workspaceId);
+          if (!workspace) {
+            return Err(`Workspace ${workspaceId} not found in config`);
           }
-
-          // Compute worktree path from project path + workspace ID
-          const workspacePath = this.config.getWorkspacePath(metadata.projectPath, metadata.id);
+          
+          // Use named workspace path (symlink) for user-facing operations
+          // Users see the friendly name in the UI, so commands should run in that path
+          const namedPath = this.config.getWorkspaceSymlinkPath(metadata.projectPath, metadata.name);
 
           // Load project secrets
           const projectSecrets = this.config.getProjectSecrets(metadata.projectPath);
@@ -600,7 +587,7 @@ export class IpcMain {
           // Create bash tool with workspace's cwd and secrets
           // All IPC bash calls are from UI (background operations) - use truncate to avoid temp file spam
           const bashTool = createBashTool({
-            cwd: workspacePath,
+            cwd: namedPath,
             secrets: secretsToRecord(projectSecrets),
             niceness: options?.niceness,
             tempDir: tempDir.path,
@@ -633,13 +620,21 @@ export class IpcMain {
           // macOS - try Ghostty first, fallback to Terminal.app
           const terminal = await this.findAvailableCommand(["ghostty", "terminal"]);
           if (terminal === "ghostty") {
-            const child = spawn("open", ["-a", "Ghostty", workspacePath], {
+            // Match main: pass workspacePath to 'open -a Ghostty' to avoid regressions
+            const cmd = "open";
+            const args = ["-a", "Ghostty", workspacePath];
+            log.info(`Opening terminal: ${cmd} ${args.join(" ")}`);
+            const child = spawn(cmd, args, {
               detached: true,
               stdio: "ignore",
             });
             child.unref();
           } else {
-            const child = spawn("open", ["-a", "Terminal", workspacePath], {
+            // Terminal.app opens in the directory when passed as argument
+            const cmd = "open";
+            const args = ["-a", "Terminal", workspacePath];
+            log.info(`Opening terminal: ${cmd} ${args.join(" ")}`);
+            const child = spawn(cmd, args, {
               detached: true,
               stdio: "ignore",
             });
@@ -647,7 +642,10 @@ export class IpcMain {
           }
         } else if (process.platform === "win32") {
           // Windows
-          const child = spawn("cmd", ["/c", "start", "cmd", "/K", "cd", "/D", workspacePath], {
+          const cmd = "cmd";
+          const args = ["/c", "start", "cmd", "/K", "cd", "/D", workspacePath];
+          log.info(`Opening terminal: ${cmd} ${args.join(" ")}`);
+          const child = spawn(cmd, args, {
             detached: true,
             shell: true,
             stdio: "ignore",
@@ -671,13 +669,16 @@ export class IpcMain {
           const availableTerminal = await this.findAvailableTerminal(terminals);
 
           if (availableTerminal) {
+            const cwdInfo = availableTerminal.cwd ? ` (cwd: ${availableTerminal.cwd})` : "";
+            log.info(
+              `Opening terminal: ${availableTerminal.cmd} ${availableTerminal.args.join(" ")}${cwdInfo}`
+            );
             const child = spawn(availableTerminal.cmd, availableTerminal.args, {
               cwd: availableTerminal.cwd ?? workspacePath,
               detached: true,
               stdio: "ignore",
             });
             child.unref();
-            log.info(`Opened terminal ${availableTerminal.cmd} at ${workspacePath}`);
           } else {
             log.error(
               "No terminal emulator found. Tried: " + terminals.map((t) => t.cmd).join(", ")
@@ -708,8 +709,14 @@ export class IpcMain {
       }
 
       const metadata = metadataResult.data;
-      // Compute worktree path from project path + workspace ID
-      const workspacePath = this.config.getWorkspacePath(metadata.projectPath, metadata.id);
+
+      // Get actual workspace path from config (handles both legacy and new format)
+      const workspace = this.config.findWorkspace(workspaceId);
+      if (!workspace) {
+        log.info(`Workspace ${workspaceId} metadata exists but not found in config`);
+        return { success: true }; // Consider it already removed
+      }
+      const workspacePath = workspace.workspacePath;
 
       // Get project path from the worktree itself
       const foundProjectPath = await getMainWorktreeFromWorktree(workspacePath);

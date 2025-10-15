@@ -14,7 +14,7 @@ export interface BuildSourcesParams {
   selectedWorkspace: {
     projectPath: string;
     projectName: string;
-    workspacePath: string;
+    namedWorkspacePath: string;
     workspaceId: string;
   } | null;
   streamingModels?: Map<string, string>;
@@ -32,7 +32,7 @@ export interface BuildSourcesParams {
   onSelectWorkspace: (sel: {
     projectPath: string;
     projectName: string;
-    workspacePath: string;
+    namedWorkspacePath: string;
     workspaceId: string;
   }) => void;
   onRemoveWorkspace: (workspaceId: string) => Promise<{ success: boolean; error?: string }>;
@@ -44,7 +44,7 @@ export interface BuildSourcesParams {
   onRemoveProject: (path: string) => void;
   onToggleSidebar: () => void;
   onNavigateWorkspace: (dir: "next" | "prev") => void;
-  onOpenWorkspaceInTerminal: (workspacePath: string) => void;
+  onOpenWorkspaceInTerminal: (workspaceId: string) => void;
 }
 
 const THINKING_LEVELS: ThinkingLevel[] = ["off", "low", "medium", "high"];
@@ -147,15 +147,15 @@ export function buildCoreSources(p: BuildSourcesParams): Array<() => CommandActi
           p.onSelectWorkspace({
             projectPath: meta.projectPath,
             projectName: meta.projectName,
-            workspacePath: meta.stableWorkspacePath,
+            namedWorkspacePath: meta.namedWorkspacePath,
             workspaceId: meta.id,
           }),
       });
     }
 
     // Remove current workspace (rename action intentionally omitted until we add a proper modal)
-    if (selected) {
-      const workspaceDisplayName = `${selected.projectName}/${selected.workspacePath.split("/").pop() ?? selected.workspacePath}`;
+    if (selected && selected.namedWorkspacePath) {
+      const workspaceDisplayName = `${selected.projectName}/${selected.namedWorkspacePath.split("/").pop() ?? selected.namedWorkspacePath}`;
       list.push({
         id: "ws:open-terminal-current",
         title: "Open Current Workspace in Terminal",
@@ -163,7 +163,7 @@ export function buildCoreSources(p: BuildSourcesParams): Array<() => CommandActi
         section: section.workspaces,
         shortcutHint: formatKeybind(KEYBINDS.OPEN_TERMINAL),
         run: () => {
-          p.onOpenWorkspaceInTerminal(selected.workspacePath);
+          p.onOpenWorkspaceInTerminal(selected.workspaceId);
         },
       });
       list.push({
@@ -214,7 +214,7 @@ export function buildCoreSources(p: BuildSourcesParams): Array<() => CommandActi
           fields: [
             {
               type: "select",
-              name: "workspacePath",
+              name: "workspaceId",
               label: "Workspace",
               placeholder: "Search workspaces…",
               getOptions: () =>
@@ -230,7 +230,7 @@ export function buildCoreSources(p: BuildSourcesParams): Array<() => CommandActi
             },
           ],
           onSubmit: (vals) => {
-            p.onOpenWorkspaceInTerminal(vals.workspacePath);
+            p.onOpenWorkspaceInTerminal(vals.workspaceId);
           },
         },
       });

@@ -123,7 +123,7 @@ const WorkspaceRemoveBtn = styled(RemoveBtn)`
 export interface WorkspaceSelection {
   projectPath: string;
   projectName: string;
-  workspacePath: string;
+  namedWorkspacePath: string; // User-friendly path (symlink for new workspaces)
   workspaceId: string;
 }
 export interface WorkspaceListItemProps {
@@ -150,7 +150,7 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
   onToggleUnread,
 }) => {
   // Destructure metadata for convenience
-  const { id: workspaceId, name: workspaceName, stableWorkspacePath: workspacePath } = metadata;
+  const { id: workspaceId, name: workspaceName, namedWorkspacePath } = metadata;
   // Subscribe to this specific workspace's sidebar state (streaming status, model, recency)
   const sidebarState = useWorkspaceSidebarState(workspaceId);
   const gitStatus = useGitStatus(workspaceId);
@@ -246,7 +246,7 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
           onSelectWorkspace({
             projectPath,
             projectName,
-            workspacePath,
+            namedWorkspacePath,
             workspaceId,
           })
         }
@@ -256,7 +256,7 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
             onSelectWorkspace({
               projectPath,
               projectName,
-              workspacePath,
+              namedWorkspacePath,
               workspaceId,
             });
           }
@@ -264,7 +264,7 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
         role="button"
         tabIndex={0}
         aria-current={isSelected ? "true" : undefined}
-        data-workspace-path={workspacePath}
+        data-workspace-path={namedWorkspacePath}
         data-workspace-id={workspaceId}
       >
         <TooltipWrapper inline>

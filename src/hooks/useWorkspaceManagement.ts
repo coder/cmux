@@ -20,6 +20,7 @@ export function useWorkspaceManagement({
   const [workspaceMetadata, setWorkspaceMetadata] = useState<
     Map<string, FrontendWorkspaceMetadata>
   >(new Map());
+  const [loading, setLoading] = useState(true);
 
   const loadWorkspaceMetadata = useCallback(async () => {
     try {
@@ -35,9 +36,28 @@ export function useWorkspaceManagement({
     }
   }, []);
 
+  // Load metadata once on mount
   useEffect(() => {
-    void loadWorkspaceMetadata();
+    void (async () => {
+      await loadWorkspaceMetadata();
+      setLoading(false);
+    })();
   }, [loadWorkspaceMetadata]);
+
+  // Subscribe to metadata updates (for create/rename/delete operations)
+  useEffect(() => {
+    const unsubscribe = window.api.workspace.onMetadata((event: { workspaceId: string; metadata: FrontendWorkspaceMetadata }) => {
+      setWorkspaceMetadata((prev) => {
+        const updated = new Map(prev);
+        updated.set(event.workspaceId, event.metadata);
+        return updated;
+      });
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
 
   const createWorkspace = async (projectPath: string, branchName: string, trunkBranch: string) => {
     console.assert(
@@ -58,7 +78,7 @@ export function useWorkspaceManagement({
       return {
         projectPath,
         projectName: result.metadata.projectName,
-        workspacePath: result.metadata.stableWorkspacePath,
+        namedWorkspacePath: result.metadata.namedWorkspacePath,
         workspaceId: result.metadata.id,
       };
     } else {
@@ -116,7 +136,7 @@ export function useWorkspaceManagement({
             onSelectedWorkspaceUpdate({
               projectPath: selectedWorkspace.projectPath,
               projectName: newMetadata.projectName,
-              workspacePath: newMetadata.stableWorkspacePath,
+              namedWorkspacePath: newMetadata.namedWorkspacePath,
               workspaceId: newWorkspaceId,
             });
           }
@@ -132,9 +152,9 @@ export function useWorkspaceManagement({
 
   return {
     workspaceMetadata,
+    loading,
     createWorkspace,
     removeWorkspace,
     renameWorkspace,
-    loadWorkspaceMetadata,
   };
 }

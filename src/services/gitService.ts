@@ -1,67 +1,11 @@
-import * as fs from "fs";
 import * as fsPromises from "fs/promises";
 import * as path from "path";
-import type { Config } from "@/config";
 import { execAsync } from "@/utils/disposableExec";
 
 export interface WorktreeResult {
   success: boolean;
   path?: string;
   error?: string;
-}
-
-export async function createWorktree(
-  config: Config,
-  projectPath: string,
-  branchName: string
-): Promise<WorktreeResult> {
-  try {
-    const workspacePath = config.getWorkspacePath(projectPath, branchName);
-
-    // Create workspace directory if it doesn't exist
-    if (!fs.existsSync(path.dirname(workspacePath))) {
-      fs.mkdirSync(path.dirname(workspacePath), { recursive: true });
-    }
-
-    // Check if workspace already exists
-    if (fs.existsSync(workspacePath)) {
-      return {
-        success: false,
-        error: `Workspace already exists at ${workspacePath}`,
-      };
-    }
-
-    // Check if branch exists
-    using branchesProc = execAsync(`git -C "${projectPath}" branch -a`);
-    const { stdout: branches } = await branchesProc.result;
-    const branchExists = branches
-      .split("\n")
-      .some(
-        (b) =>
-          b.trim() === branchName ||
-          b.trim() === `* ${branchName}` ||
-          b.trim() === `remotes/origin/${branchName}`
-      );
-
-    if (branchExists) {
-      // Branch exists, create worktree with existing branch
-      using proc = execAsync(
-        `git -C "${projectPath}" worktree add "${workspacePath}" "${branchName}"`
-      );
-      await proc.result;
-    } else {
-      // Branch doesn't exist, create new branch with worktree
-      using proc = execAsync(
-        `git -C "${projectPath}" worktree add -b "${branchName}" "${workspacePath}"`
-      );
-      await proc.result;
-    }
-
-    return { success: true, path: workspacePath };
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    return { success: false, error: message };
-  }
 }
 
 /**
@@ -241,93 +185,4 @@ export async function removeWorktreeSafe(
   }
 
   return { success: true };
-}
-
-export async function moveWorktree(
-  projectPath: string,
-  oldPath: string,
-  newPath: string
-): Promise<WorktreeResult> {
-  try {
-    // Check if new path already exists
-    if (fs.existsSync(newPath)) {
-      return {
-        success: false,
-        error: `Target path already exists: ${newPath}`,
-      };
-    }
-
-    // Create parent directory for new path if needed
-    const parentDir = path.dirname(newPath);
-    if (!fs.existsSync(parentDir)) {
-      fs.mkdirSync(parentDir, { recursive: true });
-    }
-
-    // Move the worktree using git (from the main repository context)
-    using proc = execAsync(`git -C "${projectPath}" worktree move "${oldPath}" "${newPath}"`);
-    await proc.result;
-    return { success: true, path: newPath };
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    return { success: false, error: message };
-  }
-}
-
-export async function listWorktrees(projectPath: string): Promise<string[]> {
-  try {
-    using proc = execAsync(`git -C "${projectPath}" worktree list --porcelain`);
-    const { stdout } = await proc.result;
-    const worktrees: string[] = [];
-    const lines = stdout.split("\n");
-
-    for (const line of lines) {
-      if (line.startsWith("worktree ")) {
-        const path = line.slice("worktree ".length);
-        if (path !== projectPath) {
-          // Exclude main worktree
-          worktrees.push(path);
-        }
-      }
-    }
-
-    return worktrees;
-  } catch (error) {
-    console.error("Error listing worktrees:", error);
-    return [];
-  }
-}
-
-export async function isGitRepository(projectPath: string): Promise<boolean> {
-  try {
-    using proc = execAsync(`git -C "${projectPath}" rev-parse --git-dir`);
-    await proc.result;
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Get the main repository path from a worktree path
- * @param worktreePath Path to a git worktree
- * @returns Path to the main repository, or null if not found
- */
-export async function getMainWorktreeFromWorktree(worktreePath: string): Promise<string | null> {
-  try {
-    // Get the worktree list from the worktree itself
-    using proc = execAsync(`git -C "${worktreePath}" worktree list --porcelain`);
-    const { stdout } = await proc.result;
-    const lines = stdout.split("\n");
-
-    // The first worktree in the list is always the main worktree
-    for (const line of lines) {
-      if (line.startsWith("worktree ")) {
-        return line.slice("worktree ".length);
-      }
-    }
-
-    return null;
-  } catch {
-    return null;
-  }
 }

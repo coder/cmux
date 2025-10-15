@@ -30,7 +30,7 @@ const mk = (over: Partial<Parameters<typeof buildCoreSources>[0]> = {}) => {
     selectedWorkspace: {
       projectPath: "/repo/a",
       projectName: "a",
-      workspacePath: "/repo/a/feat-x",
+      namedWorkspacePath: "/repo/a/feat-x",
       workspaceId: "w1",
     },
     streamingModels: new Map<string, string>(),
