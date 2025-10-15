@@ -143,7 +143,7 @@ describeIntegration("IpcMain executeBash integration tests", () => {
         const timeoutResult = await env.mockIpcRenderer.invoke(
           IPC_CHANNELS.WORKSPACE_EXECUTE_BASH,
           workspaceId,
-          "sleep 10",
+          "while true; do sleep 0.1; done",
           { timeout_secs: 1 }
         );
 

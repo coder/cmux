@@ -261,7 +261,7 @@ describeIntegration("IpcMain truncate integration tests", () => {
         void sendMessageWithModel(
           env.mockIpcRenderer,
           workspaceId,
-          "Run this bash command: sleep 30 && echo done"
+          "Run this bash command: for i in {1..60}; do sleep 0.5; done && echo done"
         );
 
         // Wait for stream to start

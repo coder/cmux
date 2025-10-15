@@ -52,6 +52,17 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
         };
       }
 
+      // Block sleep at the beginning of commands - they waste time waiting. Use polling loops instead.
+      if (/^\s*sleep\s/.test(script)) {
+        return {
+          success: false,
+          error:
+            "sleep commands are blocked to minimize waiting time. Instead, use polling loops to check conditions repeatedly (e.g., 'while ! condition; do sleep 1; done' or 'until condition; do sleep 1; done').",
+          exitCode: -1,
+          wall_duration_ms: 0,
+        };
+      }
+
       // Default timeout to 3 seconds for interactivity
       // OpenAI models often don't provide timeout_secs even when marked required,
       // so we make it optional with a sensible default.
