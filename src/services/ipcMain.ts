@@ -69,13 +69,20 @@ export class IpcMain {
    */
   private get aiService(): AIService {
     if (!this._aiService) {
-      // Use relative path since Node.js doesn't resolve TypeScript path aliases at runtime
-      // __dirname in production is dist/services, so ./aiService resolves to dist/services/aiService.js
-      /* eslint-disable-next-line @typescript-eslint/no-require-imports */
-      const { AIService: AIServiceClass } = require("./aiService") as {
-        AIService: typeof AIService;
-      };
-      this._aiService = new AIServiceClass(this.config, this.historyService, this.partialService);
+      try {
+        // Use relative path since Node.js doesn't resolve TypeScript path aliases at runtime
+        // __dirname in production is dist/services, so ./aiService resolves to dist/services/aiService.js
+        /* eslint-disable-next-line @typescript-eslint/no-require-imports */
+        const { AIService: AIServiceClass } = require("./aiService") as {
+          AIService: typeof AIService;
+        };
+        log.info("[IpcMain] AIService loaded successfully");
+        this._aiService = new AIServiceClass(this.config, this.historyService, this.partialService);
+        log.info("[IpcMain] AIService instance created");
+      } catch (error) {
+        log.error("[IpcMain] Failed to load AIService:", error);
+        throw error;
+      }
     }
     return this._aiService;
   }
