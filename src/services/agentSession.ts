@@ -333,11 +333,7 @@ export class AgentSession {
 
     forward("stream-start", (payload) => this.emitChatEvent(payload));
     forward("stream-delta", (payload) => this.emitChatEvent(payload));
-    forward("stream-end", (payload) => {
-      console.log("[AgentSession] Received stream-end event, forwarding...");
-      this.emitChatEvent(payload);
-      console.log("[AgentSession] stream-end event forwarded");
-    });
+    forward("stream-end", (payload) => this.emitChatEvent(payload));
     forward("tool-call-start", (payload) => this.emitChatEvent(payload));
     forward("tool-call-delta", (payload) => this.emitChatEvent(payload));
     forward("tool-call-end", (payload) => this.emitChatEvent(payload));

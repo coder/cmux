@@ -12,7 +12,7 @@ import {
   getMainWorktreeFromWorktree,
 } from "@/git";
 import { removeWorktreeSafe, removeWorktree, pruneWorktrees } from "@/services/gitService";
-import { AIService } from "@/services/aiService";
+import type { AIService } from "@/services/aiService";
 import { HistoryService } from "@/services/historyService";
 import { PartialService } from "@/services/partialService";
 import { AgentSession } from "@/services/agentSession";
@@ -45,7 +45,7 @@ export class IpcMain {
   private readonly config: Config;
   private readonly historyService: HistoryService;
   private readonly partialService: PartialService;
-  private readonly aiService: AIService;
+  private _aiService: AIService | null = null;
   private readonly sessions = new Map<string, AgentSession>();
   private readonly sessionSubscriptions = new Map<
     string,
@@ -58,7 +58,26 @@ export class IpcMain {
     this.config = config;
     this.historyService = new HistoryService(config);
     this.partialService = new PartialService(config, this.historyService);
-    this.aiService = new AIService(config, this.historyService, this.partialService);
+    // Don't create AIService here - it imports the massive "ai" package (~3s load time)
+    // Create it on-demand when first needed
+  }
+
+  /**
+   * Lazy-load AIService on first use.
+   * AIService imports the entire AI SDK which is ~3s load time.
+   * By deferring this until first actual use, we keep startup fast.
+   */
+  private get aiService(): AIService {
+    if (!this._aiService) {
+      // Use relative path since Node.js doesn't resolve TypeScript path aliases at runtime
+      // __dirname in production is dist/services, so ./aiService resolves to dist/services/aiService.js
+      /* eslint-disable-next-line @typescript-eslint/no-require-imports */
+      const { AIService: AIServiceClass } = require("./aiService") as {
+        AIService: typeof AIService;
+      };
+      this._aiService = new AIServiceClass(this.config, this.historyService, this.partialService);
+    }
+    return this._aiService;
   }
 
   private getOrCreateSession(workspaceId: string): AgentSession {
@@ -81,27 +100,10 @@ export class IpcMain {
 
     const chatUnsubscribe = session.onChatEvent((event) => {
       if (!this.mainWindow) {
-        console.log("[IpcMain] Dropping chat event - mainWindow is null");
         return;
       }
       const channel = getChatChannel(event.workspaceId);
-      if (
-        typeof event.message === "object" &&
-        event.message !== null &&
-        "type" in event.message &&
-        event.message.type === "stream-end"
-      ) {
-        console.log("[IpcMain] Sending stream-end event to renderer:", channel);
-      }
       this.mainWindow.webContents.send(channel, event.message);
-      if (
-        typeof event.message === "object" &&
-        event.message !== null &&
-        "type" in event.message &&
-        event.message.type === "stream-end"
-      ) {
-        console.log("[IpcMain] stream-end event sent to renderer");
-      }
     });
 
     const metadataUnsubscribe = session.onMetadataEvent((event) => {
