@@ -301,8 +301,9 @@ if [ "$CURRENT_BRANCH" != "$PRIMARY_BRANCH" ] && git rev-parse --verify "origin/
   REFS="$REFS origin/$CURRENT_BRANCH"
 fi
 
-# Store show-branch output to avoid running twice
-SHOW_BRANCH=$(git show-branch --sha1-name $REFS)
+# Store show-branch output (limit to 50 commits for display)
+# --more=50 limits to 50 commits after the merge base
+SHOW_BRANCH=$(git show-branch --sha1-name --more=50 $REFS)
 
 # Output show-branch
 echo "$SHOW_BRANCH"
