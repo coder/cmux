@@ -350,7 +350,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const modelSelectorRef = useRef<ModelSelectorRef>(null);
   const [mode, setMode] = useMode();
-  const { recentModels } = useModelLRU();
+  const { recentModels, addModel } = useModelLRU();
   const commandListId = useId();
 
   // Get current send message options from shared hook (must be at component top level)
@@ -359,8 +359,11 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const preferredModel = sendMessageOptions.model;
   // Setter for model - updates localStorage directly so useSendMessageOptions picks it up
   const setPreferredModel = useCallback(
-    (model: string) => updatePersistedState(getModelKey(workspaceId), model),
-    [workspaceId]
+    (model: string) => {
+      addModel(model); // Update LRU
+      updatePersistedState(getModelKey(workspaceId), model); // Update workspace-specific
+    },
+    [workspaceId, addModel]
   );
 
   const focusMessageInput = useCallback(() => {
