@@ -60,6 +60,8 @@ const TodoText = styled.div<{
   status: TodoItem["status"];
   completedIndex?: number;
   totalCompleted?: number;
+  pendingIndex?: number;
+  totalPending?: number;
 }>`
   color: ${(props) => {
     switch (props.status) {
@@ -74,7 +76,7 @@ const TodoText = styled.div<{
   text-decoration: ${(props) => (props.status === "completed" ? "line-through" : "none")};
   opacity: ${(props) => {
     if (props.status === "completed") {
-      // Apply gradient fade for old completed items
+      // Apply gradient fade for old completed items (distant past)
       if (props.completedIndex !== undefined && 
           props.totalCompleted !== undefined && 
           props.totalCompleted > 2 &&
@@ -84,6 +86,17 @@ const TodoText = styled.div<{
         return Math.max(0.35, 1 - (recentIndex * 0.15));
       }
       return "0.7";
+    }
+    if (props.status === "pending") {
+      // Apply gradient fade for far future pending items (distant future)
+      if (props.pendingIndex !== undefined && 
+          props.totalPending !== undefined && 
+          props.totalPending > 2 &&
+          props.pendingIndex > 1) {
+        // Fade later items more (exponential decay)
+        const futureDistance = props.pendingIndex - 1;
+        return Math.max(0.5, 1 - (futureDistance * 0.15));
+      }
     }
     return "1";
   }};
@@ -139,14 +152,17 @@ function getStatusIcon(status: TodoItem["status"]): string {
  * - PinnedTodoList (pinned at bottom of chat)
  */
 export const TodoList: React.FC<TodoListProps> = ({ todos }) => {
-  // Count completed items for fade effect
+  // Count completed and pending items for fade effects
   const completedCount = todos.filter((t) => t.status === "completed").length;
+  const pendingCount = todos.filter((t) => t.status === "pending").length;
   let completedIndex = 0;
+  let pendingIndex = 0;
 
   return (
     <TodoListContainer>
       {todos.map((todo, index) => {
         const currentCompletedIndex = todo.status === "completed" ? completedIndex++ : undefined;
+        const currentPendingIndex = todo.status === "pending" ? pendingIndex++ : undefined;
 
         return (
           <TodoItemContainer key={index} status={todo.status}>
@@ -156,6 +172,8 @@ export const TodoList: React.FC<TodoListProps> = ({ todos }) => {
                 status={todo.status}
                 completedIndex={currentCompletedIndex}
                 totalCompleted={completedCount}
+                pendingIndex={currentPendingIndex}
+                totalPending={pendingCount}
               >
                 {todo.content}
               </TodoText>
