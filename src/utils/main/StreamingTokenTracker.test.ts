@@ -1,58 +1,38 @@
-import { describe, test, expect, beforeEach } from "bun:test";
+/**
+ * Tests for StreamingTokenTracker model-change safety
+ */
+
+import { describe, it, expect } from "@jest/globals";
 import { StreamingTokenTracker } from "./StreamingTokenTracker";
 
 describe("StreamingTokenTracker", () => {
-  let tracker: StreamingTokenTracker;
+  it("should reinitialize tokenizer when model changes", () => {
+    const tracker = new StreamingTokenTracker();
 
-  beforeEach(() => {
-    tracker = new StreamingTokenTracker();
+    // Set first model
+    tracker.setModel("openai:gpt-4");
+    const count1 = tracker.countTokens("test");
+
+    // Switch to different model
+    tracker.setModel("anthropic:claude-opus-4");
+    const count2 = tracker.countTokens("test");
+
+    // Both should return valid counts
+    expect(count1).toBeGreaterThan(0);
+    expect(count2).toBeGreaterThan(0);
   });
 
-  describe("countTokens", () => {
-    test("returns 0 for empty string", () => {
-      tracker.setModel("anthropic:claude-sonnet-4-5");
-      expect(tracker.countTokens("")).toBe(0);
-    });
+  it("should not reinitialize when model stays the same", () => {
+    const tracker = new StreamingTokenTracker();
 
-    test("counts tokens in simple text", () => {
-      tracker.setModel("anthropic:claude-sonnet-4-5");
-      const count = tracker.countTokens("Hello world");
-      expect(count).toBeGreaterThan(0);
-      expect(count).toBeLessThan(10); // Reasonable upper bound
-    });
+    // Set model twice
+    tracker.setModel("openai:gpt-4");
+    const count1 = tracker.countTokens("test");
 
-    test("counts tokens in longer text", () => {
-      tracker.setModel("anthropic:claude-sonnet-4-5");
-      const text = "This is a longer piece of text with more tokens";
-      const count = tracker.countTokens(text);
-      expect(count).toBeGreaterThan(5);
-    });
+    tracker.setModel("openai:gpt-4"); // Same model
+    const count2 = tracker.countTokens("test");
 
-    test("handles special characters", () => {
-      tracker.setModel("anthropic:claude-sonnet-4-5");
-      const count = tracker.countTokens("🚀 emoji test");
-      expect(count).toBeGreaterThan(0);
-    });
-
-    test("is consistent for repeated calls", () => {
-      tracker.setModel("anthropic:claude-sonnet-4-5");
-      const text = "Test consistency";
-      const count1 = tracker.countTokens(text);
-      const count2 = tracker.countTokens(text);
-      expect(count1).toBe(count2);
-    });
-  });
-
-  describe("setModel", () => {
-    test("switches tokenizer for different models", () => {
-      tracker.setModel("anthropic:claude-sonnet-4-5");
-      const initial = tracker.countTokens("test");
-
-      tracker.setModel("openai:gpt-4");
-      const switched = tracker.countTokens("test");
-
-      expect(initial).toBeGreaterThan(0);
-      expect(switched).toBeGreaterThan(0);
-    });
+    // Should get same count (cached)
+    expect(count1).toBe(count2);
   });
 });

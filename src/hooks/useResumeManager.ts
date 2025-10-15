@@ -168,10 +168,13 @@ export function useResumeManager() {
   };
 
   useEffect(() => {
-    // Initial scan on mount - check all workspaces for interrupted streams
-    for (const [workspaceId] of workspaceStatesRef.current) {
-      void attemptResume(workspaceId);
-    }
+    // Defer initial scan to not block UI rendering
+    // Same pattern as GitStatusStore - let React finish mounting first
+    setTimeout(() => {
+      for (const [workspaceId] of workspaceStatesRef.current) {
+        void attemptResume(workspaceId);
+      }
+    }, 0);
 
     // Listen for resume check requests (primary mechanism)
     const handleResumeCheck = (event: Event) => {

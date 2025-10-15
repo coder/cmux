@@ -212,7 +212,7 @@ describeIntegration("IpcMain executeBash integration tests", () => {
         );
 
         expect(result.success).toBe(false);
-        expect(result.error).toContain("Failed to get workspace metadata");
+        expect(result.error).toContain("Workspace not found:");
       } finally {
         await cleanupTestEnvironment(env);
       }

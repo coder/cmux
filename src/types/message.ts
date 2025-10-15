@@ -30,7 +30,7 @@ export interface CmuxMetadata {
   model?: string;
   usage?: LanguageModelV2Usage; // AI SDK normalized usage (verbatim from streamResult.usage)
   providerMetadata?: Record<string, unknown>; // Raw AI SDK provider data
-  systemMessageTokens?: number; // Token count for system message sent with this request (calculated by AIService)
+  systemMessageTokens?: number; // Deprecated: No longer populated (system tokens included in API usage.inputTokens)
   partial?: boolean; // Whether this message was interrupted and is incomplete
   synthetic?: boolean; // Whether this message was synthetically generated (e.g., [CONTINUE] sentinel)
   error?: string; // Error message if stream failed

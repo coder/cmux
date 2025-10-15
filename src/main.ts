@@ -9,7 +9,6 @@ import * as path from "path";
 import type { Config } from "./config";
 import type { IpcMain } from "./services/ipcMain";
 import { VERSION } from "./version";
-import type { loadTokenizerModules } from "./utils/main/tokenizer";
 
 // React DevTools for development profiling
 // Using require() instead of import since it's dev-only and conditionally loaded
@@ -55,7 +54,6 @@ if (!app.isPackaged) {
 // These will be loaded on-demand when createWindow() is called
 let config: Config | null = null;
 let ipcMain: IpcMain | null = null;
-let loadTokenizerModulesFn: typeof loadTokenizerModules | null = null;
 const isE2ETest = process.env.CMUX_E2E === "1";
 const forceDistLoad = process.env.CMUX_E2E_LOAD_DIST === "1";
 
@@ -273,7 +271,7 @@ function closeSplashScreen() {
  * the splash still provides visual feedback that the app is loading.
  */
 async function loadServices(): Promise<void> {
-  if (config && ipcMain && loadTokenizerModulesFn) return; // Already loaded
+  if (config && ipcMain) return; // Already loaded
 
   const startTime = Date.now();
   console.log(`[${timestamp()}] Loading services...`);
@@ -283,19 +281,13 @@ async function loadServices(): Promise<void> {
   // - IpcMain transitively imports the entire AI SDK (ai, @ai-sdk/anthropic, etc.)
   // - These are large modules (~100ms load time) that would block splash from appearing
   // - Loading happens once, then cached
-  const [
-    { Config: ConfigClass },
-    { IpcMain: IpcMainClass },
-    { loadTokenizerModules: loadTokenizerFn },
-  ] = await Promise.all([
+  const [{ Config: ConfigClass }, { IpcMain: IpcMainClass }] = await Promise.all([
     import("./config"),
     import("./services/ipcMain"),
-    import("./utils/main/tokenizer"),
   ]);
   /* eslint-enable no-restricted-syntax */
   config = new ConfigClass();
   ipcMain = new IpcMainClass(config);
-  loadTokenizerModulesFn = loadTokenizerFn;
 
   const loadTime = Date.now() - startTime;
   console.log(`[${timestamp()}] Services loaded in ${loadTime}ms`);
@@ -372,18 +364,20 @@ function createWindow() {
 if (gotTheLock) {
   void app.whenReady().then(async () => {
     try {
-      console.log("App ready, creating window...");
+      console.log(`[${timestamp()}] App ready, creating window...`);
 
-      // Install React DevTools in development
+      // Install React DevTools in development (non-blocking)
+      // Don't await - let it install in background while app starts
       if (!app.isPackaged && installExtension && REACT_DEVELOPER_TOOLS) {
-        try {
-          const extension = await installExtension(REACT_DEVELOPER_TOOLS, {
-            loadExtensionOptions: { allowFileAccess: true },
+        void installExtension(REACT_DEVELOPER_TOOLS, {
+          loadExtensionOptions: { allowFileAccess: true },
+        })
+          .then((extension) => {
+            console.log(`[${timestamp()}] React DevTools installed: ${extension.name}`);
+          })
+          .catch((err) => {
+            console.log(`[${timestamp()}] React DevTools install failed:`, err);
           });
-          console.log(`✅ React DevTools installed: ${extension.name} (id: ${extension.id})`);
-        } catch (err) {
-          console.log("❌ Error installing React DevTools:", err);
-        }
       }
 
       createMenu();
@@ -402,14 +396,8 @@ if (gotTheLock) {
       createWindow();
       // Note: splash closes in ready-to-show event handler
 
-      // Start loading tokenizer modules in background after window is created
-      // This ensures accurate token counts for first API calls (especially in e2e tests)
-      // Loading happens asynchronously and won't block the UI
-      if (loadTokenizerModulesFn) {
-        void loadTokenizerModulesFn().then(() => {
-          console.log(`[${timestamp()}] Tokenizer modules loaded`);
-        });
-      }
+      // Tokenizer loads on-demand when first token count is performed
+      // No need to eagerly load - it blocks the window ready-to-show event
       // No need to auto-start workspaces anymore - they start on demand
     } catch (error) {
       console.error(`[${timestamp()}] Startup failed:`, error);
@@ -434,6 +422,21 @@ if (gotTheLock) {
     if (process.platform !== "darwin") {
       app.quit();
     }
+  });
+
+  // Cleanup worker threads on quit
+  app.on("will-quit", () => {
+    console.log("App will quit - cleaning up worker threads");
+    void (async () => {
+      try {
+        // Dynamic import is acceptable here - only loaded if worker was used
+        /* eslint-disable-next-line no-restricted-syntax */
+        const { tokenizerWorkerPool } = await import("@/services/tokenizerWorkerPool");
+        tokenizerWorkerPool.terminate();
+      } catch (error) {
+        console.error("Error terminating worker pool:", error);
+      }
+    })();
   });
 
   app.on("activate", () => {

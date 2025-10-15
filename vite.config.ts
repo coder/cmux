@@ -29,13 +29,19 @@ export default defineConfig(({ mode }) => ({
     outDir: "dist",
     assetsDir: ".",
     emptyOutDir: false,
-    sourcemap: true,
+    // Only generate source maps in development (saves ~50MB in production .app)
+    sourcemap: mode === "development",
     minify: "esbuild",
     rollupOptions: {
       output: {
         format: "es",
         inlineDynamicImports: false,
         sourcemapExcludeSources: false,
+        manualChunks: {
+          // Separate large dependencies for better caching and on-demand loading
+          "react-vendor": ["react", "react-dom"],
+          "syntax-highlighter": ["react-syntax-highlighter"],
+        },
       },
     },
     chunkSizeWarningLimit: 2000,

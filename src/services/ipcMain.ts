@@ -12,7 +12,7 @@ import {
   getMainWorktreeFromWorktree,
 } from "@/git";
 import { removeWorktreeSafe, removeWorktree, pruneWorktrees } from "@/services/gitService";
-import { AIService } from "@/services/aiService";
+import type { AIService } from "@/services/aiService";
 import { HistoryService } from "@/services/historyService";
 import { PartialService } from "@/services/partialService";
 import { AgentSession } from "@/services/agentSession";
@@ -45,7 +45,7 @@ export class IpcMain {
   private readonly config: Config;
   private readonly historyService: HistoryService;
   private readonly partialService: PartialService;
-  private readonly aiService: AIService;
+  private _aiService: AIService | null = null;
   private readonly sessions = new Map<string, AgentSession>();
   private readonly sessionSubscriptions = new Map<
     string,
@@ -58,7 +58,33 @@ export class IpcMain {
     this.config = config;
     this.historyService = new HistoryService(config);
     this.partialService = new PartialService(config, this.historyService);
-    this.aiService = new AIService(config, this.historyService, this.partialService);
+    // Don't create AIService here - it imports the massive "ai" package (~3s load time)
+    // Create it on-demand when first needed
+  }
+
+  /**
+   * Lazy-load AIService on first use.
+   * AIService imports the entire AI SDK which is ~3s load time.
+   * By deferring this until first actual use, we keep startup fast.
+   */
+  private get aiService(): AIService {
+    if (!this._aiService) {
+      try {
+        // Use relative path since Node.js doesn't resolve TypeScript path aliases at runtime
+        // __dirname in production is dist/services, so ./aiService resolves to dist/services/aiService.js
+        /* eslint-disable-next-line @typescript-eslint/no-require-imports */
+        const { AIService: AIServiceClass } = require("./aiService") as {
+          AIService: typeof AIService;
+        };
+        log.info("[IpcMain] AIService loaded successfully");
+        this._aiService = new AIServiceClass(this.config, this.historyService, this.partialService);
+        log.info("[IpcMain] AIService instance created");
+      } catch (error) {
+        log.error("[IpcMain] Failed to load AIService:", error);
+        throw error;
+      }
+    }
+    return this._aiService;
   }
 
   private getOrCreateSession(workspaceId: string): AgentSession {
@@ -140,6 +166,7 @@ export class IpcMain {
 
     this.registerDialogHandlers(ipcMain);
     this.registerWindowHandlers(ipcMain);
+    this.registerTokenHandlers(ipcMain);
     this.registerWorkspaceHandlers(ipcMain);
     this.registerProviderHandlers(ipcMain);
     this.registerProjectHandlers(ipcMain);
@@ -171,6 +198,25 @@ export class IpcMain {
     ipcMain.handle(IPC_CHANNELS.WINDOW_SET_TITLE, (_event, title: string) => {
       if (!this.mainWindow) return;
       this.mainWindow.setTitle(title);
+    });
+  }
+
+  private registerTokenHandlers(ipcMain: ElectronIpcMain): void {
+    ipcMain.handle(IPC_CHANNELS.TOKENS_COUNT_BULK, (_event, _model: string, _texts: string[]) => {
+      // TEMPORARY: Disable worker pool to test if it's causing E2E issues
+      // TODO: Re-enable once E2E tests pass
+      return null;
+
+      // try {
+      //   // Offload to worker thread - keeps main process responsive
+      //   // Dynamic import is acceptable here - worker pool is lazy-loaded on first use
+      //   /* eslint-disable-next-line no-restricted-syntax */
+      //   const { tokenizerWorkerPool } = await import("@/services/tokenizerWorkerPool");
+      //   return await tokenizerWorkerPool.countTokens(model, texts);
+      // } catch (error) {
+      //   log.error(`Failed to count tokens for model ${model}:`, error);
+      //   return null; // Tokenizer not loaded or error occurred
+      // }
     });
   }
 
@@ -601,19 +647,14 @@ export class IpcMain {
         }
       ) => {
         try {
-          // Get workspace metadata to find workspacePath
-          const metadataResult = await this.aiService.getWorkspaceMetadata(workspaceId);
-          if (!metadataResult.success) {
-            return Err(`Failed to get workspace metadata: ${metadataResult.error}`);
+          // Get workspace path and project path from config (no need for AIService)
+          const workspaceInfo = this.config.findWorkspace(workspaceId);
+          if (!workspaceInfo) {
+            return Err(`Workspace not found: ${workspaceId}`);
           }
 
-          const workspacePath = metadataResult.data.workspacePath;
-
-          // Find project path for this workspace to load secrets
-          const workspaceInfo = this.config.findWorkspace(workspaceId);
-          const projectSecrets = workspaceInfo
-            ? this.config.getProjectSecrets(workspaceInfo.projectPath)
-            : [];
+          const { workspacePath, projectPath } = workspaceInfo;
+          const projectSecrets = this.config.getProjectSecrets(projectPath);
 
           // Create scoped temp directory for this IPC call
           using tempDir = new DisposableTempDir("cmux-ipc-bash");

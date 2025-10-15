@@ -99,7 +99,7 @@ export const ChatMetaSidebar: React.FC<ChatMetaSidebarProps> = ({ workspaceId })
       <TabContent>
         {selectedTab === "costs" && (
           <div role="tabpanel" id={costsPanelId} aria-labelledby={costsTabId}>
-            <CostsTab />
+            <CostsTab workspaceId={workspaceId} />
           </div>
         )}
         {selectedTab === "tools" && (

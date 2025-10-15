@@ -230,4 +230,7 @@ export interface IPCApi {
   window: {
     setTitle(title: string): Promise<void>;
   };
+  tokens: {
+    countBulk(model: string, texts: string[]): Promise<number[] | null>;
+  };
 }
