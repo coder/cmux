@@ -184,7 +184,8 @@ async function main(): Promise<void> {
     throw new Error("Message must be provided via --message or stdin");
   }
 
-  const model = values.model && values.model.trim().length > 0 ? values.model.trim() : getDefaultModelFromLRU();
+  const model =
+    values.model && values.model.trim().length > 0 ? values.model.trim() : getDefaultModelFromLRU();
   const timeoutMs = parseTimeout(values.timeout);
   const thinkingLevel = parseThinkingLevel(values["thinking-level"]);
   const initialMode = parseMode(values.mode);
