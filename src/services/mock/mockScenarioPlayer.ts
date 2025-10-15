@@ -16,6 +16,7 @@ import type { StreamStartEvent, StreamDeltaEvent, StreamEndEvent } from "@/types
 import type { ToolCallStartEvent, ToolCallEndEvent } from "@/types/stream";
 import type { ReasoningDeltaEvent } from "@/types/stream";
 import { getTokenizerForModel } from "@/utils/main/tokenizer";
+import { log } from "@/services/log";
 
 interface MockPlayerDeps {
   aiService: AIService;
@@ -62,13 +63,16 @@ export class MockScenarioPlayer {
     messages: CmuxMessage[],
     workspaceId: string
   ): Promise<Result<void, SendMessageError>> {
+    log.info("[MockScenarioPlayer] play() called for workspaceId:", workspaceId);
     const latest = messages[messages.length - 1];
     if (!latest || latest.role !== "user") {
       return Err({ type: "unknown", raw: "Mock scenario expected a user message" });
     }
 
     const latestText = this.extractText(latest);
+    log.info("[MockScenarioPlayer] Looking for scenario for text:", latestText);
     const turnIndex = this.findTurnIndex(latestText);
+    log.info("[MockScenarioPlayer] Found turn index:", turnIndex);
     if (turnIndex === -1) {
       return Err({
         type: "unknown",
@@ -268,13 +272,13 @@ export class MockScenarioPlayer {
           }
         }
 
-        console.log("[MockScenarioPlayer] Emitting stream-end event:", {
+        log.info("[MockScenarioPlayer] Emitting stream-end event:", {
           workspaceId,
           messageId,
           eventType: payload.type,
         });
         this.deps.aiService.emit("stream-end", payload);
-        console.log("[MockScenarioPlayer] stream-end event emitted");
+        log.info("[MockScenarioPlayer] stream-end event emitted");
         this.cleanup(workspaceId);
         break;
       }
