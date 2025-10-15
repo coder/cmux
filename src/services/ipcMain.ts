@@ -12,7 +12,7 @@ import {
   getMainWorktreeFromWorktree,
 } from "@/git";
 import { removeWorktreeSafe, removeWorktree, pruneWorktrees } from "@/services/gitService";
-import type { AIService } from "@/services/aiService";
+import { AIService } from "@/services/aiService";
 import { HistoryService } from "@/services/historyService";
 import { PartialService } from "@/services/partialService";
 import { AgentSession } from "@/services/agentSession";
@@ -45,7 +45,7 @@ export class IpcMain {
   private readonly config: Config;
   private readonly historyService: HistoryService;
   private readonly partialService: PartialService;
-  private _aiService: AIService | null = null;
+  private readonly aiService: AIService;
   private readonly sessions = new Map<string, AgentSession>();
   private readonly sessionSubscriptions = new Map<
     string,
@@ -58,27 +58,7 @@ export class IpcMain {
     this.config = config;
     this.historyService = new HistoryService(config);
     this.partialService = new PartialService(config, this.historyService);
-    // Don't create AIService here - it imports the massive "ai" package (~3s load time)
-    // Create it on-demand when first needed
-  }
-
-  /**
-   * Lazy-load AIService on first use.
-   * AIService imports the entire AI SDK which is ~3s load time.
-   * By deferring this until first actual use, we keep startup fast.
-   */
-  private get aiService(): AIService {
-    if (!this._aiService) {
-      // Dynamic import to avoid loading AI SDK at startup
-      // Use relative path (not @/ alias) because require() runs at runtime after TS compilation
-      // This is safe because AIService is only accessed after IPC handlers are registered
-      /* eslint-disable-next-line @typescript-eslint/no-require-imports */
-      const { AIService: AIServiceClass } = require("./aiService") as {
-        AIService: typeof AIService;
-      };
-      this._aiService = new AIServiceClass(this.config, this.historyService, this.partialService);
-    }
-    return this._aiService;
+    this.aiService = new AIService(config, this.historyService, this.partialService);
   }
 
   private getOrCreateSession(workspaceId: string): AgentSession {
