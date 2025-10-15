@@ -8,7 +8,7 @@ module.exports = {
     "!src/preload.ts",
     "!src/main.ts", // Exclude main Electron file from coverage
   ],
-  // setupFilesAfterEnv: ["<rootDir>/test/setup.ts"], // Uncomment when setup.ts exists
+  setupFilesAfterEnv: ["<rootDir>/tests/setup.ts"],
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",
   },
@@ -17,6 +17,8 @@ module.exports = {
       "ts-jest",
       {
         tsconfig: {
+          target: "ES2020",
+          lib: ["ES2020", "DOM"],
           esModuleInterop: true,
           allowSyntheticDefaultImports: true,
         },

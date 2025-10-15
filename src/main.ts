@@ -1,5 +1,6 @@
 // Enable source map support for better error stack traces in production
 import "source-map-support/register";
+import "disposablestack/auto";
 
 import type { MenuItemConstructorOptions } from "electron";
 import { app, BrowserWindow, ipcMain as electronIpcMain, Menu, shell, dialog } from "electron";
