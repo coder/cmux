@@ -233,5 +233,4 @@ describe("multiline continue messages", () => {
       continueMessage: "-c this is not a flag",
     });
   });
-
 });

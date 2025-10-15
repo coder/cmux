@@ -181,8 +181,9 @@ const compactCommandDefinition: SlashCommandDefinition = {
 
     // Tokenize ONLY the first line to extract flags
     // This prevents content after newlines from being parsed as flags
-    const firstLineTokens = (firstLine.match(/(?:[^\s"]+|"[^"]*")+/g) ?? [])
-      .map((token) => token.replace(/^"(.*)"$/, "$1"));
+    const firstLineTokens = (firstLine.match(/(?:[^\s"]+|"[^"]*")+/g) ?? []).map((token) =>
+      token.replace(/^"(.*)"$/, "$1")
+    );
 
     // Parse flags from first line using minimist
     const parsed = minimist(firstLineTokens, {
