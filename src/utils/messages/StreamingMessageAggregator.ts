@@ -46,6 +46,9 @@ export class StreamingMessageAggregator {
   // Delta history for token counting and TPS calculation
   private deltaHistory = new Map<string, DeltaRecordStorage>();
 
+  // Current TODO list (updated when todo_write succeeds)
+  private currentTodos: import("@/types/tools").TodoItem[] = [];
+
   private invalidateCache(): void {
     this.cachedAllMessages = null;
     this.cachedDisplayedMessages = null;
@@ -67,6 +70,14 @@ export class StreamingMessageAggregator {
    */
   getRecencyTimestamp(): number | null {
     return this.recencyTimestamp;
+  }
+
+  /**
+   * Get the current TODO list.
+   * Updated whenever todo_write succeeds.
+   */
+  getCurrentTodos(): import("@/types/tools").TodoItem[] {
+    return this.currentTodos;
   }
 
   addMessage(message: CmuxMessage): void {
@@ -221,6 +232,9 @@ export class StreamingMessageAggregator {
   }
 
   handleStreamEnd(data: StreamEndEvent): void {
+    // Clear TODOs when stream ends
+    this.currentTodos = [];
+
     // Direct lookup by messageId - O(1) instead of O(n) find
     const activeStream = this.activeStreams.get(data.messageId);
 
@@ -282,6 +296,9 @@ export class StreamingMessageAggregator {
   }
 
   handleStreamAbort(data: StreamAbortEvent): void {
+    // Clear TODOs when stream aborts
+    this.currentTodos = [];
+
     // Direct lookup by messageId
     const activeStream = this.activeStreams.get(data.messageId);
 
@@ -303,6 +320,9 @@ export class StreamingMessageAggregator {
   }
 
   handleStreamError(data: StreamErrorMessage): void {
+    // Clear TODOs when stream errors
+    this.currentTodos = [];
+
     // Direct lookup by messageId
     const activeStream = this.activeStreams.get(data.messageId);
 
@@ -380,6 +400,18 @@ export class StreamingMessageAggregator {
         // Type assertion needed because TypeScript can't narrow the discriminated union
         (toolPart as DynamicToolPartAvailable).state = "output-available";
         (toolPart as DynamicToolPartAvailable).output = data.result;
+
+        // Update TODO state if this was a successful todo_write
+        if (
+          data.toolName === "todo_write" &&
+          typeof data.result === "object" &&
+          data.result !== null &&
+          "success" in data.result &&
+          data.result.success
+        ) {
+          const args = toolPart.input as { todos: import("@/types/tools").TodoItem[] };
+          this.currentTodos = args.todos;
+        }
       }
       this.invalidateCache();
     }
