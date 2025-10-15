@@ -16,7 +16,6 @@ import type { StreamStartEvent, StreamDeltaEvent, StreamEndEvent } from "@/types
 import type { ToolCallStartEvent, ToolCallEndEvent } from "@/types/stream";
 import type { ReasoningDeltaEvent } from "@/types/stream";
 import { getTokenizerForModel } from "@/utils/main/tokenizer";
-import { log } from "@/services/log";
 
 interface MockPlayerDeps {
   aiService: AIService;
