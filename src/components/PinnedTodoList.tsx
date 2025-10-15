@@ -11,6 +11,15 @@ const PinnedContainer = styled.div`
   overflow-y: auto;
 `;
 
+const TodoHeader = styled.div`
+  padding: 4px 8px 2px 8px;
+  font-family: var(--font-monospace);
+  font-size: 10px;
+  color: var(--color-text-secondary);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+`;
+
 interface PinnedTodoListProps {
   workspaceId: string;
 }
@@ -39,6 +48,7 @@ export const PinnedTodoList: React.FC<PinnedTodoListProps> = ({ workspaceId }) =
 
   return (
     <PinnedContainer>
+      <TodoHeader>TODO:</TodoHeader>
       <TodoList todos={todos} />
     </PinnedContainer>
   );
