@@ -4,13 +4,13 @@ import {
   getModeKey,
   USE_1M_CONTEXT_KEY,
 } from "@/constants/storage";
-import { defaultModel } from "@/utils/ai/models";
 import { modeToToolPolicy, PLAN_MODE_INSTRUCTION } from "@/utils/ui/modeUtils";
 import { readPersistedState } from "@/hooks/usePersistedState";
 import type { SendMessageOptions } from "@/types/ipc";
 import type { UIMode } from "@/types/mode";
 import type { ThinkingLevel } from "@/types/thinking";
 import { enforceThinkingPolicy } from "@/utils/thinking/policy";
+import { getDefaultModelFromLRU } from "@/hooks/useModelLRU";
 
 /**
  * Get send options from localStorage
@@ -20,8 +20,8 @@ import { enforceThinkingPolicy } from "@/utils/thinking/policy";
  * This ensures DRY - single source of truth for option extraction.
  */
 export function getSendOptionsFromStorage(workspaceId: string): SendMessageOptions {
-  // Read model preference (workspace-specific)
-  const model = readPersistedState<string>(getModelKey(workspaceId), defaultModel);
+  // Read model preference (workspace-specific), fallback to most recent from LRU
+  const model = readPersistedState<string>(getModelKey(workspaceId), getDefaultModelFromLRU());
 
   // Read thinking level (workspace-specific)
   const thinkingLevel = readPersistedState<ThinkingLevel>(

@@ -22,7 +22,7 @@ import {
   type SendMessageOptions,
   type WorkspaceChatMessage,
 } from "@/types/ipc";
-import { defaultModel } from "@/utils/ai/models";
+import { getDefaultModelFromLRU } from "@/hooks/useModelLRU";
 import { ensureProvidersConfig } from "@/utils/providers/ensureProvidersConfig";
 import { modeToToolPolicy, PLAN_MODE_INSTRUCTION } from "@/utils/ui/modeUtils";
 import { extractAssistantText, extractReasoning, extractToolCalls } from "@/debug/chatExtractors";
@@ -184,7 +184,8 @@ async function main(): Promise<void> {
     throw new Error("Message must be provided via --message or stdin");
   }
 
-  const model = values.model && values.model.trim().length > 0 ? values.model.trim() : defaultModel;
+  const model =
+    values.model && values.model.trim().length > 0 ? values.model.trim() : getDefaultModelFromLRU();
   const timeoutMs = parseTimeout(values.timeout);
   const thinkingLevel = parseThinkingLevel(values["thinking-level"]);
   const initialMode = parseMode(values.mode);

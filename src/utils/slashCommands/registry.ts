@@ -11,9 +11,11 @@ import type {
 import minimist from "minimist";
 
 // Model abbreviations for common models
+// Order matters: first model becomes the default for new chats
 export const MODEL_ABBREVIATIONS: Record<string, string> = {
-  opus: "anthropic:claude-opus-4-1",
   sonnet: "anthropic:claude-sonnet-4-5",
+  haiku: "anthropic:claude-haiku-4-5",
+  opus: "anthropic:claude-opus-4-1",
   "gpt-5": "openai:gpt-5",
   "gpt-5-pro": "openai:gpt-5-pro",
   codex: "openai:gpt-5-codex",

@@ -1,6 +1,7 @@
 import { useCallback, useEffect } from "react";
-import { usePersistedState } from "./usePersistedState";
+import { usePersistedState, readPersistedState } from "./usePersistedState";
 import { MODEL_ABBREVIATIONS } from "@/utils/slashCommands/registry";
+import { defaultModel } from "@/utils/ai/models";
 
 const MAX_LRU_SIZE = 8;
 const LRU_KEY = "model-lru";
@@ -9,30 +10,36 @@ const LRU_KEY = "model-lru";
 const DEFAULT_MODELS = Object.values(MODEL_ABBREVIATIONS);
 
 /**
+ * Get the default model from LRU (non-hook version for use outside React)
+ * This is the ONLY place that reads from LRU outside of the hook.
+ *
+ * @returns The most recently used model, or defaultModel if LRU is empty
+ */
+export function getDefaultModelFromLRU(): string {
+  const lru = readPersistedState<string[]>(LRU_KEY, DEFAULT_MODELS.slice(0, MAX_LRU_SIZE));
+  return lru[0] ?? defaultModel;
+}
+
+/**
  * Hook to manage a Least Recently Used (LRU) cache of AI models.
  * Stores up to 8 recently used models in localStorage.
  * Initializes with default abbreviated models if empty.
  */
 export function useModelLRU() {
-  const [recentModels, setRecentModels] = usePersistedState<string[]>(LRU_KEY, []);
+  const [recentModels, setRecentModels] = usePersistedState<string[]>(
+    LRU_KEY,
+    DEFAULT_MODELS.slice(0, MAX_LRU_SIZE)
+  );
 
-  // Ensure default models are always present in the LRU (only once on mount)
+  // Merge any new defaults from MODEL_ABBREVIATIONS (only once on mount)
   useEffect(() => {
     setRecentModels((prev) => {
-      // If empty, just use defaults
-      if (prev.length === 0) {
-        return DEFAULT_MODELS.slice(0, MAX_LRU_SIZE);
-      }
-
-      // If we have some models, merge with defaults (keeping existing order, adding missing defaults at end)
       const merged = [...prev];
       for (const defaultModel of DEFAULT_MODELS) {
         if (!merged.includes(defaultModel)) {
           merged.push(defaultModel);
         }
       }
-
-      // Limit to MAX_LRU_SIZE
       return merged.slice(0, MAX_LRU_SIZE);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -2,12 +2,12 @@
 
 /**
  * Downloads the latest model prices and context window data from LiteLLM
- * and saves it to src/utils/models.json
+ * and saves it to src/utils/tokens/models.json
  */
 
 const LITELLM_URL =
   "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json";
-const OUTPUT_PATH = "src/utils/models.json";
+const OUTPUT_PATH = "src/utils/tokens/models.json";
 
 async function updateModels() {
   console.log(`Fetching model data from ${LITELLM_URL}...`);
