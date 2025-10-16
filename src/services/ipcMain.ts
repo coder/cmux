@@ -1050,8 +1050,8 @@ export class IpcMain {
       for (const ghosttyPath of ghosttyPaths) {
         try {
           const stats = await fsPromises.stat(ghosttyPath);
-          // Check if any executable bit is set (owner, group, or other)
-          if ((stats.mode & 0o111) !== 0) {
+          // Check if it's a file and any executable bit is set (owner, group, or other)
+          if (stats.isFile() && (stats.mode & 0o111) !== 0) {
             return true;
           }
         } catch {
