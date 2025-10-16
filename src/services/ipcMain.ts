@@ -1046,7 +1046,7 @@ export class IpcMain {
         "/Applications/Ghostty.app/Contents/MacOS/ghostty",
         "/usr/local/bin/ghostty",
       ];
-      
+
       for (const ghosttyPath of ghosttyPaths) {
         try {
           const stats = await fsPromises.stat(ghosttyPath);
