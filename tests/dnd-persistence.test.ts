@@ -17,7 +17,7 @@ describe("DnD Project Order Persistence", () => {
   const createProjects = (paths: string[]): Map<string, ProjectConfig> => {
     const map = new Map<string, ProjectConfig>();
     for (const p of paths) {
-      map.set(p, { path: p, workspaces: [] });
+      map.set(p, { workspaces: [] });
     }
     return map;
   };
