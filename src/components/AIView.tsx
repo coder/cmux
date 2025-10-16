@@ -13,7 +13,6 @@ import {
   mergeConsecutiveStreamErrors,
 } from "@/utils/messages/messageUtils";
 import { hasInterruptedStream } from "@/utils/messages/retryEligibility";
-import { ChatProvider } from "@/contexts/ChatContext";
 import { ThinkingProvider } from "@/contexts/ThinkingContext";
 import { ModeProvider } from "@/contexts/ModeContext";
 import { formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
@@ -426,7 +425,6 @@ const AIViewInner: React.FC<AIViewProps> = ({
   }
 
   return (
-    <ChatProvider messages={messages} cmuxMessages={cmuxMessages} model={currentModel ?? "unknown"}>
       <ViewContainer className={className}>
         <ChatArea ref={chatAreaRef}>
           <ViewHeader>
@@ -566,7 +564,6 @@ const AIViewInner: React.FC<AIViewProps> = ({
 
         <ChatMetaSidebar workspaceId={workspaceId} chatAreaRef={chatAreaRef} />
       </ViewContainer>
-    </ChatProvider>
   );
 };
 

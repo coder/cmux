@@ -1,6 +1,6 @@
 import React from "react";
 import styled from "@emotion/styled";
-import { useChatContext } from "@/contexts/ChatContext";
+import { useWorkspaceUsage, useWorkspaceConsumers } from "@/stores/WorkspaceStore";
 import { TooltipWrapper, Tooltip, HelpIndicator } from "../Tooltip";
 import { getModelStats } from "@/utils/tokens/modelStats";
 import { sumUsageHistory } from "@/utils/tokens/usageAggregator";
@@ -274,21 +274,19 @@ const VIEW_MODE_OPTIONS: Array<ToggleOption<ViewMode>> = [
   { value: "last-request", label: "Last Request" },
 ];
 
-export const CostsTab: React.FC = () => {
-  const { stats, isCalculating } = useChatContext();
+interface CostsTabProps {
+  workspaceId: string;
+}
+
+export const CostsTab: React.FC<CostsTabProps> = ({ workspaceId }) => {
+  const usage = useWorkspaceUsage(workspaceId);
+  const consumers = useWorkspaceConsumers(workspaceId);
   const [viewMode, setViewMode] = usePersistedState<ViewMode>("costsTab:viewMode", "session");
   const [use1M] = use1MContext();
 
-  // Only show loading if we don't have any stats yet
-  if (isCalculating && !stats) {
-    return (
-      <Container>
-        <LoadingState>Calculating token usage...</LoadingState>
-      </Container>
-    );
-  }
-
-  if (!stats || stats.totalTokens === 0) {
+  // Show empty state only if no messages at all (check tokenization total)
+  // Note: Historical messages may not have usage metadata, but still have token content
+  if (!consumers || consumers.totalTokens === 0) {
     return (
       <Container>
         <EmptyState>
@@ -299,29 +297,35 @@ export const CostsTab: React.FC = () => {
     );
   }
 
+  // Check if we have usage metadata (for cost calculations)
+  const hasUsageData = usage && usage.usageHistory.length > 0;
+
   // Context Usage always shows Last Request data
-  const lastRequestUsage = stats.usageHistory[stats.usageHistory.length - 1];
+  const lastRequestUsage = usage.usageHistory[usage.usageHistory.length - 1];
 
   // Cost and Details table use viewMode
   const displayUsage =
     viewMode === "last-request"
-      ? stats.usageHistory[stats.usageHistory.length - 1]
-      : sumUsageHistory(stats.usageHistory);
+      ? usage.usageHistory[usage.usageHistory.length - 1]
+      : sumUsageHistory(usage.usageHistory);
 
   return (
     <Container>
-      {stats.usageHistory.length > 0 && (
+      {hasUsageData && (
         <Section data-testid="context-usage-section" marginTop="8px" marginBottom="20px">
           <ConsumerList data-testid="context-usage-list">
             {(() => {
               // Context Usage always uses last request
               const contextUsage = lastRequestUsage;
               
+              // Get model from last request (for context window display)
+              const model = lastRequestUsage?.model ?? "unknown";
+              
               // Get max tokens for the model from the model stats database
-              const modelStats = getModelStats(stats.model);
+              const modelStats = getModelStats(model);
               const baseMaxTokens = modelStats?.max_input_tokens;
               // Check if 1M context is active and supported
-              const is1MActive = use1M && supports1MContext(stats.model);
+              const is1MActive = use1M && supports1MContext(model);
               const maxTokens = is1MActive ? 1_000_000 : baseMaxTokens;
               
               // Total tokens includes cache creation (they're input tokens sent for caching)
@@ -406,7 +410,7 @@ export const CostsTab: React.FC = () => {
         </Section>
       )}
 
-      {stats.usageHistory.length > 0 && (
+      {hasUsageData && (
         <Section data-testid="cost-section">
           <SectionHeader data-testid="cost-header" style={{ display: "flex", gap: "12px" }}>
             <ConsumerName>Cost</ConsumerName>
@@ -415,8 +419,10 @@ export const CostsTab: React.FC = () => {
           <ConsumerList>
             {(() => {
               // Cost and Details use viewMode-dependent data
-              const modelStats = getModelStats(stats.model);
-              const is1MActive = use1M && supports1MContext(stats.model);
+              // Get model from the displayUsage (which could be last request or session sum)
+              const model = displayUsage?.model ?? lastRequestUsage?.model ?? "unknown";
+              const modelStats = getModelStats(model);
+              const is1MActive = use1M && supports1MContext(model);
 
               // Helper to calculate cost percentage
               const getCostPercentage = (cost: number | undefined, total: number | undefined) =>
@@ -582,17 +588,23 @@ export const CostsTab: React.FC = () => {
 
       <Section>
         <SectionTitle dimmed>Breakdown by Consumer</SectionTitle>
-        <TokenizerInfo>
-          Tokenizer: <span>{stats.tokenizerName}</span>
-        </TokenizerInfo>
-        <ConsumerList>
-          {stats.consumers.map((consumer) => {
+        {consumers.isCalculating ? (
+          <LoadingState>Calculating consumer breakdown...</LoadingState>
+        ) : consumers.consumers.length === 0 ? (
+          <EmptyState>No consumer data available</EmptyState>
+        ) : (
+          <>
+            <TokenizerInfo>
+              Tokenizer: <span>{consumers.tokenizerName}</span>
+            </TokenizerInfo>
+            <ConsumerList>
+              {consumers.consumers.map((consumer) => {
             // Calculate percentages for fixed and variable segments
             const fixedPercentage = consumer.fixedTokens
-              ? (consumer.fixedTokens / stats.totalTokens) * 100
+              ? (consumer.fixedTokens / consumers.totalTokens) * 100
               : 0;
             const variablePercentage = consumer.variableTokens
-              ? (consumer.variableTokens / stats.totalTokens) * 100
+              ? (consumer.variableTokens / consumers.totalTokens) * 100
               : 0;
 
             const tokenDisplay = formatTokens(consumer.tokens);
@@ -638,6 +650,8 @@ export const CostsTab: React.FC = () => {
             );
           })}
         </ConsumerList>
+          </>
+        )}
       </Section>
     </Container>
   );

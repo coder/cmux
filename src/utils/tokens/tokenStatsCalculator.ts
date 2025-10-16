@@ -1,6 +1,6 @@
 /**
  * Shared token statistics calculation logic
- * Used by both frontend (ChatContext) and backend (debug commands)
+ * Used by both frontend (WorkspaceStore) and backend (debug commands)
  *
  * IMPORTANT: This utility is intentionally abstracted so that the debug command
  * (`bun debug costs`) has exact parity with the UI display in the Costs tab.
@@ -93,6 +93,7 @@ export function createDisplayUsage(
       tokens: reasoningTokens,
       cost_usd: reasoningCost,
     },
+    model, // Include model for display purposes
   };
 }
 
