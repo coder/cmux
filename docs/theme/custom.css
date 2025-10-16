@@ -24,7 +24,7 @@
 
   /* Docs-specific tokens */
   --color-code: hsl(214.52deg 100% 71.11%);
-  --link-color: var(--color-plan-mode);
+  --link-color: rgb(62, 140, 218);
   --link-hover: var(--color-plan-mode-hover);
   --content-max-width: 78ch;
   --radius-lg: 10px;

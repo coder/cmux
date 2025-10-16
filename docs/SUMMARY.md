@@ -8,6 +8,7 @@
 
 # Features
 
+- [Workspaces](./workspaces.md)
 - [Models](./models.md)
 - [Keyboard Shortcuts](./keybinds.md)
   - [Vim Mode](./vim-mode.md)
