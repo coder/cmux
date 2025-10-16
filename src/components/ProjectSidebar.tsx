@@ -2,8 +2,8 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import styled from "@emotion/styled";
 import { css } from "@emotion/react";
-import type { ProjectConfig, Workspace } from "@/config";
-import type { WorkspaceMetadata } from "@/types/workspace";
+import type { ProjectConfig } from "@/config";
+import type { FrontendWorkspaceMetadata } from "@/types/workspace";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend, getEmptyImage } from "react-dnd-html5-backend";
@@ -471,7 +471,7 @@ const ProjectDragLayer: React.FC = () => {
 
 interface ProjectSidebarProps {
   projects: Map<string, ProjectConfig>;
-  workspaceMetadata: Map<string, WorkspaceMetadata>;
+  workspaceMetadata: Map<string, FrontendWorkspaceMetadata>;
   selectedWorkspace: WorkspaceSelection | null;
   onSelectWorkspace: (selection: WorkspaceSelection) => void;
   onAddProject: () => void;
@@ -491,12 +491,11 @@ interface ProjectSidebarProps {
   onToggleCollapsed: () => void;
   onGetSecrets: (projectPath: string) => Promise<Secret[]>;
   onUpdateSecrets: (projectPath: string, secrets: Secret[]) => Promise<void>;
-  sortedWorkspacesByProject: Map<string, Workspace[]>;
+  sortedWorkspacesByProject: Map<string, FrontendWorkspaceMetadata[]>;
 }
 
 const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
   projects,
-  workspaceMetadata,
   selectedWorkspace,
   onSelectWorkspace,
   onAddProject,
@@ -820,23 +819,13 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
                                   ` (${formatKeybind(KEYBINDS.NEW_WORKSPACE)})`}
                               </AddWorkspaceBtn>
                             </WorkspaceHeader>
-                            {(
-                              sortedWorkspacesByProject.get(projectPath) ??
-                              config.workspaces ??
-                              []
-                            ).map((workspace) => {
-                              const metadata = workspaceMetadata.get(workspace.path);
-                              if (!metadata) return null;
-
-                              const workspaceId = metadata.id;
-                              const isSelected =
-                                selectedWorkspace?.workspacePath === workspace.path;
+                            {sortedWorkspacesByProject.get(projectPath)?.map((metadata) => {
+                              const isSelected = selectedWorkspace?.workspaceId === metadata.id;
 
                               return (
                                 <WorkspaceListItem
-                                  key={workspace.path}
-                                  workspaceId={workspaceId}
-                                  workspacePath={workspace.path}
+                                  key={metadata.id}
+                                  metadata={metadata}
                                   projectPath={projectPath}
                                   projectName={projectName}
                                   isSelected={isSelected}

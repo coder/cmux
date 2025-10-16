@@ -3,7 +3,7 @@ import type { BashToolResult } from "@/types/tools";
 
 import { describe, it, test, expect, beforeEach, afterEach, jest } from "@jest/globals";
 import { GitStatusStore } from "./GitStatusStore";
-import type { WorkspaceMetadata } from "@/types/workspace";
+import type { FrontendWorkspaceMetadata } from "@/types/workspace";
 
 /**
  * Unit tests for GitStatusStore.
@@ -65,13 +65,15 @@ describe("GitStatusStore", () => {
   });
 
   test("syncWorkspaces initializes metadata", () => {
-    const metadata = new Map<string, WorkspaceMetadata>([
+    const metadata = new Map<string, FrontendWorkspaceMetadata>([
       [
         "ws1",
         {
           id: "ws1",
+          name: "main",
           projectName: "test-project",
-          workspacePath: "/home/user/.cmux/src/test-project/main",
+          projectPath: "/home/user/test-project",
+          namedWorkspacePath: "/home/user/.cmux/src/test-project/main",
         },
       ],
     ]);
@@ -84,21 +86,25 @@ describe("GitStatusStore", () => {
   });
 
   test("syncWorkspaces removes deleted workspaces", () => {
-    const metadata1 = new Map<string, WorkspaceMetadata>([
+    const metadata1 = new Map<string, FrontendWorkspaceMetadata>([
       [
         "ws1",
         {
           id: "ws1",
+          name: "main",
           projectName: "test-project",
-          workspacePath: "/home/user/.cmux/src/test-project/main",
+          projectPath: "/home/user/test-project",
+          namedWorkspacePath: "/home/user/.cmux/src/test-project/main",
         },
       ],
       [
         "ws2",
         {
           id: "ws2",
+          name: "feature",
           projectName: "test-project",
-          workspacePath: "/home/user/.cmux/src/test-project/feature",
+          projectPath: "/home/user/test-project",
+          namedWorkspacePath: "/home/user/.cmux/src/test-project/feature",
         },
       ],
     ]);
@@ -112,13 +118,15 @@ describe("GitStatusStore", () => {
     expect(status2Initial).toBeNull();
 
     // Remove ws2
-    const metadata2 = new Map<string, WorkspaceMetadata>([
+    const metadata2 = new Map<string, FrontendWorkspaceMetadata>([
       [
         "ws1",
         {
           id: "ws1",
+          name: "main",
           projectName: "test-project",
-          workspacePath: "/home/user/.cmux/src/test-project/main",
+          projectPath: "/home/user/test-project",
+          namedWorkspacePath: "/home/user/.cmux/src/test-project/main",
         },
       ],
     ]);
@@ -134,13 +142,15 @@ describe("GitStatusStore", () => {
     const listener = jest.fn();
     store.subscribe(listener);
 
-    const metadata = new Map<string, WorkspaceMetadata>([
+    const metadata = new Map<string, FrontendWorkspaceMetadata>([
       [
         "ws1",
         {
           id: "ws1",
+          name: "main",
           projectName: "test-project",
-          workspacePath: "/home/user/.cmux/src/test-project/main",
+          projectPath: "/home/user/test-project",
+          namedWorkspacePath: "/home/user/.cmux/src/test-project/main",
         },
       ],
     ]);
@@ -157,13 +167,15 @@ describe("GitStatusStore", () => {
   });
 
   test("getStatus caching persists across calls", () => {
-    const metadata = new Map<string, WorkspaceMetadata>([
+    const metadata = new Map<string, FrontendWorkspaceMetadata>([
       [
         "ws1",
         {
           id: "ws1",
+          name: "main",
           projectName: "test-project",
-          workspacePath: "/home/user/.cmux/src/test-project/main",
+          projectPath: "/home/user/test-project",
+          namedWorkspacePath: "/home/user/.cmux/src/test-project/main",
         },
       ],
     ]);
@@ -184,13 +196,15 @@ describe("GitStatusStore", () => {
     const listener = jest.fn();
     store.subscribe(listener);
 
-    const metadata = new Map<string, WorkspaceMetadata>([
+    const metadata = new Map<string, FrontendWorkspaceMetadata>([
       [
         "ws1",
         {
           id: "ws1",
+          name: "main",
           projectName: "test-project",
-          workspacePath: "/home/user/.cmux/src/test-project/main",
+          projectPath: "/home/user/test-project",
+          namedWorkspacePath: "/home/user/.cmux/src/test-project/main",
         },
       ],
     ]);
@@ -209,13 +223,15 @@ describe("GitStatusStore", () => {
     const listener = jest.fn();
     store.subscribe(listener);
 
-    const metadata = new Map<string, WorkspaceMetadata>([
+    const metadata = new Map<string, FrontendWorkspaceMetadata>([
       [
         "ws1",
         {
           id: "ws1",
+          name: "main",
           projectName: "test-project",
-          workspacePath: "/home/user/.cmux/src/test-project/main",
+          projectPath: "/home/user/test-project",
+          namedWorkspacePath: "/home/user/.cmux/src/test-project/main",
         },
       ],
     ]);
@@ -235,13 +251,15 @@ describe("GitStatusStore", () => {
     const listener = jest.fn();
     const unsub = store.subscribe(listener);
 
-    const metadata1 = new Map<string, WorkspaceMetadata>([
+    const metadata1 = new Map<string, FrontendWorkspaceMetadata>([
       [
         "ws1",
         {
           id: "ws1",
+          name: "main",
           projectName: "test-project",
-          workspacePath: "/home/user/.cmux/src/test-project/main",
+          projectPath: "/home/user/test-project",
+          namedWorkspacePath: "/home/user/.cmux/src/test-project/main",
         },
       ],
     ]);
@@ -260,7 +278,7 @@ describe("GitStatusStore", () => {
     listener.mockClear();
 
     // Sync with empty metadata to remove ws1
-    const metadata2 = new Map<string, WorkspaceMetadata>();
+    const metadata2 = new Map<string, FrontendWorkspaceMetadata>();
     store.syncWorkspaces(metadata2);
 
     // Listener should be called (workspace removed)

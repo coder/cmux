@@ -1,23 +1,34 @@
 import { buildCoreSources } from "./sources";
 import type { ProjectConfig } from "@/config";
-import type { WorkspaceMetadata } from "@/types/workspace";
+import type { FrontendWorkspaceMetadata } from "@/types/workspace";
 
 const mk = (over: Partial<Parameters<typeof buildCoreSources>[0]> = {}) => {
   const projects = new Map<string, ProjectConfig>();
-  projects.set("/repo/a", { path: "/repo/a", workspaces: [{ path: "/repo/a/feat-x" }] });
-  const workspaceMetadata = new Map<string, WorkspaceMetadata>();
-  workspaceMetadata.set("/repo/a/feat-x", {
+  projects.set("/repo/a", {
+    workspaces: [{ path: "/repo/a/feat-x" }, { path: "/repo/a/feat-y" }],
+  });
+  const workspaceMetadata = new Map<string, FrontendWorkspaceMetadata>();
+  workspaceMetadata.set("w1", {
     id: "w1",
+    name: "feat-x",
     projectName: "a",
-    workspacePath: "/repo/a/feat-x",
-  } as WorkspaceMetadata);
+    projectPath: "/repo/a",
+    namedWorkspacePath: "/repo/a/feat-x",
+  });
+  workspaceMetadata.set("w2", {
+    id: "w2",
+    name: "feat-y",
+    projectName: "a",
+    projectPath: "/repo/a",
+    namedWorkspacePath: "/repo/a/feat-y",
+  });
   const params: Parameters<typeof buildCoreSources>[0] = {
     projects,
     workspaceMetadata,
     selectedWorkspace: {
       projectPath: "/repo/a",
       projectName: "a",
-      workspacePath: "/repo/a/feat-x",
+      namedWorkspacePath: "/repo/a/feat-x",
       workspaceId: "w1",
     },
     streamingModels: new Map<string, string>(),

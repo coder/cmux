@@ -10,6 +10,7 @@ import { IPC_CHANNELS } from "../../src/constants/ipc-constants";
 import { generateBranchName, createWorkspace } from "./helpers";
 import { shouldRunIntegrationTests, validateApiKeys, getApiKey } from "../testUtils";
 import { loadTokenizerModules } from "../../src/utils/main/tokenizer";
+import { preloadAISDKProviders } from "../../src/services/aiService";
 
 export interface TestEnvironment {
   config: Config;
@@ -154,6 +155,10 @@ export async function setupWorkspace(
   // Without this, tests would use /4 approximation which can cause API errors
   await loadTokenizerModules();
 
+  // Preload AI SDK providers to avoid race conditions with dynamic imports
+  // in concurrent test environments
+  await preloadAISDKProviders();
+
   // Create dedicated temp git repo for this test
   const tempGitRepo = await createTempGitRepo();
 
@@ -178,7 +183,7 @@ export async function setupWorkspace(
     throw new Error("Workspace ID not returned from creation");
   }
 
-  if (!createResult.metadata.workspacePath) {
+  if (!createResult.metadata.namedWorkspacePath) {
     await cleanupTempGitRepo(tempGitRepo);
     throw new Error("Workspace path not returned from creation");
   }
@@ -194,7 +199,7 @@ export async function setupWorkspace(
   return {
     env,
     workspaceId: createResult.metadata.id,
-    workspacePath: createResult.metadata.workspacePath,
+    workspacePath: createResult.metadata.namedWorkspacePath,
     branchName,
     tempGitRepo,
     cleanup,
@@ -232,7 +237,7 @@ export async function setupWorkspaceWithoutProvider(branchPrefix?: string): Prom
     throw new Error("Workspace ID not returned from creation");
   }
 
-  if (!createResult.metadata.workspacePath) {
+  if (!createResult.metadata.namedWorkspacePath) {
     await cleanupTempGitRepo(tempGitRepo);
     throw new Error("Workspace path not returned from creation");
   }
@@ -247,7 +252,7 @@ export async function setupWorkspaceWithoutProvider(branchPrefix?: string): Prom
   return {
     env,
     workspaceId: createResult.metadata.id,
-    workspacePath: createResult.metadata.workspacePath,
+    workspacePath: createResult.metadata.namedWorkspacePath,
     branchName,
     tempGitRepo,
     cleanup,

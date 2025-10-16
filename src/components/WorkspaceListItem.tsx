@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useMemo } from "react";
 import styled from "@emotion/styled";
 import { css } from "@emotion/react";
+import type { FrontendWorkspaceMetadata } from "@/types/workspace";
 import { useWorkspaceSidebarState } from "@/stores/WorkspaceStore";
 import { useGitStatus } from "@/stores/GitStatusStore";
 import { formatRelativeTime } from "@/utils/ui/dateTime";
@@ -9,12 +10,6 @@ import { GitStatusIndicator } from "./GitStatusIndicator";
 import { ModelDisplay } from "./Messages/ModelDisplay";
 import { StatusIndicator } from "./StatusIndicator";
 import { useRename } from "@/contexts/WorkspaceRenameContext";
-
-// Helper function to extract workspace display name from path
-function getWorkspaceDisplayName(workspacePath: string): string {
-  const pathParts = workspacePath.split("/");
-  return pathParts[pathParts.length - 1] || "Unknown";
-}
 
 // Styled Components
 const WorkspaceStatusIndicator = styled(StatusIndicator)`
@@ -128,13 +123,12 @@ const WorkspaceRemoveBtn = styled(RemoveBtn)`
 export interface WorkspaceSelection {
   projectPath: string;
   projectName: string;
-  workspacePath: string;
+  namedWorkspacePath: string; // User-friendly path (symlink for new workspaces)
   workspaceId: string;
 }
 export interface WorkspaceListItemProps {
-  // Minimal data - component accesses stores directly for the rest
-  workspaceId: string;
-  workspacePath: string;
+  // Workspace metadata passed directly
+  metadata: FrontendWorkspaceMetadata;
   projectPath: string;
   projectName: string;
   isSelected: boolean;
@@ -146,8 +140,7 @@ export interface WorkspaceListItemProps {
 }
 
 const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
-  workspaceId,
-  workspacePath,
+  metadata,
   projectPath,
   projectName,
   isSelected,
@@ -156,6 +149,8 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
   onRemoveWorkspace,
   onToggleUnread,
 }) => {
+  // Destructure metadata for convenience
+  const { id: workspaceId, name: workspaceName, namedWorkspacePath } = metadata;
   // Subscribe to this specific workspace's sidebar state (streaming status, model, recency)
   const sidebarState = useWorkspaceSidebarState(workspaceId);
   const gitStatus = useGitStatus(workspaceId);
@@ -167,7 +162,8 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
   const [editingName, setEditingName] = useState<string>("");
   const [renameError, setRenameError] = useState<string | null>(null);
 
-  const displayName = getWorkspaceDisplayName(workspacePath);
+  // Use workspace name from metadata instead of deriving from path
+  const displayName = workspaceName;
   const isStreaming = sidebarState.canInterrupt;
   const streamingModel = sidebarState.currentModel;
   const isEditing = editingWorkspaceId === workspaceId;
@@ -250,7 +246,7 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
           onSelectWorkspace({
             projectPath,
             projectName,
-            workspacePath,
+            namedWorkspacePath,
             workspaceId,
           })
         }
@@ -260,7 +256,7 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
             onSelectWorkspace({
               projectPath,
               projectName,
-              workspacePath,
+              namedWorkspacePath,
               workspaceId,
             });
           }
@@ -268,7 +264,7 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
         role="button"
         tabIndex={0}
         aria-current={isSelected ? "true" : undefined}
-        data-workspace-path={workspacePath}
+        data-workspace-path={namedWorkspacePath}
         data-workspace-id={workspaceId}
       >
         <TooltipWrapper inline>

@@ -329,6 +329,7 @@ export default defineConfig([
       "src/debug/**/*.ts",
       "src/git.ts",
       "src/main.ts",
+      "src/config.test.ts",
       "src/services/gitService.ts",
       "src/services/log.ts",
       "src/services/streamManager.ts",

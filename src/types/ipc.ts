@@ -1,5 +1,5 @@
 import type { Result } from "./result";
-import type { WorkspaceMetadata } from "./workspace";
+import type { FrontendWorkspaceMetadata } from "./workspace";
 import type { CmuxMessage, CmuxFrontendMetadata } from "./message";
 import type { ProjectConfig } from "@/config";
 import type { SendMessageError, StreamErrorType } from "./errors";
@@ -169,7 +169,7 @@ export interface IPCApi {
   projects: {
     create(projectPath: string): Promise<Result<ProjectConfig, string>>;
     remove(projectPath: string): Promise<Result<void, string>>;
-    list(): Promise<ProjectConfig[]>;
+    list(): Promise<Array<[string, ProjectConfig]>>;
     listBranches(projectPath: string): Promise<BranchListResult>;
     secrets: {
       get(projectPath: string): Promise<Secret[]>;
@@ -177,12 +177,14 @@ export interface IPCApi {
     };
   };
   workspace: {
-    list(): Promise<WorkspaceMetadata[]>;
+    list(): Promise<FrontendWorkspaceMetadata[]>;
     create(
       projectPath: string,
       branchName: string,
       trunkBranch: string
-    ): Promise<{ success: true; metadata: WorkspaceMetadata } | { success: false; error: string }>;
+    ): Promise<
+      { success: true; metadata: FrontendWorkspaceMetadata } | { success: false; error: string }
+    >;
     remove(
       workspaceId: string,
       options?: { force?: boolean }
@@ -206,7 +208,7 @@ export interface IPCApi {
       workspaceId: string,
       summaryMessage: CmuxMessage
     ): Promise<Result<void, string>>;
-    getInfo(workspaceId: string): Promise<WorkspaceMetadata | null>;
+    getInfo(workspaceId: string): Promise<FrontendWorkspaceMetadata | null>;
     executeBash(
       workspaceId: string,
       script: string,
@@ -224,7 +226,7 @@ export interface IPCApi {
     // through continuous subscriptions rather than polling patterns.
     onChat(workspaceId: string, callback: (data: WorkspaceChatMessage) => void): () => void;
     onMetadata(
-      callback: (data: { workspaceId: string; metadata: WorkspaceMetadata }) => void
+      callback: (data: { workspaceId: string; metadata: FrontendWorkspaceMetadata }) => void
     ): () => void;
   };
   window: {

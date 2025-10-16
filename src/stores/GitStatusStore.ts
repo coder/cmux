@@ -1,4 +1,4 @@
-import type { WorkspaceMetadata, GitStatus } from "@/types/workspace";
+import type { FrontendWorkspaceMetadata, GitStatus } from "@/types/workspace";
 import { parseGitShowBranchForStatus } from "@/utils/git/parseGitStatus";
 import {
   GIT_STATUS_SCRIPT,
@@ -42,7 +42,7 @@ export class GitStatusStore {
   private statuses = new MapStore<string, GitStatus | null>();
   private fetchCache = new Map<string, FetchState>();
   private pollInterval: NodeJS.Timeout | null = null;
-  private workspaceMetadata = new Map<string, WorkspaceMetadata>();
+  private workspaceMetadata = new Map<string, FrontendWorkspaceMetadata>();
   private isActive = true;
 
   constructor() {
@@ -85,7 +85,7 @@ export class GitStatusStore {
    * Sync workspaces with metadata.
    * Called when workspace list changes.
    */
-  syncWorkspaces(metadata: Map<string, WorkspaceMetadata>): void {
+  syncWorkspaces(metadata: Map<string, FrontendWorkspaceMetadata>): void {
     // Reactivate if disposed by React Strict Mode (dev only)
     // In dev, Strict Mode unmounts/remounts, disposing the store but reusing the ref
     if (!this.isActive && metadata.size > 0) {
@@ -200,7 +200,7 @@ export class GitStatusStore {
    * Check git status for a single workspace.
    */
   private async checkWorkspaceStatus(
-    metadata: WorkspaceMetadata
+    metadata: FrontendWorkspaceMetadata
   ): Promise<[string, GitStatus | null]> {
     // Defensive: Return null if window.api is unavailable (e.g., test environment)
     if (typeof window === "undefined" || !window.api) {
@@ -259,9 +259,9 @@ export class GitStatusStore {
    * Group workspaces by project name.
    */
   private groupWorkspacesByProject(
-    metadata: Map<string, WorkspaceMetadata>
-  ): Map<string, WorkspaceMetadata[]> {
-    const groups = new Map<string, WorkspaceMetadata[]>();
+    metadata: Map<string, FrontendWorkspaceMetadata>
+  ): Map<string, FrontendWorkspaceMetadata[]> {
+    const groups = new Map<string, FrontendWorkspaceMetadata[]>();
 
     for (const m of metadata.values()) {
       const projectName = m.projectName;
@@ -278,7 +278,7 @@ export class GitStatusStore {
   /**
    * Try to fetch the project that needs it most urgently.
    */
-  private tryFetchNextProject(projectGroups: Map<string, WorkspaceMetadata[]>): void {
+  private tryFetchNextProject(projectGroups: Map<string, FrontendWorkspaceMetadata[]>): void {
     let targetProject: string | null = null;
     let targetWorkspaceId: string | null = null;
     let oldestTime = Date.now();

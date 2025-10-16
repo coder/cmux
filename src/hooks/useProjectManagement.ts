@@ -17,7 +17,7 @@ export function useProjectManagement() {
       const projectsList = await window.api.projects.list();
       console.log("Received projects:", projectsList);
 
-      const projectsMap = new Map<string, ProjectConfig>(projectsList.map((p) => [p.path, p]));
+      const projectsMap = new Map<string, ProjectConfig>(projectsList);
       console.log("Created projects map, size:", projectsMap.size);
       setProjects(projectsMap);
     } catch (error) {

@@ -54,12 +54,13 @@ export function prepareDemoProject(
   const workspaceId = config.generateWorkspaceId(projectPath, workspacePath);
   const metadata = {
     id: workspaceId,
+    name: workspaceBranch,
     projectName,
-    workspacePath,
+    projectPath,
   };
 
   const configPayload = {
-    projects: [[projectPath, { path: projectPath, workspaces: [{ path: workspacePath }] }]],
+    projects: [[projectPath, { workspaces: [{ path: workspacePath }] }]],
   } as const;
 
   fs.writeFileSync(configPath, JSON.stringify(configPayload, null, 2));

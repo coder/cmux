@@ -20,7 +20,8 @@
 
 import { contextBridge, ipcRenderer } from "electron";
 import type { IPCApi, WorkspaceChatMessage } from "./types/ipc";
-import type { WorkspaceMetadata } from "./types/workspace";
+import type { FrontendWorkspaceMetadata } from "./types/workspace";
+import type { ProjectConfig } from "./types/project";
 import { IPC_CHANNELS, getChatChannel } from "./constants/ipc-constants";
 
 // Build the API implementation using the shared interface
@@ -36,7 +37,8 @@ const api: IPCApi = {
   projects: {
     create: (projectPath) => ipcRenderer.invoke(IPC_CHANNELS.PROJECT_CREATE, projectPath),
     remove: (projectPath) => ipcRenderer.invoke(IPC_CHANNELS.PROJECT_REMOVE, projectPath),
-    list: () => ipcRenderer.invoke(IPC_CHANNELS.PROJECT_LIST),
+    list: (): Promise<Array<[string, ProjectConfig]>> =>
+      ipcRenderer.invoke(IPC_CHANNELS.PROJECT_LIST),
     listBranches: (projectPath: string) =>
       ipcRenderer.invoke(IPC_CHANNELS.PROJECT_LIST_BRANCHES, projectPath),
     secrets: {
@@ -88,11 +90,11 @@ const api: IPCApi = {
       };
     },
     onMetadata: (
-      callback: (data: { workspaceId: string; metadata: WorkspaceMetadata }) => void
+      callback: (data: { workspaceId: string; metadata: FrontendWorkspaceMetadata }) => void
     ) => {
       const handler = (
         _event: unknown,
-        data: { workspaceId: string; metadata: WorkspaceMetadata }
+        data: { workspaceId: string; metadata: FrontendWorkspaceMetadata }
       ) => callback(data);
 
       // Subscribe to metadata events

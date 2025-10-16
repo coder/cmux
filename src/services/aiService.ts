@@ -7,7 +7,7 @@ import { applyToolOutputRedaction } from "@/utils/messages/applyToolOutputRedact
 import type { Result } from "@/types/result";
 import { Ok, Err } from "@/types/result";
 import type { WorkspaceMetadata } from "@/types/workspace";
-import { WorkspaceMetadataSchema } from "@/types/workspace";
+
 import type { CmuxMessage, CmuxTextPart } from "@/types/message";
 import { createCmuxMessage } from "@/types/message";
 import type { Config } from "@/config";
@@ -90,6 +90,19 @@ if (typeof globalFetchWithExtras.certificate === "function") {
   defaultFetchWithExtras.certificate =
     globalFetchWithExtras.certificate.bind(globalFetchWithExtras);
 }
+
+/**
+ * Preload AI SDK provider modules to avoid race conditions in concurrent test environments.
+ * This function loads @ai-sdk/anthropic and @ai-sdk/openai eagerly so that subsequent
+ * dynamic imports in createModel() hit the module cache instead of racing.
+ *
+ * In production, providers are lazy-loaded on first use to optimize startup time.
+ * In tests, we preload them once during setup to ensure reliable concurrent execution.
+ */
+export async function preloadAISDKProviders(): Promise<void> {
+  await Promise.all([import("@ai-sdk/anthropic"), import("@ai-sdk/openai")]);
+}
+
 export class AIService extends EventEmitter {
   private readonly METADATA_FILE = "metadata.json";
   private readonly streamManager: StreamManager;
@@ -167,33 +180,21 @@ export class AIService extends EventEmitter {
     return this.mockModeEnabled;
   }
 
-  async getWorkspaceMetadata(workspaceId: string): Promise<Result<WorkspaceMetadata>> {
+  getWorkspaceMetadata(workspaceId: string): Result<WorkspaceMetadata> {
     try {
-      const metadataPath = this.getMetadataPath(workspaceId);
-      const data = await fs.readFile(metadataPath, "utf-8");
+      // Get all workspace metadata (which includes migration logic)
+      // This ensures we always get complete metadata with all required fields
+      const allMetadata = this.config.getAllWorkspaceMetadata();
+      const metadata = allMetadata.find((m) => m.id === workspaceId);
 
-      // Parse and validate with Zod schema (handles any type safely)
-      const validated = WorkspaceMetadataSchema.parse(JSON.parse(data));
-
-      return Ok(validated);
-    } catch (error) {
-      if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") {
-        // Fallback: Try to reconstruct metadata from config (for forward compatibility)
-        // This handles workspaces created on newer branches that don't have metadata.json
-        const allMetadata = this.config.getAllWorkspaceMetadata();
-        const metadataFromConfig = allMetadata.find((m) => m.id === workspaceId);
-
-        if (metadataFromConfig) {
-          // Found in config - save it to metadata.json for future use
-          await this.saveWorkspaceMetadata(workspaceId, metadataFromConfig);
-          return Ok(metadataFromConfig);
-        }
-
-        // If metadata doesn't exist anywhere, workspace is not properly initialized
+      if (!metadata) {
         return Err(
           `Workspace metadata not found for ${workspaceId}. Workspace may not be properly initialized.`
         );
       }
+
+      return Ok(metadata);
+    } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       return Err(`Failed to read workspace metadata: ${message}`);
     }
@@ -509,14 +510,26 @@ export class AIService extends EventEmitter {
       }
 
       // Get workspace metadata to retrieve workspace path
-      const metadataResult = await this.getWorkspaceMetadata(workspaceId);
+      const metadataResult = this.getWorkspaceMetadata(workspaceId);
       if (!metadataResult.success) {
         return Err({ type: "unknown", raw: metadataResult.error });
       }
 
+      const metadata = metadataResult.data;
+
+      // Get actual workspace path from config (handles both legacy and new format)
+      const workspace = this.config.findWorkspace(workspaceId);
+      if (!workspace) {
+        return Err({ type: "unknown", raw: `Workspace ${workspaceId} not found in config` });
+      }
+
+      // Get workspace path (directory name uses workspace name)
+      const workspacePath = this.config.getWorkspacePath(metadata.projectPath, metadata.name);
+
       // Build system message from workspace metadata
       const systemMessage = await buildSystemMessage(
-        metadataResult.data,
+        metadata,
+        workspacePath,
         mode,
         additionalSystemInstructions
       );
@@ -525,13 +538,8 @@ export class AIService extends EventEmitter {
       const tokenizer = getTokenizerForModel(modelString);
       const systemMessageTokens = tokenizer.countTokens(systemMessage);
 
-      const workspacePath = metadataResult.data.workspacePath;
-
-      // Find project path for this workspace to load secrets
-      const workspaceInfo = this.config.findWorkspace(workspaceId);
-      const projectSecrets = workspaceInfo
-        ? this.config.getProjectSecrets(workspaceInfo.projectPath)
-        : [];
+      // Load project secrets
+      const projectSecrets = this.config.getProjectSecrets(metadata.projectPath);
 
       // Generate stream token and create temp directory for tools
       const streamToken = this.streamManager.generateStreamToken();

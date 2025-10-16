@@ -193,7 +193,7 @@ interface AIViewProps {
   workspaceId: string;
   projectName: string;
   branch: string;
-  workspacePath: string;
+  namedWorkspacePath: string; // User-friendly path for display and terminal
   className?: string;
 }
 
@@ -201,7 +201,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
   workspaceId,
   projectName,
   branch,
-  workspacePath,
+  namedWorkspacePath,
   className,
 }) => {
   const chatAreaRef = useRef<HTMLDivElement>(null);
@@ -311,8 +311,8 @@ const AIViewInner: React.FC<AIViewProps> = ({
   );
 
   const handleOpenTerminal = useCallback(() => {
-    void window.api.workspace.openTerminal(workspacePath);
-  }, [workspacePath]);
+    void window.api.workspace.openTerminal(namedWorkspacePath);
+  }, [namedWorkspacePath]);
 
   // Auto-scroll when messages update (during streaming)
   useEffect(() => {
@@ -443,7 +443,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
                 tooltipPosition="bottom"
               />
               {projectName} / {branch}
-              <WorkspacePath>{workspacePath}</WorkspacePath>
+              <WorkspacePath>{namedWorkspacePath}</WorkspacePath>
               <TooltipWrapper inline>
                 <TerminalIconButton onClick={handleOpenTerminal}>
                   <svg viewBox="0 0 16 16" fill="currentColor">

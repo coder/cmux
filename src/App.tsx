@@ -6,6 +6,7 @@ import { GlobalFonts } from "./styles/fonts";
 import { GlobalScrollbars } from "./styles/scrollbars";
 import type { ProjectConfig } from "./config";
 import type { WorkspaceSelection } from "./components/ProjectSidebar";
+import type { FrontendWorkspaceMetadata } from "./types/workspace";
 import { LeftSidebar } from "./components/LeftSidebar";
 import NewWorkspaceModal from "./components/NewWorkspaceModal";
 import { AIView } from "./components/AIView";
@@ -172,12 +173,17 @@ function AppInner() {
     [setProjects]
   );
 
-  const { workspaceMetadata, createWorkspace, removeWorkspace, renameWorkspace } =
-    useWorkspaceManagement({
-      selectedWorkspace,
-      onProjectsUpdate: handleProjectsUpdate,
-      onSelectedWorkspaceUpdate: setSelectedWorkspace,
-    });
+  const {
+    workspaceMetadata,
+    loading: metadataLoading,
+    createWorkspace,
+    removeWorkspace,
+    renameWorkspace,
+  } = useWorkspaceManagement({
+    selectedWorkspace,
+    onProjectsUpdate: handleProjectsUpdate,
+    onSelectedWorkspaceUpdate: setSelectedWorkspace,
+  });
 
   // NEW: Sync workspace metadata with the stores
   const workspaceStore = useWorkspaceStoreRaw();
@@ -215,8 +221,10 @@ function AppInner() {
         window.history.replaceState(null, "", newHash);
       }
 
-      // Update window title
-      const title = `${selectedWorkspace.workspaceId} - ${selectedWorkspace.projectName} - cmux`;
+      // Update window title with workspace name
+      const workspaceName =
+        workspaceMetadata.get(selectedWorkspace.workspaceId)?.name ?? selectedWorkspace.workspaceId;
+      const title = `${workspaceName} - ${selectedWorkspace.projectName} - cmux`;
       void window.api.window.setTitle(title);
     } else {
       // Clear hash when no workspace selected
@@ -225,42 +233,80 @@ function AppInner() {
       }
       void window.api.window.setTitle("cmux");
     }
-  }, [selectedWorkspace]);
+  }, [selectedWorkspace, workspaceMetadata]);
 
   // Restore workspace from URL on mount (if valid)
+  // This effect runs once on mount to restore from hash, which takes priority over localStorage
+  const [hasRestoredFromHash, setHasRestoredFromHash] = useState(false);
+
   useEffect(() => {
+    // Only run once
+    if (hasRestoredFromHash) return;
+
+    // Wait for metadata to finish loading
+    if (metadataLoading) return;
+
     const hash = window.location.hash;
     if (hash.startsWith("#workspace=")) {
       const workspaceId = decodeURIComponent(hash.substring("#workspace=".length));
 
       // Find workspace in metadata
-      const metadata = Array.from(workspaceMetadata.values()).find((ws) => ws.id === workspaceId);
+      const metadata = workspaceMetadata.get(workspaceId);
 
       if (metadata) {
-        // Find project for this workspace
-        for (const [projectPath, projectConfig] of projects.entries()) {
-          const workspace = (projectConfig.workspaces ?? []).find(
-            (ws) => ws.path === metadata.workspacePath
-          );
-          if (workspace) {
-            setSelectedWorkspace({
-              workspaceId: metadata.id,
-              projectPath,
-              projectName: metadata.projectName,
-              workspacePath: metadata.workspacePath,
-            });
-            break;
-          }
-        }
+        // Restore from hash (overrides localStorage)
+        setSelectedWorkspace({
+          workspaceId: metadata.id,
+          projectPath: metadata.projectPath,
+          projectName: metadata.projectName,
+          namedWorkspacePath: metadata.namedWorkspacePath,
+        });
       }
     }
-    // Only run on mount
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
-  const openWorkspaceInTerminal = useCallback((workspacePath: string) => {
-    void window.api.workspace.openTerminal(workspacePath);
-  }, []);
+    setHasRestoredFromHash(true);
+  }, [metadataLoading, workspaceMetadata, hasRestoredFromHash, setSelectedWorkspace]);
+
+  // Validate selected workspace exists and has all required fields
+  useEffect(() => {
+    // Don't validate until metadata is loaded
+    if (metadataLoading) return;
+
+    if (selectedWorkspace) {
+      const metadata = workspaceMetadata.get(selectedWorkspace.workspaceId);
+
+      if (!metadata) {
+        // Workspace was deleted
+        console.warn(
+          `Workspace ${selectedWorkspace.workspaceId} no longer exists, clearing selection`
+        );
+        setSelectedWorkspace(null);
+        if (window.location.hash) {
+          window.history.replaceState(null, "", window.location.pathname);
+        }
+      } else if (!selectedWorkspace.namedWorkspacePath && metadata.namedWorkspacePath) {
+        // Old localStorage entry missing namedWorkspacePath - update it once
+        console.log(`Updating workspace ${selectedWorkspace.workspaceId} with missing fields`);
+        setSelectedWorkspace({
+          workspaceId: metadata.id,
+          projectPath: metadata.projectPath,
+          projectName: metadata.projectName,
+          namedWorkspacePath: metadata.namedWorkspacePath,
+        });
+      }
+    }
+  }, [metadataLoading, selectedWorkspace, workspaceMetadata, setSelectedWorkspace]);
+
+  const openWorkspaceInTerminal = useCallback(
+    (workspaceId: string) => {
+      // Look up workspace metadata to get the named path (user-friendly symlink)
+      const metadata = workspaceMetadata.get(workspaceId);
+      if (metadata) {
+        void window.api.workspace.openTerminal(metadata.namedWorkspacePath);
+      }
+    },
+    [workspaceMetadata]
+  );
 
   const handleRemoveProject = useCallback(
     async (path: string) => {
@@ -364,33 +410,39 @@ function AppInner() {
   const workspaceRecency = useWorkspaceRecency();
 
   // Sort workspaces by recency (most recent first)
+  // Returns Map<projectPath, FrontendWorkspaceMetadata[]> for direct component use
   // Use stable reference to prevent sidebar re-renders when sort order hasn't changed
   const sortedWorkspacesByProject = useStableReference(
     () => {
-      const result = new Map<string, ProjectConfig["workspaces"]>();
+      const result = new Map<string, FrontendWorkspaceMetadata[]>();
       for (const [projectPath, config] of projects) {
-        result.set(
-          projectPath,
-          (config.workspaces ?? []).slice().sort((a, b) => {
-            const aMeta = workspaceMetadata.get(a.path);
-            const bMeta = workspaceMetadata.get(b.path);
-            if (!aMeta || !bMeta) return 0;
+        // Transform Workspace[] to FrontendWorkspaceMetadata[] using workspace ID
+        const metadataList = config.workspaces
+          .map((ws) => (ws.id ? workspaceMetadata.get(ws.id) : undefined))
+          .filter((meta): meta is FrontendWorkspaceMetadata => meta !== undefined && meta !== null);
 
-            // Get timestamp of most recent user message (0 if never used)
-            const aTimestamp = workspaceRecency[aMeta.id] ?? 0;
-            const bTimestamp = workspaceRecency[bMeta.id] ?? 0;
-            return bTimestamp - aTimestamp;
-          })
-        );
+        // Sort by recency
+        metadataList.sort((a, b) => {
+          const aTimestamp = workspaceRecency[a.id] ?? 0;
+          const bTimestamp = workspaceRecency[b.id] ?? 0;
+          return bTimestamp - aTimestamp;
+        });
+
+        result.set(projectPath, metadataList);
       }
       return result;
     },
     (prev, next) => {
-      // Compare Maps: check if both size and workspace order are the same
+      // Compare Maps: check if size, workspace order, and metadata content are the same
       if (
         !compareMaps(prev, next, (a, b) => {
           if (a.length !== b.length) return false;
-          return a.every((workspace, i) => workspace.path === b[i].path);
+          // Check both ID and name to detect renames
+          return a.every((metadata, i) => {
+            const bMeta = b[i];
+            if (!bMeta || !metadata) return false; // Null-safe
+            return metadata.id === bMeta.id && metadata.name === bMeta.name;
+          });
         })
       ) {
         return false;
@@ -410,7 +462,7 @@ function AppInner() {
 
       // Find current workspace index in sorted list
       const currentIndex = sortedWorkspaces.findIndex(
-        (ws) => ws.path === selectedWorkspace.workspacePath
+        (metadata) => metadata.id === selectedWorkspace.workspaceId
       );
       if (currentIndex === -1) return;
 
@@ -422,20 +474,17 @@ function AppInner() {
         targetIndex = currentIndex === 0 ? sortedWorkspaces.length - 1 : currentIndex - 1;
       }
 
-      const targetWorkspace = sortedWorkspaces[targetIndex];
-      if (!targetWorkspace) return;
-
-      const metadata = workspaceMetadata.get(targetWorkspace.path);
-      if (!metadata) return;
+      const targetMetadata = sortedWorkspaces[targetIndex];
+      if (!targetMetadata) return;
 
       setSelectedWorkspace({
         projectPath: selectedWorkspace.projectPath,
         projectName: selectedWorkspace.projectName,
-        workspacePath: targetWorkspace.path,
-        workspaceId: metadata.id,
+        namedWorkspacePath: targetMetadata.namedWorkspacePath,
+        workspaceId: targetMetadata.id,
       });
     },
-    [selectedWorkspace, sortedWorkspacesByProject, workspaceMetadata, setSelectedWorkspace]
+    [selectedWorkspace, sortedWorkspacesByProject, setSelectedWorkspace]
   );
 
   // Register command sources with registry
@@ -534,12 +583,7 @@ function AppInner() {
   );
 
   const selectWorkspaceFromPalette = useCallback(
-    (selection: {
-      projectPath: string;
-      projectName: string;
-      workspacePath: string;
-      workspaceId: string;
-    }) => {
+    (selection: WorkspaceSelection) => {
       setSelectedWorkspace(selection);
     },
     [setSelectedWorkspace]
@@ -679,20 +723,19 @@ function AppInner() {
         />
         <MainContent>
           <ContentArea>
-            {selectedWorkspace?.workspacePath ? (
+            {selectedWorkspace ? (
               <ErrorBoundary
-                workspaceInfo={`${selectedWorkspace.projectName}/${selectedWorkspace.workspacePath?.split("/").pop() ?? selectedWorkspace.workspaceId ?? "unknown"}`}
+                workspaceInfo={`${selectedWorkspace.projectName}/${selectedWorkspace.namedWorkspacePath?.split("/").pop() ?? selectedWorkspace.workspaceId}`}
               >
                 <AIView
                   key={selectedWorkspace.workspaceId}
                   workspaceId={selectedWorkspace.workspaceId}
                   projectName={selectedWorkspace.projectName}
                   branch={
-                    selectedWorkspace.workspacePath?.split("/").pop() ??
-                    selectedWorkspace.workspaceId ??
-                    ""
+                    selectedWorkspace.namedWorkspacePath?.split("/").pop() ??
+                    selectedWorkspace.workspaceId
                   }
-                  workspacePath={selectedWorkspace.workspacePath}
+                  namedWorkspacePath={selectedWorkspace.namedWorkspacePath ?? ""}
                 />
               </ErrorBoundary>
             ) : (

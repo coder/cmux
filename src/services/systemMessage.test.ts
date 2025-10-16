@@ -47,11 +47,12 @@ Use diagrams where appropriate.
 
     const metadata: WorkspaceMetadata = {
       id: "test-workspace",
+      name: "test-workspace",
       projectName: "test-project",
-      workspacePath: workspaceDir,
+      projectPath: tempDir,
     };
 
-    const systemMessage = await buildSystemMessage(metadata, "plan");
+    const systemMessage = await buildSystemMessage(metadata, workspaceDir, "plan");
 
     // Should include the mode-specific content
     expect(systemMessage).toContain("<plan>");
@@ -77,11 +78,12 @@ Focus on planning and design.
 
     const metadata: WorkspaceMetadata = {
       id: "test-workspace",
+      name: "test-workspace",
       projectName: "test-project",
-      workspacePath: workspaceDir,
+      projectPath: tempDir,
     };
 
-    const systemMessage = await buildSystemMessage(metadata);
+    const systemMessage = await buildSystemMessage(metadata, workspaceDir);
 
     // Should NOT include the <plan> mode-specific tag
     expect(systemMessage).not.toContain("<plan>");
@@ -115,11 +117,12 @@ Workspace plan instructions (should win).
 
     const metadata: WorkspaceMetadata = {
       id: "test-workspace",
+      name: "test-workspace",
       projectName: "test-project",
-      workspacePath: workspaceDir,
+      projectPath: tempDir,
     };
 
-    const systemMessage = await buildSystemMessage(metadata, "plan");
+    const systemMessage = await buildSystemMessage(metadata, workspaceDir, "plan");
 
     // Should include workspace mode section in the <plan> tag (workspace wins)
     expect(systemMessage).toMatch(/<plan>\s*Workspace plan instructions \(should win\)\./s);
@@ -149,11 +152,12 @@ Just general workspace stuff.
 
     const metadata: WorkspaceMetadata = {
       id: "test-workspace",
+      name: "test-workspace",
       projectName: "test-project",
-      workspacePath: workspaceDir,
+      projectPath: tempDir,
     };
 
-    const systemMessage = await buildSystemMessage(metadata, "plan");
+    const systemMessage = await buildSystemMessage(metadata, workspaceDir, "plan");
 
     // Should include global mode section as fallback
     expect(systemMessage).toContain("Global plan instructions");
@@ -169,11 +173,12 @@ Special mode instructions.
 
     const metadata: WorkspaceMetadata = {
       id: "test-workspace",
+      name: "test-workspace",
       projectName: "test-project",
-      workspacePath: workspaceDir,
+      projectPath: tempDir,
     };
 
-    const systemMessage = await buildSystemMessage(metadata, "My-Special_Mode!");
+    const systemMessage = await buildSystemMessage(metadata, workspaceDir, "My-Special_Mode!");
 
     // Tag should be sanitized to only contain valid characters
     expect(systemMessage).toContain("<my-special_mode->");
