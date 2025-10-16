@@ -179,13 +179,6 @@ const DimmedCost = styled.span`
   font-style: italic;
 `;
 
-const SectionHeader = styled.div`
-  display: flex;
-  justify-content: flex-start;
-  align-items: center;
-  margin-bottom: 12px;
-`;
-
 // Format token display - show k for thousands with 1 decimal
 const formatTokens = (tokens: number) =>
   tokens >= 1000 ? `${(tokens / 1000).toFixed(1)}k` : tokens.toLocaleString();
@@ -373,10 +366,6 @@ const CostsTabComponent: React.FC<CostsTabProps> = ({ workspaceId }) => {
 
       {hasUsageData && (
         <Section data-testid="cost-section">
-          <SectionHeader data-testid="cost-header" style={{ display: "flex", gap: "12px" }}>
-            <ConsumerName>Cost</ConsumerName>
-            <ToggleGroup options={VIEW_MODE_OPTIONS} value={viewMode} onChange={setViewMode} />
-          </SectionHeader>
           <ConsumerList>
             {(() => {
               // Cost and Details use viewMode-dependent data
@@ -488,8 +477,15 @@ const CostsTabComponent: React.FC<CostsTabProps> = ({ workspaceId }) => {
                 <>
                   {totalCost !== undefined && totalCost >= 0 && (
                     <ConsumerRow data-testid="cost-bar">
-                      <ConsumerHeader>
-                        <span></span>
+                      <ConsumerHeader data-testid="cost-header">
+                        <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+                          <ConsumerName>Cost</ConsumerName>
+                          <ToggleGroup
+                            options={VIEW_MODE_OPTIONS}
+                            value={viewMode}
+                            onChange={setViewMode}
+                          />
+                        </div>
                         <ConsumerTokens>{formatCostWithDollar(totalCost)}</ConsumerTokens>
                       </ConsumerHeader>
                       <PercentageBarWrapper>
