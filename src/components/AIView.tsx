@@ -256,6 +256,17 @@ const AIViewInner: React.FC<AIViewProps> = ({
     setEditingMessage({ id: messageId, content });
   }, []);
 
+  const handleEditLastUserMessage = useCallback(() => {
+    if (!workspaceState) return;
+    const mergedMessages = mergeConsecutiveStreamErrors(workspaceState.messages);
+    const lastUserMessage = [...mergedMessages]
+      .reverse()
+      .find((msg): msg is Extract<DisplayedMessage, { type: "user" }> => msg.type === "user");
+    if (lastUserMessage) {
+      setEditingMessage({ id: lastUserMessage.historyId, content: lastUserMessage.content });
+    }
+  }, [workspaceState]);
+
   const handleCancelEdit = useCallback(() => {
     setEditingMessage(undefined);
   }, []);
@@ -530,6 +541,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
             isCompacting={isCompacting}
             editingMessage={editingMessage}
             onCancelEdit={handleCancelEdit}
+            onEditLastUserMessage={handleEditLastUserMessage}
             canInterrupt={canInterrupt}
             onReady={handleChatInputReady}
           />

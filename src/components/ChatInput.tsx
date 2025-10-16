@@ -128,6 +128,7 @@ export interface ChatInputProps {
   isCompacting?: boolean;
   editingMessage?: { id: string; content: string };
   onCancelEdit?: () => void;
+  onEditLastUserMessage?: () => void;
   canInterrupt?: boolean; // Whether Esc can be used to interrupt streaming
   onReady?: (api: ChatInputAPI) => void; // Callback with focus method
 }
@@ -334,6 +335,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   isCompacting = false,
   editingMessage,
   onCancelEdit,
+  onEditLastUserMessage,
   canInterrupt = false,
   onReady,
 }) => {
@@ -808,12 +810,15 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       }
     }
 
-    // Handle escape - let VimTextArea handle it (for Vim mode transitions)
-    // Edit canceling is handled by Ctrl+Q above
-    // Stream interruption is handled by Ctrl+C (INTERRUPT_STREAM keybind)
-    if (matchesKeybind(e, KEYBINDS.CANCEL)) {
-      // Do not preventDefault here: allow VimTextArea or other handlers (like suggestions) to process ESC
+    // Handle up arrow on empty input - edit last user message
+    if (e.key === "ArrowUp" && !editingMessage && input.trim() === "" && onEditLastUserMessage) {
+      e.preventDefault();
+      onEditLastUserMessage();
+      return;
     }
+
+    // Note: ESC handled by VimTextArea (for mode transitions) and CommandSuggestions (for dismissal)
+    // Edit canceling is Ctrl+Q, stream interruption is Ctrl+C
 
     // Don't handle keys if command suggestions are visible
     if (
@@ -824,13 +829,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       return; // Let CommandSuggestions handle it
     }
 
-    // Handle newline
-    if (matchesKeybind(e, KEYBINDS.NEW_LINE)) {
-      // Allow newline (default behavior)
-      return;
-    }
-
-    // Handle send message
+    // Handle send message (Shift+Enter for newline is default behavior)
     if (matchesKeybind(e, KEYBINDS.SEND_MESSAGE)) {
       e.preventDefault();
       void handleSend();
@@ -840,7 +839,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   // Build placeholder text based on current state
   const placeholder = (() => {
     if (editingMessage) {
-      return `Edit your message... (${formatKeybind(KEYBINDS.CANCEL)} to cancel edit, ${formatKeybind(KEYBINDS.SEND_MESSAGE)} to send)`;
+      return `Edit your message... (${formatKeybind(KEYBINDS.CANCEL_EDIT)} to cancel, ${formatKeybind(KEYBINDS.SEND_MESSAGE)} to send)`;
     }
     if (isCompacting) {
       return `Compacting... (${formatKeybind(KEYBINDS.INTERRUPT_STREAM)} to cancel)`;
