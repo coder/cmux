@@ -665,6 +665,12 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
 
   // Normalize order when the set of projects changes (not on every parent render)
   useEffect(() => {
+    // Skip normalization if projects haven't loaded yet (empty Map on initial render)
+    // This prevents clearing projectOrder before projects load from backend
+    if (projects.size === 0) {
+      return;
+    }
+
     const normalized = normalizeOrder(projectOrder, projects);
     if (
       normalized.length !== projectOrder.length ||
