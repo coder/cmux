@@ -54,7 +54,7 @@ Compress conversation history using AI summarization. Replaces the conversation 
 ### Options
 
 - `-t <tokens>` - Maximum output tokens for the summary (default: ~2000 words)
-- `-m <model>` - Model to use for compaction (default: workspace model). Supports abbreviations like `sonnet`, `haiku`, `opus`, or full model strings
+- `-m <model>` - Model to use for compaction (default: workspace model). Supports abbreviations like `haiku`, `sonnet`, or full model strings
 
 ### Examples
 
@@ -76,7 +76,7 @@ Compress conversation history using AI summarization. Replaces the conversation 
 /compact -m haiku
 ```
 
-Uses Haiku for faster, lower-cost compaction.
+Use Haiku for faster, lower-cost compaction.
 
 **Auto-continue with custom message:**
 
@@ -100,11 +100,11 @@ Continue messages can span multiple lines for more detailed instructions.
 **Combine all options:**
 
 ```
-/compact -m opus -t 8000
+/compact -m haiku -t 8000
 Keep working on the feature
 ```
 
-Use Opus with custom token limit and auto-continue message.
+Combine custom model, token limit, and auto-continue message.
 
 ### Notes
 
