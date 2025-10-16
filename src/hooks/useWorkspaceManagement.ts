@@ -40,9 +40,14 @@ export function useWorkspaceManagement({
   useEffect(() => {
     void (async () => {
       await loadWorkspaceMetadata();
+      // After loading metadata (which may trigger migration), reload projects
+      // to ensure frontend has the updated config with workspace IDs
+      const projectsList = await window.api.projects.list();
+      const loadedProjects = new Map<string, ProjectConfig>(projectsList);
+      onProjectsUpdate(loadedProjects);
       setLoading(false);
     })();
-  }, [loadWorkspaceMetadata]);
+  }, [loadWorkspaceMetadata, onProjectsUpdate]);
 
   // Subscribe to metadata updates (for create/rename/delete operations)
   useEffect(() => {
