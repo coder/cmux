@@ -259,7 +259,7 @@ interface CostsTabProps {
   workspaceId: string;
 }
 
-export const CostsTab: React.FC<CostsTabProps> = ({ workspaceId }) => {
+const CostsTabComponent: React.FC<CostsTabProps> = ({ workspaceId }) => {
   const usage = useWorkspaceUsage(workspaceId);
   const consumers = useWorkspaceConsumers(workspaceId);
   const [viewMode, setViewMode] = usePersistedState<ViewMode>("costsTab:viewMode", "session");
@@ -575,3 +575,7 @@ export const CostsTab: React.FC<CostsTabProps> = ({ workspaceId }) => {
     </Container>
   );
 };
+
+// Memoize to prevent re-renders when parent (AIView) re-renders during streaming
+// Only re-renders when workspaceId changes or internal hook data (usage/consumers) updates
+export const CostsTab = React.memo(CostsTabComponent);

@@ -87,7 +87,7 @@ interface ChatMetaSidebarProps {
   chatAreaRef: React.RefObject<HTMLDivElement>;
 }
 
-export const ChatMetaSidebar: React.FC<ChatMetaSidebarProps> = ({ workspaceId, chatAreaRef }) => {
+const ChatMetaSidebarComponent: React.FC<ChatMetaSidebarProps> = ({ workspaceId, chatAreaRef }) => {
   const [selectedTab, setSelectedTab] = usePersistedState<TabType>(
     `chat-meta-sidebar-tab:${workspaceId}`,
     "costs"

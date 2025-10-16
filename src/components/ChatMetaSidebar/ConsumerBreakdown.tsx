@@ -113,7 +113,7 @@ interface ConsumerBreakdownProps {
   consumers: WorkspaceConsumersState;
 }
 
-export const ConsumerBreakdown: React.FC<ConsumerBreakdownProps> = ({ consumers }) => {
+const ConsumerBreakdownComponent: React.FC<ConsumerBreakdownProps> = ({ consumers }) => {
   if (consumers.isCalculating) {
     return <LoadingState>Calculating consumer breakdown...</LoadingState>;
   }
@@ -183,4 +183,8 @@ export const ConsumerBreakdown: React.FC<ConsumerBreakdownProps> = ({ consumers 
     </>
   );
 };
+
+// Memoize to prevent re-renders when parent re-renders but consumers data hasn't changed
+// Only re-renders when consumers object reference changes (when store bumps it)
+export const ConsumerBreakdown = React.memo(ConsumerBreakdownComponent);
 
