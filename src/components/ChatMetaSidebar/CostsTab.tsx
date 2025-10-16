@@ -489,6 +489,7 @@ const CostsTabComponent: React.FC<CostsTabProps> = ({ workspaceId }) => {
                   {totalCost !== undefined && totalCost >= 0 && (
                     <ConsumerRow data-testid="cost-bar">
                       <ConsumerHeader>
+                        <span></span>
                         <ConsumerTokens>{formatCostWithDollar(totalCost)}</ConsumerTokens>
                       </ConsumerHeader>
                       <PercentageBarWrapper>
