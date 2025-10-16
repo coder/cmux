@@ -29,6 +29,7 @@ import { useGitStatus } from "@/stores/GitStatusStore";
 import { TooltipWrapper, Tooltip } from "./Tooltip";
 import type { DisplayedMessage } from "@/types/message";
 import { useAIViewKeybinds } from "@/hooks/useAIViewKeybinds";
+import type { WorkspaceMetaEvent } from "@/types/workspace";
 
 const ViewContainer = styled.div`
   flex: 1;
@@ -56,6 +57,37 @@ const ViewHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
+`;
+
+// Inline banner that streams workspace init hook output without blocking usage
+const InitHookBanner = styled.div<{ error?: boolean }>`
+  background: ${(p) => (p.error ? "#3a1e1e" : "#1e2a3a")};
+  border-bottom: 1px solid ${(p) => (p.error ? "#653737" : "#2f3f52")};
+  color: #ddd;
+  font-family: var(--font-monospace);
+  font-size: 12px;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+`;
+
+const InitHookHeader = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #ccc;
+`;
+
+const InitHookLog = styled.pre`
+  margin: 0;
+  max-height: 120px;
+  overflow: auto;
+  white-space: pre-wrap;
+  background: rgba(0, 0, 0, 0.15);
+  padding: 6px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
 `;
 
 const WorkspaceTitle = styled.div`
@@ -209,6 +241,52 @@ const AIViewInner: React.FC<AIViewProps> = ({
 
   // Get git status for this workspace
   const gitStatus = useGitStatus(workspaceId);
+
+  // Workspace init hook streaming state
+  const [initLines, setInitLines] = useState<string[]>([]);
+  const [initExitCode, setInitExitCode] = useState<number | null>(null);
+  const [showInit, setShowInit] = useState<boolean>(false);
+
+  useEffect(() => {
+    setInitLines([]);
+    setInitExitCode(null);
+    setShowInit(false);
+    const unsubscribe = window.api.workspace.onMeta(workspaceId, (data: WorkspaceMetaEvent) => {
+      if (data.workspaceId !== workspaceId) return;
+      switch (data.type) {
+        case "workspace-init-start":
+          setShowInit(true);
+          break;
+        case "workspace-init-output":
+          setShowInit(true);
+          setInitLines((prev) => [...prev, data.line.trimEnd()]);
+          break;
+        case "workspace-init-error":
+          setShowInit(true);
+          // Prefer line when present, else error
+          {
+            const line = data.line ?? (data.error ? `ERROR: ${data.error}` : null);
+            if (line) {
+              setInitLines((prev) => [...prev, line]);
+            }
+          }
+          setInitExitCode((c) => c ?? -1);
+          break;
+        case "workspace-init-end":
+          {
+            const code = data.exitCode;
+            setInitExitCode(code);
+            if (code === 0) {
+              setTimeout(() => setShowInit(false), 800);
+            } else {
+              setShowInit(true);
+            }
+          }
+          break;
+      }
+    });
+    return () => unsubscribe?.();
+  }, [workspaceId]);
   const [editingMessage, setEditingMessage] = useState<{ id: string; content: string } | undefined>(
     undefined
   );
@@ -406,6 +484,28 @@ const AIViewInner: React.FC<AIViewProps> = ({
     <ChatProvider messages={messages} cmuxMessages={cmuxMessages} model={currentModel ?? "unknown"}>
       <ViewContainer className={className}>
         <ChatArea>
+          {showInit && (
+            <InitHookBanner
+              error={initExitCode !== null && initExitCode !== 0}
+              role="status"
+              aria-live="polite"
+            >
+              <InitHookHeader>
+                {initExitCode === null ? (
+                  <span>Running project init hook (.cmux/init)…</span>
+                ) : initExitCode === 0 ? (
+                  <span>Init hook completed successfully.</span>
+                ) : (
+                  <span>
+                    Init hook exited with code {initExitCode}. Workspace is ready, but some setup
+                    may have failed.
+                  </span>
+                )}
+              </InitHookHeader>
+              {initLines.length > 0 && <InitHookLog>{initLines.join("\n")}</InitHookLog>}
+            </InitHookBanner>
+          )}
+
           <ViewHeader>
             <WorkspaceTitle>
               <StatusIndicator

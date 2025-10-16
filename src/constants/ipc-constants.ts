@@ -24,7 +24,6 @@ export const IPC_CHANNELS = {
   WORKSPACE_CREATE: "workspace:create",
   WORKSPACE_REMOVE: "workspace:remove",
   WORKSPACE_RENAME: "workspace:rename",
-  WORKSPACE_STREAM_META: "workspace:streamMeta",
   WORKSPACE_SEND_MESSAGE: "workspace:sendMessage",
   WORKSPACE_RESUME_STREAM: "workspace:resumeStream",
   WORKSPACE_INTERRUPT_STREAM: "workspace:interruptStream",
@@ -34,6 +33,9 @@ export const IPC_CHANNELS = {
   WORKSPACE_GET_INFO: "workspace:getInfo",
   WORKSPACE_EXECUTE_BASH: "workspace:executeBash",
   WORKSPACE_OPEN_TERMINAL: "workspace:openTerminal",
+  // Meta stream for non-chat workspace events (e.g., init hook output)
+  // Renderer should subscribe and display for the active workspace context
+  WORKSPACE_STREAM_META: "workspace:streamMeta",
 
   // Window channels
   WINDOW_SET_TITLE: "window:setTitle",

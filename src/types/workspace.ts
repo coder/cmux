@@ -59,3 +59,34 @@ export interface WorkspaceMetadataUpdate {
   workspaceId: string;
   metadata: WorkspaceMetadata;
 }
+
+/**
+ * Meta events related to workspace lifecycle that are not part of chat.
+ * Currently used for streaming .cmux/init hook output on workspace creation.
+ */
+export type WorkspaceMetaEvent =
+  | {
+      type: "workspace-init-start";
+      workspaceId: string;
+      timestamp: number;
+      hookPath: string;
+    }
+  | {
+      type: "workspace-init-output";
+      workspaceId: string;
+      timestamp: number;
+      line: string;
+    }
+  | {
+      type: "workspace-init-error";
+      workspaceId: string;
+      timestamp: number;
+      error?: string;
+      line?: string;
+    }
+  | {
+      type: "workspace-init-end";
+      workspaceId: string;
+      timestamp: number;
+      exitCode: number;
+    };

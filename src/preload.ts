@@ -20,7 +20,7 @@
 
 import { contextBridge, ipcRenderer } from "electron";
 import type { IPCApi, WorkspaceChatMessage } from "./types/ipc";
-import type { WorkspaceMetadata } from "./types/workspace";
+import type { WorkspaceMetadata, WorkspaceMetaEvent } from "./types/workspace";
 import { IPC_CHANNELS, getChatChannel } from "./constants/ipc-constants";
 
 // Build the API implementation using the shared interface
@@ -69,7 +69,7 @@ const api: IPCApi = {
     openTerminal: (workspacePath) =>
       ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_OPEN_TERMINAL, workspacePath),
 
-    onChat: (workspaceId, callback) => {
+    onChat: (workspaceId: string, callback) => {
       const channel = getChatChannel(workspaceId);
       const handler = (_event: unknown, data: WorkspaceChatMessage) => {
         callback(data);
@@ -104,6 +104,18 @@ const api: IPCApi = {
       return () => {
         ipcRenderer.removeListener(IPC_CHANNELS.WORKSPACE_METADATA, handler);
         ipcRenderer.send(`workspace:metadata:unsubscribe`);
+      };
+    },
+    onMeta: (workspaceId: string, callback: (data: WorkspaceMetaEvent) => void) => {
+      const handler = (_event: unknown, data: WorkspaceMetaEvent) => {
+        // Forward to consumer - consumer is responsible for filtering by workspaceId
+        callback(data);
+      };
+      ipcRenderer.on(IPC_CHANNELS.WORKSPACE_STREAM_META, handler);
+      ipcRenderer.send(`workspace:meta:subscribe`, workspaceId);
+      return () => {
+        ipcRenderer.removeListener(IPC_CHANNELS.WORKSPACE_STREAM_META, handler);
+        ipcRenderer.send(`workspace:meta:unsubscribe`, workspaceId);
       };
     },
   },

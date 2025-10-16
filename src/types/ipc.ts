@@ -1,5 +1,5 @@
 import type { Result } from "./result";
-import type { WorkspaceMetadata } from "./workspace";
+import type { WorkspaceMetadata, WorkspaceMetaEvent } from "./workspace";
 import type { CmuxMessage, CmuxFrontendMetadata } from "./message";
 import type { ProjectConfig } from "@/config";
 import type { SendMessageError, StreamErrorType } from "./errors";
@@ -226,6 +226,8 @@ export interface IPCApi {
     onMetadata(
       callback: (data: { workspaceId: string; metadata: WorkspaceMetadata }) => void
     ): () => void;
+    // Meta event stream (init hook output, etc.)
+    onMeta(workspaceId: string, callback: (data: WorkspaceMetaEvent) => void): () => void;
   };
   window: {
     setTitle(title: string): Promise<void>;
