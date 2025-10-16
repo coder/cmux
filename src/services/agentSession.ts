@@ -12,6 +12,7 @@ import type { SendMessageError } from "@/types/errors";
 import { createUnknownSendMessageError } from "@/services/utils/sendMessageError";
 import type { Result } from "@/types/result";
 import { Ok, Err } from "@/types/result";
+import { enforceThinkingPolicy } from "@/utils/thinking/policy";
 
 interface ImagePart {
   image: string;
@@ -299,7 +300,6 @@ export class AgentSession {
 
     // Enforce thinking policy for the specified model (single source of truth)
     // This ensures model-specific requirements are met regardless of where the request originates
-    const { enforceThinkingPolicy } = await import("@/utils/thinking/policy");
     const effectiveThinkingLevel = options?.thinkingLevel
       ? enforceThinkingPolicy(modelString, options.thinkingLevel)
       : undefined;

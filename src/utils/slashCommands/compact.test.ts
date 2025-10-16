@@ -333,7 +333,7 @@ describe("multiline continue messages", () => {
   });
 
   it("parses all flags with multiline continue message", () => {
-    const result = parseCommand('/compact -t 5000 -m sonnet\nFinish the refactoring');
+    const result = parseCommand("/compact -t 5000 -m sonnet\nFinish the refactoring");
     expect(result).toEqual({
       type: "compact",
       maxOutputTokens: 5000,
