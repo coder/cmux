@@ -820,31 +820,33 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
                                   ` (${formatKeybind(KEYBINDS.NEW_WORKSPACE)})`}
                               </AddWorkspaceBtn>
                             </WorkspaceHeader>
-                            {(sortedWorkspacesByProject.get(projectPath) ?? config.workspaces).map(
-                              (workspace) => {
-                                const metadata = workspaceMetadata.get(workspace.path);
-                                if (!metadata) return null;
+                            {(
+                              sortedWorkspacesByProject.get(projectPath) ??
+                              config.workspaces ??
+                              []
+                            ).map((workspace) => {
+                              const metadata = workspaceMetadata.get(workspace.path);
+                              if (!metadata) return null;
 
-                                const workspaceId = metadata.id;
-                                const isSelected =
-                                  selectedWorkspace?.workspacePath === workspace.path;
+                              const workspaceId = metadata.id;
+                              const isSelected =
+                                selectedWorkspace?.workspacePath === workspace.path;
 
-                                return (
-                                  <WorkspaceListItem
-                                    key={workspace.path}
-                                    workspaceId={workspaceId}
-                                    workspacePath={workspace.path}
-                                    projectPath={projectPath}
-                                    projectName={projectName}
-                                    isSelected={isSelected}
-                                    lastReadTimestamp={lastReadTimestamps[metadata.id] ?? 0}
-                                    onSelectWorkspace={onSelectWorkspace}
-                                    onRemoveWorkspace={handleRemoveWorkspace}
-                                    onToggleUnread={_onToggleUnread}
-                                  />
-                                );
-                              }
-                            )}
+                              return (
+                                <WorkspaceListItem
+                                  key={workspace.path}
+                                  workspaceId={workspaceId}
+                                  workspacePath={workspace.path}
+                                  projectPath={projectPath}
+                                  projectName={projectName}
+                                  isSelected={isSelected}
+                                  lastReadTimestamp={lastReadTimestamps[metadata.id] ?? 0}
+                                  onSelectWorkspace={onSelectWorkspace}
+                                  onRemoveWorkspace={handleRemoveWorkspace}
+                                  onToggleUnread={_onToggleUnread}
+                                />
+                              );
+                            })}
                           </WorkspacesContainer>
                         )}
                       </ProjectGroup>

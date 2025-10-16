@@ -222,6 +222,7 @@ export class IpcMain {
               config.projects.set(projectPath, projectConfig);
             }
             // Add workspace to project config
+            if (!projectConfig.workspaces) projectConfig.workspaces = [];
             projectConfig.workspaces.push({
               path: result.path!,
             });
@@ -297,9 +298,12 @@ export class IpcMain {
           let workspaceIndex = -1;
 
           for (const [projectPath, projectConfig] of projectsConfig.projects.entries()) {
-            const idx = projectConfig.workspaces.findIndex((w) => {
-              const generatedId = this.config.generateWorkspaceId(projectPath, w.path);
-              return generatedId === workspaceId;
+            const idx = (projectConfig.workspaces ?? []).findIndex((w) => {
+              // If workspace has stored ID, use it (new format)
+              // Otherwise, generate ID from path (old format)
+              const workspaceIdToMatch =
+                w.id ?? this.config.generateWorkspaceId(projectPath, w.path);
+              return workspaceIdToMatch === workspaceId;
             });
 
             if (idx !== -1) {
@@ -363,7 +367,7 @@ export class IpcMain {
           // Update config with new workspace info using atomic edit
           this.config.editConfig((config) => {
             const projectConfig = config.projects.get(foundProjectPath);
-            if (projectConfig && workspaceIndex !== -1) {
+            if (projectConfig && workspaceIndex !== -1 && projectConfig.workspaces) {
               projectConfig.workspaces[workspaceIndex] = {
                 path: newWorktreePath,
               };
@@ -805,9 +809,11 @@ export class IpcMain {
       const projectsConfig = this.config.loadConfigOrDefault();
       let configUpdated = false;
       for (const [_projectPath, projectConfig] of projectsConfig.projects.entries()) {
-        const initialCount = projectConfig.workspaces.length;
-        projectConfig.workspaces = projectConfig.workspaces.filter((w) => w.path !== workspacePath);
-        if (projectConfig.workspaces.length < initialCount) {
+        const initialCount = (projectConfig.workspaces ?? []).length;
+        projectConfig.workspaces = (projectConfig.workspaces ?? []).filter(
+          (w) => w.path !== workspacePath
+        );
+        if ((projectConfig.workspaces ?? []).length < initialCount) {
           configUpdated = true;
         }
       }
@@ -922,9 +928,9 @@ export class IpcMain {
         }
 
         // Check if project has any workspaces
-        if (projectConfig.workspaces.length > 0) {
+        if ((projectConfig.workspaces ?? []).length > 0) {
           return Err(
-            `Cannot remove project with active workspaces. Please remove all ${projectConfig.workspaces.length} workspace(s) first.`
+            `Cannot remove project with active workspaces. Please remove all ${(projectConfig.workspaces ?? []).length} workspace(s) first.`
           );
         }
 
