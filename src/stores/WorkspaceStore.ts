@@ -25,6 +25,9 @@ import {
 import { MapStore } from "./MapStore";
 import { createDisplayUsage } from "@/utils/tokens/tokenStatsCalculator";
 import { WorkspaceConsumerManager } from "./WorkspaceConsumerManager";
+import type { ChatUsageDisplay } from "@/utils/tokens/usageAggregator";
+import type { TokenConsumer } from "@/types/chatStats";
+import type { LanguageModelV2Usage } from "@ai-sdk/provider";
 
 export interface WorkspaceState {
   messages: DisplayedMessage[];
@@ -68,7 +71,7 @@ type DerivedState = Record<string, number>;
  * Updates instantly when usage metadata arrives.
  */
 export interface WorkspaceUsageState {
-  usageHistory: import("@/utils/tokens/usageAggregator").ChatUsageDisplay[];
+  usageHistory: ChatUsageDisplay[];
   totalTokens: number;
 }
 
@@ -77,7 +80,7 @@ export interface WorkspaceUsageState {
  * Updates after async Web Worker calculation completes.
  */
 export interface WorkspaceConsumersState {
-  consumers: import("@/types/chatStats").TokenConsumer[];
+  consumers: TokenConsumer[];
   tokenizerName: string;
   totalTokens: number; // Total from tokenization (may differ from usage totalTokens)
   isCalculating: boolean;
@@ -105,7 +108,7 @@ export class WorkspaceStore {
   // Manager for consumer calculations (debouncing, caching, lazy loading)
   // Architecture: WorkspaceStore orchestrates (decides when), manager executes (performs calculations)
   // Dual-cache: consumersStore (MapStore) handles subscriptions, manager owns data cache
-  private consumerManager: WorkspaceConsumerManager;
+  private readonly consumerManager: WorkspaceConsumerManager;
 
   // Supporting data structures
   private aggregators = new Map<string, StreamingMessageAggregator>();
@@ -308,14 +311,18 @@ export class WorkspaceStore {
       const messages = aggregator.getAllMessages();
 
       // Extract usage from assistant messages
-      const usageHistory: import("@/utils/tokens/usageAggregator").ChatUsageDisplay[] = [];
+      const usageHistory: ChatUsageDisplay[] = [];
 
       for (const msg of messages) {
         if (msg.role === "assistant" && msg.metadata?.usage) {
           // Use the model from this specific message (not global)
           const model = msg.metadata.model ?? aggregator.getCurrentModel() ?? "unknown";
 
-          const usage = createDisplayUsage(msg.metadata.usage, model, msg.metadata.providerMetadata);
+          const usage = createDisplayUsage(
+            msg.metadata.usage,
+            model,
+            msg.metadata.providerMetadata
+          );
 
           if (usage) {
             usageHistory.push(usage);
@@ -342,7 +349,7 @@ export class WorkspaceStore {
   /**
    * Get consumer breakdown (may be calculating).
    * Triggers lazy calculation if workspace is caught-up but no data exists.
-   * 
+   *
    * Architecture: Lazy trigger runs on EVERY access (outside MapStore.get())
    * so workspace switches trigger calculation even if MapStore has cached result.
    */
@@ -386,14 +393,12 @@ export class WorkspaceStore {
    */
   private bumpUsageIfPresent(
     workspaceId: string,
-    metadata?: { usage?: import("@ai-sdk/provider").LanguageModelV2Usage; model?: string }
+    metadata?: { usage?: LanguageModelV2Usage; model?: string }
   ): void {
     if (metadata?.usage) {
       this.usageStore.bump(workspaceId);
     }
   }
-
-
 
   /**
    * Add a workspace and subscribe to its IPC events.
@@ -574,10 +579,7 @@ export class WorkspaceStore {
     data: WorkspaceChatMessage
   ): void {
     // Bump usage if metadata present (forward compatible - works for any event type)
-    this.bumpUsageIfPresent(
-      workspaceId,
-      "metadata" in data ? data.metadata : undefined
-    );
+    this.bumpUsageIfPresent(workspaceId, "metadata" in data ? data.metadata : undefined);
 
     if (isStreamError(data)) {
       aggregator.handleStreamError(data);
@@ -854,4 +856,3 @@ export function useWorkspaceConsumers(workspaceId: string): WorkspaceConsumersSt
     () => store.getWorkspaceConsumers(workspaceId)
   );
 }
-

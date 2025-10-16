@@ -99,7 +99,7 @@ const EmptyState = styled.div`
   font-style: italic;
   padding: 12px 0;
   text-align: left;
-  
+
   p {
     margin: 4px 0;
   }
@@ -148,8 +148,8 @@ const ConsumerBreakdownComponent: React.FC<ConsumerBreakdownProps> = ({ consumer
                     <TooltipWrapper inline>
                       <HelpIndicator>?</HelpIndicator>
                       <Tooltip className="tooltip" align="center" width="wide">
-                        Web search results are encrypted and decrypted server-side. This estimate
-                        is approximate.
+                        Web search results are encrypted and decrypted server-side. This estimate is
+                        approximate.
                       </Tooltip>
                     </TooltipWrapper>
                   )}
@@ -187,4 +187,3 @@ const ConsumerBreakdownComponent: React.FC<ConsumerBreakdownProps> = ({ consumer
 // Memoize to prevent re-renders when parent re-renders but consumers data hasn't changed
 // Only re-renders when consumers object reference changes (when store bumps it)
 export const ConsumerBreakdown = React.memo(ConsumerBreakdownComponent);
-

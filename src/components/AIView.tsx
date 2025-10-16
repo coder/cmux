@@ -378,8 +378,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
   }
 
   // Extract state from workspace state
-  const { messages, canInterrupt, isCompacting, loading, cmuxMessages, currentModel } =
-    workspaceState;
+  const { messages, canInterrupt, isCompacting, loading, currentModel } = workspaceState;
 
   // Get active stream message ID for token counting
   const activeStreamMessageId = aggregator.getActiveStreamMessageId();
@@ -425,145 +424,143 @@ const AIViewInner: React.FC<AIViewProps> = ({
   }
 
   return (
-      <ViewContainer className={className}>
-        <ChatArea ref={chatAreaRef}>
-          <ViewHeader>
-            <WorkspaceTitle>
-              <StatusIndicator
-                streaming={canInterrupt}
-                title={
-                  canInterrupt && currentModel ? `${getModelName(currentModel)} streaming` : "Idle"
+    <ViewContainer className={className}>
+      <ChatArea ref={chatAreaRef}>
+        <ViewHeader>
+          <WorkspaceTitle>
+            <StatusIndicator
+              streaming={canInterrupt}
+              title={
+                canInterrupt && currentModel ? `${getModelName(currentModel)} streaming` : "Idle"
+              }
+            />
+            <GitStatusIndicator
+              gitStatus={gitStatus}
+              workspaceId={workspaceId}
+              tooltipPosition="bottom"
+            />
+            {projectName} / {branch}
+            <WorkspacePath>{namedWorkspacePath}</WorkspacePath>
+            <TooltipWrapper inline>
+              <TerminalIconButton onClick={handleOpenTerminal}>
+                <svg viewBox="0 0 16 16" fill="currentColor">
+                  <path d="M0 2.75C0 1.784.784 1 1.75 1h12.5c.966 0 1.75.784 1.75 1.75v10.5A1.75 1.75 0 0114.25 15H1.75A1.75 1.75 0 010 13.25V2.75zm1.75-.25a.25.25 0 00-.25.25v10.5c0 .138.112.25.25.25h12.5a.25.25 0 00.25-.25V2.75a.25.25 0 00-.25-.25H1.75zM7.25 8a.75.75 0 01-.22.53l-2.25 2.25a.75.75 0 01-1.06-1.06L5.44 8 3.72 6.28a.75.75 0 111.06-1.06l2.25 2.25c.141.14.22.331.22.53zm1.5 1.5a.75.75 0 000 1.5h3a.75.75 0 000-1.5h-3z" />
+                </svg>
+              </TerminalIconButton>
+              <Tooltip className="tooltip" position="bottom" align="center">
+                Open in terminal ({formatKeybind(KEYBINDS.OPEN_TERMINAL)})
+              </Tooltip>
+            </TooltipWrapper>
+          </WorkspaceTitle>
+        </ViewHeader>
+
+        <OutputContainer>
+          <OutputContent
+            ref={contentRef}
+            onWheel={markUserInteraction}
+            onTouchMove={markUserInteraction}
+            onScroll={handleScroll}
+            role="log"
+            aria-live={canInterrupt ? "polite" : "off"}
+            aria-busy={canInterrupt}
+            aria-label="Conversation transcript"
+            tabIndex={0}
+          >
+            {mergedMessages.length === 0 ? (
+              <EmptyState>
+                <h3>No Messages Yet</h3>
+                <p>Send a message below to begin</p>
+              </EmptyState>
+            ) : (
+              <>
+                {mergedMessages.map((msg) => {
+                  const isAtCutoff =
+                    editCutoffHistoryId !== undefined &&
+                    msg.type !== "history-hidden" &&
+                    msg.historyId === editCutoffHistoryId;
+
+                  return (
+                    <React.Fragment key={msg.id}>
+                      <div
+                        data-message-id={msg.type !== "history-hidden" ? msg.historyId : undefined}
+                      >
+                        <MessageRenderer
+                          message={msg}
+                          onEditUserMessage={handleEditUserMessage}
+                          workspaceId={workspaceId}
+                          isCompacting={isCompacting}
+                        />
+                      </div>
+                      {isAtCutoff && (
+                        <EditBarrier>
+                          ⚠️ Messages below this line will be removed when you submit the edit
+                        </EditBarrier>
+                      )}
+                      {shouldShowInterruptedBarrier(msg) && <InterruptedBarrier />}
+                    </React.Fragment>
+                  );
+                })}
+                {/* Show RetryBarrier after the last message if needed */}
+                {showRetryBarrier && (
+                  <RetryBarrier
+                    workspaceId={workspaceId}
+                    autoRetry={autoRetry}
+                    onStopAutoRetry={() => setAutoRetry(false)}
+                    onResetAutoRetry={() => setAutoRetry(true)}
+                  />
+                )}
+              </>
+            )}
+            <PinnedTodoList workspaceId={workspaceId} />
+            {canInterrupt && (
+              <StreamingBarrier
+                statusText={
+                  isCompacting
+                    ? currentModel
+                      ? `${getModelName(currentModel)} compacting...`
+                      : "compacting..."
+                    : currentModel
+                      ? `${getModelName(currentModel)} streaming...`
+                      : "streaming..."
+                }
+                cancelText={`hit ${formatKeybind(KEYBINDS.INTERRUPT_STREAM)} to cancel`}
+                tokenCount={
+                  activeStreamMessageId
+                    ? aggregator.getStreamingTokenCount(activeStreamMessageId)
+                    : undefined
+                }
+                tps={
+                  activeStreamMessageId
+                    ? aggregator.getStreamingTPS(activeStreamMessageId)
+                    : undefined
                 }
               />
-              <GitStatusIndicator
-                gitStatus={gitStatus}
-                workspaceId={workspaceId}
-                tooltipPosition="bottom"
-              />
-              {projectName} / {branch}
-              <WorkspacePath>{namedWorkspacePath}</WorkspacePath>
-              <TooltipWrapper inline>
-                <TerminalIconButton onClick={handleOpenTerminal}>
-                  <svg viewBox="0 0 16 16" fill="currentColor">
-                    <path d="M0 2.75C0 1.784.784 1 1.75 1h12.5c.966 0 1.75.784 1.75 1.75v10.5A1.75 1.75 0 0114.25 15H1.75A1.75 1.75 0 010 13.25V2.75zm1.75-.25a.25.25 0 00-.25.25v10.5c0 .138.112.25.25.25h12.5a.25.25 0 00.25-.25V2.75a.25.25 0 00-.25-.25H1.75zM7.25 8a.75.75 0 01-.22.53l-2.25 2.25a.75.75 0 01-1.06-1.06L5.44 8 3.72 6.28a.75.75 0 111.06-1.06l2.25 2.25c.141.14.22.331.22.53zm1.5 1.5a.75.75 0 000 1.5h3a.75.75 0 000-1.5h-3z" />
-                  </svg>
-                </TerminalIconButton>
-                <Tooltip className="tooltip" position="bottom" align="center">
-                  Open in terminal ({formatKeybind(KEYBINDS.OPEN_TERMINAL)})
-                </Tooltip>
-              </TooltipWrapper>
-            </WorkspaceTitle>
-          </ViewHeader>
-
-          <OutputContainer>
-            <OutputContent
-              ref={contentRef}
-              onWheel={markUserInteraction}
-              onTouchMove={markUserInteraction}
-              onScroll={handleScroll}
-              role="log"
-              aria-live={canInterrupt ? "polite" : "off"}
-              aria-busy={canInterrupt}
-              aria-label="Conversation transcript"
-              tabIndex={0}
-            >
-              {mergedMessages.length === 0 ? (
-                <EmptyState>
-                  <h3>No Messages Yet</h3>
-                  <p>Send a message below to begin</p>
-                </EmptyState>
-              ) : (
-                <>
-                  {mergedMessages.map((msg) => {
-                    const isAtCutoff =
-                      editCutoffHistoryId !== undefined &&
-                      msg.type !== "history-hidden" &&
-                      msg.historyId === editCutoffHistoryId;
-
-                    return (
-                      <React.Fragment key={msg.id}>
-                        <div
-                          data-message-id={
-                            msg.type !== "history-hidden" ? msg.historyId : undefined
-                          }
-                        >
-                          <MessageRenderer
-                            message={msg}
-                            onEditUserMessage={handleEditUserMessage}
-                            workspaceId={workspaceId}
-                            isCompacting={isCompacting}
-                          />
-                        </div>
-                        {isAtCutoff && (
-                          <EditBarrier>
-                            ⚠️ Messages below this line will be removed when you submit the edit
-                          </EditBarrier>
-                        )}
-                        {shouldShowInterruptedBarrier(msg) && <InterruptedBarrier />}
-                      </React.Fragment>
-                    );
-                  })}
-                  {/* Show RetryBarrier after the last message if needed */}
-                  {showRetryBarrier && (
-                    <RetryBarrier
-                      workspaceId={workspaceId}
-                      autoRetry={autoRetry}
-                      onStopAutoRetry={() => setAutoRetry(false)}
-                      onResetAutoRetry={() => setAutoRetry(true)}
-                    />
-                  )}
-                </>
-              )}
-              <PinnedTodoList workspaceId={workspaceId} />
-              {canInterrupt && (
-                <StreamingBarrier
-                  statusText={
-                    isCompacting
-                      ? currentModel
-                        ? `${getModelName(currentModel)} compacting...`
-                        : "compacting..."
-                      : currentModel
-                        ? `${getModelName(currentModel)} streaming...`
-                        : "streaming..."
-                  }
-                  cancelText={`hit ${formatKeybind(KEYBINDS.INTERRUPT_STREAM)} to cancel`}
-                  tokenCount={
-                    activeStreamMessageId
-                      ? aggregator.getStreamingTokenCount(activeStreamMessageId)
-                      : undefined
-                  }
-                  tps={
-                    activeStreamMessageId
-                      ? aggregator.getStreamingTPS(activeStreamMessageId)
-                      : undefined
-                  }
-                />
-              )}
-            </OutputContent>
-            {!autoScroll && (
-              <JumpToBottomIndicator onClick={jumpToBottom} type="button">
-                Press {formatKeybind(KEYBINDS.JUMP_TO_BOTTOM)} to jump to bottom
-              </JumpToBottomIndicator>
             )}
-          </OutputContainer>
+          </OutputContent>
+          {!autoScroll && (
+            <JumpToBottomIndicator onClick={jumpToBottom} type="button">
+              Press {formatKeybind(KEYBINDS.JUMP_TO_BOTTOM)} to jump to bottom
+            </JumpToBottomIndicator>
+          )}
+        </OutputContainer>
 
-          <ChatInput
-            workspaceId={workspaceId}
-            onMessageSent={handleMessageSent}
-            onTruncateHistory={handleClearHistory}
-            onProviderConfig={handleProviderConfig}
-            disabled={!projectName || !branch}
-            isCompacting={isCompacting}
-            editingMessage={editingMessage}
-            onCancelEdit={handleCancelEdit}
-            onEditLastUserMessage={handleEditLastUserMessage}
-            canInterrupt={canInterrupt}
-            onReady={handleChatInputReady}
-          />
-        </ChatArea>
+        <ChatInput
+          workspaceId={workspaceId}
+          onMessageSent={handleMessageSent}
+          onTruncateHistory={handleClearHistory}
+          onProviderConfig={handleProviderConfig}
+          disabled={!projectName || !branch}
+          isCompacting={isCompacting}
+          editingMessage={editingMessage}
+          onCancelEdit={handleCancelEdit}
+          onEditLastUserMessage={handleEditLastUserMessage}
+          canInterrupt={canInterrupt}
+          onReady={handleChatInputReady}
+        />
+      </ChatArea>
 
-        <ChatMetaSidebar workspaceId={workspaceId} chatAreaRef={chatAreaRef} />
-      </ViewContainer>
+      <ChatMetaSidebar workspaceId={workspaceId} chatAreaRef={chatAreaRef} />
+    </ViewContainer>
   );
 };
 

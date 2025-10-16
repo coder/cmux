@@ -1,7 +1,6 @@
 import React from "react";
 import styled from "@emotion/styled";
 import { useWorkspaceUsage, useWorkspaceConsumers } from "@/stores/WorkspaceStore";
-import { TooltipWrapper, Tooltip, HelpIndicator } from "../Tooltip";
 import { getModelStats } from "@/utils/tokens/modelStats";
 import { sumUsageHistory } from "@/utils/tokens/usageAggregator";
 import { usePersistedState } from "@/hooks/usePersistedState";
@@ -111,22 +110,6 @@ const CachedSegment = styled.div<SegmentProps>`
   transition: width 0.3s ease;
 `;
 
-interface PercentageFillProps {
-  percentage: number;
-}
-
-const PercentageFill = styled.div<PercentageFillProps>`
-  height: 100%;
-  width: ${(props) => props.percentage}%;
-  background: var(--color-token-completion);
-  transition: width 0.3s ease;
-`;
-
-const LoadingState = styled.div`
-  color: #888888;
-  font-style: italic;
-`;
-
 const EmptyState = styled.div`
   color: #888888;
   text-align: center;
@@ -138,16 +121,6 @@ const ModelWarning = styled.div`
   font-size: 11px;
   margin-top: 8px;
   font-style: italic;
-`;
-
-
-
-const TokenDetails = styled.div`
-  color: #888888;
-  font-size: 11px;
-  margin-top: 6px;
-  padding-left: 4px;
-  line-height: 1.4;
 `;
 
 const DetailsTable = styled.table`
@@ -283,7 +256,9 @@ const CostsTabComponent: React.FC<CostsTabProps> = ({ workspaceId }) => {
   }
 
   // Context Usage always shows Last Request data
-  const lastRequestUsage = hasUsageData ? usage.usageHistory[usage.usageHistory.length - 1] : undefined;
+  const lastRequestUsage = hasUsageData
+    ? usage.usageHistory[usage.usageHistory.length - 1]
+    : undefined;
 
   // Cost and Details table use viewMode
   const displayUsage =
@@ -299,17 +274,17 @@ const CostsTabComponent: React.FC<CostsTabProps> = ({ workspaceId }) => {
             {(() => {
               // Context Usage always uses last request
               const contextUsage = lastRequestUsage;
-              
+
               // Get model from last request (for context window display)
               const model = lastRequestUsage?.model ?? "unknown";
-              
+
               // Get max tokens for the model from the model stats database
               const modelStats = getModelStats(model);
               const baseMaxTokens = modelStats?.max_input_tokens;
               // Check if 1M context is active and supported
               const is1MActive = use1M && supports1MContext(model);
               const maxTokens = is1MActive ? 1_000_000 : baseMaxTokens;
-              
+
               // Total tokens includes cache creation (they're input tokens sent for caching)
               const totalUsed = contextUsage
                 ? contextUsage.input.tokens +
@@ -339,10 +314,14 @@ const CostsTabComponent: React.FC<CostsTabProps> = ({ workspaceId }) => {
               } else if (contextUsage) {
                 // Unknown model - scale to total tokens used
                 inputPercentage = totalUsed > 0 ? (contextUsage.input.tokens / totalUsed) * 100 : 0;
-                outputPercentage = totalUsed > 0 ? (contextUsage.output.tokens / totalUsed) * 100 : 0;
-                cachedPercentage = totalUsed > 0 ? (contextUsage.cached.tokens / totalUsed) * 100 : 0;
-                cacheCreatePercentage = totalUsed > 0 ? (contextUsage.cacheCreate.tokens / totalUsed) * 100 : 0;
-                reasoningPercentage = totalUsed > 0 ? (contextUsage.reasoning.tokens / totalUsed) * 100 : 0;
+                outputPercentage =
+                  totalUsed > 0 ? (contextUsage.output.tokens / totalUsed) * 100 : 0;
+                cachedPercentage =
+                  totalUsed > 0 ? (contextUsage.cached.tokens / totalUsed) * 100 : 0;
+                cacheCreatePercentage =
+                  totalUsed > 0 ? (contextUsage.cacheCreate.tokens / totalUsed) * 100 : 0;
+                reasoningPercentage =
+                  totalUsed > 0 ? (contextUsage.reasoning.tokens / totalUsed) * 100 : 0;
                 totalPercentage = 100;
                 showWarning = true;
               } else {

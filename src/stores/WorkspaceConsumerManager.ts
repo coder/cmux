@@ -1,24 +1,23 @@
-import type { CmuxMessage } from "@/types/message";
 import type { WorkspaceConsumersState } from "./WorkspaceStore";
 import { TokenStatsWorker } from "@/utils/tokens/TokenStatsWorker";
 import type { StreamingMessageAggregator } from "@/utils/messages/StreamingMessageAggregator";
 
 /**
  * Manages consumer token calculations for workspaces.
- * 
+ *
  * Responsibilities:
  * - Debounces rapid calculation requests (e.g., multiple tool-call-end events)
  * - Caches calculated results to avoid redundant work (source of truth)
  * - Tracks calculation state per workspace
  * - Executes Web Worker tokenization calculations
  * - Handles cleanup and disposal
- * 
+ *
  * Architecture:
  * - Single responsibility: consumer tokenization calculations
  * - Owns the source-of-truth cache (calculated consumer data)
  * - WorkspaceStore orchestrates (decides when to calculate)
  * - This manager executes (performs calculations, manages cache)
- * 
+ *
  * Dual-Cache Design:
  * - WorkspaceConsumerManager.cache: Source of truth for calculated data
  * - WorkspaceStore.consumersStore (MapStore): Subscription management only
@@ -26,7 +25,7 @@ import type { StreamingMessageAggregator } from "@/utils/messages/StreamingMessa
  */
 export class WorkspaceConsumerManager {
   // Web Worker for tokenization (shared across workspaces)
-  private tokenWorker: TokenStatsWorker;
+  private readonly tokenWorker: TokenStatsWorker;
 
   // Track scheduled calculations (in debounce window, not yet executing)
   private scheduledCalcs = new Set<string>();
@@ -41,7 +40,7 @@ export class WorkspaceConsumerManager {
   private debounceTimers = new Map<string, NodeJS.Timeout>();
 
   // Callback to bump the store when calculation completes
-  private onCalculationComplete: (workspaceId: string) => void;
+  private readonly onCalculationComplete: (workspaceId: string) => void;
 
   constructor(onCalculationComplete: (workspaceId: string) => void) {
     this.tokenWorker = new TokenStatsWorker();
@@ -66,7 +65,7 @@ export class WorkspaceConsumerManager {
   /**
    * Get current state synchronously without triggering calculations.
    * Returns cached result if available, otherwise returns default state.
-   * 
+   *
    * Note: This is called from WorkspaceStore.getWorkspaceConsumers(),
    * which handles the lazy trigger logic separately.
    */
@@ -137,7 +136,7 @@ export class WorkspaceConsumerManager {
     this.onCalculationComplete(workspaceId);
 
     // Run in next tick to avoid blocking caller
-    queueMicrotask(async () => {
+    void (async () => {
       try {
         const messages = aggregator.getAllMessages();
         const model = aggregator.getCurrentModel() ?? "unknown";
@@ -174,7 +173,7 @@ export class WorkspaceConsumerManager {
       } finally {
         this.pendingCalcs.delete(workspaceId);
       }
-    });
+    })();
   }
 
   /**
@@ -213,4 +212,3 @@ export class WorkspaceConsumerManager {
     this.pendingCalcs.clear();
   }
 }
-
