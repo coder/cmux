@@ -25,15 +25,8 @@ describeIntegration("IpcMain rename workspace integration tests", () => {
       const { env, workspaceId, workspacePath, tempGitRepo, branchName, cleanup } =
         await setupWorkspace("anthropic");
       try {
-        // Add project and workspace to config via IPC
-        await env.mockIpcRenderer.invoke(IPC_CHANNELS.PROJECT_CREATE, tempGitRepo);
-        // Manually add workspace to the project (normally done by WORKSPACE_CREATE)
-        const projectsConfig = env.config.loadConfigOrDefault();
-        const projectConfig = projectsConfig.projects.get(tempGitRepo);
-        if (projectConfig) {
-          projectConfig.workspaces.push({ path: workspacePath });
-          env.config.saveConfig(projectsConfig);
-        }
+        // Note: setupWorkspace already called WORKSPACE_CREATE which adds both
+        // the project and workspace to config, so no manual config manipulation needed
         const oldSessionDir = env.config.getSessionDir(workspaceId);
         const oldMetadataResult = await env.mockIpcRenderer.invoke(
           IPC_CHANNELS.WORKSPACE_GET_INFO,
@@ -174,15 +167,8 @@ describeIntegration("IpcMain rename workspace integration tests", () => {
       const { env, workspaceId, workspacePath, tempGitRepo, branchName, cleanup } =
         await setupWorkspace("anthropic");
       try {
-        // Add project and workspace to config via IPC
-        await env.mockIpcRenderer.invoke(IPC_CHANNELS.PROJECT_CREATE, tempGitRepo);
-        // Manually add workspace to the project (normally done by WORKSPACE_CREATE)
-        const projectsConfig = env.config.loadConfigOrDefault();
-        const projectConfig = projectsConfig.projects.get(tempGitRepo);
-        if (projectConfig) {
-          projectConfig.workspaces.push({ path: workspacePath });
-          env.config.saveConfig(projectsConfig);
-        }
+        // Note: setupWorkspace already called WORKSPACE_CREATE which adds both
+        // the project and workspace to config, so no manual config manipulation needed
 
         // Get current metadata
         const oldMetadata = await env.mockIpcRenderer.invoke(
@@ -317,15 +303,8 @@ describeIntegration("IpcMain rename workspace integration tests", () => {
       const { env, workspaceId, workspacePath, tempGitRepo, branchName, cleanup } =
         await setupWorkspace("anthropic");
       try {
-        // Add project and workspace to config via IPC
-        await env.mockIpcRenderer.invoke(IPC_CHANNELS.PROJECT_CREATE, tempGitRepo);
-        // Manually add workspace to the project (normally done by WORKSPACE_CREATE)
-        const projectsConfig = env.config.loadConfigOrDefault();
-        const projectConfig = projectsConfig.projects.get(tempGitRepo);
-        if (projectConfig) {
-          projectConfig.workspaces.push({ path: workspacePath });
-          env.config.saveConfig(projectsConfig);
-        }
+        // Note: setupWorkspace already called WORKSPACE_CREATE which adds both
+        // the project and workspace to config, so no manual config manipulation needed
         // Send a message to create some history
         env.sentEvents.length = 0;
         const result = await sendMessageWithModel(env.mockIpcRenderer, workspaceId, "What is 2+2?");
@@ -376,15 +355,8 @@ describeIntegration("IpcMain rename workspace integration tests", () => {
       const { env, workspaceId, workspacePath, tempGitRepo, cleanup } =
         await setupWorkspace("anthropic");
       try {
-        // Add project and workspace to config via IPC
-        await env.mockIpcRenderer.invoke(IPC_CHANNELS.PROJECT_CREATE, tempGitRepo);
-        // Manually add workspace to the project (normally done by WORKSPACE_CREATE)
-        const projectsConfig = env.config.loadConfigOrDefault();
-        const projectConfig = projectsConfig.projects.get(tempGitRepo);
-        if (projectConfig) {
-          projectConfig.workspaces.push({ path: workspacePath });
-          env.config.saveConfig(projectsConfig);
-        }
+        // Note: setupWorkspace already called WORKSPACE_CREATE which adds both
+        // the project and workspace to config, so no manual config manipulation needed
 
         // Send a message to create history before rename
         env.sentEvents.length = 0;
