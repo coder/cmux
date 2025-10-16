@@ -178,8 +178,18 @@ export class AIService extends EventEmitter {
       return Ok(validated);
     } catch (error) {
       if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") {
-        // If metadata doesn't exist, we cannot create valid defaults without the workspace path
-        // The workspace path must be provided when the workspace is created
+        // Fallback: Try to reconstruct metadata from config (for forward compatibility)
+        // This handles workspaces created on newer branches that don't have metadata.json
+        const allMetadata = this.config.getAllWorkspaceMetadata();
+        const metadataFromConfig = allMetadata.find((m) => m.id === workspaceId);
+
+        if (metadataFromConfig) {
+          // Found in config - save it to metadata.json for future use
+          await this.saveWorkspaceMetadata(workspaceId, metadataFromConfig);
+          return Ok(metadataFromConfig);
+        }
+
+        // If metadata doesn't exist anywhere, workspace is not properly initialized
         return Err(
           `Workspace metadata not found for ${workspaceId}. Workspace may not be properly initialized.`
         );
