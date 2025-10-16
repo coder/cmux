@@ -239,7 +239,7 @@ function AppInner() {
       if (metadata) {
         // Find project for this workspace
         for (const [projectPath, projectConfig] of projects.entries()) {
-          const workspace = projectConfig.workspaces.find(
+          const workspace = (projectConfig.workspaces ?? []).find(
             (ws) => ws.path === metadata.workspacePath
           );
           if (workspace) {
@@ -371,7 +371,7 @@ function AppInner() {
       for (const [projectPath, config] of projects) {
         result.set(
           projectPath,
-          config.workspaces.slice().sort((a, b) => {
+          (config.workspaces ?? []).slice().sort((a, b) => {
             const aMeta = workspaceMetadata.get(a.path);
             const bMeta = workspaceMetadata.get(b.path);
             if (!aMeta || !bMeta) return 0;

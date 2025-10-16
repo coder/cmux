@@ -182,7 +182,7 @@ export class Config {
     for (const [projectPath, projectConfig] of config.projects) {
       const projectName = this.getProjectName(projectPath);
 
-      for (const workspace of projectConfig.workspaces) {
+      for (const workspace of projectConfig.workspaces ?? []) {
         const workspaceId = this.generateWorkspaceId(projectPath, workspace.path);
 
         workspaceMetadata.push({
