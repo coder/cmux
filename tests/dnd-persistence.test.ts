@@ -1,10 +1,10 @@
 /**
  * Integration test for DnD project order persistence bug fix
- * 
+ *
  * Bug: Project order was being cleared on app restart because the normalization
  * effect ran before projects loaded from backend, causing normalizeOrder to clear
  * the order array when projects Map was empty.
- * 
+ *
  * Fix: Skip normalization when projects.size === 0 to prevent clearing during
  * initial load.
  */
@@ -29,9 +29,9 @@ describe("DnD Project Order Persistence", () => {
     // 3. Normalization effect runs
     const projectOrder = ["/a", "/b", "/c"];
     const emptyProjects = createProjects([]);
-    
+
     const normalized = normalizeOrder(projectOrder, emptyProjects);
-    
+
     // Before fix: normalized would be [] (bug!)
     // After fix: The effect should skip normalization when projects.size === 0
     // So normalizeOrder itself still returns [], but the effect won't call it
@@ -46,9 +46,9 @@ describe("DnD Project Order Persistence", () => {
     // 3. Normalization should append the new project
     const projectOrder = ["/a", "/b", "/c"];
     const loadedProjects = createProjects(["/a", "/b", "/c", "/d"]);
-    
+
     const normalized = normalizeOrder(projectOrder, loadedProjects);
-    
+
     expect(normalized).toEqual(["/a", "/b", "/c", "/d"]);
   });
 
@@ -56,9 +56,9 @@ describe("DnD Project Order Persistence", () => {
     // If a project was removed, it should be pruned from the order
     const projectOrder = ["/a", "/b", "/c", "/d"];
     const projects = createProjects(["/a", "/c", "/d"]); // /b was removed
-    
+
     const normalized = normalizeOrder(projectOrder, projects);
-    
+
     expect(normalized).toEqual(["/a", "/c", "/d"]);
   });
 });
