@@ -140,12 +140,12 @@ export class Config {
 
     for (const [projectPath, project] of config.projects) {
       for (const workspace of project.workspaces ?? []) {
-        // Check stored ID first (new format), then generated ID (old format)
-        const matchesStoredId = workspace.id === workspaceId;
-        const matchesGeneratedId =
-          this.generateWorkspaceId(projectPath, workspace.path) === workspaceId;
+        // If workspace has stored ID, use it (new format)
+        // Otherwise, generate ID from path (old format)
+        const workspaceIdToMatch =
+          workspace.id ?? this.generateWorkspaceId(projectPath, workspace.path);
 
-        if (matchesStoredId || matchesGeneratedId) {
+        if (workspaceIdToMatch === workspaceId) {
           return { workspacePath: workspace.path, projectPath };
         }
       }

@@ -299,11 +299,11 @@ export class IpcMain {
 
           for (const [projectPath, projectConfig] of projectsConfig.projects.entries()) {
             const idx = (projectConfig.workspaces ?? []).findIndex((w) => {
-              // Check stored ID first (new format), then generated ID (old format)
-              const matchesStoredId = w.id === workspaceId;
-              const matchesGeneratedId =
-                this.config.generateWorkspaceId(projectPath, w.path) === workspaceId;
-              return matchesStoredId || matchesGeneratedId;
+              // If workspace has stored ID, use it (new format)
+              // Otherwise, generate ID from path (old format)
+              const workspaceIdToMatch =
+                w.id ?? this.config.generateWorkspaceId(projectPath, w.path);
+              return workspaceIdToMatch === workspaceId;
             });
 
             if (idx !== -1) {
