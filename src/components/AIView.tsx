@@ -264,8 +264,16 @@ const AIViewInner: React.FC<AIViewProps> = ({
       .find((msg): msg is Extract<DisplayedMessage, { type: "user" }> => msg.type === "user");
     if (lastUserMessage) {
       setEditingMessage({ id: lastUserMessage.historyId, content: lastUserMessage.content });
+
+      // Scroll to the message being edited
+      requestAnimationFrame(() => {
+        const element = contentRef.current?.querySelector(
+          `[data-message-id="${lastUserMessage.historyId}"]`
+        );
+        element?.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
     }
-  }, [workspaceState]);
+  }, [workspaceState, contentRef]);
 
   const handleCancelEdit = useCallback(() => {
     setEditingMessage(undefined);
@@ -475,12 +483,14 @@ const AIViewInner: React.FC<AIViewProps> = ({
 
                     return (
                       <React.Fragment key={msg.id}>
-                        <MessageRenderer
-                          message={msg}
-                          onEditUserMessage={handleEditUserMessage}
-                          workspaceId={workspaceId}
-                          isCompacting={isCompacting}
-                        />
+                        <div data-message-id={msg.type !== "history-hidden" ? msg.historyId : undefined}>
+                          <MessageRenderer
+                            message={msg}
+                            onEditUserMessage={handleEditUserMessage}
+                            workspaceId={workspaceId}
+                            isCompacting={isCompacting}
+                          />
+                        </div>
                         {isAtCutoff && (
                           <EditBarrier>
                             ⚠️ Messages below this line will be removed when you submit the edit
