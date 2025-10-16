@@ -322,6 +322,26 @@ export default defineConfig([
     },
   },
   {
+    // Temporarily allow sync fs methods in files with existing usage
+    // TODO: Gradually migrate these to async operations
+    files: [
+      "src/config.ts",
+      "src/debug/**/*.ts",
+      "src/git.ts",
+      "src/main.ts",
+      "src/services/gitService.ts",
+      "src/services/log.ts",
+      "src/services/streamManager.ts",
+      "src/services/tempDir.ts",
+      "src/services/tools/bash.ts",
+      "src/services/tools/bash.test.ts",
+      "src/services/tools/testHelpers.ts",
+    ],
+    rules: {
+      "local/no-sync-fs-methods": "off",
+    },
+  },
+  {
     // Frontend architectural boundary - prevent services and tokenizer imports
     files: ["src/components/**", "src/contexts/**", "src/hooks/**", "src/App.tsx"],
     rules: {
