@@ -24,7 +24,7 @@ import {
 } from "@/types/ipc";
 import { MapStore } from "./MapStore";
 import { createDisplayUsage } from "@/utils/tokens/tokenStatsCalculator";
-import { TokenStatsWorker } from "@/utils/tokens/TokenStatsWorker";
+import { WorkspaceConsumerManager } from "./WorkspaceConsumerManager";
 
 export interface WorkspaceState {
   messages: DisplayedMessage[];
@@ -102,17 +102,8 @@ export class WorkspaceStore {
   private usageStore = new MapStore<string, WorkspaceUsageState>();
   private consumersStore = new MapStore<string, WorkspaceConsumersState>();
 
-  // Web Worker for tokenization (shared across workspaces)
-  private tokenWorker: TokenStatsWorker | null = null;
-
-  // Track pending consumer calculations to avoid duplicates
-  private pendingConsumerCalcs = new Set<string>();
-
-  // Cache calculated consumer data (for persistence across bumps)
-  private consumersCache = new Map<string, WorkspaceConsumersState>();
-
-  // Debounce timers for consumer calculations (prevents rapid-fire during tool sequences)
-  private calculationDebounceTimers = new Map<string, NodeJS.Timeout>();
+  // Manager for consumer calculations (debouncing, caching, lazy loading)
+  private consumerManager: WorkspaceConsumerManager;
 
   // Supporting data structures
   private aggregators = new Map<string, StreamingMessageAggregator>();
@@ -133,8 +124,10 @@ export class WorkspaceStore {
   constructor(onModelUsed?: (model: string) => void) {
     this.onModelUsed = onModelUsed;
 
-    // Initialize Web Worker for tokenization
-    this.tokenWorker = new TokenStatsWorker();
+    // Initialize consumer calculation manager
+    this.consumerManager = new WorkspaceConsumerManager((workspaceId) => {
+      this.consumersStore.bump(workspaceId);
+    });
 
     // Note: We DON'T auto-check recency on every state bump.
     // Instead, checkAndBumpRecencyIfChanged() is called explicitly after
@@ -350,36 +343,9 @@ export class WorkspaceStore {
    */
   getWorkspaceConsumers(workspaceId: string): WorkspaceConsumersState {
     return this.consumersStore.get(workspaceId, () => {
-      // Return cached result if available
-      const cached = this.consumersCache.get(workspaceId);
-      if (cached) {
-        return cached;
-      }
-
-      // If we're caught-up and have messages but no cache, trigger calculation
+      const aggregator = this.aggregators.get(workspaceId);
       const isCaughtUp = this.caughtUp.get(workspaceId) ?? false;
-      if (isCaughtUp && !this.pendingConsumerCalcs.has(workspaceId)) {
-        const aggregator = this.aggregators.get(workspaceId);
-        if (aggregator && aggregator.getAllMessages().length > 0) {
-          // Trigger calculation (will debounce if called rapidly)
-          this.calculateConsumersAsync(workspaceId);
-          // Return calculating state
-          return {
-            consumers: [],
-            tokenizerName: "",
-            totalTokens: 0,
-            isCalculating: true,
-          };
-        }
-      }
-
-      // Default state while calculating or before first calculation
-      return {
-        consumers: [],
-        tokenizerName: "",
-        totalTokens: 0,
-        isCalculating: this.pendingConsumerCalcs.has(workspaceId),
-      };
+      return this.consumerManager.getState(workspaceId, aggregator, isCaughtUp);
     });
   }
 
@@ -395,82 +361,6 @@ export class WorkspaceStore {
    */
   subscribeConsumers(workspaceId: string, listener: () => void): () => void {
     return this.consumersStore.subscribeKey(workspaceId, listener);
-  }
-
-  /**
-   * Debounced wrapper for consumer calculation.
-   * Batches rapid events (e.g., multiple tool-call-end) into single calculation.
-   */
-  private calculateConsumersAsync(workspaceId: string): void {
-    // Clear existing timer for this workspace
-    const existingTimer = this.calculationDebounceTimers.get(workspaceId);
-    if (existingTimer) {
-      clearTimeout(existingTimer);
-    }
-
-    // Skip if already calculating (prevents duplicates during debounce window)
-    if (this.pendingConsumerCalcs.has(workspaceId)) {
-      return;
-    }
-
-    // Set new timer (150ms - imperceptible to humans, batches rapid events)
-    const timer = setTimeout(() => {
-      this.calculationDebounceTimers.delete(workspaceId);
-      this.doCalculateConsumers(workspaceId);
-    }, 150);
-
-    this.calculationDebounceTimers.set(workspaceId, timer);
-  }
-
-  /**
-   * Execute background consumer calculation.
-   * Only one calculation per workspace at a time.
-   */
-  private doCalculateConsumers(workspaceId: string): void {
-    // Skip if already calculating
-    if (this.pendingConsumerCalcs.has(workspaceId)) {
-      return;
-    }
-
-    this.pendingConsumerCalcs.add(workspaceId);
-
-    // Mark as calculating and bump
-    this.consumersStore.bump(workspaceId);
-
-    // Run in next tick to avoid blocking IPC handler
-    queueMicrotask(async () => {
-      try {
-        const aggregator = this.getOrCreateAggregator(workspaceId);
-        const messages = aggregator.getAllMessages();
-        const model = aggregator.getCurrentModel() ?? "unknown";
-
-        // Calculate in Web Worker (off main thread)
-        const fullStats = await this.tokenWorker!.calculate(messages, model);
-
-        // Store result in cache by bumping (next get() will recompute with updated data)
-        this.consumersCache.set(workspaceId, {
-          consumers: fullStats.consumers,
-          tokenizerName: fullStats.tokenizerName,
-          totalTokens: fullStats.totalTokens,
-          isCalculating: false,
-        });
-
-        // Bump to trigger re-render
-        this.consumersStore.bump(workspaceId);
-      } catch (error) {
-        console.error(`[WorkspaceStore] Consumer calculation failed for ${workspaceId}:`, error);
-        // Still bump to clear "calculating" state
-        this.consumersCache.set(workspaceId, {
-          consumers: [],
-          tokenizerName: "",
-          totalTokens: 0,
-          isCalculating: false,
-        });
-        this.consumersStore.bump(workspaceId);
-      } finally {
-        this.pendingConsumerCalcs.delete(workspaceId);
-      }
-    });
   }
 
   /**
@@ -527,12 +417,8 @@ export class WorkspaceStore {
    * Remove a workspace and clean up subscriptions.
    */
   removeWorkspace(workspaceId: string): void {
-    // Clear debounce timer
-    const timer = this.calculationDebounceTimers.get(workspaceId);
-    if (timer) {
-      clearTimeout(timer);
-      this.calculationDebounceTimers.delete(workspaceId);
-    }
+    // Clean up consumer manager state
+    this.consumerManager.removeWorkspace(workspaceId);
 
     // Unsubscribe from IPC
     const unsubscribe = this.ipcUnsubscribers.get(workspaceId);
@@ -545,8 +431,6 @@ export class WorkspaceStore {
     this.states.delete(workspaceId);
     this.usageStore.delete(workspaceId);
     this.consumersStore.delete(workspaceId);
-    this.consumersCache.delete(workspaceId);
-    this.pendingConsumerCalcs.delete(workspaceId);
     this.aggregators.delete(workspaceId);
     this.caughtUp.delete(workspaceId);
     this.historicalMessages.delete(workspaceId);
@@ -582,17 +466,8 @@ export class WorkspaceStore {
    * Cleanup all subscriptions (call on unmount).
    */
   dispose(): void {
-    // Clear all debounce timers
-    for (const timer of this.calculationDebounceTimers.values()) {
-      clearTimeout(timer);
-    }
-    this.calculationDebounceTimers.clear();
-
-    // Terminate worker
-    if (this.tokenWorker) {
-      this.tokenWorker.terminate();
-      this.tokenWorker = null;
-    }
+    // Clean up consumer manager
+    this.consumerManager.dispose();
 
     for (const unsubscribe of this.ipcUnsubscribers.values()) {
       unsubscribe();
@@ -602,8 +477,6 @@ export class WorkspaceStore {
     this.derived.clear();
     this.usageStore.clear();
     this.consumersStore.clear();
-    this.consumersCache.clear();
-    this.pendingConsumerCalcs.clear();
     this.aggregators.clear();
     this.caughtUp.clear();
     this.historicalMessages.clear();
@@ -661,7 +534,7 @@ export class WorkspaceStore {
       this.usageStore.bump(workspaceId);
 
       // Queue consumer calculation in background
-      this.calculateConsumersAsync(workspaceId);
+      this.consumerManager.scheduleCalculation(workspaceId, aggregator);
 
       return;
     }
@@ -792,7 +665,7 @@ export class WorkspaceStore {
       this.checkAndBumpRecencyIfChanged(); // Stream ended, update recency
 
       // Queue consumer calculation in background
-      this.calculateConsumersAsync(workspaceId);
+      this.consumerManager.scheduleCalculation(workspaceId, aggregator);
 
       return;
     }
@@ -807,9 +680,11 @@ export class WorkspaceStore {
         })
       );
 
+      this.bumpUsageIfPresent(workspaceId, data.metadata);
+
       // Recalculate consumers if usage updated (abort may have usage if stream completed)
       if (data.metadata?.usage) {
-        this.calculateConsumersAsync(workspaceId);
+        this.consumerManager.scheduleCalculation(workspaceId, aggregator);
       }
 
       return;
@@ -833,7 +708,7 @@ export class WorkspaceStore {
 
       // Bump consumers on tool-end for real-time updates during streaming
       // Tools complete before stream-end, so we want breakdown to update immediately
-      this.calculateConsumersAsync(workspaceId);
+      this.consumerManager.scheduleCalculation(workspaceId, aggregator);
 
       return;
     }
