@@ -67,7 +67,6 @@ describe("WorkspaceStore", () => {
         name: "test-workspace",
         projectName: "test-project",
         projectPath: "/test/project",
-        stableWorkspacePath: "/test/project/test-workspace",
         namedWorkspacePath: "/test/project/test-workspace",
       };
 
@@ -95,7 +94,6 @@ describe("WorkspaceStore", () => {
         name: "test-workspace",
         projectName: "test-project",
         projectPath: "/test/project",
-        stableWorkspacePath: "/test/project/test-workspace",
         namedWorkspacePath: "/test/project/test-workspace",
       };
 
@@ -118,7 +116,6 @@ describe("WorkspaceStore", () => {
         name: "workspace-1",
         projectName: "project-1",
         projectPath: "/project-1",
-        stableWorkspacePath: "/path/1",
         namedWorkspacePath: "/path/1",
       };
 
@@ -137,7 +134,6 @@ describe("WorkspaceStore", () => {
         name: "workspace-1",
         projectName: "project-1",
         projectPath: "/project-1",
-        stableWorkspacePath: "/path/1",
         namedWorkspacePath: "/path/1",
       };
 
@@ -200,7 +196,6 @@ describe("WorkspaceStore", () => {
         name: "test-workspace",
         projectName: "test-project",
         projectPath: "/test/project",
-        stableWorkspacePath: "/test/project/test-workspace",
         namedWorkspacePath: "/test/project/test-workspace",
       };
 
@@ -245,7 +240,6 @@ describe("WorkspaceStore", () => {
         name: "test-workspace",
         projectName: "test-project",
         projectPath: "/test/project",
-        stableWorkspacePath: "/test/project/test-workspace",
         namedWorkspacePath: "/test/project/test-workspace",
       };
       store.addWorkspace(metadata);
@@ -297,7 +291,6 @@ describe("WorkspaceStore", () => {
         name: "test-workspace",
         projectName: "test-project",
         projectPath: "/test/project",
-        stableWorkspacePath: "/test/project/test-workspace",
         namedWorkspacePath: "/test/project/test-workspace",
       };
       store.addWorkspace(metadata);
@@ -336,7 +329,6 @@ describe("WorkspaceStore", () => {
         name: "test-workspace",
         projectName: "test-project",
         projectPath: "/test/project",
-        stableWorkspacePath: "/test/project/test-workspace",
         namedWorkspacePath: "/test/project/test-workspace",
       };
       store.addWorkspace(metadata);
@@ -374,7 +366,6 @@ describe("WorkspaceStore", () => {
         name: "test-workspace",
         projectName: "test-project",
         projectPath: "/test/project",
-        stableWorkspacePath: "/test/project/test-workspace",
         namedWorkspacePath: "/test/project/test-workspace",
       };
       store.addWorkspace(metadata);
@@ -398,7 +389,6 @@ describe("WorkspaceStore", () => {
         name: "test-workspace",
         projectName: "test-project",
         projectPath: "/test/project",
-        stableWorkspacePath: "/test/project/test-workspace",
         namedWorkspacePath: "/test/project/test-workspace",
       };
       store.addWorkspace(metadata);
@@ -427,7 +417,6 @@ describe("WorkspaceStore", () => {
         name: "test-workspace",
         projectName: "test-project",
         projectPath: "/test/project",
-        stableWorkspacePath: "/test/project/test-workspace",
         namedWorkspacePath: "/test/project/test-workspace",
       };
       store.addWorkspace(metadata);
@@ -474,7 +463,6 @@ describe("WorkspaceStore", () => {
         name: "workspace-1",
         projectName: "project-1",
         projectPath: "/project-1",
-        stableWorkspacePath: "/path/1",
         namedWorkspacePath: "/path/1",
       };
       const metadata2: FrontendWorkspaceMetadata = {
@@ -482,7 +470,6 @@ describe("WorkspaceStore", () => {
         name: "workspace-2",
         projectName: "project-2",
         projectPath: "/project-2",
-        stableWorkspacePath: "/path/2",
         namedWorkspacePath: "/path/2",
       };
 
@@ -502,7 +489,6 @@ describe("WorkspaceStore", () => {
         name: "test-workspace",
         projectName: "test-project",
         projectPath: "/test/project",
-        stableWorkspacePath: "/test/project/test-workspace",
         namedWorkspacePath: "/test/project/test-workspace",
       };
       store.addWorkspace(metadata);

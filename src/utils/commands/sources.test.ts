@@ -13,7 +13,6 @@ const mk = (over: Partial<Parameters<typeof buildCoreSources>[0]> = {}) => {
     name: "feat-x",
     projectName: "a",
     projectPath: "/repo/a",
-    stableWorkspacePath: "/repo/a/feat-x",
     namedWorkspacePath: "/repo/a/feat-x",
   });
   workspaceMetadata.set("w2", {
@@ -21,7 +20,6 @@ const mk = (over: Partial<Parameters<typeof buildCoreSources>[0]> = {}) => {
     name: "feat-y",
     projectName: "a",
     projectPath: "/repo/a",
-    stableWorkspacePath: "/repo/a/feat-y",
     namedWorkspacePath: "/repo/a/feat-y",
   });
   const params: Parameters<typeof buildCoreSources>[0] = {

@@ -71,28 +71,29 @@ describe("Config", () => {
       expect(workspace.name).toBe("feature-branch");
     });
 
-    it("should use existing metadata file if present", () => {
+    it("should use existing metadata file if present (legacy format)", () => {
       const projectPath = "/fake/project";
-      const workspaceId = "abc123def4";
-      const workspacePath = path.join(config.srcDir, "project", workspaceId);
+      const workspaceName = "my-feature";
+      const workspacePath = path.join(config.srcDir, "project", workspaceName);
 
       // Create workspace directory
       fs.mkdirSync(workspacePath, { recursive: true });
 
-      // Create metadata file manually
-      const sessionDir = config.getSessionDir(workspaceId);
+      // Create metadata file using legacy ID format (project-workspace)
+      const legacyId = config.generateWorkspaceId(projectPath, workspacePath);
+      const sessionDir = config.getSessionDir(legacyId);
       fs.mkdirSync(sessionDir, { recursive: true });
       const metadataPath = path.join(sessionDir, "metadata.json");
       const existingMetadata = {
-        id: workspaceId,
-        name: "my-feature",
+        id: legacyId,
+        name: workspaceName,
         projectName: "project",
-        workspacePath: workspacePath,
+        projectPath: projectPath,
         createdAt: "2025-01-01T00:00:00.000Z",
       };
       fs.writeFileSync(metadataPath, JSON.stringify(existingMetadata));
 
-      // Add workspace to config
+      // Add workspace to config (without id/name, simulating legacy format)
       config.editConfig((cfg) => {
         cfg.projects.set(projectPath, {
           workspaces: [{ path: workspacePath }],
@@ -105,8 +106,8 @@ describe("Config", () => {
 
       expect(allMetadata).toHaveLength(1);
       const metadata = allMetadata[0];
-      expect(metadata.id).toBe(workspaceId);
-      expect(metadata.name).toBe("my-feature");
+      expect(metadata.id).toBe(legacyId);
+      expect(metadata.name).toBe(workspaceName);
       expect(metadata.createdAt).toBe("2025-01-01T00:00:00.000Z");
 
       // Verify metadata was migrated to config
@@ -115,8 +116,8 @@ describe("Config", () => {
       expect(projectConfig).toBeDefined();
       expect(projectConfig!.workspaces).toHaveLength(1);
       const workspace = projectConfig!.workspaces[0];
-      expect(workspace.id).toBe(workspaceId);
-      expect(workspace.name).toBe("my-feature");
+      expect(workspace.id).toBe(legacyId);
+      expect(workspace.name).toBe(workspaceName);
       expect(workspace.createdAt).toBe("2025-01-01T00:00:00.000Z");
     });
   });

@@ -134,18 +134,15 @@ export class Config {
   }
 
   /**
-   * Compute both workspace paths from metadata.
-   * Now both paths are the same (directory uses workspace name).
+   * Compute workspace path from metadata.
+   * Directory uses workspace name (e.g., ~/.cmux/src/project/workspace-name).
    */
   getWorkspacePaths(metadata: WorkspaceMetadata): {
-    /** Actual worktree path with name (for terminal/operations) */
-    stableWorkspacePath: string;
-    /** Same as stableWorkspacePath (no longer a symlink) */
+    /** Worktree path (uses workspace name as directory) */
     namedWorkspacePath: string;
   } {
     const path = this.getWorkspacePath(metadata.projectPath, metadata.name);
     return {
-      stableWorkspacePath: path,
       namedWorkspacePath: path,
     };
   }
@@ -159,10 +156,8 @@ export class Config {
     workspacePath: string,
     _projectPath: string
   ): FrontendWorkspaceMetadata {
-    // Both paths are the same now (directory uses workspace name)
     return {
       ...metadata,
-      stableWorkspacePath: workspacePath,
       namedWorkspacePath: workspacePath,
     };
   }

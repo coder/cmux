@@ -31,7 +31,7 @@ describeIntegration("IpcMain remove workspace integration tests", () => {
         }
 
         const { metadata } = createResult;
-        const workspacePath = metadata.stableWorkspacePath;
+        const workspacePath = metadata.namedWorkspacePath;
 
         // Verify the worktree exists
         const worktreeExistsBefore = await fs
@@ -120,7 +120,7 @@ describeIntegration("IpcMain remove workspace integration tests", () => {
         }
 
         const { metadata } = createResult;
-        const workspacePath = metadata.stableWorkspacePath;
+        const workspacePath = metadata.namedWorkspacePath;
 
         // Manually delete the worktree directory (simulating external deletion)
         await fs.rm(workspacePath, { recursive: true, force: true });
@@ -174,7 +174,7 @@ describeIntegration("IpcMain remove workspace integration tests", () => {
         }
 
         const { metadata } = createResult;
-        const workspacePath = metadata.stableWorkspacePath;
+        const workspacePath = metadata.namedWorkspacePath;
 
         // Initialize submodule in the worktree
         const { exec } = await import("child_process");
@@ -228,7 +228,7 @@ describeIntegration("IpcMain remove workspace integration tests", () => {
         }
 
         const { metadata } = createResult;
-        const workspacePath = metadata.stableWorkspacePath;
+        const workspacePath = metadata.namedWorkspacePath;
 
         // Initialize submodule in the worktree
         const { exec } = await import("child_process");

@@ -183,7 +183,7 @@ export async function setupWorkspace(
     throw new Error("Workspace ID not returned from creation");
   }
 
-  if (!createResult.metadata.stableWorkspacePath) {
+  if (!createResult.metadata.namedWorkspacePath) {
     await cleanupTempGitRepo(tempGitRepo);
     throw new Error("Workspace path not returned from creation");
   }
@@ -199,7 +199,7 @@ export async function setupWorkspace(
   return {
     env,
     workspaceId: createResult.metadata.id,
-    workspacePath: createResult.metadata.stableWorkspacePath,
+    workspacePath: createResult.metadata.namedWorkspacePath,
     branchName,
     tempGitRepo,
     cleanup,
@@ -237,7 +237,7 @@ export async function setupWorkspaceWithoutProvider(branchPrefix?: string): Prom
     throw new Error("Workspace ID not returned from creation");
   }
 
-  if (!createResult.metadata.stableWorkspacePath) {
+  if (!createResult.metadata.namedWorkspacePath) {
     await cleanupTempGitRepo(tempGitRepo);
     throw new Error("Workspace path not returned from creation");
   }
@@ -252,7 +252,7 @@ export async function setupWorkspaceWithoutProvider(branchPrefix?: string): Prom
   return {
     env,
     workspaceId: createResult.metadata.id,
-    workspacePath: createResult.metadata.stableWorkspacePath,
+    workspacePath: createResult.metadata.namedWorkspacePath,
     branchName,
     tempGitRepo,
     cleanup,

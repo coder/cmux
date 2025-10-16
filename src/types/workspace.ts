@@ -67,9 +67,7 @@ export interface GitStatus {
  * Follows naming convention: Backend types vs Frontend types.
  */
 export interface FrontendWorkspaceMetadata extends WorkspaceMetadata {
-  /** Actual worktree path with stable ID (for terminal/operations) */
-  stableWorkspacePath: string;
-  /** User-friendly symlink path with name (for display) */
+  /** Worktree path (uses workspace name as directory) */
   namedWorkspacePath: string;
 }
 
