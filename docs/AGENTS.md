@@ -2,8 +2,16 @@
 
 ## Project Context
 
-- Electron + React desktop application
-- No existing users - migration code is not needed when changing data structures
+- Project is named `cmux`
+- Electron + React desktop application for parallel agentic development
+- UX should be fast, responsive, and intuitive
+
+## Breaking Changes
+
+The project is in early development phase. Breaking changes of minor features are expected. Strive
+for backwards and forwards compatibility whenever possible on critical features. Users should be
+able to upgrade, downgrade, upgrade between any two versions of cmux.
+Do not worry about migrations for breakage confined to the scope of the PR.
 
 ## AI-Generated Content Attribution
 

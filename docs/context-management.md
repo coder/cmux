@@ -20,7 +20,8 @@ Start Here allows you to restart your conversation from a specific point, using 
 
 ![Start Here](./img/plan-compact.webp)
 
-This is a form of "opportunistic compaction" - the content is already well-structured, so the operation is instant. You can review the new starting point before the old context is permanently removed, making this the only reversible context management approach (use Cmd+Z/Ctrl+Z to undo).
+This is a form of "opportunistic compaction" - the content is already well-structured, so the operation is instant. You can review the new starting point before the old context is permanently removed, making this the only reversible
+compaction approach.
 
 ## `/clear` - Clear All History
 
