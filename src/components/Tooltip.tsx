@@ -5,11 +5,14 @@ import styled from "@emotion/styled";
 // Context for passing hover state and trigger ref from wrapper to tooltip
 interface TooltipContextValue {
   isHovered: boolean;
+  setIsHovered: (value: boolean) => void;
   triggerRef: React.RefObject<HTMLElement> | null;
 }
 
 const TooltipContext = createContext<TooltipContextValue>({
   isHovered: false,
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
+  setIsHovered: () => {},
   triggerRef: null,
 });
 
@@ -22,14 +25,30 @@ interface TooltipWrapperProps {
 export const TooltipWrapper: React.FC<TooltipWrapperProps> = ({ inline = false, children }) => {
   const [isHovered, setIsHovered] = useState(false);
   const triggerRef = useRef<HTMLSpanElement>(null);
+  const leaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleMouseEnter = () => {
+    if (leaveTimerRef.current) {
+      clearTimeout(leaveTimerRef.current);
+      leaveTimerRef.current = null;
+    }
+    setIsHovered(true);
+  };
+
+  const handleMouseLeave = () => {
+    // Delay hiding to allow moving mouse to tooltip
+    leaveTimerRef.current = setTimeout(() => {
+      setIsHovered(false);
+    }, 100);
+  };
 
   return (
-    <TooltipContext.Provider value={{ isHovered, triggerRef }}>
+    <TooltipContext.Provider value={{ isHovered, setIsHovered, triggerRef }}>
       <StyledWrapper
         ref={triggerRef}
         inline={inline}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
       >
         {children}
       </StyledWrapper>
@@ -49,6 +68,7 @@ interface TooltipProps {
   position?: "top" | "bottom";
   children: React.ReactNode;
   className?: string;
+  interactive?: boolean;
 }
 
 export const Tooltip: React.FC<TooltipProps> = ({
@@ -57,9 +77,11 @@ export const Tooltip: React.FC<TooltipProps> = ({
   position = "top",
   children,
   className = "tooltip",
+  interactive = false,
 }) => {
-  const { isHovered, triggerRef } = useContext(TooltipContext);
+  const { isHovered, setIsHovered, triggerRef } = useContext(TooltipContext);
   const tooltipRef = useRef<HTMLDivElement>(null);
+  const leaveTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [tooltipState, setTooltipState] = useState<{
     style: React.CSSProperties;
     arrowStyle: React.CSSProperties;
@@ -170,6 +192,22 @@ export const Tooltip: React.FC<TooltipProps> = ({
     return () => cancelAnimationFrame(rafId);
   }, [isHovered, align, position, triggerRef]);
 
+  const handleTooltipMouseEnter = () => {
+    if (interactive) {
+      if (leaveTimerRef.current) {
+        clearTimeout(leaveTimerRef.current);
+        leaveTimerRef.current = null;
+      }
+      setIsHovered(true);
+    }
+  };
+
+  const handleTooltipMouseLeave = () => {
+    if (interactive) {
+      setIsHovered(false);
+    }
+  };
+
   if (!isHovered) {
     return null;
   }
@@ -187,6 +225,9 @@ export const Tooltip: React.FC<TooltipProps> = ({
       }}
       width={width}
       className={className}
+      interactive={interactive}
+      onMouseEnter={handleTooltipMouseEnter}
+      onMouseLeave={handleTooltipMouseLeave}
     >
       {children}
       <Arrow style={tooltipState.arrowStyle} />
@@ -195,7 +236,7 @@ export const Tooltip: React.FC<TooltipProps> = ({
   );
 };
 
-const StyledTooltip = styled.div<{ width: string }>`
+const StyledTooltip = styled.div<{ width: string; interactive: boolean }>`
   background-color: #2d2d30;
   color: #cccccc;
   text-align: left;
@@ -209,8 +250,18 @@ const StyledTooltip = styled.div<{ width: string }>`
   font-family: var(--font-primary);
   border: 1px solid #464647;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
-  pointer-events: none;
+  pointer-events: ${(props) => (props.interactive ? "auto" : "none")};
   /* No default visibility/opacity - controlled via inline styles */
+
+  a {
+    color: #4ec9b0;
+    text-decoration: underline;
+    cursor: pointer;
+
+    &:hover {
+      color: #6fd9c0;
+    }
+  }
 `;
 
 const Arrow = styled.div`

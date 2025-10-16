@@ -1,6 +1,7 @@
 import React, { useEffect, useId, useState } from "react";
 import styled from "@emotion/styled";
 import { Modal, ModalInfo, ModalActions, CancelButton, PrimaryButton } from "./Modal";
+import { TooltipWrapper, Tooltip } from "./Tooltip";
 
 const FormGroup = styled.div`
   margin-bottom: 20px;
@@ -52,6 +53,12 @@ const ErrorMessage = styled.div`
 const InfoCode = styled.code`
   display: block;
   word-break: break-all;
+`;
+
+const UnderlinedLabel = styled.span`
+  text-decoration: underline dotted #666;
+  text-underline-offset: 2px;
+  cursor: help;
 `;
 
 interface NewWorkspaceModalProps {
@@ -152,7 +159,23 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
     >
       <form onSubmit={(event) => void handleSubmit(event)}>
         <FormGroup>
-          <label htmlFor="branchName">Workspace Branch Name:</label>
+          <label htmlFor="branchName">
+            <TooltipWrapper inline>
+              <UnderlinedLabel>Workspace Branch Name:</UnderlinedLabel>
+              <Tooltip width="wide" position="bottom" interactive>
+                <strong>About Workspaces:</strong>
+                <ul style={{ margin: "4px 0", paddingLeft: "16px" }}>
+                  <li>Uses git worktrees (separate directories sharing .git)</li>
+                  <li>All committed changes visible across all worktrees</li>
+                  <li>Agent can switch branches freely during session</li>
+                  <li>Define branching strategy in AGENTS.md</li>
+                </ul>
+                <a href="https://cmux.io/workspaces.html" target="_blank" rel="noopener noreferrer">
+                  Learn more
+                </a>
+              </Tooltip>
+            </TooltipWrapper>
+          </label>
           <input
             id="branchName"
             type="text"
