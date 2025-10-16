@@ -118,10 +118,10 @@ describe("projectOrdering", () => {
       const emptyProjects = createProjects([]);
       const order = ["/a", "/b", "/c"];
       const result = normalizeOrder(order, emptyProjects);
-      
+
       // normalizeOrder returns [] when projects is empty
       expect(result).toEqual([]);
-      
+
       // Fix: ProjectSidebar.tsx skips normalization when projects.size === 0
       // This prevents clearing the order during initial component mount
     });
@@ -133,9 +133,9 @@ describe("projectOrdering", () => {
       // 3. Normalization should append the new project
       const projectOrder = ["/a", "/b", "/c"];
       const loadedProjects = createProjects(["/a", "/b", "/c", "/d"]);
-      
+
       const result = normalizeOrder(projectOrder, loadedProjects);
-      
+
       expect(result).toEqual(["/a", "/b", "/c", "/d"]);
     });
   });
