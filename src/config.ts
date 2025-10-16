@@ -191,8 +191,7 @@ export class Config {
 
       for (const workspace of projectConfig.workspaces ?? []) {
         // Use stored ID if available (new format), otherwise generate (old format)
-        const workspaceId =
-          workspace.id ?? this.generateWorkspaceId(projectPath, workspace.path);
+        const workspaceId = workspace.id ?? this.generateWorkspaceId(projectPath, workspace.path);
 
         workspaceMetadata.push({
           id: workspaceId,
