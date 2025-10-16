@@ -679,7 +679,7 @@ function AppInner() {
         />
         <MainContent>
           <ContentArea>
-            {selectedWorkspace ? (
+            {selectedWorkspace && selectedWorkspace.workspacePath ? (
               <ErrorBoundary
                 workspaceInfo={`${selectedWorkspace.projectName}/${selectedWorkspace.workspacePath?.split("/").pop() ?? selectedWorkspace.workspaceId ?? "unknown"}`}
               >
