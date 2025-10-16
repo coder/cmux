@@ -219,7 +219,13 @@ export class GitStatusStore {
       }
 
       if (!result.data.success) {
-        console.debug(`[gitStatus] Script failed for ${metadata.id}:`, result.data.error);
+        // Don't log output overflow errors at all (common in large repos, handled gracefully)
+        if (
+          !result.data.error?.includes("OUTPUT TRUNCATED") &&
+          !result.data.error?.includes("OUTPUT OVERFLOW")
+        ) {
+          console.debug(`[gitStatus] Script failed for ${metadata.id}:`, result.data.error);
+        }
         return [metadata.id, null];
       }
 
