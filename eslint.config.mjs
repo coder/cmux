@@ -5,8 +5,8 @@ import reactHooks from "eslint-plugin-react-hooks";
 import tseslint from "typescript-eslint";
 
 /**
- * Custom ESLint plugin for zombie process prevention
- * Enforces safe child_process patterns
+ * Custom ESLint plugin for safe Node.js patterns
+ * Enforces safe child_process and filesystem patterns
  */
 const localPlugin = {
   rules: {
@@ -35,6 +35,67 @@ const localPlugin = {
               context.report({
                 node,
                 messageId: "unsafePromisifyExec",
+              });
+            }
+          },
+        };
+      },
+    },
+    "no-sync-fs-methods": {
+      meta: {
+        type: "problem",
+        docs: {
+          description: "Prevent synchronous filesystem operations",
+        },
+        messages: {
+          syncFsMethod:
+            "Do not use synchronous fs methods ({{method}}). Use async version instead: {{asyncMethod}}",
+        },
+      },
+      create(context) {
+        // Map of sync methods to their async equivalents
+        const syncMethods = {
+          statSync: "stat",
+          readFileSync: "readFile",
+          writeFileSync: "writeFile",
+          readdirSync: "readdir",
+          mkdirSync: "mkdir",
+          unlinkSync: "unlink",
+          rmdirSync: "rmdir",
+          existsSync: "access or stat",
+          accessSync: "access",
+          copyFileSync: "copyFile",
+          renameSync: "rename",
+          chmodSync: "chmod",
+          chownSync: "chown",
+          lstatSync: "lstat",
+          linkSync: "link",
+          symlinkSync: "symlink",
+          readlinkSync: "readlink",
+          realpathSync: "realpath",
+          truncateSync: "truncate",
+          fstatSync: "fstat",
+          appendFileSync: "appendFile",
+        };
+
+        return {
+          MemberExpression(node) {
+            // Only flag if it's a property access on 'fs' or imported fs methods
+            if (
+              node.property &&
+              node.property.type === "Identifier" &&
+              syncMethods[node.property.name] &&
+              node.object &&
+              node.object.type === "Identifier" &&
+              (node.object.name === "fs" || node.object.name === "fsPromises")
+            ) {
+              context.report({
+                node,
+                messageId: "syncFsMethod",
+                data: {
+                  method: node.property.name,
+                  asyncMethod: syncMethods[node.property.name],
+                },
               });
             }
           },
@@ -178,8 +239,9 @@ export default defineConfig([
       "react/react-in-jsx-scope": "off",
       "react/prop-types": "off",
 
-      // Zombie process prevention
+      // Safe Node.js patterns
       "local/no-unsafe-child-process": "error",
+      "local/no-sync-fs-methods": "error",
 
       // Allow console for this app (it's a dev tool)
       "no-console": "off",
@@ -257,6 +319,26 @@ export default defineConfig([
     ],
     rules: {
       "no-restricted-syntax": "off",
+    },
+  },
+  {
+    // Temporarily allow sync fs methods in files with existing usage
+    // TODO: Gradually migrate these to async operations
+    files: [
+      "src/config.ts",
+      "src/debug/**/*.ts",
+      "src/git.ts",
+      "src/main.ts",
+      "src/services/gitService.ts",
+      "src/services/log.ts",
+      "src/services/streamManager.ts",
+      "src/services/tempDir.ts",
+      "src/services/tools/bash.ts",
+      "src/services/tools/bash.test.ts",
+      "src/services/tools/testHelpers.ts",
+    ],
+    rules: {
+      "local/no-sync-fs-methods": "off",
     },
   },
   {
