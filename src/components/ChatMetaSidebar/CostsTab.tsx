@@ -477,7 +477,7 @@ const CostsTabComponent: React.FC<CostsTabProps> = ({ workspaceId }) => {
                 <>
                   {totalCost !== undefined && totalCost >= 0 && (
                     <ConsumerRow data-testid="cost-bar">
-                      <ConsumerHeader data-testid="cost-header">
+                      <ConsumerHeader data-testid="cost-header" style={{ marginBottom: "8px" }}>
                         <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
                           <ConsumerName>Cost</ConsumerName>
                           <ToggleGroup
