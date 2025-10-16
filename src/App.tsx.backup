@@ -681,17 +681,13 @@ function AppInner() {
           <ContentArea>
             {selectedWorkspace ? (
               <ErrorBoundary
-                workspaceInfo={`${selectedWorkspace.projectName}/${selectedWorkspace.workspacePath?.split("/").pop() ?? selectedWorkspace.workspaceId ?? "unknown"}`}
+                workspaceInfo={`${selectedWorkspace.projectName}/${selectedWorkspace.workspacePath.split("/").pop() ?? ""}`}
               >
                 <AIView
                   key={selectedWorkspace.workspaceId}
                   workspaceId={selectedWorkspace.workspaceId}
                   projectName={selectedWorkspace.projectName}
-                  branch={
-                    selectedWorkspace.workspacePath?.split("/").pop() ??
-                    selectedWorkspace.workspaceId ??
-                    ""
-                  }
+                  branch={selectedWorkspace.workspacePath.split("/").pop() ?? ""}
                   workspacePath={selectedWorkspace.workspacePath}
                 />
               </ErrorBoundary>
