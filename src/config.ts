@@ -8,8 +8,11 @@ import type { Secret, SecretsConfig } from "./types/secrets";
 
 export interface Workspace {
   path: string; // Absolute path to workspace worktree
-  // NOTE: Workspace ID is NOT stored here - it's generated on-demand from path
-  // using generateWorkspaceId(). This ensures single source of truth for ID format.
+  id?: string; // Optional: Stable ID from newer config format (for forward compat)
+  name?: string; // Optional: Friendly name from newer config format (for forward compat)
+  createdAt?: string; // Optional: Creation timestamp from newer config format
+  // NOTE: If id is not present, it's generated on-demand from path
+  // using generateWorkspaceId(). This ensures compatibility with both old and new formats.
 }
 
 export interface ProjectConfig {
@@ -136,9 +139,13 @@ export class Config {
     const config = this.loadConfigOrDefault();
 
     for (const [projectPath, project] of config.projects) {
-      for (const workspace of project.workspaces) {
-        const generatedId = this.generateWorkspaceId(projectPath, workspace.path);
-        if (generatedId === workspaceId) {
+      for (const workspace of project.workspaces ?? []) {
+        // Check stored ID first (new format), then generated ID (old format)
+        const matchesStoredId = workspace.id === workspaceId;
+        const matchesGeneratedId =
+          this.generateWorkspaceId(projectPath, workspace.path) === workspaceId;
+
+        if (matchesStoredId || matchesGeneratedId) {
           return { workspacePath: workspace.path, projectPath };
         }
       }
@@ -183,7 +190,9 @@ export class Config {
       const projectName = this.getProjectName(projectPath);
 
       for (const workspace of projectConfig.workspaces ?? []) {
-        const workspaceId = this.generateWorkspaceId(projectPath, workspace.path);
+        // Use stored ID if available (new format), otherwise generate (old format)
+        const workspaceId =
+          workspace.id ?? this.generateWorkspaceId(projectPath, workspace.path);
 
         workspaceMetadata.push({
           id: workspaceId,

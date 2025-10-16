@@ -299,8 +299,11 @@ export class IpcMain {
 
           for (const [projectPath, projectConfig] of projectsConfig.projects.entries()) {
             const idx = (projectConfig.workspaces ?? []).findIndex((w) => {
-              const generatedId = this.config.generateWorkspaceId(projectPath, w.path);
-              return generatedId === workspaceId;
+              // Check stored ID first (new format), then generated ID (old format)
+              const matchesStoredId = w.id === workspaceId;
+              const matchesGeneratedId =
+                this.config.generateWorkspaceId(projectPath, w.path) === workspaceId;
+              return matchesStoredId || matchesGeneratedId;
             });
 
             if (idx !== -1) {
