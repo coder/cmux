@@ -8,6 +8,7 @@ import { usePersistedState } from "@/hooks/usePersistedState";
 import { ToggleGroup, type ToggleOption } from "../ToggleGroup";
 import { use1MContext } from "@/hooks/use1MContext";
 import { supports1MContext } from "@/utils/ai/models";
+import { TOKEN_COMPONENT_COLORS } from "@/utils/tokens/tokenMeterUtils";
 
 const Container = styled.div`
   color: #d4d4d4;
@@ -86,14 +87,6 @@ interface SegmentProps {
   percentage: number;
 }
 
-// Component color mapping - single source of truth for all cost component colors
-const COMPONENT_COLORS = {
-  cached: "var(--color-token-cached)",
-  input: "var(--color-token-input)",
-  output: "var(--color-token-output)",
-  thinking: "var(--color-thinking-mode)",
-} as const;
-
 const FixedSegment = styled.div<SegmentProps>`
   height: 100%;
   width: ${(props) => props.percentage}%;
@@ -111,28 +104,28 @@ const VariableSegment = styled.div<SegmentProps>`
 const InputSegment = styled.div<SegmentProps>`
   height: 100%;
   width: ${(props) => props.percentage}%;
-  background: ${COMPONENT_COLORS.input};
+  background: ${TOKEN_COMPONENT_COLORS.input};
   transition: width 0.3s ease;
 `;
 
 const OutputSegment = styled.div<SegmentProps>`
   height: 100%;
   width: ${(props) => props.percentage}%;
-  background: ${COMPONENT_COLORS.output};
+  background: ${TOKEN_COMPONENT_COLORS.output};
   transition: width 0.3s ease;
 `;
 
 const ThinkingSegment = styled.div<SegmentProps>`
   height: 100%;
   width: ${(props) => props.percentage}%;
-  background: ${COMPONENT_COLORS.thinking};
+  background: ${TOKEN_COMPONENT_COLORS.thinking};
   transition: width 0.3s ease;
 `;
 
 const CachedSegment = styled.div<SegmentProps>`
   height: 100%;
   width: ${(props) => props.percentage}%;
-  background: ${COMPONENT_COLORS.cached};
+  background: ${TOKEN_COMPONENT_COLORS.cached};
   transition: width 0.3s ease;
 `;
 
@@ -452,35 +445,35 @@ export const CostsTab: React.FC = () => {
                       name: "Cache Read",
                       tokens: displayUsage.cached.tokens,
                       cost: displayUsage.cached.cost_usd,
-                      color: COMPONENT_COLORS.cached,
+                      color: TOKEN_COMPONENT_COLORS.cached,
                       show: displayUsage.cached.tokens > 0,
                     },
                     {
                       name: "Cache Create",
                       tokens: displayUsage.cacheCreate.tokens,
                       cost: displayUsage.cacheCreate.cost_usd,
-                      color: COMPONENT_COLORS.cached,
+                      color: TOKEN_COMPONENT_COLORS.cached,
                       show: displayUsage.cacheCreate.tokens > 0,
                     },
                     {
                       name: "Input",
                       tokens: displayUsage.input.tokens,
                       cost: adjustedInputCost,
-                      color: COMPONENT_COLORS.input,
+                      color: TOKEN_COMPONENT_COLORS.input,
                       show: true,
                     },
                     {
                       name: "Output",
                       tokens: displayUsage.output.tokens,
                       cost: adjustedOutputCost,
-                      color: COMPONENT_COLORS.output,
+                      color: TOKEN_COMPONENT_COLORS.output,
                       show: true,
                     },
                     {
                       name: "Thinking",
                       tokens: displayUsage.reasoning.tokens,
                       cost: adjustedReasoningCost,
-                      color: COMPONENT_COLORS.thinking,
+                      color: TOKEN_COMPONENT_COLORS.thinking,
                       show: displayUsage.reasoning.tokens > 0,
                     },
                   ].filter((c) => c.show)

@@ -38,7 +38,8 @@ const ViewContainer = styled.div`
   color: #d4d4d4;
   font-family: var(--font-monospace);
   font-size: 12px;
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
   container-type: inline-size;
 `;
 
@@ -203,6 +204,8 @@ const AIViewInner: React.FC<AIViewProps> = ({
   workspacePath,
   className,
 }) => {
+  const chatAreaRef = useRef<HTMLDivElement>(null);
+
   // NEW: Get workspace state from store (only re-renders when THIS workspace changes)
   const workspaceState = useWorkspaceState(workspaceId);
   const aggregator = useWorkspaceAggregator(workspaceId);
@@ -346,7 +349,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
   if (!workspaceState) {
     return (
       <ViewContainer className={className}>
-        <ChatArea>
+        <ChatArea ref={chatAreaRef}>
           <OutputContainer>
             <LoadingIndicator>Loading workspace...</LoadingIndicator>
           </OutputContainer>
@@ -405,7 +408,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
   return (
     <ChatProvider messages={messages} cmuxMessages={cmuxMessages} model={currentModel ?? "unknown"}>
       <ViewContainer className={className}>
-        <ChatArea>
+        <ChatArea ref={chatAreaRef}>
           <ViewHeader>
             <WorkspaceTitle>
               <StatusIndicator
@@ -532,7 +535,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
           />
         </ChatArea>
 
-        <ChatMetaSidebar workspaceId={workspaceId} />
+        <ChatMetaSidebar workspaceId={workspaceId} chatAreaRef={chatAreaRef} />
       </ViewContainer>
     </ChatProvider>
   );
