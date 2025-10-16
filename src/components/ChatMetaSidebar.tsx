@@ -186,3 +186,8 @@ const ChatMetaSidebarComponent: React.FC<ChatMetaSidebarProps> = ({ workspaceId,
     </SidebarContainer>
   );
 };
+
+// Memoize to prevent re-renders when parent (AIView) re-renders during streaming
+// Only re-renders when workspaceId or chatAreaRef changes, or internal state updates
+export const ChatMetaSidebar = React.memo(ChatMetaSidebarComponent);
+
