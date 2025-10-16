@@ -284,8 +284,16 @@ export const CostsTab: React.FC<CostsTabProps> = ({ workspaceId }) => {
   const [viewMode, setViewMode] = usePersistedState<ViewMode>("costsTab:viewMode", "session");
   const [use1M] = use1MContext();
 
-  // Show empty state only if no messages at all (check tokenization total)
-  // Note: Historical messages may not have usage metadata, but still have token content
+  // Show loading while consumers are being calculated
+  if (consumers.isCalculating && consumers.totalTokens === 0) {
+    return (
+      <Container>
+        <LoadingState>Loading token statistics...</LoadingState>
+      </Container>
+    );
+  }
+
+  // Show empty state only if calculation complete and no messages found
   if (!consumers || consumers.totalTokens === 0) {
     return (
       <Container>
