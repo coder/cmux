@@ -28,7 +28,10 @@ export class WorkspaceConsumerManager {
   // Web Worker for tokenization (shared across workspaces)
   private tokenWorker: TokenStatsWorker;
 
-  // Track pending consumer calculations to avoid duplicates
+  // Track scheduled calculations (in debounce window, not yet executing)
+  private scheduledCalcs = new Set<string>();
+
+  // Track executing calculations (Web Worker running)
   private pendingCalcs = new Set<string>();
 
   // Cache calculated consumer data (persists across bumps)
@@ -54,10 +57,10 @@ export class WorkspaceConsumerManager {
   }
 
   /**
-   * Check if calculation is pending for workspace.
+   * Check if calculation is pending or scheduled for workspace.
    */
   isPending(workspaceId: string): boolean {
-    return this.pendingCalcs.has(workspaceId);
+    return this.scheduledCalcs.has(workspaceId) || this.pendingCalcs.has(workspaceId);
   }
 
   /**
@@ -73,18 +76,19 @@ export class WorkspaceConsumerManager {
       return cached;
     }
 
-    // Default state while calculating or before first calculation
+    // Default state while scheduled/calculating or before first calculation
     return {
       consumers: [],
       tokenizerName: "",
       totalTokens: 0,
-      isCalculating: this.pendingCalcs.has(workspaceId),
+      isCalculating: this.scheduledCalcs.has(workspaceId) || this.pendingCalcs.has(workspaceId),
     };
   }
 
   /**
    * Schedule a consumer calculation (debounced).
    * Batches rapid events (e.g., multiple tool-call-end) into single calculation.
+   * Marks as "calculating" immediately to prevent UI flash.
    */
   scheduleCalculation(workspaceId: string, aggregator: StreamingMessageAggregator): void {
     // Clear existing timer for this workspace
@@ -93,14 +97,24 @@ export class WorkspaceConsumerManager {
       clearTimeout(existingTimer);
     }
 
-    // Skip if already calculating (prevents duplicates during debounce window)
+    // Skip if already executing
     if (this.pendingCalcs.has(workspaceId)) {
       return;
+    }
+
+    // Mark as scheduled immediately (triggers "Calculating..." UI, prevents flash)
+    const isNewSchedule = !this.scheduledCalcs.has(workspaceId);
+    this.scheduledCalcs.add(workspaceId);
+
+    // Notify store if newly scheduled (triggers UI update)
+    if (isNewSchedule) {
+      this.onCalculationComplete(workspaceId);
     }
 
     // Set new timer (150ms - imperceptible to humans, batches rapid events)
     const timer = setTimeout(() => {
       this.debounceTimers.delete(workspaceId);
+      this.scheduledCalcs.delete(workspaceId); // Move from scheduled to pending
       this.executeCalculation(workspaceId, aggregator);
     }, 150);
 
@@ -176,6 +190,7 @@ export class WorkspaceConsumerManager {
 
     // Clean up state
     this.cache.delete(workspaceId);
+    this.scheduledCalcs.delete(workspaceId);
     this.pendingCalcs.delete(workspaceId);
   }
 
@@ -194,6 +209,7 @@ export class WorkspaceConsumerManager {
 
     // Clear state
     this.cache.clear();
+    this.scheduledCalcs.clear();
     this.pendingCalcs.clear();
   }
 }
