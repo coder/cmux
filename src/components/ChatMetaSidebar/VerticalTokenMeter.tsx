@@ -154,6 +154,11 @@ const VerticalTokenMeterComponent: React.FC<{ data: TokenMeterData }> = ({ data 
                     {data.maxTokens && ` / ${formatTokens(data.maxTokens)}`}
                     {data.maxTokens && ` (${data.totalPercentage.toFixed(1)}%)`}
                   </div>
+                  <div
+                    style={{ color: "#666666", fontSize: 10, marginTop: 8, fontStyle: "italic" }}
+                  >
+                    💡 Expand your viewport to see full details
+                  </div>
                 </Content>
               </Tooltip>
             </TooltipWrapper>
