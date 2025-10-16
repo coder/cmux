@@ -33,6 +33,9 @@ export class WorkspaceConsumerManager {
   // Track executing calculations (Web Worker running)
   private pendingCalcs = new Set<string>();
 
+  // Track workspaces that need recalculation after current one completes
+  private needsRecalc = new Map<string, StreamingMessageAggregator>();
+
   // Cache calculated consumer data (persists across bumps)
   private cache = new Map<string, WorkspaceConsumersState>();
 
@@ -88,6 +91,9 @@ export class WorkspaceConsumerManager {
    * Schedule a consumer calculation (debounced).
    * Batches rapid events (e.g., multiple tool-call-end) into single calculation.
    * Marks as "calculating" immediately to prevent UI flash.
+   *
+   * If a calculation is already running, marks workspace for recalculation
+   * after the current one completes.
    */
   scheduleCalculation(workspaceId: string, aggregator: StreamingMessageAggregator): void {
     // Clear existing timer for this workspace
@@ -96,8 +102,9 @@ export class WorkspaceConsumerManager {
       clearTimeout(existingTimer);
     }
 
-    // Skip if already executing
+    // If already executing, queue a follow-up recalculation
     if (this.pendingCalcs.has(workspaceId)) {
+      this.needsRecalc.set(workspaceId, aggregator);
       return;
     }
 
@@ -172,6 +179,13 @@ export class WorkspaceConsumerManager {
         this.onCalculationComplete(workspaceId);
       } finally {
         this.pendingCalcs.delete(workspaceId);
+
+        // If recalculation was requested while we were running, schedule it now
+        const needsRecalcAggregator = this.needsRecalc.get(workspaceId);
+        if (needsRecalcAggregator) {
+          this.needsRecalc.delete(workspaceId);
+          this.scheduleCalculation(workspaceId, needsRecalcAggregator);
+        }
       }
     })();
   }
@@ -191,6 +205,7 @@ export class WorkspaceConsumerManager {
     this.cache.delete(workspaceId);
     this.scheduledCalcs.delete(workspaceId);
     this.pendingCalcs.delete(workspaceId);
+    this.needsRecalc.delete(workspaceId);
   }
 
   /**
