@@ -3,7 +3,7 @@ import * as fs from "fs/promises";
 import * as path from "path";
 import { execSync } from "child_process";
 import { removeWorktreeSafe, isWorktreeClean, hasSubmodules } from "./gitService";
-import { createWorktree } from "@/git";
+import { createWorktree, detectDefaultTrunkBranch } from "@/git";
 import type { Config } from "@/config";
 
 // Helper to create a test git repo
@@ -33,10 +33,12 @@ const mockConfig = {
 describe("removeWorktreeSafe", () => {
   let tempDir: string;
   let repoPath: string;
+  let defaultBranch: string;
 
   beforeEach(async () => {
     tempDir = await fs.mkdtemp(path.join(__dirname, "..", "test-temp-"));
     repoPath = await createTestRepo(tempDir);
+    defaultBranch = await detectDefaultTrunkBranch(repoPath);
   });
 
   afterEach(async () => {
@@ -49,7 +51,9 @@ describe("removeWorktreeSafe", () => {
 
   test("should instantly remove clean worktree via rename", async () => {
     // Create a worktree
-    const result = await createWorktree(mockConfig, repoPath, "test-branch", { trunkBranch: "main" });
+    const result = await createWorktree(mockConfig, repoPath, "test-branch", {
+      trunkBranch: defaultBranch,
+    });
     expect(result.success).toBe(true);
     const worktreePath = result.path!;
 
@@ -80,7 +84,9 @@ describe("removeWorktreeSafe", () => {
 
   test("should block removal of dirty worktree", async () => {
     // Create a worktree
-    const result = await createWorktree(mockConfig, repoPath, "dirty-branch", { trunkBranch: "main" });
+    const result = await createWorktree(mockConfig, repoPath, "dirty-branch", {
+      trunkBranch: defaultBranch,
+    });
     expect(result.success).toBe(true);
     const worktreePath = result.path!;
 
@@ -107,7 +113,9 @@ describe("removeWorktreeSafe", () => {
 
   test("should handle already-deleted worktree gracefully", async () => {
     // Create a worktree
-    const result = await createWorktree(mockConfig, repoPath, "temp-branch", { trunkBranch: "main" });
+    const result = await createWorktree(mockConfig, repoPath, "temp-branch", {
+      trunkBranch: defaultBranch,
+    });
     expect(result.success).toBe(true);
     const worktreePath = result.path!;
 
@@ -122,7 +130,9 @@ describe("removeWorktreeSafe", () => {
 
   test("should remove clean worktree with staged changes using git", async () => {
     // Create a worktree
-    const result = await createWorktree(mockConfig, repoPath, "staged-branch", { trunkBranch: "main" });
+    const result = await createWorktree(mockConfig, repoPath, "staged-branch", {
+      trunkBranch: defaultBranch,
+    });
     expect(result.success).toBe(true);
     const worktreePath = result.path!;
 
@@ -142,7 +152,9 @@ describe("removeWorktreeSafe", () => {
 
   test("should call onBackgroundDelete callback on errors", async () => {
     // Create a worktree
-    const result = await createWorktree(mockConfig, repoPath, "callback-branch", { trunkBranch: "main" });
+    const result = await createWorktree(mockConfig, repoPath, "callback-branch", {
+      trunkBranch: defaultBranch,
+    });
     expect(result.success).toBe(true);
     const worktreePath = result.path!;
 
@@ -169,10 +181,12 @@ describe("removeWorktreeSafe", () => {
 describe("isWorktreeClean", () => {
   let tempDir: string;
   let repoPath: string;
+  let defaultBranch: string;
 
   beforeEach(async () => {
     tempDir = await fs.mkdtemp(path.join(__dirname, "..", "test-temp-"));
     repoPath = await createTestRepo(tempDir);
+    defaultBranch = await detectDefaultTrunkBranch(repoPath);
   });
 
   afterEach(async () => {
@@ -184,7 +198,9 @@ describe("isWorktreeClean", () => {
   });
 
   test("should return true for clean worktree", async () => {
-    const result = await createWorktree(mockConfig, repoPath, "clean-check", { trunkBranch: "main" });
+    const result = await createWorktree(mockConfig, repoPath, "clean-check", {
+      trunkBranch: defaultBranch,
+    });
     expect(result.success).toBe(true);
 
     const isClean = await isWorktreeClean(result.path!);
@@ -192,7 +208,9 @@ describe("isWorktreeClean", () => {
   });
 
   test("should return false for worktree with uncommitted changes", async () => {
-    const result = await createWorktree(mockConfig, repoPath, "dirty-check", { trunkBranch: "main" });
+    const result = await createWorktree(mockConfig, repoPath, "dirty-check", {
+      trunkBranch: defaultBranch,
+    });
     expect(result.success).toBe(true);
     const worktreePath = result.path!;
 

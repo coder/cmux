@@ -46,13 +46,15 @@ export function useWorkspaceManagement({
 
   // Subscribe to metadata updates (for create/rename/delete operations)
   useEffect(() => {
-    const unsubscribe = window.api.workspace.onMetadata((event: { workspaceId: string; metadata: FrontendWorkspaceMetadata }) => {
-      setWorkspaceMetadata((prev) => {
-        const updated = new Map(prev);
-        updated.set(event.workspaceId, event.metadata);
-        return updated;
-      });
-    });
+    const unsubscribe = window.api.workspace.onMetadata(
+      (event: { workspaceId: string; metadata: FrontendWorkspaceMetadata }) => {
+        setWorkspaceMetadata((prev) => {
+          const updated = new Map(prev);
+          updated.set(event.workspaceId, event.metadata);
+          return updated;
+        });
+      }
+    );
 
     return () => {
       unsubscribe();

@@ -149,6 +149,13 @@ function AppInner() {
   );
   const [workspaceModalOpen, setWorkspaceModalOpen] = useState(false);
   const [workspaceModalProject, setWorkspaceModalProject] = useState<string | null>(null);
+  const [workspaceModalProjectName, setWorkspaceModalProjectName] = useState<string>("");
+  const [workspaceModalBranches, setWorkspaceModalBranches] = useState<string[]>([]);
+  const [workspaceModalDefaultTrunk, setWorkspaceModalDefaultTrunk] = useState<string | undefined>(
+    undefined
+  );
+  const [workspaceModalLoadError, setWorkspaceModalLoadError] = useState<string | null>(null);
+  const workspaceModalProjectRef = useRef<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = usePersistedState("sidebarCollapsed", false);
 
   const handleToggleSidebar = useCallback(() => {
@@ -166,12 +173,17 @@ function AppInner() {
     [setProjects]
   );
 
-  const { workspaceMetadata, loading: metadataLoading, createWorkspace, removeWorkspace, renameWorkspace } =
-    useWorkspaceManagement({
-      selectedWorkspace,
-      onProjectsUpdate: handleProjectsUpdate,
-      onSelectedWorkspaceUpdate: setSelectedWorkspace,
-    });
+  const {
+    workspaceMetadata,
+    loading: metadataLoading,
+    createWorkspace,
+    removeWorkspace,
+    renameWorkspace,
+  } = useWorkspaceManagement({
+    selectedWorkspace,
+    onProjectsUpdate: handleProjectsUpdate,
+    onSelectedWorkspaceUpdate: setSelectedWorkspace,
+  });
 
   // NEW: Sync workspace metadata with the stores
   const workspaceStore = useWorkspaceStoreRaw();
@@ -221,16 +233,16 @@ function AppInner() {
       }
       void window.api.window.setTitle("cmux");
     }
-  }, [selectedWorkspace]);
+  }, [selectedWorkspace, workspaceMetadata]);
 
   // Restore workspace from URL on mount (if valid)
   // This effect runs once on mount to restore from hash, which takes priority over localStorage
   const [hasRestoredFromHash, setHasRestoredFromHash] = useState(false);
-  
+
   useEffect(() => {
     // Only run once
     if (hasRestoredFromHash) return;
-    
+
     // Wait for metadata to finish loading
     if (metadataLoading) return;
 
@@ -251,7 +263,7 @@ function AppInner() {
         });
       }
     }
-    
+
     setHasRestoredFromHash(true);
   }, [metadataLoading, workspaceMetadata, hasRestoredFromHash, setSelectedWorkspace]);
 
@@ -259,10 +271,10 @@ function AppInner() {
   useEffect(() => {
     // Don't validate until metadata is loaded
     if (metadataLoading) return;
-    
+
     if (selectedWorkspace) {
       const metadata = workspaceMetadata.get(selectedWorkspace.workspaceId);
-      
+
       if (!metadata) {
         // Workspace was deleted
         console.warn(
@@ -274,9 +286,7 @@ function AppInner() {
         }
       } else if (!selectedWorkspace.namedWorkspacePath && metadata.namedWorkspacePath) {
         // Old localStorage entry missing namedWorkspacePath - update it once
-        console.log(
-          `Updating workspace ${selectedWorkspace.workspaceId} with missing fields`
-        );
+        console.log(`Updating workspace ${selectedWorkspace.workspaceId} with missing fields`);
         setSelectedWorkspace({
           workspaceId: metadata.id,
           projectPath: metadata.projectPath,
@@ -287,13 +297,16 @@ function AppInner() {
     }
   }, [metadataLoading, selectedWorkspace, workspaceMetadata, setSelectedWorkspace]);
 
-  const openWorkspaceInTerminal = useCallback((workspaceId: string) => {
-    // Look up workspace metadata to get the named path (user-friendly symlink)
-    const metadata = workspaceMetadata.get(workspaceId);
-    if (metadata) {
-      void window.api.workspace.openTerminal(metadata.namedWorkspacePath);
-    }
-  }, [workspaceMetadata]);
+  const openWorkspaceInTerminal = useCallback(
+    (workspaceId: string) => {
+      // Look up workspace metadata to get the named path (user-friendly symlink)
+      const metadata = workspaceMetadata.get(workspaceId);
+      if (metadata) {
+        void window.api.workspace.openTerminal(metadata.namedWorkspacePath);
+      }
+    },
+    [workspaceMetadata]
+  );
 
   const handleRemoveProject = useCallback(
     async (path: string) => {
@@ -305,9 +318,45 @@ function AppInner() {
     [removeProject, selectedWorkspace, setSelectedWorkspace]
   );
 
-  const handleAddWorkspace = useCallback((projectPath: string) => {
+  const handleAddWorkspace = useCallback(async (projectPath: string) => {
+    const projectName = projectPath.split("/").pop() ?? projectPath.split("\\").pop() ?? "project";
+
+    workspaceModalProjectRef.current = projectPath;
     setWorkspaceModalProject(projectPath);
+    setWorkspaceModalProjectName(projectName);
+    setWorkspaceModalBranches([]);
+    setWorkspaceModalDefaultTrunk(undefined);
+    setWorkspaceModalLoadError(null);
     setWorkspaceModalOpen(true);
+
+    try {
+      const branchResult = await window.api.projects.listBranches(projectPath);
+
+      // Guard against race condition: only update state if this is still the active project
+      if (workspaceModalProjectRef.current !== projectPath) {
+        return;
+      }
+
+      const sanitizedBranches = Array.isArray(branchResult?.branches)
+        ? branchResult.branches.filter((branch): branch is string => typeof branch === "string")
+        : [];
+
+      const recommended =
+        typeof branchResult?.recommendedTrunk === "string" &&
+        sanitizedBranches.includes(branchResult.recommendedTrunk)
+          ? branchResult.recommendedTrunk
+          : sanitizedBranches[0];
+
+      setWorkspaceModalBranches(sanitizedBranches);
+      setWorkspaceModalDefaultTrunk(recommended);
+      setWorkspaceModalLoadError(null);
+    } catch (err) {
+      console.error("Failed to load branches for modal:", err);
+      const message = err instanceof Error ? err.message : "Unknown error";
+      setWorkspaceModalLoadError(
+        `Unable to load branches automatically: ${message}. You can still enter the trunk branch manually.`
+      );
+    }
   }, []);
 
   // Memoize callbacks to prevent LeftSidebar/ProjectSidebar re-renders
@@ -495,7 +544,7 @@ function AppInner() {
 
   const openNewWorkspaceFromPalette = useCallback(
     (projectPath: string) => {
-      handleAddWorkspace(projectPath);
+      void handleAddWorkspace(projectPath);
     },
     [handleAddWorkspace]
   );
@@ -682,7 +731,10 @@ function AppInner() {
                   key={selectedWorkspace.workspaceId}
                   workspaceId={selectedWorkspace.workspaceId}
                   projectName={selectedWorkspace.projectName}
-                  branch={selectedWorkspace.namedWorkspacePath?.split("/").pop() ?? selectedWorkspace.workspaceId}
+                  branch={
+                    selectedWorkspace.namedWorkspacePath?.split("/").pop() ??
+                    selectedWorkspace.workspaceId
+                  }
                   namedWorkspacePath={selectedWorkspace.namedWorkspacePath ?? ""}
                 />
               </ErrorBoundary>
@@ -703,10 +755,18 @@ function AppInner() {
         {workspaceModalOpen && workspaceModalProject && (
           <NewWorkspaceModal
             isOpen={workspaceModalOpen}
-            projectPath={workspaceModalProject}
+            projectName={workspaceModalProjectName}
+            branches={workspaceModalBranches}
+            defaultTrunkBranch={workspaceModalDefaultTrunk}
+            loadErrorMessage={workspaceModalLoadError}
             onClose={() => {
+              workspaceModalProjectRef.current = null;
               setWorkspaceModalOpen(false);
               setWorkspaceModalProject(null);
+              setWorkspaceModalProjectName("");
+              setWorkspaceModalBranches([]);
+              setWorkspaceModalDefaultTrunk(undefined);
+              setWorkspaceModalLoadError(null);
             }}
             onAdd={handleCreateWorkspace}
           />

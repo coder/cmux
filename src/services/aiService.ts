@@ -7,7 +7,7 @@ import { applyToolOutputRedaction } from "@/utils/messages/applyToolOutputRedact
 import type { Result } from "@/types/result";
 import { Ok, Err } from "@/types/result";
 import type { WorkspaceMetadata } from "@/types/workspace";
-import { WorkspaceMetadataSchema } from "@/types/workspace";
+
 import type { CmuxMessage, CmuxTextPart } from "@/types/message";
 import { createCmuxMessage } from "@/types/message";
 import type { Config } from "@/config";
@@ -180,7 +180,7 @@ export class AIService extends EventEmitter {
     return this.mockModeEnabled;
   }
 
-  async getWorkspaceMetadata(workspaceId: string): Promise<Result<WorkspaceMetadata>> {
+  getWorkspaceMetadata(workspaceId: string): Result<WorkspaceMetadata> {
     try {
       // Get all workspace metadata (which includes migration logic)
       // This ensures we always get complete metadata with all required fields
@@ -510,7 +510,7 @@ export class AIService extends EventEmitter {
       }
 
       // Get workspace metadata to retrieve workspace path
-      const metadataResult = await this.getWorkspaceMetadata(workspaceId);
+      const metadataResult = this.getWorkspaceMetadata(workspaceId);
       if (!metadataResult.success) {
         return Err({ type: "unknown", raw: metadataResult.error });
       }
@@ -522,10 +522,9 @@ export class AIService extends EventEmitter {
       if (!workspace) {
         return Err({ type: "unknown", raw: `Workspace ${workspaceId} not found in config` });
       }
-      
-      // Use named workspace path (symlink) for user-facing operations
-      // Agent commands should run in the path users see in the UI
-      const workspacePath = this.config.getWorkspaceSymlinkPath(metadata.projectPath, metadata.name);
+
+      // Get workspace path (directory name uses workspace name)
+      const workspacePath = this.config.getWorkspacePath(metadata.projectPath, metadata.name);
 
       // Build system message from workspace metadata
       const systemMessage = await buildSystemMessage(

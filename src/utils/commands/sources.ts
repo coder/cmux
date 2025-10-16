@@ -154,7 +154,7 @@ export function buildCoreSources(p: BuildSourcesParams): Array<() => CommandActi
     }
 
     // Remove current workspace (rename action intentionally omitted until we add a proper modal)
-    if (selected && selected.namedWorkspacePath) {
+    if (selected?.namedWorkspacePath) {
       const workspaceDisplayName = `${selected.projectName}/${selected.namedWorkspacePath.split("/").pop() ?? selected.namedWorkspacePath}`;
       list.push({
         id: "ws:open-terminal-current",

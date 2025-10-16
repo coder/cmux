@@ -38,8 +38,8 @@ describeIntegration("IpcMain executeBash integration tests", () => {
 
         expect(pwdResult.success).toBe(true);
         expect(pwdResult.data.success).toBe(true);
-        // Verify pwd output contains the workspace ID (backend computed path uses stable ID)
-        expect(pwdResult.data.output).toContain(metadata.id);
+        // Verify pwd output contains the workspace name (directories are named with workspace names)
+        expect(pwdResult.data.output).toContain(metadata.name);
         expect(pwdResult.data.exitCode).toBe(0);
 
         // Clean up

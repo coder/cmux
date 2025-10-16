@@ -152,12 +152,13 @@ export class AgentSession {
     assert(trimmedWorkspacePath.length > 0, "workspacePath must not be empty");
 
     const normalizedWorkspacePath = path.resolve(trimmedWorkspacePath);
-    const existing = await this.aiService.getWorkspaceMetadata(this.workspaceId);
+    const existing = this.aiService.getWorkspaceMetadata(this.workspaceId);
 
     if (existing.success) {
       // Metadata already exists, verify workspace path matches
       const metadata = existing.data;
-      const expectedPath = this.config.getWorkspacePath(metadata.projectPath, metadata.id);
+      // Directory name uses workspace name (not stable ID)
+      const expectedPath = this.config.getWorkspacePath(metadata.projectPath, metadata.name);
       assert(
         expectedPath === normalizedWorkspacePath,
         `Existing metadata workspace path mismatch for ${this.workspaceId}: expected ${expectedPath}, got ${normalizedWorkspacePath}`

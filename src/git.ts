@@ -11,7 +11,7 @@ export interface WorktreeResult {
 
 export interface CreateWorktreeOptions {
   trunkBranch: string;
-  /** Workspace ID to use for directory name (if not provided, uses branchName) */
+  /** Directory name to use for the worktree (if not provided, uses branchName) */
   workspaceId?: string;
 }
 

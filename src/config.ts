@@ -134,27 +134,19 @@ export class Config {
   }
 
   /**
-   * Get the user-friendly symlink path (using workspace name).
-   * This is the path users see and can navigate to.
-   */
-  getWorkspaceSymlinkPath(projectPath: string, workspaceName: string): string {
-    const projectName = this.getProjectName(projectPath);
-    return path.join(this.srcDir, projectName, workspaceName);
-  }
-
-  /**
    * Compute both workspace paths from metadata.
-   * Returns an object with the stable ID path (for operations) and named path (for display).
+   * Now both paths are the same (directory uses workspace name).
    */
   getWorkspacePaths(metadata: WorkspaceMetadata): {
-    /** Actual worktree path with stable ID (for terminal/operations) */
+    /** Actual worktree path with name (for terminal/operations) */
     stableWorkspacePath: string;
-    /** User-friendly symlink path with name (for display) */
+    /** Same as stableWorkspacePath (no longer a symlink) */
     namedWorkspacePath: string;
   } {
+    const path = this.getWorkspacePath(metadata.projectPath, metadata.name);
     return {
-      stableWorkspacePath: this.getWorkspacePath(metadata.projectPath, metadata.id),
-      namedWorkspacePath: this.getWorkspaceSymlinkPath(metadata.projectPath, metadata.name),
+      stableWorkspacePath: path,
+      namedWorkspacePath: path,
     };
   }
 
@@ -165,79 +157,14 @@ export class Config {
   private addPathsToMetadata(
     metadata: WorkspaceMetadata,
     workspacePath: string,
-    projectPath: string
+    _projectPath: string
   ): FrontendWorkspaceMetadata {
-    const stableWorkspacePath = workspacePath;
-    const namedWorkspacePath = this.getWorkspaceSymlinkPath(projectPath, metadata.name);
-    
+    // Both paths are the same now (directory uses workspace name)
     return {
       ...metadata,
-      stableWorkspacePath,
-      namedWorkspacePath,
+      stableWorkspacePath: workspacePath,
+      namedWorkspacePath: workspacePath,
     };
-  }
-
-  /**
-   * Create a symlink from workspace name to workspace ID.
-   * Example: ~/.cmux/src/cmux/feature-branch -> a1b2c3d4e5
-   */
-  createWorkspaceSymlink(projectPath: string, id: string, name: string): void {
-    const projectName = this.getProjectName(projectPath);
-    const projectDir = path.join(this.srcDir, projectName);
-    const symlinkPath = path.join(projectDir, name);
-    const targetPath = id; // Relative symlink
-
-    try {
-      // Remove existing symlink if it exists (use lstat to check if it's a symlink)
-      try {
-        const stats = fs.lstatSync(symlinkPath);
-        if (stats.isSymbolicLink() || stats.isFile() || stats.isDirectory()) {
-          fs.unlinkSync(symlinkPath);
-        }
-      } catch (e) {
-        // Symlink doesn't exist, which is fine
-        if (e && typeof e === "object" && "code" in e && e.code !== "ENOENT") {
-          throw e;
-        }
-      }
-
-      // Create new symlink (relative path)
-      fs.symlinkSync(targetPath, symlinkPath, "dir");
-    } catch (error) {
-      console.error(`Failed to create symlink ${symlinkPath} -> ${targetPath}:`, error);
-    }
-  }
-
-  /**
-   * Update a workspace symlink when renaming.
-   * Removes old symlink and creates new one.
-   */
-  updateWorkspaceSymlink(projectPath: string, oldName: string, newName: string, id: string): void {
-    // Remove old symlink, then create new one (createWorkspaceSymlink handles replacement)
-    this.removeWorkspaceSymlink(projectPath, oldName);
-    this.createWorkspaceSymlink(projectPath, id, newName);
-  }
-
-  /**
-   * Remove a workspace symlink.
-   */
-  removeWorkspaceSymlink(projectPath: string, name: string): void {
-    const projectName = this.getProjectName(projectPath);
-    const symlinkPath = path.join(this.srcDir, projectName, name);
-
-    try {
-      // Use lstat to avoid following the symlink
-      const stats = fs.lstatSync(symlinkPath);
-      if (stats.isSymbolicLink()) {
-        fs.unlinkSync(symlinkPath);
-      }
-    } catch (error) {
-      // ENOENT is expected if symlink doesn't exist
-      if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") {
-        return; // Silently succeed if symlink doesn't exist
-      }
-      console.error(`Failed to remove symlink ${symlinkPath}:`, error);
-    }
   }
 
   /**
@@ -292,7 +219,7 @@ export class Config {
    * Workspace paths are computed on-demand from projectPath + workspaceId using
    * config.getWorkspacePath(). This ensures single source of truth for path format.
    *
-   * Backend: Uses getWorkspacePath(metadata.projectPath, metadata.id) for operations
+   * Backend: Uses getWorkspacePath(metadata.projectPath, metadata.name) for directory paths (worktree directories use name)
    * Frontend: Gets enriched metadata with paths via IPC (FrontendWorkspaceMetadata)
    *
    * WorkspaceMetadata.workspacePath is deprecated and will be removed. Use computed
@@ -402,7 +329,9 @@ export class Config {
               workspace.createdAt = metadata.createdAt;
               configModified = true;
 
-              workspaceMetadata.push(this.addPathsToMetadata(metadata, workspace.path, projectPath));
+              workspaceMetadata.push(
+                this.addPathsToMetadata(metadata, workspace.path, projectPath)
+              );
               metadataFound = true;
             }
           }
