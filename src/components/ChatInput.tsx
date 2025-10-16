@@ -315,6 +315,9 @@ function prepareCompactionMessage(
 
   // Use custom model if specified, otherwise use default from sendMessageOptions
   const compactionModel = parsed.model ?? sendMessageOptions.model;
+
+  // Note: thinking policy enforcement happens in the backend (agentSession.streamWithHistory)
+  // to ensure it's applied consistently regardless of where the request originates
   const isAnthropic = compactionModel.startsWith("anthropic:");
   const options: Partial<SendMessageOptions> = {
     model: compactionModel,

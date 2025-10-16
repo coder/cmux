@@ -297,11 +297,18 @@ export class AgentSession {
       return Err(createUnknownSendMessageError(historyResult.error));
     }
 
+    // Enforce thinking policy for the specified model (single source of truth)
+    // This ensures model-specific requirements are met regardless of where the request originates
+    const { enforceThinkingPolicy } = await import("@/utils/thinking/policy");
+    const effectiveThinkingLevel = options?.thinkingLevel
+      ? enforceThinkingPolicy(modelString, options.thinkingLevel)
+      : undefined;
+
     const streamResult = await this.aiService.streamMessage(
       historyResult.data,
       this.workspaceId,
       modelString,
-      options?.thinkingLevel,
+      effectiveThinkingLevel,
       options?.toolPolicy,
       undefined,
       options?.additionalSystemInstructions,
