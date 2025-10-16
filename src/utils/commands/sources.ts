@@ -158,7 +158,7 @@ export function buildCoreSources(p: BuildSourcesParams): Array<() => CommandActi
 
     // Remove current workspace (rename action intentionally omitted until we add a proper modal)
     if (selected) {
-      const workspaceDisplayName = `${selected.projectName}/${selected.workspacePath.split("/").pop() ?? selected.workspacePath}`;
+      const workspaceDisplayName = `${selected.projectName}/${selected.workspacePath?.split("/").pop() ?? selected.workspacePath}`;
       list.push({
         id: "ws:open-terminal-current",
         title: "Open Current Workspace in Terminal",
@@ -193,8 +193,8 @@ export function buildCoreSources(p: BuildSourcesParams): Array<() => CommandActi
               name: "newName",
               label: "New name",
               placeholder: "Enter new workspace name",
-              initialValue: selected.workspacePath.split("/").pop() ?? "",
-              getInitialValue: () => selected.workspacePath.split("/").pop() ?? "",
+              initialValue: selected.workspacePath?.split("/").pop() ?? "",
+              getInitialValue: () => selected.workspacePath?.split("/").pop() ?? "",
               validate: (v) => (!v.trim() ? "Name is required" : null),
             },
           ],
@@ -221,7 +221,7 @@ export function buildCoreSources(p: BuildSourcesParams): Array<() => CommandActi
               placeholder: "Search workspaces…",
               getOptions: () =>
                 Array.from(p.workspaceMetadata.values()).map((meta) => {
-                  const workspaceName = meta.workspacePath.split("/").pop() ?? meta.workspacePath;
+                  const workspaceName = meta.workspacePath?.split("/").pop() ?? meta.workspacePath;
                   const label = `${meta.projectName} / ${workspaceName}`;
                   return {
                     id: meta.workspacePath,
@@ -251,7 +251,7 @@ export function buildCoreSources(p: BuildSourcesParams): Array<() => CommandActi
               placeholder: "Search workspaces…",
               getOptions: () =>
                 Array.from(p.workspaceMetadata.values()).map((meta) => {
-                  const workspaceName = meta.workspacePath.split("/").pop() ?? meta.workspacePath;
+                  const workspaceName = meta.workspacePath?.split("/").pop() ?? meta.workspacePath;
                   const label = `${meta.projectName} / ${workspaceName}`;
                   return {
                     id: meta.id,
@@ -269,7 +269,7 @@ export function buildCoreSources(p: BuildSourcesParams): Array<() => CommandActi
                 const meta = Array.from(p.workspaceMetadata.values()).find(
                   (m) => m.id === values.workspaceId
                 );
-                return meta ? (meta.workspacePath.split("/").pop() ?? "") : "";
+                return meta ? (meta.workspacePath?.split("/").pop() ?? "") : "";
               },
               validate: (v) => (!v.trim() ? "Name is required" : null),
             },
@@ -294,7 +294,7 @@ export function buildCoreSources(p: BuildSourcesParams): Array<() => CommandActi
               placeholder: "Search workspaces…",
               getOptions: () =>
                 Array.from(p.workspaceMetadata.values()).map((meta) => {
-                  const workspaceName = meta.workspacePath.split("/").pop() ?? meta.workspacePath;
+                  const workspaceName = meta.workspacePath?.split("/").pop() ?? meta.workspacePath;
                   const label = `${meta.projectName}/${workspaceName}`;
                   return {
                     id: meta.id,
@@ -309,7 +309,7 @@ export function buildCoreSources(p: BuildSourcesParams): Array<() => CommandActi
               (m) => m.id === vals.workspaceId
             );
             const workspaceName = meta
-              ? `${meta.projectName}/${meta.workspacePath.split("/").pop() ?? meta.workspacePath}`
+              ? `${meta.projectName}/${meta.workspacePath?.split("/").pop() ?? meta.workspacePath}`
               : vals.workspaceId;
             const ok = confirm(`Remove workspace ${workspaceName}? This cannot be undone.`);
             if (ok) {
