@@ -109,26 +109,34 @@ describe("projectOrdering", () => {
     });
   });
 
-  describe("Bug: empty projects Map", () => {
-    it("preserves order when projects Map is empty", () => {
+  describe("Bug fix: empty projects Map on initial load", () => {
+    it("returns empty array when projects Map is empty", () => {
+      // This documents the bug scenario:
+      // 1. localStorage has projectOrder = ["/a", "/b", "/c"]
+      // 2. Projects haven't loaded yet, so projects = new Map()
+      // 3. If normalization runs, it would clear the order
       const emptyProjects = createProjects([]);
       const order = ["/a", "/b", "/c"];
       const result = normalizeOrder(order, emptyProjects);
-      // Currently this returns [], which is the bug!
+      
+      // normalizeOrder returns [] when projects is empty
       expect(result).toEqual([]);
+      
+      // Fix: ProjectSidebar.tsx skips normalization when projects.size === 0
+      // This prevents clearing the order during initial component mount
     });
 
-    it("should ideally preserve unknown paths when projects is empty", () => {
-      // This test documents the desired behavior
-      const emptyProjects = createProjects([]);
-      const order = ["/a", "/b", "/c"];
-      // Ideally we'd want to preserve the order even when projects is empty
-      // But the current implementation clears it
-      const result = normalizeOrder(order, emptyProjects);
-      // This will fail with current implementation, but shows what we want:
-      // expect(result).toEqual(["/a", "/b", "/c"]);
-      // For now, we accept the current behavior:
-      expect(result).toEqual([]);
+    it("normalizes correctly after projects load", () => {
+      // After projects load, normalization should work normally:
+      // 1. projectOrder is still ["/a", "/b", "/c"] from localStorage
+      // 2. Projects are now loaded with an additional project ["/d"]
+      // 3. Normalization should append the new project
+      const projectOrder = ["/a", "/b", "/c"];
+      const loadedProjects = createProjects(["/a", "/b", "/c", "/d"]);
+      
+      const result = normalizeOrder(projectOrder, loadedProjects);
+      
+      expect(result).toEqual(["/a", "/b", "/c", "/d"]);
     });
   });
 });
