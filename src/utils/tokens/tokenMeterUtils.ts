@@ -25,7 +25,7 @@ export interface TokenMeterData {
 
 interface SegmentDef {
   type: TokenSegment["type"];
-  key: keyof ChatUsageDisplay;
+  key: "input" | "cached" | "cacheCreate" | "output" | "reasoning";
   color: string;
   label: string;
 }

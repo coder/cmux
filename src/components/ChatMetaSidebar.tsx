@@ -1,7 +1,7 @@
 import React from "react";
 import styled from "@emotion/styled";
 import { usePersistedState } from "@/hooks/usePersistedState";
-import { useChatContext } from "@/contexts/ChatContext";
+import { useWorkspaceUsage } from "@/stores/WorkspaceStore";
 import { use1MContext } from "@/hooks/use1MContext";
 import { useResizeObserver } from "@/hooks/useResizeObserver";
 import { CostsTab } from "./ChatMetaSidebar/CostsTab";
@@ -87,13 +87,13 @@ interface ChatMetaSidebarProps {
   chatAreaRef: React.RefObject<HTMLDivElement>;
 }
 
-export const ChatMetaSidebar: React.FC<ChatMetaSidebarProps> = ({ workspaceId, chatAreaRef }) => {
+const ChatMetaSidebarComponent: React.FC<ChatMetaSidebarProps> = ({ workspaceId, chatAreaRef }) => {
   const [selectedTab, setSelectedTab] = usePersistedState<TabType>(
     `chat-meta-sidebar-tab:${workspaceId}`,
     "costs"
   );
 
-  const { stats } = useChatContext();
+  const usage = useWorkspaceUsage(workspaceId);
   const [use1M] = use1MContext();
   const chatAreaSize = useResizeObserver(chatAreaRef);
 
@@ -103,14 +103,16 @@ export const ChatMetaSidebar: React.FC<ChatMetaSidebarProps> = ({ workspaceId, c
   const costsPanelId = `${baseId}-panel-costs`;
   const toolsPanelId = `${baseId}-panel-tools`;
 
-  const lastUsage = stats?.usageHistory[stats.usageHistory.length - 1];
+  const lastUsage = usage?.usageHistory[usage.usageHistory.length - 1];
 
   // Memoize vertical meter data calculation to prevent unnecessary re-renders
   const verticalMeterData = React.useMemo(() => {
-    return lastUsage && stats
-      ? calculateTokenMeterData(lastUsage, stats.model, use1M, true)
+    // Get model from last usage
+    const model = lastUsage?.model ?? "unknown";
+    return lastUsage
+      ? calculateTokenMeterData(lastUsage, model, use1M, true)
       : { segments: [], totalTokens: 0, totalPercentage: 0 };
-  }, [lastUsage, stats, use1M]);
+  }, [lastUsage, use1M]);
 
   // Calculate if we should show collapsed view with hysteresis
   // Strategy: Observe ChatArea width directly (independent of sidebar width)
@@ -168,7 +170,7 @@ export const ChatMetaSidebar: React.FC<ChatMetaSidebarProps> = ({ workspaceId, c
         <TabContent>
           {selectedTab === "costs" && (
             <div role="tabpanel" id={costsPanelId} aria-labelledby={costsTabId}>
-              <CostsTab />
+              <CostsTab workspaceId={workspaceId} />
             </div>
           )}
           {selectedTab === "tools" && (
@@ -184,3 +186,7 @@ export const ChatMetaSidebar: React.FC<ChatMetaSidebarProps> = ({ workspaceId, c
     </SidebarContainer>
   );
 };
+
+// Memoize to prevent re-renders when parent (AIView) re-renders during streaming
+// Only re-renders when workspaceId or chatAreaRef changes, or internal state updates
+export const ChatMetaSidebar = React.memo(ChatMetaSidebarComponent);

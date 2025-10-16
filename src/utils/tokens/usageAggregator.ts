@@ -26,6 +26,9 @@ export interface ChatUsageDisplay {
   // totalOutput = output + reasoning
   output: ChatUsageComponent;
   reasoning: ChatUsageComponent;
+
+  // Optional model field for display purposes (context window calculation, etc.)
+  model?: string;
 }
 
 /**
@@ -48,7 +51,14 @@ export function sumUsageHistory(usageHistory: ChatUsageDisplay[]): ChatUsageDisp
 
   for (const usage of usageHistory) {
     // Iterate over each component and sum tokens and costs
-    for (const key of Object.keys(sum) as Array<keyof ChatUsageDisplay>) {
+    const componentKeys: Array<"input" | "cached" | "cacheCreate" | "output" | "reasoning"> = [
+      "input",
+      "cached",
+      "cacheCreate",
+      "output",
+      "reasoning",
+    ];
+    for (const key of componentKeys) {
       sum[key].tokens += usage[key].tokens;
       if (usage[key].cost_usd === undefined) {
         hasUndefinedCosts = true;

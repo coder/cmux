@@ -1,6 +1,6 @@
 /**
  * Shared token statistics calculation logic
- * Used by both frontend (ChatContext) and backend (debug commands)
+ * Used by both frontend (WorkspaceStore) and backend (debug commands)
  *
  * IMPORTANT: This utility is intentionally abstracted so that the debug command
  * (`bun debug costs`) has exact parity with the UI display in the Costs tab.
@@ -45,11 +45,14 @@ export function createDisplayUsage(
     (providerMetadata?.anthropic as { cacheCreationInputTokens?: number } | undefined)
       ?.cacheCreationInputTokens ?? 0;
 
+  // Extract reasoning tokens with fallback to provider metadata (OpenAI-specific)
+  const reasoningTokens =
+    usage.reasoningTokens ??
+    (providerMetadata?.openai as { reasoningTokens?: number } | undefined)?.reasoningTokens ??
+    0;
+
   // Calculate output tokens excluding reasoning
-  const outputWithoutReasoning = Math.max(
-    0,
-    (usage.outputTokens ?? 0) - (usage.reasoningTokens ?? 0)
-  );
+  const outputWithoutReasoning = Math.max(0, (usage.outputTokens ?? 0) - reasoningTokens);
 
   // Get model stats for cost calculation
   const modelStats = getModelStats(model);
@@ -66,7 +69,7 @@ export function createDisplayUsage(
     cachedCost = cachedTokens * (modelStats.cache_read_input_token_cost ?? 0);
     cacheCreateCost = cacheCreateTokens * (modelStats.cache_creation_input_token_cost ?? 0);
     outputCost = outputWithoutReasoning * modelStats.output_cost_per_token;
-    reasoningCost = (usage.reasoningTokens ?? 0) * modelStats.output_cost_per_token;
+    reasoningCost = reasoningTokens * modelStats.output_cost_per_token;
   }
 
   return {
@@ -87,9 +90,10 @@ export function createDisplayUsage(
       cost_usd: outputCost,
     },
     reasoning: {
-      tokens: usage.reasoningTokens ?? 0,
+      tokens: reasoningTokens,
       cost_usd: reasoningCost,
     },
+    model, // Include model for display purposes
   };
 }
 

@@ -1,7 +1,6 @@
 import React from "react";
 import styled from "@emotion/styled";
-import { useChatContext } from "@/contexts/ChatContext";
-import { TooltipWrapper, Tooltip, HelpIndicator } from "../Tooltip";
+import { useWorkspaceUsage, useWorkspaceConsumers } from "@/stores/WorkspaceStore";
 import { getModelStats } from "@/utils/tokens/modelStats";
 import { sumUsageHistory } from "@/utils/tokens/usageAggregator";
 import { usePersistedState } from "@/hooks/usePersistedState";
@@ -9,6 +8,7 @@ import { ToggleGroup, type ToggleOption } from "../ToggleGroup";
 import { use1MContext } from "@/hooks/use1MContext";
 import { supports1MContext } from "@/utils/ai/models";
 import { TOKEN_COMPONENT_COLORS } from "@/utils/tokens/tokenMeterUtils";
+import { ConsumerBreakdown } from "./ConsumerBreakdown";
 
 const Container = styled.div`
   color: #d4d4d4;
@@ -17,8 +17,9 @@ const Container = styled.div`
   line-height: 1.6;
 `;
 
-const Section = styled.div`
-  margin-bottom: 24px;
+const Section = styled.div<{ marginTop?: string; marginBottom?: string }>`
+  margin-bottom: ${(props) => props.marginBottom ?? "24px"};
+  margin-top: ${(props) => props.marginTop ?? "0"};
 `;
 
 const SectionTitle = styled.h3<{ dimmed?: boolean }>`
@@ -28,12 +29,6 @@ const SectionTitle = styled.h3<{ dimmed?: boolean }>`
   margin: 0 0 12px 0;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-`;
-
-const TokenizerInfo = styled.div`
-  color: #888888;
-  font-size: 12px;
-  margin-bottom: 8px;
 `;
 
 const ConsumerList = styled.div`
@@ -87,20 +82,6 @@ interface SegmentProps {
   percentage: number;
 }
 
-const FixedSegment = styled.div<SegmentProps>`
-  height: 100%;
-  width: ${(props) => props.percentage}%;
-  background: var(--color-token-fixed);
-  transition: width 0.3s ease;
-`;
-
-const VariableSegment = styled.div<SegmentProps>`
-  height: 100%;
-  width: ${(props) => props.percentage}%;
-  background: var(--color-token-variable);
-  transition: width 0.3s ease;
-`;
-
 const InputSegment = styled.div<SegmentProps>`
   height: 100%;
   width: ${(props) => props.percentage}%;
@@ -129,22 +110,6 @@ const CachedSegment = styled.div<SegmentProps>`
   transition: width 0.3s ease;
 `;
 
-interface PercentageFillProps {
-  percentage: number;
-}
-
-const PercentageFill = styled.div<PercentageFillProps>`
-  height: 100%;
-  width: ${(props) => props.percentage}%;
-  background: var(--color-token-completion);
-  transition: width 0.3s ease;
-`;
-
-const LoadingState = styled.div`
-  color: #888888;
-  font-style: italic;
-`;
-
 const EmptyState = styled.div`
   color: #888888;
   text-align: center;
@@ -156,14 +121,6 @@ const ModelWarning = styled.div`
   font-size: 11px;
   margin-top: 8px;
   font-style: italic;
-`;
-
-const TokenDetails = styled.div`
-  color: #888888;
-  font-size: 11px;
-  margin-top: 6px;
-  padding-left: 4px;
-  line-height: 1.4;
 `;
 
 const DetailsTable = styled.table`
@@ -222,13 +179,6 @@ const DimmedCost = styled.span`
   font-style: italic;
 `;
 
-const SectionHeader = styled.div`
-  display: flex;
-  justify-content: flex-start;
-  align-items: center;
-  margin-bottom: 12px;
-`;
-
 // Format token display - show k for thousands with 1 decimal
 const formatTokens = (tokens: number) =>
   tokens >= 1000 ? `${(tokens / 1000).toFixed(1)}k` : tokens.toLocaleString();
@@ -267,25 +217,27 @@ const calculateElevatedCost = (tokens: number, standardRate: number, isInput: bo
 type ViewMode = "last-request" | "session";
 
 const VIEW_MODE_OPTIONS: Array<ToggleOption<ViewMode>> = [
-  { value: "last-request", label: "Last Request" },
   { value: "session", label: "Session" },
+  { value: "last-request", label: "Last Request" },
 ];
 
-export const CostsTab: React.FC = () => {
-  const { stats, isCalculating } = useChatContext();
-  const [viewMode, setViewMode] = usePersistedState<ViewMode>("costsTab:viewMode", "last-request");
+interface CostsTabProps {
+  workspaceId: string;
+}
+
+const CostsTabComponent: React.FC<CostsTabProps> = ({ workspaceId }) => {
+  const usage = useWorkspaceUsage(workspaceId);
+  const consumers = useWorkspaceConsumers(workspaceId);
+  const [viewMode, setViewMode] = usePersistedState<ViewMode>("costsTab:viewMode", "session");
   const [use1M] = use1MContext();
 
-  // Only show loading if we don't have any stats yet
-  if (isCalculating && !stats) {
-    return (
-      <Container>
-        <LoadingState>Calculating token usage...</LoadingState>
-      </Container>
-    );
-  }
+  // Check if we have any data to display
+  const hasUsageData = usage && usage.usageHistory.length > 0;
+  const hasConsumerData = consumers && (consumers.totalTokens > 0 || consumers.isCalculating);
+  const hasAnyData = hasUsageData || hasConsumerData;
 
-  if (!stats || stats.totalTokens === 0) {
+  // Only show empty state if truly no data anywhere
+  if (!hasAnyData) {
     return (
       <Container>
         <EmptyState>
@@ -296,37 +248,46 @@ export const CostsTab: React.FC = () => {
     );
   }
 
-  // Compute displayUsage based on view mode
+  // Context Usage always shows Last Request data
+  const lastRequestUsage = hasUsageData
+    ? usage.usageHistory[usage.usageHistory.length - 1]
+    : undefined;
+
+  // Cost and Details table use viewMode
   const displayUsage =
     viewMode === "last-request"
-      ? stats.usageHistory[stats.usageHistory.length - 1]
-      : sumUsageHistory(stats.usageHistory);
+      ? usage.usageHistory[usage.usageHistory.length - 1]
+      : sumUsageHistory(usage.usageHistory);
 
   return (
     <Container>
-      {stats.usageHistory.length > 0 && (
-        <Section>
-          <SectionHeader>
-            <ToggleGroup options={VIEW_MODE_OPTIONS} value={viewMode} onChange={setViewMode} />
-          </SectionHeader>
-          <ConsumerList>
+      {hasUsageData && (
+        <Section data-testid="context-usage-section" marginTop="8px" marginBottom="20px">
+          <ConsumerList data-testid="context-usage-list">
             {(() => {
+              // Context Usage always uses last request
+              const contextUsage = lastRequestUsage;
+
+              // Get model from last request (for context window display)
+              const model = lastRequestUsage?.model ?? "unknown";
+
               // Get max tokens for the model from the model stats database
-              const modelStats = getModelStats(stats.model);
+              const modelStats = getModelStats(model);
               const baseMaxTokens = modelStats?.max_input_tokens;
               // Check if 1M context is active and supported
-              const is1MActive = use1M && supports1MContext(stats.model);
+              const is1MActive = use1M && supports1MContext(model);
               const maxTokens = is1MActive ? 1_000_000 : baseMaxTokens;
+
               // Total tokens includes cache creation (they're input tokens sent for caching)
-              const totalUsed = displayUsage
-                ? displayUsage.input.tokens +
-                  displayUsage.cached.tokens +
-                  displayUsage.cacheCreate.tokens +
-                  displayUsage.output.tokens +
-                  displayUsage.reasoning.tokens
+              const totalUsed = contextUsage
+                ? contextUsage.input.tokens +
+                  contextUsage.cached.tokens +
+                  contextUsage.cacheCreate.tokens +
+                  contextUsage.output.tokens +
+                  contextUsage.reasoning.tokens
                 : 0;
 
-              // Calculate percentages
+              // Calculate percentages based on max tokens (actual context window usage)
               let inputPercentage: number;
               let outputPercentage: number;
               let cachedPercentage: number;
@@ -335,34 +296,25 @@ export const CostsTab: React.FC = () => {
               let showWarning = false;
               let totalPercentage: number;
 
-              // For session mode, always show bar as full (100%) based on relative token distribution
-              if (viewMode === "session" && displayUsage && totalUsed > 0) {
-                // Scale to total tokens used (bar always full)
-                inputPercentage = (displayUsage.input.tokens / totalUsed) * 100;
-                outputPercentage = (displayUsage.output.tokens / totalUsed) * 100;
-                cachedPercentage = (displayUsage.cached.tokens / totalUsed) * 100;
-                cacheCreatePercentage = (displayUsage.cacheCreate.tokens / totalUsed) * 100;
-                reasoningPercentage = (displayUsage.reasoning.tokens / totalUsed) * 100;
-                totalPercentage = 100;
-              } else if (maxTokens && displayUsage) {
+              if (maxTokens && contextUsage) {
                 // We know the model's max tokens - show actual context window usage
-                inputPercentage = (displayUsage.input.tokens / maxTokens) * 100;
-                outputPercentage = (displayUsage.output.tokens / maxTokens) * 100;
-                cachedPercentage = (displayUsage.cached.tokens / maxTokens) * 100;
-                cacheCreatePercentage = (displayUsage.cacheCreate.tokens / maxTokens) * 100;
-                reasoningPercentage = (displayUsage.reasoning.tokens / maxTokens) * 100;
+                inputPercentage = (contextUsage.input.tokens / maxTokens) * 100;
+                outputPercentage = (contextUsage.output.tokens / maxTokens) * 100;
+                cachedPercentage = (contextUsage.cached.tokens / maxTokens) * 100;
+                cacheCreatePercentage = (contextUsage.cacheCreate.tokens / maxTokens) * 100;
+                reasoningPercentage = (contextUsage.reasoning.tokens / maxTokens) * 100;
                 totalPercentage = (totalUsed / maxTokens) * 100;
-              } else if (displayUsage) {
+              } else if (contextUsage) {
                 // Unknown model - scale to total tokens used
-                inputPercentage = totalUsed > 0 ? (displayUsage.input.tokens / totalUsed) * 100 : 0;
+                inputPercentage = totalUsed > 0 ? (contextUsage.input.tokens / totalUsed) * 100 : 0;
                 outputPercentage =
-                  totalUsed > 0 ? (displayUsage.output.tokens / totalUsed) * 100 : 0;
+                  totalUsed > 0 ? (contextUsage.output.tokens / totalUsed) * 100 : 0;
                 cachedPercentage =
-                  totalUsed > 0 ? (displayUsage.cached.tokens / totalUsed) * 100 : 0;
+                  totalUsed > 0 ? (contextUsage.cached.tokens / totalUsed) * 100 : 0;
                 cacheCreatePercentage =
-                  totalUsed > 0 ? (displayUsage.cacheCreate.tokens / totalUsed) * 100 : 0;
+                  totalUsed > 0 ? (contextUsage.cacheCreate.tokens / totalUsed) * 100 : 0;
                 reasoningPercentage =
-                  totalUsed > 0 ? (displayUsage.reasoning.tokens / totalUsed) * 100 : 0;
+                  totalUsed > 0 ? (contextUsage.reasoning.tokens / totalUsed) * 100 : 0;
                 totalPercentage = 100;
                 showWarning = true;
               } else {
@@ -375,10 +327,52 @@ export const CostsTab: React.FC = () => {
               }
 
               const totalDisplay = formatTokens(totalUsed);
-              // For session mode, don't show max tokens or percentage
-              const maxDisplay =
-                viewMode === "session" ? "" : maxTokens ? ` / ${formatTokens(maxTokens)}` : "";
-              const showPercentage = viewMode !== "session";
+              const maxDisplay = maxTokens ? ` / ${formatTokens(maxTokens)}` : "";
+
+              return (
+                <>
+                  <ConsumerRow data-testid="context-usage">
+                    <ConsumerHeader>
+                      <ConsumerName>Context Usage</ConsumerName>
+                      <ConsumerTokens>
+                        {totalDisplay}
+                        {maxDisplay}
+                        {` (${totalPercentage.toFixed(1)}%)`}
+                      </ConsumerTokens>
+                    </ConsumerHeader>
+                    <PercentageBarWrapper>
+                      <PercentageBar>
+                        {cachedPercentage > 0 && <CachedSegment percentage={cachedPercentage} />}
+                        {cacheCreatePercentage > 0 && (
+                          <CachedSegment percentage={cacheCreatePercentage} />
+                        )}
+                        <InputSegment percentage={inputPercentage} />
+                        <OutputSegment percentage={outputPercentage} />
+                        {reasoningPercentage > 0 && (
+                          <ThinkingSegment percentage={reasoningPercentage} />
+                        )}
+                      </PercentageBar>
+                    </PercentageBarWrapper>
+                  </ConsumerRow>
+                  {showWarning && (
+                    <ModelWarning>Unknown model limits - showing relative usage only</ModelWarning>
+                  )}
+                </>
+              );
+            })()}
+          </ConsumerList>
+        </Section>
+      )}
+
+      {hasUsageData && (
+        <Section data-testid="cost-section">
+          <ConsumerList>
+            {(() => {
+              // Cost and Details use viewMode-dependent data
+              // Get model from the displayUsage (which could be last request or session sum)
+              const model = displayUsage?.model ?? lastRequestUsage?.model ?? "unknown";
+              const modelStats = getModelStats(model);
+              const is1MActive = use1M && supports1MContext(model);
 
               // Helper to calculate cost percentage
               const getCostPercentage = (cost: number | undefined, total: number | undefined) =>
@@ -481,33 +475,17 @@ export const CostsTab: React.FC = () => {
 
               return (
                 <>
-                  <ConsumerRow>
-                    <ConsumerHeader>
-                      <ConsumerName>Token Usage</ConsumerName>
-                      <ConsumerTokens>
-                        {totalDisplay}
-                        {maxDisplay}
-                        {showPercentage && ` (${totalPercentage.toFixed(1)}%)`}
-                      </ConsumerTokens>
-                    </ConsumerHeader>
-                    <PercentageBarWrapper>
-                      <PercentageBar>
-                        {cachedPercentage > 0 && <CachedSegment percentage={cachedPercentage} />}
-                        {cacheCreatePercentage > 0 && (
-                          <CachedSegment percentage={cacheCreatePercentage} />
-                        )}
-                        <InputSegment percentage={inputPercentage} />
-                        <OutputSegment percentage={outputPercentage} />
-                        {reasoningPercentage > 0 && (
-                          <ThinkingSegment percentage={reasoningPercentage} />
-                        )}
-                      </PercentageBar>
-                    </PercentageBarWrapper>
-                  </ConsumerRow>
                   {totalCost !== undefined && totalCost >= 0 && (
-                    <ConsumerRow>
-                      <ConsumerHeader>
-                        <ConsumerName>Cost</ConsumerName>
+                    <ConsumerRow data-testid="cost-bar">
+                      <ConsumerHeader data-testid="cost-header" style={{ marginBottom: "8px" }}>
+                        <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+                          <ConsumerName>Cost</ConsumerName>
+                          <ToggleGroup
+                            options={VIEW_MODE_OPTIONS}
+                            value={viewMode}
+                            onChange={setViewMode}
+                          />
+                        </div>
                         <ConsumerTokens>{formatCostWithDollar(totalCost)}</ConsumerTokens>
                       </ConsumerHeader>
                       <PercentageBarWrapper>
@@ -527,7 +505,7 @@ export const CostsTab: React.FC = () => {
                       </PercentageBarWrapper>
                     </ConsumerRow>
                   )}
-                  <DetailsTable>
+                  <DetailsTable data-testid="cost-details">
                     <thead>
                       <DetailsHeaderRow>
                         <DetailsHeader>Component</DetailsHeader>
@@ -559,9 +537,6 @@ export const CostsTab: React.FC = () => {
                       })}
                     </tbody>
                   </DetailsTable>
-                  {showWarning && (
-                    <ModelWarning>Unknown model limits - showing relative usage only</ModelWarning>
-                  )}
                 </>
               );
             })()}
@@ -571,63 +546,12 @@ export const CostsTab: React.FC = () => {
 
       <Section>
         <SectionTitle dimmed>Breakdown by Consumer</SectionTitle>
-        <TokenizerInfo>
-          Tokenizer: <span>{stats.tokenizerName}</span>
-        </TokenizerInfo>
-        <ConsumerList>
-          {stats.consumers.map((consumer) => {
-            // Calculate percentages for fixed and variable segments
-            const fixedPercentage = consumer.fixedTokens
-              ? (consumer.fixedTokens / stats.totalTokens) * 100
-              : 0;
-            const variablePercentage = consumer.variableTokens
-              ? (consumer.variableTokens / stats.totalTokens) * 100
-              : 0;
-
-            const tokenDisplay = formatTokens(consumer.tokens);
-
-            return (
-              <ConsumerRow key={consumer.name}>
-                <ConsumerHeader>
-                  <ConsumerName>
-                    {consumer.name}
-                    {consumer.name === "web_search" && (
-                      <TooltipWrapper inline>
-                        <HelpIndicator>?</HelpIndicator>
-                        <Tooltip className="tooltip" align="center" width="wide">
-                          Web search results are encrypted and decrypted server-side. This estimate
-                          is approximate.
-                        </Tooltip>
-                      </TooltipWrapper>
-                    )}
-                  </ConsumerName>
-                  <ConsumerTokens>
-                    {tokenDisplay} ({consumer.percentage.toFixed(1)}%)
-                  </ConsumerTokens>
-                </ConsumerHeader>
-                <PercentageBarWrapper>
-                  <PercentageBar>
-                    {consumer.fixedTokens && consumer.variableTokens ? (
-                      <>
-                        <FixedSegment percentage={fixedPercentage} />
-                        <VariableSegment percentage={variablePercentage} />
-                      </>
-                    ) : (
-                      <PercentageFill percentage={consumer.percentage} />
-                    )}
-                  </PercentageBar>
-                  {consumer.fixedTokens && consumer.variableTokens && (
-                    <TokenDetails>
-                      Tool definition: {formatTokens(consumer.fixedTokens)} • Usage:{" "}
-                      {formatTokens(consumer.variableTokens)}
-                    </TokenDetails>
-                  )}
-                </PercentageBarWrapper>
-              </ConsumerRow>
-            );
-          })}
-        </ConsumerList>
+        <ConsumerBreakdown consumers={consumers} />
       </Section>
     </Container>
   );
 };
+
+// Memoize to prevent re-renders when parent (AIView) re-renders during streaming
+// Only re-renders when workspaceId changes or internal hook data (usage/consumers) updates
+export const CostsTab = React.memo(CostsTabComponent);

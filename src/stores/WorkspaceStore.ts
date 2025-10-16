@@ -23,6 +23,11 @@ import {
   isReasoningEnd,
 } from "@/types/ipc";
 import { MapStore } from "./MapStore";
+import { createDisplayUsage } from "@/utils/tokens/tokenStatsCalculator";
+import { WorkspaceConsumerManager } from "./WorkspaceConsumerManager";
+import type { ChatUsageDisplay } from "@/utils/tokens/usageAggregator";
+import type { TokenConsumer } from "@/types/chatStats";
+import type { LanguageModelV2Usage } from "@ai-sdk/provider";
 
 export interface WorkspaceState {
   messages: DisplayedMessage[];
@@ -62,6 +67,26 @@ function extractSidebarState(aggregator: StreamingMessageAggregator): WorkspaceS
 type DerivedState = Record<string, number>;
 
 /**
+ * Usage metadata extracted from API responses (no tokenization).
+ * Updates instantly when usage metadata arrives.
+ */
+export interface WorkspaceUsageState {
+  usageHistory: ChatUsageDisplay[];
+  totalTokens: number;
+}
+
+/**
+ * Consumer breakdown requiring tokenization (lazy calculation).
+ * Updates after async Web Worker calculation completes.
+ */
+export interface WorkspaceConsumersState {
+  consumers: TokenConsumer[];
+  tokenizerName: string;
+  totalTokens: number; // Total from tokenization (may differ from usage totalTokens)
+  isCalculating: boolean;
+}
+
+/**
  * External store for workspace aggregators and streaming state.
  *
  * This store lives outside React's lifecycle and manages all workspace
@@ -75,6 +100,15 @@ export class WorkspaceStore {
 
   // Derived aggregate state (computed from multiple workspaces)
   private derived = new MapStore<string, DerivedState>();
+
+  // Usage and consumer stores (two-store approach for CostsTab optimization)
+  private usageStore = new MapStore<string, WorkspaceUsageState>();
+  private consumersStore = new MapStore<string, WorkspaceConsumersState>();
+
+  // Manager for consumer calculations (debouncing, caching, lazy loading)
+  // Architecture: WorkspaceStore orchestrates (decides when), manager executes (performs calculations)
+  // Dual-cache: consumersStore (MapStore) handles subscriptions, manager owns data cache
+  private readonly consumerManager: WorkspaceConsumerManager;
 
   // Supporting data structures
   private aggregators = new Map<string, StreamingMessageAggregator>();
@@ -94,6 +128,11 @@ export class WorkspaceStore {
 
   constructor(onModelUsed?: (model: string) => void) {
     this.onModelUsed = onModelUsed;
+
+    // Initialize consumer calculation manager
+    this.consumerManager = new WorkspaceConsumerManager((workspaceId) => {
+      this.consumersStore.bump(workspaceId);
+    });
 
     // Note: We DON'T auto-check recency on every state bump.
     // Instead, checkAndBumpRecencyIfChanged() is called explicitly after
@@ -263,6 +302,105 @@ export class WorkspaceStore {
   }
 
   /**
+   * Extract usage from messages (no tokenization).
+   * Each usage entry calculated with its own model for accurate costs.
+   */
+  getWorkspaceUsage(workspaceId: string): WorkspaceUsageState {
+    return this.usageStore.get(workspaceId, () => {
+      const aggregator = this.getOrCreateAggregator(workspaceId);
+      const messages = aggregator.getAllMessages();
+
+      // Extract usage from assistant messages
+      const usageHistory: ChatUsageDisplay[] = [];
+
+      for (const msg of messages) {
+        if (msg.role === "assistant" && msg.metadata?.usage) {
+          // Use the model from this specific message (not global)
+          const model = msg.metadata.model ?? aggregator.getCurrentModel() ?? "unknown";
+
+          const usage = createDisplayUsage(
+            msg.metadata.usage,
+            model,
+            msg.metadata.providerMetadata
+          );
+
+          if (usage) {
+            usageHistory.push(usage);
+          }
+        }
+      }
+
+      // Calculate total from usage history
+      const totalTokens = usageHistory.reduce(
+        (sum, u) =>
+          sum +
+          u.input.tokens +
+          u.cached.tokens +
+          u.cacheCreate.tokens +
+          u.output.tokens +
+          u.reasoning.tokens,
+        0
+      );
+
+      return { usageHistory, totalTokens };
+    });
+  }
+
+  /**
+   * Get consumer breakdown (may be calculating).
+   * Triggers lazy calculation if workspace is caught-up but no data exists.
+   *
+   * Architecture: Lazy trigger runs on EVERY access (outside MapStore.get())
+   * so workspace switches trigger calculation even if MapStore has cached result.
+   */
+  getWorkspaceConsumers(workspaceId: string): WorkspaceConsumersState {
+    const aggregator = this.aggregators.get(workspaceId);
+    const isCaughtUp = this.caughtUp.get(workspaceId) ?? false;
+
+    // Lazy trigger check (runs on EVERY access, not just when MapStore recomputes)
+    const cached = this.consumerManager.getCachedState(workspaceId);
+    const isPending = this.consumerManager.isPending(workspaceId);
+
+    if (!cached && !isPending && isCaughtUp) {
+      if (aggregator && aggregator.getAllMessages().length > 0) {
+        this.consumerManager.scheduleCalculation(workspaceId, aggregator);
+      }
+    }
+
+    // Return state (MapStore handles subscriptions, delegates to manager for actual state)
+    return this.consumersStore.get(workspaceId, () => {
+      return this.consumerManager.getStateSync(workspaceId);
+    });
+  }
+
+  /**
+   * Subscribe to usage store changes for a specific workspace.
+   */
+  subscribeUsage(workspaceId: string, listener: () => void): () => void {
+    return this.usageStore.subscribeKey(workspaceId, listener);
+  }
+
+  /**
+   * Subscribe to consumer store changes for a specific workspace.
+   */
+  subscribeConsumers(workspaceId: string, listener: () => void): () => void {
+    return this.consumersStore.subscribeKey(workspaceId, listener);
+  }
+
+  /**
+   * Helper to bump usage store if metadata contains usage.
+   * Simplifies event handling logic and provides forward compatibility.
+   */
+  private bumpUsageIfPresent(
+    workspaceId: string,
+    metadata?: { usage?: LanguageModelV2Usage; model?: string }
+  ): void {
+    if (metadata?.usage) {
+      this.usageStore.bump(workspaceId);
+    }
+  }
+
+  /**
    * Add a workspace and subscribe to its IPC events.
    */
   addWorkspace(metadata: FrontendWorkspaceMetadata): void {
@@ -301,6 +439,9 @@ export class WorkspaceStore {
    * Remove a workspace and clean up subscriptions.
    */
   removeWorkspace(workspaceId: string): void {
+    // Clean up consumer manager state
+    this.consumerManager.removeWorkspace(workspaceId);
+
     // Unsubscribe from IPC
     const unsubscribe = this.ipcUnsubscribers.get(workspaceId);
     if (unsubscribe) {
@@ -310,6 +451,8 @@ export class WorkspaceStore {
 
     // Clean up state
     this.states.delete(workspaceId);
+    this.usageStore.delete(workspaceId);
+    this.consumersStore.delete(workspaceId);
     this.aggregators.delete(workspaceId);
     this.caughtUp.delete(workspaceId);
     this.historicalMessages.delete(workspaceId);
@@ -345,12 +488,17 @@ export class WorkspaceStore {
    * Cleanup all subscriptions (call on unmount).
    */
   dispose(): void {
+    // Clean up consumer manager
+    this.consumerManager.dispose();
+
     for (const unsubscribe of this.ipcUnsubscribers.values()) {
       unsubscribe();
     }
     this.ipcUnsubscribers.clear();
     this.states.clear();
     this.derived.clear();
+    this.usageStore.clear();
+    this.consumersStore.clear();
     this.aggregators.clear();
     this.caughtUp.clear();
     this.historicalMessages.clear();
@@ -403,6 +551,13 @@ export class WorkspaceStore {
       this.caughtUp.set(workspaceId, true);
       this.states.bump(workspaceId);
       this.checkAndBumpRecencyIfChanged(); // Messages loaded, update recency
+
+      // Bump usage after loading history
+      this.usageStore.bump(workspaceId);
+
+      // Queue consumer calculation in background
+      this.consumerManager.scheduleCalculation(workspaceId, aggregator);
+
       return;
     }
 
@@ -423,6 +578,9 @@ export class WorkspaceStore {
     aggregator: StreamingMessageAggregator,
     data: WorkspaceChatMessage
   ): void {
+    // Bump usage if metadata present (forward compatible - works for any event type)
+    this.bumpUsageIfPresent(workspaceId, "metadata" in data ? data.metadata : undefined);
+
     if (isStreamError(data)) {
       aggregator.handleStreamError(data);
       this.states.bump(workspaceId);
@@ -524,6 +682,10 @@ export class WorkspaceStore {
 
       this.states.bump(workspaceId);
       this.checkAndBumpRecencyIfChanged(); // Stream ended, update recency
+
+      // Queue consumer calculation in background
+      this.consumerManager.scheduleCalculation(workspaceId, aggregator);
+
       return;
     }
 
@@ -536,6 +698,14 @@ export class WorkspaceStore {
           detail: { workspaceId },
         })
       );
+
+      this.bumpUsageIfPresent(workspaceId, data.metadata);
+
+      // Recalculate consumers if usage updated (abort may have usage if stream completed)
+      if (data.metadata?.usage) {
+        this.consumerManager.scheduleCalculation(workspaceId, aggregator);
+      }
+
       return;
     }
 
@@ -554,6 +724,11 @@ export class WorkspaceStore {
     if (isToolCallEnd(data)) {
       aggregator.handleToolCallEnd(data);
       this.states.bump(workspaceId);
+
+      // Bump consumers on tool-end for real-time updates during streaming
+      // Tools complete before stream-end, so we want breakdown to update immediately
+      this.consumerManager.scheduleCalculation(workspaceId, aggregator);
+
       return;
     }
 
@@ -656,4 +831,28 @@ export function useWorkspaceSidebarState(workspaceId: string): WorkspaceSidebarS
 export function useWorkspaceAggregator(workspaceId: string) {
   const store = useWorkspaceStoreRaw();
   return store.getAggregator(workspaceId);
+}
+
+/**
+ * Hook for usage metadata (instant, no tokenization).
+ * Updates immediately when usage metadata arrives from API responses.
+ */
+export function useWorkspaceUsage(workspaceId: string): WorkspaceUsageState {
+  const store = getStoreInstance();
+  return useSyncExternalStore(
+    (listener) => store.subscribeUsage(workspaceId, listener),
+    () => store.getWorkspaceUsage(workspaceId)
+  );
+}
+
+/**
+ * Hook for consumer breakdown (lazy, with tokenization).
+ * Updates after async Web Worker calculation completes.
+ */
+export function useWorkspaceConsumers(workspaceId: string): WorkspaceConsumersState {
+  const store = getStoreInstance();
+  return useSyncExternalStore(
+    (listener) => store.subscribeConsumers(workspaceId, listener),
+    () => store.getWorkspaceConsumers(workspaceId)
+  );
 }
