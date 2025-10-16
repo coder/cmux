@@ -284,17 +284,13 @@ export const CostsTab: React.FC<CostsTabProps> = ({ workspaceId }) => {
   const [viewMode, setViewMode] = usePersistedState<ViewMode>("costsTab:viewMode", "session");
   const [use1M] = use1MContext();
 
-  // Show loading while consumers are being calculated
-  if (consumers.isCalculating && consumers.totalTokens === 0) {
-    return (
-      <Container>
-        <LoadingState>Loading token statistics...</LoadingState>
-      </Container>
-    );
-  }
+  // Check if we have any data to display
+  const hasUsageData = usage && usage.usageHistory.length > 0;
+  const hasConsumerData = consumers && (consumers.totalTokens > 0 || consumers.isCalculating);
+  const hasAnyData = hasUsageData || hasConsumerData;
 
-  // Show empty state only if calculation complete and no messages found
-  if (!consumers || consumers.totalTokens === 0) {
+  // Only show empty state if truly no data anywhere
+  if (!hasAnyData) {
     return (
       <Container>
         <EmptyState>
@@ -305,11 +301,8 @@ export const CostsTab: React.FC<CostsTabProps> = ({ workspaceId }) => {
     );
   }
 
-  // Check if we have usage metadata (for cost calculations)
-  const hasUsageData = usage && usage.usageHistory.length > 0;
-
   // Context Usage always shows Last Request data
-  const lastRequestUsage = usage.usageHistory[usage.usageHistory.length - 1];
+  const lastRequestUsage = hasUsageData ? usage.usageHistory[usage.usageHistory.length - 1] : undefined;
 
   // Cost and Details table use viewMode
   const displayUsage =
