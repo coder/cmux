@@ -10,6 +10,7 @@ describe("compact command parser", () => {
       type: "compact",
       maxOutputTokens: undefined,
       continueMessage: undefined,
+      model: undefined,
     });
   });
 
@@ -19,6 +20,7 @@ describe("compact command parser", () => {
       type: "compact",
       maxOutputTokens: 5000,
       continueMessage: undefined,
+      model: undefined,
     });
   });
 
@@ -28,6 +30,7 @@ describe("compact command parser", () => {
       type: "compact",
       maxOutputTokens: undefined,
       continueMessage: "Continue where we left off",
+      model: undefined,
     });
   });
 
@@ -37,6 +40,7 @@ describe("compact command parser", () => {
       type: "compact",
       maxOutputTokens: 3000,
       continueMessage: "Keep going",
+      model: undefined,
     });
   });
 
@@ -46,6 +50,7 @@ describe("compact command parser", () => {
       type: "compact",
       maxOutputTokens: 3000,
       continueMessage: "Keep going",
+      model: undefined,
     });
   });
 
@@ -55,6 +60,7 @@ describe("compact command parser", () => {
       type: "compact",
       maxOutputTokens: undefined,
       continueMessage: undefined,
+      model: undefined,
     });
   });
 
@@ -64,6 +70,7 @@ describe("compact command parser", () => {
       type: "compact",
       maxOutputTokens: undefined,
       continueMessage: "Keep",
+      model: undefined,
     });
   });
 
@@ -113,6 +120,76 @@ describe("compact command parser", () => {
       subcommand: "-t requires a positive number, got 0",
     });
   });
+
+  it("parses -m flag with model abbreviation", () => {
+    const result = parseCommand("/compact -m sonnet");
+    expect(result).toEqual({
+      type: "compact",
+      maxOutputTokens: undefined,
+      continueMessage: undefined,
+      model: "anthropic:claude-sonnet-4-5",
+    });
+  });
+
+  it("parses -m flag with full model string", () => {
+    const result = parseCommand("/compact -m anthropic:claude-opus-4-1");
+    expect(result).toEqual({
+      type: "compact",
+      maxOutputTokens: undefined,
+      continueMessage: undefined,
+      model: "anthropic:claude-opus-4-1",
+    });
+  });
+
+  it("parses -m flag with other flags", () => {
+    const result = parseCommand('/compact -t 5000 -m haiku -c "Keep going"');
+    expect(result).toEqual({
+      type: "compact",
+      maxOutputTokens: 5000,
+      continueMessage: "Keep going",
+      model: "anthropic:claude-haiku-4-5",
+    });
+  });
+
+  it("parses -m flag in any position", () => {
+    const result = parseCommand('/compact -m opus -t 3000 -c "Continue"');
+    expect(result).toEqual({
+      type: "compact",
+      maxOutputTokens: 3000,
+      continueMessage: "Continue",
+      model: "anthropic:claude-opus-4-1",
+    });
+  });
+
+  it("handles -m without model (undefined)", () => {
+    const result = parseCommand("/compact -m");
+    expect(result).toEqual({
+      type: "compact",
+      maxOutputTokens: undefined,
+      continueMessage: undefined,
+      model: undefined,
+    });
+  });
+
+  it("resolves model abbreviations case-sensitively", () => {
+    const result = parseCommand("/compact -m codex");
+    expect(result).toEqual({
+      type: "compact",
+      maxOutputTokens: undefined,
+      continueMessage: undefined,
+      model: "openai:gpt-5-codex",
+    });
+  });
+
+  it("treats unknown abbreviations as full model strings", () => {
+    const result = parseCommand("/compact -m custom:model");
+    expect(result).toEqual({
+      type: "compact",
+      maxOutputTokens: undefined,
+      continueMessage: undefined,
+      model: "custom:model",
+    });
+  });
 });
 
 it("rejects extra positional arguments", () => {
@@ -140,6 +217,7 @@ describe("multiline continue messages", () => {
       type: "compact",
       maxOutputTokens: undefined,
       continueMessage: "Continue implementing the auth system",
+      model: undefined,
     });
   });
 
@@ -149,6 +227,7 @@ describe("multiline continue messages", () => {
       type: "compact",
       maxOutputTokens: 5000,
       continueMessage: "Keep working on the feature",
+      model: undefined,
     });
   });
 
@@ -158,6 +237,7 @@ describe("multiline continue messages", () => {
       type: "compact",
       maxOutputTokens: undefined,
       continueMessage: "Line 1\nLine 2\nLine 3",
+      model: undefined,
     });
   });
 
@@ -167,6 +247,7 @@ describe("multiline continue messages", () => {
       type: "compact",
       maxOutputTokens: undefined,
       continueMessage: "Continue after empty line",
+      model: undefined,
     });
   });
 
@@ -176,6 +257,7 @@ describe("multiline continue messages", () => {
       type: "compact",
       maxOutputTokens: undefined,
       continueMessage: "Indented message\n    More indented",
+      model: undefined,
     });
   });
 
@@ -185,6 +267,7 @@ describe("multiline continue messages", () => {
       type: "compact",
       maxOutputTokens: undefined,
       continueMessage: "Flag message",
+      model: undefined,
     });
   });
 
@@ -194,6 +277,7 @@ describe("multiline continue messages", () => {
       type: "compact",
       maxOutputTokens: 3000,
       continueMessage: "Keep going",
+      model: undefined,
     });
   });
 
@@ -203,6 +287,7 @@ describe("multiline continue messages", () => {
       type: "compact",
       maxOutputTokens: undefined,
       continueMessage: "Continue here",
+      model: undefined,
     });
   });
 
@@ -212,6 +297,7 @@ describe("multiline continue messages", () => {
       type: "compact",
       maxOutputTokens: undefined,
       continueMessage: undefined,
+      model: undefined,
     });
   });
 
@@ -222,6 +308,7 @@ describe("multiline continue messages", () => {
       type: "compact",
       maxOutputTokens: undefined,
       continueMessage: "-t should be treated as message content",
+      model: undefined,
     });
   });
 
@@ -231,6 +318,27 @@ describe("multiline continue messages", () => {
       type: "compact",
       maxOutputTokens: 5000,
       continueMessage: "-c this is not a flag",
+      model: undefined,
+    });
+  });
+
+  it("parses -m flag with multiline continue message", () => {
+    const result = parseCommand("/compact -m haiku\nContinue with the implementation");
+    expect(result).toEqual({
+      type: "compact",
+      maxOutputTokens: undefined,
+      continueMessage: "Continue with the implementation",
+      model: "anthropic:claude-haiku-4-5",
+    });
+  });
+
+  it("parses all flags with multiline continue message", () => {
+    const result = parseCommand('/compact -t 5000 -m sonnet\nFinish the refactoring');
+    expect(result).toEqual({
+      type: "compact",
+      maxOutputTokens: 5000,
+      continueMessage: "Finish the refactoring",
+      model: "anthropic:claude-sonnet-4-5",
     });
   });
 });

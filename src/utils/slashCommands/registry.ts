@@ -172,7 +172,7 @@ const truncateCommandDefinition: SlashCommandDefinition = {
 const compactCommandDefinition: SlashCommandDefinition = {
   key: "compact",
   description:
-    "Compact conversation history using AI summarization. Use -t <tokens> to set max output tokens. Add continue message on lines after the command.",
+    "Compact conversation history using AI summarization. Use -t <tokens> to set max output tokens, -m <model> to set compaction model. Add continue message on lines after the command.",
   handler: ({ rawInput }): ParsedCommand => {
     // Split rawInput into first line (for flags) and remaining lines (for multiline continue)
     // rawInput format: "-t 5000\nContinue here" or "\nContinue here" (starts with newline if no flags)
@@ -189,7 +189,7 @@ const compactCommandDefinition: SlashCommandDefinition = {
 
     // Parse flags from first line using minimist
     const parsed = minimist(firstLineTokens, {
-      string: ["t", "c"],
+      string: ["t", "c", "m"],
       unknown: (arg: string) => {
         // Unknown flags starting with - are errors
         if (arg.startsWith("-")) {
@@ -201,7 +201,7 @@ const compactCommandDefinition: SlashCommandDefinition = {
 
     // Check for unknown flags (only from first line)
     const unknownFlags = firstLineTokens.filter(
-      (token) => token.startsWith("-") && token !== "-t" && token !== "-c"
+      (token) => token.startsWith("-") && token !== "-t" && token !== "-c" && token !== "-m"
     );
     if (unknownFlags.length > 0) {
       return {
@@ -223,6 +223,14 @@ const compactCommandDefinition: SlashCommandDefinition = {
         };
       }
       maxOutputTokens = tokens;
+    }
+
+    // Handle -m (model) flag: resolve abbreviation if present, otherwise use as-is
+    let model: string | undefined;
+    if (parsed.m !== undefined && typeof parsed.m === "string" && parsed.m.trim().length > 0) {
+      const modelInput = parsed.m.trim();
+      // Check if it's an abbreviation
+      model = MODEL_ABBREVIATIONS[modelInput] ?? modelInput;
     }
 
     // Reject extra positional arguments UNLESS they're from multiline content
@@ -248,7 +256,7 @@ const compactCommandDefinition: SlashCommandDefinition = {
       continueMessage = remainingLines;
     }
 
-    return { type: "compact", maxOutputTokens, continueMessage };
+    return { type: "compact", maxOutputTokens, continueMessage, model };
   },
 };
 

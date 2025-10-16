@@ -313,8 +313,11 @@ function prepareCompactionMessage(
     },
   };
 
-  const isAnthropic = sendMessageOptions.model.startsWith("anthropic:");
+  // Use custom model if specified, otherwise use default from sendMessageOptions
+  const compactionModel = parsed.model ?? sendMessageOptions.model;
+  const isAnthropic = compactionModel.startsWith("anthropic:");
   const options: Partial<SendMessageOptions> = {
+    model: compactionModel,
     thinkingLevel: isAnthropic ? "off" : sendMessageOptions.thinkingLevel,
     toolPolicy: [{ regex_match: "compact_summary", action: "require" }],
     maxOutputTokens: parsed.maxOutputTokens,
