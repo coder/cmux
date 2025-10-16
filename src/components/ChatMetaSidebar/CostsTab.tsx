@@ -17,8 +17,9 @@ const Container = styled.div`
   line-height: 1.6;
 `;
 
-const Section = styled.div`
-  margin-bottom: 24px;
+const Section = styled.div<{ marginTop?: string; marginBottom?: string }>`
+  margin-bottom: ${(props) => props.marginBottom ?? "24px"};
+  margin-top: ${(props) => props.marginTop ?? "0"};
 `;
 
 const SectionTitle = styled.h3<{ dimmed?: boolean }>`
@@ -158,6 +159,8 @@ const ModelWarning = styled.div`
   font-style: italic;
 `;
 
+
+
 const TokenDetails = styled.div`
   color: #888888;
   font-size: 11px;
@@ -267,13 +270,13 @@ const calculateElevatedCost = (tokens: number, standardRate: number, isInput: bo
 type ViewMode = "last-request" | "session";
 
 const VIEW_MODE_OPTIONS: Array<ToggleOption<ViewMode>> = [
-  { value: "last-request", label: "Last Request" },
   { value: "session", label: "Session" },
+  { value: "last-request", label: "Last Request" },
 ];
 
 export const CostsTab: React.FC = () => {
   const { stats, isCalculating } = useChatContext();
-  const [viewMode, setViewMode] = usePersistedState<ViewMode>("costsTab:viewMode", "last-request");
+  const [viewMode, setViewMode] = usePersistedState<ViewMode>("costsTab:viewMode", "session");
   const [use1M] = use1MContext();
 
   // Only show loading if we don't have any stats yet
@@ -296,7 +299,10 @@ export const CostsTab: React.FC = () => {
     );
   }
 
-  // Compute displayUsage based on view mode
+  // Context Usage always shows Last Request data
+  const lastRequestUsage = stats.usageHistory[stats.usageHistory.length - 1];
+
+  // Cost and Details table use viewMode
   const displayUsage =
     viewMode === "last-request"
       ? stats.usageHistory[stats.usageHistory.length - 1]
@@ -305,28 +311,29 @@ export const CostsTab: React.FC = () => {
   return (
     <Container>
       {stats.usageHistory.length > 0 && (
-        <Section>
-          <SectionHeader>
-            <ToggleGroup options={VIEW_MODE_OPTIONS} value={viewMode} onChange={setViewMode} />
-          </SectionHeader>
-          <ConsumerList>
+        <Section data-testid="context-usage-section" marginTop="8px" marginBottom="20px">
+          <ConsumerList data-testid="context-usage-list">
             {(() => {
+              // Context Usage always uses last request
+              const contextUsage = lastRequestUsage;
+              
               // Get max tokens for the model from the model stats database
               const modelStats = getModelStats(stats.model);
               const baseMaxTokens = modelStats?.max_input_tokens;
               // Check if 1M context is active and supported
               const is1MActive = use1M && supports1MContext(stats.model);
               const maxTokens = is1MActive ? 1_000_000 : baseMaxTokens;
+              
               // Total tokens includes cache creation (they're input tokens sent for caching)
-              const totalUsed = displayUsage
-                ? displayUsage.input.tokens +
-                  displayUsage.cached.tokens +
-                  displayUsage.cacheCreate.tokens +
-                  displayUsage.output.tokens +
-                  displayUsage.reasoning.tokens
+              const totalUsed = contextUsage
+                ? contextUsage.input.tokens +
+                  contextUsage.cached.tokens +
+                  contextUsage.cacheCreate.tokens +
+                  contextUsage.output.tokens +
+                  contextUsage.reasoning.tokens
                 : 0;
 
-              // Calculate percentages
+              // Calculate percentages based on max tokens (actual context window usage)
               let inputPercentage: number;
               let outputPercentage: number;
               let cachedPercentage: number;
@@ -335,34 +342,21 @@ export const CostsTab: React.FC = () => {
               let showWarning = false;
               let totalPercentage: number;
 
-              // For session mode, always show bar as full (100%) based on relative token distribution
-              if (viewMode === "session" && displayUsage && totalUsed > 0) {
-                // Scale to total tokens used (bar always full)
-                inputPercentage = (displayUsage.input.tokens / totalUsed) * 100;
-                outputPercentage = (displayUsage.output.tokens / totalUsed) * 100;
-                cachedPercentage = (displayUsage.cached.tokens / totalUsed) * 100;
-                cacheCreatePercentage = (displayUsage.cacheCreate.tokens / totalUsed) * 100;
-                reasoningPercentage = (displayUsage.reasoning.tokens / totalUsed) * 100;
-                totalPercentage = 100;
-              } else if (maxTokens && displayUsage) {
+              if (maxTokens && contextUsage) {
                 // We know the model's max tokens - show actual context window usage
-                inputPercentage = (displayUsage.input.tokens / maxTokens) * 100;
-                outputPercentage = (displayUsage.output.tokens / maxTokens) * 100;
-                cachedPercentage = (displayUsage.cached.tokens / maxTokens) * 100;
-                cacheCreatePercentage = (displayUsage.cacheCreate.tokens / maxTokens) * 100;
-                reasoningPercentage = (displayUsage.reasoning.tokens / maxTokens) * 100;
+                inputPercentage = (contextUsage.input.tokens / maxTokens) * 100;
+                outputPercentage = (contextUsage.output.tokens / maxTokens) * 100;
+                cachedPercentage = (contextUsage.cached.tokens / maxTokens) * 100;
+                cacheCreatePercentage = (contextUsage.cacheCreate.tokens / maxTokens) * 100;
+                reasoningPercentage = (contextUsage.reasoning.tokens / maxTokens) * 100;
                 totalPercentage = (totalUsed / maxTokens) * 100;
-              } else if (displayUsage) {
+              } else if (contextUsage) {
                 // Unknown model - scale to total tokens used
-                inputPercentage = totalUsed > 0 ? (displayUsage.input.tokens / totalUsed) * 100 : 0;
-                outputPercentage =
-                  totalUsed > 0 ? (displayUsage.output.tokens / totalUsed) * 100 : 0;
-                cachedPercentage =
-                  totalUsed > 0 ? (displayUsage.cached.tokens / totalUsed) * 100 : 0;
-                cacheCreatePercentage =
-                  totalUsed > 0 ? (displayUsage.cacheCreate.tokens / totalUsed) * 100 : 0;
-                reasoningPercentage =
-                  totalUsed > 0 ? (displayUsage.reasoning.tokens / totalUsed) * 100 : 0;
+                inputPercentage = totalUsed > 0 ? (contextUsage.input.tokens / totalUsed) * 100 : 0;
+                outputPercentage = totalUsed > 0 ? (contextUsage.output.tokens / totalUsed) * 100 : 0;
+                cachedPercentage = totalUsed > 0 ? (contextUsage.cached.tokens / totalUsed) * 100 : 0;
+                cacheCreatePercentage = totalUsed > 0 ? (contextUsage.cacheCreate.tokens / totalUsed) * 100 : 0;
+                reasoningPercentage = totalUsed > 0 ? (contextUsage.reasoning.tokens / totalUsed) * 100 : 0;
                 totalPercentage = 100;
                 showWarning = true;
               } else {
@@ -375,10 +369,54 @@ export const CostsTab: React.FC = () => {
               }
 
               const totalDisplay = formatTokens(totalUsed);
-              // For session mode, don't show max tokens or percentage
-              const maxDisplay =
-                viewMode === "session" ? "" : maxTokens ? ` / ${formatTokens(maxTokens)}` : "";
-              const showPercentage = viewMode !== "session";
+              const maxDisplay = maxTokens ? ` / ${formatTokens(maxTokens)}` : "";
+
+              return (
+                <>
+                  <ConsumerRow data-testid="context-usage">
+                    <ConsumerHeader>
+                      <ConsumerName>Context Usage</ConsumerName>
+                      <ConsumerTokens>
+                        {totalDisplay}
+                        {maxDisplay}
+                        {` (${totalPercentage.toFixed(1)}%)`}
+                      </ConsumerTokens>
+                    </ConsumerHeader>
+                    <PercentageBarWrapper>
+                      <PercentageBar>
+                        {cachedPercentage > 0 && <CachedSegment percentage={cachedPercentage} />}
+                        {cacheCreatePercentage > 0 && (
+                          <CachedSegment percentage={cacheCreatePercentage} />
+                        )}
+                        <InputSegment percentage={inputPercentage} />
+                        <OutputSegment percentage={outputPercentage} />
+                        {reasoningPercentage > 0 && (
+                          <ThinkingSegment percentage={reasoningPercentage} />
+                        )}
+                      </PercentageBar>
+                    </PercentageBarWrapper>
+                  </ConsumerRow>
+                  {showWarning && (
+                    <ModelWarning>Unknown model limits - showing relative usage only</ModelWarning>
+                  )}
+                </>
+              );
+            })()}
+          </ConsumerList>
+        </Section>
+      )}
+
+      {stats.usageHistory.length > 0 && (
+        <Section data-testid="cost-section">
+          <SectionHeader data-testid="cost-header" style={{ display: "flex", gap: "12px" }}>
+            <ConsumerName>Cost</ConsumerName>
+            <ToggleGroup options={VIEW_MODE_OPTIONS} value={viewMode} onChange={setViewMode} />
+          </SectionHeader>
+          <ConsumerList>
+            {(() => {
+              // Cost and Details use viewMode-dependent data
+              const modelStats = getModelStats(stats.model);
+              const is1MActive = use1M && supports1MContext(stats.model);
 
               // Helper to calculate cost percentage
               const getCostPercentage = (cost: number | undefined, total: number | undefined) =>
@@ -481,33 +519,9 @@ export const CostsTab: React.FC = () => {
 
               return (
                 <>
-                  <ConsumerRow>
-                    <ConsumerHeader>
-                      <ConsumerName>Token Usage</ConsumerName>
-                      <ConsumerTokens>
-                        {totalDisplay}
-                        {maxDisplay}
-                        {showPercentage && ` (${totalPercentage.toFixed(1)}%)`}
-                      </ConsumerTokens>
-                    </ConsumerHeader>
-                    <PercentageBarWrapper>
-                      <PercentageBar>
-                        {cachedPercentage > 0 && <CachedSegment percentage={cachedPercentage} />}
-                        {cacheCreatePercentage > 0 && (
-                          <CachedSegment percentage={cacheCreatePercentage} />
-                        )}
-                        <InputSegment percentage={inputPercentage} />
-                        <OutputSegment percentage={outputPercentage} />
-                        {reasoningPercentage > 0 && (
-                          <ThinkingSegment percentage={reasoningPercentage} />
-                        )}
-                      </PercentageBar>
-                    </PercentageBarWrapper>
-                  </ConsumerRow>
                   {totalCost !== undefined && totalCost >= 0 && (
-                    <ConsumerRow>
+                    <ConsumerRow data-testid="cost-bar">
                       <ConsumerHeader>
-                        <ConsumerName>Cost</ConsumerName>
                         <ConsumerTokens>{formatCostWithDollar(totalCost)}</ConsumerTokens>
                       </ConsumerHeader>
                       <PercentageBarWrapper>
@@ -527,7 +541,7 @@ export const CostsTab: React.FC = () => {
                       </PercentageBarWrapper>
                     </ConsumerRow>
                   )}
-                  <DetailsTable>
+                  <DetailsTable data-testid="cost-details">
                     <thead>
                       <DetailsHeaderRow>
                         <DetailsHeader>Component</DetailsHeader>
@@ -559,9 +573,6 @@ export const CostsTab: React.FC = () => {
                       })}
                     </tbody>
                   </DetailsTable>
-                  {showWarning && (
-                    <ModelWarning>Unknown model limits - showing relative usage only</ModelWarning>
-                  )}
                 </>
               );
             })()}
