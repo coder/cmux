@@ -28,6 +28,8 @@ import { useGitStatus } from "@/stores/GitStatusStore";
 import { TooltipWrapper, Tooltip } from "./Tooltip";
 import type { DisplayedMessage } from "@/types/message";
 import { useAIViewKeybinds } from "@/hooks/useAIViewKeybinds";
+import { Virtuoso } from "react-virtuoso";
+
 
 const ViewContainer = styled.div`
   flex: 1;
@@ -116,6 +118,16 @@ const OutputContent = styled.div`
   white-space: pre-wrap;
   word-break: break-word;
   line-height: 1.5;
+`;
+
+// Virtualized list wrappers to preserve existing styling and accessibility
+const VirtualListContainer = styled.div`
+  height: 100%;
+  overflow: hidden; /* Virtuoso manages its own scroller */
+`;
+
+const VirtualItem = styled.div`
+  padding: 0; /* Each message component manages its own spacing */
 `;
 
 const EmptyState = styled.div`
@@ -331,6 +343,15 @@ const AIViewInner: React.FC<AIViewProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workspaceId, workspaceState?.loading]);
 
+  // Keep scroller pinned when streaming and user is at bottom
+  useEffect(() => {
+    if (workspaceState && autoScroll) {
+      performAutoScroll();
+    }
+    // Intentionally not depending on messages array; just length changes are sufficient
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workspaceState?.messages.length, autoScroll]);
+
   // Handle keyboard shortcuts (using optional refs that are safe even if not initialized)
   useAIViewKeybinds({
     workspaceId,
@@ -455,32 +476,79 @@ const AIViewInner: React.FC<AIViewProps> = ({
         </ViewHeader>
 
         <OutputContainer>
-          <OutputContent
-            ref={contentRef}
-            onWheel={markUserInteraction}
-            onTouchMove={markUserInteraction}
-            onScroll={handleScroll}
-            role="log"
-            aria-live={canInterrupt ? "polite" : "off"}
-            aria-busy={canInterrupt}
-            aria-label="Conversation transcript"
-            tabIndex={0}
-          >
-            {mergedMessages.length === 0 ? (
-              <EmptyState>
-                <h3>No Messages Yet</h3>
-                <p>Send a message below to begin</p>
-              </EmptyState>
-            ) : (
-              <>
-                {mergedMessages.map((msg) => {
+          {mergedMessages.length === 0 ? (
+            <EmptyState>
+              <h3>No Messages Yet</h3>
+              <p>Send a message below to begin</p>
+            </EmptyState>
+          ) : (
+            <VirtualListContainer>
+              <Virtuoso
+                ref={undefined}
+                data={mergedMessages}
+                alignToBottom
+                followOutput={autoScroll}
+                atBottomStateChange={(atBottom) => {
+                  setAutoScroll(atBottom);
+                }}
+                increaseViewportBy={{ top: 600, bottom: 800 }}
+                computeItemKey={(index: number, item: DisplayedMessage) => item.id}
+                components={{
+                  Scroller: React.forwardRef<HTMLDivElement, { style?: React.CSSProperties; children?: React.ReactNode }>(function Scroller(props, ref) {
+                    const setRefs = (el: HTMLDivElement | null) => {
+                      // Bridge Virtuoso's scroller ref to our autoScroll hook's ref
+                      if (typeof ref === "function") ref(el);
+                      // Virtuoso may pass an object ref with a readonly "current" - don't assign to it
+                      // We only assign to our own contentRef, which is mutable
+                      contentRef.current = el;
+                    };
+                    return (
+                      <OutputContent
+                        ref={setRefs}
+                        style={props.style}
+                        onWheel={() => {
+                          markUserInteraction();
+                        }}
+                        onTouchMove={() => {
+                          markUserInteraction();
+                        }}
+                        onScroll={(e) => {
+                          handleScroll(e as React.UIEvent<HTMLDivElement>);
+                        }}
+                        role="log"
+                        aria-live={canInterrupt ? "polite" : "off"}
+                        aria-busy={canInterrupt}
+                        aria-label="Conversation transcript"
+                        tabIndex={0}
+                      >
+                        {props.children}
+                      </OutputContent>
+                    );
+                  }),
+                  Item: (props: { children?: React.ReactNode; style?: React.CSSProperties }) => (
+                    <VirtualItem {...props} />
+                  ),
+                  Footer: () => (
+                    <>
+                      {showRetryBarrier && (
+                        <RetryBarrier
+                          workspaceId={workspaceId}
+                          autoRetry={autoRetry}
+                          onStopAutoRetry={() => setAutoRetry(false)}
+                          onResetAutoRetry={() => setAutoRetry(true)}
+                        />
+                      )}
+                      <PinnedTodoList workspaceId={workspaceId} />
+                    </>
+                  ),
+                }}
+                itemContent={(index: number, msg: DisplayedMessage) => {
                   const isAtCutoff =
                     editCutoffHistoryId !== undefined &&
                     msg.type !== "history-hidden" &&
                     msg.historyId === editCutoffHistoryId;
-
                   return (
-                    <React.Fragment key={msg.id}>
+                    <>
                       <div
                         data-message-id={msg.type !== "history-hidden" ? msg.historyId : undefined}
                       >
@@ -497,46 +565,36 @@ const AIViewInner: React.FC<AIViewProps> = ({
                         </EditBarrier>
                       )}
                       {shouldShowInterruptedBarrier(msg) && <InterruptedBarrier />}
-                    </React.Fragment>
+                    </>
                   );
-                })}
-                {/* Show RetryBarrier after the last message if needed */}
-                {showRetryBarrier && (
-                  <RetryBarrier
-                    workspaceId={workspaceId}
-                    autoRetry={autoRetry}
-                    onStopAutoRetry={() => setAutoRetry(false)}
-                    onResetAutoRetry={() => setAutoRetry(true)}
-                  />
-                )}
-              </>
-            )}
-            <PinnedTodoList workspaceId={workspaceId} />
-            {canInterrupt && (
-              <StreamingBarrier
-                statusText={
-                  isCompacting
-                    ? currentModel
-                      ? `${getModelName(currentModel)} compacting...`
-                      : "compacting..."
-                    : currentModel
-                      ? `${getModelName(currentModel)} streaming...`
-                      : "streaming..."
-                }
-                cancelText={`hit ${formatKeybind(KEYBINDS.INTERRUPT_STREAM)} to cancel`}
-                tokenCount={
-                  activeStreamMessageId
-                    ? aggregator.getStreamingTokenCount(activeStreamMessageId)
-                    : undefined
-                }
-                tps={
-                  activeStreamMessageId
-                    ? aggregator.getStreamingTPS(activeStreamMessageId)
-                    : undefined
-                }
+                }}
               />
-            )}
-          </OutputContent>
+            </VirtualListContainer>
+          )}
+          {canInterrupt && (
+            <StreamingBarrier
+              statusText={
+                isCompacting
+                  ? currentModel
+                    ? `${getModelName(currentModel)} compacting...`
+                    : "compacting..."
+                  : currentModel
+                    ? `${getModelName(currentModel)} streaming...`
+                    : "streaming..."
+              }
+              cancelText={`hit ${formatKeybind(KEYBINDS.INTERRUPT_STREAM)} to cancel`}
+              tokenCount={
+                activeStreamMessageId
+                  ? aggregator.getStreamingTokenCount(activeStreamMessageId)
+                  : undefined
+              }
+              tps={
+                activeStreamMessageId
+                  ? aggregator.getStreamingTPS(activeStreamMessageId)
+                  : undefined
+              }
+            />
+          )}
           {!autoScroll && (
             <JumpToBottomIndicator onClick={jumpToBottom} type="button">
               Press {formatKeybind(KEYBINDS.JUMP_TO_BOTTOM)} to jump to bottom

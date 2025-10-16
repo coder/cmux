@@ -12,7 +12,9 @@ import { useRef, useState, useCallback } from "react";
  */
 export function useAutoScroll() {
   const [autoScroll, setAutoScroll] = useState(true);
-  const contentRef = useRef<HTMLDivElement>(null);
+  // Mutable ref because virtualization needs to write to it via custom Scroller component
+  const contentRef = useRef<HTMLDivElement | null>(null);
+
   const lastScrollTopRef = useRef<number>(0);
   const lastUserInteractionRef = useRef<number>(0);
   // Ref to avoid stale closures in async callbacks - always holds current autoScroll value
