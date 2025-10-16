@@ -276,8 +276,9 @@ export class Config {
           }
 
           // LEGACY FORMAT: Fall back to reading metadata.json
-          // Try workspace basename first (for new stable ID workspaces)
-          let metadataPath = path.join(this.getSessionDir(workspaceBasename), "metadata.json");
+          // Try legacy ID format first (project-workspace) - used by E2E tests and old workspaces
+          const legacyId = this.generateWorkspaceId(projectPath, workspace.path);
+          const metadataPath = path.join(this.getSessionDir(legacyId), "metadata.json");
           let metadataFound = false;
 
           if (fs.existsSync(metadataPath)) {
@@ -302,38 +303,6 @@ export class Config {
 
             workspaceMetadata.push(this.addPathsToMetadata(metadata, workspace.path, projectPath));
             metadataFound = true;
-          }
-
-          // Try legacy ID format (project-workspace)
-          if (!metadataFound) {
-            const legacyId = this.generateWorkspaceId(projectPath, workspace.path);
-            metadataPath = path.join(this.getSessionDir(legacyId), "metadata.json");
-
-            if (fs.existsSync(metadataPath)) {
-              const data = fs.readFileSync(metadataPath, "utf-8");
-              let metadata = JSON.parse(data) as WorkspaceMetadata;
-
-              // Ensure required fields are present
-              if (!metadata.name || !metadata.projectPath) {
-                metadata = {
-                  ...metadata,
-                  name: metadata.name ?? workspaceBasename,
-                  projectPath: metadata.projectPath ?? projectPath,
-                  projectName: metadata.projectName ?? projectName,
-                };
-              }
-
-              // Migrate to config for next load
-              workspace.id = metadata.id;
-              workspace.name = metadata.name;
-              workspace.createdAt = metadata.createdAt;
-              configModified = true;
-
-              workspaceMetadata.push(
-                this.addPathsToMetadata(metadata, workspace.path, projectPath)
-              );
-              metadataFound = true;
-            }
           }
 
           // No metadata found anywhere - create basic metadata
