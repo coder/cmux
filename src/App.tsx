@@ -419,7 +419,7 @@ function AppInner() {
         // Transform Workspace[] to FrontendWorkspaceMetadata[] using workspace ID
         const metadataList = config.workspaces
           .map((ws) => (ws.id ? workspaceMetadata.get(ws.id) : undefined))
-          .filter((meta): meta is FrontendWorkspaceMetadata => meta !== undefined);
+          .filter((meta): meta is FrontendWorkspaceMetadata => meta !== undefined && meta !== null);
 
         // Sort by recency
         metadataList.sort((a, b) => {
@@ -440,7 +440,7 @@ function AppInner() {
           // Check both ID and name to detect renames
           return a.every((metadata, i) => {
             const bMeta = b[i];
-            if (!bMeta) return false;
+            if (!bMeta || !metadata) return false; // Null-safe
             return metadata.id === bMeta.id && metadata.name === bMeta.name;
           });
         })

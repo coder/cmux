@@ -52,10 +52,15 @@ export function useWorkspaceManagement({
   // Subscribe to metadata updates (for create/rename/delete operations)
   useEffect(() => {
     const unsubscribe = window.api.workspace.onMetadata(
-      (event: { workspaceId: string; metadata: FrontendWorkspaceMetadata }) => {
+      (event: { workspaceId: string; metadata: FrontendWorkspaceMetadata | null }) => {
         setWorkspaceMetadata((prev) => {
           const updated = new Map(prev);
-          updated.set(event.workspaceId, event.metadata);
+          if (event.metadata === null) {
+            // Workspace deleted - remove from map
+            updated.delete(event.workspaceId);
+          } else {
+            updated.set(event.workspaceId, event.metadata);
+          }
           return updated;
         });
       }
