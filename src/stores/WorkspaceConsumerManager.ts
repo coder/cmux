@@ -8,12 +8,21 @@ import type { StreamingMessageAggregator } from "@/utils/messages/StreamingMessa
  * 
  * Responsibilities:
  * - Debounces rapid calculation requests (e.g., multiple tool-call-end events)
- * - Caches calculated results to avoid redundant work
+ * - Caches calculated results to avoid redundant work (source of truth)
  * - Tracks calculation state per workspace
- * - Provides lazy calculation trigger for workspace switching
+ * - Executes Web Worker tokenization calculations
+ * - Handles cleanup and disposal
  * 
- * This class is extracted from WorkspaceStore to keep concerns separated
- * and make the calculation logic easier to test and maintain.
+ * Architecture:
+ * - Single responsibility: consumer tokenization calculations
+ * - Owns the source-of-truth cache (calculated consumer data)
+ * - WorkspaceStore orchestrates (decides when to calculate)
+ * - This manager executes (performs calculations, manages cache)
+ * 
+ * Dual-Cache Design:
+ * - WorkspaceConsumerManager.cache: Source of truth for calculated data
+ * - WorkspaceStore.consumersStore (MapStore): Subscription management only
+ *   (components subscribe to workspace changes, delegates to manager for state)
  */
 export class WorkspaceConsumerManager {
   // Web Worker for tokenization (shared across workspaces)
@@ -37,26 +46,29 @@ export class WorkspaceConsumerManager {
   }
 
   /**
-   * Get consumer state for a workspace.
-   * Triggers lazy calculation if workspace has messages but no cached data.
+   * Get cached state without side effects.
+   * Returns null if no cache exists.
    */
-  getState(
-    workspaceId: string,
-    aggregator: StreamingMessageAggregator | undefined,
-    isCaughtUp: boolean
-  ): WorkspaceConsumersState {
-    // Check if we need to trigger calculation BEFORE returning cached state
+  getCachedState(workspaceId: string): WorkspaceConsumersState | null {
+    return this.cache.get(workspaceId) ?? null;
+  }
+
+  /**
+   * Check if calculation is pending for workspace.
+   */
+  isPending(workspaceId: string): boolean {
+    return this.pendingCalcs.has(workspaceId);
+  }
+
+  /**
+   * Get current state synchronously without triggering calculations.
+   * Returns cached result if available, otherwise returns default state.
+   * 
+   * Note: This is called from WorkspaceStore.getWorkspaceConsumers(),
+   * which handles the lazy trigger logic separately.
+   */
+  getStateSync(workspaceId: string): WorkspaceConsumersState {
     const cached = this.cache.get(workspaceId);
-    const isCalculating = this.pendingCalcs.has(workspaceId);
-
-    if (!cached && !isCalculating && isCaughtUp) {
-      if (aggregator && aggregator.getAllMessages().length > 0) {
-        // Trigger calculation (will debounce if called rapidly)
-        this.scheduleCalculation(workspaceId, aggregator);
-      }
-    }
-
-    // Return cached result if available
     if (cached) {
       return cached;
     }
@@ -66,7 +78,7 @@ export class WorkspaceConsumerManager {
       consumers: [],
       tokenizerName: "",
       totalTokens: 0,
-      isCalculating,
+      isCalculating: this.pendingCalcs.has(workspaceId),
     };
   }
 
@@ -130,8 +142,14 @@ export class WorkspaceConsumerManager {
         // Notify store to trigger re-render
         this.onCalculationComplete(workspaceId);
       } catch (error) {
+        // Cancellations are expected during rapid events - don't cache, don't log
+        // This allows lazy trigger to retry on next access
+        if (error instanceof Error && error.message === "Cancelled by newer request") {
+          return;
+        }
+
+        // Real errors: log and cache empty result
         console.error(`[WorkspaceConsumerManager] Calculation failed for ${workspaceId}:`, error);
-        // Still cache empty state to clear "calculating" status
         this.cache.set(workspaceId, {
           consumers: [],
           tokenizerName: "",

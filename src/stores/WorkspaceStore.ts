@@ -103,6 +103,8 @@ export class WorkspaceStore {
   private consumersStore = new MapStore<string, WorkspaceConsumersState>();
 
   // Manager for consumer calculations (debouncing, caching, lazy loading)
+  // Architecture: WorkspaceStore orchestrates (decides when), manager executes (performs calculations)
+  // Dual-cache: consumersStore (MapStore) handles subscriptions, manager owns data cache
   private consumerManager: WorkspaceConsumerManager;
 
   // Supporting data structures
@@ -340,12 +342,27 @@ export class WorkspaceStore {
   /**
    * Get consumer breakdown (may be calculating).
    * Triggers lazy calculation if workspace is caught-up but no data exists.
+   * 
+   * Architecture: Lazy trigger runs on EVERY access (outside MapStore.get())
+   * so workspace switches trigger calculation even if MapStore has cached result.
    */
   getWorkspaceConsumers(workspaceId: string): WorkspaceConsumersState {
+    const aggregator = this.aggregators.get(workspaceId);
+    const isCaughtUp = this.caughtUp.get(workspaceId) ?? false;
+
+    // Lazy trigger check (runs on EVERY access, not just when MapStore recomputes)
+    const cached = this.consumerManager.getCachedState(workspaceId);
+    const isPending = this.consumerManager.isPending(workspaceId);
+
+    if (!cached && !isPending && isCaughtUp) {
+      if (aggregator && aggregator.getAllMessages().length > 0) {
+        this.consumerManager.scheduleCalculation(workspaceId, aggregator);
+      }
+    }
+
+    // Return state (MapStore handles subscriptions, delegates to manager for actual state)
     return this.consumersStore.get(workspaceId, () => {
-      const aggregator = this.aggregators.get(workspaceId);
-      const isCaughtUp = this.caughtUp.get(workspaceId) ?? false;
-      return this.consumerManager.getState(workspaceId, aggregator, isCaughtUp);
+      return this.consumerManager.getStateSync(workspaceId);
     });
   }
 
