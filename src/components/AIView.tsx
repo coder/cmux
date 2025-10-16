@@ -256,6 +256,26 @@ const AIViewInner: React.FC<AIViewProps> = ({
     setEditingMessage({ id: messageId, content });
   }, []);
 
+  const handleEditLastUserMessage = useCallback(() => {
+    if (!workspaceState) return;
+    const mergedMessages = mergeConsecutiveStreamErrors(workspaceState.messages);
+    const lastUserMessage = [...mergedMessages]
+      .reverse()
+      .find((msg): msg is Extract<DisplayedMessage, { type: "user" }> => msg.type === "user");
+    if (lastUserMessage) {
+      setEditingMessage({ id: lastUserMessage.historyId, content: lastUserMessage.content });
+      setAutoScroll(false); // Show jump-to-bottom indicator
+
+      // Scroll to the message being edited
+      requestAnimationFrame(() => {
+        const element = contentRef.current?.querySelector(
+          `[data-message-id="${lastUserMessage.historyId}"]`
+        );
+        element?.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+    }
+  }, [workspaceState, contentRef, setAutoScroll]);
+
   const handleCancelEdit = useCallback(() => {
     setEditingMessage(undefined);
   }, []);
@@ -464,12 +484,18 @@ const AIViewInner: React.FC<AIViewProps> = ({
 
                     return (
                       <React.Fragment key={msg.id}>
-                        <MessageRenderer
-                          message={msg}
-                          onEditUserMessage={handleEditUserMessage}
-                          workspaceId={workspaceId}
-                          isCompacting={isCompacting}
-                        />
+                        <div
+                          data-message-id={
+                            msg.type !== "history-hidden" ? msg.historyId : undefined
+                          }
+                        >
+                          <MessageRenderer
+                            message={msg}
+                            onEditUserMessage={handleEditUserMessage}
+                            workspaceId={workspaceId}
+                            isCompacting={isCompacting}
+                          />
+                        </div>
                         {isAtCutoff && (
                           <EditBarrier>
                             ⚠️ Messages below this line will be removed when you submit the edit
@@ -532,6 +558,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
             isCompacting={isCompacting}
             editingMessage={editingMessage}
             onCancelEdit={handleCancelEdit}
+            onEditLastUserMessage={handleEditLastUserMessage}
             canInterrupt={canInterrupt}
             onReady={handleChatInputReady}
           />
