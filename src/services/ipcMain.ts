@@ -652,11 +652,11 @@ export class IpcMain {
       }
     );
 
-    ipcMain.handle(IPC_CHANNELS.WORKSPACE_OPEN_TERMINAL, (_event, workspacePath: string) => {
+    ipcMain.handle(IPC_CHANNELS.WORKSPACE_OPEN_TERMINAL, async (_event, workspacePath: string) => {
       try {
         if (process.platform === "darwin") {
           // macOS - try Ghostty first, fallback to Terminal.app
-          const terminal = this.findAvailableCommand(["ghostty", "terminal"]);
+          const terminal = await this.findAvailableCommand(["ghostty", "terminal"]);
           if (terminal === "ghostty") {
             const child = spawn("open", ["-a", "Ghostty", workspacePath], {
               detached: true,
@@ -693,7 +693,7 @@ export class IpcMain {
             { cmd: "xterm", args: [], cwd: workspacePath },
           ];
 
-          const availableTerminal = terminals.find((t) => this.isCommandAvailable(t.cmd));
+          const availableTerminal = await this.findAvailableTerminal(terminals);
 
           if (availableTerminal) {
             const child = spawn(availableTerminal.cmd, availableTerminal.args, {
@@ -1036,9 +1036,31 @@ export class IpcMain {
   }
 
   /**
-   * Check if a command is available in the system PATH
+   * Check if a command is available in the system PATH or known locations
    */
-  private isCommandAvailable(command: string): boolean {
+  private async isCommandAvailable(command: string): Promise<boolean> {
+    // Special handling for ghostty on macOS - check common installation paths
+    if (command === "ghostty" && process.platform === "darwin") {
+      const ghosttyPaths = [
+        "/opt/homebrew/bin/ghostty",
+        "/Applications/Ghostty.app/Contents/MacOS/ghostty",
+        "/usr/local/bin/ghostty",
+      ];
+      
+      for (const ghosttyPath of ghosttyPaths) {
+        try {
+          const stats = await fsPromises.stat(ghosttyPath);
+          // Check if any executable bit is set (owner, group, or other)
+          if ((stats.mode & 0o111) !== 0) {
+            return true;
+          }
+        } catch {
+          // Try next path
+        }
+      }
+      // If none of the known paths work, fall through to which check
+    }
+
     try {
       const result = spawnSync("which", [command], { encoding: "utf8" });
       return result.status === 0;
@@ -1050,7 +1072,26 @@ export class IpcMain {
   /**
    * Find the first available command from a list of commands
    */
-  private findAvailableCommand(commands: string[]): string | null {
-    return commands.find((cmd) => this.isCommandAvailable(cmd)) ?? null;
+  private async findAvailableCommand(commands: string[]): Promise<string | null> {
+    for (const cmd of commands) {
+      if (await this.isCommandAvailable(cmd)) {
+        return cmd;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Find the first available terminal from a list of terminal configurations
+   */
+  private async findAvailableTerminal(
+    terminals: Array<{ cmd: string; args: string[]; cwd?: string }>
+  ): Promise<{ cmd: string; args: string[]; cwd?: string } | null> {
+    for (const terminal of terminals) {
+      if (await this.isCommandAvailable(terminal.cmd)) {
+        return terminal;
+      }
+    }
+    return null;
   }
 }
