@@ -264,6 +264,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
       .find((msg): msg is Extract<DisplayedMessage, { type: "user" }> => msg.type === "user");
     if (lastUserMessage) {
       setEditingMessage({ id: lastUserMessage.historyId, content: lastUserMessage.content });
+      setAutoScroll(false); // Show jump-to-bottom indicator
 
       // Scroll to the message being edited
       requestAnimationFrame(() => {
@@ -273,7 +274,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
         element?.scrollIntoView({ behavior: "smooth", block: "center" });
       });
     }
-  }, [workspaceState, contentRef]);
+  }, [workspaceState, contentRef, setAutoScroll]);
 
   const handleCancelEdit = useCallback(() => {
     setEditingMessage(undefined);
@@ -483,7 +484,11 @@ const AIViewInner: React.FC<AIViewProps> = ({
 
                     return (
                       <React.Fragment key={msg.id}>
-                        <div data-message-id={msg.type !== "history-hidden" ? msg.historyId : undefined}>
+                        <div
+                          data-message-id={
+                            msg.type !== "history-hidden" ? msg.historyId : undefined
+                          }
+                        >
                           <MessageRenderer
                             message={msg}
                             onEditUserMessage={handleEditUserMessage}
