@@ -495,7 +495,9 @@ const AIViewInner: React.FC<AIViewProps> = ({
                 <StreamingBarrier
                   statusText={
                     isCompacting
-                      ? "compacting..."
+                      ? currentModel
+                        ? `${getModelName(currentModel)} compacting...`
+                        : "compacting..."
                       : currentModel
                         ? `${getModelName(currentModel)} streaming...`
                         : "streaming..."

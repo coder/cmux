@@ -5,6 +5,7 @@ import { getAutoRetryKey, getRetryStateKey } from "@/constants/storage";
 import { getSendOptionsFromStorage } from "@/utils/messages/sendOptions";
 import { readPersistedState } from "./usePersistedState";
 import { hasInterruptedStream } from "@/utils/messages/retryEligibility";
+import { applyCompactionOverrides } from "@/utils/messages/compactionOptions";
 
 interface RetryState {
   attempt: number;
@@ -139,7 +140,20 @@ export function useResumeManager() {
     const { attempt } = retryState;
 
     try {
-      const options = getSendOptionsFromStorage(workspaceId);
+      // Start with workspace defaults
+      let options = getSendOptionsFromStorage(workspaceId);
+
+      // Check if last user message was a compaction request
+      const state = workspaceStatesRef.current.get(workspaceId);
+      if (state) {
+        const lastUserMsg = [...state.messages].reverse().find((msg) => msg.type === "user");
+        if (lastUserMsg?.compactionRequest) {
+          // Apply compaction overrides using shared function (same as ChatInput)
+          // This ensures custom model/tokens are preserved across resume
+          options = applyCompactionOverrides(options, lastUserMsg.compactionRequest.parsed);
+        }
+      }
+
       const result = await window.api.workspace.resumeStream(workspaceId, options);
 
       if (!result.success) {

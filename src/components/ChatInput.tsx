@@ -26,8 +26,9 @@ import { VimTextArea } from "./VimTextArea";
 import { ImageAttachments, type ImageAttachment } from "./ImageAttachments";
 
 import type { ThinkingLevel } from "@/types/thinking";
-import type { CmuxFrontendMetadata } from "@/types/message";
+import type { CmuxFrontendMetadata, CompactionRequestData } from "@/types/message";
 import type { SendMessageOptions } from "@/types/ipc";
+import { applyCompactionOverrides } from "@/utils/messages/compactionOptions";
 
 const InputSection = styled.div`
   position: relative;
@@ -304,22 +305,22 @@ function prepareCompactionMessage(
 
   const messageText = `Summarize this conversation into a compact form for a new Assistant to continue helping the user. Use approximately ${targetWords} words.`;
 
+  // Create compaction metadata (will be stored in user message)
+  const compactData: CompactionRequestData = {
+    model: parsed.model,
+    maxOutputTokens: parsed.maxOutputTokens,
+    continueMessage: parsed.continueMessage,
+  };
+
   const metadata: CmuxFrontendMetadata = {
     type: "compaction-request",
     rawCommand: command,
-    parsed: {
-      maxOutputTokens: parsed.maxOutputTokens,
-      continueMessage: parsed.continueMessage,
-    },
+    parsed: compactData,
   };
 
-  const isAnthropic = sendMessageOptions.model.startsWith("anthropic:");
-  const options: Partial<SendMessageOptions> = {
-    thinkingLevel: isAnthropic ? "off" : sendMessageOptions.thinkingLevel,
-    toolPolicy: [{ regex_match: "compact_summary", action: "require" }],
-    maxOutputTokens: parsed.maxOutputTokens,
-    mode: "compact" as const,
-  };
+  // Apply compaction overrides using shared transformation function
+  // This same function is used by useResumeManager to ensure consistency
+  const options = applyCompactionOverrides(sendMessageOptions, compactData);
 
   return { messageText, metadata, options };
 }

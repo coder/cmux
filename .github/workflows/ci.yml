@@ -32,7 +32,8 @@ jobs:
 
       - name: Install and setup shfmt
         run: |
-          if [[ ! -f "$HOME/.local/bin/shfmt" ]]; then
+          # Install shfmt if not cached or if cached binary is broken
+          if [[ ! -f "$HOME/.local/bin/shfmt" ]] || ! "$HOME/.local/bin/shfmt" --version >/dev/null 2>&1; then
             curl -sS https://webinstall.dev/shfmt | bash
           fi
           echo "$HOME/.local/bin" >> $GITHUB_PATH

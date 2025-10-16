@@ -47,13 +47,14 @@ Compress conversation history using AI summarization. Replaces the conversation 
 ### Syntax
 
 ```
-/compact [-t <tokens>]
+/compact [-t <tokens>] [-m <model>]
 [continue message on subsequent lines]
 ```
 
 ### Options
 
 - `-t <tokens>` - Maximum output tokens for the summary (default: ~2000 words)
+- `-m <model>` - Model to use for compaction (default: workspace model). Supports abbreviations like `haiku`, `sonnet`, or full model strings
 
 ### Examples
 
@@ -68,6 +69,14 @@ Compress conversation history using AI summarization. Replaces the conversation 
 ```
 /compact -t 5000
 ```
+
+**Choose compaction model:**
+
+```
+/compact -m haiku
+```
+
+Use Haiku for faster, lower-cost compaction.
 
 **Auto-continue with custom message:**
 
@@ -88,16 +97,18 @@ Make sure to add tests for the error cases.
 
 Continue messages can span multiple lines for more detailed instructions.
 
-**Combine token limit and auto-continue:**
+**Combine all options:**
 
 ```
-/compact -t 3000
+/compact -m haiku -t 8000
 Keep working on the feature
 ```
 
+Combine custom model, token limit, and auto-continue message.
+
 ### Notes
 
-- Uses the selected LLM to summarize conversation history
+- Uses the specified model (or workspace model by default) to summarize conversation history
 - Preserves actionable context and specific details
 - **Irreversible** - original messages are replaced
 - Continue message is sent once after compaction completes (not persisted)

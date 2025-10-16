@@ -3,16 +3,20 @@ import type { LanguageModelV2Usage } from "@ai-sdk/provider";
 import type { StreamErrorType } from "./errors";
 import type { ToolPolicy } from "@/utils/tools/toolPolicy";
 
+// Parsed compaction request data (shared type for consistency)
+export interface CompactionRequestData {
+  model?: string; // Custom model override for compaction
+  maxOutputTokens?: number;
+  continueMessage?: string;
+}
+
 // Frontend-specific metadata stored in cmuxMetadata field
 // Backend stores this as-is without interpretation (black-box)
 export type CmuxFrontendMetadata =
   | {
       type: "compaction-request";
       rawCommand: string; // The original /compact command as typed by user (for display)
-      parsed: {
-        maxOutputTokens?: number;
-        continueMessage?: string;
-      };
+      parsed: CompactionRequestData;
     }
   | {
       type: "compaction-result";

@@ -11,7 +11,7 @@ export type ParsedCommand =
   | { type: "model-help" }
   | { type: "clear" }
   | { type: "truncate"; percentage: number }
-  | { type: "compact"; maxOutputTokens?: number; continueMessage?: string }
+  | { type: "compact"; maxOutputTokens?: number; continueMessage?: string; model?: string }
   | { type: "unknown-command"; command: string; subcommand?: string }
   | null;
 
