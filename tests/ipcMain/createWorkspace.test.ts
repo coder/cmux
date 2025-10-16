@@ -77,7 +77,7 @@ describeIntegration("IpcMain create workspace integration tests", () => {
           }
           expect(createResult.success).toBe(true);
           expect(createResult.metadata.id).toBeDefined();
-          expect(createResult.metadata.stableWorkspacePath).toBeDefined();
+          expect(createResult.metadata.namedWorkspacePath).toBeDefined();
           expect(createResult.metadata.namedWorkspacePath).toBeDefined();
           expect(createResult.metadata.projectName).toBeDefined();
 

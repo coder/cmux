@@ -60,7 +60,7 @@ export function prepareDemoProject(
   };
 
   const configPayload = {
-    projects: [[projectPath, { path: projectPath, workspaces: [{ path: workspacePath }] }]],
+    projects: [[projectPath, { workspaces: [{ path: workspacePath }] }]],
   } as const;
 
   fs.writeFileSync(configPath, JSON.stringify(configPayload, null, 2));
