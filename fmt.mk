@@ -3,11 +3,12 @@
 # This file contains all code formatting logic.
 # Included by the main Makefile.
 
-.PHONY: fmt fmt-check fmt-prettier fmt-prettier-check fmt-shell fmt-shell-check fmt-nix fmt-nix-check
+.PHONY: fmt fmt-check fmt-prettier fmt-prettier-check fmt-shell fmt-shell-check fmt-nix fmt-nix-check fmt-python fmt-python-check
 
 # Centralized patterns - single source of truth
 PRETTIER_PATTERNS := 'src/**/*.{ts,tsx,json}' 'tests/**/*.ts' 'docs/**/*.md' 'package.json' 'tsconfig*.json' 'README.md'
 SHELL_SCRIPTS := scripts
+PYTHON_DIRS := benchmarks
 
 # Always use bun x prettier for reproducibility (uses package.json version)
 PRETTIER := bun x prettier
@@ -15,11 +16,12 @@ PRETTIER := bun x prettier
 # Tool availability checks
 SHFMT := $(shell command -v shfmt 2>/dev/null)
 NIX := $(shell command -v nix 2>/dev/null)
+UVX := $(shell command -v uvx 2>/dev/null)
 
-fmt: fmt-prettier fmt-shell fmt-nix
+fmt: fmt-prettier fmt-shell fmt-python fmt-nix
 	@echo "==> All formatting complete!"
 
-fmt-check: fmt-prettier-check fmt-shell-check fmt-nix-check
+fmt-check: fmt-prettier-check fmt-shell-check fmt-python-check fmt-nix-check
 	@echo "==> All formatting checks passed!"
 
 fmt-prettier:
@@ -47,6 +49,21 @@ else
 	@echo "Checking shell script formatting..."
 	@shfmt -i 2 -ci -bn -d $(SHELL_SCRIPTS)
 endif
+
+# Helper target to check for uvx
+.check-uvx:
+ifeq ($(UVX),)
+	@echo "Error: uvx not found. Install with: curl -LsSf https://astral.sh/uv/install.sh | sh"
+	@exit 1
+endif
+
+fmt-python: .check-uvx
+	@echo "Formatting Python files..."
+	@uvx ruff format $(PYTHON_DIRS)
+
+fmt-python-check: .check-uvx
+	@echo "Checking Python formatting..."
+	@uvx ruff format --check $(PYTHON_DIRS)
 
 fmt-nix:
 ifeq ($(NIX),)

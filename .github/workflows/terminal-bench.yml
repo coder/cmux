@@ -1,0 +1,67 @@
+name: Terminal-Bench
+
+on:
+  workflow_dispatch:
+    inputs:
+      dataset:
+        description: 'Terminal-Bench dataset to use'
+        required: false
+        default: 'terminal-bench-core==0.1.1'
+        type: string
+      concurrency:
+        description: 'Number of concurrent tasks (--n-concurrent)'
+        required: false
+        default: '4'
+        type: string
+      livestream:
+        description: 'Enable livestream mode'
+        required: false
+        default: true
+        type: boolean
+      extra_args:
+        description: 'Additional arguments to pass to terminal-bench'
+        required: false
+        type: string
+
+jobs:
+  benchmark:
+    name: Run Terminal-Bench
+    runs-on: ${{ github.repository_owner == 'coder' && 'depot-ubuntu-22.04-16' || 'ubuntu-latest' }}
+    timeout-minutes: 180 # 3 hours - terminal-bench can take a long time
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Required for git describe to find tags
+
+      - uses: ./.github/actions/setup-cmux
+
+      - name: Install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+
+      - name: Add uv to PATH
+        run: echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Generate version file
+        run: ./scripts/generate-version.sh
+
+      - name: Run Terminal-Bench
+        run: make benchmark-terminal
+        env:
+          TB_DATASET: ${{ inputs.dataset }}
+          TB_CONCURRENCY: ${{ inputs.concurrency }}
+          TB_LIVESTREAM: ${{ inputs.livestream && '1' || '' }}
+          TB_ARGS: ${{ inputs.extra_args }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+      - name: Upload benchmark results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: terminal-bench-results
+          path: |
+            terminal-bench-results/
+            *.json
+          if-no-files-found: warn
+
