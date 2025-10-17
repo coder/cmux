@@ -49,7 +49,7 @@ describe("file_list tool", () => {
       expect(result.output).toContain("subdir/");
       expect(result.output).toContain("file1.txt");
       expect(result.output).toContain("file2.txt");
-      
+
       // Check sorting: directories first (subdir appears before files in output)
       expect(result.output.indexOf("subdir/")).toBeLessThan(result.output.indexOf("file1.txt"));
     });
@@ -76,7 +76,7 @@ describe("file_list tool", () => {
       expect(result.output).toContain("dir1/");
       expect(result.output).toContain("file1.txt");
       expect(result.output).toContain("root.txt");
-      
+
       // Check indentation shows nesting (file1.txt should be indented under dir1)
       expect(result.output).toMatch(/dir1\/\s*\n.*file1\.txt/);
     });

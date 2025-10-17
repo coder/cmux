@@ -45,8 +45,6 @@ function isFileReadTool(toolName: string, args: unknown): args is FileReadToolAr
   return TOOL_DEFINITIONS.file_read.schema.safeParse(args).success;
 }
 
-
-
 function isFileEditReplaceStringTool(
   toolName: string,
   args: unknown
