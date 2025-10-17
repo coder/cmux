@@ -84,10 +84,15 @@ function isTestEnvironment(): boolean {
  * Initialize the PostHog client
  * Should be called once on app startup
  *
- * Note: Telemetry is automatically disabled in test environments
+ * Note: Telemetry is automatically disabled in test environments or when user has opted out
  */
 export function initTelemetry(): void {
   if (isTestEnvironment()) {
+    return;
+  }
+
+  if (!isTelemetryEnabled()) {
+    console.debug("[Telemetry] Disabled by user preference, skipping initialization");
     return;
   }
 
