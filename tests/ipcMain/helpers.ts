@@ -297,6 +297,7 @@ export async function waitForFileExists(filePath: string, timeoutMs = 5000): Pro
       return false;
     }
   }, timeoutMs);
+}
 
 /**
  * Wait for stream to complete successfully
@@ -335,8 +336,6 @@ export const TEST_IMAGES = {
   RED_PIXEL: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==",
   BLUE_PIXEL: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M/wHwAEBgIApD5fRAAAAABJRU5ErkJggg==",
 } as const;
-
-}
 
 /**
  * Wait for a file to NOT exist with retry logic
