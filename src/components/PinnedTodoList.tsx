@@ -1,47 +1,15 @@
-import React, { useSyncExternalStore, useState, useEffect } from "react";
+import React, { useSyncExternalStore } from "react";
 import styled from "@emotion/styled";
 import { TodoList } from "./TodoList";
 import { useWorkspaceStoreRaw } from "@/stores/WorkspaceStore";
 import { usePersistedState } from "@/hooks/usePersistedState";
 
-const PinnedContainer = styled.div<{ isExiting: boolean }>`
+const PinnedContainer = styled.div`
   background: var(--color-panel-background);
   border-top: 1px dashed hsl(0deg 0% 28.64%);
   margin: 0;
   max-height: 300px;
   overflow-y: auto;
-
-  /* Enter animation: fade in + slide up */
-  animation: ${(props) =>
-    props.isExiting
-      ? "slideDown 200ms ease-out forwards"
-      : "slideUp 200ms ease-out forwards"};
-
-  @keyframes slideUp {
-    from {
-      opacity: 0;
-      transform: translateY(8px);
-      max-height: 0;
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-      max-height: 300px;
-    }
-  }
-
-  @keyframes slideDown {
-    from {
-      opacity: 1;
-      transform: translateY(0);
-      max-height: 300px;
-    }
-    to {
-      opacity: 0;
-      transform: translateY(8px);
-      max-height: 0;
-    }
-  }
 `;
 
 const TodoHeader = styled.div`
@@ -78,8 +46,6 @@ interface PinnedTodoListProps {
  * Shows current TODOs from active stream only.
  * Reuses TodoList component for consistent styling.
  *
- * Animates in with fade + slide up, animates out with fade + slide down.
- *
  * Relies on natural reference stability from MapStore + Aggregator architecture:
  * - Aggregator.getCurrentTodos() returns direct reference (not a copy)
  * - Reference only changes when todos are actually modified
@@ -94,32 +60,12 @@ export const PinnedTodoList: React.FC<PinnedTodoListProps> = ({ workspaceId }) =
     () => workspaceStore.getWorkspaceState(workspaceId).todos
   );
 
-  // Track exit animation state to delay unmount
-  const [isVisible, setIsVisible] = useState(todos.length > 0);
-  const [isExiting, setIsExiting] = useState(false);
-
-  useEffect(() => {
-    if (todos.length > 0) {
-      // Entering: show immediately
-      setIsVisible(true);
-      setIsExiting(false);
-    } else if (isVisible) {
-      // Exiting: start animation, then hide after delay
-      setIsExiting(true);
-      const timer = setTimeout(() => {
-        setIsVisible(false);
-        setIsExiting(false);
-      }, 200); // Match animation duration
-      return () => clearTimeout(timer);
-    }
-  }, [todos.length, isVisible]);
-
-  if (!isVisible) {
+  if (todos.length === 0) {
     return null;
   }
 
   return (
-    <PinnedContainer isExiting={isExiting}>
+    <PinnedContainer>
       <TodoHeader onClick={() => setExpanded(!expanded)}>
         <Caret expanded={expanded}>▶</Caret>
         TODO{expanded ? ":" : ""}
