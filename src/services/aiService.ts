@@ -449,11 +449,10 @@ export class AIService extends EventEmitter {
       log.debug(`Filtered ${messages.length - filteredMessages.length} empty assistant messages`);
       log.debug_obj(`${workspaceId}/1a_filtered_messages.json`, filteredMessages);
 
-      // OpenAI-specific: DON'T strip reasoning - keep all content
-      // The custom fetch wrapper strips item_reference objects to prevent dangling references
+      // OpenAI-specific: Keep reasoning parts in history
       // OpenAI manages conversation state via previousResponseId
       if (providerName === "openai") {
-        log.debug("Keeping reasoning parts for OpenAI (fetch wrapper handles item_references)");
+        log.debug("Keeping reasoning parts for OpenAI (managed via previousResponseId)");
       }
 
       // Add [CONTINUE] sentinel to partial messages (for model context)
