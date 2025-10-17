@@ -111,21 +111,6 @@ const OutputContainer = styled.div`
   overflow: hidden;
 `;
 
-const OutputContent = styled.div`
-  height: 100%;
-  overflow-y: auto;
-  padding: 15px;
-  white-space: pre-wrap;
-  word-break: break-word;
-  line-height: 1.5;
-`;
-
-// Virtualized list wrapper to preserve existing styling and accessibility
-const VirtualListContainer = styled.div`
-  height: 100%;
-  overflow: hidden; /* Virtuoso manages its own scroller */
-`;
-
 const EmptyState = styled.div`
   display: flex;
   flex-direction: column;
@@ -478,90 +463,59 @@ const AIViewInner: React.FC<AIViewProps> = ({
               <p>Send a message below to begin</p>
             </EmptyState>
           ) : (
-            <VirtualListContainer>
-              <Virtuoso
-                data={mergedMessages}
-                alignToBottom
-                followOutput={autoScroll}
-                atBottomStateChange={(atBottom) => {
-                  setAutoScroll(atBottom);
-                }}
-                increaseViewportBy={{ top: 600, bottom: 800 }}
-                computeItemKey={(index: number, item: DisplayedMessage) => item.id}
-                components={{
-                  Scroller: React.forwardRef<HTMLDivElement, React.HTMLProps<HTMLDivElement>>(function Scroller(props, ref) {
-                    const { style, children, onScroll: virtuosoOnScroll } = props;
-                    const setRefs = (el: HTMLDivElement | null) => {
-                      if (typeof ref === "function") ref(el);
-                      contentRef.current = el;
-                    };
-                    
-                    const handleScrollEvent = (e: React.UIEvent<HTMLDivElement>) => {
-                      if (virtuosoOnScroll) virtuosoOnScroll(e);
-                      handleScroll(e);
-                    };
-                    
-                    return (
-                      <OutputContent
-                        ref={setRefs}
-                        style={style}
-                        onWheel={() => {
-                          markUserInteraction();
-                        }}
-                        onTouchMove={() => {
-                          markUserInteraction();
-                        }}
-                        onScroll={handleScrollEvent}
-                        role="log"
-                        aria-live={canInterrupt ? "polite" : "off"}
-                        aria-busy={canInterrupt}
-                        aria-label="Conversation transcript"
-                        tabIndex={0}
-                      >
-                        {children}
-                      </OutputContent>
-                    );
-                  }),
-                  Footer: () => (
-                    <>
-                      {showRetryBarrier && (
-                        <RetryBarrier
-                          workspaceId={workspaceId}
-                          autoRetry={autoRetry}
-                          onStopAutoRetry={() => setAutoRetry(false)}
-                          onResetAutoRetry={() => setAutoRetry(true)}
-                        />
-                      )}
-                      <PinnedTodoList workspaceId={workspaceId} />
-                    </>
-                  ),
-                }}
-                itemContent={(index: number, msg: DisplayedMessage) => {
-                  const isAtCutoff =
-                    editCutoffHistoryId !== undefined &&
-                    msg.type !== "history-hidden" &&
-                    msg.historyId === editCutoffHistoryId;
-                  return (
-                    <div
-                      data-message-id={msg.type !== "history-hidden" ? msg.historyId : undefined}
-                    >
-                      <MessageRenderer
-                        message={msg}
-                        onEditUserMessage={handleEditUserMessage}
+            <Virtuoso
+              style={{ height: "100%" }}
+              data={mergedMessages}
+              alignToBottom
+              followOutput={autoScroll}
+              atBottomStateChange={(atBottom) => {
+                setAutoScroll(atBottom);
+              }}
+              scrollerRef={(ref) => {
+                contentRef.current = ref as HTMLDivElement | null;
+              }}
+              increaseViewportBy={{ top: 600, bottom: 800 }}
+              computeItemKey={(index: number, item: DisplayedMessage) => item.id}
+              components={{
+                Footer: () => (
+                  <>
+                    {showRetryBarrier && (
+                      <RetryBarrier
                         workspaceId={workspaceId}
-                        isCompacting={isCompacting}
+                        autoRetry={autoRetry}
+                        onStopAutoRetry={() => setAutoRetry(false)}
+                        onResetAutoRetry={() => setAutoRetry(true)}
                       />
-                      {isAtCutoff && (
-                        <EditBarrier>
-                          ⚠️ Messages below this line will be removed when you submit the edit
-                        </EditBarrier>
-                      )}
-                      {shouldShowInterruptedBarrier(msg) && <InterruptedBarrier />}
-                    </div>
-                  );
-                }}
-              />
-            </VirtualListContainer>
+                    )}
+                    <PinnedTodoList workspaceId={workspaceId} />
+                  </>
+                ),
+              }}
+              itemContent={(index: number, msg: DisplayedMessage) => {
+                const isAtCutoff =
+                  editCutoffHistoryId !== undefined &&
+                  msg.type !== "history-hidden" &&
+                  msg.historyId === editCutoffHistoryId;
+                return (
+                  <div
+                    data-message-id={msg.type !== "history-hidden" ? msg.historyId : undefined}
+                  >
+                    <MessageRenderer
+                      message={msg}
+                      onEditUserMessage={handleEditUserMessage}
+                      workspaceId={workspaceId}
+                      isCompacting={isCompacting}
+                    />
+                    {isAtCutoff && (
+                      <EditBarrier>
+                        ⚠️ Messages below this line will be removed when you submit the edit
+                      </EditBarrier>
+                    )}
+                    {shouldShowInterruptedBarrier(msg) && <InterruptedBarrier />}
+                  </div>
+                );
+              }}
+            />
           )}
           {canInterrupt && (
             <StreamingBarrier
