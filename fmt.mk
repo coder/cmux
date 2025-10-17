@@ -50,23 +50,20 @@ else
 	@shfmt -i 2 -ci -bn -d $(SHELL_SCRIPTS)
 endif
 
-fmt-python:
+# Helper target to check for uvx
+.check-uvx:
 ifeq ($(UVX),)
 	@echo "Error: uvx not found. Install with: curl -LsSf https://astral.sh/uv/install.sh | sh"
 	@exit 1
-else
-	@echo "Formatting Python files..."
-	@uvx ruff format $(PYTHON_DIRS)
 endif
 
-fmt-python-check:
-ifeq ($(UVX),)
-	@echo "Error: uvx not found. Install with: curl -LsSf https://astral.sh/uv/install.sh | sh"
-	@exit 1
-else
+fmt-python: .check-uvx
+	@echo "Formatting Python files..."
+	@uvx ruff format $(PYTHON_DIRS)
+
+fmt-python-check: .check-uvx
 	@echo "Checking Python formatting..."
 	@uvx ruff format --check $(PYTHON_DIRS)
-endif
 
 fmt-nix:
 ifeq ($(NIX),)
