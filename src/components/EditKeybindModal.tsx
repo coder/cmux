@@ -2,11 +2,10 @@ import React, { useState, useEffect, useRef } from "react";
 import styled from "@emotion/styled";
 import { Modal } from "./Modal";
 
-const ModalContent = styled.div`
+const KeybindModalContent = styled.div`
   display: flex;
   flex-direction: column;
   gap: 16px;
-  min-width: 500px;
 `;
 
 const Label = styled.label`
@@ -132,7 +131,7 @@ export function EditKeybindModal({
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={`Edit ${fKey} Macro`}>
-      <ModalContent>
+      <KeybindModalContent>
         <div>
           <Label htmlFor="keybind-message">Message to send:</Label>
           <TextArea
@@ -161,7 +160,7 @@ export function EditKeybindModal({
             Save
           </Button>
         </ButtonRow>
-      </ModalContent>
+      </KeybindModalContent>
     </Modal>
   );
 }
