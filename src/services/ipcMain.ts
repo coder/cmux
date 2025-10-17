@@ -397,10 +397,10 @@ export class IpcMain {
           const sourceMetadata = sourceMetadataResult.data;
           const foundProjectPath = sourceMetadata.projectPath;
 
-          // Compute source workspace path from metadata
+          // Compute source workspace path from metadata (use name for directory lookup)
           const sourceWorkspacePath = this.config.getWorkspacePath(
             foundProjectPath,
-            sourceWorkspaceId
+            sourceMetadata.name
           );
 
           // Get current branch from source workspace (fork from current branch, not trunk)
@@ -418,7 +418,7 @@ export class IpcMain {
           // Create new git worktree branching from source workspace's branch
           const result = await createWorktree(this.config, foundProjectPath, newName, {
             trunkBranch: sourceBranch,
-            workspaceId: newWorkspaceId, // Use stable ID for directory name
+            workspaceId: newName, // Use name for directory (workspaceId param is misnamed, it's directoryName)
           });
 
           if (!result.success || !result.path) {

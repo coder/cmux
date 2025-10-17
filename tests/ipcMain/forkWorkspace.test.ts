@@ -212,11 +212,22 @@ describeIntegration("IpcMain fork workspace integration tests", () => {
         expect(projectConfig).toBeDefined();
         expect(projectConfig!.workspaces.length).toBeGreaterThanOrEqual(2);
 
-        // Verify both workspace paths are in config
-        const sourceWorkspacePath = env.config.getWorkspacePath(tempGitRepo, sourceWorkspaceId);
+        // Verify both workspace paths are in config (use names for directory lookup)
+        // Get source workspace name from metadata
+        const sourceInfo = await env.mockIpcRenderer.invoke(
+          IPC_CHANNELS.WORKSPACE_GET_INFO,
+          sourceWorkspaceId
+        );
+        expect(sourceInfo).toBeTruthy();
+        
+        // Use fork result metadata directly (just returned, guaranteed to be current)
+        const sourceWorkspacePath = env.config.getWorkspacePath(
+          tempGitRepo,
+          sourceInfo.name
+        );
         const forkedWorkspacePath = env.config.getWorkspacePath(
           tempGitRepo,
-          forkResult.metadata.id
+          forkResult.metadata.name
         );
         const workspacePaths = projectConfig!.workspaces.map((ws) => ws.path);
         expect(workspacePaths).toContain(sourceWorkspacePath);
@@ -260,11 +271,21 @@ describeIntegration("IpcMain fork workspace integration tests", () => {
 
         expect(forkResult.success).toBe(true);
 
-        // Verify both workspaces exist and have different paths
-        const sourceWorkspacePath = env.config.getWorkspacePath(tempGitRepo, sourceWorkspaceId);
+        // Verify both workspaces exist and have different paths (use names for directory lookup)
+        const sourceInfo = await env.mockIpcRenderer.invoke(
+          IPC_CHANNELS.WORKSPACE_GET_INFO,
+          sourceWorkspaceId
+        );
+        expect(sourceInfo).toBeTruthy();
+        
+        // Use fork result metadata directly (just returned, guaranteed to be current)
+        const sourceWorkspacePath = env.config.getWorkspacePath(
+          tempGitRepo,
+          sourceInfo.name
+        );
         const forkedWorkspacePath = env.config.getWorkspacePath(
           tempGitRepo,
-          forkResult.metadata.id
+          forkResult.metadata.name
         );
         expect(forkedWorkspacePath).not.toBe(sourceWorkspacePath);
 
