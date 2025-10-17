@@ -26,9 +26,9 @@ ESLINT_PATTERN='src/**/*.{ts,tsx}'
 
 if [ "$1" = "--fix" ]; then
   echo "Running bun x eslint with --fix..."
-  bun x eslint "$ESLINT_PATTERN" --fix
+  bun x eslint --cache "$ESLINT_PATTERN" --fix
 else
   echo "Running eslint..."
-  bun x eslint "$ESLINT_PATTERN"
+  bun x eslint --cache "$ESLINT_PATTERN"
   echo "ESLint checks passed!"
 fi

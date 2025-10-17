@@ -10,7 +10,8 @@
 #   make test          - Run tests
 #
 # Parallelism:
-#   Use make -jN to run independent tasks concurrently (e.g., make -j4 build)
+#   Runs in parallel by default for faster builds. Use -j1 for sequential execution.
+#   Individual targets can opt out with .NOTPARALLEL if needed.
 #
 # Backwards Compatibility:
 #   All commands also work via `bun run` (e.g., `bun run dev` calls `make dev`)
@@ -22,6 +23,11 @@
 #   AVOID CONDITIONAL BRANCHES (if/else) IN BUILD TARGETS AT ALL COSTS.
 #   Branches reduce reproducibility - builds should fail fast with clear errors
 #   if dependencies are missing, not silently fall back to different behavior.
+
+# Enable parallel execution by default (only if user didn't specify -j)
+ifeq (,$(filter -j%,$(MAKEFLAGS)))
+MAKEFLAGS += -j
+endif
 
 # Include formatting rules
 include fmt.mk
