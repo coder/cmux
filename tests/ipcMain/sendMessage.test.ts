@@ -1453,82 +1453,81 @@ These are general instructions that apply to all modes.
   );
 });
 
-  // Test image support across providers
-  describe.each(PROVIDER_CONFIGS)("%s:%s image support", (provider, model) => {
-    test.concurrent(
-      "should send images to AI model and get response",
-      async () => {
-        const { env, workspaceId, cleanup } = await setupWorkspace(provider);
-        try {
-          // Send message with image attachment
-          const result = await sendMessage(env.mockIpcRenderer, workspaceId, "What color is this?", {
-            model: modelString(provider, model),
-            imageParts: [{ url: TEST_IMAGES.RED_PIXEL, mediaType: "image/png" }],
-          });
+// Test image support across providers
+describe.each(PROVIDER_CONFIGS)("%s:%s image support", (provider, model) => {
+  test.concurrent(
+    "should send images to AI model and get response",
+    async () => {
+      const { env, workspaceId, cleanup } = await setupWorkspace(provider);
+      try {
+        // Send message with image attachment
+        const result = await sendMessage(env.mockIpcRenderer, workspaceId, "What color is this?", {
+          model: modelString(provider, model),
+          imageParts: [{ url: TEST_IMAGES.RED_PIXEL, mediaType: "image/png" }],
+        });
 
-          expect(result.success).toBe(true);
+        expect(result.success).toBe(true);
 
-          // Wait for stream to complete
-          const collector = await waitForStreamSuccess(env.sentEvents, workspaceId, 30000);
+        // Wait for stream to complete
+        const collector = await waitForStreamSuccess(env.sentEvents, workspaceId, 30000);
 
-          // Verify we got a response about the image
-          const deltas = collector.getDeltas();
-          expect(deltas.length).toBeGreaterThan(0);
+        // Verify we got a response about the image
+        const deltas = collector.getDeltas();
+        expect(deltas.length).toBeGreaterThan(0);
 
-          // Combine all text deltas
-          const fullResponse = deltas
-            .map((d) => (d as StreamDeltaEvent).delta)
-            .join("")
-            .toLowerCase();
+        // Combine all text deltas
+        const fullResponse = deltas
+          .map((d) => (d as StreamDeltaEvent).delta)
+          .join("")
+          .toLowerCase();
 
-          // Should mention red color in some form
-          expect(fullResponse.length).toBeGreaterThan(0);
-          // Red pixel should be detected (flexible matching as different models may phrase differently)
-          expect(fullResponse).toMatch(/red|color/i);
-        } finally {
-          await cleanup();
-        }
-      },
-      40000 // Vision models can be slower
-    );
+        // Should mention red color in some form
+        expect(fullResponse.length).toBeGreaterThan(0);
+        // Red pixel should be detected (flexible matching as different models may phrase differently)
+        expect(fullResponse).toMatch(/red|color/i);
+      } finally {
+        await cleanup();
+      }
+    },
+    40000 // Vision models can be slower
+  );
 
-    test.concurrent(
-      "should preserve image parts through history",
-      async () => {
-        const { env, workspaceId, cleanup } = await setupWorkspace(provider);
-        try {
-          // Send message with image
-          const result = await sendMessage(env.mockIpcRenderer, workspaceId, "Describe this", {
-            model: modelString(provider, model),
-            imageParts: [{ url: TEST_IMAGES.BLUE_PIXEL, mediaType: "image/png" }],
-          });
+  test.concurrent(
+    "should preserve image parts through history",
+    async () => {
+      const { env, workspaceId, cleanup } = await setupWorkspace(provider);
+      try {
+        // Send message with image
+        const result = await sendMessage(env.mockIpcRenderer, workspaceId, "Describe this", {
+          model: modelString(provider, model),
+          imageParts: [{ url: TEST_IMAGES.BLUE_PIXEL, mediaType: "image/png" }],
+        });
 
-          expect(result.success).toBe(true);
+        expect(result.success).toBe(true);
 
-          // Wait for stream to complete
-          await waitForStreamSuccess(env.sentEvents, workspaceId, 30000);
+        // Wait for stream to complete
+        await waitForStreamSuccess(env.sentEvents, workspaceId, 30000);
 
-          // Read history from disk
-          const messages = await readChatHistory(env.tempDir, workspaceId);
+        // Read history from disk
+        const messages = await readChatHistory(env.tempDir, workspaceId);
 
-          // Find the user message
-          const userMessage = messages.find((m: { role: string }) => m.role === "user");
-          expect(userMessage).toBeDefined();
+        // Find the user message
+        const userMessage = messages.find((m: { role: string }) => m.role === "user");
+        expect(userMessage).toBeDefined();
 
-          // Verify image part is preserved with correct format
-          if (userMessage) {
-            const imagePart = userMessage.parts.find((p: { type: string }) => p.type === "file");
-            expect(imagePart).toBeDefined();
-            if (imagePart) {
-              expect(imagePart.url).toBe(TEST_IMAGES.BLUE_PIXEL);
-              expect(imagePart.mediaType).toBe("image/png");
-            }
+        // Verify image part is preserved with correct format
+        if (userMessage) {
+          const imagePart = userMessage.parts.find((p: { type: string }) => p.type === "file");
+          expect(imagePart).toBeDefined();
+          if (imagePart) {
+            expect(imagePart.url).toBe(TEST_IMAGES.BLUE_PIXEL);
+            expect(imagePart.mediaType).toBe("image/png");
           }
-        } finally {
-          await cleanup();
         }
-      },
-      40000
-    );
-  });
-
+      } finally {
+        await cleanup();
+      }
+    },
+    40000
+  );
+});
