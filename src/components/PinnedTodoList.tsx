@@ -1,9 +1,8 @@
-import React, { useSyncExternalStore, useMemo, useRef } from "react";
+import React, { useSyncExternalStore } from "react";
 import styled from "@emotion/styled";
 import { TodoList } from "./TodoList";
 import { useWorkspaceStoreRaw } from "@/stores/WorkspaceStore";
 import { usePersistedState } from "@/hooks/usePersistedState";
-import type { TodoItem } from "@/types/tools";
 
 const PinnedContainer = styled.div`
   background: var(--color-panel-background);
@@ -43,44 +42,24 @@ interface PinnedTodoListProps {
 }
 
 /**
- * Compare two TODO arrays by content, not reference.
- * Returns true if arrays have the same items in the same order.
- */
-function areArraysEqual(a: TodoItem[], b: TodoItem[]): boolean {
-  if (a.length !== b.length) return false;
-  return a.every((item, i) => item.content === b[i].content && item.status === b[i].status);
-}
-
-/**
  * Pinned TODO list displayed at bottom of chat (before StreamingBarrier).
  * Shows current TODOs from active stream only.
  * Reuses TodoList component for consistent styling.
  *
- * Memoizes todos array to prevent re-renders when contents haven't changed,
- * even if the array reference is new (which happens when WorkspaceState recomputes).
+ * Relies on natural reference stability from MapStore + Aggregator architecture:
+ * - Aggregator.getCurrentTodos() returns direct reference (not a copy)
+ * - Reference only changes when todos are actually modified
+ * - MapStore caches WorkspaceState per version, avoiding unnecessary recomputation
  */
 export const PinnedTodoList: React.FC<PinnedTodoListProps> = ({ workspaceId }) => {
   const [expanded, setExpanded] = usePersistedState("pinnedTodoExpanded", true);
 
-  // Subscribe to workspace state and extract todos
   const workspaceStore = useWorkspaceStoreRaw();
-  const todosSnapshot = useSyncExternalStore(
+  const todos = useSyncExternalStore(
     (callback) => workspaceStore.subscribeKey(workspaceId, callback),
     () => workspaceStore.getWorkspaceState(workspaceId).todos
   );
 
-  // Memoize todos to return stable reference when contents haven't changed
-  // This prevents unnecessary re-renders of TodoList child component
-  const prevTodosRef = useRef<TodoItem[]>(todosSnapshot);
-  const todos = useMemo(() => {
-    if (areArraysEqual(prevTodosRef.current, todosSnapshot)) {
-      return prevTodosRef.current;
-    }
-    prevTodosRef.current = todosSnapshot;
-    return todosSnapshot;
-  }, [todosSnapshot]);
-
-  // Don't render if no TODOs
   if (todos.length === 0) {
     return null;
   }
