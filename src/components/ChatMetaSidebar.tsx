@@ -139,7 +139,7 @@ const ChatMetaSidebarComponent: React.FC<ChatMetaSidebarProps> = ({ workspaceId,
       setShowCollapsed(false);
     }
     // Between thresholds: maintain current state (no change)
-  }, [chatAreaWidth]);
+  }, [chatAreaWidth, setShowCollapsed]);
 
   return (
     <SidebarContainer

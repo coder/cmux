@@ -306,6 +306,8 @@ function createWindow() {
     throw new Error("Services must be loaded before creating window");
   }
 
+  console.log(`[${timestamp()}] [window] Creating BrowserWindow...`);
+  console.time("[window] BrowserWindow creation");
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
@@ -320,15 +322,21 @@ function createWindow() {
     autoHideMenuBar: process.platform === "linux",
     show: false, // Don't show until ready-to-show event
   });
+  console.timeEnd("[window] BrowserWindow creation");
 
   // Register IPC handlers with the main window
+  console.log(`[${timestamp()}] [window] Registering IPC handlers...`);
+  console.time("[window] IPC registration");
   ipcMain.register(electronIpcMain, mainWindow);
+  console.timeEnd("[window] IPC registration");
 
   // Show window once it's ready and close splash
+  console.time("main window startup");
   mainWindow.once("ready-to-show", () => {
     console.log(`[${timestamp()}] Main window ready to show`);
     mainWindow?.show();
     closeSplashScreen();
+    console.timeEnd("main window startup");
   });
 
   // Open all external links in default browser
@@ -349,10 +357,14 @@ function createWindow() {
 
   // Load from dev server in development, built files in production
   // app.isPackaged is true when running from a built .app/.exe, false in development
+  console.log(`[${timestamp()}] [window] Loading content...`);
+  console.time("[window] Content load");
   if ((isE2ETest && !forceDistLoad) || (!app.isPackaged && !forceDistLoad)) {
     // Development mode: load from vite dev server
     const devHost = process.env.CMUX_DEVSERVER_HOST ?? "127.0.0.1";
-    void mainWindow.loadURL(`http://${devHost}:${devServerPort}`);
+    const url = `http://${devHost}:${devServerPort}`;
+    console.log(`[${timestamp()}] [window] Loading from dev server: ${url}`);
+    void mainWindow.loadURL(url);
     if (!isE2ETest) {
       mainWindow.webContents.once("did-finish-load", () => {
         mainWindow?.webContents.openDevTools();
@@ -360,8 +372,21 @@ function createWindow() {
     }
   } else {
     // Production mode: load built files
-    void mainWindow.loadFile(path.join(__dirname, "index.html"));
+    const htmlPath = path.join(__dirname, "index.html");
+    console.log(`[${timestamp()}] [window] Loading from file: ${htmlPath}`);
+    void mainWindow.loadFile(htmlPath);
   }
+
+  // Track when content finishes loading
+  mainWindow.webContents.once("did-finish-load", () => {
+    console.timeEnd("[window] Content load");
+    console.log(`[${timestamp()}] [window] Content finished loading`);
+
+    // NOTE: Tokenizer modules are NOT loaded at startup anymore!
+    // The Proxy in tokenizer.ts loads them on-demand when first accessed.
+    // This reduces startup time from ~8s to <1s.
+    // First token count will use approximation, accurate count caches in background.
+  });
 
   mainWindow.on("closed", () => {
     mainWindow = null;
@@ -401,16 +426,7 @@ if (gotTheLock) {
       await loadServices();
       createWindow();
       // Note: splash closes in ready-to-show event handler
-
-      // Start loading tokenizer modules in background after window is created
-      // This ensures accurate token counts for first API calls (especially in e2e tests)
-      // Loading happens asynchronously and won't block the UI
-      if (loadTokenizerModulesFn) {
-        void loadTokenizerModulesFn().then(() => {
-          console.log(`[${timestamp()}] Tokenizer modules loaded`);
-        });
-      }
-      // No need to auto-start workspaces anymore - they start on demand
+      // Tokenizer modules load in background after did-finish-load event (see createWindow())
     } catch (error) {
       console.error(`[${timestamp()}] Startup failed:`, error);
 

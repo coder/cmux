@@ -1,3 +1,4 @@
+import assert from "@/utils/assert";
 import type { WorkspaceConsumersState } from "./WorkspaceStore";
 import { TokenStatsWorker } from "@/utils/tokens/TokenStatsWorker";
 import type { StreamingMessageAggregator } from "@/utils/messages/StreamingMessageAggregator";
@@ -48,9 +49,22 @@ export class WorkspaceConsumerManager {
   // Callback to bump the store when calculation completes
   private readonly onCalculationComplete: (workspaceId: string) => void;
 
+  // Track pending store notifications to avoid duplicate bumps within the same tick
+  private pendingNotifications = new Set<string>();
+
   constructor(onCalculationComplete: (workspaceId: string) => void) {
     this.tokenWorker = new TokenStatsWorker();
     this.onCalculationComplete = onCalculationComplete;
+  }
+
+  onTokenizerReady(listener: () => void): () => void {
+    assert(typeof listener === "function", "Tokenizer ready listener must be a function");
+    return this.tokenWorker.onTokenizerReady(listener);
+  }
+
+  onTokenizerEncodingLoaded(listener: (encodingName: string) => void): () => void {
+    assert(typeof listener === "function", "Tokenizer encoding listener must be a function");
+    return this.tokenWorker.onEncodingLoaded(listener);
   }
 
   /**
@@ -117,7 +131,7 @@ export class WorkspaceConsumerManager {
 
     // Notify store if newly scheduled (triggers UI update)
     if (isNewSchedule) {
-      this.onCalculationComplete(workspaceId);
+      this.notifyStoreAsync(workspaceId);
     }
 
     // Set new timer (150ms - imperceptible to humans, batches rapid events)
@@ -143,7 +157,7 @@ export class WorkspaceConsumerManager {
     this.pendingCalcs.add(workspaceId);
 
     // Mark as calculating and notify store
-    this.onCalculationComplete(workspaceId);
+    this.notifyStoreAsync(workspaceId);
 
     // Run in next tick to avoid blocking caller
     void (async () => {
@@ -170,7 +184,7 @@ export class WorkspaceConsumerManager {
         });
 
         // Notify store to trigger re-render
-        this.onCalculationComplete(workspaceId);
+        this.notifyStoreAsync(workspaceId);
       } catch (error) {
         // Cancellations are expected during rapid events - don't cache, don't log
         // This allows lazy trigger to retry on next access
@@ -186,7 +200,7 @@ export class WorkspaceConsumerManager {
           totalTokens: 0,
           isCalculating: false,
         });
-        this.onCalculationComplete(workspaceId);
+        this.notifyStoreAsync(workspaceId);
       } finally {
         this.pendingCalcs.delete(workspaceId);
 
@@ -198,6 +212,26 @@ export class WorkspaceConsumerManager {
         }
       }
     })();
+  }
+
+  private notifyStoreAsync(workspaceId: string): void {
+    if (this.pendingNotifications.has(workspaceId)) {
+      return;
+    }
+
+    this.pendingNotifications.add(workspaceId);
+
+    const schedule =
+      typeof queueMicrotask === "function"
+        ? queueMicrotask
+        : (callback: () => void) => {
+            void Promise.resolve().then(callback);
+          };
+
+    schedule(() => {
+      this.pendingNotifications.delete(workspaceId);
+      this.onCalculationComplete(workspaceId);
+    });
   }
 
   /**
@@ -216,6 +250,7 @@ export class WorkspaceConsumerManager {
     this.scheduledCalcs.delete(workspaceId);
     this.pendingCalcs.delete(workspaceId);
     this.needsRecalc.delete(workspaceId);
+    this.pendingNotifications.delete(workspaceId);
   }
 
   /**
@@ -235,5 +270,7 @@ export class WorkspaceConsumerManager {
     this.cache.clear();
     this.scheduledCalcs.clear();
     this.pendingCalcs.clear();
+    this.needsRecalc.clear();
+    this.pendingNotifications.clear();
   }
 }

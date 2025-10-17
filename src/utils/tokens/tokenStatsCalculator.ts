@@ -1,101 +1,23 @@
 /**
- * Shared token statistics calculation logic
- * Used by both frontend (WorkspaceStore) and backend (debug commands)
+ * Main-process-only token statistics calculation logic
+ * Used by backend (debug commands) and worker threads
  *
- * IMPORTANT: This utility is intentionally abstracted so that the debug command
- * (`bun debug costs`) has exact parity with the UI display in the Costs tab.
- * Any changes to token calculation logic should be made here to maintain consistency.
+ * IMPORTANT: This file imports tokenizer and should ONLY be used in main process.
+ * For renderer-safe usage utilities, use displayUsage.ts instead.
  */
 
 import type { CmuxMessage } from "@/types/message";
 import type { ChatStats, TokenConsumer } from "@/types/chatStats";
-import type { LanguageModelV2Usage } from "@ai-sdk/provider";
 import {
   getTokenizerForModel,
   countTokensForData,
   getToolDefinitionTokens,
 } from "@/utils/main/tokenizer";
-import { getModelStats } from "./modelStats";
+import { createDisplayUsage } from "./displayUsage";
 import type { ChatUsageDisplay } from "./usageAggregator";
 
-/**
- * Create a display-friendly usage object from AI SDK usage
- */
-export function createDisplayUsage(
-  usage: LanguageModelV2Usage | undefined,
-  model: string,
-  providerMetadata?: Record<string, unknown>
-): ChatUsageDisplay | undefined {
-  if (!usage) return undefined;
-
-  // Provider-specific token handling:
-  // - OpenAI: inputTokens is INCLUSIVE of cachedInputTokens
-  // - Anthropic: inputTokens EXCLUDES cachedInputTokens
-  const cachedTokens = usage.cachedInputTokens ?? 0;
-  const rawInputTokens = usage.inputTokens ?? 0;
-
-  // Detect provider from model string
-  const isOpenAI = model.startsWith("openai:");
-
-  // For OpenAI, subtract cached tokens to get uncached input tokens
-  const inputTokens = isOpenAI ? Math.max(0, rawInputTokens - cachedTokens) : rawInputTokens;
-
-  // Extract cache creation tokens from provider metadata (Anthropic-specific)
-  const cacheCreateTokens =
-    (providerMetadata?.anthropic as { cacheCreationInputTokens?: number } | undefined)
-      ?.cacheCreationInputTokens ?? 0;
-
-  // Extract reasoning tokens with fallback to provider metadata (OpenAI-specific)
-  const reasoningTokens =
-    usage.reasoningTokens ??
-    (providerMetadata?.openai as { reasoningTokens?: number } | undefined)?.reasoningTokens ??
-    0;
-
-  // Calculate output tokens excluding reasoning
-  const outputWithoutReasoning = Math.max(0, (usage.outputTokens ?? 0) - reasoningTokens);
-
-  // Get model stats for cost calculation
-  const modelStats = getModelStats(model);
-
-  // Calculate costs based on model stats (undefined if model unknown)
-  let inputCost: number | undefined;
-  let cachedCost: number | undefined;
-  let cacheCreateCost: number | undefined;
-  let outputCost: number | undefined;
-  let reasoningCost: number | undefined;
-
-  if (modelStats) {
-    inputCost = inputTokens * modelStats.input_cost_per_token;
-    cachedCost = cachedTokens * (modelStats.cache_read_input_token_cost ?? 0);
-    cacheCreateCost = cacheCreateTokens * (modelStats.cache_creation_input_token_cost ?? 0);
-    outputCost = outputWithoutReasoning * modelStats.output_cost_per_token;
-    reasoningCost = reasoningTokens * modelStats.output_cost_per_token;
-  }
-
-  return {
-    input: {
-      tokens: inputTokens,
-      cost_usd: inputCost,
-    },
-    cached: {
-      tokens: cachedTokens,
-      cost_usd: cachedCost,
-    },
-    cacheCreate: {
-      tokens: cacheCreateTokens,
-      cost_usd: cacheCreateCost,
-    },
-    output: {
-      tokens: outputWithoutReasoning,
-      cost_usd: outputCost,
-    },
-    reasoning: {
-      tokens: reasoningTokens,
-      cost_usd: reasoningCost,
-    },
-    model, // Include model for display purposes
-  };
-}
+// Re-export for backward compatibility
+export { createDisplayUsage };
 
 /**
  * Calculate token statistics from raw CmuxMessages
