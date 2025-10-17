@@ -202,6 +202,7 @@ function AppInner() {
 
   const {
     workspaceMetadata,
+    setWorkspaceMetadata,
     loading: metadataLoading,
     createWorkspace,
     removeWorkspace,
@@ -742,6 +743,14 @@ function AppInner() {
         return;
       }
 
+      // Update metadata Map immediately (don't wait for async metadata event)
+      // This ensures the title bar effect has the workspace name available
+      setWorkspaceMetadata((prev) => {
+        const updated = new Map(prev);
+        updated.set(workspaceInfo.id, workspaceInfo);
+        return updated;
+      });
+
       // Switch to the new workspace
       setSelectedWorkspace({
         workspaceId: workspaceInfo.id,
@@ -757,7 +766,7 @@ function AppInner() {
         CUSTOM_EVENTS.WORKSPACE_FORK_SWITCH,
         handleForkSwitch as EventListener
       );
-  }, [projects, setSelectedWorkspace]);
+  }, [projects, setSelectedWorkspace, setWorkspaceMetadata]);
 
   return (
     <>

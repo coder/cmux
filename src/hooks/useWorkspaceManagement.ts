@@ -177,6 +177,7 @@ export function useWorkspaceManagement({
 
   return {
     workspaceMetadata,
+    setWorkspaceMetadata,
     loading,
     createWorkspace,
     removeWorkspace,
