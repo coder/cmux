@@ -11,7 +11,7 @@ import {
   DetailLabel,
   LoadingDots,
 } from "./shared/ToolPrimitives";
-import { useToolExpansion, getStatusDisplay } from "./shared/toolUtils";
+import { useToolExpansion, getStatusDisplay, ToolStatus } from "./shared/toolUtils";
 
 // FileList-specific styled components
 
@@ -74,14 +74,14 @@ const EmptyMessage = styled.div`
 interface FileListToolCallProps {
   args: FileListToolArgs;
   result?: FileListToolResult;
-  status: "pending" | "streaming" | "complete" | "error";
+  status: ToolStatus;
 }
 
 export const FileListToolCall: React.FC<FileListToolCallProps> = ({ args, result, status }) => {
   const { expanded, toggleExpanded } = useToolExpansion(false);
-  const isError = status === "error" || (result && !result.success);
-  const isComplete = status === "complete";
-  const isPending = status === "pending" || status === "streaming";
+  const isError = status === "failed" || (result && !result.success);
+  const isComplete = status === "completed";
+  const isPending = status === "pending" || status === "executing";
 
   // Build parameter summary
   const params: string[] = [];
