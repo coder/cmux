@@ -184,11 +184,8 @@ export class AgentSession {
       projectPath: derivedProjectPath,
     };
 
-    const saveResult = await this.aiService.saveWorkspaceMetadata(this.workspaceId, metadata);
-    if (!saveResult.success) {
-      const errorDetail = saveResult.error ?? "unknown";
-      throw new Error(`Failed to save metadata: ${errorDetail}`);
-    }
+    // Write metadata directly to config.json (single source of truth)
+    this.config.addWorkspace(derivedProjectPath, metadata);
     this.emitMetadata(metadata);
   }
 

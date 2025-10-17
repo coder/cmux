@@ -1,5 +1,4 @@
 import * as fs from "fs/promises";
-import * as fsSync from "fs";
 import * as path from "path";
 import * as os from "os";
 import { EventEmitter } from "events";
@@ -7,7 +6,7 @@ import { convertToModelMessages, type LanguageModel } from "ai";
 import { applyToolOutputRedaction } from "@/utils/messages/applyToolOutputRedaction";
 import type { Result } from "@/types/result";
 import { Ok, Err } from "@/types/result";
-import { WorkspaceMetadataSchema, type WorkspaceMetadata } from "@/types/workspace";
+import type { WorkspaceMetadata } from "@/types/workspace";
 
 import type { CmuxMessage, CmuxTextPart } from "@/types/message";
 import { createCmuxMessage } from "@/types/message";
@@ -103,7 +102,6 @@ export async function preloadAISDKProviders(): Promise<void> {
 }
 
 export class AIService extends EventEmitter {
-  private readonly METADATA_FILE = "metadata.json";
   private readonly streamManager: StreamManager;
   private readonly historyService: HistoryService;
   private readonly partialService: PartialService;
@@ -171,48 +169,16 @@ export class AIService extends EventEmitter {
     }
   }
 
-  private loadWorkspaceMetadataFromFile(workspaceId: string): WorkspaceMetadata | null {
-    try {
-      const metadataPath = this.getMetadataPath(workspaceId);
-      if (!fsSync.existsSync(metadataPath)) {
-        return null;
-      }
-
-      const raw = fsSync.readFileSync(metadataPath, "utf-8");
-      const parsed = WorkspaceMetadataSchema.safeParse(JSON.parse(raw));
-      if (!parsed.success) {
-        log.debug(`Invalid workspace metadata in ${metadataPath}: ${parsed.error.message}`);
-        return null;
-      }
-
-      return parsed.data;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      log.debug(`Failed to load workspace metadata from file for ${workspaceId}: ${message}`);
-      return null;
-    }
-  }
-
-  private getMetadataPath(workspaceId: string): string {
-    return path.join(this.config.getSessionDir(workspaceId), this.METADATA_FILE);
-  }
-
   isMockModeEnabled(): boolean {
     return this.mockModeEnabled;
   }
 
   getWorkspaceMetadata(workspaceId: string): Result<WorkspaceMetadata> {
     try {
-      // Get all workspace metadata (which includes migration logic)
-      // This ensures we always get complete metadata with all required fields
+      // Read from config.json (single source of truth)
+      // getAllWorkspaceMetadata() handles migration from legacy metadata.json files
       const allMetadata = this.config.getAllWorkspaceMetadata();
-      let metadata: WorkspaceMetadata | undefined = allMetadata.find(
-        (m) => m.id === workspaceId
-      );
-
-      if (!metadata) {
-        metadata = this.loadWorkspaceMetadataFromFile(workspaceId) ?? undefined;
-      }
+      const metadata = allMetadata.find((m) => m.id === workspaceId);
 
       if (!metadata) {
         return Err(
@@ -224,22 +190,6 @@ export class AIService extends EventEmitter {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       return Err(`Failed to read workspace metadata: ${message}`);
-    }
-  }
-
-  async saveWorkspaceMetadata(
-    workspaceId: string,
-    metadata: WorkspaceMetadata
-  ): Promise<Result<void>> {
-    try {
-      const workspaceDir = this.config.getSessionDir(workspaceId);
-      await fs.mkdir(workspaceDir, { recursive: true });
-      const metadataPath = this.getMetadataPath(workspaceId);
-      await fs.writeFile(metadataPath, JSON.stringify(metadata, null, 2));
-      return Ok(undefined);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      return Err(`Failed to save workspace metadata: ${message}`);
     }
   }
 
