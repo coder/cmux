@@ -15,6 +15,9 @@ import {
   assertError,
   waitFor,
   buildLargeHistory,
+  waitForStreamSuccess,
+  readChatHistory,
+  TEST_IMAGES,
 } from "./helpers";
 import type { StreamDeltaEvent } from "../../src/types/stream";
 import { IPC_CHANNELS } from "../../src/constants/ipc-constants";
@@ -1457,30 +1460,16 @@ These are general instructions that apply to all modes.
       async () => {
         const { env, workspaceId, cleanup } = await setupWorkspace(provider);
         try {
-          // Create a small test image (1x1 red pixel PNG)
-          const redPixelPNG =
-            "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==";
-
           // Send message with image attachment
           const result = await sendMessage(env.mockIpcRenderer, workspaceId, "What color is this?", {
             model: modelString(provider, model),
-            imageParts: [
-              {
-                url: redPixelPNG,
-                mediaType: "image/png",
-              },
-            ],
+            imageParts: [{ url: TEST_IMAGES.RED_PIXEL, mediaType: "image/png" }],
           });
 
-          // Verify IPC call succeeded
           expect(result.success).toBe(true);
 
-          // Collect and verify stream events
-          const collector = createEventCollector(env.sentEvents, workspaceId);
-          const streamEnd = await collector.waitForEvent("stream-end", 30000);
-
-          expect(streamEnd).toBeDefined();
-          assertStreamSuccess(collector);
+          // Wait for stream to complete
+          const collector = await waitForStreamSuccess(env.sentEvents, workspaceId, 30000);
 
           // Verify we got a response about the image
           const deltas = collector.getDeltas();
@@ -1505,44 +1494,28 @@ These are general instructions that apply to all modes.
       async () => {
         const { env, workspaceId, cleanup } = await setupWorkspace(provider);
         try {
-          // Create test image
-          const testImage =
-            "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M/wHwAEBgIApD5fRAAAAABJRU5ErkJggg==";
-
           // Send message with image
           const result = await sendMessage(env.mockIpcRenderer, workspaceId, "Describe this", {
             model: modelString(provider, model),
-            imageParts: [
-              {
-                url: testImage,
-                mediaType: "image/png",
-              },
-            ],
+            imageParts: [{ url: TEST_IMAGES.BLUE_PIXEL, mediaType: "image/png" }],
           });
 
           expect(result.success).toBe(true);
 
           // Wait for stream to complete
-          const collector = createEventCollector(env.sentEvents, workspaceId);
-          await collector.waitForEvent("stream-end", 30000);
-          assertStreamSuccess(collector);
+          await waitForStreamSuccess(env.sentEvents, workspaceId, 30000);
 
           // Read history from disk
-          const historyPath = path.join(env.tempDir, "sessions", workspaceId, "chat.jsonl");
-          const historyContent = await fs.readFile(historyPath, "utf-8");
-          const messages = historyContent
-            .trim()
-            .split("\n")
-            .map((line) => JSON.parse(line));
+          const messages = await readChatHistory(env.tempDir, workspaceId);
 
           // Find the user message
           const userMessage = messages.find((m: { role: string }) => m.role === "user");
           expect(userMessage).toBeDefined();
 
-          // Verify image part is preserved
+          // Verify image part is preserved with correct format
           const imagePart = userMessage.parts.find((p: { type: string }) => p.type === "file");
           expect(imagePart).toBeDefined();
-          expect(imagePart.url).toBe(testImage);
+          expect(imagePart.url).toBe(TEST_IMAGES.BLUE_PIXEL);
           expect(imagePart.mediaType).toBe("image/png");
         } finally {
           await cleanup();
