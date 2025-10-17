@@ -1,7 +1,101 @@
 import React from "react";
+import styled from "@emotion/styled";
 import type { FileListToolArgs, FileListToolResult, FileEntry } from "@/types/tools";
 import { formatSize } from "@/services/tools/fileCommon";
-import styles from "./FileListToolCall.module.css";
+import {
+  ToolContainer,
+  ToolHeader,
+  ExpandIcon,
+  StatusIndicator,
+  ToolDetails,
+  DetailSection,
+  DetailLabel,
+  LoadingDots,
+} from "./shared/ToolPrimitives";
+import { useToolExpansion, getStatusDisplay } from "./shared/toolUtils";
+
+// FileList-specific styled components
+
+const PathText = styled.span`
+  color: var(--color-text);
+  font-family: var(--font-monospace);
+  font-weight: 500;
+`;
+
+const ParamsText = styled.span`
+  color: var(--color-text-secondary);
+  font-size: 10px;
+  margin-left: 8px;
+`;
+
+const CountBadge = styled.span`
+  color: var(--color-text-secondary);
+  font-size: 10px;
+  margin-left: 8px;
+`;
+
+const ErrorMessage = styled.div`
+  color: #f44336;
+  font-size: 11px;
+  padding: 6px 8px;
+  background: rgba(244, 67, 54, 0.1);
+  border-radius: 3px;
+  border-left: 2px solid #f44336;
+  line-height: 1.5;
+  white-space: pre-wrap;
+`;
+
+const ErrorHint = styled.div`
+  color: var(--color-text-secondary);
+  font-size: 10px;
+  margin-top: 6px;
+  font-style: italic;
+`;
+
+const TreeContainer = styled.div`
+  margin-top: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
+  padding: 12px;
+  overflow-x: auto;
+  font-family: var(--font-monospace);
+  line-height: 1.6;
+`;
+
+const Entry = styled.div`
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  font-size: 11px;
+`;
+
+const Prefix = styled.span`
+  color: var(--color-text-secondary);
+  user-select: none;
+`;
+
+const Icon = styled.span`
+  margin-right: 6px;
+  user-select: none;
+`;
+
+const Name = styled.span`
+  color: var(--color-text);
+  font-weight: 500;
+`;
+
+const Size = styled.span`
+  color: var(--color-text-secondary);
+  margin-left: 8px;
+  font-size: 10px;
+`;
+
+const EmptyMessage = styled.div`
+  color: var(--color-text-secondary);
+  font-style: italic;
+  text-align: center;
+  padding: 16px;
+`;
 
 interface FileListToolCallProps {
   args: FileListToolArgs;
@@ -24,15 +118,15 @@ function renderFileTree(entries: FileEntry[], depth: number = 0): JSX.Element[] 
     const sizeInfo = entry.size !== undefined ? ` (${formatSize(entry.size)})` : "";
 
     elements.push(
-      <div key={`${depth}-${index}-${entry.name}`} className={styles.entry}>
-        <span className={styles.prefix}>{prefix}</span>
-        <span className={styles.icon}>{icon}</span>
-        <span className={styles.name}>
+      <Entry key={`${depth}-${index}-${entry.name}`}>
+        <Prefix>{prefix}</Prefix>
+        <Icon>{icon}</Icon>
+        <Name>
           {entry.name}
           {suffix}
-        </span>
-        {sizeInfo && <span className={styles.size}>{sizeInfo}</span>}
-      </div>
+        </Name>
+        {sizeInfo && <Size>{sizeInfo}</Size>}
+      </Entry>
     );
 
     // Recursively render children if present
@@ -44,7 +138,8 @@ function renderFileTree(entries: FileEntry[], depth: number = 0): JSX.Element[] 
   return elements;
 }
 
-export function FileListToolCall({ args, result, status }: FileListToolCallProps): JSX.Element {
+export const FileListToolCall: React.FC<FileListToolCallProps> = ({ args, result, status }) => {
+  const { expanded, toggleExpanded } = useToolExpansion(false);
   const isError = status === "error" || (result && !result.success);
   const isComplete = status === "complete";
   const isPending = status === "pending" || status === "streaming";
@@ -64,46 +159,64 @@ export function FileListToolCall({ args, result, status }: FileListToolCallProps
     params.push(`max: ${args.max_entries}`);
   }
 
-  const paramStr = params.length > 0 ? ` (${params.join(", ")})` : "";
+  const paramStr = params.length > 0 ? `(${params.join(", ")})` : "";
+
+  // Convert our status to shared ToolStatus type
+  const toolStatus = isError ? "failed" : isPending ? "executing" : "completed";
 
   return (
-    <div className={`${styles.container} ${isError ? styles.error : ""}`}>
-      {/* Header */}
-      <div className={styles.header}>
-        <span className={styles.toolName}>📋 file_list:</span>
-        <span className={styles.path}>{args.path}</span>
-        <span className={styles.params}>{paramStr}</span>
+    <ToolContainer expanded={expanded}>
+      <ToolHeader onClick={toggleExpanded}>
+        <ExpandIcon expanded={expanded}>▶</ExpandIcon>
+        <span>📋 file_list</span>
+        <PathText>{args.path}</PathText>
+        {paramStr && <ParamsText>{paramStr}</ParamsText>}
         {isComplete && result && result.success && (
-          <span className={styles.count}>{result.total_count} entries</span>
+          <CountBadge>{result.total_count} entries</CountBadge>
         )}
-      </div>
+        <StatusIndicator status={toolStatus}>{getStatusDisplay(toolStatus)}</StatusIndicator>
+      </ToolHeader>
 
-      {/* Status */}
-      {isPending && <div className={styles.status}>⏳ Listing directory...</div>}
-
-      {/* Error */}
-      {isError && result && !result.success && (
-        <div className={styles.errorMessage}>
-          <div className={styles.errorTitle}>❌ Error</div>
-          <div className={styles.errorText}>{result.error}</div>
-          {result.total_found !== undefined && (
-            <div className={styles.errorHint}>
-              Found {result.total_found}+ entries (limit: {result.limit_requested})
-            </div>
+      {expanded && (
+        <ToolDetails>
+          {/* Pending state */}
+          {isPending && (
+            <DetailSection>
+              Listing directory
+              <LoadingDots />
+            </DetailSection>
           )}
-        </div>
-      )}
 
-      {/* Success - Render tree */}
-      {isComplete && result && result.success && (
-        <div className={styles.treeContainer}>
-          {result.entries.length === 0 ? (
-            <div className={styles.empty}>Empty directory</div>
-          ) : (
-            <div className={styles.tree}>{renderFileTree(result.entries)}</div>
+          {/* Error state */}
+          {isError && result && !result.success && (
+            <DetailSection>
+              <DetailLabel>Error</DetailLabel>
+              <ErrorMessage>
+                {result.error}
+                {result.total_found !== undefined && (
+                  <ErrorHint>
+                    Found {result.total_found}+ entries (limit: {result.limit_requested})
+                  </ErrorHint>
+                )}
+              </ErrorMessage>
+            </DetailSection>
           )}
-        </div>
+
+          {/* Success state */}
+          {isComplete && result && result.success && (
+            <DetailSection>
+              <DetailLabel>Contents ({result.total_count} entries)</DetailLabel>
+              <TreeContainer>
+                {result.entries.length === 0 ? (
+                  <EmptyMessage>Empty directory</EmptyMessage>
+                ) : (
+                  <>{renderFileTree(result.entries)}</>
+                )}
+              </TreeContainer>
+            </DetailSection>
+          )}
+        </ToolDetails>
       )}
-    </div>
+    </ToolContainer>
   );
-}
+};

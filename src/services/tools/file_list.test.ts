@@ -223,8 +223,8 @@ describe("file_list tool", () => {
 
   describe("limit enforcement", () => {
     test("returns error when exceeding default limit", async () => {
-      // Create 101 files (exceeds default limit of 100)
-      for (let i = 0; i < 101; i++) {
+      // Create 65 files (exceeds default limit of 64)
+      for (let i = 0; i < 65; i++) {
         await fs.writeFile(path.join(tempDir, `file${i}.txt`), `content${i}`);
       }
 
@@ -237,8 +237,8 @@ describe("file_list tool", () => {
 
       expect(result.success).toBe(false);
       expect(result.error).toContain("exceed limit");
-      expect(result.total_found).toBeGreaterThan(100);
-      expect(result.limit_requested).toBe(100);
+      expect(result.total_found).toBeGreaterThan(64);
+      expect(result.limit_requested).toBe(64);
     });
 
     test("respects custom max_entries", async () => {
