@@ -260,11 +260,11 @@ describe("bash tool", () => {
         // Verify file contains ALL lines collected (should be ~1300 lines, ~50KB)
         const fileContent = fs.readFileSync(overflowPath, "utf-8");
         const fileLines = fileContent.split("\n").filter((l: string) => l.length > 0);
-        
+
         // Should have collected all 1300 lines (not stopped at display limit)
         expect(fileLines.length).toBeGreaterThanOrEqual(1250);
         expect(fileLines.length).toBeLessThanOrEqual(1350);
-        
+
         // Verify file size is between 45KB and 55KB
         const fileStats = fs.statSync(overflowPath);
         expect(fileStats.size).toBeGreaterThan(45 * 1024);
@@ -320,7 +320,139 @@ describe("bash tool", () => {
     tempDir[Symbol.dispose]();
   });
 
+  it("should NOT kill process at display limit (16KB) - verify command completes naturally", async () => {
+    const tempDir = new TestTempDir("test-bash-no-kill-display");
+    const tool = createBashTool({
+      cwd: process.cwd(),
+      tempDir: tempDir.path,
+    });
 
+    // Generate output that exceeds display limit but not file limit
+    // Also includes a delay at the END to verify process wasn't killed early
+    const args: BashToolArgs = {
+      script:
+        "for i in {1..500}; do printf 'line%04d with padding text\\n' $i; done; echo 'COMPLETION_MARKER'",
+      timeout_secs: 5,
+    };
+
+    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      // Should hit display limit
+      expect(result.error).toContain("display limit");
+
+      // Extract and verify temp file contains the completion marker
+      const match = /saved to (\/.*?\.txt)/.exec(result.error);
+      expect(match).toBeDefined();
+      if (match) {
+        const overflowPath = match[1];
+        const fileContent = fs.readFileSync(overflowPath, "utf-8");
+
+        // CRITICAL: File must contain COMPLETION_MARKER, proving command ran to completion
+        // If process was killed at display limit, this marker would be missing
+        expect(fileContent).toContain("COMPLETION_MARKER");
+
+        // Clean up
+        fs.unlinkSync(overflowPath);
+      }
+    }
+
+    tempDir[Symbol.dispose]();
+  });
+
+  it("should kill process immediately when single line exceeds per-line limit", async () => {
+    const tempDir = new TestTempDir("test-bash-per-line-kill");
+    const tool = createBashTool({
+      cwd: process.cwd(),
+      tempDir: tempDir.path,
+    });
+
+    // Generate a single line exceeding 1KB limit, then try to output more
+    const args: BashToolArgs = {
+      script: "printf 'x%.0s' {1..2000}; echo; echo 'SHOULD_NOT_APPEAR'",
+      timeout_secs: 5,
+    };
+
+    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      // Should hit per-line limit (file truncation, not display)
+      expect(result.error).toContain("per-line limit");
+
+      // Extract and verify temp file does NOT contain the second echo
+      const match = /saved to (\/.*?\.txt)/.exec(result.error);
+      expect(match).toBeDefined();
+      if (match) {
+        const overflowPath = match[1];
+        const fileContent = fs.readFileSync(overflowPath, "utf-8");
+
+        // CRITICAL: File must NOT contain SHOULD_NOT_APPEAR
+        // This proves process was killed immediately at per-line limit
+        expect(fileContent).not.toContain("SHOULD_NOT_APPEAR");
+
+        // Clean up
+        fs.unlinkSync(overflowPath);
+      }
+    }
+
+    tempDir[Symbol.dispose]();
+  });
+
+  it("should handle output just under 16KB without truncation", async () => {
+    const tempDir = new TestTempDir("test-bash-under-limit");
+    const tool = createBashTool({
+      cwd: process.cwd(),
+      tempDir: tempDir.path,
+    });
+
+    // Generate ~15KB of output (just under 16KB display limit)
+    // Each line is ~50 bytes, 15KB / 50 = 300 lines exactly (at the line limit)
+    const args: BashToolArgs = {
+      script: "for i in {1..299}; do printf 'line%04d with some padding text here now\\n' $i; done",
+      timeout_secs: 5,
+    };
+
+    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
+
+    // Should succeed without overflow (299 lines < 300 line limit)
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.output).toContain("line0001");
+      expect(result.output).toContain("line0299");
+      // Should NOT have created a temp file
+      const files = fs.readdirSync(tempDir.path);
+      expect(files.length).toBe(0);
+    }
+
+    tempDir[Symbol.dispose]();
+  });
+
+  it("should trigger display truncation at exactly 300 lines", async () => {
+    const tempDir = new TestTempDir("test-bash-exact-limit");
+    const tool = createBashTool({
+      cwd: process.cwd(),
+      tempDir: tempDir.path,
+    });
+
+    // Generate exactly 300 lines (hits line limit exactly)
+    const args: BashToolArgs = {
+      script: "for i in {1..300}; do printf 'line%04d\\n' $i; done",
+      timeout_secs: 5,
+    };
+
+    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
+
+    // Should trigger display truncation at exactly 300 lines
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain("300 lines");
+      expect(result.error).toContain("display limit");
+    }
+
+    tempDir[Symbol.dispose]();
+  });
 
   it("should interleave stdout and stderr", async () => {
     using testEnv = createTestBashTool();

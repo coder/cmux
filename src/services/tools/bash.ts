@@ -94,13 +94,13 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
       const effectiveMaxLines = BASH_HARD_MAX_LINES;
       let totalBytesAccumulated = 0;
       let overflowReason: string | null = null;
-      
+
       // Two-stage truncation to prevent re-running expensive commands:
       // 1. Display truncation (16KB): Stop showing output to agent, but keep collecting
       // 2. File truncation (100KB): Stop collecting entirely and kill the process
       // This allows agents to access full output via temp file without re-running
       let displayTruncated = false; // Hit 16KB display limit
-      let fileTruncated = false;    // Hit 100KB file limit
+      let fileTruncated = false; // Hit 100KB file limit
 
       // Detect redundant cd to working directory
       // Match patterns like: "cd /path &&", "cd /path;", "cd '/path' &&", "cd \"/path\" &&"
@@ -209,7 +209,7 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
           overflowReason = reason;
           // Don't kill process yet - keep collecting up to file limit
         };
-        
+
         // Helper to trigger file truncation (stop collecting, kill process)
         const triggerFileTruncation = (reason: string) => {
           fileTruncated = true;
@@ -224,7 +224,7 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
         stdoutReader.on("line", (line) => {
           if (!resolved && !fileTruncated) {
             const lineBytes = Buffer.byteLength(line, "utf-8");
-            
+
             // Check if line exceeds per-line limit (hard stop - this is likely corrupt data)
             if (lineBytes > BASH_MAX_LINE_BYTES) {
               triggerFileTruncation(
@@ -266,7 +266,7 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
         stderrReader.on("line", (line) => {
           if (!resolved && !fileTruncated) {
             const lineBytes = Buffer.byteLength(line, "utf-8");
-            
+
             // Check if line exceeds per-line limit (hard stop - this is likely corrupt data)
             if (lineBytes > BASH_MAX_LINE_BYTES) {
               triggerFileTruncation(
