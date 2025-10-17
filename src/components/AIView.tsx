@@ -181,18 +181,6 @@ const JumpToBottomIndicator = styled.button`
   }
 `;
 
-const StreamingOverlay = styled.div`
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  padding: 15px;
-  pointer-events: none; /* Allow clicks through to content */
-  
-  > * {
-    pointer-events: auto; /* But barriers themselves are clickable */
-  }
-`;
 
 
 interface AIViewProps {
@@ -492,13 +480,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
               data={mergedMessages}
               defaultItemHeight={100}
               alignToBottom
-              followOutput={(isAtBottom) => {
-                // Only follow if we're at bottom - prevents jittery scrolling
-                if (autoScroll && isAtBottom) {
-                  return "smooth";
-                }
-                return false;
-              }}
+              followOutput={autoScroll ? "auto" : false}
               initialTopMostItemIndex={mergedMessages.length - 1}
               atBottomStateChange={(atBottom) => {
                 setAutoScroll(atBottom);
@@ -520,6 +502,30 @@ const AIViewInner: React.FC<AIViewProps> = ({
                       />
                     )}
                     <PinnedTodoList workspaceId={workspaceId} />
+                    {canInterrupt && (
+                      <StreamingBarrier
+                        statusText={
+                          isCompacting
+                            ? currentModel
+                              ? `${getModelName(currentModel)} compacting...`
+                              : "compacting..."
+                            : currentModel
+                              ? `${getModelName(currentModel)} streaming...`
+                              : "streaming..."
+                        }
+                        cancelText={`hit ${formatKeybind(KEYBINDS.INTERRUPT_STREAM)} to cancel`}
+                        tokenCount={
+                          activeStreamMessageId
+                            ? aggregator.getStreamingTokenCount(activeStreamMessageId)
+                            : undefined
+                        }
+                        tps={
+                          activeStreamMessageId
+                            ? aggregator.getStreamingTPS(activeStreamMessageId)
+                            : undefined
+                        }
+                      />
+                    )}
                   </>
                 ),
               }}
@@ -549,32 +555,6 @@ const AIViewInner: React.FC<AIViewProps> = ({
               }}
             />
           )}
-          <StreamingOverlay>
-          {canInterrupt && (
-            <StreamingBarrier
-              statusText={
-                isCompacting
-                  ? currentModel
-                    ? `${getModelName(currentModel)} compacting...`
-                    : "compacting..."
-                  : currentModel
-                    ? `${getModelName(currentModel)} streaming...`
-                    : "streaming..."
-              }
-              cancelText={`hit ${formatKeybind(KEYBINDS.INTERRUPT_STREAM)} to cancel`}
-              tokenCount={
-                activeStreamMessageId
-                  ? aggregator.getStreamingTokenCount(activeStreamMessageId)
-                  : undefined
-              }
-              tps={
-                activeStreamMessageId
-                  ? aggregator.getStreamingTPS(activeStreamMessageId)
-                  : undefined
-              }
-            />
-          )}
-          </StreamingOverlay>
           {!autoScroll && (
             <JumpToBottomIndicator onClick={jumpToBottom} type="button">
               Press {formatKeybind(KEYBINDS.JUMP_TO_BOTTOM)} to jump to bottom
