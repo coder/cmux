@@ -219,12 +219,9 @@ describeIntegration("IpcMain fork workspace integration tests", () => {
           sourceWorkspaceId
         );
         expect(sourceInfo).toBeTruthy();
-        
+
         // Use fork result metadata directly (just returned, guaranteed to be current)
-        const sourceWorkspacePath = env.config.getWorkspacePath(
-          tempGitRepo,
-          sourceInfo.name
-        );
+        const sourceWorkspacePath = env.config.getWorkspacePath(tempGitRepo, sourceInfo.name);
         const forkedWorkspacePath = env.config.getWorkspacePath(
           tempGitRepo,
           forkResult.metadata.name
@@ -277,12 +274,9 @@ describeIntegration("IpcMain fork workspace integration tests", () => {
           sourceWorkspaceId
         );
         expect(sourceInfo).toBeTruthy();
-        
+
         // Use fork result metadata directly (just returned, guaranteed to be current)
-        const sourceWorkspacePath = env.config.getWorkspacePath(
-          tempGitRepo,
-          sourceInfo.name
-        );
+        const sourceWorkspacePath = env.config.getWorkspacePath(tempGitRepo, sourceInfo.name);
         const forkedWorkspacePath = env.config.getWorkspacePath(
           tempGitRepo,
           forkResult.metadata.name
