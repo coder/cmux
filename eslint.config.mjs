@@ -163,7 +163,8 @@ export default defineConfig([
     },
     rules: {
       ...react.configs.recommended.rules,
-      ...reactHooks.configs.recommended.rules,
+      // Use recommended-latest to get React Compiler lint rules
+      ...reactHooks.configs["recommended-latest"].rules,
 
       // Flag unused variables, parameters, and imports
       "@typescript-eslint/no-unused-vars": [
