@@ -89,7 +89,7 @@ test.describe("slash command flows", () => {
     );
 
     await ui.chat.expectStatusMessageContains("Compaction started");
-    
+
     // Compaction now uses direct text streaming instead of a tool call
     // Verify the summary text appears in the transcript
     const transcript = page.getByRole("log", { name: "Conversation transcript" });
