@@ -126,7 +126,7 @@ const ProjectGroup = styled.div`
 `;
 
 const ProjectItem = styled.div<{ selected?: boolean; isDragging?: boolean; isOver?: boolean }>`
-  padding: 6px 12px;
+  padding: 4px 12px;
   cursor: ${(props) => (props.isDragging ? "grabbing" : "grab")};
   display: flex;
   align-items: center;
@@ -232,7 +232,7 @@ const ProjectName = styled.div`
 const ProjectPath = styled.div`
   color: #6e6e6e;
   font-size: 11px;
-  margin-top: 2px;
+  margin-top: 1px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
