@@ -2,7 +2,7 @@ import * as fs from "fs/promises";
 import * as path from "path";
 import * as os from "os";
 import { EventEmitter } from "events";
-import { convertToModelMessages, wrapLanguageModel, type LanguageModel } from "ai";
+import { convertToModelMessages, type LanguageModel } from "ai";
 import { applyToolOutputRedaction } from "@/utils/messages/applyToolOutputRedaction";
 import type { Result } from "@/types/result";
 import { Ok, Err } from "@/types/result";
@@ -352,12 +352,9 @@ export class AIService extends EventEmitter {
               return baseFetch(input, init);
             }
           },
-          "preconnect" in baseFetch &&
-            typeof (baseFetch as typeof fetch).preconnect === "function"
+          "preconnect" in baseFetch && typeof baseFetch.preconnect === "function"
             ? {
-                preconnect: (baseFetch as typeof fetch).preconnect.bind(
-                  baseFetch
-                ),
+                preconnect: baseFetch.preconnect.bind(baseFetch),
               }
             : {}
         );
@@ -366,7 +363,7 @@ export class AIService extends EventEmitter {
         const { createOpenAI } = await import("@ai-sdk/openai");
         const provider = createOpenAI({
           ...providerConfig,
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-explicit-any
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
           fetch: fetchWithOpenAITruncation as any,
         });
         // Use Responses API for persistence and built-in tools
