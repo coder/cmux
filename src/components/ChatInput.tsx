@@ -744,17 +744,40 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           setInput(""); // Clear input immediately
           setIsSending(true);
 
-          const forkResult = await forkWorkspace(
-            {
+          try {
+            const forkResult = await forkWorkspace({
               sourceWorkspaceId: workspaceId,
               newName: parsed.newName,
               startMessage: parsed.startMessage,
               sendMessageOptions,
-            },
-            setToast
-          );
+            });
 
-          if (!forkResult.success) {
+            if (!forkResult.success) {
+              const errorMsg = forkResult.error ?? "Failed to fork workspace";
+              console.error("Failed to fork workspace:", errorMsg);
+              setToast({
+                id: Date.now().toString(),
+                type: "error",
+                title: "Fork Failed",
+                message: errorMsg,
+              });
+              setInput(messageText); // Restore input on error
+            } else {
+              setToast({
+                id: Date.now().toString(),
+                type: "success",
+                message: `Forked to workspace "${parsed.newName}"`,
+              });
+            }
+          } catch (error) {
+            const errorMsg = error instanceof Error ? error.message : "Failed to fork workspace";
+            console.error("Fork error:", error);
+            setToast({
+              id: Date.now().toString(),
+              type: "error",
+              title: "Fork Failed",
+              message: errorMsg,
+            });
             setInput(messageText); // Restore input on error
           }
 

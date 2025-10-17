@@ -733,21 +733,21 @@ function AppInner() {
     const handleForkSwitch = (e: Event) => {
       if (!isWorkspaceForkSwitchEvent(e)) return;
 
-      const { workspaceId, projectPath, projectName, workspacePath } = e.detail;
+      const workspaceInfo = e.detail;
 
       // Find the project in config
-      const project = projects.get(projectPath);
+      const project = projects.get(workspaceInfo.projectPath);
       if (!project) {
-        console.error(`Project not found for path: ${projectPath}`);
+        console.error(`Project not found for path: ${workspaceInfo.projectPath}`);
         return;
       }
 
       // Switch to the new workspace
       setSelectedWorkspace({
-        workspaceId,
-        projectPath,
-        projectName,
-        namedWorkspacePath: workspacePath,
+        workspaceId: workspaceInfo.id,
+        projectPath: workspaceInfo.projectPath,
+        projectName: workspaceInfo.projectName,
+        namedWorkspacePath: workspaceInfo.namedWorkspacePath,
       });
     };
 

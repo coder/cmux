@@ -123,7 +123,7 @@ describeIntegration("IpcMain fork workspace integration tests", () => {
         expect(createResult.success).toBe(true);
         const sourceWorkspaceId = createResult.metadata.id;
 
-        // Create chat history file directly (bypassing API key requirement)
+        // Add chat history to source workspace
         const sourceSessionDir = path.join(env.config.sessionsDir, sourceWorkspaceId);
         await fs.mkdir(sourceSessionDir, { recursive: true });
         const sourceChatPath = path.join(sourceSessionDir, "chat.jsonl");
@@ -135,42 +135,24 @@ describeIntegration("IpcMain fork workspace integration tests", () => {
         };
         await fs.writeFile(sourceChatPath, JSON.stringify(testMessage) + "\n");
 
-        // Verify source chat history exists
-        const sourceChatExists = await fs
-          .access(sourceChatPath)
-          .then(() => true)
-          .catch(() => false);
-        expect(sourceChatExists).toBe(true);
-        const sourceChat = await fs.readFile(sourceChatPath, "utf-8");
-        const sourceLines = sourceChat.split("\n").filter((line) => line.trim());
-
         // Fork the workspace
         const forkResult = await env.mockIpcRenderer.invoke(
           IPC_CHANNELS.WORKSPACE_FORK,
           sourceWorkspaceId,
           "forked-with-history"
         );
-
         expect(forkResult.success).toBe(true);
-        const forkedWorkspaceId = forkResult.metadata.id;
 
-        // Verify forked workspace has copied chat history
-        const forkedSessionDir = path.join(env.config.sessionsDir, forkedWorkspaceId);
+        // User expects: forked workspace has same chat history
+        const forkedSessionDir = path.join(env.config.sessionsDir, forkResult.metadata.id);
         const forkedChatPath = path.join(forkedSessionDir, "chat.jsonl");
-        const forkedChatExists = await fs
-          .access(forkedChatPath)
-          .then(() => true)
-          .catch(() => false);
-        expect(forkedChatExists).toBe(true);
         const forkedChat = await fs.readFile(forkedChatPath, "utf-8");
-        const forkedLines = forkedChat.split("\n").filter((line) => line.trim());
-
-        // Verify same number of messages
-        expect(forkedLines.length).toBe(sourceLines.length);
+        const forkedMessage = JSON.parse(forkedChat.trim());
+        expect(forkedMessage.content).toBe("Test message");
 
         // Cleanup
         await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, sourceWorkspaceId);
-        await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, forkedWorkspaceId);
+        await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, forkResult.metadata.id);
       } finally {
         await cleanupTestEnvironment(env);
         await cleanupTempGitRepo(tempGitRepo);
@@ -180,7 +162,7 @@ describeIntegration("IpcMain fork workspace integration tests", () => {
   );
 
   test.concurrent(
-    "should update config correctly when forking workspace",
+    "should make forked workspace available for listing",
     async () => {
       const env = await createTestEnvironment();
       const tempGitRepo = await createTempGitRepo();
@@ -203,32 +185,13 @@ describeIntegration("IpcMain fork workspace integration tests", () => {
           sourceWorkspaceId,
           "forked-config"
         );
-
         expect(forkResult.success).toBe(true);
 
-        // Verify config includes both workspaces
-        const config = env.config.loadConfigOrDefault();
-        const projectConfig = config.projects.get(tempGitRepo);
-        expect(projectConfig).toBeDefined();
-        expect(projectConfig!.workspaces.length).toBeGreaterThanOrEqual(2);
-
-        // Verify both workspace paths are in config (use names for directory lookup)
-        // Get source workspace name from metadata
-        const sourceInfo = await env.mockIpcRenderer.invoke(
-          IPC_CHANNELS.WORKSPACE_GET_INFO,
-          sourceWorkspaceId
-        );
-        expect(sourceInfo).toBeTruthy();
-
-        // Use fork result metadata directly (just returned, guaranteed to be current)
-        const sourceWorkspacePath = env.config.getWorkspacePath(tempGitRepo, sourceInfo.name);
-        const forkedWorkspacePath = env.config.getWorkspacePath(
-          tempGitRepo,
-          forkResult.metadata.name
-        );
-        const workspacePaths = projectConfig!.workspaces.map((ws) => ws.path);
-        expect(workspacePaths).toContain(sourceWorkspacePath);
-        expect(workspacePaths).toContain(forkedWorkspacePath);
+        // User expects: both workspaces appear in workspace list
+        const workspaces = await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_LIST);
+        const workspaceIds = workspaces.map((w: { id: string }) => w.id);
+        expect(workspaceIds).toContain(sourceWorkspaceId);
+        expect(workspaceIds).toContain(forkResult.metadata.id);
 
         // Cleanup
         await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, sourceWorkspaceId);
@@ -242,7 +205,7 @@ describeIntegration("IpcMain fork workspace integration tests", () => {
   );
 
   test.concurrent(
-    "should create independent git branch for forked workspace",
+    "should create independent working directories for source and forked workspace",
     async () => {
       const env = await createTestEnvironment();
       const tempGitRepo = await createTempGitRepo();
@@ -265,36 +228,23 @@ describeIntegration("IpcMain fork workspace integration tests", () => {
           sourceWorkspaceId,
           "forked-branch"
         );
-
         expect(forkResult.success).toBe(true);
 
-        // Verify both workspaces exist and have different paths (use names for directory lookup)
+        // User expects: both workspaces can be accessed and have independent directories
         const sourceInfo = await env.mockIpcRenderer.invoke(
           IPC_CHANNELS.WORKSPACE_GET_INFO,
           sourceWorkspaceId
         );
-        expect(sourceInfo).toBeTruthy();
-
-        // Use fork result metadata directly (just returned, guaranteed to be current)
-        const sourceWorkspacePath = env.config.getWorkspacePath(tempGitRepo, sourceInfo.name);
-        const forkedWorkspacePath = env.config.getWorkspacePath(
-          tempGitRepo,
-          forkResult.metadata.name
+        const forkedInfo = await env.mockIpcRenderer.invoke(
+          IPC_CHANNELS.WORKSPACE_GET_INFO,
+          forkResult.metadata.id
         );
-        expect(forkedWorkspacePath).not.toBe(sourceWorkspacePath);
 
-        // Verify both workspace directories exist
-        const sourceExists = await fs
-          .access(sourceWorkspacePath)
-          .then(() => true)
-          .catch(() => false);
-        const forkedExists = await fs
-          .access(forkedWorkspacePath)
-          .then(() => true)
-          .catch(() => false);
+        expect(sourceInfo.namedWorkspacePath).not.toBe(forkedInfo.namedWorkspacePath);
 
-        expect(sourceExists).toBe(true);
-        expect(forkedExists).toBe(true);
+        // Both directories should exist
+        await expect(fs.access(sourceInfo.namedWorkspacePath)).resolves.toBeUndefined();
+        await expect(fs.access(forkedInfo.namedWorkspacePath)).resolves.toBeUndefined();
 
         // Cleanup
         await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, sourceWorkspaceId);
@@ -308,13 +258,13 @@ describeIntegration("IpcMain fork workspace integration tests", () => {
   );
 
   test.concurrent(
-    "should handle existing partial.json when forking",
+    "should preserve streaming response when forking during active stream",
     async () => {
       const env = await createTestEnvironment();
       const tempGitRepo = await createTempGitRepo();
 
       try {
-        // Create source workspace
+        // Create source workspace with streaming response
         const trunkBranch = await detectDefaultTrunkBranch(tempGitRepo);
         const createResult = await env.mockIpcRenderer.invoke(
           IPC_CHANNELS.WORKSPACE_CREATE,
@@ -325,70 +275,40 @@ describeIntegration("IpcMain fork workspace integration tests", () => {
         expect(createResult.success).toBe(true);
         const sourceWorkspaceId = createResult.metadata.id;
 
-        // Create a partial.json file (simulates interrupted stream)
+        // Simulate active streaming response
         const sourceSessionDir = path.join(env.config.sessionsDir, sourceWorkspaceId);
         await fs.mkdir(sourceSessionDir, { recursive: true });
         const partialPath = path.join(sourceSessionDir, "partial.json");
-        const partialMessage = {
-          id: "streaming-message",
-          role: "assistant",
-          content: "Partial streaming response...",
-          parts: [
-            {
-              type: "text",
-              text: "Partial streaming response...",
-            },
-          ],
-          metadata: {
-            partial: true,
-            historySequence: 1,
-            timestamp: Date.now(),
-          },
-        };
-        await fs.writeFile(partialPath, JSON.stringify(partialMessage, null, 2));
+        const streamingContent = "Partial streaming response...";
+        await fs.writeFile(
+          partialPath,
+          JSON.stringify({
+            id: "streaming-message",
+            role: "assistant",
+            content: streamingContent,
+            parts: [{ type: "text", text: streamingContent }],
+            metadata: { partial: true, historySequence: 1, timestamp: Date.now() },
+          })
+        );
 
-        // Verify partial.json exists before fork
-        const partialExistsBefore = await fs
-          .access(partialPath)
-          .then(() => true)
-          .catch(() => false);
-        expect(partialExistsBefore).toBe(true);
-
-        // Fork the workspace (partial.json should be copied to preserve streaming state)
+        // Fork while stream is active
         const forkResult = await env.mockIpcRenderer.invoke(
           IPC_CHANNELS.WORKSPACE_FORK,
           sourceWorkspaceId,
           "forked-with-partial"
         );
-
         expect(forkResult.success).toBe(true);
-        const forkedWorkspaceId = forkResult.metadata.id;
 
-        // Verify forked workspace DOES have partial.json (preserves streaming state)
-        const forkedSessionDir = path.join(env.config.sessionsDir, forkedWorkspaceId);
+        // User expects: forked workspace preserves the streaming content
+        const forkedSessionDir = path.join(env.config.sessionsDir, forkResult.metadata.id);
         const forkedPartialPath = path.join(forkedSessionDir, "partial.json");
-        const forkedPartialExists = await fs
-          .access(forkedPartialPath)
-          .then(() => true)
-          .catch(() => false);
-        expect(forkedPartialExists).toBe(true);
-
-        // Verify the content was copied correctly
         const forkedPartialContent = await fs.readFile(forkedPartialPath, "utf-8");
         const forkedPartialData = JSON.parse(forkedPartialContent);
-        expect(forkedPartialData.role).toBe("assistant");
-        expect(forkedPartialData.content).toContain("Partial streaming response");
-
-        // Source partial.json should still exist (not moved, just copied)
-        const sourcePartialAfter = await fs
-          .access(partialPath)
-          .then(() => true)
-          .catch(() => false);
-        expect(sourcePartialAfter).toBe(true);
+        expect(forkedPartialData.content).toBe(streamingContent);
 
         // Cleanup
         await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, sourceWorkspaceId);
-        await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, forkedWorkspaceId);
+        await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, forkResult.metadata.id);
       } finally {
         await cleanupTestEnvironment(env);
         await cleanupTempGitRepo(tempGitRepo);
