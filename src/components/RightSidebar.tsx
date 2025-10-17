@@ -4,9 +4,9 @@ import { usePersistedState } from "@/hooks/usePersistedState";
 import { useWorkspaceUsage } from "@/stores/WorkspaceStore";
 import { use1MContext } from "@/hooks/use1MContext";
 import { useResizeObserver } from "@/hooks/useResizeObserver";
-import { CostsTab } from "./ChatMetaSidebar/CostsTab";
-import { ToolsTab } from "./ChatMetaSidebar/ToolsTab";
-import { VerticalTokenMeter } from "./ChatMetaSidebar/VerticalTokenMeter";
+import { CostsTab } from "./RightSidebar/CostsTab";
+import { ToolsTab } from "./RightSidebar/ToolsTab";
+import { VerticalTokenMeter } from "./RightSidebar/VerticalTokenMeter";
 import { calculateTokenMeterData } from "@/utils/tokens/tokenMeterUtils";
 
 interface SidebarContainerProps {
@@ -82,14 +82,14 @@ const TabContent = styled.div`
 
 type TabType = "costs" | "tools";
 
-interface ChatMetaSidebarProps {
+interface RightSidebarProps {
   workspaceId: string;
   chatAreaRef: React.RefObject<HTMLDivElement>;
 }
 
-const ChatMetaSidebarComponent: React.FC<ChatMetaSidebarProps> = ({ workspaceId, chatAreaRef }) => {
+const RightSidebarComponent: React.FC<RightSidebarProps> = ({ workspaceId, chatAreaRef }) => {
   const [selectedTab, setSelectedTab] = usePersistedState<TabType>(
-    `chat-meta-sidebar-tab:${workspaceId}`,
+    `right-sidebar-tab:${workspaceId}`,
     "costs"
   );
 
@@ -97,7 +97,7 @@ const ChatMetaSidebarComponent: React.FC<ChatMetaSidebarProps> = ({ workspaceId,
   const [use1M] = use1MContext();
   const chatAreaSize = useResizeObserver(chatAreaRef);
 
-  const baseId = `chat-meta-${workspaceId}`;
+  const baseId = `right-sidebar-${workspaceId}`;
   const costsTabId = `${baseId}-tab-costs`;
   const toolsTabId = `${baseId}-tab-tools`;
   const costsPanelId = `${baseId}-panel-costs`;
@@ -128,7 +128,7 @@ const ChatMetaSidebarComponent: React.FC<ChatMetaSidebarProps> = ({ workspaceId,
   // Persist collapsed state globally (not per-workspace) since chat area width is shared
   // This prevents animation flash when switching workspaces - sidebar maintains its state
   const [showCollapsed, setShowCollapsed] = usePersistedState<boolean>(
-    "chat-meta-sidebar:collapsed",
+    "right-sidebar:collapsed",
     false
   );
 
@@ -139,7 +139,7 @@ const ChatMetaSidebarComponent: React.FC<ChatMetaSidebarProps> = ({ workspaceId,
       setShowCollapsed(false);
     }
     // Between thresholds: maintain current state (no change)
-  }, [chatAreaWidth]);
+  }, [chatAreaWidth, setShowCollapsed]);
 
   return (
     <SidebarContainer
@@ -194,4 +194,4 @@ const ChatMetaSidebarComponent: React.FC<ChatMetaSidebarProps> = ({ workspaceId,
 
 // Memoize to prevent re-renders when parent (AIView) re-renders during streaming
 // Only re-renders when workspaceId or chatAreaRef changes, or internal state updates
-export const ChatMetaSidebar = React.memo(ChatMetaSidebarComponent);
+export const RightSidebar = React.memo(RightSidebarComponent);

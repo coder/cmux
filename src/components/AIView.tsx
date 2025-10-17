@@ -7,7 +7,7 @@ import { RetryBarrier } from "./Messages/ChatBarrier/RetryBarrier";
 import { PinnedTodoList } from "./PinnedTodoList";
 import { getAutoRetryKey } from "@/constants/storage";
 import { ChatInput, type ChatInputAPI } from "./ChatInput";
-import { ChatMetaSidebar } from "./ChatMetaSidebar";
+import { RightSidebar } from "./RightSidebar";
 import {
   shouldShowInterruptedBarrier,
   mergeConsecutiveStreamErrors,
@@ -555,7 +555,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
         />
       </ChatArea>
 
-      <ChatMetaSidebar key={workspaceId} workspaceId={workspaceId} chatAreaRef={chatAreaRef} />
+      <RightSidebar key={workspaceId} workspaceId={workspaceId} chatAreaRef={chatAreaRef} />
     </ViewContainer>
   );
 };
