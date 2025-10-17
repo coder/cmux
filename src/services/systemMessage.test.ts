@@ -201,8 +201,7 @@ Special mode instructions.
     });
 
     // Should include the agent name in the prelude
-    expect(systemMessage).toContain("Your name is CodeAssistant.");
-    expect(systemMessage).toContain("You are a coding agent.");
+    expect(systemMessage).toContain("You are a coding agent named CodeAssistant.");
   });
 
   test("excludes agent name from prelude when not provided", async () => {
@@ -215,9 +214,9 @@ Special mode instructions.
 
     const systemMessage = await buildSystemMessage(metadata, workspaceDir);
 
-    // Should NOT include "Your name is"
-    expect(systemMessage).not.toContain("Your name is");
+    // Should use the standard phrasing without "named"
     expect(systemMessage).toContain("You are a coding agent.");
+    expect(systemMessage).not.toContain("named");
   });
 
   test("combines multiple options (mode, agentName, additionalSystemInstructions)", async () => {
@@ -242,7 +241,7 @@ Plan mode content.
     });
 
     // Should include all three options
-    expect(systemMessage).toContain("Your name is PlanBot.");
+    expect(systemMessage).toContain("You are a coding agent named PlanBot.");
     expect(systemMessage).toContain("<plan>");
     expect(systemMessage).toContain("Plan mode content.");
     expect(systemMessage).toContain("<additional-instructions>");

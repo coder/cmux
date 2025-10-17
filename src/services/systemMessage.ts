@@ -10,10 +10,12 @@ import { extractModeSection } from "@/utils/main/markdown";
 // cmux is designed to be model agnostic, and models have shown large inconsistency in how they
 // follow instructions.
 function buildPrelude(agentName?: string): string {
-  const nameSection = agentName ? `Your name is ${agentName}.\n` : "";
+  const agentDescription = agentName
+    ? `You are a coding agent named ${agentName}.`
+    : "You are a coding agent.";
   return ` 
 <prelude>
-${nameSection}You are a coding agent.
+${agentDescription}
   
 <markdown>
 Your Assistant messages display in Markdown with extensions for mermaidjs and katex.
