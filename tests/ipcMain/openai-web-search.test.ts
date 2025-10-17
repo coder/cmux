@@ -14,16 +14,11 @@ if (shouldRunIntegrationTests()) {
   validateApiKeys(["OPENAI_API_KEY"]);
 }
 
-// These tests are EXPENSIVE and SLOW (8+ minutes):
-// - Make real API calls to gpt-5-codex with high reasoning
-// - Trigger web search + complex computation
-// - Only run when explicitly enabled with TEST_OPENAI_WEB_SEARCH=1
-const shouldRunWebSearchTests = process.env.TEST_OPENAI_WEB_SEARCH === "1";
-const describeWebSearch = shouldRunWebSearchTests ? describeIntegration : describe.skip;
-
-describeWebSearch("OpenAI web_search integration tests", () => {
-  // Note: These tests are slow and expensive, skipped by default in CI
-  // Run locally with: TEST_INTEGRATION=1 TEST_OPENAI_WEB_SEARCH=1 bun test
+describeIntegration("OpenAI web_search integration tests", () => {
+  // Enable retries in CI for flaky API tests
+  if (process.env.CI && typeof jest !== "undefined" && jest.retryTimes) {
+    jest.retryTimes(3, { logErrorsBeforeRetry: true });
+  }
 
   test.concurrent(
     "should handle reasoning + web_search without itemId errors",
@@ -36,10 +31,6 @@ describeWebSearch("OpenAI web_search integration tests", () => {
         // 2. Mathematical computation requires reasoning
         // 3. High reasoning effort ensures reasoning is present
         // This combination exposed the itemId bug on main branch
-        //
-        // NOTE: Test currently fails on text delta assertion (stream completes
-        // but no final text output). This is a separate issue from the itemId
-        // fix which DOES work (no more "Item was provided without" errors).
         const result = await sendMessageWithModel(
           env.mockIpcRenderer,
           workspaceId,

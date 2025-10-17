@@ -2,7 +2,7 @@ import * as fs from "fs/promises";
 import * as path from "path";
 import * as os from "os";
 import { EventEmitter } from "events";
-import { convertToModelMessages, wrapLanguageModel, type LanguageModel } from "ai";
+import { convertToModelMessages, type LanguageModel } from "ai";
 import { applyToolOutputRedaction } from "@/utils/messages/applyToolOutputRedaction";
 import type { Result } from "@/types/result";
 import { Ok, Err } from "@/types/result";
@@ -38,8 +38,6 @@ import type {
   StreamStartEvent,
 } from "@/types/stream";
 import { applyToolPolicy, type ToolPolicy } from "@/utils/tools/toolPolicy";
-import { openaiReasoningFixMiddleware } from "@/utils/ai/openaiReasoningMiddleware";
-import { createOpenAIReasoningFetch } from "@/utils/ai/openaiReasoningFetch";
 import { MockScenarioPlayer } from "./mock/mockScenarioPlayer";
 import { Agent } from "undici";
 
@@ -283,13 +281,11 @@ export class AIService extends EventEmitter {
             provider: providerName,
           });
         }
-        // Create custom fetch that strips itemIds to fix reasoning + web_search bugs
-        // Wraps user's custom fetch if provided, otherwise wraps default fetch
+        // Use custom fetch if provided, otherwise default with unlimited timeout
         const baseFetch =
           typeof providerConfig.fetch === "function"
             ? (providerConfig.fetch as typeof fetch)
             : defaultFetchWithUnlimitedTimeout;
-        const fetchWithReasoningFix = createOpenAIReasoningFetch(baseFetch);
 
         // Wrap fetch to force truncation: "auto" for OpenAI Responses API calls.
         // This is a temporary override until @ai-sdk/openai supports passing
@@ -342,26 +338,23 @@ export class AIService extends EventEmitter {
                   }
                   const newBody = JSON.stringify(json);
                   const newInit: RequestInit = { ...init, headers, body: newBody };
-                  return fetchWithReasoningFix(input, newInit);
+                  return baseFetch(input, newInit);
                 } catch {
                   // If body isn't JSON, fall through to normal fetch
-                  return fetchWithReasoningFix(input, init);
+                  return baseFetch(input, init);
                 }
               }
 
               // Default passthrough
-              return fetchWithReasoningFix(input, init);
+              return baseFetch(input, init);
             } catch {
               // On any unexpected error, fall back to original fetch
-              return fetchWithReasoningFix(input, init);
+              return baseFetch(input, init);
             }
           },
-          "preconnect" in fetchWithReasoningFix &&
-            typeof (fetchWithReasoningFix as typeof fetch).preconnect === "function"
+          "preconnect" in baseFetch && typeof baseFetch.preconnect === "function"
             ? {
-                preconnect: (fetchWithReasoningFix as typeof fetch).preconnect.bind(
-                  fetchWithReasoningFix
-                ),
+                preconnect: baseFetch.preconnect.bind(baseFetch),
               }
             : {}
         );
@@ -370,19 +363,13 @@ export class AIService extends EventEmitter {
         const { createOpenAI } = await import("@ai-sdk/openai");
         const provider = createOpenAI({
           ...providerConfig,
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-explicit-any
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
           fetch: fetchWithOpenAITruncation as any,
         });
         // Use Responses API for persistence and built-in tools
-        const baseModel = provider.responses(modelId);
-
-        // Wrap with middleware to strip stale OpenAI reasoning item IDs
-        const wrappedModel = wrapLanguageModel({
-          model: baseModel,
-          middleware: openaiReasoningFixMiddleware,
-        });
-
-        return Ok(wrappedModel);
+        // OpenAI manages reasoning state via previousResponseId - no middleware needed
+        const model = provider.responses(modelId);
+        return Ok(model);
       }
 
       return Err({
@@ -462,11 +449,10 @@ export class AIService extends EventEmitter {
       log.debug(`Filtered ${messages.length - filteredMessages.length} empty assistant messages`);
       log.debug_obj(`${workspaceId}/1a_filtered_messages.json`, filteredMessages);
 
-      // OpenAI-specific: DON'T strip reasoning - keep all content
-      // The custom fetch wrapper strips item_reference objects to prevent dangling references
+      // OpenAI-specific: Keep reasoning parts in history
       // OpenAI manages conversation state via previousResponseId
       if (providerName === "openai") {
-        log.debug("Keeping reasoning parts for OpenAI (fetch wrapper handles item_references)");
+        log.debug("Keeping reasoning parts for OpenAI (managed via previousResponseId)");
       }
 
       // Add [CONTINUE] sentinel to partial messages (for model context)
