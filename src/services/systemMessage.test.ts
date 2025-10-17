@@ -52,7 +52,7 @@ Use diagrams where appropriate.
       projectPath: tempDir,
     };
 
-    const systemMessage = await buildSystemMessage(metadata, workspaceDir, "plan");
+    const systemMessage = await buildSystemMessage(metadata, workspaceDir, { mode: "plan" });
 
     // Should include the mode-specific content
     expect(systemMessage).toContain("<plan>");
@@ -122,7 +122,7 @@ Workspace plan instructions (should win).
       projectPath: tempDir,
     };
 
-    const systemMessage = await buildSystemMessage(metadata, workspaceDir, "plan");
+    const systemMessage = await buildSystemMessage(metadata, workspaceDir, { mode: "plan" });
 
     // Should include workspace mode section in the <plan> tag (workspace wins)
     expect(systemMessage).toMatch(/<plan>\s*Workspace plan instructions \(should win\)\./s);
@@ -157,7 +157,7 @@ Just general workspace stuff.
       projectPath: tempDir,
     };
 
-    const systemMessage = await buildSystemMessage(metadata, workspaceDir, "plan");
+    const systemMessage = await buildSystemMessage(metadata, workspaceDir, { mode: "plan" });
 
     // Should include global mode section as fallback
     expect(systemMessage).toContain("Global plan instructions");
@@ -178,11 +178,74 @@ Special mode instructions.
       projectPath: tempDir,
     };
 
-    const systemMessage = await buildSystemMessage(metadata, workspaceDir, "My-Special_Mode!");
+    const systemMessage = await buildSystemMessage(metadata, workspaceDir, {
+      mode: "My-Special_Mode!",
+    });
 
     // Tag should be sanitized to only contain valid characters
     expect(systemMessage).toContain("<my-special_mode->");
     expect(systemMessage).toContain("Special mode instructions");
     expect(systemMessage).toContain("</my-special_mode->");
+  });
+
+  test("includes agent name in prelude when provided", async () => {
+    const metadata: WorkspaceMetadata = {
+      id: "test-workspace",
+      name: "test-workspace",
+      projectName: "test-project",
+      projectPath: tempDir,
+    };
+
+    const systemMessage = await buildSystemMessage(metadata, workspaceDir, {
+      agentName: "CodeAssistant",
+    });
+
+    // Should include the agent name in the prelude
+    expect(systemMessage).toContain("Your name is CodeAssistant.");
+    expect(systemMessage).toContain("You are a coding agent.");
+  });
+
+  test("excludes agent name from prelude when not provided", async () => {
+    const metadata: WorkspaceMetadata = {
+      id: "test-workspace",
+      name: "test-workspace",
+      projectName: "test-project",
+      projectPath: tempDir,
+    };
+
+    const systemMessage = await buildSystemMessage(metadata, workspaceDir);
+
+    // Should NOT include "Your name is"
+    expect(systemMessage).not.toContain("Your name is");
+    expect(systemMessage).toContain("You are a coding agent.");
+  });
+
+  test("combines multiple options (mode, agentName, additionalSystemInstructions)", async () => {
+    await fs.writeFile(
+      path.join(workspaceDir, "AGENTS.md"),
+      `## Mode: Plan
+Plan mode content.
+`
+    );
+
+    const metadata: WorkspaceMetadata = {
+      id: "test-workspace",
+      name: "test-workspace",
+      projectName: "test-project",
+      projectPath: tempDir,
+    };
+
+    const systemMessage = await buildSystemMessage(metadata, workspaceDir, {
+      mode: "plan",
+      agentName: "PlanBot",
+      additionalSystemInstructions: "Be extra careful with security.",
+    });
+
+    // Should include all three options
+    expect(systemMessage).toContain("Your name is PlanBot.");
+    expect(systemMessage).toContain("<plan>");
+    expect(systemMessage).toContain("Plan mode content.");
+    expect(systemMessage).toContain("<additional-instructions>");
+    expect(systemMessage).toContain("Be extra careful with security.");
   });
 });

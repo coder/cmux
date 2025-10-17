@@ -491,12 +491,10 @@ export class AIService extends EventEmitter {
       const workspacePath = this.config.getWorkspacePath(metadata.projectPath, metadata.name);
 
       // Build system message from workspace metadata
-      const systemMessage = await buildSystemMessage(
-        metadata,
-        workspacePath,
+      const systemMessage = await buildSystemMessage(metadata, workspacePath, {
         mode,
-        additionalSystemInstructions
-      );
+        additionalSystemInstructions,
+      });
 
       // Count system message tokens for cost tracking
       const tokenizer = getTokenizerForModel(modelString);

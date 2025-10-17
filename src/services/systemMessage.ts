@@ -9,9 +9,11 @@ import { extractModeSection } from "@/utils/main/markdown";
 // The PRELUDE is intentionally minimal to not conflict with the user's instructions.
 // cmux is designed to be model agnostic, and models have shown large inconsistency in how they
 // follow instructions.
-const PRELUDE = ` 
+function buildPrelude(agentName?: string): string {
+  const nameSection = agentName ? `Your name is ${agentName}.\n` : "";
+  return ` 
 <prelude>
-You are a coding agent.
+${nameSection}You are a coding agent.
   
 <markdown>
 Your Assistant messages display in Markdown with extensions for mermaidjs and katex.
@@ -27,6 +29,7 @@ Use GitHub-style \`<details>/<summary>\` tags to create collapsible sections for
 </markdown>
 </prelude>
 `;
+}
 
 function buildEnvironmentContext(workspacePath: string): string {
   return `
@@ -51,6 +54,18 @@ function getSystemDirectory(): string {
 }
 
 /**
+ * Options for building a system message.
+ */
+export interface SystemMessageOptions {
+  /** Optional mode name (e.g., "plan", "exec") - looks for Mode: sections in instruction files */
+  mode?: string;
+  /** Optional additional system instructions to append at the end (highest priority) */
+  additionalSystemInstructions?: string;
+  /** Optional agent name to include in the system prompt */
+  agentName?: string;
+}
+
+/**
  * Builds a system message for the AI model by combining multiple instruction sources.
  *
  * Instruction sources are layered in this order:
@@ -70,16 +85,14 @@ function getSystemDirectory(): string {
  *
  * @param metadata - Workspace metadata
  * @param workspacePath - Absolute path to the workspace worktree directory
- * @param mode - Optional mode name (e.g., "plan", "exec") - looks for {MODE}.md files if provided
- * @param additionalSystemInstructions - Optional additional system instructions to append at the end
+ * @param options - Optional configuration for system message building
  * @returns System message string with all instruction sources combined
  * @throws Error if metadata is invalid
  */
 export async function buildSystemMessage(
   metadata: WorkspaceMetadata,
   workspacePath: string,
-  mode?: string,
-  additionalSystemInstructions?: string
+  options: SystemMessageOptions = {}
 ): Promise<string> {
   // Validate inputs
   if (!metadata) {
@@ -88,6 +101,8 @@ export async function buildSystemMessage(
   if (!workspacePath) {
     throw new Error("Invalid workspace path: workspacePath is required");
   }
+
+  const { mode, additionalSystemInstructions, agentName } = options;
 
   const systemDir = getSystemDirectory();
   const workspaceDir = workspacePath;
@@ -116,7 +131,8 @@ export async function buildSystemMessage(
 
   // Build the final system message
   const environmentContext = buildEnvironmentContext(workspaceDir);
-  const trimmedPrelude = PRELUDE.trim();
+  const prelude = buildPrelude(agentName);
+  const trimmedPrelude = prelude.trim();
   let systemMessage = `${trimmedPrelude}\n\n${environmentContext}`;
 
   // Add custom instructions if found
