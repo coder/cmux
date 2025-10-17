@@ -93,6 +93,23 @@ export class StreamingMessageAggregator {
   }
 
   /**
+   * Extract compaction summary text from a completed assistant message.
+   * Used when a compaction stream completes to get the summary for history replacement.
+   * @param messageId The ID of the assistant message to extract text from
+   * @returns The concatenated text from all text parts, or undefined if message not found
+   */
+  getCompactionSummary(messageId: string): string | undefined {
+    const message = this.messages.get(messageId);
+    if (!message) return undefined;
+
+    // Concatenate all text parts (ignore tool calls and reasoning)
+    return message.parts
+      .filter((part): part is { type: "text"; text: string } => part.type === "text")
+      .map((part) => part.text)
+      .join("");
+  }
+
+  /**
    * Clean up stream-scoped state when stream ends (normally or abnormally).
    * Called by handleStreamEnd, handleStreamAbort, and handleStreamError.
    */

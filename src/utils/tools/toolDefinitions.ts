@@ -141,17 +141,6 @@ export const TOOL_DEFINITIONS = {
         ),
     }),
   },
-  compact_summary: {
-    description:
-      "Summarize the conversation history into a compact form. This tool is used during context compaction to reduce token usage while preserving key information.",
-    schema: z.object({
-      summary: z
-        .string()
-        .describe(
-          "Compact summary of the conversation, preserving key decisions, context, and important details. Include enough information for the conversation to continue meaningfully."
-        ),
-    }),
-  },
   todo_write: {
     description:
       "Create or update the todo list for tracking multi-step tasks (limit: 7 items). " +
@@ -229,7 +218,6 @@ export function getAvailableTools(modelString: string): string[] {
     // "file_edit_replace_lines", // DISABLED: causes models to break repo state
     "file_edit_insert",
     "propose_plan",
-    "compact_summary",
     "todo_write",
     "todo_read",
   ];

@@ -415,30 +415,38 @@ export class WorkspaceStore {
    * Handle compact_summary tool completion.
    * Returns true if compaction was handled (caller should early return).
    */
-  private handleCompactSummaryCompletion(
+  private handleCompactionCompletion(
     workspaceId: string,
     aggregator: StreamingMessageAggregator,
     data: WorkspaceChatMessage
   ): boolean {
-    // Type guard: only StreamEndEvent has parts
-    if (!("parts" in data) || !data.parts) return false;
+    // Type guard: only StreamEndEvent has messageId
+    if (!("messageId" in data)) return false;
 
-    for (const part of data.parts) {
-      if (part.type === "dynamic-tool" && part.toolName === "compact_summary") {
-        const output = part.output as { summary?: string } | undefined;
-        if (output?.summary) {
-          this.performCompaction(workspaceId, aggregator, data, output.summary);
-          return true;
-        }
-        break;
-      }
+    // Check if this was a compaction stream by looking at the last user message
+    const messages = aggregator.getAllMessages();
+    const lastUserMsg = [...messages]
+      .reverse()
+      .find((m) => m.role === "user");
+    
+    if (lastUserMsg?.metadata?.cmuxMetadata?.type !== "compaction-request") {
+      return false;
     }
-    return false;
+
+    // Extract the summary text from the assistant's response
+    const summary = aggregator.getCompactionSummary(data.messageId);
+    if (!summary) {
+      console.warn("[WorkspaceStore] Compaction completed but no summary text found");
+      return false;
+    }
+
+    this.performCompaction(workspaceId, aggregator, data, summary);
+    return true;
   }
 
   /**
    * Perform history compaction by replacing chat history with summary message.
-   * Type-safe: only called when we've verified data has parts (i.e., StreamEndEvent).
+   * Type-safe: only called when we've verified data is a StreamEndEvent.
    */
   private performCompaction(
     workspaceId: string,
@@ -446,7 +454,6 @@ export class WorkspaceStore {
     data: WorkspaceChatMessage,
     summary: string
   ): void {
-    // We know data is StreamEndEvent because handleCompactSummaryCompletion verified it has parts
     // Extract metadata safely with type guard
     const metadata = "metadata" in data ? data.metadata : undefined;
 
@@ -781,8 +788,8 @@ export class WorkspaceStore {
       aggregator.handleStreamEnd(data);
       aggregator.clearTokenState(data.messageId);
 
-      // Early return if compact_summary handled (async replacement in progress)
-      if (this.handleCompactSummaryCompletion(workspaceId, aggregator, data)) {
+      // Early return if compaction handled (async replacement in progress)
+      if (this.handleCompactionCompletion(workspaceId, aggregator, data)) {
         return;
       }
 

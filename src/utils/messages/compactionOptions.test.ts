@@ -58,12 +58,13 @@ describe("applyCompactionOverrides", () => {
     expect(result.maxOutputTokens).toBe(8000);
   });
 
-  it("sets compact mode and tool policy", () => {
+  it("sets compact mode", () => {
     const compactData: CompactionRequestData = {};
     const result = applyCompactionOverrides(baseOptions, compactData);
 
     expect(result.mode).toBe("compact");
-    expect(result.toolPolicy).toEqual([{ regex_match: "compact_summary", action: "require" }]);
+    // No special toolPolicy for compaction - uses base options
+    expect(result.toolPolicy).toEqual([]);
   });
 
   it("applies all overrides together", () => {
