@@ -607,13 +607,25 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     [setInput]
   );
 
-  const handleSend = async () => {
+  const handleSend = async (messageOverride?: string) => {
+    // Use override message if provided (for programmatic sends), otherwise use input state
+    const messageText = messageOverride?.trim() ?? input.trim();
+    const isProgrammaticSend = messageOverride !== undefined;
+    
     // Allow sending if there's text or images
-    if ((!input.trim() && imageAttachments.length === 0) || disabled || isSending || isCompacting) {
+    if ((!messageText && imageAttachments.length === 0) || disabled || isSending || isCompacting) {
       return;
     }
 
-    const messageText = input.trim();
+    // Helper to clear input only for non-programmatic sends
+    const clearInputIfNeeded = () => {
+      if (!isProgrammaticSend) {
+        setInput("");
+        if (inputRef.current) {
+          inputRef.current.style.height = "36px";
+        }
+      }
+    };
 
     try {
       // Parse command
@@ -622,10 +634,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       if (parsed) {
         // Handle /clear command
         if (parsed.type === "clear") {
-          setInput("");
-          if (inputRef.current) {
-            inputRef.current.style.height = "36px";
-          }
+          clearInputIfNeeded();
           await onTruncateHistory(1.0);
           setToast({
             id: Date.now().toString(),
@@ -637,10 +646,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
         // Handle /truncate command
         if (parsed.type === "truncate") {
-          setInput("");
-          if (inputRef.current) {
-            inputRef.current.style.height = "36px";
-          }
+          clearInputIfNeeded();
           await onTruncateHistory(parsed.percentage);
           setToast({
             id: Date.now().toString(),
@@ -653,7 +659,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         // Handle /providers set command
         if (parsed.type === "providers-set" && onProviderConfig) {
           setIsSending(true);
-          setInput(""); // Clear input immediately
+          clearInputIfNeeded();
 
           try {
             await onProviderConfig(parsed.provider, parsed.keyPath, parsed.value);
@@ -679,7 +685,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
         // Handle /model command
         if (parsed.type === "model-set") {
-          setInput(""); // Clear input immediately
+          clearInputIfNeeded();
           setPreferredModel(parsed.modelString);
           onModelChange?.(parsed.modelString);
           setToast({
@@ -692,7 +698,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
         // Handle /telemetry command
         if (parsed.type === "telemetry-set") {
-          setInput(""); // Clear input immediately
+          clearInputIfNeeded();
           setTelemetryEnabled(parsed.enabled);
           setToast({
             id: Date.now().toString(),
@@ -704,7 +710,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
         // Handle /compact command
         if (parsed.type === "compact") {
-          setInput(""); // Clear input immediately
+          clearInputIfNeeded();
           setIsSending(true);
 
           try {
@@ -755,7 +761,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
         // Handle /fork command
         if (parsed.type === "fork") {
-          setInput(""); // Clear input immediately
+          clearInputIfNeeded();
           setIsSending(true);
 
           try {
@@ -856,12 +862,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           telemetry.messageSent(sendMessageOptions.model, mode, actualMessageText.length);
 
           // Success - clear input and images
-          setInput("");
+          clearInputIfNeeded();
           setImageAttachments([]);
-          // Reset textarea height
-          if (inputRef.current) {
-            inputRef.current.style.height = "36px";
-          }
           // Exit editing mode if we were editing
           if (editingMessage && onCancelEdit) {
             onCancelEdit();
@@ -961,147 +963,11 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           }, 0);
         }
       } else {
-        // If input is empty, auto-send immediately
-        // Bypass state by directly invoking send with the message
-        const sendDirectly = async () => {
-          const messageText = message.trim();
-          
-          try {
-            // Parse command
-            const parsed = parseCommand(messageText);
-
-            if (parsed) {
-              // Handle /clear command
-              if (parsed.type === "clear") {
-                await onTruncateHistory(1.0);
-                setToast({
-                  id: Date.now().toString(),
-                  type: "success",
-                  message: "Chat history cleared",
-                });
-                return;
-              }
-
-              // Handle /truncate command
-              if (parsed.type === "truncate") {
-                await onTruncateHistory(parsed.percentage);
-                setToast({
-                  id: Date.now().toString(),
-                  type: "success",
-                  message: `Chat history truncated by ${Math.round(parsed.percentage * 100)}%`,
-                });
-                return;
-              }
-
-              // Handle /providers set command
-              if (parsed.type === "providers-set" && onProviderConfig) {
-                setIsSending(true);
-                try {
-                  await onProviderConfig(parsed.provider, parsed.keyPath, parsed.value);
-                  setToast({
-                    id: Date.now().toString(),
-                    type: "success",
-                    message: `Provider ${parsed.provider} configuration updated`,
-                  });
-                } catch (error) {
-                  setToast({
-                    id: Date.now().toString(),
-                    type: "error",
-                    message:
-                      error instanceof Error
-                        ? error.message
-                        : "Failed to update provider configuration",
-                  });
-                } finally {
-                  setIsSending(false);
-                }
-                return;
-              }
-
-              // Handle /compact command
-              if (parsed.type === "compact") {
-                setIsSending(true);
-                try {
-                  const { messageText: compactionMessage, metadata, options } = 
-                    prepareCompactionMessage(messageText, sendMessageOptions);
-                  
-                  const result = await window.api.workspace.sendMessage(workspaceId, compactionMessage, {
-                    ...sendMessageOptions,
-                    ...options,
-                    cmuxMetadata: metadata,
-                  });
-
-                  if (!result.success) {
-                    console.error("Failed to send message:", result.error);
-                    setToast(createErrorToast(result.error));
-                  } else {
-                    telemetry.messageSent(sendMessageOptions.model, mode, compactionMessage.length);
-                    onMessageSent?.();
-                  }
-                } catch (error) {
-                  console.error("Unexpected error sending message:", error);
-                  setToast(
-                    createErrorToast({
-                      type: "unknown",
-                      raw: error instanceof Error ? error.message : "Failed to send message",
-                    })
-                  );
-                } finally {
-                  setIsSending(false);
-                }
-                return;
-              }
-
-              // Handle other commands with toast display
-              const commandToast = createCommandToast(parsed);
-              if (commandToast) {
-                setToast(commandToast);
-                return;
-              }
-            }
-
-            // Regular message send
-            setIsSending(true);
-            const result = await window.api.workspace.sendMessage(workspaceId, messageText, {
-              ...sendMessageOptions,
-            });
-
-            if (!result.success) {
-              console.error("Failed to send message:", result.error);
-              setToast(createErrorToast(result.error));
-            } else {
-              telemetry.messageSent(sendMessageOptions.model, mode, messageText.length);
-              onMessageSent?.();
-            }
-          } catch (error) {
-            console.error("Unexpected error sending message:", error);
-            setToast(
-              createErrorToast({
-                type: "unknown",
-                raw: error instanceof Error ? error.message : "Failed to send message",
-              })
-            );
-          } finally {
-            setIsSending(false);
-          }
-        };
-
-        void sendDirectly();
+        // If input is empty, auto-send using the refactored handleSend
+        void handleSend(message);
       }
     },
-    [
-      disabled,
-      isSending,
-      isCompacting,
-      input,
-      setInput,
-      onTruncateHistory,
-      onProviderConfig,
-      sendMessageOptions,
-      workspaceId,
-      onMessageSent,
-      mode,
-    ]
+    [disabled, isSending, isCompacting, input, setInput, handleSend]
   );
 
   // Provide API to parent via callback
