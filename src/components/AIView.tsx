@@ -28,7 +28,7 @@ import { useGitStatus } from "@/stores/GitStatusStore";
 import { TooltipWrapper, Tooltip } from "./Tooltip";
 import type { DisplayedMessage } from "@/types/message";
 import { useAIViewKeybinds } from "@/hooks/useAIViewKeybinds";
-import { Virtuoso } from "react-virtuoso";
+import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
 
 
 const ViewContainer = styled.div`
@@ -204,6 +204,14 @@ const AIViewInner: React.FC<AIViewProps> = ({
   const workspaceState = useWorkspaceState(workspaceId);
   const aggregator = useWorkspaceAggregator(workspaceId);
 
+  // Precompute safe values for effects before early returns
+  const messagesForEffects = mergeConsecutiveStreamErrors(workspaceState?.messages ?? []);
+  const canInterruptForEffects = workspaceState?.canInterrupt ?? false;
+  const isCompactingForEffects = workspaceState?.isCompacting ?? false;
+  const showRetryBarrierForEffects = !canInterruptForEffects && hasInterruptedStream(workspaceState?.messages ?? []);
+
+  const footerStateSignature = `${Number(showRetryBarrierForEffects)}|${Number(canInterruptForEffects)}|${Number(isCompactingForEffects)}`;
+
   // Get git status for this workspace
   const gitStatus = useGitStatus(workspaceId);
   const [editingMessage, setEditingMessage] = useState<{ id: string; content: string } | undefined>(
@@ -226,26 +234,131 @@ const AIViewInner: React.FC<AIViewProps> = ({
   );
 
   // Virtuoso ref and auto-scroll state
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const virtuosoRef = useRef<any>(null);
+  const virtuosoRef = useRef<VirtuosoHandle | null>(null);
   const [autoScroll, setAutoScroll] = useState(true);
+
+  const atBottomCheckIdRef = useRef(0);
+  const previousListLengthRef = useRef(messagesForEffects.length);
+  const lastFooterSignatureRef = useRef(footerStateSignature);
+
+  // --- Robust scroll helpers -------------------------------------------------
+  // Use RAF-based micro-queue to run after layout/measure
+  const raf = useCallback(
+    () =>
+      new Promise<void>((resolve) => {
+        if (typeof window === "undefined" || !("requestAnimationFrame" in window)) {
+          // Fallback to setTimeout in non-DOM/test environments
+          setTimeout(() => resolve(), 0);
+          return;
+        }
+        requestAnimationFrame(() => resolve());
+      }),
+    []
+  );
+
+  // Try to read Virtuoso's internal scroll state if available
+  const getVirtuosoState = useCallback(async () => {
+    const ref = virtuosoRef.current;
+    interface VState {
+      atBottom: boolean;
+      scrollTop: number;
+      scrollHeight: number;
+      viewportHeight: number;
+    }
+    // VirtuosoHandle does not expose getState in types, so feature-detect
+    const anyRef = ref as unknown as { getState?: (cb: (s: VState) => void) => void } | null;
+    if (!anyRef || typeof anyRef.getState !== "function") return null as VState | null;
+    return await new Promise<VState | null>((resolve) => {
+      try {
+        anyRef.getState?.((state: VState) => resolve(state));
+      } catch {
+        resolve(null);
+      }
+    });
+  }, []);
+
+  // Pixel threshold to still consider "at bottom"
+  const AT_BOTTOM_EPSILON = 8; // px
+
+  const isEffectivelyAtBottom = useCallback(
+    async () => {
+      const state = await getVirtuosoState();
+      if (!state) return false;
+      if (state.atBottom) return true;
+      const dist = state.scrollHeight - (state.scrollTop + state.viewportHeight);
+      return Number.isFinite(dist) && dist <= AT_BOTTOM_EPSILON;
+    },
+    [getVirtuosoState]
+  );
+
+  // Strong guarantee to land at absolute bottom, even with dynamic footers
+  const ensureAtBottom = useCallback(
+    async (maxAttempts = 4) => {
+      // Turn on followOutput so Footer height is accounted
+      setAutoScroll(true);
+      // Let React/Virtuoso process the state change
+      await raf();
+
+      const ref = virtuosoRef.current;
+      if (!ref) return false;
+
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        try {
+          // First try index-based scroll
+          ref.scrollToIndex({ index: "LAST", align: "end", behavior: attempt === 0 ? "smooth" : "auto" });
+        } catch {
+          // noop
+        }
+
+        // Wait one frame for measurement/paint
+        await raf();
+
+        // Verify if we're actually at the bottom
+        if (await isEffectivelyAtBottom()) {
+          return true;
+        }
+
+        // As a fallback, try raw scroll to the end if supported
+        try {
+          // VirtuosoHandle.scrollTo is not typed; feature-detect on the instance
+          (ref as unknown as { scrollTo?: (opts: { top: number; behavior?: ScrollBehavior }) => void }).scrollTo?.({ top: Number.MAX_SAFE_INTEGER, behavior: "auto" });
+        } catch {
+          // noop
+        }
+
+        await raf();
+        if (await isEffectivelyAtBottom()) return true;
+      }
+
+      return false;
+    },
+    [isEffectivelyAtBottom, raf]
+  );
+  const handleAtBottomStateChange = useCallback(
+    (virtuosoAtBottom: boolean) => {
+      if (virtuosoAtBottom) {
+        setAutoScroll(true);
+        return;
+      }
+
+      const requestId = atBottomCheckIdRef.current + 1;
+      atBottomCheckIdRef.current = requestId;
+
+      void (async () => {
+        const nearBottom = await isEffectivelyAtBottom();
+        if (atBottomCheckIdRef.current !== requestId) return;
+        setAutoScroll(nearBottom);
+      })();
+    },
+    [isEffectivelyAtBottom]
+  );
+
 
   // Jump to bottom using Virtuoso's API
   const jumpToBottom = useCallback(() => {
-    // Enable autoScroll to activate followOutput, which ensures we scroll past Footer content
-    setAutoScroll(true);
-    // setTimeout allows React state to propagate to Virtuoso before scrolling
-    setTimeout(() => {
-      if (virtuosoRef.current) {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
-        virtuosoRef.current.scrollToIndex({
-          index: "LAST",
-          align: "end",
-          behavior: "smooth",
-        });
-      }
-    }, 0);
-  }, []);
+    // Use robust bottoming logic that verifies success
+    void ensureAtBottom();
+  }, [ensureAtBottom]);
 
   // ChatInput API for focus management
   const chatInputAPI = useRef<ChatInputAPI | null>(null);
@@ -276,7 +389,6 @@ const AIViewInner: React.FC<AIViewProps> = ({
         (m) => m.type !== "history-hidden" && m.historyId === lastUserMessage.historyId
       );
       if (messageIndex !== -1 && virtuosoRef.current) {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
         virtuosoRef.current.scrollToIndex({
           index: messageIndex,
           align: "center",
@@ -319,6 +431,34 @@ const AIViewInner: React.FC<AIViewProps> = ({
     },
     []
   );
+
+  // When message list grows and we're following, re-affirm bottom once.
+  useEffect(() => {
+    const previousLength = previousListLengthRef.current;
+    previousListLengthRef.current = messagesForEffects.length;
+    if (!autoScroll) return;
+    if (messagesForEffects.length <= previousLength) return;
+    void ensureAtBottom(2);
+  }, [autoScroll, ensureAtBottom, messagesForEffects.length]);
+
+  // When footer-like UI changes while following, re-affirm bottom.
+  useEffect(() => {
+    const previousSignature = lastFooterSignatureRef.current;
+    lastFooterSignatureRef.current = footerStateSignature;
+    if (!autoScroll) return;
+    if (previousSignature === footerStateSignature) return;
+    void ensureAtBottom(2);
+  }, [autoScroll, ensureAtBottom, footerStateSignature]);
+
+  // If user scrolled up but content growth made us effectively at bottom again,
+  // keep the jump-to-bottom indicator hidden by restoring follow.
+  useEffect(() => {
+    if (!autoScroll) {
+      void (async () => {
+        if (await isEffectivelyAtBottom()) setAutoScroll(true);
+      })();
+    }
+  }, [autoScroll, isEffectivelyAtBottom]);
 
   const handleOpenTerminal = useCallback(() => {
     void window.api.workspace.openTerminal(namedWorkspacePath);
@@ -375,19 +515,19 @@ const AIViewInner: React.FC<AIViewProps> = ({
   // Extract state from workspace state
   const { messages, canInterrupt, isCompacting, loading, currentModel } = workspaceState;
 
-  // Get active stream message ID for token counting
-  const activeStreamMessageId = aggregator.getActiveStreamMessageId();
+  // Merge consecutive identical stream errors (computed early so effects can depend on it)
+  const mergedMessages = mergeConsecutiveStreamErrors(messages);
 
   // Track if last message was interrupted or errored (for RetryBarrier)
   // Uses same logic as useResumeManager for DRY
   const showRetryBarrier = !canInterrupt && hasInterruptedStream(messages);
 
+  // Get active stream message ID for token counting
+  const activeStreamMessageId = aggregator.getActiveStreamMessageId();
+
   // Note: We intentionally do NOT reset autoRetry when streams start.
   // If user pressed Ctrl+C, autoRetry stays false until they manually retry.
   // This makes state transitions explicit and predictable.
-
-  // Merge consecutive identical stream errors
-  const mergedMessages = mergeConsecutiveStreamErrors(messages);
 
   // When editing, find the cutoff point
   const editCutoffHistoryId = editingMessage
@@ -447,6 +587,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
               </Tooltip>
             </TooltipWrapper>
           </WorkspaceTitle>
+
         </ViewHeader>
 
         <OutputContainer>
@@ -467,7 +608,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
                 index: mergedMessages.length - 1,
                 align: "end",
               }}
-              atBottomStateChange={setAutoScroll}
+              atBottomStateChange={handleAtBottomStateChange}
               increaseViewportBy={{ top: 1000, bottom: 1000 }}
               computeItemKey={(index: number, item: DisplayedMessage) => item.id}
               components={{
