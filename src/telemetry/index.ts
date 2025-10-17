@@ -13,6 +13,6 @@ export {
   isTelemetryEnabled,
   setTelemetryEnabled,
 } from "./client";
-export { trackAppStarted, trackAppClosed } from "./lifecycle";
+export { trackAppStarted } from "./lifecycle";
 export type { TelemetryEventPayload, ErrorContext } from "./payload";
 export { getBaseTelemetryProperties, roundToBase2 } from "./utils";

@@ -20,7 +20,8 @@ All telemetry events include basic system information:
 
 ### Specific Events
 
-- **App Lifecycle**: When the app starts/stops, with session duration
+- **App Started**: When the app launches (includes first-launch flag)
+- **Workspace Creation**: When a new workspace is created (workspace ID only)
 - **Workspace Switching**: When you switch between workspaces (workspace IDs only)
 - **Message Sending**: When messages are sent (model, mode, message length rounded to base-2)
 - **Errors**: Error types and context (no sensitive data)

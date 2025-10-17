@@ -36,11 +36,6 @@ export interface AppStartedPayload extends BaseTelemetryProperties {
   isFirstLaunch: boolean;
 }
 
-export interface AppClosedPayload extends BaseTelemetryProperties {
-  /** Session duration in seconds */
-  sessionDuration: number;
-}
-
 /**
  * Workspace events
  */
@@ -96,7 +91,6 @@ export interface ErrorOccurredPayload extends BaseTelemetryProperties {
  */
 export type TelemetryEventPayload =
   | { event: "app_started"; properties: AppStartedPayload }
-  | { event: "app_closed"; properties: AppClosedPayload }
   | { event: "workspace_created"; properties: WorkspaceCreatedPayload }
   | { event: "workspace_switched"; properties: WorkspaceSwitchedPayload }
   | { event: "message_sent"; properties: MessageSentPayload }

@@ -1,13 +1,10 @@
 /**
  * Telemetry lifecycle tracking
  *
- * Handles app startup and shutdown events
+ * Handles app startup events
  */
 
 import { trackEvent, getBaseTelemetryProperties } from "./index";
-
-let sessionStartTime: number | null = null;
-let isFirstLaunch = false;
 
 /**
  * Check if this is the first app launch
@@ -30,8 +27,7 @@ function checkFirstLaunch(): boolean {
  * Should be called once when the app initializes
  */
 export function trackAppStarted(): void {
-  sessionStartTime = Date.now();
-  isFirstLaunch = checkFirstLaunch();
+  const isFirstLaunch = checkFirstLaunch();
 
   console.debug("[Telemetry] trackAppStarted", { isFirstLaunch });
 
@@ -40,29 +36,6 @@ export function trackAppStarted(): void {
     properties: {
       ...getBaseTelemetryProperties(),
       isFirstLaunch,
-    },
-  });
-}
-
-/**
- * Track app shutdown
- * Should be called when the app is closing
- */
-export function trackAppClosed(): void {
-  if (sessionStartTime === null) {
-    console.debug("[Telemetry] trackAppClosed called but no session start time");
-    return;
-  }
-
-  const sessionDuration = Math.floor((Date.now() - sessionStartTime) / 1000);
-
-  console.debug("[Telemetry] trackAppClosed", { sessionDuration });
-
-  trackEvent({
-    event: "app_closed",
-    properties: {
-      ...getBaseTelemetryProperties(),
-      sessionDuration,
     },
   });
 }

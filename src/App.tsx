@@ -414,6 +414,8 @@ function AppInner() {
 
     const newWorkspace = await createWorkspace(workspaceModalProject, branchName, trunkBranch);
     if (newWorkspace) {
+      // Track workspace creation
+      telemetry.workspaceCreated(newWorkspace.workspaceId);
       setSelectedWorkspace(newWorkspace);
     }
   };
@@ -582,9 +584,12 @@ function AppInner() {
         "Expected trunk branch to be provided by the command palette"
       );
       const newWs = await createWorkspace(projectPath, branchName, trunkBranch);
-      if (newWs) setSelectedWorkspace(newWs);
+      if (newWs) {
+        telemetry.workspaceCreated(newWs.workspaceId);
+        setSelectedWorkspace(newWs);
+      }
     },
-    [createWorkspace, setSelectedWorkspace]
+    [createWorkspace, setSelectedWorkspace, telemetry]
   );
 
   const getBranchesForProject = useCallback(
