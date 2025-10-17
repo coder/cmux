@@ -492,6 +492,8 @@ const AIViewInner: React.FC<AIViewProps> = ({
   return (
     <ViewContainer className={className}>
       <ChatArea ref={chatAreaRef}>
+        <FKeyBar keybinds={keybinds} onEditKeybind={handleEditKeybind} />
+
         <ViewHeader>
           <WorkspaceTitle>
             <StatusIndicator
@@ -519,8 +521,6 @@ const AIViewInner: React.FC<AIViewProps> = ({
             </TooltipWrapper>
           </WorkspaceTitle>
         </ViewHeader>
-
-        <FKeyBar keybinds={keybinds} onEditKeybind={handleEditKeybind} />
 
         <OutputContainer>
           <OutputContent
