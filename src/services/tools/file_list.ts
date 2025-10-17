@@ -17,8 +17,8 @@ interface TraversalOptions {
   pattern?: string;
   useGitignore: boolean;
   maxEntries: number;
-  ig: ReturnType<typeof ignore> | null;
-  rootPath: string;
+  ig: ReturnType<typeof ignore> | null; // Ignore instance loaded once from .gitignore, reused across recursion
+  rootPath: string; // Root path for calculating relative paths in gitignore matching
 }
 
 interface TraversalResult {
