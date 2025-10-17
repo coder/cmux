@@ -555,7 +555,12 @@ const AIViewInner: React.FC<AIViewProps> = ({
         />
       </ChatArea>
 
-      <RightSidebar key={workspaceId} workspaceId={workspaceId} chatAreaRef={chatAreaRef} />
+      <RightSidebar
+        key={workspaceId}
+        workspaceId={workspaceId}
+        workspacePath={namedWorkspacePath}
+        chatAreaRef={chatAreaRef}
+      />
     </ViewContainer>
   );
 };

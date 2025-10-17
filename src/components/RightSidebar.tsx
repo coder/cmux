@@ -7,6 +7,7 @@ import { useResizeObserver } from "@/hooks/useResizeObserver";
 import { CostsTab } from "./RightSidebar/CostsTab";
 import { ToolsTab } from "./RightSidebar/ToolsTab";
 import { VerticalTokenMeter } from "./RightSidebar/VerticalTokenMeter";
+import { ReviewPanel } from "./CodeReview/ReviewPanel";
 import { calculateTokenMeterData } from "@/utils/tokens/tokenMeterUtils";
 
 interface SidebarContainerProps {
@@ -80,14 +81,19 @@ const TabContent = styled.div`
   padding: 15px;
 `;
 
-type TabType = "costs" | "tools";
+type TabType = "costs" | "tools" | "review";
 
 interface RightSidebarProps {
   workspaceId: string;
+  workspacePath: string;
   chatAreaRef: React.RefObject<HTMLDivElement>;
 }
 
-const RightSidebarComponent: React.FC<RightSidebarProps> = ({ workspaceId, chatAreaRef }) => {
+const RightSidebarComponent: React.FC<RightSidebarProps> = ({
+  workspaceId,
+  workspacePath,
+  chatAreaRef,
+}) => {
   const [selectedTab, setSelectedTab] = usePersistedState<TabType>(
     `right-sidebar-tab:${workspaceId}`,
     "costs"
@@ -100,8 +106,10 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({ workspaceId, chatA
   const baseId = `right-sidebar-${workspaceId}`;
   const costsTabId = `${baseId}-tab-costs`;
   const toolsTabId = `${baseId}-tab-tools`;
+  const reviewTabId = `${baseId}-tab-review`;
   const costsPanelId = `${baseId}-panel-costs`;
   const toolsPanelId = `${baseId}-panel-tools`;
+  const reviewPanelId = `${baseId}-panel-review`;
 
   const lastUsage = usage?.usageHistory[usage.usageHistory.length - 1];
 
@@ -171,6 +179,17 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({ workspaceId, chatA
           >
             Tools
           </TabButton>
+          <TabButton
+            active={selectedTab === "review"}
+            onClick={() => setSelectedTab("review")}
+            id={reviewTabId}
+            role="tab"
+            type="button"
+            aria-selected={selectedTab === "review"}
+            aria-controls={reviewPanelId}
+          >
+            Review
+          </TabButton>
         </TabBar>
         <TabContent>
           {selectedTab === "costs" && (
@@ -181,6 +200,16 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({ workspaceId, chatA
           {selectedTab === "tools" && (
             <div role="tabpanel" id={toolsPanelId} aria-labelledby={toolsTabId}>
               <ToolsTab />
+            </div>
+          )}
+          {selectedTab === "review" && (
+            <div
+              role="tabpanel"
+              id={reviewPanelId}
+              aria-labelledby={reviewTabId}
+              style={{ height: "100%" }}
+            >
+              <ReviewPanel workspaceId={workspaceId} workspacePath={workspacePath} />
             </div>
           )}
         </TabContent>
