@@ -24,8 +24,10 @@
 #   Branches reduce reproducibility - builds should fail fast with clear errors
 #   if dependencies are missing, not silently fall back to different behavior.
 
-# Enable parallel execution by default
+# Enable parallel execution by default (only if user didn't specify -j)
+ifeq (,$(filter -j%,$(MAKEFLAGS)))
 MAKEFLAGS += -j
+endif
 
 # Include formatting rules
 include fmt.mk
