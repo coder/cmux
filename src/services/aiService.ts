@@ -1,4 +1,5 @@
 import * as fs from "fs/promises";
+import * as fsSync from "fs";
 import * as path from "path";
 import * as os from "os";
 import { EventEmitter } from "events";
@@ -6,7 +7,7 @@ import { convertToModelMessages, type LanguageModel } from "ai";
 import { applyToolOutputRedaction } from "@/utils/messages/applyToolOutputRedaction";
 import type { Result } from "@/types/result";
 import { Ok, Err } from "@/types/result";
-import type { WorkspaceMetadata } from "@/types/workspace";
+import { WorkspaceMetadataSchema, type WorkspaceMetadata } from "@/types/workspace";
 
 import type { CmuxMessage, CmuxTextPart } from "@/types/message";
 import { createCmuxMessage } from "@/types/message";
@@ -170,6 +171,28 @@ export class AIService extends EventEmitter {
     }
   }
 
+  private loadWorkspaceMetadataFromFile(workspaceId: string): WorkspaceMetadata | null {
+    try {
+      const metadataPath = this.getMetadataPath(workspaceId);
+      if (!fsSync.existsSync(metadataPath)) {
+        return null;
+      }
+
+      const raw = fsSync.readFileSync(metadataPath, "utf-8");
+      const parsed = WorkspaceMetadataSchema.safeParse(JSON.parse(raw));
+      if (!parsed.success) {
+        log.debug(`Invalid workspace metadata in ${metadataPath}: ${parsed.error.message}`);
+        return null;
+      }
+
+      return parsed.data;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      log.debug(`Failed to load workspace metadata from file for ${workspaceId}: ${message}`);
+      return null;
+    }
+  }
+
   private getMetadataPath(workspaceId: string): string {
     return path.join(this.config.getSessionDir(workspaceId), this.METADATA_FILE);
   }
@@ -183,7 +206,13 @@ export class AIService extends EventEmitter {
       // Get all workspace metadata (which includes migration logic)
       // This ensures we always get complete metadata with all required fields
       const allMetadata = this.config.getAllWorkspaceMetadata();
-      const metadata = allMetadata.find((m) => m.id === workspaceId);
+      let metadata: WorkspaceMetadata | undefined = allMetadata.find(
+        (m) => m.id === workspaceId
+      );
+
+      if (!metadata) {
+        metadata = this.loadWorkspaceMetadataFromFile(workspaceId) ?? undefined;
+      }
 
       if (!metadata) {
         return Err(
