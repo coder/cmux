@@ -1,6 +1,6 @@
 /**
  * Telemetry lifecycle tracking
- * 
+ *
  * Handles app startup and shutdown events
  */
 
@@ -16,12 +16,12 @@ let isFirstLaunch = false;
 function checkFirstLaunch(): boolean {
   const key = "cmux_first_launch_complete";
   const hasLaunchedBefore = localStorage.getItem(key);
-  
+
   if (!hasLaunchedBefore) {
     localStorage.setItem(key, "true");
     return true;
   }
-  
+
   return false;
 }
 
@@ -32,9 +32,9 @@ function checkFirstLaunch(): boolean {
 export function trackAppStarted(): void {
   sessionStartTime = Date.now();
   isFirstLaunch = checkFirstLaunch();
-  
+
   console.debug("[Telemetry] trackAppStarted", { isFirstLaunch });
-  
+
   trackEvent({
     event: "app_started",
     properties: {
@@ -53,11 +53,11 @@ export function trackAppClosed(): void {
     console.debug("[Telemetry] trackAppClosed called but no session start time");
     return;
   }
-  
+
   const sessionDuration = Math.floor((Date.now() - sessionStartTime) / 1000);
-  
+
   console.debug("[Telemetry] trackAppClosed", { sessionDuration });
-  
+
   trackEvent({
     event: "app_closed",
     properties: {
@@ -66,4 +66,3 @@ export function trackAppClosed(): void {
     },
   });
 }
-

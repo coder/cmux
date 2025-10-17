@@ -30,6 +30,7 @@ import type { CmuxFrontendMetadata, CompactionRequestData } from "@/types/messag
 import type { SendMessageOptions } from "@/types/ipc";
 import { applyCompactionOverrides } from "@/utils/messages/compactionOptions";
 import { useTelemetry } from "@/hooks/useTelemetry";
+import { setTelemetryEnabled } from "@/telemetry";
 
 const InputSection = styled.div`
   position: relative;
@@ -677,7 +678,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         // Handle /telemetry command
         if (parsed.type === "telemetry-set") {
           setInput(""); // Clear input immediately
-          const { setTelemetryEnabled } = await import("@/telemetry");
           setTelemetryEnabled(parsed.enabled);
           setToast({
             id: Date.now().toString(),
@@ -793,7 +793,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         } else {
           // Track telemetry for successful message send
           telemetry.messageSent(sendMessageOptions.model, mode, actualMessageText.length);
-          
+
           // Success - clear input and images
           setInput("");
           setImageAttachments([]);

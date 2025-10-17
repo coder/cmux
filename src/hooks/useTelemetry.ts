@@ -49,19 +49,17 @@ export function useTelemetry() {
   }, []);
 
   const messageSent = useCallback((model: string, mode: string, messageLength: number) => {
-      console.debug("[useTelemetry] messageSent called", { model, mode, messageLength });
-      trackEvent({
-        event: "message_sent",
-        properties: {
-          ...getBaseTelemetryProperties(),
-          model,
-          mode,
-          message_length_b2: roundToBase2(messageLength),
-        },
-      });
-    },
-    []
-  );
+    console.debug("[useTelemetry] messageSent called", { model, mode, messageLength });
+    trackEvent({
+      event: "message_sent",
+      properties: {
+        ...getBaseTelemetryProperties(),
+        model,
+        mode,
+        message_length_b2: roundToBase2(messageLength),
+      },
+    });
+  }, []);
 
   const errorOccurred = useCallback((errorType: string, context: ErrorContext) => {
     console.debug("[useTelemetry] errorOccurred called", { errorType, context });

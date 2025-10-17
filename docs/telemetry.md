@@ -13,6 +13,7 @@ cmux collects anonymous usage telemetry to help us understand how the product is
 ## What We Track
 
 All telemetry events include basic system information:
+
 - Application version
 - Operating system platform (darwin, win32, linux)
 - Electron version
@@ -57,4 +58,3 @@ For complete transparency, you can review the telemetry implementation:
 - **Privacy utilities**: [`src/telemetry/utils.ts`](https://github.com/coder/cmux/blob/main/src/telemetry/utils.ts) - Base-2 rounding and helpers
 
 The telemetry system includes debug logging that you can see in the developer console (View → Toggle Developer Tools).
-
