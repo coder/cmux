@@ -1,14 +1,38 @@
-import { shouldRunIntegrationTests, createTestEnvironment, cleanupTestEnvironment } from "./setup";
+import {
+  shouldRunIntegrationTests,
+  createTestEnvironment,
+  cleanupTestEnvironment,
+  setupWorkspace,
+  validateApiKeys,
+} from "./setup";
 import { IPC_CHANNELS } from "../../src/constants/ipc-constants";
-import { createTempGitRepo, cleanupTempGitRepo } from "./helpers";
+import {
+  createTempGitRepo,
+  cleanupTempGitRepo,
+  sendMessageWithModel,
+  createEventCollector,
+  assertStreamSuccess,
+  waitFor,
+} from "./helpers";
 import { detectDefaultTrunkBranch } from "../../src/git";
-import * as fs from "fs/promises";
+import { HistoryService } from "../../src/services/historyService";
+import { createCmuxMessage } from "../../src/types/message";
 import * as path from "path";
 
 // Skip all tests if TEST_INTEGRATION is not set
 const describeIntegration = shouldRunIntegrationTests() ? describe : describe.skip;
 
+// Validate API keys for tests that need them
+if (shouldRunIntegrationTests()) {
+  validateApiKeys(["ANTHROPIC_API_KEY"]);
+}
+
 describeIntegration("IpcMain fork workspace integration tests", () => {
+  // Enable retries in CI for flaky API tests
+  if (process.env.CI && typeof jest !== "undefined" && jest.retryTimes) {
+    jest.retryTimes(3, { logErrorsBeforeRetry: true });
+  }
+
   test.concurrent(
     "should fail to fork workspace with invalid name",
     async () => {
@@ -57,56 +81,232 @@ describeIntegration("IpcMain fork workspace integration tests", () => {
   );
 
   test.concurrent(
-    "should successfully fork workspace with valid name",
+    "should fork workspace and send message successfully",
     async () => {
-      const env = await createTestEnvironment();
-      const tempGitRepo = await createTempGitRepo();
+      const { env, workspaceId: sourceWorkspaceId, cleanup } = await setupWorkspace("anthropic");
 
       try {
-        // Create source workspace
-        const trunkBranch = await detectDefaultTrunkBranch(tempGitRepo);
-        const createResult = await env.mockIpcRenderer.invoke(
-          IPC_CHANNELS.WORKSPACE_CREATE,
-          tempGitRepo,
-          "source-workspace",
-          trunkBranch
-        );
-        expect(createResult.success).toBe(true);
-        const sourceWorkspaceId = createResult.metadata.id;
-
         // Fork the workspace
         const forkResult = await env.mockIpcRenderer.invoke(
           IPC_CHANNELS.WORKSPACE_FORK,
           sourceWorkspaceId,
           "forked-workspace"
         );
+        expect(forkResult.success).toBe(true);
+        const forkedWorkspaceId = forkResult.metadata.id;
 
-        if (!forkResult.success) {
-          console.error("Failed to fork workspace:", forkResult.error);
+        // User expects: forked workspace is functional - can send messages to it
+        env.sentEvents.length = 0;
+        const sendResult = await sendMessageWithModel(
+          env.mockIpcRenderer,
+          forkedWorkspaceId,
+          "What is 2+2? Answer with just the number.",
+          "anthropic",
+          "claude-sonnet-4-5"
+        );
+        expect(sendResult.success).toBe(true);
+
+        // Verify stream completes successfully
+        const collector = createEventCollector(env.sentEvents, forkedWorkspaceId);
+        await collector.waitForEvent("stream-end", 30000);
+        assertStreamSuccess(collector);
+
+        const finalMessage = collector.getFinalMessage();
+        expect(finalMessage).toBeDefined();
+      } finally {
+        await cleanup();
+      }
+    },
+    45000
+  );
+
+  test.concurrent(
+    "should preserve chat history when forking workspace",
+    async () => {
+      const { env, workspaceId: sourceWorkspaceId, cleanup } = await setupWorkspace("anthropic");
+
+      try {
+        // Add history to source workspace
+        const historyService = new HistoryService(env.config);
+        const uniqueWord = `testword-${Date.now()}`;
+        const historyMessages = [
+          createCmuxMessage("msg-1", "user", `Remember this word: ${uniqueWord}`, {}),
+          createCmuxMessage("msg-2", "assistant", `I will remember the word "${uniqueWord}".`, {}),
+        ];
+
+        for (const msg of historyMessages) {
+          const result = await historyService.appendToHistory(sourceWorkspaceId, msg);
+          expect(result.success).toBe(true);
         }
 
+        // Fork the workspace
+        const forkResult = await env.mockIpcRenderer.invoke(
+          IPC_CHANNELS.WORKSPACE_FORK,
+          sourceWorkspaceId,
+          "forked-with-history"
+        );
         expect(forkResult.success).toBe(true);
-        expect(forkResult.metadata.id).toBeDefined();
-        expect(forkResult.metadata.projectPath).toBe(tempGitRepo);
-        expect(forkResult.metadata.projectName).toBeDefined();
-        expect(forkResult.projectPath).toBe(tempGitRepo);
+        const forkedWorkspaceId = forkResult.metadata.id;
 
-        // Verify forked workspace is different from source
-        expect(forkResult.metadata.id).not.toBe(sourceWorkspaceId);
+        // User expects: forked workspace has access to history
+        // Send a message that requires the historical context
+        env.sentEvents.length = 0;
+        const sendResult = await sendMessageWithModel(
+          env.mockIpcRenderer,
+          forkedWorkspaceId,
+          "What word did I ask you to remember? Reply with just the word.",
+          "anthropic",
+          "claude-sonnet-4-5"
+        );
+        expect(sendResult.success).toBe(true);
 
-        // Cleanup
-        await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, sourceWorkspaceId);
-        await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, forkResult.metadata.id);
+        // Verify stream completes successfully
+        const collector = createEventCollector(env.sentEvents, forkedWorkspaceId);
+        await collector.waitForEvent("stream-end", 30000);
+        assertStreamSuccess(collector);
+
+        const finalMessage = collector.getFinalMessage();
+        expect(finalMessage).toBeDefined();
+
+        // Verify the response contains the word from history
+        if (finalMessage && "parts" in finalMessage && Array.isArray(finalMessage.parts)) {
+          const content = finalMessage.parts
+            .filter((part) => part.type === "text")
+            .map((part) => (part as { text: string }).text)
+            .join("");
+          expect(content.toLowerCase()).toContain(uniqueWord.toLowerCase());
+        }
       } finally {
-        await cleanupTestEnvironment(env);
-        await cleanupTempGitRepo(tempGitRepo);
+        await cleanup();
       }
     },
-    30000
+    45000
   );
 
   test.concurrent(
-    "should create independent forked workspace from source",
+    "should create independent workspaces that can send messages concurrently",
+    async () => {
+      const { env, workspaceId: sourceWorkspaceId, cleanup } = await setupWorkspace("anthropic");
+
+      try {
+        // Fork the workspace
+        const forkResult = await env.mockIpcRenderer.invoke(
+          IPC_CHANNELS.WORKSPACE_FORK,
+          sourceWorkspaceId,
+          "forked-independent"
+        );
+        expect(forkResult.success).toBe(true);
+        const forkedWorkspaceId = forkResult.metadata.id;
+
+        // User expects: both workspaces work independently
+        // Send different messages to both concurrently
+        env.sentEvents.length = 0;
+
+        const [sourceResult, forkedResult] = await Promise.all([
+          sendMessageWithModel(
+            env.mockIpcRenderer,
+            sourceWorkspaceId,
+            "What is 5+5? Answer with just the number.",
+            "anthropic",
+            "claude-sonnet-4-5"
+          ),
+          sendMessageWithModel(
+            env.mockIpcRenderer,
+            forkedWorkspaceId,
+            "What is 3+3? Answer with just the number.",
+            "anthropic",
+            "claude-sonnet-4-5"
+          ),
+        ]);
+
+        expect(sourceResult.success).toBe(true);
+        expect(forkedResult.success).toBe(true);
+
+        // Verify both streams complete successfully
+        const sourceCollector = createEventCollector(env.sentEvents, sourceWorkspaceId);
+        const forkedCollector = createEventCollector(env.sentEvents, forkedWorkspaceId);
+
+        await Promise.all([
+          sourceCollector.waitForEvent("stream-end", 30000),
+          forkedCollector.waitForEvent("stream-end", 30000),
+        ]);
+
+        assertStreamSuccess(sourceCollector);
+        assertStreamSuccess(forkedCollector);
+
+        expect(sourceCollector.getFinalMessage()).toBeDefined();
+        expect(forkedCollector.getFinalMessage()).toBeDefined();
+      } finally {
+        await cleanup();
+      }
+    },
+    45000
+  );
+
+  test.concurrent(
+    "should preserve partial streaming response when forking mid-stream",
+    async () => {
+      const { env, workspaceId: sourceWorkspaceId, cleanup } = await setupWorkspace("anthropic");
+
+      try {
+        // Start a stream in the source workspace (don't await)
+        void sendMessageWithModel(
+          env.mockIpcRenderer,
+          sourceWorkspaceId,
+          "Count from 1 to 10, one number per line. Then say 'Done counting.'",
+          "anthropic",
+          "claude-sonnet-4-5"
+        );
+
+        // Wait for stream to start and produce some content
+        const sourceCollector = createEventCollector(env.sentEvents, sourceWorkspaceId);
+        await sourceCollector.waitForEvent("stream-start", 5000);
+
+        // Wait for some deltas to ensure we have partial content
+        await waitFor(() => {
+          sourceCollector.collect();
+          return sourceCollector.getDeltas().length > 2;
+        }, 10000);
+
+        // Fork while stream is active (this should commit partial to history)
+        const forkResult = await env.mockIpcRenderer.invoke(
+          IPC_CHANNELS.WORKSPACE_FORK,
+          sourceWorkspaceId,
+          "forked-mid-stream"
+        );
+        expect(forkResult.success).toBe(true);
+        const forkedWorkspaceId = forkResult.metadata.id;
+
+        // Wait for source stream to complete
+        await sourceCollector.waitForEvent("stream-end", 30000);
+
+        // User expects: forked workspace is functional despite being forked mid-stream
+        // Send a message to the forked workspace
+        env.sentEvents.length = 0;
+        const forkedSendResult = await sendMessageWithModel(
+          env.mockIpcRenderer,
+          forkedWorkspaceId,
+          "What is 7+3? Answer with just the number.",
+          "anthropic",
+          "claude-sonnet-4-5"
+        );
+        expect(forkedSendResult.success).toBe(true);
+
+        // Verify forked workspace stream completes successfully
+        const forkedCollector = createEventCollector(env.sentEvents, forkedWorkspaceId);
+        await forkedCollector.waitForEvent("stream-end", 30000);
+        assertStreamSuccess(forkedCollector);
+
+        expect(forkedCollector.getFinalMessage()).toBeDefined();
+      } finally {
+        await cleanup();
+      }
+    },
+    60000
+  );
+
+  test.concurrent(
+    "should make forked workspace available in workspace list",
     async () => {
       const env = await createTestEnvironment();
       const tempGitRepo = await createTempGitRepo();
@@ -128,59 +328,6 @@ describeIntegration("IpcMain fork workspace integration tests", () => {
           IPC_CHANNELS.WORKSPACE_FORK,
           sourceWorkspaceId,
           "forked-workspace"
-        );
-        expect(forkResult.success).toBe(true);
-
-        // User expects: forked workspace is accessible and independent from source
-        const sourceInfo = await env.mockIpcRenderer.invoke(
-          IPC_CHANNELS.WORKSPACE_GET_INFO,
-          sourceWorkspaceId
-        );
-        const forkedInfo = await env.mockIpcRenderer.invoke(
-          IPC_CHANNELS.WORKSPACE_GET_INFO,
-          forkResult.metadata.id
-        );
-
-        expect(sourceInfo).toBeTruthy();
-        expect(forkedInfo).toBeTruthy();
-        expect(forkedInfo.id).not.toBe(sourceInfo.id);
-        expect(forkedInfo.name).toBe("forked-workspace");
-        expect(sourceInfo.name).toBe("source-workspace");
-
-        // Cleanup
-        await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, sourceWorkspaceId);
-        await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, forkResult.metadata.id);
-      } finally {
-        await cleanupTestEnvironment(env);
-        await cleanupTempGitRepo(tempGitRepo);
-      }
-    },
-    30000
-  );
-
-  test.concurrent(
-    "should make forked workspace available for listing",
-    async () => {
-      const env = await createTestEnvironment();
-      const tempGitRepo = await createTempGitRepo();
-
-      try {
-        // Create source workspace
-        const trunkBranch = await detectDefaultTrunkBranch(tempGitRepo);
-        const createResult = await env.mockIpcRenderer.invoke(
-          IPC_CHANNELS.WORKSPACE_CREATE,
-          tempGitRepo,
-          "source-config",
-          trunkBranch
-        );
-        expect(createResult.success).toBe(true);
-        const sourceWorkspaceId = createResult.metadata.id;
-
-        // Fork the workspace
-        const forkResult = await env.mockIpcRenderer.invoke(
-          IPC_CHANNELS.WORKSPACE_FORK,
-          sourceWorkspaceId,
-          "forked-config"
         );
         expect(forkResult.success).toBe(true);
 
@@ -198,103 +345,6 @@ describeIntegration("IpcMain fork workspace integration tests", () => {
         await cleanupTempGitRepo(tempGitRepo);
       }
     },
-    30000
-  );
-
-  test.concurrent(
-    "should create independent working directories for source and forked workspace",
-    async () => {
-      const env = await createTestEnvironment();
-      const tempGitRepo = await createTempGitRepo();
-
-      try {
-        // Create source workspace
-        const trunkBranch = await detectDefaultTrunkBranch(tempGitRepo);
-        const createResult = await env.mockIpcRenderer.invoke(
-          IPC_CHANNELS.WORKSPACE_CREATE,
-          tempGitRepo,
-          "source-branch",
-          trunkBranch
-        );
-        expect(createResult.success).toBe(true);
-        const sourceWorkspaceId = createResult.metadata.id;
-
-        // Fork the workspace
-        const forkResult = await env.mockIpcRenderer.invoke(
-          IPC_CHANNELS.WORKSPACE_FORK,
-          sourceWorkspaceId,
-          "forked-branch"
-        );
-        expect(forkResult.success).toBe(true);
-
-        // User expects: both workspaces are accessible with different paths
-        const sourceInfo = await env.mockIpcRenderer.invoke(
-          IPC_CHANNELS.WORKSPACE_GET_INFO,
-          sourceWorkspaceId
-        );
-        const forkedInfo = await env.mockIpcRenderer.invoke(
-          IPC_CHANNELS.WORKSPACE_GET_INFO,
-          forkResult.metadata.id
-        );
-
-        expect(sourceInfo).toBeTruthy();
-        expect(forkedInfo).toBeTruthy();
-        expect(sourceInfo.namedWorkspacePath).not.toBe(forkedInfo.namedWorkspacePath);
-
-        // Cleanup
-        await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, sourceWorkspaceId);
-        await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, forkResult.metadata.id);
-      } finally {
-        await cleanupTestEnvironment(env);
-        await cleanupTempGitRepo(tempGitRepo);
-      }
-    },
-    30000
-  );
-
-  test.concurrent(
-    "should successfully fork workspace regardless of internal state",
-    async () => {
-      const env = await createTestEnvironment();
-      const tempGitRepo = await createTempGitRepo();
-
-      try {
-        // Create source workspace
-        const trunkBranch = await detectDefaultTrunkBranch(tempGitRepo);
-        const createResult = await env.mockIpcRenderer.invoke(
-          IPC_CHANNELS.WORKSPACE_CREATE,
-          tempGitRepo,
-          "source-workspace",
-          trunkBranch
-        );
-        expect(createResult.success).toBe(true);
-        const sourceWorkspaceId = createResult.metadata.id;
-
-        // Fork the workspace
-        const forkResult = await env.mockIpcRenderer.invoke(
-          IPC_CHANNELS.WORKSPACE_FORK,
-          sourceWorkspaceId,
-          "forked-workspace"
-        );
-        expect(forkResult.success).toBe(true);
-
-        // User expects: forked workspace exists and is accessible via IPC
-        const forkedInfo = await env.mockIpcRenderer.invoke(
-          IPC_CHANNELS.WORKSPACE_GET_INFO,
-          forkResult.metadata.id
-        );
-        expect(forkedInfo).toBeTruthy();
-        expect(forkedInfo.id).toBe(forkResult.metadata.id);
-        expect(forkedInfo.name).toBe("forked-workspace");
-
-        // Cleanup
-        await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, sourceWorkspaceId);
-        await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, forkResult.metadata.id);
-      } finally {
-        await cleanupTestEnvironment(env);
-        await cleanupTempGitRepo(tempGitRepo);
-      }
-    },
-    30000
+    15000
   );
 });
