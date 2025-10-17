@@ -3,7 +3,14 @@ import * as fs from "fs/promises";
 import * as path from "path";
 import * as os from "os";
 import { createFileListTool } from "./file_list";
-import type { FileListToolArgs, FileListToolResult } from "@/types/tools";
+import type { FileListToolResult } from "@/types/tools";
+import type { ToolCallOptions } from "ai";
+
+// Mock ToolCallOptions for testing
+const mockToolCallOptions: ToolCallOptions = {
+  toolCallId: "test-call-id",
+  messages: [],
+};
 
 describe("file_list tool", () => {
   let tempDir: string;

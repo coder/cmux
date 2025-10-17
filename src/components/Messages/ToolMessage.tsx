@@ -13,6 +13,8 @@ import type {
   BashToolResult,
   FileReadToolArgs,
   FileReadToolResult,
+  FileListToolArgs,
+  FileListToolResult,
   FileEditInsertToolArgs,
   FileEditInsertToolResult,
   FileEditReplaceStringToolArgs,
