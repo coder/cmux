@@ -181,6 +181,20 @@ const JumpToBottomIndicator = styled.button`
   }
 `;
 
+const StreamingOverlay = styled.div`
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 15px;
+  pointer-events: none; /* Allow clicks through to content */
+  
+  > * {
+    pointer-events: auto; /* But barriers themselves are clickable */
+  }
+`;
+
+
 interface AIViewProps {
   workspaceId: string;
   projectName: string;
@@ -476,6 +490,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
               ref={virtuosoRef}
               style={{ height: "100%" }}
               data={mergedMessages}
+              defaultItemHeight={100}
               alignToBottom
               followOutput={(isAtBottom) => {
                 // Only follow if we're at bottom - prevents jittery scrolling
@@ -491,7 +506,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
               scrollerRef={(ref) => {
                 contentRef.current = ref as HTMLDivElement | null;
               }}
-              increaseViewportBy={{ top: 600, bottom: 800 }}
+              increaseViewportBy={{ top: 1000, bottom: 1000 }}
               computeItemKey={(index: number, item: DisplayedMessage) => item.id}
               components={{
                 Footer: () => (
@@ -534,6 +549,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
               }}
             />
           )}
+          <StreamingOverlay>
           {canInterrupt && (
             <StreamingBarrier
               statusText={
@@ -558,6 +574,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
               }
             />
           )}
+          </StreamingOverlay>
           {!autoScroll && (
             <JumpToBottomIndicator onClick={jumpToBottom} type="button">
               Press {formatKeybind(KEYBINDS.JUMP_TO_BOTTOM)} to jump to bottom
