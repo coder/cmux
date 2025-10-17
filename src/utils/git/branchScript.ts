@@ -3,7 +3,7 @@
  * Generates a bash script that retrieves branch details, commit dates, and optionally dirty files.
  */
 
-import { strict as assert } from "node:assert";
+import { assert } from "../assert";
 
 export const SECTION_MARKERS = {
   showBranchStart: "__CMUX_BRANCH_DATA__BEGIN_SHOW_BRANCH__",

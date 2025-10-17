@@ -4,9 +4,9 @@
  */
 
 import { z } from "zod";
-import { strict as assert } from "node:assert";
 import { buildGitBranchScript, SECTION_MARKERS } from "@/utils/git/branchScript";
 import { parseGitShowBranch, type GitCommit, type GitBranchHeader } from "@/utils/git/parseGitLog";
+import { assert } from "../assert";
 
 const GitBranchDataSchema = z.object({
   showBranch: z.string(),

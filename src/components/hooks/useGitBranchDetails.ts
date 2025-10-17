@@ -1,10 +1,10 @@
 import { useReducer, useEffect, useCallback } from "react";
 import type { GitStatus } from "@/types/workspace";
 import type { GitCommit, GitBranchHeader } from "@/utils/git/parseGitLog";
-import { strict as assert } from "node:assert";
-import { fetchGitBranchInfo } from "@/services/gitBranchService";
+import { fetchGitBranchInfo } from "@/utils/git/fetchBranchInfo";
 import { useTimedCache } from "./useTimedCache";
 import { useDebouncedCallback } from "./useDebouncedCallback";
+import { assert } from "@/utils/assert";
 
 export interface GitBranchDetailsResult {
   branchHeaders: GitBranchHeader[] | null;

@@ -3,8 +3,8 @@
  * Provides get, set, and invalidate operations for cached data.
  */
 
+import { assert } from "@/utils/assert";
 import { useRef, useCallback } from "react";
-import { strict as assert } from "node:assert";
 
 interface CacheEntry<T> {
   data: T;

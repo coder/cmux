@@ -3,7 +3,7 @@ import { expect, userEvent, waitFor } from "@storybook/test";
 import { useArgs } from "@storybook/preview-api";
 import { GitStatusIndicatorView } from "./GitStatusIndicatorView";
 import type { GitCommit, GitBranchHeader } from "@/utils/git/parseGitLog";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 // Type for the wrapped component props (without interaction handlers)
 type InteractiveProps = Omit<
@@ -70,8 +70,11 @@ const mockDirtyFiles = [
   "?? src/components/GitStatusIndicatorView.stories.tsx",
 ];
 
+// Update InteractiveProps to include isAgentResolving
+type InteractivePropsUpdated = InteractiveProps & { isAgentResolving?: boolean };
+
 // Interactive wrapper with hover state (simple, without rebase)
-const InteractiveWrapper = (props: InteractiveProps) => {
+const InteractiveWrapper = (props: InteractivePropsUpdated) => {
   const [showTooltip, setShowTooltip] = useState(false);
   const [tooltipCoords, setTooltipCoords] = useState({ top: 0, left: 0 });
   const [containerEl, setContainerEl] = useState<HTMLSpanElement | null>(null);
@@ -101,6 +104,7 @@ const InteractiveWrapper = (props: InteractiveProps) => {
   return (
     <GitStatusIndicatorView
       {...props}
+      isAgentResolving={props.isAgentResolving}
       showTooltip={showTooltip}
       tooltipCoords={tooltipCoords}
       onMouseEnter={handleMouseEnter}
@@ -114,8 +118,8 @@ const InteractiveWrapper = (props: InteractiveProps) => {
 
 // Interactive wrapper with rebase state management
 const RebaseInteractiveWrapper = (
-  props: InteractiveProps & {
-    updateArgs: (args: Partial<InteractiveProps>) => void;
+  props: InteractivePropsUpdated & {
+    updateArgs: (args: Partial<InteractivePropsUpdated>) => void;
   }
 ) => {
   const { updateArgs, ...componentProps } = props;
@@ -175,8 +179,11 @@ const RebaseInteractiveWrapper = (
     }
   };
 
+  // Read isAgentResolving from props
+  const isAgentResolving = props.isAgentResolving ?? false;
+
   // Compute canRebase based on current state
-  const canRebase = !!gitStatus && gitStatus.behind > 0 && !isRebasing;
+  const canRebase = !!gitStatus && gitStatus.behind > 0 && !isRebasing && !isAgentResolving;
 
   return (
     <GitStatusIndicatorView
@@ -191,6 +198,7 @@ const RebaseInteractiveWrapper = (
       onContainerRef={setContainerEl}
       canRebase={canRebase}
       isRebasing={isRebasing}
+      isAgentResolving={isAgentResolving}
       rebaseError={rebaseError}
       onRebaseClick={() => {
         void handleRebaseClick();
@@ -463,5 +471,228 @@ export const RebaseBlockedByStreaming: Story = {
 
     // Try to click - should not trigger onRebaseClick
     await userEvent.click(indicator);
+  },
+};
+
+export const AgentResolving: Story = {
+  render: (args) => <InteractiveWrapper {...args} />,
+  args: {
+    gitStatus: { ahead: 2, behind: 5, dirty: false },
+    tooltipPosition: "right",
+    branchHeaders: mockBranchHeaders,
+    commits: mockCommits,
+    dirtyFiles: null,
+    isLoading: false,
+    errorMessage: null,
+    canRebase: false,
+    isRebasing: false,
+    isAgentResolving: true,
+    agentConflictFiles: ["src/components/GitStatusIndicator.tsx", "package.json", "README.md"],
+    rebaseError: null,
+    onRebaseClick: () => {
+      throw new Error("onRebaseClick should not be called while agent is resolving");
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const indicator = canvasElement.querySelector(".git-status-wrapper");
+    if (!indicator) throw new Error("Git status indicator not found");
+
+    const refreshIcon = indicator.querySelector(".refresh-icon-wrapper");
+
+    // Refresh icon should be visible (agent is working)
+    await waitFor(() => {
+      const computedStyle = window.getComputedStyle(refreshIcon!);
+      void expect(computedStyle.display).toBe("flex");
+    });
+
+    // Should have pulsating animation
+    await waitFor(() => {
+      const computedStyle = window.getComputedStyle(refreshIcon!);
+      void expect(computedStyle.animation).toContain("pulse");
+    });
+
+    // Cursor should be "wait"
+    await waitFor(() => {
+      const computedStyle = window.getComputedStyle(indicator);
+      void expect(computedStyle.cursor).toBe("wait");
+    });
+
+    // Should have aria-busy attribute
+    void expect(indicator.getAttribute("aria-busy")).toBe("true");
+
+    // Should NOT be clickable (no role=button)
+    void expect(indicator.getAttribute("role")).not.toBe("button");
+
+    // Hover to see resolving message in tooltip
+    await userEvent.hover(indicator);
+
+    await waitFor(
+      () => {
+        const tooltip = document.querySelector("[data-git-tooltip]");
+        void expect(tooltip).toBeInTheDocument();
+        // Should show agent resolving message
+        void expect(tooltip?.textContent).toContain("Agent is resolving conflicts");
+        // Should show conflict files
+        void expect(tooltip?.textContent).toContain("GitStatusIndicator.tsx");
+        void expect(tooltip?.textContent).toContain("package.json");
+      },
+      { timeout: 2000 }
+    );
+
+    // Try to click - should not trigger onRebaseClick
+    await userEvent.click(indicator);
+  },
+};
+
+export const AgentResolvingToSuccess: Story = {
+  render: function Render(args) {
+    const [, updateArgs] = useArgs<InteractivePropsUpdated>();
+
+    // Simulate agent resolution lifecycle
+    useEffect(() => {
+      if (args.isAgentResolving) {
+        // After 3 seconds, simulate agent successfully resolved conflicts
+        const timer = setTimeout(() => {
+          updateArgs({
+            isAgentResolving: false,
+            gitStatus: { ...args.gitStatus!, behind: 0 }, // Rebase succeeded!
+          });
+        }, 3000);
+        return () => clearTimeout(timer);
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [args.isAgentResolving]);
+
+    return <RebaseInteractiveWrapper {...args} updateArgs={updateArgs} />;
+  },
+  args: {
+    gitStatus: { ahead: 2, behind: 5, dirty: false },
+    tooltipPosition: "right",
+    branchHeaders: mockBranchHeaders,
+    commits: mockCommits,
+    dirtyFiles: null,
+    isLoading: false,
+    errorMessage: null,
+    canRebase: false,
+    isRebasing: false,
+    isAgentResolving: true,
+    agentConflictFiles: ["src/conflict.txt", "package.json"],
+    rebaseError: null,
+    onRebaseClick: () => undefined,
+  },
+  play: async ({ canvasElement }) => {
+    const indicator = canvasElement.querySelector(".git-status-wrapper");
+    if (!indicator) throw new Error("Git status indicator not found");
+
+    const refreshIcon = indicator.querySelector(".refresh-icon-wrapper");
+
+    // Initially: should show pulsating icon
+    await waitFor(() => {
+      const computedStyle = window.getComputedStyle(refreshIcon!);
+      void expect(computedStyle.display).toBe("flex");
+      void expect(computedStyle.animation).toContain("pulse");
+    });
+
+    // Should show behind count
+    let statusText = indicator.textContent;
+    void expect(statusText).toContain("↓5");
+
+    // Wait for auto-update (agent finishes after 3s)
+    await waitFor(
+      () => {
+        statusText = indicator.textContent || "";
+        // Behind count should become 0 (success)
+        void expect(statusText).not.toContain("↓");
+      },
+      { timeout: 5000 }
+    );
+
+    // Icon should stop pulsating (no longer resolving)
+    await waitFor(() => {
+      const computedStyle = window.getComputedStyle(refreshIcon!);
+      // Icon should be hidden now (not rebasing or resolving)
+      void expect(computedStyle.display).not.toBe("flex");
+    });
+
+    // Should show only ahead count
+    void expect(statusText).toContain("↑2");
+  },
+};
+
+export const AgentResolvingToFailure: Story = {
+  render: function Render(args) {
+    const [, updateArgs] = useArgs<InteractivePropsUpdated>();
+
+    // Simulate agent failing to resolve
+    useEffect(() => {
+      if (args.isAgentResolving) {
+        // After 3 seconds, simulate agent failed to resolve
+        const timer = setTimeout(() => {
+          updateArgs({
+            isAgentResolving: false,
+            gitStatus: { ...args.gitStatus!, behind: 5 }, // Still behind
+            rebaseError: "Agent couldn't fully resolve the conflicts. Check chat for details.",
+          });
+        }, 3000);
+        return () => clearTimeout(timer);
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [args.isAgentResolving]);
+
+    return <RebaseInteractiveWrapper {...args} updateArgs={updateArgs} />;
+  },
+  args: {
+    gitStatus: { ahead: 2, behind: 5, dirty: false },
+    tooltipPosition: "right",
+    branchHeaders: mockBranchHeaders,
+    commits: mockCommits,
+    dirtyFiles: null,
+    isLoading: false,
+    errorMessage: null,
+    canRebase: false,
+    isRebasing: false,
+    isAgentResolving: true,
+    agentConflictFiles: ["src/utils/rebase.ts", "src/config.ts"],
+    rebaseError: null,
+    onRebaseClick: () => undefined,
+  },
+  play: async ({ canvasElement }) => {
+    const indicator = canvasElement.querySelector(".git-status-wrapper");
+    if (!indicator) throw new Error("Git status indicator not found");
+
+    const refreshIcon = indicator.querySelector(".refresh-icon-wrapper");
+
+    // Initially: pulsating icon while agent works
+    await waitFor(() => {
+      const computedStyle = window.getComputedStyle(refreshIcon!);
+      void expect(computedStyle.display).toBe("flex");
+      void expect(computedStyle.animation).toContain("pulse");
+    });
+
+    // Wait for agent to finish (fails after 3s)
+    await waitFor(
+      () => {
+        // Icon should stop pulsating
+        const computedStyle = window.getComputedStyle(refreshIcon!);
+        void expect(computedStyle.display).not.toBe("flex");
+      },
+      { timeout: 5000 }
+    );
+
+    // Should still show behind count (agent failed)
+    const statusText = indicator.textContent;
+    void expect(statusText).toContain("↓5");
+
+    // Hover to see error in tooltip
+    await userEvent.hover(indicator);
+
+    await waitFor(
+      () => {
+        const errorDiv = document.querySelector("[role='alert']");
+        void expect(errorDiv).toBeInTheDocument();
+        void expect(errorDiv?.textContent).toContain("Agent couldn't fully resolve");
+      },
+      { timeout: 2000 }
+    );
   },
 };

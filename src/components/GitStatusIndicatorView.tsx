@@ -5,7 +5,11 @@ import type { GitStatus } from "@/types/workspace";
 import type { GitCommit, GitBranchHeader } from "@/utils/git/parseGitLog";
 import RefreshIcon from "@/assets/icons/refresh.svg?react";
 
-const Container = styled.span<{ clickable?: boolean; isRebasing?: boolean }>`
+const Container = styled.span<{
+  clickable?: boolean;
+  isRebasing?: boolean;
+  isAgentResolving?: boolean;
+}>`
   color: #569cd6;
   font-size: 11px;
   display: flex;
@@ -14,12 +18,14 @@ const Container = styled.span<{ clickable?: boolean; isRebasing?: boolean }>`
   margin-right: 6px;
   font-family: var(--font-monospace);
   position: relative;
-  cursor: ${(props) => (props.isRebasing ? "wait" : props.clickable ? "pointer" : "default")};
+  cursor: ${(props) =>
+    props.isRebasing || props.isAgentResolving ? "wait" : props.clickable ? "pointer" : "default"};
   transition: opacity 0.2s;
 
   ${(props) =>
     props.clickable &&
     !props.isRebasing &&
+    !props.isAgentResolving &&
     `
     &:hover .status-indicators {
       display: none !important;
@@ -30,7 +36,8 @@ const Container = styled.span<{ clickable?: boolean; isRebasing?: boolean }>`
   `}
 
   ${(props) =>
-    props.isRebasing &&
+    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+    (props.isRebasing || props.isAgentResolving) &&
     `
     .status-indicators {
       display: none !important;
@@ -66,7 +73,7 @@ const Arrow = styled.span`
   font-weight: normal;
 `;
 
-const RefreshIconWrapper = styled.span<{ isRebasing?: boolean }>`
+const RefreshIconWrapper = styled.span<{ isRebasing?: boolean; isAgentResolving?: boolean }>`
   display: none;
   align-items: center;
 
@@ -77,7 +84,8 @@ const RefreshIconWrapper = styled.span<{ isRebasing?: boolean }>`
   }
 
   ${(props) =>
-    props.isRebasing &&
+    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+    (props.isRebasing || props.isAgentResolving) &&
     `
     ${pulseAnimation}
     animation: pulse 1.5s ease-in-out infinite;
@@ -123,6 +131,31 @@ const ErrorMessage = styled.div`
   margin-bottom: 8px;
   font-family: var(--font-monospace);
   white-space: normal;
+`;
+
+const AgentResolvingMessage = styled.div`
+  background: rgba(86, 156, 214, 0.15);
+  border-left: 3px solid #569cd6;
+  color: #569cd6;
+  padding: 6px 8px;
+  margin-bottom: 8px;
+  font-family: var(--font-monospace);
+  white-space: normal;
+  font-weight: 500;
+`;
+
+const ConflictFileList = styled.div`
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #464647;
+`;
+
+const ConflictFile = styled.div`
+  color: #cccccc;
+  font-family: var(--font-monospace);
+  font-size: 11px;
+  padding: 2px 0;
+  padding-left: 8px;
 `;
 
 const BranchHeader = styled.div`
@@ -255,6 +288,8 @@ export interface GitStatusIndicatorViewProps {
   onContainerRef: (el: HTMLSpanElement | null) => void;
   canRebase: boolean;
   isRebasing: boolean;
+  isAgentResolving?: boolean;
+  agentConflictFiles?: string[] | null;
   onRebaseClick: () => void;
   rebaseError: string | null;
 }
@@ -281,6 +316,8 @@ export const GitStatusIndicatorView: React.FC<GitStatusIndicatorViewProps> = ({
   onContainerRef,
   canRebase,
   isRebasing,
+  isAgentResolving = false,
+  agentConflictFiles = null,
   onRebaseClick,
   rebaseError,
 }) => {
@@ -357,6 +394,36 @@ export const GitStatusIndicatorView: React.FC<GitStatusIndicatorViewProps> = ({
       return "Loading...";
     }
 
+    // Show agent resolving status with conflict file list
+    if (isAgentResolving && agentConflictFiles && agentConflictFiles.length > 0) {
+      return (
+        <>
+          <AgentResolvingMessage>🤖 Agent is resolving conflicts in:</AgentResolvingMessage>
+          <ConflictFileList>
+            {agentConflictFiles.map((file) => (
+              <ConflictFile key={file}>• {file}</ConflictFile>
+            ))}
+          </ConflictFileList>
+          {renderDirtySection()}
+          {renderBranchHeaders()}
+          {commits && commits.length > 0 && (
+            <CommitList>
+              {commits.map((commit, index) => (
+                <CommitLine key={`${commit.hash}-${index}`}>
+                  <CommitMainLine>
+                    {renderIndicators(commit.indicators)}
+                    <CommitHash>{commit.hash}</CommitHash>
+                    <CommitDate>{commit.date}</CommitDate>
+                    <CommitSubject>{commit.subject}</CommitSubject>
+                  </CommitMainLine>
+                </CommitLine>
+              ))}
+            </CommitList>
+          )}
+        </>
+      );
+    }
+
     if (errorMessage) {
       return (
         <>
@@ -420,6 +487,7 @@ export const GitStatusIndicatorView: React.FC<GitStatusIndicatorViewProps> = ({
         onMouseLeave={onMouseLeave}
         clickable={canRebase}
         isRebasing={isRebasing}
+        isAgentResolving={isAgentResolving}
         onClick={
           canRebase
             ? () => {
@@ -439,14 +507,18 @@ export const GitStatusIndicatorView: React.FC<GitStatusIndicatorViewProps> = ({
               }
             : undefined
         }
-        aria-busy={isRebasing ? "true" : undefined}
+        aria-busy={isRebasing || isAgentResolving ? "true" : undefined}
         className="git-status-wrapper"
       >
         <StatusIndicators className="status-indicators">
           {gitStatus.ahead > 0 && <Arrow>↑{gitStatus.ahead}</Arrow>}
           {gitStatus.behind > 0 && <Arrow>↓{gitStatus.behind}</Arrow>}
         </StatusIndicators>
-        <RefreshIconWrapper className="refresh-icon-wrapper" isRebasing={isRebasing}>
+        <RefreshIconWrapper
+          className="refresh-icon-wrapper"
+          isRebasing={isRebasing}
+          isAgentResolving={isAgentResolving}
+        >
           <RefreshIcon />
         </RefreshIconWrapper>
         {gitStatus.dirty && <DirtyIndicator>*</DirtyIndicator>}

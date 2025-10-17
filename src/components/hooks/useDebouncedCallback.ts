@@ -3,8 +3,8 @@
  * Delays execution until after a specified wait time has elapsed since the last call.
  */
 
+import { assert } from "@/utils/assert";
 import { useRef, useCallback, useEffect } from "react";
-import { strict as assert } from "node:assert";
 
 /**
  * Creates a debounced version of a callback function.
@@ -28,7 +28,7 @@ import { strict as assert } from "node:assert";
  * ```
  */
 export function useDebouncedCallback<Args extends unknown[]>(
-  callback: (...args: Args) => void,
+  callback: (...args: Args) => void | Promise<void>,
   delayMs: number
 ): (...args: Args) => void {
   assert(typeof callback === "function", "useDebouncedCallback expects callback to be a function");
@@ -65,7 +65,7 @@ export function useDebouncedCallback<Args extends unknown[]>(
           callbackRef.current !== null && typeof callbackRef.current === "function",
           "callbackRef.current must be a function"
         );
-        callbackRef.current(...args);
+        void callbackRef.current(...args);
         timeoutRef.current = null;
       }, delayMs);
     },

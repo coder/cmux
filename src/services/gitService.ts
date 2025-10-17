@@ -306,10 +306,34 @@ export async function isRebaseInProgress(workspacePath: string): Promise<boolean
 export async function gatherGitDiagnostics(workspacePath: string): Promise<string> {
   const diagnostics: string[] = [];
 
+  // Check if rebase in progress and get original branch if so
+  let originalBranch: string | null = null;
+  try {
+    const gitDir = await resolveGitDir(workspacePath);
+    const headNameFile = path.join(gitDir, "rebase-merge", "head-name");
+
+    if (fs.existsSync(headNameFile)) {
+      const headName = await fsPromises.readFile(headNameFile, "utf-8");
+      // Format: "refs/heads/my-feature" → extract "my-feature"
+      originalBranch = headName.trim().replace(/^refs\/heads\//, "");
+    }
+  } catch {
+    // Ignore errors reading rebase state
+  }
+
   try {
     using branchProc = execAsync(`git -C "${workspacePath}" rev-parse --abbrev-ref HEAD 2>&1`);
     const { stdout: branch } = await branchProc.result;
-    diagnostics.push(`Current branch: ${branch.trim()}`);
+    const currentBranch = branch.trim();
+
+    if (originalBranch && currentBranch === "HEAD") {
+      // During rebase: show both original branch and detached HEAD state
+      diagnostics.push(`Branch (before rebase): ${originalBranch}`);
+      diagnostics.push(`Current state: detached HEAD (rebase in progress)`);
+    } else {
+      // Normal case: just show current branch
+      diagnostics.push(`Current branch: ${currentBranch}`);
+    }
   } catch (error) {
     diagnostics.push(
       `Current branch: Error - ${error instanceof Error ? error.message : String(error)}`
@@ -380,10 +404,8 @@ export async function rebaseOntoTrunk(
   let currentStep = "validation";
 
   assert(workspacePath, "workspacePath required");
-  assert(typeof workspacePath === "string", "workspacePath must be a string");
   assert(workspacePath.trim().length > 0, "workspacePath must not be empty");
   assert(trunkBranch, "trunkBranch required");
-  assert(typeof trunkBranch === "string", "trunkBranch must be a string");
   assert(trunkBranch.trim().length > 0, "trunkBranch must not be empty");
   assert(fs.existsSync(workspacePath), `Workspace path does not exist: ${workspacePath}`);
 
@@ -437,9 +459,6 @@ export async function rebaseOntoTrunk(
         stashed: false,
       };
 
-      assert(result.success === true, "Success result must have success=true");
-      assert(result.status === "completed", "Completed rebase must have status='completed'");
-
       return result;
     } catch (error) {
       let conflictFiles: string[] = [];
@@ -460,13 +479,10 @@ export async function rebaseOntoTrunk(
         success: false,
         status: "conflicts",
         conflictFiles,
-        error: `Rebase conflicts detected${error instanceof Error ? `: ${error.message}` : ""}`,
+        error: `Rebase conflicts detected: ${error instanceof Error ? error.message : String(error)}`,
         stashed: false,
         step: currentStep,
       };
-
-      assert(result.success === false, "Conflict result must have success=false");
-      assert(result.status === "conflicts", "Conflict result must have status='conflicts'");
 
       return result;
     }
@@ -481,8 +497,6 @@ export async function rebaseOntoTrunk(
       step: currentStep,
     };
 
-    assert(result.success === false, "Aborted result must have success=false");
-    assert(result.status === "aborted", "Aborted result must have status='aborted'");
     assert(result.error, "Aborted result must have error message");
 
     return result;
