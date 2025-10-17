@@ -155,3 +155,34 @@ export interface TodoWriteToolResult {
 export interface TodoReadToolResult {
   todos: TodoItem[];
 }
+
+// File List Tool Types
+export interface FileListToolArgs {
+  path: string;
+  max_depth?: number;
+  pattern?: string;
+  gitignore?: boolean;
+  max_entries?: number;
+}
+
+export interface FileEntry {
+  name: string;
+  type: "file" | "directory" | "symlink";
+  size?: number; // bytes (files only)
+  children?: FileEntry[]; // directories only (when depth allows traversal)
+}
+
+export type FileListToolResult =
+  | {
+      success: true;
+      path: string; // Resolved absolute path that was listed
+      entries: FileEntry[]; // Top-level entries (recursive structure)
+      total_count: number; // Total entries across all levels
+      depth_used: number; // Maximum depth traversed
+    }
+  | {
+      success: false;
+      error: string;
+      total_found?: number;
+      limit_requested?: number;
+    };

@@ -1,5 +1,6 @@
 import { type Tool } from "ai";
 import { createFileReadTool } from "@/services/tools/file_read";
+import { createFileListTool } from "@/services/tools/file_list";
 import { createBashTool } from "@/services/tools/bash";
 import { createFileEditReplaceStringTool } from "@/services/tools/file_edit_replace_string";
 // DISABLED: import { createFileEditReplaceLinesTool } from "@/services/tools/file_edit_replace_lines";
@@ -50,6 +51,7 @@ export async function getToolsForModel(
   const baseTools: Record<string, Tool> = {
     // Use snake_case for tool names to match what seems to be the convention.
     file_read: createFileReadTool(config),
+    file_list: createFileListTool(config),
     file_edit_replace_string: createFileEditReplaceStringTool(config),
     // DISABLED: file_edit_replace_lines - causes models (particularly GPT-5-Codex)
     // to leave repository in broken state due to issues with concurrent file modifications

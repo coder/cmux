@@ -88,3 +88,16 @@ export function validatePathInCwd(filePath: string, cwd: string): { error: strin
 
   return null;
 }
+
+/**
+ * Format a file size in bytes to a human-readable string.
+ * Uses KB for sizes >= 1KB, MB for sizes >= 1MB, otherwise bytes.
+ *
+ * @param bytes - File size in bytes
+ * @returns Formatted size string (e.g., "1.5KB", "2.3MB", "512B")
+ */
+export function formatSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes}B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+}

@@ -5,6 +5,7 @@ import { GenericToolCall } from "../tools/GenericToolCall";
 import { BashToolCall } from "../tools/BashToolCall";
 import { FileEditToolCall } from "../tools/FileEditToolCall";
 import { FileReadToolCall } from "../tools/FileReadToolCall";
+import { FileListToolCall } from "../tools/FileListToolCall";
 import { ProposePlanToolCall } from "../tools/ProposePlanToolCall";
 import { TodoToolCall } from "../tools/TodoToolCall";
 import type {
@@ -12,6 +13,8 @@ import type {
   BashToolResult,
   FileReadToolArgs,
   FileReadToolResult,
+  FileListToolArgs,
+  FileListToolResult,
   FileEditInsertToolArgs,
   FileEditInsertToolResult,
   FileEditReplaceStringToolArgs,
@@ -40,6 +43,11 @@ function isBashTool(toolName: string, args: unknown): args is BashToolArgs {
 function isFileReadTool(toolName: string, args: unknown): args is FileReadToolArgs {
   if (toolName !== "file_read") return false;
   return TOOL_DEFINITIONS.file_read.schema.safeParse(args).success;
+}
+
+function isFileListTool(toolName: string, args: unknown): args is FileListToolArgs {
+  if (toolName !== "file_list") return false;
+  return TOOL_DEFINITIONS.file_list.schema.safeParse(args).success;
 }
 
 function isFileEditReplaceStringTool(

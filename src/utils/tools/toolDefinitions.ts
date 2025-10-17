@@ -11,6 +11,9 @@ import {
   BASH_HARD_MAX_LINES,
   BASH_MAX_LINE_BYTES,
   BASH_MAX_TOTAL_BYTES,
+  FILE_LIST_DEFAULT_MAX_ENTRIES,
+  FILE_LIST_HARD_MAX_ENTRIES,
+  FILE_LIST_MAX_DEPTH,
 } from "@/constants/toolLimits";
 
 import { zodToJsonSchema } from "zod-to-json-schema";
@@ -64,6 +67,42 @@ export const TOOL_DEFINITIONS = {
         .positive()
         .optional()
         .describe("Number of lines to return from offset (optional, returns all if not specified)"),
+    }),
+  },
+  file_list: {
+    description:
+      "List files and directories in a path with optional recursion and filtering. " +
+      "Results show recursive tree structure with file sizes. " +
+      "Respects .gitignore by default (set gitignore=false to show all files). " +
+      `Prefer using minimal max_entries values (10-50) to avoid context waste - ` +
+      "make multiple focused calls rather than requesting large listings. " +
+      "Use pattern parameter to filter (supports glob patterns like '*.ts' or '**/*.test.ts').",
+    schema: z.object({
+      path: z.string().describe("Directory path to list"),
+      max_depth: z
+        .number()
+        .int()
+        .min(1)
+        .max(FILE_LIST_MAX_DEPTH)
+        .optional()
+        .describe("Maximum depth to traverse (default: 1 for non-recursive)"),
+      pattern: z
+        .string()
+        .optional()
+        .describe("Glob pattern to filter entries (e.g., '*.ts', '**/*.test.ts')"),
+      gitignore: z
+        .boolean()
+        .optional()
+        .describe("Respect .gitignore patterns (default: true). Set to false to see all files."),
+      max_entries: z
+        .number()
+        .int()
+        .min(1)
+        .max(FILE_LIST_HARD_MAX_ENTRIES)
+        .optional()
+        .describe(
+          `Maximum entries to return (default: ${FILE_LIST_DEFAULT_MAX_ENTRIES}, max: ${FILE_LIST_HARD_MAX_ENTRIES}). Prefer lower values.`
+        ),
     }),
   },
   file_edit_replace_string: {
@@ -225,6 +264,7 @@ export function getAvailableTools(modelString: string): string[] {
   const baseTools = [
     "bash",
     "file_read",
+    "file_list",
     "file_edit_replace_string",
     // "file_edit_replace_lines", // DISABLED: causes models to break repo state
     "file_edit_insert",
