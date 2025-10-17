@@ -29,6 +29,7 @@ import { buildCoreSources, type BuildSourcesParams } from "./utils/commands/sour
 
 import type { ThinkingLevel } from "./types/thinking";
 import { CUSTOM_EVENTS } from "./constants/events";
+import { isWorkspaceForkSwitchEvent } from "./utils/workspaceFork";
 import { getThinkingLevelKey } from "./constants/storage";
 import type { BranchListResult } from "./types/ipc";
 import { useTelemetry } from "./hooks/useTelemetry";
@@ -730,14 +731,9 @@ function AppInner() {
   // Handle workspace fork switch event
   useEffect(() => {
     const handleForkSwitch = (e: Event) => {
-      const customEvent = e as CustomEvent<{
-        workspaceId: string;
-        projectPath: string;
-        projectName: string;
-        workspacePath: string;
-        branch: string;
-      }>;
-      const { workspaceId, projectPath, projectName, workspacePath } = customEvent.detail;
+      if (!isWorkspaceForkSwitchEvent(e)) return;
+
+      const { workspaceId, projectPath, projectName, workspacePath } = e.detail;
 
       // Find the project in config
       const project = projects.get(projectPath);

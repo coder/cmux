@@ -354,26 +354,32 @@ describeIntegration("IpcMain fork workspace integration tests", () => {
           .catch(() => false);
         expect(partialExistsBefore).toBe(true);
 
-        // Fork the workspace (partial.json not copied, remains in source)
+        // Fork the workspace (partial.json should be copied to preserve streaming state)
         const forkResult = await env.mockIpcRenderer.invoke(
           IPC_CHANNELS.WORKSPACE_FORK,
           sourceWorkspaceId,
-          "forked-clean"
+          "forked-with-partial"
         );
 
         expect(forkResult.success).toBe(true);
         const forkedWorkspaceId = forkResult.metadata.id;
 
-        // Verify forked workspace does NOT have partial.json (clean slate)
+        // Verify forked workspace DOES have partial.json (preserves streaming state)
         const forkedSessionDir = path.join(env.config.sessionsDir, forkedWorkspaceId);
         const forkedPartialPath = path.join(forkedSessionDir, "partial.json");
         const forkedPartialExists = await fs
           .access(forkedPartialPath)
           .then(() => true)
           .catch(() => false);
-        expect(forkedPartialExists).toBe(false);
+        expect(forkedPartialExists).toBe(true);
 
-        // Source partial.json should still exist (not affected by fork)
+        // Verify the content was copied correctly
+        const forkedPartialContent = await fs.readFile(forkedPartialPath, "utf-8");
+        const forkedPartialData = JSON.parse(forkedPartialContent);
+        expect(forkedPartialData.role).toBe("assistant");
+        expect(forkedPartialData.content).toContain("Partial streaming response");
+
+        // Source partial.json should still exist (not moved, just copied)
         const sourcePartialAfter = await fs
           .access(partialPath)
           .then(() => true)

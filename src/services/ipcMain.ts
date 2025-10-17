@@ -450,7 +450,19 @@ export class IpcMain {
               }
             }
 
-            // Note: We deliberately don't copy partial.json - fork starts with a clean slate
+            // Copy partial.json if it exists (preserves in-progress streaming response)
+            const sourcePartialPath = path.join(sourceSessionDir, "partial.json");
+            const newPartialPath = path.join(newSessionDir, "partial.json");
+            try {
+              await fsPromises.copyFile(sourcePartialPath, newPartialPath);
+            } catch (error) {
+              // partial.json doesn't exist - that's okay, continue
+              if (
+                !(error && typeof error === "object" && "code" in error && error.code === "ENOENT")
+              ) {
+                throw error;
+              }
+            }
           } catch (copyError) {
             // If copy fails, clean up the worktree we created
             await removeWorktree(foundProjectPath, newWorkspacePath);
@@ -468,13 +480,16 @@ export class IpcMain {
           };
           await this.aiService.saveWorkspaceMetadata(newWorkspaceId, metadata);
 
-          // Update config to include the new workspace
+          // Update config to include the new workspace with full metadata
           const projectPath = foundProjectPath; // Capture for closure
           this.config.editConfig((config) => {
             const projectConfig = config.projects.get(projectPath);
             if (projectConfig) {
               projectConfig.workspaces.push({
                 path: newWorkspacePath,
+                id: newWorkspaceId,
+                name: newName,
+                createdAt: metadata.createdAt,
               });
             }
             return config;

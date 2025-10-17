@@ -75,20 +75,23 @@ export function getCompactContinueMessageKey(workspaceId: string): string {
  * This includes: model, input, mode, thinking level, auto-retry, retry state
  */
 export function copyWorkspaceStorage(sourceWorkspaceId: string, destWorkspaceId: string): void {
-  const keys = [
-    { source: getModelKey(sourceWorkspaceId), dest: getModelKey(destWorkspaceId) },
-    { source: getInputKey(sourceWorkspaceId), dest: getInputKey(destWorkspaceId) },
-    { source: getModeKey(sourceWorkspaceId), dest: getModeKey(destWorkspaceId) },
-    { source: getThinkingLevelKey(sourceWorkspaceId), dest: getThinkingLevelKey(destWorkspaceId) },
-    { source: getAutoRetryKey(sourceWorkspaceId), dest: getAutoRetryKey(destWorkspaceId) },
-    { source: getRetryStateKey(sourceWorkspaceId), dest: getRetryStateKey(destWorkspaceId) },
-    // Note: We deliberately skip getCompactContinueMessageKey as it's ephemeral
+  // List of key-generating functions to copy
+  // Note: We deliberately skip getCompactContinueMessageKey as it's ephemeral
+  const keyFunctions: Array<(workspaceId: string) => string> = [
+    getModelKey,
+    getInputKey,
+    getModeKey,
+    getThinkingLevelKey,
+    getAutoRetryKey,
+    getRetryStateKey,
   ];
 
-  for (const { source, dest } of keys) {
-    const value = localStorage.getItem(source);
+  for (const getKey of keyFunctions) {
+    const sourceKey = getKey(sourceWorkspaceId);
+    const destKey = getKey(destWorkspaceId);
+    const value = localStorage.getItem(sourceKey);
     if (value !== null) {
-      localStorage.setItem(dest, value);
+      localStorage.setItem(destKey, value);
     }
   }
 }
