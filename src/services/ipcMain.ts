@@ -486,39 +486,9 @@ export class IpcMain {
             projectPath: foundProjectPath,
             createdAt: new Date().toISOString(),
           };
-          const saveMetadataResult = await this.aiService.saveWorkspaceMetadata(
-            newWorkspaceId,
-            metadata
-          );
 
-          // If metadata save fails, clean up and return error
-          if (!saveMetadataResult.success) {
-            await removeWorktree(foundProjectPath, newWorkspacePath);
-            try {
-              await fsPromises.rm(newSessionDir, { recursive: true, force: true });
-            } catch (cleanupError) {
-              log.error(`Failed to clean up session dir ${newSessionDir}:`, cleanupError);
-            }
-            return {
-              success: false,
-              error: `Failed to save workspace metadata: ${saveMetadataResult.error}`,
-            };
-          }
-
-          // Update config to include the new workspace with full metadata
-          const projectPath = foundProjectPath; // Capture for closure
-          this.config.editConfig((config) => {
-            const projectConfig = config.projects.get(projectPath);
-            if (projectConfig) {
-              projectConfig.workspaces.push({
-                path: newWorkspacePath,
-                id: newWorkspaceId,
-                name: newName,
-                createdAt: metadata.createdAt,
-              });
-            }
-            return config;
-          });
+          // Write metadata directly to config.json (single source of truth)
+          this.config.addWorkspace(foundProjectPath, metadata);
 
           // Emit metadata event for new workspace
           const session = this.getOrCreateSession(newWorkspaceId);
