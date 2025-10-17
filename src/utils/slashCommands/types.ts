@@ -16,6 +16,7 @@ export type ParsedCommand =
   | { type: "telemetry-help" }
   | { type: "fork"; newName: string; startMessage?: string }
   | { type: "fork-help" }
+  | { type: "vim-toggle" }
   | { type: "unknown-command"; command: string; subcommand?: string }
   | null;
 
