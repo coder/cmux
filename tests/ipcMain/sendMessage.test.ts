@@ -1477,7 +1477,7 @@ These are general instructions that apply to all modes.
 
           // Combine all text deltas
           const fullResponse = deltas
-            .map((d) => (d as StreamDeltaEvent).textDelta)
+            .map((d) => (d as StreamDeltaEvent).delta)
             .join("")
             .toLowerCase();
 
