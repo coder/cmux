@@ -18,9 +18,34 @@ if (disableMermaid) {
   alias["mermaid"] = path.resolve(__dirname, "./src/mocks/mermaidStub.ts");
 }
 
+// React Compiler configuration
+// Automatically optimizes React components through memoization
+// See: https://react.dev/learn/react-compiler
+const reactCompilerConfig = {
+  target: "18", // Target React 18 (requires react-compiler-runtime package)
+};
+
 export default defineConfig(({ mode }) => ({
   // This prevents mermaid initialization errors in production while allowing dev to work
-  plugins: mode === "development" ? [svgr(), react(), topLevelAwait()] : [svgr(), react()],
+  plugins:
+    mode === "development"
+      ? [
+          svgr(),
+          react({
+            babel: {
+              plugins: [["babel-plugin-react-compiler", reactCompilerConfig]],
+            },
+          }),
+          topLevelAwait(),
+        ]
+      : [
+          svgr(),
+          react({
+            babel: {
+              plugins: [["babel-plugin-react-compiler", reactCompilerConfig]],
+            },
+          }),
+        ],
   resolve: {
     alias,
   },
