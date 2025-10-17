@@ -484,3 +484,63 @@ describe("StreamingMessageAggregator", () => {
     expect(updatedMessages[1].metadata?.historySequence).toBe(10);
   });
 });
+
+  it("should clear TODOs on reconnection stream-end", () => {
+    const aggregator = new StreamingMessageAggregator();
+
+    // Simulate a streaming session where TODOs are written
+    aggregator.handleStreamStart({
+      type: "stream-start",
+      workspaceId: "test-ws",
+      messageId: "msg-1",
+      model: "claude-3",
+      historySequence: 1,
+    });
+
+    // Add a tool call that writes TODOs
+    aggregator.handleToolCallStart({
+      type: "tool-call-start",
+      workspaceId: "test-ws",
+      messageId: "msg-1",
+      toolCallId: "tool-1",
+      toolName: "todo_write",
+      args: {
+        todos: [
+          { content: "Fix bug", status: "in_progress" as const },
+          { content: "Write test", status: "pending" as const },
+        ],
+      },
+      tokens: 10,
+      timestamp: Date.now(),
+    });
+
+    // Complete the tool call successfully
+    aggregator.handleToolCallEnd({
+      type: "tool-call-end",
+      workspaceId: "test-ws",
+      messageId: "msg-1",
+      toolCallId: "tool-1",
+      toolName: "todo_write",
+      result: { success: true, count: 2 },
+    });
+
+    // Verify TODOs were set
+    expect(aggregator.getCurrentTodos()).toHaveLength(2);
+
+    // Simulate reconnection case: handleStreamEnd called without active stream
+    // (User reconnects after stream completed)
+    const streamEndEvent: StreamEndEvent = {
+      type: "stream-end",
+      workspaceId: "test-ws",
+      messageId: "msg-2",
+      metadata: { model: "claude-3" },
+      parts: [{ type: "text", text: "Reconnection response" }],
+    };
+
+    // Note: No handleStreamStart for msg-2, so no active stream exists
+    aggregator.handleStreamEnd(streamEndEvent);
+
+    // Verify TODOs were cleared on stream-end (even in reconnection case)
+    expect(aggregator.getCurrentTodos()).toHaveLength(0);
+  });
+
