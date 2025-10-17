@@ -19,6 +19,7 @@ import { trackEvent, getBaseTelemetryProperties } from "../telemetry";
  */
 export function useTelemetry() {
   const workspaceSwitched = useCallback((fromWorkspaceId: string, toWorkspaceId: string) => {
+    console.debug("[useTelemetry] workspaceSwitched called", { fromWorkspaceId, toWorkspaceId });
     trackEvent({
       event: "workspace_switched",
       properties: {

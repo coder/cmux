@@ -169,12 +169,18 @@ function AppInner() {
   // Wrapper for setSelectedWorkspace that tracks telemetry
   const handleWorkspaceSwitch = useCallback(
     (newWorkspace: WorkspaceSelection | null) => {
+      console.debug("[App] handleWorkspaceSwitch called", {
+        from: selectedWorkspace?.workspaceId,
+        to: newWorkspace?.workspaceId,
+      });
+
       // Track workspace switch when both old and new are non-null (actual switch, not init/clear)
       if (
         selectedWorkspace &&
         newWorkspace &&
         selectedWorkspace.workspaceId !== newWorkspace.workspaceId
       ) {
+        console.debug("[App] Calling telemetry.workspaceSwitched");
         telemetry.workspaceSwitched(selectedWorkspace.workspaceId, newWorkspace.workspaceId);
       }
       setSelectedWorkspace(newWorkspace);
