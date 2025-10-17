@@ -751,7 +751,7 @@ function AppInner() {
         workspaceId,
         projectPath,
         projectName,
-        workspacePath,
+        namedWorkspacePath: workspacePath,
       });
     };
 

@@ -779,7 +779,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                     workspaceId: result.metadata.id,
                     projectPath: result.projectPath,
                     projectName: result.metadata.projectName,
-                    workspacePath: workspaceInfo.stableWorkspacePath,
+                    workspacePath: workspaceInfo.namedWorkspacePath,
                     branch: parsed.newName,
                   },
                 })
