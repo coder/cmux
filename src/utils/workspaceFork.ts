@@ -46,15 +46,19 @@ export async function forkWorkspace(options: ForkOptions): Promise<ForkResult> {
   // Dispatch event to switch workspace
   dispatchWorkspaceSwitch(workspaceInfo);
 
-  // If there's a start message, send it after a short delay to let the workspace switch
+  // If there's a start message, defer until React finishes rendering and WorkspaceStore subscribes
+  // Using requestAnimationFrame ensures we wait for:
+  // 1. React to process the workspace switch and update state
+  // 2. Effects to run (workspaceStore.syncWorkspaces in App.tsx)
+  // 3. WorkspaceStore to subscribe to the new workspace's IPC channel
   if (options.startMessage && options.sendMessageOptions) {
-    setTimeout(() => {
+    requestAnimationFrame(() => {
       void window.api.workspace.sendMessage(
         result.metadata.id,
         options.startMessage!,
         options.sendMessageOptions
       );
-    }, 300);
+    });
   }
 
   return { success: true, workspaceInfo };

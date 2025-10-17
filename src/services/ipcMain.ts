@@ -464,8 +464,16 @@ export class IpcMain {
               }
             }
           } catch (copyError) {
-            // If copy fails, clean up the worktree we created
+            // If copy fails, clean up everything we created
+            // 1. Remove the git worktree
             await removeWorktree(foundProjectPath, newWorkspacePath);
+            // 2. Remove the session directory (may contain partial copies)
+            try {
+              await fsPromises.rm(newSessionDir, { recursive: true, force: true });
+            } catch (cleanupError) {
+              // Log but don't fail - worktree cleanup is more important
+              log.error(`Failed to clean up session dir ${newSessionDir}:`, cleanupError);
+            }
             const message = copyError instanceof Error ? copyError.message : String(copyError);
             return { success: false, error: `Failed to copy chat history: ${message}` };
           }
@@ -478,7 +486,24 @@ export class IpcMain {
             projectPath: foundProjectPath,
             createdAt: new Date().toISOString(),
           };
-          await this.aiService.saveWorkspaceMetadata(newWorkspaceId, metadata);
+          const saveMetadataResult = await this.aiService.saveWorkspaceMetadata(
+            newWorkspaceId,
+            metadata
+          );
+
+          // If metadata save fails, clean up and return error
+          if (!saveMetadataResult.success) {
+            await removeWorktree(foundProjectPath, newWorkspacePath);
+            try {
+              await fsPromises.rm(newSessionDir, { recursive: true, force: true });
+            } catch (cleanupError) {
+              log.error(`Failed to clean up session dir ${newSessionDir}:`, cleanupError);
+            }
+            return {
+              success: false,
+              error: `Failed to save workspace metadata: ${saveMetadataResult.error}`,
+            };
+          }
 
           // Update config to include the new workspace with full metadata
           const projectPath = foundProjectPath; // Capture for closure
