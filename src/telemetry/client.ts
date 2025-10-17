@@ -77,10 +77,13 @@ export function initTelemetry(): void {
   const config = getPosthogConfig();
   posthog.init(config.key, {
     api_host: config.host,
-    autocapture: false, // Only send events we explicitly track
-    capture_pageview: false, // Not relevant for Electron app
+    // Disable all automatic tracking - we only send explicit events
+    autocapture: false,
+    capture_pageview: false,
     capture_pageleave: false,
-    disable_session_recording: true, // No session recording
+    capture_performance: false, // Disables web vitals
+    disable_session_recording: true,
+    // Note: We still want error tracking to work through our explicit error_occurred event
     loaded: (ph) => {
       // Identify user with a stable anonymous ID based on machine
       // This allows us to track usage patterns without PII
@@ -89,6 +92,7 @@ export function initTelemetry(): void {
   });
 
   isInitialized = true;
+  console.debug("[Telemetry] PostHog initialized", { host: config.host });
 }
 
 /**
@@ -104,9 +108,15 @@ export function trackEvent(payload: TelemetryEventPayload): void {
   }
 
   if (!isInitialized) {
-    console.debug("Telemetry not initialized, skipping event:", payload.event);
+    console.debug("[Telemetry] Not initialized, skipping event:", payload.event);
     return;
   }
+
+  // Debug log to verify events are being sent
+  console.debug("[Telemetry] Sending event:", {
+    event: payload.event,
+    properties: payload.properties,
+  });
 
   posthog.capture(payload.event, payload.properties);
 }
