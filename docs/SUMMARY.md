@@ -21,6 +21,7 @@
 
 - [Prompting Tips](./prompting-tips.md)
 - [System Prompt](./system-prompt.md)
+- [Telemetry](./telemetry.md)
 
 # Development
 

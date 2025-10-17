@@ -216,6 +216,26 @@ const createCommandToast = (parsed: ParsedCommand): Toast | null => {
         ),
       };
 
+    case "telemetry-help":
+      return {
+        id: Date.now().toString(),
+        type: "error",
+        title: "Telemetry Command",
+        message: "Enable or disable usage telemetry",
+        solution: (
+          <>
+            <SolutionLabel>Usage:</SolutionLabel>
+            /telemetry &lt;on|off&gt;
+            <br />
+            <br />
+            <SolutionLabel>Examples:</SolutionLabel>
+            /telemetry off
+            <br />
+            /telemetry on
+          </>
+        ),
+      };
+
     case "unknown-command": {
       const cmd = "/" + parsed.command + (parsed.subcommand ? " " + parsed.subcommand : "");
       return {
@@ -650,6 +670,19 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             id: Date.now().toString(),
             type: "success",
             message: `Model changed to ${parsed.modelString}`,
+          });
+          return;
+        }
+
+        // Handle /telemetry command
+        if (parsed.type === "telemetry-set") {
+          setInput(""); // Clear input immediately
+          const { setTelemetryEnabled } = await import("@/telemetry");
+          setTelemetryEnabled(parsed.enabled);
+          setToast({
+            id: Date.now().toString(),
+            type: "success",
+            message: `Telemetry ${parsed.enabled ? "enabled" : "disabled"}`,
           });
           return;
         }

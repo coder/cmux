@@ -44,6 +44,28 @@ function getPosthogConfig(): { key: string; host: string } {
 
 let isInitialized = false;
 
+// Storage key for telemetry enabled preference
+const TELEMETRY_ENABLED_KEY = "cmux_telemetry_enabled";
+
+/**
+ * Check if telemetry is enabled by user preference
+ * Default is true (opt-out model)
+ */
+export function isTelemetryEnabled(): boolean {
+  if (typeof window === "undefined") return true;
+  const stored = localStorage.getItem(TELEMETRY_ENABLED_KEY);
+  return stored === null ? true : stored === "true";
+}
+
+/**
+ * Set telemetry enabled preference
+ */
+export function setTelemetryEnabled(enabled: boolean): void {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(TELEMETRY_ENABLED_KEY, enabled.toString());
+  console.log(`[Telemetry] ${enabled ? "Enabled" : "Disabled"}`);
+}
+
 /**
  * Check if we're running in a test environment
  */
@@ -99,11 +121,16 @@ export function initTelemetry(): void {
  * Send a telemetry event to PostHog
  * Events are type-safe and must match definitions in payload.ts
  *
- * Note: Events are silently ignored in test environments
+ * Note: Events are silently ignored in test environments or when disabled by user
  */
 export function trackEvent(payload: TelemetryEventPayload): void {
   if (isTestEnvironment()) {
     // Silently ignore telemetry in tests
+    return;
+  }
+
+  if (!isTelemetryEnabled()) {
+    // Silently ignore when user has disabled telemetry
     return;
   }
 
