@@ -480,7 +480,6 @@ const AIViewInner: React.FC<AIViewProps> = ({
           ) : (
             <VirtualListContainer>
               <Virtuoso
-                ref={undefined}
                 data={mergedMessages}
                 alignToBottom
                 followOutput={autoScroll}
