@@ -341,6 +341,45 @@ export class Config {
   }
 
   /**
+   * Add a workspace to config.json (single source of truth for workspace metadata).
+   * Creates project entry if it doesn't exist.
+   *
+   * @param projectPath Absolute path to the project
+   * @param metadata Workspace metadata to save
+   */
+  addWorkspace(projectPath: string, metadata: WorkspaceMetadata): void {
+    this.editConfig((config) => {
+      let project = config.projects.get(projectPath);
+
+      if (!project) {
+        project = { workspaces: [] };
+        config.projects.set(projectPath, project);
+      }
+
+      // Check if workspace already exists (by ID)
+      const existingIndex = project.workspaces.findIndex((w) => w.id === metadata.id);
+
+      const workspacePath = this.getWorkspacePath(projectPath, metadata.name);
+      const workspaceEntry: Workspace = {
+        path: workspacePath,
+        id: metadata.id,
+        name: metadata.name,
+        createdAt: metadata.createdAt,
+      };
+
+      if (existingIndex >= 0) {
+        // Update existing workspace
+        project.workspaces[existingIndex] = workspaceEntry;
+      } else {
+        // Add new workspace
+        project.workspaces.push(workspaceEntry);
+      }
+
+      return config;
+    });
+  }
+
+  /**
    * Load providers configuration from JSONC file
    * Supports comments in JSONC format
    */

@@ -226,7 +226,7 @@ async function main(): Promise<void> {
     aiService,
   });
 
-  await session.ensureMetadata({
+  session.ensureMetadata({
     workspacePath,
     projectName,
   });

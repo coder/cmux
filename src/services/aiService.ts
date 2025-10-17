@@ -1,5 +1,4 @@
 import * as fs from "fs/promises";
-import * as path from "path";
 import * as os from "os";
 import { EventEmitter } from "events";
 import { convertToModelMessages, type LanguageModel } from "ai";
@@ -102,7 +101,6 @@ export async function preloadAISDKProviders(): Promise<void> {
 }
 
 export class AIService extends EventEmitter {
-  private readonly METADATA_FILE = "metadata.json";
   private readonly streamManager: StreamManager;
   private readonly historyService: HistoryService;
   private readonly partialService: PartialService;
@@ -170,18 +168,14 @@ export class AIService extends EventEmitter {
     }
   }
 
-  private getMetadataPath(workspaceId: string): string {
-    return path.join(this.config.getSessionDir(workspaceId), this.METADATA_FILE);
-  }
-
   isMockModeEnabled(): boolean {
     return this.mockModeEnabled;
   }
 
   getWorkspaceMetadata(workspaceId: string): Result<WorkspaceMetadata> {
     try {
-      // Get all workspace metadata (which includes migration logic)
-      // This ensures we always get complete metadata with all required fields
+      // Read from config.json (single source of truth)
+      // getAllWorkspaceMetadata() handles migration from legacy metadata.json files
       const allMetadata = this.config.getAllWorkspaceMetadata();
       const metadata = allMetadata.find((m) => m.id === workspaceId);
 
@@ -195,22 +189,6 @@ export class AIService extends EventEmitter {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       return Err(`Failed to read workspace metadata: ${message}`);
-    }
-  }
-
-  async saveWorkspaceMetadata(
-    workspaceId: string,
-    metadata: WorkspaceMetadata
-  ): Promise<Result<void>> {
-    try {
-      const workspaceDir = this.config.getSessionDir(workspaceId);
-      await fs.mkdir(workspaceDir, { recursive: true });
-      const metadataPath = this.getMetadataPath(workspaceId);
-      await fs.writeFile(metadataPath, JSON.stringify(metadata, null, 2));
-      return Ok(undefined);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      return Err(`Failed to save workspace metadata: ${message}`);
     }
   }
 
