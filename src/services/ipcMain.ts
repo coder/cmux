@@ -387,8 +387,7 @@ export class IpcMain {
           }
 
           // Get source workspace metadata and paths
-          const sourceMetadataResult =
-            await this.aiService.getWorkspaceMetadata(sourceWorkspaceId);
+          const sourceMetadataResult = this.aiService.getWorkspaceMetadata(sourceWorkspaceId);
           if (!sourceMetadataResult.success) {
             return {
               success: false,
@@ -397,7 +396,7 @@ export class IpcMain {
           }
           const sourceMetadata = sourceMetadataResult.data;
           const foundProjectPath = sourceMetadata.projectPath;
-          
+
           // Compute source workspace path from metadata
           const sourceWorkspacePath = this.config.getWorkspacePath(
             foundProjectPath,

@@ -1,8 +1,4 @@
-import {
-  shouldRunIntegrationTests,
-  createTestEnvironment,
-  cleanupTestEnvironment,
-} from "./setup";
+import { shouldRunIntegrationTests, createTestEnvironment, cleanupTestEnvironment } from "./setup";
 import { IPC_CHANNELS } from "../../src/constants/ipc-constants";
 import { createTempGitRepo, cleanupTempGitRepo } from "./helpers";
 import { detectDefaultTrunkBranch } from "../../src/git";
@@ -218,7 +214,10 @@ describeIntegration("IpcMain fork workspace integration tests", () => {
 
         // Verify both workspace paths are in config
         const sourceWorkspacePath = env.config.getWorkspacePath(tempGitRepo, sourceWorkspaceId);
-        const forkedWorkspacePath = env.config.getWorkspacePath(tempGitRepo, forkResult.metadata.id);
+        const forkedWorkspacePath = env.config.getWorkspacePath(
+          tempGitRepo,
+          forkResult.metadata.id
+        );
         const workspacePaths = projectConfig!.workspaces.map((ws) => ws.path);
         expect(workspacePaths).toContain(sourceWorkspacePath);
         expect(workspacePaths).toContain(forkedWorkspacePath);
@@ -263,7 +262,10 @@ describeIntegration("IpcMain fork workspace integration tests", () => {
 
         // Verify both workspaces exist and have different paths
         const sourceWorkspacePath = env.config.getWorkspacePath(tempGitRepo, sourceWorkspaceId);
-        const forkedWorkspacePath = env.config.getWorkspacePath(tempGitRepo, forkResult.metadata.id);
+        const forkedWorkspacePath = env.config.getWorkspacePath(
+          tempGitRepo,
+          forkResult.metadata.id
+        );
         expect(forkedWorkspacePath).not.toBe(sourceWorkspacePath);
 
         // Verify both workspace directories exist
@@ -373,6 +375,4 @@ describeIntegration("IpcMain fork workspace integration tests", () => {
     },
     30000
   );
-
 });
-

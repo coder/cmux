@@ -70,7 +70,6 @@ export function getCompactContinueMessageKey(workspaceId: string): string {
   return `compactContinueMessage:${workspaceId}`;
 }
 
-
 /**
  * Copy all workspace-specific localStorage keys from source to destination workspace
  * This includes: model, input, mode, thinking level, auto-retry, retry state

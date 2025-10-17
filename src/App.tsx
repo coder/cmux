@@ -755,10 +755,7 @@ function AppInner() {
       });
     };
 
-    window.addEventListener(
-      CUSTOM_EVENTS.WORKSPACE_FORK_SWITCH,
-      handleForkSwitch as EventListener
-    );
+    window.addEventListener(CUSTOM_EVENTS.WORKSPACE_FORK_SWITCH, handleForkSwitch as EventListener);
     return () =>
       window.removeEventListener(
         CUSTOM_EVENTS.WORKSPACE_FORK_SWITCH,
