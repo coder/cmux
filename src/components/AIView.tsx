@@ -241,14 +241,19 @@ const AIViewInner: React.FC<AIViewProps> = ({
 
   // Override jumpToBottom to use Virtuoso's API
   const jumpToBottom = useCallback(() => {
+    setAutoScroll(true);
     if (virtuosoRef.current) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
-      virtuosoRef.current.scrollToIndex({
-        index: "LAST",
-        align: "end",
-        behavior: "smooth",
-      });
-      setAutoScroll(true);
+      // Use setTimeout to ensure Virtuoso has finished any pending measurements
+      setTimeout(() => {
+        if (virtuosoRef.current) {
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+          virtuosoRef.current.scrollToIndex({
+            index: "LAST",
+            align: "end",
+            behavior: "smooth",
+          });
+        }
+      }, 0);
     }
   }, [setAutoScroll]);
 
