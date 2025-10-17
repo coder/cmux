@@ -120,6 +120,7 @@ const ModelDisplayWrapper = styled.div`
 
 export interface ChatInputAPI {
   focus: () => void;
+  sendMessage: (message: string) => void;
 }
 
 export interface ChatInputProps {
@@ -429,13 +430,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       element.style.height = Math.min(element.scrollHeight, window.innerHeight * 0.5) + "px";
     });
   }, []);
-
-  // Provide API to parent via callback
-  useEffect(() => {
-    if (onReady) {
-      onReady({ focus: focusMessageInput });
-    }
-  }, [onReady, focusMessageInput]);
 
   useEffect(() => {
     const handleGlobalKeyDown = (event: KeyboardEvent) => {
@@ -941,6 +935,37 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       void handleSend();
     }
   };
+
+  // Programmatically send a message (for F-key macros, etc.)
+  const sendMessageProgrammatically = useCallback(
+    (message: string) => {
+      if (!message.trim() || disabled || isSending || isCompacting) {
+        return;
+      }
+
+      // Set the input value and let the regular send flow handle it
+      setInput(message);
+      // Focus the input to show what's being sent
+      if (inputRef.current) {
+        inputRef.current.focus();
+      }
+      // Trigger send after a brief delay to ensure state updates
+      setTimeout(() => {
+        void handleSend();
+      }, 10);
+    },
+    [disabled, isSending, isCompacting, setInput, handleSend]
+  );
+
+  // Provide API to parent via callback
+  useEffect(() => {
+    if (onReady) {
+      onReady({
+        focus: focusMessageInput,
+        sendMessage: sendMessageProgrammatically,
+      });
+    }
+  }, [onReady, focusMessageInput, sendMessageProgrammatically]);
 
   // Build placeholder text based on current state
   const placeholder = (() => {

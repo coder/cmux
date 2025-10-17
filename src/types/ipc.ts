@@ -239,4 +239,8 @@ export interface IPCApi {
   window: {
     setTitle(title: string): Promise<void>;
   };
+  keybinds: {
+    get(): Promise<import("./keybinds").KeybindsConfig>;
+    set(keybinds: import("./keybinds").KeybindsConfig): Promise<void>;
+  };
 }

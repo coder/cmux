@@ -28,6 +28,7 @@ import { createBashTool } from "@/services/tools/bash";
 import type { BashToolResult } from "@/types/tools";
 import { secretsToRecord } from "@/types/secrets";
 import { DisposableTempDir } from "@/services/tempDir";
+import { KeybindService } from "@/services/keybindService";
 
 /**
  * IpcMain - Manages all IPC handlers and service coordination
@@ -47,6 +48,7 @@ export class IpcMain {
   private readonly historyService: HistoryService;
   private readonly partialService: PartialService;
   private readonly aiService: AIService;
+  private readonly keybindService: KeybindService;
   private readonly sessions = new Map<string, AgentSession>();
   private readonly sessionSubscriptions = new Map<
     string,
@@ -60,6 +62,7 @@ export class IpcMain {
     this.historyService = new HistoryService(config);
     this.partialService = new PartialService(config, this.historyService);
     this.aiService = new AIService(config, this.historyService, this.partialService);
+    this.keybindService = new KeybindService(config.rootDir);
   }
 
   private getOrCreateSession(workspaceId: string): AgentSession {
@@ -144,6 +147,7 @@ export class IpcMain {
     this.registerWorkspaceHandlers(ipcMain);
     this.registerProviderHandlers(ipcMain);
     this.registerProjectHandlers(ipcMain);
+    this.registerKeybindHandlers(ipcMain);
     this.registerSubscriptionHandlers(ipcMain);
     this.registered = true;
   }
@@ -172,6 +176,17 @@ export class IpcMain {
     ipcMain.handle(IPC_CHANNELS.WINDOW_SET_TITLE, (_event, title: string) => {
       if (!this.mainWindow) return;
       this.mainWindow.setTitle(title);
+    });
+  }
+
+  private registerKeybindHandlers(ipcMain: ElectronIpcMain): void {
+    ipcMain.handle(IPC_CHANNELS.KEYBINDS_GET, () => {
+      return this.keybindService.loadKeybinds();
+    });
+
+    ipcMain.handle(IPC_CHANNELS.KEYBINDS_SET, (_event, keybinds: unknown) => {
+      // Type validation is handled by KeybindService.isValidKeybind
+      this.keybindService.saveKeybinds(keybinds as import("@/types/keybinds").KeybindsConfig);
     });
   }
 
