@@ -51,7 +51,7 @@ export class StreamingMessageAggregator {
   private currentTodos: TodoItem[] = [];
 
   // Workspace creation timestamp (used for recency calculation)
-  private createdAt?: string;
+  private readonly createdAt?: string;
 
   constructor(createdAt?: string) {
     this.createdAt = createdAt;

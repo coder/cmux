@@ -660,7 +660,10 @@ export class WorkspaceStore {
     if (!this.aggregators.has(workspaceId)) {
       // Use stored createdAt if available, otherwise use provided value
       const storedCreatedAt = this.workspaceCreatedAt.get(workspaceId);
-      this.aggregators.set(workspaceId, new StreamingMessageAggregator(storedCreatedAt ?? createdAt));
+      this.aggregators.set(
+        workspaceId,
+        new StreamingMessageAggregator(storedCreatedAt ?? createdAt)
+      );
     }
     return this.aggregators.get(workspaceId)!;
   }
