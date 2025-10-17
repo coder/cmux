@@ -13,7 +13,7 @@ import {
   LoadingDots,
 } from "./shared/ToolPrimitives";
 import { useToolExpansion, getStatusDisplay, type ToolStatus } from "./shared/toolUtils";
-import { TooltipWrapper, Tooltip } from "../Tooltip";
+import { ToolIcon } from "./shared/ToolIcon";
 
 // FileRead-specific styled components
 
@@ -165,10 +165,7 @@ export const FileReadToolCall: React.FC<FileReadToolCallProps> = ({
     <ToolContainer expanded={expanded}>
       <ToolHeader onClick={toggleExpanded}>
         <ExpandIcon expanded={expanded}>▶</ExpandIcon>
-        <TooltipWrapper inline>
-          <span>📖</span>
-          <Tooltip>file_read</Tooltip>
-        </TooltipWrapper>
+        <ToolIcon emoji="📖" toolName="file_read" />
         <FilePathText>{filePath}</FilePathText>
         {result && result.success && parsedContent && (
           <MetadataText>

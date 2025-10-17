@@ -12,6 +12,7 @@ import {
   LoadingDots,
 } from "./shared/ToolPrimitives";
 import { useToolExpansion, getStatusDisplay, ToolStatus } from "./shared/toolUtils";
+import { ToolIcon } from "./shared/ToolIcon";
 
 // FileList-specific styled components
 
@@ -107,7 +108,7 @@ export const FileListToolCall: React.FC<FileListToolCallProps> = ({ args, result
     <ToolContainer expanded={expanded}>
       <ToolHeader onClick={toggleExpanded}>
         <ExpandIcon expanded={expanded}>▶</ExpandIcon>
-        <span>📋 file_list</span>
+        <ToolIcon emoji="📖" toolName="file_list" />
         <PathText>{args.path}</PathText>
         {paramStr && <ParamsText>{paramStr}</ParamsText>}
         {isComplete && result && result.success && (

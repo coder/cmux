@@ -21,7 +21,7 @@ import {
   HeaderButton,
 } from "./shared/ToolPrimitives";
 import { useToolExpansion, getStatusDisplay, type ToolStatus } from "./shared/toolUtils";
-import { TooltipWrapper, Tooltip } from "../Tooltip";
+import { ToolIcon } from "./shared/ToolIcon";
 
 // File edit specific styled components
 
@@ -290,10 +290,7 @@ export const FileEditToolCall: React.FC<FileEditToolCallProps> = ({
       <StyledToolHeader>
         <LeftContent onClick={toggleExpanded}>
           <ExpandIcon expanded={expanded}>▶</ExpandIcon>
-          <TooltipWrapper inline>
-            <span>✏️</span>
-            <Tooltip>{toolName}</Tooltip>
-          </TooltipWrapper>
+          <ToolIcon emoji="✏️" toolName={toolName} />
           <FilePath>{filePath}</FilePath>
         </LeftContent>
         {!(result && result.success && result.diff) && (
