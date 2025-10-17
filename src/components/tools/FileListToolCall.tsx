@@ -101,6 +101,9 @@ export const FileListToolCall: React.FC<FileListToolCallProps> = ({ args, result
 
   const paramStr = params.length > 0 ? `(${params.join(", ")})` : "";
 
+  // Ensure path ends with / to indicate it's a directory
+  const displayPath = args.path.endsWith("/") ? args.path : `${args.path}/`;
+
   // Convert our status to shared ToolStatus type
   const toolStatus = isError ? "failed" : isPending ? "executing" : "completed";
 
@@ -109,7 +112,7 @@ export const FileListToolCall: React.FC<FileListToolCallProps> = ({ args, result
       <ToolHeader onClick={toggleExpanded}>
         <ExpandIcon expanded={expanded}>▶</ExpandIcon>
         <ToolIcon emoji="📖" toolName="file_list" />
-        <PathText>{args.path}</PathText>
+        <PathText>{displayPath}</PathText>
         {paramStr && <ParamsText>{paramStr}</ParamsText>}
         {isComplete && result && result.success && (
           <CountBadge>{result.total_count} entries</CountBadge>
