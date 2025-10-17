@@ -1,6 +1,6 @@
 import React from "react";
 import styled from "@emotion/styled";
-import type { FileListToolArgs, FileListToolResult, FileEntry } from "@/types/tools";
+import type { FileListToolArgs, FileListToolResult } from "@/types/tools";
 import {
   ToolContainer,
   ToolHeader,
