@@ -238,6 +238,26 @@ const createCommandToast = (parsed: ParsedCommand): Toast | null => {
         ),
       };
 
+    case "fork-help":
+      return {
+        id: Date.now().toString(),
+        type: "error",
+        title: "Fork Command",
+        message: "Fork current workspace with a new name",
+        solution: (
+          <>
+            <SolutionLabel>Usage:</SolutionLabel>
+            /fork &lt;new-name&gt; [optional start message]
+            <br />
+            <br />
+            <SolutionLabel>Examples:</SolutionLabel>
+            /fork experiment-branch
+            <br />
+            /fork refactor Continue with refactoring approach
+          </>
+        ),
+      };
+
     case "unknown-command": {
       const cmd = "/" + parsed.command + (parsed.subcommand ? " " + parsed.subcommand : "");
       return {
