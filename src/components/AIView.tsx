@@ -16,7 +16,7 @@ import { hasInterruptedStream } from "@/utils/messages/retryEligibility";
 import { ThinkingProvider } from "@/contexts/ThinkingContext";
 import { ModeProvider } from "@/contexts/ModeContext";
 import { formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
-import { useAutoScroll } from "@/hooks/useAutoScroll";
+
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { useThinking } from "@/contexts/ThinkingContext";
 import { useWorkspaceState, useWorkspaceAggregator } from "@/stores/WorkspaceStore";
@@ -225,37 +225,22 @@ const AIViewInner: React.FC<AIViewProps> = ({
     { listener: true } // Enable cross-component synchronization
   );
 
-  // Use auto-scroll hook for scroll management
-  const {
-    contentRef,
-    autoScroll,
-    setAutoScroll,
-    performAutoScroll: _performAutoScroll,
-    jumpToBottom: _jumpToBottom,
-    handleScroll: _handleScroll,
-    markUserInteraction: _markUserInteraction,
-  } = useAutoScroll();
-
+  // Virtuoso ref and auto-scroll state
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const virtuosoRef = useRef<any>(null);
+  const [autoScroll, setAutoScroll] = useState(true);
 
-  // Override jumpToBottom to use Virtuoso's API
+  // Jump to bottom using Virtuoso's API
   const jumpToBottom = useCallback(() => {
-    setAutoScroll(true);
     if (virtuosoRef.current) {
-      // Use setTimeout to ensure Virtuoso has finished any pending measurements
-      setTimeout(() => {
-        if (virtuosoRef.current) {
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
-          virtuosoRef.current.scrollToIndex({
-            index: "LAST",
-            align: "end",
-            behavior: "smooth",
-          });
-        }
-      }, 0);
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+      virtuosoRef.current.scrollToIndex({
+        index: "LAST",
+        align: "end",
+        behavior: "smooth",
+      });
     }
-  }, [setAutoScroll]);
+  }, []);
 
   // ChatInput API for focus management
   const chatInputAPI = useRef<ChatInputAPI | null>(null);
@@ -281,15 +266,20 @@ const AIViewInner: React.FC<AIViewProps> = ({
       setEditingMessage({ id: lastUserMessage.historyId, content: lastUserMessage.content });
       setAutoScroll(false); // Show jump-to-bottom indicator
 
-      // Scroll to the message being edited
-      requestAnimationFrame(() => {
-        const element = contentRef.current?.querySelector(
-          `[data-message-id="${lastUserMessage.historyId}"]`
-        );
-        element?.scrollIntoView({ behavior: "smooth", block: "center" });
-      });
+      // Scroll to the message being edited using Virtuoso
+      const messageIndex = mergedMessages.findIndex(
+        (m) => m.type !== "history-hidden" && m.historyId === lastUserMessage.historyId
+      );
+      if (messageIndex !== -1 && virtuosoRef.current) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+        virtuosoRef.current.scrollToIndex({
+          index: messageIndex,
+          align: "center",
+          behavior: "smooth",
+        });
+      }
     }
-  }, [workspaceState, contentRef, setAutoScroll]);
+  }, [workspaceState]);
 
   const handleCancelEdit = useCallback(() => {
     setEditingMessage(undefined);
@@ -362,25 +352,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
     }
   }, [workspaceState, editingMessage]);
 
-  // Scroll to bottom on initial workspace load
-  useEffect(() => {
-    if (workspaceState && virtuosoRef.current) {
-      const mergedMessages = mergeConsecutiveStreamErrors(workspaceState.messages);
-      if (mergedMessages.length > 0) {
-        // Use setTimeout to ensure Virtuoso has fully rendered and measured items
-        setTimeout(() => {
-          if (virtuosoRef.current) {
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
-            virtuosoRef.current.scrollToIndex({
-              index: "LAST",
-              align: "end",
-              behavior: "auto",
-            });
-          }
-        }, 50); // Small delay to ensure measurements are complete
-      }
-    }
-  }, [workspaceId, workspaceState]); // Only on workspace change, not autoScroll
+
 
   // Return early if workspace state not loaded yet
   if (!workspaceState) {
@@ -485,14 +457,12 @@ const AIViewInner: React.FC<AIViewProps> = ({
               data={mergedMessages}
               defaultItemHeight={100}
               alignToBottom
-              followOutput={autoScroll ? "auto" : false}
-              initialTopMostItemIndex={mergedMessages.length - 1}
-              atBottomStateChange={(atBottom) => {
-                setAutoScroll(atBottom);
+              followOutput={(isAtBottom) => (isAtBottom ? "auto" : false)}
+              initialTopMostItemIndex={{
+                index: mergedMessages.length - 1,
+                align: "end",
               }}
-              scrollerRef={(ref) => {
-                contentRef.current = ref as HTMLDivElement | null;
-              }}
+              atBottomStateChange={setAutoScroll}
               increaseViewportBy={{ top: 1000, bottom: 1000 }}
               computeItemKey={(index: number, item: DisplayedMessage) => item.id}
               components={{
