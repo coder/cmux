@@ -18,6 +18,7 @@ import {
   waitForStreamSuccess,
   readChatHistory,
   TEST_IMAGES,
+  modelString,
 } from "./helpers";
 import type { StreamDeltaEvent } from "../../src/types/stream";
 import { IPC_CHANNELS } from "../../src/constants/ipc-constants";
