@@ -2,6 +2,9 @@ import type { WorkspaceConsumersState } from "./WorkspaceStore";
 import { TokenStatsWorker } from "@/utils/tokens/TokenStatsWorker";
 import type { StreamingMessageAggregator } from "@/utils/messages/StreamingMessageAggregator";
 
+// Timeout for Web Worker calculations (10 seconds - generous but responsive)
+const CALCULATION_TIMEOUT_MS = 10_000;
+
 /**
  * Manages consumer token calculations for workspaces.
  *
@@ -148,8 +151,15 @@ export class WorkspaceConsumerManager {
         const messages = aggregator.getAllMessages();
         const model = aggregator.getCurrentModel() ?? "unknown";
 
-        // Calculate in Web Worker (off main thread)
-        const fullStats = await this.tokenWorker.calculate(messages, model);
+        // Calculate in Web Worker with timeout protection
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("Calculation timeout")), CALCULATION_TIMEOUT_MS)
+        );
+
+        const fullStats = await Promise.race([
+          this.tokenWorker.calculate(messages, model),
+          timeoutPromise,
+        ]);
 
         // Store result in cache
         this.cache.set(workspaceId, {
@@ -168,7 +178,7 @@ export class WorkspaceConsumerManager {
           return;
         }
 
-        // Real errors: log and cache empty result
+        // Real errors (including timeout): log and cache empty result
         console.error(`[WorkspaceConsumerManager] Calculation failed for ${workspaceId}:`, error);
         this.cache.set(workspaceId, {
           consumers: [],
