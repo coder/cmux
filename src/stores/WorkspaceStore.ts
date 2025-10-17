@@ -143,6 +143,18 @@ export class WorkspaceStore {
   }
 
   /**
+   * Dispatch resume check event for a workspace.
+   * Triggers useResumeManager to check if interrupted stream can be resumed.
+   */
+  private dispatchResumeCheck(workspaceId: string): void {
+    window.dispatchEvent(
+      new CustomEvent(CUSTOM_EVENTS.RESUME_CHECK_REQUESTED, {
+        detail: { workspaceId },
+      })
+    );
+  }
+
+  /**
    * Check if any workspace's recency changed and bump global recency if so.
    * Uses cached recency values from aggregators for O(1) comparison per workspace.
    */
@@ -391,6 +403,91 @@ export class WorkspaceStore {
   }
 
   /**
+   * Handle compact_summary tool completion.
+   * Returns true if compaction was handled (caller should early return).
+   */
+  private handleCompactSummaryCompletion(
+    workspaceId: string,
+    aggregator: StreamingMessageAggregator,
+    data: WorkspaceChatMessage
+  ): boolean {
+    // Type guard: only StreamEndEvent has parts
+    if (!("parts" in data) || !data.parts) return false;
+
+    for (const part of data.parts) {
+      if (part.type === "dynamic-tool" && part.toolName === "compact_summary") {
+        const output = part.output as { summary?: string } | undefined;
+        if (output?.summary) {
+          this.performCompaction(workspaceId, aggregator, data, output.summary);
+          return true;
+        }
+        break;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Perform history compaction by replacing chat history with summary message.
+   * Type-safe: only called when we've verified data has parts (i.e., StreamEndEvent).
+   */
+  private performCompaction(
+    workspaceId: string,
+    aggregator: StreamingMessageAggregator,
+    data: WorkspaceChatMessage,
+    summary: string
+  ): void {
+    // We know data is StreamEndEvent because handleCompactSummaryCompletion verified it has parts
+    // Extract metadata safely with type guard
+    const metadata = "metadata" in data ? data.metadata : undefined;
+
+    // Extract continueMessage from compaction-request before history gets replaced
+    const messages = aggregator.getAllMessages();
+    const compactRequestMsg = [...messages]
+      .reverse()
+      .find((m) => m.role === "user" && m.metadata?.cmuxMetadata?.type === "compaction-request");
+    const cmuxMeta = compactRequestMsg?.metadata?.cmuxMetadata;
+    const continueMessage =
+      cmuxMeta?.type === "compaction-request" ? cmuxMeta.parsed.continueMessage : undefined;
+
+    const summaryMessage = createCmuxMessage(
+      `summary-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
+      "assistant",
+      summary,
+      {
+        timestamp: Date.now(),
+        compacted: true,
+        model: aggregator.getCurrentModel(),
+        usage: metadata?.usage,
+        providerMetadata:
+          metadata && "providerMetadata" in metadata
+            ? (metadata.providerMetadata as Record<string, unknown> | undefined)
+            : undefined,
+        duration: metadata?.duration,
+        systemMessageTokens:
+          metadata && "systemMessageTokens" in metadata
+            ? (metadata.systemMessageTokens as number | undefined)
+            : undefined,
+        // Store continueMessage in summary so it survives history replacement
+        cmuxMetadata: continueMessage
+          ? { type: "compaction-result", continueMessage }
+          : { type: "normal" },
+      }
+    );
+
+    void (async () => {
+      try {
+        await window.api.workspace.replaceChatHistory(workspaceId, summaryMessage);
+      } catch (error) {
+        console.error("[WorkspaceStore] Failed to replace history:", error);
+      } finally {
+        this.states.bump(workspaceId);
+        this.checkAndBumpRecencyIfChanged();
+      }
+    })();
+  }
+
+  /**
    * Update usage and schedule consumer calculation after stream completion.
    *
    * CRITICAL ORDERING: This must be called AFTER the aggregator updates its messages.
@@ -616,11 +713,7 @@ export class WorkspaceStore {
     if (isStreamError(data)) {
       aggregator.handleStreamError(data);
       this.states.bump(workspaceId);
-      window.dispatchEvent(
-        new CustomEvent(CUSTOM_EVENTS.RESUME_CHECK_REQUESTED, {
-          detail: { workspaceId },
-        })
-      );
+      this.dispatchResumeCheck(workspaceId);
       return;
     }
 
@@ -656,62 +749,12 @@ export class WorkspaceStore {
       aggregator.handleStreamEnd(data);
       aggregator.clearTokenState(data.messageId);
 
-      // Handle compact_summary completion
-      if (data.parts) {
-        for (const part of data.parts) {
-          if (part.type === "dynamic-tool" && part.toolName === "compact_summary") {
-            const output = part.output as { summary?: string } | undefined;
-            if (output?.summary) {
-              // Extract continueMessage from compaction-request before history gets replaced
-              const messages = aggregator.getAllMessages();
-              const compactRequestMsg = [...messages]
-                .reverse()
-                .find(
-                  (m) =>
-                    m.role === "user" && m.metadata?.cmuxMetadata?.type === "compaction-request"
-                );
-              const cmuxMeta = compactRequestMsg?.metadata?.cmuxMetadata;
-              const continueMessage =
-                cmuxMeta?.type === "compaction-request"
-                  ? cmuxMeta.parsed.continueMessage
-                  : undefined;
-
-              const summaryMessage = createCmuxMessage(
-                `summary-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
-                "assistant",
-                output.summary,
-                {
-                  timestamp: Date.now(),
-                  compacted: true,
-                  model: aggregator.getCurrentModel(),
-                  usage: data.metadata.usage,
-                  providerMetadata: data.metadata.providerMetadata,
-                  duration: data.metadata.duration,
-                  systemMessageTokens: data.metadata.systemMessageTokens,
-                  // Store continueMessage in summary so it survives history replacement
-                  cmuxMetadata: continueMessage
-                    ? { type: "compaction-result", continueMessage }
-                    : { type: "normal" },
-                }
-              );
-
-              void (async () => {
-                try {
-                  await window.api.workspace.replaceChatHistory(workspaceId, summaryMessage);
-                } catch (error) {
-                  console.error("[WorkspaceStore] Failed to replace history:", error);
-                } finally {
-                  this.states.bump(workspaceId);
-                  this.checkAndBumpRecencyIfChanged();
-                }
-              })();
-              return;
-            }
-            break;
-          }
-        }
+      // Early return if compact_summary handled (async replacement in progress)
+      if (this.handleCompactSummaryCompletion(workspaceId, aggregator, data)) {
+        return;
       }
 
+      // Normal stream-end handling
       this.states.bump(workspaceId);
       this.checkAndBumpRecencyIfChanged(); // Stream ended, update recency
 
@@ -726,11 +769,7 @@ export class WorkspaceStore {
       aggregator.clearTokenState(data.messageId);
       aggregator.handleStreamAbort(data);
       this.states.bump(workspaceId);
-      window.dispatchEvent(
-        new CustomEvent(CUSTOM_EVENTS.RESUME_CHECK_REQUESTED, {
-          detail: { workspaceId },
-        })
-      );
+      this.dispatchResumeCheck(workspaceId);
 
       // Update usage stats if available (abort may have usage if stream completed processing)
       // MUST happen after aggregator.handleStreamAbort() stores the metadata
