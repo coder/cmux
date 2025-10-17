@@ -9,6 +9,7 @@ import {
   BASH_HARD_MAX_LINES,
   BASH_MAX_LINE_BYTES,
   BASH_MAX_TOTAL_BYTES,
+  BASH_MAX_FILE_BYTES,
 } from "@/constants/toolLimits";
 
 import type { BashToolResult } from "@/types/tools";
@@ -93,6 +94,13 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
       const effectiveMaxLines = BASH_HARD_MAX_LINES;
       let totalBytesAccumulated = 0;
       let overflowReason: string | null = null;
+
+      // Two-stage truncation to prevent re-running expensive commands:
+      // 1. Display truncation (16KB): Stop showing output to agent, but keep collecting
+      // 2. File truncation (100KB): Stop collecting entirely and kill the process
+      // This allows agents to access full output via temp file without re-running
+      let displayTruncated = false; // Hit 16KB display limit
+      let fileTruncated = false; // Hit 100KB file limit
 
       // Detect redundant cd to working directory
       // Match patterns like: "cd /path &&", "cd /path;", "cd '/path' &&", "cd \"/path\" &&"
@@ -194,9 +202,18 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
         const stdoutReader = createInterface({ input: childProcess.child.stdout! });
         const stderrReader = createInterface({ input: childProcess.child.stderr! });
 
-        // Helper to trigger truncation and clean shutdown
-        // Prevents duplication and ensures consistent cleanup
-        const triggerTruncation = (reason: string) => {
+        // Helper to trigger display truncation (stop showing to agent, keep collecting)
+        const triggerDisplayTruncation = (reason: string) => {
+          displayTruncated = true;
+          truncated = true;
+          overflowReason = reason;
+          // Don't kill process yet - keep collecting up to file limit
+        };
+
+        // Helper to trigger file truncation (stop collecting, kill process)
+        const triggerFileTruncation = (reason: string) => {
+          fileTruncated = true;
+          displayTruncated = true;
           truncated = true;
           overflowReason = reason;
           stdoutReader.close();
@@ -205,36 +222,41 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
         };
 
         stdoutReader.on("line", (line) => {
-          if (!resolved) {
-            // Always collect lines, even after truncation is triggered
-            // This allows us to save the full output to a temp file
+          if (!resolved && !fileTruncated) {
+            const lineBytes = Buffer.byteLength(line, "utf-8");
+
+            // Check if line exceeds per-line limit (hard stop - this is likely corrupt data)
+            if (lineBytes > BASH_MAX_LINE_BYTES) {
+              triggerFileTruncation(
+                `Line ${lines.length + 1} exceeded per-line limit: ${lineBytes} bytes > ${BASH_MAX_LINE_BYTES} bytes`
+              );
+              return;
+            }
+
+            // Collect this line (even if display is truncated, keep for file)
             lines.push(line);
+            totalBytesAccumulated += lineBytes + 1; // +1 for newline
 
-            if (!truncated) {
-              const lineBytes = Buffer.byteLength(line, "utf-8");
+            // Check file limit first (hard stop)
+            if (totalBytesAccumulated > BASH_MAX_FILE_BYTES) {
+              triggerFileTruncation(
+                `Total output exceeded file preservation limit: ${totalBytesAccumulated} bytes > ${BASH_MAX_FILE_BYTES} bytes (at line ${lines.length})`
+              );
+              return;
+            }
 
-              // Check if line exceeds per-line limit
-              if (lineBytes > BASH_MAX_LINE_BYTES) {
-                triggerTruncation(
-                  `Line ${lines.length} exceeded per-line limit: ${lineBytes} bytes > ${BASH_MAX_LINE_BYTES} bytes`
-                );
-                return;
-              }
-
-              totalBytesAccumulated += lineBytes + 1; // +1 for newline
-
-              // Check if adding this line would exceed total bytes limit
+            // Check display limits (soft stop - keep collecting for file)
+            if (!displayTruncated) {
               if (totalBytesAccumulated > BASH_MAX_TOTAL_BYTES) {
-                triggerTruncation(
-                  `Total output exceeded limit: ${totalBytesAccumulated} bytes > ${BASH_MAX_TOTAL_BYTES} bytes (at line ${lines.length})`
+                triggerDisplayTruncation(
+                  `Total output exceeded display limit: ${totalBytesAccumulated} bytes > ${BASH_MAX_TOTAL_BYTES} bytes (at line ${lines.length})`
                 );
                 return;
               }
 
-              // Check if we've exceeded the effective max_lines limit
               if (lines.length >= effectiveMaxLines) {
-                triggerTruncation(
-                  `Line count exceeded limit: ${lines.length} lines >= ${effectiveMaxLines} lines (${totalBytesAccumulated} bytes read)`
+                triggerDisplayTruncation(
+                  `Line count exceeded display limit: ${lines.length} lines >= ${effectiveMaxLines} lines (${totalBytesAccumulated} bytes read)`
                 );
               }
             }
@@ -242,36 +264,41 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
         });
 
         stderrReader.on("line", (line) => {
-          if (!resolved) {
-            // Always collect lines, even after truncation is triggered
-            // This allows us to save the full output to a temp file
+          if (!resolved && !fileTruncated) {
+            const lineBytes = Buffer.byteLength(line, "utf-8");
+
+            // Check if line exceeds per-line limit (hard stop - this is likely corrupt data)
+            if (lineBytes > BASH_MAX_LINE_BYTES) {
+              triggerFileTruncation(
+                `Line ${lines.length + 1} exceeded per-line limit: ${lineBytes} bytes > ${BASH_MAX_LINE_BYTES} bytes`
+              );
+              return;
+            }
+
+            // Collect this line (even if display is truncated, keep for file)
             lines.push(line);
+            totalBytesAccumulated += lineBytes + 1; // +1 for newline
 
-            if (!truncated) {
-              const lineBytes = Buffer.byteLength(line, "utf-8");
+            // Check file limit first (hard stop)
+            if (totalBytesAccumulated > BASH_MAX_FILE_BYTES) {
+              triggerFileTruncation(
+                `Total output exceeded file preservation limit: ${totalBytesAccumulated} bytes > ${BASH_MAX_FILE_BYTES} bytes (at line ${lines.length})`
+              );
+              return;
+            }
 
-              // Check if line exceeds per-line limit
-              if (lineBytes > BASH_MAX_LINE_BYTES) {
-                triggerTruncation(
-                  `Line ${lines.length} exceeded per-line limit: ${lineBytes} bytes > ${BASH_MAX_LINE_BYTES} bytes`
-                );
-                return;
-              }
-
-              totalBytesAccumulated += lineBytes + 1; // +1 for newline
-
-              // Check if adding this line would exceed total bytes limit
+            // Check display limits (soft stop - keep collecting for file)
+            if (!displayTruncated) {
               if (totalBytesAccumulated > BASH_MAX_TOTAL_BYTES) {
-                triggerTruncation(
-                  `Total output exceeded limit: ${totalBytesAccumulated} bytes > ${BASH_MAX_TOTAL_BYTES} bytes (at line ${lines.length})`
+                triggerDisplayTruncation(
+                  `Total output exceeded display limit: ${totalBytesAccumulated} bytes > ${BASH_MAX_TOTAL_BYTES} bytes (at line ${lines.length})`
                 );
                 return;
               }
 
-              // Check if we've exceeded the effective max_lines limit
               if (lines.length >= effectiveMaxLines) {
-                triggerTruncation(
-                  `Line count exceeded limit: ${lines.length} lines >= ${effectiveMaxLines} lines (${totalBytesAccumulated} bytes read)`
+                triggerDisplayTruncation(
+                  `Line count exceeded display limit: ${lines.length} lines >= ${effectiveMaxLines} lines (${totalBytesAccumulated} bytes read)`
                 );
               }
             }
