@@ -6,9 +6,6 @@
  */
 
 import type { LanguageModel } from "ai";
-import { wrapLanguageModel } from "ai";
-import { openaiReasoningFixMiddleware } from "./openaiReasoningMiddleware";
-import { createOpenAIReasoningFetch } from "./openaiReasoningFetch";
 
 /**
  * Configuration for provider creation
@@ -60,25 +57,16 @@ export async function createProviderModel(
     case "openai": {
       const { createOpenAI } = await import("@ai-sdk/openai");
 
-      // Apply reasoning fix middleware if custom fetch is provided
-      const baseFetch = config.fetch ?? fetch;
-      const fetchWithReasoningFix = createOpenAIReasoningFetch(baseFetch);
-
       const openaiProvider = createOpenAI({
         apiKey: config.apiKey,
         baseURL: config.baseURL,
         headers: config.headers,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
-        fetch: fetchWithReasoningFix as any,
+        fetch: config.fetch,
       });
 
-      const baseModel = openaiProvider(modelId);
-
-      // Apply reasoning middleware wrapper
-      return wrapLanguageModel({
-        model: baseModel,
-        middleware: openaiReasoningFixMiddleware,
-      });
+      // OpenAI Responses API uses previousResponseId for conversation persistence
+      // No middleware needed - reasoning state is managed via previousResponseId
+      return openaiProvider(modelId);
     }
 
     default:
