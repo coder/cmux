@@ -321,12 +321,13 @@ export async function readChatHistory(
   tempDir: string,
   workspaceId: string
 ): Promise<Array<{ role: string; parts: Array<{ type: string; [key: string]: unknown }> }>> {
+  const fsPromises = await import("fs/promises");
   const historyPath = path.join(tempDir, "sessions", workspaceId, "chat.jsonl");
-  const historyContent = await fs.readFile(historyPath, "utf-8");
+  const historyContent = await fsPromises.readFile(historyPath, "utf-8");
   return historyContent
     .trim()
     .split("\n")
-    .map((line) => JSON.parse(line));
+    .map((line: string) => JSON.parse(line));
 }
 
 /**

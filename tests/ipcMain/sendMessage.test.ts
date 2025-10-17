@@ -1476,7 +1476,10 @@ These are general instructions that apply to all modes.
           expect(deltas.length).toBeGreaterThan(0);
 
           // Combine all text deltas
-          const fullResponse = deltas.map((d) => d.textDelta).join("").toLowerCase();
+          const fullResponse = deltas
+            .map((d) => (d as StreamDeltaEvent).textDelta)
+            .join("")
+            .toLowerCase();
 
           // Should mention red color in some form
           expect(fullResponse.length).toBeGreaterThan(0);
@@ -1513,10 +1516,14 @@ These are general instructions that apply to all modes.
           expect(userMessage).toBeDefined();
 
           // Verify image part is preserved with correct format
-          const imagePart = userMessage.parts.find((p: { type: string }) => p.type === "file");
-          expect(imagePart).toBeDefined();
-          expect(imagePart.url).toBe(TEST_IMAGES.BLUE_PIXEL);
-          expect(imagePart.mediaType).toBe("image/png");
+          if (userMessage) {
+            const imagePart = userMessage.parts.find((p: { type: string }) => p.type === "file");
+            expect(imagePart).toBeDefined();
+            if (imagePart) {
+              expect(imagePart.url).toBe(TEST_IMAGES.BLUE_PIXEL);
+              expect(imagePart.mediaType).toBe("image/png");
+            }
+          }
         } finally {
           await cleanup();
         }
