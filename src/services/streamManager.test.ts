@@ -56,9 +56,13 @@ describe("StreamManager - Concurrent Stream Prevention", () => {
 
       // Track when streams are actively processing
       const streamStates: Record<string, { started: boolean; finished: boolean }> = {};
+      let firstMessageId: string | undefined;
 
-      streamManager.on("stream-start", (data: { messageId: string }) => {
+      streamManager.on("stream-start", (data: { messageId: string; historySequence: number }) => {
         streamStates[data.messageId] = { started: true, finished: false };
+        if (data.historySequence === 1) {
+          firstMessageId = data.messageId;
+        }
       });
 
       streamManager.on("stream-end", (data: { messageId: string }) => {
@@ -86,7 +90,6 @@ describe("StreamManager - Concurrent Stream Prevention", () => {
       );
 
       expect(result1.success).toBe(true);
-      const firstMessageId = result1.success ? result1.data : "";
 
       // Wait for first stream to actually start
       await new Promise((resolve) => setTimeout(resolve, 200));
@@ -109,9 +112,11 @@ describe("StreamManager - Concurrent Stream Prevention", () => {
       await new Promise((resolve) => setTimeout(resolve, 5000));
 
       // Verify: first stream should have been cancelled before second stream started
-      expect(streamStates[firstMessageId]).toBeDefined();
-      expect(streamStates[firstMessageId].started).toBe(true);
-      expect(streamStates[firstMessageId].finished).toBe(true);
+      expect(firstMessageId).toBeDefined();
+      const trackedFirstMessageId = firstMessageId!;
+      expect(streamStates[trackedFirstMessageId]).toBeDefined();
+      expect(streamStates[trackedFirstMessageId].started).toBe(true);
+      expect(streamStates[trackedFirstMessageId].finished).toBe(true);
 
       // Verify no streams are active after completion
       expect(streamManager.isStreaming(workspaceId)).toBe(false);

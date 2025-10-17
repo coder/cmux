@@ -187,7 +187,9 @@ describeIntegration("IpcMain executeBash integration tests", () => {
 
         expect(maxLinesResult.success).toBe(true);
         expect(maxLinesResult.data.success).toBe(false);
-        expect(maxLinesResult.data.error).toMatch(/Line count exceeded limit|OUTPUT OVERFLOW/);
+        expect(maxLinesResult.data.error).toContain(
+          "OUTPUT TRUNCATED - Line count exceeded display limit"
+        );
         expect(maxLinesResult.data.exitCode).toBe(-1);
 
         // Clean up
