@@ -121,6 +121,7 @@ const ModelDisplayWrapper = styled.div`
 export interface ChatInputAPI {
   focus: () => void;
   sendMessage: (message: string) => void;
+  onFocusChange?: (focused: boolean) => void;
 }
 
 export interface ChatInputProps {
@@ -136,6 +137,7 @@ export interface ChatInputProps {
   onEditLastUserMessage?: () => void;
   canInterrupt?: boolean; // Whether Esc can be used to interrupt streaming
   onReady?: (api: ChatInputAPI) => void; // Callback with focus method
+  onFocusChange?: (focused: boolean) => void; // Callback when input focus changes
 }
 
 // Helper function to convert parsed command to display toast
@@ -383,6 +385,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   onEditLastUserMessage,
   canInterrupt = false,
   onReady,
+  onFocusChange,
 }) => {
   const [input, setInput] = usePersistedState(getInputKey(workspaceId), "", { listener: true });
   const [isSending, setIsSending] = useState(false);
@@ -1020,6 +1023,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           onChange={setInput}
           onKeyDown={handleKeyDown}
           onPaste={handlePaste}
+          onFocus={() => onFocusChange?.(true)}
+          onBlur={() => onFocusChange?.(false)}
           suppressKeys={showCommandSuggestions ? COMMAND_SUGGESTION_KEYS : undefined}
           placeholder={placeholder}
           disabled={!editingMessage && (disabled || isSending || isCompacting)}

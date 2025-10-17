@@ -10,6 +10,22 @@ const FKeyBarContainer = styled.div`
   background: #1e1e1e;
   align-items: center;
   flex-shrink: 0;
+  animation: slideDown 0.2s ease-out;
+
+  @keyframes slideDown {
+    from {
+      max-height: 0;
+      opacity: 0;
+      padding-top: 0;
+      padding-bottom: 0;
+    }
+    to {
+      max-height: 50px;
+      opacity: 1;
+      padding-top: 4px;
+      padding-bottom: 2px;
+    }
+  }
 `;
 
 const FKeyButton = styled.button<{ isEmpty: boolean }>`

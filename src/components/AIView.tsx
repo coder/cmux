@@ -239,6 +239,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editingKey, setEditingKey] = useState<string>("");
   const [editingKeyMessage, setEditingKeyMessage] = useState<string>("");
+  const [chatInputFocused, setChatInputFocused] = useState(false);
 
   // Load keybinds on mount
   useEffect(() => {
@@ -610,7 +611,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
           )}
         </OutputContainer>
 
-        <FKeyBar keybinds={keybinds} onEditKeybind={handleEditKeybind} />
+        {chatInputFocused && <FKeyBar keybinds={keybinds} onEditKeybind={handleEditKeybind} />}
 
         <ChatInput
           workspaceId={workspaceId}
@@ -624,6 +625,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
           onEditLastUserMessage={handleEditLastUserMessage}
           canInterrupt={canInterrupt}
           onReady={handleChatInputReady}
+          onFocusChange={setChatInputFocused}
         />
       </ChatArea>
 
