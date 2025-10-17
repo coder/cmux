@@ -541,6 +541,14 @@ export class WorkspaceStore {
 
     const aggregator = this.getOrCreateAggregator(workspaceId, metadata.createdAt);
 
+    // Initialize recency cache and bump derived store immediately
+    // This ensures UI sees correct workspace order before messages load
+    const initialRecency = aggregator.getRecencyTimestamp();
+    if (initialRecency !== null) {
+      this.recencyCache.set(workspaceId, initialRecency);
+      this.derived.bump("recency");
+    }
+
     // Initialize state
     if (!this.caughtUp.has(workspaceId)) {
       this.caughtUp.set(workspaceId, false);
