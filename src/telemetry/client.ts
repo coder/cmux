@@ -20,9 +20,11 @@ function getPosthogConfig(): { key: string; host: string } {
   // This works because Vite transforms import.meta.env at build time
   try {
     // eslint-disable-next-line @typescript-eslint/no-implied-eval, @typescript-eslint/no-unsafe-call
-    const meta = new Function("return import.meta")() as {
-      env?: { VITE_PUBLIC_POSTHOG_KEY?: string; VITE_PUBLIC_POSTHOG_HOST?: string };
-    } | undefined;
+    const meta = new Function("return import.meta")() as
+      | {
+          env?: { VITE_PUBLIC_POSTHOG_KEY?: string; VITE_PUBLIC_POSTHOG_HOST?: string };
+        }
+      | undefined;
     if (meta?.env) {
       return {
         // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
