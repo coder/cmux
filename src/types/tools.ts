@@ -176,7 +176,7 @@ export type FileListToolResult =
   | {
       success: true;
       path: string; // Resolved absolute path that was listed
-      entries: FileEntry[]; // Top-level entries (recursive structure)
+      output: string; // Formatted tree structure as string
       total_count: number; // Total entries across all levels
       depth_used: number; // Maximum depth traversed
     }

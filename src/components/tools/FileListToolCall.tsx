@@ -1,7 +1,6 @@
 import React from "react";
 import styled from "@emotion/styled";
 import type { FileListToolArgs, FileListToolResult, FileEntry } from "@/types/tools";
-import { formatSize } from "@/services/tools/fileCommon";
 import {
   ToolContainer,
   ToolHeader,
@@ -52,42 +51,17 @@ const ErrorHint = styled.div`
   font-style: italic;
 `;
 
-const TreeContainer = styled.div`
-  margin-top: 8px;
+const OutputBlock = styled.pre`
+  margin: 0;
+  padding: 8px 12px;
   background: rgba(0, 0, 0, 0.2);
   border-radius: 3px;
-  padding: 12px;
+  font-size: 11px;
+  line-height: 1.6;
+  white-space: pre;
   overflow-x: auto;
   font-family: var(--font-monospace);
-  line-height: 1.6;
-`;
-
-const Entry = styled.div`
-  display: flex;
-  align-items: center;
-  white-space: nowrap;
-  font-size: 11px;
-`;
-
-const Prefix = styled.span`
-  color: var(--color-text-secondary);
-  user-select: none;
-`;
-
-const Icon = styled.span`
-  margin-right: 6px;
-  user-select: none;
-`;
-
-const Name = styled.span`
   color: var(--color-text);
-  font-weight: 500;
-`;
-
-const Size = styled.span`
-  color: var(--color-text-secondary);
-  margin-left: 8px;
-  font-size: 10px;
 `;
 
 const EmptyMessage = styled.div`
@@ -101,41 +75,6 @@ interface FileListToolCallProps {
   args: FileListToolArgs;
   result?: FileListToolResult;
   status: "pending" | "streaming" | "complete" | "error";
-}
-
-/**
- * Recursively render a file tree with indentation
- */
-function renderFileTree(entries: FileEntry[], depth: number = 0): JSX.Element[] {
-  const elements: JSX.Element[] = [];
-
-  entries.forEach((entry, index) => {
-    const isLast = index === entries.length - 1;
-    const prefix = depth === 0 ? "" : "│  ".repeat(depth - 1) + (isLast ? "└─ " : "├─ ");
-
-    const icon = entry.type === "directory" ? "📁" : entry.type === "file" ? "📄" : "🔗";
-    const suffix = entry.type === "directory" ? "/" : "";
-    const sizeInfo = entry.size !== undefined ? ` (${formatSize(entry.size)})` : "";
-
-    elements.push(
-      <Entry key={`${depth}-${index}-${entry.name}`}>
-        <Prefix>{prefix}</Prefix>
-        <Icon>{icon}</Icon>
-        <Name>
-          {entry.name}
-          {suffix}
-        </Name>
-        {sizeInfo && <Size>{sizeInfo}</Size>}
-      </Entry>
-    );
-
-    // Recursively render children if present
-    if (entry.children && entry.children.length > 0) {
-      elements.push(...renderFileTree(entry.children, depth + 1));
-    }
-  });
-
-  return elements;
 }
 
 export const FileListToolCall: React.FC<FileListToolCallProps> = ({ args, result, status }) => {
@@ -206,13 +145,11 @@ export const FileListToolCall: React.FC<FileListToolCallProps> = ({ args, result
           {isComplete && result && result.success && (
             <DetailSection>
               <DetailLabel>Contents ({result.total_count} entries)</DetailLabel>
-              <TreeContainer>
-                {result.entries.length === 0 ? (
-                  <EmptyMessage>Empty directory</EmptyMessage>
-                ) : (
-                  <>{renderFileTree(result.entries)}</>
-                )}
-              </TreeContainer>
+              {result.output === "(empty directory)" ? (
+                <EmptyMessage>Empty directory</EmptyMessage>
+              ) : (
+                <OutputBlock>{result.output}</OutputBlock>
+              )}
             </DetailSection>
           )}
         </ToolDetails>

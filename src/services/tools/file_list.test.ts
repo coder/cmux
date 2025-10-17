@@ -35,16 +35,16 @@ describe("file_list tool", () => {
       )) as Extract<FileListToolResult, { success: true }>;
 
       expect(result.success).toBe(true);
-      expect(result.entries.length).toBe(3);
       expect(result.total_count).toBe(3);
       expect(result.depth_used).toBe(1);
 
-      // Check sorting: directories first
-      expect(result.entries[0].name).toBe("subdir");
-      expect(result.entries[0].type).toBe("directory");
-      expect(result.entries[1].name).toBe("file1.txt");
-      expect(result.entries[1].type).toBe("file");
-      expect(result.entries[2].name).toBe("file2.txt");
+      // Check output contains expected entries
+      expect(result.output).toContain("subdir/");
+      expect(result.output).toContain("file1.txt");
+      expect(result.output).toContain("file2.txt");
+      
+      // Check sorting: directories first (subdir appears before files in output)
+      expect(result.output.indexOf("subdir/")).toBeLessThan(result.output.indexOf("file1.txt"));
     });
 
     test("lists files recursively (depth 2)", async () => {
@@ -65,11 +65,13 @@ describe("file_list tool", () => {
       expect(result.total_count).toBe(3); // dir1, dir1/file1.txt, root.txt
       expect(result.depth_used).toBe(2);
 
-      const dir1 = result.entries.find((e) => e.name === "dir1");
-      expect(dir1).toBeDefined();
-      expect(dir1!.children).toBeDefined();
-      expect(dir1!.children!.length).toBe(1);
-      expect(dir1!.children![0].name).toBe("file1.txt");
+      // Check output shows nested structure
+      expect(result.output).toContain("dir1/");
+      expect(result.output).toContain("file1.txt");
+      expect(result.output).toContain("root.txt");
+      
+      // Check indentation shows nesting (file1.txt should be indented under dir1)
+      expect(result.output).toMatch(/dir1\/\s*\n.*file1\.txt/);
     });
 
     test("shows file sizes", async () => {
@@ -84,7 +86,8 @@ describe("file_list tool", () => {
       )) as Extract<FileListToolResult, { success: true }>;
 
       expect(result.success).toBe(true);
-      expect(result.entries[0].size).toBe(100);
+      // Check output includes file size
+      expect(result.output).toMatch(/file\.txt.*\(100B\)/);
     });
 
     test("empty directory", async () => {
@@ -96,8 +99,8 @@ describe("file_list tool", () => {
       )) as Extract<FileListToolResult, { success: true }>;
 
       expect(result.success).toBe(true);
-      expect(result.entries.length).toBe(0);
       expect(result.total_count).toBe(0);
+      expect(result.output).toBe("(empty directory)");
     });
   });
 
@@ -116,8 +119,10 @@ describe("file_list tool", () => {
       )) as Extract<FileListToolResult, { success: true }>;
 
       expect(result.success).toBe(true);
-      expect(result.entries.length).toBe(2);
-      expect(result.entries.every((e) => e.name.endsWith(".ts"))).toBe(true);
+      expect(result.total_count).toBe(2);
+      expect(result.output).toContain("file1.ts");
+      expect(result.output).toContain("file3.ts");
+      expect(result.output).not.toContain("file2.js");
     });
 
     test("prunes empty directories when using pattern", async () => {
@@ -138,8 +143,10 @@ describe("file_list tool", () => {
 
       expect(result.success).toBe(true);
       // Should only include hasTs directory (not noTs)
-      expect(result.entries.length).toBe(1);
-      expect(result.entries[0].name).toBe("hasTs");
+      expect(result.total_count).toBe(2); // hasTs dir + file.ts inside
+      expect(result.output).toContain("hasTs/");
+      expect(result.output).toContain("file.ts");
+      expect(result.output).not.toContain("noTs");
     });
   });
 
@@ -163,10 +170,10 @@ describe("file_list tool", () => {
 
       expect(result.success).toBe(true);
       // Should include .gitignore and included.txt, but not ignored.txt or node_modules
-      expect(result.entries.some((e) => e.name === ".gitignore")).toBe(true);
-      expect(result.entries.some((e) => e.name === "included.txt")).toBe(true);
-      expect(result.entries.some((e) => e.name === "ignored.txt")).toBe(false);
-      expect(result.entries.some((e) => e.name === "node_modules")).toBe(false);
+      expect(result.output).toContain(".gitignore");
+      expect(result.output).toContain("included.txt");
+      expect(result.output).not.toContain("ignored.txt");
+      expect(result.output).not.toContain("node_modules");
     });
 
     test("shows all files when gitignore=false", async () => {
@@ -183,7 +190,7 @@ describe("file_list tool", () => {
       )) as Extract<FileListToolResult, { success: true }>;
 
       expect(result.success).toBe(true);
-      expect(result.entries.some((e) => e.name === "ignored.txt")).toBe(true);
+      expect(result.output).toContain("ignored.txt");
     });
 
     test("always hides .git directory", async () => {
@@ -200,7 +207,7 @@ describe("file_list tool", () => {
       )) as Extract<FileListToolResult, { success: true }>;
 
       expect(result.success).toBe(true);
-      expect(result.entries.some((e) => e.name === ".git")).toBe(false);
+      expect(result.output).not.toContain(".git");
     });
 
     test("shows hidden files (dotfiles)", async () => {
@@ -216,8 +223,8 @@ describe("file_list tool", () => {
       )) as Extract<FileListToolResult, { success: true }>;
 
       expect(result.success).toBe(true);
-      expect(result.entries.some((e) => e.name === ".env")).toBe(true);
-      expect(result.entries.some((e) => e.name === ".gitignore")).toBe(true);
+      expect(result.output).toContain(".env");
+      expect(result.output).toContain(".gitignore");
     });
   });
 
@@ -352,9 +359,10 @@ describe("file_list tool", () => {
       )) as Extract<FileListToolResult, { success: true }>;
 
       expect(result.success).toBe(true);
-      const dir = result.entries.find((e) => e.name === "dir1");
-      expect(dir).toBeDefined();
-      expect(dir!.children).toBeUndefined(); // No children at depth 1
+      expect(result.output).toContain("dir1/");
+      expect(result.output).toContain("root.txt");
+      // At depth 1, nested.txt should NOT appear (not traversed)
+      expect(result.output).not.toContain("nested.txt");
     });
   });
 });

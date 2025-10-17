@@ -25,6 +25,43 @@ interface TraversalResult {
 }
 
 /**
+ * Format a file tree as a string with tree characters (├─, └─, │)
+ * Recursively formats the tree structure for display to LLM
+ */
+function formatTreeAsString(entries: FileEntry[], indent = "", isLast: boolean[] = []): string {
+  const lines: string[] = [];
+
+  entries.forEach((entry, i) => {
+    const isLastEntry = i === entries.length - 1;
+    const prefix = isLast.length > 0 ? indent + (isLastEntry ? "└─ " : "├─ ") : "";
+
+    const suffix = entry.type === "directory" ? "/" : "";
+    const sizeInfo = entry.size !== undefined ? ` (${formatSize(entry.size)})` : "";
+
+    lines.push(`${prefix}${entry.name}${suffix}${sizeInfo}`);
+
+    // Recursively render children if present
+    if (entry.children && entry.children.length > 0) {
+      const newIndent = indent + (isLastEntry ? "   " : "│  ");
+      lines.push(
+        ...formatTreeAsString(entry.children, newIndent, [...isLast, isLastEntry]).split("\n")
+      );
+    }
+  });
+
+  return lines.join("\n");
+}
+
+/**
+ * Format a file size in bytes to a human-readable string
+ */
+function formatSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes}B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+}
+
+/**
  * Load and parse .gitignore file if it exists
  */
 async function loadGitignore(rootPath: string): Promise<ReturnType<typeof ignore> | null> {
@@ -267,10 +304,14 @@ export function createFileListTool(config: { cwd: string }) {
         };
       }
 
+      // Format tree as string for LLM (token efficient)
+      const output =
+        result.entries.length === 0 ? "(empty directory)" : formatTreeAsString(result.entries);
+
       return {
         success: true,
         path: resolvedPath,
-        entries: result.entries,
+        output: output,
         total_count: result.totalCount,
         depth_used: effectiveDepth,
       };
