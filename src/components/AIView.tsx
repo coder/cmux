@@ -120,14 +120,10 @@ const OutputContent = styled.div`
   line-height: 1.5;
 `;
 
-// Virtualized list wrappers to preserve existing styling and accessibility
+// Virtualized list wrapper to preserve existing styling and accessibility
 const VirtualListContainer = styled.div`
   height: 100%;
   overflow: hidden; /* Virtuoso manages its own scroller */
-`;
-
-const VirtualItem = styled.div`
-  padding: 0; /* Each message component manages its own spacing */
 `;
 
 const EmptyState = styled.div`
@@ -497,23 +493,12 @@ const AIViewInner: React.FC<AIViewProps> = ({
                   Scroller: React.forwardRef<HTMLDivElement, React.HTMLProps<HTMLDivElement>>(function Scroller(props, ref) {
                     const { style, children, onScroll: virtuosoOnScroll } = props;
                     const setRefs = (el: HTMLDivElement | null) => {
-                      // Bridge Virtuoso's scroller ref to our autoScroll hook's ref
                       if (typeof ref === "function") ref(el);
-                      else if (ref && typeof ref === "object") {
-                        // Handle RefObject - Virtuoso may pass a mutable ref
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
-                        (ref as any).current = el;
-                      }
-                      // Also update our own contentRef for auto-scroll logic
                       contentRef.current = el;
                     };
                     
                     const handleScrollEvent = (e: React.UIEvent<HTMLDivElement>) => {
-                      // Call Virtuoso's scroll handler if provided
-                      if (virtuosoOnScroll) {
-                        virtuosoOnScroll(e);
-                      }
-                      // Call our own scroll handler
+                      if (virtuosoOnScroll) virtuosoOnScroll(e);
                       handleScroll(e);
                     };
                     
@@ -538,9 +523,6 @@ const AIViewInner: React.FC<AIViewProps> = ({
                       </OutputContent>
                     );
                   }),
-                  Item: (props: { children?: React.ReactNode; style?: React.CSSProperties }) => (
-                    <VirtualItem {...props} />
-                  ),
                   Footer: () => (
                     <>
                       {showRetryBarrier && (
@@ -561,24 +543,22 @@ const AIViewInner: React.FC<AIViewProps> = ({
                     msg.type !== "history-hidden" &&
                     msg.historyId === editCutoffHistoryId;
                   return (
-                    <>
-                      <div
-                        data-message-id={msg.type !== "history-hidden" ? msg.historyId : undefined}
-                      >
-                        <MessageRenderer
-                          message={msg}
-                          onEditUserMessage={handleEditUserMessage}
-                          workspaceId={workspaceId}
-                          isCompacting={isCompacting}
-                        />
-                      </div>
+                    <div
+                      data-message-id={msg.type !== "history-hidden" ? msg.historyId : undefined}
+                    >
+                      <MessageRenderer
+                        message={msg}
+                        onEditUserMessage={handleEditUserMessage}
+                        workspaceId={workspaceId}
+                        isCompacting={isCompacting}
+                      />
                       {isAtCutoff && (
                         <EditBarrier>
                           ⚠️ Messages below this line will be removed when you submit the edit
                         </EditBarrier>
                       )}
                       {shouldShowInterruptedBarrier(msg) && <InterruptedBarrier />}
-                    </>
+                    </div>
                   );
                 }}
               />
