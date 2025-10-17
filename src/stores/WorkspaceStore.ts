@@ -37,6 +37,7 @@ export interface WorkspaceState {
   cmuxMessages: CmuxMessage[];
   currentModel: string | null;
   recencyTimestamp: number | null;
+  todos: TodoItem[];
 }
 
 /**
@@ -237,6 +238,7 @@ export class WorkspaceStore {
         cmuxMessages: messages,
         currentModel: aggregator.getCurrentModel() ?? null,
         recencyTimestamp: aggregator.getRecencyTimestamp(),
+        todos: aggregator.getCurrentTodos(),
       };
     });
   }

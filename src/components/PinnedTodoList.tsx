@@ -47,17 +47,16 @@ interface PinnedTodoListProps {
  * Reuses TodoList component for consistent styling.
  */
 export const PinnedTodoList: React.FC<PinnedTodoListProps> = ({ workspaceId }) => {
-  const workspaceStore = useWorkspaceStoreRaw();
   const [expanded, setExpanded] = usePersistedState("pinnedTodoExpanded", true);
 
-  // Subscribe to workspace state changes to re-render when TODOs update
-  useSyncExternalStore(
+  // Subscribe to workspace state and get TODOs from subscribed state
+  const workspaceStore = useWorkspaceStoreRaw();
+  const state = useSyncExternalStore(
     (callback) => workspaceStore.subscribeKey(workspaceId, callback),
     () => workspaceStore.getWorkspaceState(workspaceId)
   );
 
-  // Get current TODOs (uses latest aggregator state)
-  const todos = workspaceStore.getTodos(workspaceId);
+  const todos = state.todos;
 
   // Don't render if no TODOs
   if (todos.length === 0) {
