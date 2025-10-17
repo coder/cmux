@@ -304,7 +304,7 @@ export class StreamingMessageAggregator {
       };
 
       this.messages.set(data.messageId, message);
-      
+
       // Clean up stream-scoped state (TODOs, active stream tracking)
       this.cleanupStreamState(data.messageId);
     }
