@@ -7,7 +7,7 @@ const FKeyBarContainer = styled.div`
   display: flex;
   gap: 3px;
   padding: 4px 6px 2px 6px;
-  background: #252526;
+  background: #1e1e1e;
   align-items: center;
   flex-shrink: 0;
 `;
