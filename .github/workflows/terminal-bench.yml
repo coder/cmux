@@ -18,6 +18,10 @@ on:
         required: false
         default: true
         type: boolean
+      sample_size:
+        description: 'Number of random tasks to run (empty = all tasks)'
+        required: false
+        type: string
       extra_args:
         description: 'Additional arguments to pass to terminal-bench'
         required: false
@@ -51,6 +55,7 @@ jobs:
           TB_DATASET: ${{ inputs.dataset }}
           TB_CONCURRENCY: ${{ inputs.concurrency }}
           TB_LIVESTREAM: ${{ inputs.livestream && '1' || '' }}
+          TB_SAMPLE_SIZE: ${{ inputs.sample_size }}
           TB_ARGS: ${{ inputs.extra_args }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}

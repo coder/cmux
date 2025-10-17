@@ -241,16 +241,30 @@ test-storybook: node_modules/.installed ## Run Storybook interaction tests (requ
 	@bun x test-storybook
 
 ## Benchmarks
-benchmark-terminal: ## Run Terminal-Bench with the cmux agent (use TB_DATASET/TB_ARGS to customize)
+benchmark-terminal: ## Run Terminal-Bench with the cmux agent (use TB_DATASET/TB_SAMPLE_SIZE/TB_ARGS to customize)
 	@TB_DATASET=$${TB_DATASET:-terminal-bench-core==0.1.1}; \
 	CONCURRENCY_FLAG=$${TB_CONCURRENCY:+--n-concurrent $$TB_CONCURRENCY}; \
 	LIVESTREAM_FLAG=$${TB_LIVESTREAM:+--livestream}; \
+	TASK_ID_FLAGS=""; \
+	if [ -n "$$TB_SAMPLE_SIZE" ]; then \
+		echo "Ensuring dataset $$TB_DATASET is downloaded..."; \
+		uvx terminal-bench datasets download --dataset "$$TB_DATASET" 2>&1 | grep -v "already exists" || true; \
+		echo "Sampling $$TB_SAMPLE_SIZE tasks from $$TB_DATASET..."; \
+		TASK_IDS=$$(python benchmarks/terminal_bench/sample_tasks.py --dataset "$$TB_DATASET" --sample-size "$$TB_SAMPLE_SIZE" --format space); \
+		if [ -n "$$TASK_IDS" ]; then \
+			for task_id in $$TASK_IDS; do \
+				TASK_ID_FLAGS="$$TASK_ID_FLAGS --task-id $$task_id"; \
+			done; \
+			echo "Selected task IDs: $$TASK_IDS"; \
+		fi; \
+	fi; \
 	echo "Running Terminal-Bench with dataset $$TB_DATASET"; \
 	uvx terminal-bench run \
 		--dataset "$$TB_DATASET" \
 		--agent-import-path benchmarks.terminal_bench.cmux_agent:CmuxAgent \
 		$$CONCURRENCY_FLAG \
 		$$LIVESTREAM_FLAG \
+		$$TASK_ID_FLAGS \
 		$${TB_ARGS}
 
 ## Clean
