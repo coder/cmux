@@ -559,7 +559,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
         />
       </ChatArea>
 
-      <ChatMetaSidebar workspaceId={workspaceId} chatAreaRef={chatAreaRef} />
+      <ChatMetaSidebar key={workspaceId} workspaceId={workspaceId} chatAreaRef={chatAreaRef} />
     </ViewContainer>
   );
 };
