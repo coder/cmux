@@ -29,6 +29,8 @@ import type { ThinkingLevel } from "@/types/thinking";
 import type { CmuxFrontendMetadata, CompactionRequestData } from "@/types/message";
 import type { SendMessageOptions } from "@/types/ipc";
 import { applyCompactionOverrides } from "@/utils/messages/compactionOptions";
+import { useTelemetry } from "@/hooks/useTelemetry";
+import { setTelemetryEnabled } from "@/telemetry";
 
 const InputSection = styled.div`
   position: relative;
@@ -215,6 +217,26 @@ const createCommandToast = (parsed: ParsedCommand): Toast | null => {
         ),
       };
 
+    case "telemetry-help":
+      return {
+        id: Date.now().toString(),
+        type: "error",
+        title: "Telemetry Command",
+        message: "Enable or disable usage telemetry",
+        solution: (
+          <>
+            <SolutionLabel>Usage:</SolutionLabel>
+            /telemetry &lt;on|off&gt;
+            <br />
+            <br />
+            <SolutionLabel>Examples:</SolutionLabel>
+            /telemetry off
+            <br />
+            /telemetry on
+          </>
+        ),
+      };
+
     case "unknown-command": {
       const cmd = "/" + parsed.command + (parsed.subcommand ? " " + parsed.subcommand : "");
       return {
@@ -355,6 +377,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const [mode, setMode] = useMode();
   const { recentModels, addModel } = useModelLRU();
   const commandListId = useId();
+  const telemetry = useTelemetry();
 
   // Get current send message options from shared hook (must be at component top level)
   const sendMessageOptions = useSendMessageOptions(workspaceId);
@@ -652,6 +675,18 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           return;
         }
 
+        // Handle /telemetry command
+        if (parsed.type === "telemetry-set") {
+          setInput(""); // Clear input immediately
+          setTelemetryEnabled(parsed.enabled);
+          setToast({
+            id: Date.now().toString(),
+            type: "success",
+            message: `Telemetry ${parsed.enabled ? "enabled" : "disabled"}`,
+          });
+          return;
+        }
+
         // Handle /compact command
         if (parsed.type === "compact") {
           setInput(""); // Clear input immediately
@@ -756,6 +791,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           // Restore input on error so user can try again
           setInput(messageText);
         } else {
+          // Track telemetry for successful message send
+          telemetry.messageSent(sendMessageOptions.model, mode, actualMessageText.length);
+
           // Success - clear input and images
           setInput("");
           setImageAttachments([]);

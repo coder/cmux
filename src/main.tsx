@@ -1,6 +1,11 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
+import { initTelemetry, trackAppStarted } from "./telemetry";
+
+// Initialize telemetry on app startup
+initTelemetry();
+trackAppStarted();
 
 // Global error handlers for renderer process
 // These catch errors that escape the ErrorBoundary

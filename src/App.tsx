@@ -31,6 +31,7 @@ import type { ThinkingLevel } from "./types/thinking";
 import { CUSTOM_EVENTS } from "./constants/events";
 import { getThinkingLevelKey } from "./constants/storage";
 import type { BranchListResult } from "./types/ipc";
+import { useTelemetry } from "./hooks/useTelemetry";
 
 const THINKING_LEVELS: ThinkingLevel[] = ["off", "low", "medium", "high"];
 
@@ -161,6 +162,31 @@ function AppInner() {
   const handleToggleSidebar = useCallback(() => {
     setSidebarCollapsed((prev) => !prev);
   }, [setSidebarCollapsed]);
+
+  // Telemetry tracking
+  const telemetry = useTelemetry();
+
+  // Wrapper for setSelectedWorkspace that tracks telemetry
+  const handleWorkspaceSwitch = useCallback(
+    (newWorkspace: WorkspaceSelection | null) => {
+      console.debug("[App] handleWorkspaceSwitch called", {
+        from: selectedWorkspace?.workspaceId,
+        to: newWorkspace?.workspaceId,
+      });
+
+      // Track workspace switch when both old and new are non-null (actual switch, not init/clear)
+      if (
+        selectedWorkspace &&
+        newWorkspace &&
+        selectedWorkspace.workspaceId !== newWorkspace.workspaceId
+      ) {
+        console.debug("[App] Calling telemetry.workspaceSwitched");
+        telemetry.workspaceSwitched(selectedWorkspace.workspaceId, newWorkspace.workspaceId);
+      }
+      setSelectedWorkspace(newWorkspace);
+    },
+    [selectedWorkspace, setSelectedWorkspace, telemetry]
+  );
 
   // Use custom hooks for project and workspace management
   const { projects, setProjects, addProject, removeProject } = useProjectManagement();
@@ -388,6 +414,8 @@ function AppInner() {
 
     const newWorkspace = await createWorkspace(workspaceModalProject, branchName, trunkBranch);
     if (newWorkspace) {
+      // Track workspace creation
+      telemetry.workspaceCreated(newWorkspace.workspaceId);
       setSelectedWorkspace(newWorkspace);
     }
   };
@@ -556,9 +584,12 @@ function AppInner() {
         "Expected trunk branch to be provided by the command palette"
       );
       const newWs = await createWorkspace(projectPath, branchName, trunkBranch);
-      if (newWs) setSelectedWorkspace(newWs);
+      if (newWs) {
+        telemetry.workspaceCreated(newWs.workspaceId);
+        setSelectedWorkspace(newWs);
+      }
     },
-    [createWorkspace, setSelectedWorkspace]
+    [createWorkspace, setSelectedWorkspace, telemetry]
   );
 
   const getBranchesForProject = useCallback(
@@ -584,9 +615,9 @@ function AppInner() {
 
   const selectWorkspaceFromPalette = useCallback(
     (selection: WorkspaceSelection) => {
-      setSelectedWorkspace(selection);
+      handleWorkspaceSwitch(selection);
     },
-    [setSelectedWorkspace]
+    [handleWorkspaceSwitch]
   );
 
   const removeWorkspaceFromPalette = useCallback(
@@ -707,7 +738,7 @@ function AppInner() {
           projects={projects}
           workspaceMetadata={workspaceMetadata}
           selectedWorkspace={selectedWorkspace}
-          onSelectWorkspace={setSelectedWorkspace}
+          onSelectWorkspace={handleWorkspaceSwitch}
           onAddProject={handleAddProjectCallback}
           onAddWorkspace={handleAddWorkspaceCallback}
           onRemoveProject={handleRemoveProjectCallback}
