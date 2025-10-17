@@ -228,11 +228,27 @@ const AIViewInner: React.FC<AIViewProps> = ({
     contentRef,
     autoScroll,
     setAutoScroll,
-    performAutoScroll,
-    jumpToBottom,
-    handleScroll,
-    markUserInteraction,
+    performAutoScroll: _performAutoScroll,
+    jumpToBottom: _jumpToBottom,
+    handleScroll: _handleScroll,
+    markUserInteraction: _markUserInteraction,
   } = useAutoScroll();
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const virtuosoRef = useRef<any>(null);
+
+  // Override jumpToBottom to use Virtuoso's API
+  const jumpToBottom = useCallback(() => {
+    if (virtuosoRef.current) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+      virtuosoRef.current.scrollToIndex({
+        index: "LAST",
+        align: "end",
+        behavior: "smooth",
+      });
+      setAutoScroll(true);
+    }
+  }, [setAutoScroll]);
 
   // ChatInput API for focus management
   const chatInputAPI = useRef<ChatInputAPI | null>(null);
@@ -306,33 +322,6 @@ const AIViewInner: React.FC<AIViewProps> = ({
     void window.api.workspace.openTerminal(namedWorkspacePath);
   }, [namedWorkspacePath]);
 
-  // Auto-scroll when messages update (during streaming)
-  useEffect(() => {
-    if (workspaceState && autoScroll) {
-      performAutoScroll();
-    }
-  }, [workspaceState?.messages, autoScroll, performAutoScroll, workspaceState]);
-
-  // Scroll to bottom when workspace loads or changes
-  useEffect(() => {
-    if (workspaceState && !workspaceState.loading && workspaceState.messages.length > 0) {
-      // Give React time to render messages before scrolling
-      requestAnimationFrame(() => {
-        jumpToBottom();
-      });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [workspaceId, workspaceState?.loading]);
-
-  // Keep scroller pinned when streaming and user is at bottom
-  useEffect(() => {
-    if (workspaceState && autoScroll) {
-      performAutoScroll();
-    }
-    // Intentionally not depending on messages array; just length changes are sufficient
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [workspaceState?.messages.length, autoScroll]);
-
   // Handle keyboard shortcuts (using optional refs that are safe even if not initialized)
   useAIViewKeybinds({
     workspaceId,
@@ -365,6 +354,40 @@ const AIViewInner: React.FC<AIViewProps> = ({
       setEditingMessage(undefined);
     }
   }, [workspaceState, editingMessage]);
+
+  // Scroll to bottom on initial load (before early return to satisfy hooks rules)
+  useEffect(() => {
+    if (workspaceState && virtuosoRef.current) {
+      const mergedMessages = mergeConsecutiveStreamErrors(workspaceState.messages);
+      if (mergedMessages.length > 0) {
+        requestAnimationFrame(() => {
+          if (virtuosoRef.current && autoScroll) {
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+            virtuosoRef.current.scrollToIndex({
+              index: mergedMessages.length - 1,
+              align: "end",
+              behavior: "auto",
+            });
+          }
+        });
+      }
+    }
+  }, [workspaceId, autoScroll, workspaceState]);
+
+  // Follow during streaming/updates (before early return to satisfy hooks rules)
+  useEffect(() => {
+    if (workspaceState && autoScroll && virtuosoRef.current) {
+      const mergedMessages = mergeConsecutiveStreamErrors(workspaceState.messages);
+      if (mergedMessages.length > 0) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+        virtuosoRef.current.scrollToIndex({
+          index: "LAST",
+          align: "end",
+          behavior: "auto",
+        });
+      }
+    }
+  }, [workspaceState?.messages.length, autoScroll, workspaceState]);
 
   // Return early if workspace state not loaded yet
   if (!workspaceState) {
@@ -464,10 +487,12 @@ const AIViewInner: React.FC<AIViewProps> = ({
             </EmptyState>
           ) : (
             <Virtuoso
+              ref={virtuosoRef}
               style={{ height: "100%" }}
               data={mergedMessages}
               alignToBottom
               followOutput={autoScroll}
+              initialTopMostItemIndex={mergedMessages.length - 1}
               atBottomStateChange={(atBottom) => {
                 setAutoScroll(atBottom);
               }}
