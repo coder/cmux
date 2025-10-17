@@ -32,7 +32,7 @@ export async function sendMessage(
   mockIpcRenderer: IpcRenderer,
   workspaceId: string,
   message: string,
-  options?: SendMessageOptions
+  options?: SendMessageOptions & { imageParts?: Array<{ url: string; mediaType: string }> }
 ): Promise<Result<void, SendMessageError>> {
   return (await mockIpcRenderer.invoke(
     IPC_CHANNELS.WORKSPACE_SEND_MESSAGE,
