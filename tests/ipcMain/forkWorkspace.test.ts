@@ -131,7 +131,10 @@ describeIntegration("IpcMain fork workspace integration tests", () => {
           { id: "msg-1", role: "user", content: "First message" },
           { id: "msg-2", role: "assistant", content: "First response" },
         ];
-        await fs.writeFile(sourceChatPath, testMessages.map((m) => JSON.stringify(m)).join("\n") + "\n");
+        await fs.writeFile(
+          sourceChatPath,
+          testMessages.map((m) => JSON.stringify(m)).join("\n") + "\n"
+        );
 
         // Fork the workspace
         const forkResult = await env.mockIpcRenderer.invoke(
@@ -157,8 +160,15 @@ describeIntegration("IpcMain fork workspace integration tests", () => {
         expect(forkedInfo.id).not.toBe(sourceInfo.id);
 
         // Verify history was copied (filesystem check as proxy for history preservation)
-        const forkedChatPath = path.join(env.config.sessionsDir, forkResult.metadata.id, "chat.jsonl");
-        const forkedChatExists = await fs.access(forkedChatPath).then(() => true).catch(() => false);
+        const forkedChatPath = path.join(
+          env.config.sessionsDir,
+          forkResult.metadata.id,
+          "chat.jsonl"
+        );
+        const forkedChatExists = await fs
+          .access(forkedChatPath)
+          .then(() => true)
+          .catch(() => false);
         expect(forkedChatExists).toBe(true);
 
         // Cleanup
@@ -317,8 +327,15 @@ describeIntegration("IpcMain fork workspace integration tests", () => {
         expect(forkedInfo.id).toBe(forkResult.metadata.id);
 
         // Verify partial.json was copied (as proxy for streaming state preservation)
-        const forkedPartialPath = path.join(env.config.sessionsDir, forkResult.metadata.id, "partial.json");
-        const forkedPartialExists = await fs.access(forkedPartialPath).then(() => true).catch(() => false);
+        const forkedPartialPath = path.join(
+          env.config.sessionsDir,
+          forkResult.metadata.id,
+          "partial.json"
+        );
+        const forkedPartialExists = await fs
+          .access(forkedPartialPath)
+          .then(() => true)
+          .catch(() => false);
         expect(forkedPartialExists).toBe(true);
 
         // Cleanup
