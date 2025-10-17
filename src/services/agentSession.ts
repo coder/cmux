@@ -142,7 +142,7 @@ export class AgentSession {
     });
   }
 
-  async ensureMetadata(args: { workspacePath: string; projectName?: string }): Promise<void> {
+  ensureMetadata(args: { workspacePath: string; projectName?: string }): void {
     this.assertNotDisposed("ensureMetadata");
     assert(args, "ensureMetadata requires arguments");
     const { workspacePath, projectName } = args;
