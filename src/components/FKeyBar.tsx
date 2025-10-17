@@ -5,47 +5,57 @@ import { TooltipWrapper, Tooltip } from "./Tooltip";
 
 const FKeyBarContainer = styled.div`
   display: flex;
-  gap: 4px;
-  padding: 4px 8px;
-  background: #252526;
+  gap: 3px;
+  padding: 3px 6px;
+  background: #1e1e1e;
   border-bottom: 1px solid #3e3e42;
   align-items: center;
   flex-shrink: 0;
-  min-height: 28px;
 `;
 
 const FKeyButton = styled.button<{ isEmpty: boolean }>`
   flex: 1;
   min-width: 0;
-  padding: 4px 8px;
-  background: ${(props) => (props.isEmpty ? "transparent" : "#37373d")};
+  padding: 2px 6px;
+  background: ${(props) =>
+    props.isEmpty
+      ? "linear-gradient(180deg, #2d2d30 0%, #252526 100%)"
+      : "linear-gradient(180deg, #3e3e42 0%, #2d2d30 100%)"};
   border: 1px solid ${(props) => (props.isEmpty ? "#3e3e42" : "#555")};
+  border-bottom: 2px solid ${(props) => (props.isEmpty ? "#1e1e1e" : "#3e3e42")};
   border-radius: 3px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
   color: ${(props) => (props.isEmpty ? "#666" : "#ccc")};
   font-family: var(--font-monospace);
-  font-size: 11px;
+  font-size: 10px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.1s ease;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   text-align: left;
 
   &:hover {
-    background: ${(props) => (props.isEmpty ? "#2a2d2e" : "#45454a")};
+    background: ${(props) =>
+      props.isEmpty
+        ? "linear-gradient(180deg, #3e3e42 0%, #2d2d30 100%)"
+        : "linear-gradient(180deg, #4e4e52 0%, #3e3e42 100%)"};
     border-color: ${(props) => (props.isEmpty ? "#555" : "#666")};
     color: ${(props) => (props.isEmpty ? "#888" : "#fff")};
+    transform: translateY(-1px);
   }
 
   &:active {
-    background: ${(props) => (props.isEmpty ? "#1e1e1e" : "#505055")};
+    transform: translateY(1px);
+    box-shadow: 0 0 1px rgba(0, 0, 0, 0.5);
+    border-bottom-width: 1px;
   }
 `;
 
 const KeyLabel = styled.span`
   font-weight: 600;
-  margin-right: 6px;
-  opacity: 0.8;
+  margin-right: 4px;
+  opacity: 0.9;
 `;
 
 const MessagePreview = styled.span`
