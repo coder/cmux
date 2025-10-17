@@ -6,5 +6,6 @@
  */
 
 export { initTelemetry, trackEvent, shutdownTelemetry, isTelemetryInitialized } from "./client";
-export type { TelemetryEventPayload } from "./payload";
+export { trackAppStarted, trackAppClosed } from "./lifecycle";
+export type { TelemetryEventPayload, ErrorContext } from "./payload";
 export { getBaseTelemetryProperties, roundToBase2 } from "./utils";

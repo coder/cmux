@@ -1,5 +1,6 @@
 import { useCallback } from "react";
-import { trackEvent, getBaseTelemetryProperties } from "../telemetry";
+import { trackEvent, getBaseTelemetryProperties, roundToBase2 } from "../telemetry";
+import type { ErrorContext } from "../telemetry/payload";
 
 /**
  * Hook for clean telemetry integration in React components
@@ -15,6 +16,12 @@ import { trackEvent, getBaseTelemetryProperties } from "../telemetry";
  *
  * // Track workspace creation
  * telemetry.workspaceCreated(workspaceId);
+ *
+ * // Track message sent
+ * telemetry.messageSent(model, mode, messageLength);
+ *
+ * // Track error
+ * telemetry.errorOccurred(errorType, context);
  * ```
  */
 export function useTelemetry() {
@@ -31,6 +38,7 @@ export function useTelemetry() {
   }, []);
 
   const workspaceCreated = useCallback((workspaceId: string) => {
+    console.debug("[useTelemetry] workspaceCreated called", { workspaceId });
     trackEvent({
       event: "workspace_created",
       properties: {
@@ -40,8 +48,37 @@ export function useTelemetry() {
     });
   }, []);
 
+  const messageSent = useCallback((model: string, mode: string, messageLength: number) => {
+      console.debug("[useTelemetry] messageSent called", { model, mode, messageLength });
+      trackEvent({
+        event: "message_sent",
+        properties: {
+          ...getBaseTelemetryProperties(),
+          model,
+          mode,
+          message_length_b2: roundToBase2(messageLength),
+        },
+      });
+    },
+    []
+  );
+
+  const errorOccurred = useCallback((errorType: string, context: ErrorContext) => {
+    console.debug("[useTelemetry] errorOccurred called", { errorType, context });
+    trackEvent({
+      event: "error_occurred",
+      properties: {
+        ...getBaseTelemetryProperties(),
+        errorType,
+        context,
+      },
+    });
+  }, []);
+
   return {
     workspaceSwitched,
     workspaceCreated,
+    messageSent,
+    errorOccurred,
   };
 }

@@ -62,8 +62,8 @@ export interface WorkspaceSwitchedPayload extends BaseTelemetryProperties {
 export interface MessageSentPayload extends BaseTelemetryProperties {
   /** Full model identifier (e.g., 'anthropic/claude-3-5-sonnet-20241022') */
   model: string;
-  /** Permission mode */
-  mode: "plan" | "edit";
+  /** UI mode (e.g., 'plan', 'exec', 'edit') */
+  mode: string;
   /** Message length rounded to nearest power of 2 (e.g., 128, 256, 512, 1024) */
   message_length_b2: number;
 }

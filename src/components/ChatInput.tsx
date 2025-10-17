@@ -29,6 +29,7 @@ import type { ThinkingLevel } from "@/types/thinking";
 import type { CmuxFrontendMetadata, CompactionRequestData } from "@/types/message";
 import type { SendMessageOptions } from "@/types/ipc";
 import { applyCompactionOverrides } from "@/utils/messages/compactionOptions";
+import { useTelemetry } from "@/hooks/useTelemetry";
 
 const InputSection = styled.div`
   position: relative;
@@ -355,6 +356,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const [mode, setMode] = useMode();
   const { recentModels, addModel } = useModelLRU();
   const commandListId = useId();
+  const telemetry = useTelemetry();
 
   // Get current send message options from shared hook (must be at component top level)
   const sendMessageOptions = useSendMessageOptions(workspaceId);
@@ -756,6 +758,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           // Restore input on error so user can try again
           setInput(messageText);
         } else {
+          // Track telemetry for successful message send
+          telemetry.messageSent(sendMessageOptions.model, mode, actualMessageText.length);
+          
           // Success - clear input and images
           setInput("");
           setImageAttachments([]);

@@ -1,10 +1,16 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
-import { initTelemetry } from "./telemetry";
+import { initTelemetry, trackAppStarted, trackAppClosed } from "./telemetry";
 
 // Initialize telemetry on app startup
 initTelemetry();
+trackAppStarted();
+
+// Track app close (best effort - may not always fire)
+window.addEventListener("beforeunload", () => {
+  trackAppClosed();
+});
 
 // Global error handlers for renderer process
 // These catch errors that escape the ErrorBoundary
