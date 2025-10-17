@@ -355,39 +355,25 @@ const AIViewInner: React.FC<AIViewProps> = ({
     }
   }, [workspaceState, editingMessage]);
 
-  // Scroll to bottom on initial load (before early return to satisfy hooks rules)
+  // Scroll to bottom on initial workspace load
   useEffect(() => {
     if (workspaceState && virtuosoRef.current) {
       const mergedMessages = mergeConsecutiveStreamErrors(workspaceState.messages);
       if (mergedMessages.length > 0) {
-        requestAnimationFrame(() => {
-          if (virtuosoRef.current && autoScroll) {
+        // Use setTimeout to ensure Virtuoso has fully rendered and measured items
+        setTimeout(() => {
+          if (virtuosoRef.current) {
             // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
             virtuosoRef.current.scrollToIndex({
-              index: mergedMessages.length - 1,
+              index: "LAST",
               align: "end",
               behavior: "auto",
             });
           }
-        });
+        }, 50); // Small delay to ensure measurements are complete
       }
     }
-  }, [workspaceId, autoScroll, workspaceState]);
-
-  // Follow during streaming/updates (before early return to satisfy hooks rules)
-  useEffect(() => {
-    if (workspaceState && autoScroll && virtuosoRef.current) {
-      const mergedMessages = mergeConsecutiveStreamErrors(workspaceState.messages);
-      if (mergedMessages.length > 0) {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
-        virtuosoRef.current.scrollToIndex({
-          index: "LAST",
-          align: "end",
-          behavior: "auto",
-        });
-      }
-    }
-  }, [workspaceState?.messages.length, autoScroll, workspaceState]);
+  }, [workspaceId, workspaceState]); // Only on workspace change, not autoScroll
 
   // Return early if workspace state not loaded yet
   if (!workspaceState) {
@@ -491,7 +477,13 @@ const AIViewInner: React.FC<AIViewProps> = ({
               style={{ height: "100%" }}
               data={mergedMessages}
               alignToBottom
-              followOutput={autoScroll}
+              followOutput={(isAtBottom) => {
+                // Only follow if we're at bottom - prevents jittery scrolling
+                if (autoScroll && isAtBottom) {
+                  return "smooth";
+                }
+                return false;
+              }}
               initialTopMostItemIndex={mergedMessages.length - 1}
               atBottomStateChange={(atBottom) => {
                 setAutoScroll(atBottom);
