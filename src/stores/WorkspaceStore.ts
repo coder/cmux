@@ -123,6 +123,9 @@ export class WorkspaceStore {
   // Track previous sidebar state per workspace (to prevent unnecessary bumps)
   private previousSidebarValues = new Map<string, WorkspaceSidebarState>();
 
+  // Track workspaces currently replaying buffered history (to avoid O(N) scheduling)
+  private replayingHistory = new Set<string>();
+
   // Track model usage (injected dependency for useModelLRU integration)
   private readonly onModelUsed?: (model: string) => void;
 
@@ -137,6 +140,18 @@ export class WorkspaceStore {
     // Note: We DON'T auto-check recency on every state bump.
     // Instead, checkAndBumpRecencyIfChanged() is called explicitly after
     // message completion events (not on deltas) to prevent App.tsx re-renders.
+  }
+
+  /**
+   * Dispatch resume check event for a workspace.
+   * Triggers useResumeManager to check if interrupted stream can be resumed.
+   */
+  private dispatchResumeCheck(workspaceId: string): void {
+    window.dispatchEvent(
+      new CustomEvent(CUSTOM_EVENTS.RESUME_CHECK_REQUESTED, {
+        detail: { workspaceId },
+      })
+    );
   }
 
   /**
@@ -388,15 +403,124 @@ export class WorkspaceStore {
   }
 
   /**
-   * Helper to bump usage store if metadata contains usage.
-   * Simplifies event handling logic and provides forward compatibility.
+   * Handle compact_summary tool completion.
+   * Returns true if compaction was handled (caller should early return).
    */
-  private bumpUsageIfPresent(
+  private handleCompactSummaryCompletion(
     workspaceId: string,
-    metadata?: { usage?: LanguageModelV2Usage; model?: string }
+    aggregator: StreamingMessageAggregator,
+    data: WorkspaceChatMessage
+  ): boolean {
+    // Type guard: only StreamEndEvent has parts
+    if (!("parts" in data) || !data.parts) return false;
+
+    for (const part of data.parts) {
+      if (part.type === "dynamic-tool" && part.toolName === "compact_summary") {
+        const output = part.output as { summary?: string } | undefined;
+        if (output?.summary) {
+          this.performCompaction(workspaceId, aggregator, data, output.summary);
+          return true;
+        }
+        break;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Perform history compaction by replacing chat history with summary message.
+   * Type-safe: only called when we've verified data has parts (i.e., StreamEndEvent).
+   */
+  private performCompaction(
+    workspaceId: string,
+    aggregator: StreamingMessageAggregator,
+    data: WorkspaceChatMessage,
+    summary: string
   ): void {
+    // We know data is StreamEndEvent because handleCompactSummaryCompletion verified it has parts
+    // Extract metadata safely with type guard
+    const metadata = "metadata" in data ? data.metadata : undefined;
+
+    // Extract continueMessage from compaction-request before history gets replaced
+    const messages = aggregator.getAllMessages();
+    const compactRequestMsg = [...messages]
+      .reverse()
+      .find((m) => m.role === "user" && m.metadata?.cmuxMetadata?.type === "compaction-request");
+    const cmuxMeta = compactRequestMsg?.metadata?.cmuxMetadata;
+    const continueMessage =
+      cmuxMeta?.type === "compaction-request" ? cmuxMeta.parsed.continueMessage : undefined;
+
+    const summaryMessage = createCmuxMessage(
+      `summary-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
+      "assistant",
+      summary,
+      {
+        timestamp: Date.now(),
+        compacted: true,
+        model: aggregator.getCurrentModel(),
+        usage: metadata?.usage,
+        providerMetadata:
+          metadata && "providerMetadata" in metadata
+            ? (metadata.providerMetadata as Record<string, unknown> | undefined)
+            : undefined,
+        duration: metadata?.duration,
+        systemMessageTokens:
+          metadata && "systemMessageTokens" in metadata
+            ? (metadata.systemMessageTokens as number | undefined)
+            : undefined,
+        // Store continueMessage in summary so it survives history replacement
+        cmuxMetadata: continueMessage
+          ? { type: "compaction-result", continueMessage }
+          : { type: "normal" },
+      }
+    );
+
+    void (async () => {
+      try {
+        await window.api.workspace.replaceChatHistory(workspaceId, summaryMessage);
+      } catch (error) {
+        console.error("[WorkspaceStore] Failed to replace history:", error);
+      } finally {
+        this.states.bump(workspaceId);
+        this.checkAndBumpRecencyIfChanged();
+      }
+    })();
+  }
+
+  /**
+   * Update usage and schedule consumer calculation after stream completion.
+   *
+   * CRITICAL ORDERING: This must be called AFTER the aggregator updates its messages.
+   * If called before, the UI will re-render and read stale data from the aggregator,
+   * causing a race condition where usage appears empty until refresh.
+   *
+   * Handles both:
+   * - Instant usage display (from API metadata) - only if usage present
+   * - Async consumer breakdown (tokenization via Web Worker) - normally scheduled,
+   *   but skipped during history replay to avoid O(N) scheduling overhead
+   */
+  private finalizeUsageStats(
+    workspaceId: string,
+    metadata?: { usage?: LanguageModelV2Usage }
+  ): void {
+    // During history replay: only bump usage, skip scheduling (caught-up schedules once at end)
+    if (this.replayingHistory.has(workspaceId)) {
+      if (metadata?.usage) {
+        this.usageStore.bump(workspaceId);
+      }
+      return;
+    }
+
+    // Normal real-time path: bump usage and schedule calculation
     if (metadata?.usage) {
       this.usageStore.bump(workspaceId);
+    }
+
+    // Always schedule consumer calculation (tool calls, text, etc. need tokenization)
+    // Even streams without usage metadata need token counts recalculated
+    const aggregator = this.aggregators.get(workspaceId);
+    if (aggregator) {
+      this.consumerManager.scheduleCalculation(workspaceId, aggregator);
     }
   }
 
@@ -540,12 +664,18 @@ export class WorkspaceStore {
         this.historicalMessages.set(workspaceId, []);
       }
 
+      // Mark that we're replaying buffered history (prevents O(N) scheduling)
+      this.replayingHistory.add(workspaceId);
+
       // Process buffered stream events now that history is loaded
       const pendingEvents = this.pendingStreamEvents.get(workspaceId) ?? [];
       for (const event of pendingEvents) {
         this.processStreamEvent(workspaceId, aggregator, event);
       }
       this.pendingStreamEvents.set(workspaceId, []);
+
+      // Done replaying buffered events
+      this.replayingHistory.delete(workspaceId);
 
       // Mark as caught up
       this.caughtUp.set(workspaceId, true);
@@ -555,8 +685,10 @@ export class WorkspaceStore {
       // Bump usage after loading history
       this.usageStore.bump(workspaceId);
 
-      // Queue consumer calculation in background
-      this.consumerManager.scheduleCalculation(workspaceId, aggregator);
+      // Schedule consumer calculation once after all buffered events processed
+      if (aggregator.getAllMessages().length > 0) {
+        this.consumerManager.scheduleCalculation(workspaceId, aggregator);
+      }
 
       return;
     }
@@ -578,17 +710,10 @@ export class WorkspaceStore {
     aggregator: StreamingMessageAggregator,
     data: WorkspaceChatMessage
   ): void {
-    // Bump usage if metadata present (forward compatible - works for any event type)
-    this.bumpUsageIfPresent(workspaceId, "metadata" in data ? data.metadata : undefined);
-
     if (isStreamError(data)) {
       aggregator.handleStreamError(data);
       this.states.bump(workspaceId);
-      window.dispatchEvent(
-        new CustomEvent(CUSTOM_EVENTS.RESUME_CHECK_REQUESTED, {
-          detail: { workspaceId },
-        })
-      );
+      this.dispatchResumeCheck(workspaceId);
       return;
     }
 
@@ -624,67 +749,18 @@ export class WorkspaceStore {
       aggregator.handleStreamEnd(data);
       aggregator.clearTokenState(data.messageId);
 
-      // Handle compact_summary completion
-      if (data.parts) {
-        for (const part of data.parts) {
-          if (part.type === "dynamic-tool" && part.toolName === "compact_summary") {
-            const output = part.output as { summary?: string } | undefined;
-            if (output?.summary) {
-              // Extract continueMessage from compaction-request before history gets replaced
-              const messages = aggregator.getAllMessages();
-              const compactRequestMsg = [...messages]
-                .reverse()
-                .find(
-                  (m) =>
-                    m.role === "user" && m.metadata?.cmuxMetadata?.type === "compaction-request"
-                );
-              const cmuxMeta = compactRequestMsg?.metadata?.cmuxMetadata;
-              const continueMessage =
-                cmuxMeta?.type === "compaction-request"
-                  ? cmuxMeta.parsed.continueMessage
-                  : undefined;
-
-              const summaryMessage = createCmuxMessage(
-                `summary-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
-                "assistant",
-                output.summary,
-                {
-                  timestamp: Date.now(),
-                  compacted: true,
-                  model: aggregator.getCurrentModel(),
-                  usage: data.metadata.usage,
-                  providerMetadata: data.metadata.providerMetadata,
-                  duration: data.metadata.duration,
-                  systemMessageTokens: data.metadata.systemMessageTokens,
-                  // Store continueMessage in summary so it survives history replacement
-                  cmuxMetadata: continueMessage
-                    ? { type: "compaction-result", continueMessage }
-                    : { type: "normal" },
-                }
-              );
-
-              void (async () => {
-                try {
-                  await window.api.workspace.replaceChatHistory(workspaceId, summaryMessage);
-                } catch (error) {
-                  console.error("[WorkspaceStore] Failed to replace history:", error);
-                } finally {
-                  this.states.bump(workspaceId);
-                  this.checkAndBumpRecencyIfChanged();
-                }
-              })();
-              return;
-            }
-            break;
-          }
-        }
+      // Early return if compact_summary handled (async replacement in progress)
+      if (this.handleCompactSummaryCompletion(workspaceId, aggregator, data)) {
+        return;
       }
 
+      // Normal stream-end handling
       this.states.bump(workspaceId);
       this.checkAndBumpRecencyIfChanged(); // Stream ended, update recency
 
-      // Queue consumer calculation in background
-      this.consumerManager.scheduleCalculation(workspaceId, aggregator);
+      // Update usage stats and schedule consumer calculation
+      // MUST happen after aggregator.handleStreamEnd() stores the metadata
+      this.finalizeUsageStats(workspaceId, data.metadata);
 
       return;
     }
@@ -693,18 +769,11 @@ export class WorkspaceStore {
       aggregator.clearTokenState(data.messageId);
       aggregator.handleStreamAbort(data);
       this.states.bump(workspaceId);
-      window.dispatchEvent(
-        new CustomEvent(CUSTOM_EVENTS.RESUME_CHECK_REQUESTED, {
-          detail: { workspaceId },
-        })
-      );
+      this.dispatchResumeCheck(workspaceId);
 
-      this.bumpUsageIfPresent(workspaceId, data.metadata);
-
-      // Recalculate consumers if usage updated (abort may have usage if stream completed)
-      if (data.metadata?.usage) {
-        this.consumerManager.scheduleCalculation(workspaceId, aggregator);
-      }
+      // Update usage stats if available (abort may have usage if stream completed processing)
+      // MUST happen after aggregator.handleStreamAbort() stores the metadata
+      this.finalizeUsageStats(workspaceId, data.metadata);
 
       return;
     }
