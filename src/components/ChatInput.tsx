@@ -943,18 +943,37 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         return;
       }
 
-      // Set the input value and let the regular send flow handle it
-      setInput(message);
-      // Focus the input to show what's being sent
-      if (inputRef.current) {
-        inputRef.current.focus();
+      const currentInput = input.trim();
+      
+      if (currentInput) {
+        // If there's existing input, append the message (don't auto-send)
+        const newInput = currentInput + " " + message;
+        setInput(newInput);
+        // Focus the input so user can edit/send
+        if (inputRef.current) {
+          inputRef.current.focus();
+          // Move cursor to end
+          setTimeout(() => {
+            if (inputRef.current) {
+              inputRef.current.selectionStart = inputRef.current.value.length;
+              inputRef.current.selectionEnd = inputRef.current.value.length;
+            }
+          }, 0);
+        }
+      } else {
+        // If input is empty, set the message and auto-send
+        setInput(message);
+        // Focus the input to show what's being sent
+        if (inputRef.current) {
+          inputRef.current.focus();
+        }
+        // Trigger send after a brief delay to ensure state updates
+        setTimeout(() => {
+          void handleSend();
+        }, 10);
       }
-      // Trigger send after a brief delay to ensure state updates
-      setTimeout(() => {
-        void handleSend();
-      }, 10);
     },
-    [disabled, isSending, isCompacting, setInput, handleSend]
+    [disabled, isSending, isCompacting, input, setInput, handleSend]
   );
 
   // Provide API to parent via callback
