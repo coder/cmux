@@ -3,30 +3,42 @@ import type { CmuxMessage } from "@/types/message";
 /**
  * Compute recency timestamp for workspace sorting.
  *
- * Priority order:
- * 1. Last user message timestamp (most recent user interaction)
- * 2. Last compacted message timestamp (fallback for compacted histories)
- * 3. null (workspace has no messages with timestamps)
+ * Returns the maximum of:
+ * - Workspace creation timestamp (ensures newly created/forked workspaces appear at top)
+ * - Last user message timestamp (most recent user interaction)
+ * - Last compacted message timestamp (fallback for compacted histories)
  *
- * Uses single reverse pass for efficiency.
+ * This eliminates race conditions where workspaces appear at bottom before messages load.
  */
-export function computeRecencyTimestamp(messages: CmuxMessage[]): number | null {
-  if (messages.length === 0) {
+export function computeRecencyTimestamp(
+  messages: CmuxMessage[],
+  createdAt?: string
+): number | null {
+  if (messages.length === 0 && !createdAt) {
     return null;
   }
 
-  // Single reverse pass - check both conditions in one iteration
-  const reversed = [...messages].reverse();
-
-  // First priority: user message
-  const lastUserMsg = reversed.find((m) => m.role === "user" && m.metadata?.timestamp);
-  if (lastUserMsg?.metadata?.timestamp) {
-    return lastUserMsg.metadata.timestamp;
+  // Parse createdAt to Unix timestamp (ms), handle invalid dates
+  let createdTimestamp: number | null = null;
+  if (createdAt) {
+    const parsed = new Date(createdAt).getTime();
+    createdTimestamp = !isNaN(parsed) ? parsed : null;
   }
 
-  // Second priority: compacted message
+  // Single reverse pass to find last user and compacted messages
+  const reversed = [...messages].reverse();
+
+  const lastUserMsg = reversed.find((m) => m.role === "user" && m.metadata?.timestamp);
   const lastCompactedMsg = reversed.find(
     (m) => m.metadata?.compacted === true && m.metadata?.timestamp
   );
-  return lastCompactedMsg?.metadata?.timestamp ?? null;
+
+  // Collect all candidate timestamps and return the maximum
+  const candidates = [
+    createdTimestamp,
+    lastUserMsg?.metadata?.timestamp ?? null,
+    lastCompactedMsg?.metadata?.timestamp ?? null,
+  ].filter((t): t is number => t !== null);
+
+  return candidates.length > 0 ? Math.max(...candidates) : null;
 }

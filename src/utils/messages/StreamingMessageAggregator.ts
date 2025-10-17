@@ -50,6 +50,13 @@ export class StreamingMessageAggregator {
   // Current TODO list (updated when todo_write succeeds)
   private currentTodos: TodoItem[] = [];
 
+  // Workspace creation timestamp (used for recency calculation)
+  private createdAt?: string;
+
+  constructor(createdAt?: string) {
+    this.createdAt = createdAt;
+  }
+
   private invalidateCache(): void {
     this.cachedAllMessages = null;
     this.cachedDisplayedMessages = null;
@@ -62,7 +69,7 @@ export class StreamingMessageAggregator {
    */
   private updateRecency(): void {
     const messages = this.getAllMessages();
-    this.recencyTimestamp = computeRecencyTimestamp(messages);
+    this.recencyTimestamp = computeRecencyTimestamp(messages, this.createdAt);
   }
 
   /**

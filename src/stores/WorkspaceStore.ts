@@ -539,7 +539,7 @@ export class WorkspaceStore {
       return;
     }
 
-    const aggregator = this.getOrCreateAggregator(workspaceId);
+    const aggregator = this.getOrCreateAggregator(workspaceId, metadata.createdAt);
 
     // Initialize state
     if (!this.caughtUp.has(workspaceId)) {
@@ -635,9 +635,12 @@ export class WorkspaceStore {
 
   // Private methods
 
-  private getOrCreateAggregator(workspaceId: string): StreamingMessageAggregator {
+  private getOrCreateAggregator(
+    workspaceId: string,
+    createdAt?: string
+  ): StreamingMessageAggregator {
     if (!this.aggregators.has(workspaceId)) {
-      this.aggregators.set(workspaceId, new StreamingMessageAggregator());
+      this.aggregators.set(workspaceId, new StreamingMessageAggregator(createdAt));
     }
     return this.aggregators.get(workspaceId)!;
   }
