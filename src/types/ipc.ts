@@ -37,7 +37,7 @@ export interface BranchListResult {
 
 export interface RebaseResult {
   success: boolean;
-  status: "completed" | "conflicts" | "aborted";
+  status: "completed" | "conflicts" | "aborted" | "resolving";
   conflictFiles?: string[];
   error?: string;
   errorStack?: string;
@@ -284,7 +284,7 @@ export interface IPCApi {
       }
     ): Promise<Result<BashToolResult, string>>;
     openTerminal(workspacePath: string): Promise<void>;
-    rebase(workspaceId: string): Promise<RebaseResult>;
+    rebase(workspaceId: string, sendMessageOptions: SendMessageOptions): Promise<RebaseResult>;
 
     // Event subscriptions (renderer-only)
     // These methods are designed to send current state immediately upon subscription,

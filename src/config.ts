@@ -1,4 +1,3 @@
-import assert from "node:assert/strict";
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
@@ -9,6 +8,7 @@ import type { WorkspaceMetadata, FrontendWorkspaceMetadata } from "./types/works
 import type { Secret, SecretsConfig } from "./types/secrets";
 import type { Workspace, ProjectConfig, ProjectsConfig } from "./types/project";
 import { detectDefaultTrunkBranch } from "./git";
+import { assert } from "./utils/assert";
 
 // Re-export project types from dedicated types file (for preload usage)
 export type { Workspace, ProjectConfig, ProjectsConfig };

@@ -1,6 +1,7 @@
-import { setupWorkspaceWithoutProvider, shouldRunIntegrationTests } from "./setup";
+import { setupWorkspaceWithoutProvider, setupWorkspace, shouldRunIntegrationTests } from "./setup";
 import { IPC_CHANNELS } from "../../src/constants/ipc-constants";
 import type { RebaseResult } from "../../src/types/ipc";
+import { createDefaultSendOptions, createEventCollector } from "./helpers";
 import { exec } from "child_process";
 import { promisify } from "util";
 import * as fs from "fs/promises";
@@ -99,10 +100,11 @@ describeIntegration("IpcMain rebase integration tests", () => {
         expect(behindBefore).toBe(1);
         expect(aheadBefore).toBe(1);
 
-        // Perform rebase via IPC
+        // Perform rebase via IPC (no provider, so agent won't trigger even if conflicts)
         const result = (await env.mockIpcRenderer.invoke(
           IPC_CHANNELS.WORKSPACE_REBASE,
-          workspaceId
+          workspaceId,
+          createDefaultSendOptions()
         )) as RebaseResult;
 
         // Verify rebase succeeded
@@ -158,10 +160,11 @@ describeIntegration("IpcMain rebase integration tests", () => {
         // Verify file exists before rebase
         expect(await fs.readFile(uncommittedFile, "utf-8")).toBe("uncommitted changes");
 
-        // Perform rebase
+        // Perform rebase (no provider, agent won't trigger)
         const result = (await env.mockIpcRenderer.invoke(
           IPC_CHANNELS.WORKSPACE_REBASE,
-          workspaceId
+          workspaceId,
+          createDefaultSendOptions()
         )) as RebaseResult;
 
         expect(result.success).toBe(true);
@@ -212,12 +215,16 @@ describeIntegration("IpcMain rebase integration tests", () => {
         env.sentEvents.length = 0;
 
         // Perform rebase - should result in conflicts
+        // Uses setupWorkspaceWithoutProvider, so no API key = agent can't trigger
+        // Should return "conflicts" status (not "resolving")
         const result = (await env.mockIpcRenderer.invoke(
           IPC_CHANNELS.WORKSPACE_REBASE,
-          workspaceId
+          workspaceId,
+          createDefaultSendOptions()
         )) as RebaseResult;
 
         // Verify conflict was detected
+        // Should be "conflicts" (not "resolving") because agent couldn't trigger without provider
         expect(result.success).toBe(false);
         expect(result.status).toBe("conflicts");
         expect(result.conflictFiles).toBeDefined();
@@ -284,6 +291,93 @@ describeIntegration("IpcMain rebase integration tests", () => {
   );
 
   test.concurrent(
+    "should return 'resolving' status when agent auto-triggers on conflict",
+    async () => {
+      const { env, workspaceId, workspacePath, tempGitRepo, cleanup } = await setupWorkspace(
+        "anthropic",
+        "rebase-resolving"
+      );
+
+      try {
+        // Set up git remote (workspace tracks tempGitRepo as origin)
+        await setupGitRemote(workspacePath, tempGitRepo);
+
+        // Add workspace to config with proper metadata
+        await env.mockIpcRenderer.invoke(IPC_CHANNELS.PROJECT_CREATE, tempGitRepo);
+        const projectsConfig = env.config.loadConfigOrDefault();
+        const projectConfig = projectsConfig.projects.get(tempGitRepo);
+        if (projectConfig) {
+          projectConfig.workspaces.push({
+            path: workspacePath,
+            trunkBranch: "main",
+            id: workspaceId,
+            name: workspacePath.split("/").pop() ?? "test",
+            createdAt: new Date().toISOString(),
+          });
+          env.config.saveConfig(projectsConfig);
+        }
+
+        // Create conflicting change in main branch
+        await execAsync(`echo "main version" >> conflict.txt`, { cwd: tempGitRepo });
+        await execAsync(`git add . && git commit -m "Main change"`, { cwd: tempGitRepo });
+
+        // Create conflicting change in workspace
+        await execAsync(`echo "workspace version" >> conflict.txt`, { cwd: workspacePath });
+        await execAsync(`git add . && git commit -m "Workspace change"`, { cwd: workspacePath });
+
+        // Clear events from setup
+        env.sentEvents.length = 0;
+
+        // Perform rebase with provider configured - agent should trigger
+        const result = (await env.mockIpcRenderer.invoke(
+          IPC_CHANNELS.WORKSPACE_REBASE,
+          workspaceId,
+          createDefaultSendOptions()
+        )) as RebaseResult;
+
+        // Should return "resolving" status (agent was successfully triggered)
+        expect(result.success).toBe(false);
+        expect(result.status).toBe("resolving");
+        expect(result.conflictFiles).toBeDefined();
+        expect(result.conflictFiles).toContain("conflict.txt");
+
+        // Verify agent started streaming
+        const collector = createEventCollector(env.sentEvents, workspaceId);
+        const streamStart = await collector.waitForEvent("stream-start", 5000);
+        expect(streamStart).toBeDefined();
+
+        // Verify comprehensive diagnostic message was sent
+        const userMessages = collector.getEvents().filter((e) => "role" in e && e.role === "user");
+        expect(userMessages.length).toBeGreaterThan(0);
+
+        const diagnosticMsg = userMessages.find((m) => {
+          if (!("parts" in m) || !m.parts || m.parts.length === 0) return false;
+          const part = m.parts[0];
+          if (!("text" in part)) return false;
+          const text = part.text || "";
+          return text.includes("Git rebase has conflicts") && text.includes("Current Git State");
+        });
+
+        expect(diagnosticMsg).toBeDefined();
+        if (diagnosticMsg && "parts" in diagnosticMsg) {
+          const part = diagnosticMsg.parts[0];
+          if (!("text" in part)) {
+            throw new Error("Expected text part in diagnostic message");
+          }
+          const content = part.text;
+          // Verify includes conflict file list
+          expect(content).toContain("conflict.txt");
+          // Verify includes git diagnostics
+          expect(content).toContain("Current Git State");
+        }
+      } finally {
+        await cleanup();
+      }
+    },
+    60000
+  );
+
+  test.concurrent(
     "should fail gracefully when rebase already in progress",
     async () => {
       const { env, workspaceId, workspacePath, tempGitRepo, cleanup } =
@@ -331,7 +425,8 @@ describeIntegration("IpcMain rebase integration tests", () => {
         // Try to rebase via IPC - should fail because rebase already in progress
         const result = (await env.mockIpcRenderer.invoke(
           IPC_CHANNELS.WORKSPACE_REBASE,
-          workspaceId
+          workspaceId,
+          createDefaultSendOptions()
         )) as RebaseResult;
 
         // Should fail with assertion error or aborted status
