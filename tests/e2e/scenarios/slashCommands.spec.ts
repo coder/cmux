@@ -81,7 +81,7 @@ test.describe("slash command flows", () => {
       });
     }
 
-    const timeline = await ui.chat.captureStreamTimeline(
+    await ui.chat.captureStreamTimeline(
       async () => {
         await ui.chat.sendMessage("/compact -t 500");
       },
@@ -89,11 +89,9 @@ test.describe("slash command flows", () => {
     );
 
     await ui.chat.expectStatusMessageContains("Compaction started");
-    const compactToolStart = timeline.events.find(
-      (event) => event.type === "tool-call-start" && event.toolName === "compact_summary"
-    );
-    expect(compactToolStart).toBeDefined();
-
+    
+    // Compaction now uses direct text streaming instead of a tool call
+    // Verify the summary text appears in the transcript
     const transcript = page.getByRole("log", { name: "Conversation transcript" });
     await ui.chat.expectTranscriptContains(COMPACT_SUMMARY_TEXT);
     await expect(transcript).toContainText(COMPACT_SUMMARY_TEXT);
