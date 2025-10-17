@@ -3,7 +3,7 @@ import * as fs from "fs/promises";
 import * as path from "path";
 import { minimatch } from "minimatch";
 import ignore from "ignore";
-import type { FileEntry, FileListToolArgs, FileListToolResult } from "@/types/tools";
+import type { FileEntry, FileListToolResult } from "@/types/tools";
 import { TOOL_DEFINITIONS } from "@/utils/tools/toolDefinitions";
 import { validatePathInCwd } from "./fileCommon";
 import {
@@ -81,7 +81,7 @@ export function createFileListTool(config: { cwd: string }) {
       let stats;
       try {
         stats = await fs.stat(resolvedPath);
-      } catch (err) {
+      } catch {
         return {
           success: false,
           error: `Path does not exist: ${targetPath}`,
@@ -131,7 +131,7 @@ export function createFileListTool(config: { cwd: string }) {
         let dirents;
         try {
           dirents = await fs.readdir(dir, { withFileTypes: true });
-        } catch (err) {
+        } catch {
           // If we can't read the directory (permissions, etc.), skip it
           return { entries: [], totalCount: currentCount.value, exceeded: false };
         }

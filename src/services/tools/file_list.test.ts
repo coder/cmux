@@ -31,7 +31,7 @@ describe("file_list tool", () => {
         {
           path: ".",
         },
-        {} as any
+        { abortSignal: new AbortController().signal }
       )) as Extract<FileListToolResult, { success: true }>;
 
       expect(result.success).toBe(true);
@@ -58,7 +58,7 @@ describe("file_list tool", () => {
           path: ".",
           max_depth: 2,
         },
-        {} as any
+        { abortSignal: new AbortController().signal }
       )) as Extract<FileListToolResult, { success: true }>;
 
       expect(result.success).toBe(true);
@@ -80,7 +80,7 @@ describe("file_list tool", () => {
         {
           path: ".",
         },
-        {} as any
+        { abortSignal: new AbortController().signal }
       )) as Extract<FileListToolResult, { success: true }>;
 
       expect(result.success).toBe(true);
@@ -92,7 +92,7 @@ describe("file_list tool", () => {
         {
           path: ".",
         },
-        {} as any
+        { abortSignal: new AbortController().signal }
       )) as Extract<FileListToolResult, { success: true }>;
 
       expect(result.success).toBe(true);
@@ -112,7 +112,7 @@ describe("file_list tool", () => {
           path: ".",
           pattern: "*.ts",
         },
-        {} as any
+        { abortSignal: new AbortController().signal }
       )) as Extract<FileListToolResult, { success: true }>;
 
       expect(result.success).toBe(true);
@@ -133,7 +133,7 @@ describe("file_list tool", () => {
           pattern: "*.ts",
           max_depth: 2,
         },
-        {} as any
+        { abortSignal: new AbortController().signal }
       )) as Extract<FileListToolResult, { success: true }>;
 
       expect(result.success).toBe(true);
@@ -158,7 +158,7 @@ describe("file_list tool", () => {
         {
           path: ".",
         },
-        {} as any
+        { abortSignal: new AbortController().signal }
       )) as Extract<FileListToolResult, { success: true }>;
 
       expect(result.success).toBe(true);
@@ -179,7 +179,7 @@ describe("file_list tool", () => {
           path: ".",
           gitignore: false,
         },
-        {} as any
+        { abortSignal: new AbortController().signal }
       )) as Extract<FileListToolResult, { success: true }>;
 
       expect(result.success).toBe(true);
@@ -196,7 +196,7 @@ describe("file_list tool", () => {
           path: ".",
           gitignore: false,
         },
-        {} as any
+        { abortSignal: new AbortController().signal }
       )) as Extract<FileListToolResult, { success: true }>;
 
       expect(result.success).toBe(true);
@@ -212,7 +212,7 @@ describe("file_list tool", () => {
         {
           path: ".",
         },
-        {} as any
+        { abortSignal: new AbortController().signal }
       )) as Extract<FileListToolResult, { success: true }>;
 
       expect(result.success).toBe(true);
@@ -232,7 +232,7 @@ describe("file_list tool", () => {
         {
           path: ".",
         },
-        {} as any
+        { abortSignal: new AbortController().signal }
       )) as Extract<FileListToolResult, { success: false }>;
 
       expect(result.success).toBe(false);
@@ -251,7 +251,7 @@ describe("file_list tool", () => {
           path: ".",
           max_entries: 10,
         },
-        {} as any
+        { abortSignal: new AbortController().signal }
       )) as Extract<FileListToolResult, { success: false }>;
 
       expect(result.success).toBe(false);
@@ -268,7 +268,7 @@ describe("file_list tool", () => {
           path: ".",
           max_entries: 200, // Try to exceed hard cap
         },
-        {} as any
+        { abortSignal: new AbortController().signal }
       )) as Extract<FileListToolResult, { success: true }>;
 
       expect(result.success).toBe(true);
@@ -282,7 +282,7 @@ describe("file_list tool", () => {
         {
           path: "nonexistent",
         },
-        {} as any
+        { abortSignal: new AbortController().signal }
       )) as Extract<FileListToolResult, { success: false }>;
 
       expect(result.success).toBe(false);
@@ -296,7 +296,7 @@ describe("file_list tool", () => {
         {
           path: "file.txt",
         },
-        {} as any
+        { abortSignal: new AbortController().signal }
       )) as Extract<FileListToolResult, { success: false }>;
 
       expect(result.success).toBe(false);
@@ -308,7 +308,7 @@ describe("file_list tool", () => {
         {
           path: "..",
         },
-        {} as any
+        { abortSignal: new AbortController().signal }
       )) as Extract<FileListToolResult, { success: false }>;
 
       expect(result.success).toBe(false);
@@ -331,7 +331,7 @@ describe("file_list tool", () => {
           path: ".",
           max_depth: 15, // Try to exceed max
         },
-        {} as any
+        { abortSignal: new AbortController().signal }
       )) as Extract<FileListToolResult, { success: true }>;
 
       expect(result.success).toBe(true);
@@ -348,7 +348,7 @@ describe("file_list tool", () => {
           path: ".",
           max_depth: 1,
         },
-        {} as any
+        { abortSignal: new AbortController().signal }
       )) as Extract<FileListToolResult, { success: true }>;
 
       expect(result.success).toBe(true);
