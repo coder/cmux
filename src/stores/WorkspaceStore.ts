@@ -1,3 +1,4 @@
+import assert from "@/utils/assert";
 import type { CmuxMessage, DisplayedMessage } from "@/types/message";
 import { createCmuxMessage } from "@/types/message";
 import type { FrontendWorkspaceMetadata } from "@/types/workspace";
@@ -23,7 +24,7 @@ import {
   isReasoningEnd,
 } from "@/types/ipc";
 import { MapStore } from "./MapStore";
-import { createDisplayUsage } from "@/utils/tokens/tokenStatsCalculator";
+import { createDisplayUsage } from "@/utils/tokens/displayUsage";
 import { WorkspaceConsumerManager } from "./WorkspaceConsumerManager";
 import type { ChatUsageDisplay } from "@/utils/tokens/usageAggregator";
 import type { TokenConsumer } from "@/types/chatStats";
@@ -112,6 +113,7 @@ export class WorkspaceStore {
   // Architecture: WorkspaceStore orchestrates (decides when), manager executes (performs calculations)
   // Dual-cache: consumersStore (MapStore) handles subscriptions, manager owns data cache
   private readonly consumerManager: WorkspaceConsumerManager;
+  private readonly cleanupTokenizerReady: () => void;
 
   // Supporting data structures
   private aggregators = new Map<string, StreamingMessageAggregator>();
@@ -142,6 +144,31 @@ export class WorkspaceStore {
     this.consumerManager = new WorkspaceConsumerManager((workspaceId) => {
       this.consumersStore.bump(workspaceId);
     });
+
+    const rescheduleConsumers = () => {
+      for (const [workspaceId, aggregator] of this.aggregators.entries()) {
+        assert(
+          workspaceId.length > 0,
+          "Workspace ID must be non-empty when rescheduling consumers"
+        );
+        if (!this.caughtUp.get(workspaceId)) {
+          continue;
+        }
+        if (aggregator.getAllMessages().length === 0) {
+          continue;
+        }
+        this.consumerManager.scheduleCalculation(workspaceId, aggregator);
+      }
+    };
+
+    const cleanupReady = this.consumerManager.onTokenizerReady(rescheduleConsumers);
+    const cleanupEncoding = this.consumerManager.onTokenizerEncodingLoaded(() => {
+      rescheduleConsumers();
+    });
+    this.cleanupTokenizerReady = () => {
+      cleanupReady();
+      cleanupEncoding();
+    };
 
     // Note: We DON'T auto-check recency on every state bump.
     // Instead, checkAndBumpRecencyIfChanged() is called explicitly after
@@ -714,6 +741,7 @@ export class WorkspaceStore {
   dispose(): void {
     // Clean up consumer manager
     this.consumerManager.dispose();
+    this.cleanupTokenizerReady();
 
     for (const unsubscribe of this.ipcUnsubscribers.values()) {
       unsubscribe();

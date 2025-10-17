@@ -5,6 +5,7 @@
 
 import type { CmuxMessage } from "@/types/message";
 import type { ChatStats } from "@/types/chatStats";
+import { onTokenizerEncodingLoaded, onTokenizerModulesLoaded } from "@/utils/main/tokenizer";
 import { calculateTokenStats } from "./tokenStatsCalculator";
 
 export interface WorkerRequest {
@@ -24,6 +25,10 @@ export interface WorkerError {
   success: false;
   error: string;
 }
+
+export type WorkerNotification =
+  | { type: "tokenizer-ready" }
+  | { type: "encoding-loaded"; encodingName: string };
 
 // Handle incoming calculation requests
 self.onmessage = (e: MessageEvent<WorkerRequest>) => {
@@ -46,3 +51,19 @@ self.onmessage = (e: MessageEvent<WorkerRequest>) => {
     self.postMessage(errorResponse);
   }
 };
+
+onTokenizerModulesLoaded(() => {
+  const notification: WorkerNotification = { type: "tokenizer-ready" };
+  self.postMessage(notification);
+});
+
+onTokenizerEncodingLoaded((encodingName) => {
+  if (typeof encodingName !== "string" || encodingName.length === 0) {
+    throw new Error("Worker received invalid tokenizer encoding name");
+  }
+  const notification: WorkerNotification = {
+    type: "encoding-loaded",
+    encodingName,
+  };
+  self.postMessage(notification);
+});

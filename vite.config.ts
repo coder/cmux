@@ -43,10 +43,7 @@ const basePlugins = [
 
 export default defineConfig(({ mode }) => ({
   // This prevents mermaid initialization errors in production while allowing dev to work
-  plugins:
-    mode === "development"
-      ? [...basePlugins, topLevelAwait()]
-      : basePlugins,
+  plugins: mode === "development" ? [...basePlugins, topLevelAwait()] : basePlugins,
   resolve: {
     alias,
   },
@@ -62,6 +59,17 @@ export default defineConfig(({ mode }) => ({
         format: "es",
         inlineDynamicImports: false,
         sourcemapExcludeSources: false,
+        manualChunks(id) {
+          const normalizedId = id.split(path.sep).join("/");
+          if (normalizedId.includes("node_modules/ai-tokenizer/encoding/")) {
+            const chunkName = path.basename(id, path.extname(id));
+            return `tokenizer-encoding-${chunkName}`;
+          }
+          if (normalizedId.includes("node_modules/ai-tokenizer/")) {
+            return "tokenizer-base";
+          }
+          return undefined;
+        },
       },
     },
     chunkSizeWarningLimit: 2000,

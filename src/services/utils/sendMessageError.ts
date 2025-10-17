@@ -1,4 +1,4 @@
-import assert from "node:assert/strict";
+import assert from "@/utils/assert";
 import type { SendMessageError } from "@/types/errors";
 
 /**

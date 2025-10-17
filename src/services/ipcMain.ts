@@ -1,4 +1,4 @@
-import assert from "node:assert/strict";
+import assert from "@/utils/assert";
 import type { BrowserWindow, IpcMain as ElectronIpcMain } from "electron";
 import { spawn, spawnSync } from "child_process";
 import * as fsPromises from "fs/promises";

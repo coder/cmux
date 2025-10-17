@@ -317,6 +317,7 @@ export default defineConfig([
       "src/services/aiService.ts",
       "src/utils/tools/tools.ts",
       "src/utils/ai/providerFactory.ts",
+      "src/utils/main/tokenizer.ts",
     ],
     rules: {
       "no-restricted-syntax": "off",
