@@ -6,9 +6,8 @@ import { TooltipWrapper, Tooltip } from "./Tooltip";
 const FKeyBarContainer = styled.div`
   display: flex;
   gap: 3px;
-  padding: 3px 6px;
-  background: #1e1e1e;
-  border-bottom: 1px solid #3e3e42;
+  padding: 4px 6px 2px 6px;
+  background: #252526;
   align-items: center;
   flex-shrink: 0;
 `;
