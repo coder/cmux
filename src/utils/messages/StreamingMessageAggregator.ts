@@ -55,6 +55,10 @@ export class StreamingMessageAggregator {
 
   constructor(createdAt?: string) {
     this.createdAt = createdAt;
+    // Initialize recency immediately (ensures workspace appears at correct position before messages load)
+    if (createdAt) {
+      this.updateRecency();
+    }
   }
 
   private invalidateCache(): void {
