@@ -125,7 +125,12 @@ const ChatMetaSidebarComponent: React.FC<ChatMetaSidebarProps> = ({ workspaceId,
   const EXPAND_THRESHOLD = 1100; // Expand above this
   const chatAreaWidth = chatAreaSize?.width ?? 1000; // Default to large to avoid flash
 
-  const [showCollapsed, setShowCollapsed] = React.useState(false);
+  // Persist collapsed state globally (not per-workspace) since chat area width is shared
+  // This prevents animation flash when switching workspaces - sidebar maintains its state
+  const [showCollapsed, setShowCollapsed] = usePersistedState<boolean>(
+    "chat-meta-sidebar:collapsed",
+    false
+  );
 
   React.useEffect(() => {
     if (chatAreaWidth <= COLLAPSE_THRESHOLD) {
