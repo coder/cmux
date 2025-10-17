@@ -546,9 +546,11 @@ describeIntegration("IpcMain sendMessage integration tests", () => {
           expect(result.success).toBe(true);
 
           // Wait for stream to complete
-          const collector = createEventCollector(env.sentEvents, workspaceId);
-          await collector.waitForEvent("stream-end", provider === "openai" ? 30000 : 10000);
-          assertStreamSuccess(collector);
+          const collector = await waitForStreamSuccess(
+            env.sentEvents,
+            workspaceId,
+            provider === "openai" ? 30000 : 10000
+          );
 
           // Get the final assistant message
           const finalMessage = collector.getFinalMessage();
@@ -793,8 +795,7 @@ These are general instructions that apply to all modes.
           );
 
           // Collect response
-          const collector = createEventCollector(env.sentEvents, workspaceId);
-          await collector.waitForEvent("stream-end", 10000);
+          const collector = await waitForStreamSuccess(env.sentEvents, workspaceId, 10000);
 
           results[provider] = {
             success: result.success,
@@ -1193,9 +1194,7 @@ These are general instructions that apply to all modes.
           expect(result.success).toBe(true);
 
           // Wait for stream to complete
-          const collector = createEventCollector(env.sentEvents, workspaceId);
-          await collector.waitForEvent("stream-end", 10000);
-          assertStreamSuccess(collector);
+          const collector = await waitForStreamSuccess(env.sentEvents, workspaceId, 10000);
 
           // Get the final assistant message
           const finalMessage = collector.getFinalMessage();
