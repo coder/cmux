@@ -53,6 +53,9 @@ yarn-error.log
 # testing
 /coverage
 
+# ESLint cache for faster incremental lints
+.eslintcache
+
 # Bun
 bun.lockb
 dist
