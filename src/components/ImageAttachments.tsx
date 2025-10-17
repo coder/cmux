@@ -49,8 +49,8 @@ const RemoveButton = styled.button`
 
 export interface ImageAttachment {
   id: string;
-  dataUrl: string;
-  mimeType: string;
+  url: string;
+  mediaType: string;
 }
 
 interface ImageAttachmentsProps {
@@ -65,7 +65,7 @@ export const ImageAttachments: React.FC<ImageAttachmentsProps> = ({ images, onRe
     <AttachmentsContainer>
       {images.map((image) => (
         <ImagePreview key={image.id}>
-          <PreviewImage src={image.dataUrl} alt="Attached image" />
+          <PreviewImage src={image.url} alt="Attached image" />
           <RemoveButton onClick={() => onRemove(image.id)} title="Remove image">
             ×
           </RemoveButton>

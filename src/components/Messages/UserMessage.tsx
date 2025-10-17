@@ -141,7 +141,7 @@ export const UserMessage: React.FC<UserMessageProps> = ({
       {message.imageParts && message.imageParts.length > 0 && (
         <ImageContainer>
           {message.imageParts.map((img, idx) => (
-            <MessageImage key={idx} src={img.image} alt={`Attachment ${idx + 1}`} />
+            <MessageImage key={idx} src={img.url} alt={`Attachment ${idx + 1}`} />
           ))}
         </ImageContainer>
       )}

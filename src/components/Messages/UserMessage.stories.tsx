@@ -71,8 +71,8 @@ export const WithSingleImage: Story = {
     message: createUserMessage("What's in this image?", {
       imageParts: [
         {
-          image: "https://placehold.co/600x400",
-          mimeType: "image/png",
+          url: "https://placehold.co/600x400",
+          mediaType: "image/png",
         },
       ],
     }),
@@ -84,16 +84,16 @@ export const WithMultipleImages: Story = {
     message: createUserMessage("Compare these screenshots:", {
       imageParts: [
         {
-          image: "https://placehold.co/600x400?text=Before",
-          mimeType: "image/png",
+          url: "https://placehold.co/600x400?text=Before",
+          mediaType: "image/png",
         },
         {
-          image: "https://placehold.co/600x400?text=After",
-          mimeType: "image/png",
+          url: "https://placehold.co/600x400?text=After",
+          mediaType: "image/png",
         },
         {
-          image: "https://placehold.co/600x400?text=Expected",
-          mimeType: "image/png",
+          url: "https://placehold.co/600x400?text=Expected",
+          mediaType: "image/png",
         },
       ],
     }),
@@ -118,8 +118,8 @@ export const EmptyContent: Story = {
     message: createUserMessage("", {
       imageParts: [
         {
-          image: "https://placehold.co/300x400?text=Image+Only",
-          mimeType: "image/png",
+          url: "https://placehold.co/300x400?text=Image+Only",
+          mediaType: "image/png",
         },
       ],
     }),

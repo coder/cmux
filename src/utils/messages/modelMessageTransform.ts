@@ -486,12 +486,12 @@ function mergeConsecutiveUserMessages(messages: ModelMessage[]): ModelMessage[] 
       // Merge with newline prefix
       const mergedText = prevText + "\n" + currentText;
 
-      // Collect image parts from both messages
+      // Collect file/image parts from both messages
       const prevImageParts = Array.isArray(prevMsg.content)
-        ? prevMsg.content.filter((c) => c.type === "image")
+        ? prevMsg.content.filter((c) => c.type === "file")
         : [];
       const currentImageParts = Array.isArray(msg.content)
-        ? msg.content.filter((c) => c.type === "image")
+        ? msg.content.filter((c) => c.type === "file")
         : [];
 
       // Update the previous message with merged text and all image parts

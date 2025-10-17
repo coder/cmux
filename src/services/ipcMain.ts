@@ -528,7 +528,7 @@ export class IpcMain {
         _event,
         workspaceId: string,
         message: string,
-        options?: SendMessageOptions & { imageParts?: Array<{ image: string; mimeType: string }> }
+        options?: SendMessageOptions & { imageParts?: Array<{ url: string; mediaType: string }> }
       ) => {
         log.debug("sendMessage handler: Received", {
           workspaceId,

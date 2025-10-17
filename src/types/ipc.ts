@@ -203,7 +203,7 @@ export interface IPCApi {
     sendMessage(
       workspaceId: string,
       message: string,
-      options?: SendMessageOptions & { imageParts?: Array<{ image: string; mimeType: string }> }
+      options?: SendMessageOptions & { imageParts?: Array<{ url: string; mediaType: string }> }
     ): Promise<Result<void, SendMessageError>>;
     resumeStream(
       workspaceId: string,

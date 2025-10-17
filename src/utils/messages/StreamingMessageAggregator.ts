@@ -511,10 +511,10 @@ export class StreamingMessageAggregator {
             .join("");
 
           const imageParts = message.parts
-            .filter((p) => p.type === "image")
+            .filter((p) => p.type === "file")
             .map((p) => ({
-              image: typeof p.image === "string" ? p.image : "",
-              mimeType: p.mimeType,
+              url: typeof p.url === "string" ? p.url : "",
+              mediaType: p.mediaType,
             }));
 
           // Check if this is a compaction request message

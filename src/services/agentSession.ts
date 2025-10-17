@@ -15,8 +15,8 @@ import { Ok, Err } from "@/types/result";
 import { enforceThinkingPolicy } from "@/utils/thinking/policy";
 
 interface ImagePart {
-  image: string;
-  mimeType: string;
+  url: string;
+  mediaType: string;
 }
 
 export interface AgentSessionChatEvent {
@@ -221,15 +221,15 @@ export class AgentSession {
     const additionalParts =
       imageParts && imageParts.length > 0
         ? imageParts.map((img) => {
-            assert(typeof img.image === "string", "image part must include base64 string content");
+            assert(typeof img.url === "string", "image part must include url string content");
             assert(
-              typeof img.mimeType === "string" && img.mimeType.trim().length > 0,
-              "image part must include a mimeType"
+              typeof img.mediaType === "string" && img.mediaType.trim().length > 0,
+              "image part must include a mediaType"
             );
             return {
-              type: "image" as const,
-              image: img.image,
-              mimeType: img.mimeType,
+              type: "file" as const,
+              url: img.url,
+              mediaType: img.mediaType,
             };
           })
         : undefined;

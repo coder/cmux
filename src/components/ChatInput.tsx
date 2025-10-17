@@ -588,8 +588,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         if (dataUrl) {
           const attachment: ImageAttachment = {
             id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            dataUrl,
-            mimeType: file.type,
+            url: dataUrl,
+            mediaType: file.type,
           };
           setImageAttachments((prev) => [...prev, attachment]);
         }
@@ -819,8 +819,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       try {
         // Prepare image parts if any
         const imageParts = imageAttachments.map((img) => ({
-          image: img.dataUrl,
-          mimeType: img.mimeType,
+          url: img.url,
+          mediaType: img.mediaType,
         }));
 
         // When editing a /compact command, regenerate the actual summarization request
