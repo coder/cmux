@@ -123,6 +123,9 @@ export class WorkspaceStore {
   // Track previous sidebar state per workspace (to prevent unnecessary bumps)
   private previousSidebarValues = new Map<string, WorkspaceSidebarState>();
 
+  // Track workspaces currently replaying buffered history (to avoid O(N) scheduling)
+  private replayingHistory = new Set<string>();
+
   // Track model usage (injected dependency for useModelLRU integration)
   private readonly onModelUsed?: (model: string) => void;
 
@@ -388,15 +391,39 @@ export class WorkspaceStore {
   }
 
   /**
-   * Helper to bump usage store if metadata contains usage.
-   * Simplifies event handling logic and provides forward compatibility.
+   * Update usage and schedule consumer calculation after stream completion.
+   *
+   * CRITICAL ORDERING: This must be called AFTER the aggregator updates its messages.
+   * If called before, the UI will re-render and read stale data from the aggregator,
+   * causing a race condition where usage appears empty until refresh.
+   *
+   * Handles both:
+   * - Instant usage display (from API metadata) - only if usage present
+   * - Async consumer breakdown (tokenization via Web Worker) - normally scheduled,
+   *   but skipped during history replay to avoid O(N) scheduling overhead
    */
-  private bumpUsageIfPresent(
+  private finalizeUsageStats(
     workspaceId: string,
-    metadata?: { usage?: LanguageModelV2Usage; model?: string }
+    metadata?: { usage?: LanguageModelV2Usage }
   ): void {
+    // During history replay: only bump usage, skip scheduling (caught-up schedules once at end)
+    if (this.replayingHistory.has(workspaceId)) {
+      if (metadata?.usage) {
+        this.usageStore.bump(workspaceId);
+      }
+      return;
+    }
+
+    // Normal real-time path: bump usage and schedule calculation
     if (metadata?.usage) {
       this.usageStore.bump(workspaceId);
+    }
+
+    // Always schedule consumer calculation (tool calls, text, etc. need tokenization)
+    // Even streams without usage metadata need token counts recalculated
+    const aggregator = this.aggregators.get(workspaceId);
+    if (aggregator) {
+      this.consumerManager.scheduleCalculation(workspaceId, aggregator);
     }
   }
 
@@ -540,12 +567,18 @@ export class WorkspaceStore {
         this.historicalMessages.set(workspaceId, []);
       }
 
+      // Mark that we're replaying buffered history (prevents O(N) scheduling)
+      this.replayingHistory.add(workspaceId);
+
       // Process buffered stream events now that history is loaded
       const pendingEvents = this.pendingStreamEvents.get(workspaceId) ?? [];
       for (const event of pendingEvents) {
         this.processStreamEvent(workspaceId, aggregator, event);
       }
       this.pendingStreamEvents.set(workspaceId, []);
+
+      // Done replaying buffered events
+      this.replayingHistory.delete(workspaceId);
 
       // Mark as caught up
       this.caughtUp.set(workspaceId, true);
@@ -555,8 +588,10 @@ export class WorkspaceStore {
       // Bump usage after loading history
       this.usageStore.bump(workspaceId);
 
-      // Queue consumer calculation in background
-      this.consumerManager.scheduleCalculation(workspaceId, aggregator);
+      // Schedule consumer calculation once after all buffered events processed
+      if (aggregator.getAllMessages().length > 0) {
+        this.consumerManager.scheduleCalculation(workspaceId, aggregator);
+      }
 
       return;
     }
@@ -578,9 +613,6 @@ export class WorkspaceStore {
     aggregator: StreamingMessageAggregator,
     data: WorkspaceChatMessage
   ): void {
-    // Bump usage if metadata present (forward compatible - works for any event type)
-    this.bumpUsageIfPresent(workspaceId, "metadata" in data ? data.metadata : undefined);
-
     if (isStreamError(data)) {
       aggregator.handleStreamError(data);
       this.states.bump(workspaceId);
@@ -683,8 +715,9 @@ export class WorkspaceStore {
       this.states.bump(workspaceId);
       this.checkAndBumpRecencyIfChanged(); // Stream ended, update recency
 
-      // Queue consumer calculation in background
-      this.consumerManager.scheduleCalculation(workspaceId, aggregator);
+      // Update usage stats and schedule consumer calculation
+      // MUST happen after aggregator.handleStreamEnd() stores the metadata
+      this.finalizeUsageStats(workspaceId, data.metadata);
 
       return;
     }
@@ -699,12 +732,9 @@ export class WorkspaceStore {
         })
       );
 
-      this.bumpUsageIfPresent(workspaceId, data.metadata);
-
-      // Recalculate consumers if usage updated (abort may have usage if stream completed)
-      if (data.metadata?.usage) {
-        this.consumerManager.scheduleCalculation(workspaceId, aggregator);
-      }
+      // Update usage stats if available (abort may have usage if stream completed processing)
+      // MUST happen after aggregator.handleStreamAbort() stores the metadata
+      this.finalizeUsageStats(workspaceId, data.metadata);
 
       return;
     }
