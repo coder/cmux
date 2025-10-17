@@ -232,6 +232,8 @@ const AIViewInner: React.FC<AIViewProps> = ({
 
   // Jump to bottom using Virtuoso's API
   const jumpToBottom = useCallback(() => {
+    // Enable autoScroll to activate followOutput, which ensures we scroll past Footer content
+    setAutoScroll(true);
     if (virtuosoRef.current) {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
       virtuosoRef.current.scrollToIndex({
