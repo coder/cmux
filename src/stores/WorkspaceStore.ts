@@ -425,10 +425,8 @@ export class WorkspaceStore {
 
     // Check if this was a compaction stream by looking at the last user message
     const messages = aggregator.getAllMessages();
-    const lastUserMsg = [...messages]
-      .reverse()
-      .find((m) => m.role === "user");
-    
+    const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
+
     if (lastUserMsg?.metadata?.cmuxMetadata?.type !== "compaction-request") {
       return false;
     }
