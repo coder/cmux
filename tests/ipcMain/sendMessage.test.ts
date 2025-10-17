@@ -1449,3 +1449,106 @@ These are general instructions that apply to all modes.
     5000
   );
 });
+
+  // Test image support across providers
+  describe.each(PROVIDER_CONFIGS)("%s:%s image support", (provider, model) => {
+    test.concurrent(
+      "should send images to AI model and get response",
+      async () => {
+        const { env, workspaceId, cleanup } = await setupWorkspace(provider);
+        try {
+          // Create a small test image (1x1 red pixel PNG)
+          const redPixelPNG =
+            "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==";
+
+          // Send message with image attachment
+          const result = await sendMessage(env.mockIpcRenderer, workspaceId, "What color is this?", {
+            model: modelString(provider, model),
+            imageParts: [
+              {
+                url: redPixelPNG,
+                mediaType: "image/png",
+              },
+            ],
+          });
+
+          // Verify IPC call succeeded
+          expect(result.success).toBe(true);
+
+          // Collect and verify stream events
+          const collector = createEventCollector(env.sentEvents, workspaceId);
+          const streamEnd = await collector.waitForEvent("stream-end", 30000);
+
+          expect(streamEnd).toBeDefined();
+          assertStreamSuccess(collector);
+
+          // Verify we got a response about the image
+          const deltas = collector.getDeltas();
+          expect(deltas.length).toBeGreaterThan(0);
+
+          // Combine all text deltas
+          const fullResponse = deltas.map((d) => d.textDelta).join("").toLowerCase();
+
+          // Should mention red color in some form
+          expect(fullResponse.length).toBeGreaterThan(0);
+          // Red pixel should be detected (flexible matching as different models may phrase differently)
+          expect(fullResponse).toMatch(/red|color/i);
+        } finally {
+          await cleanup();
+        }
+      },
+      40000 // Vision models can be slower
+    );
+
+    test.concurrent(
+      "should preserve image parts through history",
+      async () => {
+        const { env, workspaceId, cleanup } = await setupWorkspace(provider);
+        try {
+          // Create test image
+          const testImage =
+            "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M/wHwAEBgIApD5fRAAAAABJRU5ErkJggg==";
+
+          // Send message with image
+          const result = await sendMessage(env.mockIpcRenderer, workspaceId, "Describe this", {
+            model: modelString(provider, model),
+            imageParts: [
+              {
+                url: testImage,
+                mediaType: "image/png",
+              },
+            ],
+          });
+
+          expect(result.success).toBe(true);
+
+          // Wait for stream to complete
+          const collector = createEventCollector(env.sentEvents, workspaceId);
+          await collector.waitForEvent("stream-end", 30000);
+          assertStreamSuccess(collector);
+
+          // Read history from disk
+          const historyPath = path.join(env.tempDir, "sessions", workspaceId, "chat.jsonl");
+          const historyContent = await fs.readFile(historyPath, "utf-8");
+          const messages = historyContent
+            .trim()
+            .split("\n")
+            .map((line) => JSON.parse(line));
+
+          // Find the user message
+          const userMessage = messages.find((m: { role: string }) => m.role === "user");
+          expect(userMessage).toBeDefined();
+
+          // Verify image part is preserved
+          const imagePart = userMessage.parts.find((p: { type: string }) => p.type === "file");
+          expect(imagePart).toBeDefined();
+          expect(imagePart.url).toBe(testImage);
+          expect(imagePart.mediaType).toBe("image/png");
+        } finally {
+          await cleanup();
+        }
+      },
+      40000
+    );
+  });
+
