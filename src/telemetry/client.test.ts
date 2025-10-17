@@ -1,3 +1,13 @@
+// Mock posthog-js to avoid import issues in test environment
+jest.mock("posthog-js", () => ({
+  __esModule: true,
+  default: {
+    init: jest.fn(),
+    capture: jest.fn(),
+    reset: jest.fn(),
+  },
+}));
+
 import { initTelemetry, trackEvent, isTelemetryInitialized } from "./client";
 
 describe("Telemetry", () => {

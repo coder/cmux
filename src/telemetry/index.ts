@@ -7,4 +7,4 @@
 
 export { initTelemetry, trackEvent, shutdownTelemetry, isTelemetryInitialized } from "./client";
 export type { TelemetryEventPayload } from "./payload";
-export { getBaseTelemetryProperties, getMessageLengthBucket, extractProvider } from "./utils";
+export { getBaseTelemetryProperties, roundToBase2 } from "./utils";

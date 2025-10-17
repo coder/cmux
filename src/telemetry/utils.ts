@@ -17,20 +17,13 @@ export function getBaseTelemetryProperties(): BaseTelemetryProperties {
 }
 
 /**
- * Bucket message length for privacy
+ * Round a number to the nearest power of 2 for privacy-preserving metrics
+ * E.g., 350 -> 512, 1200 -> 2048
+ *
+ * This allows numerical analysis while preventing exact values from leaking information
  */
-export function getMessageLengthBucket(length: number): string {
-  if (length < 100) return "<100";
-  if (length < 500) return "100-500";
-  if (length < 1000) return "500-1000";
-  return ">1000";
-}
-
-/**
- * Extract provider name from model string
- * E.g., "anthropic/claude-3-5-sonnet" -> "anthropic"
- */
-export function extractProvider(model: string): string {
-  const parts = model.split("/");
-  return parts.length > 1 ? parts[0] : "unknown";
+export function roundToBase2(value: number): number {
+  if (value <= 0) return 0;
+  // Find the next power of 2
+  return Math.pow(2, Math.ceil(Math.log2(value)));
 }

@@ -8,32 +8,32 @@
 import posthog from "posthog-js";
 import type { TelemetryEventPayload } from "./payload";
 
-// Default configuration
+// Default configuration (public keys, safe to commit)
 const DEFAULT_POSTHOG_KEY = "phc_vF1bLfiD5MXEJkxojjsmV5wgpLffp678yhJd3w9Sl4G";
 const DEFAULT_POSTHOG_HOST = "https://us.i.posthog.com";
 
-// Environment variables with fallback to public defaults
+// Get PostHog configuration from environment variables with fallback to defaults
+// Note: Vite injects import.meta.env at build time, so this is safe in the browser
+// In test environments, we never call this function (see isTestEnvironment check)
 function getPosthogConfig(): { key: string; host: string } {
-  // In browser/Vite environment, use import.meta.env
-  // In test/Node environment, fall back to defaults
+  // Use indirect access to avoid Jest parsing issues with import.meta
+  // This works because Vite transforms import.meta.env at build time
   try {
-    // Use eval to avoid TypeScript compile-time checking
     // eslint-disable-next-line @typescript-eslint/no-implied-eval, @typescript-eslint/no-unsafe-call
-    const importMeta = new Function("return import.meta")() as
-      | { env?: { VITE_PUBLIC_POSTHOG_KEY?: string; VITE_PUBLIC_POSTHOG_HOST?: string } }
-      | undefined;
-    if (importMeta?.env) {
+    const meta = new Function("return import.meta")() as {
+      env?: { VITE_PUBLIC_POSTHOG_KEY?: string; VITE_PUBLIC_POSTHOG_HOST?: string };
+    } | undefined;
+    if (meta?.env) {
       return {
         // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
-        key: importMeta.env.VITE_PUBLIC_POSTHOG_KEY || DEFAULT_POSTHOG_KEY,
+        key: meta.env.VITE_PUBLIC_POSTHOG_KEY || DEFAULT_POSTHOG_KEY,
         // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
-        host: importMeta.env.VITE_PUBLIC_POSTHOG_HOST || DEFAULT_POSTHOG_HOST,
+        host: meta.env.VITE_PUBLIC_POSTHOG_HOST || DEFAULT_POSTHOG_HOST,
       };
     }
   } catch {
-    // import.meta not available (Node/test environment)
+    // import.meta not available (e.g., in test environment)
   }
-
   return {
     key: DEFAULT_POSTHOG_KEY,
     host: DEFAULT_POSTHOG_HOST,
@@ -41,7 +41,6 @@ function getPosthogConfig(): { key: string; host: string } {
 }
 
 let isInitialized = false;
-let isTesting = false;
 
 /**
  * Check if we're running in a test environment
@@ -65,7 +64,6 @@ function isTestEnvironment(): boolean {
  */
 export function initTelemetry(): void {
   if (isTestEnvironment()) {
-    isTesting = true;
     return;
   }
 
@@ -98,13 +96,13 @@ export function initTelemetry(): void {
  * Note: Events are silently ignored in test environments
  */
 export function trackEvent(payload: TelemetryEventPayload): void {
-  if (isTesting) {
+  if (isTestEnvironment()) {
     // Silently ignore telemetry in tests
     return;
   }
 
   if (!isInitialized) {
-    console.warn("Telemetry not initialized, skipping event:", payload.event);
+    console.debug("Telemetry not initialized, skipping event:", payload.event);
     return;
   }
 
@@ -115,25 +113,13 @@ export function trackEvent(payload: TelemetryEventPayload): void {
  * Shutdown telemetry and flush any pending events
  * Should be called on app close
  */
-export async function shutdownTelemetry(): Promise<void> {
+export function shutdownTelemetry(): void {
   if (!isInitialized) {
     return;
   }
 
-  return new Promise((resolve) => {
-    // @ts-expect-error - shutdown exists but may not be in type definitions
-    if (typeof posthog.shutdown === "function") {
-      // @ts-expect-error - shutdown exists but may not be in type definitions
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-      posthog.shutdown(() => {
-        isInitialized = false;
-        resolve();
-      });
-    } else {
-      isInitialized = false;
-      resolve();
-    }
-  });
+  posthog.reset();
+  isInitialized = false;
 }
 
 /**
