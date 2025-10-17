@@ -554,8 +554,8 @@ describe("modelMessageTransform", () => {
     });
   });
 
-  describe("reasoning part stripping for OpenAI", () => {
-    it("should strip reasoning parts for OpenAI provider", () => {
+  describe("reasoning part handling for OpenAI", () => {
+    it("should preserve reasoning parts for OpenAI provider (managed via previousResponseId)", () => {
       const messages: ModelMessage[] = [
         {
           role: "user",
@@ -572,10 +572,11 @@ describe("modelMessageTransform", () => {
 
       const result = transformModelMessages(messages, "openai");
 
-      // Should have 2 messages, assistant message should only have text
+      // Should have 2 messages, assistant message should keep reasoning + text
       expect(result).toHaveLength(2);
       expect(result[1].role).toBe("assistant");
       expect((result[1] as AssistantModelMessage).content).toEqual([
+        { type: "reasoning", text: "Let me think about this..." },
         { type: "text", text: "Here's the solution" },
       ]);
     });
@@ -704,10 +705,11 @@ describe("modelMessageTransform", () => {
 
       const result = transformModelMessages(messages, "openai");
 
-      // Should have 2 messages, assistant should only have text
+      // Should have 2 messages, assistant should keep all reasoning + text (coalesced)
       expect(result).toHaveLength(2);
       expect(result[1].role).toBe("assistant");
       expect((result[1] as AssistantModelMessage).content).toEqual([
+        { type: "reasoning", text: "First, I'll consider...Then, I'll analyze..." },
         { type: "text", text: "Final answer" },
       ]);
     });
