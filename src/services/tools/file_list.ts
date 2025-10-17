@@ -166,12 +166,31 @@ export function createFileListTool(config: { cwd: string }) {
           return { entries: [], totalCount: currentCount.value, exceeded: true };
         }
 
-        let dirents;
+        // Use opendir for iterative reading - more memory efficient and allows early termination
+        let dirHandle;
+        const dirents = [];
         try {
-          dirents = await fs.readdir(dir, { withFileTypes: true });
+          dirHandle = await fs.opendir(dir);
+          
+          // Read directory entries iteratively to avoid allocating large arrays
+          // and to allow early termination if we reach the limit
+          for await (const dirent of dirHandle) {
+            dirents.push(dirent);
+            
+            // Early termination: stop reading if we've collected enough entries
+            // (accounts for filtering, so we read a bit more than the limit)
+            if (dirents.length > options.maxEntries * 2) {
+              break;
+            }
+          }
         } catch {
           // If we can't read the directory (permissions, etc.), skip it
           return { entries: [], totalCount: currentCount.value, exceeded: false };
+        } finally {
+          // Always close the directory handle
+          if (dirHandle) {
+            await dirHandle.close();
+          }
         }
 
         // Sort: directories first, then files, alphabetically within each group
