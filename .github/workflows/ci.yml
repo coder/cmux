@@ -46,6 +46,12 @@ jobs:
           extra_nix_config: |
             experimental-features = nix-command flakes
 
+      - name: Install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+
+      - name: Add uv to PATH
+        run: echo "$HOME/.local/bin" >> $GITHUB_PATH
+
       - name: Run static checks
         run: make -j3 static-check
 
