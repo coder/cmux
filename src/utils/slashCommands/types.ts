@@ -14,6 +14,8 @@ export type ParsedCommand =
   | { type: "compact"; maxOutputTokens?: number; continueMessage?: string; model?: string }
   | { type: "telemetry-set"; enabled: boolean }
   | { type: "telemetry-help" }
+  | { type: "fork"; newName: string; startMessage?: string }
+  | { type: "fork-help" }
   | { type: "unknown-command"; command: string; subcommand?: string }
   | null;
 

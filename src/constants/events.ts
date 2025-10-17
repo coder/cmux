@@ -34,6 +34,12 @@ export const CUSTOM_EVENTS = {
    * useResumeManager handles this idempotently - safe to emit multiple times
    */
   RESUME_CHECK_REQUESTED: "cmux:resumeCheckRequested",
+
+  /**
+   * Event to switch to a different workspace after fork
+   * Detail: { workspaceId: string, projectPath: string, projectName: string, workspacePath: string, branch: string }
+   */
+  WORKSPACE_FORK_SWITCH: "cmux:workspaceForkSwitch",
 } as const;
 
 /**

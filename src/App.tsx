@@ -29,6 +29,7 @@ import { buildCoreSources, type BuildSourcesParams } from "./utils/commands/sour
 
 import type { ThinkingLevel } from "./types/thinking";
 import { CUSTOM_EVENTS } from "./constants/events";
+import { isWorkspaceForkSwitchEvent } from "./utils/workspaceFork";
 import { getThinkingLevelKey } from "./constants/storage";
 import type { BranchListResult } from "./types/ipc";
 import { useTelemetry } from "./hooks/useTelemetry";
@@ -201,6 +202,7 @@ function AppInner() {
 
   const {
     workspaceMetadata,
+    setWorkspaceMetadata,
     loading: metadataLoading,
     createWorkspace,
     removeWorkspace,
@@ -726,6 +728,45 @@ function AppInner() {
     closeCommandPalette,
     openCommandPalette,
   ]);
+
+  // Handle workspace fork switch event
+  useEffect(() => {
+    const handleForkSwitch = (e: Event) => {
+      if (!isWorkspaceForkSwitchEvent(e)) return;
+
+      const workspaceInfo = e.detail;
+
+      // Find the project in config
+      const project = projects.get(workspaceInfo.projectPath);
+      if (!project) {
+        console.error(`Project not found for path: ${workspaceInfo.projectPath}`);
+        return;
+      }
+
+      // Update metadata Map immediately (don't wait for async metadata event)
+      // This ensures the title bar effect has the workspace name available
+      setWorkspaceMetadata((prev) => {
+        const updated = new Map(prev);
+        updated.set(workspaceInfo.id, workspaceInfo);
+        return updated;
+      });
+
+      // Switch to the new workspace
+      setSelectedWorkspace({
+        workspaceId: workspaceInfo.id,
+        projectPath: workspaceInfo.projectPath,
+        projectName: workspaceInfo.projectName,
+        namedWorkspacePath: workspaceInfo.namedWorkspacePath,
+      });
+    };
+
+    window.addEventListener(CUSTOM_EVENTS.WORKSPACE_FORK_SWITCH, handleForkSwitch as EventListener);
+    return () =>
+      window.removeEventListener(
+        CUSTOM_EVENTS.WORKSPACE_FORK_SWITCH,
+        handleForkSwitch as EventListener
+      );
+  }, [projects, setSelectedWorkspace, setWorkspaceMetadata]);
 
   return (
     <>

@@ -1,5 +1,5 @@
 import type { Result } from "./result";
-import type { FrontendWorkspaceMetadata } from "./workspace";
+import type { FrontendWorkspaceMetadata, WorkspaceMetadata } from "./workspace";
 import type { CmuxMessage, CmuxFrontendMetadata } from "./message";
 import type { ProjectConfig } from "@/config";
 import type { SendMessageError, StreamErrorType } from "./errors";
@@ -193,6 +193,13 @@ export interface IPCApi {
       workspaceId: string,
       newName: string
     ): Promise<Result<{ newWorkspaceId: string }, string>>;
+    fork(
+      sourceWorkspaceId: string,
+      newName: string
+    ): Promise<
+      | { success: true; metadata: WorkspaceMetadata; projectPath: string }
+      | { success: false; error: string }
+    >;
     sendMessage(
       workspaceId: string,
       message: string,

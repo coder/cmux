@@ -2,12 +2,14 @@ import assert from "node:assert/strict";
 import type { BrowserWindow, IpcMain as ElectronIpcMain } from "electron";
 import { spawn, spawnSync } from "child_process";
 import * as fsPromises from "fs/promises";
+import * as path from "path";
 import type { Config, ProjectConfig } from "@/config";
 import {
   createWorktree,
   listLocalBranches,
   detectDefaultTrunkBranch,
   getMainWorktreeFromWorktree,
+  getCurrentBranch,
 } from "@/git";
 import { removeWorktreeSafe, removeWorktree, pruneWorktrees } from "@/services/gitService";
 import { AIService } from "@/services/aiService";
@@ -21,6 +23,7 @@ import type { SendMessageError } from "@/types/errors";
 import type { SendMessageOptions, DeleteMessage } from "@/types/ipc";
 import { Ok, Err } from "@/types/result";
 import { validateWorkspaceName } from "@/utils/validation/workspaceValidation";
+import type { WorkspaceMetadata } from "@/types/workspace";
 import { createBashTool } from "@/services/tools/bash";
 import type { BashToolResult } from "@/types/tools";
 import { secretsToRecord } from "@/types/secrets";
@@ -363,6 +366,172 @@ export class IpcMain {
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
           return Err(`Failed to rename workspace: ${message}`);
+        }
+      }
+    );
+
+    ipcMain.handle(
+      IPC_CHANNELS.WORKSPACE_FORK,
+      async (_event, sourceWorkspaceId: string, newName: string) => {
+        try {
+          // Validate new workspace name
+          const validation = validateWorkspaceName(newName);
+          if (!validation.valid) {
+            return { success: false, error: validation.error };
+          }
+
+          // If streaming, commit the partial response to history first
+          // This preserves the streamed content in both workspaces
+          if (this.aiService.isStreaming(sourceWorkspaceId)) {
+            await this.partialService.commitToHistory(sourceWorkspaceId);
+          }
+
+          // Get source workspace metadata and paths
+          const sourceMetadataResult = this.aiService.getWorkspaceMetadata(sourceWorkspaceId);
+          if (!sourceMetadataResult.success) {
+            return {
+              success: false,
+              error: `Failed to get source workspace metadata: ${sourceMetadataResult.error}`,
+            };
+          }
+          const sourceMetadata = sourceMetadataResult.data;
+          const foundProjectPath = sourceMetadata.projectPath;
+
+          // Compute source workspace path from metadata (use name for directory lookup)
+          const sourceWorkspacePath = this.config.getWorkspacePath(
+            foundProjectPath,
+            sourceMetadata.name
+          );
+
+          // Get current branch from source workspace (fork from current branch, not trunk)
+          const sourceBranch = await getCurrentBranch(sourceWorkspacePath);
+          if (!sourceBranch) {
+            return {
+              success: false,
+              error: "Failed to detect current branch in source workspace",
+            };
+          }
+
+          // Generate stable workspace ID for the new workspace
+          const newWorkspaceId = this.config.generateStableId();
+
+          // Create new git worktree branching from source workspace's branch
+          const result = await createWorktree(this.config, foundProjectPath, newName, {
+            trunkBranch: sourceBranch,
+            workspaceId: newName, // Use name for directory (workspaceId param is misnamed, it's directoryName)
+          });
+
+          if (!result.success || !result.path) {
+            return { success: false, error: result.error ?? "Failed to create worktree" };
+          }
+
+          const newWorkspacePath = result.path;
+          const projectName = sourceMetadata.projectName;
+
+          // Copy chat history from source to destination
+          const sourceSessionDir = this.config.getSessionDir(sourceWorkspaceId);
+          const newSessionDir = this.config.getSessionDir(newWorkspaceId);
+
+          try {
+            // Create new session directory
+            await fsPromises.mkdir(newSessionDir, { recursive: true });
+
+            // Copy chat.jsonl if it exists
+            const sourceChatPath = path.join(sourceSessionDir, "chat.jsonl");
+            const newChatPath = path.join(newSessionDir, "chat.jsonl");
+            try {
+              await fsPromises.copyFile(sourceChatPath, newChatPath);
+            } catch (error) {
+              // chat.jsonl doesn't exist yet - that's okay, continue
+              if (
+                !(error && typeof error === "object" && "code" in error && error.code === "ENOENT")
+              ) {
+                throw error;
+              }
+            }
+
+            // Copy partial.json if it exists (preserves in-progress streaming response)
+            const sourcePartialPath = path.join(sourceSessionDir, "partial.json");
+            const newPartialPath = path.join(newSessionDir, "partial.json");
+            try {
+              await fsPromises.copyFile(sourcePartialPath, newPartialPath);
+            } catch (error) {
+              // partial.json doesn't exist - that's okay, continue
+              if (
+                !(error && typeof error === "object" && "code" in error && error.code === "ENOENT")
+              ) {
+                throw error;
+              }
+            }
+          } catch (copyError) {
+            // If copy fails, clean up everything we created
+            // 1. Remove the git worktree
+            await removeWorktree(foundProjectPath, newWorkspacePath);
+            // 2. Remove the session directory (may contain partial copies)
+            try {
+              await fsPromises.rm(newSessionDir, { recursive: true, force: true });
+            } catch (cleanupError) {
+              // Log but don't fail - worktree cleanup is more important
+              log.error(`Failed to clean up session dir ${newSessionDir}:`, cleanupError);
+            }
+            const message = copyError instanceof Error ? copyError.message : String(copyError);
+            return { success: false, error: `Failed to copy chat history: ${message}` };
+          }
+
+          // Initialize workspace metadata with stable ID and name
+          const metadata: WorkspaceMetadata = {
+            id: newWorkspaceId,
+            name: newName, // Name is separate from ID
+            projectName,
+            projectPath: foundProjectPath,
+            createdAt: new Date().toISOString(),
+          };
+          const saveMetadataResult = await this.aiService.saveWorkspaceMetadata(
+            newWorkspaceId,
+            metadata
+          );
+
+          // If metadata save fails, clean up and return error
+          if (!saveMetadataResult.success) {
+            await removeWorktree(foundProjectPath, newWorkspacePath);
+            try {
+              await fsPromises.rm(newSessionDir, { recursive: true, force: true });
+            } catch (cleanupError) {
+              log.error(`Failed to clean up session dir ${newSessionDir}:`, cleanupError);
+            }
+            return {
+              success: false,
+              error: `Failed to save workspace metadata: ${saveMetadataResult.error}`,
+            };
+          }
+
+          // Update config to include the new workspace with full metadata
+          const projectPath = foundProjectPath; // Capture for closure
+          this.config.editConfig((config) => {
+            const projectConfig = config.projects.get(projectPath);
+            if (projectConfig) {
+              projectConfig.workspaces.push({
+                path: newWorkspacePath,
+                id: newWorkspaceId,
+                name: newName,
+                createdAt: metadata.createdAt,
+              });
+            }
+            return config;
+          });
+
+          // Emit metadata event for new workspace
+          const session = this.getOrCreateSession(newWorkspaceId);
+          session.emitMetadata(metadata);
+
+          return {
+            success: true,
+            metadata,
+            projectPath: foundProjectPath,
+          };
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          return { success: false, error: `Failed to fork workspace: ${message}` };
         }
       }
     );

@@ -55,6 +55,8 @@ const api: IPCApi = {
       ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, workspaceId, options),
     rename: (workspaceId: string, newName: string) =>
       ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_RENAME, workspaceId, newName),
+    fork: (sourceWorkspaceId: string, newName: string) =>
+      ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_FORK, sourceWorkspaceId, newName),
     sendMessage: (workspaceId, message, options) =>
       ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_SEND_MESSAGE, workspaceId, message, options),
     resumeStream: (workspaceId, options) =>

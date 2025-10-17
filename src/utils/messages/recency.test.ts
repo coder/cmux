@@ -23,7 +23,7 @@ describe("computeRecencyTimestamp", () => {
     expect(computeRecencyTimestamp(messages)).toBe(300);
   });
 
-  it("prioritizes user message over compacted message", () => {
+  it("returns max of user message and compacted message timestamps", () => {
     const messages = [
       createCmuxMessage("1", "user", "user msg", { timestamp: 100 }),
       createCmuxMessage("2", "assistant", "compacted", {
@@ -31,7 +31,8 @@ describe("computeRecencyTimestamp", () => {
         compacted: true,
       }),
     ];
-    expect(computeRecencyTimestamp(messages)).toBe(100);
+    // Now uses max() instead of priority order
+    expect(computeRecencyTimestamp(messages)).toBe(200);
   });
 
   it("falls back to compacted message when no user messages", () => {
@@ -102,5 +103,80 @@ describe("computeRecencyTimestamp", () => {
       createCmuxMessage("3", "assistant", "end"),
     ];
     expect(computeRecencyTimestamp(messages)).toBe(250);
+  });
+
+  // Tests for createdAt parameter
+  describe("with createdAt parameter", () => {
+    it("returns createdAt timestamp when no messages exist", () => {
+      const createdAt = "2024-01-15T10:30:00.000Z";
+      const expectedTimestamp = new Date(createdAt).getTime();
+      expect(computeRecencyTimestamp([], createdAt)).toBe(expectedTimestamp);
+    });
+
+    it("returns max of createdAt and user message timestamp", () => {
+      const createdAt = "2024-01-15T10:30:00.000Z"; // 1705316400000
+      const createdTimestamp = new Date(createdAt).getTime();
+
+      // Old message (before workspace created)
+      const messages = [
+        createCmuxMessage("1", "user", "old message", { timestamp: createdTimestamp - 1000 }),
+      ];
+      expect(computeRecencyTimestamp(messages, createdAt)).toBe(createdTimestamp);
+    });
+
+    it("returns user message timestamp when newer than createdAt", () => {
+      const createdAt = "2024-01-15T10:30:00.000Z";
+      const createdTimestamp = new Date(createdAt).getTime();
+
+      // New message (after workspace created)
+      const messages = [
+        createCmuxMessage("1", "user", "new message", { timestamp: createdTimestamp + 5000 }),
+      ];
+      expect(computeRecencyTimestamp(messages, createdAt)).toBe(createdTimestamp + 5000);
+    });
+
+    it("returns max of createdAt, user message, and compacted message", () => {
+      const createdAt = "2024-01-15T10:30:00.000Z";
+      const createdTimestamp = new Date(createdAt).getTime();
+
+      const messages = [
+        createCmuxMessage("1", "user", "old user", { timestamp: createdTimestamp - 5000 }),
+        createCmuxMessage("2", "assistant", "old compacted", {
+          timestamp: createdTimestamp - 2000,
+          compacted: true,
+        }),
+      ];
+
+      // createdAt is newest
+      expect(computeRecencyTimestamp(messages, createdAt)).toBe(createdTimestamp);
+    });
+
+    it("uses user message when it's the maximum", () => {
+      const createdAt = "2024-01-15T10:30:00.000Z";
+      const createdTimestamp = new Date(createdAt).getTime();
+
+      const messages = [
+        createCmuxMessage("1", "user", "newest", { timestamp: createdTimestamp + 10000 }),
+        createCmuxMessage("2", "assistant", "compacted", {
+          timestamp: createdTimestamp + 5000,
+          compacted: true,
+        }),
+      ];
+
+      // User message is newest
+      expect(computeRecencyTimestamp(messages, createdAt)).toBe(createdTimestamp + 10000);
+    });
+
+    it("handles invalid createdAt gracefully", () => {
+      const messages = [createCmuxMessage("1", "user", "msg", { timestamp: 100 })];
+
+      // Invalid ISO string should result in NaN timestamp, which gets filtered out
+      expect(computeRecencyTimestamp(messages, "invalid-date")).toBe(100);
+    });
+
+    it("returns null when no messages and no valid createdAt", () => {
+      expect(computeRecencyTimestamp([])).toBeNull();
+      expect(computeRecencyTimestamp([], undefined)).toBeNull();
+    });
   });
 });

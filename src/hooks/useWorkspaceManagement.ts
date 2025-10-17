@@ -55,12 +55,25 @@ export function useWorkspaceManagement({
       (event: { workspaceId: string; metadata: FrontendWorkspaceMetadata | null }) => {
         setWorkspaceMetadata((prev) => {
           const updated = new Map(prev);
+          const isNewWorkspace = !prev.has(event.workspaceId) && event.metadata !== null;
+
           if (event.metadata === null) {
             // Workspace deleted - remove from map
             updated.delete(event.workspaceId);
           } else {
             updated.set(event.workspaceId, event.metadata);
           }
+
+          // If this is a new workspace (e.g., from fork), reload projects
+          // to ensure the sidebar shows the updated workspace list
+          if (isNewWorkspace) {
+            void (async () => {
+              const projectsList = await window.api.projects.list();
+              const loadedProjects = new Map<string, ProjectConfig>(projectsList);
+              onProjectsUpdate(loadedProjects);
+            })();
+          }
+
           return updated;
         });
       }
@@ -69,7 +82,7 @@ export function useWorkspaceManagement({
     return () => {
       unsubscribe();
     };
-  }, []);
+  }, [onProjectsUpdate]);
 
   const createWorkspace = async (projectPath: string, branchName: string, trunkBranch: string) => {
     console.assert(
@@ -164,6 +177,7 @@ export function useWorkspaceManagement({
 
   return {
     workspaceMetadata,
+    setWorkspaceMetadata,
     loading,
     createWorkspace,
     removeWorkspace,

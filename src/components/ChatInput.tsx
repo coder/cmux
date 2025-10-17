@@ -11,6 +11,7 @@ import { useMode } from "@/contexts/ModeContext";
 import { ChatToggles } from "./ChatToggles";
 import { useSendMessageOptions } from "@/hooks/useSendMessageOptions";
 import { getModelKey, getInputKey } from "@/constants/storage";
+import { forkWorkspace } from "@/utils/workspaceFork";
 import { ToggleGroup } from "./ToggleGroup";
 import { CUSTOM_EVENTS } from "@/constants/events";
 import type { UIMode } from "@/types/mode";
@@ -233,6 +234,26 @@ const createCommandToast = (parsed: ParsedCommand): Toast | null => {
             /telemetry off
             <br />
             /telemetry on
+          </>
+        ),
+      };
+
+    case "fork-help":
+      return {
+        id: Date.now().toString(),
+        type: "error",
+        title: "Fork Command",
+        message: "Fork current workspace with a new name",
+        solution: (
+          <>
+            <SolutionLabel>Usage:</SolutionLabel>
+            /fork &lt;new-name&gt; [optional start message]
+            <br />
+            <br />
+            <SolutionLabel>Examples:</SolutionLabel>
+            /fork experiment-branch
+            <br />
+            /fork refactor Continue with refactoring approach
           </>
         ),
       };
@@ -735,6 +756,52 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           } finally {
             setIsSending(false);
           }
+          return;
+        }
+
+        // Handle /fork command
+        if (parsed.type === "fork") {
+          setInput(""); // Clear input immediately
+          setIsSending(true);
+
+          try {
+            const forkResult = await forkWorkspace({
+              sourceWorkspaceId: workspaceId,
+              newName: parsed.newName,
+              startMessage: parsed.startMessage,
+              sendMessageOptions,
+            });
+
+            if (!forkResult.success) {
+              const errorMsg = forkResult.error ?? "Failed to fork workspace";
+              console.error("Failed to fork workspace:", errorMsg);
+              setToast({
+                id: Date.now().toString(),
+                type: "error",
+                title: "Fork Failed",
+                message: errorMsg,
+              });
+              setInput(messageText); // Restore input on error
+            } else {
+              setToast({
+                id: Date.now().toString(),
+                type: "success",
+                message: `Forked to workspace "${parsed.newName}"`,
+              });
+            }
+          } catch (error) {
+            const errorMsg = error instanceof Error ? error.message : "Failed to fork workspace";
+            console.error("Fork error:", error);
+            setToast({
+              id: Date.now().toString(),
+              type: "error",
+              title: "Fork Failed",
+              message: errorMsg,
+            });
+            setInput(messageText); // Restore input on error
+          }
+
+          setIsSending(false);
           return;
         }
 

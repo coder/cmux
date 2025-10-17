@@ -120,6 +120,9 @@ export class WorkspaceStore {
   // Cache of last known recency per workspace (for change detection)
   private recencyCache = new Map<string, number | null>();
 
+  // Store workspace metadata for aggregator creation (ensures createdAt never lost)
+  private workspaceCreatedAt = new Map<string, string>();
+
   // Track previous sidebar state per workspace (to prevent unnecessary bumps)
   private previousSidebarValues = new Map<string, WorkspaceSidebarState>();
 
@@ -539,7 +542,15 @@ export class WorkspaceStore {
       return;
     }
 
-    const aggregator = this.getOrCreateAggregator(workspaceId);
+    const aggregator = this.getOrCreateAggregator(workspaceId, metadata.createdAt);
+
+    // Initialize recency cache and bump derived store immediately
+    // This ensures UI sees correct workspace order before messages load
+    const initialRecency = aggregator.getRecencyTimestamp();
+    if (initialRecency !== null) {
+      this.recencyCache.set(workspaceId, initialRecency);
+      this.derived.bump("recency");
+    }
 
     // Initialize state
     if (!this.caughtUp.has(workspaceId)) {
@@ -588,6 +599,7 @@ export class WorkspaceStore {
     this.recencyCache.delete(workspaceId);
     this.previousSidebarValues.delete(workspaceId);
     this.sidebarStateCache.delete(workspaceId);
+    this.workspaceCreatedAt.delete(workspaceId);
   }
 
   /**
@@ -631,13 +643,27 @@ export class WorkspaceStore {
     this.caughtUp.clear();
     this.historicalMessages.clear();
     this.pendingStreamEvents.clear();
+    this.workspaceCreatedAt.clear();
   }
 
   // Private methods
 
-  private getOrCreateAggregator(workspaceId: string): StreamingMessageAggregator {
+  private getOrCreateAggregator(
+    workspaceId: string,
+    createdAt?: string
+  ): StreamingMessageAggregator {
+    // Store createdAt if provided (ensures it's never lost)
+    if (createdAt) {
+      this.workspaceCreatedAt.set(workspaceId, createdAt);
+    }
+
     if (!this.aggregators.has(workspaceId)) {
-      this.aggregators.set(workspaceId, new StreamingMessageAggregator());
+      // Use stored createdAt if available, otherwise use provided value
+      const storedCreatedAt = this.workspaceCreatedAt.get(workspaceId);
+      this.aggregators.set(
+        workspaceId,
+        new StreamingMessageAggregator(storedCreatedAt ?? createdAt)
+      );
     }
     return this.aggregators.get(workspaceId)!;
   }
