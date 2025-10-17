@@ -234,14 +234,17 @@ const AIViewInner: React.FC<AIViewProps> = ({
   const jumpToBottom = useCallback(() => {
     // Enable autoScroll to activate followOutput, which ensures we scroll past Footer content
     setAutoScroll(true);
-    if (virtuosoRef.current) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
-      virtuosoRef.current.scrollToIndex({
-        index: "LAST",
-        align: "end",
-        behavior: "smooth",
-      });
-    }
+    // setTimeout allows React state to propagate to Virtuoso before scrolling
+    setTimeout(() => {
+      if (virtuosoRef.current) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+        virtuosoRef.current.scrollToIndex({
+          index: "LAST",
+          align: "end",
+          behavior: "smooth",
+        });
+      }
+    }, 0);
   }, []);
 
   // ChatInput API for focus management
@@ -459,7 +462,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
               data={mergedMessages}
               defaultItemHeight={100}
               alignToBottom
-              followOutput={(isAtBottom) => (isAtBottom ? "auto" : false)}
+              followOutput={autoScroll ? "auto" : false}
               initialTopMostItemIndex={{
                 index: mergedMessages.length - 1,
                 align: "end",
