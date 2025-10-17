@@ -494,34 +494,47 @@ const AIViewInner: React.FC<AIViewProps> = ({
                 increaseViewportBy={{ top: 600, bottom: 800 }}
                 computeItemKey={(index: number, item: DisplayedMessage) => item.id}
                 components={{
-                  Scroller: React.forwardRef<HTMLDivElement, { style?: React.CSSProperties; children?: React.ReactNode }>(function Scroller(props, ref) {
+                  Scroller: React.forwardRef<HTMLDivElement, React.HTMLProps<HTMLDivElement>>(function Scroller(props, ref) {
+                    const { style, children, onScroll: virtuosoOnScroll } = props;
                     const setRefs = (el: HTMLDivElement | null) => {
                       // Bridge Virtuoso's scroller ref to our autoScroll hook's ref
                       if (typeof ref === "function") ref(el);
-                      // Virtuoso may pass an object ref with a readonly "current" - don't assign to it
-                      // We only assign to our own contentRef, which is mutable
+                      else if (ref && typeof ref === "object") {
+                        // Handle RefObject - Virtuoso may pass a mutable ref
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
+                        (ref as any).current = el;
+                      }
+                      // Also update our own contentRef for auto-scroll logic
                       contentRef.current = el;
                     };
+                    
+                    const handleScrollEvent = (e: React.UIEvent<HTMLDivElement>) => {
+                      // Call Virtuoso's scroll handler if provided
+                      if (virtuosoOnScroll) {
+                        virtuosoOnScroll(e);
+                      }
+                      // Call our own scroll handler
+                      handleScroll(e);
+                    };
+                    
                     return (
                       <OutputContent
                         ref={setRefs}
-                        style={props.style}
+                        style={style}
                         onWheel={() => {
                           markUserInteraction();
                         }}
                         onTouchMove={() => {
                           markUserInteraction();
                         }}
-                        onScroll={(e) => {
-                          handleScroll(e as React.UIEvent<HTMLDivElement>);
-                        }}
+                        onScroll={handleScrollEvent}
                         role="log"
                         aria-live={canInterrupt ? "polite" : "off"}
                         aria-busy={canInterrupt}
                         aria-label="Conversation transcript"
                         tabIndex={0}
                       >
-                        {props.children}
+                        {children}
                       </OutputContent>
                     );
                   }),
