@@ -31,6 +31,7 @@ import type { ThinkingLevel } from "./types/thinking";
 import { CUSTOM_EVENTS } from "./constants/events";
 import { getThinkingLevelKey } from "./constants/storage";
 import type { BranchListResult } from "./types/ipc";
+import { useTelemetry } from "./hooks/useTelemetry";
 
 const THINKING_LEVELS: ThinkingLevel[] = ["off", "low", "medium", "high"];
 
@@ -161,6 +162,25 @@ function AppInner() {
   const handleToggleSidebar = useCallback(() => {
     setSidebarCollapsed((prev) => !prev);
   }, [setSidebarCollapsed]);
+
+  // Telemetry tracking
+  const telemetry = useTelemetry();
+
+  // Wrapper for setSelectedWorkspace that tracks telemetry
+  const handleWorkspaceSwitch = useCallback(
+    (newWorkspace: WorkspaceSelection | null) => {
+      // Track workspace switch when both old and new are non-null (actual switch, not init/clear)
+      if (
+        selectedWorkspace &&
+        newWorkspace &&
+        selectedWorkspace.workspaceId !== newWorkspace.workspaceId
+      ) {
+        telemetry.workspaceSwitched(selectedWorkspace.workspaceId, newWorkspace.workspaceId);
+      }
+      setSelectedWorkspace(newWorkspace);
+    },
+    [selectedWorkspace, setSelectedWorkspace, telemetry]
+  );
 
   // Use custom hooks for project and workspace management
   const { projects, setProjects, addProject, removeProject } = useProjectManagement();
@@ -584,9 +604,9 @@ function AppInner() {
 
   const selectWorkspaceFromPalette = useCallback(
     (selection: WorkspaceSelection) => {
-      setSelectedWorkspace(selection);
+      handleWorkspaceSwitch(selection);
     },
-    [setSelectedWorkspace]
+    [handleWorkspaceSwitch]
   );
 
   const removeWorkspaceFromPalette = useCallback(
@@ -707,7 +727,7 @@ function AppInner() {
           projects={projects}
           workspaceMetadata={workspaceMetadata}
           selectedWorkspace={selectedWorkspace}
-          onSelectWorkspace={setSelectedWorkspace}
+          onSelectWorkspace={handleWorkspaceSwitch}
           onAddProject={handleAddProjectCallback}
           onAddWorkspace={handleAddWorkspaceCallback}
           onRemoveProject={handleRemoveProjectCallback}
