@@ -378,7 +378,11 @@ export class WorkspaceStore {
 
     if (!cached && !isPending && isCaughtUp) {
       if (aggregator && aggregator.getAllMessages().length > 0) {
-        this.consumerManager.scheduleCalculation(workspaceId, aggregator);
+        // Defer scheduling to avoid setState-during-render warning
+        // queueMicrotask ensures this runs after current render completes
+        queueMicrotask(() => {
+          this.consumerManager.scheduleCalculation(workspaceId, aggregator);
+        });
       }
     }
 
