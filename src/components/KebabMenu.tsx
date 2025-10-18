@@ -98,10 +98,10 @@ interface KebabMenuProps {
 
 /**
  * A kebab menu (three vertical dots) that displays a dropdown of menu items.
- * 
+ *
  * Reduces header clutter by collapsing multiple actions into a single button,
  * saving significant horizontal space compared to individual buttons.
- * 
+ *
  * Uses React Portal to render dropdown at document.body, preventing clipping
  * by parent containers with overflow constraints.
  */

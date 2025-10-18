@@ -75,7 +75,6 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({
   const {
     openModal,
     buttonLabel,
-    buttonEmoji,
     disabled: startHereDisabled,
     modal,
   } = useStartHere(workspaceId, content, isCompacted);
