@@ -155,6 +155,23 @@ describe("imageHandling", () => {
 
       expect(files).toHaveLength(0);
     });
+
+    test("accepts files with image extensions when MIME type is empty (macOS drag-drop)", () => {
+      const mockFile1 = new File(["image"], "photo.png", { type: "" }); // Empty type
+      const mockFile2 = new File(["image"], "picture.jpg", { type: "" }); // Empty type
+      const mockFile3 = new File(["text"], "document.txt", { type: "" }); // Empty type, not an image
+
+      const mockDataTransfer = {
+        files: [mockFile1, mockFile2, mockFile3],
+      };
+
+      const files = extractImagesFromDrop(mockDataTransfer as unknown as DataTransfer);
+
+      expect(files).toHaveLength(2);
+      expect(files).toContain(mockFile1);
+      expect(files).toContain(mockFile2);
+      expect(files).not.toContain(mockFile3);
+    });
   });
 
   describe("processImageFiles", () => {

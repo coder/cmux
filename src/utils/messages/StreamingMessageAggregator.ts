@@ -511,9 +511,15 @@ export class StreamingMessageAggregator {
             .join("");
 
           const imageParts = message.parts
-            .filter((p) => p.type === "file")
+            .filter((p) => {
+              // Accept both new "file" type and legacy "image" type (from before PR #308)
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
+              return p.type === "file" || (p as any).type === "image";
+            })
             .map((p) => ({
+              // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
               url: typeof p.url === "string" ? p.url : "",
+              // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
               mediaType: p.mediaType,
             }));
 

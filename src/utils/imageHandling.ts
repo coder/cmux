@@ -71,13 +71,23 @@ export function extractImagesFromClipboard(items: DataTransferItemList): File[] 
 }
 
 /**
+ * Checks if a file is likely an image based on extension
+ */
+function hasImageExtension(filename: string): boolean {
+  const ext = filename.toLowerCase().split(".").pop();
+  return ["png", "jpg", "jpeg", "gif", "webp", "bmp", "svg"].includes(ext ?? "");
+}
+
+/**
  * Extracts image files from drag and drop DataTransfer
+ * Accepts files with image MIME type OR image file extensions (for macOS drag-and-drop)
  */
 export function extractImagesFromDrop(dataTransfer: DataTransfer): File[] {
   const imageFiles: File[] = [];
 
   for (const file of Array.from(dataTransfer.files)) {
-    if (file.type.startsWith("image/")) {
+    // Accept files with image MIME type, or files with image extensions (macOS drag-drop has empty type)
+    if (file.type.startsWith("image/") || (file.type === "" && hasImageExtension(file.name))) {
       imageFiles.push(file);
     }
   }
