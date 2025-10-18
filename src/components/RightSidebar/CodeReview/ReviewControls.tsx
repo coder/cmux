@@ -54,78 +54,15 @@ const BaseInput = styled.input`
   }
 `;
 
-const StatBadge = styled.button<{
-  variant?: "accepted" | "rejected" | "unreviewed" | "total";
-  active?: boolean;
-}>`
+const StatBadge = styled.div`
   padding: 4px 10px;
   border-radius: 3px;
   font-weight: 500;
   font-size: 11px;
-  background: ${(props) => (props.active ? "#1e1e1e" : "transparent")};
-  border: 1px solid ${(props) => (props.active ? "#3e3e42" : "transparent")};
-  cursor: pointer;
-  transition: all 0.2s ease;
+  background: transparent;
+  border: 1px solid transparent;
   white-space: nowrap;
-
-  ${(props) => {
-    if (props.variant === "accepted") {
-      return `
-        color: #4ec9b0;
-        &:hover {
-          background: rgba(78, 201, 176, 0.1);
-          border-color: rgba(78, 201, 176, 0.3);
-        }
-        ${
-          props.active
-            ? `
-          background: rgba(78, 201, 176, 0.15);
-          border-color: rgba(78, 201, 176, 0.4);
-        `
-            : ""
-        }
-      `;
-    } else if (props.variant === "rejected") {
-      return `
-        color: #f48771;
-        &:hover {
-          background: rgba(244, 135, 113, 0.1);
-          border-color: rgba(244, 135, 113, 0.3);
-        }
-        ${
-          props.active
-            ? `
-          background: rgba(244, 135, 113, 0.15);
-          border-color: rgba(244, 135, 113, 0.4);
-        `
-            : ""
-        }
-      `;
-    } else if (props.variant === "unreviewed") {
-      return `
-        color: #ccc;
-        &:hover {
-          background: rgba(255, 255, 255, 0.05);
-          border-color: #444;
-        }
-        ${
-          props.active
-            ? `
-          background: rgba(255, 255, 255, 0.08);
-          border-color: #555;
-        `
-            : ""
-        }
-      `;
-    } else {
-      return `
-        color: #888;
-        &:hover {
-          background: rgba(255, 255, 255, 0.03);
-        }
-      `;
-    }
-  }}
+  color: #888;
 `;
 
 const Separator = styled.div`
@@ -173,10 +110,6 @@ export const ReviewControls: React.FC<ReviewControlsProps> = ({
     }
   };
 
-  const handleStatusFilter = (status: ReviewFilters["statusFilter"]) => {
-    onFiltersChange({ ...filters, statusFilter: status });
-  };
-
   return (
     <ControlsContainer>
       <Label>Base:</Label>
@@ -202,33 +135,8 @@ export const ReviewControls: React.FC<ReviewControlsProps> = ({
 
       <Separator />
 
-      <StatBadge
-        variant="unreviewed"
-        active={filters.statusFilter === "unreviewed"}
-        onClick={() => handleStatusFilter("unreviewed")}
-      >
-        {stats.unreviewed} unreviewed
-      </StatBadge>
-      <StatBadge
-        variant="accepted"
-        active={filters.statusFilter === "accepted"}
-        onClick={() => handleStatusFilter("accepted")}
-      >
-        {stats.accepted} accepted
-      </StatBadge>
-      <StatBadge
-        variant="rejected"
-        active={filters.statusFilter === "rejected"}
-        onClick={() => handleStatusFilter("rejected")}
-      >
-        {stats.rejected} rejected
-      </StatBadge>
-      <StatBadge
-        variant="total"
-        active={filters.statusFilter === "all"}
-        onClick={() => handleStatusFilter("all")}
-      >
-        {stats.total} total
+      <StatBadge>
+        {stats.total} {stats.total === 1 ? 'hunk' : 'hunks'}
       </StatBadge>
     </ControlsContainer>
   );
