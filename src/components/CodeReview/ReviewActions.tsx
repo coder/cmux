@@ -16,15 +16,15 @@ interface ReviewActionsProps {
 const ActionsContainer = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 12px;
+  gap: 6px;
+  padding: 8px;
   background: #252526;
   border-top: 1px solid #3e3e42;
 `;
 
 const ButtonRow = styled.div`
   display: flex;
-  gap: 8px;
+  gap: 6px;
   align-items: center;
 `;
 
@@ -33,10 +33,9 @@ const ActionButton = styled.button<{
   isActive?: boolean;
 }>`
   flex: 1;
-  padding: 8px 16px;
-  border: none;
-  border-radius: 4px;
-  font-size: 13px;
+  padding: 5px 10px;
+  border-radius: 3px;
+  font-size: 11px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -44,40 +43,44 @@ const ActionButton = styled.button<{
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 4px;
+  white-space: nowrap;
 
   ${(props) => {
     if (props.variant === "accept") {
       return `
-        background: ${props.isActive ? "rgba(78, 201, 176, 0.3)" : "rgba(78, 201, 176, 0.2)"};
+        background: ${props.isActive ? "rgba(78, 201, 176, 0.25)" : "transparent"};
         color: #4ec9b0;
-        border: 1px solid #4ec9b0;
+        border: 1px solid ${props.isActive ? "#4ec9b0" : "rgba(78, 201, 176, 0.4)"};
         ${props.isActive ? "font-weight: 600;" : ""}
         
         &:hover {
-          background: rgba(78, 201, 176, 0.3);
+          background: rgba(78, 201, 176, 0.15);
+          border-color: #4ec9b0;
         }
       `;
     } else if (props.variant === "reject") {
       return `
-        background: ${props.isActive ? "rgba(244, 135, 113, 0.3)" : "rgba(244, 135, 113, 0.2)"};
+        background: ${props.isActive ? "rgba(244, 135, 113, 0.25)" : "transparent"};
         color: #f48771;
-        border: 1px solid #f48771;
+        border: 1px solid ${props.isActive ? "#f48771" : "rgba(244, 135, 113, 0.4)"};
         ${props.isActive ? "font-weight: 600;" : ""}
         
         &:hover {
-          background: rgba(244, 135, 113, 0.3);
+          background: rgba(244, 135, 113, 0.15);
+          border-color: #f48771;
         }
       `;
     } else {
       return `
-        background: #444;
-        color: #ccc;
+        background: transparent;
+        color: #888;
         border: 1px solid #555;
         flex: 0 0 auto;
         
         &:hover {
-          background: #555;
+          background: #444;
+          color: #ccc;
         }
       `;
     }
@@ -92,12 +95,12 @@ const ActionButton = styled.button<{
 const StatusBadge = styled.span<{ status: "accepted" | "rejected" }>`
   display: inline-flex;
   align-items: center;
-  padding: 2px 6px;
-  border-radius: 3px;
-  font-size: 9px;
+  padding: 1px 4px;
+  border-radius: 2px;
+  font-size: 8px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.3px;
 
   ${(props) => {
     if (props.status === "accepted") {
@@ -115,33 +118,35 @@ const StatusBadge = styled.span<{ status: "accepted" | "rejected" }>`
 `;
 
 const NoteToggle = styled.button`
-  padding: 4px 12px;
+  padding: 5px 10px;
   background: transparent;
   border: 1px solid #555;
-  border-radius: 4px;
+  border-radius: 3px;
   color: #888;
   font-size: 11px;
   cursor: pointer;
   transition: all 0.2s ease;
   font-family: var(--font-primary);
+  flex-shrink: 0;
 
   &:hover {
     border-color: #007acc;
     color: #ccc;
+    background: rgba(0, 122, 204, 0.1);
   }
 `;
 
 const NoteInput = styled.textarea`
   width: 100%;
-  padding: 8px;
+  padding: 6px 8px;
   background: #1e1e1e;
   border: 1px solid #3e3e42;
-  border-radius: 4px;
+  border-radius: 3px;
   color: #d4d4d4;
-  font-size: 12px;
+  font-size: 11px;
   font-family: var(--font-monospace);
   resize: vertical;
-  min-height: 60px;
+  min-height: 50px;
 
   &:focus {
     outline: none;
@@ -154,9 +159,9 @@ const NoteInput = styled.textarea`
 `;
 
 const KeybindHint = styled.span`
-  font-size: 10px;
+  font-size: 9px;
   color: #666;
-  margin-left: 4px;
+  opacity: 0.7;
 `;
 
 export const ReviewActions: React.FC<ReviewActionsProps> = ({

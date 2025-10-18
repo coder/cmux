@@ -20,8 +20,8 @@ export const DiffLine = styled.div<{ type: DiffLineType }>`
   font-family: var(--font-monospace);
   white-space: pre;
   display: flex;
-  padding: ${({ type }) => (type === "header" ? "4px 0" : "0")};
-  min-width: 100%; /* Ensure background extends full width */
+  padding: ${({ type }) => (type === "header" ? "4px 8px" : "0 8px")}; /* Horizontal padding on lines */
+  min-width: calc(100% - 16px); /* Account for padding */
   color: ${({ type }) => {
     switch (type) {
       case "add":
@@ -108,7 +108,7 @@ export const DiffIndicator = styled.span<{ type: DiffLineType }>`
 
 export const DiffContainer = styled.div`
   margin: 0;
-  padding: 6px 8px;
+  padding: 6px 0; /* Remove horizontal padding to allow full-width backgrounds */
   background: rgba(0, 0, 0, 0.2);
   border-radius: 3px;
   font-size: 11px;
@@ -116,11 +116,6 @@ export const DiffContainer = styled.div`
   max-height: 400px;
   overflow-y: auto;
   overflow-x: auto;
-  
-  /* Ensure backgrounds extend to full scrollable width */
-  & > * {
-    min-width: fit-content;
-  }
 `;
 
 interface DiffRendererProps {
@@ -162,9 +157,8 @@ export const DiffRenderer: React.FC<DiffRendererProps> = ({
         let type: DiffLineType = "context";
         let lineNumDisplay = "";
 
-        // Detect header lines (@@)
+        // Detect header lines (@@) - parse for line numbers but don't render
         if (line.startsWith("@@")) {
-          type = "header";
           // Parse hunk header for line numbers
           const regex = /^@@\s+-(\d+)(?:,\d+)?\s+\+(\d+)(?:,\d+)?\s+@@/;
           const match = regex.exec(line);
@@ -172,13 +166,8 @@ export const DiffRenderer: React.FC<DiffRendererProps> = ({
             oldLineNum = parseInt(match[1], 10);
             newLineNum = parseInt(match[2], 10);
           }
-          return (
-            <DiffLine key={index} type={type}>
-              <DiffIndicator type={type}>{/* Empty for alignment */}</DiffIndicator>
-              {showLineNumbers && <LineNumber type={type}>{index > 0 ? "⋮" : ""}</LineNumber>}
-              <LineContent type={type}>{line}</LineContent>
-            </DiffLine>
-          );
+          // Don't render the header - it cuts off file names
+          return null;
         }
 
         if (firstChar === "+") {

@@ -44,7 +44,6 @@ const SidebarContainer = styled.div<SidebarContainerStyleProps>`
   overflow: hidden;
   transition: ${(props) => (props.customWidth ? "none" : "width 0.2s ease")};
   flex-shrink: 0;
-  position: relative; /* For absolute positioning of VerticalTokenMeter */
 
   /* Keep vertical bar always visible when collapsed */
   ${(props) =>
@@ -55,16 +54,6 @@ const SidebarContainer = styled.div<SidebarContainerStyleProps>`
     z-index: 10;
     box-shadow: -2px 0 4px rgba(0, 0, 0, 0.2);
   `}
-`;
-
-const VerticalMeterWrapper = styled.div`
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 20px;
-  z-index: 5;
-  pointer-events: none; /* Allow clicking through to resize handle */
 `;
 
 const FullView = styled.div<{ visible: boolean }>`
@@ -220,9 +209,6 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
     // Between thresholds: maintain current state (no change)
   }, [chatAreaWidth, selectedTab, showCollapsed, setShowCollapsed]);
 
-  // Show vertical meter on non-Costs tabs (when not collapsed)
-  const showVerticalMeterInSidebar = !showCollapsed && selectedTab !== "costs";
-
   return (
     <SidebarContainer
       collapsed={showCollapsed}
@@ -231,13 +217,6 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
       role="complementary"
       aria-label="Workspace insights"
     >
-      {/* Show vertical meter on left edge for non-Costs tabs */}
-      {showVerticalMeterInSidebar && (
-        <VerticalMeterWrapper>
-          <VerticalTokenMeter data={verticalMeterData} />
-        </VerticalMeterWrapper>
-      )}
-      
       <FullView visible={!showCollapsed}>
         <TabBar role="tablist" aria-label="Metadata views">
           <TooltipWrapper inline>
