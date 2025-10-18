@@ -86,11 +86,11 @@ const FileTreeSection = styled.div`
   min-height: 0;
   order: 2; /* Come after HunksSection in wide mode */
 
-  /* Narrow layout: full width, fixed height, above hunks */
+  /* Narrow layout: full width, grow to fit full tree, above hunks */
   @container review-panel (max-width: 800px) {
     width: 100%;
-    height: 250px;
-    flex: 0 0 250px;
+    height: auto; /* Let it grow to show full tree */
+    flex: 0 0 auto; /* Fixed size based on content */
     border-left: none;
     border-bottom: 1px solid #3e3e42;
     order: 0; /* Come before HunksSection in narrow mode */

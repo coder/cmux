@@ -13,12 +13,6 @@ const TreeContainer = styled.div`
   overflow-y: auto;
   font-family: var(--font-monospace);
   font-size: 12px;
-  
-  /* In narrow layout (vertical mode), remove scrolling to show full tree */
-  @container review-panel (max-width: 800px) {
-    overflow-y: visible;
-    flex: 0 0 auto; /* Don't grow/shrink, fit content */
-  }
 `;
 
 const TreeNode = styled.div<{ depth: number; isSelected: boolean }>`
