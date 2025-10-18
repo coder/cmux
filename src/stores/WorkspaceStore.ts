@@ -443,6 +443,41 @@ export class WorkspaceStore {
   }
 
   /**
+   * Handle interruption (Ctrl+C) of a compaction stream.
+   * Saves partial summary with [truncated] sentinel.
+   */
+  private handleCompactionAbort(
+    workspaceId: string,
+    aggregator: StreamingMessageAggregator,
+    data: WorkspaceChatMessage
+  ): boolean {
+    // Type guard: only StreamAbortEvent has messageId
+    if (!("messageId" in data)) return false;
+
+    // Check if this was a compaction stream by looking at the last user message
+    const messages = aggregator.getAllMessages();
+    const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
+
+    if (lastUserMsg?.metadata?.cmuxMetadata?.type !== "compaction-request") {
+      return false;
+    }
+
+    // Extract whatever summary text was streamed before interruption
+    const partialSummary = aggregator.getCompactionSummary(data.messageId);
+    if (!partialSummary) {
+      console.warn("[WorkspaceStore] Compaction aborted but no partial summary found");
+      return false;
+    }
+
+    // Append [truncated] sentinel on new line to indicate incomplete summary
+    const truncatedSummary = partialSummary.trim() + "\n\n[truncated]";
+
+    this.performCompaction(workspaceId, aggregator, data, truncatedSummary);
+    return true;
+  }
+
+
+  /**
    * Perform history compaction by replacing chat history with summary message.
    * Type-safe: only called when we've verified data is a StreamEndEvent.
    */
@@ -805,6 +840,14 @@ export class WorkspaceStore {
     if (isStreamAbort(data)) {
       aggregator.clearTokenState(data.messageId);
       aggregator.handleStreamAbort(data);
+
+      // Check if this was a compaction stream that got interrupted
+      if (this.handleCompactionAbort(workspaceId, aggregator, data)) {
+        // Compaction abort handled, don't do normal abort processing
+        return;
+      }
+
+      // Normal abort handling
       this.states.bump(workspaceId);
       this.dispatchResumeCheck(workspaceId);
 
