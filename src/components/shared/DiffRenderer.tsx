@@ -16,8 +16,30 @@ const getContrastColor = (type: DiffLineType) => {
     : "var(--color-text-secondary)";
 };
 
-// Wrapper to ensure background extends full width
+/**
+ * Wrapper to ensure background extends infinitely during horizontal scroll
+ * 
+ * Problem: When diff content is very long and scrolls horizontally, backgrounds would
+ * end at the text boundary, creating a jagged right edge.
+ * 
+ * Solution: Classic CSS technique - add massive right padding to extend the background
+ * infinitely to the right, then pull back with negative margin so it doesn't affect layout.
+ * 
+ * Key mechanics:
+ * - min-width: 100% ensures wrapper spans at least the container width
+ * - width: fit-content allows wrapper to grow for long lines
+ * - padding-right: 10000px extends the element's box (and background) far right
+ * - margin-right: -10000px pulls element back, canceling the padding's layout effect
+ * 
+ * Result: Background extends infinitely right, no jagged edges at any scroll position.
+ */
 export const DiffLineWrapper = styled.div<{ type: DiffLineType }>`
+  display: block;
+  min-width: 100%;
+  width: fit-content;
+  padding-right: 10000px;
+  margin-right: -10000px;
+  
   background: ${({ type }) => {
     switch (type) {
       case "add":
@@ -28,8 +50,6 @@ export const DiffLineWrapper = styled.div<{ type: DiffLineType }>`
         return "transparent";
     }
   }};
-  width: 100%; /* Always full width so background extends */
-  min-width: fit-content; /* But grow if content is wider */
 `;
 
 export const DiffLine = styled.div<{ type: DiffLineType }>`
