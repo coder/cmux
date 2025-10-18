@@ -53,6 +53,17 @@ const EmptyStateText = styled.div`
   line-height: 1.5;
 `;
 
+const CommandDisplay = styled.div`
+  margin-top: 12px;
+  padding: 8px 12px;
+  background: #2d2d2d;
+  border: 1px solid #3e3e42;
+  border-radius: 4px;
+  font-family: var(--font-monospace);
+  font-size: 11px;
+  color: #888;
+`;
+
 const LoadingState = styled.div`
   display: flex;
   align-items: center;
@@ -108,6 +119,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
   const [selectedHunkId, setSelectedHunkId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [lastCommand, setLastCommand] = useState<string>("");
   const [filters, setFilters] = useState<ReviewFiltersType>({
     showReviewed: false,
     statusFilter: "unreviewed",
@@ -144,6 +156,9 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
           // Use three-dot syntax to show changes since common ancestor
           diffCommand = `git diff ${filters.diffBase}...HEAD`;
         }
+
+        // Store command for debugging
+        setLastCommand(diffCommand);
 
         // Use executeBash to run git diff in the workspace
         const result = await window.api.workspace.executeBash(workspaceId, diffCommand);
@@ -276,6 +291,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
             <br />
             Try selecting a different base or make some changes.
           </EmptyStateText>
+          {lastCommand && <CommandDisplay>Command: {lastCommand}</CommandDisplay>}
         </EmptyState>
       ) : (
         <>
