@@ -163,10 +163,20 @@ export const ReviewControls: React.FC<ReviewControlsProps> = ({
   const [customBase, setCustomBase] = useState("");
   const [isCustom, setIsCustom] = useState(false);
 
+  // Predefined base options
+  const predefinedBases = ["HEAD", "--staged", "main", "origin/main"];
+  
+  // Check if current diffBase is a custom value
+  const isCurrentlyCustom = !predefinedBases.includes(filters.diffBase);
+  
+  // Display value for the select: show "custom" if it's a custom base
+  const selectValue = isCustom ? "custom" : isCurrentlyCustom ? "custom" : filters.diffBase;
+
   const handleDiffBaseChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const value = e.target.value;
     if (value === "custom") {
       setIsCustom(true);
+      setCustomBase(isCurrentlyCustom ? filters.diffBase : "");
     } else {
       setIsCustom(false);
       onFiltersChange({ ...filters, diffBase: value });
@@ -200,13 +210,13 @@ export const ReviewControls: React.FC<ReviewControlsProps> = ({
 
   return (
     <ControlsContainer>
-      <Label>Diff:</Label>
-      <Select value={isCustom ? "custom" : filters.diffBase} onChange={handleDiffBaseChange}>
+      <Label>Base:</Label>
+      <Select value={selectValue} onChange={handleDiffBaseChange}>
         <option value="HEAD">HEAD</option>
         <option value="--staged">Staged</option>
         <option value="main">main</option>
         <option value="origin/main">origin/main</option>
-        <option value="custom">Custom...</option>
+        <option value="custom">{isCurrentlyCustom ? `Custom: ${filters.diffBase}` : "Custom..."}</option>
       </Select>
       {isCustom && (
         <CustomInput
