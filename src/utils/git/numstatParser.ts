@@ -47,7 +47,7 @@ export function parseNumstat(numstatOutput: string): FileStats[] {
  */
 export function extractNewPath(filePath: string): string {
   // Match rename syntax: {old => new}
-  const renameMatch = filePath.match(/^(.*)?\{[^}]+ => ([^}]+)\}(.*)$/);
+  const renameMatch = /^(.*)?\{[^}]+ => ([^}]+)\}(.*)$/.exec(filePath);
   if (renameMatch) {
     const [, prefix = "", newName, suffix = ""] = renameMatch;
     return `${prefix}${newName}${suffix}`;

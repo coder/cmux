@@ -7,7 +7,7 @@ import { useState, useEffect, useRef } from "react";
  * This replaces unreliable CSS container queries with explicit measurement
  * and React-controlled layout switching.
  */
-export function useLayoutMode(threshold: number = 800): {
+export function useLayoutMode(threshold = 800): {
   layoutMode: "narrow" | "wide";
   containerRef: React.RefObject<HTMLDivElement>;
 } {

@@ -4,18 +4,16 @@
 
 import React, { useState } from "react";
 import styled from "@emotion/styled";
-import type { DiffHunk, HunkReview } from "@/types/review";
+import type { DiffHunk } from "@/types/review";
 import { DiffRenderer } from "../../shared/DiffRenderer";
 
 interface HunkViewerProps {
   hunk: DiffHunk;
-  review?: HunkReview;
   isSelected?: boolean;
   onClick?: () => void;
-  children?: React.ReactNode; // For ReviewActions
 }
 
-const HunkContainer = styled.div<{ isSelected: boolean; reviewStatus?: string }>`
+const HunkContainer = styled.div<{ isSelected: boolean }>`
   background: #1e1e1e;
   border: 1px solid #3e3e42;
   border-radius: 4px;
@@ -30,15 +28,6 @@ const HunkContainer = styled.div<{ isSelected: boolean; reviewStatus?: string }>
     border-color: #007acc;
     box-shadow: 0 0 0 1px #007acc;
   `}
-
-  ${(props) => {
-    if (props.reviewStatus === "accepted") {
-      return `border-left: 3px solid #4ec9b0;`;
-    } else if (props.reviewStatus === "rejected") {
-      return `border-left: 3px solid #f48771;`;
-    }
-    return "";
-  }}
 
   &:hover {
     border-color: #007acc;
@@ -118,15 +107,6 @@ const CollapsedIndicator = styled.div`
   }
 `;
 
-const NoteSection = styled.div`
-  background: #2d2d2d;
-  border-top: 1px solid #3e3e42;
-  padding: 8px 12px;
-  color: #888;
-  font-size: 11px;
-  font-style: italic;
-`;
-
 const RenameInfo = styled.div`
   padding: 12px;
   color: #888;
@@ -143,7 +123,7 @@ const RenameInfo = styled.div`
   }
 `;
 
-export const HunkViewer: React.FC<HunkViewerProps> = ({ hunk, review, isSelected, onClick, children }) => {
+export const HunkViewer: React.FC<HunkViewerProps> = ({ hunk, isSelected, onClick }) => {
   const [isExpanded, setIsExpanded] = useState(true);
 
   const handleToggleExpand = (e: React.MouseEvent) => {
@@ -166,7 +146,6 @@ export const HunkViewer: React.FC<HunkViewerProps> = ({ hunk, review, isSelected
   return (
     <HunkContainer
       isSelected={isSelected ?? false}
-      reviewStatus={review?.status}
       onClick={onClick}
       role="button"
       tabIndex={0}
@@ -209,10 +188,6 @@ export const HunkViewer: React.FC<HunkViewerProps> = ({ hunk, review, isSelected
       {shouldCollapse && isExpanded && !isPureRename && (
         <CollapsedIndicator onClick={handleToggleExpand}>Click to collapse</CollapsedIndicator>
       )}
-
-      {children}
-
-      {review?.note && <NoteSection>Note: {review.note}</NoteSection>}
     </HunkContainer>
   );
 };

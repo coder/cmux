@@ -1,15 +1,13 @@
 /**
  * ReviewPanel - Main code review interface
- * Displays diff hunks and allows user to accept/reject with notes
+ * Displays diff hunks for viewing changes in the workspace
  */
 
-import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import styled from "@emotion/styled";
 import { HunkViewer } from "./HunkViewer";
-import { ReviewActions } from "./ReviewActions";
 import { ReviewControls } from "./ReviewControls";
 import { FileTree } from "./FileTree";
-import { useReviewState } from "@/hooks/useReviewState";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { parseDiff, extractAllHunks } from "@/utils/git/diffParser";
 import { parseNumstat, buildFileTree, extractNewPath } from "@/utils/git/numstatParser";
@@ -196,17 +194,6 @@ const ErrorState = styled.div`
   word-break: break-word;
 `;
 
-const StaleReviewsBanner = styled.div`
-  background: rgba(244, 135, 113, 0.1);
-  border-bottom: 1px solid rgba(244, 135, 113, 0.3);
-  padding: 12px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 12px;
-  color: #f48771;
-`;
-
 const TruncationBanner = styled.div`
   background: rgba(255, 193, 7, 0.1);
   border: 1px solid rgba(255, 193, 7, 0.3);
@@ -223,22 +210,6 @@ const TruncationBanner = styled.div`
   &::before {
     content: "⚠️";
     font-size: 12px;
-  }
-`;
-
-const CleanupButton = styled.button`
-  padding: 4px 12px;
-  background: rgba(244, 135, 113, 0.2);
-  color: #f48771;
-  border: 1px solid #f48771;
-  border-radius: 4px;
-  font-size: 11px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-family: var(--font-primary);
-
-  &:hover {
-    background: rgba(244, 135, 113, 0.3);
   }
 `;
 
@@ -277,19 +248,10 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
   );
   
   const [filters, setFilters] = useState<ReviewFiltersType>({
-    showReviewed: false,
-    statusFilter: "unreviewed",
+    showReviewed: true,
+    statusFilter: "all",
     diffBase: diffBase,
   });
-
-  const {
-    getReview,
-    setReview,
-    deleteReview,
-    calculateStats,
-    hasStaleReviews,
-    removeStaleReviews,
-  } = useReviewState(workspaceId);
 
   // Load file tree - only when workspace or diffBase changes (not when path filter changes)
   useEffect(() => {
@@ -426,43 +388,18 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
     setDiffBase(filters.diffBase);
   }, [filters.diffBase, setDiffBase]);
 
-  // Calculate stats
-  const stats = useMemo(() => calculateStats(hunks), [hunks, calculateStats]);
+  // For MVP: No review state tracking, just show all hunks
+  const filteredHunks = hunks;
+  
+  // Simple stats for display
+  const stats = useMemo(() => ({
+    total: hunks.length,
+    accepted: 0,
+    rejected: 0,
+    unreviewed: hunks.length,
+  }), [hunks]);
 
-  // Check for stale reviews
-  const hasStale = useMemo(
-    () => hasStaleReviews(hunks.map((h) => h.id)),
-    [hunks, hasStaleReviews]
-  );
-
-  // Filter hunks based on review status only (path filtering done server-side via git diff)
-  const filteredHunks = useMemo(() => {
-    return hunks.filter((hunk) => {
-      const review = getReview(hunk.id);
-
-      // Filter by review status
-      if (!filters.showReviewed && review) {
-        return false;
-      }
-
-      // Filter by status filter
-      if (filters.statusFilter !== "all") {
-        if (filters.statusFilter === "unreviewed" && review) {
-          return false;
-        }
-        if (filters.statusFilter === "accepted" && review?.status !== "accepted") {
-          return false;
-        }
-        if (filters.statusFilter === "rejected" && review?.status !== "rejected") {
-          return false;
-        }
-      }
-
-      return true;
-    });
-  }, [hunks, filters, getReview]);
-
-  // Keyboard navigation
+  // Keyboard navigation (j/k or arrow keys)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!selectedHunkId) return;
@@ -470,9 +407,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
       const currentIndex = filteredHunks.findIndex((h) => h.id === selectedHunkId);
       if (currentIndex === -1) return;
 
-      const review = getReview(selectedHunkId);
-
-      // Navigation
+      // Navigation only
       if (e.key === "j" || e.key === "ArrowDown") {
         e.preventDefault();
         if (currentIndex < filteredHunks.length - 1) {
@@ -484,23 +419,11 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
           setSelectedHunkId(filteredHunks[currentIndex - 1].id);
         }
       }
-      // Actions
-      else if (e.key === "a" && !e.metaKey && !e.ctrlKey) {
-        e.preventDefault();
-        setReview(selectedHunkId, "accepted", review?.note);
-      } else if (e.key === "r" && !e.metaKey && !e.ctrlKey) {
-        e.preventDefault();
-        setReview(selectedHunkId, "rejected", review?.note);
-      }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedHunkId, filteredHunks, getReview, setReview]);
-
-  const handleCleanupStaleReviews = useCallback(() => {
-    removeStaleReviews(hunks.map((h) => h.id));
-  }, [hunks, removeStaleReviews]);
+  }, [selectedHunkId, filteredHunks]);
 
   return (
     <PanelContainer ref={containerRef}>
@@ -516,13 +439,6 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
           <HunksSection>
             {truncationWarning && (
               <TruncationBanner>{truncationWarning}</TruncationBanner>
-            )}
-            
-            {hasStale && (
-              <StaleReviewsBanner>
-                <span>Some reviews reference hunks that no longer exist</span>
-                <CleanupButton onClick={handleCleanupStaleReviews}>Clean up</CleanupButton>
-              </StaleReviewsBanner>
             )}
 
             <HunkList>
@@ -570,27 +486,15 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
                 </EmptyState>
               ) : (
                 filteredHunks.map((hunk) => {
-                  const review = getReview(hunk.id);
                   const isSelected = hunk.id === selectedHunkId;
 
                   return (
                     <HunkViewer
                       key={hunk.id}
                       hunk={hunk}
-                      review={review}
                       isSelected={isSelected}
                       onClick={() => setSelectedHunkId(hunk.id)}
-                    >
-                      {isSelected && (
-                        <ReviewActions
-                          currentStatus={review?.status}
-                          currentNote={review?.note}
-                          onAccept={(note) => setReview(hunk.id, "accepted", note)}
-                          onReject={(note) => setReview(hunk.id, "rejected", note)}
-                          onDelete={() => deleteReview(hunk.id)}
-                        />
-                      )}
-                    </HunkViewer>
+                    />
                   );
                 })
               )}
