@@ -7,6 +7,7 @@ import styled from "@emotion/styled";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import type { ReviewFilters, ReviewStats } from "@/types/review";
 import { RefreshButton } from "./RefreshButton";
+import { UntrackedStatus } from "./UntrackedStatus";
 
 interface ReviewControlsProps {
   filters: ReviewFilters;
@@ -14,6 +15,8 @@ interface ReviewControlsProps {
   onFiltersChange: (filters: ReviewFilters) => void;
   onRefresh?: () => void;
   isLoading?: boolean;
+  workspaceId: string;
+  workspacePath: string;
 }
 
 const ControlsContainer = styled.div`
@@ -117,6 +120,8 @@ export const ReviewControls: React.FC<ReviewControlsProps> = ({
   onFiltersChange,
   onRefresh,
   isLoading = false,
+  workspaceId,
+  workspacePath,
 }) => {
   // Local state for input value - only commit on blur/Enter
   const [inputValue, setInputValue] = useState(filters.diffBase);
@@ -196,8 +201,10 @@ export const ReviewControls: React.FC<ReviewControlsProps> = ({
 
       <CheckboxLabel>
         <input type="checkbox" checked={filters.includeDirty} onChange={handleDirtyToggle} />
-        Include dirty
+        Dirty
       </CheckboxLabel>
+
+      <UntrackedStatus workspaceId={workspaceId} workspacePath={workspacePath} />
 
       <Separator />
 

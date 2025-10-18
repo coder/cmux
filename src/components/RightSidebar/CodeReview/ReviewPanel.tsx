@@ -526,6 +526,8 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
         onFiltersChange={setFilters}
         onRefresh={() => setRefreshTrigger((prev) => prev + 1)}
         isLoading={isLoadingHunks || isLoadingTree}
+        workspaceId={workspaceId}
+        workspacePath={workspacePath}
       />
 
       {error ? (
