@@ -4,13 +4,16 @@ import styled from "@emotion/styled";
 /**
  * Wrapper for compaction streaming content
  * Provides max-height constraint with fade effect to imply content above
- * No scrolling - content fades out at the top line by line
+ * No scrolling - content stays anchored to bottom, older content fades at top
  */
 
 const Container = styled.div`
   max-height: 300px;
   overflow: hidden;
   position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end; /* Anchor content to bottom */
 
   /* Fade effect: content fades progressively from top to bottom */
   mask-image: linear-gradient(

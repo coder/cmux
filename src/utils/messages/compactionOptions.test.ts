@@ -58,13 +58,24 @@ describe("applyCompactionOverrides", () => {
     expect(result.maxOutputTokens).toBe(8000);
   });
 
-  it("sets compact mode", () => {
+  it("sets compact mode and disables all tools", () => {
     const compactData: CompactionRequestData = {};
     const result = applyCompactionOverrides(baseOptions, compactData);
 
     expect(result.mode).toBe("compact");
-    // No special toolPolicy for compaction - uses base options
     expect(result.toolPolicy).toEqual([]);
+  });
+
+  it("disables all tools even when base options has tool policy", () => {
+    const baseWithTools: SendMessageOptions = {
+      ...baseOptions,
+      toolPolicy: [{ regex_match: "bash", action: "enable" }],
+    };
+    const compactData: CompactionRequestData = {};
+    const result = applyCompactionOverrides(baseWithTools, compactData);
+
+    expect(result.mode).toBe("compact");
+    expect(result.toolPolicy).toEqual([]); // Tools always disabled for compaction
   });
 
   it("applies all overrides together", () => {

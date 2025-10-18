@@ -36,5 +36,6 @@ export function applyCompactionOverrides(
     thinkingLevel: isAnthropic ? "off" : baseOptions.thinkingLevel,
     maxOutputTokens: compactData.maxOutputTokens,
     mode: "compact" as const,
+    toolPolicy: [], // Disable all tools during compaction
   };
 }
