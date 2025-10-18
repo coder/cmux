@@ -8,9 +8,12 @@ import styled from "@emotion/styled";
 import { HunkViewer } from "./HunkViewer";
 import { ReviewActions } from "./ReviewActions";
 import { ReviewFilters } from "./ReviewFilters";
+import { FileTree } from "./FileTree";
 import { useReviewState } from "@/hooks/useReviewState";
 import { parseDiff, extractAllHunks } from "@/utils/git/diffParser";
+import { parseNumstat, buildFileTree } from "@/utils/git/numstatParser";
 import type { DiffHunk, ReviewFilters as ReviewFiltersType } from "@/types/review";
+import type { FileTreeNode } from "@/utils/git/numstatParser";
 
 interface ReviewPanelProps {
   workspaceId: string;
@@ -24,10 +27,32 @@ const PanelContainer = styled.div`
   background: #1e1e1e;
 `;
 
+const ContentContainer = styled.div`
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+`;
+
+const HunksSection = styled.div`
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+`;
+
 const HunkList = styled.div`
   flex: 1;
   overflow-y: auto;
   padding: 12px;
+`;
+
+const FileTreeSection = styled.div`
+  width: 300px;
+  border-left: 1px solid #3e3e42;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 `;
 
 const EmptyState = styled.div`
@@ -202,6 +227,8 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
   const [error, setError] = useState<string | null>(null);
   const [diagnosticInfo, setDiagnosticInfo] = useState<DiagnosticInfo | null>(null);
   const [truncationWarning, setTruncationWarning] = useState<string | null>(null);
+  const [fileTree, setFileTree] = useState<FileTreeNode | null>(null);
+  const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null);
   const [filters, setFilters] = useState<ReviewFiltersType>({
     showReviewed: false,
     statusFilter: "unreviewed",
@@ -225,40 +252,58 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
       setIsLoading(true);
       setError(null);
       setTruncationWarning(null);
+      setFileTree(null);
       try {
         // Build git diff command based on selected base
         let diffCommand: string;
+        let numstatCommand: string;
         
         if (filters.diffBase === "--staged") {
           diffCommand = "git diff --staged";
+          numstatCommand = "git diff --staged --numstat";
         } else if (filters.diffBase === "HEAD") {
           diffCommand = "git diff HEAD";
+          numstatCommand = "git diff HEAD --numstat";
         } else {
           // Use three-dot syntax to show changes since common ancestor
           diffCommand = `git diff ${filters.diffBase}...HEAD`;
+          numstatCommand = `git diff ${filters.diffBase}...HEAD --numstat`;
         }
 
-        // Use executeBash with generous timeout (diffs can be slow for large repos)
-        const result = await window.api.workspace.executeBash(workspaceId, diffCommand, {
-          timeout_secs: 30,
-        });
+        // Fetch both diff and numstat in parallel
+        const [diffResult, numstatResult] = await Promise.all([
+          window.api.workspace.executeBash(workspaceId, diffCommand, {
+            timeout_secs: 30,
+          }),
+          window.api.workspace.executeBash(workspaceId, numstatCommand, {
+            timeout_secs: 30,
+          }),
+        ]);
 
         if (cancelled) return;
 
-        if (!result.success) {
+        if (!diffResult.success) {
           // Real error (not truncation-related)
-          console.error("Git diff failed:", result.error);
-          setError(result.error);
+          console.error("Git diff failed:", diffResult.error);
+          setError(diffResult.error);
           setHunks([]);
           setDiagnosticInfo(null);
           return;
         }
 
-        const diffOutput = result.data.output ?? "";
-        const truncationInfo = result.data.truncated;
+        const diffOutput = diffResult.data.output ?? "";
+        const truncationInfo = diffResult.data.truncated;
 
         const fileDiffs = parseDiff(diffOutput);
         const allHunks = extractAllHunks(fileDiffs);
+        
+        // Parse numstat for file tree
+        if (numstatResult.success) {
+          const numstatOutput = numstatResult.data.output ?? "";
+          const fileStats = parseNumstat(numstatOutput);
+          const tree = buildFileTree(fileStats);
+          setFileTree(tree);
+        }
         
         // Store diagnostic info
         setDiagnosticInfo({
@@ -271,7 +316,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
         // Set truncation warning if applicable
         if (truncationInfo) {
           setTruncationWarning(
-            `Diff was truncated (${truncationInfo.reason}). Showing ${allHunks.length} hunks from ${fileDiffs.length} files. Use path filters for complete view.`
+            `Diff was truncated (${truncationInfo.reason}). Showing ${allHunks.length} hunks from ${fileDiffs.length} files. Use file tree to filter.`
           );
         }
         
@@ -306,10 +351,15 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
     [hunks, hasStaleReviews]
   );
 
-  // Filter hunks based on current filters
+  // Filter hunks based on current filters and selected file
   const filteredHunks = useMemo(() => {
     return hunks.filter((hunk) => {
       const review = getReview(hunk.id);
+
+      // Filter by selected file path
+      if (selectedFilePath && hunk.filePath !== selectedFilePath) {
+        return false;
+      }
 
       // Filter by review status
       if (!filters.showReviewed && review) {
@@ -331,7 +381,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
 
       return true;
     });
-  }, [hunks, filters, getReview]);
+  }, [hunks, filters, selectedFilePath, getReview]);
 
   // Keyboard navigation
   useEffect(() => {
@@ -417,55 +467,67 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
           )}
         </EmptyState>
       ) : (
-        <>
-          {truncationWarning && (
-            <TruncationBanner>{truncationWarning}</TruncationBanner>
-          )}
-          
-          {hasStale && (
-            <StaleReviewsBanner>
-              <span>Some reviews reference hunks that no longer exist</span>
-              <CleanupButton onClick={handleCleanupStaleReviews}>Clean up</CleanupButton>
-            </StaleReviewsBanner>
-          )}
-
-          <HunkList>
-            {filteredHunks.length === 0 ? (
-              <EmptyState>
-                <EmptyStateText>
-                  No hunks match the current filters.
-                  <br />
-                  Try adjusting your filter settings.
-                </EmptyStateText>
-              </EmptyState>
-            ) : (
-              filteredHunks.map((hunk) => {
-                const review = getReview(hunk.id);
-                const isSelected = hunk.id === selectedHunkId;
-
-                return (
-                  <div key={hunk.id}>
-                    <HunkViewer
-                      hunk={hunk}
-                      review={review}
-                      isSelected={isSelected}
-                      onClick={() => setSelectedHunkId(hunk.id)}
-                    />
-                    {isSelected && (
-                      <ReviewActions
-                        currentStatus={review?.status}
-                        currentNote={review?.note}
-                        onAccept={(note) => setReview(hunk.id, "accepted", note)}
-                        onReject={(note) => setReview(hunk.id, "rejected", note)}
-                        onDelete={() => deleteReview(hunk.id)}
-                      />
-                    )}
-                  </div>
-                );
-              })
+        <ContentContainer>
+          <HunksSection>
+            {truncationWarning && (
+              <TruncationBanner>{truncationWarning}</TruncationBanner>
             )}
-          </HunkList>
-        </>
+            
+            {hasStale && (
+              <StaleReviewsBanner>
+                <span>Some reviews reference hunks that no longer exist</span>
+                <CleanupButton onClick={handleCleanupStaleReviews}>Clean up</CleanupButton>
+              </StaleReviewsBanner>
+            )}
+
+            <HunkList>
+              {filteredHunks.length === 0 ? (
+                <EmptyState>
+                  <EmptyStateText>
+                    {selectedFilePath 
+                      ? `No hunks in ${selectedFilePath}. Try selecting a different file.`
+                      : "No hunks match the current filters. Try adjusting your filter settings."}
+                  </EmptyStateText>
+                </EmptyState>
+              ) : (
+                filteredHunks.map((hunk) => {
+                  const review = getReview(hunk.id);
+                  const isSelected = hunk.id === selectedHunkId;
+
+                  return (
+                    <div key={hunk.id}>
+                      <HunkViewer
+                        hunk={hunk}
+                        review={review}
+                        isSelected={isSelected}
+                        onClick={() => setSelectedHunkId(hunk.id)}
+                      />
+                      {isSelected && (
+                        <ReviewActions
+                          currentStatus={review?.status}
+                          currentNote={review?.note}
+                          onAccept={(note) => setReview(hunk.id, "accepted", note)}
+                          onReject={(note) => setReview(hunk.id, "rejected", note)}
+                          onDelete={() => deleteReview(hunk.id)}
+                        />
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </HunkList>
+          </HunksSection>
+
+          {fileTree && fileTree.children.length > 0 && (
+            <FileTreeSection>
+              <FileTree
+                root={fileTree}
+                selectedPath={selectedFilePath}
+                onSelectFile={setSelectedFilePath}
+              />
+            </FileTreeSection>
+          )}
+        </ContentContainer>
       )}
     </PanelContainer>
   );

@@ -1,0 +1,174 @@
+/**
+ * FileTree - Displays file hierarchy with diff statistics
+ */
+
+import React, { useState } from "react";
+import styled from "@emotion/styled";
+import type { FileTreeNode } from "@/utils/git/numstatParser";
+
+interface FileTreeProps {
+  root: FileTreeNode;
+  selectedPath: string | null;
+  onSelectFile: (path: string | null) => void;
+}
+
+const TreeContainer = styled.div`
+  padding: 12px;
+  overflow-y: auto;
+  font-family: var(--font-monospace);
+  font-size: 12px;
+`;
+
+const TreeNode = styled.div<{ depth: number; isSelected: boolean }>`
+  padding: 4px 8px;
+  padding-left: ${(props) => props.depth * 16 + 8}px;
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: ${(props) => (props.isSelected ? "rgba(100, 150, 255, 0.2)" : "transparent")};
+  border-radius: 4px;
+  margin: 2px 0;
+
+  &:hover {
+    background: ${(props) =>
+      props.isSelected ? "rgba(100, 150, 255, 0.2)" : "rgba(255, 255, 255, 0.05)"};
+  }
+`;
+
+const FileName = styled.span`
+  color: #ccc;
+  flex: 1;
+`;
+
+const DirectoryName = styled.span`
+  color: #888;
+  flex: 1;
+`;
+
+const Stats = styled.span`
+  display: flex;
+  gap: 8px;
+  font-size: 11px;
+`;
+
+const Additions = styled.span`
+  color: #4ade80;
+`;
+
+const Deletions = styled.span`
+  color: #f87171;
+`;
+
+const ToggleIcon = styled.span<{ isOpen: boolean }>`
+  width: 12px;
+  display: inline-block;
+  transform: ${(props) => (props.isOpen ? "rotate(90deg)" : "rotate(0deg)")};
+  transition: transform 0.2s ease;
+`;
+
+const ClearButton = styled.button`
+  padding: 6px 12px;
+  margin: 0 12px 8px 12px;
+  background: rgba(100, 150, 255, 0.1);
+  color: #6496ff;
+  border: 1px solid #6496ff;
+  border-radius: 4px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: var(--font-primary);
+
+  &:hover {
+    background: rgba(100, 150, 255, 0.2);
+  }
+`;
+
+const TreeHeader = styled.div`
+  padding: 8px 12px;
+  border-bottom: 1px solid #3e3e42;
+  font-size: 12px;
+  font-weight: 500;
+  color: #ccc;
+  font-family: var(--font-primary);
+`;
+
+const TreeNodeContent: React.FC<{
+  node: FileTreeNode;
+  depth: number;
+  selectedPath: string | null;
+  onSelectFile: (path: string | null) => void;
+}> = ({ node, depth, selectedPath, onSelectFile }) => {
+  const [isOpen, setIsOpen] = useState(depth < 2); // Auto-expand first 2 levels
+
+  const handleClick = () => {
+    if (node.isDirectory) {
+      setIsOpen(!isOpen);
+    } else {
+      // Toggle selection: if already selected, clear filter
+      onSelectFile(selectedPath === node.path ? null : node.path);
+    }
+  };
+
+  const isSelected = !node.isDirectory && selectedPath === node.path;
+
+  return (
+    <>
+      <TreeNode depth={depth} isSelected={isSelected} onClick={handleClick}>
+        {node.isDirectory ? (
+          <>
+            <ToggleIcon isOpen={isOpen}>▶</ToggleIcon>
+            <DirectoryName>{node.name || "/"}</DirectoryName>
+          </>
+        ) : (
+          <>
+            <span style={{ width: "12px" }} />
+            <FileName>{node.name}</FileName>
+            {node.stats && (
+              <Stats>
+                {node.stats.additions > 0 && <Additions>+{node.stats.additions}</Additions>}
+                {node.stats.deletions > 0 && <Deletions>-{node.stats.deletions}</Deletions>}
+              </Stats>
+            )}
+          </>
+        )}
+      </TreeNode>
+
+      {node.isDirectory &&
+        isOpen &&
+        node.children.map((child) => (
+          <TreeNodeContent
+            key={child.path}
+            node={child}
+            depth={depth + 1}
+            selectedPath={selectedPath}
+            onSelectFile={onSelectFile}
+          />
+        ))}
+    </>
+  );
+};
+
+export const FileTree: React.FC<FileTreeProps> = ({ root, selectedPath, onSelectFile }) => {
+  return (
+    <>
+      <TreeHeader>Files Changed</TreeHeader>
+      {selectedPath && (
+        <ClearButton onClick={() => onSelectFile(null)}>Clear filter</ClearButton>
+      )}
+      <TreeContainer>
+        {root.children.map((child) => (
+          <TreeNodeContent
+            key={child.path}
+            node={child}
+            depth={0}
+            selectedPath={selectedPath}
+            onSelectFile={onSelectFile}
+          />
+        ))}
+      </TreeContainer>
+    </>
+  );
+};
+
