@@ -17,28 +17,30 @@ const getContrastColor = (type: DiffLineType) => {
 };
 
 /**
- * Wrapper to ensure background extends infinitely during horizontal scroll
+ * Wrapper to ensure background extends beyond visible area during horizontal scroll
  * 
- * Problem: When diff content is very long and scrolls horizontally, backgrounds would
- * end at the text boundary, creating a jagged right edge.
+ * Problem: When diff content scrolls horizontally, backgrounds would end at the text
+ * boundary, creating a jagged right edge.
  * 
- * Solution: Classic CSS technique - add massive right padding to extend the background
- * infinitely to the right, then pull back with negative margin so it doesn't affect layout.
+ * Solution: Use absolutely positioned pseudo-element to extend background beyond content
+ * width without affecting the scrollable area.
  * 
  * Key mechanics:
- * - min-width: 100% ensures wrapper spans at least the container width
- * - width: fit-content allows wrapper to grow for long lines
- * - padding-right: 10000px extends the element's box (and background) far right
- * - margin-right: -10000px pulls element back, canceling the padding's layout effect
+ * - Parent has position: relative for pseudo-element positioning
+ * - width: fit-content makes parent width match actual content (controls scroll width)
+ * - min-width: 100% ensures wrapper spans at least the visible container width
+ * - ::after pseudo-element extends background to the right
+ * - Pseudo-element positioned absolutely at left: 100% (right edge of content)
+ * - Pseudo-element width: 100vw extends background beyond any viewport
+ * - Pseudo-element doesn't affect parent width or scroll behavior
  * 
- * Result: Background extends infinitely right, no jagged edges at any scroll position.
+ * Result: Scroll stops at content, but background extends smoothly beyond visible area.
  */
 export const DiffLineWrapper = styled.div<{ type: DiffLineType }>`
+  position: relative;
   display: block;
   min-width: 100%;
   width: fit-content;
-  padding-right: 10000px;
-  margin-right: -10000px;
   
   background: ${({ type }) => {
     switch (type) {
@@ -50,6 +52,23 @@ export const DiffLineWrapper = styled.div<{ type: DiffLineType }>`
         return "transparent";
     }
   }};
+  
+  /* Extend background beyond content without affecting scroll width */
+  ${({ type }) =>
+    (type === "add" || type === "remove") &&
+    `
+    &::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 100%;
+      width: 100vw;
+      height: 100%;
+      background: inherit;
+      pointer-events: none;
+      z-index: -1;
+    }
+  `}
 `;
 
 export const DiffLine = styled.div<{ type: DiffLineType }>`
