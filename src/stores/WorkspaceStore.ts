@@ -29,6 +29,7 @@ import type { ChatUsageDisplay } from "@/utils/tokens/usageAggregator";
 import type { TokenConsumer } from "@/types/chatStats";
 import type { LanguageModelV2Usage } from "@ai-sdk/provider";
 import { getCancelledCompactionKey } from "@/constants/storage";
+import { isCompactingStream, findCompactionRequestMessage } from "@/utils/compaction/handler";
 
 export interface WorkspaceState {
   messages: DisplayedMessage[];
@@ -424,11 +425,8 @@ export class WorkspaceStore {
     // Type guard: only StreamEndEvent has messageId
     if (!("messageId" in data)) return false;
 
-    // Check if this was a compaction stream by looking at the last user message
-    const messages = aggregator.getAllMessages();
-    const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
-
-    if (lastUserMsg?.metadata?.cmuxMetadata?.type !== "compaction-request") {
+    // Check if this was a compaction stream
+    if (!isCompactingStream(aggregator)) {
       return false;
     }
 
@@ -463,11 +461,14 @@ export class WorkspaceStore {
     // Type guard: only StreamAbortEvent has messageId
     if (!("messageId" in data)) return false;
 
-    // Check if this was a compaction stream by looking at the last user message
-    const messages = aggregator.getAllMessages();
-    const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
+    // Check if this was a compaction stream
+    if (!isCompactingStream(aggregator)) {
+      return false;
+    }
 
-    if (lastUserMsg?.metadata?.cmuxMetadata?.type !== "compaction-request") {
+    // Get the compaction request message for ID verification
+    const compactionRequestMsg = findCompactionRequestMessage(aggregator);
+    if (!compactionRequestMsg) {
       return false;
     }
 
@@ -478,7 +479,7 @@ export class WorkspaceStore {
     if (cancelData) {
       try {
         const { compactionRequestId } = JSON.parse(cancelData);
-        if (compactionRequestId === lastUserMsg?.id) {
+        if (compactionRequestId === compactionRequestMsg.id) {
           // This is a cancelled compaction - clean up marker and skip compaction
           localStorage.removeItem(storageKey);
           return false; // Skip compaction, cancelCompaction() handles cleanup
@@ -518,10 +519,7 @@ export class WorkspaceStore {
     const metadata = "metadata" in data ? data.metadata : undefined;
 
     // Extract continueMessage from compaction-request before history gets replaced
-    const messages = aggregator.getAllMessages();
-    const compactRequestMsg = [...messages]
-      .reverse()
-      .find((m) => m.role === "user" && m.metadata?.cmuxMetadata?.type === "compaction-request");
+    const compactRequestMsg = findCompactionRequestMessage(aggregator);
     const cmuxMeta = compactRequestMsg?.metadata?.cmuxMetadata;
     const continueMessage =
       cmuxMeta?.type === "compaction-request" ? cmuxMeta.parsed.continueMessage : undefined;

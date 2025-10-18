@@ -24,17 +24,31 @@ export function isCompactingStream(aggregator: StreamingMessageAggregator): bool
 }
 
 /**
+ * Find the compaction-request user message in message history
+ */
+export function findCompactionRequestMessage(
+  aggregator: StreamingMessageAggregator
+): ReturnType<typeof aggregator.getAllMessages>[number] | null {
+  const messages = aggregator.getAllMessages();
+  return (
+    [...messages]
+      .reverse()
+      .find((m) => m.role === "user" && m.metadata?.cmuxMetadata?.type === "compaction-request") ??
+    null
+  );
+}
+
+/**
  * Get the original /compact command from the last user message
  */
 export function getCompactionCommand(aggregator: StreamingMessageAggregator): string | null {
-  const messages = aggregator.getAllMessages();
-  const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
+  const compactionMsg = findCompactionRequestMessage(aggregator);
+  if (!compactionMsg) return null;
 
-  if (lastUserMsg?.metadata?.cmuxMetadata?.type !== "compaction-request") {
-    return null;
-  }
+  const cmuxMeta = compactionMsg.metadata?.cmuxMetadata;
+  if (cmuxMeta?.type !== "compaction-request") return null;
 
-  return lastUserMsg.metadata.cmuxMetadata.rawCommand ?? null;
+  return cmuxMeta.rawCommand ?? null;
 }
 
 /**
@@ -60,25 +74,17 @@ export async function cancelCompaction(
   aggregator: StreamingMessageAggregator,
   startEditingMessage: (messageId: string, initialText: string) => void
 ): Promise<boolean> {
+  // Find the compaction request message
+  const compactionRequestMsg = findCompactionRequestMessage(aggregator);
+  if (!compactionRequestMsg) {
+    return false;
+  }
+
   // Extract command before modifying history
   const command = getCompactionCommand(aggregator);
   if (!command) {
     return false;
   }
-
-  // Get messages snapshot before interrupting
-  const messages = aggregator.getAllMessages();
-  
-  // Find the compaction request message
-  const compactionRequestIndex = messages.findIndex(
-    (m) => m.role === "user" && m.metadata?.cmuxMetadata?.type === "compaction-request"
-  );
-  
-  if (compactionRequestIndex === -1) {
-    return false;
-  }
-
-  const compactionRequestMsg = messages[compactionRequestIndex];
 
   // CRITICAL: Store cancellation marker in localStorage BEFORE interrupt
   // Use the compaction-request user message ID (stable across retries)
