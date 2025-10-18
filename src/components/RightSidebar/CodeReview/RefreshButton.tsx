@@ -21,7 +21,7 @@ const Button = styled.button<{ $isLoading?: boolean }>`
   align-items: center;
   justify-content: center;
   color: ${(props) => (props.$isLoading ? "#007acc" : "#888")};
-  transition: color 0.8s ease-out;
+  transition: color 1.5s ease-out;
 
   &:hover {
     color: ${(props) => (props.$isLoading ? "#007acc" : "#ccc")};
