@@ -34,9 +34,10 @@ const ContentContainer = styled.div`
   flex: 1;
   min-height: 0;
   overflow: hidden;
+  container-type: inline-size; /* Enable container queries */
   
-  /* Stack vertically on narrow viewports */
-  @media (max-width: 800px) {
+  /* Stack vertically when container is narrow (uses container query) */
+  @container (max-width: 700px) {
     flex-direction: column;
   }
 `;
@@ -49,8 +50,8 @@ const HunksSection = styled.div`
   overflow: hidden;
   min-width: 0;
   
-  /* On narrow viewports, ensure it can scroll */
-  @media (max-width: 800px) {
+  /* On narrow containers, ensure it can scroll */
+  @container (max-width: 700px) {
     flex: 1; /* Take remaining space after file tree */
     min-height: 0; /* Critical for flex child scrolling */
   }
@@ -72,12 +73,12 @@ const FileTreeSection = styled.div`
   overflow: hidden;
   min-height: 0;
   
-  /* On narrow viewports, stack above hunks with limited height */
-  @media (max-width: 800px) {
+  /* On narrow containers, stack above hunks with limited height */
+  @container (max-width: 700px) {
     width: 100%;
     border-left: none;
     border-bottom: 1px solid #3e3e42;
-    height: 250px; /* Fixed height on narrow viewports */
+    height: 250px; /* Fixed height on narrow containers */
     flex: 0 0 250px; /* Don't grow, don't shrink, explicit size */
     order: -1; /* Move to top */
   }
