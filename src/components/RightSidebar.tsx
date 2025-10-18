@@ -58,9 +58,15 @@ const SidebarContainer = styled.div<SidebarContainerStyleProps>`
 
 const FullView = styled.div<{ visible: boolean }>`
   display: ${(props) => (props.visible ? "flex" : "none")};
-  flex-direction: column;
+  flex-direction: row; /* Horizontal layout: meter | handle | content */
   height: 100%;
-  position: relative; /* For absolute positioning of meter */
+`;
+
+const ContentColumn = styled.div`
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
 `;
 
 const CollapsedView = styled.div<{ visible: boolean }>`
@@ -69,19 +75,36 @@ const CollapsedView = styled.div<{ visible: boolean }>`
 `;
 
 const MeterContainer = styled.div<{ visible: boolean }>`
-  position: absolute;
-  left: 0;
-  top: 0;
   width: 20px;
-  height: 100%;
   background: #252526;
   border-right: 1px solid #3e3e42;
   display: ${(props) => (props.visible ? "flex" : "none")};
   flex-direction: column;
-  z-index: 10;
+  flex-shrink: 0;
 `;
 
+/**
+ * ResizeHandle - Draggable border between VerticalTokenMeter and sidebar content
+ * Only visible when Review tab is active
+ */
+const ResizeHandle = styled.div<{ visible: boolean; isResizing: boolean }>`
+  width: 4px;
+  background: ${(props) => (props.visible ? "#3e3e42" : "transparent")};
+  cursor: ${(props) => (props.visible ? "col-resize" : "default")};
+  flex-shrink: 0;
+  transition: background 0.15s ease;
+  z-index: 10;
 
+  &:hover {
+    background: ${(props) => (props.visible ? "#007acc" : "transparent")};
+  }
+
+  ${(props) =>
+    props.isResizing &&
+    `
+    background: #007acc;
+  `}
+`;
 
 const TabBar = styled.div`
   display: flex;
@@ -135,6 +158,10 @@ interface RightSidebarProps {
   onTabChange?: (tab: TabType) => void;
   /** Custom width in pixels (overrides default widths when Review tab is resizable) */
   width?: number;
+  /** Drag start handler for resize (Review tab only) */
+  onStartResize?: (e: React.MouseEvent) => void;
+  /** Whether currently resizing */
+  isResizing?: boolean;
 }
 
 const RightSidebarComponent: React.FC<RightSidebarProps> = ({
@@ -143,6 +170,8 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
   chatAreaRef,
   onTabChange,
   width,
+  onStartResize,
+  isResizing = false,
 }) => {
   // Global tab preference (not per-workspace)
   const [selectedTab, setSelectedTab] = usePersistedState<TabType>("right-sidebar-tab", "costs");
@@ -239,10 +268,20 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
       aria-label="Workspace insights"
     >
       <FullView visible={!showCollapsed}>
-        {/* Render meter in positioned container when Review tab is active */}
+        {/* Render meter when Review tab is active */}
         {selectedTab === "review" && <MeterContainer visible={true}>{verticalMeter}</MeterContainer>}
         
-        <TabBar role="tablist" aria-label="Metadata views">
+        {/* Render resize handle to right of meter when Review tab is active */}
+        {selectedTab === "review" && onStartResize && (
+          <ResizeHandle
+            visible={true}
+            isResizing={isResizing}
+            onMouseDown={onStartResize}
+          />
+        )}
+        
+        <ContentColumn>
+          <TabBar role="tablist" aria-label="Metadata views">
           <TooltipWrapper inline>
             <TabButton
               active={selectedTab === "costs"}
@@ -293,6 +332,7 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
             </div>
           )}
         </TabContent>
+        </ContentColumn>
       </FullView>
       {/* Render meter in collapsed view when sidebar is collapsed */}
       <CollapsedView visible={showCollapsed}>{verticalMeter}</CollapsedView>

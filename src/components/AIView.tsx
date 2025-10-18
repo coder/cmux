@@ -50,31 +50,6 @@ const ChatArea = styled.div`
   flex-direction: column;
 `;
 
-/**
- * ResizeHandle - Draggable border between ChatArea and RightSidebar
- * Only visible when Review tab is active (controlled by visible prop)
- * Sits between components in flex layout without wrapping either
- */
-const ResizeHandle = styled.div<{ visible: boolean }>`
-  width: 4px;
-  background: ${(props) => (props.visible ? "#3e3e42" : "transparent")};
-  cursor: ${(props) => (props.visible ? "col-resize" : "default")};
-  flex-shrink: 0;
-  transition: background 0.15s ease;
-  position: relative;
-  z-index: 10;
-
-  &:hover {
-    background: ${(props) => (props.visible ? "#007acc" : "transparent")};
-  }
-
-  &:active {
-    background: ${(props) => (props.visible ? "#007acc" : "transparent")};
-  }
-`;
-
-
-
 
 
 const ViewHeader = styled.div`
@@ -616,13 +591,6 @@ const AIViewInner: React.FC<AIViewProps> = ({
         />
       </ChatArea>
 
-      {/* Resize handle - only visible/active on Review tab */}
-      <ResizeHandle
-        visible={isReviewTabActive}
-        onMouseDown={startResize}
-        style={{ cursor: isResizing ? "col-resize" : undefined }}
-      />
-
       <RightSidebar
         key={workspaceId}
         workspaceId={workspaceId}
@@ -630,6 +598,8 @@ const AIViewInner: React.FC<AIViewProps> = ({
         chatAreaRef={chatAreaRef}
         onTabChange={setActiveTab} // Notifies us when tab changes
         width={isReviewTabActive ? sidebarWidth : undefined} // Custom width only on Review tab
+        onStartResize={isReviewTabActive ? startResize : undefined} // Pass resize handler when Review active
+        isResizing={isResizing} // Pass resizing state
       />
     </ViewContainer>
   );
