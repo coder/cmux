@@ -335,7 +335,21 @@ export const SelectableDiffRenderer: React.FC<SelectableDiffRendererProps> = ({
     });
   });
   
-  const handleMouseDown = (lineIndex: number) => {
+  const handleMouseDown = (lineIndex: number, shiftKey: boolean) => {
+    // Shift-click: extend existing selection
+    if (shiftKey && selection && isSelectingMode) {
+      const start = selection.startIndex;
+      const [sortedStart, sortedEnd] = [start, lineIndex].sort((a, b) => a - b);
+      setSelection({
+        startIndex: start,
+        endIndex: lineIndex,
+        startLineNum: lineData[sortedStart].lineNum,
+        endLineNum: lineData[sortedEnd].lineNum,
+      });
+      return;
+    }
+    
+    // Regular click: start new selection
     setIsDragging(true);
     setIsSelectingMode(true);
     setSelection({
@@ -436,7 +450,7 @@ export const SelectableDiffRenderer: React.FC<SelectableDiffRendererProps> = ({
               onMouseDown={(e) => {
                 e.stopPropagation();
                 e.preventDefault(); // Prevent text selection
-                handleMouseDown(displayIndex);
+                handleMouseDown(displayIndex, e.shiftKey);
               }}
               onMouseEnter={() => handleMouseEnter(displayIndex)}
             >
