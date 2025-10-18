@@ -66,9 +66,14 @@ export async function loadTokenizerModules(): Promise<void> {
 }
 
 /**
- * LRU cache for token counts by text checksum
- * Avoids re-tokenizing identical strings (system messages, tool definitions, etc.)
- * Key: CRC32 checksum of text, Value: token count
+ * LRU cache for token counts by (model, text) pairs
+ * Avoids re-tokenizing identical strings with the same encoding
+ *
+ * Key: CRC32 checksum of "model:text" to ensure counts are model-specific
+ * Value: token count
+ *
+ * IMPORTANT: Cache key includes model because different encodings produce different counts.
+ * For async tokenization (approx → exact), the key stays stable so exact overwrites approx.
  */
 const tokenCountCache = new LRUCache<number, number>({
   max: 500000, // Max entries (safety limit)
@@ -83,11 +88,22 @@ const tokenCountCache = new LRUCache<number, number>({
  * Count tokens with caching via CRC32 checksum
  * Avoids re-tokenizing identical strings (system messages, tool definitions, etc.)
  *
+ * Cache key includes model to prevent cross-model count reuse.
+ *
  * NOTE: For async tokenization, this returns an approximation immediately and caches
- * the accurate count in the background. Subsequent calls will use the cached accurate count.
+ * the accurate count in the background. Subsequent calls with the same (model, text) pair
+ * will use the cached accurate count once ready.
  */
-function countTokensCached(text: string, tokenizeFn: () => number | Promise<number>): number {
-  const checksum = CRC32.str(text);
+function countTokensCached(
+  text: string,
+  modelString: string,
+  tokenizeFn: () => number | Promise<number>
+): number {
+  // Include model in cache key to prevent different encodings from reusing counts
+  // Normalize model key for consistent cache hits (e.g., "anthropic:claude" → "anthropic/claude")
+  const normalizedModel = normalizeModelKey(modelString);
+  const cacheKey = `${normalizedModel}:${text}`;
+  const checksum = CRC32.str(cacheKey);
   const cached = tokenCountCache.get(checksum);
   if (cached !== undefined) {
     return cached;
@@ -102,6 +118,7 @@ function countTokensCached(text: string, tokenizeFn: () => number | Promise<numb
   }
 
   // Async case: return approximation now, cache accurate value when ready
+  // Using same cache key ensures exact count overwrites approximation for this (model, text) pair
   const approximation = Math.ceil(text.length / 4);
   void result.then((count) => tokenCountCache.set(checksum, count));
   return approximation;
@@ -179,8 +196,8 @@ function countTokensWithLoadedModules(
  * @returns Tokenizer interface with name and countTokens function
  */
 export function getTokenizerForModel(modelString: string): Tokenizer {
-  // Start loading tokenizer modules in background (idempotent)
-  void loadTokenizerModules();
+  // Tokenizer modules are loaded on-demand when countTokens is first called
+  // This avoids blocking app startup with 8MB+ of tokenizer downloads
 
   return {
     get encoding() {
@@ -189,7 +206,7 @@ export function getTokenizerForModel(modelString: string): Tokenizer {
     countTokens: (text: string) => {
       // If tokenizer already loaded, use synchronous path for accurate counts
       if (tokenizerModules) {
-        return countTokensCached(text, () => {
+        return countTokensCached(text, modelString, () => {
           try {
             return countTokensWithLoadedModules(text, modelString, tokenizerModules!);
           } catch (error) {
@@ -201,7 +218,7 @@ export function getTokenizerForModel(modelString: string): Tokenizer {
       }
 
       // Tokenizer not yet loaded - use async path (returns approximation immediately)
-      return countTokensCached(text, async () => {
+      return countTokensCached(text, modelString, async () => {
         await loadTokenizerModules();
         try {
           return countTokensWithLoadedModules(text, modelString, tokenizerModules!);
