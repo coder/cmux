@@ -224,7 +224,6 @@ const SelectableDiffLineWrapper = styled(DiffLineWrapper)<{
 }>`
   cursor: ${({ isSelecting }) => (isSelecting ? "pointer" : "default")};
   position: relative;
-  user-select: none; /* Prevent text selection during drag */
   
   ${({ isSelected }) =>
     isSelected &&
@@ -282,7 +281,6 @@ export const SelectableDiffRenderer: React.FC<SelectableDiffRendererProps> = ({
   const [selection, setSelection] = React.useState<LineSelection | null>(null);
   const [noteText, setNoteText] = React.useState("");
   const [isSelectingMode, setIsSelectingMode] = React.useState(false);
-  const [isDragging, setIsDragging] = React.useState(false);
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
   
   const lines = content.split("\n").filter((line) => line.length > 0);
@@ -335,7 +333,7 @@ export const SelectableDiffRenderer: React.FC<SelectableDiffRendererProps> = ({
     });
   });
   
-  const handleMouseDown = (lineIndex: number, shiftKey: boolean) => {
+  const handleClick = (lineIndex: number, shiftKey: boolean) => {
     // Shift-click: extend existing selection
     if (shiftKey && selection && isSelectingMode) {
       const start = selection.startIndex;
@@ -350,7 +348,6 @@ export const SelectableDiffRenderer: React.FC<SelectableDiffRendererProps> = ({
     }
     
     // Regular click: start new selection
-    setIsDragging(true);
     setIsSelectingMode(true);
     setSelection({
       startIndex: lineIndex,
@@ -359,32 +356,6 @@ export const SelectableDiffRenderer: React.FC<SelectableDiffRendererProps> = ({
       endLineNum: lineData[lineIndex].lineNum,
     });
   };
-  
-  const handleMouseEnter = (lineIndex: number) => {
-    if (!isDragging || !selection) return;
-    
-    // Extend selection while dragging (preserve original start, update end)
-    const start = selection.startIndex;
-    const [sortedStart, sortedEnd] = [start, lineIndex].sort((a, b) => a - b);
-    setSelection({
-      startIndex: start,
-      endIndex: lineIndex,
-      startLineNum: lineData[sortedStart].lineNum,
-      endLineNum: lineData[sortedEnd].lineNum,
-    });
-  };
-  
-  const handleMouseUp = () => {
-    setIsDragging(false);
-  };
-  
-  // Global mouseup to handle drag ending outside the component
-  React.useEffect(() => {
-    if (!isDragging) return;
-    
-    window.addEventListener("mouseup", handleMouseUp);
-    return () => window.removeEventListener("mouseup", handleMouseUp);
-  }, [isDragging]);
   
   const handleSubmitNote = () => {
     if (!noteText.trim() || !selection || !onReviewNote) return;
@@ -447,12 +418,10 @@ export const SelectableDiffRenderer: React.FC<SelectableDiffRendererProps> = ({
               type={lineInfo.type}
               isSelected={isSelected}
               isSelecting={isSelectingMode}
-              onMouseDown={(e) => {
+              onClick={(e) => {
                 e.stopPropagation();
-                e.preventDefault(); // Prevent text selection
-                handleMouseDown(displayIndex, e.shiftKey);
+                handleClick(displayIndex, e.shiftKey);
               }}
-              onMouseEnter={() => handleMouseEnter(displayIndex)}
             >
               <DiffLine type={lineInfo.type}>
                 <DiffIndicator type={lineInfo.type}>{lines[lineInfo.index][0]}</DiffIndicator>
