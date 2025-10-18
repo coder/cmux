@@ -9,10 +9,10 @@ import { keyframes } from "@emotion/react";
 
 const sweep = keyframes`
   0% {
-    transform: translateX(-100%);
+    transform: translateX(-50%);
   }
   100% {
-    transform: translateX(200%);
+    transform: translateX(100%);
   }
 `;
 
@@ -50,18 +50,18 @@ const GradientWave = styled.div`
   position: absolute;
   top: 0;
   bottom: 0;
-  width: 100%;
+  width: 150%;
   background: linear-gradient(
     90deg,
-    transparent 0%,
-    var(--color-plan-mode-alpha) 20%,
-    color-mix(in srgb, var(--color-plan-mode) 20%, transparent) 40%,
-    color-mix(in srgb, var(--color-plan-mode) 25%, transparent) 50%,
-    color-mix(in srgb, var(--color-plan-mode) 20%, transparent) 60%,
-    var(--color-plan-mode-alpha) 80%,
+    var(--color-plan-mode-alpha) 0%,
+    color-mix(in srgb, var(--color-plan-mode) 20%, transparent) 20%,
+    color-mix(in srgb, var(--color-plan-mode) 25%, transparent) 33%,
+    color-mix(in srgb, var(--color-plan-mode) 20%, transparent) 46%,
+    var(--color-plan-mode-alpha) 60%,
+    transparent 80%,
     transparent 100%
   );
-  animation: ${sweep} 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  animation: ${sweep} 4s linear infinite;
   filter: blur(1px);
 `;
 
@@ -69,16 +69,16 @@ const HighlightWave = styled.div`
   position: absolute;
   top: 0;
   bottom: 0;
-  width: 100%;
+  width: 150%;
   background: linear-gradient(
     90deg,
     transparent 0%,
-    transparent 35%,
-    var(--color-plan-mode-alpha-hover) 50%,
-    transparent 65%,
+    transparent 25%,
+    var(--color-plan-mode-alpha-hover) 33%,
+    transparent 41%,
     transparent 100%
   );
-  animation: ${sweep} 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  animation: ${sweep} 4s linear infinite;
 `;
 
 export const CompactionBackground: React.FC = () => {
