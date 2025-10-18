@@ -7,6 +7,7 @@ import styled from "@emotion/styled";
 import { TooltipWrapper, Tooltip } from "@/components/Tooltip";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import type { ReviewFilters, ReviewStats } from "@/types/review";
+import { formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
 
 interface ReviewControlsProps {
   filters: ReviewFilters;
@@ -195,7 +196,7 @@ export const ReviewControls: React.FC<ReviewControlsProps> = ({
             </svg>
           </RefreshButton>
           <Tooltip position="bottom" align="left">
-            Refresh diff
+            Refresh diff ({formatKeybind(KEYBINDS.REFRESH_REVIEW)})
           </Tooltip>
         </TooltipWrapper>
       )}

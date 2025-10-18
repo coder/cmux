@@ -250,4 +250,8 @@ export const KEYBINDS = {
   /** Switch to Review tab in right sidebar */
   // macOS: Cmd+2, Win/Linux: Ctrl+2
   REVIEW_TAB: { key: "2", ctrl: true, description: "Review tab" },
+
+  /** Refresh diff in Code Review panel */
+  // macOS: Cmd+R, Win/Linux: Ctrl+R
+  REFRESH_REVIEW: { key: "r", ctrl: true },
 } as const;
