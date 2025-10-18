@@ -3,7 +3,7 @@
  * Displays diff hunks for viewing changes in the workspace
  */
 
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import styled from "@emotion/styled";
 import { HunkViewer } from "./HunkViewer";
 import { ReviewControls } from "./ReviewControls";
@@ -229,6 +229,37 @@ interface DiagnosticInfo {
   hunkCount: number;
 }
 
+/**
+ * Build git diff command based on diffBase and includeDirty flag
+ * Shared logic between numstat (file tree) and diff (hunks) commands
+ */
+function buildGitDiffCommand(
+  diffBase: string,
+  includeDirty: boolean,
+  pathFilter: string,
+  command: "diff" | "numstat"
+): string {
+  const isNumstat = command === "numstat";
+  const flag = isNumstat ? " -M --numstat" : " -M";
+  
+  let cmd: string;
+  
+  if (diffBase === "--staged") {
+    cmd = `git diff --staged${flag}${pathFilter}`;
+  } else if (diffBase === "HEAD") {
+    cmd = `git diff HEAD${flag}${pathFilter}`;
+  } else {
+    cmd = `git diff ${diffBase}...HEAD${flag}${pathFilter}`;
+  }
+  
+  // Append dirty changes if requested
+  if (includeDirty) {
+    cmd += ` && git diff HEAD${flag}${pathFilter}`;
+  }
+  
+  return cmd;
+}
+
 export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspacePath, onReviewNote }) => {
   const [hunks, setHunks] = useState<DiffHunk[]>([]);
   const [selectedHunkId, setSelectedHunkId] = useState<string | null>(null);
@@ -239,11 +270,6 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
   const [truncationWarning, setTruncationWarning] = useState<string | null>(null);
   const [isPanelFocused, setIsPanelFocused] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-
-  // Container ref for potential future use
-  const containerRef = useRef<HTMLDivElement>(null);
-
-
   const [fileTree, setFileTree] = useState<FileTreeNode | null>(null);
   const [commonPrefix, setCommonPrefix] = useState<string | null>(null);
   
@@ -279,21 +305,12 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
     const loadFileTree = async () => {
       setIsLoadingTree(true);
       try {
-        // Build numstat command for file tree
-        let numstatCommand: string;
-        
-        if (filters.diffBase === "--staged") {
-          numstatCommand = "git diff --staged -M --numstat";
-        } else if (filters.diffBase === "HEAD") {
-          numstatCommand = "git diff HEAD -M --numstat";
-        } else {
-          numstatCommand = `git diff ${filters.diffBase}...HEAD -M --numstat`;
-        }
-        
-        // If includeDirty is enabled, append dirty changes (working tree vs HEAD)
-        if (filters.includeDirty) {
-          numstatCommand += " && git diff HEAD -M --numstat";
-        }
+        const numstatCommand = buildGitDiffCommand(
+          filters.diffBase,
+          filters.includeDirty,
+          "", // No path filter for file tree
+          "numstat"
+        );
 
         const numstatResult = await window.api.workspace.executeBash(
           workspaceId,
@@ -338,26 +355,16 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
       setError(null);
       setTruncationWarning(null);
       try {
-        // Build git diff command based on selected base
-        let diffCommand: string;
-        
         // Add path filter if a file/folder is selected
         // Extract new path from rename syntax (e.g., "{old => new}" -> "new")
         const pathFilter = selectedFilePath ? ` -- "${extractNewPath(selectedFilePath)}"` : "";
         
-        if (filters.diffBase === "--staged") {
-          diffCommand = `git diff --staged -M${pathFilter}`;
-        } else if (filters.diffBase === "HEAD") {
-          diffCommand = `git diff HEAD -M${pathFilter}`;
-        } else {
-          // Use three-dot syntax to show changes since common ancestor
-          diffCommand = `git diff ${filters.diffBase}...HEAD -M${pathFilter}`;
-        }
-        
-        // If includeDirty is enabled, append dirty changes (working tree vs HEAD)
-        if (filters.includeDirty) {
-          diffCommand += ` && git diff HEAD -M${pathFilter}`;
-        }
+        const diffCommand = buildGitDiffCommand(
+          filters.diffBase,
+          filters.includeDirty,
+          pathFilter,
+          "diff"
+        );
 
         // Fetch diff
         const diffResult = await window.api.workspace.executeBash(workspaceId, diffCommand, {
@@ -477,7 +484,6 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
 
   return (
     <PanelContainer 
-      ref={containerRef}
       tabIndex={0}
       onFocus={() => setIsPanelFocused(true)}
       onBlur={() => setIsPanelFocused(false)}

@@ -113,6 +113,12 @@ const CommonPrefix = styled.div`
   font-family: var(--font-monospace);
 `;
 
+const EmptyState = styled.div`
+  padding: 20px;
+  color: #888;
+  text-align: center;
+`;
+
 const TreeNodeContent: React.FC<{
   node: FileTreeNode;
   depth: number;
@@ -251,9 +257,7 @@ export const FileTree: React.FC<FileTreeExternalProps> = ({
       {commonPrefix && <CommonPrefix>{commonPrefix}/</CommonPrefix>}
       <TreeContainer>
         {isLoading ? (
-          <div style={{ padding: "20px", color: "#888", textAlign: "center" }}>
-            Loading file tree...
-          </div>
+          <EmptyState>Loading file tree...</EmptyState>
         ) : startNode ? (
           startNode.children.map((child) => (
             <TreeNodeContent
@@ -266,9 +270,7 @@ export const FileTree: React.FC<FileTreeExternalProps> = ({
             />
           ))
         ) : (
-          <div style={{ padding: "20px", color: "#888", textAlign: "center" }}>
-            No files changed
-          </div>
+          <EmptyState>No files changed</EmptyState>
         )}
       </TreeContainer>
     </>
