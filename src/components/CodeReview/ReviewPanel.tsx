@@ -42,13 +42,14 @@ const VerticalMeterOverlay = styled.div`
 
 const ContentContainer = styled.div`
   display: flex;
+  flex-direction: row; /* Default: side-by-side layout */
   flex: 1;
   min-height: 0;
   overflow: hidden;
   container-type: inline-size; /* Enable container queries */
   
   /* Stack vertically when container is narrow (uses container query) */
-  @container (max-width: 700px) {
+  @container (max-width: 800px) {
     flex-direction: column;
   }
 `;
@@ -62,7 +63,7 @@ const HunksSection = styled.div`
   min-width: 0;
   
   /* On narrow containers, ensure it can scroll */
-  @container (max-width: 700px) {
+  @container (max-width: 800px) {
     flex: 1; /* Take remaining space after file tree */
     min-height: 0; /* Critical for flex child scrolling */
   }
@@ -85,7 +86,7 @@ const FileTreeSection = styled.div`
   min-height: 0;
   
   /* On narrow containers, stack above hunks with limited height */
-  @container (max-width: 700px) {
+  @container (max-width: 800px) {
     width: 100%;
     border-left: none;
     border-bottom: 1px solid #3e3e42;
@@ -514,42 +515,8 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
 
       {error ? (
         <ErrorState>{error}</ErrorState>
-      ) : isLoadingHunks && hunks.length === 0 ? (
+      ) : isLoadingHunks && hunks.length === 0 && !fileTree ? (
         <LoadingState>Loading diff...</LoadingState>
-      ) : hunks.length === 0 ? (
-        <EmptyState>
-          <EmptyStateTitle>No changes found</EmptyStateTitle>
-          <EmptyStateText>
-            No changes found for the selected diff base.
-            <br />
-            Try selecting a different base or make some changes.
-          </EmptyStateText>
-          {diagnosticInfo && (
-            <DiagnosticSection>
-              <summary>Show diagnostic info</summary>
-              <DiagnosticContent>
-                <DiagnosticRow>
-                  <DiagnosticLabel>Command:</DiagnosticLabel>
-                  <DiagnosticValue>{diagnosticInfo.command}</DiagnosticValue>
-                </DiagnosticRow>
-                <DiagnosticRow>
-                  <DiagnosticLabel>Output size:</DiagnosticLabel>
-                  <DiagnosticValue>
-                    {diagnosticInfo.outputLength.toLocaleString()} bytes
-                  </DiagnosticValue>
-                </DiagnosticRow>
-                <DiagnosticRow>
-                  <DiagnosticLabel>Files parsed:</DiagnosticLabel>
-                  <DiagnosticValue>{diagnosticInfo.fileDiffCount}</DiagnosticValue>
-                </DiagnosticRow>
-                <DiagnosticRow>
-                  <DiagnosticLabel>Hunks extracted:</DiagnosticLabel>
-                  <DiagnosticValue>{diagnosticInfo.hunkCount}</DiagnosticValue>
-                </DiagnosticRow>
-              </DiagnosticContent>
-            </DiagnosticSection>
-          )}
-        </EmptyState>
       ) : (
         <ContentContainer>
           <HunksSection>
@@ -565,7 +532,41 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
             )}
 
             <HunkList>
-              {filteredHunks.length === 0 ? (
+              {hunks.length === 0 ? (
+                <EmptyState>
+                  <EmptyStateTitle>No changes found</EmptyStateTitle>
+                  <EmptyStateText>
+                    No changes found for the selected diff base.
+                    <br />
+                    Try selecting a different base or make some changes.
+                  </EmptyStateText>
+                  {diagnosticInfo && (
+                    <DiagnosticSection>
+                      <summary>Show diagnostic info</summary>
+                      <DiagnosticContent>
+                        <DiagnosticRow>
+                          <DiagnosticLabel>Command:</DiagnosticLabel>
+                          <DiagnosticValue>{diagnosticInfo.command}</DiagnosticValue>
+                        </DiagnosticRow>
+                        <DiagnosticRow>
+                          <DiagnosticLabel>Output size:</DiagnosticLabel>
+                          <DiagnosticValue>
+                            {diagnosticInfo.outputLength.toLocaleString()} bytes
+                          </DiagnosticValue>
+                        </DiagnosticRow>
+                        <DiagnosticRow>
+                          <DiagnosticLabel>Files parsed:</DiagnosticLabel>
+                          <DiagnosticValue>{diagnosticInfo.fileDiffCount}</DiagnosticValue>
+                        </DiagnosticRow>
+                        <DiagnosticRow>
+                          <DiagnosticLabel>Hunks extracted:</DiagnosticLabel>
+                          <DiagnosticValue>{diagnosticInfo.hunkCount}</DiagnosticValue>
+                        </DiagnosticRow>
+                      </DiagnosticContent>
+                    </DiagnosticSection>
+                  )}
+                </EmptyState>
+              ) : filteredHunks.length === 0 ? (
                 <EmptyState>
                   <EmptyStateText>
                     {selectedFilePath 
