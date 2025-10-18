@@ -346,6 +346,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
     jumpToBottom,
     handleOpenTerminal,
     aggregator,
+    setEditingMessage,
   });
 
   // Clear editing state if the message being edited no longer exists
