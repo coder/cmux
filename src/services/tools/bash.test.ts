@@ -894,8 +894,8 @@ describe("bash tool", () => {
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error).toContain("sleep commands are blocked");
-      expect(result.error).toContain("polling loops");
+      expect(result.error).toContain("do not start commands with sleep");
+      expect(result.error).toContain("prefer <10s sleeps in busy loops");
       expect(result.error).toContain("while ! condition");
       expect(result.exitCode).toBe(-1);
       expect(result.wall_duration_ms).toBe(0);

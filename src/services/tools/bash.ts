@@ -79,7 +79,7 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
         return {
           success: false,
           error:
-            "sleep commands are blocked to minimize waiting time. Instead, use polling loops to check conditions repeatedly (e.g., 'while ! condition; do sleep 1; done' or 'until condition; do sleep 1; done').",
+            "do not start commands with sleep; prefer <10s sleeps in busy loops (e.g., 'while ! condition; do sleep 1; done' or 'until condition; do sleep 1; done').",
           exitCode: -1,
           wall_duration_ms: 0,
         };
