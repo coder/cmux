@@ -17,6 +17,7 @@ export const GlobalColors = () => (
       :root {
         /* Plan Mode Colors (Blue) */
         --color-plan-mode: hsl(210 70% 40%);
+        --color-plan-mode-rgb: 31, 107, 184; /* RGB equivalent for alpha blending */
         --color-plan-mode-hover: color-mix(in srgb, var(--color-plan-mode), white 20%);
         --color-plan-mode-light: color-mix(in srgb, var(--color-plan-mode) 60%, white);
         --color-plan-mode-alpha: hsl(from var(--color-plan-mode) h s l / 0.1);

@@ -31,7 +31,12 @@ export const MessageRenderer = React.memo<MessageRendererProps>(
         );
       case "assistant":
         return (
-          <AssistantMessage message={message} className={className} workspaceId={workspaceId} />
+          <AssistantMessage
+            message={message}
+            className={className}
+            workspaceId={workspaceId}
+            isCompacting={isCompacting}
+          />
         );
       case "tool":
         return <ToolMessage message={message} className={className} workspaceId={workspaceId} />;
