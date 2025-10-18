@@ -242,4 +242,12 @@ export const KEYBINDS = {
   // Works even when focus is already in an input field
   // macOS: Cmd+I, Win/Linux: Ctrl+I
   FOCUS_CHAT: { key: "I", ctrl: true },
+
+  /** Switch to Costs tab in right sidebar */
+  // macOS: Cmd+1, Win/Linux: Ctrl+1
+  COSTS_TAB: { key: "1", ctrl: true, description: "Costs tab" },
+
+  /** Switch to Review tab in right sidebar */
+  // macOS: Cmd+2, Win/Linux: Ctrl+2  
+  REVIEW_TAB: { key: "2", ctrl: true, description: "Review tab" },
 } as const;
