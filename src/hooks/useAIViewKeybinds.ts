@@ -9,7 +9,6 @@ import { getThinkingPolicyForModel } from "@/utils/thinking/policy";
 import { getDefaultModelFromLRU } from "@/hooks/useModelLRU";
 import type { StreamingMessageAggregator } from "@/utils/messages/StreamingMessageAggregator";
 import { isCompactingStream, cancelCompaction } from "@/utils/compaction/handler";
-import { useWorkspaceStoreRaw } from "@/stores/WorkspaceStore";
 
 interface UseAIViewKeybindsParams {
   workspaceId: string;
@@ -32,7 +31,7 @@ interface UseAIViewKeybindsParams {
  * - Ctrl+Shift+T: Toggle thinking level
  * - Ctrl+G: Jump to bottom
  * - Ctrl+T: Open terminal
- * - Ctrl+C (during compaction): Cancel compaction, restore command
+ * - Ctrl+C (during compaction): Cancel compaction, restore command (uses localStorage)
  * - Ctrl+A (during compaction): Accept early with [truncated]
  */
 export function useAIViewKeybinds({
@@ -48,8 +47,6 @@ export function useAIViewKeybinds({
   handleOpenTerminal,
   aggregator,
 }: UseAIViewKeybindsParams): void {
-  const workspaceStore = useWorkspaceStoreRaw();
-
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Ctrl+C during compaction: cancel and restore command to input
@@ -59,8 +56,8 @@ export function useAIViewKeybinds({
         
         if (canInterrupt && isCompactingStream(aggregator)) {
           // Ctrl+C during compaction: restore original state
-          // Sets flag to prevent handleCompactionAbort from performing compaction
-          void cancelCompaction(workspaceId, aggregator, workspaceStore, (command) => {
+          // Stores cancellation marker in localStorage (persists across reloads)
+          void cancelCompaction(workspaceId, aggregator, (command) => {
             chatInputAPI.current?.restoreText(command);
           });
           setAutoRetry(false);
@@ -161,6 +158,5 @@ export function useAIViewKeybinds({
     setThinkingLevel,
     chatInputAPI,
     aggregator,
-    workspaceStore,
   ]);
 }

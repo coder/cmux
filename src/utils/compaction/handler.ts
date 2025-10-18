@@ -4,10 +4,15 @@
  * Two interrupt flows during compaction:
  * - Ctrl+C (cancel): Abort compaction, restore original history + command to input
  * - Ctrl+A (accept early): Complete compaction with [truncated] sentinel
+ * 
+ * Uses localStorage to persist cancellation intent across reloads:
+ * - Before interrupt, store messageId in localStorage
+ * - handleCompactionAbort checks localStorage and verifies messageId matches
+ * - Reload-safe: localStorage persists, messageId ensures freshness
  */
 
 import type { StreamingMessageAggregator } from "@/utils/messages/StreamingMessageAggregator";
-import type { WorkspaceStore } from "@/stores/WorkspaceStore";
+import { getCancelledCompactionKey } from "@/constants/storage";
 
 /**
  * Check if the workspace is currently in a compaction stream
@@ -36,21 +41,22 @@ export function getCompactionCommand(aggregator: StreamingMessageAggregator): st
  * Cancel compaction (Ctrl+C flow)
  * 
  * Aborts the compaction stream and restores state to before /compact was invoked:
- * - Interrupts stream without performing compaction (via flag)
+ * - Interrupts stream without performing compaction (via localStorage marker)
  * - Removes compaction request + partial summary from history
  * - Restores original /compact command to input for re-editing
  * 
  * Flow:
- * 1. Set flag in WorkspaceStore to prevent handleCompactionAbort from compacting
+ * 1. Store cancellation marker in localStorage with messageId for verification
  * 2. Interrupt stream (triggers StreamAbortEvent)
- * 3. handleCompactionAbort sees flag, skips compaction, cleans up flag
+ * 3. handleCompactionAbort checks localStorage, verifies messageId, skips compaction
  * 4. Truncate history to remove compaction request + partial summary
  * 5. Restore command to input
+ * 
+ * Reload-safe: localStorage persists across reloads, messageId ensures freshness
  */
 export async function cancelCompaction(
   workspaceId: string,
   aggregator: StreamingMessageAggregator,
-  workspaceStore: WorkspaceStore,
   restoreCommandToInput: (command: string) => void
 ): Promise<boolean> {
   // Extract command before modifying history
@@ -71,12 +77,27 @@ export async function cancelCompaction(
     return false;
   }
 
-  // CRITICAL: Mark workspace as cancelling BEFORE interrupt
-  // This tells handleCompactionAbort to skip compaction (Ctrl+C path vs Ctrl+A path)
-  workspaceStore.markCompactionCancelling(workspaceId);
+  // Get the current streaming assistant message ID from messages
+  // During compaction, there should be a streaming assistant message after the compaction request
+  const streamingMessage = messages.find(
+    (m) => m.role === "assistant" && m.metadata?.partial === true
+  );
+  
+  if (!streamingMessage) {
+    // No streaming message found - shouldn't happen during active compaction
+    return false;
+  }
+
+  // CRITICAL: Store cancellation marker in localStorage BEFORE interrupt
+  // This persists across reloads and includes messageId for verification
+  const storageKey = getCancelledCompactionKey(workspaceId);
+  localStorage.setItem(storageKey, JSON.stringify({
+    messageId: streamingMessage.id,
+    timestamp: Date.now(),
+  }));
 
   // Interrupt stream - triggers StreamAbortEvent → handleCompactionAbort
-  // handleCompactionAbort will see the flag and skip performCompaction
+  // handleCompactionAbort will check localStorage and verify messageId matches
   await window.api.workspace.interruptStream(workspaceId);
 
   // Calculate truncation: keep everything before compaction request

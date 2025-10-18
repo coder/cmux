@@ -28,6 +28,7 @@ import { WorkspaceConsumerManager } from "./WorkspaceConsumerManager";
 import type { ChatUsageDisplay } from "@/utils/tokens/usageAggregator";
 import type { TokenConsumer } from "@/types/chatStats";
 import type { LanguageModelV2Usage } from "@ai-sdk/provider";
+import { getCancelledCompactionKey } from "@/constants/storage";
 
 export interface WorkspaceState {
   messages: DisplayedMessage[];
@@ -133,11 +134,6 @@ export class WorkspaceStore {
   // Track model usage (injected dependency for useModelLRU integration)
   private readonly onModelUsed?: (model: string) => void;
 
-  // Track workspaces where compaction is being cancelled (Ctrl+C) vs accepted early (Ctrl+A)
-  // This flag prevents handleCompactionAbort from performing compaction during cancel flow.
-  // Short-lived: exists only between markCompactionCancelling() and handleCompactionAbort().
-  private cancellingCompaction = new Set<string>();
-
   constructor(onModelUsed?: (model: string) => void) {
     this.onModelUsed = onModelUsed;
 
@@ -161,25 +157,6 @@ export class WorkspaceStore {
         detail: { workspaceId },
       })
     );
-  }
-
-  /**
-   * Mark a workspace as cancelling compaction (Ctrl+C flow).
-   * 
-   * This flag prevents handleCompactionAbort from performing compaction when the
-   * stream is interrupted via cancelCompaction. Without this flag, both Ctrl+C
-   * (cancel) and Ctrl+A (accept early) would trigger the same abort handler.
-   * 
-   * Flag lifecycle:
-   * 1. cancelCompaction() sets flag before calling interruptStream
-   * 2. handleCompactionAbort() checks flag and skips compaction if set
-   * 3. handleCompactionAbort() cleans up flag immediately
-   * 
-   * The flag exists for ~10ms during the cancel operation and is cleaned up
-   * by the abort handler itself.
-   */
-  markCompactionCancelling(workspaceId: string): void {
-    this.cancellingCompaction.add(workspaceId);
   }
 
   /**
@@ -473,7 +450,10 @@ export class WorkspaceStore {
    * - **Ctrl+A (accept early)**: Perform compaction with [truncated] sentinel
    * - **Ctrl+C (cancel)**: Skip compaction, let cancelCompaction handle cleanup
    * 
-   * The cancellingCompaction flag distinguishes between these two flows.
+   * Uses localStorage to distinguish flows:
+   * - Checks for cancellation marker in localStorage
+   * - Verifies messageId matches for freshness
+   * - Reload-safe: localStorage persists across page reloads
    */
   private handleCompactionAbort(
     workspaceId: string,
@@ -491,12 +471,23 @@ export class WorkspaceStore {
       return false;
     }
 
-    // Ctrl+C flow: Check if compaction is being cancelled
-    // If flag is set, skip compaction and clean up the flag
-    // cancelCompaction() will handle truncation and input restoration
-    if (this.cancellingCompaction.has(workspaceId)) {
-      this.cancellingCompaction.delete(workspaceId);
-      return false; // Return false to skip compaction
+    // Ctrl+C flow: Check localStorage for cancellation marker
+    // Verify messageId matches to ensure this is a recent/valid cancellation
+    const storageKey = getCancelledCompactionKey(workspaceId);
+    const cancelData = localStorage.getItem(storageKey);
+    if (cancelData) {
+      try {
+        const { messageId } = JSON.parse(cancelData);
+        if (messageId === data.messageId) {
+          // This is a cancelled compaction - clean up marker and skip compaction
+          localStorage.removeItem(storageKey);
+          return false; // Skip compaction, cancelCompaction() handles cleanup
+        }
+      } catch (error) {
+        console.error("[WorkspaceStore] Failed to parse cancellation data:", error);
+      }
+      // If messageId doesn't match or parse failed, clean up stale data
+      localStorage.removeItem(storageKey);
     }
 
     // Ctrl+A flow: Accept early with [truncated] sentinel
