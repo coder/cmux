@@ -10,6 +10,7 @@ interface ReviewControlsProps {
   filters: ReviewFilters;
   stats: ReviewStats;
   onFiltersChange: (filters: ReviewFilters) => void;
+  onRefresh?: () => void;
 }
 
 const ControlsContainer = styled.div`
@@ -71,6 +72,27 @@ const Separator = styled.div`
   background: #3e3e42;
 `;
 
+const RefreshButton = styled.button`
+  background: transparent;
+  border: none;
+  padding: 2px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #888;
+  transition: color 0.2s ease;
+  
+  &:hover {
+    color: #ccc;
+  }
+  
+  svg {
+    width: 12px;
+    height: 12px;
+  }
+`;
+
 const CheckboxLabel = styled.label`
   display: flex;
   align-items: center;
@@ -93,6 +115,7 @@ export const ReviewControls: React.FC<ReviewControlsProps> = ({
   filters,
   stats,
   onFiltersChange,
+  onRefresh,
 }) => {
   // Local state for input value - only commit on blur/Enter
   const [inputValue, setInputValue] = useState(filters.diffBase);
@@ -134,6 +157,13 @@ export const ReviewControls: React.FC<ReviewControlsProps> = ({
 
   return (
     <ControlsContainer>
+      {onRefresh && (
+        <RefreshButton onClick={onRefresh} title="Refresh diff">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" />
+          </svg>
+        </RefreshButton>
+      )}
       <Label>Base:</Label>
       <BaseInput
         type="text"

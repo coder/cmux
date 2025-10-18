@@ -238,6 +238,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
   const [diagnosticInfo, setDiagnosticInfo] = useState<DiagnosticInfo | null>(null);
   const [truncationWarning, setTruncationWarning] = useState<string | null>(null);
   const [isPanelFocused, setIsPanelFocused] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   // Container ref for potential future use
   const containerRef = useRef<HTMLDivElement>(null);
@@ -270,7 +271,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
     includeDirty: includeDirty,
   });
 
-  // Load file tree - only when workspace or diffBase changes (not when path filter changes)
+  // Load file tree - when workspace, diffBase, or refreshTrigger changes
   useEffect(() => {
     let cancelled = false;
 
@@ -319,9 +320,9 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
     return () => {
       cancelled = true;
     };
-  }, [workspaceId, workspacePath, filters.diffBase, filters.includeDirty]);
+  }, [workspaceId, workspacePath, filters.diffBase, filters.includeDirty, refreshTrigger]);
 
-  // Load diff hunks - when workspace, diffBase, or selected path changes
+  // Load diff hunks - when workspace, diffBase, selected path, or refreshTrigger changes
   useEffect(() => {
     let cancelled = false;
 
@@ -408,7 +409,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
     return () => {
       cancelled = true;
     };
-  }, [workspaceId, workspacePath, filters.diffBase, filters.includeDirty, selectedFilePath]);
+  }, [workspaceId, workspacePath, filters.diffBase, filters.includeDirty, selectedFilePath, refreshTrigger]);
   
   // Persist diffBase when it changes
   useEffect(() => {
@@ -475,7 +476,12 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
       onBlur={() => setIsPanelFocused(false)}
     >
       {/* Always show controls so user can change diff base */}
-      <ReviewControls filters={filters} stats={stats} onFiltersChange={setFilters} />
+      <ReviewControls 
+        filters={filters} 
+        stats={stats} 
+        onFiltersChange={setFilters}
+        onRefresh={() => setRefreshTrigger(prev => prev + 1)}
+      />
 
       {error ? (
         <ErrorState>{error}</ErrorState>
