@@ -1,36 +1,58 @@
+import React from "react";
 import styled from "@emotion/styled";
 import { keyframes } from "@emotion/react";
 
 /**
  * Animated background for compaction streaming
- * Isolated component for visual effect during compaction
+ * Green laser scanning effect - futuristic vertical bar sweeping back and forth
  */
 
-const shimmer = keyframes`
+const scan = keyframes`
   0% {
-    background-position: -200% center;
+    left: -10%;
+  }
+  50% {
+    left: 110%;
   }
   100% {
-    background-position: 200% center;
+    left: -10%;
   }
 `;
 
-export const CompactionBackground = styled.div`
+const Container = styled.div`
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(var(--color-plan-mode-rgb), 0.08) 25%,
-    rgba(var(--color-plan-mode-rgb), 0.15) 50%,
-    rgba(var(--color-plan-mode-rgb), 0.08) 75%,
-    transparent 100%
-  );
-  background-size: 200% 100%;
-  animation: ${shimmer} 3s ease-in-out infinite;
+  overflow: hidden;
   pointer-events: none;
   border-radius: 6px;
 `;
+
+const LaserBar = styled.div`
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 80px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(34, 197, 94, 0.05) 20%,
+    rgba(34, 197, 94, 0.15) 40%,
+    rgba(34, 197, 94, 0.25) 50%,
+    rgba(34, 197, 94, 0.15) 60%,
+    rgba(34, 197, 94, 0.05) 80%,
+    transparent 100%
+  );
+  box-shadow: 0 0 20px rgba(34, 197, 94, 0.3);
+  animation: ${scan} 2.5s ease-in-out infinite;
+`;
+
+export const CompactionBackground: React.FC = () => {
+  return (
+    <Container>
+      <LaserBar />
+    </Container>
+  );
+};
