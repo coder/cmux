@@ -99,6 +99,10 @@ const HunkContent = styled.div`
   line-height: 1.4;
   overflow-x: auto;
   background: rgba(0, 0, 0, 0.2);
+  
+  /* CSS Grid ensures all diff lines span the same width (width of longest line) */
+  display: grid;
+  grid-template-columns: minmax(min-content, 1fr);
 `;
 
 const CollapsedIndicator = styled.div`

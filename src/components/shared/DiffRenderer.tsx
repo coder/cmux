@@ -17,30 +17,21 @@ const getContrastColor = (type: DiffLineType) => {
 };
 
 /**
- * Wrapper to ensure background extends beyond visible area during horizontal scroll
+ * Wrapper for diff lines - works with CSS Grid parent to ensure uniform widths
  * 
- * Problem: When diff content scrolls horizontally, backgrounds would end at the text
- * boundary, creating a jagged right edge.
+ * Problem: Lines of varying length created jagged backgrounds during horizontal scroll
+ * because each wrapper was only as wide as its content.
  * 
- * Solution: Use absolutely positioned pseudo-element to extend background beyond content
- * width without affecting the scrollable area.
+ * Solution: Parent container uses CSS Grid, which automatically makes all grid items
+ * (these wrappers) the same width as the widest item. This ensures backgrounds span
+ * the full scrollable area without creating infinite scroll.
  * 
- * Key mechanics:
- * - Parent has position: relative for pseudo-element positioning
- * - width: fit-content makes parent width match actual content (controls scroll width)
- * - min-width: 100% ensures wrapper spans at least the visible container width
- * - ::after pseudo-element extends background to the right
- * - Pseudo-element positioned absolutely at left: 100% (right edge of content)
- * - Pseudo-element width: 100vw extends background beyond any viewport
- * - Pseudo-element doesn't affect parent width or scroll behavior
- * 
- * Result: Scroll stops at content, but background extends smoothly beyond visible area.
+ * Key insight: width: 100% makes each wrapper span the full grid column width,
+ * which CSS Grid automatically sets to the widest line's content.
  */
 export const DiffLineWrapper = styled.div<{ type: DiffLineType }>`
-  position: relative;
   display: block;
-  min-width: 100%;
-  width: fit-content;
+  width: 100%; /* Span full grid column (width of longest line) */
   
   background: ${({ type }) => {
     switch (type) {
@@ -52,23 +43,6 @@ export const DiffLineWrapper = styled.div<{ type: DiffLineType }>`
         return "transparent";
     }
   }};
-  
-  /* Extend background beyond content without affecting scroll width */
-  ${({ type }) =>
-    (type === "add" || type === "remove") &&
-    `
-    &::after {
-      content: "";
-      position: absolute;
-      top: 0;
-      left: 100%;
-      width: 100vw;
-      height: 100%;
-      background: inherit;
-      pointer-events: none;
-      z-index: -1;
-    }
-  `}
 `;
 
 export const DiffLine = styled.div<{ type: DiffLineType }>`
@@ -131,7 +105,7 @@ export const DiffIndicator = styled.span<{ type: DiffLineType }>`
 
 export const DiffContainer = styled.div`
   margin: 0;
-  padding: 6px 0; /* Remove horizontal padding to allow full-width backgrounds */
+  padding: 6px 0;
   background: rgba(0, 0, 0, 0.2);
   border-radius: 3px;
   font-size: 11px;
@@ -140,10 +114,9 @@ export const DiffContainer = styled.div`
   overflow-y: auto;
   overflow-x: auto;
   
-  /* Wrapper for lines to enable proper scrolling with full-width backgrounds */
-  & > * {
-    display: block;
-  }
+  /* CSS Grid ensures all lines span the same width (width of longest line) */
+  display: grid;
+  grid-template-columns: minmax(min-content, 1fr);
 `;
 
 interface DiffRendererProps {
