@@ -20,12 +20,20 @@ export type BashToolResult =
       success: true;
       output: string;
       exitCode: 0;
+      truncated?: {
+        reason: string;
+        totalLines: number;
+      };
     })
   | (CommonBashFields & {
       success: false;
       output?: string;
       exitCode: number;
       error: string;
+      truncated?: {
+        reason: string;
+        totalLines: number;
+      };
     });
 
 // File Read Tool Types

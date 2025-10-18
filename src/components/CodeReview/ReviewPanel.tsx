@@ -153,6 +153,25 @@ const StaleReviewsBanner = styled.div`
   color: #f48771;
 `;
 
+const TruncationBanner = styled.div`
+  background: rgba(255, 193, 7, 0.1);
+  border: 1px solid rgba(255, 193, 7, 0.3);
+  border-radius: 4px;
+  padding: 12px;
+  margin: 12px;
+  color: #ffc107;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  line-height: 1.5;
+  
+  &::before {
+    content: "⚠️";
+    font-size: 16px;
+  }
+`;
+
 const CleanupButton = styled.button`
   padding: 4px 12px;
   background: rgba(244, 135, 113, 0.2);
@@ -182,6 +201,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [diagnosticInfo, setDiagnosticInfo] = useState<DiagnosticInfo | null>(null);
+  const [truncationWarning, setTruncationWarning] = useState<string | null>(null);
   const [filters, setFilters] = useState<ReviewFiltersType>({
     showReviewed: false,
     statusFilter: "unreviewed",
@@ -204,46 +224,56 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
     const loadDiff = async () => {
       setIsLoading(true);
       setError(null);
+      setTruncationWarning(null);
       try {
         // Build git diff command based on selected base
         let diffCommand: string;
+        
         if (filters.diffBase === "--staged") {
-          // Show only staged changes
           diffCommand = "git diff --staged";
         } else if (filters.diffBase === "HEAD") {
-          // Show uncommitted changes (working directory vs HEAD)
           diffCommand = "git diff HEAD";
         } else {
-          // Compare current branch to another ref (e.g., main, origin/main)
           // Use three-dot syntax to show changes since common ancestor
           diffCommand = `git diff ${filters.diffBase}...HEAD`;
         }
 
-        // Use executeBash to run git diff in the workspace
-        const result = await window.api.workspace.executeBash(workspaceId, diffCommand);
+        // Use executeBash with generous timeout (diffs can be slow for large repos)
+        const result = await window.api.workspace.executeBash(workspaceId, diffCommand, {
+          timeout_secs: 30,
+        });
 
         if (cancelled) return;
 
         if (!result.success) {
-          const errorMsg = `Git command failed: ${result.error}`;
-          console.error(errorMsg);
-          setError(errorMsg);
+          // Real error (not truncation-related)
+          console.error("Git diff failed:", result.error);
+          setError(result.error);
           setHunks([]);
           setDiagnosticInfo(null);
           return;
         }
 
         const diffOutput = result.data.output ?? "";
+        const truncationInfo = result.data.truncated;
+
         const fileDiffs = parseDiff(diffOutput);
         const allHunks = extractAllHunks(fileDiffs);
         
-        // Store diagnostic info for empty state
+        // Store diagnostic info
         setDiagnosticInfo({
           command: diffCommand,
           outputLength: diffOutput.length,
           fileDiffCount: fileDiffs.length,
           hunkCount: allHunks.length,
         });
+
+        // Set truncation warning if applicable
+        if (truncationInfo) {
+          setTruncationWarning(
+            `Diff was truncated (${truncationInfo.reason}). Showing ${allHunks.length} hunks from ${fileDiffs.length} files. Use path filters for complete view.`
+          );
+        }
         
         setHunks(allHunks);
 
@@ -388,6 +418,10 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
         </EmptyState>
       ) : (
         <>
+          {truncationWarning && (
+            <TruncationBanner>{truncationWarning}</TruncationBanner>
+          )}
+          
           {hasStale && (
             <StaleReviewsBanner>
               <span>Some reviews reference hunks that no longer exist</span>
