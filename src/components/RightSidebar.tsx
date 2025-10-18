@@ -265,11 +265,7 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
               aria-labelledby={reviewTabId}
               style={{ height: "100%" }}
             >
-              <ReviewPanel 
-                workspaceId={workspaceId} 
-                workspacePath={workspacePath}
-                verticalTokenMeter={<VerticalTokenMeter data={verticalMeterData} />}
-              />
+              <ReviewPanel workspaceId={workspaceId} workspacePath={workspacePath} />
             </div>
           )}
         </TabContent>

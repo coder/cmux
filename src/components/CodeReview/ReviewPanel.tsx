@@ -19,7 +19,6 @@ import type { FileTreeNode } from "@/utils/git/numstatParser";
 interface ReviewPanelProps {
   workspaceId: string;
   workspacePath: string;
-  verticalTokenMeter?: React.ReactNode;
 }
 
 const PanelContainer = styled.div`
@@ -28,16 +27,6 @@ const PanelContainer = styled.div`
   height: 100%;
   min-height: 0;
   background: #1e1e1e;
-  position: relative; /* For absolute positioning of meter */
-`;
-
-const VerticalMeterOverlay = styled.div`
-  position: absolute;
-  right: 0;
-  top: 0;
-  height: 100%;
-  pointer-events: none; /* Allow clicks to pass through to content */
-  z-index: 5;
 `;
 
 const ContentContainer = styled.div`
@@ -260,7 +249,7 @@ interface DiagnosticInfo {
   hunkCount: number;
 }
 
-export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspacePath, verticalTokenMeter }) => {
+export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspacePath }) => {
   const [hunks, setHunks] = useState<DiffHunk[]>([]);
   const [selectedHunkId, setSelectedHunkId] = useState<string | null>(null);
   const [isLoadingHunks, setIsLoadingHunks] = useState(true);
@@ -580,13 +569,13 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
                   const isSelected = hunk.id === selectedHunkId;
 
                   return (
-                    <div key={hunk.id}>
-                      <HunkViewer
-                        hunk={hunk}
-                        review={review}
-                        isSelected={isSelected}
-                        onClick={() => setSelectedHunkId(hunk.id)}
-                      />
+                    <HunkViewer
+                      key={hunk.id}
+                      hunk={hunk}
+                      review={review}
+                      isSelected={isSelected}
+                      onClick={() => setSelectedHunkId(hunk.id)}
+                    >
                       {isSelected && (
                         <ReviewActions
                           currentStatus={review?.status}
@@ -596,7 +585,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
                           onDelete={() => deleteReview(hunk.id)}
                         />
                       )}
-                    </div>
+                    </HunkViewer>
                   );
                 })
               )}
@@ -614,11 +603,6 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
             </FileTreeSection>
           )}
         </ContentContainer>
-      )}
-      {verticalTokenMeter && (
-        <VerticalMeterOverlay>
-          {verticalTokenMeter}
-        </VerticalMeterOverlay>
       )}
     </PanelContainer>
   );

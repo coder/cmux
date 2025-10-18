@@ -20,7 +20,7 @@ import { formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
 import { useAutoScroll } from "@/hooks/useAutoScroll";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { useThinking } from "@/contexts/ThinkingContext";
-import { useWorkspaceState, useWorkspaceAggregator } from "@/stores/WorkspaceStore";
+import { useWorkspaceState, useWorkspaceAggregator, useWorkspaceUsage } from "@/stores/WorkspaceStore";
 import { StatusIndicator } from "./StatusIndicator";
 import { getModelName } from "@/utils/ai/models";
 import { GitStatusIndicator } from "./GitStatusIndicator";
@@ -29,6 +29,9 @@ import { useGitStatus } from "@/stores/GitStatusStore";
 import { TooltipWrapper, Tooltip } from "./Tooltip";
 import type { DisplayedMessage } from "@/types/message";
 import { useAIViewKeybinds } from "@/hooks/useAIViewKeybinds";
+import { VerticalTokenMeter } from "./RightSidebar/VerticalTokenMeter";
+import { calculateTokenMeterData } from "@/utils/tokens/tokenMeterUtils";
+import { use1MContext } from "@/hooks/use1MContext";
 
 const ViewContainer = styled.div`
   flex: 1;
@@ -72,6 +75,21 @@ const ResizeHandle = styled.div<{ visible: boolean }>`
     background: ${(props) => (props.visible ? "#007acc" : "transparent")};
   }
 `;
+
+/**
+ * VerticalMeterContainer - Positioned between ChatArea and RightSidebar
+ * Always visible, independent of which tab is active
+ */
+const VerticalMeterContainer = styled.div`
+  width: 20px;
+  background: #252526;
+  border-left: 1px solid #3e3e42;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+`;
+
+
 
 const ViewHeader = styled.div`
   padding: 4px 15px;
@@ -256,6 +274,21 @@ const AIViewInner: React.FC<AIViewProps> = ({
 
   // Get git status for this workspace
   const gitStatus = useGitStatus(workspaceId);
+
+  // Get usage data for vertical token meter
+  const usage = useWorkspaceUsage(workspaceId);
+  const [use1M] = use1MContext();
+  const lastUsage = usage?.usageHistory[usage.usageHistory.length - 1];
+  
+  // Memoize vertical meter data calculation
+  const verticalMeterData = React.useMemo(() => {
+    const model = lastUsage?.model ?? "unknown";
+    return lastUsage
+      ? calculateTokenMeterData(lastUsage, model, use1M, true)
+      : { segments: [], totalTokens: 0, totalPercentage: 0 };
+  }, [lastUsage, use1M]);
+
+
   const [editingMessage, setEditingMessage] = useState<{ id: string; content: string } | undefined>(
     undefined
   );
@@ -609,6 +642,11 @@ const AIViewInner: React.FC<AIViewProps> = ({
           onReady={handleChatInputReady}
         />
       </ChatArea>
+
+      {/* Vertical token meter - always visible, between chat and sidebar */}
+      <VerticalMeterContainer>
+        <VerticalTokenMeter data={verticalMeterData} />
+      </VerticalMeterContainer>
 
       {/* Resize handle - only visible/active on Review tab */}
       <ResizeHandle

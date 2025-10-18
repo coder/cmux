@@ -12,6 +12,7 @@ interface HunkViewerProps {
   review?: HunkReview;
   isSelected?: boolean;
   onClick?: () => void;
+  children?: React.ReactNode; // For ReviewActions
 }
 
 const HunkContainer = styled.div<{ isSelected: boolean; reviewStatus?: string }>`
@@ -65,13 +66,30 @@ const FilePath = styled.div`
 `;
 
 const LineInfo = styled.div`
-  color: #888888;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 11px;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  min-width: 0;
   flex-shrink: 0;
+`;
+
+const LocStats = styled.span`
+  display: flex;
+  gap: 8px;
+  font-size: 11px;
+`;
+
+const Additions = styled.span`
+  color: #4ade80;
+`;
+
+const Deletions = styled.span`
+  color: #f87171;
+`;
+
+const LineCount = styled.span`
+  color: #888888;
 `;
 
 const HunkContent = styled.div`
@@ -105,7 +123,7 @@ const NoteSection = styled.div`
   font-style: italic;
 `;
 
-export const HunkViewer: React.FC<HunkViewerProps> = ({ hunk, review, isSelected, onClick }) => {
+export const HunkViewer: React.FC<HunkViewerProps> = ({ hunk, review, isSelected, onClick, children }) => {
   const [isExpanded, setIsExpanded] = useState(true);
 
   const handleToggleExpand = (e: React.MouseEvent) => {
@@ -140,8 +158,13 @@ export const HunkViewer: React.FC<HunkViewerProps> = ({ hunk, review, isSelected
       <HunkHeader>
         <FilePath>{hunk.filePath}</FilePath>
         <LineInfo>
-          {netLoC > 0 ? `+${netLoC}` : netLoC < 0 ? `${netLoC}` : "±0"} LoC ({lineCount}{" "}
-          {lineCount === 1 ? "line" : "lines"})
+          <LocStats>
+            {additions > 0 && <Additions>+{additions}</Additions>}
+            {deletions > 0 && <Deletions>-{deletions}</Deletions>}
+          </LocStats>
+          <LineCount>
+            ({lineCount} {lineCount === 1 ? "line" : "lines"})
+          </LineCount>
         </LineInfo>
       </HunkHeader>
 
@@ -158,6 +181,8 @@ export const HunkViewer: React.FC<HunkViewerProps> = ({ hunk, review, isSelected
       {shouldCollapse && isExpanded && (
         <CollapsedIndicator onClick={handleToggleExpand}>Click to collapse</CollapsedIndicator>
       )}
+
+      {children}
 
       {review?.note && <NoteSection>Note: {review.note}</NoteSection>}
     </HunkContainer>
