@@ -169,7 +169,15 @@ function createMenu() {
     {
       label: "View",
       submenu: [
-        { role: "reload" },
+        // Reload without Ctrl+R shortcut (reserved for Code Review refresh)
+        {
+          label: "Reload",
+          click: (_item, focusedWindow) => {
+            if (focusedWindow && "reload" in focusedWindow) {
+              (focusedWindow as BrowserWindow).reload();
+            }
+          },
+        },
         { role: "forceReload" },
         { role: "toggleDevTools" },
         { type: "separator" },
