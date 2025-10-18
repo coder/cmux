@@ -2,10 +2,10 @@ import React, { useState, useRef, useCallback, useEffect, useId } from "react";
 import styled from "@emotion/styled";
 import { CommandSuggestions, COMMAND_SUGGESTION_KEYS } from "./CommandSuggestions";
 import type { Toast } from "./ChatInputToast";
-import { ChatInputToast, SolutionLabel } from "./ChatInputToast";
+import { ChatInputToast } from "./ChatInputToast";
+import { createCommandToast, createErrorToast } from "./ChatInputToasts";
 import type { ParsedCommand } from "@/utils/slashCommands/types";
 import { parseCommand } from "@/utils/slashCommands/parser";
-import type { SendMessageError as SendMessageErrorType } from "@/types/errors";
 import { usePersistedState, updatePersistedState } from "@/hooks/usePersistedState";
 import { useMode } from "@/contexts/ModeContext";
 import { ChatToggles } from "./ChatToggles";
@@ -25,6 +25,11 @@ import { ModelSelector, type ModelSelectorRef } from "./ModelSelector";
 import { useModelLRU } from "@/hooks/useModelLRU";
 import { VimTextArea } from "./VimTextArea";
 import { ImageAttachments, type ImageAttachment } from "./ImageAttachments";
+import {
+  extractImagesFromClipboard,
+  extractImagesFromDrop,
+  processImageFiles,
+} from "@/utils/imageHandling";
 
 import type { ThinkingLevel } from "@/types/thinking";
 import type { CmuxFrontendMetadata, CompactionRequestData } from "@/types/message";
@@ -138,196 +143,6 @@ export interface ChatInputProps {
 }
 
 // Helper function to convert parsed command to display toast
-const createCommandToast = (parsed: ParsedCommand): Toast | null => {
-  if (!parsed) return null;
-
-  switch (parsed.type) {
-    case "providers-help":
-      return {
-        id: Date.now().toString(),
-        type: "error",
-        title: "Providers Command",
-        message: "Configure AI provider settings",
-        solution: (
-          <>
-            <SolutionLabel>Usage:</SolutionLabel>
-            /providers set &lt;provider&gt; &lt;key&gt; &lt;value&gt;
-            <br />
-            <br />
-            <SolutionLabel>Example:</SolutionLabel>
-            /providers set anthropic apiKey YOUR_API_KEY
-          </>
-        ),
-      };
-
-    case "providers-missing-args": {
-      const missing =
-        parsed.argCount === 0
-          ? "provider, key, and value"
-          : parsed.argCount === 1
-            ? "key and value"
-            : parsed.argCount === 2
-              ? "value"
-              : "";
-
-      return {
-        id: Date.now().toString(),
-        type: "error",
-        title: "Missing Arguments",
-        message: `Missing ${missing} for /providers set`,
-        solution: (
-          <>
-            <SolutionLabel>Usage:</SolutionLabel>
-            /providers set &lt;provider&gt; &lt;key&gt; &lt;value&gt;
-          </>
-        ),
-      };
-    }
-
-    case "providers-invalid-subcommand":
-      return {
-        id: Date.now().toString(),
-        type: "error",
-        title: "Invalid Subcommand",
-        message: `Invalid subcommand '${parsed.subcommand}'`,
-        solution: (
-          <>
-            <SolutionLabel>Available Commands:</SolutionLabel>
-            /providers set - Configure provider settings
-          </>
-        ),
-      };
-
-    case "model-help":
-      return {
-        id: Date.now().toString(),
-        type: "error",
-        title: "Model Command",
-        message: "Select AI model for this session",
-        solution: (
-          <>
-            <SolutionLabel>Usage:</SolutionLabel>
-            /model &lt;abbreviation&gt; or /model &lt;provider:model&gt;
-            <br />
-            <br />
-            <SolutionLabel>Examples:</SolutionLabel>
-            /model sonnet
-            <br />
-            /model anthropic:opus-4-1
-          </>
-        ),
-      };
-
-    case "telemetry-help":
-      return {
-        id: Date.now().toString(),
-        type: "error",
-        title: "Telemetry Command",
-        message: "Enable or disable usage telemetry",
-        solution: (
-          <>
-            <SolutionLabel>Usage:</SolutionLabel>
-            /telemetry &lt;on|off&gt;
-            <br />
-            <br />
-            <SolutionLabel>Examples:</SolutionLabel>
-            /telemetry off
-            <br />
-            /telemetry on
-          </>
-        ),
-      };
-
-    case "fork-help":
-      return {
-        id: Date.now().toString(),
-        type: "error",
-        title: "Fork Command",
-        message: "Fork current workspace with a new name",
-        solution: (
-          <>
-            <SolutionLabel>Usage:</SolutionLabel>
-            /fork &lt;new-name&gt; [optional start message]
-            <br />
-            <br />
-            <SolutionLabel>Examples:</SolutionLabel>
-            /fork experiment-branch
-            <br />
-            /fork refactor Continue with refactoring approach
-          </>
-        ),
-      };
-
-    case "unknown-command": {
-      const cmd = "/" + parsed.command + (parsed.subcommand ? " " + parsed.subcommand : "");
-      return {
-        id: Date.now().toString(),
-        type: "error",
-        message: `Unknown command: ${cmd}`,
-      };
-    }
-
-    default:
-      return null;
-  }
-};
-
-// Helper function to convert SendMessageError to Toast
-const createErrorToast = (error: SendMessageErrorType): Toast => {
-  switch (error.type) {
-    case "api_key_not_found":
-      return {
-        id: Date.now().toString(),
-        type: "error",
-        title: "API Key Not Found",
-        message: `The ${error.provider} provider requires an API key to function.`,
-        solution: (
-          <>
-            <SolutionLabel>Quick Fix:</SolutionLabel>
-            /providers set {error.provider} apiKey YOUR_API_KEY
-          </>
-        ),
-      };
-
-    case "provider_not_supported":
-      return {
-        id: Date.now().toString(),
-        type: "error",
-        title: "Provider Not Supported",
-        message: `The ${error.provider} provider is not supported yet.`,
-        solution: (
-          <>
-            <SolutionLabel>Try This:</SolutionLabel>
-            Use an available provider from /providers list
-          </>
-        ),
-      };
-
-    case "invalid_model_string":
-      return {
-        id: Date.now().toString(),
-        type: "error",
-        title: "Invalid Model Format",
-        message: error.message,
-        solution: (
-          <>
-            <SolutionLabel>Expected Format:</SolutionLabel>
-            provider:model-name (e.g., anthropic:claude-opus-4-1)
-          </>
-        ),
-      };
-
-    case "unknown":
-    default:
-      return {
-        id: Date.now().toString(),
-        type: "error",
-        title: "Message Send Failed",
-        message: error.raw || "An unexpected error occurred while sending your message.",
-      };
-  }
-};
-
 /**
  * Prepare compaction message from /compact command
  * Returns the actual message text (summarization request), metadata, and options
@@ -568,39 +383,42 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   }, [workspaceId, focusMessageInput]);
 
   // Handle paste events to extract images
-  const handlePaste = useCallback((e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+  const handlePaste = useCallback(async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
     const items = e.clipboardData?.items;
     if (!items) return;
 
-    // Look for image items in clipboard
-    for (const item of Array.from(items)) {
-      if (!item?.type.startsWith("image/")) continue;
+    const imageFiles = extractImagesFromClipboard(items);
+    if (imageFiles.length === 0) return;
 
-      e.preventDefault(); // Prevent default paste behavior for images
+    e.preventDefault(); // Prevent default paste behavior for images
 
-      const file = item.getAsFile();
-      if (!file) continue;
-
-      // Convert to base64 data URL
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const dataUrl = event.target?.result as string;
-        if (dataUrl) {
-          const attachment: ImageAttachment = {
-            id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            url: dataUrl,
-            mediaType: file.type,
-          };
-          setImageAttachments((prev) => [...prev, attachment]);
-        }
-      };
-      reader.readAsDataURL(file);
-    }
+    const attachments = await processImageFiles(imageFiles);
+    setImageAttachments((prev) => [...prev, ...attachments]);
   }, []);
 
   // Handle removing an image attachment
   const handleRemoveImage = useCallback((id: string) => {
     setImageAttachments((prev) => prev.filter((img) => img.id !== id));
+  }, []);
+
+  // Handle drag over to allow drop
+  const handleDragOver = useCallback((e: React.DragEvent<HTMLTextAreaElement>) => {
+    // Check if drag contains files
+    if (e.dataTransfer.types.includes("Files")) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "copy";
+    }
+  }, []);
+
+  // Handle drop to extract images
+  const handleDrop = useCallback(async (e: React.DragEvent<HTMLTextAreaElement>) => {
+    e.preventDefault();
+
+    const imageFiles = extractImagesFromDrop(e.dataTransfer);
+    if (imageFiles.length === 0) return;
+
+    const attachments = await processImageFiles(imageFiles);
+    setImageAttachments((prev) => [...prev, ...attachments]);
   }, []);
 
   // Handle command selection
@@ -982,6 +800,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           onChange={setInput}
           onKeyDown={handleKeyDown}
           onPaste={handlePaste}
+          onDragOver={handleDragOver}
+          onDrop={handleDrop}
           suppressKeys={showCommandSuggestions ? COMMAND_SUGGESTION_KEYS : undefined}
           placeholder={placeholder}
           disabled={!editingMessage && (disabled || isSending || isCompacting)}
