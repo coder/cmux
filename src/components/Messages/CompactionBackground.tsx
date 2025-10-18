@@ -35,13 +35,13 @@ const GradientWave = styled.div`
   background: linear-gradient(
     90deg,
     transparent 0%,
-    var(--color-plan-mode-alpha) 30%,
-    var(--color-plan-mode-alpha-hover) 50%,
-    var(--color-plan-mode-alpha) 70%,
+    var(--color-plan-mode-alpha-hover) 25%,
+    color-mix(in srgb, var(--color-plan-mode) 25%, transparent) 50%,
+    var(--color-plan-mode-alpha-hover) 75%,
     transparent 100%
   );
   animation: ${sweep} 3s ease-in-out infinite;
-  opacity: 0.6;
+  opacity: 1;
 `;
 
 export const CompactionBackground: React.FC = () => {
