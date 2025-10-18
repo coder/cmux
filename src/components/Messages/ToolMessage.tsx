@@ -28,7 +28,6 @@ interface ToolMessageProps {
   message: DisplayedMessage & { type: "tool" };
   className?: string;
   workspaceId?: string;
-  onReviewNote?: (note: string) => void;
 }
 
 // Type guards using Zod schemas for single source of truth
@@ -74,7 +73,7 @@ function isTodoWriteTool(toolName: string, args: unknown): args is TodoWriteTool
   return TOOL_DEFINITIONS.todo_write.schema.safeParse(args).success;
 }
 
-export const ToolMessage: React.FC<ToolMessageProps> = ({ message, className, workspaceId, onReviewNote }) => {
+export const ToolMessage: React.FC<ToolMessageProps> = ({ message, className, workspaceId }) => {
   // Route to specialized components based on tool name
   if (isBashTool(message.toolName, message.args)) {
     return (
@@ -109,7 +108,6 @@ export const ToolMessage: React.FC<ToolMessageProps> = ({ message, className, wo
           args={message.args}
           result={message.result as FileEditReplaceStringToolResult | undefined}
           status={message.status}
-          onReviewNote={onReviewNote}
         />
       </div>
     );
@@ -123,7 +121,6 @@ export const ToolMessage: React.FC<ToolMessageProps> = ({ message, className, wo
           args={message.args}
           result={message.result as FileEditReplaceLinesToolResult | undefined}
           status={message.status}
-          onReviewNote={onReviewNote}
         />
       </div>
     );
@@ -137,7 +134,6 @@ export const ToolMessage: React.FC<ToolMessageProps> = ({ message, className, wo
           args={message.args}
           result={message.result as FileEditInsertToolResult | undefined}
           status={message.status}
-          onReviewNote={onReviewNote}
         />
       </div>
     );
