@@ -768,36 +768,6 @@ function AppInner() {
       );
   }, [projects, setSelectedWorkspace, setWorkspaceMetadata]);
 
-  // Debug: Register window function to show loading workspace state
-  useEffect(() => {
-    (window as any).__showLoadingWorkspace = () => {
-      if (!selectedWorkspace) {
-        console.warn("No workspace selected");
-        return;
-      }
-
-      const workspaceId = selectedWorkspace.workspaceId;
-      const metadata = workspaceMetadata.get(workspaceId);
-
-      if (!metadata) {
-        console.warn("No metadata for workspace", workspaceId);
-        return;
-      }
-
-      // Temporarily remove workspace from store to show loading state
-      workspaceStore.removeWorkspace(workspaceId);
-
-      // Re-add after 2 seconds to restore state
-      setTimeout(() => {
-        workspaceStore.addWorkspace(metadata);
-      }, 2000);
-    };
-
-    return () => {
-      delete (window as any).__showLoadingWorkspace;
-    };
-  }, [selectedWorkspace, workspaceMetadata, workspaceStore]);
-
   return (
     <>
       <GlobalColors />
