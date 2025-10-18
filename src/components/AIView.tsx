@@ -28,6 +28,10 @@ import { useGitStatus } from "@/stores/GitStatusStore";
 import { TooltipWrapper, Tooltip } from "./Tooltip";
 import type { DisplayedMessage } from "@/types/message";
 import { useAIViewKeybinds } from "@/hooks/useAIViewKeybinds";
+import { FKeyBar } from "./FKeyBar";
+import { EditKeybindModal } from "./EditKeybindModal";
+import { useFKeyBinds } from "@/hooks/useFKeyBinds";
+import type { Keybind, KeybindsConfig } from "@/types/keybinds";
 
 const ViewContainer = styled.div`
   flex: 1;
@@ -230,6 +234,18 @@ const AIViewInner: React.FC<AIViewProps> = ({
     { listener: true } // Enable cross-component synchronization
   );
 
+  // Keybinds state
+  const [keybinds, setKeybinds] = useState<KeybindsConfig>([]);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editingKey, setEditingKey] = useState<string>("");
+  const [editingKeyMessage, setEditingKeyMessage] = useState<string>("");
+  const [chatInputFocused, setChatInputFocused] = useState(false);
+
+  // Load keybinds on mount
+  useEffect(() => {
+    void window.api.keybinds.get().then(setKeybinds);
+  }, []);
+
   // Use auto-scroll hook for scroll management
   const {
     contentRef,
@@ -313,6 +329,50 @@ const AIViewInner: React.FC<AIViewProps> = ({
     void window.api.workspace.openTerminal(namedWorkspacePath);
   }, [namedWorkspacePath]);
 
+  // Keybind handlers
+  const handleEditKeybind = useCallback((key: string, currentMessage = "") => {
+    setEditingKey(key);
+    setEditingKeyMessage(currentMessage);
+    setEditModalOpen(true);
+  }, []);
+
+  const handleSaveKeybind = useCallback(
+    async (message: string) => {
+      const trimmedMessage = message.trim();
+
+      if (trimmedMessage) {
+        // Save or update keybind
+        const newKeybind: Keybind = {
+          key: editingKey,
+          action: { type: "send_message", message: trimmedMessage },
+        };
+        const updated = [...keybinds.filter((kb) => kb.key !== editingKey), newKeybind];
+        await window.api.keybinds.set(updated);
+        setKeybinds(updated);
+      } else {
+        // Empty message means delete
+        const updated = keybinds.filter((kb) => kb.key !== editingKey);
+        await window.api.keybinds.set(updated);
+        setKeybinds(updated);
+      }
+
+      setEditModalOpen(false);
+    },
+    [editingKey, keybinds]
+  );
+
+  const handleClearKeybind = useCallback(async () => {
+    // Remove the keybind
+    const updated = keybinds.filter((kb) => kb.key !== editingKey);
+    await window.api.keybinds.set(updated);
+    setKeybinds(updated);
+    setEditModalOpen(false);
+  }, [editingKey, keybinds]);
+
+  const handleCloseKeybindModal = useCallback(() => {
+    setEditModalOpen(false);
+  }, []);
+
   // Auto-scroll when messages update (during streaming)
   useEffect(() => {
     if (workspaceState && autoScroll) {
@@ -345,6 +405,13 @@ const AIViewInner: React.FC<AIViewProps> = ({
     chatInputAPI,
     jumpToBottom,
     handleOpenTerminal,
+  });
+
+  // F-key keybinds hook (disabled when modal is open)
+  useFKeyBinds({
+    keybinds,
+    chatInputAPI,
+    enabled: !editModalOpen,
   });
 
   // Clear editing state if the message being edited no longer exists
@@ -544,6 +611,8 @@ const AIViewInner: React.FC<AIViewProps> = ({
           )}
         </OutputContainer>
 
+        {chatInputFocused && <FKeyBar keybinds={keybinds} onEditKeybind={handleEditKeybind} />}
+
         <ChatInput
           workspaceId={workspaceId}
           onMessageSent={handleMessageSent}
@@ -556,10 +625,20 @@ const AIViewInner: React.FC<AIViewProps> = ({
           onEditLastUserMessage={handleEditLastUserMessage}
           canInterrupt={canInterrupt}
           onReady={handleChatInputReady}
+          onFocusChange={setChatInputFocused}
         />
       </ChatArea>
 
       <ChatMetaSidebar key={workspaceId} workspaceId={workspaceId} chatAreaRef={chatAreaRef} />
+
+      <EditKeybindModal
+        isOpen={editModalOpen}
+        fKey={editingKey}
+        currentMessage={editingKeyMessage}
+        onSave={handleSaveKeybind}
+        onClear={handleClearKeybind}
+        onClose={handleCloseKeybindModal}
+      />
     </ViewContainer>
   );
 };

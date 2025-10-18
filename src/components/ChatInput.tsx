@@ -120,6 +120,8 @@ const ModelDisplayWrapper = styled.div`
 
 export interface ChatInputAPI {
   focus: () => void;
+  sendMessage: (message: string) => void;
+  onFocusChange?: (focused: boolean) => void;
 }
 
 export interface ChatInputProps {
@@ -135,6 +137,7 @@ export interface ChatInputProps {
   onEditLastUserMessage?: () => void;
   canInterrupt?: boolean; // Whether Esc can be used to interrupt streaming
   onReady?: (api: ChatInputAPI) => void; // Callback with focus method
+  onFocusChange?: (focused: boolean) => void; // Callback when input focus changes
 }
 
 // Helper function to convert parsed command to display toast
@@ -382,6 +385,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   onEditLastUserMessage,
   canInterrupt = false,
   onReady,
+  onFocusChange,
 }) => {
   const [input, setInput] = usePersistedState(getInputKey(workspaceId), "", { listener: true });
   const [isSending, setIsSending] = useState(false);
@@ -429,13 +433,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       element.style.height = Math.min(element.scrollHeight, window.innerHeight * 0.5) + "px";
     });
   }, []);
-
-  // Provide API to parent via callback
-  useEffect(() => {
-    if (onReady) {
-      onReady({ focus: focusMessageInput });
-    }
-  }, [onReady, focusMessageInput]);
 
   useEffect(() => {
     const handleGlobalKeyDown = (event: KeyboardEvent) => {
@@ -613,13 +610,25 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     [setInput]
   );
 
-  const handleSend = async () => {
+  const handleSend = async (messageOverride?: string) => {
+    // Use override message if provided (for programmatic sends), otherwise use input state
+    const messageText = messageOverride?.trim() ?? input.trim();
+    const isProgrammaticSend = messageOverride !== undefined;
+    
     // Allow sending if there's text or images
-    if ((!input.trim() && imageAttachments.length === 0) || disabled || isSending || isCompacting) {
+    if ((!messageText && imageAttachments.length === 0) || disabled || isSending || isCompacting) {
       return;
     }
 
-    const messageText = input.trim();
+    // Helper to clear input only for non-programmatic sends
+    const clearInputIfNeeded = () => {
+      if (!isProgrammaticSend) {
+        setInput("");
+        if (inputRef.current) {
+          inputRef.current.style.height = "36px";
+        }
+      }
+    };
 
     try {
       // Parse command
@@ -628,10 +637,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       if (parsed) {
         // Handle /clear command
         if (parsed.type === "clear") {
-          setInput("");
-          if (inputRef.current) {
-            inputRef.current.style.height = "36px";
-          }
+          clearInputIfNeeded();
           await onTruncateHistory(1.0);
           setToast({
             id: Date.now().toString(),
@@ -643,10 +649,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
         // Handle /truncate command
         if (parsed.type === "truncate") {
-          setInput("");
-          if (inputRef.current) {
-            inputRef.current.style.height = "36px";
-          }
+          clearInputIfNeeded();
           await onTruncateHistory(parsed.percentage);
           setToast({
             id: Date.now().toString(),
@@ -659,7 +662,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         // Handle /providers set command
         if (parsed.type === "providers-set" && onProviderConfig) {
           setIsSending(true);
-          setInput(""); // Clear input immediately
+          clearInputIfNeeded();
 
           try {
             await onProviderConfig(parsed.provider, parsed.keyPath, parsed.value);
@@ -685,7 +688,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
         // Handle /model command
         if (parsed.type === "model-set") {
-          setInput(""); // Clear input immediately
+          clearInputIfNeeded();
           setPreferredModel(parsed.modelString);
           onModelChange?.(parsed.modelString);
           setToast({
@@ -698,7 +701,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
         // Handle /telemetry command
         if (parsed.type === "telemetry-set") {
-          setInput(""); // Clear input immediately
+          clearInputIfNeeded();
           setTelemetryEnabled(parsed.enabled);
           setToast({
             id: Date.now().toString(),
@@ -710,7 +713,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
         // Handle /compact command
         if (parsed.type === "compact") {
-          setInput(""); // Clear input immediately
+          clearInputIfNeeded();
           setIsSending(true);
 
           try {
@@ -761,7 +764,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
         // Handle /fork command
         if (parsed.type === "fork") {
-          setInput(""); // Clear input immediately
+          clearInputIfNeeded();
           setIsSending(true);
 
           try {
@@ -862,12 +865,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           telemetry.messageSent(sendMessageOptions.model, mode, actualMessageText.length);
 
           // Success - clear input and images
-          setInput("");
+          clearInputIfNeeded();
           setImageAttachments([]);
-          // Reset textarea height
-          if (inputRef.current) {
-            inputRef.current.style.height = "36px";
-          }
           // Exit editing mode if we were editing
           if (editingMessage && onCancelEdit) {
             onCancelEdit();
@@ -942,6 +941,48 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     }
   };
 
+  // Programmatically send a message (for F-key macros, etc.)
+  const sendMessageProgrammatically = useCallback(
+    (message: string) => {
+      if (!message.trim() || disabled || isSending || isCompacting) {
+        return;
+      }
+
+      const currentInput = input.trim();
+      
+      if (currentInput) {
+        // If there's existing input, append the message (don't auto-send)
+        const newInput = currentInput + " " + message;
+        setInput(newInput);
+        // Focus the input so user can edit/send
+        if (inputRef.current) {
+          inputRef.current.focus();
+          // Move cursor to end
+          setTimeout(() => {
+            if (inputRef.current) {
+              inputRef.current.selectionStart = inputRef.current.value.length;
+              inputRef.current.selectionEnd = inputRef.current.value.length;
+            }
+          }, 0);
+        }
+      } else {
+        // If input is empty, auto-send using the refactored handleSend
+        void handleSend(message);
+      }
+    },
+    [disabled, isSending, isCompacting, input, setInput, handleSend]
+  );
+
+  // Provide API to parent via callback
+  useEffect(() => {
+    if (onReady) {
+      onReady({
+        focus: focusMessageInput,
+        sendMessage: sendMessageProgrammatically,
+      });
+    }
+  }, [onReady, focusMessageInput, sendMessageProgrammatically]);
+
   // Build placeholder text based on current state
   const placeholder = (() => {
     if (editingMessage) {
@@ -982,6 +1023,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           onChange={setInput}
           onKeyDown={handleKeyDown}
           onPaste={handlePaste}
+          onFocus={() => onFocusChange?.(true)}
+          onBlur={() => onFocusChange?.(false)}
           suppressKeys={showCommandSuggestions ? COMMAND_SUGGESTION_KEYS : undefined}
           placeholder={placeholder}
           disabled={!editingMessage && (disabled || isSending || isCompacting)}

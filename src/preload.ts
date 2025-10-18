@@ -114,6 +114,10 @@ const api: IPCApi = {
   window: {
     setTitle: (title: string) => ipcRenderer.invoke(IPC_CHANNELS.WINDOW_SET_TITLE, title),
   },
+  keybinds: {
+    get: () => ipcRenderer.invoke(IPC_CHANNELS.KEYBINDS_GET),
+    set: (keybinds) => ipcRenderer.invoke(IPC_CHANNELS.KEYBINDS_SET, keybinds),
+  },
 };
 
 // Expose the API along with platform/versions
