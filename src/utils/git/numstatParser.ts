@@ -137,3 +137,52 @@ export function buildFileTree(fileStats: FileStats[]): FileTreeNode {
 }
 
 
+/**
+ * Extract the common path prefix from all file paths
+ * Returns null if no common prefix or only single path component
+ */
+export function extractCommonPrefix(fileStats: FileStats[]): string | null {
+  if (fileStats.length === 0) return null;
+
+  // Get all paths
+  const paths = fileStats.map((stat) => stat.filePath);
+
+  // Split first path into components
+  const firstParts = paths[0].split("/");
+  if (firstParts.length === 1) return null; // No directory structure
+
+  // Find common prefix length
+  let commonLength = 0;
+  for (let i = 0; i < firstParts.length - 1; i++) {
+    // -1 to exclude filename
+    const part = firstParts[i];
+    if (paths.every((path) => path.split("/")[i] === part)) {
+      commonLength = i + 1;
+    } else {
+      break;
+    }
+  }
+
+  // Return null if no common prefix
+  if (commonLength === 0) return null;
+
+  return firstParts.slice(0, commonLength).join("/");
+}
+
+/**
+ * Remove common prefix from file paths
+ */
+export function removeCommonPrefix(
+  fileStats: FileStats[],
+  prefix: string
+): FileStats[] {
+  const prefixWithSlash = prefix + "/";
+  return fileStats.map((stat) => ({
+    ...stat,
+    filePath: stat.filePath.startsWith(prefixWithSlash)
+      ? stat.filePath.slice(prefixWithSlash.length)
+      : stat.filePath,
+  }));
+}
+
+

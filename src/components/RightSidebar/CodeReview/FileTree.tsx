@@ -75,19 +75,20 @@ const ToggleIcon = styled.span<{ isOpen: boolean }>`
 `;
 
 const ClearButton = styled.button`
-  padding: 6px 12px;
-  margin: 0 12px 8px 12px;
-  background: rgba(100, 150, 255, 0.1);
-  color: #6496ff;
-  border: 1px solid #6496ff;
-  border-radius: 4px;
+  padding: 2px 8px;
+  background: transparent;
+  color: #888;
+  border: none;
+  border-radius: 3px;
   font-size: 11px;
   cursor: pointer;
   transition: all 0.2s ease;
   font-family: var(--font-primary);
+  margin-left: auto;
 
   &:hover {
-    background: rgba(100, 150, 255, 0.2);
+    background: rgba(255, 255, 255, 0.05);
+    color: #ccc;
   }
 `;
 
@@ -98,6 +99,18 @@ const TreeHeader = styled.div`
   font-weight: 500;
   color: #ccc;
   font-family: var(--font-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+`;
+
+const CommonPrefix = styled.div`
+  padding: 6px 12px;
+  background: #1e1e1e;
+  border-bottom: 1px solid #3e3e42;
+  font-size: 11px;
+  color: #888;
+  font-family: var(--font-monospace);
 `;
 
 const TreeNodeContent: React.FC<{
@@ -196,20 +209,25 @@ interface FileTreeExternalProps {
   selectedPath: string | null;
   onSelectFile: (path: string | null) => void;
   isLoading?: boolean;
+  commonPrefix?: string | null;
 }
 
 export const FileTree: React.FC<FileTreeExternalProps> = ({ 
   root, 
   selectedPath, 
   onSelectFile,
-  isLoading = false 
+  isLoading = false,
+  commonPrefix = null,
 }) => {
   return (
     <>
-      <TreeHeader>Files Changed</TreeHeader>
-      {selectedPath && (
-        <ClearButton onClick={() => onSelectFile(null)}>Clear filter</ClearButton>
-      )}
+      <TreeHeader>
+        <span>Files Changed</span>
+        {selectedPath && (
+          <ClearButton onClick={() => onSelectFile(null)}>Clear filter</ClearButton>
+        )}
+      </TreeHeader>
+      {commonPrefix && <CommonPrefix>{commonPrefix}/</CommonPrefix>}
       <TreeContainer>
         {isLoading ? (
           <div style={{ padding: "20px", color: "#888", textAlign: "center" }}>

@@ -10,7 +10,7 @@ import { ReviewControls } from "./ReviewControls";
 import { FileTree } from "./FileTree";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { parseDiff, extractAllHunks } from "@/utils/git/diffParser";
-import { parseNumstat, buildFileTree, extractNewPath } from "@/utils/git/numstatParser";
+import { parseNumstat, buildFileTree, extractNewPath, extractCommonPrefix, removeCommonPrefix } from "@/utils/git/numstatParser";
 import type { DiffHunk, ReviewFilters as ReviewFiltersType } from "@/types/review";
 import type { FileTreeNode } from "@/utils/git/numstatParser";
 
@@ -245,6 +245,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
 
 
   const [fileTree, setFileTree] = useState<FileTreeNode | null>(null);
+  const [commonPrefix, setCommonPrefix] = useState<string | null>(null);
   
   // Persist file filter per workspace
   const [selectedFilePath, setSelectedFilePath] = usePersistedState<string | null>(
@@ -304,9 +305,17 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
 
         if (numstatResult.success) {
           const numstatOutput = numstatResult.data.output ?? "";
-          const fileStats = parseNumstat(numstatOutput);
+          let fileStats = parseNumstat(numstatOutput);
+          
+          // Extract and remove common prefix
+          const prefix = extractCommonPrefix(fileStats);
+          if (prefix) {
+            fileStats = removeCommonPrefix(fileStats, prefix);
+          }
+          
           const tree = buildFileTree(fileStats);
           setFileTree(tree);
+          setCommonPrefix(prefix);
         }
       } catch (err) {
         console.error("Failed to load file tree:", err);
@@ -563,6 +572,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
                 selectedPath={selectedFilePath}
                 onSelectFile={setSelectedFilePath}
                 isLoading={isLoadingTree}
+                commonPrefix={commonPrefix}
               />
             </FileTreeSection>
           )}
