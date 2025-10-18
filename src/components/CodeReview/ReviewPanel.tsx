@@ -9,7 +9,7 @@ import { HunkViewer } from "./HunkViewer";
 import { ReviewActions } from "./ReviewActions";
 import { ReviewFilters } from "./ReviewFilters";
 import { useReviewState } from "@/hooks/useReviewState";
-import { parseDiff, getWorkspaceDiff, extractAllHunks } from "@/utils/git/diffParser";
+import { parseDiff, extractAllHunks } from "@/utils/git/diffParser";
 import type { DiffHunk, ReviewFilters as ReviewFiltersType } from "@/types/review";
 
 interface ReviewPanelProps {
@@ -114,9 +114,18 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
     const loadDiff = async () => {
       setIsLoading(true);
       try {
-        const diffOutput = await getWorkspaceDiff(workspacePath);
+        // Use executeBash to run git diff in the workspace
+        const result = await window.api.workspace.executeBash(workspaceId, "git diff HEAD");
+
         if (cancelled) return;
 
+        if (!result.success) {
+          console.error("Failed to get diff:", result.error);
+          setHunks([]);
+          return;
+        }
+
+        const diffOutput = result.data.output ?? "";
         const fileDiffs = parseDiff(diffOutput);
         const allHunks = extractAllHunks(fileDiffs);
         setHunks(allHunks);

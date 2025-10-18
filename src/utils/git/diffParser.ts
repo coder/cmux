@@ -3,7 +3,6 @@
  */
 
 import type { DiffHunk, FileDiff } from "@/types/review";
-import { execAsync } from "@/utils/disposableExec";
 
 /**
  * Generate a stable ID for a hunk based on file path and line ranges
@@ -157,22 +156,6 @@ export function parseDiff(diffOutput: string): FileDiff[] {
   finishFile();
 
   return files;
-}
-
-/**
- * Get git diff for a workspace
- * Returns unified diff output for uncommitted changes
- */
-export async function getWorkspaceDiff(workspacePath: string): Promise<string> {
-  try {
-    // Get diff of tracked files (staged + unstaged)
-    using proc = execAsync(`git -C "${workspacePath}" diff HEAD`);
-    const { stdout } = await proc.result;
-    return stdout;
-  } catch (error) {
-    console.error("Failed to get workspace diff:", error);
-    return "";
-  }
 }
 
 /**
