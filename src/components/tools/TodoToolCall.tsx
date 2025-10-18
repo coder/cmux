@@ -8,7 +8,7 @@ import {
   ToolDetails,
 } from "./shared/ToolPrimitives";
 import { useToolExpansion, getStatusDisplay, type ToolStatus } from "./shared/toolUtils";
-import { TooltipWrapper, Tooltip } from "../Tooltip";
+import { ToolIcon } from "./shared/ToolIcon";
 import { TodoList } from "../TodoList";
 
 interface TodoToolCallProps {
@@ -29,10 +29,7 @@ export const TodoToolCall: React.FC<TodoToolCallProps> = ({
     <ToolContainer expanded={expanded}>
       <ToolHeader onClick={toggleExpanded}>
         <ExpandIcon expanded={expanded}>▶</ExpandIcon>
-        <TooltipWrapper inline>
-          <span>📋</span>
-          <Tooltip>todo_write</Tooltip>
-        </TooltipWrapper>
+        <ToolIcon emoji="📋" toolName="todo_write" />
         <StatusIndicator status={status}>{statusDisplay}</StatusIndicator>
       </ToolHeader>
 

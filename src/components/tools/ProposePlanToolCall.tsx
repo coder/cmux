@@ -10,6 +10,7 @@ import {
   ToolDetails,
 } from "./shared/ToolPrimitives";
 import { useToolExpansion, getStatusDisplay, type ToolStatus } from "./shared/toolUtils";
+import { ToolIcon } from "./shared/ToolIcon";
 import { MarkdownRenderer } from "../Messages/MarkdownRenderer";
 import { formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
 import { useStartHere } from "@/hooks/useStartHere";
@@ -285,7 +286,7 @@ export const ProposePlanToolCall: React.FC<ProposePlanToolCallProps> = ({
     <ToolContainer expanded={expanded}>
       <ToolHeader onClick={toggleExpanded}>
         <ExpandIcon expanded={expanded}>▶</ExpandIcon>
-        <ToolName>propose_plan</ToolName>
+        <ToolIcon emoji="📋" toolName="propose_plan" />
         <StatusIndicator status={status}>{statusDisplay}</StatusIndicator>
       </ToolHeader>
 
