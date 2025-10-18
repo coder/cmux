@@ -141,8 +141,8 @@ export const HunkViewer: React.FC<HunkViewerProps> = ({ hunk, isSelected, onClic
   const additions = diffLines.filter((line) => line.startsWith("+")).length;
   const deletions = diffLines.filter((line) => line.startsWith("-")).length;
   
-  // Detect pure rename: if renamed and content hasn't changed (all lines match)
-  const isPureRename = hunk.changeType === "renamed" && hunk.oldPath && additions === deletions;
+  // Detect pure rename: if renamed and content hasn't changed (zero additions and deletions)
+  const isPureRename = hunk.changeType === "renamed" && hunk.oldPath && additions === 0 && deletions === 0;
 
   return (
     <HunkContainer
