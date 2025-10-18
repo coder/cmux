@@ -17,6 +17,7 @@ const ModelContainer = styled.span`
   white-space: nowrap; /* Prevent wrapping */
   direction: rtl; /* Right-to-left to show end of text */
   text-align: left; /* Keep visual alignment left */
+  vertical-align: baseline; /* Maintain alignment with siblings */
 `;
 
 const IconWrapper = styled.span`
