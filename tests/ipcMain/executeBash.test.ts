@@ -164,7 +164,7 @@ describeIntegration("IpcMain executeBash integration tests", () => {
   );
 
   test.concurrent(
-    "should respect 300 line hard cap",
+    "should handle large output without truncation (IPC uses truncate policy with 10K line limit)",
     async () => {
       const env = await createTestEnvironment();
       const tempGitRepo = await createTempGitRepo();
@@ -174,23 +174,25 @@ describeIntegration("IpcMain executeBash integration tests", () => {
         const createResult = await createWorkspace(
           env.mockIpcRenderer,
           tempGitRepo,
-          "test-hardcap"
+          "test-large-output"
         );
         const workspaceId = expectWorkspaceCreationSuccess(createResult).id;
 
-        // Execute a command that exceeds 300 line hard cap
-        const maxLinesResult = await env.mockIpcRenderer.invoke(
+        // Execute a command that generates 400 lines (well under 10K limit for IPC truncate policy)
+        const result = await env.mockIpcRenderer.invoke(
           IPC_CHANNELS.WORKSPACE_EXECUTE_BASH,
           workspaceId,
           "for i in {1..400}; do echo line$i; done"
         );
 
-        expect(maxLinesResult.success).toBe(true);
-        expect(maxLinesResult.data.success).toBe(false);
-        expect(maxLinesResult.data.error).toContain(
-          "OUTPUT TRUNCATED - Line count exceeded display limit"
-        );
-        expect(maxLinesResult.data.exitCode).toBe(-1);
+        expect(result.success).toBe(true);
+        expect(result.data.success).toBe(true);
+        expect(result.data.exitCode).toBe(0);
+        // Should return all 400 lines without truncation
+        const lineCount = result.data.output?.split("\n").length ?? 0;
+        expect(lineCount).toBe(400);
+        // Should not be truncated since 400 << 10,000
+        expect(result.data.truncated).toBeUndefined();
 
         // Clean up
         await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, workspaceId);
