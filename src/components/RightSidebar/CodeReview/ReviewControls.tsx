@@ -5,6 +5,7 @@
 import React, { useState } from "react";
 import styled from "@emotion/styled";
 import { TooltipWrapper, Tooltip } from "@/components/Tooltip";
+import { usePersistedState } from "@/hooks/usePersistedState";
 import type { ReviewFilters, ReviewStats } from "@/types/review";
 
 interface ReviewControlsProps {
@@ -112,6 +113,24 @@ const CheckboxLabel = styled.label`
   }
 `;
 
+const SetDefaultButton = styled.button`
+  padding: 2px 8px;
+  background: transparent;
+  color: #888;
+  border: none;
+  border-radius: 3px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: var(--font-primary);
+  white-space: nowrap;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: #ccc;
+  }
+`;
+
 export const ReviewControls: React.FC<ReviewControlsProps> = ({
   filters,
   stats,
@@ -120,6 +139,12 @@ export const ReviewControls: React.FC<ReviewControlsProps> = ({
 }) => {
   // Local state for input value - only commit on blur/Enter
   const [inputValue, setInputValue] = useState(filters.diffBase);
+  
+  // Global default base (used for new workspaces)
+  const [defaultBase, setDefaultBase] = usePersistedState<string>(
+    "review-default-base",
+    "HEAD"
+  );
 
   // Sync input with external changes (e.g., workspace change)
   React.useEffect(() => {
@@ -155,6 +180,13 @@ export const ReviewControls: React.FC<ReviewControlsProps> = ({
   const handleDirtyToggle = (e: React.ChangeEvent<HTMLInputElement>) => {
     onFiltersChange({ ...filters, includeDirty: e.target.checked });
   };
+  
+  const handleSetDefault = () => {
+    setDefaultBase(filters.diffBase);
+  };
+  
+  // Show "Set Default" button if current base is different from default
+  const showSetDefault = filters.diffBase !== defaultBase;
 
   return (
     <ControlsContainer>
@@ -190,6 +222,12 @@ export const ReviewControls: React.FC<ReviewControlsProps> = ({
         <option value="develop" />
         <option value="origin/develop" />
       </datalist>
+      
+      {showSetDefault && (
+        <SetDefaultButton onClick={handleSetDefault}>
+          Set Default
+        </SetDefaultButton>
+      )}
 
       <CheckboxLabel>
         <input

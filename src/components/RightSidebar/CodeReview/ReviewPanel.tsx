@@ -279,10 +279,16 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
     null
   );
   
-  // Persist diff base per workspace
+  // Global default base (shared across all workspaces)
+  const [defaultBase] = usePersistedState<string>(
+    "review-default-base",
+    "HEAD"
+  );
+  
+  // Persist diff base per workspace (falls back to global default)
   const [diffBase, setDiffBase] = usePersistedState(
     `review-diff-base:${workspaceId}`,
-    "HEAD"
+    defaultBase
   );
   
   // Persist includeDirty flag per workspace
