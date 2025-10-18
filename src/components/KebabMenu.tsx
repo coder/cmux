@@ -6,7 +6,7 @@ const KebabButton = styled.button<{ active?: boolean }>`
   background: ${(props) => (props.active ? "rgba(255, 255, 255, 0.1)" : "none")};
   border: 1px solid rgba(255, 255, 255, 0.2);
   color: #cccccc;
-  font-size: 14px;
+  font-size: 10px;
   padding: 2px 8px;
   border-radius: 3px;
   cursor: pointer;
@@ -16,7 +16,6 @@ const KebabButton = styled.button<{ active?: boolean }>`
   align-items: center;
   justify-content: center;
   white-space: nowrap;
-  line-height: 1;
 
   &:hover {
     background: rgba(255, 255, 255, 0.1);
