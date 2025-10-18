@@ -257,10 +257,17 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
     "HEAD"
   );
   
+  // Persist includeDirty flag per workspace
+  const [includeDirty, setIncludeDirty] = usePersistedState(
+    `review-include-dirty:${workspaceId}`,
+    false
+  );
+  
   const [filters, setFilters] = useState<ReviewFiltersType>({
     showReviewed: true,
     statusFilter: "all",
     diffBase: diffBase,
+    includeDirty: includeDirty,
   });
 
   // Load file tree - only when workspace or diffBase changes (not when path filter changes)
@@ -279,6 +286,11 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
           numstatCommand = "git diff HEAD -M --numstat";
         } else {
           numstatCommand = `git diff ${filters.diffBase}...HEAD -M --numstat`;
+        }
+        
+        // If includeDirty is enabled, append dirty changes (working tree vs HEAD)
+        if (filters.includeDirty) {
+          numstatCommand += " && git diff HEAD -M --numstat";
         }
 
         const numstatResult = await window.api.workspace.executeBash(
@@ -307,7 +319,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
     return () => {
       cancelled = true;
     };
-  }, [workspaceId, workspacePath, filters.diffBase]);
+  }, [workspaceId, workspacePath, filters.diffBase, filters.includeDirty]);
 
   // Load diff hunks - when workspace, diffBase, or selected path changes
   useEffect(() => {
@@ -332,6 +344,11 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
         } else {
           // Use three-dot syntax to show changes since common ancestor
           diffCommand = `git diff ${filters.diffBase}...HEAD -M${pathFilter}`;
+        }
+        
+        // If includeDirty is enabled, append dirty changes (working tree vs HEAD)
+        if (filters.includeDirty) {
+          diffCommand += ` && git diff HEAD -M${pathFilter}`;
         }
 
         // Fetch diff
@@ -391,12 +408,17 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
     return () => {
       cancelled = true;
     };
-  }, [workspaceId, workspacePath, filters.diffBase, selectedFilePath]); // Now includes selectedFilePath
+  }, [workspaceId, workspacePath, filters.diffBase, filters.includeDirty, selectedFilePath]);
   
   // Persist diffBase when it changes
   useEffect(() => {
     setDiffBase(filters.diffBase);
   }, [filters.diffBase, setDiffBase]);
+  
+  // Persist includeDirty when it changes
+  useEffect(() => {
+    setIncludeDirty(filters.includeDirty);
+  }, [filters.includeDirty, setIncludeDirty]);
 
   // For MVP: No review state tracking, just show all hunks
   const filteredHunks = hunks;

@@ -82,6 +82,8 @@ export interface ReviewFilters {
   filePathFilter?: string;
   /** Base reference to diff against (e.g., "HEAD", "main", "origin/main") */
   diffBase: string;
+  /** Whether to include uncommitted dirty changes in the diff */
+  includeDirty: boolean;
 }
 
 /**

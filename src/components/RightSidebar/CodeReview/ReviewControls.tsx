@@ -71,6 +71,24 @@ const Separator = styled.div`
   background: #3e3e42;
 `;
 
+const CheckboxLabel = styled.label`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #ccc;
+  font-size: 11px;
+  cursor: pointer;
+  white-space: nowrap;
+  
+  &:hover {
+    color: #fff;
+  }
+  
+  input[type="checkbox"] {
+    cursor: pointer;
+  }
+`;
+
 export const ReviewControls: React.FC<ReviewControlsProps> = ({
   filters,
   stats,
@@ -110,6 +128,10 @@ export const ReviewControls: React.FC<ReviewControlsProps> = ({
     }
   };
 
+  const handleDirtyToggle = (e: React.ChangeEvent<HTMLInputElement>) => {
+    onFiltersChange({ ...filters, includeDirty: e.target.checked });
+  };
+
   return (
     <ControlsContainer>
       <Label>Base:</Label>
@@ -132,6 +154,15 @@ export const ReviewControls: React.FC<ReviewControlsProps> = ({
         <option value="develop" />
         <option value="origin/develop" />
       </datalist>
+
+      <CheckboxLabel>
+        <input
+          type="checkbox"
+          checked={filters.includeDirty}
+          onChange={handleDirtyToggle}
+        />
+        Include dirty
+      </CheckboxLabel>
 
       <Separator />
 
