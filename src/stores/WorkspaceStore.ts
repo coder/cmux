@@ -472,20 +472,25 @@ export class WorkspaceStore {
     }
 
     // Ctrl+C flow: Check localStorage for cancellation marker
-    // Verify messageId matches to ensure this is a recent/valid cancellation
+    // Verify compaction-request user message ID matches (stable across retries)
     const storageKey = getCancelledCompactionKey(workspaceId);
     const cancelData = localStorage.getItem(storageKey);
     console.log("[WorkspaceStore] handleCompactionAbort - checking localStorage:", {
       workspaceId,
       storageKey,
       cancelData,
-      eventMessageId: data.messageId,
+      lastUserMsgId: lastUserMsg?.id,
     });
     if (cancelData) {
       try {
-        const { messageId } = JSON.parse(cancelData);
-        console.log("[WorkspaceStore] Parsed cancellation data:", { stored: messageId, event: data.messageId, match: messageId === data.messageId });
-        if (messageId === data.messageId) {
+        const { compactionRequestId } = JSON.parse(cancelData);
+        const match = compactionRequestId === lastUserMsg?.id;
+        console.log("[WorkspaceStore] Parsed cancellation data:", { 
+          stored: compactionRequestId, 
+          current: lastUserMsg?.id, 
+          match 
+        });
+        if (match) {
           // This is a cancelled compaction - clean up marker and skip compaction
           console.log("[WorkspaceStore] Cancellation confirmed - skipping compaction");
           localStorage.removeItem(storageKey);
@@ -494,7 +499,7 @@ export class WorkspaceStore {
       } catch (error) {
         console.error("[WorkspaceStore] Failed to parse cancellation data:", error);
       }
-      // If messageId doesn't match or parse failed, clean up stale data
+      // If compactionRequestId doesn't match or parse failed, clean up stale data
       console.log("[WorkspaceStore] Cleaning up stale/mismatched cancellation marker");
       localStorage.removeItem(storageKey);
     }

@@ -68,7 +68,7 @@ export async function cancelCompaction(
   // Get messages snapshot before interrupting
   const messages = aggregator.getAllMessages();
   
-  // Find where compaction request is located
+  // Find the compaction request message
   const compactionRequestIndex = messages.findIndex(
     (m) => m.role === "user" && m.metadata?.cmuxMetadata?.type === "compaction-request"
   );
@@ -77,22 +77,14 @@ export async function cancelCompaction(
     return false;
   }
 
-  // Get the current streaming assistant message ID from messages
-  // During compaction, there should be a streaming assistant message after the compaction request
-  const streamingMessage = messages.find(
-    (m) => m.role === "assistant" && m.metadata?.partial === true
-  );
-  
-  if (!streamingMessage) {
-    // No streaming message found - shouldn't happen during active compaction
-    return false;
-  }
+  const compactionRequestMsg = messages[compactionRequestIndex];
 
   // CRITICAL: Store cancellation marker in localStorage BEFORE interrupt
-  // This persists across reloads and includes messageId for verification
+  // Use the compaction-request user message ID (stable across retries)
+  // This persists across reloads and verifies we're cancelling the right compaction
   const storageKey = getCancelledCompactionKey(workspaceId);
   localStorage.setItem(storageKey, JSON.stringify({
-    messageId: streamingMessage.id,
+    compactionRequestId: compactionRequestMsg.id,
     timestamp: Date.now(),
   }));
 
