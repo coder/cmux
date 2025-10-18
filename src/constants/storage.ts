@@ -62,6 +62,12 @@ export function getModeKey(workspaceId: string): string {
 export const USE_1M_CONTEXT_KEY = "use1MContext";
 
 /**
+ * Get the localStorage key for the preferred compaction model (global)
+ * Format: "preferredCompactionModel"
+ */
+export const PREFERRED_COMPACTION_MODEL_KEY = "preferredCompactionModel";
+
+/**
  * Get the localStorage key for the compact continue message for a workspace
  * Temporarily stores the continuation prompt for the current compaction
  * Should be deleted immediately after use to prevent bugs
