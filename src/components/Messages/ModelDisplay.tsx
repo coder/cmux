@@ -6,11 +6,17 @@ import { TooltipWrapper, Tooltip } from "@/components/Tooltip";
 import { formatModelDisplayName } from "@/utils/ai/modelDisplay";
 
 const ModelContainer = styled.span`
-  display: inline; /* Use standard inline layout */
+  display: inline-block; /* Changed from inline to support text overflow */
   font-size: inherit;
   font-weight: inherit;
   color: inherit;
   text-transform: none; /* Override parent's uppercase */
+  max-width: 100%; /* Allow container to constrain */
+  overflow: hidden; /* Hide overflow */
+  text-overflow: ellipsis; /* Show ellipsis */
+  white-space: nowrap; /* Prevent wrapping */
+  direction: rtl; /* Right-to-left to show end of text */
+  text-align: left; /* Keep visual alignment left */
 `;
 
 const IconWrapper = styled.span`
@@ -18,7 +24,8 @@ const IconWrapper = styled.span`
   vertical-align: -0.19em; /* Align icon slightly above baseline for visual centering */
   width: 1.1em; /* Slightly larger than text for visibility */
   height: 1.1em;
-  margin-right: 0.3em; /* Gap after icon */
+  margin-left: 0.3em; /* Gap after icon (reversed for RTL) */
+  direction: ltr; /* Keep icon in LTR to prevent flipping */
 
   svg {
     display: block; /* Remove inline spacing */

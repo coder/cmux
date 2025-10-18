@@ -5,6 +5,7 @@ import type { CmuxMessage, DisplayedMessage } from "@/types/message";
 import { HeaderButton } from "../tools/shared/ToolPrimitives";
 import { formatTimestamp } from "@/utils/ui/dateTime";
 import { TooltipWrapper, Tooltip } from "../Tooltip";
+import { KebabMenu, type KebabMenuItem } from "../KebabMenu";
 
 const MessageBlock = styled.div<{ borderColor: string; backgroundColor?: string }>`
   position: relative;
@@ -34,12 +35,17 @@ const LeftSection = styled.div`
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 0; /* Allow flex children to shrink below content size */
+  flex: 1; /* Take available space but allow ButtonGroup to stay on same line */
 `;
 
 const MessageTypeLabel = styled.div`
   display: inline-flex;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  white-space: nowrap; /* Prevent line breaking */
+  overflow: hidden; /* Hide overflow */
+  min-width: 0; /* Allow shrinking */
 `;
 
 const TimestampText = styled.span`
@@ -87,6 +93,7 @@ interface MessageWindowProps {
   backgroundColor?: string;
   message: CmuxMessage | DisplayedMessage;
   buttons?: ButtonConfig[];
+  kebabMenuItems?: KebabMenuItem[]; // Optional kebab menu items
   children: ReactNode;
   className?: string;
   rightLabel?: ReactNode;
@@ -99,6 +106,7 @@ export const MessageWindow: React.FC<MessageWindowProps> = ({
   backgroundColor,
   message,
   buttons = [],
+  kebabMenuItems = [],
   children,
   className,
   rightLabel,
@@ -145,9 +153,21 @@ export const MessageWindow: React.FC<MessageWindowProps> = ({
               />
             )
           )}
-          <HeaderButton active={showJson} onClick={() => setShowJson(!showJson)}>
-            {showJson ? "Hide JSON" : "Show JSON"}
-          </HeaderButton>
+          {kebabMenuItems.length > 0 ? (
+            <KebabMenu
+              items={[
+                ...kebabMenuItems,
+                {
+                  label: showJson ? "Hide JSON" : "Show JSON",
+                  onClick: () => setShowJson(!showJson),
+                },
+              ]}
+            />
+          ) : (
+            <HeaderButton active={showJson} onClick={() => setShowJson(!showJson)}>
+              {showJson ? "Hide JSON" : "Show JSON"}
+            </HeaderButton>
+          )}
         </ButtonGroup>
       </MessageHeader>
       <MessageContent>
