@@ -432,15 +432,18 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   }, []);
 
   // Method to restore text to input (used by compaction cancel)
-  const restoreText = useCallback((text: string) => {
-    setInput(text);
-    focusMessageInput();
-  }, [focusMessageInput]);
+  const restoreText = useCallback(
+    (text: string) => {
+      setInput(text);
+      focusMessageInput();
+    },
+    [focusMessageInput]
+  );
 
   // Provide API to parent via callback
   useEffect(() => {
     if (onReady) {
-      onReady({ 
+      onReady({
         focus: focusMessageInput,
         restoreText,
       });

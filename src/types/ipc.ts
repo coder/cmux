@@ -209,7 +209,10 @@ export interface IPCApi {
       workspaceId: string,
       options: SendMessageOptions
     ): Promise<Result<void, SendMessageError>>;
-    interruptStream(workspaceId: string, options?: { abandonPartial?: boolean }): Promise<Result<void, string>>;
+    interruptStream(
+      workspaceId: string,
+      options?: { abandonPartial?: boolean }
+    ): Promise<Result<void, string>>;
     truncateHistory(workspaceId: string, percentage?: number): Promise<Result<void, string>>;
     replaceChatHistory(
       workspaceId: string,

@@ -588,29 +588,32 @@ export class IpcMain {
       }
     );
 
-    ipcMain.handle(IPC_CHANNELS.WORKSPACE_INTERRUPT_STREAM, async (_event, workspaceId: string, options?: { abandonPartial?: boolean }) => {
-      log.debug("interruptStream handler: Received", { workspaceId, options });
-      try {
-        const session = this.getOrCreateSession(workspaceId);
-        const stopResult = await session.interruptStream();
-        if (!stopResult.success) {
-          log.error("Failed to stop stream:", stopResult.error);
-          return { success: false, error: stopResult.error };
-        }
+    ipcMain.handle(
+      IPC_CHANNELS.WORKSPACE_INTERRUPT_STREAM,
+      async (_event, workspaceId: string, options?: { abandonPartial?: boolean }) => {
+        log.debug("interruptStream handler: Received", { workspaceId, options });
+        try {
+          const session = this.getOrCreateSession(workspaceId);
+          const stopResult = await session.interruptStream();
+          if (!stopResult.success) {
+            log.error("Failed to stop stream:", stopResult.error);
+            return { success: false, error: stopResult.error };
+          }
 
-        // If abandonPartial is true, delete the partial instead of committing it
-        if (options?.abandonPartial) {
-          log.debug("Abandoning partial for workspace:", workspaceId);
-          await this.partialService.deletePartial(workspaceId);
-        }
+          // If abandonPartial is true, delete the partial instead of committing it
+          if (options?.abandonPartial) {
+            log.debug("Abandoning partial for workspace:", workspaceId);
+            await this.partialService.deletePartial(workspaceId);
+          }
 
-        return { success: true, data: undefined };
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        log.error("Unexpected error in interruptStream handler:", error);
-        return { success: false, error: `Failed to interrupt stream: ${errorMessage}` };
+          return { success: true, data: undefined };
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          log.error("Unexpected error in interruptStream handler:", error);
+          return { success: false, error: `Failed to interrupt stream: ${errorMessage}` };
+        }
       }
-    });
+    );
 
     ipcMain.handle(
       IPC_CHANNELS.WORKSPACE_TRUNCATE_HISTORY,

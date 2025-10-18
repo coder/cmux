@@ -55,7 +55,6 @@ export function getCancelledCompactionKey(workspaceId: string): string {
   return `workspace:${workspaceId}:cancelled-compaction`;
 }
 
-
 /**
  * Get the localStorage key for the UI mode for a workspace
  * Format: "mode:{workspaceId}"

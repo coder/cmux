@@ -55,7 +55,7 @@ export function useAIViewKeybinds({
       // (different from Ctrl+A which accepts early with [truncated])
       if (matchesKeybind(e, KEYBINDS.INTERRUPT_STREAM)) {
         e.preventDefault();
-        
+
         if (canInterrupt && isCompactingStream(aggregator)) {
           // Ctrl+C during compaction: restore original state and enter edit mode
           // Stores cancellation marker in localStorage (persists across reloads)
@@ -65,7 +65,7 @@ export function useAIViewKeybinds({
           setAutoRetry(false);
           return;
         }
-        
+
         // Normal stream interrupt (non-compaction)
         if (canInterrupt || showRetryBarrier) {
           setAutoRetry(false); // User explicitly stopped - don't auto-retry
@@ -78,7 +78,7 @@ export function useAIViewKeybinds({
       // (different from Ctrl+C which cancels and restores original state)
       if (matchesKeybind(e, KEYBINDS.ACCEPT_EARLY_COMPACTION)) {
         e.preventDefault();
-        
+
         if (canInterrupt && isCompactingStream(aggregator)) {
           // Ctrl+A during compaction: perform compaction with partial summary
           // No flag set - handleCompactionAbort will perform compaction with [truncated]

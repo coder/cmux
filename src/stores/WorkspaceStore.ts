@@ -443,11 +443,11 @@ export class WorkspaceStore {
 
   /**
    * Handle interruption of a compaction stream (StreamAbortEvent).
-   * 
+   *
    * Two distinct flows trigger this:
    * - **Ctrl+A (accept early)**: Perform compaction with [truncated] sentinel
    * - **Ctrl+C (cancel)**: Skip compaction, let cancelCompaction handle cleanup
-   * 
+   *
    * Uses localStorage to distinguish flows:
    * - Checks for cancellation marker in localStorage
    * - Verifies messageId matches for freshness
@@ -478,8 +478,8 @@ export class WorkspaceStore {
     const cancelData = localStorage.getItem(storageKey);
     if (cancelData) {
       try {
-        const { compactionRequestId } = JSON.parse(cancelData);
-        if (compactionRequestId === compactionRequestMsg.id) {
+        const parsed = JSON.parse(cancelData) as { compactionRequestId: string; timestamp: number };
+        if (parsed.compactionRequestId === compactionRequestMsg.id) {
           // This is a cancelled compaction - clean up marker and skip compaction
           localStorage.removeItem(storageKey);
           return false; // Skip compaction, cancelCompaction() handles cleanup
