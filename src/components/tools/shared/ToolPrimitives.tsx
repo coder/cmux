@@ -44,6 +44,8 @@ export const StatusIndicator = styled.span<{ status: string }>`
   font-size: 10px;
   margin-left: auto;
   opacity: 0.8;
+  white-space: nowrap;
+  flex-shrink: 0;
   color: ${({ status }) => {
     switch (status) {
       case "executing":

@@ -5,7 +5,7 @@
 import React, { useState } from "react";
 import styled from "@emotion/styled";
 import type { DiffHunk, HunkReview } from "@/types/review";
-import { DiffRenderer } from "../shared/DiffRenderer";
+import { DiffRenderer } from "../../shared/DiffRenderer";
 
 interface HunkViewerProps {
   hunk: DiffHunk;
@@ -123,6 +123,22 @@ const NoteSection = styled.div`
   font-style: italic;
 `;
 
+const RenameInfo = styled.div`
+  padding: 12px;
+  color: #888;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(100, 150, 255, 0.05);
+
+  &::before {
+    content: "→";
+    font-size: 14px;
+    color: #6496ff;
+  }
+`;
+
 export const HunkViewer: React.FC<HunkViewerProps> = ({ hunk, review, isSelected, onClick, children }) => {
   const [isExpanded, setIsExpanded] = useState(true);
 
@@ -139,7 +155,9 @@ export const HunkViewer: React.FC<HunkViewerProps> = ({ hunk, review, isSelected
   // Calculate net LoC (additions - deletions)
   const additions = diffLines.filter((line) => line.startsWith("+")).length;
   const deletions = diffLines.filter((line) => line.startsWith("-")).length;
-  const netLoC = additions - deletions;
+  
+  // Detect pure rename: if renamed and content hasn't changed (all lines match)
+  const isPureRename = hunk.changeType === "renamed" && hunk.oldPath && additions === deletions;
 
   return (
     <HunkContainer
@@ -158,17 +176,23 @@ export const HunkViewer: React.FC<HunkViewerProps> = ({ hunk, review, isSelected
       <HunkHeader>
         <FilePath>{hunk.filePath}</FilePath>
         <LineInfo>
-          <LocStats>
-            {additions > 0 && <Additions>+{additions}</Additions>}
-            {deletions > 0 && <Deletions>-{deletions}</Deletions>}
-          </LocStats>
+          {!isPureRename && (
+            <LocStats>
+              {additions > 0 && <Additions>+{additions}</Additions>}
+              {deletions > 0 && <Deletions>-{deletions}</Deletions>}
+            </LocStats>
+          )}
           <LineCount>
             ({lineCount} {lineCount === 1 ? "line" : "lines"})
           </LineCount>
         </LineInfo>
       </HunkHeader>
 
-      {isExpanded ? (
+      {isPureRename ? (
+        <RenameInfo>
+          Renamed from <code>{hunk.oldPath}</code>
+        </RenameInfo>
+      ) : isExpanded ? (
         <HunkContent>
           <DiffRenderer content={hunk.content} />
         </HunkContent>
@@ -178,7 +202,7 @@ export const HunkViewer: React.FC<HunkViewerProps> = ({ hunk, review, isSelected
         </CollapsedIndicator>
       )}
 
-      {shouldCollapse && isExpanded && (
+      {shouldCollapse && isExpanded && !isPureRename && (
         <CollapsedIndicator onClick={handleToggleExpand}>Click to collapse</CollapsedIndicator>
       )}
 

@@ -24,12 +24,7 @@ import { useToolExpansion, getStatusDisplay, type ToolStatus } from "./shared/to
 import { TooltipWrapper, Tooltip } from "../Tooltip";
 import {
   DiffContainer,
-  DiffLine,
-  DiffLineWrapper,
-  LineNumber,
-  LineContent,
-  DiffIndicator,
-  type DiffLineType,
+  DiffRenderer,
 } from "../shared/DiffRenderer";
 
 // File edit specific styled components
@@ -99,66 +94,22 @@ function renderDiff(diff: string): React.ReactNode {
   try {
     const patches = parsePatch(diff);
     if (patches.length === 0) {
-      return (
-        <DiffLineWrapper type="context">
-          <DiffLine type="context">
-            <LineContent type="context">No changes</LineContent>
-          </DiffLine>
-        </DiffLineWrapper>
-      );
+      return <div style={{ padding: "8px", color: "#888" }}>No changes</div>;
     }
 
+    // Render each hunk using DiffRenderer
     return patches.map((patch, patchIdx) => (
       <React.Fragment key={patchIdx}>
-        {patch.hunks.map((hunk, hunkIdx) => {
-          let oldLineNum = hunk.oldStart;
-          let newLineNum = hunk.newStart;
-
-          return (
-            <React.Fragment key={hunkIdx}>
-              <DiffLineWrapper type="header">
-                <DiffLine type="header">
-                  <DiffIndicator type="header">{/* Empty for alignment */}</DiffIndicator>
-                  <LineNumber type="header">{hunkIdx > 0 ? "⋮" : ""}</LineNumber>
-                  <LineContent type="header">
-                    @@ -{hunk.oldStart},{hunk.oldLines} +{hunk.newStart},{hunk.newLines} @@
-                  </LineContent>
-                </DiffLine>
-              </DiffLineWrapper>
-              {hunk.lines.map((line, lineIdx) => {
-                const firstChar = line[0];
-                const content = line.slice(1); // Remove the +/- prefix
-                let type: DiffLineType = "context";
-                let lineNumDisplay = "";
-
-                if (firstChar === "+") {
-                  type = "add";
-                  lineNumDisplay = `${newLineNum}`;
-                  newLineNum++;
-                } else if (firstChar === "-") {
-                  type = "remove";
-                  lineNumDisplay = `${oldLineNum}`;
-                  oldLineNum++;
-                } else {
-                  // Context line
-                  lineNumDisplay = `${oldLineNum}`;
-                  oldLineNum++;
-                  newLineNum++;
-                }
-
-                return (
-                  <DiffLineWrapper key={lineIdx} type={type}>
-                    <DiffLine type={type}>
-                      <DiffIndicator type={type}>{firstChar}</DiffIndicator>
-                      <LineNumber type={type}>{lineNumDisplay}</LineNumber>
-                      <LineContent type={type}>{content}</LineContent>
-                    </DiffLine>
-                  </DiffLineWrapper>
-                );
-              })}
-            </React.Fragment>
-          );
-        })}
+        {patch.hunks.map((hunk, hunkIdx) => (
+          <React.Fragment key={hunkIdx}>
+            <DiffRenderer
+              content={hunk.lines.join("\n")}
+              showLineNumbers={true}
+              oldStart={hunk.oldStart}
+              newStart={hunk.newStart}
+            />
+          </React.Fragment>
+        ))}
       </React.Fragment>
     ));
   } catch (error) {

@@ -6,7 +6,7 @@ import { use1MContext } from "@/hooks/use1MContext";
 import { useResizeObserver } from "@/hooks/useResizeObserver";
 import { CostsTab } from "./RightSidebar/CostsTab";
 import { VerticalTokenMeter } from "./RightSidebar/VerticalTokenMeter";
-import { ReviewPanel } from "./CodeReview/ReviewPanel";
+import { ReviewPanel } from "./RightSidebar/CodeReview/ReviewPanel";
 import { calculateTokenMeterData } from "@/utils/tokens/tokenMeterUtils";
 import { matchesKeybind, KEYBINDS, formatKeybind } from "@/utils/ui/keybinds";
 import { TooltipWrapper, Tooltip } from "./Tooltip";

@@ -22,6 +22,10 @@ export interface DiffHunk {
   content: string;
   /** Hunk header line (e.g., "@@ -1,5 +1,6 @@") */
   header: string;
+  /** Change type from parent file */
+  changeType?: "added" | "deleted" | "modified" | "renamed";
+  /** Old file path (if renamed) */
+  oldPath?: string;
 }
 
 /**

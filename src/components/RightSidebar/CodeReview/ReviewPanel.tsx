@@ -394,7 +394,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
         // Set truncation warning only when not filtering by path
         if (truncationInfo && !selectedFilePath) {
           setTruncationWarning(
-            `Truncated (${truncationInfo.reason}): ${allHunks.length} hunks shown. Filter by file to see more.`
+            `Diff truncated (${truncationInfo.reason}). Filter by file to see more.`
           );
         }
         

@@ -64,6 +64,8 @@ export function parseDiff(diffOutput: string): FileDiff[] {
         id: hunkId,
         filePath: currentFile.filePath,
         content: hunkLines.join("\n"),
+        changeType: currentFile.changeType,
+        oldPath: currentFile.oldPath,
       } as DiffHunk);
       hunkLines = [];
       currentHunk = null;
