@@ -29,6 +29,14 @@ const PanelContainer = styled.div`
   /* Enable container queries for responsive layout */
   container-type: inline-size;
   container-name: review-panel;
+  
+  /* Make focusable for keyboard navigation */
+  outline: none;
+  
+  &:focus-within {
+    /* Subtle indicator when panel has focus */
+    box-shadow: inset 0 0 0 1px rgba(0, 122, 204, 0.2);
+  }
 `;
 
 const ContentContainer = styled.div`
@@ -228,6 +236,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
   const [error, setError] = useState<string | null>(null);
   const [diagnosticInfo, setDiagnosticInfo] = useState<DiagnosticInfo | null>(null);
   const [truncationWarning, setTruncationWarning] = useState<string | null>(null);
+  const [isPanelFocused, setIsPanelFocused] = useState(false);
 
   // Container ref for potential future use
   const containerRef = useRef<HTMLDivElement>(null);
@@ -399,8 +408,10 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
     unreviewed: hunks.length,
   }), [hunks]);
 
-  // Keyboard navigation (j/k or arrow keys)
+  // Keyboard navigation (j/k or arrow keys) - only when panel is focused
   useEffect(() => {
+    if (!isPanelFocused) return;
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!selectedHunkId) return;
 
@@ -423,10 +434,15 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedHunkId, filteredHunks]);
+  }, [isPanelFocused, selectedHunkId, filteredHunks]);
 
   return (
-    <PanelContainer ref={containerRef}>
+    <PanelContainer 
+      ref={containerRef}
+      tabIndex={0}
+      onFocus={() => setIsPanelFocused(true)}
+      onBlur={() => setIsPanelFocused(false)}
+    >
       {/* Always show controls so user can change diff base */}
       <ReviewControls filters={filters} stats={stats} onFiltersChange={setFilters} />
 
