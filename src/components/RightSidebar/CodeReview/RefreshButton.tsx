@@ -20,11 +20,11 @@ const Button = styled.button<{ $animationState: "idle" | "spinning" | "stopping"
   display: flex;
   align-items: center;
   justify-content: center;
-  color: ${(props) => (props.$animationState !== "idle" ? "#007acc" : "#888")};
+  color: ${(props) => (props.$animationState === "spinning" ? "#007acc" : "#888")};
   transition: color 1.5s ease-out;
 
   &:hover {
-    color: ${(props) => (props.$animationState !== "idle" ? "#007acc" : "#ccc")};
+    color: ${(props) => (props.$animationState === "spinning" ? "#007acc" : "#ccc")};
   }
 
   svg {
