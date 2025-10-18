@@ -53,13 +53,9 @@ const EmptyStateText = styled.div`
   line-height: 1.5;
 `;
 
-const CommandDisplay = styled.div`
-  margin-top: 12px;
-  padding: 8px 12px;
-  background: #2d2d2d;
-  border: 1px solid #3e3e42;
-  border-radius: 4px;
-  font-size: 11px;
+const CommandSection = styled.div`
+  margin-top: 16px;
+  max-width: 600px;
 `;
 
 const CommandLabel = styled.div`
@@ -69,12 +65,19 @@ const CommandLabel = styled.div`
   letter-spacing: 0.5px;
   margin-bottom: 4px;
   font-family: var(--font-primary);
+  font-weight: 500;
 `;
 
 const CommandValue = styled.div`
+  padding: 8px 12px;
+  background: #2d2d2d;
+  border: 1px solid #3e3e42;
+  border-radius: 4px;
   font-family: var(--font-monospace);
+  font-size: 11px;
   color: #ccc;
   user-select: all;
+  cursor: text;
 `;
 
 const LoadingState = styled.div`
@@ -305,10 +308,10 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
             Try selecting a different base or make some changes.
           </EmptyStateText>
           {lastCommand && (
-            <CommandDisplay>
+            <CommandSection>
               <CommandLabel>Command</CommandLabel>
               <CommandValue>{lastCommand}</CommandValue>
-            </CommandDisplay>
+            </CommandSection>
           )}
         </EmptyState>
       ) : (
