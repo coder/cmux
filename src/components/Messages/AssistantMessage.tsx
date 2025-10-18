@@ -8,6 +8,8 @@ import { MessageWindow } from "./MessageWindow";
 import { useStartHere } from "@/hooks/useStartHere";
 import { COMPACTED_EMOJI } from "@/constants/ui";
 import { ModelDisplay } from "./ModelDisplay";
+import { CompactingMessageContent } from "./CompactingMessageContent";
+import { CompactionBackground } from "./CompactionBackground";
 
 const RawContent = styled.pre`
   font-family: var(--font-monospace);
@@ -49,6 +51,7 @@ interface AssistantMessageProps {
   message: DisplayedMessage & { type: "assistant" };
   className?: string;
   workspaceId?: string;
+  isCompacting?: boolean;
   clipboardWriteText?: (data: string) => Promise<void>;
 }
 
@@ -56,6 +59,7 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({
   message,
   className,
   workspaceId,
+  isCompacting = false,
   clipboardWriteText = (data: string) => navigator.clipboard.writeText(data),
 }) => {
   const [showRaw, setShowRaw] = useState(false);
@@ -64,6 +68,7 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({
   const content = message.content;
   const isStreaming = message.isStreaming;
   const isCompacted = message.isCompacted;
+  const isStreamingCompaction = isStreaming && isCompacting;
 
   // Use Start Here hook for final assistant messages
   const {
@@ -120,7 +125,14 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({
 
     // Streaming text gets typewriter effect
     if (isStreaming) {
-      return <TypewriterMarkdown deltas={[content]} isComplete={false} />;
+      const contentElement = <TypewriterMarkdown deltas={[content]} isComplete={false} />;
+
+      // Wrap streaming compaction in special container
+      if (isStreamingCompaction) {
+        return <CompactingMessageContent>{contentElement}</CompactingMessageContent>;
+      }
+
+      return contentElement;
     }
 
     // Completed text renders as static content
@@ -154,6 +166,7 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({
         message={message}
         buttons={buttons}
         className={className}
+        backgroundEffect={isStreamingCompaction ? <CompactionBackground /> : undefined}
       >
         {renderContent()}
       </MessageWindow>

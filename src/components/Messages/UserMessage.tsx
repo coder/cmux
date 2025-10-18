@@ -102,7 +102,7 @@ export const UserMessage: React.FC<UserMessageProps> = ({
             onClick: handleEdit,
             disabled: isCompacting,
             tooltip: isCompacting
-              ? `Cannot edit while compacting (press ${formatKeybind(KEYBINDS.INTERRUPT_STREAM)} to cancel)`
+              ? `Cannot edit while compacting (${formatKeybind(KEYBINDS.INTERRUPT_STREAM)} to cancel)`
               : undefined,
           },
         ]

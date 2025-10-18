@@ -34,8 +34,8 @@ export function applyCompactionOverrides(
     ...baseOptions,
     model: compactionModel,
     thinkingLevel: isAnthropic ? "off" : baseOptions.thinkingLevel,
-    toolPolicy: [{ regex_match: "compact_summary", action: "require" }],
     maxOutputTokens: compactData.maxOutputTokens,
     mode: "compact" as const,
+    toolPolicy: [], // Disable all tools during compaction
   };
 }

@@ -28,6 +28,8 @@ import { WorkspaceConsumerManager } from "./WorkspaceConsumerManager";
 import type { ChatUsageDisplay } from "@/utils/tokens/usageAggregator";
 import type { TokenConsumer } from "@/types/chatStats";
 import type { LanguageModelV2Usage } from "@ai-sdk/provider";
+import { getCancelledCompactionKey } from "@/constants/storage";
+import { isCompactingStream, findCompactionRequestMessage } from "@/utils/compaction/handler";
 
 export interface WorkspaceState {
   messages: DisplayedMessage[];
@@ -415,30 +417,97 @@ export class WorkspaceStore {
    * Handle compact_summary tool completion.
    * Returns true if compaction was handled (caller should early return).
    */
-  private handleCompactSummaryCompletion(
+  private handleCompactionCompletion(
     workspaceId: string,
     aggregator: StreamingMessageAggregator,
     data: WorkspaceChatMessage
   ): boolean {
-    // Type guard: only StreamEndEvent has parts
-    if (!("parts" in data) || !data.parts) return false;
+    // Type guard: only StreamEndEvent has messageId
+    if (!("messageId" in data)) return false;
 
-    for (const part of data.parts) {
-      if (part.type === "dynamic-tool" && part.toolName === "compact_summary") {
-        const output = part.output as { summary?: string } | undefined;
-        if (output?.summary) {
-          this.performCompaction(workspaceId, aggregator, data, output.summary);
-          return true;
-        }
-        break;
-      }
+    // Check if this was a compaction stream
+    if (!isCompactingStream(aggregator)) {
+      return false;
     }
-    return false;
+
+    // Extract the summary text from the assistant's response
+    const summary = aggregator.getCompactionSummary(data.messageId);
+    if (!summary) {
+      console.warn("[WorkspaceStore] Compaction completed but no summary text found");
+      return false;
+    }
+
+    this.performCompaction(workspaceId, aggregator, data, summary);
+    return true;
+  }
+
+  /**
+   * Handle interruption of a compaction stream (StreamAbortEvent).
+   *
+   * Two distinct flows trigger this:
+   * - **Ctrl+A (accept early)**: Perform compaction with [truncated] sentinel
+   * - **Ctrl+C (cancel)**: Skip compaction, let cancelCompaction handle cleanup
+   *
+   * Uses localStorage to distinguish flows:
+   * - Checks for cancellation marker in localStorage
+   * - Verifies messageId matches for freshness
+   * - Reload-safe: localStorage persists across page reloads
+   */
+  private handleCompactionAbort(
+    workspaceId: string,
+    aggregator: StreamingMessageAggregator,
+    data: WorkspaceChatMessage
+  ): boolean {
+    // Type guard: only StreamAbortEvent has messageId
+    if (!("messageId" in data)) return false;
+
+    // Check if this was a compaction stream
+    if (!isCompactingStream(aggregator)) {
+      return false;
+    }
+
+    // Get the compaction request message for ID verification
+    const compactionRequestMsg = findCompactionRequestMessage(aggregator);
+    if (!compactionRequestMsg) {
+      return false;
+    }
+
+    // Ctrl+C flow: Check localStorage for cancellation marker
+    // Verify compaction-request user message ID matches (stable across retries)
+    const storageKey = getCancelledCompactionKey(workspaceId);
+    const cancelData = localStorage.getItem(storageKey);
+    if (cancelData) {
+      try {
+        const parsed = JSON.parse(cancelData) as { compactionRequestId: string; timestamp: number };
+        if (parsed.compactionRequestId === compactionRequestMsg.id) {
+          // This is a cancelled compaction - clean up marker and skip compaction
+          localStorage.removeItem(storageKey);
+          return false; // Skip compaction, cancelCompaction() handles cleanup
+        }
+      } catch (error) {
+        console.error("[WorkspaceStore] Failed to parse cancellation data:", error);
+      }
+      // If compactionRequestId doesn't match or parse failed, clean up stale data
+      localStorage.removeItem(storageKey);
+    }
+
+    // Ctrl+A flow: Accept early with [truncated] sentinel
+    const partialSummary = aggregator.getCompactionSummary(data.messageId);
+    if (!partialSummary) {
+      console.warn("[WorkspaceStore] Compaction aborted but no partial summary found");
+      return false;
+    }
+
+    // Append [truncated] sentinel on new line to indicate incomplete summary
+    const truncatedSummary = partialSummary.trim() + "\n\n[truncated]";
+
+    this.performCompaction(workspaceId, aggregator, data, truncatedSummary);
+    return true;
   }
 
   /**
    * Perform history compaction by replacing chat history with summary message.
-   * Type-safe: only called when we've verified data has parts (i.e., StreamEndEvent).
+   * Type-safe: only called when we've verified data is a StreamEndEvent.
    */
   private performCompaction(
     workspaceId: string,
@@ -446,15 +515,11 @@ export class WorkspaceStore {
     data: WorkspaceChatMessage,
     summary: string
   ): void {
-    // We know data is StreamEndEvent because handleCompactSummaryCompletion verified it has parts
     // Extract metadata safely with type guard
     const metadata = "metadata" in data ? data.metadata : undefined;
 
     // Extract continueMessage from compaction-request before history gets replaced
-    const messages = aggregator.getAllMessages();
-    const compactRequestMsg = [...messages]
-      .reverse()
-      .find((m) => m.role === "user" && m.metadata?.cmuxMetadata?.type === "compaction-request");
+    const compactRequestMsg = findCompactionRequestMessage(aggregator);
     const cmuxMeta = compactRequestMsg?.metadata?.cmuxMetadata;
     const continueMessage =
       cmuxMeta?.type === "compaction-request" ? cmuxMeta.parsed.continueMessage : undefined;
@@ -781,8 +846,8 @@ export class WorkspaceStore {
       aggregator.handleStreamEnd(data);
       aggregator.clearTokenState(data.messageId);
 
-      // Early return if compact_summary handled (async replacement in progress)
-      if (this.handleCompactSummaryCompletion(workspaceId, aggregator, data)) {
+      // Early return if compaction handled (async replacement in progress)
+      if (this.handleCompactionCompletion(workspaceId, aggregator, data)) {
         return;
       }
 
@@ -800,6 +865,14 @@ export class WorkspaceStore {
     if (isStreamAbort(data)) {
       aggregator.clearTokenState(data.messageId);
       aggregator.handleStreamAbort(data);
+
+      // Check if this was a compaction stream that got interrupted
+      if (this.handleCompactionAbort(workspaceId, aggregator, data)) {
+        // Compaction abort handled, don't do normal abort processing
+        return;
+      }
+
+      // Normal abort handling
       this.states.bump(workspaceId);
       this.dispatchResumeCheck(workspaceId);
 

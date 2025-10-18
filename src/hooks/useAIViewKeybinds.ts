@@ -7,6 +7,8 @@ import type { ThinkingLevel, ThinkingLevelOn } from "@/types/thinking";
 import { DEFAULT_THINKING_LEVEL } from "@/types/thinking";
 import { getThinkingPolicyForModel } from "@/utils/thinking/policy";
 import { getDefaultModelFromLRU } from "@/hooks/useModelLRU";
+import type { StreamingMessageAggregator } from "@/utils/messages/StreamingMessageAggregator";
+import { isCompactingStream, cancelCompaction } from "@/utils/compaction/handler";
 
 interface UseAIViewKeybindsParams {
   workspaceId: string;
@@ -19,6 +21,8 @@ interface UseAIViewKeybindsParams {
   chatInputAPI: React.RefObject<ChatInputAPI | null>;
   jumpToBottom: () => void;
   handleOpenTerminal: () => void;
+  aggregator: StreamingMessageAggregator; // For compaction detection
+  setEditingMessage: (editing: { id: string; content: string } | undefined) => void;
 }
 
 /**
@@ -28,6 +32,8 @@ interface UseAIViewKeybindsParams {
  * - Ctrl+Shift+T: Toggle thinking level
  * - Ctrl+G: Jump to bottom
  * - Ctrl+T: Open terminal
+ * - Ctrl+C (during compaction): Cancel compaction, restore command (uses localStorage)
+ * - Ctrl+A (during compaction): Accept early with [truncated]
  */
 export function useAIViewKeybinds({
   workspaceId,
@@ -40,15 +46,43 @@ export function useAIViewKeybinds({
   chatInputAPI,
   jumpToBottom,
   handleOpenTerminal,
+  aggregator,
+  setEditingMessage,
 }: UseAIViewKeybindsParams): void {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Interrupt stream works anywhere (even in input fields)
+      // Ctrl+C during compaction: cancel and restore command to input
+      // (different from Ctrl+A which accepts early with [truncated])
       if (matchesKeybind(e, KEYBINDS.INTERRUPT_STREAM)) {
         e.preventDefault();
-        // If there's a stream or auto-retry in progress, stop it and disable auto-retry
+
+        if (canInterrupt && isCompactingStream(aggregator)) {
+          // Ctrl+C during compaction: restore original state and enter edit mode
+          // Stores cancellation marker in localStorage (persists across reloads)
+          void cancelCompaction(workspaceId, aggregator, (messageId, command) => {
+            setEditingMessage({ id: messageId, content: command });
+          });
+          setAutoRetry(false);
+          return;
+        }
+
+        // Normal stream interrupt (non-compaction)
         if (canInterrupt || showRetryBarrier) {
           setAutoRetry(false); // User explicitly stopped - don't auto-retry
+          void window.api.workspace.interruptStream(workspaceId);
+        }
+        return;
+      }
+
+      // Ctrl+A during compaction: accept early with [truncated] sentinel
+      // (different from Ctrl+C which cancels and restores original state)
+      if (matchesKeybind(e, KEYBINDS.ACCEPT_EARLY_COMPACTION)) {
+        e.preventDefault();
+
+        if (canInterrupt && isCompactingStream(aggregator)) {
+          // Ctrl+A during compaction: perform compaction with partial summary
+          // No flag set - handleCompactionAbort will perform compaction with [truncated]
+          setAutoRetry(false);
           void window.api.workspace.interruptStream(workspaceId);
         }
         return;
@@ -125,5 +159,7 @@ export function useAIViewKeybinds({
     currentWorkspaceThinking,
     setThinkingLevel,
     chatInputAPI,
+    aggregator,
+    setEditingMessage,
   ]);
 }

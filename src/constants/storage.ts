@@ -48,6 +48,14 @@ export function getLastThinkingByModelKey(modelName: string): string {
 }
 
 /**
+ * Get storage key for cancelled compaction tracking.
+ * Stores compaction-request user message ID to verify freshness across reloads.
+ */
+export function getCancelledCompactionKey(workspaceId: string): string {
+  return `workspace:${workspaceId}:cancelled-compaction`;
+}
+
+/**
  * Get the localStorage key for the UI mode for a workspace
  * Format: "mode:{workspaceId}"
  */

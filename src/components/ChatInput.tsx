@@ -120,6 +120,7 @@ const ModelDisplayWrapper = styled.div`
 
 export interface ChatInputAPI {
   focus: () => void;
+  restoreText: (text: string) => void;
 }
 
 export interface ChatInputProps {
@@ -430,12 +431,24 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     });
   }, []);
 
+  // Method to restore text to input (used by compaction cancel)
+  const restoreText = useCallback(
+    (text: string) => {
+      setInput(text);
+      focusMessageInput();
+    },
+    [focusMessageInput]
+  );
+
   // Provide API to parent via callback
   useEffect(() => {
     if (onReady) {
-      onReady({ focus: focusMessageInput });
+      onReady({
+        focus: focusMessageInput,
+        restoreText,
+      });
     }
-  }, [onReady, focusMessageInput]);
+  }, [onReady, focusMessageInput, restoreText]);
 
   useEffect(() => {
     const handleGlobalKeyDown = (event: KeyboardEvent) => {
@@ -948,7 +961,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       return `Edit your message... (${formatKeybind(KEYBINDS.CANCEL_EDIT)} to cancel, ${formatKeybind(KEYBINDS.SEND_MESSAGE)} to send)`;
     }
     if (isCompacting) {
-      return `Compacting... (${formatKeybind(KEYBINDS.INTERRUPT_STREAM)} to cancel)`;
+      return `Compacting... (${formatKeybind(KEYBINDS.INTERRUPT_STREAM)} cancel | ${formatKeybind(KEYBINDS.ACCEPT_EARLY_COMPACTION)} accept early)`;
     }
 
     // Build hints for normal input

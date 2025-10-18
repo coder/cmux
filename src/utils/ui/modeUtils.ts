@@ -19,7 +19,6 @@ export function modeToToolPolicy(mode: UIMode): ToolPolicy {
   if (mode === "plan") {
     return [
       { regex_match: "file_edit_.*", action: "disable" },
-      { regex_match: "compact_summary", action: "disable" },
       { regex_match: "propose_plan", action: "enable" },
     ];
   }
@@ -27,7 +26,6 @@ export function modeToToolPolicy(mode: UIMode): ToolPolicy {
   // exec mode
   return [
     { regex_match: "propose_plan", action: "disable" },
-    { regex_match: "compact_summary", action: "disable" },
     { regex_match: "file_edit_.*", action: "enable" },
   ];
 }

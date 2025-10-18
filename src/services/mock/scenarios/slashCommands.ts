@@ -29,36 +29,11 @@ const compactConversationTurn: ScenarioTurn = {
       {
         kind: "stream-delta",
         delay: STREAM_BASE_DELAY,
-        text: "Preparing a compact technical summary based on prior tool results…\n",
-      },
-      {
-        kind: "tool-start",
-        delay: STREAM_BASE_DELAY * 2,
-        toolCallId: "tool-compact-summary",
-        toolName: "compact_summary",
-        args: {
-          targetWords: 385,
-        },
-      },
-      {
-        kind: "tool-end",
-        delay: STREAM_BASE_DELAY * 3,
-        toolCallId: "tool-compact-summary",
-        toolName: "compact_summary",
-        result: {
-          success: true,
-          summary: COMPACT_SUMMARY_TEXT,
-          message: "Summary generated successfully.",
-        },
-      },
-      {
-        kind: "stream-delta",
-        delay: STREAM_BASE_DELAY * 3 + 100,
-        text: "Summary ready. Replacing history with the compacted version now.",
+        text: COMPACT_SUMMARY_TEXT,
       },
       {
         kind: "stream-end",
-        delay: STREAM_BASE_DELAY * 4,
+        delay: STREAM_BASE_DELAY * 2,
         metadata: {
           model: "anthropic:claude-sonnet-4-5",
           inputTokens: 220,
@@ -68,19 +43,7 @@ const compactConversationTurn: ScenarioTurn = {
         parts: [
           {
             type: "text",
-            text: "Summary ready. Replacing history with the compacted version now.",
-          },
-          {
-            type: "dynamic-tool",
-            toolCallId: "tool-compact-summary",
-            toolName: "compact_summary",
-            state: "output-available",
-            input: {
-              targetWords: 385,
-            },
-            output: {
-              summary: COMPACT_SUMMARY_TEXT,
-            },
+            text: COMPACT_SUMMARY_TEXT,
           },
         ],
       },
