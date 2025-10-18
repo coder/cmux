@@ -53,31 +53,70 @@ const EmptyStateText = styled.div`
   line-height: 1.5;
 `;
 
-const CommandSection = styled.div`
+const DiagnosticSection = styled.details`
   margin-top: 16px;
-  max-width: 600px;
-`;
-
-const CommandLabel = styled.div`
-  color: #888;
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 4px;
-  font-family: var(--font-primary);
-  font-weight: 500;
-`;
-
-const CommandValue = styled.div`
-  padding: 8px 12px;
+  max-width: 500px;
+  width: 100%;
   background: #2d2d2d;
   border: 1px solid #3e3e42;
   border-radius: 4px;
+  padding: 12px;
+  cursor: pointer;
+  
+  summary {
+    color: #888;
+    font-size: 12px;
+    font-weight: 500;
+    user-select: none;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    
+    &::-webkit-details-marker {
+      display: none;
+    }
+    
+    &::before {
+      content: "▶";
+      font-size: 10px;
+      transition: transform 0.2s ease;
+    }
+  }
+  
+  &[open] summary::before {
+    transform: rotate(90deg);
+  }
+`;
+
+const DiagnosticContent = styled.div`
+  margin-top: 12px;
   font-family: var(--font-monospace);
   font-size: 11px;
   color: #ccc;
+  line-height: 1.6;
+`;
+
+const DiagnosticRow = styled.div`
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 12px;
+  padding: 4px 0;
+  
+  &:not(:last-child) {
+    border-bottom: 1px solid #3e3e42;
+  }
+`;
+
+const DiagnosticLabel = styled.div`
+  color: #888;
+  font-weight: 500;
+`;
+
+const DiagnosticValue = styled.div`
+  color: #ccc;
+  word-break: break-all;
   user-select: all;
-  cursor: text;
 `;
 
 const LoadingState = styled.div`
@@ -130,12 +169,19 @@ const CleanupButton = styled.button`
   }
 `;
 
+interface DiagnosticInfo {
+  command: string;
+  outputLength: number;
+  fileDiffCount: number;
+  hunkCount: number;
+}
+
 export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspacePath }) => {
   const [hunks, setHunks] = useState<DiffHunk[]>([]);
   const [selectedHunkId, setSelectedHunkId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [lastCommand, setLastCommand] = useState<string>("");
+  const [diagnosticInfo, setDiagnosticInfo] = useState<DiagnosticInfo | null>(null);
   const [filters, setFilters] = useState<ReviewFiltersType>({
     showReviewed: false,
     statusFilter: "unreviewed",
@@ -173,9 +219,6 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
           diffCommand = `git diff ${filters.diffBase}...HEAD`;
         }
 
-        // Store command for debugging
-        setLastCommand(diffCommand);
-
         // Use executeBash to run git diff in the workspace
         const result = await window.api.workspace.executeBash(workspaceId, diffCommand);
 
@@ -186,12 +229,22 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
           console.error(errorMsg);
           setError(errorMsg);
           setHunks([]);
+          setDiagnosticInfo(null);
           return;
         }
 
         const diffOutput = result.data.output ?? "";
         const fileDiffs = parseDiff(diffOutput);
         const allHunks = extractAllHunks(fileDiffs);
+        
+        // Store diagnostic info for empty state
+        setDiagnosticInfo({
+          command: diffCommand,
+          outputLength: diffOutput.length,
+          fileDiffCount: fileDiffs.length,
+          hunkCount: allHunks.length,
+        });
+        
         setHunks(allHunks);
 
         // Auto-select first hunk if none selected
@@ -307,11 +360,30 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
             <br />
             Try selecting a different base or make some changes.
           </EmptyStateText>
-          {lastCommand && (
-            <CommandSection>
-              <CommandLabel>Command</CommandLabel>
-              <CommandValue>{lastCommand}</CommandValue>
-            </CommandSection>
+          {diagnosticInfo && (
+            <DiagnosticSection>
+              <summary>Show diagnostic info</summary>
+              <DiagnosticContent>
+                <DiagnosticRow>
+                  <DiagnosticLabel>Command:</DiagnosticLabel>
+                  <DiagnosticValue>{diagnosticInfo.command}</DiagnosticValue>
+                </DiagnosticRow>
+                <DiagnosticRow>
+                  <DiagnosticLabel>Output size:</DiagnosticLabel>
+                  <DiagnosticValue>
+                    {diagnosticInfo.outputLength.toLocaleString()} bytes
+                  </DiagnosticValue>
+                </DiagnosticRow>
+                <DiagnosticRow>
+                  <DiagnosticLabel>Files parsed:</DiagnosticLabel>
+                  <DiagnosticValue>{diagnosticInfo.fileDiffCount}</DiagnosticValue>
+                </DiagnosticRow>
+                <DiagnosticRow>
+                  <DiagnosticLabel>Hunks extracted:</DiagnosticLabel>
+                  <DiagnosticValue>{diagnosticInfo.hunkCount}</DiagnosticValue>
+                </DiagnosticRow>
+              </DiagnosticContent>
+            </DiagnosticSection>
           )}
         </EmptyState>
       ) : (
