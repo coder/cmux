@@ -228,15 +228,14 @@ const SelectableDiffLineWrapper = styled(DiffLineWrapper)<{
   ${({ isSelected }) =>
     isSelected &&
     `
-    background: rgba(255, 200, 0, 0.15) !important;
-    outline: 1px solid rgba(255, 200, 0, 0.4);
+    background: rgba(255, 200, 0, 0.2) !important;
   `}
   
   &:hover {
     ${({ isSelecting }) =>
       isSelecting &&
       `
-      outline: 1px solid rgba(255, 200, 0, 0.3);
+      background: rgba(255, 200, 0, 0.1);
     `}
   }
 `;
@@ -299,39 +298,7 @@ const NoteButton = styled.button<{ primary?: boolean }>`
   }
 `;
 
-const SelectionHint = styled.div`
-  padding: 6px 8px;
-  background: rgba(255, 200, 0, 0.1);
-  border: 1px solid rgba(255, 200, 0, 0.3);
-  border-radius: 3px;
-  color: #ccc;
-  font-size: 11px;
-  margin-bottom: 4px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-`;
 
-const HintText = styled.span`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-`;
-
-const ClearButton = styled.button`
-  padding: 4px 8px;
-  font-size: 10px;
-  background: transparent;
-  border: 1px solid #3e3e42;
-  color: #888;
-  border-radius: 2px;
-  cursor: pointer;
-  
-  &:hover {
-    background: #3e3e42;
-    color: #ccc;
-  }
-`;
 
 export const SelectableDiffRenderer: React.FC<SelectableDiffRendererProps> = ({
   content,
@@ -442,10 +409,6 @@ export const SelectableDiffRenderer: React.FC<SelectableDiffRendererProps> = ({
     setIsSelectingMode(false);
   };
   
-  const handleClearSelection = () => {
-    setSelection(null);
-  };
-  
   // Auto-focus textarea when selection is made or changed
   React.useEffect(() => {
     if (selection && textareaRef.current) {
@@ -464,26 +427,6 @@ export const SelectableDiffRenderer: React.FC<SelectableDiffRendererProps> = ({
   
   return (
     <>
-      {isSelectingMode && selection && (
-        <SelectionHint>
-          <HintText>
-            <span>
-              {selection.startIndex === selection.endIndex
-                ? "Line selected. Click another line to extend range, or add note below."
-                : `Lines ${selection.startLineNum}-${selection.endLineNum} selected. Click another line to adjust or add note below.`}
-            </span>
-          </HintText>
-          <ClearButton 
-            onClick={(e) => {
-              e.stopPropagation();
-              handleClearSelection();
-            }}
-          >
-            Clear
-          </ClearButton>
-        </SelectionHint>
-      )}
-      
       {lineData.map((lineInfo, displayIndex) => {
         const isSelected = isLineSelected(displayIndex);
         
