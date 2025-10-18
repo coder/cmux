@@ -1,34 +1,34 @@
-import React, { useRef, useEffect } from "react";
+import React from "react";
 import styled from "@emotion/styled";
 
 /**
  * Wrapper for compaction streaming content
- * Provides max-height constraint with sticky scroll to bottom
+ * Provides max-height constraint with fade effect to imply content above
+ * No scrolling - content fades out at the top line by line
  */
 
 const Container = styled.div`
   max-height: 300px;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden;
+  position: relative;
 
-  /* Subtle indicator that content is scrollable */
-  &::-webkit-scrollbar {
-    width: 8px;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: rgba(0, 0, 0, 0.1);
-    border-radius: 4px;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: rgba(var(--color-plan-mode-rgb), 0.3);
-    border-radius: 4px;
-
-    &:hover {
-      background: rgba(var(--color-plan-mode-rgb), 0.5);
-    }
-  }
+  /* Fade effect: content fades progressively from top to bottom */
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(0, 0, 0, 0.3) 5%,
+    rgba(0, 0, 0, 0.6) 10%,
+    rgba(0, 0, 0, 0.85) 15%,
+    black 20%
+  );
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(0, 0, 0, 0.3) 5%,
+    rgba(0, 0, 0, 0.6) 10%,
+    rgba(0, 0, 0, 0.85) 15%,
+    black 20%
+  );
 `;
 
 interface CompactingMessageContentProps {
@@ -36,14 +36,5 @@ interface CompactingMessageContentProps {
 }
 
 export const CompactingMessageContent: React.FC<CompactingMessageContentProps> = ({ children }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  // Auto-scroll to bottom as content streams in
-  useEffect(() => {
-    if (containerRef.current) {
-      containerRef.current.scrollTop = containerRef.current.scrollHeight;
-    }
-  }, [children]);
-
-  return <Container ref={containerRef}>{children}</Container>;
+  return <Container>{children}</Container>;
 };
