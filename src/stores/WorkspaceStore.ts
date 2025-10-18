@@ -476,7 +476,6 @@ export class WorkspaceStore {
     return true;
   }
 
-
   /**
    * Perform history compaction by replacing chat history with summary message.
    * Type-safe: only called when we've verified data is a StreamEndEvent.
