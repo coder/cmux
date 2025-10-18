@@ -60,12 +60,28 @@ const FullView = styled.div<{ visible: boolean }>`
   display: ${(props) => (props.visible ? "flex" : "none")};
   flex-direction: column;
   height: 100%;
+  position: relative; /* For absolute positioning of meter */
 `;
 
 const CollapsedView = styled.div<{ visible: boolean }>`
   display: ${(props) => (props.visible ? "flex" : "none")};
   height: 100%;
 `;
+
+const MeterContainer = styled.div<{ visible: boolean }>`
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 20px;
+  height: 100%;
+  background: #252526;
+  border-right: 1px solid #3e3e42;
+  display: ${(props) => (props.visible ? "flex" : "none")};
+  flex-direction: column;
+  z-index: 10;
+`;
+
+
 
 const TabBar = styled.div`
   display: flex;
@@ -209,6 +225,11 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
     // Between thresholds: maintain current state (no change)
   }, [chatAreaWidth, selectedTab, showCollapsed, setShowCollapsed]);
 
+  // Single render point for VerticalTokenMeter
+  // Shows when: (1) collapsed, OR (2) Review tab is active
+  const showMeter = showCollapsed || selectedTab === "review";
+  const verticalMeter = showMeter ? <VerticalTokenMeter data={verticalMeterData} /> : null;
+
   return (
     <SidebarContainer
       collapsed={showCollapsed}
@@ -218,6 +239,9 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
       aria-label="Workspace insights"
     >
       <FullView visible={!showCollapsed}>
+        {/* Render meter in positioned container when Review tab is active */}
+        {selectedTab === "review" && <MeterContainer visible={true}>{verticalMeter}</MeterContainer>}
+        
         <TabBar role="tablist" aria-label="Metadata views">
           <TooltipWrapper inline>
             <TabButton
@@ -270,9 +294,8 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
           )}
         </TabContent>
       </FullView>
-      <CollapsedView visible={showCollapsed}>
-        <VerticalTokenMeter data={verticalMeterData} />
-      </CollapsedView>
+      {/* Render meter in collapsed view when sidebar is collapsed */}
+      <CollapsedView visible={showCollapsed}>{verticalMeter}</CollapsedView>
     </SidebarContainer>
   );
 };
