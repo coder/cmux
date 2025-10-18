@@ -18,7 +18,7 @@ interface SidebarContainerProps {
 const SidebarContainer = styled.div<SidebarContainerProps>`
   width: ${(props) => {
     if (props.collapsed) return "20px";
-    if (props.wide) return "600px";
+    if (props.wide) return "min(1200px, calc(100vw - 400px))";
     return "300px";
   }};
   background: #252526;
