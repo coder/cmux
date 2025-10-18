@@ -231,77 +231,69 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
     removeStaleReviews(hunks.map((h) => h.id));
   }, [hunks, removeStaleReviews]);
 
-  if (isLoading) {
-    return (
-      <PanelContainer>
-        <LoadingState>Loading diff...</LoadingState>
-      </PanelContainer>
-    );
-  }
-
-  if (hunks.length === 0) {
-    return (
-      <PanelContainer>
-        <EmptyState>
-          <EmptyStateTitle>No changes to review</EmptyStateTitle>
-          <EmptyStateText>
-            This workspace has no uncommitted changes.
-            <br />
-            Make some changes and they&apos;ll appear here for review.
-          </EmptyStateText>
-        </EmptyState>
-      </PanelContainer>
-    );
-  }
-
   return (
     <PanelContainer>
-      {hasStale && (
-        <StaleReviewsBanner>
-          <span>Some reviews reference hunks that no longer exist</span>
-          <CleanupButton onClick={handleCleanupStaleReviews}>Clean up</CleanupButton>
-        </StaleReviewsBanner>
-      )}
-
+      {/* Always show filters so user can change diff base */}
       <ReviewFilters filters={filters} stats={stats} onFiltersChange={setFilters} />
 
-      <HunkList>
-        {filteredHunks.length === 0 ? (
-          <EmptyState>
-            <EmptyStateText>
-              No hunks match the current filters.
-              <br />
-              Try adjusting your filter settings.
-            </EmptyStateText>
-          </EmptyState>
-        ) : (
-          filteredHunks.map((hunk) => {
-            const review = getReview(hunk.id);
-            const isSelected = hunk.id === selectedHunkId;
+      {isLoading ? (
+        <LoadingState>Loading diff...</LoadingState>
+      ) : hunks.length === 0 ? (
+        <EmptyState>
+          <EmptyStateTitle>No changes found</EmptyStateTitle>
+          <EmptyStateText>
+            No changes found for the selected diff base.
+            <br />
+            Try selecting a different base or make some changes.
+          </EmptyStateText>
+        </EmptyState>
+      ) : (
+        <>
+          {hasStale && (
+            <StaleReviewsBanner>
+              <span>Some reviews reference hunks that no longer exist</span>
+              <CleanupButton onClick={handleCleanupStaleReviews}>Clean up</CleanupButton>
+            </StaleReviewsBanner>
+          )}
 
-            return (
-              <div key={hunk.id}>
-                <HunkViewer
-                  hunk={hunk}
-                  review={review}
-                  isSelected={isSelected}
-                  onClick={() => setSelectedHunkId(hunk.id)}
-                />
-                {isSelected && (
-                  <ReviewActions
-                    hunkId={hunk.id}
-                    currentStatus={review?.status}
-                    currentNote={review?.note}
-                    onAccept={(note) => setReview(hunk.id, "accepted", note)}
-                    onReject={(note) => setReview(hunk.id, "rejected", note)}
-                    onDelete={() => deleteReview(hunk.id)}
-                  />
-                )}
-              </div>
-            );
-          })
-        )}
-      </HunkList>
+          <HunkList>
+            {filteredHunks.length === 0 ? (
+              <EmptyState>
+                <EmptyStateText>
+                  No hunks match the current filters.
+                  <br />
+                  Try adjusting your filter settings.
+                </EmptyStateText>
+              </EmptyState>
+            ) : (
+              filteredHunks.map((hunk) => {
+                const review = getReview(hunk.id);
+                const isSelected = hunk.id === selectedHunkId;
+
+                return (
+                  <div key={hunk.id}>
+                    <HunkViewer
+                      hunk={hunk}
+                      review={review}
+                      isSelected={isSelected}
+                      onClick={() => setSelectedHunkId(hunk.id)}
+                    />
+                    {isSelected && (
+                      <ReviewActions
+                        currentStatus={review?.status}
+                        currentNote={review?.note}
+                        onAccept={(note) => setReview(hunk.id, "accepted", note)}
+                        onReject={(note) => setReview(hunk.id, "rejected", note)}
+                        onDelete={() => deleteReview(hunk.id)}
+                      />
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </HunkList>
+        </>
+      )}
     </PanelContainer>
   );
 };

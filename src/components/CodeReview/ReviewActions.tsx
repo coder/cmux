@@ -6,7 +6,6 @@ import React, { useState, useCallback } from "react";
 import styled from "@emotion/styled";
 
 interface ReviewActionsProps {
-  hunkId: string;
   currentStatus?: "accepted" | "rejected";
   currentNote?: string;
   onAccept: (note?: string) => void;
