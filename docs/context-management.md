@@ -55,7 +55,7 @@ Compress conversation history using AI summarization. Replaces the conversation 
 ### Options
 
 - `-t <tokens>` - Maximum output tokens for the summary (default: ~2000 words)
-- `-m <model>` - Model to use for compaction (default: workspace model). Supports abbreviations like `haiku`, `sonnet`, or full model strings
+- `-m <model>` - Model to use for compaction (sticky preference). Supports abbreviations like `haiku`, `sonnet`, or full model strings
 
 ### Examples
 
@@ -77,7 +77,7 @@ Compress conversation history using AI summarization. Replaces the conversation 
 /compact -m haiku
 ```
 
-Use Haiku for faster, lower-cost compaction.
+Use Haiku for faster, lower-cost compaction. This becomes your default until changed.
 
 **Auto-continue with custom message:**
 
@@ -109,6 +109,7 @@ Combine custom model, token limit, and auto-continue message.
 
 ### Notes
 
+- Model preference persists globally across workspaces
 - Uses the specified model (or workspace model by default) to summarize conversation history
 - Preserves actionable context and specific details
 - **Irreversible** - original messages are replaced

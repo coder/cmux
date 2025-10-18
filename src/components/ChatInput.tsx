@@ -34,6 +34,7 @@ import type { ThinkingLevel } from "@/types/thinking";
 import type { CmuxFrontendMetadata, CompactionRequestData } from "@/types/message";
 import type { SendMessageOptions } from "@/types/ipc";
 import { applyCompactionOverrides } from "@/utils/messages/compactionOptions";
+import { resolveCompactionModel } from "@/utils/messages/compactionModelPreference";
 import { useTelemetry } from "@/hooks/useTelemetry";
 import { setTelemetryEnabled } from "@/telemetry";
 
@@ -164,9 +165,12 @@ function prepareCompactionMessage(
 
   const messageText = `Summarize this conversation into a compact form for a new Assistant to continue helping the user. Use approximately ${targetWords} words.`;
 
+  // Handle model preference (sticky globally)
+  const effectiveModel = resolveCompactionModel(parsed.model);
+
   // Create compaction metadata (will be stored in user message)
   const compactData: CompactionRequestData = {
-    model: parsed.model,
+    model: effectiveModel,
     maxOutputTokens: parsed.maxOutputTokens,
     continueMessage: parsed.continueMessage,
   };
