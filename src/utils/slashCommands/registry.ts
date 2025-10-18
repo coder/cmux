@@ -396,6 +396,23 @@ const modelCommandDefinition: SlashCommandDefinition = {
   },
 };
 
+const vimCommandDefinition: SlashCommandDefinition = {
+  key: "vim",
+  description: "Toggle Vim mode for the chat input",
+  appendSpace: false,
+  handler: ({ cleanRemainingTokens }): ParsedCommand => {
+    if (cleanRemainingTokens.length > 0) {
+      return {
+        type: "unknown-command",
+        command: "vim",
+        subcommand: cleanRemainingTokens[0],
+      };
+    }
+
+    return { type: "vim-toggle" };
+  },
+};
+
 const telemetryCommandDefinition: SlashCommandDefinition = {
   key: "telemetry",
   description: "Enable or disable telemetry",
@@ -475,6 +492,7 @@ export const SLASH_COMMAND_DEFINITIONS: readonly SlashCommandDefinition[] = [
   providersCommandDefinition,
   telemetryCommandDefinition,
   forkCommandDefinition,
+  vimCommandDefinition,
 ];
 
 export const SLASH_COMMAND_DEFINITION_MAP = new Map(

@@ -4,6 +4,8 @@ import type { UIMode } from "@/types/mode";
 import * as vim from "@/utils/vim";
 import { TooltipWrapper, Tooltip, HelpIndicator } from "./Tooltip";
 import { formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
+import { usePersistedState } from "@/hooks/usePersistedState";
+import { VIM_ENABLED_KEY } from "@/constants/storage";
 
 /**
  * VimTextArea – minimal Vim-like editing for a textarea.
@@ -123,8 +125,15 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
       if (typeof ref === "function") ref(textareaRef.current);
       else ref.current = textareaRef.current;
     }, [ref]);
+    const [vimEnabled] = usePersistedState(VIM_ENABLED_KEY, false, { listener: true });
 
     const [vimMode, setVimMode] = useState<VimMode>("insert");
+    useEffect(() => {
+      if (!vimEnabled) {
+        setVimMode("insert");
+      }
+    }, [vimEnabled]);
+
     const [isFocused, setIsFocused] = useState(false);
     const [desiredColumn, setDesiredColumn] = useState<number | null>(null);
     const [pendingOp, setPendingOp] = useState<null | {
@@ -169,6 +178,8 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
       // Let parent handle first (send, cancel, etc.)
       onKeyDown?.(e);
       if (e.defaultPrevented) return;
+
+      if (!vimEnabled) return;
 
       // If suggestions or external popovers are active, do not intercept navigation keys
       if (suppressSet.has(e.key)) return;
@@ -229,7 +240,7 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
     };
 
     // Build mode indicator content
-    const showVimMode = vimMode === "normal";
+    const showVimMode = vimEnabled && vimMode === "normal";
     const pendingCommand = showVimMode ? vim.formatPendingCommand(pendingOp) : "";
     const showFocusHint = !isFocused;
 
@@ -287,7 +298,7 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
             spellCheck={false}
             {...rest}
           />
-          {vimMode === "normal" && value.length === 0 && <EmptyCursor />}
+          {vimEnabled && vimMode === "normal" && value.length === 0 && <EmptyCursor />}
         </div>
       </div>
     );

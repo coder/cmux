@@ -70,6 +70,12 @@ export function getModeKey(workspaceId: string): string {
 export const USE_1M_CONTEXT_KEY = "use1MContext";
 
 /**
+ * Get the localStorage key for vim mode preference (global)
+ * Format: "vimEnabled"
+ */
+export const VIM_ENABLED_KEY = "vimEnabled";
+
+/**
  * Get the localStorage key for the compact continue message for a workspace
  * Temporarily stores the continuation prompt for the current compaction
  * Should be deleted immediately after use to prevent bugs
