@@ -62,6 +62,20 @@ const LoadingState = styled.div`
   font-size: 14px;
 `;
 
+const ErrorState = styled.div`
+  padding: 24px;
+  color: #f48771;
+  background: rgba(244, 135, 113, 0.1);
+  border: 1px solid rgba(244, 135, 113, 0.3);
+  border-radius: 4px;
+  margin: 12px;
+  font-family: var(--font-monospace);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+`;
+
 const StaleReviewsBanner = styled.div`
   background: rgba(244, 135, 113, 0.1);
   border-bottom: 1px solid rgba(244, 135, 113, 0.3);
@@ -93,6 +107,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
   const [hunks, setHunks] = useState<DiffHunk[]>([]);
   const [selectedHunkId, setSelectedHunkId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState<ReviewFiltersType>({
     showReviewed: false,
     statusFilter: "unreviewed",
@@ -114,6 +129,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
 
     const loadDiff = async () => {
       setIsLoading(true);
+      setError(null);
       try {
         // Build git diff command based on selected base
         let diffCommand: string;
@@ -135,7 +151,9 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
         if (cancelled) return;
 
         if (!result.success) {
-          console.error("Failed to get diff:", result.error);
+          const errorMsg = `Git command failed: ${result.error}`;
+          console.error(errorMsg);
+          setError(errorMsg);
           setHunks([]);
           return;
         }
@@ -149,8 +167,10 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
         if (allHunks.length > 0 && !selectedHunkId) {
           setSelectedHunkId(allHunks[0].id);
         }
-      } catch (error) {
-        console.error("Failed to load diff:", error);
+      } catch (err) {
+        const errorMsg = `Failed to load diff: ${err instanceof Error ? err.message : String(err)}`;
+        console.error(errorMsg);
+        setError(errorMsg);
       } finally {
         setIsLoading(false);
       }
@@ -244,7 +264,9 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
       {/* Always show filters so user can change diff base */}
       <ReviewFilters filters={filters} stats={stats} onFiltersChange={setFilters} />
 
-      {isLoading ? (
+      {error ? (
+        <ErrorState>{error}</ErrorState>
+      ) : isLoading ? (
         <LoadingState>Loading diff...</LoadingState>
       ) : hunks.length === 0 ? (
         <EmptyState>
