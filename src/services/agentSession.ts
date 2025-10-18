@@ -1,4 +1,4 @@
-import assert from "node:assert/strict";
+import assert from "@/utils/assert";
 import { EventEmitter } from "events";
 import * as path from "path";
 import { createCmuxMessage } from "@/types/message";
@@ -13,6 +13,7 @@ import { createUnknownSendMessageError } from "@/services/utils/sendMessageError
 import type { Result } from "@/types/result";
 import { Ok, Err } from "@/types/result";
 import { enforceThinkingPolicy } from "@/utils/thinking/policy";
+import { loadTokenizerForModel } from "@/utils/main/tokenizer";
 
 interface ImagePart {
   url: string;
@@ -302,6 +303,19 @@ export class AgentSession {
     modelString: string,
     options?: SendMessageOptions
   ): Promise<Result<void, SendMessageError>> {
+    try {
+      assert(
+        typeof modelString === "string" && modelString.trim().length > 0,
+        "modelString must be a non-empty string"
+      );
+      await loadTokenizerForModel(modelString);
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      return Err(
+        createUnknownSendMessageError(`Failed to preload tokenizer for ${modelString}: ${reason}`)
+      );
+    }
+
     const commitResult = await this.partialService.commitToHistory(this.workspaceId);
     if (!commitResult.success) {
       return Err(createUnknownSendMessageError(commitResult.error));
