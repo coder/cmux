@@ -86,7 +86,6 @@ const RefreshButton = styled.button<{ isLoading?: boolean }>`
   justify-content: center;
   color: ${(props) => (props.isLoading ? "#007acc" : "#888")};
   transition: color 0.2s ease;
-  opacity: ${(props) => (props.isLoading ? "1" : "1")};
 
   &:hover {
     color: ${(props) => (props.isLoading ? "#007acc" : "#ccc")};
@@ -95,7 +94,9 @@ const RefreshButton = styled.button<{ isLoading?: boolean }>`
   svg {
     width: 12px;
     height: 12px;
-    animation: ${(props) => (props.isLoading ? "spin 1s linear infinite" : "none")};
+    /* Smooth transition when animation stops */
+    transition: transform 0.3s ease-out;
+    animation: ${(props) => (props.isLoading ? "spin 0.8s linear infinite" : "none")};
   }
 
   @keyframes spin {
@@ -209,7 +210,9 @@ export const ReviewControls: React.FC<ReviewControlsProps> = ({
             </svg>
           </RefreshButton>
           <Tooltip position="bottom" align="left">
-            {isLoading ? "Refreshing..." : `Refresh diff (${formatKeybind(KEYBINDS.REFRESH_REVIEW)})`}
+            {isLoading
+              ? "Refreshing..."
+              : `Refresh diff (${formatKeybind(KEYBINDS.REFRESH_REVIEW)})`}
           </Tooltip>
         </TooltipWrapper>
       )}
