@@ -140,6 +140,9 @@ export function buildFileTree(fileStats: FileStats[]): FileTreeNode {
 /**
  * Extract the common path prefix from all file paths
  * Returns null if no common prefix or only single path component
+ * 
+ * This is used for display purposes only - the actual paths in the tree
+ * remain unchanged so git commands work correctly.
  */
 export function extractCommonPrefix(fileStats: FileStats[]): string | null {
   if (fileStats.length === 0) return null;
@@ -167,22 +170,6 @@ export function extractCommonPrefix(fileStats: FileStats[]): string | null {
   if (commonLength === 0) return null;
 
   return firstParts.slice(0, commonLength).join("/");
-}
-
-/**
- * Remove common prefix from file paths
- */
-export function removeCommonPrefix(
-  fileStats: FileStats[],
-  prefix: string
-): FileStats[] {
-  const prefixWithSlash = prefix + "/";
-  return fileStats.map((stat) => ({
-    ...stat,
-    filePath: stat.filePath.startsWith(prefixWithSlash)
-      ? stat.filePath.slice(prefixWithSlash.length)
-      : stat.filePath,
-  }));
 }
 
 

@@ -118,7 +118,8 @@ const TreeNodeContent: React.FC<{
   depth: number;
   selectedPath: string | null;
   onSelectFile: (path: string | null) => void;
-}> = ({ node, depth, selectedPath, onSelectFile }) => {
+  commonPrefix: string | null;
+}> = ({ node, depth, selectedPath, onSelectFile, commonPrefix }) => {
   const [isOpen, setIsOpen] = useState(depth < 2); // Auto-expand first 2 levels
 
   const handleClick = (e: React.MouseEvent) => {
@@ -132,10 +133,12 @@ const TreeNodeContent: React.FC<{
         setIsOpen(!isOpen);
       } else {
         // Clicking on folder name/stats selects the folder for filtering
+        // Use full path (with prefix) for selection
         onSelectFile(selectedPath === node.path ? null : node.path);
       }
     } else {
       // Toggle selection: if already selected, clear filter
+      // Use full path (with prefix) for selection
       onSelectFile(selectedPath === node.path ? null : node.path);
     }
   };
@@ -146,6 +149,20 @@ const TreeNodeContent: React.FC<{
   };
 
   const isSelected = selectedPath === node.path;
+  
+  // Strip common prefix from display name only
+  const displayName = (() => {
+    if (!commonPrefix) return node.name;
+    
+    // For root-level nodes, check if path starts with prefix
+    if (depth === 0 && node.path.startsWith(commonPrefix + "/")) {
+      // Remove prefix and get the first component
+      const withoutPrefix = node.path.slice(commonPrefix.length + 1);
+      return withoutPrefix.split("/")[0];
+    }
+    
+    return node.name;
+  })();
 
   return (
     <>
@@ -155,7 +172,7 @@ const TreeNodeContent: React.FC<{
             <ToggleIcon isOpen={isOpen} data-toggle onClick={handleToggleClick}>
               ▶
             </ToggleIcon>
-            <DirectoryName>{node.name || "/"}</DirectoryName>
+            <DirectoryName>{displayName || "/"}</DirectoryName>
             {node.totalStats && (node.totalStats.additions > 0 || node.totalStats.deletions > 0) && (
               <DirectoryStats isOpen={isOpen}>
                 {node.totalStats.additions > 0 && (
@@ -178,7 +195,7 @@ const TreeNodeContent: React.FC<{
         ) : (
           <>
             <span style={{ width: "12px" }} />
-            <FileName>{node.name}</FileName>
+            <FileName>{displayName}</FileName>
             {node.stats && (
               <Stats>
                 {node.stats.additions > 0 && <Additions>+{node.stats.additions}</Additions>}
@@ -198,6 +215,7 @@ const TreeNodeContent: React.FC<{
             depth={depth + 1}
             selectedPath={selectedPath}
             onSelectFile={onSelectFile}
+            commonPrefix={commonPrefix}
           />
         ))}
     </>
@@ -241,6 +259,7 @@ export const FileTree: React.FC<FileTreeExternalProps> = ({
               depth={0}
               selectedPath={selectedPath}
               onSelectFile={onSelectFile}
+              commonPrefix={commonPrefix}
             />
           ))
         ) : (

@@ -10,7 +10,7 @@ import { ReviewControls } from "./ReviewControls";
 import { FileTree } from "./FileTree";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { parseDiff, extractAllHunks } from "@/utils/git/diffParser";
-import { parseNumstat, buildFileTree, extractNewPath, extractCommonPrefix, removeCommonPrefix } from "@/utils/git/numstatParser";
+import { parseNumstat, buildFileTree, extractNewPath, extractCommonPrefix } from "@/utils/git/numstatParser";
 import type { DiffHunk, ReviewFilters as ReviewFiltersType } from "@/types/review";
 import type { FileTreeNode } from "@/utils/git/numstatParser";
 
@@ -305,14 +305,12 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
 
         if (numstatResult.success) {
           const numstatOutput = numstatResult.data.output ?? "";
-          let fileStats = parseNumstat(numstatOutput);
+          const fileStats = parseNumstat(numstatOutput);
           
-          // Extract and remove common prefix
+          // Extract common prefix for display (don't modify paths)
           const prefix = extractCommonPrefix(fileStats);
-          if (prefix) {
-            fileStats = removeCommonPrefix(fileStats, prefix);
-          }
           
+          // Build tree with original paths (needed for git commands)
           const tree = buildFileTree(fileStats);
           setFileTree(tree);
           setCommonPrefix(prefix);
