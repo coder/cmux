@@ -94,15 +94,6 @@ const TerminalIconButton = styled.button`
   }
 `;
 
-const LoadingIndicator = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  color: #888;
-  font-size: 14px;
-`;
-
 const OutputContainer = styled.div`
   flex: 1;
   position: relative;
@@ -119,6 +110,7 @@ const OutputContent = styled.div`
 `;
 
 const EmptyState = styled.div`
+  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -370,11 +362,9 @@ const AIViewInner: React.FC<AIViewProps> = ({
   if (!workspaceState) {
     return (
       <ViewContainer className={className}>
-        <ChatArea ref={chatAreaRef}>
-          <OutputContainer>
-            <LoadingIndicator>Loading workspace...</LoadingIndicator>
-          </OutputContainer>
-        </ChatArea>
+        <EmptyState>
+          <h3>Loading workspace...</h3>
+        </EmptyState>
       </ViewContainer>
     );
   }
