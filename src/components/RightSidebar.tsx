@@ -9,6 +9,7 @@ import { VerticalTokenMeter } from "./RightSidebar/VerticalTokenMeter";
 import { ReviewPanel } from "./CodeReview/ReviewPanel";
 import { calculateTokenMeterData } from "@/utils/tokens/tokenMeterUtils";
 import { matchesKeybind, KEYBINDS, formatKeybind } from "@/utils/ui/keybinds";
+import { TooltipWrapper, Tooltip } from "./Tooltip";
 
 interface SidebarContainerProps {
   collapsed: boolean;
@@ -213,30 +214,38 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
     >
       <FullView visible={!showCollapsed}>
         <TabBar role="tablist" aria-label="Metadata views">
-          <TabButton
-            active={selectedTab === "costs"}
-            onClick={() => setSelectedTab("costs")}
-            id={costsTabId}
-            role="tab"
-            type="button"
-            aria-selected={selectedTab === "costs"}
-            aria-controls={costsPanelId}
-            title={`Costs (${formatKeybind(KEYBINDS.COSTS_TAB)})`}
-          >
-            Costs
-          </TabButton>
-          <TabButton
-            active={selectedTab === "review"}
-            onClick={() => setSelectedTab("review")}
-            id={reviewTabId}
-            role="tab"
-            type="button"
-            aria-selected={selectedTab === "review"}
-            aria-controls={reviewPanelId}
-            title={`Review (${formatKeybind(KEYBINDS.REVIEW_TAB)})`}
-          >
-            Review
-          </TabButton>
+          <TooltipWrapper inline>
+            <TabButton
+              active={selectedTab === "costs"}
+              onClick={() => setSelectedTab("costs")}
+              id={costsTabId}
+              role="tab"
+              type="button"
+              aria-selected={selectedTab === "costs"}
+              aria-controls={costsPanelId}
+            >
+              Costs
+            </TabButton>
+            <Tooltip className="tooltip" position="bottom" align="center">
+              {formatKeybind(KEYBINDS.COSTS_TAB)}
+            </Tooltip>
+          </TooltipWrapper>
+          <TooltipWrapper inline>
+            <TabButton
+              active={selectedTab === "review"}
+              onClick={() => setSelectedTab("review")}
+              id={reviewTabId}
+              role="tab"
+              type="button"
+              aria-selected={selectedTab === "review"}
+              aria-controls={reviewPanelId}
+            >
+              Review
+            </TabButton>
+            <Tooltip className="tooltip" position="bottom" align="center">
+              {formatKeybind(KEYBINDS.REVIEW_TAB)}
+            </Tooltip>
+          </TooltipWrapper>
         </TabBar>
         <TabContent noPadding={selectedTab === "review"}>
           {selectedTab === "costs" && (
