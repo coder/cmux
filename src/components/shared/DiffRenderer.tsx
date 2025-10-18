@@ -19,21 +19,21 @@ const getContrastColor = (type: DiffLineType) => {
 
 /**
  * Wrapper for diff lines - works with CSS Grid parent to ensure uniform widths
- * 
+ *
  * Problem: Lines of varying length created jagged backgrounds during horizontal scroll
  * because each wrapper was only as wide as its content.
- * 
+ *
  * Solution: Parent container uses CSS Grid, which automatically makes all grid items
  * (these wrappers) the same width as the widest item. This ensures backgrounds span
  * the full scrollable area without creating infinite scroll.
- * 
+ *
  * Key insight: width: 100% makes each wrapper span the full grid column width,
  * which CSS Grid automatically sets to the widest line's content.
  */
 export const DiffLineWrapper = styled.div<{ type: DiffLineType }>`
   display: block;
   width: 100%; /* Span full grid column (width of longest line) */
-  
+
   background: ${({ type }) => {
     switch (type) {
       case "add":
@@ -114,7 +114,7 @@ export const DiffContainer = styled.div`
   max-height: 400px;
   overflow-y: auto;
   overflow-x: auto;
-  
+
   /* CSS Grid ensures all lines span the same width (width of longest line) */
   display: grid;
   grid-template-columns: minmax(min-content, 1fr);
@@ -133,7 +133,7 @@ interface DiffRendererProps {
 
 /**
  * DiffRenderer - Renders diff content with consistent styling
- * 
+ *
  * Expects content with standard diff format:
  * - Lines starting with '+' are additions (green)
  * - Lines starting with '-' are removals (red)
@@ -147,7 +147,7 @@ export const DiffRenderer: React.FC<DiffRendererProps> = ({
   newStart = 1,
 }) => {
   const lines = content.split("\n").filter((line) => line.length > 0);
-  
+
   let oldLineNum = oldStart;
   let newLineNum = newStart;
 
@@ -201,7 +201,6 @@ export const DiffRenderer: React.FC<DiffRendererProps> = ({
   );
 };
 
-
 // Selectable version of DiffRenderer for Code Review
 interface SelectableDiffRendererProps extends DiffRendererProps {
   /** File path for generating review notes */
@@ -217,20 +216,20 @@ interface LineSelection {
   endLineNum: number;
 }
 
-const SelectableDiffLineWrapper = styled(DiffLineWrapper)<{ 
-  type: DiffLineType; 
+const SelectableDiffLineWrapper = styled(DiffLineWrapper)<{
+  type: DiffLineType;
   isSelected: boolean;
   isSelecting: boolean;
 }>`
   cursor: ${({ isSelecting }) => (isSelecting ? "pointer" : "default")};
   position: relative;
-  
+
   ${({ isSelected }) =>
     isSelected &&
     `
     background: rgba(255, 200, 0, 0.2) !important;
   `}
-  
+
   &:hover {
     ${({ isSelecting }) =>
       isSelecting &&
@@ -258,12 +257,12 @@ const NoteTextarea = styled.textarea`
   border-radius: 2px;
   color: var(--color-text);
   resize: vertical;
-  
+
   &:focus {
     outline: none;
     border-color: rgba(255, 200, 0, 0.6);
   }
-  
+
   &::placeholder {
     color: #888;
     font-size: 11px;
@@ -282,9 +281,9 @@ export const SelectableDiffRenderer: React.FC<SelectableDiffRendererProps> = ({
   const [noteText, setNoteText] = React.useState("");
   const [isSelectingMode, setIsSelectingMode] = React.useState(false);
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
-  
+
   const lines = content.split("\n").filter((line) => line.length > 0);
-  
+
   // Parse lines to get line numbers
   const lineData: Array<{
     index: number;
@@ -292,13 +291,13 @@ export const SelectableDiffRenderer: React.FC<SelectableDiffRendererProps> = ({
     lineNum: number;
     content: string;
   }> = [];
-  
+
   let oldLineNum = oldStart;
   let newLineNum = newStart;
-  
+
   lines.forEach((line, index) => {
     const firstChar = line[0];
-    
+
     // Skip header lines
     if (line.startsWith("@@")) {
       const regex = /^@@\s+-(\d+)(?:,\d+)?\s+\+(\d+)(?:,\d+)?\s+@@/;
@@ -309,10 +308,10 @@ export const SelectableDiffRenderer: React.FC<SelectableDiffRendererProps> = ({
       }
       return;
     }
-    
+
     let type: DiffLineType = "context";
     let lineNum = 0;
-    
+
     if (firstChar === "+") {
       type = "add";
       lineNum = newLineNum++;
@@ -324,7 +323,7 @@ export const SelectableDiffRenderer: React.FC<SelectableDiffRendererProps> = ({
       oldLineNum++;
       newLineNum++;
     }
-    
+
     lineData.push({
       index,
       type,
@@ -332,7 +331,7 @@ export const SelectableDiffRenderer: React.FC<SelectableDiffRendererProps> = ({
       content: line.slice(1),
     });
   });
-  
+
   const handleClick = (lineIndex: number, shiftKey: boolean) => {
     // Shift-click: extend existing selection
     if (shiftKey && selection && isSelectingMode) {
@@ -346,7 +345,7 @@ export const SelectableDiffRenderer: React.FC<SelectableDiffRendererProps> = ({
       });
       return;
     }
-    
+
     // Regular click: start new selection
     setIsSelectingMode(true);
     setSelection({
@@ -356,14 +355,15 @@ export const SelectableDiffRenderer: React.FC<SelectableDiffRendererProps> = ({
       endLineNum: lineData[lineIndex].lineNum,
     });
   };
-  
+
   const handleSubmitNote = () => {
     if (!noteText.trim() || !selection || !onReviewNote) return;
-    
-    const lineRange = selection.startLineNum === selection.endLineNum
-      ? `${selection.startLineNum}`
-      : `${selection.startLineNum}-${selection.endLineNum}`;
-    
+
+    const lineRange =
+      selection.startLineNum === selection.endLineNum
+        ? `${selection.startLineNum}`
+        : `${selection.startLineNum}-${selection.endLineNum}`;
+
     // Extract selected lines with line numbers and +/- indicators
     const [start, end] = [selection.startIndex, selection.endIndex].sort((a, b) => a - b);
     const selectedLines = lineData
@@ -374,23 +374,23 @@ export const SelectableDiffRenderer: React.FC<SelectableDiffRendererProps> = ({
         return `${lineInfo.lineNum} ${indicator} ${content}`;
       })
       .join("\n");
-    
+
     const reviewNote = `<review>\nRe ${filePath}:${lineRange}\n\`\`\`\n${selectedLines}\n\`\`\`\n> ${noteText.trim()}\n</review>`;
-    
+
     onReviewNote(reviewNote);
-    
+
     // Reset state
     setSelection(null);
     setNoteText("");
     setIsSelectingMode(false);
   };
-  
+
   const handleCancelNote = () => {
     setSelection(null);
     setNoteText("");
     setIsSelectingMode(false);
   };
-  
+
   // Auto-focus textarea when selection is made or changed
   React.useEffect(() => {
     if (selection && textareaRef.current) {
@@ -400,18 +400,18 @@ export const SelectableDiffRenderer: React.FC<SelectableDiffRendererProps> = ({
       }, 0);
     }
   }, [selection]);
-  
+
   const isLineSelected = (index: number) => {
     if (!selection) return false;
     const [start, end] = [selection.startIndex, selection.endIndex].sort((a, b) => a - b);
     return index >= start && index <= end;
   };
-  
+
   return (
     <>
       {lineData.map((lineInfo, displayIndex) => {
         const isSelected = isLineSelected(displayIndex);
-        
+
         return (
           <React.Fragment key={displayIndex}>
             <SelectableDiffLineWrapper
@@ -431,7 +431,7 @@ export const SelectableDiffRenderer: React.FC<SelectableDiffRendererProps> = ({
                 <LineContent type={lineInfo.type}>{lineInfo.content}</LineContent>
               </DiffLine>
             </SelectableDiffLineWrapper>
-            
+
             {/* Show textarea after the last selected line */}
             {isSelected &&
               selection &&
@@ -446,7 +446,7 @@ export const SelectableDiffRenderer: React.FC<SelectableDiffRendererProps> = ({
                     onKeyDown={(e) => {
                       // Stop propagation for all keys to prevent parent handlers
                       e.stopPropagation();
-                      
+
                       if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
                         e.preventDefault();
                         handleSubmitNote();
@@ -464,4 +464,3 @@ export const SelectableDiffRenderer: React.FC<SelectableDiffRendererProps> = ({
     </>
   );
 };
-

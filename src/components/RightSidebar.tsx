@@ -272,8 +272,10 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
     >
       <FullView visible={!showCollapsed}>
         {/* Render meter when Review tab is active */}
-        {selectedTab === "review" && <MeterContainer visible={true}>{verticalMeter}</MeterContainer>}
-        
+        {selectedTab === "review" && (
+          <MeterContainer visible={true}>{verticalMeter}</MeterContainer>
+        )}
+
         {/* Render resize handle to right of meter when Review tab is active */}
         {selectedTab === "review" && onStartResize && (
           <ResizeHandle
@@ -282,63 +284,63 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
             onMouseDown={(e) => onStartResize(e as unknown as React.MouseEvent)}
           />
         )}
-        
+
         <ContentColumn>
           <TabBar role="tablist" aria-label="Metadata views">
-          <TooltipWrapper inline>
-            <TabButton
-              active={selectedTab === "costs"}
-              onClick={() => setSelectedTab("costs")}
-              id={costsTabId}
-              role="tab"
-              type="button"
-              aria-selected={selectedTab === "costs"}
-              aria-controls={costsPanelId}
-            >
-              Costs
-            </TabButton>
-            <Tooltip className="tooltip" position="bottom" align="center">
-              {formatKeybind(KEYBINDS.COSTS_TAB)}
-            </Tooltip>
-          </TooltipWrapper>
-          <TooltipWrapper inline>
-            <TabButton
-              active={selectedTab === "review"}
-              onClick={() => setSelectedTab("review")}
-              id={reviewTabId}
-              role="tab"
-              type="button"
-              aria-selected={selectedTab === "review"}
-              aria-controls={reviewPanelId}
-            >
-              Review
-            </TabButton>
-            <Tooltip className="tooltip" position="bottom" align="center">
-              {formatKeybind(KEYBINDS.REVIEW_TAB)}
-            </Tooltip>
-          </TooltipWrapper>
-        </TabBar>
-        <TabContent noPadding={selectedTab === "review"}>
-          {selectedTab === "costs" && (
-            <div role="tabpanel" id={costsPanelId} aria-labelledby={costsTabId}>
-              <CostsTab workspaceId={workspaceId} />
-            </div>
-          )}
-          {selectedTab === "review" && (
-            <div
-              role="tabpanel"
-              id={reviewPanelId}
-              aria-labelledby={reviewTabId}
-              style={{ height: "100%" }}
-            >
-              <ReviewPanel 
-                workspaceId={workspaceId} 
-                workspacePath={workspacePath}
-                onReviewNote={onReviewNote}
-              />
-            </div>
-          )}
-        </TabContent>
+            <TooltipWrapper inline>
+              <TabButton
+                active={selectedTab === "costs"}
+                onClick={() => setSelectedTab("costs")}
+                id={costsTabId}
+                role="tab"
+                type="button"
+                aria-selected={selectedTab === "costs"}
+                aria-controls={costsPanelId}
+              >
+                Costs
+              </TabButton>
+              <Tooltip className="tooltip" position="bottom" align="center">
+                {formatKeybind(KEYBINDS.COSTS_TAB)}
+              </Tooltip>
+            </TooltipWrapper>
+            <TooltipWrapper inline>
+              <TabButton
+                active={selectedTab === "review"}
+                onClick={() => setSelectedTab("review")}
+                id={reviewTabId}
+                role="tab"
+                type="button"
+                aria-selected={selectedTab === "review"}
+                aria-controls={reviewPanelId}
+              >
+                Review
+              </TabButton>
+              <Tooltip className="tooltip" position="bottom" align="center">
+                {formatKeybind(KEYBINDS.REVIEW_TAB)}
+              </Tooltip>
+            </TooltipWrapper>
+          </TabBar>
+          <TabContent noPadding={selectedTab === "review"}>
+            {selectedTab === "costs" && (
+              <div role="tabpanel" id={costsPanelId} aria-labelledby={costsTabId}>
+                <CostsTab workspaceId={workspaceId} />
+              </div>
+            )}
+            {selectedTab === "review" && (
+              <div
+                role="tabpanel"
+                id={reviewPanelId}
+                aria-labelledby={reviewTabId}
+                style={{ height: "100%" }}
+              >
+                <ReviewPanel
+                  workspaceId={workspaceId}
+                  workspacePath={workspacePath}
+                  onReviewNote={onReviewNote}
+                />
+              </div>
+            )}
+          </TabContent>
         </ContentColumn>
       </FullView>
       {/* Render meter in collapsed view when sidebar is collapsed */}

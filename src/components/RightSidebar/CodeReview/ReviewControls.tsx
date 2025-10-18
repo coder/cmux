@@ -84,11 +84,11 @@ const RefreshButton = styled.button`
   justify-content: center;
   color: #888;
   transition: color 0.2s ease;
-  
+
   &:hover {
     color: #ccc;
   }
-  
+
   svg {
     width: 12px;
     height: 12px;
@@ -103,11 +103,11 @@ const CheckboxLabel = styled.label`
   font-size: 11px;
   cursor: pointer;
   white-space: nowrap;
-  
+
   &:hover {
     color: #fff;
   }
-  
+
   input[type="checkbox"] {
     cursor: pointer;
   }
@@ -139,12 +139,9 @@ export const ReviewControls: React.FC<ReviewControlsProps> = ({
 }) => {
   // Local state for input value - only commit on blur/Enter
   const [inputValue, setInputValue] = useState(filters.diffBase);
-  
+
   // Global default base (used for new workspaces)
-  const [defaultBase, setDefaultBase] = usePersistedState<string>(
-    "review-default-base",
-    "HEAD"
-  );
+  const [defaultBase, setDefaultBase] = usePersistedState<string>("review-default-base", "HEAD");
 
   // Sync input with external changes (e.g., workspace change)
   React.useEffect(() => {
@@ -180,11 +177,11 @@ export const ReviewControls: React.FC<ReviewControlsProps> = ({
   const handleDirtyToggle = (e: React.ChangeEvent<HTMLInputElement>) => {
     onFiltersChange({ ...filters, includeDirty: e.target.checked });
   };
-  
+
   const handleSetDefault = () => {
     setDefaultBase(filters.diffBase);
   };
-  
+
   // Show "Set Default" button if current base is different from default
   const showSetDefault = filters.diffBase !== defaultBase;
 
@@ -222,28 +219,21 @@ export const ReviewControls: React.FC<ReviewControlsProps> = ({
         <option value="develop" />
         <option value="origin/develop" />
       </datalist>
-      
+
       {showSetDefault && (
-        <SetDefaultButton onClick={handleSetDefault}>
-          Set Default
-        </SetDefaultButton>
+        <SetDefaultButton onClick={handleSetDefault}>Set Default</SetDefaultButton>
       )}
 
       <CheckboxLabel>
-        <input
-          type="checkbox"
-          checked={filters.includeDirty}
-          onChange={handleDirtyToggle}
-        />
+        <input type="checkbox" checked={filters.includeDirty} onChange={handleDirtyToggle} />
         Include dirty
       </CheckboxLabel>
 
       <Separator />
 
       <StatBadge>
-        {stats.total} {stats.total === 1 ? 'hunk' : 'hunks'}
+        {stats.total} {stats.total === 1 ? "hunk" : "hunks"}
       </StatBadge>
     </ControlsContainer>
   );
 };
-

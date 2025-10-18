@@ -22,11 +22,7 @@ import {
 } from "./shared/ToolPrimitives";
 import { useToolExpansion, getStatusDisplay, type ToolStatus } from "./shared/toolUtils";
 import { TooltipWrapper, Tooltip } from "../Tooltip";
-import {
-  DiffContainer,
-  DiffRenderer,
-  SelectableDiffRenderer,
-} from "../shared/DiffRenderer";
+import { DiffContainer, DiffRenderer, SelectableDiffRenderer } from "../shared/DiffRenderer";
 
 // File edit specific styled components
 
@@ -92,7 +88,11 @@ interface FileEditToolCallProps {
   onReviewNote?: (note: string) => void;
 }
 
-function renderDiff(diff: string, filePath?: string, onReviewNote?: (note: string) => void): React.ReactNode {
+function renderDiff(
+  diff: string,
+  filePath?: string,
+  onReviewNote?: (note: string) => void
+): React.ReactNode {
   try {
     const patches = parsePatch(diff);
     if (patches.length === 0) {

@@ -10,7 +10,12 @@ import { ReviewControls } from "./ReviewControls";
 import { FileTree } from "./FileTree";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { parseDiff, extractAllHunks } from "@/utils/git/diffParser";
-import { parseNumstat, buildFileTree, extractNewPath, extractCommonPrefix } from "@/utils/git/numstatParser";
+import {
+  parseNumstat,
+  buildFileTree,
+  extractNewPath,
+  extractCommonPrefix,
+} from "@/utils/git/numstatParser";
 import type { DiffHunk, ReviewFilters as ReviewFiltersType } from "@/types/review";
 import type { FileTreeNode } from "@/utils/git/numstatParser";
 
@@ -26,14 +31,14 @@ const PanelContainer = styled.div`
   height: 100%;
   min-height: 0;
   background: #1e1e1e;
-  
+
   /* Enable container queries for responsive layout */
   container-type: inline-size;
   container-name: review-panel;
-  
+
   /* Make focusable for keyboard navigation */
   outline: none;
-  
+
   &:focus-within {
     /* Subtle indicator when panel has focus */
     box-shadow: inset 0 0 0 1px rgba(0, 122, 204, 0.2);
@@ -46,7 +51,7 @@ const ContentContainer = styled.div`
   flex: 1;
   min-height: 0;
   overflow: hidden;
-  
+
   /* Switch to vertical layout when container is narrow */
   @container review-panel (max-width: 800px) {
     flex-direction: column;
@@ -80,7 +85,7 @@ const FileTreeSection = styled.div`
   overflow: hidden;
   min-height: 0;
   order: 2; /* Come after HunksSection in wide mode */
-  
+
   /* Narrow layout: full width, fixed height, above hunks */
   @container review-panel (max-width: 800px) {
     width: 100%;
@@ -123,7 +128,7 @@ const DiagnosticSection = styled.details`
   border-radius: 4px;
   padding: 12px;
   cursor: pointer;
-  
+
   summary {
     color: #888;
     font-size: 12px;
@@ -133,18 +138,18 @@ const DiagnosticSection = styled.details`
     display: flex;
     align-items: center;
     gap: 6px;
-    
+
     &::-webkit-details-marker {
       display: none;
     }
-    
+
     &::before {
       content: "▶";
       font-size: 10px;
       transition: transform 0.2s ease;
     }
   }
-  
+
   &[open] summary::before {
     transform: rotate(90deg);
   }
@@ -163,7 +168,7 @@ const DiagnosticRow = styled.div`
   grid-template-columns: 140px 1fr;
   gap: 12px;
   padding: 4px 0;
-  
+
   &:not(:last-child) {
     border-bottom: 1px solid #3e3e42;
   }
@@ -215,7 +220,7 @@ const TruncationBanner = styled.div`
   align-items: center;
   gap: 6px;
   line-height: 1.3;
-  
+
   &::before {
     content: "⚠️";
     font-size: 12px;
@@ -241,9 +246,9 @@ function buildGitDiffCommand(
 ): string {
   const isNumstat = command === "numstat";
   const flag = isNumstat ? " -M --numstat" : " -M";
-  
+
   let cmd: string;
-  
+
   if (diffBase === "--staged") {
     cmd = `git diff --staged${flag}${pathFilter}`;
   } else if (diffBase === "HEAD") {
@@ -251,16 +256,20 @@ function buildGitDiffCommand(
   } else {
     cmd = `git diff ${diffBase}...HEAD${flag}${pathFilter}`;
   }
-  
+
   // Append dirty changes if requested
   if (includeDirty) {
     cmd += ` && git diff HEAD${flag}${pathFilter}`;
   }
-  
+
   return cmd;
 }
 
-export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspacePath, onReviewNote }) => {
+export const ReviewPanel: React.FC<ReviewPanelProps> = ({
+  workspaceId,
+  workspacePath,
+  onReviewNote,
+}) => {
   const [hunks, setHunks] = useState<DiffHunk[]>([]);
   const [selectedHunkId, setSelectedHunkId] = useState<string | null>(null);
   const [isLoadingHunks, setIsLoadingHunks] = useState(true);
@@ -272,31 +281,25 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [fileTree, setFileTree] = useState<FileTreeNode | null>(null);
   const [commonPrefix, setCommonPrefix] = useState<string | null>(null);
-  
+
   // Persist file filter per workspace
   const [selectedFilePath, setSelectedFilePath] = usePersistedState<string | null>(
     `review-file-filter:${workspaceId}`,
     null
   );
-  
+
   // Global default base (shared across all workspaces)
-  const [defaultBase] = usePersistedState<string>(
-    "review-default-base",
-    "HEAD"
-  );
-  
+  const [defaultBase] = usePersistedState<string>("review-default-base", "HEAD");
+
   // Persist diff base per workspace (falls back to global default)
-  const [diffBase, setDiffBase] = usePersistedState(
-    `review-diff-base:${workspaceId}`,
-    defaultBase
-  );
-  
+  const [diffBase, setDiffBase] = usePersistedState(`review-diff-base:${workspaceId}`, defaultBase);
+
   // Persist includeDirty flag per workspace
   const [includeDirty, setIncludeDirty] = usePersistedState(
     `review-include-dirty:${workspaceId}`,
     false
   );
-  
+
   const [filters, setFilters] = useState<ReviewFiltersType>({
     showReviewed: true,
     statusFilter: "all",
@@ -318,21 +321,19 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
           "numstat"
         );
 
-        const numstatResult = await window.api.workspace.executeBash(
-          workspaceId,
-          numstatCommand,
-          { timeout_secs: 30 }
-        );
+        const numstatResult = await window.api.workspace.executeBash(workspaceId, numstatCommand, {
+          timeout_secs: 30,
+        });
 
         if (cancelled) return;
 
         if (numstatResult.success) {
           const numstatOutput = numstatResult.data.output ?? "";
           const fileStats = parseNumstat(numstatOutput);
-          
+
           // Extract common prefix for display (don't modify paths)
           const prefix = extractCommonPrefix(fileStats);
-          
+
           // Build tree with original paths (needed for git commands)
           const tree = buildFileTree(fileStats);
           setFileTree(tree);
@@ -364,7 +365,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
         // Add path filter if a file/folder is selected
         // Extract new path from rename syntax (e.g., "{old => new}" -> "new")
         const pathFilter = selectedFilePath ? ` -- "${extractNewPath(selectedFilePath)}"` : "";
-        
+
         const diffCommand = buildGitDiffCommand(
           filters.diffBase,
           filters.includeDirty,
@@ -393,7 +394,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
 
         const fileDiffs = parseDiff(diffOutput);
         const allHunks = extractAllHunks(fileDiffs);
-        
+
         // Store diagnostic info
         setDiagnosticInfo({
           command: diffCommand,
@@ -408,7 +409,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
             `Diff truncated (${truncationInfo.reason}). Filter by file to see more.`
           );
         }
-        
+
         setHunks(allHunks);
 
         // Auto-select first hunk if none selected
@@ -429,13 +430,20 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
     return () => {
       cancelled = true;
     };
-  }, [workspaceId, workspacePath, filters.diffBase, filters.includeDirty, selectedFilePath, refreshTrigger]);
-  
+  }, [
+    workspaceId,
+    workspacePath,
+    filters.diffBase,
+    filters.includeDirty,
+    selectedFilePath,
+    refreshTrigger,
+  ]);
+
   // Persist diffBase when it changes
   useEffect(() => {
     setDiffBase(filters.diffBase);
   }, [filters.diffBase, setDiffBase]);
-  
+
   // Persist includeDirty when it changes
   useEffect(() => {
     setIncludeDirty(filters.includeDirty);
@@ -443,14 +451,17 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
 
   // For MVP: No review state tracking, just show all hunks
   const filteredHunks = hunks;
-  
+
   // Simple stats for display
-  const stats = useMemo(() => ({
-    total: hunks.length,
-    accepted: 0,
-    rejected: 0,
-    unreviewed: hunks.length,
-  }), [hunks]);
+  const stats = useMemo(
+    () => ({
+      total: hunks.length,
+      accepted: 0,
+      rejected: 0,
+      unreviewed: hunks.length,
+    }),
+    [hunks]
+  );
 
   // Keyboard navigation (j/k or arrow keys) - only when panel is focused
   useEffect(() => {
@@ -464,7 +475,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
           return;
         }
       }
-      
+
       if (!selectedHunkId) return;
 
       const currentIndex = filteredHunks.findIndex((h) => h.id === selectedHunkId);
@@ -489,17 +500,17 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
   }, [isPanelFocused, selectedHunkId, filteredHunks]);
 
   return (
-    <PanelContainer 
+    <PanelContainer
       tabIndex={0}
       onFocus={() => setIsPanelFocused(true)}
       onBlur={() => setIsPanelFocused(false)}
     >
       {/* Always show controls so user can change diff base */}
-      <ReviewControls 
-        filters={filters} 
-        stats={stats} 
+      <ReviewControls
+        filters={filters}
+        stats={stats}
         onFiltersChange={setFilters}
-        onRefresh={() => setRefreshTrigger(prev => prev + 1)}
+        onRefresh={() => setRefreshTrigger((prev) => prev + 1)}
       />
 
       {error ? (
@@ -509,9 +520,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
       ) : (
         <ContentContainer>
           <HunksSection>
-            {truncationWarning && (
-              <TruncationBanner>{truncationWarning}</TruncationBanner>
-            )}
+            {truncationWarning && <TruncationBanner>{truncationWarning}</TruncationBanner>}
 
             <HunkList>
               {hunks.length === 0 ? (
@@ -551,7 +560,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
               ) : filteredHunks.length === 0 ? (
                 <EmptyState>
                   <EmptyStateText>
-                    {selectedFilePath 
+                    {selectedFilePath
                       ? `No hunks in ${selectedFilePath}. Try selecting a different file.`
                       : "No hunks match the current filters. Try adjusting your filter settings."}
                   </EmptyStateText>
@@ -591,4 +600,3 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
     </PanelContainer>
   );
 };
-

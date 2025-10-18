@@ -67,7 +67,8 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
   const overflowPolicy = config.overflow_policy ?? "tmpfile";
   const maxTotalBytes =
     overflowPolicy === "truncate" ? BASH_TRUNCATE_MAX_TOTAL_BYTES : BASH_MAX_TOTAL_BYTES;
-  const maxLines = overflowPolicy === "truncate" ? BASH_TRUNCATE_HARD_MAX_LINES : BASH_HARD_MAX_LINES;
+  const maxLines =
+    overflowPolicy === "truncate" ? BASH_TRUNCATE_HARD_MAX_LINES : BASH_HARD_MAX_LINES;
 
   return tool({
     description: TOOL_DEFINITIONS.bash.description + "\nRuns in " + config.cwd + " - no cd needed",
@@ -401,7 +402,7 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
               // Return ALL collected lines (up to the limit that triggered truncation)
               // With 1MB/10K line limits, this can be thousands of lines for UI to parse
               const output = lines.join("\n");
-              
+
               if (exitCode === 0 || exitCode === null) {
                 // Success but truncated
                 resolveOnce({

@@ -95,4 +95,3 @@ export interface ReviewStats {
   rejected: number;
   unreviewed: number;
 }
-

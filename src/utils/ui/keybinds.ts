@@ -248,6 +248,6 @@ export const KEYBINDS = {
   COSTS_TAB: { key: "1", ctrl: true, description: "Costs tab" },
 
   /** Switch to Review tab in right sidebar */
-  // macOS: Cmd+2, Win/Linux: Ctrl+2  
+  // macOS: Cmd+2, Win/Linux: Ctrl+2
   REVIEW_TAB: { key: "2", ctrl: true, description: "Review tab" },
 } as const;

@@ -50,8 +50,6 @@ const ChatArea = styled.div`
   flex-direction: column;
 `;
 
-
-
 const ViewHeader = styled.div`
   padding: 4px 15px;
   background: #252526;
@@ -221,7 +219,11 @@ const AIViewInner: React.FC<AIViewProps> = ({
   // Resizable sidebar for Review tab only
   // Hook encapsulates all drag logic, persistence, and constraints
   // Returns width to apply to RightSidebar and startResize for handle's onMouseDown
-  const { width: sidebarWidth, isResizing, startResize } = useResizableSidebar({
+  const {
+    width: sidebarWidth,
+    isResizing,
+    startResize,
+  } = useResizableSidebar({
     enabled: isReviewTabActive, // Only active on Review tab
     defaultWidth: 600, // Initial width or fallback
     minWidth: 300, // Can't shrink smaller
@@ -235,7 +237,6 @@ const AIViewInner: React.FC<AIViewProps> = ({
 
   // Get git status for this workspace
   const gitStatus = useGitStatus(workspaceId);
-
 
   const [editingMessage, setEditingMessage] = useState<{ id: string; content: string } | undefined>(
     undefined
@@ -277,7 +278,6 @@ const AIViewInner: React.FC<AIViewProps> = ({
   const handleReviewNote = useCallback((note: string) => {
     chatInputAPI.current?.appendText(note);
   }, []);
-
 
   // Thinking level state from context
   const { thinkingLevel: currentWorkspaceThinking, setThinkingLevel } = useThinking();

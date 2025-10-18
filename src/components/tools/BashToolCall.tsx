@@ -65,7 +65,7 @@ const TimeoutInfo = styled.span<{ status?: ToolStatus }>`
   font-size: 10px;
   margin-left: 8px;
   white-space: nowrap;
-  
+
   /* Hide on narrow containers */
   @container (max-width: 500px) {
     display: none;

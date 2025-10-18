@@ -6,8 +6,6 @@ import React, { useState } from "react";
 import styled from "@emotion/styled";
 import type { FileTreeNode } from "@/utils/git/numstatParser";
 
-
-
 const TreeContainer = styled.div`
   flex: 1;
   min-height: 0;
@@ -132,8 +130,8 @@ const TreeNodeContent: React.FC<{
     if (node.isDirectory) {
       // Check if clicked on the toggle icon area (first 20px)
       const target = e.target as HTMLElement;
-      const isToggleClick = target.closest('[data-toggle]');
-      
+      const isToggleClick = target.closest("[data-toggle]");
+
       if (isToggleClick) {
         // Just toggle expansion
         setIsOpen(!isOpen);
@@ -165,24 +163,23 @@ const TreeNodeContent: React.FC<{
               ▶
             </ToggleIcon>
             <DirectoryName>{node.name || "/"}</DirectoryName>
-            {node.totalStats && (node.totalStats.additions > 0 || node.totalStats.deletions > 0) && (
-              <DirectoryStats isOpen={isOpen}>
-                {node.totalStats.additions > 0 && (
-                  isOpen ? (
-                    <span>+{node.totalStats.additions}</span>
-                  ) : (
-                    <Additions>+{node.totalStats.additions}</Additions>
-                  )
-                )}
-                {node.totalStats.deletions > 0 && (
-                  isOpen ? (
-                    <span>-{node.totalStats.deletions}</span>
-                  ) : (
-                    <Deletions>-{node.totalStats.deletions}</Deletions>
-                  )
-                )}
-              </DirectoryStats>
-            )}
+            {node.totalStats &&
+              (node.totalStats.additions > 0 || node.totalStats.deletions > 0) && (
+                <DirectoryStats isOpen={isOpen}>
+                  {node.totalStats.additions > 0 &&
+                    (isOpen ? (
+                      <span>+{node.totalStats.additions}</span>
+                    ) : (
+                      <Additions>+{node.totalStats.additions}</Additions>
+                    ))}
+                  {node.totalStats.deletions > 0 &&
+                    (isOpen ? (
+                      <span>-{node.totalStats.deletions}</span>
+                    ) : (
+                      <Deletions>-{node.totalStats.deletions}</Deletions>
+                    ))}
+                </DirectoryStats>
+              )}
           </>
         ) : (
           <>
@@ -222,9 +219,9 @@ interface FileTreeExternalProps {
   commonPrefix?: string | null;
 }
 
-export const FileTree: React.FC<FileTreeExternalProps> = ({ 
-  root, 
-  selectedPath, 
+export const FileTree: React.FC<FileTreeExternalProps> = ({
+  root,
+  selectedPath,
   onSelectFile,
   isLoading = false,
   commonPrefix = null,
@@ -232,27 +229,25 @@ export const FileTree: React.FC<FileTreeExternalProps> = ({
   // Find the node at the common prefix path to start rendering from
   const startNode = React.useMemo(() => {
     if (!commonPrefix || !root) return root;
-    
+
     // Navigate to the node at the common prefix path
     const parts = commonPrefix.split("/");
     let current = root;
-    
+
     for (const part of parts) {
       const child = current.children.find((c) => c.name === part);
       if (!child) return root; // Fallback if path not found
       current = child;
     }
-    
+
     return current;
   }, [root, commonPrefix]);
-  
+
   return (
     <>
       <TreeHeader>
         <span>Files Changed</span>
-        {selectedPath && (
-          <ClearButton onClick={() => onSelectFile(null)}>Clear filter</ClearButton>
-        )}
+        {selectedPath && <ClearButton onClick={() => onSelectFile(null)}>Clear filter</ClearButton>}
       </TreeHeader>
       {commonPrefix && <CommonPrefix>{commonPrefix}/</CommonPrefix>}
       <TreeContainer>
@@ -276,4 +271,3 @@ export const FileTree: React.FC<FileTreeExternalProps> = ({
     </>
   );
 };
-

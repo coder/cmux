@@ -143,12 +143,15 @@ export function useResizableSidebar({
    * Called by resize handle's onMouseDown event
    * Records starting position and width for delta calculations
    */
-  const startResize = useCallback((e: React.MouseEvent) => {
-    if (!enabled) return;
-    setIsResizing(true);
-    startXRef.current = e.clientX;
-    startWidthRef.current = width;
-  }, [enabled, width]);
+  const startResize = useCallback(
+    (e: React.MouseEvent) => {
+      if (!enabled) return;
+      setIsResizing(true);
+      startXRef.current = e.clientX;
+      startWidthRef.current = width;
+    },
+    [enabled, width]
+  );
 
   // Dummy component for type compatibility (not rendered, actual handle is in AIView)
   const ResizeHandle: React.FC = () => null;

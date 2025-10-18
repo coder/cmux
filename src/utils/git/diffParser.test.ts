@@ -24,10 +24,7 @@ describe("git diff parser (real repository)", () => {
     execSync('git config user.name "Test User"', { cwd: testRepoPath });
 
     // Create initial commit with a file
-    writeFileSync(
-      join(testRepoPath, "file1.txt"),
-      "Line 1\nLine 2\nLine 3\nLine 4\nLine 5\n"
-    );
+    writeFileSync(join(testRepoPath, "file1.txt"), "Line 1\nLine 2\nLine 3\nLine 4\nLine 5\n");
     writeFileSync(
       join(testRepoPath, "file2.js"),
       'function hello() {\n  console.log("Hello");\n}\n'
@@ -79,7 +76,7 @@ describe("git diff parser (real repository)", () => {
     const fileDiffs = parseDiff(diff);
 
     expect(fileDiffs.length).toBe(2);
-    
+
     const file1Diff = fileDiffs.find((f) => f.filePath === "file1.txt");
     const file2Diff = fileDiffs.find((f) => f.filePath === "file2.js");
 
@@ -136,12 +133,9 @@ describe("git diff parser (real repository)", () => {
 
     // Create a feature branch
     execSync("git checkout -b feature", { cwd: testRepoPath });
-    
+
     // Make changes on feature branch
-    writeFileSync(
-      join(testRepoPath, "feature.txt"),
-      "Feature content\n"
-    );
+    writeFileSync(join(testRepoPath, "feature.txt"), "Feature content\n");
     execSync("git add . && git commit -m 'Add feature'", { cwd: testRepoPath });
 
     // Get diff between main (or master) and feature
@@ -237,7 +231,7 @@ describe("git diff parser (real repository)", () => {
 
     const allHunks = extractAllHunks(fileDiffs);
     expect(allHunks.length).toBeGreaterThan(1);
-    
+
     // All hunks should have valid IDs
     expect(allHunks.every((h) => h.id && h.id.length > 0)).toBe(true);
   });
@@ -258,9 +252,9 @@ describe("git diff parser (real repository)", () => {
     expect(fileDiffs[0].filePath).toBe("file1-renamed.txt");
     expect(fileDiffs[0].oldPath).toBe("file1.txt");
     expect(fileDiffs[0].changeType).toBe("renamed");
-    
+
     const allHunks = extractAllHunks(fileDiffs);
-    
+
     // Pure renames with no content changes should have NO hunks
     // because git shows "similarity index 100%" with no diff content
     expect(allHunks.length).toBe(0);
@@ -321,10 +315,10 @@ function greet(name) {
     expect(fileDiffs[0].filePath).toBe("renamed-file.js");
     expect(fileDiffs[0].oldPath).toBe("large-file.js");
     expect(fileDiffs[0].changeType).toBe("renamed");
-    
+
     const allHunks = extractAllHunks(fileDiffs);
     expect(allHunks.length).toBeGreaterThan(0);
-    
+
     // Hunks should show the content changes
     expect(allHunks[0].changeType).toBe("renamed");
     expect(allHunks[0].oldPath).toBe("large-file.js");
@@ -334,7 +328,7 @@ function greet(name) {
   it("should handle renamed directory with files", () => {
     // Reset and setup
     execSync("git reset --hard HEAD", { cwd: testRepoPath });
-    
+
     // Create a directory structure
     execSync("mkdir -p old-dir", { cwd: testRepoPath });
     writeFileSync(join(testRepoPath, "old-dir", "nested1.txt"), "Nested file 1\n");
@@ -350,28 +344,26 @@ function greet(name) {
 
     // Should detect renames for all files in the directory
     expect(fileDiffs.length).toBeGreaterThanOrEqual(2);
-    
+
     const nested1 = fileDiffs.find((f) => f.filePath === "new-dir/nested1.txt");
     const nested2 = fileDiffs.find((f) => f.filePath === "new-dir/nested2.txt");
-    
+
     expect(nested1).toBeDefined();
     expect(nested2).toBeDefined();
-    
+
     if (nested1) {
       expect(nested1.changeType).toBe("renamed");
       expect(nested1.oldPath).toBe("old-dir/nested1.txt");
     }
-    
+
     if (nested2) {
       expect(nested2.changeType).toBe("renamed");
       expect(nested2.oldPath).toBe("old-dir/nested2.txt");
     }
 
     const allHunks = extractAllHunks(fileDiffs);
-    
+
     // Pure directory renames should have NO hunks (files are identical)
     expect(allHunks.length).toBe(0);
   });
-
 });
-

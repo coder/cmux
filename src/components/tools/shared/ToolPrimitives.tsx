@@ -60,11 +60,11 @@ export const StatusIndicator = styled.span<{ status: string }>`
         return "var(--color-text-secondary)";
     }
   }};
-  
+
   .status-text {
     display: inline;
   }
-  
+
   /* Hide text on narrow containers, show only icon */
   @container (max-width: 500px) {
     .status-text {

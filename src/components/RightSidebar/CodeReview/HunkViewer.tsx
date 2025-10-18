@@ -89,7 +89,7 @@ const HunkContent = styled.div`
   line-height: 1.4;
   overflow-x: auto;
   background: rgba(0, 0, 0, 0.2);
-  
+
   /* CSS Grid ensures all diff lines span the same width (width of longest line) */
   display: grid;
   grid-template-columns: minmax(min-content, 1fr);
@@ -124,7 +124,12 @@ const RenameInfo = styled.div`
   }
 `;
 
-export const HunkViewer: React.FC<HunkViewerProps> = ({ hunk, isSelected, onClick, onReviewNote }) => {
+export const HunkViewer: React.FC<HunkViewerProps> = ({
+  hunk,
+  isSelected,
+  onClick,
+  onReviewNote,
+}) => {
   const [isExpanded, setIsExpanded] = useState(true);
 
   const handleToggleExpand = (e: React.MouseEvent) => {
@@ -136,13 +141,14 @@ export const HunkViewer: React.FC<HunkViewerProps> = ({ hunk, isSelected, onClic
   const diffLines = hunk.content.split("\n").filter((line) => line.length > 0);
   const lineCount = diffLines.length;
   const shouldCollapse = lineCount > 20; // Collapse hunks with more than 20 lines
-  
+
   // Calculate net LoC (additions - deletions)
   const additions = diffLines.filter((line) => line.startsWith("+")).length;
   const deletions = diffLines.filter((line) => line.startsWith("-")).length;
-  
+
   // Detect pure rename: if renamed and content hasn't changed (zero additions and deletions)
-  const isPureRename = hunk.changeType === "renamed" && hunk.oldPath && additions === 0 && deletions === 0;
+  const isPureRename =
+    hunk.changeType === "renamed" && hunk.oldPath && additions === 0 && deletions === 0;
 
   return (
     <HunkContainer
@@ -178,8 +184,8 @@ export const HunkViewer: React.FC<HunkViewerProps> = ({ hunk, isSelected, onClic
         </RenameInfo>
       ) : isExpanded ? (
         <HunkContent>
-          <SelectableDiffRenderer 
-            content={hunk.content} 
+          <SelectableDiffRenderer
+            content={hunk.content}
             filePath={hunk.filePath}
             oldStart={hunk.oldStart}
             newStart={hunk.newStart}
@@ -198,4 +204,3 @@ export const HunkViewer: React.FC<HunkViewerProps> = ({ hunk, isSelected, onClic
     </HunkContainer>
   );
 };
-

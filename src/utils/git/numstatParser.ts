@@ -21,7 +21,7 @@ export function parseNumstat(numstatOutput: string): FileStats[] {
     if (parts.length !== 3) continue;
 
     const [addStr, delStr, filePath] = parts;
-    
+
     // Handle binary files (marked with "-" for additions/deletions)
     const additions = addStr === "-" ? 0 : parseInt(addStr, 10);
     const deletions = delStr === "-" ? 0 : parseInt(delStr, 10);
@@ -54,8 +54,6 @@ export function extractNewPath(filePath: string): string {
   }
   return filePath;
 }
-
-
 
 /**
  * Build a tree structure from flat file paths
@@ -113,9 +111,7 @@ export function buildFileTree(fileStats: FileStats[]): FileTreeNode {
       for (const child of node.children) {
         populateTotalStats(child); // Recursive
 
-        const childStats = child.isDirectory
-          ? child.totalStats
-          : child.stats;
+        const childStats = child.isDirectory ? child.totalStats : child.stats;
 
         if (childStats) {
           totalAdditions += childStats.additions;
@@ -123,24 +119,23 @@ export function buildFileTree(fileStats: FileStats[]): FileTreeNode {
         }
       }
 
-      node.totalStats = { 
-        additions: totalAdditions, 
+      node.totalStats = {
+        additions: totalAdditions,
         deletions: totalDeletions,
-        filePath: node.path // Add filePath to satisfy FileStats interface
+        filePath: node.path, // Add filePath to satisfy FileStats interface
       };
     }
   }
 
   populateTotalStats(root);
-  
+
   return root;
 }
-
 
 /**
  * Extract the common path prefix from all file paths
  * Returns null if no common prefix or only single path component
- * 
+ *
  * This is used for display purposes only - the actual paths in the tree
  * remain unchanged so git commands work correctly.
  */
@@ -171,5 +166,3 @@ export function extractCommonPrefix(fileStats: FileStats[]): string | null {
 
   return firstParts.slice(0, commonLength).join("/");
 }
-
-

@@ -81,7 +81,6 @@ export function parseDiff(diffOutput: string): FileDiff[] {
   };
 
   for (const line of lines) {
-
     // File header: diff --git a/... b/...
     if (line.startsWith("diff --git ")) {
       finishFile();
@@ -167,4 +166,3 @@ export function parseDiff(diffOutput: string): FileDiff[] {
 export function extractAllHunks(fileDiffs: FileDiff[]): DiffHunk[] {
   return fileDiffs.flatMap((file) => file.hunks);
 }
-
