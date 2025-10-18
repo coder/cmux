@@ -133,6 +133,11 @@ export class WorkspaceStore {
   // Track model usage (injected dependency for useModelLRU integration)
   private readonly onModelUsed?: (model: string) => void;
 
+  // Track workspaces where compaction is being cancelled (Ctrl+C) vs accepted early (Ctrl+A)
+  // This flag prevents handleCompactionAbort from performing compaction during cancel flow.
+  // Short-lived: exists only between markCompactionCancelling() and handleCompactionAbort().
+  private cancellingCompaction = new Set<string>();
+
   constructor(onModelUsed?: (model: string) => void) {
     this.onModelUsed = onModelUsed;
 
@@ -156,6 +161,25 @@ export class WorkspaceStore {
         detail: { workspaceId },
       })
     );
+  }
+
+  /**
+   * Mark a workspace as cancelling compaction (Ctrl+C flow).
+   * 
+   * This flag prevents handleCompactionAbort from performing compaction when the
+   * stream is interrupted via cancelCompaction. Without this flag, both Ctrl+C
+   * (cancel) and Ctrl+A (accept early) would trigger the same abort handler.
+   * 
+   * Flag lifecycle:
+   * 1. cancelCompaction() sets flag before calling interruptStream
+   * 2. handleCompactionAbort() checks flag and skips compaction if set
+   * 3. handleCompactionAbort() cleans up flag immediately
+   * 
+   * The flag exists for ~10ms during the cancel operation and is cleaned up
+   * by the abort handler itself.
+   */
+  markCompactionCancelling(workspaceId: string): void {
+    this.cancellingCompaction.add(workspaceId);
   }
 
   /**
@@ -443,8 +467,13 @@ export class WorkspaceStore {
   }
 
   /**
-   * Handle interruption (Ctrl+C) of a compaction stream.
-   * Saves partial summary with [truncated] sentinel.
+   * Handle interruption of a compaction stream (StreamAbortEvent).
+   * 
+   * Two distinct flows trigger this:
+   * - **Ctrl+A (accept early)**: Perform compaction with [truncated] sentinel
+   * - **Ctrl+C (cancel)**: Skip compaction, let cancelCompaction handle cleanup
+   * 
+   * The cancellingCompaction flag distinguishes between these two flows.
    */
   private handleCompactionAbort(
     workspaceId: string,
@@ -462,7 +491,15 @@ export class WorkspaceStore {
       return false;
     }
 
-    // Extract whatever summary text was streamed before interruption
+    // Ctrl+C flow: Check if compaction is being cancelled
+    // If flag is set, skip compaction and clean up the flag
+    // cancelCompaction() will handle truncation and input restoration
+    if (this.cancellingCompaction.has(workspaceId)) {
+      this.cancellingCompaction.delete(workspaceId);
+      return false; // Return false to skip compaction
+    }
+
+    // Ctrl+A flow: Accept early with [truncated] sentinel
     const partialSummary = aggregator.getCompactionSummary(data.messageId);
     if (!partialSummary) {
       console.warn("[WorkspaceStore] Compaction aborted but no partial summary found");
