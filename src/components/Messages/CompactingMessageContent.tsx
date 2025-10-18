@@ -1,6 +1,5 @@
 import React, { useRef, useEffect } from "react";
 import styled from "@emotion/styled";
-import { CompactionBackground } from "./CompactionBackground";
 
 /**
  * Wrapper for compaction streaming content
@@ -8,7 +7,6 @@ import { CompactionBackground } from "./CompactionBackground";
  */
 
 const Container = styled.div`
-  position: relative;
   max-height: 300px;
   overflow-y: auto;
   overflow-x: hidden;
@@ -33,11 +31,6 @@ const Container = styled.div`
   }
 `;
 
-const ContentWrapper = styled.div`
-  position: relative;
-  z-index: 1;
-`;
-
 interface CompactingMessageContentProps {
   children: React.ReactNode;
 }
@@ -52,10 +45,5 @@ export const CompactingMessageContent: React.FC<CompactingMessageContentProps> =
     }
   }, [children]);
 
-  return (
-    <Container ref={containerRef}>
-      <CompactionBackground />
-      <ContentWrapper>{children}</ContentWrapper>
-    </Container>
-  );
+  return <Container ref={containerRef}>{children}</Container>;
 };

@@ -7,6 +7,7 @@ import { formatTimestamp } from "@/utils/ui/dateTime";
 import { TooltipWrapper, Tooltip } from "../Tooltip";
 
 const MessageBlock = styled.div<{ borderColor: string; backgroundColor?: string }>`
+  position: relative;
   margin-bottom: 15px;
   margin-top: 15px;
   background: ${(props) => props.backgroundColor ?? "#1e1e1e"};
@@ -16,6 +17,8 @@ const MessageBlock = styled.div<{ borderColor: string; backgroundColor?: string 
 `;
 
 const MessageHeader = styled.div`
+  position: relative;
+  z-index: 1;
   padding: 8px 12px;
   background: rgba(255, 255, 255, 0.05);
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
@@ -51,6 +54,8 @@ const ButtonGroup = styled.div`
 `;
 
 const MessageContent = styled.div`
+  position: relative;
+  z-index: 1;
   padding: 12px;
 `;
 
@@ -85,6 +90,7 @@ interface MessageWindowProps {
   children: ReactNode;
   className?: string;
   rightLabel?: ReactNode;
+  backgroundEffect?: ReactNode; // Optional background effect (e.g., animation)
 }
 
 export const MessageWindow: React.FC<MessageWindowProps> = ({
@@ -96,6 +102,7 @@ export const MessageWindow: React.FC<MessageWindowProps> = ({
   children,
   className,
   rightLabel,
+  backgroundEffect,
 }) => {
   const [showJson, setShowJson] = useState(false);
 
@@ -111,6 +118,7 @@ export const MessageWindow: React.FC<MessageWindowProps> = ({
 
   return (
     <MessageBlock borderColor={borderColor} backgroundColor={backgroundColor} className={className}>
+      {backgroundEffect}
       <MessageHeader>
         <LeftSection>
           <MessageTypeLabel>{label}</MessageTypeLabel>

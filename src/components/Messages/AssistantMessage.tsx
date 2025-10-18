@@ -9,6 +9,7 @@ import { useStartHere } from "@/hooks/useStartHere";
 import { COMPACTED_EMOJI } from "@/constants/ui";
 import { ModelDisplay } from "./ModelDisplay";
 import { CompactingMessageContent } from "./CompactingMessageContent";
+import { CompactionBackground } from "./CompactionBackground";
 
 const RawContent = styled.pre`
   font-family: var(--font-monospace);
@@ -165,6 +166,7 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({
         message={message}
         buttons={buttons}
         className={className}
+        backgroundEffect={isStreamingCompaction ? <CompactionBackground /> : undefined}
       >
         {renderContent()}
       </MessageWindow>
