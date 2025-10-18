@@ -67,7 +67,7 @@ const ShimmerLayer = styled.div`
     90deg,
     transparent 0%,
     transparent 40%,
-    rgba(255, 255, 255, 0.06) 50%,
+    var(--color-plan-mode-alpha) 50%,
     transparent 60%,
     transparent 100%
   );
