@@ -4,6 +4,7 @@
 
 import React, { useState } from "react";
 import styled from "@emotion/styled";
+import { TooltipWrapper, Tooltip } from "@/components/Tooltip";
 import type { ReviewFilters, ReviewStats } from "@/types/review";
 
 interface ReviewControlsProps {
@@ -158,11 +159,16 @@ export const ReviewControls: React.FC<ReviewControlsProps> = ({
   return (
     <ControlsContainer>
       {onRefresh && (
-        <RefreshButton onClick={onRefresh} title="Refresh diff">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" />
-          </svg>
-        </RefreshButton>
+        <TooltipWrapper inline>
+          <RefreshButton onClick={onRefresh}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" />
+            </svg>
+          </RefreshButton>
+          <Tooltip position="bottom" align="left">
+            Refresh diff
+          </Tooltip>
+        </TooltipWrapper>
       )}
       <Label>Base:</Label>
       <BaseInput
