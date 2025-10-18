@@ -5,10 +5,10 @@ import { useWorkspaceUsage } from "@/stores/WorkspaceStore";
 import { use1MContext } from "@/hooks/use1MContext";
 import { useResizeObserver } from "@/hooks/useResizeObserver";
 import { CostsTab } from "./RightSidebar/CostsTab";
-import { ToolsTab } from "./RightSidebar/ToolsTab";
 import { VerticalTokenMeter } from "./RightSidebar/VerticalTokenMeter";
 import { ReviewPanel } from "./CodeReview/ReviewPanel";
 import { calculateTokenMeterData } from "@/utils/tokens/tokenMeterUtils";
+import { matchesKeybind, KEYBINDS, formatKeybind } from "@/utils/ui/keybinds";
 
 interface SidebarContainerProps {
   collapsed: boolean;
@@ -101,7 +101,7 @@ const TabContent = styled.div<{ noPadding?: boolean }>`
   padding: ${(props) => (props.noPadding ? "0" : "15px")};
 `;
 
-type TabType = "costs" | "tools" | "review";
+type TabType = "costs" | "review";
 
 export type { TabType };
 
@@ -122,15 +122,29 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
   onTabChange,
   width,
 }) => {
-  const [selectedTab, setSelectedTab] = usePersistedState<TabType>(
-    `right-sidebar-tab:${workspaceId}`,
-    "costs"
-  );
+  // Global tab preference (not per-workspace)
+  const [selectedTab, setSelectedTab] = usePersistedState<TabType>("right-sidebar-tab", "costs");
 
   // Notify parent (AIView) of tab changes so it can enable/disable resize functionality
   React.useEffect(() => {
     onTabChange?.(selectedTab);
   }, [selectedTab, onTabChange]);
+
+  // Keyboard shortcuts for tab switching
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (matchesKeybind(e, KEYBINDS.COSTS_TAB)) {
+        e.preventDefault();
+        setSelectedTab("costs");
+      } else if (matchesKeybind(e, KEYBINDS.REVIEW_TAB)) {
+        e.preventDefault();
+        setSelectedTab("review");
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [setSelectedTab]);
 
   const usage = useWorkspaceUsage(workspaceId);
   const [use1M] = use1MContext();
@@ -138,10 +152,8 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
 
   const baseId = `right-sidebar-${workspaceId}`;
   const costsTabId = `${baseId}-tab-costs`;
-  const toolsTabId = `${baseId}-tab-tools`;
   const reviewTabId = `${baseId}-tab-review`;
   const costsPanelId = `${baseId}-panel-costs`;
-  const toolsPanelId = `${baseId}-panel-tools`;
   const reviewPanelId = `${baseId}-panel-review`;
 
   const lastUsage = usage?.usageHistory[usage.usageHistory.length - 1];
@@ -209,19 +221,9 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
             type="button"
             aria-selected={selectedTab === "costs"}
             aria-controls={costsPanelId}
+            title={`Costs (${formatKeybind(KEYBINDS.COSTS_TAB)})`}
           >
             Costs
-          </TabButton>
-          <TabButton
-            active={selectedTab === "tools"}
-            onClick={() => setSelectedTab("tools")}
-            id={toolsTabId}
-            role="tab"
-            type="button"
-            aria-selected={selectedTab === "tools"}
-            aria-controls={toolsPanelId}
-          >
-            Tools
           </TabButton>
           <TabButton
             active={selectedTab === "review"}
@@ -231,6 +233,7 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
             type="button"
             aria-selected={selectedTab === "review"}
             aria-controls={reviewPanelId}
+            title={`Review (${formatKeybind(KEYBINDS.REVIEW_TAB)})`}
           >
             Review
           </TabButton>
@@ -239,11 +242,6 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
           {selectedTab === "costs" && (
             <div role="tabpanel" id={costsPanelId} aria-labelledby={costsTabId}>
               <CostsTab workspaceId={workspaceId} />
-            </div>
-          )}
-          {selectedTab === "tools" && (
-            <div role="tabpanel" id={toolsPanelId} aria-labelledby={toolsTabId}>
-              <ToolsTab />
             </div>
           )}
           {selectedTab === "review" && (
