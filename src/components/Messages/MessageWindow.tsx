@@ -33,7 +33,7 @@ const MessageHeader = styled.div`
 
 const LeftSection = styled.div`
   display: flex;
-  align-items: center;
+  align-items: baseline; /* Use baseline for consistent text alignment */
   gap: 12px;
   min-width: 0; /* Allow flex children to shrink below content size */
   flex: 1; /* Take available space but allow ButtonGroup to stay on same line */
@@ -41,6 +41,7 @@ const LeftSection = styled.div`
 
 const MessageTypeLabel = styled.div`
   display: inline-flex;
+  align-items: baseline; /* Ensure children align on baseline */
   text-transform: uppercase;
   letter-spacing: 0.5px;
   white-space: nowrap; /* Prevent line breaking */
