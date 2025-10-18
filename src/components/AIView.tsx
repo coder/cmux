@@ -345,6 +345,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
     chatInputAPI,
     jumpToBottom,
     handleOpenTerminal,
+    aggregator,
   });
 
   // Clear editing state if the message being edited no longer exists
@@ -523,7 +524,11 @@ const AIViewInner: React.FC<AIViewProps> = ({
                       ? `${getModelName(currentModel)} streaming...`
                       : "streaming..."
                 }
-                cancelText={`hit ${formatKeybind(KEYBINDS.INTERRUPT_STREAM)} to cancel`}
+                cancelText={
+                  isCompacting
+                    ? `${formatKeybind(KEYBINDS.INTERRUPT_STREAM)} cancel | ${formatKeybind(KEYBINDS.ACCEPT_EARLY_COMPACTION)} accept early`
+                    : `hit ${formatKeybind(KEYBINDS.INTERRUPT_STREAM)} to cancel`
+                }
                 tokenCount={
                   activeStreamMessageId
                     ? aggregator.getStreamingTokenCount(activeStreamMessageId)

@@ -7,6 +7,8 @@ import type { ThinkingLevel, ThinkingLevelOn } from "@/types/thinking";
 import { DEFAULT_THINKING_LEVEL } from "@/types/thinking";
 import { getThinkingPolicyForModel } from "@/utils/thinking/policy";
 import { getDefaultModelFromLRU } from "@/hooks/useModelLRU";
+import type { StreamingMessageAggregator } from "@/utils/messages/StreamingMessageAggregator";
+import { isCompactingStream, cancelCompaction } from "@/utils/compaction/handler";
 
 interface UseAIViewKeybindsParams {
   workspaceId: string;
@@ -19,6 +21,7 @@ interface UseAIViewKeybindsParams {
   chatInputAPI: React.RefObject<ChatInputAPI | null>;
   jumpToBottom: () => void;
   handleOpenTerminal: () => void;
+  aggregator: StreamingMessageAggregator; // For compaction detection
 }
 
 /**
@@ -40,15 +43,38 @@ export function useAIViewKeybinds({
   chatInputAPI,
   jumpToBottom,
   handleOpenTerminal,
+  aggregator,
 }: UseAIViewKeybindsParams): void {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Interrupt stream works anywhere (even in input fields)
+      // Ctrl+C during compaction: cancel and restore command to input
       if (matchesKeybind(e, KEYBINDS.INTERRUPT_STREAM)) {
         e.preventDefault();
-        // If there's a stream or auto-retry in progress, stop it and disable auto-retry
+        
+        if (canInterrupt && isCompactingStream(aggregator)) {
+          // Special handling for compaction: delete messages and restore command
+          void cancelCompaction(workspaceId, aggregator, (command) => {
+            chatInputAPI.current?.restoreText(command);
+          });
+          setAutoRetry(false);
+          return;
+        }
+        
+        // Normal stream interrupt
         if (canInterrupt || showRetryBarrier) {
           setAutoRetry(false); // User explicitly stopped - don't auto-retry
+          void window.api.workspace.interruptStream(workspaceId);
+        }
+        return;
+      }
+
+      // Ctrl+A during compaction: accept early with [truncated] sentinel
+      if (matchesKeybind(e, KEYBINDS.ACCEPT_EARLY_COMPACTION)) {
+        e.preventDefault();
+        
+        if (canInterrupt && isCompactingStream(aggregator)) {
+          // Interrupt stream - this triggers handleCompactionAbort in WorkspaceStore
+          setAutoRetry(false);
           void window.api.workspace.interruptStream(workspaceId);
         }
         return;
@@ -125,5 +151,6 @@ export function useAIViewKeybinds({
     currentWorkspaceThinking,
     setThinkingLevel,
     chatInputAPI,
+    aggregator,
   ]);
 }
