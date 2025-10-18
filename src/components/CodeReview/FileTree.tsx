@@ -49,6 +49,14 @@ const DirectoryName = styled.span`
   flex: 1;
 `;
 
+const DirectoryStats = styled.span`
+  display: flex;
+  gap: 8px;
+  font-size: 11px;
+  color: #666;
+  opacity: 0.7;
+`;
+
 const Stats = styled.span`
   display: flex;
   gap: 8px;
@@ -122,6 +130,12 @@ const TreeNodeContent: React.FC<{
           <>
             <ToggleIcon isOpen={isOpen}>▶</ToggleIcon>
             <DirectoryName>{node.name || "/"}</DirectoryName>
+            {node.totalStats && (node.totalStats.additions > 0 || node.totalStats.deletions > 0) && (
+              <DirectoryStats>
+                {node.totalStats.additions > 0 && <span>+{node.totalStats.additions}</span>}
+                {node.totalStats.deletions > 0 && <span>-{node.totalStats.deletions}</span>}
+              </DirectoryStats>
+            )}
           </>
         ) : (
           <>

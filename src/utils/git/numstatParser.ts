@@ -47,6 +47,8 @@ export interface FileTreeNode {
   isDirectory: boolean;
   children: FileTreeNode[];
   stats?: FileStats;
+  /** Total stats including all children (for directories) */
+  totalStats?: FileStats;
 }
 
 export function buildFileTree(fileStats: FileStats[]): FileTreeNode {
@@ -83,6 +85,36 @@ export function buildFileTree(fileStats: FileStats[]): FileTreeNode {
     }
   }
 
+  // Calculate total stats for all directory nodes
+  function populateTotalStats(node: FileTreeNode): void {
+    if (node.isDirectory) {
+      let totalAdditions = 0;
+      let totalDeletions = 0;
+
+      for (const child of node.children) {
+        populateTotalStats(child); // Recursive
+
+        const childStats = child.isDirectory
+          ? child.totalStats
+          : child.stats;
+
+        if (childStats) {
+          totalAdditions += childStats.additions;
+          totalDeletions += childStats.deletions;
+        }
+      }
+
+      node.totalStats = { 
+        additions: totalAdditions, 
+        deletions: totalDeletions,
+        filePath: node.path // Add filePath to satisfy FileStats interface
+      };
+    }
+  }
+
+  populateTotalStats(root);
+  
   return root;
 }
+
 

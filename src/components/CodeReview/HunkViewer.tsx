@@ -58,11 +58,20 @@ const HunkHeader = styled.div`
 const FilePath = styled.div`
   color: #cccccc;
   font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 `;
 
 const LineInfo = styled.div`
   color: #888888;
   font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  flex-shrink: 0;
 `;
 
 const HunkContent = styled.div`

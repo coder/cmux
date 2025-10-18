@@ -7,9 +7,10 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import styled from "@emotion/styled";
 import { HunkViewer } from "./HunkViewer";
 import { ReviewActions } from "./ReviewActions";
-import { ReviewFilters } from "./ReviewFilters";
+import { ReviewControls } from "./ReviewControls";
 import { FileTree } from "./FileTree";
 import { useReviewState } from "@/hooks/useReviewState";
+import { usePersistedState } from "@/hooks/usePersistedState";
 import { parseDiff, extractAllHunks } from "@/utils/git/diffParser";
 import { parseNumstat, buildFileTree } from "@/utils/git/numstatParser";
 import type { DiffHunk, ReviewFilters as ReviewFiltersType } from "@/types/review";
@@ -68,13 +69,15 @@ const FileTreeSection = styled.div`
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  min-height: 0;
   
   /* On narrow viewports, stack above hunks and remove left border */
   @media (max-width: 800px) {
     width: 100%;
     border-left: none;
     border-bottom: 1px solid #3e3e42;
-    max-height: 300px;
+    max-height: none; /* Allow natural height */
+    flex: 0 0 auto; /* Don't grow, don't shrink, use content height */
     order: -1; /* Move to top */
   }
 `;
@@ -206,10 +209,10 @@ const TruncationBanner = styled.div`
   background: rgba(255, 193, 7, 0.1);
   border: 1px solid rgba(255, 193, 7, 0.3);
   border-radius: 4px;
-  padding: 12px;
+  padding: 8px 12px;
   margin: 12px;
   color: #ffc107;
-  font-size: 12px;
+  font-size: 11px;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -217,7 +220,7 @@ const TruncationBanner = styled.div`
   
   &::before {
     content: "⚠️";
-    font-size: 16px;
+    font-size: 14px;
   }
 `;
 
@@ -253,10 +256,17 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
   const [truncationWarning, setTruncationWarning] = useState<string | null>(null);
   const [fileTree, setFileTree] = useState<FileTreeNode | null>(null);
   const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null);
+  
+  // Persist diff base per workspace
+  const [diffBase, setDiffBase] = usePersistedState(
+    `review-diff-base:${workspaceId}`,
+    "HEAD"
+  );
+  
   const [filters, setFilters] = useState<ReviewFiltersType>({
     showReviewed: false,
     statusFilter: "unreviewed",
-    diffBase: "HEAD",
+    diffBase: diffBase,
   });
 
   const {
@@ -340,7 +350,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
         // Set truncation warning if applicable
         if (truncationInfo) {
           setTruncationWarning(
-            `Diff was truncated (${truncationInfo.reason}). Showing ${allHunks.length} hunks from ${fileDiffs.length} files. Use file tree to filter.`
+            `Truncated (${truncationInfo.reason}): showing ${allHunks.length} hunks. Use file tree to filter.`
           );
         }
         
@@ -364,7 +374,12 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
     return () => {
       cancelled = true;
     };
-  }, [workspaceId, workspacePath, selectedHunkId, filters.diffBase]);
+  }, [workspaceId, workspacePath, filters.diffBase]); // Removed selectedHunkId to prevent re-render on selection
+  
+  // Persist diffBase when it changes
+  useEffect(() => {
+    setDiffBase(filters.diffBase);
+  }, [filters.diffBase, setDiffBase]);
 
   // Calculate stats
   const stats = useMemo(() => calculateStats(hunks), [hunks, calculateStats]);
@@ -449,8 +464,8 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
 
   return (
     <PanelContainer>
-      {/* Always show filters so user can change diff base */}
-      <ReviewFilters filters={filters} stats={stats} onFiltersChange={setFilters} />
+      {/* Always show controls so user can change diff base */}
+      <ReviewControls filters={filters} stats={stats} onFiltersChange={setFilters} />
 
       {error ? (
         <ErrorState>{error}</ErrorState>
