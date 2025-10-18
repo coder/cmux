@@ -121,7 +121,6 @@ const ModelDisplayWrapper = styled.div`
 export interface ChatInputAPI {
   focus: () => void;
   restoreText: (text: string) => void;
-  startEditing: (messageId: string, initialText: string) => void;
 }
 
 export interface ChatInputProps {
@@ -439,21 +438,14 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   }, [focusMessageInput]);
 
   // Provide API to parent via callback
-  const startEditing = useCallback((messageId: string, initialText: string) => {
-    setEditingMessageId(messageId);
-    setInput(initialText);
-    focusMessageInput();
-  }, [focusMessageInput]);
-
   useEffect(() => {
     if (onReady) {
       onReady({ 
         focus: focusMessageInput,
         restoreText,
-        startEditing,
       });
     }
-  }, [onReady, focusMessageInput, restoreText, startEditing]);
+  }, [onReady, focusMessageInput, restoreText]);
 
   useEffect(() => {
     const handleGlobalKeyDown = (event: KeyboardEvent) => {
