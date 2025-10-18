@@ -7,7 +7,8 @@ import { RetryBarrier } from "./Messages/ChatBarrier/RetryBarrier";
 import { PinnedTodoList } from "./PinnedTodoList";
 import { getAutoRetryKey } from "@/constants/storage";
 import { ChatInput, type ChatInputAPI } from "./ChatInput";
-import { RightSidebar } from "./RightSidebar";
+import { RightSidebar, type TabType } from "./RightSidebar";
+import { useResizableSidebar } from "@/hooks/useResizableSidebar";
 import {
   shouldShowInterruptedBarrier,
   mergeConsecutiveStreamErrors,
@@ -44,9 +45,27 @@ const ViewContainer = styled.div`
 
 const ChatArea = styled.div`
   flex: 1;
-  min-width: 750px;
+  min-width: 400px;
   display: flex;
   flex-direction: column;
+`;
+
+const ResizeHandle = styled.div<{ visible: boolean }>`
+  width: 4px;
+  background: ${(props) => (props.visible ? "#3e3e42" : "transparent")};
+  cursor: ${(props) => (props.visible ? "col-resize" : "default")};
+  flex-shrink: 0;
+  transition: background 0.15s ease;
+  position: relative;
+  z-index: 10;
+
+  &:hover {
+    background: ${(props) => (props.visible ? "#007acc" : "transparent")};
+  }
+
+  &:active {
+    background: ${(props) => (props.visible ? "#007acc" : "transparent")};
+  }
 `;
 
 const ViewHeader = styled.div`
@@ -196,6 +215,19 @@ const AIViewInner: React.FC<AIViewProps> = ({
   className,
 }) => {
   const chatAreaRef = useRef<HTMLDivElement>(null);
+
+  // Track active tab for resize functionality
+  const [activeTab, setActiveTab] = useState<TabType>("costs");
+  const isReviewTabActive = activeTab === "review";
+
+  // Resizable sidebar for Review tab only
+  const { width: sidebarWidth, isResizing, startResize } = useResizableSidebar({
+    enabled: isReviewTabActive,
+    defaultWidth: 600,
+    minWidth: 300,
+    maxWidth: 1200,
+    storageKey: "review-sidebar-width",
+  });
 
   // NEW: Get workspace state from store (only re-renders when THIS workspace changes)
   const workspaceState = useWorkspaceState(workspaceId);
@@ -555,11 +587,19 @@ const AIViewInner: React.FC<AIViewProps> = ({
         />
       </ChatArea>
 
+      <ResizeHandle
+        visible={isReviewTabActive}
+        onMouseDown={startResize}
+        style={{ cursor: isResizing ? "col-resize" : undefined }}
+      />
+
       <RightSidebar
         key={workspaceId}
         workspaceId={workspaceId}
         workspacePath={namedWorkspacePath}
         chatAreaRef={chatAreaRef}
+        onTabChange={setActiveTab}
+        width={isReviewTabActive ? sidebarWidth : undefined}
       />
     </ViewContainer>
   );

@@ -15,9 +15,14 @@ interface SidebarContainerProps {
   wide?: boolean;
 }
 
-const SidebarContainer = styled.div<SidebarContainerProps>`
+interface SidebarContainerStyleProps extends SidebarContainerProps {
+  customWidth?: number;
+}
+
+const SidebarContainer = styled.div<SidebarContainerStyleProps>`
   width: ${(props) => {
     if (props.collapsed) return "20px";
+    if (props.customWidth) return `${props.customWidth}px`;
     if (props.wide) return "min(1200px, calc(100vw - 400px))";
     return "300px";
   }};
@@ -26,7 +31,7 @@ const SidebarContainer = styled.div<SidebarContainerProps>`
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  transition: width 0.2s ease;
+  transition: ${(props) => (props.customWidth ? "none" : "width 0.2s ease")};
   flex-shrink: 0;
 
   /* Keep vertical bar always visible when collapsed */
@@ -88,21 +93,32 @@ const TabContent = styled.div<{ noPadding?: boolean }>`
 
 type TabType = "costs" | "tools" | "review";
 
+export type { TabType };
+
 interface RightSidebarProps {
   workspaceId: string;
   workspacePath: string;
   chatAreaRef: React.RefObject<HTMLDivElement>;
+  onTabChange?: (tab: TabType) => void;
+  width?: number; // Custom width for resizable mode (Review tab)
 }
 
 const RightSidebarComponent: React.FC<RightSidebarProps> = ({
   workspaceId,
   workspacePath,
   chatAreaRef,
+  onTabChange,
+  width,
 }) => {
   const [selectedTab, setSelectedTab] = usePersistedState<TabType>(
     `right-sidebar-tab:${workspaceId}`,
     "costs"
   );
+
+  // Notify parent of tab changes
+  React.useEffect(() => {
+    onTabChange?.(selectedTab);
+  }, [selectedTab, onTabChange]);
 
   const usage = useWorkspaceUsage(workspaceId);
   const [use1M] = use1MContext();
@@ -166,7 +182,8 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
   return (
     <SidebarContainer
       collapsed={showCollapsed}
-      wide={selectedTab === "review"}
+      wide={selectedTab === "review" && !width}
+      customWidth={width}
       role="complementary"
       aria-label="Workspace insights"
     >
