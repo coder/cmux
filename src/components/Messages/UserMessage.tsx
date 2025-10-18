@@ -95,21 +95,13 @@ export const UserMessage: React.FC<UserMessageProps> = ({
     }
   };
 
-  // Keep only Copy button visible
+  // Keep Copy and Edit buttons visible (most common actions)
+  // Kebab menu saves horizontal space by collapsing less-used actions
   const buttons: ButtonConfig[] = [
-    {
-      label: copied ? "✓ Copied" : "Copy Text",
-      onClick: () => void handleCopy(),
-    },
-  ];
-
-  // Move Edit to kebab menu
-  const kebabMenuItems: KebabMenuItem[] = [
     ...(onEdit && !isLocalCommandOutput
       ? [
           {
             label: "Edit",
-            emoji: "✏️",
             onClick: handleEdit,
             disabled: isCompacting,
             tooltip: isCompacting
@@ -118,7 +110,15 @@ export const UserMessage: React.FC<UserMessageProps> = ({
           },
         ]
       : []),
+    {
+      label: copied ? "✓ Copied" : "Copy",
+      onClick: () => void handleCopy(),
+    },
   ];
+
+  // Currently no additional kebab items for user messages
+  // MessageWindow will add "Show JSON" to kebab menu automatically if kebabMenuItems is provided
+  const kebabMenuItems: KebabMenuItem[] = [];
 
   // If it's a local command output, render with TerminalOutput
   if (isLocalCommandOutput) {

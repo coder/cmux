@@ -90,17 +90,18 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({
     }
   };
 
-  // Keep only Copy button visible, move rest to kebab menu
+  // Keep only Copy button visible (most common action)
+  // Kebab menu saves horizontal space by collapsing less-used actions into a single ⋮ button
   const buttons: ButtonConfig[] = isStreaming
     ? []
     : [
         {
-          label: copied ? "✓ Copied" : "Copy Text",
+          label: copied ? "✓ Copied" : "Copy",
           onClick: () => void handleCopy(),
         },
       ];
 
-  // Kebab menu items (hidden actions)
+  // Kebab menu items (less frequently used actions)
   const kebabMenuItems: KebabMenuItem[] = isStreaming
     ? []
     : [
@@ -109,7 +110,6 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({
           ? [
               {
                 label: buttonLabel,
-                emoji: buttonEmoji,
                 onClick: openModal,
                 disabled: startHereDisabled,
                 tooltip: "Replace all chat history with this message",

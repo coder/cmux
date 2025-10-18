@@ -20,7 +20,7 @@ const MessageBlock = styled.div<{ borderColor: string; backgroundColor?: string 
 const MessageHeader = styled.div`
   position: relative;
   z-index: 1;
-  padding: 8px 12px;
+  padding: 4px 12px;
   background: rgba(255, 255, 255, 0.05);
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   display: flex;
@@ -94,7 +94,7 @@ interface MessageWindowProps {
   backgroundColor?: string;
   message: CmuxMessage | DisplayedMessage;
   buttons?: ButtonConfig[];
-  kebabMenuItems?: KebabMenuItem[]; // Optional kebab menu items
+  kebabMenuItems?: KebabMenuItem[]; // Optional kebab menu items (provide empty array to use kebab with only Show JSON)
   children: ReactNode;
   className?: string;
   rightLabel?: ReactNode;
@@ -126,14 +126,21 @@ export const MessageWindow: React.FC<MessageWindowProps> = ({
   );
 
   return (
-    <MessageBlock borderColor={borderColor} backgroundColor={backgroundColor} className={className}>
+    <MessageBlock
+      borderColor={borderColor}
+      backgroundColor={backgroundColor}
+      className={className}
+      data-message-block
+    >
       {backgroundEffect}
-      <MessageHeader>
-        <LeftSection>
-          <MessageTypeLabel>{label}</MessageTypeLabel>
-          {formattedTimestamp && <TimestampText>{formattedTimestamp}</TimestampText>}
+      <MessageHeader data-message-header>
+        <LeftSection data-message-header-left>
+          <MessageTypeLabel data-message-type-label>{label}</MessageTypeLabel>
+          {formattedTimestamp && (
+            <TimestampText data-message-timestamp>{formattedTimestamp}</TimestampText>
+          )}
         </LeftSection>
-        <ButtonGroup>
+        <ButtonGroup data-message-header-buttons>
           {rightLabel}
           {buttons.map((button, index) =>
             button.tooltip ? (
@@ -154,7 +161,7 @@ export const MessageWindow: React.FC<MessageWindowProps> = ({
               />
             )
           )}
-          {kebabMenuItems.length > 0 ? (
+          {kebabMenuItems !== undefined ? (
             <KebabMenu
               items={[
                 ...kebabMenuItems,
@@ -171,7 +178,7 @@ export const MessageWindow: React.FC<MessageWindowProps> = ({
           )}
         </ButtonGroup>
       </MessageHeader>
-      <MessageContent>
+      <MessageContent data-message-content>
         {showJson ? <JsonContent>{JSON.stringify(message, null, 2)}</JsonContent> : children}
       </MessageContent>
     </MessageBlock>

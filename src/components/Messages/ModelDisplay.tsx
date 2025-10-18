@@ -18,8 +18,7 @@ const IconWrapper = styled.span`
   vertical-align: -0.19em; /* Align icon slightly above baseline for visual centering */
   width: 1.1em; /* Slightly larger than text for visibility */
   height: 1.1em;
-  margin-left: 0.3em; /* Gap after icon (reversed for RTL) */
-  direction: ltr; /* Keep icon in LTR to prevent flipping */
+  margin-right: 0.3em; /* Gap between icon and text */
 
   svg {
     display: block; /* Remove inline spacing */
@@ -38,6 +37,10 @@ const IconWrapper = styled.span`
       fill: currentColor !important;
     }
   }
+`;
+
+const ModelText = styled.span`
+  display: inline;
 `;
 
 interface ModelDisplayProps {
@@ -76,7 +79,7 @@ export const ModelDisplay: React.FC<ModelDisplayProps> = ({ modelString, showToo
   const content = (
     <ModelContainer data-model-display>
       {providerIcon && <IconWrapper data-model-icon>{providerIcon}</IconWrapper>}
-      {displayName}
+      <ModelText>{displayName}</ModelText>
     </ModelContainer>
   );
 

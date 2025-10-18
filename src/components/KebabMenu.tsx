@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import styled from "@emotion/styled";
 import { TooltipWrapper, Tooltip } from "./Tooltip";
 
@@ -29,26 +30,24 @@ const KebabButton = styled.button<{ active?: boolean }>`
 `;
 
 const DropdownMenu = styled.div`
-  position: absolute;
-  top: calc(100% + 4px);
-  right: 0;
-  background: #252526;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  position: fixed;
+  background: #1e1e1e;
+  border: 1px solid #3e3e42;
   border-radius: 3px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
-  z-index: 1000;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.8);
+  z-index: 10000;
   min-width: 160px;
   overflow: hidden;
 `;
 
 const MenuItem = styled.button<{ active?: boolean; disabled?: boolean }>`
   width: 100%;
-  background: ${(props) => (props.active ? "rgba(255, 255, 255, 0.1)" : "transparent")};
+  background: ${(props) => (props.active ? "rgba(255, 255, 255, 0.15)" : "#1e1e1e")};
   border: none;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid #2d2d30;
   color: ${(props) => (props.disabled ? "#808080" : "#cccccc")};
   font-size: 11px;
-  padding: 7px 12px;
+  padding: 8px 12px;
   text-align: left;
   cursor: ${(props) => (props.disabled ? "not-allowed" : "pointer")};
   transition: all 0.15s ease;
@@ -63,7 +62,7 @@ const MenuItem = styled.button<{ active?: boolean; disabled?: boolean }>`
   }
 
   &:hover {
-    background: ${(props) => (props.disabled ? "transparent" : "rgba(255, 255, 255, 0.1)")};
+    background: ${(props) => (props.disabled ? "#1e1e1e" : "rgba(255, 255, 255, 0.15)")};
     color: ${(props) => (props.disabled ? "#808080" : "#ffffff")};
   }
 `;
@@ -99,18 +98,42 @@ interface KebabMenuProps {
 
 /**
  * A kebab menu (three vertical dots) that displays a dropdown of menu items.
- * Used to reduce header clutter by hiding less frequently used actions.
+ * 
+ * Reduces header clutter by collapsing multiple actions into a single button,
+ * saving significant horizontal space compared to individual buttons.
+ * 
+ * Uses React Portal to render dropdown at document.body, preventing clipping
+ * by parent containers with overflow constraints.
  */
 export const KebabMenu: React.FC<KebabMenuProps> = ({ items, className }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  // Calculate dropdown position when menu opens
+  useEffect(() => {
+    if (isOpen && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setDropdownPosition({
+        top: rect.bottom + 4, // 4px gap below button
+        left: rect.right - 160, // Align right edge (160px = min-width)
+      });
+    }
+  }, [isOpen]);
 
   // Close menu when clicking outside
   useEffect(() => {
     if (!isOpen) return;
 
     const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+      // Check both button and dropdown (which is now in portal)
+      if (
+        buttonRef.current &&
+        !buttonRef.current.contains(e.target as Node) &&
+        menuRef.current &&
+        !menuRef.current.contains(e.target as Node)
+      ) {
         setIsOpen(false);
       }
     };
@@ -126,34 +149,49 @@ export const KebabMenu: React.FC<KebabMenuProps> = ({ items, className }) => {
   };
 
   const button = (
-    <KebabButton active={isOpen} onClick={() => setIsOpen(!isOpen)} className={className}>
+    <KebabButton
+      ref={buttonRef}
+      active={isOpen}
+      onClick={() => setIsOpen(!isOpen)}
+      className={className}
+    >
       ⋮
     </KebabButton>
   );
 
   return (
-    <MenuContainer ref={menuRef}>
-      <TooltipWrapper inline>
-        {button}
-        <Tooltip align="center">More actions</Tooltip>
-      </TooltipWrapper>
+    <>
+      <MenuContainer>
+        <TooltipWrapper inline>
+          {button}
+          <Tooltip align="center">More actions</Tooltip>
+        </TooltipWrapper>
+      </MenuContainer>
 
-      {isOpen && (
-        <DropdownMenu>
-          {items.map((item, index) => (
-            <MenuItem
-              key={index}
-              active={item.active}
-              disabled={item.disabled}
-              onClick={() => handleItemClick(item)}
-              title={item.tooltip}
-            >
-              {item.emoji && <MenuItemEmoji>{item.emoji}</MenuItemEmoji>}
-              <MenuItemLabel>{item.label}</MenuItemLabel>
-            </MenuItem>
-          ))}
-        </DropdownMenu>
-      )}
-    </MenuContainer>
+      {isOpen &&
+        createPortal(
+          <DropdownMenu
+            ref={menuRef}
+            style={{
+              top: `${dropdownPosition.top}px`,
+              left: `${dropdownPosition.left}px`,
+            }}
+          >
+            {items.map((item, index) => (
+              <MenuItem
+                key={index}
+                active={item.active}
+                disabled={item.disabled}
+                onClick={() => handleItemClick(item)}
+                title={item.tooltip}
+              >
+                {item.emoji && <MenuItemEmoji>{item.emoji}</MenuItemEmoji>}
+                <MenuItemLabel>{item.label}</MenuItemLabel>
+              </MenuItem>
+            ))}
+          </DropdownMenu>,
+          document.body
+        )}
+    </>
   );
 };
