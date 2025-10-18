@@ -13,6 +13,8 @@ interface FileTreeProps {
 }
 
 const TreeContainer = styled.div`
+  flex: 1;
+  min-height: 0;
   padding: 12px;
   overflow-y: auto;
   font-family: var(--font-monospace);

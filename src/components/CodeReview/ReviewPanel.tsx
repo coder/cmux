@@ -24,17 +24,20 @@ const PanelContainer = styled.div`
   display: flex;
   flex-direction: column;
   height: 100%;
+  min-height: 0;
   background: #1e1e1e;
 `;
 
 const ContentContainer = styled.div`
   display: flex;
   flex: 1;
+  min-height: 0;
   overflow: hidden;
 `;
 
 const HunksSection = styled.div`
   flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -43,12 +46,14 @@ const HunksSection = styled.div`
 
 const HunkList = styled.div`
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   padding: 12px;
 `;
 
 const FileTreeSection = styled.div`
   width: 300px;
+  flex-shrink: 0;
   border-left: 1px solid #3e3e42;
   display: flex;
   flex-direction: column;
