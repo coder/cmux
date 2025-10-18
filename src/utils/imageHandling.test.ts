@@ -136,7 +136,7 @@ describe("imageHandling", () => {
         files: [mockFile1, mockFile2, mockFile3],
       };
 
-      const files = extractImagesFromDrop(mockDataTransfer as DataTransfer);
+      const files = extractImagesFromDrop(mockDataTransfer as unknown as DataTransfer);
 
       expect(files).toHaveLength(2);
       expect(files).toContain(mockFile1);
@@ -151,7 +151,7 @@ describe("imageHandling", () => {
         files: [mockFile],
       };
 
-      const files = extractImagesFromDrop(mockDataTransfer as DataTransfer);
+      const files = extractImagesFromDrop(mockDataTransfer as unknown as DataTransfer);
 
       expect(files).toHaveLength(0);
     });
