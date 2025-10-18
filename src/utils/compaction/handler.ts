@@ -40,19 +40,19 @@ export function getCompactionCommand(aggregator: StreamingMessageAggregator): st
 /**
  * Cancel compaction (Ctrl+C flow)
  * 
- * Aborts the compaction stream and restores state to before /compact was invoked:
- * - Interrupts stream without performing compaction (via localStorage marker)
- * - Removes compaction request + partial summary from history
+ * Aborts the compaction stream and restores command to input:
+ * - Interrupts stream with abandonPartial flag (deletes partial, doesn't commit)
+ * - Skips compaction (via localStorage marker checked by handleCompactionAbort)
  * - Restores original /compact command to input for re-editing
+ * - Leaves compaction-request message in history (harmless user message)
  * 
  * Flow:
- * 1. Store cancellation marker in localStorage with messageId for verification
- * 2. Interrupt stream (triggers StreamAbortEvent)
- * 3. handleCompactionAbort checks localStorage, verifies messageId, skips compaction
- * 4. Truncate history to remove compaction request + partial summary
- * 5. Restore command to input
+ * 1. Store cancellation marker in localStorage with compactionRequestId for verification
+ * 2. Interrupt stream with {abandonPartial: true} - backend deletes partial
+ * 3. handleCompactionAbort checks localStorage, verifies compactionRequestId, skips compaction
+ * 4. Restore command to input
  * 
- * Reload-safe: localStorage persists across reloads, messageId ensures freshness
+ * Reload-safe: localStorage persists across reloads, compactionRequestId ensures freshness
  */
 export async function cancelCompaction(
   workspaceId: string,
@@ -90,18 +90,11 @@ export async function cancelCompaction(
 
   // Interrupt stream with abandonPartial flag
   // This tells backend to DELETE the partial instead of committing it
-  // Result: history ends with the compaction-request user message
+  // Result: history ends with the compaction-request user message (which is fine - just a user message)
   await window.api.workspace.interruptStream(workspaceId, { abandonPartial: true });
 
-  // Truncate history to remove compaction-request message
-  // After interrupt with abandonPartial: [...history, compactionRequest]
-  // We want: [...history]
-  const percentageToKeep = compactionRequestIndex / messages.length;
-
-  // Truncate to remove compaction request
-  await window.api.workspace.truncateHistory(workspaceId, percentageToKeep);
-
   // Restore command to input so user can edit and retry
+  // Note: We leave the compaction-request message in history - user can delete it manually if desired
   restoreCommandToInput(command);
 
   return true;
