@@ -4,10 +4,9 @@
 
 import React, { useState } from "react";
 import styled from "@emotion/styled";
-import { TooltipWrapper, Tooltip } from "@/components/Tooltip";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import type { ReviewFilters, ReviewStats } from "@/types/review";
-import { formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
+import { RefreshButton } from "./RefreshButton";
 
 interface ReviewControlsProps {
   filters: ReviewFilters;
@@ -76,53 +75,6 @@ const Separator = styled.div`
   background: #3e3e42;
 `;
 
-const RefreshButton = styled.button<{ $isLoading?: boolean }>`
-  background: transparent;
-  border: none;
-  padding: 2px;
-  cursor: ${(props) => (props.$isLoading ? "default" : "pointer")};
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: ${(props) => (props.$isLoading ? "#007acc" : "#888")};
-  transition: color 0.2s ease;
-
-  &:hover {
-    color: ${(props) => (props.$isLoading ? "#007acc" : "#ccc")};
-  }
-
-  svg {
-    width: 12px;
-    height: 12px;
-  }
-
-  &.spinning svg {
-    animation: spin 0.8s linear infinite;
-  }
-
-  &.spin-once svg {
-    animation: spin-once 0.8s ease-out forwards;
-  }
-
-  @keyframes spin {
-    from {
-      transform: rotate(0deg);
-    }
-    to {
-      transform: rotate(360deg);
-    }
-  }
-
-  @keyframes spin-once {
-    from {
-      transform: rotate(0deg);
-    }
-    to {
-      transform: rotate(360deg);
-    }
-  }
-`;
-
 const CheckboxLabel = styled.label`
   display: flex;
   align-items: center;
@@ -168,37 +120,6 @@ export const ReviewControls: React.FC<ReviewControlsProps> = ({
 }) => {
   // Local state for input value - only commit on blur/Enter
   const [inputValue, setInputValue] = useState(filters.diffBase);
-  
-  // Track animation state for graceful stopping
-  const [animationState, setAnimationState] = useState<"idle" | "spinning" | "stopping">("idle");
-  const spinOnceTimeoutRef = React.useRef<number | null>(null);
-
-  // Manage animation state based on loading prop
-  React.useEffect(() => {
-    if (isLoading) {
-      // Start spinning
-      setAnimationState("spinning");
-      // Clear any pending stop timeout
-      if (spinOnceTimeoutRef.current) {
-        clearTimeout(spinOnceTimeoutRef.current);
-        spinOnceTimeoutRef.current = null;
-      }
-    } else if (animationState === "spinning") {
-      // Gracefully stop: do one final rotation
-      setAnimationState("stopping");
-      // After animation completes, return to idle
-      spinOnceTimeoutRef.current = window.setTimeout(() => {
-        setAnimationState("idle");
-        spinOnceTimeoutRef.current = null;
-      }, 800); // Match animation duration
-    }
-
-    return () => {
-      if (spinOnceTimeoutRef.current) {
-        clearTimeout(spinOnceTimeoutRef.current);
-      }
-    };
-  }, [isLoading, animationState]);
 
   // Global default base (used for new workspaces)
   const [defaultBase, setDefaultBase] = usePersistedState<string>("review-default-base", "HEAD");
@@ -247,24 +168,7 @@ export const ReviewControls: React.FC<ReviewControlsProps> = ({
 
   return (
     <ControlsContainer>
-      {onRefresh && (
-        <TooltipWrapper inline>
-          <RefreshButton
-            onClick={onRefresh}
-            $isLoading={isLoading}
-            className={animationState === "spinning" ? "spinning" : animationState === "stopping" ? "spin-once" : ""}
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" />
-            </svg>
-          </RefreshButton>
-          <Tooltip position="bottom" align="left">
-            {isLoading
-              ? "Refreshing..."
-              : `Refresh diff (${formatKeybind(KEYBINDS.REFRESH_REVIEW)})`}
-          </Tooltip>
-        </TooltipWrapper>
-      )}
+      {onRefresh && <RefreshButton onClick={onRefresh} isLoading={isLoading} />}
       <Label>Base:</Label>
       <BaseInput
         type="text"
