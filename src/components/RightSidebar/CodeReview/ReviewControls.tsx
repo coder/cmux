@@ -14,6 +14,7 @@ interface ReviewControlsProps {
   stats: ReviewStats;
   onFiltersChange: (filters: ReviewFilters) => void;
   onRefresh?: () => void;
+  isLoading?: boolean;
 }
 
 const ControlsContainer = styled.div`
@@ -75,24 +76,35 @@ const Separator = styled.div`
   background: #3e3e42;
 `;
 
-const RefreshButton = styled.button`
+const RefreshButton = styled.button<{ isLoading?: boolean }>`
   background: transparent;
   border: none;
   padding: 2px;
-  cursor: pointer;
+  cursor: ${(props) => (props.isLoading ? "default" : "pointer")};
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #888;
+  color: ${(props) => (props.isLoading ? "#007acc" : "#888")};
   transition: color 0.2s ease;
+  opacity: ${(props) => (props.isLoading ? "1" : "1")};
 
   &:hover {
-    color: #ccc;
+    color: ${(props) => (props.isLoading ? "#007acc" : "#ccc")};
   }
 
   svg {
     width: 12px;
     height: 12px;
+    animation: ${(props) => (props.isLoading ? "spin 1s linear infinite" : "none")};
+  }
+
+  @keyframes spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
   }
 `;
 
@@ -137,6 +149,7 @@ export const ReviewControls: React.FC<ReviewControlsProps> = ({
   stats,
   onFiltersChange,
   onRefresh,
+  isLoading = false,
 }) => {
   // Local state for input value - only commit on blur/Enter
   const [inputValue, setInputValue] = useState(filters.diffBase);
@@ -190,13 +203,13 @@ export const ReviewControls: React.FC<ReviewControlsProps> = ({
     <ControlsContainer>
       {onRefresh && (
         <TooltipWrapper inline>
-          <RefreshButton onClick={onRefresh}>
+          <RefreshButton onClick={onRefresh} isLoading={isLoading}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" />
             </svg>
           </RefreshButton>
           <Tooltip position="bottom" align="left">
-            Refresh diff ({formatKeybind(KEYBINDS.REFRESH_REVIEW)})
+            {isLoading ? "Refreshing..." : `Refresh diff (${formatKeybind(KEYBINDS.REFRESH_REVIEW)})`}
           </Tooltip>
         </TooltipWrapper>
       )}

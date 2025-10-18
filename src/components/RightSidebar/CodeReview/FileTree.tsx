@@ -251,7 +251,7 @@ export const FileTree: React.FC<FileTreeExternalProps> = ({
       </TreeHeader>
       {commonPrefix && <CommonPrefix>{commonPrefix}/</CommonPrefix>}
       <TreeContainer>
-        {isLoading ? (
+        {isLoading && !startNode ? (
           <EmptyState>Loading file tree...</EmptyState>
         ) : startNode ? (
           startNode.children.map((child) => (

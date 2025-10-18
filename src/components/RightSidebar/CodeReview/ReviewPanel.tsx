@@ -525,6 +525,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
         stats={stats}
         onFiltersChange={setFilters}
         onRefresh={() => setRefreshTrigger((prev) => prev + 1)}
+        isLoading={isLoadingHunks || isLoadingTree}
       />
 
       {error ? (
