@@ -1,0 +1,244 @@
+/**
+ * Tests for git diff parsing using a real git repository
+ * IMPORTANT: Uses actual git commands, not simulated diffs
+ */
+
+import { describe, it, expect, beforeAll, afterAll } from "bun:test";
+import { mkdtempSync, rmSync } from "fs";
+import { writeFileSync } from "fs";
+import { join } from "path";
+import { tmpdir } from "os";
+import { execSync } from "child_process";
+import { parseDiff, extractAllHunks } from "./diffParser";
+
+describe("git diff parser (real repository)", () => {
+  let testRepoPath: string;
+
+  beforeAll(() => {
+    // Create a temporary directory for our test repo
+    testRepoPath = mkdtempSync(join(tmpdir(), "git-diff-test-"));
+
+    // Initialize git repo
+    execSync("git init", { cwd: testRepoPath });
+    execSync('git config user.email "test@example.com"', { cwd: testRepoPath });
+    execSync('git config user.name "Test User"', { cwd: testRepoPath });
+
+    // Create initial commit with a file
+    writeFileSync(
+      join(testRepoPath, "file1.txt"),
+      "Line 1\nLine 2\nLine 3\nLine 4\nLine 5\n"
+    );
+    writeFileSync(
+      join(testRepoPath, "file2.js"),
+      'function hello() {\n  console.log("Hello");\n}\n'
+    );
+    execSync("git add .", { cwd: testRepoPath });
+    execSync('git commit -m "Initial commit"', { cwd: testRepoPath });
+  });
+
+  afterAll(() => {
+    // Clean up test repo
+    rmSync(testRepoPath, { recursive: true, force: true });
+  });
+
+  it("should parse single file modification", () => {
+    // Modify file1.txt
+    writeFileSync(
+      join(testRepoPath, "file1.txt"),
+      "Line 1\nLine 2 modified\nLine 3\nLine 4\nLine 5\n"
+    );
+
+    // Get git diff
+    const diff = execSync("git diff HEAD", { cwd: testRepoPath, encoding: "utf-8" });
+
+    // Parse diff
+    const fileDiffs = parseDiff(diff);
+
+    expect(fileDiffs.length).toBe(1);
+    expect(fileDiffs[0].filePath).toBe("file1.txt");
+    expect(fileDiffs[0].hunks.length).toBeGreaterThan(0);
+
+    const allHunks = extractAllHunks(fileDiffs);
+    expect(allHunks.length).toBeGreaterThan(0);
+    expect(allHunks[0].filePath).toBe("file1.txt");
+    expect(allHunks[0].content.includes("modified")).toBe(true);
+  });
+
+  it("should parse multiple file modifications", () => {
+    // Modify both files
+    writeFileSync(
+      join(testRepoPath, "file1.txt"),
+      "Line 1\nNew line\nLine 2\nLine 3\nLine 4\nLine 5\n"
+    );
+    writeFileSync(
+      join(testRepoPath, "file2.js"),
+      'function hello() {\n  console.log("Hello World");\n  return true;\n}\n'
+    );
+
+    const diff = execSync("git diff HEAD", { cwd: testRepoPath, encoding: "utf-8" });
+    const fileDiffs = parseDiff(diff);
+
+    expect(fileDiffs.length).toBe(2);
+    
+    const file1Diff = fileDiffs.find((f) => f.filePath === "file1.txt");
+    const file2Diff = fileDiffs.find((f) => f.filePath === "file2.js");
+
+    expect(file1Diff).toBeDefined();
+    expect(file2Diff).toBeDefined();
+
+    const allHunks = extractAllHunks(fileDiffs);
+    expect(allHunks.length).toBeGreaterThan(1);
+  });
+
+  it("should parse new file addition", () => {
+    // Reset working directory
+    execSync("git reset --hard HEAD", { cwd: testRepoPath });
+
+    // Add new file
+    writeFileSync(join(testRepoPath, "newfile.md"), "# New File\n\nContent here\n");
+    execSync("git add newfile.md", { cwd: testRepoPath });
+
+    const diff = execSync("git diff --cached", { cwd: testRepoPath, encoding: "utf-8" });
+    const fileDiffs = parseDiff(diff);
+
+    expect(fileDiffs.length).toBe(1);
+    expect(fileDiffs[0].filePath).toBe("newfile.md");
+    expect(fileDiffs[0].hunks.length).toBeGreaterThan(0);
+
+    const allHunks = extractAllHunks(fileDiffs);
+    // Check that all lines start with + (additions)
+    const contentLines = allHunks[0].content.split("\n");
+    expect(contentLines.some((l) => l.startsWith("+"))).toBe(true);
+  });
+
+  it("should parse file deletion", () => {
+    // Reset and commit newfile
+    execSync("git add . && git commit -m 'Add newfile'", { cwd: testRepoPath });
+
+    // Delete file
+    execSync("rm newfile.md", { cwd: testRepoPath });
+
+    const diff = execSync("git diff HEAD", { cwd: testRepoPath, encoding: "utf-8" });
+    const fileDiffs = parseDiff(diff);
+
+    expect(fileDiffs.length).toBe(1);
+    expect(fileDiffs[0].filePath).toBe("newfile.md");
+
+    const allHunks = extractAllHunks(fileDiffs);
+    // Check that all content lines start with - (deletions)
+    const contentLines = allHunks[0].content.split("\n");
+    expect(contentLines.some((l) => l.startsWith("-"))).toBe(true);
+  });
+
+  it("should parse branch comparison (three-dot diff)", () => {
+    // Reset
+    execSync("git reset --hard HEAD", { cwd: testRepoPath });
+
+    // Create a feature branch
+    execSync("git checkout -b feature", { cwd: testRepoPath });
+    
+    // Make changes on feature branch
+    writeFileSync(
+      join(testRepoPath, "feature.txt"),
+      "Feature content\n"
+    );
+    execSync("git add . && git commit -m 'Add feature'", { cwd: testRepoPath });
+
+    // Get diff between main (or master) and feature
+    const mainBranch = execSync("git rev-parse --abbrev-ref HEAD", {
+      cwd: testRepoPath,
+      encoding: "utf-8",
+    }).trim();
+
+    // Checkout main and compare
+    execSync("git checkout -", { cwd: testRepoPath });
+    const baseBranch = execSync("git rev-parse --abbrev-ref HEAD", {
+      cwd: testRepoPath,
+      encoding: "utf-8",
+    }).trim();
+
+    const diff = execSync(`git diff ${baseBranch}...feature`, {
+      cwd: testRepoPath,
+      encoding: "utf-8",
+    });
+
+    const fileDiffs = parseDiff(diff);
+    expect(fileDiffs.length).toBeGreaterThan(0);
+
+    const featureFile = fileDiffs.find((f) => f.filePath === "feature.txt");
+    expect(featureFile).toBeDefined();
+  });
+
+  it("should handle empty diff", () => {
+    // Reset to clean state
+    execSync("git reset --hard HEAD", { cwd: testRepoPath });
+
+    const diff = execSync("git diff HEAD", { cwd: testRepoPath, encoding: "utf-8" });
+    const fileDiffs = parseDiff(diff);
+
+    expect(fileDiffs.length).toBe(0);
+
+    const allHunks = extractAllHunks(fileDiffs);
+    expect(allHunks.length).toBe(0);
+  });
+
+  it("should generate stable hunk IDs for same content", () => {
+    // Reset
+    execSync("git reset --hard HEAD", { cwd: testRepoPath });
+
+    // Make a specific change
+    writeFileSync(
+      join(testRepoPath, "file1.txt"),
+      "Line 1\nStable change\nLine 3\nLine 4\nLine 5\n"
+    );
+
+    const diff1 = execSync("git diff HEAD", { cwd: testRepoPath, encoding: "utf-8" });
+    const hunks1 = extractAllHunks(parseDiff(diff1));
+    const id1 = hunks1[0]?.id;
+
+    // Reset and make the SAME change again
+    execSync("git reset --hard HEAD", { cwd: testRepoPath });
+    writeFileSync(
+      join(testRepoPath, "file1.txt"),
+      "Line 1\nStable change\nLine 3\nLine 4\nLine 5\n"
+    );
+
+    const diff2 = execSync("git diff HEAD", { cwd: testRepoPath, encoding: "utf-8" });
+    const hunks2 = extractAllHunks(parseDiff(diff2));
+    const id2 = hunks2[0]?.id;
+
+    expect(id1).toBeDefined();
+    expect(id2).toBeDefined();
+    expect(id1).toBe(id2);
+  });
+
+  it("should handle large diffs with many hunks", () => {
+    // Reset
+    execSync("git reset --hard HEAD", { cwd: testRepoPath });
+
+    // Create a file with many lines
+    const lines = Array.from({ length: 100 }, (_, i) => `Line ${i + 1}`);
+    writeFileSync(join(testRepoPath, "large.txt"), lines.join("\n") + "\n");
+    execSync("git add . && git commit -m 'Add large file'", { cwd: testRepoPath });
+
+    // Modify multiple sections
+    const modifiedLines = lines.map((line, i) => {
+      if (i % 20 === 0) return `Modified ${line}`;
+      return line;
+    });
+    writeFileSync(join(testRepoPath, "large.txt"), modifiedLines.join("\n") + "\n");
+
+    const diff = execSync("git diff HEAD", { cwd: testRepoPath, encoding: "utf-8" });
+    const fileDiffs = parseDiff(diff);
+
+    expect(fileDiffs.length).toBe(1);
+    expect(fileDiffs[0].hunks.length).toBeGreaterThan(1);
+
+    const allHunks = extractAllHunks(fileDiffs);
+    expect(allHunks.length).toBeGreaterThan(1);
+    
+    // All hunks should have valid IDs
+    expect(allHunks.every((h) => h.id && h.id.length > 0)).toBe(true);
+  });
+});
+
