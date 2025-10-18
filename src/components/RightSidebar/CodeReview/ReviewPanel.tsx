@@ -436,6 +436,14 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
     if (!isPanelFocused) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't interfere with text input in chat or other editable elements
+      if (e.target instanceof HTMLElement) {
+        const tagName = e.target.tagName.toLowerCase();
+        if (tagName === "input" || tagName === "textarea" || e.target.contentEditable === "true") {
+          return;
+        }
+      }
+      
       if (!selectedHunkId) return;
 
       const currentIndex = filteredHunks.findIndex((h) => h.id === selectedHunkId);

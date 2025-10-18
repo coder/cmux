@@ -224,6 +224,7 @@ const SelectableDiffLineWrapper = styled(DiffLineWrapper)<{
 }>`
   cursor: ${({ isSelecting }) => (isSelecting ? "pointer" : "default")};
   position: relative;
+  user-select: none; /* Prevent text selection during drag */
   
   ${({ isSelected }) =>
     isSelected &&
@@ -311,6 +312,7 @@ export const SelectableDiffRenderer: React.FC<SelectableDiffRendererProps> = ({
   const [selection, setSelection] = React.useState<LineSelection | null>(null);
   const [noteText, setNoteText] = React.useState("");
   const [isSelectingMode, setIsSelectingMode] = React.useState(false);
+  const [isDragging, setIsDragging] = React.useState(false);
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
   
   const lines = content.split("\n").filter((line) => line.length > 0);
@@ -363,28 +365,41 @@ export const SelectableDiffRenderer: React.FC<SelectableDiffRendererProps> = ({
     });
   });
   
-  const handleLineClick = (lineIndex: number) => {
-    if (!isSelectingMode) {
-      setIsSelectingMode(true);
-      setSelection({
-        startIndex: lineIndex,
-        endIndex: lineIndex,
-        startLineNum: lineData[lineIndex].lineNum,
-        endLineNum: lineData[lineIndex].lineNum,
-      });
-    } else if (selection) {
-      // Extend or complete selection
-      const newEndIndex = lineIndex;
-      const [start, end] = [selection.startIndex, newEndIndex].sort((a, b) => a - b);
-      
-      setSelection({
-        startIndex: start,
-        endIndex: end,
-        startLineNum: lineData[start].lineNum,
-        endLineNum: lineData[end].lineNum,
-      });
-    }
+  const handleMouseDown = (lineIndex: number) => {
+    setIsDragging(true);
+    setIsSelectingMode(true);
+    setSelection({
+      startIndex: lineIndex,
+      endIndex: lineIndex,
+      startLineNum: lineData[lineIndex].lineNum,
+      endLineNum: lineData[lineIndex].lineNum,
+    });
   };
+  
+  const handleMouseEnter = (lineIndex: number) => {
+    if (!isDragging || !selection) return;
+    
+    // Extend selection while dragging
+    const [start, end] = [selection.startIndex, lineIndex].sort((a, b) => a - b);
+    setSelection({
+      startIndex: start,
+      endIndex: end,
+      startLineNum: lineData[start].lineNum,
+      endLineNum: lineData[end].lineNum,
+    });
+  };
+  
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+  
+  // Global mouseup to handle drag ending outside the component
+  React.useEffect(() => {
+    if (!isDragging) return;
+    
+    window.addEventListener("mouseup", handleMouseUp);
+    return () => window.removeEventListener("mouseup", handleMouseUp);
+  }, [isDragging]);
   
   const handleSubmitNote = () => {
     if (!noteText.trim() || !selection || !onReviewNote) return;
@@ -436,10 +451,12 @@ export const SelectableDiffRenderer: React.FC<SelectableDiffRendererProps> = ({
               type={lineInfo.type}
               isSelected={isSelected}
               isSelecting={isSelectingMode}
-              onClick={(e) => {
+              onMouseDown={(e) => {
                 e.stopPropagation();
-                handleLineClick(displayIndex);
+                e.preventDefault(); // Prevent text selection
+                handleMouseDown(displayIndex);
               }}
+              onMouseEnter={() => handleMouseEnter(displayIndex)}
             >
               <DiffLine type={lineInfo.type}>
                 <DiffIndicator type={lineInfo.type}>{lines[lineInfo.index][0]}</DiffIndicator>

@@ -281,9 +281,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         const separator = prev.trim() ? "\n\n" : "";
         return prev + separator + text;
       });
-      focusMessageInput();
+      // Don't focus - user wants to keep reviewing
     },
-    [focusMessageInput]
+    []
   );
 
   // Provide API to parent via callback
