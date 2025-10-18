@@ -49,9 +49,10 @@ const HunksSection = styled.div`
   overflow: hidden;
   min-width: 0;
   
-  /* On narrow viewports, allow shrinking but maintain minimum */
+  /* On narrow viewports, ensure it can scroll */
   @media (max-width: 800px) {
-    min-height: 300px;
+    flex: 1; /* Take remaining space after file tree */
+    min-height: 0; /* Critical for flex child scrolling */
   }
 `;
 
@@ -71,14 +72,15 @@ const FileTreeSection = styled.div`
   overflow: hidden;
   min-height: 0;
   
-  /* On narrow viewports, stack above hunks and remove left border */
+  /* On narrow viewports, stack above hunks with limited height */
   @media (max-width: 800px) {
     width: 100%;
     border-left: none;
     border-bottom: 1px solid #3e3e42;
-    max-height: none; /* Allow natural height */
-    flex: 0 0 auto; /* Don't grow, don't shrink, use content height */
+    max-height: 40vh; /* Limit to 40% of viewport height */
+    flex: 0 0 auto; /* Don't grow, don't shrink, use content height up to max */
     order: -1; /* Move to top */
+    min-height: 150px; /* Minimum height to show some files */
   }
 `;
 
@@ -278,7 +280,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
     removeStaleReviews,
   } = useReviewState(workspaceId);
 
-  // Load diff on mount and when workspace changes
+  // Load diff on mount and when workspace, diffBase, or selected path changes
   useEffect(() => {
     let cancelled = false;
 
@@ -286,22 +288,28 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
       setIsLoading(true);
       setError(null);
       setTruncationWarning(null);
-      setFileTree(null);
+      // Only clear file tree if no path filter (showing all files)
+      if (!selectedFilePath) {
+        setFileTree(null);
+      }
       try {
         // Build git diff command based on selected base
         let diffCommand: string;
         let numstatCommand: string;
         
+        // Add path filter if a file/folder is selected
+        const pathFilter = selectedFilePath ? ` -- "${selectedFilePath}"` : "";
+        
         if (filters.diffBase === "--staged") {
-          diffCommand = "git diff --staged";
-          numstatCommand = "git diff --staged --numstat";
+          diffCommand = `git diff --staged${pathFilter}`;
+          numstatCommand = `git diff --staged --numstat${pathFilter}`;
         } else if (filters.diffBase === "HEAD") {
-          diffCommand = "git diff HEAD";
-          numstatCommand = "git diff HEAD --numstat";
+          diffCommand = `git diff HEAD${pathFilter}`;
+          numstatCommand = `git diff HEAD --numstat${pathFilter}`;
         } else {
           // Use three-dot syntax to show changes since common ancestor
-          diffCommand = `git diff ${filters.diffBase}...HEAD`;
-          numstatCommand = `git diff ${filters.diffBase}...HEAD --numstat`;
+          diffCommand = `git diff ${filters.diffBase}...HEAD${pathFilter}`;
+          numstatCommand = `git diff ${filters.diffBase}...HEAD --numstat${pathFilter}`;
         }
 
         // Fetch both diff and numstat in parallel
@@ -331,8 +339,9 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
         const fileDiffs = parseDiff(diffOutput);
         const allHunks = extractAllHunks(fileDiffs);
         
-        // Parse numstat for file tree
-        if (numstatResult.success) {
+        // Parse numstat for file tree only when showing all files (no filter)
+        // When a path is selected, we keep the existing tree to maintain navigation
+        if (numstatResult.success && !selectedFilePath) {
           const numstatOutput = numstatResult.data.output ?? "";
           const fileStats = parseNumstat(numstatOutput);
           const tree = buildFileTree(fileStats);
@@ -347,8 +356,8 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
           hunkCount: allHunks.length,
         });
 
-        // Set truncation warning if applicable
-        if (truncationInfo) {
+        // Set truncation warning only when not filtering by path
+        if (truncationInfo && !selectedFilePath) {
           setTruncationWarning(
             `Truncated (${truncationInfo.reason}): showing ${allHunks.length} hunks. Use file tree to filter.`
           );
@@ -374,7 +383,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
     return () => {
       cancelled = true;
     };
-  }, [workspaceId, workspacePath, filters.diffBase]); // Removed selectedHunkId to prevent re-render on selection
+  }, [workspaceId, workspacePath, filters.diffBase, selectedFilePath]); // Now includes selectedFilePath
   
   // Persist diffBase when it changes
   useEffect(() => {
@@ -390,15 +399,10 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
     [hunks, hasStaleReviews]
   );
 
-  // Filter hunks based on current filters and selected file
+  // Filter hunks based on review status only (path filtering done server-side via git diff)
   const filteredHunks = useMemo(() => {
     return hunks.filter((hunk) => {
       const review = getReview(hunk.id);
-
-      // Filter by selected file path
-      if (selectedFilePath && hunk.filePath !== selectedFilePath) {
-        return false;
-      }
 
       // Filter by review status
       if (!filters.showReviewed && review) {
@@ -420,7 +424,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
 
       return true;
     });
-  }, [hunks, filters, selectedFilePath, getReview]);
+  }, [hunks, filters, getReview]);
 
   // Keyboard navigation
   useEffect(() => {

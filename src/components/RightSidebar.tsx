@@ -209,6 +209,9 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
     // Between thresholds: maintain current state (no change)
   }, [chatAreaWidth, selectedTab, showCollapsed, setShowCollapsed]);
 
+  // Show vertical meter on non-Costs tabs or when collapsed
+  const showVerticalMeter = selectedTab !== "costs" || showCollapsed;
+
   return (
     <SidebarContainer
       collapsed={showCollapsed}
@@ -252,6 +255,12 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
             </Tooltip>
           </TooltipWrapper>
         </TabBar>
+        {/* Show vertical meter on non-Costs tabs for context */}
+        {showVerticalMeter && (
+          <div style={{ flexShrink: 0 }}>
+            <VerticalTokenMeter data={verticalMeterData} />
+          </div>
+        )}
         <TabContent noPadding={selectedTab === "review"}>
           {selectedTab === "costs" && (
             <div role="tabpanel" id={costsPanelId} aria-labelledby={costsTabId}>

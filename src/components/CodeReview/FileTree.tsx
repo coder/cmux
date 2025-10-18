@@ -112,23 +112,40 @@ const TreeNodeContent: React.FC<{
 }> = ({ node, depth, selectedPath, onSelectFile }) => {
   const [isOpen, setIsOpen] = useState(depth < 2); // Auto-expand first 2 levels
 
-  const handleClick = () => {
+  const handleClick = (e: React.MouseEvent) => {
     if (node.isDirectory) {
-      setIsOpen(!isOpen);
+      // Check if clicked on the toggle icon area (first 20px)
+      const target = e.target as HTMLElement;
+      const isToggleClick = target.closest('[data-toggle]');
+      
+      if (isToggleClick) {
+        // Just toggle expansion
+        setIsOpen(!isOpen);
+      } else {
+        // Clicking on folder name/stats selects the folder for filtering
+        onSelectFile(selectedPath === node.path ? null : node.path);
+      }
     } else {
       // Toggle selection: if already selected, clear filter
       onSelectFile(selectedPath === node.path ? null : node.path);
     }
   };
 
-  const isSelected = !node.isDirectory && selectedPath === node.path;
+  const handleToggleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsOpen(!isOpen);
+  };
+
+  const isSelected = selectedPath === node.path;
 
   return (
     <>
       <TreeNode depth={depth} isSelected={isSelected} onClick={handleClick}>
         {node.isDirectory ? (
           <>
-            <ToggleIcon isOpen={isOpen}>▶</ToggleIcon>
+            <ToggleIcon isOpen={isOpen} data-toggle onClick={handleToggleClick}>
+              ▶
+            </ToggleIcon>
             <DirectoryName>{node.name || "/"}</DirectoryName>
             {node.totalStats && (node.totalStats.additions > 0 || node.totalStats.deletions > 0) && (
               <DirectoryStats>
