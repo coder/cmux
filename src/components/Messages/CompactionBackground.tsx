@@ -4,18 +4,15 @@ import { keyframes } from "@emotion/react";
 
 /**
  * Animated background for compaction streaming
- * Green laser scanning effect - futuristic vertical bar sweeping back and forth
+ * Subtle gradient wave effect that sweeps across the message
  */
 
-const scan = keyframes`
+const sweep = keyframes`
   0% {
-    left: -10%;
-  }
-  50% {
-    left: 110%;
+    transform: translateX(-100%);
   }
   100% {
-    left: -10%;
+    transform: translateX(200%);
   }
 `;
 
@@ -30,29 +27,27 @@ const Container = styled.div`
   border-radius: 6px;
 `;
 
-const LaserBar = styled.div`
+const GradientWave = styled.div`
   position: absolute;
   top: 0;
   bottom: 0;
-  width: 80px;
+  width: 100%;
   background: linear-gradient(
     90deg,
     transparent 0%,
-    rgba(34, 197, 94, 0.05) 20%,
-    rgba(34, 197, 94, 0.15) 40%,
-    rgba(34, 197, 94, 0.25) 50%,
-    rgba(34, 197, 94, 0.15) 60%,
-    rgba(34, 197, 94, 0.05) 80%,
+    var(--color-plan-mode-alpha) 30%,
+    var(--color-plan-mode-alpha-hover) 50%,
+    var(--color-plan-mode-alpha) 70%,
     transparent 100%
   );
-  box-shadow: 0 0 20px rgba(34, 197, 94, 0.3);
-  animation: ${scan} 2.5s ease-in-out infinite;
+  animation: ${sweep} 3s ease-in-out infinite;
+  opacity: 0.6;
 `;
 
 export const CompactionBackground: React.FC = () => {
   return (
     <Container>
-      <LaserBar />
+      <GradientWave />
     </Container>
   );
 };
