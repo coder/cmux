@@ -149,20 +149,6 @@ const TreeNodeContent: React.FC<{
   };
 
   const isSelected = selectedPath === node.path;
-  
-  // Strip common prefix from display name only
-  const displayName = (() => {
-    if (!commonPrefix) return node.name;
-    
-    // For root-level nodes, check if path starts with prefix
-    if (depth === 0 && node.path.startsWith(commonPrefix + "/")) {
-      // Remove prefix and get the first component
-      const withoutPrefix = node.path.slice(commonPrefix.length + 1);
-      return withoutPrefix.split("/")[0];
-    }
-    
-    return node.name;
-  })();
 
   return (
     <>
@@ -172,7 +158,7 @@ const TreeNodeContent: React.FC<{
             <ToggleIcon isOpen={isOpen} data-toggle onClick={handleToggleClick}>
               ▶
             </ToggleIcon>
-            <DirectoryName>{displayName || "/"}</DirectoryName>
+            <DirectoryName>{node.name || "/"}</DirectoryName>
             {node.totalStats && (node.totalStats.additions > 0 || node.totalStats.deletions > 0) && (
               <DirectoryStats isOpen={isOpen}>
                 {node.totalStats.additions > 0 && (
@@ -195,7 +181,7 @@ const TreeNodeContent: React.FC<{
         ) : (
           <>
             <span style={{ width: "12px" }} />
-            <FileName>{displayName}</FileName>
+            <FileName>{node.name}</FileName>
             {node.stats && (
               <Stats>
                 {node.stats.additions > 0 && <Additions>+{node.stats.additions}</Additions>}
@@ -237,6 +223,23 @@ export const FileTree: React.FC<FileTreeExternalProps> = ({
   isLoading = false,
   commonPrefix = null,
 }) => {
+  // Find the node at the common prefix path to start rendering from
+  const startNode = React.useMemo(() => {
+    if (!commonPrefix || !root) return root;
+    
+    // Navigate to the node at the common prefix path
+    const parts = commonPrefix.split("/");
+    let current = root;
+    
+    for (const part of parts) {
+      const child = current.children.find((c) => c.name === part);
+      if (!child) return root; // Fallback if path not found
+      current = child;
+    }
+    
+    return current;
+  }, [root, commonPrefix]);
+  
   return (
     <>
       <TreeHeader>
@@ -251,8 +254,8 @@ export const FileTree: React.FC<FileTreeExternalProps> = ({
           <div style={{ padding: "20px", color: "#888", textAlign: "center" }}>
             Loading file tree...
           </div>
-        ) : root ? (
-          root.children.map((child) => (
+        ) : startNode ? (
+          startNode.children.map((child) => (
             <TreeNodeContent
               key={child.path}
               node={child}
