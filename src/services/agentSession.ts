@@ -220,11 +220,18 @@ export class AgentSession {
     const messageId = `user-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
     const additionalParts =
       imageParts && imageParts.length > 0
-        ? imageParts.map((img) => {
-            assert(typeof img.url === "string", "image part must include url string content");
+        ? imageParts.map((img, index) => {
+            assert(
+              typeof img.url === "string",
+              `image part [${index}] must include url string content (got ${typeof img.url}): ${JSON.stringify(img).slice(0, 200)}`
+            );
+            assert(
+              img.url.startsWith("data:"),
+              `image part [${index}] url must be a data URL (got: ${img.url.slice(0, 50)}...)`
+            );
             assert(
               typeof img.mediaType === "string" && img.mediaType.trim().length > 0,
-              "image part must include a mediaType"
+              `image part [${index}] must include a mediaType (got ${typeof img.mediaType}): ${JSON.stringify(img).slice(0, 200)}`
             );
             return {
               type: "file" as const,
