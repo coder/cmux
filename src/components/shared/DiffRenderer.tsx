@@ -470,7 +470,7 @@ export const SelectableDiffRenderer: React.FC<SelectableDiffRendererProps> = ({
                 <InlineNoteContainer>
                   <NoteTextarea
                     ref={textareaRef}
-                    placeholder="Add a review note... (Cmd+Enter to submit, Esc to cancel)"
+                    placeholder="Add a review note to chat (Shift-click to select range, Cmd+Enter to submit, Esc to cancel)"
                     value={noteText}
                     onChange={(e) => setNoteText(e.target.value)}
                     onClick={(e) => e.stopPropagation()}
