@@ -228,25 +228,25 @@ const SelectableDiffLineWrapper = styled(DiffLineWrapper)<{
   ${({ isSelected }) =>
     isSelected &&
     `
-    background: rgba(100, 150, 255, 0.25) !important;
-    outline: 1px solid rgba(100, 150, 255, 0.5);
+    background: rgba(255, 200, 0, 0.15) !important;
+    outline: 1px solid rgba(255, 200, 0, 0.4);
   `}
   
   &:hover {
     ${({ isSelecting }) =>
       isSelecting &&
       `
-      outline: 1px solid rgba(100, 150, 255, 0.3);
+      outline: 1px solid rgba(255, 200, 0, 0.3);
     `}
   }
 `;
 
 const InlineNoteContainer = styled.div`
-  padding: 12px;
+  padding: 8px;
   background: #252526;
   border-top: 1px solid #3e3e42;
   border-bottom: 1px solid #3e3e42;
-  margin: 4px 0;
+  margin: 0;
 `;
 
 const NoteTextarea = styled.textarea`
@@ -300,13 +300,13 @@ const NoteButton = styled.button<{ primary?: boolean }>`
 `;
 
 const SelectionHint = styled.div`
-  padding: 8px 12px;
-  background: rgba(100, 150, 255, 0.1);
-  border: 1px solid rgba(100, 150, 255, 0.3);
+  padding: 6px 8px;
+  background: rgba(255, 200, 0, 0.1);
+  border: 1px solid rgba(255, 200, 0, 0.3);
   border-radius: 3px;
   color: #ccc;
   font-size: 11px;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -446,10 +446,13 @@ export const SelectableDiffRenderer: React.FC<SelectableDiffRendererProps> = ({
     setSelection(null);
   };
   
-  // Auto-focus textarea when selection is made
+  // Auto-focus textarea when selection is made or changed
   React.useEffect(() => {
-    if (selection && selection.startIndex === selection.endIndex && textareaRef.current) {
-      textareaRef.current.focus();
+    if (selection && textareaRef.current) {
+      // Small delay to ensure textarea is rendered
+      setTimeout(() => {
+        textareaRef.current?.focus();
+      }, 0);
     }
   }, [selection]);
   
@@ -470,7 +473,14 @@ export const SelectableDiffRenderer: React.FC<SelectableDiffRendererProps> = ({
                 : `Lines ${selection.startLineNum}-${selection.endLineNum} selected. Click another line to adjust or add note below.`}
             </span>
           </HintText>
-          <ClearButton onClick={handleClearSelection}>Clear</ClearButton>
+          <ClearButton 
+            onClick={(e) => {
+              e.stopPropagation();
+              handleClearSelection();
+            }}
+          >
+            Clear
+          </ClearButton>
         </SelectionHint>
       )}
       
@@ -483,7 +493,10 @@ export const SelectableDiffRenderer: React.FC<SelectableDiffRendererProps> = ({
               type={lineInfo.type}
               isSelected={isSelected}
               isSelecting={isSelectingMode}
-              onClick={() => handleLineClick(displayIndex)}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleLineClick(displayIndex);
+              }}
             >
               <DiffLine type={lineInfo.type}>
                 <DiffIndicator type={lineInfo.type}>{lines[lineInfo.index][0]}</DiffIndicator>
@@ -501,10 +514,14 @@ export const SelectableDiffRenderer: React.FC<SelectableDiffRendererProps> = ({
                 <InlineNoteContainer>
                   <NoteTextarea
                     ref={textareaRef}
-                    placeholder="Add a review note... (Enter to submit, Esc to cancel)"
+                    placeholder="Add a review note... (Cmd+Enter to submit, Esc to cancel)"
                     value={noteText}
                     onChange={(e) => setNoteText(e.target.value)}
+                    onClick={(e) => e.stopPropagation()}
                     onKeyDown={(e) => {
+                      // Stop propagation for all keys to prevent parent handlers
+                      e.stopPropagation();
+                      
                       if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
                         e.preventDefault();
                         handleSubmitNote();
@@ -515,10 +532,20 @@ export const SelectableDiffRenderer: React.FC<SelectableDiffRendererProps> = ({
                     }}
                   />
                   <NoteActions>
-                    <NoteButton onClick={handleCancelNote}>Cancel (Esc)</NoteButton>
+                    <NoteButton 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCancelNote();
+                      }}
+                    >
+                      Cancel (Esc)
+                    </NoteButton>
                     <NoteButton
                       primary
-                      onClick={handleSubmitNote}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSubmitNote();
+                      }}
                       disabled={!noteText.trim()}
                     >
                       Add to Chat (⌘↵)
