@@ -12,10 +12,15 @@ import { calculateTokenMeterData } from "@/utils/tokens/tokenMeterUtils";
 
 interface SidebarContainerProps {
   collapsed: boolean;
+  wide?: boolean;
 }
 
 const SidebarContainer = styled.div<SidebarContainerProps>`
-  width: ${(props) => (props.collapsed ? "20px" : "300px")};
+  width: ${(props) => {
+    if (props.collapsed) return "20px";
+    if (props.wide) return "600px";
+    return "300px";
+  }};
   background: #252526;
   border-left: 1px solid #3e3e42;
   display: flex;
@@ -75,10 +80,10 @@ const TabButton = styled.button<TabButtonProps>`
   }
 `;
 
-const TabContent = styled.div`
+const TabContent = styled.div<{ noPadding?: boolean }>`
   flex: 1;
   overflow-y: auto;
-  padding: 15px;
+  padding: ${(props) => (props.noPadding ? "0" : "15px")};
 `;
 
 type TabType = "costs" | "tools" | "review";
@@ -152,6 +157,7 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
   return (
     <SidebarContainer
       collapsed={showCollapsed}
+      wide={selectedTab === "review"}
       role="complementary"
       aria-label="Workspace insights"
     >
@@ -191,7 +197,7 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
             Review
           </TabButton>
         </TabBar>
-        <TabContent>
+        <TabContent noPadding={selectedTab === "review"}>
           {selectedTab === "costs" && (
             <div role="tabpanel" id={costsPanelId} aria-labelledby={costsTabId}>
               <CostsTab workspaceId={workspaceId} />
