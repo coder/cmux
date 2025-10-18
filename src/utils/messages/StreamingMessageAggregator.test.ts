@@ -1,6 +1,5 @@
 import { describe, it, expect } from "bun:test";
 import { StreamingMessageAggregator } from "./StreamingMessageAggregator";
-import type { DisplayedMessage } from "@/types/message";
 import type { StreamEndEvent } from "@/types/stream";
 import type { DynamicToolPart } from "@/types/toolParts";
 
