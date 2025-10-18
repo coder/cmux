@@ -768,6 +768,23 @@ function AppInner() {
       );
   }, [projects, setSelectedWorkspace, setWorkspaceMetadata]);
 
+  // Debug: Register window function to show loading workspace state
+  useEffect(() => {
+    (window as any).__showLoadingWorkspace = () => {
+      const current = selectedWorkspace;
+      handleWorkspaceSwitch(null);
+      setTimeout(() => {
+        if (current) {
+          handleWorkspaceSwitch(current);
+        }
+      }, 2000);
+    };
+
+    return () => {
+      delete (window as any).__showLoadingWorkspace;
+    };
+  }, [selectedWorkspace, handleWorkspaceSwitch]);
+
   return (
     <>
       <GlobalColors />
