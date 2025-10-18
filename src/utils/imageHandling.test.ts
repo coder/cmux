@@ -1,4 +1,4 @@
-import { describe, expect, test, beforeEach } from "@jest/globals";
+import { describe, expect, test } from "@jest/globals";
 import {
   generateImageId,
   fileToImageAttachment,
@@ -24,7 +24,7 @@ class MockFileReader {
   }
 }
 
-global.FileReader = MockFileReader as any;
+global.FileReader = MockFileReader as unknown as typeof FileReader;
 
 describe("imageHandling", () => {
   describe("generateImageId", () => {
@@ -87,7 +87,7 @@ describe("imageHandling", () => {
     });
 
     test("ignores non-image items", () => {
-      const mockItems = [
+      const mockItems: DataTransferItemList = [
         {
           type: "text/plain",
           getAsFile: () => new File(["text"], "test.txt", { type: "text/plain" }),
@@ -133,10 +133,10 @@ describe("imageHandling", () => {
       const mockFile3 = new File(["image 2"], "test2.jpg", { type: "image/jpeg" });
 
       const mockDataTransfer = {
-        files: [mockFile1, mockFile2, mockFile3] as unknown as FileList,
-      } as DataTransfer;
+        files: [mockFile1, mockFile2, mockFile3],
+      };
 
-      const files = extractImagesFromDrop(mockDataTransfer);
+      const files = extractImagesFromDrop(mockDataTransfer as DataTransfer);
 
       expect(files).toHaveLength(2);
       expect(files).toContain(mockFile1);
@@ -148,10 +148,10 @@ describe("imageHandling", () => {
       const mockFile = new File(["text"], "test.txt", { type: "text/plain" });
 
       const mockDataTransfer = {
-        files: [mockFile] as unknown as FileList,
-      } as DataTransfer;
+        files: [mockFile],
+      };
 
-      const files = extractImagesFromDrop(mockDataTransfer);
+      const files = extractImagesFromDrop(mockDataTransfer as DataTransfer);
 
       expect(files).toHaveLength(0);
     });

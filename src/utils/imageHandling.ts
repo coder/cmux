@@ -21,7 +21,7 @@ function getMimeTypeFromExtension(filename: string): string {
     bmp: "image/bmp",
     svg: "image/svg+xml",
   };
-  return mimeTypes[ext || ""] || "image/png";
+  return mimeTypes[ext ?? ""] ?? "image/png";
 }
 
 /**
@@ -43,7 +43,7 @@ export async function fileToImageAttachment(file: File): Promise<ImageAttachment
   });
 
   // Use file.type if available, otherwise infer from extension
-  const mediaType = file.type || getMimeTypeFromExtension(file.name);
+  const mediaType = file.type !== "" ? file.type : getMimeTypeFromExtension(file.name);
 
   return {
     id: generateImageId(),

@@ -4,7 +4,6 @@ import { CommandSuggestions, COMMAND_SUGGESTION_KEYS } from "./CommandSuggestion
 import type { Toast } from "./ChatInputToast";
 import { ChatInputToast } from "./ChatInputToast";
 import { createCommandToast, createErrorToast } from "./ChatInputToasts";
-import type { ParsedCommand } from "@/utils/slashCommands/types";
 import { parseCommand } from "@/utils/slashCommands/parser";
 import { usePersistedState, updatePersistedState } from "@/hooks/usePersistedState";
 import { useMode } from "@/contexts/ModeContext";
@@ -383,7 +382,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   }, [workspaceId, focusMessageInput]);
 
   // Handle paste events to extract images
-  const handlePaste = useCallback(async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+  const handlePaste = useCallback((e: React.ClipboardEvent<HTMLTextAreaElement>) => {
     const items = e.clipboardData?.items;
     if (!items) return;
 
@@ -392,8 +391,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
     e.preventDefault(); // Prevent default paste behavior for images
 
-    const attachments = await processImageFiles(imageFiles);
-    setImageAttachments((prev) => [...prev, ...attachments]);
+    void processImageFiles(imageFiles).then((attachments) => {
+      setImageAttachments((prev) => [...prev, ...attachments]);
+    });
   }, []);
 
   // Handle removing an image attachment
@@ -411,14 +411,15 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   }, []);
 
   // Handle drop to extract images
-  const handleDrop = useCallback(async (e: React.DragEvent<HTMLTextAreaElement>) => {
+  const handleDrop = useCallback((e: React.DragEvent<HTMLTextAreaElement>) => {
     e.preventDefault();
 
     const imageFiles = extractImagesFromDrop(e.dataTransfer);
     if (imageFiles.length === 0) return;
 
-    const attachments = await processImageFiles(imageFiles);
-    setImageAttachments((prev) => [...prev, ...attachments]);
+    void processImageFiles(imageFiles).then((attachments) => {
+      setImageAttachments((prev) => [...prev, ...attachments]);
+    });
   }, []);
 
   // Handle command selection
