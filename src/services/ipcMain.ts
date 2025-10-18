@@ -588,8 +588,8 @@ export class IpcMain {
       }
     );
 
-    ipcMain.handle(IPC_CHANNELS.WORKSPACE_INTERRUPT_STREAM, async (_event, workspaceId: string) => {
-      log.debug("interruptStream handler: Received", { workspaceId });
+    ipcMain.handle(IPC_CHANNELS.WORKSPACE_INTERRUPT_STREAM, async (_event, workspaceId: string, options?: { abandonPartial?: boolean }) => {
+      log.debug("interruptStream handler: Received", { workspaceId, options });
       try {
         const session = this.getOrCreateSession(workspaceId);
         const stopResult = await session.interruptStream();
@@ -597,6 +597,13 @@ export class IpcMain {
           log.error("Failed to stop stream:", stopResult.error);
           return { success: false, error: stopResult.error };
         }
+
+        // If abandonPartial is true, delete the partial instead of committing it
+        if (options?.abandonPartial) {
+          log.debug("Abandoning partial for workspace:", workspaceId);
+          await this.partialService.deletePartial(workspaceId);
+        }
+
         return { success: true, data: undefined };
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);

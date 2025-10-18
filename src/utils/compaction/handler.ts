@@ -88,17 +88,17 @@ export async function cancelCompaction(
     timestamp: Date.now(),
   }));
 
-  // Interrupt stream - triggers StreamAbortEvent → handleCompactionAbort
-  // handleCompactionAbort will check localStorage and verify messageId matches
-  await window.api.workspace.interruptStream(workspaceId);
+  // Interrupt stream with abandonPartial flag
+  // This tells backend to DELETE the partial instead of committing it
+  // Result: history ends with the compaction-request user message
+  await window.api.workspace.interruptStream(workspaceId, { abandonPartial: true });
 
-  // Calculate truncation: keep everything before compaction request
-  // After interrupt: [...history, compactionRequest, partialSummary]
+  // Truncate history to remove compaction-request message
+  // After interrupt with abandonPartial: [...history, compactionRequest]
   // We want: [...history]
-  const totalMessages = messages.length + 1; // +1 for partial summary committed by interrupt
-  const percentageToKeep = compactionRequestIndex / totalMessages;
+  const percentageToKeep = compactionRequestIndex / messages.length;
 
-  // Truncate history to remove compaction artifacts
+  // Truncate to remove compaction request
   await window.api.workspace.truncateHistory(workspaceId, percentageToKeep);
 
   // Restore command to input so user can edit and retry
