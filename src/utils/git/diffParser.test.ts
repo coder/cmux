@@ -241,5 +241,137 @@ describe("git diff parser (real repository)", () => {
     // All hunks should have valid IDs
     expect(allHunks.every((h) => h.id && h.id.length > 0)).toBe(true);
   });
+
+  it("should handle pure file rename (no content changes)", () => {
+    // Reset
+    execSync("git reset --hard HEAD", { cwd: testRepoPath });
+
+    // Rename a file with git mv (preserves history)
+    execSync("git mv file1.txt file1-renamed.txt", { cwd: testRepoPath });
+
+    // Use -M flag to detect renames (though pure renames are detected by default)
+    const diff = execSync("git diff --cached -M", { cwd: testRepoPath, encoding: "utf-8" });
+    const fileDiffs = parseDiff(diff);
+
+    // A pure rename should be detected
+    expect(fileDiffs.length).toBe(1);
+    expect(fileDiffs[0].filePath).toBe("file1-renamed.txt");
+    expect(fileDiffs[0].oldPath).toBe("file1.txt");
+    expect(fileDiffs[0].changeType).toBe("renamed");
+    
+    const allHunks = extractAllHunks(fileDiffs);
+    
+    // Pure renames with no content changes should have NO hunks
+    // because git shows "similarity index 100%" with no diff content
+    expect(allHunks.length).toBe(0);
+  });
+
+  it("should handle file rename with content changes", () => {
+    // Reset
+    execSync("git reset --hard HEAD", { cwd: testRepoPath });
+
+    // Create a larger file so a small change maintains high similarity
+    writeFileSync(
+      join(testRepoPath, "large-file.js"),
+      `// Header comment
+function hello() {
+  console.log("Hello");
+}
+
+function goodbye() {
+  console.log("Goodbye");
+}
+
+function greet(name) {
+  console.log(\`Hello \${name}\`);
+}
+
+// Footer comment
+`
+    );
+    execSync("git add . && git commit -m 'Add large file'", { cwd: testRepoPath });
+
+    // Rename and make a small modification (maintains >50% similarity)
+    execSync("git mv large-file.js renamed-file.js", { cwd: testRepoPath });
+    writeFileSync(
+      join(testRepoPath, "renamed-file.js"),
+      `// Header comment
+function hello() {
+  console.log("Hello World"); // MODIFIED
+}
+
+function goodbye() {
+  console.log("Goodbye");
+}
+
+function greet(name) {
+  console.log(\`Hello \${name}\`);
+}
+
+// Footer comment
+`
+    );
+    execSync("git add renamed-file.js", { cwd: testRepoPath });
+
+    // Use -M flag to detect renames
+    const diff = execSync("git diff --cached -M", { cwd: testRepoPath, encoding: "utf-8" });
+    const fileDiffs = parseDiff(diff);
+
+    expect(fileDiffs.length).toBe(1);
+    expect(fileDiffs[0].filePath).toBe("renamed-file.js");
+    expect(fileDiffs[0].oldPath).toBe("large-file.js");
+    expect(fileDiffs[0].changeType).toBe("renamed");
+    
+    const allHunks = extractAllHunks(fileDiffs);
+    expect(allHunks.length).toBeGreaterThan(0);
+    
+    // Hunks should show the content changes
+    expect(allHunks[0].changeType).toBe("renamed");
+    expect(allHunks[0].oldPath).toBe("large-file.js");
+    expect(allHunks[0].content.includes("World")).toBe(true);
+  });
+
+  it("should handle renamed directory with files", () => {
+    // Reset and setup
+    execSync("git reset --hard HEAD", { cwd: testRepoPath });
+    
+    // Create a directory structure
+    execSync("mkdir -p old-dir", { cwd: testRepoPath });
+    writeFileSync(join(testRepoPath, "old-dir", "nested1.txt"), "Nested file 1\n");
+    writeFileSync(join(testRepoPath, "old-dir", "nested2.txt"), "Nested file 2\n");
+    execSync("git add . && git commit -m 'Add nested files'", { cwd: testRepoPath });
+
+    // Rename the directory
+    execSync("git mv old-dir new-dir", { cwd: testRepoPath });
+
+    // Use -M flag to detect renames
+    const diff = execSync("git diff --cached -M", { cwd: testRepoPath, encoding: "utf-8" });
+    const fileDiffs = parseDiff(diff);
+
+    // Should detect renames for all files in the directory
+    expect(fileDiffs.length).toBeGreaterThanOrEqual(2);
+    
+    const nested1 = fileDiffs.find((f) => f.filePath === "new-dir/nested1.txt");
+    const nested2 = fileDiffs.find((f) => f.filePath === "new-dir/nested2.txt");
+    
+    expect(nested1).toBeDefined();
+    expect(nested2).toBeDefined();
+    
+    if (nested1) {
+      expect(nested1.changeType).toBe("renamed");
+      expect(nested1.oldPath).toBe("old-dir/nested1.txt");
+    }
+    
+    if (nested2) {
+      expect(nested2.changeType).toBe("renamed");
+      expect(nested2.oldPath).toBe("old-dir/nested2.txt");
+    }
+
+    const allHunks = extractAllHunks(fileDiffs);
+    
+    // Pure directory renames should have NO hunks (files are identical)
+    expect(allHunks.length).toBe(0);
+  });
+
 });
 

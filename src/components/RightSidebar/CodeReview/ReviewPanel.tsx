@@ -301,11 +301,11 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
         let numstatCommand: string;
         
         if (filters.diffBase === "--staged") {
-          numstatCommand = "git diff --staged --numstat";
+          numstatCommand = "git diff --staged -M --numstat";
         } else if (filters.diffBase === "HEAD") {
-          numstatCommand = "git diff HEAD --numstat";
+          numstatCommand = "git diff HEAD -M --numstat";
         } else {
-          numstatCommand = `git diff ${filters.diffBase}...HEAD --numstat`;
+          numstatCommand = `git diff ${filters.diffBase}...HEAD -M --numstat`;
         }
 
         const numstatResult = await window.api.workspace.executeBash(
@@ -353,12 +353,12 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
         const pathFilter = selectedFilePath ? ` -- "${extractNewPath(selectedFilePath)}"` : "";
         
         if (filters.diffBase === "--staged") {
-          diffCommand = `git diff --staged${pathFilter}`;
+          diffCommand = `git diff --staged -M${pathFilter}`;
         } else if (filters.diffBase === "HEAD") {
-          diffCommand = `git diff HEAD${pathFilter}`;
+          diffCommand = `git diff HEAD -M${pathFilter}`;
         } else {
           // Use three-dot syntax to show changes since common ancestor
-          diffCommand = `git diff ${filters.diffBase}...HEAD${pathFilter}`;
+          diffCommand = `git diff ${filters.diffBase}...HEAD -M${pathFilter}`;
         }
 
         // Fetch diff
