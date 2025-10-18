@@ -62,6 +62,64 @@ const FilterRow = styled.div`
   flex-wrap: wrap;
 `;
 
+const DiffBaseRow = styled.div`
+  display: flex;
+  gap: 8px;
+  align-items: center;
+`;
+
+const DiffBaseLabel = styled.label`
+  font-size: 11px;
+  color: #888;
+  font-weight: 500;
+`;
+
+const DiffBaseSelect = styled.select`
+  padding: 6px 10px;
+  background: #1e1e1e;
+  color: #ccc;
+  border: 1px solid #444;
+  border-radius: 4px;
+  font-size: 11px;
+  font-family: var(--font-monospace);
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    border-color: #007acc;
+  }
+
+  &:focus {
+    outline: none;
+    border-color: #007acc;
+  }
+`;
+
+const CustomBaseInput = styled.input`
+  padding: 6px 10px;
+  background: #1e1e1e;
+  color: #ccc;
+  border: 1px solid #444;
+  border-radius: 4px;
+  font-size: 11px;
+  font-family: var(--font-monospace);
+  width: 150px;
+  transition: all 0.2s ease;
+
+  &:hover {
+    border-color: #007acc;
+  }
+
+  &:focus {
+    outline: none;
+    border-color: #007acc;
+  }
+
+  &::placeholder {
+    color: #666;
+  }
+`;
+
 const ToggleButton = styled.button<{ active: boolean }>`
   padding: 6px 12px;
   background: ${(props) => (props.active ? "#007acc" : "#333")};
@@ -110,6 +168,9 @@ const StatusFilterButton = styled.button<{ active: boolean }>`
 `;
 
 export const ReviewFilters: React.FC<ReviewFiltersProps> = ({ filters, stats, onFiltersChange }) => {
+  const [customBase, setCustomBase] = React.useState("");
+  const [isCustom, setIsCustom] = React.useState(false);
+
   const handleShowReviewedToggle = () => {
     onFiltersChange({
       ...filters,
@@ -124,8 +185,68 @@ export const ReviewFilters: React.FC<ReviewFiltersProps> = ({ filters, stats, on
     });
   };
 
+  const handleDiffBaseChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const value = e.target.value;
+    if (value === "custom") {
+      setIsCustom(true);
+    } else {
+      setIsCustom(false);
+      onFiltersChange({
+        ...filters,
+        diffBase: value,
+      });
+    }
+  };
+
+  const handleCustomBaseChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setCustomBase(e.target.value);
+  };
+
+  const handleCustomBaseBlur = () => {
+    if (customBase.trim()) {
+      onFiltersChange({
+        ...filters,
+        diffBase: customBase.trim(),
+      });
+    }
+  };
+
+  const handleCustomBaseKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && customBase.trim()) {
+      onFiltersChange({
+        ...filters,
+        diffBase: customBase.trim(),
+      });
+    }
+  };
+
   return (
     <FiltersContainer>
+      <DiffBaseRow>
+        <DiffBaseLabel>Diff against:</DiffBaseLabel>
+        <DiffBaseSelect
+          value={isCustom ? "custom" : filters.diffBase}
+          onChange={handleDiffBaseChange}
+        >
+          <option value="HEAD">HEAD (uncommitted)</option>
+          <option value="--staged">Staged changes</option>
+          <option value="main">main branch</option>
+          <option value="origin/main">origin/main</option>
+          <option value="custom">Custom ref...</option>
+        </DiffBaseSelect>
+        {isCustom && (
+          <CustomBaseInput
+            type="text"
+            placeholder="e.g., origin/develop"
+            value={customBase}
+            onChange={handleCustomBaseChange}
+            onBlur={handleCustomBaseBlur}
+            onKeyDown={handleCustomBaseKeyDown}
+            autoFocus
+          />
+        )}
+      </DiffBaseRow>
+
       <StatsRow>
         <StatBadge variant="unreviewed">
           {stats.unreviewed} unreviewed

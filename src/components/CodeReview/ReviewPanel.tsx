@@ -96,6 +96,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
   const [filters, setFilters] = useState<ReviewFiltersType>({
     showReviewed: false,
     statusFilter: "unreviewed",
+    diffBase: "HEAD",
   });
 
   const {
@@ -114,8 +115,14 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
     const loadDiff = async () => {
       setIsLoading(true);
       try {
+        // Build git diff command based on selected base
+        const diffCommand =
+          filters.diffBase === "--staged"
+            ? "git diff --staged"
+            : `git diff ${filters.diffBase}`;
+
         // Use executeBash to run git diff in the workspace
-        const result = await window.api.workspace.executeBash(workspaceId, "git diff HEAD");
+        const result = await window.api.workspace.executeBash(workspaceId, diffCommand);
 
         if (cancelled) return;
 
@@ -146,7 +153,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
     return () => {
       cancelled = true;
     };
-  }, [workspaceId, workspacePath, selectedHunkId]);
+  }, [workspaceId, workspacePath, selectedHunkId, filters.diffBase]);
 
   // Calculate stats
   const stats = useMemo(() => calculateStats(hunks), [hunks, calculateStats]);

@@ -76,6 +76,8 @@ export interface ReviewFilters {
   statusFilter: "all" | "accepted" | "rejected" | "unreviewed";
   /** File path filter (regex or glob pattern) */
   filePathFilter?: string;
+  /** Base reference to diff against (e.g., "HEAD", "main", "origin/main") */
+  diffBase: string;
 }
 
 /**
