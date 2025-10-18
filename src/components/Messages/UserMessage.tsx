@@ -5,6 +5,7 @@ import type { ButtonConfig } from "./MessageWindow";
 import { MessageWindow } from "./MessageWindow";
 import { TerminalOutput } from "./TerminalOutput";
 import { formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
+import type { KebabMenuItem } from "@/components/KebabMenu";
 
 const FormattedContent = styled.pre`
   margin: 0;
@@ -94,11 +95,21 @@ export const UserMessage: React.FC<UserMessageProps> = ({
     }
   };
 
+  // Keep only Copy button visible
   const buttons: ButtonConfig[] = [
+    {
+      label: copied ? "✓ Copied" : "Copy Text",
+      onClick: () => void handleCopy(),
+    },
+  ];
+
+  // Move Edit to kebab menu
+  const kebabMenuItems: KebabMenuItem[] = [
     ...(onEdit && !isLocalCommandOutput
       ? [
           {
             label: "Edit",
+            emoji: "✏️",
             onClick: handleEdit,
             disabled: isCompacting,
             tooltip: isCompacting
@@ -107,10 +118,6 @@ export const UserMessage: React.FC<UserMessageProps> = ({
           },
         ]
       : []),
-    {
-      label: copied ? "✓ Copied" : "Copy Text",
-      onClick: () => void handleCopy(),
-    },
   ];
 
   // If it's a local command output, render with TerminalOutput
@@ -121,6 +128,7 @@ export const UserMessage: React.FC<UserMessageProps> = ({
         borderColor="var(--color-user-border)"
         message={message}
         buttons={buttons}
+        kebabMenuItems={kebabMenuItems}
         className={className}
       >
         <TerminalOutput output={extractedOutput} isError={false} />
@@ -135,6 +143,7 @@ export const UserMessage: React.FC<UserMessageProps> = ({
       borderColor="var(--color-user-border)"
       message={message}
       buttons={buttons}
+      kebabMenuItems={kebabMenuItems}
       className={className}
     >
       {content && <FormattedContent>{content}</FormattedContent>}
