@@ -90,6 +90,11 @@ CODE_CHANGES.md
 README_COMPACT_HERE.md
 artifacts/
 tests/e2e/tmp/
+
+# Test temporary directories
+src/test-temp-*/
+tests/**/test-temp-*/
+
 runs/
 
 # Python
