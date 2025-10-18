@@ -22,6 +22,7 @@ interface UseAIViewKeybindsParams {
   jumpToBottom: () => void;
   handleOpenTerminal: () => void;
   aggregator: StreamingMessageAggregator; // For compaction detection
+  setEditingMessage: (editing: { id: string; content: string } | undefined) => void;
 }
 
 /**
@@ -46,6 +47,7 @@ export function useAIViewKeybinds({
   jumpToBottom,
   handleOpenTerminal,
   aggregator,
+  setEditingMessage,
 }: UseAIViewKeybindsParams): void {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -58,7 +60,7 @@ export function useAIViewKeybinds({
           // Ctrl+C during compaction: restore original state and enter edit mode
           // Stores cancellation marker in localStorage (persists across reloads)
           void cancelCompaction(workspaceId, aggregator, (messageId, command) => {
-            chatInputAPI.current?.startEditing(messageId, command);
+            setEditingMessage({ id: messageId, content: command });
           });
           setAutoRetry(false);
           return;
@@ -158,5 +160,6 @@ export function useAIViewKeybinds({
     setThinkingLevel,
     chatInputAPI,
     aggregator,
+    setEditingMessage,
   ]);
 }
