@@ -12,21 +12,21 @@ const Container = styled.div`
   max-height: 300px;
   overflow-y: auto;
   overflow-x: hidden;
-  
+
   /* Subtle indicator that content is scrollable */
   &::-webkit-scrollbar {
     width: 8px;
   }
-  
+
   &::-webkit-scrollbar-track {
     background: rgba(0, 0, 0, 0.1);
     border-radius: 4px;
   }
-  
+
   &::-webkit-scrollbar-thumb {
     background: rgba(var(--color-plan-mode-rgb), 0.3);
     border-radius: 4px;
-    
+
     &:hover {
       background: rgba(var(--color-plan-mode-rgb), 0.5);
     }
@@ -42,9 +42,7 @@ interface CompactingMessageContentProps {
   children: React.ReactNode;
 }
 
-export const CompactingMessageContent: React.FC<CompactingMessageContentProps> = ({
-  children,
-}) => {
+export const CompactingMessageContent: React.FC<CompactingMessageContentProps> = ({ children }) => {
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom as content streams in

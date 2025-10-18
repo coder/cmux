@@ -125,12 +125,12 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({
     // Streaming text gets typewriter effect
     if (isStreaming) {
       const contentElement = <TypewriterMarkdown deltas={[content]} isComplete={false} />;
-      
+
       // Wrap streaming compaction in special container
       if (isStreamingCompaction) {
         return <CompactingMessageContent>{contentElement}</CompactingMessageContent>;
       }
-      
+
       return contentElement;
     }
 
