@@ -12,19 +12,19 @@ interface RefreshButtonProps {
   isLoading?: boolean;
 }
 
-const Button = styled.button<{ $isLoading?: boolean }>`
+const Button = styled.button<{ $animationState: "idle" | "spinning" | "stopping" }>`
   background: transparent;
   border: none;
   padding: 2px;
-  cursor: ${(props) => (props.$isLoading ? "default" : "pointer")};
+  cursor: ${(props) => (props.$animationState !== "idle" ? "default" : "pointer")};
   display: flex;
   align-items: center;
   justify-content: center;
-  color: ${(props) => (props.$isLoading ? "#007acc" : "#888")};
+  color: ${(props) => (props.$animationState !== "idle" ? "#007acc" : "#888")};
   transition: color 1.5s ease-out;
 
   &:hover {
-    color: ${(props) => (props.$isLoading ? "#007acc" : "#ccc")};
+    color: ${(props) => (props.$animationState !== "idle" ? "#007acc" : "#ccc")};
   }
 
   svg {
@@ -96,13 +96,15 @@ export const RefreshButton: React.FC<RefreshButtonProps> = ({ onClick, isLoading
 
   return (
     <TooltipWrapper inline>
-      <Button onClick={onClick} $isLoading={isLoading} className={className}>
+      <Button onClick={onClick} $animationState={animationState} className={className}>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" />
         </svg>
       </Button>
       <Tooltip position="bottom" align="left">
-        {isLoading ? "Refreshing..." : `Refresh diff (${formatKeybind(KEYBINDS.REFRESH_REVIEW)})`}
+        {animationState !== "idle"
+          ? "Refreshing..."
+          : `Refresh diff (${formatKeybind(KEYBINDS.REFRESH_REVIEW)})`}
       </Tooltip>
     </TooltipWrapper>
   );
