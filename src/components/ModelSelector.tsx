@@ -24,6 +24,10 @@ const ModelDisplay = styled.div<{ clickable?: boolean }>`
   padding: 2px 4px;
   border-radius: 2px;
   transition: background 0.2s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 150px;
 
   &:hover {
     background: ${(props) => (props.clickable ? "#2a2a2b" : "transparent")};

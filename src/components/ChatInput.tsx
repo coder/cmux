@@ -46,6 +46,7 @@ const InputSection = styled.div`
   display: flex;
   flex-direction: column;
   gap: 8px;
+  container-type: inline-size; /* Enable container queries for responsive behavior */
 `;
 
 const InputControls = styled.div`
@@ -72,6 +73,12 @@ const ModeToggleWrapper = styled.div`
   align-items: center;
   gap: 6px;
   margin-left: auto;
+
+  /* Hide mode toggle on narrow containers */
+  /* Note: Text area border changes color with mode, so this omission is acceptable */
+  @container (max-width: 700px) {
+    display: none;
+  }
 `;
 
 const StyledToggleContainer = styled.div<{ mode: UIMode }>`
@@ -121,11 +128,19 @@ const ModelDisplayWrapper = styled.div`
   gap: 4px;
   margin-right: 12px;
   height: 11px;
+
+  /* Hide help indicators on narrow containers */
+  @container (max-width: 700px) {
+    .help-indicator-wrapper {
+      display: none;
+    }
+  }
 `;
 
 export interface ChatInputAPI {
   focus: () => void;
   restoreText: (text: string) => void;
+  appendText: (text: string) => void;
 }
 
 export interface ChatInputProps {
@@ -258,15 +273,26 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     [focusMessageInput]
   );
 
+  // Method to append text to input (used by Code Review notes)
+  const appendText = useCallback((text: string) => {
+    setInput((prev) => {
+      // Add blank line before if there's existing content
+      const separator = prev.trim() ? "\n\n" : "";
+      return prev + separator + text;
+    });
+    // Don't focus - user wants to keep reviewing
+  }, []);
+
   // Provide API to parent via callback
   useEffect(() => {
     if (onReady) {
       onReady({
         focus: focusMessageInput,
         restoreText,
+        appendText,
       });
     }
-  }, [onReady, focusMessageInput, restoreText]);
+  }, [onReady, focusMessageInput, restoreText, appendText]);
 
   useEffect(() => {
     const handleGlobalKeyDown = (event: KeyboardEvent) => {
@@ -871,25 +897,27 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                 recentModels={recentModels}
                 onComplete={() => inputRef.current?.focus()}
               />
-              <TooltipWrapper inline>
-                <HelpIndicator>?</HelpIndicator>
-                <Tooltip className="tooltip" align="left" width="wide">
-                  <strong>Click to edit</strong> or use{" "}
-                  {formatKeybind(KEYBINDS.OPEN_MODEL_SELECTOR)}
-                  <br />
-                  <br />
-                  <strong>Abbreviations:</strong>
-                  <br />• <code>/model opus</code> - Claude Opus 4.1
-                  <br />• <code>/model sonnet</code> - Claude Sonnet 4.5
-                  <br />
-                  <br />
-                  <strong>Full format:</strong>
-                  <br />
-                  <code>/model provider:model-name</code>
-                  <br />
-                  (e.g., <code>/model anthropic:claude-sonnet-4-5</code>)
-                </Tooltip>
-              </TooltipWrapper>
+              <span className="help-indicator-wrapper">
+                <TooltipWrapper inline>
+                  <HelpIndicator>?</HelpIndicator>
+                  <Tooltip className="tooltip" align="left" width="wide">
+                    <strong>Click to edit</strong> or use{" "}
+                    {formatKeybind(KEYBINDS.OPEN_MODEL_SELECTOR)}
+                    <br />
+                    <br />
+                    <strong>Abbreviations:</strong>
+                    <br />• <code>/model opus</code> - Claude Opus 4.1
+                    <br />• <code>/model sonnet</code> - Claude Sonnet 4.5
+                    <br />
+                    <br />
+                    <strong>Full format:</strong>
+                    <br />
+                    <code>/model provider:model-name</code>
+                    <br />
+                    (e.g., <code>/model anthropic:claude-sonnet-4-5</code>)
+                  </Tooltip>
+                </TooltipWrapper>
+              </span>
             </ModelDisplayWrapper>
           </ChatToggles>
           <ModeToggleWrapper>
@@ -903,18 +931,20 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                 onChange={setMode}
               />
             </StyledToggleContainer>
-            <TooltipWrapper inline>
-              <HelpIndicator>?</HelpIndicator>
-              <Tooltip className="tooltip" align="center" width="wide">
-                <strong>Exec Mode:</strong> AI edits files and execute commands
-                <br />
-                <br />
-                <strong>Plan Mode:</strong> AI proposes plans but does not edit files
-                <br />
-                <br />
-                Toggle with: {formatKeybind(KEYBINDS.TOGGLE_MODE)}
-              </Tooltip>
-            </TooltipWrapper>
+            <span className="help-indicator-wrapper">
+              <TooltipWrapper inline>
+                <HelpIndicator>?</HelpIndicator>
+                <Tooltip className="tooltip" align="center" width="wide">
+                  <strong>Exec Mode:</strong> AI edits files and execute commands
+                  <br />
+                  <br />
+                  <strong>Plan Mode:</strong> AI proposes plans but does not edit files
+                  <br />
+                  <br />
+                  Toggle with: {formatKeybind(KEYBINDS.TOGGLE_MODE)}
+                </Tooltip>
+              </TooltipWrapper>
+            </span>
           </ModeToggleWrapper>
         </ModeTogglesRow>
       </ModeToggles>

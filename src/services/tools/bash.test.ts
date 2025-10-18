@@ -166,32 +166,31 @@ describe("bash tool", () => {
     });
 
     const args: BashToolArgs = {
-      script: "for i in {1..400}; do echo line$i; done", // Exceeds 300 line hard cap
+      script: "for i in {1..11000}; do echo line$i; done", // Exceeds 10K line hard cap for truncate policy
       timeout_secs: 5,
     };
 
     const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
 
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      // Should contain truncation notice
-      expect(result.error).toContain("[OUTPUT TRUNCATED");
-      expect(result.error).toContain("Showing first 80 of");
-      expect(result.error).toContain("lines:");
-
-      // Should contain first 80 lines
-      expect(result.error).toContain("line1");
-      expect(result.error).toContain("line80");
-
-      // Should NOT contain line 81 or beyond
-      expect(result.error).not.toContain("line81");
-      expect(result.error).not.toContain("line100");
-
-      // Should NOT create temp file
-      const files = fs.readdirSync(tempDir.path);
-      const bashFiles = files.filter((f) => f.startsWith("bash-"));
-      expect(bashFiles.length).toBe(0);
+    // With truncate policy and overflow, should succeed with truncated field
+    expect(result.success).toBe(true);
+    expect(result.truncated).toBeDefined();
+    if (result.truncated) {
+      expect(result.truncated.reason).toContain("exceeded");
+      // Should collect all lines up to when truncation was triggered
+      expect(result.truncated.totalLines).toBeGreaterThan(10000);
     }
+
+    // Should contain collected lines
+    expect(result.output).toContain("line1");
+    expect(result.output).toContain("line10000");
+    // Might or might not contain line 11000 depending on when truncation triggers
+    expect(result.output).toContain("line11000");
+
+    // Should NOT create temp file with truncate policy
+    const files = fs.readdirSync(tempDir.path);
+    const bashFiles = files.filter((f) => f.startsWith("bash-"));
+    expect(bashFiles.length).toBe(0);
 
     tempDir[Symbol.dispose]();
   });

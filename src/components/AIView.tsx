@@ -7,7 +7,8 @@ import { RetryBarrier } from "./Messages/ChatBarrier/RetryBarrier";
 import { PinnedTodoList } from "./PinnedTodoList";
 import { getAutoRetryKey } from "@/constants/storage";
 import { ChatInput, type ChatInputAPI } from "./ChatInput";
-import { ChatMetaSidebar } from "./ChatMetaSidebar";
+import { RightSidebar, type TabType } from "./RightSidebar";
+import { useResizableSidebar } from "@/hooks/useResizableSidebar";
 import {
   shouldShowInterruptedBarrier,
   mergeConsecutiveStreamErrors,
@@ -44,7 +45,7 @@ const ViewContainer = styled.div`
 
 const ChatArea = styled.div`
   flex: 1;
-  min-width: 750px;
+  min-width: 400px; /* Reduced from 750px to allow narrower layout when Review panel is wide */
   display: flex;
   flex-direction: column;
 `;
@@ -64,6 +65,8 @@ const WorkspaceTitle = styled.div`
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0; /* Allow flex children to shrink */
+  overflow: hidden;
 `;
 
 const WorkspacePath = styled.span`
@@ -71,6 +74,17 @@ const WorkspacePath = styled.span`
   color: #888;
   font-weight: 400;
   font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+`;
+
+const WorkspaceName = styled.span`
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 `;
 
 const TerminalIconButton = styled.button`
@@ -197,12 +211,33 @@ const AIViewInner: React.FC<AIViewProps> = ({
 }) => {
   const chatAreaRef = useRef<HTMLDivElement>(null);
 
-  // NEW: Get workspace state from store (only re-renders when THIS workspace changes)
+  // Track active tab to conditionally enable resize functionality
+  // RightSidebar notifies us of tab changes via onTabChange callback
+  const [activeTab, setActiveTab] = useState<TabType>("costs");
+  const isReviewTabActive = activeTab === "review";
+
+  // Resizable sidebar for Review tab only
+  // Hook encapsulates all drag logic, persistence, and constraints
+  // Returns width to apply to RightSidebar and startResize for handle's onMouseDown
+  const {
+    width: sidebarWidth,
+    isResizing,
+    startResize,
+  } = useResizableSidebar({
+    enabled: isReviewTabActive, // Only active on Review tab
+    defaultWidth: 600, // Initial width or fallback
+    minWidth: 300, // Can't shrink smaller
+    maxWidth: 1200, // Can't grow larger
+    storageKey: "review-sidebar-width", // Persists across sessions
+  });
+
+  // Get workspace state from store (only re-renders when THIS workspace changes)
   const workspaceState = useWorkspaceState(workspaceId);
   const aggregator = useWorkspaceAggregator(workspaceId);
 
   // Get git status for this workspace
   const gitStatus = useGitStatus(workspaceId);
+
   const [editingMessage, setEditingMessage] = useState<{ id: string; content: string } | undefined>(
     undefined
   );
@@ -237,6 +272,11 @@ const AIViewInner: React.FC<AIViewProps> = ({
   const chatInputAPI = useRef<ChatInputAPI | null>(null);
   const handleChatInputReady = useCallback((api: ChatInputAPI) => {
     chatInputAPI.current = api;
+  }, []);
+
+  // Handler for review notes from Code Review tab
+  const handleReviewNote = useCallback((note: string) => {
+    chatInputAPI.current?.appendText(note);
   }, []);
 
   // Thinking level state from context
@@ -431,7 +471,9 @@ const AIViewInner: React.FC<AIViewProps> = ({
               workspaceId={workspaceId}
               tooltipPosition="bottom"
             />
-            {projectName} / {branch}
+            <WorkspaceName>
+              {projectName} / {branch}
+            </WorkspaceName>
             <WorkspacePath>{namedWorkspacePath}</WorkspacePath>
             <TooltipWrapper inline>
               <TerminalIconButton onClick={handleOpenTerminal}>
@@ -555,7 +597,17 @@ const AIViewInner: React.FC<AIViewProps> = ({
         />
       </ChatArea>
 
-      <ChatMetaSidebar key={workspaceId} workspaceId={workspaceId} chatAreaRef={chatAreaRef} />
+      <RightSidebar
+        key={workspaceId}
+        workspaceId={workspaceId}
+        workspacePath={namedWorkspacePath}
+        chatAreaRef={chatAreaRef}
+        onTabChange={setActiveTab} // Notifies us when tab changes
+        width={isReviewTabActive ? sidebarWidth : undefined} // Custom width only on Review tab
+        onStartResize={isReviewTabActive ? startResize : undefined} // Pass resize handler when Review active
+        isResizing={isResizing} // Pass resizing state
+        onReviewNote={handleReviewNote} // Pass review note handler to append to chat
+      />
     </ViewContainer>
   );
 };

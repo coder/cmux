@@ -27,6 +27,6 @@ test("review scenario", async ({ ui }) => {
   await ui.chat.expectStatusMessageContains("Chat history truncated");
 
   await ui.metaSidebar.expectVisible();
-  await ui.metaSidebar.selectTab("Tools");
+  await ui.metaSidebar.selectTab("Review");
   await ui.metaSidebar.selectTab("Costs");
 });

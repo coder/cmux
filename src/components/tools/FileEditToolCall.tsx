@@ -22,6 +22,7 @@ import {
 } from "./shared/ToolPrimitives";
 import { useToolExpansion, getStatusDisplay, type ToolStatus } from "./shared/toolUtils";
 import { TooltipWrapper, Tooltip } from "../Tooltip";
+import { DiffContainer, DiffRenderer, SelectableDiffRenderer } from "../shared/DiffRenderer";
 
 // File edit specific styled components
 
@@ -32,116 +33,6 @@ const FilePath = styled.span`
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 400px;
-`;
-
-const DiffContainer = styled.div`
-  margin: 0;
-  padding: 6px 8px;
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 3px;
-  font-size: 11px;
-  line-height: 1.4;
-  max-height: 400px;
-  overflow-y: auto;
-`;
-
-// Shared type for diff line types
-type DiffLineType = "add" | "remove" | "context" | "header";
-
-// Helper function for computing contrast color for add/remove indicators
-const getContrastColor = (type: DiffLineType) => {
-  return type === "add" || type === "remove"
-    ? "color-mix(in srgb, var(--color-text-secondary), white 50%)"
-    : "var(--color-text-secondary)";
-};
-
-const DiffLine = styled.div<{ type: DiffLineType }>`
-  font-family: var(--font-monospace);
-  white-space: pre;
-  display: flex;
-  padding: ${({ type }) => (type === "header" ? "4px 0" : "0")};
-  color: ${({ type }) => {
-    switch (type) {
-      case "add":
-        return "#4caf50";
-      case "remove":
-        return "#f44336";
-      case "header":
-        return "#2196f3";
-      case "context":
-      default:
-        return "var(--color-text)";
-    }
-  }};
-  background: ${({ type }) => {
-    switch (type) {
-      case "add":
-        return "rgba(46, 160, 67, 0.15)";
-      case "remove":
-        return "rgba(248, 81, 73, 0.15)";
-      default:
-        return "transparent";
-    }
-  }};
-`;
-
-const LineNumber = styled.span<{ type: DiffLineType }>`
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  min-width: 35px;
-  padding-right: 4px;
-  font-size: ${({ type }) => (type === "header" ? "14px" : "inherit")};
-  font-weight: ${({ type }) => (type === "header" ? "bold" : "normal")};
-  color: ${({ type }) => getContrastColor(type)};
-  opacity: ${({ type }) => (type === "add" || type === "remove" ? 0.9 : 0.6)};
-  user-select: none;
-  flex-shrink: 0;
-  background: ${({ type }) => {
-    switch (type) {
-      case "add":
-        return "rgba(46, 160, 67, 0.3)";
-      case "remove":
-        return "rgba(248, 81, 73, 0.3)";
-      default:
-        return "transparent";
-    }
-  }};
-`;
-
-const LineContent = styled.span<{ type: DiffLineType }>`
-  flex: 1;
-  padding-left: 8px;
-  color: ${({ type }) => {
-    switch (type) {
-      case "header":
-        return "#2196f3";
-      case "context":
-        return "var(--color-text-secondary)";
-      case "add":
-      case "remove":
-        return "var(--color-text)";
-    }
-  }};
-`;
-
-const DiffIndicator = styled.span<{ type: DiffLineType }>`
-  display: inline-block;
-  width: 4px;
-  text-align: center;
-  color: ${({ type }) => getContrastColor(type)};
-  opacity: ${({ type }) => (type === "add" || type === "remove" ? 0.9 : 0.6)};
-  flex-shrink: 0;
-  background: ${({ type }) => {
-    switch (type) {
-      case "add":
-        return "rgba(46, 160, 67, 0.3)";
-      case "remove":
-        return "rgba(248, 81, 73, 0.3)";
-      default:
-        return "transparent";
-    }
-  }};
 `;
 
 const ErrorMessage = styled.div`
@@ -194,66 +85,44 @@ interface FileEditToolCallProps {
   args: FileEditOperationArgs;
   result?: FileEditToolResult;
   status?: ToolStatus;
+  onReviewNote?: (note: string) => void;
 }
 
-function renderDiff(diff: string): React.ReactNode {
+function renderDiff(
+  diff: string,
+  filePath?: string,
+  onReviewNote?: (note: string) => void
+): React.ReactNode {
   try {
     const patches = parsePatch(diff);
     if (patches.length === 0) {
-      return (
-        <DiffLine type="context">
-          <LineContent type="context">No changes</LineContent>
-        </DiffLine>
-      );
+      return <div style={{ padding: "8px", color: "#888" }}>No changes</div>;
     }
 
+    // Render each hunk using SelectableDiffRenderer if we have a callback, otherwise DiffRenderer
     return patches.map((patch, patchIdx) => (
       <React.Fragment key={patchIdx}>
-        {patch.hunks.map((hunk, hunkIdx) => {
-          let oldLineNum = hunk.oldStart;
-          let newLineNum = hunk.newStart;
-
-          return (
-            <React.Fragment key={hunkIdx}>
-              <DiffLine type="header">
-                <DiffIndicator type="header">{/* Empty for alignment */}</DiffIndicator>
-                <LineNumber type="header">{hunkIdx > 0 ? "⋮" : ""}</LineNumber>
-                <LineContent type="header">
-                  @@ -{hunk.oldStart},{hunk.oldLines} +{hunk.newStart},{hunk.newLines} @@
-                </LineContent>
-              </DiffLine>
-              {hunk.lines.map((line, lineIdx) => {
-                const firstChar = line[0];
-                const content = line.slice(1); // Remove the +/- prefix
-                let type: DiffLineType = "context";
-                let lineNumDisplay = "";
-
-                if (firstChar === "+") {
-                  type = "add";
-                  lineNumDisplay = `${newLineNum}`;
-                  newLineNum++;
-                } else if (firstChar === "-") {
-                  type = "remove";
-                  lineNumDisplay = `${oldLineNum}`;
-                  oldLineNum++;
-                } else {
-                  // Context line
-                  lineNumDisplay = `${oldLineNum}`;
-                  oldLineNum++;
-                  newLineNum++;
-                }
-
-                return (
-                  <DiffLine key={lineIdx} type={type}>
-                    <DiffIndicator type={type}>{firstChar}</DiffIndicator>
-                    <LineNumber type={type}>{lineNumDisplay}</LineNumber>
-                    <LineContent type={type}>{content}</LineContent>
-                  </DiffLine>
-                );
-              })}
-            </React.Fragment>
-          );
-        })}
+        {patch.hunks.map((hunk, hunkIdx) => (
+          <React.Fragment key={hunkIdx}>
+            {onReviewNote && filePath ? (
+              <SelectableDiffRenderer
+                content={hunk.lines.join("\n")}
+                showLineNumbers={true}
+                oldStart={hunk.oldStart}
+                newStart={hunk.newStart}
+                filePath={filePath}
+                onReviewNote={onReviewNote}
+              />
+            ) : (
+              <DiffRenderer
+                content={hunk.lines.join("\n")}
+                showLineNumbers={true}
+                oldStart={hunk.oldStart}
+                newStart={hunk.newStart}
+              />
+            )}
+          </React.Fragment>
+        ))}
       </React.Fragment>
     ));
   } catch (error) {
@@ -266,6 +135,7 @@ export const FileEditToolCall: React.FC<FileEditToolCallProps> = ({
   args,
   result,
   status = "pending",
+  onReviewNote,
 }) => {
   const { expanded, toggleExpanded } = useToolExpansion(true);
   const [showRaw, setShowRaw] = React.useState(false);
@@ -340,7 +210,7 @@ export const FileEditToolCall: React.FC<FileEditToolCallProps> = ({
                       {result.diff}
                     </pre>
                   ) : (
-                    renderDiff(result.diff)
+                    renderDiff(result.diff, filePath, onReviewNote)
                   )}
                 </DiffContainer>
               )}

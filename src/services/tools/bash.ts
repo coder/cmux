@@ -10,6 +10,8 @@ import {
   BASH_MAX_LINE_BYTES,
   BASH_MAX_TOTAL_BYTES,
   BASH_MAX_FILE_BYTES,
+  BASH_TRUNCATE_HARD_MAX_LINES,
+  BASH_TRUNCATE_MAX_TOTAL_BYTES,
 } from "@/constants/toolLimits";
 
 import type { BashToolResult } from "@/types/tools";
@@ -59,6 +61,15 @@ class DisposableProcess implements Disposable {
  * @param config Required configuration including working directory
  */
 export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
+  // Select limits based on overflow policy
+  // truncate = IPC calls (generous limits for UI features)
+  // tmpfile = AI agent calls (conservative limits for LLM context)
+  const overflowPolicy = config.overflow_policy ?? "tmpfile";
+  const maxTotalBytes =
+    overflowPolicy === "truncate" ? BASH_TRUNCATE_MAX_TOTAL_BYTES : BASH_MAX_TOTAL_BYTES;
+  const maxLines =
+    overflowPolicy === "truncate" ? BASH_TRUNCATE_HARD_MAX_LINES : BASH_HARD_MAX_LINES;
+
   return tool({
     description: TOOL_DEFINITIONS.bash.description + "\nRuns in " + config.cwd + " - no cd needed",
     inputSchema: TOOL_DEFINITIONS.bash.schema,
@@ -91,7 +102,6 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
       const effectiveTimeout = timeout_secs ?? BASH_DEFAULT_TIMEOUT_SECS;
 
       const startTime = performance.now();
-      const effectiveMaxLines = BASH_HARD_MAX_LINES;
       let totalBytesAccumulated = 0;
       let overflowReason: string | null = null;
 
@@ -247,16 +257,16 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
 
             // Check display limits (soft stop - keep collecting for file)
             if (!displayTruncated) {
-              if (totalBytesAccumulated > BASH_MAX_TOTAL_BYTES) {
+              if (totalBytesAccumulated > maxTotalBytes) {
                 triggerDisplayTruncation(
-                  `Total output exceeded display limit: ${totalBytesAccumulated} bytes > ${BASH_MAX_TOTAL_BYTES} bytes (at line ${lines.length})`
+                  `Total output exceeded display limit: ${totalBytesAccumulated} bytes > ${maxTotalBytes} bytes (at line ${lines.length})`
                 );
                 return;
               }
 
-              if (lines.length >= effectiveMaxLines) {
+              if (lines.length >= maxLines) {
                 triggerDisplayTruncation(
-                  `Line count exceeded display limit: ${lines.length} lines >= ${effectiveMaxLines} lines (${totalBytesAccumulated} bytes read)`
+                  `Line count exceeded display limit: ${lines.length} lines >= ${maxLines} lines (${totalBytesAccumulated} bytes read)`
                 );
               }
             }
@@ -289,16 +299,16 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
 
             // Check display limits (soft stop - keep collecting for file)
             if (!displayTruncated) {
-              if (totalBytesAccumulated > BASH_MAX_TOTAL_BYTES) {
+              if (totalBytesAccumulated > maxTotalBytes) {
                 triggerDisplayTruncation(
-                  `Total output exceeded display limit: ${totalBytesAccumulated} bytes > ${BASH_MAX_TOTAL_BYTES} bytes (at line ${lines.length})`
+                  `Total output exceeded display limit: ${totalBytesAccumulated} bytes > ${maxTotalBytes} bytes (at line ${lines.length})`
                 );
                 return;
               }
 
-              if (lines.length >= effectiveMaxLines) {
+              if (lines.length >= maxLines) {
                 triggerDisplayTruncation(
-                  `Line count exceeded display limit: ${lines.length} lines >= ${effectiveMaxLines} lines (${totalBytesAccumulated} bytes read)`
+                  `Line count exceeded display limit: ${lines.length} lines >= ${maxLines} lines (${totalBytesAccumulated} bytes read)`
                 );
               }
             }
@@ -389,18 +399,36 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
             const overflowPolicy = config.overflow_policy ?? "tmpfile";
 
             if (overflowPolicy === "truncate") {
-              // Return truncated output with first 80 lines
-              const maxTruncateLines = 80;
-              const truncatedLines = lines.slice(0, maxTruncateLines);
-              const truncatedOutput = truncatedLines.join("\n");
-              const errorMessage = `[OUTPUT TRUNCATED - ${overflowReason ?? "unknown reason"}]\n\nShowing first ${maxTruncateLines} of ${lines.length} lines:\n\n${truncatedOutput}`;
+              // Return ALL collected lines (up to the limit that triggered truncation)
+              // With 1MB/10K line limits, this can be thousands of lines for UI to parse
+              const output = lines.join("\n");
 
-              resolveOnce({
-                success: false,
-                error: errorMessage,
-                exitCode: -1,
-                wall_duration_ms,
-              });
+              if (exitCode === 0 || exitCode === null) {
+                // Success but truncated
+                resolveOnce({
+                  success: true,
+                  output,
+                  exitCode: 0,
+                  wall_duration_ms,
+                  truncated: {
+                    reason: overflowReason ?? "unknown reason",
+                    totalLines: lines.length,
+                  },
+                });
+              } else {
+                // Failed and truncated
+                resolveOnce({
+                  success: false,
+                  output,
+                  exitCode,
+                  error: `Command exited with code ${exitCode}`,
+                  wall_duration_ms,
+                  truncated: {
+                    reason: overflowReason ?? "unknown reason",
+                    totalLines: lines.length,
+                  },
+                });
+              }
             } else {
               // tmpfile policy: Save overflow output to temp file instead of returning an error
               // We don't show ANY of the actual output to avoid overwhelming context.
