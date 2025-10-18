@@ -16,15 +16,25 @@ interface SidebarContainerProps {
 }
 
 interface SidebarContainerStyleProps extends SidebarContainerProps {
+  /** Custom width from drag-resize (takes precedence over collapsed/wide) */
   customWidth?: number;
 }
 
+/**
+ * SidebarContainer - Main sidebar wrapper with dynamic width
+ *
+ * Width priority (first match wins):
+ * 1. collapsed (20px) - Shows vertical token meter only
+ * 2. customWidth - From drag-resize on Review tab
+ * 3. wide - Auto-calculated max width for Review tab (when not resizing)
+ * 4. default (300px) - Costs/Tools tabs
+ */
 const SidebarContainer = styled.div<SidebarContainerStyleProps>`
   width: ${(props) => {
     if (props.collapsed) return "20px";
-    if (props.customWidth) return `${props.customWidth}px`;
-    if (props.wide) return "min(1200px, calc(100vw - 400px))";
-    return "300px";
+    if (props.customWidth) return `${props.customWidth}px`; // Drag-resized width
+    if (props.wide) return "min(1200px, calc(100vw - 400px))"; // Auto-width for Review
+    return "300px"; // Default for Costs/Tools
   }};
   background: #252526;
   border-left: 1px solid #3e3e42;
@@ -99,8 +109,10 @@ interface RightSidebarProps {
   workspaceId: string;
   workspacePath: string;
   chatAreaRef: React.RefObject<HTMLDivElement>;
+  /** Callback fired when tab selection changes (used for resize logic in AIView) */
   onTabChange?: (tab: TabType) => void;
-  width?: number; // Custom width for resizable mode (Review tab)
+  /** Custom width in pixels (overrides default widths when Review tab is resizable) */
+  width?: number;
 }
 
 const RightSidebarComponent: React.FC<RightSidebarProps> = ({
@@ -115,7 +127,7 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
     "costs"
   );
 
-  // Notify parent of tab changes
+  // Notify parent (AIView) of tab changes so it can enable/disable resize functionality
   React.useEffect(() => {
     onTabChange?.(selectedTab);
   }, [selectedTab, onTabChange]);
@@ -182,8 +194,8 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
   return (
     <SidebarContainer
       collapsed={showCollapsed}
-      wide={selectedTab === "review" && !width}
-      customWidth={width}
+      wide={selectedTab === "review" && !width} // Auto-wide only if not drag-resizing
+      customWidth={width} // Drag-resized width from AIView (Review tab only)
       role="complementary"
       aria-label="Workspace insights"
     >

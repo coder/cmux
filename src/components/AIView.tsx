@@ -45,11 +45,16 @@ const ViewContainer = styled.div`
 
 const ChatArea = styled.div`
   flex: 1;
-  min-width: 400px;
+  min-width: 400px; /* Reduced from 750px to allow narrower layout when Review panel is wide */
   display: flex;
   flex-direction: column;
 `;
 
+/**
+ * ResizeHandle - Draggable border between ChatArea and RightSidebar
+ * Only visible when Review tab is active (controlled by visible prop)
+ * Sits between components in flex layout without wrapping either
+ */
 const ResizeHandle = styled.div<{ visible: boolean }>`
   width: 4px;
   background: ${(props) => (props.visible ? "#3e3e42" : "transparent")};
@@ -216,20 +221,23 @@ const AIViewInner: React.FC<AIViewProps> = ({
 }) => {
   const chatAreaRef = useRef<HTMLDivElement>(null);
 
-  // Track active tab for resize functionality
+  // Track active tab to conditionally enable resize functionality
+  // RightSidebar notifies us of tab changes via onTabChange callback
   const [activeTab, setActiveTab] = useState<TabType>("costs");
   const isReviewTabActive = activeTab === "review";
 
   // Resizable sidebar for Review tab only
+  // Hook encapsulates all drag logic, persistence, and constraints
+  // Returns width to apply to RightSidebar and startResize for handle's onMouseDown
   const { width: sidebarWidth, isResizing, startResize } = useResizableSidebar({
-    enabled: isReviewTabActive,
-    defaultWidth: 600,
-    minWidth: 300,
-    maxWidth: 1200,
-    storageKey: "review-sidebar-width",
+    enabled: isReviewTabActive, // Only active on Review tab
+    defaultWidth: 600, // Initial width or fallback
+    minWidth: 300, // Can't shrink smaller
+    maxWidth: 1200, // Can't grow larger
+    storageKey: "review-sidebar-width", // Persists across sessions
   });
 
-  // NEW: Get workspace state from store (only re-renders when THIS workspace changes)
+  // Get workspace state from store (only re-renders when THIS workspace changes)
   const workspaceState = useWorkspaceState(workspaceId);
   const aggregator = useWorkspaceAggregator(workspaceId);
 
@@ -587,6 +595,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
         />
       </ChatArea>
 
+      {/* Resize handle - only visible/active on Review tab */}
       <ResizeHandle
         visible={isReviewTabActive}
         onMouseDown={startResize}
@@ -598,8 +607,8 @@ const AIViewInner: React.FC<AIViewProps> = ({
         workspaceId={workspaceId}
         workspacePath={namedWorkspacePath}
         chatAreaRef={chatAreaRef}
-        onTabChange={setActiveTab}
-        width={isReviewTabActive ? sidebarWidth : undefined}
+        onTabChange={setActiveTab} // Notifies us when tab changes
+        width={isReviewTabActive ? sidebarWidth : undefined} // Custom width only on Review tab
       />
     </ViewContainer>
   );
