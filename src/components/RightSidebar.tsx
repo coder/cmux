@@ -146,13 +146,22 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
   );
 
   React.useEffect(() => {
+    // Never collapse when Review tab is active - code review needs space
+    if (selectedTab === "review") {
+      if (showCollapsed) {
+        setShowCollapsed(false);
+      }
+      return;
+    }
+
+    // Normal hysteresis for Costs/Tools tabs
     if (chatAreaWidth <= COLLAPSE_THRESHOLD) {
       setShowCollapsed(true);
     } else if (chatAreaWidth >= EXPAND_THRESHOLD) {
       setShowCollapsed(false);
     }
     // Between thresholds: maintain current state (no change)
-  }, [chatAreaWidth, setShowCollapsed]);
+  }, [chatAreaWidth, selectedTab, showCollapsed, setShowCollapsed]);
 
   return (
     <SidebarContainer
