@@ -39,6 +39,25 @@ export function parseNumstat(numstatOutput: string): FileStats[] {
 }
 
 /**
+ * Extract the new file path from rename syntax
+ * Examples:
+ *   "src/foo.ts" -> "src/foo.ts"
+ *   "src/{old.ts => new.ts}" -> "src/new.ts"
+ *   "{old.ts => new.ts}" -> "new.ts"
+ */
+export function extractNewPath(filePath: string): string {
+  // Match rename syntax: {old => new}
+  const renameMatch = filePath.match(/^(.*)?\{[^}]+ => ([^}]+)\}(.*)$/);
+  if (renameMatch) {
+    const [, prefix = "", newName, suffix = ""] = renameMatch;
+    return `${prefix}${newName}${suffix}`;
+  }
+  return filePath;
+}
+
+
+
+/**
  * Build a tree structure from flat file paths
  */
 export interface FileTreeNode {

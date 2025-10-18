@@ -12,7 +12,7 @@ import { FileTree } from "./FileTree";
 import { useReviewState } from "@/hooks/useReviewState";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { parseDiff, extractAllHunks } from "@/utils/git/diffParser";
-import { parseNumstat, buildFileTree } from "@/utils/git/numstatParser";
+import { parseNumstat, buildFileTree, extractNewPath } from "@/utils/git/numstatParser";
 import type { DiffHunk, ReviewFilters as ReviewFiltersType } from "@/types/review";
 import type { FileTreeNode } from "@/utils/git/numstatParser";
 
@@ -100,11 +100,10 @@ const EmptyState = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  height: 100%;
+  justify-content: flex-start; /* Changed from center to start */
+  padding: 48px 24px 24px 24px; /* More padding on top */
   color: #888;
   text-align: center;
-  padding: 24px;
   gap: 12px;
 `;
 
@@ -357,7 +356,8 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
         let diffCommand: string;
         
         // Add path filter if a file/folder is selected
-        const pathFilter = selectedFilePath ? ` -- "${selectedFilePath}"` : "";
+        // Extract new path from rename syntax (e.g., "{old => new}" -> "new")
+        const pathFilter = selectedFilePath ? ` -- "${extractNewPath(selectedFilePath)}"` : "";
         
         if (filters.diffBase === "--staged") {
           diffCommand = `git diff --staged${pathFilter}`;
