@@ -116,10 +116,18 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
       setIsLoading(true);
       try {
         // Build git diff command based on selected base
-        const diffCommand =
-          filters.diffBase === "--staged"
-            ? "git diff --staged"
-            : `git diff ${filters.diffBase}`;
+        let diffCommand: string;
+        if (filters.diffBase === "--staged") {
+          // Show only staged changes
+          diffCommand = "git diff --staged";
+        } else if (filters.diffBase === "HEAD") {
+          // Show uncommitted changes (working directory vs HEAD)
+          diffCommand = "git diff HEAD";
+        } else {
+          // Compare current branch to another ref (e.g., main, origin/main)
+          // Use three-dot syntax to show changes since common ancestor
+          diffCommand = `git diff ${filters.diffBase}...HEAD`;
+        }
 
         // Use executeBash to run git diff in the workspace
         const result = await window.api.workspace.executeBash(workspaceId, diffCommand);
