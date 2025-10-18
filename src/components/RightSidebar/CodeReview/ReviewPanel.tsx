@@ -18,6 +18,7 @@ import {
 } from "@/utils/git/numstatParser";
 import type { DiffHunk, ReviewFilters as ReviewFiltersType } from "@/types/review";
 import type { FileTreeNode } from "@/utils/git/numstatParser";
+import { matchesKeybind, KEYBINDS } from "@/utils/ui/keybinds";
 
 interface ReviewPanelProps {
   workspaceId: string;
@@ -499,6 +500,19 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isPanelFocused, selectedHunkId, filteredHunks]);
 
+  // Global keyboard shortcut for refresh (Ctrl+R / Cmd+R)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (matchesKeybind(e, KEYBINDS.REFRESH_REVIEW)) {
+        e.preventDefault();
+        setRefreshTrigger((prev) => prev + 1);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
   return (
     <PanelContainer
       tabIndex={0}
@@ -511,6 +525,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
         stats={stats}
         onFiltersChange={setFilters}
         onRefresh={() => setRefreshTrigger((prev) => prev + 1)}
+        isLoading={isLoadingHunks || isLoadingTree}
       />
 
       {error ? (
