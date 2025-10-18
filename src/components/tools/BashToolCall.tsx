@@ -14,7 +14,7 @@ import {
   LoadingDots,
 } from "./shared/ToolPrimitives";
 import { useToolExpansion, getStatusDisplay, type ToolStatus } from "./shared/toolUtils";
-import { TooltipWrapper, Tooltip } from "../Tooltip";
+import { ToolIcon } from "./shared/ToolIcon";
 
 // Bash-specific styled components
 
@@ -123,10 +123,7 @@ export const BashToolCall: React.FC<BashToolCallProps> = ({
     <ToolContainer expanded={expanded}>
       <ToolHeader onClick={toggleExpanded}>
         <ExpandIcon expanded={expanded}>▶</ExpandIcon>
-        <TooltipWrapper inline>
-          <span>🔧</span>
-          <Tooltip>bash</Tooltip>
-        </TooltipWrapper>
+        <ToolIcon emoji="🔧" toolName="bash" />
         <ScriptPreview>{args.script}</ScriptPreview>
         <TimeoutInfo status={isPending ? status : undefined}>
           timeout: {args.timeout_secs ?? BASH_DEFAULT_TIMEOUT_SECS}s
