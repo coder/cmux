@@ -61,7 +61,7 @@ const api: IPCApi = {
       ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_SEND_MESSAGE, workspaceId, message, options),
     resumeStream: (workspaceId, options) =>
       ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_RESUME_STREAM, workspaceId, options),
-    interruptStream: (workspaceId, options?) =>
+    interruptStream: (workspaceId: string, options?: { abandonPartial?: boolean }) =>
       ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_INTERRUPT_STREAM, workspaceId, options),
     truncateHistory: (workspaceId, percentage) =>
       ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_TRUNCATE_HISTORY, workspaceId, percentage),
