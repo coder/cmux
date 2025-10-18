@@ -40,24 +40,25 @@ export function getCompactionCommand(aggregator: StreamingMessageAggregator): st
 /**
  * Cancel compaction (Ctrl+C flow)
  * 
- * Aborts the compaction stream and restores command to input:
+ * Aborts the compaction stream and puts user in edit mode for compaction-request:
  * - Interrupts stream with abandonPartial flag (deletes partial, doesn't commit)
  * - Skips compaction (via localStorage marker checked by handleCompactionAbort)
+ * - Enters edit mode on compaction-request message
  * - Restores original /compact command to input for re-editing
- * - Leaves compaction-request message in history (harmless user message)
+ * - Leaves compaction-request message in history (can edit or delete it)
  * 
  * Flow:
  * 1. Store cancellation marker in localStorage with compactionRequestId for verification
  * 2. Interrupt stream with {abandonPartial: true} - backend deletes partial
  * 3. handleCompactionAbort checks localStorage, verifies compactionRequestId, skips compaction
- * 4. Restore command to input
+ * 4. Enter edit mode on compaction-request message with original command
  * 
  * Reload-safe: localStorage persists across reloads, compactionRequestId ensures freshness
  */
 export async function cancelCompaction(
   workspaceId: string,
   aggregator: StreamingMessageAggregator,
-  restoreCommandToInput: (command: string) => void
+  startEditingMessage: (messageId: string, initialText: string) => void
 ): Promise<boolean> {
   // Extract command before modifying history
   const command = getCompactionCommand(aggregator);
@@ -93,9 +94,9 @@ export async function cancelCompaction(
   // Result: history ends with the compaction-request user message (which is fine - just a user message)
   await window.api.workspace.interruptStream(workspaceId, { abandonPartial: true });
 
-  // Restore command to input so user can edit and retry
-  // Note: We leave the compaction-request message in history - user can delete it manually if desired
-  restoreCommandToInput(command);
+  // Enter edit mode on the compaction-request message with original command
+  // This lets user immediately edit the message or delete it
+  startEditingMessage(compactionRequestMsg.id, command);
 
   return true;
 }

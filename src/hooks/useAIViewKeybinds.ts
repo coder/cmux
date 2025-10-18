@@ -55,10 +55,10 @@ export function useAIViewKeybinds({
         e.preventDefault();
         
         if (canInterrupt && isCompactingStream(aggregator)) {
-          // Ctrl+C during compaction: restore original state
+          // Ctrl+C during compaction: restore original state and enter edit mode
           // Stores cancellation marker in localStorage (persists across reloads)
-          void cancelCompaction(workspaceId, aggregator, (command) => {
-            chatInputAPI.current?.restoreText(command);
+          void cancelCompaction(workspaceId, aggregator, (messageId, command) => {
+            chatInputAPI.current?.startEditing(messageId, command);
           });
           setAutoRetry(false);
           return;
