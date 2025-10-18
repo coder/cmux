@@ -1,4 +1,4 @@
-import type { CmuxMessage, CmuxMetadata, DisplayedMessage } from "@/types/message";
+import type { CmuxMessage, CmuxMetadata, CmuxImagePart, DisplayedMessage } from "@/types/message";
 import { createCmuxMessage } from "@/types/message";
 import type {
   StreamStartEvent,
@@ -528,10 +528,14 @@ export class StreamingMessageAggregator {
             .join("");
 
           const imageParts = message.parts
-            .filter((p) => p.type === "image")
+            .filter((p): p is CmuxImagePart => {
+              // Accept both new "file" type and legacy "image" type (from before PR #308)
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
+              return p.type === "file" || (p as any).type === "image";
+            })
             .map((p) => ({
-              image: typeof p.image === "string" ? p.image : "",
-              mimeType: p.mimeType,
+              url: typeof p.url === "string" ? p.url : "",
+              mediaType: p.mediaType,
             }));
 
           // Check if this is a compaction request message

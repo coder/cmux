@@ -71,11 +71,13 @@ export interface CmuxReasoningPart {
   timestamp?: number;
 }
 
-// Image part type for multimodal messages
+// File/Image part type for multimodal messages (matches AI SDK FileUIPart)
+// Images are represented as files with image/* mediaType
 export interface CmuxImagePart {
-  type: "image";
-  image: string | Uint8Array | ArrayBuffer | URL; // base64 string or binary data or URL
-  mimeType?: string; // e.g., "image/png", "image/jpeg"
+  type: "file";
+  mediaType: string; // IANA media type, e.g., "image/png", "image/jpeg"
+  url: string; // Data URL (e.g., "data:image/png;base64,...") or hosted URL
+  filename?: string; // Optional filename
 }
 
 // CmuxMessage extends UIMessage with our metadata and custom parts
@@ -92,7 +94,7 @@ export type DisplayedMessage =
       id: string; // Display ID for UI/React keys
       historyId: string; // Original CmuxMessage ID for history operations
       content: string;
-      imageParts?: Array<{ image: string; mimeType?: string }>; // Optional image attachments
+      imageParts?: Array<{ url: string; mediaType?: string }>; // Optional image attachments
       historySequence: number; // Global ordering across all messages
       timestamp?: number;
       compactionRequest?: {

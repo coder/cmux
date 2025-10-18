@@ -32,7 +32,7 @@ export async function sendMessage(
   mockIpcRenderer: IpcRenderer,
   workspaceId: string,
   message: string,
-  options?: SendMessageOptions
+  options?: SendMessageOptions & { imageParts?: Array<{ url: string; mediaType: string }> }
 ): Promise<Result<void, SendMessageError>> {
   return (await mockIpcRenderer.invoke(
     IPC_CHANNELS.WORKSPACE_SEND_MESSAGE,
@@ -298,6 +298,47 @@ export async function waitForFileExists(filePath: string, timeoutMs = 5000): Pro
     }
   }, timeoutMs);
 }
+
+/**
+ * Wait for stream to complete successfully
+ * Common pattern: create collector, wait for end, assert success
+ */
+export async function waitForStreamSuccess(
+  sentEvents: Array<{ channel: string; data: unknown }>,
+  workspaceId: string,
+  timeoutMs = 30000
+): Promise<EventCollector> {
+  const collector = createEventCollector(sentEvents, workspaceId);
+  await collector.waitForEvent("stream-end", timeoutMs);
+  assertStreamSuccess(collector);
+  return collector;
+}
+
+/**
+ * Read and parse chat history from disk
+ */
+export async function readChatHistory(
+  tempDir: string,
+  workspaceId: string
+): Promise<Array<{ role: string; parts: Array<{ type: string; [key: string]: unknown }> }>> {
+  const fsPromises = await import("fs/promises");
+  const historyPath = path.join(tempDir, "sessions", workspaceId, "chat.jsonl");
+  const historyContent = await fsPromises.readFile(historyPath, "utf-8");
+  return historyContent
+    .trim()
+    .split("\n")
+    .map((line: string) => JSON.parse(line));
+}
+
+/**
+ * Test image fixtures (1x1 pixel PNGs)
+ */
+export const TEST_IMAGES = {
+  RED_PIXEL:
+    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==",
+  BLUE_PIXEL:
+    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M/wHwAEBgIApD5fRAAAAABJRU5ErkJggg==",
+} as const;
 
 /**
  * Wait for a file to NOT exist with retry logic
