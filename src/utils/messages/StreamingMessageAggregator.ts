@@ -256,6 +256,7 @@ export class StreamingMessageAggregator {
     message.parts.push({
       type: "text",
       text: data.delta,
+      timestamp: data.timestamp,
     });
 
     // Track delta for token counting and TPS calculation
@@ -315,7 +316,7 @@ export class StreamingMessageAggregator {
         role: "assistant",
         metadata: {
           ...data.metadata,
-          timestamp: Date.now(),
+          timestamp: data.metadata.timestamp ?? Date.now(),
         },
         parts: data.parts,
       };
@@ -452,6 +453,7 @@ export class StreamingMessageAggregator {
     message.parts.push({
       type: "reasoning",
       text: data.delta,
+      timestamp: data.timestamp,
     });
 
     // Track delta for token counting and TPS calculation
@@ -575,16 +577,18 @@ export class StreamingMessageAggregator {
 
             // Try to merge with last part if same type
             if (lastMerged?.type === "text" && part.type === "text") {
-              // Merge text parts
+              // Merge text parts, preserving the first timestamp
               mergedParts[mergedParts.length - 1] = {
                 type: "text",
                 text: lastMerged.text + part.text,
+                timestamp: lastMerged.timestamp ?? part.timestamp,
               };
             } else if (lastMerged?.type === "reasoning" && part.type === "reasoning") {
-              // Merge reasoning parts
+              // Merge reasoning parts, preserving the first timestamp
               mergedParts[mergedParts.length - 1] = {
                 type: "reasoning",
                 text: lastMerged.text + part.text,
+                timestamp: lastMerged.timestamp ?? part.timestamp,
               };
             } else {
               // Different type or tool part - add new part
@@ -624,7 +628,7 @@ export class StreamingMessageAggregator {
                 isStreaming,
                 isPartial: message.metadata?.partial ?? false,
                 isLastPartOfMessage: isLastPart,
-                timestamp: baseTimestamp,
+                timestamp: part.timestamp ?? baseTimestamp,
               });
             } else if (part.type === "text" && part.text) {
               // Skip empty text parts
@@ -640,7 +644,7 @@ export class StreamingMessageAggregator {
                 isLastPartOfMessage: isLastPart,
                 isCompacted: message.metadata?.compacted ?? false,
                 model: message.metadata?.model,
-                timestamp: baseTimestamp,
+                timestamp: part.timestamp ?? baseTimestamp,
               });
             } else if (isDynamicToolPart(part)) {
               const status =
