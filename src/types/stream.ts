@@ -40,6 +40,8 @@ export interface StreamEndEvent {
     providerMetadata?: Record<string, unknown>;
     duration?: number;
     systemMessageTokens?: number;
+    historySequence?: number; // Present when loading from history
+    timestamp?: number; // Present when loading from history
   };
   // Parts array preserves temporal ordering of reasoning, text, and tool calls
   parts: CompletedMessagePart[];
