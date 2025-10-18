@@ -29,7 +29,7 @@ const Label = styled.label`
   white-space: nowrap;
 `;
 
-const Select = styled.select`
+const BaseInput = styled.input`
   padding: 4px 8px;
   background: #1e1e1e;
   color: #ccc;
@@ -37,28 +37,7 @@ const Select = styled.select`
   border-radius: 3px;
   font-size: 11px;
   font-family: var(--font-monospace);
-  cursor: pointer;
-  transition: border-color 0.2s ease;
-
-  &:hover {
-    border-color: #007acc;
-  }
-
-  &:focus {
-    outline: none;
-    border-color: #007acc;
-  }
-`;
-
-const CustomInput = styled.input`
-  padding: 4px 8px;
-  background: #1e1e1e;
-  color: #ccc;
-  border: 1px solid #444;
-  border-radius: 3px;
-  font-size: 11px;
-  font-family: var(--font-monospace);
-  width: 120px;
+  width: 140px;
   transition: border-color 0.2s ease;
 
   &:hover {
@@ -160,47 +139,16 @@ export const ReviewControls: React.FC<ReviewControlsProps> = ({
   stats,
   onFiltersChange,
 }) => {
-  const [customBase, setCustomBase] = useState("");
-  const [isCustom, setIsCustom] = useState(false);
-
-  // Predefined base options
-  const predefinedBases = ["HEAD", "--staged", "main", "origin/main"];
-  
-  // Check if current diffBase is a custom value
-  const isCurrentlyCustom = !predefinedBases.includes(filters.diffBase);
-  
-  // Display value for the select: show "custom" if it's a custom base
-  const selectValue = isCustom ? "custom" : isCurrentlyCustom ? "custom" : filters.diffBase;
-
-  const handleDiffBaseChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const value = e.target.value;
-    if (value === "custom") {
-      setIsCustom(true);
-      setCustomBase(isCurrentlyCustom ? filters.diffBase : "");
-    } else {
-      setIsCustom(false);
+  const handleBaseChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.trim();
+    if (value) {
       onFiltersChange({ ...filters, diffBase: value });
     }
   };
 
-  const handleCustomBaseChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setCustomBase(e.target.value);
-  };
-
-  const handleCustomBaseBlur = () => {
-    if (customBase.trim()) {
-      onFiltersChange({ ...filters, diffBase: customBase.trim() });
-      setIsCustom(false);
-    }
-  };
-
-  const handleCustomBaseKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" && customBase.trim()) {
-      onFiltersChange({ ...filters, diffBase: customBase.trim() });
-      setIsCustom(false);
-    } else if (e.key === "Escape") {
-      setIsCustom(false);
-      setCustomBase("");
+  const handleBaseKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.currentTarget.blur(); // Trigger blur to commit value
     }
   };
 
@@ -211,24 +159,24 @@ export const ReviewControls: React.FC<ReviewControlsProps> = ({
   return (
     <ControlsContainer>
       <Label>Base:</Label>
-      <Select value={selectValue} onChange={handleDiffBaseChange}>
-        <option value="HEAD">HEAD</option>
-        <option value="--staged">Staged</option>
-        <option value="main">main</option>
-        <option value="origin/main">origin/main</option>
-        <option value="custom">{isCurrentlyCustom ? `Custom: ${filters.diffBase}` : "Custom..."}</option>
-      </Select>
-      {isCustom && (
-        <CustomInput
-          type="text"
-          placeholder="e.g., origin/develop"
-          value={customBase}
-          onChange={handleCustomBaseChange}
-          onBlur={handleCustomBaseBlur}
-          onKeyDown={handleCustomBaseKeyDown}
-          autoFocus
-        />
-      )}
+      <BaseInput
+        type="text"
+        list="base-suggestions"
+        value={filters.diffBase}
+        onChange={handleBaseChange}
+        onKeyDown={handleBaseKeyDown}
+        placeholder="HEAD, main, etc."
+      />
+      <datalist id="base-suggestions">
+        <option value="HEAD" />
+        <option value="--staged" />
+        <option value="main" />
+        <option value="origin/main" />
+        <option value="HEAD~1" />
+        <option value="HEAD~2" />
+        <option value="develop" />
+        <option value="origin/develop" />
+      </datalist>
 
       <Separator />
 
