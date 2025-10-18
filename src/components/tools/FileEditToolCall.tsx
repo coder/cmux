@@ -25,6 +25,7 @@ import { TooltipWrapper, Tooltip } from "../Tooltip";
 import {
   DiffContainer,
   DiffLine,
+  DiffLineWrapper,
   LineNumber,
   LineContent,
   DiffIndicator,
@@ -99,9 +100,11 @@ function renderDiff(diff: string): React.ReactNode {
     const patches = parsePatch(diff);
     if (patches.length === 0) {
       return (
-        <DiffLine type="context">
-          <LineContent type="context">No changes</LineContent>
-        </DiffLine>
+        <DiffLineWrapper type="context">
+          <DiffLine type="context">
+            <LineContent type="context">No changes</LineContent>
+          </DiffLine>
+        </DiffLineWrapper>
       );
     }
 
@@ -113,13 +116,15 @@ function renderDiff(diff: string): React.ReactNode {
 
           return (
             <React.Fragment key={hunkIdx}>
-              <DiffLine type="header">
-                <DiffIndicator type="header">{/* Empty for alignment */}</DiffIndicator>
-                <LineNumber type="header">{hunkIdx > 0 ? "⋮" : ""}</LineNumber>
-                <LineContent type="header">
-                  @@ -{hunk.oldStart},{hunk.oldLines} +{hunk.newStart},{hunk.newLines} @@
-                </LineContent>
-              </DiffLine>
+              <DiffLineWrapper type="header">
+                <DiffLine type="header">
+                  <DiffIndicator type="header">{/* Empty for alignment */}</DiffIndicator>
+                  <LineNumber type="header">{hunkIdx > 0 ? "⋮" : ""}</LineNumber>
+                  <LineContent type="header">
+                    @@ -{hunk.oldStart},{hunk.oldLines} +{hunk.newStart},{hunk.newLines} @@
+                  </LineContent>
+                </DiffLine>
+              </DiffLineWrapper>
               {hunk.lines.map((line, lineIdx) => {
                 const firstChar = line[0];
                 const content = line.slice(1); // Remove the +/- prefix
@@ -142,11 +147,13 @@ function renderDiff(diff: string): React.ReactNode {
                 }
 
                 return (
-                  <DiffLine key={lineIdx} type={type}>
-                    <DiffIndicator type={type}>{firstChar}</DiffIndicator>
-                    <LineNumber type={type}>{lineNumDisplay}</LineNumber>
-                    <LineContent type={type}>{content}</LineContent>
-                  </DiffLine>
+                  <DiffLineWrapper key={lineIdx} type={type}>
+                    <DiffLine type={type}>
+                      <DiffIndicator type={type}>{firstChar}</DiffIndicator>
+                      <LineNumber type={type}>{lineNumDisplay}</LineNumber>
+                      <LineContent type={type}>{content}</LineContent>
+                    </DiffLine>
+                  </DiffLineWrapper>
                 );
               })}
             </React.Fragment>

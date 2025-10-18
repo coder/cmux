@@ -45,11 +45,11 @@ const DirectoryName = styled.span`
   flex: 1;
 `;
 
-const DirectoryStats = styled.span`
+const DirectoryStats = styled.span<{ isOpen: boolean }>`
   display: flex;
   gap: 8px;
   font-size: 11px;
-  color: #666;
+  color: ${(props) => (props.isOpen ? "#666" : "inherit")};
   opacity: 0.7;
 `;
 
@@ -144,9 +144,21 @@ const TreeNodeContent: React.FC<{
             </ToggleIcon>
             <DirectoryName>{node.name || "/"}</DirectoryName>
             {node.totalStats && (node.totalStats.additions > 0 || node.totalStats.deletions > 0) && (
-              <DirectoryStats>
-                {node.totalStats.additions > 0 && <span>+{node.totalStats.additions}</span>}
-                {node.totalStats.deletions > 0 && <span>-{node.totalStats.deletions}</span>}
+              <DirectoryStats isOpen={isOpen}>
+                {node.totalStats.additions > 0 && (
+                  isOpen ? (
+                    <span>+{node.totalStats.additions}</span>
+                  ) : (
+                    <Additions>+{node.totalStats.additions}</Additions>
+                  )
+                )}
+                {node.totalStats.deletions > 0 && (
+                  isOpen ? (
+                    <span>-{node.totalStats.deletions}</span>
+                  ) : (
+                    <Deletions>-{node.totalStats.deletions}</Deletions>
+                  )
+                )}
               </DirectoryStats>
             )}
           </>

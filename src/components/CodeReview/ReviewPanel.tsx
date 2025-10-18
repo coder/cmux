@@ -210,18 +210,18 @@ const TruncationBanner = styled.div`
   background: rgba(255, 193, 7, 0.1);
   border: 1px solid rgba(255, 193, 7, 0.3);
   border-radius: 4px;
-  padding: 8px 12px;
+  padding: 6px 12px;
   margin: 12px;
   color: #ffc107;
-  font-size: 11px;
+  font-size: 10px;
   display: flex;
   align-items: center;
-  gap: 8px;
-  line-height: 1.5;
+  gap: 6px;
+  line-height: 1.3;
   
   &::before {
     content: "⚠️";
-    font-size: 14px;
+    font-size: 12px;
   }
 `;
 
@@ -394,7 +394,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
         // Set truncation warning only when not filtering by path
         if (truncationInfo && !selectedFilePath) {
           setTruncationWarning(
-            `Truncated (${truncationInfo.reason}): showing ${allHunks.length} hunks. Use file tree to filter.`
+            `Truncated (${truncationInfo.reason}): ${allHunks.length} hunks shown. Filter by file to see more.`
           );
         }
         

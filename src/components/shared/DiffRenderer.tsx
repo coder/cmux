@@ -64,16 +64,6 @@ export const LineNumber = styled.span<{ type: DiffLineType }>`
   opacity: ${({ type }) => (type === "add" || type === "remove" ? 0.9 : 0.6)};
   user-select: none;
   flex-shrink: 0;
-  background: ${({ type }) => {
-    switch (type) {
-      case "add":
-        return "rgba(46, 160, 67, 0.3)";
-      case "remove":
-        return "rgba(248, 81, 73, 0.3)";
-      default:
-        return "transparent";
-    }
-  }};
 `;
 
 export const LineContent = styled.span<{ type: DiffLineType }>`
@@ -98,16 +88,6 @@ export const DiffIndicator = styled.span<{ type: DiffLineType }>`
   color: ${({ type }) => getContrastColor(type)};
   opacity: ${({ type }) => (type === "add" || type === "remove" ? 0.9 : 0.6)};
   flex-shrink: 0;
-  background: ${({ type }) => {
-    switch (type) {
-      case "add":
-        return "rgba(46, 160, 67, 0.3)";
-      case "remove":
-        return "rgba(248, 81, 73, 0.3)";
-      default:
-        return "transparent";
-    }
-  }};
 `;
 
 export const DiffContainer = styled.div`
