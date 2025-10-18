@@ -77,10 +77,9 @@ const FileTreeSection = styled.div`
     width: 100%;
     border-left: none;
     border-bottom: 1px solid #3e3e42;
-    max-height: 40vh; /* Limit to 40% of viewport height */
-    flex: 0 0 auto; /* Don't grow, don't shrink, use content height up to max */
+    height: 250px; /* Fixed height on narrow viewports */
+    flex: 0 0 250px; /* Don't grow, don't shrink, explicit size */
     order: -1; /* Move to top */
-    min-height: 150px; /* Minimum height to show some files */
   }
 `;
 
@@ -252,12 +251,18 @@ interface DiagnosticInfo {
 export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspacePath }) => {
   const [hunks, setHunks] = useState<DiffHunk[]>([]);
   const [selectedHunkId, setSelectedHunkId] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingHunks, setIsLoadingHunks] = useState(true);
+  const [isLoadingTree, setIsLoadingTree] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [diagnosticInfo, setDiagnosticInfo] = useState<DiagnosticInfo | null>(null);
   const [truncationWarning, setTruncationWarning] = useState<string | null>(null);
   const [fileTree, setFileTree] = useState<FileTreeNode | null>(null);
-  const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null);
+  
+  // Persist file filter per workspace
+  const [selectedFilePath, setSelectedFilePath] = usePersistedState<string | null>(
+    `review-file-filter:${workspaceId}`,
+    null
+  );
   
   // Persist diff base per workspace
   const [diffBase, setDiffBase] = usePersistedState(
@@ -280,47 +285,80 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
     removeStaleReviews,
   } = useReviewState(workspaceId);
 
-  // Load diff on mount and when workspace, diffBase, or selected path changes
+  // Load file tree - only when workspace or diffBase changes (not when path filter changes)
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadFileTree = async () => {
+      setIsLoadingTree(true);
+      try {
+        // Build numstat command for file tree
+        let numstatCommand: string;
+        
+        if (filters.diffBase === "--staged") {
+          numstatCommand = "git diff --staged --numstat";
+        } else if (filters.diffBase === "HEAD") {
+          numstatCommand = "git diff HEAD --numstat";
+        } else {
+          numstatCommand = `git diff ${filters.diffBase}...HEAD --numstat`;
+        }
+
+        const numstatResult = await window.api.workspace.executeBash(
+          workspaceId,
+          numstatCommand,
+          { timeout_secs: 30 }
+        );
+
+        if (cancelled) return;
+
+        if (numstatResult.success) {
+          const numstatOutput = numstatResult.data.output ?? "";
+          const fileStats = parseNumstat(numstatOutput);
+          const tree = buildFileTree(fileStats);
+          setFileTree(tree);
+        }
+      } catch (err) {
+        console.error("Failed to load file tree:", err);
+      } finally {
+        setIsLoadingTree(false);
+      }
+    };
+
+    void loadFileTree();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [workspaceId, workspacePath, filters.diffBase]);
+
+  // Load diff hunks - when workspace, diffBase, or selected path changes
   useEffect(() => {
     let cancelled = false;
 
     const loadDiff = async () => {
-      setIsLoading(true);
+      setIsLoadingHunks(true);
       setError(null);
       setTruncationWarning(null);
-      // Only clear file tree if no path filter (showing all files)
-      if (!selectedFilePath) {
-        setFileTree(null);
-      }
       try {
         // Build git diff command based on selected base
         let diffCommand: string;
-        let numstatCommand: string;
         
         // Add path filter if a file/folder is selected
         const pathFilter = selectedFilePath ? ` -- "${selectedFilePath}"` : "";
         
         if (filters.diffBase === "--staged") {
           diffCommand = `git diff --staged${pathFilter}`;
-          numstatCommand = `git diff --staged --numstat${pathFilter}`;
         } else if (filters.diffBase === "HEAD") {
           diffCommand = `git diff HEAD${pathFilter}`;
-          numstatCommand = `git diff HEAD --numstat${pathFilter}`;
         } else {
           // Use three-dot syntax to show changes since common ancestor
           diffCommand = `git diff ${filters.diffBase}...HEAD${pathFilter}`;
-          numstatCommand = `git diff ${filters.diffBase}...HEAD --numstat${pathFilter}`;
         }
 
-        // Fetch both diff and numstat in parallel
-        const [diffResult, numstatResult] = await Promise.all([
-          window.api.workspace.executeBash(workspaceId, diffCommand, {
-            timeout_secs: 30,
-          }),
-          window.api.workspace.executeBash(workspaceId, numstatCommand, {
-            timeout_secs: 30,
-          }),
-        ]);
+        // Fetch diff
+        const diffResult = await window.api.workspace.executeBash(workspaceId, diffCommand, {
+          timeout_secs: 30,
+        });
 
         if (cancelled) return;
 
@@ -338,15 +376,6 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
 
         const fileDiffs = parseDiff(diffOutput);
         const allHunks = extractAllHunks(fileDiffs);
-        
-        // Parse numstat for file tree only when showing all files (no filter)
-        // When a path is selected, we keep the existing tree to maintain navigation
-        if (numstatResult.success && !selectedFilePath) {
-          const numstatOutput = numstatResult.data.output ?? "";
-          const fileStats = parseNumstat(numstatOutput);
-          const tree = buildFileTree(fileStats);
-          setFileTree(tree);
-        }
         
         // Store diagnostic info
         setDiagnosticInfo({
@@ -374,7 +403,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
         console.error(errorMsg);
         setError(errorMsg);
       } finally {
-        setIsLoading(false);
+        setIsLoadingHunks(false);
       }
     };
 
@@ -473,7 +502,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
 
       {error ? (
         <ErrorState>{error}</ErrorState>
-      ) : isLoading ? (
+      ) : isLoadingHunks && hunks.length === 0 ? (
         <LoadingState>Loading diff...</LoadingState>
       ) : hunks.length === 0 ? (
         <EmptyState>
@@ -561,12 +590,13 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
             </HunkList>
           </HunksSection>
 
-          {fileTree && fileTree.children.length > 0 && (
+          {(fileTree ?? isLoadingTree) && (
             <FileTreeSection>
               <FileTree
                 root={fileTree}
                 selectedPath={selectedFilePath}
                 onSelectFile={setSelectedFilePath}
+                isLoading={isLoadingTree}
               />
             </FileTreeSection>
           )}

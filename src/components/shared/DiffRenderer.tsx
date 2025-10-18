@@ -21,6 +21,7 @@ export const DiffLine = styled.div<{ type: DiffLineType }>`
   white-space: pre;
   display: flex;
   padding: ${({ type }) => (type === "header" ? "4px 0" : "0")};
+  min-width: 100%; /* Ensure background extends full width */
   color: ${({ type }) => {
     switch (type) {
       case "add":
@@ -114,6 +115,12 @@ export const DiffContainer = styled.div`
   line-height: 1.4;
   max-height: 400px;
   overflow-y: auto;
+  overflow-x: auto;
+  
+  /* Ensure backgrounds extend to full scrollable width */
+  & > * {
+    min-width: fit-content;
+  }
 `;
 
 interface DiffRendererProps {

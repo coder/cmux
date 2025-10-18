@@ -6,11 +6,7 @@ import React, { useState } from "react";
 import styled from "@emotion/styled";
 import type { FileTreeNode } from "@/utils/git/numstatParser";
 
-interface FileTreeProps {
-  root: FileTreeNode;
-  selectedPath: string | null;
-  onSelectFile: (path: string | null) => void;
-}
+
 
 const TreeContainer = styled.div`
   flex: 1;
@@ -183,7 +179,19 @@ const TreeNodeContent: React.FC<{
   );
 };
 
-export const FileTree: React.FC<FileTreeProps> = ({ root, selectedPath, onSelectFile }) => {
+interface FileTreeExternalProps {
+  root: FileTreeNode | null;
+  selectedPath: string | null;
+  onSelectFile: (path: string | null) => void;
+  isLoading?: boolean;
+}
+
+export const FileTree: React.FC<FileTreeExternalProps> = ({ 
+  root, 
+  selectedPath, 
+  onSelectFile,
+  isLoading = false 
+}) => {
   return (
     <>
       <TreeHeader>Files Changed</TreeHeader>
@@ -191,15 +199,25 @@ export const FileTree: React.FC<FileTreeProps> = ({ root, selectedPath, onSelect
         <ClearButton onClick={() => onSelectFile(null)}>Clear filter</ClearButton>
       )}
       <TreeContainer>
-        {root.children.map((child) => (
-          <TreeNodeContent
-            key={child.path}
-            node={child}
-            depth={0}
-            selectedPath={selectedPath}
-            onSelectFile={onSelectFile}
-          />
-        ))}
+        {isLoading ? (
+          <div style={{ padding: "20px", color: "#888", textAlign: "center" }}>
+            Loading file tree...
+          </div>
+        ) : root ? (
+          root.children.map((child) => (
+            <TreeNodeContent
+              key={child.path}
+              node={child}
+              depth={0}
+              selectedPath={selectedPath}
+              onSelectFile={onSelectFile}
+            />
+          ))
+        ) : (
+          <div style={{ padding: "20px", color: "#888", textAlign: "center" }}>
+            No files changed
+          </div>
+        )}
       </TreeContainer>
     </>
   );
