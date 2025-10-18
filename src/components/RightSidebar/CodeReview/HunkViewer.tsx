@@ -5,12 +5,13 @@
 import React, { useState } from "react";
 import styled from "@emotion/styled";
 import type { DiffHunk } from "@/types/review";
-import { DiffRenderer } from "../../shared/DiffRenderer";
+import { SelectableDiffRenderer } from "../../shared/DiffRenderer";
 
 interface HunkViewerProps {
   hunk: DiffHunk;
   isSelected?: boolean;
   onClick?: () => void;
+  onReviewNote?: (note: string) => void;
 }
 
 const HunkContainer = styled.div<{ isSelected: boolean }>`
@@ -123,7 +124,7 @@ const RenameInfo = styled.div`
   }
 `;
 
-export const HunkViewer: React.FC<HunkViewerProps> = ({ hunk, isSelected, onClick }) => {
+export const HunkViewer: React.FC<HunkViewerProps> = ({ hunk, isSelected, onClick, onReviewNote }) => {
   const [isExpanded, setIsExpanded] = useState(true);
 
   const handleToggleExpand = (e: React.MouseEvent) => {
@@ -177,7 +178,13 @@ export const HunkViewer: React.FC<HunkViewerProps> = ({ hunk, isSelected, onClic
         </RenameInfo>
       ) : isExpanded ? (
         <HunkContent>
-          <DiffRenderer content={hunk.content} />
+          <SelectableDiffRenderer 
+            content={hunk.content} 
+            filePath={hunk.filePath}
+            oldStart={hunk.oldStart}
+            newStart={hunk.newStart}
+            onReviewNote={onReviewNote}
+          />
         </HunkContent>
       ) : (
         <CollapsedIndicator onClick={handleToggleExpand}>

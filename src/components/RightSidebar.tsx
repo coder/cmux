@@ -162,6 +162,8 @@ interface RightSidebarProps {
   onStartResize?: (e: React.MouseEvent) => void;
   /** Whether currently resizing */
   isResizing?: boolean;
+  /** Callback when user adds a review note from Code Review tab */
+  onReviewNote?: (note: string) => void;
 }
 
 const RightSidebarComponent: React.FC<RightSidebarProps> = ({
@@ -172,6 +174,7 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
   width,
   onStartResize,
   isResizing = false,
+  onReviewNote,
 }) => {
   // Global tab preference (not per-workspace)
   const [selectedTab, setSelectedTab] = usePersistedState<TabType>("right-sidebar-tab", "costs");
@@ -328,7 +331,11 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
               aria-labelledby={reviewTabId}
               style={{ height: "100%" }}
             >
-              <ReviewPanel workspaceId={workspaceId} workspacePath={workspacePath} />
+              <ReviewPanel 
+                workspaceId={workspaceId} 
+                workspacePath={workspacePath}
+                onReviewNote={onReviewNote}
+              />
             </div>
           )}
         </TabContent>

@@ -140,6 +140,7 @@ const ModelDisplayWrapper = styled.div`
 export interface ChatInputAPI {
   focus: () => void;
   restoreText: (text: string) => void;
+  appendText: (text: string) => void;
 }
 
 export interface ChatInputProps {
@@ -272,15 +273,29 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     [focusMessageInput]
   );
 
+  // Method to append text to input (used by Code Review notes)
+  const appendText = useCallback(
+    (text: string) => {
+      setInput((prev) => {
+        // Add blank line before if there's existing content
+        const separator = prev.trim() ? "\n\n" : "";
+        return prev + separator + text;
+      });
+      focusMessageInput();
+    },
+    [focusMessageInput]
+  );
+
   // Provide API to parent via callback
   useEffect(() => {
     if (onReady) {
       onReady({
         focus: focusMessageInput,
         restoreText,
+        appendText,
       });
     }
-  }, [onReady, focusMessageInput, restoreText]);
+  }, [onReady, focusMessageInput, restoreText, appendText]);
 
   useEffect(() => {
     const handleGlobalKeyDown = (event: KeyboardEvent) => {

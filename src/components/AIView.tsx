@@ -273,6 +273,12 @@ const AIViewInner: React.FC<AIViewProps> = ({
     chatInputAPI.current = api;
   }, []);
 
+  // Handler for review notes from Code Review tab
+  const handleReviewNote = useCallback((note: string) => {
+    chatInputAPI.current?.appendText(note);
+  }, []);
+
+
   // Thinking level state from context
   const { thinkingLevel: currentWorkspaceThinking, setThinkingLevel } = useThinking();
 
@@ -600,6 +606,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
         width={isReviewTabActive ? sidebarWidth : undefined} // Custom width only on Review tab
         onStartResize={isReviewTabActive ? startResize : undefined} // Pass resize handler when Review active
         isResizing={isResizing} // Pass resizing state
+        onReviewNote={handleReviewNote} // Pass review note handler to append to chat
       />
     </ViewContainer>
   );

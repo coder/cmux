@@ -17,6 +17,7 @@ import type { FileTreeNode } from "@/utils/git/numstatParser";
 interface ReviewPanelProps {
   workspaceId: string;
   workspacePath: string;
+  onReviewNote?: (note: string) => void;
 }
 
 const PanelContainer = styled.div`
@@ -228,7 +229,7 @@ interface DiagnosticInfo {
   hunkCount: number;
 }
 
-export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspacePath }) => {
+export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspacePath, onReviewNote }) => {
   const [hunks, setHunks] = useState<DiffHunk[]>([]);
   const [selectedHunkId, setSelectedHunkId] = useState<string | null>(null);
   const [isLoadingHunks, setIsLoadingHunks] = useState(true);
@@ -510,6 +511,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
                       hunk={hunk}
                       isSelected={isSelected}
                       onClick={() => setSelectedHunkId(hunk.id)}
+                      onReviewNote={onReviewNote}
                     />
                   );
                 })

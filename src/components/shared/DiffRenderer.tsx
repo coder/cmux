@@ -1,6 +1,7 @@
 /**
  * DiffRenderer - Shared diff rendering component
- * Used by both FileEditToolCall and ReviewPanel to ensure consistent styling
+ * Used by FileEditToolCall for read-only diff display.
+ * ReviewPanel uses SelectableDiffRenderer for interactive line selection.
  */
 
 import React from "react";
@@ -194,6 +195,338 @@ export const DiffRenderer: React.FC<DiffRendererProps> = ({
               <LineContent type={type}>{lineContent}</LineContent>
             </DiffLine>
           </DiffLineWrapper>
+        );
+      })}
+    </>
+  );
+};
+
+
+// Selectable version of DiffRenderer for Code Review
+interface SelectableDiffRendererProps extends DiffRendererProps {
+  /** File path for generating review notes */
+  filePath: string;
+  /** Callback when user submits a review note */
+  onReviewNote?: (note: string) => void;
+}
+
+interface LineSelection {
+  startIndex: number;
+  endIndex: number;
+  startLineNum: number;
+  endLineNum: number;
+}
+
+const SelectableDiffLineWrapper = styled(DiffLineWrapper)<{ 
+  type: DiffLineType; 
+  isSelected: boolean;
+  isSelecting: boolean;
+}>`
+  cursor: ${({ isSelecting }) => (isSelecting ? "pointer" : "default")};
+  position: relative;
+  
+  ${({ isSelected }) =>
+    isSelected &&
+    `
+    background: rgba(100, 150, 255, 0.25) !important;
+    outline: 1px solid rgba(100, 150, 255, 0.5);
+  `}
+  
+  &:hover {
+    ${({ isSelecting }) =>
+      isSelecting &&
+      `
+      outline: 1px solid rgba(100, 150, 255, 0.3);
+    `}
+  }
+`;
+
+const InlineNoteContainer = styled.div`
+  padding: 12px;
+  background: #252526;
+  border-top: 1px solid #3e3e42;
+  border-bottom: 1px solid #3e3e42;
+  margin: 4px 0;
+`;
+
+const NoteTextarea = styled.textarea`
+  width: 100%;
+  min-height: 60px;
+  padding: 8px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  background: #1e1e1e;
+  border: 1px solid #3e3e42;
+  border-radius: 3px;
+  color: var(--color-text);
+  resize: vertical;
+  
+  &:focus {
+    outline: none;
+    border-color: #007acc;
+  }
+  
+  &::placeholder {
+    color: #888;
+  }
+`;
+
+const NoteActions = styled.div`
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  justify-content: flex-end;
+`;
+
+const NoteButton = styled.button<{ primary?: boolean }>`
+  padding: 6px 12px;
+  font-size: 11px;
+  font-family: var(--font-sans);
+  border: 1px solid ${({ primary }) => (primary ? "#007acc" : "#3e3e42")};
+  background: ${({ primary }) => (primary ? "#007acc" : "transparent")};
+  color: ${({ primary }) => (primary ? "#fff" : "var(--color-text)")};
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.1s;
+  
+  &:hover {
+    background: ${({ primary }) => (primary ? "#005a9e" : "#3e3e42")};
+  }
+  
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+`;
+
+const SelectionHint = styled.div`
+  padding: 8px 12px;
+  background: rgba(100, 150, 255, 0.1);
+  border: 1px solid rgba(100, 150, 255, 0.3);
+  border-radius: 3px;
+  color: #ccc;
+  font-size: 11px;
+  margin-bottom: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+`;
+
+const HintText = styled.span`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+`;
+
+const ClearButton = styled.button`
+  padding: 4px 8px;
+  font-size: 10px;
+  background: transparent;
+  border: 1px solid #3e3e42;
+  color: #888;
+  border-radius: 2px;
+  cursor: pointer;
+  
+  &:hover {
+    background: #3e3e42;
+    color: #ccc;
+  }
+`;
+
+export const SelectableDiffRenderer: React.FC<SelectableDiffRendererProps> = ({
+  content,
+  showLineNumbers = true,
+  oldStart = 1,
+  newStart = 1,
+  filePath,
+  onReviewNote,
+}) => {
+  const [selection, setSelection] = React.useState<LineSelection | null>(null);
+  const [noteText, setNoteText] = React.useState("");
+  const [isSelectingMode, setIsSelectingMode] = React.useState(false);
+  const textareaRef = React.useRef<HTMLTextAreaElement>(null);
+  
+  const lines = content.split("\n").filter((line) => line.length > 0);
+  
+  // Parse lines to get line numbers
+  const lineData: Array<{
+    index: number;
+    type: DiffLineType;
+    lineNum: number;
+    content: string;
+  }> = [];
+  
+  let oldLineNum = oldStart;
+  let newLineNum = newStart;
+  
+  lines.forEach((line, index) => {
+    const firstChar = line[0];
+    
+    // Skip header lines
+    if (line.startsWith("@@")) {
+      const regex = /^@@\s+-(\d+)(?:,\d+)?\s+\+(\d+)(?:,\d+)?\s+@@/;
+      const match = regex.exec(line);
+      if (match) {
+        oldLineNum = parseInt(match[1], 10);
+        newLineNum = parseInt(match[2], 10);
+      }
+      return;
+    }
+    
+    let type: DiffLineType = "context";
+    let lineNum = 0;
+    
+    if (firstChar === "+") {
+      type = "add";
+      lineNum = newLineNum++;
+    } else if (firstChar === "-") {
+      type = "remove";
+      lineNum = oldLineNum++;
+    } else {
+      lineNum = newLineNum;
+      oldLineNum++;
+      newLineNum++;
+    }
+    
+    lineData.push({
+      index,
+      type,
+      lineNum,
+      content: line.slice(1),
+    });
+  });
+  
+  const handleLineClick = (lineIndex: number) => {
+    if (!isSelectingMode) {
+      setIsSelectingMode(true);
+      setSelection({
+        startIndex: lineIndex,
+        endIndex: lineIndex,
+        startLineNum: lineData[lineIndex].lineNum,
+        endLineNum: lineData[lineIndex].lineNum,
+      });
+    } else if (selection) {
+      // Extend or complete selection
+      const newEndIndex = lineIndex;
+      const [start, end] = [selection.startIndex, newEndIndex].sort((a, b) => a - b);
+      
+      setSelection({
+        startIndex: start,
+        endIndex: end,
+        startLineNum: lineData[start].lineNum,
+        endLineNum: lineData[end].lineNum,
+      });
+    }
+  };
+  
+  const handleSubmitNote = () => {
+    if (!noteText.trim() || !selection || !onReviewNote) return;
+    
+    const lineRange = selection.startLineNum === selection.endLineNum
+      ? `${selection.startLineNum}`
+      : `${selection.startLineNum}-${selection.endLineNum}`;
+    
+    const reviewNote = `<review>\nRe ${filePath}:${lineRange}\n> ${noteText.trim()}\n</review>`;
+    
+    onReviewNote(reviewNote);
+    
+    // Reset state
+    setSelection(null);
+    setNoteText("");
+    setIsSelectingMode(false);
+  };
+  
+  const handleCancelNote = () => {
+    setSelection(null);
+    setNoteText("");
+    setIsSelectingMode(false);
+  };
+  
+  const handleClearSelection = () => {
+    setSelection(null);
+  };
+  
+  // Auto-focus textarea when selection is made
+  React.useEffect(() => {
+    if (selection && selection.startIndex === selection.endIndex && textareaRef.current) {
+      textareaRef.current.focus();
+    }
+  }, [selection]);
+  
+  const isLineSelected = (index: number) => {
+    if (!selection) return false;
+    const [start, end] = [selection.startIndex, selection.endIndex].sort((a, b) => a - b);
+    return index >= start && index <= end;
+  };
+  
+  return (
+    <>
+      {isSelectingMode && selection && (
+        <SelectionHint>
+          <HintText>
+            <span>
+              {selection.startIndex === selection.endIndex
+                ? "Line selected. Click another line to extend range, or add note below."
+                : `Lines ${selection.startLineNum}-${selection.endLineNum} selected. Click another line to adjust or add note below.`}
+            </span>
+          </HintText>
+          <ClearButton onClick={handleClearSelection}>Clear</ClearButton>
+        </SelectionHint>
+      )}
+      
+      {lineData.map((lineInfo, displayIndex) => {
+        const isSelected = isLineSelected(displayIndex);
+        
+        return (
+          <React.Fragment key={displayIndex}>
+            <SelectableDiffLineWrapper
+              type={lineInfo.type}
+              isSelected={isSelected}
+              isSelecting={isSelectingMode}
+              onClick={() => handleLineClick(displayIndex)}
+            >
+              <DiffLine type={lineInfo.type}>
+                <DiffIndicator type={lineInfo.type}>{lines[lineInfo.index][0]}</DiffIndicator>
+                {showLineNumbers && (
+                  <LineNumber type={lineInfo.type}>{lineInfo.lineNum}</LineNumber>
+                )}
+                <LineContent type={lineInfo.type}>{lineInfo.content}</LineContent>
+              </DiffLine>
+            </SelectableDiffLineWrapper>
+            
+            {/* Show textarea after the last selected line */}
+            {isSelected &&
+              selection &&
+              displayIndex === Math.max(selection.startIndex, selection.endIndex) && (
+                <InlineNoteContainer>
+                  <NoteTextarea
+                    ref={textareaRef}
+                    placeholder="Add a review note... (Enter to submit, Esc to cancel)"
+                    value={noteText}
+                    onChange={(e) => setNoteText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                        e.preventDefault();
+                        handleSubmitNote();
+                      } else if (e.key === "Escape") {
+                        e.preventDefault();
+                        handleCancelNote();
+                      }
+                    }}
+                  />
+                  <NoteActions>
+                    <NoteButton onClick={handleCancelNote}>Cancel (Esc)</NoteButton>
+                    <NoteButton
+                      primary
+                      onClick={handleSubmitNote}
+                      disabled={!noteText.trim()}
+                    >
+                      Add to Chat (⌘↵)
+                    </NoteButton>
+                  </NoteActions>
+                </InlineNoteContainer>
+              )}
+          </React.Fragment>
         );
       })}
     </>
