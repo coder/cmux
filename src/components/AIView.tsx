@@ -88,6 +88,8 @@ const WorkspaceTitle = styled.div`
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0; /* Allow flex children to shrink */
+  overflow: hidden;
 `;
 
 const WorkspacePath = styled.span`
@@ -95,6 +97,17 @@ const WorkspacePath = styled.span`
   color: #888;
   font-weight: 400;
   font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+`;
+
+const WorkspaceName = styled.span`
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 `;
 
 const TerminalIconButton = styled.button`
@@ -471,7 +484,9 @@ const AIViewInner: React.FC<AIViewProps> = ({
               workspaceId={workspaceId}
               tooltipPosition="bottom"
             />
-            {projectName} / {branch}
+            <WorkspaceName>
+              {projectName} / {branch}
+            </WorkspaceName>
             <WorkspacePath>{namedWorkspacePath}</WorkspacePath>
             <TooltipWrapper inline>
               <TerminalIconButton onClick={handleOpenTerminal}>

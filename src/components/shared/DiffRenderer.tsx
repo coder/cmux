@@ -21,7 +21,8 @@ export const DiffLine = styled.div<{ type: DiffLineType }>`
   white-space: pre;
   display: flex;
   padding: ${({ type }) => (type === "header" ? "4px 8px" : "0 8px")}; /* Horizontal padding on lines */
-  min-width: calc(100% - 16px); /* Account for padding */
+  min-width: 100%; /* Ensure line extends full scrollable width */
+  width: fit-content; /* Allow line to grow beyond viewport for long content */
   color: ${({ type }) => {
     switch (type) {
       case "add":
@@ -72,7 +73,6 @@ export const LineNumber = styled.span<{ type: DiffLineType }>`
 `;
 
 export const LineContent = styled.span<{ type: DiffLineType }>`
-  flex: 1;
   padding-left: 8px;
   color: ${({ type }) => {
     switch (type) {
@@ -116,6 +116,11 @@ export const DiffContainer = styled.div`
   max-height: 400px;
   overflow-y: auto;
   overflow-x: auto;
+  
+  /* Wrapper for lines to enable proper scrolling with full-width backgrounds */
+  & > * {
+    display: block;
+  }
 `;
 
 interface DiffRendererProps {

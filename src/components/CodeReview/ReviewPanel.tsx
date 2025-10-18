@@ -19,6 +19,7 @@ import type { FileTreeNode } from "@/utils/git/numstatParser";
 interface ReviewPanelProps {
   workspaceId: string;
   workspacePath: string;
+  verticalTokenMeter?: React.ReactNode;
 }
 
 const PanelContainer = styled.div`
@@ -27,6 +28,16 @@ const PanelContainer = styled.div`
   height: 100%;
   min-height: 0;
   background: #1e1e1e;
+  position: relative; /* For absolute positioning of meter */
+`;
+
+const VerticalMeterOverlay = styled.div`
+  position: absolute;
+  right: 0;
+  top: 0;
+  height: 100%;
+  pointer-events: none; /* Allow clicks to pass through to content */
+  z-index: 5;
 `;
 
 const ContentContainer = styled.div`
@@ -249,7 +260,7 @@ interface DiagnosticInfo {
   hunkCount: number;
 }
 
-export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspacePath }) => {
+export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspacePath, verticalTokenMeter }) => {
   const [hunks, setHunks] = useState<DiffHunk[]>([]);
   const [selectedHunkId, setSelectedHunkId] = useState<string | null>(null);
   const [isLoadingHunks, setIsLoadingHunks] = useState(true);
@@ -602,6 +613,11 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
             </FileTreeSection>
           )}
         </ContentContainer>
+      )}
+      {verticalTokenMeter && (
+        <VerticalMeterOverlay>
+          {verticalTokenMeter}
+        </VerticalMeterOverlay>
       )}
     </PanelContainer>
   );

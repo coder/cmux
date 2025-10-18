@@ -117,6 +117,11 @@ export const HunkViewer: React.FC<HunkViewerProps> = ({ hunk, review, isSelected
   const diffLines = hunk.content.split("\n").filter((line) => line.length > 0);
   const lineCount = diffLines.length;
   const shouldCollapse = lineCount > 20; // Collapse hunks with more than 20 lines
+  
+  // Calculate net LoC (additions - deletions)
+  const additions = diffLines.filter((line) => line.startsWith("+")).length;
+  const deletions = diffLines.filter((line) => line.startsWith("-")).length;
+  const netLoC = additions - deletions;
 
   return (
     <HunkContainer
@@ -135,7 +140,8 @@ export const HunkViewer: React.FC<HunkViewerProps> = ({ hunk, review, isSelected
       <HunkHeader>
         <FilePath>{hunk.filePath}</FilePath>
         <LineInfo>
-          {hunk.header} ({lineCount} {lineCount === 1 ? "line" : "lines"})
+          {netLoC > 0 ? `+${netLoC}` : netLoC < 0 ? `${netLoC}` : "±0"} LoC ({lineCount}{" "}
+          {lineCount === 1 ? "line" : "lines"})
         </LineInfo>
       </HunkHeader>
 

@@ -13,6 +13,7 @@ export const ToolContainer = styled.div<{ expanded: boolean }>`
   font-family: var(--font-monospace);
   font-size: 11px;
   transition: all 0.2s ease;
+  container-type: inline-size; /* Enable container queries */
 `;
 
 export const ToolHeader = styled.div`
@@ -57,6 +58,17 @@ export const StatusIndicator = styled.span<{ status: string }>`
         return "var(--color-text-secondary)";
     }
   }};
+  
+  .status-text {
+    display: inline;
+  }
+  
+  /* Hide text on narrow containers, show only icon */
+  @container (max-width: 500px) {
+    .status-text {
+      display: none;
+    }
+  }
 `;
 
 export const ToolDetails = styled.div`

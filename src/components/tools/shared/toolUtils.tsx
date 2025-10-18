@@ -24,17 +24,29 @@ export function getStatusDisplay(status: ToolStatus): React.ReactNode {
     case "executing":
       return (
         <>
-          <LoadingDots /> executing
+          <LoadingDots /> <span className="status-text">executing</span>
         </>
       );
     case "completed":
-      return "✓ completed";
+      return (
+        <>
+          ✓<span className="status-text"> completed</span>
+        </>
+      );
     case "failed":
-      return "✗ failed";
+      return (
+        <>
+          ✗<span className="status-text"> failed</span>
+        </>
+      );
     case "interrupted":
-      return "⚠ interrupted";
+      return (
+        <>
+          ⚠<span className="status-text"> interrupted</span>
+        </>
+      );
     default:
-      return "pending";
+      return <span className="status-text">pending</span>;
   }
 }
 

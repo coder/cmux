@@ -19,6 +19,9 @@ const CheckboxLabel = styled.label`
   color: #cccccc;
   cursor: pointer;
   user-select: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 
   &:hover {
     color: #ffffff;
