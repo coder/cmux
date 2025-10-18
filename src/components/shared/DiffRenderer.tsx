@@ -242,55 +242,56 @@ const SelectableDiffLineWrapper = styled(DiffLineWrapper)<{
 `;
 
 const InlineNoteContainer = styled.div`
-  padding: 8px;
-  background: #252526;
-  border-top: 1px solid #3e3e42;
-  border-bottom: 1px solid #3e3e42;
+  padding: 4px 8px 8px 8px;
+  background: transparent;
+  border-top: 1px solid rgba(255, 200, 0, 0.3);
   margin: 0;
 `;
 
 const NoteTextarea = styled.textarea`
   width: 100%;
-  min-height: 60px;
-  padding: 8px;
+  min-height: 50px;
+  padding: 6px 8px;
   font-family: var(--font-sans);
-  font-size: 12px;
-  background: #1e1e1e;
-  border: 1px solid #3e3e42;
-  border-radius: 3px;
+  font-size: 11px;
+  background: rgba(30, 30, 30, 0.95);
+  border: 1px solid rgba(255, 200, 0, 0.4);
+  border-radius: 2px;
   color: var(--color-text);
   resize: vertical;
   
   &:focus {
     outline: none;
-    border-color: #007acc;
+    border-color: rgba(255, 200, 0, 0.6);
+    background: rgba(30, 30, 30, 0.98);
   }
   
   &::placeholder {
     color: #888;
+    font-size: 11px;
   }
 `;
 
 const NoteActions = styled.div`
   display: flex;
-  gap: 8px;
-  margin-top: 8px;
+  gap: 6px;
+  margin-top: 6px;
   justify-content: flex-end;
 `;
 
 const NoteButton = styled.button<{ primary?: boolean }>`
-  padding: 6px 12px;
-  font-size: 11px;
+  padding: 4px 10px;
+  font-size: 10px;
   font-family: var(--font-sans);
-  border: 1px solid ${({ primary }) => (primary ? "#007acc" : "#3e3e42")};
-  background: ${({ primary }) => (primary ? "#007acc" : "transparent")};
-  color: ${({ primary }) => (primary ? "#fff" : "var(--color-text)")};
-  border-radius: 3px;
+  border: 1px solid ${({ primary }) => (primary ? "rgba(255, 200, 0, 0.6)" : "#3e3e42")};
+  background: ${({ primary }) => (primary ? "rgba(255, 200, 0, 0.15)" : "transparent")};
+  color: var(--color-text);
+  border-radius: 2px;
   cursor: pointer;
   transition: all 0.1s;
   
   &:hover {
-    background: ${({ primary }) => (primary ? "#005a9e" : "#3e3e42")};
+    background: ${({ primary }) => (primary ? "rgba(255, 200, 0, 0.25)" : "#3e3e42")};
   }
   
   &:disabled {
@@ -379,13 +380,14 @@ export const SelectableDiffRenderer: React.FC<SelectableDiffRendererProps> = ({
   const handleMouseEnter = (lineIndex: number) => {
     if (!isDragging || !selection) return;
     
-    // Extend selection while dragging
-    const [start, end] = [selection.startIndex, lineIndex].sort((a, b) => a - b);
+    // Extend selection while dragging (preserve original start, update end)
+    const start = selection.startIndex;
+    const [sortedStart, sortedEnd] = [start, lineIndex].sort((a, b) => a - b);
     setSelection({
       startIndex: start,
-      endIndex: end,
-      startLineNum: lineData[start].lineNum,
-      endLineNum: lineData[end].lineNum,
+      endIndex: lineIndex,
+      startLineNum: lineData[sortedStart].lineNum,
+      endLineNum: lineData[sortedEnd].lineNum,
     });
   };
   
@@ -408,7 +410,18 @@ export const SelectableDiffRenderer: React.FC<SelectableDiffRendererProps> = ({
       ? `${selection.startLineNum}`
       : `${selection.startLineNum}-${selection.endLineNum}`;
     
-    const reviewNote = `<review>\nRe ${filePath}:${lineRange}\n> ${noteText.trim()}\n</review>`;
+    // Extract selected lines with line numbers and +/- indicators
+    const [start, end] = [selection.startIndex, selection.endIndex].sort((a, b) => a - b);
+    const selectedLines = lineData
+      .slice(start, end + 1)
+      .map((lineInfo) => {
+        const indicator = lines[lineInfo.index][0]; // +, -, or space
+        const content = lineInfo.content;
+        return `${lineInfo.lineNum} ${indicator} ${content}`;
+      })
+      .join("\n");
+    
+    const reviewNote = `<review>\nRe ${filePath}:${lineRange}\n\`\`\`\n${selectedLines}\n\`\`\`\n> ${noteText.trim()}\n</review>`;
     
     onReviewNote(reviewNote);
     
