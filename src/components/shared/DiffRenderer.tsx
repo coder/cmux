@@ -242,8 +242,8 @@ const SelectableDiffLineWrapper = styled(DiffLineWrapper)<{
 `;
 
 const InlineNoteContainer = styled.div`
-  padding: 4px 8px 8px 8px;
-  background: transparent;
+  padding: 10px 8px 8px 8px;
+  background: #252526;
   border-top: 1px solid rgba(255, 200, 0, 0.3);
   margin: 0;
 `;
@@ -254,7 +254,7 @@ const NoteTextarea = styled.textarea`
   padding: 6px 8px;
   font-family: var(--font-sans);
   font-size: 11px;
-  background: rgba(30, 30, 30, 0.95);
+  background: #1e1e1e;
   border: 1px solid rgba(255, 200, 0, 0.4);
   border-radius: 2px;
   color: var(--color-text);
@@ -263,7 +263,6 @@ const NoteTextarea = styled.textarea`
   &:focus {
     outline: none;
     border-color: rgba(255, 200, 0, 0.6);
-    background: rgba(30, 30, 30, 0.98);
   }
   
   &::placeholder {
@@ -271,36 +270,6 @@ const NoteTextarea = styled.textarea`
     font-size: 11px;
   }
 `;
-
-const NoteActions = styled.div`
-  display: flex;
-  gap: 6px;
-  margin-top: 6px;
-  justify-content: flex-end;
-`;
-
-const NoteButton = styled.button<{ primary?: boolean }>`
-  padding: 4px 10px;
-  font-size: 10px;
-  font-family: var(--font-sans);
-  border: 1px solid ${({ primary }) => (primary ? "rgba(255, 200, 0, 0.6)" : "#3e3e42")};
-  background: ${({ primary }) => (primary ? "rgba(255, 200, 0, 0.15)" : "transparent")};
-  color: var(--color-text);
-  border-radius: 2px;
-  cursor: pointer;
-  transition: all 0.1s;
-  
-  &:hover {
-    background: ${({ primary }) => (primary ? "rgba(255, 200, 0, 0.25)" : "#3e3e42")};
-  }
-  
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-`;
-
-
 
 export const SelectableDiffRenderer: React.FC<SelectableDiffRendererProps> = ({
   content,
@@ -504,26 +473,6 @@ export const SelectableDiffRenderer: React.FC<SelectableDiffRendererProps> = ({
                       }
                     }}
                   />
-                  <NoteActions>
-                    <NoteButton 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleCancelNote();
-                      }}
-                    >
-                      Cancel (Esc)
-                    </NoteButton>
-                    <NoteButton
-                      primary
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleSubmitNote();
-                      }}
-                      disabled={!noteText.trim()}
-                    >
-                      Add to Chat (⌘↵)
-                    </NoteButton>
-                  </NoteActions>
                 </InlineNoteContainer>
               )}
           </React.Fragment>
