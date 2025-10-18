@@ -121,6 +121,7 @@ const ModelDisplayWrapper = styled.div`
 export interface ChatInputAPI {
   focus: () => void;
   restoreText: (text: string) => void;
+  startEditing: (messageId: string, initialText: string) => void;
 }
 
 export interface ChatInputProps {
