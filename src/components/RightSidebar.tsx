@@ -279,7 +279,7 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
           <ResizeHandle
             visible={true}
             isResizing={isResizing}
-            onMouseDown={onStartResize}
+            onMouseDown={(e) => onStartResize(e as unknown as React.MouseEvent)}
           />
         )}
         

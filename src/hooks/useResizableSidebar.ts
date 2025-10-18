@@ -43,7 +43,7 @@ interface UseResizableSidebarResult {
   /** Whether user is actively dragging the resize handle */
   isResizing: boolean;
   /** Function to call on handle mouseDown to initiate resize */
-  startResize: () => void;
+  startResize: (e: React.MouseEvent) => void;
   /** Placeholder for type compatibility (not used in render) */
   ResizeHandle: React.FC;
 }
@@ -56,9 +56,8 @@ export function useResizableSidebar({
   storageKey,
 }: UseResizableSidebarOptions): UseResizableSidebarResult {
   // Load persisted width from localStorage on mount
-  // Falls back to defaultWidth if no valid stored value exists
+  // Always load persisted value regardless of enabled flag to maintain size across workspace switches
   const [width, setWidth] = useState<number>(() => {
-    if (!enabled) return defaultWidth;
     try {
       const stored = localStorage.getItem(storageKey);
       if (stored) {
@@ -144,10 +143,10 @@ export function useResizableSidebar({
    * Called by resize handle's onMouseDown event
    * Records starting position and width for delta calculations
    */
-  const startResize = useCallback(() => {
+  const startResize = useCallback((e: React.MouseEvent) => {
     if (!enabled) return;
     setIsResizing(true);
-    startXRef.current = window.event ? (window.event as MouseEvent).clientX : 0;
+    startXRef.current = e.clientX;
     startWidthRef.current = width;
   }, [enabled, width]);
 
