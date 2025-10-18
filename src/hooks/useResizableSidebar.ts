@@ -67,7 +67,7 @@ export function useResizableSidebar({
           return parsed;
         }
       }
-    } catch (e) {
+    } catch {
       // Ignore storage errors (private browsing, quota exceeded, etc.)
     }
     return defaultWidth;
@@ -84,7 +84,7 @@ export function useResizableSidebar({
     if (!enabled) return;
     try {
       localStorage.setItem(storageKey, width.toString());
-    } catch (e) {
+    } catch {
       // Ignore storage errors (private browsing, quota exceeded, etc.)
     }
   }, [width, storageKey, enabled]);

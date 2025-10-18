@@ -145,7 +145,8 @@ describe("git diff parser (real repository)", () => {
     execSync("git add . && git commit -m 'Add feature'", { cwd: testRepoPath });
 
     // Get diff between main (or master) and feature
-    const mainBranch = execSync("git rev-parse --abbrev-ref HEAD", {
+    // Note: mainBranch is determined by the initial setup
+    const _mainBranch = execSync("git rev-parse --abbrev-ref HEAD", {
       cwd: testRepoPath,
       encoding: "utf-8",
     }).trim();

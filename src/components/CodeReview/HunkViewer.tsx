@@ -5,6 +5,7 @@
 import React, { useState } from "react";
 import styled from "@emotion/styled";
 import type { DiffHunk, HunkReview } from "@/types/review";
+import { DiffRenderer } from "../shared/DiffRenderer";
 
 interface HunkViewerProps {
   hunk: DiffHunk;
@@ -64,60 +65,13 @@ const LineInfo = styled.div`
   font-size: 11px;
 `;
 
-const ReviewBadge = styled.div<{ status: string }>`
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 3px;
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-  margin-left: 8px;
-
-  ${(props) => {
-    if (props.status === "accepted") {
-      return `
-        background: rgba(78, 201, 176, 0.2);
-        color: #4ec9b0;
-      `;
-    } else if (props.status === "rejected") {
-      return `
-        background: rgba(244, 135, 113, 0.2);
-        color: #f48771;
-      `;
-    }
-    return "";
-  }}
-`;
-
 const HunkContent = styled.div`
-  padding: 0;
+  padding: 6px 8px;
   font-family: var(--font-monospace);
-  font-size: 12px;
-  line-height: 1.5;
+  font-size: 11px;
+  line-height: 1.4;
   overflow-x: auto;
-`;
-
-const DiffLine = styled.div<{ type: "add" | "remove" | "context" }>`
-  padding: 0 12px;
-  white-space: pre;
-
-  ${(props) => {
-    if (props.type === "add") {
-      return `
-        background: rgba(78, 201, 176, 0.15);
-        color: #4ec9b0;
-      `;
-    } else if (props.type === "remove") {
-      return `
-        background: rgba(244, 135, 113, 0.15);
-        color: #f48771;
-      `;
-    } else {
-      return `
-        color: #d4d4d4;
-      `;
-    }
-  }}
+  background: rgba(0, 0, 0, 0.2);
 `;
 
 const CollapsedIndicator = styled.div`
@@ -170,10 +124,7 @@ export const HunkViewer: React.FC<HunkViewerProps> = ({ hunk, review, isSelected
       }}
     >
       <HunkHeader>
-        <div style={{ display: "flex", alignItems: "center" }}>
-          <FilePath>{hunk.filePath}</FilePath>
-          {review && <ReviewBadge status={review.status}>{review.status}</ReviewBadge>}
-        </div>
+        <FilePath>{hunk.filePath}</FilePath>
         <LineInfo>
           {hunk.header} ({lineCount} {lineCount === 1 ? "line" : "lines"})
         </LineInfo>
@@ -181,18 +132,7 @@ export const HunkViewer: React.FC<HunkViewerProps> = ({ hunk, review, isSelected
 
       {isExpanded ? (
         <HunkContent>
-          {diffLines.map((line, index) => {
-            const type = line.startsWith("+")
-              ? "add"
-              : line.startsWith("-")
-                ? "remove"
-                : "context";
-            return (
-              <DiffLine key={index} type={type}>
-                {line}
-              </DiffLine>
-            );
-          })}
+          <DiffRenderer content={hunk.content} />
         </HunkContent>
       ) : (
         <CollapsedIndicator onClick={handleToggleExpand}>

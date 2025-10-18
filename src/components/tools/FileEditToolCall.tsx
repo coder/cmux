@@ -22,6 +22,14 @@ import {
 } from "./shared/ToolPrimitives";
 import { useToolExpansion, getStatusDisplay, type ToolStatus } from "./shared/toolUtils";
 import { TooltipWrapper, Tooltip } from "../Tooltip";
+import {
+  DiffContainer,
+  DiffLine,
+  LineNumber,
+  LineContent,
+  DiffIndicator,
+  type DiffLineType,
+} from "../shared/DiffRenderer";
 
 // File edit specific styled components
 
@@ -32,116 +40,6 @@ const FilePath = styled.span`
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 400px;
-`;
-
-const DiffContainer = styled.div`
-  margin: 0;
-  padding: 6px 8px;
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 3px;
-  font-size: 11px;
-  line-height: 1.4;
-  max-height: 400px;
-  overflow-y: auto;
-`;
-
-// Shared type for diff line types
-type DiffLineType = "add" | "remove" | "context" | "header";
-
-// Helper function for computing contrast color for add/remove indicators
-const getContrastColor = (type: DiffLineType) => {
-  return type === "add" || type === "remove"
-    ? "color-mix(in srgb, var(--color-text-secondary), white 50%)"
-    : "var(--color-text-secondary)";
-};
-
-const DiffLine = styled.div<{ type: DiffLineType }>`
-  font-family: var(--font-monospace);
-  white-space: pre;
-  display: flex;
-  padding: ${({ type }) => (type === "header" ? "4px 0" : "0")};
-  color: ${({ type }) => {
-    switch (type) {
-      case "add":
-        return "#4caf50";
-      case "remove":
-        return "#f44336";
-      case "header":
-        return "#2196f3";
-      case "context":
-      default:
-        return "var(--color-text)";
-    }
-  }};
-  background: ${({ type }) => {
-    switch (type) {
-      case "add":
-        return "rgba(46, 160, 67, 0.15)";
-      case "remove":
-        return "rgba(248, 81, 73, 0.15)";
-      default:
-        return "transparent";
-    }
-  }};
-`;
-
-const LineNumber = styled.span<{ type: DiffLineType }>`
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  min-width: 35px;
-  padding-right: 4px;
-  font-size: ${({ type }) => (type === "header" ? "14px" : "inherit")};
-  font-weight: ${({ type }) => (type === "header" ? "bold" : "normal")};
-  color: ${({ type }) => getContrastColor(type)};
-  opacity: ${({ type }) => (type === "add" || type === "remove" ? 0.9 : 0.6)};
-  user-select: none;
-  flex-shrink: 0;
-  background: ${({ type }) => {
-    switch (type) {
-      case "add":
-        return "rgba(46, 160, 67, 0.3)";
-      case "remove":
-        return "rgba(248, 81, 73, 0.3)";
-      default:
-        return "transparent";
-    }
-  }};
-`;
-
-const LineContent = styled.span<{ type: DiffLineType }>`
-  flex: 1;
-  padding-left: 8px;
-  color: ${({ type }) => {
-    switch (type) {
-      case "header":
-        return "#2196f3";
-      case "context":
-        return "var(--color-text-secondary)";
-      case "add":
-      case "remove":
-        return "var(--color-text)";
-    }
-  }};
-`;
-
-const DiffIndicator = styled.span<{ type: DiffLineType }>`
-  display: inline-block;
-  width: 4px;
-  text-align: center;
-  color: ${({ type }) => getContrastColor(type)};
-  opacity: ${({ type }) => (type === "add" || type === "remove" ? 0.9 : 0.6)};
-  flex-shrink: 0;
-  background: ${({ type }) => {
-    switch (type) {
-      case "add":
-        return "rgba(46, 160, 67, 0.3)";
-      case "remove":
-        return "rgba(248, 81, 73, 0.3)";
-      default:
-        return "transparent";
-    }
-  }};
 `;
 
 const ErrorMessage = styled.div`

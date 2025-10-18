@@ -28,7 +28,10 @@ const ButtonRow = styled.div`
   align-items: center;
 `;
 
-const ActionButton = styled.button<{ variant: "accept" | "reject" | "clear" }>`
+const ActionButton = styled.button<{ 
+  variant: "accept" | "reject" | "clear"; 
+  isActive?: boolean;
+}>`
   flex: 1;
   padding: 8px 16px;
   border: none;
@@ -38,13 +41,18 @@ const ActionButton = styled.button<{ variant: "accept" | "reject" | "clear" }>`
   cursor: pointer;
   transition: all 0.2s ease;
   font-family: var(--font-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
 
   ${(props) => {
     if (props.variant === "accept") {
       return `
-        background: rgba(78, 201, 176, 0.2);
+        background: ${props.isActive ? "rgba(78, 201, 176, 0.3)" : "rgba(78, 201, 176, 0.2)"};
         color: #4ec9b0;
         border: 1px solid #4ec9b0;
+        ${props.isActive ? "font-weight: 600;" : ""}
         
         &:hover {
           background: rgba(78, 201, 176, 0.3);
@@ -52,9 +60,10 @@ const ActionButton = styled.button<{ variant: "accept" | "reject" | "clear" }>`
       `;
     } else if (props.variant === "reject") {
       return `
-        background: rgba(244, 135, 113, 0.2);
+        background: ${props.isActive ? "rgba(244, 135, 113, 0.3)" : "rgba(244, 135, 113, 0.2)"};
         color: #f48771;
         border: 1px solid #f48771;
+        ${props.isActive ? "font-weight: 600;" : ""}
         
         &:hover {
           background: rgba(244, 135, 113, 0.3);
@@ -78,6 +87,31 @@ const ActionButton = styled.button<{ variant: "accept" | "reject" | "clear" }>`
     opacity: 0.5;
     cursor: not-allowed;
   }
+`;
+
+const StatusBadge = styled.span<{ status: "accepted" | "rejected" }>`
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+
+  ${(props) => {
+    if (props.status === "accepted") {
+      return `
+        background: rgba(78, 201, 176, 0.3);
+        color: #4ec9b0;
+      `;
+    } else {
+      return `
+        background: rgba(244, 135, 113, 0.3);
+        color: #f48771;
+      `;
+    }
+  }}
 `;
 
 const NoteToggle = styled.button`
@@ -163,12 +197,22 @@ export const ReviewActions: React.FC<ReviewActionsProps> = ({
       )}
 
       <ButtonRow>
-        <ActionButton variant="accept" onClick={handleAccept}>
+        <ActionButton 
+          variant="accept" 
+          onClick={handleAccept}
+          isActive={currentStatus === "accepted"}
+        >
           ✓ Accept
+          {currentStatus === "accepted" && <StatusBadge status="accepted">ACCEPTED</StatusBadge>}
           <KeybindHint>(a)</KeybindHint>
         </ActionButton>
-        <ActionButton variant="reject" onClick={handleReject}>
+        <ActionButton 
+          variant="reject" 
+          onClick={handleReject}
+          isActive={currentStatus === "rejected"}
+        >
           ✗ Reject
+          {currentStatus === "rejected" && <StatusBadge status="rejected">REJECTED</StatusBadge>}
           <KeybindHint>(r)</KeybindHint>
         </ActionButton>
         {currentStatus && (

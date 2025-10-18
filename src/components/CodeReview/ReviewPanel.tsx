@@ -33,6 +33,11 @@ const ContentContainer = styled.div`
   flex: 1;
   min-height: 0;
   overflow: hidden;
+  
+  /* Stack vertically on narrow viewports */
+  @media (max-width: 800px) {
+    flex-direction: column;
+  }
 `;
 
 const HunksSection = styled.div`
@@ -42,6 +47,11 @@ const HunksSection = styled.div`
   flex-direction: column;
   overflow: hidden;
   min-width: 0;
+  
+  /* On narrow viewports, allow shrinking but maintain minimum */
+  @media (max-width: 800px) {
+    min-height: 300px;
+  }
 `;
 
 const HunkList = styled.div`
@@ -58,6 +68,15 @@ const FileTreeSection = styled.div`
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  
+  /* On narrow viewports, stack above hunks and remove left border */
+  @media (max-width: 800px) {
+    width: 100%;
+    border-left: none;
+    border-bottom: 1px solid #3e3e42;
+    max-height: 300px;
+    order: -1; /* Move to top */
+  }
 `;
 
 const EmptyState = styled.div`
