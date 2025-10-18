@@ -46,6 +46,7 @@ const InputSection = styled.div`
   display: flex;
   flex-direction: column;
   gap: 8px;
+  container-type: inline-size; /* Enable container queries for responsive behavior */
 `;
 
 const InputControls = styled.div`
@@ -72,6 +73,12 @@ const ModeToggleWrapper = styled.div`
   align-items: center;
   gap: 6px;
   margin-left: auto;
+  
+  /* Hide mode toggle on narrow containers */
+  /* Note: Text area border changes color with mode, so this omission is acceptable */
+  @container (max-width: 700px) {
+    display: none;
+  }
 `;
 
 const StyledToggleContainer = styled.div<{ mode: UIMode }>`
@@ -121,6 +128,13 @@ const ModelDisplayWrapper = styled.div`
   gap: 4px;
   margin-right: 12px;
   height: 11px;
+  
+  /* Hide help indicators on narrow containers */
+  @container (max-width: 700px) {
+    .help-indicator-wrapper {
+      display: none;
+    }
+  }
 `;
 
 export interface ChatInputAPI {
@@ -871,9 +885,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                 recentModels={recentModels}
                 onComplete={() => inputRef.current?.focus()}
               />
-              <TooltipWrapper inline>
-                <HelpIndicator>?</HelpIndicator>
-                <Tooltip className="tooltip" align="left" width="wide">
+              <span className="help-indicator-wrapper">
+                <TooltipWrapper inline>
+                  <HelpIndicator>?</HelpIndicator>
+                  <Tooltip className="tooltip" align="left" width="wide">
                   <strong>Click to edit</strong> or use{" "}
                   {formatKeybind(KEYBINDS.OPEN_MODEL_SELECTOR)}
                   <br />
@@ -889,7 +904,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                   <br />
                   (e.g., <code>/model anthropic:claude-sonnet-4-5</code>)
                 </Tooltip>
-              </TooltipWrapper>
+                </TooltipWrapper>
+              </span>
             </ModelDisplayWrapper>
           </ChatToggles>
           <ModeToggleWrapper>
@@ -903,9 +919,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                 onChange={setMode}
               />
             </StyledToggleContainer>
-            <TooltipWrapper inline>
-              <HelpIndicator>?</HelpIndicator>
-              <Tooltip className="tooltip" align="center" width="wide">
+            <span className="help-indicator-wrapper">
+              <TooltipWrapper inline>
+                <HelpIndicator>?</HelpIndicator>
+                <Tooltip className="tooltip" align="center" width="wide">
                 <strong>Exec Mode:</strong> AI edits files and execute commands
                 <br />
                 <br />
@@ -914,7 +931,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                 <br />
                 Toggle with: {formatKeybind(KEYBINDS.TOGGLE_MODE)}
               </Tooltip>
-            </TooltipWrapper>
+              </TooltipWrapper>
+            </span>
           </ModeToggleWrapper>
         </ModeTogglesRow>
       </ModeToggles>

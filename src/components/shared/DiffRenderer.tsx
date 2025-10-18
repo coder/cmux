@@ -16,13 +16,27 @@ const getContrastColor = (type: DiffLineType) => {
     : "var(--color-text-secondary)";
 };
 
+// Wrapper to ensure background extends full width
+export const DiffLineWrapper = styled.div<{ type: DiffLineType }>`
+  background: ${({ type }) => {
+    switch (type) {
+      case "add":
+        return "rgba(46, 160, 67, 0.15)";
+      case "remove":
+        return "rgba(248, 81, 73, 0.15)";
+      default:
+        return "transparent";
+    }
+  }};
+  width: 100%; /* Always full width so background extends */
+  min-width: fit-content; /* But grow if content is wider */
+`;
+
 export const DiffLine = styled.div<{ type: DiffLineType }>`
   font-family: var(--font-monospace);
   white-space: pre;
   display: flex;
-  padding: ${({ type }) => (type === "header" ? "4px 8px" : "0 8px")}; /* Horizontal padding on lines */
-  min-width: 100%; /* Ensure line extends full scrollable width */
-  width: fit-content; /* Allow line to grow beyond viewport for long content */
+  padding: ${({ type }) => (type === "header" ? "4px 8px" : "0 8px")};
   color: ${({ type }) => {
     switch (type) {
       case "add":
@@ -34,16 +48,6 @@ export const DiffLine = styled.div<{ type: DiffLineType }>`
       case "context":
       default:
         return "var(--color-text)";
-    }
-  }};
-  background: ${({ type }) => {
-    switch (type) {
-      case "add":
-        return "rgba(46, 160, 67, 0.15)";
-      case "remove":
-        return "rgba(248, 81, 73, 0.15)";
-      default:
-        return "transparent";
     }
   }};
 `;
@@ -191,11 +195,13 @@ export const DiffRenderer: React.FC<DiffRendererProps> = ({
         }
 
         return (
-          <DiffLine key={index} type={type}>
-            <DiffIndicator type={type}>{firstChar}</DiffIndicator>
-            {showLineNumbers && <LineNumber type={type}>{lineNumDisplay}</LineNumber>}
-            <LineContent type={type}>{lineContent}</LineContent>
-          </DiffLine>
+          <DiffLineWrapper key={index} type={type}>
+            <DiffLine type={type}>
+              <DiffIndicator type={type}>{firstChar}</DiffIndicator>
+              {showLineNumbers && <LineNumber type={type}>{lineNumDisplay}</LineNumber>}
+              <LineContent type={type}>{lineContent}</LineContent>
+            </DiffLine>
+          </DiffLineWrapper>
         );
       })}
     </>

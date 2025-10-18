@@ -11,6 +11,7 @@ import { ReviewControls } from "./ReviewControls";
 import { FileTree } from "./FileTree";
 import { useReviewState } from "@/hooks/useReviewState";
 import { usePersistedState } from "@/hooks/usePersistedState";
+import { useLayoutMode } from "@/hooks/useLayoutMode";
 import { parseDiff, extractAllHunks } from "@/utils/git/diffParser";
 import { parseNumstat, buildFileTree, extractNewPath } from "@/utils/git/numstatParser";
 import type { DiffHunk, ReviewFilters as ReviewFiltersType } from "@/types/review";
@@ -29,33 +30,28 @@ const PanelContainer = styled.div`
   background: #1e1e1e;
 `;
 
-const ContentContainer = styled.div`
+const ContentContainer = styled.div<{ layoutMode: "narrow" | "wide" }>`
   display: flex;
-  flex-direction: row; /* Default: side-by-side layout */
+  flex-direction: ${(props) => (props.layoutMode === "narrow" ? "column" : "row")};
   flex: 1;
   min-height: 0;
   overflow: hidden;
-  container-type: inline-size; /* Enable container queries */
-  
-  /* Stack vertically when container is narrow (uses container query) */
-  @container (max-width: 800px) {
-    flex-direction: column;
-  }
 `;
 
-const HunksSection = styled.div`
+const HunksSection = styled.div<{ layoutMode: "narrow" | "wide" }>`
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   min-width: 0;
-  
-  /* On narrow containers, ensure it can scroll */
-  @container (max-width: 800px) {
+  ${(props) =>
+    props.layoutMode === "narrow" &&
+    `
+    /* On narrow layout, ensure it can scroll */
     flex: 1; /* Take remaining space after file tree */
     min-height: 0; /* Critical for flex child scrolling */
-  }
+  `}
 `;
 
 const HunkList = styled.div`
@@ -65,24 +61,27 @@ const HunkList = styled.div`
   padding: 12px;
 `;
 
-const FileTreeSection = styled.div`
-  width: 300px;
-  flex-shrink: 0;
-  border-left: 1px solid #3e3e42;
+const FileTreeSection = styled.div<{ layoutMode: "narrow" | "wide" }>`
+  ${(props) =>
+    props.layoutMode === "narrow"
+      ? `
+    /* Narrow layout: full width, fixed height, above hunks */
+    width: 100%;
+    border-left: none;
+    border-bottom: 1px solid #3e3e42;
+    height: 250px;
+    flex: 0 0 250px;
+  `
+      : `
+    /* Wide layout: fixed width on right side */
+    width: 300px;
+    flex-shrink: 0;
+    border-left: 1px solid #3e3e42;
+  `}
   display: flex;
   flex-direction: column;
   overflow: hidden;
   min-height: 0;
-  
-  /* On narrow containers, stack above hunks with limited height */
-  @container (max-width: 800px) {
-    width: 100%;
-    border-left: none;
-    border-bottom: 1px solid #3e3e42;
-    height: 250px; /* Fixed height on narrow containers */
-    flex: 0 0 250px; /* Don't grow, don't shrink, explicit size */
-    order: -1; /* Move to top */
-  }
 `;
 
 const EmptyState = styled.div`
@@ -257,6 +256,11 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
   const [error, setError] = useState<string | null>(null);
   const [diagnosticInfo, setDiagnosticInfo] = useState<DiagnosticInfo | null>(null);
   const [truncationWarning, setTruncationWarning] = useState<string | null>(null);
+
+  // Measure container width to determine layout mode
+  const { layoutMode, containerRef } = useLayoutMode(800);
+
+
   const [fileTree, setFileTree] = useState<FileTreeNode | null>(null);
   
   // Persist file filter per workspace
@@ -498,7 +502,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
   }, [hunks, removeStaleReviews]);
 
   return (
-    <PanelContainer>
+    <PanelContainer ref={containerRef}>
       {/* Always show controls so user can change diff base */}
       <ReviewControls filters={filters} stats={stats} onFiltersChange={setFilters} />
 
@@ -507,8 +511,20 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
       ) : isLoadingHunks && hunks.length === 0 && !fileTree ? (
         <LoadingState>Loading diff...</LoadingState>
       ) : (
-        <ContentContainer>
-          <HunksSection>
+        <ContentContainer layoutMode={layoutMode}>
+          {/* Render FileTree first in narrow mode */}
+          {layoutMode === "narrow" && (fileTree ?? isLoadingTree) && (
+            <FileTreeSection layoutMode={layoutMode}>
+              <FileTree
+                root={fileTree}
+                selectedPath={selectedFilePath}
+                onSelectFile={setSelectedFilePath}
+                isLoading={isLoadingTree}
+              />
+            </FileTreeSection>
+          )}
+          
+          <HunksSection layoutMode={layoutMode}>
             {truncationWarning && (
               <TruncationBanner>{truncationWarning}</TruncationBanner>
             )}
@@ -592,8 +608,9 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ workspaceId, workspace
             </HunkList>
           </HunksSection>
 
-          {(fileTree ?? isLoadingTree) && (
-            <FileTreeSection>
+          {/* Render FileTree last in wide mode */}
+          {layoutMode === "wide" && (fileTree ?? isLoadingTree) && (
+            <FileTreeSection layoutMode={layoutMode}>
               <FileTree
                 root={fileTree}
                 selectedPath={selectedFilePath}
