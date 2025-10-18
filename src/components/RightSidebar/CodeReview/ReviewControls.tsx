@@ -139,16 +139,37 @@ export const ReviewControls: React.FC<ReviewControlsProps> = ({
   stats,
   onFiltersChange,
 }) => {
-  const handleBaseChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.trim();
-    if (value) {
-      onFiltersChange({ ...filters, diffBase: value });
+  // Local state for input value - only commit on blur/Enter
+  const [inputValue, setInputValue] = useState(filters.diffBase);
+
+  // Sync input with external changes (e.g., workspace change)
+  React.useEffect(() => {
+    setInputValue(filters.diffBase);
+  }, [filters.diffBase]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setInputValue(e.target.value);
+  };
+
+  const commitValue = () => {
+    const trimmed = inputValue.trim();
+    if (trimmed && trimmed !== filters.diffBase) {
+      onFiltersChange({ ...filters, diffBase: trimmed });
     }
+  };
+
+  const handleBaseBlur = () => {
+    commitValue();
   };
 
   const handleBaseKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
-      e.currentTarget.blur(); // Trigger blur to commit value
+      commitValue();
+      e.currentTarget.blur();
+    } else if (e.key === "Escape") {
+      // Revert to committed value
+      setInputValue(filters.diffBase);
+      e.currentTarget.blur();
     }
   };
 
@@ -162,8 +183,9 @@ export const ReviewControls: React.FC<ReviewControlsProps> = ({
       <BaseInput
         type="text"
         list="base-suggestions"
-        value={filters.diffBase}
-        onChange={handleBaseChange}
+        value={inputValue}
+        onChange={handleInputChange}
+        onBlur={handleBaseBlur}
         onKeyDown={handleBaseKeyDown}
         placeholder="HEAD, main, etc."
       />
