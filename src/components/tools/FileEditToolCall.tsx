@@ -25,6 +25,7 @@ import { TooltipWrapper, Tooltip } from "../Tooltip";
 import {
   DiffContainer,
   DiffRenderer,
+  SelectableDiffRenderer,
 } from "../shared/DiffRenderer";
 
 // File edit specific styled components
@@ -88,26 +89,38 @@ interface FileEditToolCallProps {
   args: FileEditOperationArgs;
   result?: FileEditToolResult;
   status?: ToolStatus;
+  onReviewNote?: (note: string) => void;
 }
 
-function renderDiff(diff: string): React.ReactNode {
+function renderDiff(diff: string, filePath?: string, onReviewNote?: (note: string) => void): React.ReactNode {
   try {
     const patches = parsePatch(diff);
     if (patches.length === 0) {
       return <div style={{ padding: "8px", color: "#888" }}>No changes</div>;
     }
 
-    // Render each hunk using DiffRenderer
+    // Render each hunk using SelectableDiffRenderer if we have a callback, otherwise DiffRenderer
     return patches.map((patch, patchIdx) => (
       <React.Fragment key={patchIdx}>
         {patch.hunks.map((hunk, hunkIdx) => (
           <React.Fragment key={hunkIdx}>
-            <DiffRenderer
-              content={hunk.lines.join("\n")}
-              showLineNumbers={true}
-              oldStart={hunk.oldStart}
-              newStart={hunk.newStart}
-            />
+            {onReviewNote && filePath ? (
+              <SelectableDiffRenderer
+                content={hunk.lines.join("\n")}
+                showLineNumbers={true}
+                oldStart={hunk.oldStart}
+                newStart={hunk.newStart}
+                filePath={filePath}
+                onReviewNote={onReviewNote}
+              />
+            ) : (
+              <DiffRenderer
+                content={hunk.lines.join("\n")}
+                showLineNumbers={true}
+                oldStart={hunk.oldStart}
+                newStart={hunk.newStart}
+              />
+            )}
           </React.Fragment>
         ))}
       </React.Fragment>
@@ -122,6 +135,7 @@ export const FileEditToolCall: React.FC<FileEditToolCallProps> = ({
   args,
   result,
   status = "pending",
+  onReviewNote,
 }) => {
   const { expanded, toggleExpanded } = useToolExpansion(true);
   const [showRaw, setShowRaw] = React.useState(false);
@@ -196,7 +210,7 @@ export const FileEditToolCall: React.FC<FileEditToolCallProps> = ({
                       {result.diff}
                     </pre>
                   ) : (
-                    renderDiff(result.diff)
+                    renderDiff(result.diff, filePath, onReviewNote)
                   )}
                 </DiffContainer>
               )}

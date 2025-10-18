@@ -13,11 +13,12 @@ interface MessageRendererProps {
   onEditUserMessage?: (messageId: string, content: string) => void;
   workspaceId?: string;
   isCompacting?: boolean;
+  onReviewNote?: (note: string) => void;
 }
 
 // Memoized to prevent unnecessary re-renders when parent (AIView) updates
 export const MessageRenderer = React.memo<MessageRendererProps>(
-  ({ message, className, onEditUserMessage, workspaceId, isCompacting }) => {
+  ({ message, className, onEditUserMessage, workspaceId, isCompacting, onReviewNote }) => {
     // Route based on message type
     switch (message.type) {
       case "user":
@@ -39,7 +40,7 @@ export const MessageRenderer = React.memo<MessageRendererProps>(
           />
         );
       case "tool":
-        return <ToolMessage message={message} className={className} workspaceId={workspaceId} />;
+        return <ToolMessage message={message} className={className} workspaceId={workspaceId} onReviewNote={onReviewNote} />;
       case "reasoning":
         return <ReasoningMessage message={message} className={className} />;
       case "stream-error":
