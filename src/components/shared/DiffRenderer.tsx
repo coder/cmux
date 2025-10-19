@@ -107,12 +107,12 @@ export const DiffIndicator = styled.span<{ type: DiffLineType }>`
   flex-shrink: 0;
 `;
 
-export const DiffContainer = styled.div`
+export const DiffContainer = styled.div<{ fontSize?: string }>`
   margin: 0;
   padding: 6px 0;
   background: rgba(0, 0, 0, 0.2);
   border-radius: 3px;
-  font-size: 12px;
+  font-size: ${({ fontSize }) => fontSize || "12px"};
   line-height: 1.4;
   max-height: 400px;
   overflow-y: auto;
@@ -139,6 +139,8 @@ interface DiffRendererProps {
   newStart?: number;
   /** File path for language detection (optional, enables syntax highlighting) */
   filePath?: string;
+  /** Font size for diff content (default: "12px") */
+  fontSize?: string;
 }
 
 /**
@@ -192,6 +194,7 @@ export const DiffRenderer: React.FC<DiffRendererProps> = ({
   oldStart = 1,
   newStart = 1,
   filePath,
+  fontSize,
 }) => {
   const lines = content.split("\n").filter((line) => line.length > 0);
 
@@ -202,7 +205,7 @@ export const DiffRenderer: React.FC<DiffRendererProps> = ({
   let newLineNum = newStart;
 
   return (
-    <>
+    <DiffContainer fontSize={fontSize}>
       {lines.map((line, index) => {
         const firstChar = line[0];
         const lineContent = line.slice(1); // Remove the +/-/@ prefix
@@ -249,12 +252,12 @@ export const DiffRenderer: React.FC<DiffRendererProps> = ({
           </DiffLineWrapper>
         );
       })}
-    </>
+    </DiffContainer>
   );
 };
 
 // Selectable version of DiffRenderer for Code Review
-interface SelectableDiffRendererProps extends DiffRendererProps {
+interface SelectableDiffRendererProps extends Omit<DiffRendererProps, "filePath"> {
   /** File path for generating review notes */
   filePath: string;
   /** Callback when user submits a review note */
@@ -445,6 +448,7 @@ export const SelectableDiffRenderer: React.FC<SelectableDiffRendererProps> = ({
   oldStart = 1,
   newStart = 1,
   filePath,
+  fontSize,
   onReviewNote,
   onLineClick,
 }) => {
@@ -596,6 +600,6 @@ export const SelectableDiffRenderer: React.FC<SelectableDiffRendererProps> = ({
           </React.Fragment>
         );
       })}
-    </>
+    </DiffContainer>
   );
 };
