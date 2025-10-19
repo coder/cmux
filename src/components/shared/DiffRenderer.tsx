@@ -227,14 +227,14 @@ const SelectableDiffLineWrapper = styled(DiffLineWrapper)<{
   ${({ isSelected }) =>
     isSelected &&
     `
-    background: rgba(255, 200, 0, 0.2) !important;
+    background: var(--color-review-accent-alpha-20) !important;
   `}
 
   &:hover {
     ${({ isSelecting }) =>
       isSelecting &&
       `
-      background: rgba(255, 200, 0, 0.1);
+      background: var(--color-review-accent-alpha-10);
     `}
   }
 `;
@@ -242,7 +242,7 @@ const SelectableDiffLineWrapper = styled(DiffLineWrapper)<{
 const InlineNoteContainer = styled.div`
   padding: 10px 8px 8px 8px;
   background: #252526;
-  border-top: 1px solid rgba(255, 200, 0, 0.3);
+  border-top: 1px solid var(--color-review-accent-alpha-30);
   margin: 0;
 `;
 
@@ -253,14 +253,14 @@ const NoteTextarea = styled.textarea`
   font-family: var(--font-sans);
   font-size: 11px;
   background: #1e1e1e;
-  border: 1px solid rgba(255, 200, 0, 0.4);
+  border: 1px solid var(--color-review-accent-alpha);
   border-radius: 2px;
   color: var(--color-text);
   resize: vertical;
 
   &:focus {
     outline: none;
-    border-color: rgba(255, 200, 0, 0.6);
+    border-color: var(--color-review-accent-alpha-hover);
   }
 
   &::placeholder {

@@ -118,6 +118,9 @@ export const GlobalColors = () => (
 
         /* Review/Selection Colors (Yellow/Orange) */
         --color-review-accent: hsl(48 100% 50%); /* rgb(255, 200, 0) - used for review notes and active hunks */
+        --color-review-accent-alpha-10: hsl(from var(--color-review-accent) h s l / 0.1);
+        --color-review-accent-alpha-20: hsl(from var(--color-review-accent) h s l / 0.2);
+        --color-review-accent-alpha-30: hsl(from var(--color-review-accent) h s l / 0.3);
         --color-review-accent-alpha: hsl(from var(--color-review-accent) h s l / 0.4);
         --color-review-accent-alpha-hover: hsl(from var(--color-review-accent) h s l / 0.6);
 
