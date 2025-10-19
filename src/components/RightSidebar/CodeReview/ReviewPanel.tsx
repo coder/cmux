@@ -698,6 +698,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
                       key={hunk.id}
                       hunk={hunk}
                       hunkId={hunk.id}
+                      workspaceId={workspaceId}
                       isSelected={isSelected}
                       isRead={hunkIsRead}
                       onClick={handleHunkClick}

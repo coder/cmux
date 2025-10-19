@@ -7,10 +7,12 @@ import styled from "@emotion/styled";
 import type { DiffHunk } from "@/types/review";
 import { SelectableDiffRenderer } from "../../shared/DiffRenderer";
 import { Tooltip, TooltipWrapper } from "../../Tooltip";
+import { usePersistedState } from "@/hooks/usePersistedState";
 
 interface HunkViewerProps {
   hunk: DiffHunk;
   hunkId: string;
+  workspaceId: string;
   isSelected?: boolean;
   isRead?: boolean;
   onClick?: (e: React.MouseEvent<HTMLElement>) => void;
@@ -165,7 +167,16 @@ const ToggleReadButton = styled.button`
 `;
 
 export const HunkViewer = React.memo<HunkViewerProps>(
-  ({ hunk, hunkId, isSelected, isRead = false, onClick, onToggleRead, onReviewNote }) => {
+  ({
+    hunk,
+    hunkId,
+    workspaceId,
+    isSelected,
+    isRead = false,
+    onClick,
+    onToggleRead,
+    onReviewNote,
+  }) => {
     // Parse diff lines (memoized - only recompute if hunk.content changes)
     // Must be done before state initialization to determine initial collapse state
     const { lineCount, additions, deletions, isLargeHunk } = React.useMemo(() => {
@@ -179,22 +190,56 @@ export const HunkViewer = React.memo<HunkViewerProps>(
       };
     }, [hunk.content]);
 
-    // Collapse by default if marked as read OR if hunk has >200 lines
-    const [isExpanded, setIsExpanded] = useState(() => !isRead && !isLargeHunk);
+    // Persist manual expand/collapse state across remounts per workspace
+    // Maps hunkId -> isExpanded for user's manual preferences
+    const [expandStateMap, setExpandStateMap] = usePersistedState<Record<string, boolean>>(
+      `review:expand:${workspaceId}`,
+      {}
+    );
 
-    // Auto-collapse when marked as read, auto-expand when unmarked (but respect large hunk threshold)
+    // Check if user has manually set expand state for this hunk
+    const hasManualState = hunkId in expandStateMap;
+    const manualExpandState = expandStateMap[hunkId];
+
+    // Determine initial expand state (priority: manual > read status > size)
+    const [isExpanded, setIsExpanded] = useState(() => {
+      if (hasManualState) {
+        return manualExpandState;
+      }
+      return !isRead && !isLargeHunk;
+    });
+
+    // Auto-collapse when marked as read, auto-expand when unmarked (unless user manually set)
     React.useEffect(() => {
+      // Don't override manual expand/collapse choices
+      if (hasManualState) {
+        return;
+      }
+
       if (isRead) {
         setIsExpanded(false);
       } else if (!isLargeHunk) {
         setIsExpanded(true);
       }
       // Note: When unmarking as read, large hunks remain collapsed
-    }, [isRead, isLargeHunk]);
+    }, [isRead, isLargeHunk, hasManualState]);
+
+    // Sync local state with persisted state when it changes
+    React.useEffect(() => {
+      if (hasManualState) {
+        setIsExpanded(manualExpandState);
+      }
+    }, [hasManualState, manualExpandState]);
 
     const handleToggleExpand = (e: React.MouseEvent) => {
       e.stopPropagation();
-      setIsExpanded(!isExpanded);
+      const newExpandState = !isExpanded;
+      setIsExpanded(newExpandState);
+      // Persist manual expand/collapse choice
+      setExpandStateMap((prev) => ({
+        ...prev,
+        [hunkId]: newExpandState,
+      }));
     };
 
     const handleToggleRead = (e: React.MouseEvent<HTMLButtonElement>) => {
