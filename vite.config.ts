@@ -31,27 +31,22 @@ const babelPlugins = [
   "@emotion/babel-plugin", // Required for component selector syntax (e.g., ${Component}:hover &)
 ];
 
+// Base plugins for both dev and production
+const basePlugins = [
+  svgr(),
+  react({
+    babel: {
+      plugins: babelPlugins,
+    },
+  }),
+];
+
 export default defineConfig(({ mode }) => ({
   // This prevents mermaid initialization errors in production while allowing dev to work
   plugins:
     mode === "development"
-      ? [
-          svgr(),
-          react({
-            babel: {
-              plugins: babelPlugins,
-            },
-          }),
-          topLevelAwait(),
-        ]
-      : [
-          svgr(),
-          react({
-            babel: {
-              plugins: babelPlugins,
-            },
-          }),
-        ],
+      ? [...basePlugins, topLevelAwait()]
+      : basePlugins,
   resolve: {
     alias,
   },
