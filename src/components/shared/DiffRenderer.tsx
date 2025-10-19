@@ -227,14 +227,14 @@ const SelectableDiffLineWrapper = styled(DiffLineWrapper)<{
   ${({ isSelected }) =>
     isSelected &&
     `
-    background: var(--color-review-accent-alpha-20) !important;
+    background: hsl(from var(--color-review-accent) h s l / 0.2) !important;
   `}
 
   &:hover {
     ${({ isSelecting }) =>
       isSelecting &&
       `
-      background: var(--color-review-accent-alpha-10);
+      background: hsl(from var(--color-review-accent) h s l / 0.1);
     `}
   }
 `;
@@ -242,7 +242,7 @@ const SelectableDiffLineWrapper = styled(DiffLineWrapper)<{
 const InlineNoteContainer = styled.div`
   padding: 10px 8px 8px 8px;
   background: #252526;
-  border-top: 1px solid var(--color-review-accent-alpha-30);
+  border-top: 1px solid hsl(from var(--color-review-accent) h s l / 0.3);
   margin: 0;
 `;
 
@@ -253,14 +253,14 @@ const NoteTextarea = styled.textarea`
   font-family: var(--font-sans);
   font-size: 11px;
   background: #1e1e1e;
-  border: 1px solid var(--color-review-accent-alpha);
+  border: 1px solid hsl(from var(--color-review-accent) h s l / 0.4);
   border-radius: 2px;
   color: var(--color-text);
   resize: vertical;
 
   &:focus {
     outline: none;
-    border-color: var(--color-review-accent-alpha-hover);
+    border-color: hsl(from var(--color-review-accent) h s l / 0.6);
   }
 
   &::placeholder {

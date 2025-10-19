@@ -117,12 +117,10 @@ export const GlobalColors = () => (
         --color-interrupted-alpha: hsl(from var(--color-interrupted) h s l / 0.3);
 
         /* Review/Selection Colors (Yellow/Orange) */
-        --color-review-accent: hsl(48 70% 50%); /* Muted yellow/orange - used for review notes and active hunks */
-        --color-review-accent-alpha-10: hsl(from var(--color-review-accent) h s l / 0.1);
-        --color-review-accent-alpha-20: hsl(from var(--color-review-accent) h s l / 0.2);
-        --color-review-accent-alpha-30: hsl(from var(--color-review-accent) h s l / 0.3);
-        --color-review-accent-alpha: hsl(from var(--color-review-accent) h s l / 0.4);
-        --color-review-accent-alpha-hover: hsl(from var(--color-review-accent) h s l / 0.6);
+        --color-review-accent: hsl(48 70% 50% / 0.75); /* Muted yellow/orange - used for review notes and active hunks */
+        /* ANTI-PATTERN: Don't create variants like --color-review-accent-alpha-10, -20, -30, etc.
+           Instead, use inline alpha: hsl(from var(--color-review-accent) h s l / 0.2) directly in components.
+           This avoids cluttering color definitions with every possible alpha variant. */
 
         /* Git Dirty/Uncommitted Changes Colors */
         --color-git-dirty: hsl(38 92% 50%); /* Same as interrupted - orange warning color */
