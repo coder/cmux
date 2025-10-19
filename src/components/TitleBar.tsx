@@ -139,7 +139,21 @@ export function TitleBar() {
       setUpdateStatus(status);
     });
 
-    return unsubscribe;
+    // Check for updates on mount
+    window.api.update.check().catch(console.error);
+
+    // Check periodically (every 4 hours)
+    const checkInterval = setInterval(
+      () => {
+        window.api.update.check().catch(console.error);
+      },
+      4 * 60 * 60 * 1000
+    );
+
+    return () => {
+      unsubscribe();
+      clearInterval(checkInterval);
+    };
   }, [telemetryEnabled]);
 
   const handleUpdateClick = () => {

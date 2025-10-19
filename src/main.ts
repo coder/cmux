@@ -385,13 +385,7 @@ function createWindow() {
   // Set up updater service with the main window (only in production)
   if (updaterService) {
     updaterService.setMainWindow(mainWindow);
-
-    // Start periodic checks after a short delay
-    setTimeout(() => {
-      if (updaterService) {
-        updaterService.startPeriodicChecks();
-      }
-    }, 10000); // Wait 10 seconds after app start
+    // Note: Checks are initiated by frontend to respect telemetry preference
   }
 
   // Show window once it's ready and close splash

@@ -23,7 +23,6 @@ export type UpdateStatus =
 export class UpdaterService {
   private mainWindow: BrowserWindow | null = null;
   private updateStatus: UpdateStatus = { type: "not-available" };
-  private updateCheckInterval: NodeJS.Timeout | null = null;
 
   constructor() {
     // Configure auto-updater
@@ -80,32 +79,6 @@ export class UpdaterService {
     this.mainWindow = window;
     // Send current status to newly connected window
     this.notifyRenderer();
-  }
-
-  /**
-   * Start checking for updates periodically (every 4 hours)
-   */
-  startPeriodicChecks() {
-    // Check immediately
-    this.checkForUpdates();
-
-    // Then check every 4 hours
-    this.updateCheckInterval = setInterval(
-      () => {
-        this.checkForUpdates();
-      },
-      4 * 60 * 60 * 1000
-    );
-  }
-
-  /**
-   * Stop periodic update checks
-   */
-  stopPeriodicChecks() {
-    if (this.updateCheckInterval) {
-      clearInterval(this.updateCheckInterval);
-      this.updateCheckInterval = null;
-    }
   }
 
   /**
