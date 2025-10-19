@@ -375,6 +375,13 @@ function greet(name) {
 
     // Reset and setup: create a branch with committed changes
     execSync("git reset --hard HEAD", { cwd: testRepoPath });
+    
+    // Get the current branch name (will be our base branch)
+    const baseBranch = execSync("git rev-parse --abbrev-ref HEAD", {
+      cwd: testRepoPath,
+      encoding: "utf-8",
+    }).trim();
+    
     execSync("git checkout -b unified-test", { cwd: testRepoPath });
 
     // Make and commit a change
@@ -383,12 +390,6 @@ function greet(name) {
 
     // Now make an uncommitted change (different line)
     writeFileSync(join(testRepoPath, "test-file.txt"), "Line 1\nLine 2\nLine 3 modified\nLine 4\n");
-
-    // Get base branch
-    const baseBranch = execSync("git rev-parse --abbrev-ref HEAD@{u} 2>/dev/null || echo main", {
-      cwd: testRepoPath,
-      encoding: "utf-8",
-    }).trim();
 
     // Use buildGitDiffCommand with includeUncommitted=true
     const gitCommand = buildGitDiffCommand(baseBranch, true, "", "diff");
