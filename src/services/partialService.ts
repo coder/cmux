@@ -119,16 +119,17 @@ export class PartialService {
    */
   async commitToHistory(workspaceId: string): Promise<Result<void>> {
     try {
-      const partial = await this.readPartial(workspaceId);
+      let partial = await this.readPartial(workspaceId);
       if (!partial) {
         return Ok(undefined); // No partial to commit
       }
 
-      // Don't commit errored partials to chat.jsonl
-      // Errored messages are transient failures, not committed history
-      // This prevents error accumulation when editing messages multiple times
+      // Strip error metadata if present, but commit the accumulated parts
+      // Error metadata is transient (UI-only), accumulated parts are persisted
+      // This ensures resumptions don't lose progress from failed streams
       if (partial.metadata?.error) {
-        return await this.deletePartial(workspaceId);
+        const { error, errorType, ...cleanMetadata } = partial.metadata;
+        partial = { ...partial, metadata: cleanMetadata };
       }
 
       const partialSeq = partial.metadata?.historySequence;
