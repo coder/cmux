@@ -79,7 +79,10 @@ const CommandLabel = styled.div`
   font-size: 12px;
   color: #888;
   margin-bottom: 8px;
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family:
+    system-ui,
+    -apple-system,
+    sans-serif;
 `;
 
 interface NewWorkspaceModalProps {

@@ -202,7 +202,11 @@ const compactCommandDefinition: SlashCommandDefinition = {
   description:
     "Compact conversation history using AI summarization. Use -t <tokens> to set max output tokens, -m <model> to set compaction model. Add continue message on lines after the command.",
   handler: ({ rawInput }): ParsedCommand => {
-    const { tokens: firstLineTokens, message: remainingLines, hasMultiline } = parseMultilineCommand(rawInput);
+    const {
+      tokens: firstLineTokens,
+      message: remainingLines,
+      hasMultiline,
+    } = parseMultilineCommand(rawInput);
 
     // Parse flags from first line using minimist
     const parsed = minimist(firstLineTokens, {
@@ -455,7 +459,8 @@ const telemetryCommandDefinition: SlashCommandDefinition = {
 
 const forkCommandDefinition: SlashCommandDefinition = {
   key: "fork",
-  description: "Fork workspace with new name and optional start message. Add start message on lines after the command.",
+  description:
+    "Fork workspace with new name and optional start message. Add start message on lines after the command.",
   handler: ({ rawInput }): ParsedCommand => {
     const { tokens, message } = parseMultilineCommand(rawInput);
 
@@ -487,9 +492,14 @@ const forkCommandDefinition: SlashCommandDefinition = {
 
 const newCommandDefinition: SlashCommandDefinition = {
   key: "new",
-  description: "Create new workspace with optional trunk branch. Use -t <branch> to specify trunk. Add start message on lines after the command.",
+  description:
+    "Create new workspace with optional trunk branch. Use -t <branch> to specify trunk. Add start message on lines after the command.",
   handler: ({ rawInput }): ParsedCommand => {
-    const { tokens: firstLineTokens, message: remainingLines, hasMultiline } = parseMultilineCommand(rawInput);
+    const {
+      tokens: firstLineTokens,
+      message: remainingLines,
+      hasMultiline,
+    } = parseMultilineCommand(rawInput);
 
     // Parse flags from first line using minimist
     const parsed = minimist(firstLineTokens, {
@@ -504,9 +514,7 @@ const newCommandDefinition: SlashCommandDefinition = {
     });
 
     // Check for unknown flags - return undefined workspaceName to open modal
-    const unknownFlags = firstLineTokens.filter(
-      (token) => token.startsWith("-") && token !== "-t"
-    );
+    const unknownFlags = firstLineTokens.filter((token) => token.startsWith("-") && token !== "-t");
     if (unknownFlags.length > 0) {
       return {
         type: "new",

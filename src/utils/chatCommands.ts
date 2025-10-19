@@ -128,9 +128,7 @@ export interface CompactionResult {
  * Prepare compaction message from options
  * Returns the actual message text (summarization request), metadata, and options
  */
-export function prepareCompactionMessage(
-  options: CompactionOptions
-): {
+export function prepareCompactionMessage(options: CompactionOptions): {
   messageText: string;
   metadata: CmuxFrontendMetadata;
   sendOptions: SendMessageOptions;
@@ -175,11 +173,11 @@ export async function executeCompaction(options: CompactionOptions): Promise<Com
 
   if (!result.success) {
     // Convert SendMessageError to string for error display
-    const errorString = result.error 
-      ? typeof result.error === "string" 
-        ? result.error 
-        : "type" in result.error 
-          ? result.error.type 
+    const errorString = result.error
+      ? typeof result.error === "string"
+        ? result.error
+        : "type" in result.error
+          ? result.error.type
           : "Failed to compact"
       : undefined;
     return { success: false, error: errorString };
@@ -303,7 +301,15 @@ export async function handleCompactCommand(
   parsed: Extract<ParsedCommand, { type: "compact" }>,
   context: CommandHandlerContext
 ): Promise<CommandHandlerResult> {
-  const { workspaceId, sendMessageOptions, editMessageId, setInput, setIsSending, setToast, onCancelEdit } = context;
+  const {
+    workspaceId,
+    sendMessageOptions,
+    editMessageId,
+    setInput,
+    setIsSending,
+    setToast,
+    onCancelEdit,
+  } = context;
 
   setInput("");
   setIsSending(true);
