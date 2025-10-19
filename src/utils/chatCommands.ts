@@ -106,6 +106,17 @@ export function formatNewCommand(
 
 export { forkWorkspace, type ForkOptions, type ForkResult } from "./workspaceFork";
 
+/**
+ * Format /fork command string for display
+ */
+export function formatForkCommand(newName: string, startMessage?: string): string {
+  let cmd = `/fork ${newName}`;
+  if (startMessage) {
+    cmd += `\n${startMessage}`;
+  }
+  return cmd;
+}
+
 // ============================================================================
 // Compaction
 // ============================================================================
@@ -194,18 +205,30 @@ export async function executeCompaction(options: CompactionOptions): Promise<Com
 /**
  * Format compaction command string for display
  */
-function formatCompactionCommand(options: CompactionOptions): string {
+export function formatCompactCommand(
+  maxOutputTokens?: number,
+  model?: string,
+  continueMessage?: string
+): string {
   let cmd = "/compact";
-  if (options.maxOutputTokens) {
-    cmd += ` -t ${options.maxOutputTokens}`;
+  if (maxOutputTokens) {
+    cmd += ` -t ${maxOutputTokens}`;
   }
-  if (options.model) {
-    cmd += ` -m ${options.model}`;
+  if (model) {
+    cmd += ` -m ${model}`;
   }
-  if (options.continueMessage) {
-    cmd += `\n${options.continueMessage}`;
+  if (continueMessage) {
+    cmd += `\n${continueMessage}`;
   }
   return cmd;
+}
+
+/**
+ * Format compaction command string for display (accepts CompactionOptions)
+ * @deprecated Use formatCompactCommand with individual arguments instead
+ */
+function formatCompactionCommand(options: CompactionOptions): string {
+  return formatCompactCommand(options.maxOutputTokens, options.model, options.continueMessage);
 }
 
 // ============================================================================

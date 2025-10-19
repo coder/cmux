@@ -10,6 +10,7 @@ import { GitStatusIndicator } from "./GitStatusIndicator";
 import { ModelDisplay } from "./Messages/ModelDisplay";
 import { StatusIndicator } from "./StatusIndicator";
 import { useRename } from "@/contexts/WorkspaceRenameContext";
+import { KebabMenu, type KebabMenuItem } from "./KebabMenu";
 
 // Styled Components
 const WorkspaceStatusIndicator = styled(StatusIndicator)`
@@ -17,10 +18,10 @@ const WorkspaceStatusIndicator = styled(StatusIndicator)`
 `;
 
 const WorkspaceItem = styled.div<{ selected?: boolean }>`
-  padding: 6px 12px 6px 28px;
+  padding: 6px 12px 6px 12px;
   cursor: pointer;
   display: grid;
-  grid-template-columns: auto auto 1fr auto;
+  grid-template-columns: auto auto 1fr auto auto;
   gap: 8px;
   align-items: center;
   border-left: 3px solid transparent;
@@ -37,10 +38,6 @@ const WorkspaceItem = styled.div<{ selected?: boolean }>`
 
   &:hover {
     background: #2a2a2b;
-
-    button {
-      opacity: 1;
-    }
   }
 `;
 
@@ -93,31 +90,11 @@ const WorkspaceErrorContainer = styled.div`
   z-index: 10;
 `;
 
-const RemoveBtn = styled.button`
-  opacity: 0;
-  background: transparent;
-  color: #888;
-  border: none;
-  cursor: pointer;
-  font-size: 16px;
-  padding: 0;
-  width: 20px;
-  height: 20px;
+const KebabMenuWrapper = styled.div`
+  grid-column: 5;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
-  flex-shrink: 0;
-
-  &:hover {
-    color: #ccc;
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 3px;
-  }
-`;
-
-const WorkspaceRemoveBtn = styled(RemoveBtn)`
-  grid-column: 1;
 `;
 
 export interface WorkspaceSelection {
@@ -126,6 +103,7 @@ export interface WorkspaceSelection {
   namedWorkspacePath: string; // User-friendly path (symlink for new workspaces)
   workspaceId: string;
 }
+
 export interface WorkspaceListItemProps {
   // Workspace metadata passed directly
   metadata: FrontendWorkspaceMetadata;
@@ -137,6 +115,8 @@ export interface WorkspaceListItemProps {
   onSelectWorkspace: (selection: WorkspaceSelection) => void;
   onRemoveWorkspace: (workspaceId: string, button: HTMLElement) => Promise<void>;
   onToggleUnread: (workspaceId: string) => void;
+  onForkWorkspace?: (workspaceId: string) => void;
+  onCompactWorkspace?: (workspaceId: string) => void;
 }
 
 const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
@@ -148,6 +128,8 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
   onSelectWorkspace,
   onRemoveWorkspace,
   onToggleUnread,
+  onForkWorkspace,
+  onCompactWorkspace,
 }) => {
   // Destructure metadata for convenience
   const { id: workspaceId, name: workspaceName, namedWorkspacePath } = metadata;
@@ -238,6 +220,42 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
     return "Idle";
   }, [isStreaming, streamingModel, isUnread, sidebarState.recencyTimestamp]);
 
+  // Kebab menu items
+  const kebabMenuItems: KebabMenuItem[] = useMemo(() => {
+    const items: KebabMenuItem[] = [];
+
+    if (onForkWorkspace) {
+      items.push({
+        label: "Fork",
+        emoji: "🔱",
+        onClick: () => onForkWorkspace(workspaceId),
+        tooltip: "Create a fork of this workspace",
+      });
+    }
+
+    if (onCompactWorkspace) {
+      items.push({
+        label: "Compact",
+        emoji: "🗜️",
+        onClick: () => onCompactWorkspace(workspaceId),
+        tooltip: "Summarize conversation history",
+      });
+    }
+
+    items.push({
+      label: "Delete",
+      emoji: "🗑️",
+      onClick: () => {
+        // Create a synthetic button element for the onRemoveWorkspace callback
+        const syntheticButton = document.createElement("button");
+        void onRemoveWorkspace(workspaceId, syntheticButton);
+      },
+      tooltip: "Remove workspace",
+    });
+
+    return items;
+  }, [workspaceId, onForkWorkspace, onCompactWorkspace, onRemoveWorkspace]);
+
   return (
     <React.Fragment>
       <WorkspaceItem
@@ -267,21 +285,6 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
         data-workspace-path={namedWorkspacePath}
         data-workspace-id={workspaceId}
       >
-        <TooltipWrapper inline>
-          <WorkspaceRemoveBtn
-            onClick={(e) => {
-              e.stopPropagation();
-              void onRemoveWorkspace(workspaceId, e.currentTarget);
-            }}
-            aria-label={`Remove workspace ${displayName}`}
-            data-workspace-id={workspaceId}
-          >
-            ×
-          </WorkspaceRemoveBtn>
-          <Tooltip className="tooltip" align="right">
-            Remove workspace
-          </Tooltip>
-        </TooltipWrapper>
         <GitStatusIndicator
           gitStatus={gitStatus}
           workspaceId={workspaceId}
@@ -315,6 +318,13 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
           onClick={handleToggleUnread}
           title={statusTooltipTitle}
         />
+        <KebabMenuWrapper
+          onClick={(e) => {
+            e.stopPropagation();
+          }}
+        >
+          <KebabMenu items={kebabMenuItems} />
+        </KebabMenuWrapper>
       </WorkspaceItem>
       {renameError && isEditing && <WorkspaceErrorContainer>{renameError}</WorkspaceErrorContainer>}
     </React.Fragment>

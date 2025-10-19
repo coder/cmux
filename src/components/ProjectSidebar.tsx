@@ -17,6 +17,10 @@ import type { Secret } from "@/types/secrets";
 import { ForceDeleteModal } from "./ForceDeleteModal";
 import { WorkspaceListItem, type WorkspaceSelection } from "./WorkspaceListItem";
 import { RenameProvider } from "@/contexts/WorkspaceRenameContext";
+import ForkWorkspaceModal from "./ForkWorkspaceModal";
+import CompactModal from "./CompactModal";
+import { forkWorkspace, executeCompaction } from "@/utils/chatCommands";
+import { useSendMessageOptions } from "@/hooks/useSendMessageOptions";
 
 // Re-export WorkspaceSelection for backwards compatibility
 export type { WorkspaceSelection } from "./WorkspaceListItem";
@@ -544,6 +548,18 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
     anchor: { top: number; left: number } | null;
   } | null>(null);
 
+  const [forkModalState, setForkModalState] = useState<{
+    workspaceId: string;
+    workspaceName: string;
+  } | null>(null);
+
+  const [compactModalState, setCompactModalState] = useState<{
+    workspaceId: string;
+  } | null>(null);
+
+  // Get send message options for fork/compact operations
+  const sendMessageOptions = useSendMessageOptions(selectedWorkspace?.workspaceId ?? "");
+
   const getProjectName = (path: string) => {
     if (!path || typeof path !== "string") {
       return "Unknown";
@@ -640,6 +656,59 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
       console.error("Force delete failed:", result.error);
 
       showRemoveError(workspaceId, errorMessage, modalState?.anchor ?? undefined);
+    }
+  };
+
+  const handleForkWorkspace = (workspaceId: string) => {
+    // Find workspace metadata from all projects
+    let metadata: FrontendWorkspaceMetadata | undefined;
+    for (const workspaces of sortedWorkspacesByProject.values()) {
+      metadata = workspaces.find((ws: FrontendWorkspaceMetadata) => ws.id === workspaceId);
+      if (metadata) break;
+    }
+
+    if (metadata) {
+      setForkModalState({
+        workspaceId,
+        workspaceName: metadata.name,
+      });
+    }
+  };
+
+  const handleCompactWorkspace = (workspaceId: string) => {
+    setCompactModalState({ workspaceId });
+  };
+
+  const handleForkSubmit = async (newName: string) => {
+    if (!forkModalState) {
+      return;
+    }
+
+    const result = await forkWorkspace({
+      sourceWorkspaceId: forkModalState.workspaceId,
+      newName,
+      sendMessageOptions,
+    });
+
+    if (!result.success) {
+      throw new Error(result.error ?? "Failed to fork workspace");
+    }
+  };
+
+  const handleCompactSubmit = async (maxOutputTokens?: number, model?: string) => {
+    if (!compactModalState) {
+      return;
+    }
+
+    const result = await executeCompaction({
+      workspaceId: compactModalState.workspaceId,
+      maxOutputTokens,
+      model,
+      sendMessageOptions,
+    });
+
+    if (!result.success) {
+      throw new Error(result.error ?? "Failed to compact conversation");
     }
   };
 
@@ -839,6 +908,8 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
                                   onSelectWorkspace={onSelectWorkspace}
                                   onRemoveWorkspace={handleRemoveWorkspace}
                                   onToggleUnread={_onToggleUnread}
+                                  onForkWorkspace={handleForkWorkspace}
+                                  onCompactWorkspace={handleCompactWorkspace}
                                 />
                               );
                             })}
@@ -875,6 +946,21 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
               error={forceDeleteModal.error}
               onClose={() => setForceDeleteModal(null)}
               onForceDelete={handleForceDelete}
+            />
+          )}
+          {forkModalState && (
+            <ForkWorkspaceModal
+              isOpen={!!forkModalState}
+              sourceWorkspaceName={forkModalState.workspaceName}
+              onClose={() => setForkModalState(null)}
+              onFork={handleForkSubmit}
+            />
+          )}
+          {compactModalState && (
+            <CompactModal
+              isOpen={!!compactModalState}
+              onClose={() => setCompactModalState(null)}
+              onCompact={handleCompactSubmit}
             />
           )}
           {removeError &&
