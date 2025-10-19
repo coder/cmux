@@ -202,9 +202,11 @@ export const HunkViewer = React.memo<HunkViewerProps>(
 
     // Persist manual expand/collapse state across remounts per workspace
     // Maps hunkId -> isExpanded for user's manual preferences
+    // Enable listener to synchronize updates across all HunkViewer instances
     const [expandStateMap, setExpandStateMap] = usePersistedState<Record<string, boolean>>(
       getReviewExpandStateKey(workspaceId),
-      {}
+      {},
+      { listener: true }
     );
 
     // Check if user has manually set expand state for this hunk
