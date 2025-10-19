@@ -735,6 +735,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
                 isLoading={isLoadingTree}
                 commonPrefix={commonPrefix}
                 getFileReadStatus={getFileReadStatus}
+                workspaceId={workspaceId}
               />
             </FileTreeSection>
           )}
