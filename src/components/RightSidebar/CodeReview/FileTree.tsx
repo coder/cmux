@@ -33,9 +33,16 @@ const TreeNode = styled.div<{ depth: number; isSelected: boolean }>`
   }
 `;
 
-const FileName = styled.span`
+const FileName = styled.span<{ isFullyRead?: boolean }>`
   color: #ccc;
   flex: 1;
+  ${(props) =>
+    props.isFullyRead &&
+    `
+    text-decoration: line-through;
+    text-decoration-color: var(--color-read);
+    text-decoration-thickness: 2px;
+  `}
 `;
 
 const DirectoryName = styled.span`
@@ -117,54 +124,14 @@ const EmptyState = styled.div`
   text-align: center;
 `;
 
-const MarkReadButton = styled.button`
-  background: transparent;
-  border: 1px solid rgba(31, 107, 184, 0.3);
-  border-radius: 3px;
-  padding: 2px 6px;
-  color: var(--color-plan-mode);
-  font-size: 10px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  opacity: 0.7;
-
-  &:hover {
-    opacity: 1;
-    background: var(--color-plan-mode-alpha);
-    border-color: var(--color-plan-mode);
-  }
-
-  &:active {
-    transform: scale(0.95);
-  }
-`;
-
-const ReadStatus = styled.span`
-  font-size: 10px;
-  color: var(--color-plan-mode);
-  opacity: 0.7;
-`;
-
 const TreeNodeContent: React.FC<{
   node: FileTreeNode;
   depth: number;
   selectedPath: string | null;
   onSelectFile: (path: string | null) => void;
   commonPrefix: string | null;
-  onMarkFileAsRead?: (filePath: string) => void;
   getFileReadStatus?: (filePath: string) => { total: number; read: number };
-}> = ({
-  node,
-  depth,
-  selectedPath,
-  onSelectFile,
-  commonPrefix,
-  onMarkFileAsRead,
-  getFileReadStatus,
-}) => {
+}> = ({ node, depth, selectedPath, onSelectFile, commonPrefix, getFileReadStatus }) => {
   const [isOpen, setIsOpen] = useState(depth < 2); // Auto-expand first 2 levels
 
   const handleClick = (e: React.MouseEvent) => {
@@ -193,15 +160,11 @@ const TreeNodeContent: React.FC<{
     setIsOpen(!isOpen);
   };
 
-  const handleMarkAsRead = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (onMarkFileAsRead) {
-      onMarkFileAsRead(node.path);
-    }
-  };
-
   const isSelected = selectedPath === node.path;
   const readStatus = !node.isDirectory && getFileReadStatus ? getFileReadStatus(node.path) : null;
+  const isFullyRead = readStatus
+    ? readStatus.read === readStatus.total && readStatus.total > 0
+    : false;
 
   return (
     <>
@@ -233,23 +196,12 @@ const TreeNodeContent: React.FC<{
         ) : (
           <>
             <span style={{ width: "12px" }} />
-            <FileName>{node.name}</FileName>
+            <FileName isFullyRead={isFullyRead}>{node.name}</FileName>
             {node.stats && (
               <Stats>
                 {node.stats.additions > 0 && <Additions>+{node.stats.additions}</Additions>}
                 {node.stats.deletions > 0 && <Deletions>-{node.stats.deletions}</Deletions>}
               </Stats>
-            )}
-            {readStatus && readStatus.total > 0 && (
-              <>
-                {readStatus.read === readStatus.total ? (
-                  <ReadStatus>✓</ReadStatus>
-                ) : (
-                  <MarkReadButton onClick={handleMarkAsRead} title="Mark all hunks as read">
-                    ✓
-                  </MarkReadButton>
-                )}
-              </>
             )}
           </>
         )}
@@ -265,7 +217,6 @@ const TreeNodeContent: React.FC<{
             selectedPath={selectedPath}
             onSelectFile={onSelectFile}
             commonPrefix={commonPrefix}
-            onMarkFileAsRead={onMarkFileAsRead}
             getFileReadStatus={getFileReadStatus}
           />
         ))}
@@ -279,7 +230,6 @@ interface FileTreeExternalProps {
   onSelectFile: (path: string | null) => void;
   isLoading?: boolean;
   commonPrefix?: string | null;
-  onMarkFileAsRead?: (filePath: string) => void;
   getFileReadStatus?: (filePath: string) => { total: number; read: number };
 }
 
@@ -289,7 +239,6 @@ export const FileTree: React.FC<FileTreeExternalProps> = ({
   onSelectFile,
   isLoading = false,
   commonPrefix = null,
-  onMarkFileAsRead,
   getFileReadStatus,
 }) => {
   // Find the node at the common prefix path to start rendering from
@@ -328,7 +277,6 @@ export const FileTree: React.FC<FileTreeExternalProps> = ({
               selectedPath={selectedPath}
               onSelectFile={onSelectFile}
               commonPrefix={commonPrefix}
-              onMarkFileAsRead={onMarkFileAsRead}
               getFileReadStatus={getFileReadStatus}
             />
           ))

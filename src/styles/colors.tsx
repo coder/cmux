@@ -37,6 +37,10 @@ export const GlobalColors = () => (
         --color-edit-mode-alpha: hsl(from var(--color-edit-mode) h s l / 0.1);
         --color-edit-mode-alpha-hover: hsl(from var(--color-edit-mode) h s l / 0.15);
 
+        /* Read State Colors (Blue - reuses plan mode color for consistency) */
+        --color-read: var(--color-plan-mode);
+        --color-read-alpha: var(--color-plan-mode-alpha);
+
         /* Editing Mode Colors */
         --color-editing-mode: hsl(30 100% 50%);
         --color-editing-mode-alpha: hsl(from var(--color-editing-mode) h s l / 0.1);

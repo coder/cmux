@@ -464,18 +464,6 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
     setShowReadHunks(filters.showReadHunks);
   }, [filters.showReadHunks, setShowReadHunks]);
 
-  // Handler to mark all hunks in a file as read
-  const handleMarkFileAsRead = useCallback(
-    (filePath: string) => {
-      const fileHunks = hunks.filter((h) => h.filePath === filePath);
-      const hunkIds = fileHunks.map((h) => h.id);
-      if (hunkIds.length > 0) {
-        reviewState.markAsRead(hunkIds);
-      }
-    },
-    [hunks, reviewState]
-  );
-
   // Get read status for a file
   const getFileReadStatus = useCallback(
     (filePath: string) => {
@@ -674,7 +662,6 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
                 onSelectFile={setSelectedFilePath}
                 isLoading={isLoadingTree}
                 commonPrefix={commonPrefix}
-                onMarkFileAsRead={handleMarkFileAsRead}
                 getFileReadStatus={getFileReadStatus}
               />
             </FileTreeSection>

@@ -28,7 +28,7 @@ const HunkContainer = styled.div<{ isSelected: boolean; isRead: boolean }>`
   ${(props) =>
     props.isRead &&
     `
-    border-color: var(--color-plan-mode);
+    border-color: var(--color-read);
   `}
 
   ${(props) =>
@@ -137,7 +137,7 @@ const RenameInfo = styled.div`
 const ReadIndicator = styled.span`
   display: inline-flex;
   align-items: center;
-  color: var(--color-plan-mode);
+  color: var(--color-read);
   font-size: 14px;
   margin-right: 4px;
 `;
@@ -157,8 +157,8 @@ const ToggleReadButton = styled.button`
 
   &:hover {
     background: rgba(255, 255, 255, 0.05);
-    border-color: var(--color-plan-mode);
-    color: var(--color-plan-mode);
+    border-color: var(--color-read);
+    color: var(--color-read);
   }
 
   &:active {
