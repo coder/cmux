@@ -23,6 +23,8 @@ const LeftSection = styled.div`
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0; /* Allow flex items to shrink */
+  margin-right: 16px; /* Ensure space between title and date */
 `;
 
 const TitleText = styled.div`
@@ -33,6 +35,7 @@ const TitleText = styled.div`
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  min-width: 0; /* Allow ellipsis to work in flex container */
 `;
 
 const UpdateIndicator = styled.div<{
@@ -173,20 +176,64 @@ export function TitleBar() {
     const currentVersion = gitDescribe ?? "dev";
 
     if (!telemetryEnabled) {
-      return `Current: ${currentVersion}. Update checks disabled (telemetry is off). Enable telemetry to receive updates.`;
+      return (
+        <>
+          Current: {currentVersion}
+          <br />
+          Update checks disabled (telemetry is off)
+          <br />
+          Enable telemetry to receive updates.
+        </>
+      );
     }
 
     switch (updateStatus.type) {
       case "available":
-        return `Current: ${currentVersion}. Update available: ${updateStatus.info.version}. Click to download.`;
+        return (
+          <>
+            Current: {currentVersion}
+            <br />
+            Update available: {updateStatus.info.version}
+            <br />
+            Click to download.
+          </>
+        );
       case "downloading":
-        return `Current: ${currentVersion}. Downloading update: ${updateStatus.percent}%`;
+        return (
+          <>
+            Current: {currentVersion}
+            <br />
+            Downloading update: {updateStatus.percent}%
+          </>
+        );
       case "downloaded":
-        return `Current: ${currentVersion}. Update ready: ${updateStatus.info.version}. Click to install and restart.`;
+        return (
+          <>
+            Current: {currentVersion}
+            <br />
+            Update ready: {updateStatus.info.version}
+            <br />
+            Click to install and restart.
+          </>
+        );
       case "not-available":
-        return `Current: ${currentVersion}. No updates available. Checks every 4 hours.`;
+        return (
+          <>
+            Current: {currentVersion}
+            <br />
+            No updates available
+            <br />
+            Checks every 4 hours.
+          </>
+        );
       default:
-        return `Current: ${currentVersion}. Checking for updates...`;
+        return (
+          <>
+            Current: {currentVersion}
+            <br />
+            Checking for updates...
+          </>
+        );
     }
   };
 
