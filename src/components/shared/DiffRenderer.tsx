@@ -6,6 +6,7 @@
 
 import React from "react";
 import styled from "@emotion/styled";
+import { Tooltip, TooltipWrapper } from "../Tooltip";
 
 // Shared type for diff line types
 export type DiffLineType = "add" | "remove" | "context" | "header";
@@ -446,16 +447,20 @@ export const SelectableDiffRenderer: React.FC<SelectableDiffRendererProps> = ({
         return (
           <React.Fragment key={displayIndex}>
             <SelectableDiffLineWrapper type={lineInfo.type} isSelected={isSelected}>
-              <CommentButton
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleCommentButtonClick(displayIndex, e.shiftKey);
-                }}
-                title="Add review comment (Shift-click to select range)"
-                aria-label="Add review comment"
-              >
-                +
-              </CommentButton>
+              <TooltipWrapper inline>
+                <CommentButton
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleCommentButtonClick(displayIndex, e.shiftKey);
+                  }}
+                  aria-label="Add review comment"
+                >
+                  +
+                </CommentButton>
+                <Tooltip position="bottom" align="left">
+                  Add review comment (Shift-click to select range)
+                </Tooltip>
+              </TooltipWrapper>
               <DiffLine type={lineInfo.type}>
                 <DiffIndicator type={lineInfo.type}>{lines[lineInfo.index][0]}</DiffIndicator>
                 {showLineNumbers && (
