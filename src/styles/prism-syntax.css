@@ -2,13 +2,15 @@
  * Auto-generated Prism syntax highlighting styles
  * Based on VS Code Dark+ theme with backgrounds removed
  * Used when react-syntax-highlighter has useInlineStyles={false}
+ *
+ * Font family and size are intentionally omitted to inherit from parent.
+ * 
+ * To regenerate: bun run scripts/generate_prism_css.ts
  */
 
 pre[class*="language-"] {
   color: #d4d4d4;
-  font-size: 13px;
   text-shadow: none;
-  font-family: Menlo, Monaco, Consolas, "Andale Mono", "Ubuntu Mono", "Courier New", monospace;
   direction: ltr;
   text-align: left;
   white-space: pre;
@@ -29,9 +31,7 @@ pre[class*="language-"] {
 
 code[class*="language-"] {
   color: #d4d4d4;
-  font-size: 13px;
   text-shadow: none;
-  font-family: Menlo, Monaco, Consolas, "Andale Mono", "Ubuntu Mono", "Courier New", monospace;
   direction: ltr;
   text-align: left;
   white-space: pre;
@@ -354,4 +354,3 @@ pre[class*="language-"] > code[class*="language-"] {
   box-shadow: inset 5px 0 0 #f7d87c;
   z-index: 0;
 }
-
