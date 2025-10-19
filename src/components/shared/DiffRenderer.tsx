@@ -306,7 +306,7 @@ const CommentButton = styled.button`
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
+  font-size: 12px;
   color: white;
   font-weight: bold;
   flex-shrink: 0;
