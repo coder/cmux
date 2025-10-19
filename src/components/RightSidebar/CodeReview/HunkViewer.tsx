@@ -26,6 +26,12 @@ const HunkContainer = styled.div<{ isSelected: boolean; isRead: boolean }>`
   transition: all 0.2s ease;
 
   ${(props) =>
+    props.isRead &&
+    `
+    border-color: var(--color-plan-mode);
+  `}
+
+  ${(props) =>
     props.isSelected &&
     `
     border-color: #007acc;
@@ -251,7 +257,7 @@ export const HunkViewer: React.FC<HunkViewerProps> = ({
         </HunkContent>
       ) : (
         <CollapsedIndicator onClick={handleToggleExpand}>
-          Click to expand ({lineCount} lines)
+          {isRead && "Hunk marked as read. "}Click to expand ({lineCount} lines)
         </CollapsedIndicator>
       )}
 
