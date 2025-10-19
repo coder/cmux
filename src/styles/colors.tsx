@@ -117,7 +117,9 @@ export const GlobalColors = () => (
         --color-interrupted-alpha: hsl(from var(--color-interrupted) h s l / 0.3);
 
         /* Review/Selection Colors (Yellow/Orange) */
-        --color-review-accent: hsl(48 70% 50% / 0.75); /* Muted yellow/orange - used for review notes and active hunks */
+        --color-review-accent: hsl(
+          48 70% 50% / 0.75
+        ); /* Muted yellow/orange - used for review notes and active hunks */
         /* ANTI-PATTERN: Don't create variants like --color-review-accent-alpha-10, -20, -30, etc.
            Instead, use inline alpha: hsl(from var(--color-review-accent) h s l / 0.2) directly in components.
            This avoids cluttering color definitions with every possible alpha variant. */

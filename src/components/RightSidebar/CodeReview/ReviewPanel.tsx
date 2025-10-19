@@ -440,6 +440,8 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
     return () => {
       cancelled = true;
     };
+    // selectedHunkId intentionally omitted - only auto-select on initial load, not on every selection change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     workspaceId,
     workspacePath,
