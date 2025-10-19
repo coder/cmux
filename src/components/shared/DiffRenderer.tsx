@@ -362,14 +362,19 @@ const ReviewNoteInput: React.FC<ReviewNoteInputProps> = React.memo(
       <InlineNoteContainer>
         <NoteTextarea
           ref={textareaRef}
-          placeholder="Add a review note to chat (Shift-click + button to select range, Cmd+Enter to submit, Esc to cancel)&#10;j, k to iterate through hunks, m to toggle as read"
+          placeholder="Add a review note to chat (Shift-click + button to select range, Enter to submit, Shift+Enter for newline, Esc to cancel)&#10;j, k to iterate through hunks, m to toggle as read"
           value={noteText}
           onChange={(e) => setNoteText(e.target.value)}
           onClick={(e) => e.stopPropagation()}
           onKeyDown={(e) => {
             e.stopPropagation();
 
-            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+            if (e.key === "Enter") {
+              if (e.shiftKey) {
+                // Shift+Enter: allow newline (default behavior)
+                return;
+              }
+              // Enter: submit
               e.preventDefault();
               handleSubmit();
             } else if (e.key === "Escape") {
