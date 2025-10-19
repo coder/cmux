@@ -96,10 +96,13 @@ const SearchContainer = styled.div`
   padding: 8px 12px;
   border-bottom: 1px solid #3e3e42;
   background: #252526;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 `;
 
 const SearchInput = styled.input`
-  width: 100%;
+  flex: 1;
   padding: 6px 10px;
   background: #1e1e1e;
   border: 1px solid #3e3e42;
@@ -121,6 +124,30 @@ const SearchInput = styled.input`
 
   &:hover:not(:focus) {
     border-color: #4e4e52;
+  }
+`;
+
+const RegexButton = styled.button<{ active: boolean }>`
+  padding: 6px 10px;
+  background: ${(props) => (props.active ? "#007acc" : "#1e1e1e")};
+  border: 1px solid ${(props) => (props.active ? "#007acc" : "#3e3e42")};
+  border-radius: 4px;
+  color: ${(props) => (props.active ? "#fff" : "#ccc")};
+  font-size: 11px;
+  font-family: var(--font-monospace);
+  font-weight: 600;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+
+  &:hover {
+    background: ${(props) => (props.active ? "#0098ff" : "#252526")};
+    border-color: ${(props) => (props.active ? "#0098ff" : "#4e4e52")};
+  }
+
+  &:active {
+    transform: translateY(1px);
   }
 `;
 
@@ -370,6 +397,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
   // Search state
   const [searchInputValue, setSearchInputValue] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
+  const [isRegexSearch, setIsRegexSearch] = useState(false);
 
   // Persist file filter per workspace
   const [selectedFilePath, setSelectedFilePath] = usePersistedState<string | null>(
@@ -592,8 +620,9 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
       showReadHunks: filters.showReadHunks,
       isRead,
       searchTerm: debouncedSearchTerm,
+      useRegex: isRegexSearch,
     });
-  }, [hunks, filters.showReadHunks, isRead, debouncedSearchTerm]);
+  }, [hunks, filters.showReadHunks, isRead, debouncedSearchTerm, isRegexSearch]);
 
   // Handle toggling read state with auto-navigation
   const handleToggleRead = useCallback(
@@ -772,6 +801,13 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
                 value={searchInputValue}
                 onChange={(e) => setSearchInputValue(e.target.value)}
               />
+              <RegexButton
+                active={isRegexSearch}
+                onClick={() => setIsRegexSearch(!isRegexSearch)}
+                title={isRegexSearch ? "Using regex search" : "Using substring search"}
+              >
+                .*
+              </RegexButton>
             </SearchContainer>
 
             <HunkList>
