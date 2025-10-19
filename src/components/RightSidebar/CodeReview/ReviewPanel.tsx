@@ -25,6 +25,8 @@ interface ReviewPanelProps {
   workspaceId: string;
   workspacePath: string;
   onReviewNote?: (note: string) => void;
+  /** Trigger to focus first hunk (increment to trigger) */
+  focusTrigger?: number;
 }
 
 const PanelContainer = styled.div`
@@ -274,7 +276,9 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
   workspaceId,
   workspacePath,
   onReviewNote,
+  focusTrigger,
 }) => {
+  const panelRef = useRef<HTMLDivElement>(null);
   const [hunks, setHunks] = useState<DiffHunk[]>([]);
   const [selectedHunkId, setSelectedHunkId] = useState<string | null>(null);
   const [isLoadingHunks, setIsLoadingHunks] = useState(true);
@@ -321,6 +325,14 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
     diffBase: diffBase,
     includeUncommitted: includeUncommitted,
   });
+
+  // Focus first hunk when focusTrigger changes
+  useEffect(() => {
+    if (focusTrigger && focusTrigger > 0 && hunks.length > 0) {
+      panelRef.current?.focus();
+      setSelectedHunkId(hunks[0].id);
+    }
+  }, [focusTrigger, hunks]);
 
   // Load file tree - when workspace, diffBase, or refreshTrigger changes
   useEffect(() => {
@@ -633,6 +645,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
 
   return (
     <PanelContainer
+      ref={panelRef}
       tabIndex={0}
       onFocus={() => setIsPanelFocused(true)}
       onBlur={() => setIsPanelFocused(false)}
