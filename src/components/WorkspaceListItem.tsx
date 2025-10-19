@@ -5,7 +5,6 @@ import type { FrontendWorkspaceMetadata } from "@/types/workspace";
 import { useWorkspaceSidebarState } from "@/stores/WorkspaceStore";
 import { useGitStatus } from "@/stores/GitStatusStore";
 import { formatRelativeTime } from "@/utils/ui/dateTime";
-import { TooltipWrapper, Tooltip } from "./Tooltip";
 import { GitStatusIndicator } from "./GitStatusIndicator";
 import { ModelDisplay } from "./Messages/ModelDisplay";
 import { StatusIndicator } from "./StatusIndicator";

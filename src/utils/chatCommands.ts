@@ -119,17 +119,10 @@ export interface ForkOptions {
 /**
  * Format /fork command string for display
  */
-export function formatForkCommand(options: ForkOptions): string;
-export function formatForkCommand(newName: string, startMessage?: string): string;
-export function formatForkCommand(
-  optionsOrName: ForkOptions | string,
-  startMessage?: string
-): string {
-  const name = typeof optionsOrName === "string" ? optionsOrName : optionsOrName.newName;
-  const msg = typeof optionsOrName === "string" ? startMessage : optionsOrName.startMessage;
-  let cmd = `/fork ${name}`;
-  if (msg) {
-    cmd += `\n${msg}`;
+export function formatForkCommand(options: ForkOptions): string {
+  let cmd = `/fork ${options.newName}`;
+  if (options.startMessage) {
+    cmd += `\n${options.startMessage}`;
   }
   return cmd;
 }
@@ -240,32 +233,16 @@ export async function executeCompaction(
 /**
  * Format compaction command string for display
  */
-export function formatCompactCommand(options: CompactOptions): string;
-export function formatCompactCommand(
-  maxOutputTokens?: number,
-  model?: string,
-  continueMessage?: string
-): string;
-export function formatCompactCommand(
-  optionsOrTokens?: CompactOptions | number,
-  model?: string,
-  continueMessage?: string
-): string {
-  const tokens =
-    typeof optionsOrTokens === "object" ? optionsOrTokens.maxOutputTokens : optionsOrTokens;
-  const mdl = typeof optionsOrTokens === "object" ? optionsOrTokens.model : model;
-  const msg =
-    typeof optionsOrTokens === "object" ? optionsOrTokens.continueMessage : continueMessage;
-
+export function formatCompactCommand(options: CompactOptions): string {
   let cmd = "/compact";
-  if (tokens) {
-    cmd += ` -t ${tokens}`;
+  if (options.maxOutputTokens) {
+    cmd += ` -t ${options.maxOutputTokens}`;
   }
-  if (mdl) {
-    cmd += ` -m ${mdl}`;
+  if (options.model) {
+    cmd += ` -m ${options.model}`;
   }
-  if (msg) {
-    cmd += `\n${msg}`;
+  if (options.continueMessage) {
+    cmd += `\n${options.continueMessage}`;
   }
   return cmd;
 }

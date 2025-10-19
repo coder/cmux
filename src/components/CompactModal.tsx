@@ -30,10 +30,10 @@ const CompactModal: React.FC<CompactModalProps> = ({ isOpen, onClose, onCompact 
       maxOutputTokens: maxOutputTokensInput.trim()
         ? parseInt(maxOutputTokensInput.trim(), 10)
         : undefined,
-      model: options.model?.trim() || undefined,
-      continueMessage: options.continueMessage?.trim() || undefined,
+      model: options.model?.trim() ?? undefined,
+      continueMessage: options.continueMessage?.trim() ?? undefined,
     });
-  }, [maxOutputTokensInput]);
+  }, [maxOutputTokensInput, options.model, options.continueMessage]);
 
   // Reset form when modal opens
   useEffect(() => {
