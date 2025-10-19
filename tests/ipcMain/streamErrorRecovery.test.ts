@@ -37,6 +37,57 @@ const PROVIDER = "anthropic";
 const MODEL = "claude-haiku-4-5";
 
 /**
+ * Helper: Extract numbers from text response
+ * Used to verify counting sequence continuity
+ */
+function extractNumbers(text: string): number[] {
+  const numbers: number[] = [];
+  // Match numbers, handling formats like "1", "1.", "1)", "1:", etc.
+  const matches = text.matchAll(/\b(\d+)[\s.,:)\-]*/g);
+  for (const match of matches) {
+    const num = parseInt(match[1], 10);
+    if (num >= 1 && num <= 100) {
+      numbers.push(num);
+    }
+  }
+  return numbers;
+}
+
+/**
+ * Helper: Verify counting sequence is generally ascending
+ * Allows for small gaps but ensures no major backward jumps
+ */
+function verifyCountingSequence(numbers: number[]): { valid: boolean; reason?: string } {
+  if (numbers.length < 5) {
+    return { valid: false, reason: `Too few numbers: ${numbers.length}` };
+  }
+
+  // Check that sequence is generally ascending (allow small gaps, no major backward jumps)
+  let backwardJumps = 0;
+  for (let i = 1; i < numbers.length; i++) {
+    if (numbers[i] < numbers[i - 1] - 5) {
+      // Backward jump of more than 5
+      backwardJumps++;
+    }
+  }
+
+  if (backwardJumps > 2) {
+    return { valid: false, reason: `Too many backward jumps: ${backwardJumps}` };
+  }
+
+  // Verify we covered a reasonable range
+  const min = Math.min(...numbers);
+  const max = Math.max(...numbers);
+  const range = max - min;
+
+  if (range < 20) {
+    return { valid: false, reason: `Range too small: ${min}-${max} (${range})` };
+  }
+
+  return { valid: true };
+}
+
+/**
  * Helper: Wait for stream to accumulate some content before triggering error
  * This ensures we have context to preserve
  */
@@ -101,17 +152,18 @@ describeIntegration("Stream Error Recovery (No Amnesia)", () => {
     async () => {
       const { env, workspaceId, cleanup } = await setupWorkspace(PROVIDER);
       try {
-        // User sends a message requesting substantial content
+        // User asks model to count from 1 to 100 (with tools disabled)
         const sendResult = await sendMessageWithModel(
           env.mockIpcRenderer,
           workspaceId,
-          "Write a 500-word essay about the history of computing",
+          "Count from 1 to 100. Write each number on a separate line. Do not use any tools.",
           PROVIDER,
-          MODEL
+          MODEL,
+          { toolPolicy: [{ regex_match: ".*", action: "disable" }] }
         );
         expect(sendResult.success).toBe(true);
 
-        // Wait for stream to accumulate content
+        // Wait for stream to accumulate content (should have counted some numbers)
         const collector = createEventCollector(env.sentEvents, workspaceId);
         await waitForStreamWithContent(collector);
 
@@ -121,10 +173,22 @@ describeIntegration("Stream Error Recovery (No Amnesia)", () => {
         // Wait for error to be processed
         await new Promise((resolve) => setTimeout(resolve, 200));
 
-        // Get history before resume - should have user message and partial assistant response
+        // Get history before resume - should have partial counting
         const historyBeforeResume = await readChatHistory(env.tempDir, workspaceId);
         const assistantMessagesBefore = historyBeforeResume.filter((m) => m.role === "assistant");
         expect(assistantMessagesBefore.length).toBeGreaterThanOrEqual(1);
+
+        // Extract numbers from partial response
+        const partialText = assistantMessagesBefore
+          .flatMap((m) => m.parts)
+          .filter((p) => p.type === "text")
+          .map((p) => (p as { text?: string }).text ?? "")
+          .join("");
+        const numbersBeforeResume = extractNumbers(partialText);
+
+        // Should have started counting
+        expect(numbersBeforeResume.length).toBeGreaterThan(0);
+        const lastNumberBeforeError = numbersBeforeResume[numbersBeforeResume.length - 1];
 
         // User can resume after error
         await resumeAndWaitForSuccess(
@@ -134,25 +198,29 @@ describeIntegration("Stream Error Recovery (No Amnesia)", () => {
           `${PROVIDER}:${MODEL}`
         );
 
-        // Verify final conversation state - user should see completed response
+        // Verify final conversation state
         const historyAfter = await readChatHistory(env.tempDir, workspaceId);
         const assistantMessagesAfter = historyAfter.filter((m) => m.role === "assistant");
 
-        // Should have at least one assistant message with substantial content
-        expect(assistantMessagesAfter.length).toBeGreaterThanOrEqual(1);
-
-        // Get text from all assistant messages
+        // Get all numbers from all assistant messages
         const allAssistantText = assistantMessagesAfter
           .flatMap((m) => m.parts)
           .filter((p) => p.type === "text")
           .map((p) => (p as { text?: string }).text ?? "")
           .join("");
+        const allNumbers = extractNumbers(allAssistantText);
 
-        // Verify we got substantial content (no amnesia - context was preserved)
-        expect(allAssistantText.length).toBeGreaterThan(100);
-        
-        // Content should be about computing history (shows model saw original request)
-        expect(allAssistantText.toLowerCase()).toMatch(/comput(er|ing)/);
+        // Verify sequence is valid (proves context was preserved)
+        const sequenceCheck = verifyCountingSequence(allNumbers);
+        if (!sequenceCheck.valid) {
+          console.error("Sequence validation failed:", sequenceCheck.reason);
+          console.error("Numbers found:", allNumbers);
+        }
+        expect(sequenceCheck.valid).toBe(true);
+
+        // Verify we made progress past the error point
+        const maxNumber = Math.max(...allNumbers);
+        expect(maxNumber).toBeGreaterThan(lastNumberBeforeError);
       } finally {
         await cleanup();
       }
@@ -165,21 +233,37 @@ describeIntegration("Stream Error Recovery (No Amnesia)", () => {
     async () => {
       const { env, workspaceId, cleanup } = await setupWorkspace(PROVIDER);
       try {
-        // User sends a message requesting substantial content
+        // User asks model to count from 1 to 100 (with tools disabled)
         const sendResult = await sendMessageWithModel(
           env.mockIpcRenderer,
           workspaceId,
-          "Write a detailed explanation of quantum mechanics in 300 words",
+          "Count from 1 to 100. Write each number on a separate line. Do not use any tools.",
           PROVIDER,
-          MODEL
+          MODEL,
+          { toolPolicy: [{ regex_match: ".*", action: "disable" }] }
         );
         expect(sendResult.success).toBe(true);
+
+        const numbersAtEachError: number[] = [];
 
         // Simulate 3 consecutive network failures
         for (let i = 1; i <= 3; i++) {
           // Wait for stream to accumulate some content
           const collector = createEventCollector(env.sentEvents, workspaceId);
           await waitForStreamWithContent(collector);
+
+          // Capture the highest number reached before this error
+          const history = await readChatHistory(env.tempDir, workspaceId);
+          const assistantText = history
+            .filter((m) => m.role === "assistant")
+            .flatMap((m) => m.parts)
+            .filter((p) => p.type === "text")
+            .map((p) => (p as { text?: string }).text ?? "")
+            .join("");
+          const numbers = extractNumbers(assistantText);
+          if (numbers.length > 0) {
+            numbersAtEachError.push(Math.max(...numbers));
+          }
 
           // Trigger error
           await triggerStreamError(env.mockIpcRenderer, workspaceId, `Connection timeout ${i}`);
@@ -207,24 +291,33 @@ describeIntegration("Stream Error Recovery (No Amnesia)", () => {
           `${PROVIDER}:${MODEL}`
         );
 
-        // Verify final conversation - user should see completed response about quantum mechanics
+        // Verify final conversation state
         const finalHistory = await readChatHistory(env.tempDir, workspaceId);
         const assistantMessages = finalHistory.filter((m) => m.role === "assistant");
-        
-        expect(assistantMessages.length).toBeGreaterThanOrEqual(1);
 
-        // Get all assistant text
+        // Get all numbers from all assistant messages
         const allAssistantText = assistantMessages
           .flatMap((m) => m.parts)
           .filter((p) => p.type === "text")
           .map((p) => (p as { text?: string }).text ?? "")
           .join("");
+        const allNumbers = extractNumbers(allAssistantText);
 
-        // Verify substantial content was delivered (no amnesia across multiple errors)
-        expect(allAssistantText.length).toBeGreaterThan(100);
-        
-        // Content should be about quantum mechanics (shows context preserved through errors)
-        expect(allAssistantText.toLowerCase()).toMatch(/quantum/);
+        // Verify sequence is valid (proves context was preserved through multiple errors)
+        const sequenceCheck = verifyCountingSequence(allNumbers);
+        if (!sequenceCheck.valid) {
+          console.error("Sequence validation failed:", sequenceCheck.reason);
+          console.error("Numbers found:", allNumbers);
+          console.error("Numbers at each error:", numbersAtEachError);
+        }
+        expect(sequenceCheck.valid).toBe(true);
+
+        // Verify we progressed through all errors
+        if (numbersAtEachError.length > 0) {
+          const lastErrorPoint = numbersAtEachError[numbersAtEachError.length - 1];
+          const finalMaxNumber = Math.max(...allNumbers);
+          expect(finalMaxNumber).toBeGreaterThan(lastErrorPoint);
+        }
       } finally {
         await cleanup();
       }
