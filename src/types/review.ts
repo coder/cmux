@@ -45,16 +45,14 @@ export interface FileDiff {
 }
 
 /**
- * User's review of a hunk
+ * Read state for a single hunk
  */
-export interface HunkReview {
-  /** ID of the hunk being reviewed */
+export interface HunkReadState {
+  /** ID of the hunk */
   hunkId: string;
-  /** Review status */
-  status: "accepted" | "rejected";
-  /** Optional comment/note */
-  note?: string;
-  /** Timestamp when review was created/updated */
+  /** Whether this hunk has been marked as read */
+  isRead: boolean;
+  /** Timestamp when read state was last updated */
   timestamp: number;
 }
 
@@ -64,8 +62,8 @@ export interface HunkReview {
 export interface ReviewState {
   /** Workspace ID this review belongs to */
   workspaceId: string;
-  /** Reviews keyed by hunk ID */
-  reviews: Record<string, HunkReview>;
+  /** Read state keyed by hunk ID */
+  readState: Record<string, HunkReadState>;
   /** Timestamp of last update */
   lastUpdated: number;
 }
@@ -74,10 +72,8 @@ export interface ReviewState {
  * Filter options for review panel
  */
 export interface ReviewFilters {
-  /** Whether to show already-reviewed hunks */
-  showReviewed: boolean;
-  /** Status filter */
-  statusFilter: "all" | "accepted" | "rejected" | "unreviewed";
+  /** Whether to show hunks marked as read */
+  showReadHunks: boolean;
   /** File path filter (regex or glob pattern) */
   filePathFilter?: string;
   /** Base reference to diff against (e.g., "HEAD", "main", "origin/main") */
@@ -90,8 +86,10 @@ export interface ReviewFilters {
  * Review statistics
  */
 export interface ReviewStats {
+  /** Total number of hunks */
   total: number;
-  accepted: number;
-  rejected: number;
-  unreviewed: number;
+  /** Number of hunks marked as read */
+  read: number;
+  /** Number of unread hunks */
+  unread: number;
 }

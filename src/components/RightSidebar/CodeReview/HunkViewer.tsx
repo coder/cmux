@@ -10,11 +10,13 @@ import { SelectableDiffRenderer } from "../../shared/DiffRenderer";
 interface HunkViewerProps {
   hunk: DiffHunk;
   isSelected?: boolean;
+  isRead?: boolean;
   onClick?: () => void;
+  onToggleRead?: () => void;
   onReviewNote?: (note: string) => void;
 }
 
-const HunkContainer = styled.div<{ isSelected: boolean }>`
+const HunkContainer = styled.div<{ isSelected: boolean; isRead: boolean }>`
   background: #1e1e1e;
   border: 1px solid #3e3e42;
   border-radius: 4px;
@@ -22,6 +24,13 @@ const HunkContainer = styled.div<{ isSelected: boolean }>`
   overflow: hidden;
   cursor: pointer;
   transition: all 0.2s ease;
+
+  ${(props) =>
+    props.isRead &&
+    `
+    background: rgba(74, 222, 128, 0.05);
+    border-color: rgba(74, 222, 128, 0.2);
+  `}
 
   ${(props) =>
     props.isSelected &&
@@ -44,6 +53,7 @@ const HunkHeader = styled.div`
   align-items: center;
   font-family: var(--font-monospace);
   font-size: 12px;
+  gap: 8px;
 `;
 
 const FilePath = styled.div`
@@ -124,17 +134,62 @@ const RenameInfo = styled.div`
   }
 `;
 
+const ReadIndicator = styled.span`
+  display: inline-flex;
+  align-items: center;
+  color: #4ade80;
+  font-size: 14px;
+  margin-right: 4px;
+`;
+
+const ToggleReadButton = styled.button`
+  background: transparent;
+  border: 1px solid #3e3e42;
+  border-radius: 3px;
+  padding: 2px 6px;
+  color: #888;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: #4ade80;
+    color: #4ade80;
+  }
+
+  &:active {
+    transform: scale(0.95);
+  }
+`;
+
 export const HunkViewer: React.FC<HunkViewerProps> = ({
   hunk,
   isSelected,
+  isRead = false,
   onClick,
+  onToggleRead,
   onReviewNote,
 }) => {
-  const [isExpanded, setIsExpanded] = useState(true);
+  // Collapse by default if marked as read
+  const [isExpanded, setIsExpanded] = useState(!isRead);
+
+  // Update expanded state when read state changes
+  React.useEffect(() => {
+    setIsExpanded(!isRead);
+  }, [isRead]);
 
   const handleToggleExpand = (e: React.MouseEvent) => {
     e.stopPropagation();
     setIsExpanded(!isExpanded);
+  };
+
+  const handleToggleRead = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onToggleRead?.();
   };
 
   // Parse diff lines
@@ -153,6 +208,7 @@ export const HunkViewer: React.FC<HunkViewerProps> = ({
   return (
     <HunkContainer
       isSelected={isSelected ?? false}
+      isRead={isRead}
       onClick={onClick}
       role="button"
       tabIndex={0}
@@ -164,6 +220,7 @@ export const HunkViewer: React.FC<HunkViewerProps> = ({
       }}
     >
       <HunkHeader>
+        {isRead && <ReadIndicator title="Marked as read">✓</ReadIndicator>}
         <FilePath>{hunk.filePath}</FilePath>
         <LineInfo>
           {!isPureRename && (
@@ -175,6 +232,11 @@ export const HunkViewer: React.FC<HunkViewerProps> = ({
           <LineCount>
             ({lineCount} {lineCount === 1 ? "line" : "lines"})
           </LineCount>
+          {onToggleRead && (
+            <ToggleReadButton onClick={handleToggleRead} title="Mark as read (m)">
+              {isRead ? "○" : "◉"}
+            </ToggleReadButton>
+          )}
         </LineInfo>
       </HunkHeader>
 

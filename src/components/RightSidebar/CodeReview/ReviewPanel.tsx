@@ -9,6 +9,7 @@ import { HunkViewer } from "./HunkViewer";
 import { ReviewControls } from "./ReviewControls";
 import { FileTree } from "./FileTree";
 import { usePersistedState } from "@/hooks/usePersistedState";
+import { useReviewState } from "@/hooks/useReviewState";
 import { parseDiff, extractAllHunks } from "@/utils/git/diffParser";
 import {
   parseNumstat,
@@ -301,9 +302,17 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
     false
   );
 
+  // Persist showReadHunks flag per workspace
+  const [showReadHunks, setShowReadHunks] = usePersistedState(
+    `review-show-read:${workspaceId}`,
+    true
+  );
+
+  // Initialize review state hook
+  const reviewState = useReviewState(workspaceId);
+
   const [filters, setFilters] = useState<ReviewFiltersType>({
-    showReviewed: true,
-    statusFilter: "all",
+    showReadHunks: showReadHunks,
     diffBase: diffBase,
     includeDirty: includeDirty,
   });
@@ -450,19 +459,29 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
     setIncludeDirty(filters.includeDirty);
   }, [filters.includeDirty, setIncludeDirty]);
 
-  // For MVP: No review state tracking, just show all hunks
-  const filteredHunks = hunks;
+  // Persist showReadHunks when it changes
+  useEffect(() => {
+    setShowReadHunks(filters.showReadHunks);
+  }, [filters.showReadHunks, setShowReadHunks]);
 
-  // Simple stats for display
-  const stats = useMemo(
-    () => ({
-      total: hunks.length,
-      accepted: 0,
-      rejected: 0,
-      unreviewed: hunks.length,
-    }),
-    [hunks]
-  );
+  // Filter hunks based on read state
+  const filteredHunks = useMemo(() => {
+    if (filters.showReadHunks) {
+      return hunks;
+    }
+    return hunks.filter((hunk) => !reviewState.isRead(hunk.id));
+  }, [hunks, filters.showReadHunks, reviewState]);
+
+  // Calculate stats
+  const stats = useMemo(() => {
+    const total = hunks.length;
+    const read = hunks.filter((h) => reviewState.isRead(h.id)).length;
+    return {
+      total,
+      read,
+      unread: total - read,
+    };
+  }, [hunks, reviewState]);
 
   // Keyboard navigation (j/k or arrow keys) - only when panel is focused
   useEffect(() => {
@@ -482,7 +501,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
       const currentIndex = filteredHunks.findIndex((h) => h.id === selectedHunkId);
       if (currentIndex === -1) return;
 
-      // Navigation only
+      // Navigation
       if (e.key === "j" || e.key === "ArrowDown") {
         e.preventDefault();
         if (currentIndex < filteredHunks.length - 1) {
@@ -493,12 +512,16 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
         if (currentIndex > 0) {
           setSelectedHunkId(filteredHunks[currentIndex - 1].id);
         }
+      } else if (matchesKeybind(e, KEYBINDS.TOGGLE_HUNK_READ)) {
+        // Toggle read state of selected hunk
+        e.preventDefault();
+        reviewState.toggleRead(selectedHunkId);
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isPanelFocused, selectedHunkId, filteredHunks]);
+  }, [isPanelFocused, selectedHunkId, filteredHunks, reviewState]);
 
   // Global keyboard shortcut for refresh (Ctrl+R / Cmd+R)
   useEffect(() => {
@@ -586,13 +609,16 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
               ) : (
                 filteredHunks.map((hunk) => {
                   const isSelected = hunk.id === selectedHunkId;
+                  const isRead = reviewState.isRead(hunk.id);
 
                   return (
                     <HunkViewer
                       key={hunk.id}
                       hunk={hunk}
                       isSelected={isSelected}
+                      isRead={isRead}
                       onClick={() => setSelectedHunkId(hunk.id)}
+                      onToggleRead={() => reviewState.toggleRead(hunk.id)}
                       onReviewNote={onReviewNote}
                     />
                   );
