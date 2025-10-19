@@ -4,7 +4,7 @@
  */
 
 // Note: Using require because the ESM export is broken in detect-programming-language
-// eslint-disable-next-line @typescript-eslint/no-var-requires
+// eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-unsafe-member-access
 const getProgrammingLanguage = require("detect-programming-language").default as (
   fileName: string
 ) => string | undefined;
@@ -80,7 +80,7 @@ const EXT_TO_PRISM: Record<string, string> = {
  */
 export function getLanguageFromPath(filePath: string): string {
   // Extract extension (handle case-insensitivity and multi-dot filenames)
-  const parts = filePath.split("/").pop()?.split(".") || [];
+  const parts = filePath.split("/").pop()?.split(".") ?? [];
   if (parts.length < 2) {
     // Special case: Dockerfile and Makefile have no extension
     const fileName = parts[0]?.toLowerCase();
@@ -111,7 +111,7 @@ export function getLanguageFromPath(filePath: string): string {
 
   // Map to Prism identifier (if mapping exists) or lowercase linguist name
   const prismLang = LINGUIST_TO_PRISM[linguistName];
-  if (prismLang) return prismLang;
+  if (prismLang !== undefined) return prismLang;
 
   // Default: lowercase the linguist name (works for many languages)
   return linguistName.toLowerCase();
