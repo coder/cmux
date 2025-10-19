@@ -1,10 +1,12 @@
 import React, { useEffect, useId } from "react";
 import styled from "@emotion/styled";
-import type { ThinkingLevel } from "@/types/thinking";
+import type { ThinkingLevel, ThinkingLevelOn } from "@/types/thinking";
 import { useThinkingLevel } from "@/hooks/useThinkingLevel";
 import { TooltipWrapper, Tooltip } from "./Tooltip";
 import { formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
 import { getThinkingPolicyForModel } from "@/utils/thinking/policy";
+import { updatePersistedState } from "@/hooks/usePersistedState";
+import { getLastThinkingByModelKey } from "@/constants/storage";
 
 const ThinkingSliderContainer = styled.div`
   display: flex;
@@ -193,6 +195,16 @@ export const ThinkingSliderComponent: React.FC<ThinkingControlProps> = ({ modelS
 
   const value = thinkingLevelToValue(thinkingLevel);
 
+  const handleThinkingLevelChange = (newLevel: ThinkingLevel) => {
+    setThinkingLevel(newLevel);
+    // Also save to lastThinkingByModel for Ctrl+Shift+T toggle memory
+    // Only save active levels (not "off") - matches useAIViewKeybinds logic
+    if (newLevel !== "off") {
+      const lastThinkingKey = getLastThinkingByModelKey(modelString);
+      updatePersistedState(lastThinkingKey, newLevel as ThinkingLevelOn);
+    }
+  };
+
   return (
     <TooltipWrapper>
       <ThinkingSliderContainer>
@@ -203,7 +215,9 @@ export const ThinkingSliderComponent: React.FC<ThinkingControlProps> = ({ modelS
           max="3"
           step="1"
           value={value}
-          onChange={(e) => setThinkingLevel(valueToThinkingLevel(parseInt(e.target.value)))}
+          onChange={(e) =>
+            handleThinkingLevelChange(valueToThinkingLevel(parseInt(e.target.value)))
+          }
           id={sliderId}
           role="slider"
           aria-valuemin={0}
