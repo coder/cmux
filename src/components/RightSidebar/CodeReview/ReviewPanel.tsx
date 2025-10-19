@@ -486,6 +486,30 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
     return hunks.filter((hunk) => !reviewState.isRead(hunk.id));
   }, [hunks, filters.showReadHunks, reviewState]);
 
+  // Handle toggling read state with auto-navigation
+  const handleToggleRead = useCallback(
+    (hunkId: string) => {
+      const wasRead = reviewState.isRead(hunkId);
+      reviewState.toggleRead(hunkId);
+
+      // If marking as read and "Show read hunks" is off, move to next visible hunk
+      if (!wasRead && !filters.showReadHunks) {
+        const currentIndex = filteredHunks.findIndex((h) => h.id === hunkId);
+        if (currentIndex !== -1) {
+          // Select the hunk that will be at the same position after filtering
+          if (currentIndex < filteredHunks.length - 1) {
+            setSelectedHunkId(filteredHunks[currentIndex + 1].id);
+          } else if (currentIndex > 0) {
+            setSelectedHunkId(filteredHunks[currentIndex - 1].id);
+          } else {
+            setSelectedHunkId(null);
+          }
+        }
+      }
+    },
+    [reviewState, filters.showReadHunks, filteredHunks]
+  );
+
   // Calculate stats
   const stats = useMemo(() => {
     const total = hunks.length;
@@ -544,13 +568,13 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
       } else if (matchesKeybind(e, KEYBINDS.TOGGLE_HUNK_READ)) {
         // Toggle read state of selected hunk
         e.preventDefault();
-        reviewState.toggleRead(selectedHunkId);
+        handleToggleRead(selectedHunkId);
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isPanelFocused, selectedHunkId, filteredHunks, reviewState]);
+  }, [isPanelFocused, selectedHunkId, filteredHunks, handleToggleRead]);
 
   // Global keyboard shortcut for refresh (Ctrl+R / Cmd+R)
   useEffect(() => {
@@ -647,7 +671,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
                       isSelected={isSelected}
                       isRead={isRead}
                       onClick={() => setSelectedHunkId(hunk.id)}
-                      onToggleRead={() => reviewState.toggleRead(hunk.id)}
+                      onToggleRead={() => handleToggleRead(hunk.id)}
                       onReviewNote={onReviewNote}
                     />
                   );
