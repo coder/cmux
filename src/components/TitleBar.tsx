@@ -1,7 +1,8 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import styled from "@emotion/styled";
 import { VERSION } from "@/version";
 import { TooltipWrapper, Tooltip } from "./Tooltip";
+import type { UpdateStatus } from "@/types/ipc";
 
 const TitleBarContainer = styled.div`
   padding: 8px 16px;
@@ -17,11 +18,44 @@ const TitleBarContainer = styled.div`
   flex-shrink: 0;
 `;
 
+const LeftSection = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+`;
+
 const TitleText = styled.div`
   font-weight: normal;
   letter-spacing: 0.5px;
   user-select: text;
   cursor: text;
+`;
+
+const UpdateIndicator = styled.div<{ status: "available" | "downloading" | "downloaded" }>`
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: ${(props) => {
+    switch (props.status) {
+      case "available":
+        return "#4CAF50"; // Green for available
+      case "downloading":
+        return "#2196F3"; // Blue for downloading
+      case "downloaded":
+        return "#FF9800"; // Orange for ready to install
+    }
+  }};
+
+  &:hover {
+    opacity: 0.7;
+  }
+`;
+
+const UpdateIcon = styled.span`
+  font-size: 14px;
 `;
 
 const BuildInfo = styled.div`
@@ -86,10 +120,59 @@ function parseBuildInfo(version: unknown) {
 
 export function TitleBar() {
   const { buildDate, extendedTimestamp, gitDescribe } = parseBuildInfo(VERSION satisfies unknown);
+  const [updateStatus, setUpdateStatus] = useState<UpdateStatus>({ type: "not-available" });
+
+  useEffect(() => {
+    // Subscribe to update status changes
+    const unsubscribe = window.api.update.onStatus((status) => {
+      setUpdateStatus(status);
+    });
+
+    // Get initial status
+    window.api.update.getStatus().then(setUpdateStatus).catch(console.error);
+
+    return unsubscribe;
+  }, []);
+
+  const handleUpdateClick = () => {
+    if (updateStatus.type === "available") {
+      window.api.update.download().catch(console.error);
+    } else if (updateStatus.type === "downloaded") {
+      window.api.update.install();
+    }
+  };
+
+  const getUpdateTooltip = () => {
+    switch (updateStatus.type) {
+      case "available":
+        return `Update available: ${updateStatus.info.version}. Click to download.`;
+      case "downloading":
+        return `Downloading update: ${updateStatus.percent}%`;
+      case "downloaded":
+        return `Update ready: ${updateStatus.info.version}. Click to install and restart.`;
+      default:
+        return "";
+    }
+  };
+
+  const showUpdateIndicator =
+    updateStatus.type === "available" ||
+    updateStatus.type === "downloading" ||
+    updateStatus.type === "downloaded";
 
   return (
     <TitleBarContainer>
-      <TitleText>cmux {gitDescribe ?? "(dev)"}</TitleText>
+      <LeftSection>
+        {showUpdateIndicator && (
+          <TooltipWrapper>
+            <UpdateIndicator status={updateStatus.type} onClick={handleUpdateClick}>
+              <UpdateIcon>{updateStatus.type === "downloading" ? "⟳" : "↓"}</UpdateIcon>
+            </UpdateIndicator>
+            <Tooltip align="left">{getUpdateTooltip()}</Tooltip>
+          </TooltipWrapper>
+        )}
+        <TitleText>cmux {gitDescribe ?? "(dev)"}</TitleText>
+      </LeftSection>
       <TooltipWrapper>
         <BuildInfo>{buildDate}</BuildInfo>
         <Tooltip align="right">Built at {extendedTimestamp}</Tooltip>

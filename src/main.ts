@@ -18,6 +18,7 @@ import type { Config } from "./config";
 import type { IpcMain } from "./services/ipcMain";
 import { VERSION } from "./version";
 import type { loadTokenizerModules } from "./utils/main/tokenizer";
+import { IPC_CHANNELS } from "./constants/ipc-constants";
 
 // React DevTools for development profiling
 // Using require() instead of import since it's dev-only and conditionally loaded
@@ -64,6 +65,7 @@ if (!app.isPackaged) {
 let config: Config | null = null;
 let ipcMain: IpcMain | null = null;
 let loadTokenizerModulesFn: typeof loadTokenizerModules | null = null;
+let updaterService: typeof import("./services/updater").UpdaterService.prototype | null = null;
 const isE2ETest = process.env.CMUX_E2E === "1";
 const forceDistLoad = process.env.CMUX_E2E_LOAD_DIST === "1";
 
@@ -303,15 +305,22 @@ async function loadServices(): Promise<void> {
     { Config: ConfigClass },
     { IpcMain: IpcMainClass },
     { loadTokenizerModules: loadTokenizerFn },
+    { UpdaterService: UpdaterServiceClass },
   ] = await Promise.all([
     import("./config"),
     import("./services/ipcMain"),
     import("./utils/main/tokenizer"),
+    import("./services/updater"),
   ]);
   /* eslint-enable no-restricted-syntax */
   config = new ConfigClass();
   ipcMain = new IpcMainClass(config);
   loadTokenizerModulesFn = loadTokenizerFn;
+
+  // Initialize updater service only in packaged builds
+  if (app.isPackaged) {
+    updaterService = new UpdaterServiceClass();
+  }
 
   const loadTime = Date.now() - startTime;
   console.log(`[${timestamp()}] Services loaded in ${loadTime}ms`);
@@ -346,6 +355,39 @@ function createWindow() {
 
   // Register IPC handlers with the main window
   ipcMain.register(electronIpcMain, mainWindow);
+
+  // Register updater IPC handlers (available in both dev and prod)
+  electronIpcMain.handle(IPC_CHANNELS.UPDATE_CHECK, async () => {
+    if (!updaterService) return { type: "not-available" };
+    return await updaterService.checkForUpdates();
+  });
+
+  electronIpcMain.handle(IPC_CHANNELS.UPDATE_DOWNLOAD, async () => {
+    if (!updaterService) throw new Error("Updater not available in development");
+    await updaterService.downloadUpdate();
+  });
+
+  electronIpcMain.handle(IPC_CHANNELS.UPDATE_INSTALL, () => {
+    if (!updaterService) throw new Error("Updater not available in development");
+    updaterService.installUpdate();
+  });
+
+  electronIpcMain.handle(IPC_CHANNELS.UPDATE_GET_STATUS, () => {
+    if (!updaterService) return { type: "not-available" };
+    return updaterService.getStatus();
+  });
+
+  // Set up updater service with the main window (only in production)
+  if (updaterService) {
+    updaterService.setMainWindow(mainWindow);
+
+    // Start periodic checks after a short delay
+    setTimeout(() => {
+      if (updaterService) {
+        updaterService.startPeriodicChecks();
+      }
+    }, 10000); // Wait 10 seconds after app start
+  }
 
   // Show window once it's ready and close splash
   mainWindow.once("ready-to-show", () => {

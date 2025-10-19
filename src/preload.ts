@@ -19,7 +19,7 @@
  */
 
 import { contextBridge, ipcRenderer } from "electron";
-import type { IPCApi, WorkspaceChatMessage } from "./types/ipc";
+import type { IPCApi, WorkspaceChatMessage, UpdateStatus } from "./types/ipc";
 import type { FrontendWorkspaceMetadata } from "./types/workspace";
 import type { ProjectConfig } from "./types/project";
 import { IPC_CHANNELS, getChatChannel } from "./constants/ipc-constants";
@@ -113,6 +113,21 @@ const api: IPCApi = {
   },
   window: {
     setTitle: (title: string) => ipcRenderer.invoke(IPC_CHANNELS.WINDOW_SET_TITLE, title),
+  },
+  update: {
+    check: () => ipcRenderer.invoke(IPC_CHANNELS.UPDATE_CHECK),
+    download: () => ipcRenderer.invoke(IPC_CHANNELS.UPDATE_DOWNLOAD),
+    install: () => ipcRenderer.invoke(IPC_CHANNELS.UPDATE_INSTALL),
+    getStatus: () => ipcRenderer.invoke(IPC_CHANNELS.UPDATE_GET_STATUS),
+    onStatus: (callback: (status: UpdateStatus) => void) => {
+      const handler = (_event: unknown, status: UpdateStatus) => {
+        callback(status);
+      };
+      ipcRenderer.on(IPC_CHANNELS.UPDATE_STATUS, handler);
+      return () => {
+        ipcRenderer.removeListener(IPC_CHANNELS.UPDATE_STATUS, handler);
+      };
+    },
   },
 };
 
