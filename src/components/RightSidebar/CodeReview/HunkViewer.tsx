@@ -176,14 +176,19 @@ export const HunkViewer: React.FC<HunkViewerProps> = ({
 }) => {
   // Collapse by default if marked as read
   const [isExpanded, setIsExpanded] = useState(!isRead);
+  // Track if user has manually toggled expansion
+  const [hasManuallyToggled, setHasManuallyToggled] = useState(false);
 
-  // Update expanded state when read state changes
+  // Auto-collapse when marked as read, but only if user hasn't manually toggled
   React.useEffect(() => {
-    setIsExpanded(!isRead);
-  }, [isRead]);
+    if (!hasManuallyToggled) {
+      setIsExpanded(!isRead);
+    }
+  }, [isRead, hasManuallyToggled]);
 
   const handleToggleExpand = (e: React.MouseEvent) => {
     e.stopPropagation();
+    setHasManuallyToggled(true);
     setIsExpanded(!isExpanded);
   };
 
