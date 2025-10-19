@@ -1,67 +1,16 @@
 import React, { useEffect, useId, useState } from "react";
-import styled from "@emotion/styled";
-import { Modal, ModalInfo, ModalActions, CancelButton, PrimaryButton } from "./Modal";
+import {
+  Modal,
+  ModalInfo,
+  ModalActions,
+  CancelButton,
+  PrimaryButton,
+  FormGroup,
+  ErrorMessage,
+  CommandDisplay,
+  CommandLabel,
+} from "./Modal";
 import { formatForkCommand } from "@/utils/chatCommands";
-
-const FormGroup = styled.div`
-  margin-bottom: 20px;
-
-  label {
-    display: block;
-    margin-bottom: 8px;
-    color: #ccc;
-    font-size: 14px;
-  }
-
-  input {
-    width: 100%;
-    padding: 8px 12px;
-    background: #2d2d2d;
-    border: 1px solid #444;
-    border-radius: 4px;
-    color: #fff;
-    font-size: 14px;
-
-    &:focus {
-      outline: none;
-      border-color: #007acc;
-    }
-
-    &:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
-  }
-`;
-
-const ErrorMessage = styled.div`
-  color: #ff5555;
-  font-size: 13px;
-  margin-top: 6px;
-`;
-
-const CommandDisplay = styled.div`
-  margin-top: 20px;
-  padding: 12px;
-  background: #1e1e1e;
-  border: 1px solid #3e3e42;
-  border-radius: 4px;
-  font-family: "Menlo", "Monaco", "Courier New", monospace;
-  font-size: 13px;
-  color: #d4d4d4;
-  white-space: pre-wrap;
-  word-break: break-all;
-`;
-
-const CommandLabel = styled.div`
-  font-size: 12px;
-  color: #888;
-  margin-bottom: 8px;
-  font-family:
-    system-ui,
-    -apple-system,
-    sans-serif;
-`;
 
 interface ForkWorkspaceModalProps {
   isOpen: boolean;

@@ -161,6 +161,81 @@ export const DangerButton = styled(Button)`
   }
 `;
 
+// Shared form components
+export const FormGroup = styled.div`
+  margin-bottom: 20px;
+
+  label {
+    display: block;
+    margin-bottom: 8px;
+    color: #ccc;
+    font-size: 14px;
+  }
+
+  input,
+  select {
+    width: 100%;
+    padding: 8px 12px;
+    background: #2d2d2d;
+    border: 1px solid #444;
+    border-radius: 4px;
+    color: #fff;
+    font-size: 14px;
+
+    &:focus {
+      outline: none;
+      border-color: #007acc;
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  }
+
+  select {
+    cursor: pointer;
+
+    option {
+      background: #2d2d2d;
+      color: #fff;
+    }
+  }
+`;
+
+export const ErrorMessage = styled.div`
+  color: #ff5555;
+  font-size: 13px;
+  margin-top: 6px;
+`;
+
+export const HelpText = styled.div`
+  color: #888;
+  font-size: 12px;
+  margin-top: 4px;
+`;
+
+// Command display components (for showing equivalent slash commands)
+export const CommandDisplay = styled.div`
+  margin-top: 20px;
+  padding: 12px;
+  background: #1e1e1e;
+  border: 1px solid #3e3e42;
+  border-radius: 4px;
+  font-family: "Menlo", "Monaco", "Courier New", monospace;
+  font-size: 13px;
+  color: #d4d4d4;
+  white-space: pre-wrap;
+  word-break: break-all;
+`;
+
+export const CommandLabel = styled.div`
+  font-size: 12px;
+  color: #888;
+  margin-bottom: 8px;
+  font-family: system-ui, -apple-system, sans-serif;
+`;
+
 // Modal wrapper component
 interface ModalProps {
   isOpen: boolean;
