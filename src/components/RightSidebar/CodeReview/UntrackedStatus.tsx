@@ -134,14 +134,15 @@ export const UntrackedStatus: React.FC<UntrackedStatusProps> = ({
   const [showTooltip, setShowTooltip] = useState(false);
   const [isTracking, setIsTracking] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const hasLoadedOnce = useRef(false);
 
   // Load untracked files
   useEffect(() => {
     let cancelled = false;
 
     const loadUntracked = async () => {
-      // Only show loading on initial mount when we have no data
-      if (untrackedFiles.length === 0) {
+      // Only show loading on first load ever, not on subsequent refreshes
+      if (!hasLoadedOnce.current) {
         setIsLoading(true);
       }
       
@@ -161,6 +162,8 @@ export const UntrackedStatus: React.FC<UntrackedStatusProps> = ({
             .filter(Boolean);
           setUntrackedFiles(files);
         }
+        
+        hasLoadedOnce.current = true;
       } catch (err) {
         console.error("Failed to load untracked files:", err);
       } finally {
