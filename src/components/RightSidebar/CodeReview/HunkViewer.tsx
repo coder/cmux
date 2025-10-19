@@ -212,6 +212,7 @@ export const HunkViewer: React.FC<HunkViewerProps> = ({
       onClick={onClick}
       role="button"
       tabIndex={0}
+      data-hunk-id={hunk.id}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();

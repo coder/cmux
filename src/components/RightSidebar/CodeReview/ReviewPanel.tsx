@@ -483,6 +483,21 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
     };
   }, [hunks, reviewState]);
 
+  // Scroll selected hunk into view
+  useEffect(() => {
+    if (!selectedHunkId) return;
+
+    // Find the hunk container element by data attribute
+    const hunkElement = document.querySelector(`[data-hunk-id="${selectedHunkId}"]`);
+    if (hunkElement) {
+      hunkElement.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+        inline: "nearest",
+      });
+    }
+  }, [selectedHunkId]);
+
   // Keyboard navigation (j/k or arrow keys) - only when panel is focused
   useEffect(() => {
     if (!isPanelFocused) return;
