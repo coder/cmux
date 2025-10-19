@@ -137,7 +137,7 @@ const TreeNodeContent: React.FC<{
   selectedPath: string | null;
   onSelectFile: (path: string | null) => void;
   commonPrefix: string | null;
-  getFileReadStatus?: (filePath: string) => { total: number; read: number };
+  getFileReadStatus?: (filePath: string) => { total: number; read: number } | null;
 }> = ({ node, depth, selectedPath, onSelectFile, commonPrefix, getFileReadStatus }) => {
   const [isOpen, setIsOpen] = useState(depth < 2); // Auto-expand first 2 levels
 
@@ -241,7 +241,7 @@ interface FileTreeExternalProps {
   onSelectFile: (path: string | null) => void;
   isLoading?: boolean;
   commonPrefix?: string | null;
-  getFileReadStatus?: (filePath: string) => { total: number; read: number };
+  getFileReadStatus?: (filePath: string) => { total: number; read: number } | null;
 }
 
 export const FileTree: React.FC<FileTreeExternalProps> = ({

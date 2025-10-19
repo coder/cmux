@@ -468,6 +468,9 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
   const getFileReadStatus = useCallback(
     (filePath: string) => {
       const fileHunks = hunks.filter((h) => h.filePath === filePath);
+      if (fileHunks.length === 0) {
+        return null; // Unknown state - no hunks loaded for this file
+      }
       const total = fileHunks.length;
       const read = fileHunks.filter((h) => reviewState.isRead(h.id)).length;
       return { total, read };
