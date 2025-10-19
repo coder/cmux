@@ -178,7 +178,7 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
 }) => {
   // Global tab preference (not per-workspace)
   const [selectedTab, setSelectedTab] = usePersistedState<TabType>("right-sidebar-tab", "costs");
-  
+
   // Trigger for focusing first hunk in Review panel
   const [focusTrigger, setFocusTrigger] = React.useState(0);
 
