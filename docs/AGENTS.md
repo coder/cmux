@@ -139,6 +139,10 @@ in `/tmp/ai-sdk-docs/**.mdx`.
 - Workspaces using git worktrees
 - Configuration persisted to `~/.cmux/config.json`
 
+## Performance Patterns
+
+**Avoid O(n) IPC calls from Frontend->Backend.** When displaying lists of items, fetch them in a single IPC call and process in the frontend. Never loop over items in the frontend making separate IPC calls for each.
+
 ## Package Manager
 
 - **Using bun** - All dependencies are managed with bun (not npm)
