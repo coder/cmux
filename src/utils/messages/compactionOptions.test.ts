@@ -31,22 +31,20 @@ describe("applyCompactionOverrides", () => {
     expect(result.model).toBe("anthropic:claude-haiku-4-5");
   });
 
-  it("sets thinking to off for Anthropic models", () => {
-    const compactData: CompactionRequestData = {
+  it("preserves workspace thinking level for all models", () => {
+    // Test Anthropic model
+    const anthropicData: CompactionRequestData = {
       model: "anthropic:claude-haiku-4-5",
     };
-    const result = applyCompactionOverrides(baseOptions, compactData);
+    const anthropicResult = applyCompactionOverrides(baseOptions, anthropicData);
+    expect(anthropicResult.thinkingLevel).toBe("medium");
 
-    expect(result.thinkingLevel).toBe("off");
-  });
-
-  it("preserves workspace thinking level for non-Anthropic models", () => {
-    const compactData: CompactionRequestData = {
+    // Test OpenAI model
+    const openaiData: CompactionRequestData = {
       model: "openai:gpt-5-pro",
     };
-    const result = applyCompactionOverrides(baseOptions, compactData);
-
-    expect(result.thinkingLevel).toBe("medium");
+    const openaiResult = applyCompactionOverrides(baseOptions, openaiData);
+    expect(openaiResult.thinkingLevel).toBe("medium");
   });
 
   it("applies maxOutputTokens override", () => {

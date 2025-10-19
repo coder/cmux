@@ -26,14 +26,11 @@ export function applyCompactionOverrides(
   // Use custom model if specified, otherwise use workspace default
   const compactionModel = compactData.model ?? baseOptions.model;
 
-  // Anthropic models don't support thinking, always use "off"
-  // Non-Anthropic models keep workspace default (backend will enforce policy)
-  const isAnthropic = compactionModel.startsWith("anthropic:");
-
   return {
     ...baseOptions,
     model: compactionModel,
-    thinkingLevel: isAnthropic ? "off" : baseOptions.thinkingLevel,
+    // Keep workspace default thinking level - all models support thinking now that tools are disabled
+    thinkingLevel: baseOptions.thinkingLevel,
     maxOutputTokens: compactData.maxOutputTokens,
     mode: "compact" as const,
     toolPolicy: [], // Disable all tools during compaction

@@ -135,7 +135,12 @@ export function prepareCompactionMessage(options: CompactionOptions): {
 } {
   const targetWords = options.maxOutputTokens ? Math.round(options.maxOutputTokens / 1.3) : 2000;
 
-  const messageText = `Summarize this conversation into a compact form for a new Assistant to continue helping the user. Use approximately ${targetWords} words.`;
+  // Build compaction message with optional continue context
+  let messageText = `Summarize this conversation into a compact form for a new Assistant to continue helping the user. Use approximately ${targetWords} words.`;
+  
+  if (options.continueMessage) {
+    messageText += `\n\nThe user wants to continue with: ${options.continueMessage}`;
+  }
 
   // Handle model preference (sticky globally)
   const effectiveModel = resolveCompactionModel(options.model);
