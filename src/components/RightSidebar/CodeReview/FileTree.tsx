@@ -196,7 +196,10 @@ const TreeNodeContent: React.FC<{
   onSelectFile: (path: string | null) => void;
   commonPrefix: string | null;
   getFileReadStatus?: (filePath: string) => { total: number; read: number } | null;
-  workspaceId: string;
+  expandStateMap: Record<string, boolean>;
+  setExpandStateMap: (
+    value: Record<string, boolean> | ((prev: Record<string, boolean>) => Record<string, boolean>)
+  ) => void;
 }> = ({
   node,
   depth,
@@ -204,15 +207,9 @@ const TreeNodeContent: React.FC<{
   onSelectFile,
   commonPrefix,
   getFileReadStatus,
-  workspaceId,
+  expandStateMap,
+  setExpandStateMap,
 }) => {
-  // Use persisted state for expand/collapse per workspace
-  const [expandStateMap, setExpandStateMap] = usePersistedState<Record<string, boolean>>(
-    getFileTreeExpandStateKey(workspaceId),
-    {},
-    { listener: true }
-  );
-
   // Check if user has manually set expand state for this directory
   const hasManualState = node.path in expandStateMap;
   const isOpen = hasManualState ? expandStateMap[node.path] : depth < 2; // Default: auto-expand first 2 levels
@@ -322,7 +319,8 @@ const TreeNodeContent: React.FC<{
             onSelectFile={onSelectFile}
             commonPrefix={commonPrefix}
             getFileReadStatus={getFileReadStatus}
-            workspaceId={workspaceId}
+            expandStateMap={expandStateMap}
+            setExpandStateMap={setExpandStateMap}
           />
         ))}
     </>
@@ -348,6 +346,13 @@ export const FileTree: React.FC<FileTreeExternalProps> = ({
   getFileReadStatus,
   workspaceId,
 }) => {
+  // Use persisted state for expand/collapse per workspace (lifted to parent to avoid O(n) re-renders)
+  const [expandStateMap, setExpandStateMap] = usePersistedState<Record<string, boolean>>(
+    getFileTreeExpandStateKey(workspaceId),
+    {},
+    { listener: true }
+  );
+
   // Find the node at the common prefix path to start rendering from
   const startNode = React.useMemo(() => {
     if (!commonPrefix || !root) return root;
@@ -385,7 +390,8 @@ export const FileTree: React.FC<FileTreeExternalProps> = ({
               onSelectFile={onSelectFile}
               commonPrefix={commonPrefix}
               getFileReadStatus={getFileReadStatus}
-              workspaceId={workspaceId}
+              expandStateMap={expandStateMap}
+              setExpandStateMap={setExpandStateMap}
             />
           ))
         ) : (
