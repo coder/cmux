@@ -313,11 +313,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
     let cancelled = false;
 
     const loadFileTree = async () => {
-      // Only show loading state on initial mount (when we have no tree)
-      // On refresh, keep showing old tree while updating in background
-      if (!fileTree) {
-        setIsLoadingTree(true);
-      }
+      setIsLoadingTree(true);
       try {
         const numstatCommand = buildGitDiffCommand(
           filters.diffBase,
@@ -363,11 +359,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
     let cancelled = false;
 
     const loadDiff = async () => {
-      // Only show loading state on initial mount (when we have no hunks)
-      // On refresh, keep showing old hunks while updating in background
-      if (hunks.length === 0) {
-        setIsLoadingHunks(true);
-      }
+      setIsLoadingHunks(true);
       setError(null);
       setTruncationWarning(null);
       try {

@@ -69,7 +69,7 @@ export const RefreshButton: React.FC<RefreshButtonProps> = ({ onClick, isLoading
     if (isLoading) {
       // Start spinning
       setAnimationState("spinning");
-      // Clear any pending stop timeout (restart while stopping)
+      // Clear any pending stop timeout
       if (spinOnceTimeoutRef.current) {
         clearTimeout(spinOnceTimeoutRef.current);
         spinOnceTimeoutRef.current = null;
@@ -83,8 +83,12 @@ export const RefreshButton: React.FC<RefreshButtonProps> = ({ onClick, isLoading
         spinOnceTimeoutRef.current = null;
       }, 800); // Match animation duration
     }
-    // Note: Don't clear timeout in cleanup when transitioning to "stopping" state
-    // The timeout needs to complete to reach "idle" state
+
+    return () => {
+      if (spinOnceTimeoutRef.current) {
+        clearTimeout(spinOnceTimeoutRef.current);
+      }
+    };
   }, [isLoading, animationState]);
 
   const className =
