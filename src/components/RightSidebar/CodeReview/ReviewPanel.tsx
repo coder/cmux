@@ -312,7 +312,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
   );
 
   // Initialize review state hook
-  const reviewState = useReviewState(workspaceId);
+  const { isRead, toggleRead } = useReviewState(workspaceId);
 
   const [filters, setFilters] = useState<ReviewFiltersType>({
     showReadHunks: showReadHunks,
@@ -477,10 +477,10 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
         return null; // Unknown state - no hunks loaded for this file
       }
       const total = fileHunks.length;
-      const read = fileHunks.filter((h) => reviewState.isRead(h.id)).length;
+      const read = fileHunks.filter((h) => isRead(h.id)).length;
       return { total, read };
     },
-    [hunks, reviewState]
+    [hunks, isRead]
   );
 
   // Filter hunks based on read state
@@ -488,14 +488,14 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
     if (filters.showReadHunks) {
       return hunks;
     }
-    return hunks.filter((hunk) => !reviewState.isRead(hunk.id));
-  }, [hunks, filters.showReadHunks, reviewState]);
+    return hunks.filter((hunk) => !isRead(hunk.id));
+  }, [hunks, filters.showReadHunks, isRead]);
 
   // Handle toggling read state with auto-navigation
   const handleToggleRead = useCallback(
     (hunkId: string) => {
-      const wasRead = reviewState.isRead(hunkId);
-      reviewState.toggleRead(hunkId);
+      const wasRead = isRead(hunkId);
+      toggleRead(hunkId);
 
       // If toggling the selected hunk, check if it will still be visible after toggle
       if (hunkId === selectedHunkId) {
@@ -503,13 +503,18 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
         const willBeVisible = filters.showReadHunks || wasRead;
 
         if (!willBeVisible) {
+          // Compute filtered hunks here to avoid dependency on filteredHunks array
+          const currentFiltered = filters.showReadHunks
+            ? hunks
+            : hunks.filter((h) => !isRead(h.id));
+
           // Hunk will be filtered out - move to next visible hunk
-          const currentIndex = filteredHunks.findIndex((h) => h.id === hunkId);
+          const currentIndex = currentFiltered.findIndex((h) => h.id === hunkId);
           if (currentIndex !== -1) {
-            if (currentIndex < filteredHunks.length - 1) {
-              setSelectedHunkId(filteredHunks[currentIndex + 1].id);
+            if (currentIndex < currentFiltered.length - 1) {
+              setSelectedHunkId(currentFiltered[currentIndex + 1].id);
             } else if (currentIndex > 0) {
-              setSelectedHunkId(filteredHunks[currentIndex - 1].id);
+              setSelectedHunkId(currentFiltered[currentIndex - 1].id);
             } else {
               setSelectedHunkId(null);
             }
@@ -517,19 +522,33 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
         }
       }
     },
-    [reviewState, filters.showReadHunks, filteredHunks, selectedHunkId]
+    [isRead, toggleRead, filters.showReadHunks, hunks, selectedHunkId]
+  );
+
+  // Stable callbacks for HunkViewer (single callback shared across all hunks)
+  const handleHunkClick = useCallback((e: React.MouseEvent<HTMLElement>) => {
+    const hunkId = e.currentTarget.dataset.hunkId;
+    if (hunkId) setSelectedHunkId(hunkId);
+  }, []);
+
+  const handleHunkToggleRead = useCallback(
+    (e: React.MouseEvent<HTMLElement>) => {
+      const hunkId = e.currentTarget.dataset.hunkId;
+      if (hunkId) handleToggleRead(hunkId);
+    },
+    [handleToggleRead]
   );
 
   // Calculate stats
   const stats = useMemo(() => {
     const total = hunks.length;
-    const read = hunks.filter((h) => reviewState.isRead(h.id)).length;
+    const read = hunks.filter((h) => isRead(h.id)).length;
     return {
       total,
       read,
       unread: total - read,
     };
-  }, [hunks, reviewState]);
+  }, [hunks, isRead]);
 
   // Scroll selected hunk into view
   useEffect(() => {
@@ -672,16 +691,17 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
               ) : (
                 filteredHunks.map((hunk) => {
                   const isSelected = hunk.id === selectedHunkId;
-                  const isRead = reviewState.isRead(hunk.id);
+                  const hunkIsRead = isRead(hunk.id);
 
                   return (
                     <HunkViewer
                       key={hunk.id}
                       hunk={hunk}
+                      hunkId={hunk.id}
                       isSelected={isSelected}
-                      isRead={isRead}
-                      onClick={() => setSelectedHunkId(hunk.id)}
-                      onToggleRead={() => handleToggleRead(hunk.id)}
+                      isRead={hunkIsRead}
+                      onClick={handleHunkClick}
+                      onToggleRead={handleHunkToggleRead}
                       onReviewNote={onReviewNote}
                     />
                   );

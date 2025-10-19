@@ -107,14 +107,14 @@ export const DiffIndicator = styled.span<{ type: DiffLineType }>`
   flex-shrink: 0;
 `;
 
-export const DiffContainer = styled.div<{ fontSize?: string }>`
+export const DiffContainer = styled.div<{ fontSize?: string; maxHeight?: string }>`
   margin: 0;
   padding: 6px 0;
   background: rgba(0, 0, 0, 0.2);
   border-radius: 3px;
   font-size: ${({ fontSize }) => fontSize ?? "12px"};
   line-height: 1.4;
-  max-height: 400px;
+  max-height: ${({ maxHeight }) => maxHeight ?? "400px"};
   overflow-y: auto;
   overflow-x: auto;
 
@@ -141,13 +141,15 @@ interface DiffRendererProps {
   filePath?: string;
   /** Font size for diff content (default: "12px") */
   fontSize?: string;
+  /** Max height for diff container (default: "400px", use "none" for no limit) */
+  maxHeight?: string;
 }
 
 /**
  * Highlighted code content - wraps syntax highlighted tokens
  * This component applies syntax highlighting while preserving diff styling
  */
-const HighlightedContent: React.FC<{ code: string; language: string }> = ({ code, language }) => {
+const HighlightedContent = React.memo<{ code: string; language: string }>(({ code, language }) => {
   // Don't highlight if language is unknown
   if (language === "text") {
     return <>{code}</>;
@@ -177,7 +179,9 @@ const HighlightedContent: React.FC<{ code: string; language: string }> = ({ code
       {code}
     </SyntaxHighlighter>
   );
-};
+});
+
+HighlightedContent.displayName = "HighlightedContent";
 
 /**
  * DiffRenderer - Renders diff content with consistent styling
@@ -195,17 +199,21 @@ export const DiffRenderer: React.FC<DiffRendererProps> = ({
   newStart = 1,
   filePath,
   fontSize,
+  maxHeight,
 }) => {
   const lines = content.split("\n").filter((line) => line.length > 0);
 
-  // Detect language for syntax highlighting
-  const language = filePath ? getLanguageFromPath(filePath) : "text";
+  // Detect language for syntax highlighting (memoized to prevent repeated detection)
+  const language = React.useMemo(
+    () => (filePath ? getLanguageFromPath(filePath) : "text"),
+    [filePath]
+  );
 
   let oldLineNum = oldStart;
   let newLineNum = newStart;
 
   return (
-    <DiffContainer fontSize={fontSize}>
+    <DiffContainer fontSize={fontSize} maxHeight={maxHeight}>
       {lines.map((line, index) => {
         const firstChar = line[0];
         const lineContent = line.slice(1); // Remove the +/-/@ prefix
@@ -442,164 +450,178 @@ const ReviewNoteInput: React.FC<ReviewNoteInputProps> = React.memo(
 
 ReviewNoteInput.displayName = "ReviewNoteInput";
 
-export const SelectableDiffRenderer: React.FC<SelectableDiffRendererProps> = ({
-  content,
-  showLineNumbers = true,
-  oldStart = 1,
-  newStart = 1,
-  filePath,
-  fontSize,
-  onReviewNote,
-  onLineClick,
-}) => {
-  const [selection, setSelection] = React.useState<LineSelection | null>(null);
+export const SelectableDiffRenderer = React.memo<SelectableDiffRendererProps>(
+  ({
+    content,
+    showLineNumbers = true,
+    oldStart = 1,
+    newStart = 1,
+    filePath,
+    fontSize,
+    maxHeight,
+    onReviewNote,
+    onLineClick,
+  }) => {
+    const [selection, setSelection] = React.useState<LineSelection | null>(null);
 
-  const lines = content.split("\n").filter((line) => line.length > 0);
+    // Detect language for syntax highlighting (memoized to prevent repeated detection)
+    const language = React.useMemo(
+      () => (filePath ? getLanguageFromPath(filePath) : "text"),
+      [filePath]
+    );
 
-  // Detect language for syntax highlighting
-  const language = filePath ? getLanguageFromPath(filePath) : "text";
+    // Parse lines to get line numbers (memoized to prevent repeated parsing)
+    const lineData = React.useMemo(() => {
+      const lines = content.split("\n").filter((line) => line.length > 0);
+      const data: Array<{
+        index: number;
+        type: DiffLineType;
+        lineNum: number;
+        content: string;
+      }> = [];
 
-  // Parse lines to get line numbers
-  const lineData: Array<{
-    index: number;
-    type: DiffLineType;
-    lineNum: number;
-    content: string;
-  }> = [];
+      let oldLineNum = oldStart;
+      let newLineNum = newStart;
 
-  let oldLineNum = oldStart;
-  let newLineNum = newStart;
+      lines.forEach((line, index) => {
+        const firstChar = line[0];
 
-  lines.forEach((line, index) => {
-    const firstChar = line[0];
+        // Skip header lines
+        if (line.startsWith("@@")) {
+          const regex = /^@@\s+-(\d+)(?:,\d+)?\s+\+(\d+)(?:,\d+)?\s+@@/;
+          const match = regex.exec(line);
+          if (match) {
+            oldLineNum = parseInt(match[1], 10);
+            newLineNum = parseInt(match[2], 10);
+          }
+          return;
+        }
 
-    // Skip header lines
-    if (line.startsWith("@@")) {
-      const regex = /^@@\s+-(\d+)(?:,\d+)?\s+\+(\d+)(?:,\d+)?\s+@@/;
-      const match = regex.exec(line);
-      if (match) {
-        oldLineNum = parseInt(match[1], 10);
-        newLineNum = parseInt(match[2], 10);
-      }
-      return;
-    }
+        let type: DiffLineType = "context";
+        let lineNum = 0;
 
-    let type: DiffLineType = "context";
-    let lineNum = 0;
+        if (firstChar === "+") {
+          type = "add";
+          lineNum = newLineNum++;
+        } else if (firstChar === "-") {
+          type = "remove";
+          lineNum = oldLineNum++;
+        } else {
+          lineNum = newLineNum;
+          oldLineNum++;
+          newLineNum++;
+        }
 
-    if (firstChar === "+") {
-      type = "add";
-      lineNum = newLineNum++;
-    } else if (firstChar === "-") {
-      type = "remove";
-      lineNum = oldLineNum++;
-    } else {
-      lineNum = newLineNum;
-      oldLineNum++;
-      newLineNum++;
-    }
-
-    lineData.push({
-      index,
-      type,
-      lineNum,
-      content: line.slice(1),
-    });
-  });
-
-  const handleCommentButtonClick = (lineIndex: number, shiftKey: boolean) => {
-    // Notify parent that this hunk should become active
-    onLineClick?.();
-
-    // Shift-click: extend existing selection
-    if (shiftKey && selection) {
-      const start = selection.startIndex;
-      const [sortedStart, sortedEnd] = [start, lineIndex].sort((a, b) => a - b);
-      setSelection({
-        startIndex: start,
-        endIndex: lineIndex,
-        startLineNum: lineData[sortedStart].lineNum,
-        endLineNum: lineData[sortedEnd].lineNum,
+        data.push({
+          index,
+          type,
+          lineNum,
+          content: line.slice(1),
+        });
       });
-      return;
-    }
 
-    // Regular click: start new selection
-    setSelection({
-      startIndex: lineIndex,
-      endIndex: lineIndex,
-      startLineNum: lineData[lineIndex].lineNum,
-      endLineNum: lineData[lineIndex].lineNum,
-    });
-  };
+      return data;
+    }, [content, oldStart, newStart]);
 
-  const handleSubmitNote = (reviewNote: string) => {
-    if (!onReviewNote) return;
-    onReviewNote(reviewNote);
-    setSelection(null);
-  };
+    const handleCommentButtonClick = (lineIndex: number, shiftKey: boolean) => {
+      // Notify parent that this hunk should become active
+      onLineClick?.();
 
-  const handleCancelNote = () => {
-    setSelection(null);
-  };
+      // Shift-click: extend existing selection
+      if (shiftKey && selection) {
+        const start = selection.startIndex;
+        const [sortedStart, sortedEnd] = [start, lineIndex].sort((a, b) => a - b);
+        setSelection({
+          startIndex: start,
+          endIndex: lineIndex,
+          startLineNum: lineData[sortedStart].lineNum,
+          endLineNum: lineData[sortedEnd].lineNum,
+        });
+        return;
+      }
 
-  const isLineSelected = (index: number) => {
-    if (!selection) return false;
-    const [start, end] = [selection.startIndex, selection.endIndex].sort((a, b) => a - b);
-    return index >= start && index <= end;
-  };
+      // Regular click: start new selection
+      setSelection({
+        startIndex: lineIndex,
+        endIndex: lineIndex,
+        startLineNum: lineData[lineIndex].lineNum,
+        endLineNum: lineData[lineIndex].lineNum,
+      });
+    };
 
-  return (
-    <DiffContainer fontSize={fontSize}>
-      {lineData.map((lineInfo, displayIndex) => {
-        const isSelected = isLineSelected(displayIndex);
+    const handleSubmitNote = (reviewNote: string) => {
+      if (!onReviewNote) return;
+      onReviewNote(reviewNote);
+      setSelection(null);
+    };
 
-        return (
-          <React.Fragment key={displayIndex}>
-            <SelectableDiffLineWrapper type={lineInfo.type} isSelected={isSelected}>
-              <CommentButtonWrapper>
-                <TooltipWrapper inline>
-                  <CommentButton
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleCommentButtonClick(displayIndex, e.shiftKey);
-                    }}
-                    aria-label="Add review comment"
-                  >
-                    +
-                  </CommentButton>
-                  <Tooltip position="bottom" align="left">
-                    Add review comment (Shift-click to select range)
-                  </Tooltip>
-                </TooltipWrapper>
-              </CommentButtonWrapper>
-              <DiffLine type={lineInfo.type}>
-                <DiffIndicator type={lineInfo.type}>{lines[lineInfo.index][0]}</DiffIndicator>
-                {showLineNumbers && (
-                  <LineNumber type={lineInfo.type}>{lineInfo.lineNum}</LineNumber>
+    const handleCancelNote = () => {
+      setSelection(null);
+    };
+
+    const isLineSelected = (index: number) => {
+      if (!selection) return false;
+      const [start, end] = [selection.startIndex, selection.endIndex].sort((a, b) => a - b);
+      return index >= start && index <= end;
+    };
+
+    // Extract lines for rendering (done once, outside map)
+    const lines = content.split("\n").filter((line) => line.length > 0);
+
+    return (
+      <DiffContainer fontSize={fontSize} maxHeight={maxHeight}>
+        {lineData.map((lineInfo, displayIndex) => {
+          const isSelected = isLineSelected(displayIndex);
+
+          return (
+            <React.Fragment key={displayIndex}>
+              <SelectableDiffLineWrapper type={lineInfo.type} isSelected={isSelected}>
+                <CommentButtonWrapper>
+                  <TooltipWrapper inline>
+                    <CommentButton
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCommentButtonClick(displayIndex, e.shiftKey);
+                      }}
+                      aria-label="Add review comment"
+                    >
+                      +
+                    </CommentButton>
+                    <Tooltip position="bottom" align="left">
+                      Add review comment (Shift-click to select range)
+                    </Tooltip>
+                  </TooltipWrapper>
+                </CommentButtonWrapper>
+                <DiffLine type={lineInfo.type}>
+                  <DiffIndicator type={lineInfo.type}>{lines[lineInfo.index][0]}</DiffIndicator>
+                  {showLineNumbers && (
+                    <LineNumber type={lineInfo.type}>{lineInfo.lineNum}</LineNumber>
+                  )}
+                  <LineContent type={lineInfo.type}>
+                    <HighlightedContent code={lineInfo.content} language={language} />
+                  </LineContent>
+                </DiffLine>
+              </SelectableDiffLineWrapper>
+
+              {/* Show textarea after the last selected line */}
+              {isSelected &&
+                selection &&
+                displayIndex === Math.max(selection.startIndex, selection.endIndex) && (
+                  <ReviewNoteInput
+                    selection={selection}
+                    lineData={lineData}
+                    lines={lines}
+                    filePath={filePath}
+                    onSubmit={handleSubmitNote}
+                    onCancel={handleCancelNote}
+                  />
                 )}
-                <LineContent type={lineInfo.type}>
-                  <HighlightedContent code={lineInfo.content} language={language} />
-                </LineContent>
-              </DiffLine>
-            </SelectableDiffLineWrapper>
+            </React.Fragment>
+          );
+        })}
+      </DiffContainer>
+    );
+  }
+);
 
-            {/* Show textarea after the last selected line */}
-            {isSelected &&
-              selection &&
-              displayIndex === Math.max(selection.startIndex, selection.endIndex) && (
-                <ReviewNoteInput
-                  selection={selection}
-                  lineData={lineData}
-                  lines={lines}
-                  filePath={filePath}
-                  onSubmit={handleSubmitNote}
-                  onCancel={handleCancelNote}
-                />
-              )}
-          </React.Fragment>
-        );
-      })}
-    </DiffContainer>
-  );
-};
+SelectableDiffRenderer.displayName = "SelectableDiffRenderer";

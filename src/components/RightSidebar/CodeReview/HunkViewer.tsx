@@ -6,13 +6,15 @@ import React, { useState } from "react";
 import styled from "@emotion/styled";
 import type { DiffHunk } from "@/types/review";
 import { SelectableDiffRenderer } from "../../shared/DiffRenderer";
+import { Tooltip, TooltipWrapper } from "../../Tooltip";
 
 interface HunkViewerProps {
   hunk: DiffHunk;
+  hunkId: string;
   isSelected?: boolean;
   isRead?: boolean;
-  onClick?: () => void;
-  onToggleRead?: () => void;
+  onClick?: (e: React.MouseEvent<HTMLElement>) => void;
+  onToggleRead?: (e: React.MouseEvent<HTMLElement>) => void;
   onReviewNote?: (note: string) => void;
 }
 
@@ -162,105 +164,135 @@ const ToggleReadButton = styled.button`
   }
 `;
 
-export const HunkViewer: React.FC<HunkViewerProps> = ({
-  hunk,
-  isSelected,
-  isRead = false,
-  onClick,
-  onToggleRead,
-  onReviewNote,
-}) => {
-  // Collapse by default if marked as read
-  const [isExpanded, setIsExpanded] = useState(!isRead);
+export const HunkViewer = React.memo<HunkViewerProps>(
+  ({ hunk, hunkId, isSelected, isRead = false, onClick, onToggleRead, onReviewNote }) => {
+    // Parse diff lines (memoized - only recompute if hunk.content changes)
+    // Must be done before state initialization to determine initial collapse state
+    const { lineCount, additions, deletions, isLargeHunk } = React.useMemo(() => {
+      const lines = hunk.content.split("\n").filter((line) => line.length > 0);
+      const count = lines.length;
+      return {
+        lineCount: count,
+        additions: lines.filter((line) => line.startsWith("+")).length,
+        deletions: lines.filter((line) => line.startsWith("-")).length,
+        isLargeHunk: count > 200, // Memoize to prevent useEffect re-runs
+      };
+    }, [hunk.content]);
 
-  // Auto-collapse when marked as read, auto-expand when unmarked
-  React.useEffect(() => {
-    setIsExpanded(!isRead);
-  }, [isRead]);
+    // Collapse by default if marked as read OR if hunk has >200 lines
+    const [isExpanded, setIsExpanded] = useState(() => !isRead && !isLargeHunk);
 
-  const handleToggleExpand = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setIsExpanded(!isExpanded);
-  };
+    // Auto-collapse when marked as read, auto-expand when unmarked (but respect large hunk threshold)
+    React.useEffect(() => {
+      if (isRead) {
+        setIsExpanded(false);
+      } else if (!isLargeHunk) {
+        setIsExpanded(true);
+      }
+      // Note: When unmarking as read, large hunks remain collapsed
+    }, [isRead, isLargeHunk]);
 
-  const handleToggleRead = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    onToggleRead?.();
-  };
+    const handleToggleExpand = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      setIsExpanded(!isExpanded);
+    };
 
-  // Parse diff lines
-  const diffLines = hunk.content.split("\n").filter((line) => line.length > 0);
-  const lineCount = diffLines.length;
-  const shouldCollapse = lineCount > 20; // Collapse hunks with more than 20 lines
+    const handleToggleRead = (e: React.MouseEvent<HTMLButtonElement>) => {
+      e.stopPropagation();
+      onToggleRead?.(e);
+    };
 
-  // Calculate net LoC (additions - deletions)
-  const additions = diffLines.filter((line) => line.startsWith("+")).length;
-  const deletions = diffLines.filter((line) => line.startsWith("-")).length;
+    // Detect pure rename: if renamed and content hasn't changed (zero additions and deletions)
+    const isPureRename =
+      hunk.changeType === "renamed" && hunk.oldPath && additions === 0 && deletions === 0;
 
-  // Detect pure rename: if renamed and content hasn't changed (zero additions and deletions)
-  const isPureRename =
-    hunk.changeType === "renamed" && hunk.oldPath && additions === 0 && deletions === 0;
-
-  return (
-    <HunkContainer
-      isSelected={isSelected ?? false}
-      isRead={isRead}
-      onClick={onClick}
-      role="button"
-      tabIndex={0}
-      data-hunk-id={hunk.id}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onClick?.();
-        }
-      }}
-    >
-      <HunkHeader>
-        {isRead && <ReadIndicator title="Marked as read">✓</ReadIndicator>}
-        <FilePath>{hunk.filePath}</FilePath>
-        <LineInfo>
-          {!isPureRename && (
-            <LocStats>
-              {additions > 0 && <Additions>+{additions}</Additions>}
-              {deletions > 0 && <Deletions>-{deletions}</Deletions>}
-            </LocStats>
+    return (
+      <HunkContainer
+        isSelected={isSelected ?? false}
+        isRead={isRead}
+        onClick={onClick}
+        role="button"
+        tabIndex={0}
+        data-hunk-id={hunkId}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            // Cast to MouseEvent-like for onClick handler
+            onClick?.(e as unknown as React.MouseEvent<HTMLElement>);
+          }
+        }}
+      >
+        <HunkHeader>
+          {isRead && (
+            <TooltipWrapper inline>
+              <ReadIndicator aria-label="Marked as read">✓</ReadIndicator>
+              <Tooltip align="center" position="top">
+                Marked as read
+              </Tooltip>
+            </TooltipWrapper>
           )}
-          <LineCount>
-            ({lineCount} {lineCount === 1 ? "line" : "lines"})
-          </LineCount>
-          {onToggleRead && (
-            <ToggleReadButton onClick={handleToggleRead} title="Mark as read (m)">
-              {isRead ? "○" : "◉"}
-            </ToggleReadButton>
-          )}
-        </LineInfo>
-      </HunkHeader>
+          <FilePath>{hunk.filePath}</FilePath>
+          <LineInfo>
+            {!isPureRename && (
+              <LocStats>
+                {additions > 0 && <Additions>+{additions}</Additions>}
+                {deletions > 0 && <Deletions>-{deletions}</Deletions>}
+              </LocStats>
+            )}
+            <LineCount>
+              ({lineCount} {lineCount === 1 ? "line" : "lines"})
+            </LineCount>
+            {onToggleRead && (
+              <TooltipWrapper inline>
+                <ToggleReadButton
+                  data-hunk-id={hunkId}
+                  onClick={handleToggleRead}
+                  aria-label="Mark as read (m)"
+                >
+                  {isRead ? "○" : "◉"}
+                </ToggleReadButton>
+                <Tooltip align="right" position="top">
+                  Mark as read (m)
+                </Tooltip>
+              </TooltipWrapper>
+            )}
+          </LineInfo>
+        </HunkHeader>
 
-      {isPureRename ? (
-        <RenameInfo>
-          Renamed from <code>{hunk.oldPath}</code>
-        </RenameInfo>
-      ) : isExpanded ? (
-        <HunkContent>
-          <SelectableDiffRenderer
-            content={hunk.content}
-            filePath={hunk.filePath}
-            oldStart={hunk.oldStart}
-            newStart={hunk.newStart}
-            onReviewNote={onReviewNote}
-            onLineClick={onClick}
-          />
-        </HunkContent>
-      ) : (
-        <CollapsedIndicator onClick={handleToggleExpand}>
-          {isRead && "Hunk marked as read. "}Click to expand ({lineCount} lines)
-        </CollapsedIndicator>
-      )}
+        {isPureRename ? (
+          <RenameInfo>
+            Renamed from <code>{hunk.oldPath}</code>
+          </RenameInfo>
+        ) : isExpanded ? (
+          <HunkContent>
+            <SelectableDiffRenderer
+              content={hunk.content}
+              filePath={hunk.filePath}
+              oldStart={hunk.oldStart}
+              newStart={hunk.newStart}
+              maxHeight="none"
+              onReviewNote={onReviewNote}
+              onLineClick={() => {
+                // Create synthetic event with data-hunk-id for parent handler
+                const syntheticEvent = {
+                  currentTarget: { dataset: { hunkId } },
+                } as unknown as React.MouseEvent<HTMLElement>;
+                onClick?.(syntheticEvent);
+              }}
+            />
+          </HunkContent>
+        ) : (
+          <CollapsedIndicator onClick={handleToggleExpand}>
+            {isRead && "Hunk marked as read. "}Click to expand ({lineCount} lines)
+          </CollapsedIndicator>
+        )}
 
-      {shouldCollapse && isExpanded && !isPureRename && (
-        <CollapsedIndicator onClick={handleToggleExpand}>Click to collapse</CollapsedIndicator>
-      )}
-    </HunkContainer>
-  );
-};
+        {isLargeHunk && isExpanded && !isPureRename && (
+          <CollapsedIndicator onClick={handleToggleExpand}>Click to collapse</CollapsedIndicator>
+        )}
+      </HunkContainer>
+    );
+  }
+);
+
+HunkViewer.displayName = "HunkViewer";

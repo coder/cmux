@@ -95,6 +95,7 @@ export function useReviewState(workspaceId: string): UseReviewStateReturn {
 
   /**
    * Mark one or more hunks as read
+   * Optimized to only update changed entries
    */
   const markAsRead = useCallback(
     (hunkIds: string | string[]) => {
@@ -103,6 +104,11 @@ export function useReviewState(workspaceId: string): UseReviewStateReturn {
 
       const timestamp = Date.now();
       setReviewState((prev) => {
+        // Check if any IDs actually need updating (not already read)
+        const needsUpdate = ids.some((id) => !prev.readState[id]?.isRead);
+        if (!needsUpdate) return prev; // Early return - no state change
+
+        // Only spread if we're actually changing something
         const newReadState = { ...prev.readState };
         for (const hunkId of ids) {
           newReadState[hunkId] = {
@@ -127,6 +133,9 @@ export function useReviewState(workspaceId: string): UseReviewStateReturn {
   const markAsUnread = useCallback(
     (hunkId: string) => {
       setReviewState((prev) => {
+        // Early return if not currently read
+        if (!prev.readState[hunkId]) return prev;
+
         const { [hunkId]: _, ...rest } = prev.readState;
         return {
           ...prev,
