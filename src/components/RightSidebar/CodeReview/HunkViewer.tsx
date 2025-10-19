@@ -266,7 +266,7 @@ export const HunkViewer = React.memo<HunkViewerProps>(
                 // Create synthetic event with data-hunk-id for parent handler
                 const syntheticEvent = {
                   currentTarget: { dataset: { hunkId } },
-                } as React.MouseEvent<HTMLElement>;
+                } as unknown as React.MouseEvent<HTMLElement>;
                 onClick?.(syntheticEvent);
               }}
             />
