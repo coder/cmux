@@ -6,22 +6,18 @@
  * and available when the stream is resumed.
  *
  * Test Approach:
- * - Focus on user-level behavior (can send message, can resume, content is delivered)
- * - Avoid coupling to internal implementation (no direct file access, no metadata checks)
- * - Use existing helpers (readChatHistory, waitForStreamSuccess) instead of custom solutions
- * - Verify outcomes (substantial content, topic-relevant content) not internal state
+ * - Use structured markers (nonce + line numbers) to detect exact continuation
+ * - Capture pre-error streamed text from stream-delta events (user-visible data path)
+ * - Interrupt mid-stream after detecting stable prefix (≥N complete markers)
+ * - Verify final message: (a) starts with exact pre-error prefix, (b) continues from exact point
+ * - Focus on user-level behavior without coupling to internal storage formats
  *
  * These tests use a debug IPC channel to artificially trigger errors, allowing us to
  * test the recovery path without relying on actual network failures.
  */
 
 import { setupWorkspace, shouldRunIntegrationTests, validateApiKeys } from "./setup";
-import {
-  sendMessageWithModel,
-  createEventCollector,
-  waitForStreamSuccess,
-  readChatHistory,
-} from "./helpers";
+import { sendMessageWithModel, createEventCollector, readChatHistory } from "./helpers";
 import { IPC_CHANNELS } from "../../src/constants/ipc-constants";
 
 // Skip all tests if TEST_INTEGRATION is not set
@@ -36,68 +32,51 @@ if (shouldRunIntegrationTests()) {
 const PROVIDER = "anthropic";
 const MODEL = "claude-haiku-4-5";
 
+// Threshold for stable prefix - interrupt after this many complete markers
+const STABLE_PREFIX_THRESHOLD = 10;
+
 /**
- * Helper: Extract numbers from text response
- * Used to verify counting sequence continuity
+ * Generate a random nonce for unique marker identification
  */
-function extractNumbers(text: string): number[] {
+function generateNonce(length = 10): string {
+  return Math.random().toString(36).substring(2, 2 + length);
+}
+
+/**
+ * Extract marker numbers from text containing structured markers
+ * Returns array of numbers in the order they appear
+ */
+function extractMarkers(nonce: string, text: string): number[] {
+  const regex = new RegExp(`${nonce}-(\\d+)`, "g");
   const numbers: number[] = [];
-  // Match numbers, handling formats like "1", "1.", "1)", "1:", etc.
-  const matches = text.matchAll(/\b(\d+)[\s.,:)\-]*/g);
-  for (const match of matches) {
-    const num = parseInt(match[1], 10);
-    if (num >= 1 && num <= 100) {
-      numbers.push(num);
-    }
+  let match;
+  while ((match = regex.exec(text)) !== null) {
+    numbers.push(parseInt(match[1], 10));
   }
   return numbers;
 }
 
 /**
- * Helper: Verify counting response shows substantial work
- * After error recovery, model may restart but should show accumulated work
+ * Get the maximum complete marker number found in text
  */
-function verifyCountingResponse(numbers: number[]): { valid: boolean; reason?: string } {
-  if (numbers.length < 5) {
-    return { valid: false, reason: `Too few numbers: ${numbers.length}` };
-  }
-
-  // Verify we have a reasonable range of numbers
-  const min = Math.min(...numbers);
-  const max = Math.max(...numbers);
-  const range = max - min;
-
-  if (range < 10) {
-    return { valid: false, reason: `Range too small: ${min}-${max} (${range})` };
-  }
-
-  // Verify we have decent coverage (not just 1, 1, 1, 1, 100)
-  const uniqueNumbers = new Set(numbers);
-  if (uniqueNumbers.size < 5) {
-    return { valid: false, reason: `Too few unique numbers: ${uniqueNumbers.size}` };
-  }
-
-  return { valid: true };
+function getMaxMarker(nonce: string, text: string): number {
+  const markers = extractMarkers(nonce, text);
+  return markers.length > 0 ? Math.max(...markers) : 0;
 }
 
 /**
- * Helper: Wait for stream to accumulate some content before triggering error
- * This ensures we have context to preserve
+ * Truncate text to end at the last complete marker line
+ * This ensures the stable prefix doesn't include partial markers
  */
-async function waitForStreamWithContent(
-  collector: ReturnType<typeof createEventCollector>,
-  timeoutMs = 10000
-): Promise<void> {
-  await collector.waitForEvent("stream-start", 5000);
-
-  // Wait for several deltas to ensure we have text content
-  // Early deltas might just be thinking/setup
-  for (let i = 0; i < 5; i++) {
-    await collector.waitForEvent("stream-delta", timeoutMs);
+function truncateToLastCompleteMarker(text: string, nonce: string): string {
+  const regex = new RegExp(`${nonce}-(\\d+):[^\\n]*`, "g");
+  const matches = Array.from(text.matchAll(regex));
+  if (matches.length === 0) {
+    return text;
   }
-
-  // Small delay to let content accumulate in streamInfo.parts
-  await new Promise((resolve) => setTimeout(resolve, 200));
+  const lastMatch = matches[matches.length - 1];
+  const endIndex = lastMatch.index! + lastMatch[0].length;
+  return text.substring(0, endIndex);
 }
 
 /**
@@ -125,7 +104,7 @@ async function triggerStreamError(
 
 /**
  * Helper: Resume stream and wait for successful completion
- * Note: For error recovery tests, we expect error events in history
+ * Filters out pre-resume error events to detect only new errors
  */
 async function resumeAndWaitForSuccess(
   mockIpcRenderer: unknown,
@@ -171,6 +150,68 @@ async function resumeAndWaitForSuccess(
   }
 }
 
+/**
+ * Collect stream deltas until predicate returns true
+ * Returns the accumulated buffer
+ * 
+ * This function properly tracks consumed events to avoid returning duplicates
+ */
+async function collectStreamUntil(
+  collector: ReturnType<typeof createEventCollector>,
+  predicate: (buffer: string) => boolean,
+  timeoutMs = 15000
+): Promise<string> {
+  const startTime = Date.now();
+  let buffer = "";
+  let lastProcessedIndex = -1;
+
+  await collector.waitForEvent("stream-start", 5000);
+
+  while (Date.now() - startTime < timeoutMs) {
+    // Collect latest events
+    collector.collect();
+    const allDeltas = collector.getDeltas();
+
+    // Process only new deltas (beyond lastProcessedIndex)
+    const newDeltas = allDeltas.slice(lastProcessedIndex + 1);
+    
+    if (newDeltas.length > 0) {
+      for (const delta of newDeltas) {
+        const deltaData = delta as { delta?: string };
+        if (deltaData.delta) {
+          buffer += deltaData.delta;
+        }
+      }
+      lastProcessedIndex = allDeltas.length - 1;
+
+      // Log progress periodically
+      if (allDeltas.length % 20 === 0) {
+        console.log(
+          `[collectStreamUntil] Processed ${allDeltas.length} deltas, buffer length: ${buffer.length}`
+        );
+      }
+
+      // Check predicate after processing new deltas
+      if (predicate(buffer)) {
+        console.log(
+          `[collectStreamUntil] Predicate satisfied after ${allDeltas.length} deltas, buffer length: ${buffer.length}`
+        );
+        return buffer;
+      }
+    }
+
+    // Small delay before next poll
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+
+  console.error(
+    `[collectStreamUntil] Timeout after processing deltas, predicate never satisfied`
+  );
+  console.error(`[collectStreamUntil] Final buffer length: ${buffer.length}`);
+  console.error(`[collectStreamUntil] Buffer sample (first 500 chars): ${buffer.substring(0, 500)}`);
+  throw new Error("Timeout: predicate never satisfied");
+}
+
 describeIntegration("Stream Error Recovery (No Amnesia)", () => {
   // Enable retries in CI for flaky API tests
   if (process.env.CI && typeof jest !== "undefined" && jest.retryTimes) {
@@ -178,32 +219,60 @@ describeIntegration("Stream Error Recovery (No Amnesia)", () => {
   }
 
   test.concurrent(
-    "should preserve context after single stream error",
+    "should preserve exact prefix and continue from exact point after stream error",
     async () => {
       const { env, workspaceId, cleanup } = await setupWorkspace(PROVIDER);
       try {
-        // User asks model to count from 1 to 100 with descriptions (slower task to allow interruption)
+        // Generate unique nonce for this test run
+        const nonce = generateNonce();
+
+        // Prompt model to produce structured, unambiguous output
+        // Use a very explicit instruction with examples to maximize compliance
+        const prompt = `I need you to count from 1 to 100 using a specific format. Output each number on its own line using EXACTLY this pattern:
+
+${nonce}-1: one
+${nonce}-2: two
+${nonce}-3: three
+${nonce}-4: four
+${nonce}-5: five
+
+Continue this pattern all the way to 100. Use only single-word number names (six, seven, eight, etc.).
+
+IMPORTANT: Do not add any other text. Start immediately with ${nonce}-1: one. If interrupted, resume from where you stopped without repeating any lines.`;
+
+
         const sendResult = await sendMessageWithModel(
           env.mockIpcRenderer,
           workspaceId,
-          "Count from 1 to 100. For each number, write the number followed by a brief description or fun fact. For example: '1 - The first positive integer', '2 - The only even prime number', etc. Do not use any tools.",
+          prompt,
           PROVIDER,
           MODEL,
           { toolPolicy: [{ regex_match: ".*", action: "disable" }] }
         );
         expect(sendResult.success).toBe(true);
 
-        // Wait for stream to accumulate content (should have counted some numbers)
+        // Collect stream deltas until we have at least STABLE_PREFIX_THRESHOLD complete markers
         const collector = createEventCollector(env.sentEvents, workspaceId);
-        await waitForStreamWithContent(collector);
+        const preErrorBuffer = await collectStreamUntil(
+          collector,
+          (buf) => getMaxMarker(nonce, buf) >= STABLE_PREFIX_THRESHOLD,
+          15000
+        );
 
-        // Simulate network error mid-stream
-        await triggerStreamError(env.mockIpcRenderer, workspaceId, "Network connection lost");
+        // Build stable prefix (truncate to last complete marker)
+        const stablePrefix = truncateToLastCompleteMarker(preErrorBuffer, nonce);
+        const maxMarkerBeforeError = getMaxMarker(nonce, stablePrefix);
 
-        // Wait for error to be processed
+        console.log(`[Test] Nonce: ${nonce}, Max marker before error: ${maxMarkerBeforeError}`);
+        console.log(`[Test] Stable prefix ends with: ${stablePrefix.slice(-200)}`);
+
+        // Trigger error mid-stream
+        await triggerStreamError(env.mockIpcRenderer, workspaceId, "Simulated network error");
+
+        // Small delay to let error propagate
         await new Promise((resolve) => setTimeout(resolve, 500));
 
-        // User can resume after error (this commits the partial to history and continues)
+        // Resume and wait for completion
         await resumeAndWaitForSuccess(
           env.mockIpcRenderer,
           workspaceId,
@@ -211,31 +280,47 @@ describeIntegration("Stream Error Recovery (No Amnesia)", () => {
           `${PROVIDER}:${MODEL}`
         );
 
-        // Verify final conversation state - should have continued counting
-        const historyAfter = await readChatHistory(env.tempDir, workspaceId);
-        const assistantMessagesAfter = historyAfter.filter((m) => m.role === "assistant");
-
-        // Get all numbers from all assistant messages
-        const allAssistantText = assistantMessagesAfter
+        // Read final assistant message from history
+        const history = await readChatHistory(env.tempDir, workspaceId);
+        const assistantMessages = history.filter((m) => m.role === "assistant");
+        const finalText = assistantMessages
           .flatMap((m) => m.parts)
           .filter((p) => p.type === "text")
           .map((p) => (p as { text?: string }).text ?? "")
           .join("");
-        const allNumbers = extractNumbers(allAssistantText);
 
-        // Verify response shows substantial counting work (proves context was preserved)
-        const responseCheck = verifyCountingResponse(allNumbers);
-        if (!responseCheck.valid) {
-          console.error("Response validation failed:", responseCheck.reason);
-          console.error("Numbers found:", allNumbers.slice(0, 50));
-          console.error("Unique numbers:", new Set(allNumbers).size);
-          console.error("Text sample:", allAssistantText.substring(0, 300));
+        // Normalize whitespace for comparison (trim trailing spaces/newlines)
+        const normalizedPrefix = stablePrefix.trim();
+        const normalizedFinal = finalText.trim();
+
+        // ASSERTION 1: Prefix preservation - final text starts with exact pre-error prefix
+        if (!normalizedFinal.startsWith(normalizedPrefix)) {
+          console.error("[FAIL] Final text does NOT start with stable prefix");
+          console.error("Expected prefix (last 300 chars):", normalizedPrefix.slice(-300));
+          console.error("Actual start (first 300 chars):", normalizedFinal.substring(0, 300));
+          console.error("Stable prefix length:", normalizedPrefix.length);
+          console.error("Final text length:", normalizedFinal.length);
         }
-        expect(responseCheck.valid).toBe(true);
+        expect(normalizedFinal.startsWith(normalizedPrefix)).toBe(true);
 
-        // Verify we got substantial progress
-        const maxNumber = Math.max(...allNumbers);
-        expect(maxNumber).toBeGreaterThan(5); // Should have made progress
+        // ASSERTION 2: Exact continuation - search for next marker (k+1) shortly after prefix
+        const nextMarker = `${nonce}-${maxMarkerBeforeError + 1}`;
+        const searchWindow = normalizedFinal.substring(
+          normalizedPrefix.length,
+          normalizedPrefix.length + 2000
+        );
+        const foundNextMarker = searchWindow.includes(nextMarker);
+
+        if (!foundNextMarker) {
+          console.error("[FAIL] Next marker NOT found after prefix");
+          console.error("Expected marker:", nextMarker);
+          console.error("Search window (first 1200 chars):", searchWindow.substring(0, 1200));
+          const allMarkers = extractMarkers(nonce, normalizedFinal);
+          console.error("All markers found (first 30):", allMarkers.slice(0, 30));
+        }
+        expect(foundNextMarker).toBe(true);
+
+        console.log("[Test] ✅ Prefix preserved and exact continuation verified");
       } finally {
         await cleanup();
       }
