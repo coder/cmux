@@ -471,8 +471,17 @@ function greet(name) {
 
   it("should not show inverse deltas when branch is behind base ref", () => {
     // Scenario: Branch A is 3 commits behind origin/main
-    // When reviewing with includeUncommitted=true, should NOT show inverse deltas
-    // from the 3 commits that landed on origin/main after branching
+    //
+    // Git history:
+    //   test-main:  Initial---Y---Z---W (3 commits ahead)
+    //                 \
+    //   feature:       Feature (committed) + uncommitted changes
+    //
+    // Problem: Old behavior with includeUncommitted=true used two-dot diff,
+    // comparing W to working directory, showing Y, Z, W as inverse deltas.
+    //
+    // Expected: Should only show feature branch changes (committed + uncommitted),
+    // NOT inverse deltas from Y, Z, W commits that landed on test-main.
     execSync("git reset --hard HEAD", { cwd: testRepoPath });
 
     // Create a "main" branch and add 3 commits
