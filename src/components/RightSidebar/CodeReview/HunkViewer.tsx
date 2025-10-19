@@ -37,8 +37,9 @@ const HunkContainer = styled.div<{ isSelected: boolean; isRead: boolean }>`
   }
 `;
 
-const HunkHeader = styled.div<{ isRead: boolean }>`
-  background: ${(props) => (props.isRead ? "rgba(74, 222, 128, 0.15)" : "#252526")};
+const HunkHeader = styled.div`
+  /* Keep grayscale to avoid clashing with green/red LoC indicators */
+  background: #252526;
   padding: 8px 12px;
   border-bottom: 1px solid #3e3e42;
   display: flex;
@@ -47,7 +48,6 @@ const HunkHeader = styled.div<{ isRead: boolean }>`
   font-family: var(--font-monospace);
   font-size: 12px;
   gap: 8px;
-  transition: background 0.2s ease;
 `;
 
 const FilePath = styled.div`
@@ -131,7 +131,7 @@ const RenameInfo = styled.div`
 const ReadIndicator = styled.span`
   display: inline-flex;
   align-items: center;
-  color: #4ade80;
+  color: var(--color-plan-mode);
   font-size: 14px;
   margin-right: 4px;
 `;
@@ -151,8 +151,8 @@ const ToggleReadButton = styled.button`
 
   &:hover {
     background: rgba(255, 255, 255, 0.05);
-    border-color: #4ade80;
-    color: #4ade80;
+    border-color: var(--color-plan-mode);
+    color: var(--color-plan-mode);
   }
 
   &:active {
@@ -214,7 +214,7 @@ export const HunkViewer: React.FC<HunkViewerProps> = ({
         }
       }}
     >
-      <HunkHeader isRead={isRead}>
+      <HunkHeader>
         {isRead && <ReadIndicator title="Marked as read">✓</ReadIndicator>}
         <FilePath>{hunk.filePath}</FilePath>
         <LineInfo>

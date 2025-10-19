@@ -119,10 +119,10 @@ const EmptyState = styled.div`
 
 const MarkReadButton = styled.button`
   background: transparent;
-  border: 1px solid rgba(74, 222, 128, 0.3);
+  border: 1px solid rgba(31, 107, 184, 0.3);
   border-radius: 3px;
   padding: 2px 6px;
-  color: #4ade80;
+  color: var(--color-plan-mode);
   font-size: 10px;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -133,8 +133,8 @@ const MarkReadButton = styled.button`
 
   &:hover {
     opacity: 1;
-    background: rgba(74, 222, 128, 0.1);
-    border-color: #4ade80;
+    background: var(--color-plan-mode-alpha);
+    border-color: var(--color-plan-mode);
   }
 
   &:active {
@@ -144,7 +144,7 @@ const MarkReadButton = styled.button`
 
 const ReadStatus = styled.span`
   font-size: 10px;
-  color: #4ade80;
+  color: var(--color-plan-mode);
   opacity: 0.7;
 `;
 
