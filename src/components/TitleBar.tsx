@@ -132,6 +132,7 @@ function parseBuildInfo(version: unknown) {
 export function TitleBar() {
   const { buildDate, extendedTimestamp, gitDescribe } = parseBuildInfo(VERSION satisfies unknown);
   const [updateStatus, setUpdateStatus] = useState<UpdateStatus>({ type: "not-available" });
+  const [isCheckingOnHover, setIsCheckingOnHover] = useState(false);
   const telemetryEnabled = isTelemetryEnabled();
 
   useEffect(() => {
@@ -143,6 +144,7 @@ export function TitleBar() {
     // Subscribe to update status changes (will receive current status immediately)
     const unsubscribe = window.api.update.onStatus((status) => {
       setUpdateStatus(status);
+      setIsCheckingOnHover(false); // Clear checking state when status updates
     });
 
     // Check for updates on mount
@@ -162,6 +164,19 @@ export function TitleBar() {
     };
   }, [telemetryEnabled]);
 
+  const handleIndicatorHover = () => {
+    if (!telemetryEnabled) return;
+
+    // Only trigger check if not already checking and no update available/downloading/downloaded
+    if (updateStatus.type === "not-available" && !isCheckingOnHover) {
+      setIsCheckingOnHover(true);
+      window.api.update.check().catch((error) => {
+        console.error("Update check failed:", error);
+        setIsCheckingOnHover(false);
+      });
+    }
+  };
+
   const handleUpdateClick = () => {
     if (!telemetryEnabled) return; // No-op if telemetry disabled
 
@@ -174,71 +189,51 @@ export function TitleBar() {
 
   const getUpdateTooltip = () => {
     const currentVersion = gitDescribe ?? "dev";
+    const lines: React.ReactNode[] = [`Current: ${currentVersion}`];
 
     if (!telemetryEnabled) {
-      return (
-        <>
-          Current: {currentVersion}
-          <br />
-          Update checks disabled (telemetry is off)
-          <br />
-          Enable telemetry to receive updates.
-        </>
+      lines.push(
+        "Update checks disabled (telemetry is off)",
+        "Enable telemetry to receive updates."
       );
+    } else if (isCheckingOnHover || updateStatus.type === "checking") {
+      lines.push("Checking for updates...");
+    } else {
+      switch (updateStatus.type) {
+        case "available":
+          lines.push(`Update available: ${updateStatus.info.version}`, "Click to download.");
+          break;
+        case "downloading":
+          lines.push(`Downloading update: ${updateStatus.percent}%`);
+          break;
+        case "downloaded":
+          lines.push(`Update ready: ${updateStatus.info.version}`, "Click to install and restart.");
+          break;
+        case "not-available":
+          lines.push("No updates available", "Checks every 4 hours.");
+          break;
+        case "error":
+          lines.push("Update check failed", updateStatus.message);
+          break;
+      }
     }
 
-    switch (updateStatus.type) {
-      case "available":
-        return (
-          <>
-            Current: {currentVersion}
-            <br />
-            Update available: {updateStatus.info.version}
-            <br />
-            Click to download.
-          </>
-        );
-      case "downloading":
-        return (
-          <>
-            Current: {currentVersion}
-            <br />
-            Downloading update: {updateStatus.percent}%
-          </>
-        );
-      case "downloaded":
-        return (
-          <>
-            Current: {currentVersion}
-            <br />
-            Update ready: {updateStatus.info.version}
-            <br />
-            Click to install and restart.
-          </>
-        );
-      case "not-available":
-        return (
-          <>
-            Current: {currentVersion}
-            <br />
-            No updates available
-            <br />
-            Checks every 4 hours.
-          </>
-        );
-      default:
-        return (
-          <>
-            Current: {currentVersion}
-            <br />
-            Checking for updates...
-          </>
-        );
-    }
+    return (
+      <>
+        {lines.map((line, i) => (
+          <React.Fragment key={i}>
+            {i > 0 && <br />}
+            {line}
+          </React.Fragment>
+        ))}
+      </>
+    );
   };
 
   const getIndicatorStatus = (): "available" | "downloading" | "downloaded" | "disabled" => {
     if (!telemetryEnabled) return "disabled";
+
+    if (isCheckingOnHover || updateStatus.type === "checking") return "disabled";
 
     switch (updateStatus.type) {
       case "available":
@@ -248,7 +243,7 @@ export function TitleBar() {
       case "downloaded":
         return "downloaded";
       default:
-        return "disabled"; // Show disabled when no update available
+        return "disabled";
     }
   };
 
@@ -262,7 +257,11 @@ export function TitleBar() {
       <LeftSection>
         {showUpdateIndicator && (
           <TooltipWrapper>
-            <UpdateIndicator status={indicatorStatus} onClick={handleUpdateClick}>
+            <UpdateIndicator
+              status={indicatorStatus}
+              onClick={handleUpdateClick}
+              onMouseEnter={handleIndicatorHover}
+            >
               <UpdateIcon>
                 {indicatorStatus === "disabled"
                   ? "⊘"
