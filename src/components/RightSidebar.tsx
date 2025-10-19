@@ -179,6 +179,9 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
   // Global tab preference (not per-workspace)
   const [selectedTab, setSelectedTab] = usePersistedState<TabType>("right-sidebar-tab", "costs");
 
+  // Trigger for focusing Review panel (preserves hunk selection)
+  const [focusTrigger, setFocusTrigger] = React.useState(0);
+
   // Notify parent (AIView) of tab changes so it can enable/disable resize functionality
   React.useEffect(() => {
     onTabChange?.(selectedTab);
@@ -192,13 +195,18 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
         setSelectedTab("costs");
       } else if (matchesKeybind(e, KEYBINDS.REVIEW_TAB)) {
         e.preventDefault();
-        setSelectedTab("review");
+        // If already on Review tab, focus the panel
+        if (selectedTab === "review") {
+          setFocusTrigger((prev) => prev + 1);
+        } else {
+          setSelectedTab("review");
+        }
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [setSelectedTab]);
+  }, [setSelectedTab, selectedTab]);
 
   const usage = useWorkspaceUsage(workspaceId);
   const [use1M] = use1MContext();
@@ -337,6 +345,7 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
                   workspaceId={workspaceId}
                   workspacePath={workspacePath}
                   onReviewNote={onReviewNote}
+                  focusTrigger={focusTrigger}
                 />
               </div>
             )}
