@@ -159,6 +159,7 @@ const HighlightedContent = React.memo<{ code: string; language: string }>(({ cod
     <SyntaxHighlighter
       language={language}
       style={syntaxStyleNoBackgrounds}
+      useInlineStyles={false}
       PreTag="span"
       CodeTag="span"
       customStyle={{
