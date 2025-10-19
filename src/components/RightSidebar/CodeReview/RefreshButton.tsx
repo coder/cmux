@@ -64,7 +64,7 @@ export const RefreshButton: React.FC<RefreshButtonProps> = ({ onClick, isLoading
   const [animationState, setAnimationState] = useState<"idle" | "spinning" | "stopping">("idle");
   const spinOnceTimeoutRef = useRef<number | null>(null);
 
-  // Manage animation state based on loading prop
+  // Watch isLoading changes and manage animation transitions
   useEffect(() => {
     if (isLoading) {
       // Start spinning
@@ -83,13 +83,16 @@ export const RefreshButton: React.FC<RefreshButtonProps> = ({ onClick, isLoading
         spinOnceTimeoutRef.current = null;
       }, 800); // Match animation duration
     }
+  }, [isLoading, animationState]);
 
+  // Cleanup timeout on unmount only
+  useEffect(() => {
     return () => {
       if (spinOnceTimeoutRef.current) {
         clearTimeout(spinOnceTimeoutRef.current);
       }
     };
-  }, [isLoading, animationState]);
+  }, []);
 
   const className =
     animationState === "spinning" ? "spinning" : animationState === "stopping" ? "spin-once" : "";
