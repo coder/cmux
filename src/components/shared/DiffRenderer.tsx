@@ -233,11 +233,16 @@ const SelectableDiffLineWrapper = styled(DiffLineWrapper)<{
   `}
 `;
 
-const CommentButton = styled.button`
+// Wrapper for CommentButton tooltip - doesn't interfere with absolute positioning
+const CommentButtonWrapper = styled.span`
   position: absolute;
   left: 4px;
   top: 50%;
   transform: translateY(-50%);
+  z-index: 1;
+`;
+
+const CommentButton = styled.button`
   opacity: 0; /* Hidden by default */
   background: var(--color-review-accent);
   border: none;
@@ -253,7 +258,6 @@ const CommentButton = styled.button`
   font-size: 10px;
   color: white;
   font-weight: bold;
-  z-index: 1;
   flex-shrink: 0;
 
   /* Show button on line hover */
@@ -267,7 +271,7 @@ const CommentButton = styled.button`
   }
 
   &:active {
-    transform: translateY(-50%) scale(0.9);
+    transform: scale(0.9);
   }
 `;
 
@@ -447,20 +451,22 @@ export const SelectableDiffRenderer: React.FC<SelectableDiffRendererProps> = ({
         return (
           <React.Fragment key={displayIndex}>
             <SelectableDiffLineWrapper type={lineInfo.type} isSelected={isSelected}>
-              <TooltipWrapper inline>
-                <CommentButton
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleCommentButtonClick(displayIndex, e.shiftKey);
-                  }}
-                  aria-label="Add review comment"
-                >
-                  +
-                </CommentButton>
-                <Tooltip position="bottom" align="left">
-                  Add review comment (Shift-click to select range)
-                </Tooltip>
-              </TooltipWrapper>
+              <CommentButtonWrapper>
+                <TooltipWrapper inline>
+                  <CommentButton
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleCommentButtonClick(displayIndex, e.shiftKey);
+                    }}
+                    aria-label="Add review comment"
+                  >
+                    +
+                  </CommentButton>
+                  <Tooltip position="bottom" align="left">
+                    Add review comment (Shift-click to select range)
+                  </Tooltip>
+                </TooltipWrapper>
+              </CommentButtonWrapper>
               <DiffLine type={lineInfo.type}>
                 <DiffIndicator type={lineInfo.type}>{lines[lineInfo.index][0]}</DiffIndicator>
                 {showLineNumbers && (
