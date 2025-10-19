@@ -112,7 +112,7 @@ export const DiffContainer = styled.div<{ fontSize?: string }>`
   padding: 6px 0;
   background: rgba(0, 0, 0, 0.2);
   border-radius: 3px;
-  font-size: ${({ fontSize }) => fontSize || "12px"};
+  font-size: ${({ fontSize }) => fontSize ?? "12px"};
   line-height: 1.4;
   max-height: 400px;
   overflow-y: auto;
