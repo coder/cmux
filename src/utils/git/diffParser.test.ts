@@ -521,7 +521,35 @@ function greet(name) {
     // Add uncommitted changes to feature branch
     writeFileSync(join(testRepoPath, "feature-file.txt"), "Feature content\nUncommitted change\n");
 
-    // Now review with includeUncommitted=true, base=test-main
+    // Test 1: includeUncommitted=false (committed only, uses three-dot)
+    const gitCommandCommittedOnly = buildGitDiffCommand("test-main", false, "", "diff");
+    const diffOutputCommittedOnly = execSync(gitCommandCommittedOnly, {
+      cwd: testRepoPath,
+      encoding: "utf-8",
+    });
+    const fileDiffsCommittedOnly = parseDiff(diffOutputCommittedOnly);
+
+    const featureFileCommittedOnly = fileDiffsCommittedOnly.find(
+      (f) => f.filePath === "feature-file.txt"
+    );
+    const mainFileCommittedOnly = fileDiffsCommittedOnly.find((f) => f.filePath === "main-file.txt");
+
+    expect(featureFileCommittedOnly).toBeDefined();
+    expect(mainFileCommittedOnly).toBeUndefined(); // No inverse deltas
+
+    const hunksCommittedOnly = extractAllHunks(fileDiffsCommittedOnly);
+    const contentCommittedOnly = hunksCommittedOnly.map((h) => h.content).join("\n");
+
+    // Should show committed feature work
+    expect(contentCommittedOnly.includes("Feature content")).toBe(true);
+    // Should NOT show uncommitted changes (key difference from includeUncommitted=true)
+    expect(contentCommittedOnly.includes("Uncommitted change")).toBe(false);
+    // Should NOT show inverse deltas from main
+    expect(contentCommittedOnly.includes("Commit Y")).toBe(false);
+    expect(contentCommittedOnly.includes("Commit Z")).toBe(false);
+    expect(contentCommittedOnly.includes("Commit W")).toBe(false);
+
+    // Test 2: includeUncommitted=true (committed + uncommitted, uses merge-base)
     const gitCommand = buildGitDiffCommand("test-main", true, "", "diff");
     const diffOutput = execSync(gitCommand, { cwd: testRepoPath, encoding: "utf-8" });
     const fileDiffs = parseDiff(diffOutput);
