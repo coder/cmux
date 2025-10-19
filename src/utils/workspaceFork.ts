@@ -8,10 +8,19 @@ import type { FrontendWorkspaceMetadata } from "@/types/workspace";
 import { CUSTOM_EVENTS } from "@/constants/events";
 import { copyWorkspaceStorage } from "@/constants/storage";
 
-export interface ForkOptions {
-  sourceWorkspaceId: string;
+/**
+ * User-facing fork options (modal/command inputs)
+ */
+export interface UserForkOptions {
   newName: string;
   startMessage?: string;
+}
+
+/**
+ * Internal execution options (includes workspace context)
+ */
+export interface ForkOptions extends UserForkOptions {
+  sourceWorkspaceId: string;
   sendMessageOptions?: SendMessageOptions;
 }
 

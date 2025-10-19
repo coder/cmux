@@ -105,21 +105,16 @@ export function formatNewCommand(
 // ============================================================================
 
 export { forkWorkspace, type ForkResult } from "./workspaceFork";
-// Re-export internal type with different name to avoid confusion
-export type { ForkOptions as ForkExecutionOptions } from "./workspaceFork";
-
-/**
- * User-facing fork options (modal/command inputs)
- */
-export interface ForkOptions {
-  newName: string;
-  startMessage?: string;
-}
+export type {
+  ForkOptions as ForkExecutionOptions,
+  UserForkOptions as ForkOptions,
+} from "./workspaceFork";
+import type { UserForkOptions } from "./workspaceFork";
 
 /**
  * Format /fork command string for display
  */
-export function formatForkCommand(options: ForkOptions): string {
+export function formatForkCommand(options: UserForkOptions): string {
   let cmd = `/fork ${options.newName}`;
   if (options.startMessage) {
     cmd += `\n${options.startMessage}`;
@@ -143,11 +138,8 @@ export interface CompactOptions {
 /**
  * Internal execution options (includes workspace context)
  */
-export interface CompactExecutionOptions {
+export interface CompactExecutionOptions extends CompactOptions {
   workspaceId: string;
-  maxOutputTokens?: number;
-  continueMessage?: string;
-  model?: string;
   sendMessageOptions: SendMessageOptions;
   editMessageId?: string;
 }
@@ -187,11 +179,7 @@ export function prepareCompactionMessage(options: CompactExecutionOptions): {
 
   const metadata: CmuxFrontendMetadata = {
     type: "compaction-request",
-    rawCommand: formatCompactCommand({
-      maxOutputTokens: options.maxOutputTokens,
-      model: options.model,
-      continueMessage: options.continueMessage,
-    }),
+    rawCommand: formatCompactCommand(options),
     parsed: compactData,
   };
 
