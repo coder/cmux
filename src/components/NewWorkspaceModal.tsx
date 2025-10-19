@@ -2,6 +2,7 @@ import React, { useEffect, useId, useState } from "react";
 import styled from "@emotion/styled";
 import { Modal, ModalInfo, ModalActions, CancelButton, PrimaryButton } from "./Modal";
 import { TooltipWrapper, Tooltip } from "./Tooltip";
+import { formatNewCommand } from "@/utils/chatCommands";
 
 const FormGroup = styled.div`
   margin-bottom: 20px;
@@ -59,6 +60,29 @@ const UnderlinedLabel = styled.span`
   text-decoration: underline dotted #666;
   text-underline-offset: 2px;
   cursor: help;
+`;
+
+const CommandDisplay = styled.div`
+  margin-top: 20px;
+  padding: 12px;
+  background: #1e1e1e;
+  border: 1px solid #3e3e42;
+  border-radius: 4px;
+  font-family: "Menlo", "Monaco", "Courier New", monospace;
+  font-size: 13px;
+  color: #d4d4d4;
+  white-space: pre-wrap;
+  word-break: break-all;
+`;
+
+const CommandLabel = styled.div`
+  font-size: 12px;
+  color: #888;
+  margin-bottom: 8px;
+  font-family:
+    system-ui,
+    -apple-system,
+    sans-serif;
 `;
 
 interface NewWorkspaceModalProps {
@@ -235,6 +259,15 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
             ~/.cmux/src/{projectName}/{branchName || "<branch-name>"}
           </InfoCode>
         </ModalInfo>
+
+        {branchName.trim() && (
+          <div>
+            <CommandLabel>Equivalent command:</CommandLabel>
+            <CommandDisplay>
+              {formatNewCommand(branchName.trim(), trunkBranch.trim() || undefined)}
+            </CommandDisplay>
+          </div>
+        )}
 
         <ModalActions>
           <CancelButton type="button" onClick={handleCancel} disabled={isLoading}>

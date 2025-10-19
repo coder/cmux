@@ -61,65 +61,20 @@ const section = {
 export function buildCoreSources(p: BuildSourcesParams): Array<() => CommandAction[]> {
   const actions: Array<() => CommandAction[]> = [];
 
+  // NOTE: We intentionally just open the NewWorkspaceModal instead of implementing
+  // an interactive prompt in the CommandPalette. This avoids duplicating UI logic
+  // and ensures consistency - both `/new` command and the command palette use the
+  // same modal for workspace creation.
   const createWorkspaceForSelectedProjectAction = (
     selected: NonNullable<BuildSourcesParams["selectedWorkspace"]>
   ): CommandAction => {
-    let cachedBranchInfo: BranchListResult | null = null;
-    const getBranchInfo = async () => {
-      cachedBranchInfo ??= await p.getBranchesForProject(selected.projectPath);
-      return cachedBranchInfo;
-    };
-
     return {
       id: "ws:new",
       title: "Create New Workspace…",
       subtitle: `for ${selected.projectName}`,
       section: section.workspaces,
       shortcutHint: formatKeybind(KEYBINDS.NEW_WORKSPACE),
-      run: () => undefined,
-      prompt: {
-        title: "New Workspace",
-        fields: [
-          {
-            type: "text",
-            name: "branchName",
-            label: "Workspace branch name",
-            placeholder: "Enter branch name",
-            validate: (v) => (!v.trim() ? "Branch name is required" : null),
-          },
-          {
-            type: "select",
-            name: "trunkBranch",
-            label: "Trunk branch",
-            placeholder: "Search branches…",
-            getOptions: async () => {
-              const info = await getBranchInfo();
-              return info.branches.map((branch) => ({
-                id: branch,
-                label: branch,
-                keywords: [branch],
-              }));
-            },
-          },
-        ],
-        onSubmit: async (vals) => {
-          const trimmedBranchName = vals.branchName.trim();
-          const info = await getBranchInfo();
-          const providedTrunk = vals.trunkBranch?.trim();
-          const resolvedTrunk =
-            providedTrunk && info.branches.includes(providedTrunk)
-              ? providedTrunk
-              : info.branches.includes(info.recommendedTrunk)
-                ? info.recommendedTrunk
-                : info.branches[0];
-
-          if (!resolvedTrunk) {
-            throw new Error("Unable to determine trunk branch for workspace creation");
-          }
-
-          await p.onCreateWorkspace(selected.projectPath, trimmedBranchName, resolvedTrunk);
-        },
-      },
+      run: () => p.onOpenNewWorkspaceModal(selected.projectPath),
     };
   };
 

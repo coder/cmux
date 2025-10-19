@@ -1,5 +1,12 @@
 /**
  * Shared types for slash command system
+ *
+ * NOTE: `/<command>-help` types are an anti-pattern. Commands should prefer opening
+ * a modal when misused or called with no arguments, rather than showing help toasts.
+ * This provides a better UX by guiding users through the UI instead of showing text.
+ *
+ * Existing `-help` types are kept for backward compatibility but should not be added
+ * for new commands.
  */
 
 export type ParsedCommand =
@@ -16,6 +23,7 @@ export type ParsedCommand =
   | { type: "telemetry-help" }
   | { type: "fork"; newName: string; startMessage?: string }
   | { type: "fork-help" }
+  | { type: "new"; workspaceName?: string; trunkBranch?: string; startMessage?: string }
   | { type: "unknown-command"; command: string; subcommand?: string }
   | null;
 

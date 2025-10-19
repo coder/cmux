@@ -40,6 +40,12 @@ export const CUSTOM_EVENTS = {
    * Detail: { workspaceId: string, projectPath: string, projectName: string, workspacePath: string, branch: string }
    */
   WORKSPACE_FORK_SWITCH: "cmux:workspaceForkSwitch",
+
+  /**
+   * Event to execute a command from the command palette
+   * Detail: { commandId: string }
+   */
+  EXECUTE_COMMAND: "cmux:executeCommand",
 } as const;
 
 /**
