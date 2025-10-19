@@ -8,24 +8,7 @@
 
 import { describe, it, expect } from "bun:test";
 import type { HunkReadState } from "@/types/review";
-
-/**
- * Evict oldest read states if count exceeds max
- * (Extracted from hook for testing)
- */
-function evictOldestReviews(
-  readState: Record<string, HunkReadState>,
-  maxCount: number
-): Record<string, HunkReadState> {
-  const entries = Object.entries(readState);
-  if (entries.length <= maxCount) return readState;
-
-  // Sort by timestamp descending (newest first)
-  entries.sort((a, b) => b[1].timestamp - a[1].timestamp);
-
-  // Keep only the newest maxCount
-  return Object.fromEntries(entries.slice(0, maxCount));
-}
+import { evictOldestReviews } from "./useReviewState";
 
 describe("evictOldestReviews", () => {
   it("should not evict when under limit", () => {

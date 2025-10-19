@@ -22,8 +22,9 @@ function getReviewStateKey(workspaceId: string): string {
 /**
  * Evict oldest read states if count exceeds max
  * Keeps the newest MAX_READ_STATES entries
+ * Exported for testing
  */
-function evictOldestReviews(
+export function evictOldestReviews(
   readState: Record<string, HunkReadState>,
   maxCount: number
 ): Record<string, HunkReadState> {
