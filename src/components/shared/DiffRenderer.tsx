@@ -147,39 +147,37 @@ interface DiffRendererProps {
  * Highlighted code content - wraps syntax highlighted tokens
  * This component applies syntax highlighting while preserving diff styling
  */
-const HighlightedContent = React.memo<{ code: string; language: string }>(
-  ({ code, language }) => {
-    // Don't highlight if language is unknown
-    if (language === "text") {
-      return <>{code}</>;
-    }
-
-    return (
-      <SyntaxHighlighter
-        language={language}
-        style={syntaxStyleNoBackgrounds}
-        PreTag="span"
-        CodeTag="span"
-        customStyle={{
-          display: "inline",
-          padding: 0,
-          margin: 0,
-          background: "transparent",
-          fontSize: "inherit",
-        }}
-        codeTagProps={{
-          style: {
-            display: "inline",
-            fontFamily: "inherit",
-            fontSize: "inherit",
-          },
-        }}
-      >
-        {code}
-      </SyntaxHighlighter>
-    );
+const HighlightedContent = React.memo<{ code: string; language: string }>(({ code, language }) => {
+  // Don't highlight if language is unknown
+  if (language === "text") {
+    return <>{code}</>;
   }
-);
+
+  return (
+    <SyntaxHighlighter
+      language={language}
+      style={syntaxStyleNoBackgrounds}
+      PreTag="span"
+      CodeTag="span"
+      customStyle={{
+        display: "inline",
+        padding: 0,
+        margin: 0,
+        background: "transparent",
+        fontSize: "inherit",
+      }}
+      codeTagProps={{
+        style: {
+          display: "inline",
+          fontFamily: "inherit",
+          fontSize: "inherit",
+        },
+      }}
+    >
+      {code}
+    </SyntaxHighlighter>
+  );
+});
 
 HighlightedContent.displayName = "HighlightedContent";
 
@@ -460,165 +458,165 @@ export const SelectableDiffRenderer = React.memo<SelectableDiffRendererProps>(
     onReviewNote,
     onLineClick,
   }) => {
-  const [selection, setSelection] = React.useState<LineSelection | null>(null);
+    const [selection, setSelection] = React.useState<LineSelection | null>(null);
 
-  // Detect language for syntax highlighting (memoized to prevent repeated detection)
-  const language = React.useMemo(
-    () => (filePath ? getLanguageFromPath(filePath) : "text"),
-    [filePath]
-  );
+    // Detect language for syntax highlighting (memoized to prevent repeated detection)
+    const language = React.useMemo(
+      () => (filePath ? getLanguageFromPath(filePath) : "text"),
+      [filePath]
+    );
 
-  // Parse lines to get line numbers (memoized to prevent repeated parsing)
-  const lineData = React.useMemo(() => {
-    const lines = content.split("\n").filter((line) => line.length > 0);
-    const data: Array<{
-      index: number;
-      type: DiffLineType;
-      lineNum: number;
-      content: string;
-    }> = [];
+    // Parse lines to get line numbers (memoized to prevent repeated parsing)
+    const lineData = React.useMemo(() => {
+      const lines = content.split("\n").filter((line) => line.length > 0);
+      const data: Array<{
+        index: number;
+        type: DiffLineType;
+        lineNum: number;
+        content: string;
+      }> = [];
 
-    let oldLineNum = oldStart;
-    let newLineNum = newStart;
+      let oldLineNum = oldStart;
+      let newLineNum = newStart;
 
-    lines.forEach((line, index) => {
-      const firstChar = line[0];
+      lines.forEach((line, index) => {
+        const firstChar = line[0];
 
-      // Skip header lines
-      if (line.startsWith("@@")) {
-        const regex = /^@@\s+-(\d+)(?:,\d+)?\s+\+(\d+)(?:,\d+)?\s+@@/;
-        const match = regex.exec(line);
-        if (match) {
-          oldLineNum = parseInt(match[1], 10);
-          newLineNum = parseInt(match[2], 10);
+        // Skip header lines
+        if (line.startsWith("@@")) {
+          const regex = /^@@\s+-(\d+)(?:,\d+)?\s+\+(\d+)(?:,\d+)?\s+@@/;
+          const match = regex.exec(line);
+          if (match) {
+            oldLineNum = parseInt(match[1], 10);
+            newLineNum = parseInt(match[2], 10);
+          }
+          return;
         }
+
+        let type: DiffLineType = "context";
+        let lineNum = 0;
+
+        if (firstChar === "+") {
+          type = "add";
+          lineNum = newLineNum++;
+        } else if (firstChar === "-") {
+          type = "remove";
+          lineNum = oldLineNum++;
+        } else {
+          lineNum = newLineNum;
+          oldLineNum++;
+          newLineNum++;
+        }
+
+        data.push({
+          index,
+          type,
+          lineNum,
+          content: line.slice(1),
+        });
+      });
+
+      return data;
+    }, [content, oldStart, newStart]);
+
+    const handleCommentButtonClick = (lineIndex: number, shiftKey: boolean) => {
+      // Notify parent that this hunk should become active
+      onLineClick?.();
+
+      // Shift-click: extend existing selection
+      if (shiftKey && selection) {
+        const start = selection.startIndex;
+        const [sortedStart, sortedEnd] = [start, lineIndex].sort((a, b) => a - b);
+        setSelection({
+          startIndex: start,
+          endIndex: lineIndex,
+          startLineNum: lineData[sortedStart].lineNum,
+          endLineNum: lineData[sortedEnd].lineNum,
+        });
         return;
       }
 
-      let type: DiffLineType = "context";
-      let lineNum = 0;
-
-      if (firstChar === "+") {
-        type = "add";
-        lineNum = newLineNum++;
-      } else if (firstChar === "-") {
-        type = "remove";
-        lineNum = oldLineNum++;
-      } else {
-        lineNum = newLineNum;
-        oldLineNum++;
-        newLineNum++;
-      }
-
-      data.push({
-        index,
-        type,
-        lineNum,
-        content: line.slice(1),
-      });
-    });
-
-    return data;
-  }, [content, oldStart, newStart]);
-
-  const handleCommentButtonClick = (lineIndex: number, shiftKey: boolean) => {
-    // Notify parent that this hunk should become active
-    onLineClick?.();
-
-    // Shift-click: extend existing selection
-    if (shiftKey && selection) {
-      const start = selection.startIndex;
-      const [sortedStart, sortedEnd] = [start, lineIndex].sort((a, b) => a - b);
+      // Regular click: start new selection
       setSelection({
-        startIndex: start,
+        startIndex: lineIndex,
         endIndex: lineIndex,
-        startLineNum: lineData[sortedStart].lineNum,
-        endLineNum: lineData[sortedEnd].lineNum,
+        startLineNum: lineData[lineIndex].lineNum,
+        endLineNum: lineData[lineIndex].lineNum,
       });
-      return;
-    }
+    };
 
-    // Regular click: start new selection
-    setSelection({
-      startIndex: lineIndex,
-      endIndex: lineIndex,
-      startLineNum: lineData[lineIndex].lineNum,
-      endLineNum: lineData[lineIndex].lineNum,
-    });
-  };
+    const handleSubmitNote = (reviewNote: string) => {
+      if (!onReviewNote) return;
+      onReviewNote(reviewNote);
+      setSelection(null);
+    };
 
-  const handleSubmitNote = (reviewNote: string) => {
-    if (!onReviewNote) return;
-    onReviewNote(reviewNote);
-    setSelection(null);
-  };
+    const handleCancelNote = () => {
+      setSelection(null);
+    };
 
-  const handleCancelNote = () => {
-    setSelection(null);
-  };
+    const isLineSelected = (index: number) => {
+      if (!selection) return false;
+      const [start, end] = [selection.startIndex, selection.endIndex].sort((a, b) => a - b);
+      return index >= start && index <= end;
+    };
 
-  const isLineSelected = (index: number) => {
-    if (!selection) return false;
-    const [start, end] = [selection.startIndex, selection.endIndex].sort((a, b) => a - b);
-    return index >= start && index <= end;
-  };
+    // Extract lines for rendering (done once, outside map)
+    const lines = content.split("\n").filter((line) => line.length > 0);
 
-  // Extract lines for rendering (done once, outside map)
-  const lines = content.split("\n").filter((line) => line.length > 0);
+    return (
+      <DiffContainer fontSize={fontSize}>
+        {lineData.map((lineInfo, displayIndex) => {
+          const isSelected = isLineSelected(displayIndex);
 
-  return (
-    <DiffContainer fontSize={fontSize}>
-      {lineData.map((lineInfo, displayIndex) => {
-        const isSelected = isLineSelected(displayIndex);
+          return (
+            <React.Fragment key={displayIndex}>
+              <SelectableDiffLineWrapper type={lineInfo.type} isSelected={isSelected}>
+                <CommentButtonWrapper>
+                  <TooltipWrapper inline>
+                    <CommentButton
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCommentButtonClick(displayIndex, e.shiftKey);
+                      }}
+                      aria-label="Add review comment"
+                    >
+                      +
+                    </CommentButton>
+                    <Tooltip position="bottom" align="left">
+                      Add review comment (Shift-click to select range)
+                    </Tooltip>
+                  </TooltipWrapper>
+                </CommentButtonWrapper>
+                <DiffLine type={lineInfo.type}>
+                  <DiffIndicator type={lineInfo.type}>{lines[lineInfo.index][0]}</DiffIndicator>
+                  {showLineNumbers && (
+                    <LineNumber type={lineInfo.type}>{lineInfo.lineNum}</LineNumber>
+                  )}
+                  <LineContent type={lineInfo.type}>
+                    <HighlightedContent code={lineInfo.content} language={language} />
+                  </LineContent>
+                </DiffLine>
+              </SelectableDiffLineWrapper>
 
-        return (
-          <React.Fragment key={displayIndex}>
-            <SelectableDiffLineWrapper type={lineInfo.type} isSelected={isSelected}>
-              <CommentButtonWrapper>
-                <TooltipWrapper inline>
-                  <CommentButton
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleCommentButtonClick(displayIndex, e.shiftKey);
-                    }}
-                    aria-label="Add review comment"
-                  >
-                    +
-                  </CommentButton>
-                  <Tooltip position="bottom" align="left">
-                    Add review comment (Shift-click to select range)
-                  </Tooltip>
-                </TooltipWrapper>
-              </CommentButtonWrapper>
-              <DiffLine type={lineInfo.type}>
-                <DiffIndicator type={lineInfo.type}>{lines[lineInfo.index][0]}</DiffIndicator>
-                {showLineNumbers && (
-                  <LineNumber type={lineInfo.type}>{lineInfo.lineNum}</LineNumber>
+              {/* Show textarea after the last selected line */}
+              {isSelected &&
+                selection &&
+                displayIndex === Math.max(selection.startIndex, selection.endIndex) && (
+                  <ReviewNoteInput
+                    selection={selection}
+                    lineData={lineData}
+                    lines={lines}
+                    filePath={filePath}
+                    onSubmit={handleSubmitNote}
+                    onCancel={handleCancelNote}
+                  />
                 )}
-                <LineContent type={lineInfo.type}>
-                  <HighlightedContent code={lineInfo.content} language={language} />
-                </LineContent>
-              </DiffLine>
-            </SelectableDiffLineWrapper>
-
-            {/* Show textarea after the last selected line */}
-            {isSelected &&
-              selection &&
-              displayIndex === Math.max(selection.startIndex, selection.endIndex) && (
-                <ReviewNoteInput
-                  selection={selection}
-                  lineData={lineData}
-                  lines={lines}
-                  filePath={filePath}
-                  onSubmit={handleSubmitNote}
-                  onCancel={handleCancelNote}
-                />
-              )}
-          </React.Fragment>
-        );
-      })}
-    </DiffContainer>
-  );
+            </React.Fragment>
+          );
+        })}
+      </DiffContainer>
+    );
   }
 );
 
