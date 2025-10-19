@@ -163,14 +163,15 @@ const ToggleReadButton = styled.button`
   }
 `;
 
-export const HunkViewer: React.FC<HunkViewerProps> = ({
-  hunk,
-  isSelected,
-  isRead = false,
-  onClick,
-  onToggleRead,
-  onReviewNote,
-}) => {
+export const HunkViewer = React.memo<HunkViewerProps>(
+  ({
+    hunk,
+    isSelected,
+    isRead = false,
+    onClick,
+    onToggleRead,
+    onReviewNote,
+  }) => {
   // Collapse by default if marked as read
   const [isExpanded, setIsExpanded] = useState(!isRead);
 
@@ -274,4 +275,7 @@ export const HunkViewer: React.FC<HunkViewerProps> = ({
       )}
     </HunkContainer>
   );
-};
+  }
+);
+
+HunkViewer.displayName = "HunkViewer";

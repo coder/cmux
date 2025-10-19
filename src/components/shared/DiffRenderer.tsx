@@ -147,37 +147,41 @@ interface DiffRendererProps {
  * Highlighted code content - wraps syntax highlighted tokens
  * This component applies syntax highlighting while preserving diff styling
  */
-const HighlightedContent: React.FC<{ code: string; language: string }> = ({ code, language }) => {
-  // Don't highlight if language is unknown
-  if (language === "text") {
-    return <>{code}</>;
-  }
+const HighlightedContent = React.memo<{ code: string; language: string }>(
+  ({ code, language }) => {
+    // Don't highlight if language is unknown
+    if (language === "text") {
+      return <>{code}</>;
+    }
 
-  return (
-    <SyntaxHighlighter
-      language={language}
-      style={syntaxStyleNoBackgrounds}
-      PreTag="span"
-      CodeTag="span"
-      customStyle={{
-        display: "inline",
-        padding: 0,
-        margin: 0,
-        background: "transparent",
-        fontSize: "inherit",
-      }}
-      codeTagProps={{
-        style: {
+    return (
+      <SyntaxHighlighter
+        language={language}
+        style={syntaxStyleNoBackgrounds}
+        PreTag="span"
+        CodeTag="span"
+        customStyle={{
           display: "inline",
-          fontFamily: "inherit",
+          padding: 0,
+          margin: 0,
+          background: "transparent",
           fontSize: "inherit",
-        },
-      }}
-    >
-      {code}
-    </SyntaxHighlighter>
-  );
-};
+        }}
+        codeTagProps={{
+          style: {
+            display: "inline",
+            fontFamily: "inherit",
+            fontSize: "inherit",
+          },
+        }}
+      >
+        {code}
+      </SyntaxHighlighter>
+    );
+  }
+);
+
+HighlightedContent.displayName = "HighlightedContent";
 
 /**
  * DiffRenderer - Renders diff content with consistent styling
@@ -198,8 +202,11 @@ export const DiffRenderer: React.FC<DiffRendererProps> = ({
 }) => {
   const lines = content.split("\n").filter((line) => line.length > 0);
 
-  // Detect language for syntax highlighting
-  const language = filePath ? getLanguageFromPath(filePath) : "text";
+  // Detect language for syntax highlighting (memoized to prevent repeated detection)
+  const language = React.useMemo(
+    () => (filePath ? getLanguageFromPath(filePath) : "text"),
+    [filePath]
+  );
 
   let oldLineNum = oldStart;
   let newLineNum = newStart;
@@ -442,70 +449,77 @@ const ReviewNoteInput: React.FC<ReviewNoteInputProps> = React.memo(
 
 ReviewNoteInput.displayName = "ReviewNoteInput";
 
-export const SelectableDiffRenderer: React.FC<SelectableDiffRendererProps> = ({
-  content,
-  showLineNumbers = true,
-  oldStart = 1,
-  newStart = 1,
-  filePath,
-  fontSize,
-  onReviewNote,
-  onLineClick,
-}) => {
+export const SelectableDiffRenderer = React.memo<SelectableDiffRendererProps>(
+  ({
+    content,
+    showLineNumbers = true,
+    oldStart = 1,
+    newStart = 1,
+    filePath,
+    fontSize,
+    onReviewNote,
+    onLineClick,
+  }) => {
   const [selection, setSelection] = React.useState<LineSelection | null>(null);
 
-  const lines = content.split("\n").filter((line) => line.length > 0);
+  // Detect language for syntax highlighting (memoized to prevent repeated detection)
+  const language = React.useMemo(
+    () => (filePath ? getLanguageFromPath(filePath) : "text"),
+    [filePath]
+  );
 
-  // Detect language for syntax highlighting
-  const language = filePath ? getLanguageFromPath(filePath) : "text";
+  // Parse lines to get line numbers (memoized to prevent repeated parsing)
+  const lineData = React.useMemo(() => {
+    const lines = content.split("\n").filter((line) => line.length > 0);
+    const data: Array<{
+      index: number;
+      type: DiffLineType;
+      lineNum: number;
+      content: string;
+    }> = [];
 
-  // Parse lines to get line numbers
-  const lineData: Array<{
-    index: number;
-    type: DiffLineType;
-    lineNum: number;
-    content: string;
-  }> = [];
+    let oldLineNum = oldStart;
+    let newLineNum = newStart;
 
-  let oldLineNum = oldStart;
-  let newLineNum = newStart;
+    lines.forEach((line, index) => {
+      const firstChar = line[0];
 
-  lines.forEach((line, index) => {
-    const firstChar = line[0];
-
-    // Skip header lines
-    if (line.startsWith("@@")) {
-      const regex = /^@@\s+-(\d+)(?:,\d+)?\s+\+(\d+)(?:,\d+)?\s+@@/;
-      const match = regex.exec(line);
-      if (match) {
-        oldLineNum = parseInt(match[1], 10);
-        newLineNum = parseInt(match[2], 10);
+      // Skip header lines
+      if (line.startsWith("@@")) {
+        const regex = /^@@\s+-(\d+)(?:,\d+)?\s+\+(\d+)(?:,\d+)?\s+@@/;
+        const match = regex.exec(line);
+        if (match) {
+          oldLineNum = parseInt(match[1], 10);
+          newLineNum = parseInt(match[2], 10);
+        }
+        return;
       }
-      return;
-    }
 
-    let type: DiffLineType = "context";
-    let lineNum = 0;
+      let type: DiffLineType = "context";
+      let lineNum = 0;
 
-    if (firstChar === "+") {
-      type = "add";
-      lineNum = newLineNum++;
-    } else if (firstChar === "-") {
-      type = "remove";
-      lineNum = oldLineNum++;
-    } else {
-      lineNum = newLineNum;
-      oldLineNum++;
-      newLineNum++;
-    }
+      if (firstChar === "+") {
+        type = "add";
+        lineNum = newLineNum++;
+      } else if (firstChar === "-") {
+        type = "remove";
+        lineNum = oldLineNum++;
+      } else {
+        lineNum = newLineNum;
+        oldLineNum++;
+        newLineNum++;
+      }
 
-    lineData.push({
-      index,
-      type,
-      lineNum,
-      content: line.slice(1),
+      data.push({
+        index,
+        type,
+        lineNum,
+        content: line.slice(1),
+      });
     });
-  });
+
+    return data;
+  }, [content, oldStart, newStart]);
 
   const handleCommentButtonClick = (lineIndex: number, shiftKey: boolean) => {
     // Notify parent that this hunk should become active
@@ -548,6 +562,9 @@ export const SelectableDiffRenderer: React.FC<SelectableDiffRendererProps> = ({
     const [start, end] = [selection.startIndex, selection.endIndex].sort((a, b) => a - b);
     return index >= start && index <= end;
   };
+
+  // Extract lines for rendering (done once, outside map)
+  const lines = content.split("\n").filter((line) => line.length > 0);
 
   return (
     <DiffContainer fontSize={fontSize}>
@@ -602,4 +619,7 @@ export const SelectableDiffRenderer: React.FC<SelectableDiffRendererProps> = ({
       })}
     </DiffContainer>
   );
-};
+  }
+);
+
+SelectableDiffRenderer.displayName = "SelectableDiffRenderer";

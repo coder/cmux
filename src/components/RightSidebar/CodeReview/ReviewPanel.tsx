@@ -503,13 +503,18 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
         const willBeVisible = filters.showReadHunks || wasRead;
 
         if (!willBeVisible) {
+          // Compute filtered hunks here to avoid dependency on filteredHunks array
+          const currentFiltered = filters.showReadHunks
+            ? hunks
+            : hunks.filter((h) => !isRead(h.id));
+
           // Hunk will be filtered out - move to next visible hunk
-          const currentIndex = filteredHunks.findIndex((h) => h.id === hunkId);
+          const currentIndex = currentFiltered.findIndex((h) => h.id === hunkId);
           if (currentIndex !== -1) {
-            if (currentIndex < filteredHunks.length - 1) {
-              setSelectedHunkId(filteredHunks[currentIndex + 1].id);
+            if (currentIndex < currentFiltered.length - 1) {
+              setSelectedHunkId(currentFiltered[currentIndex + 1].id);
             } else if (currentIndex > 0) {
-              setSelectedHunkId(filteredHunks[currentIndex - 1].id);
+              setSelectedHunkId(currentFiltered[currentIndex - 1].id);
             } else {
               setSelectedHunkId(null);
             }
@@ -517,7 +522,22 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
         }
       }
     },
-    [isRead, toggleRead, filters.showReadHunks, filteredHunks, selectedHunkId]
+    [isRead, toggleRead, filters.showReadHunks, hunks, selectedHunkId]
+  );
+
+  // Stable callback creators for HunkViewer props (prevents re-render on every map)
+  const createOnClick = useCallback(
+    (hunkId: string) => () => {
+      setSelectedHunkId(hunkId);
+    },
+    []
+  );
+
+  const createOnToggleRead = useCallback(
+    (hunkId: string) => () => {
+      handleToggleRead(hunkId);
+    },
+    [handleToggleRead]
   );
 
   // Calculate stats
@@ -680,8 +700,8 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
                       hunk={hunk}
                       isSelected={isSelected}
                       isRead={hunkIsRead}
-                      onClick={() => setSelectedHunkId(hunk.id)}
-                      onToggleRead={() => handleToggleRead(hunk.id)}
+                      onClick={createOnClick(hunk.id)}
+                      onToggleRead={createOnToggleRead(hunk.id)}
                       onReviewNote={onReviewNote}
                     />
                   );
