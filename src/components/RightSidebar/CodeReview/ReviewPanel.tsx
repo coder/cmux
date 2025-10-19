@@ -236,12 +236,12 @@ interface DiagnosticInfo {
 }
 
 /**
- * Build git diff command based on diffBase and includeDirty flag
+ * Build git diff command based on diffBase and includeUncommitted flag
  * Shared logic between numstat (file tree) and diff (hunks) commands
  */
 function buildGitDiffCommand(
   diffBase: string,
-  includeDirty: boolean,
+  includeUncommitted: boolean,
   pathFilter: string,
   command: "diff" | "numstat"
 ): string {
@@ -258,8 +258,8 @@ function buildGitDiffCommand(
     cmd = `git diff ${diffBase}...HEAD${flag}${pathFilter}`;
   }
 
-  // Append dirty changes if requested
-  if (includeDirty) {
+  // Append uncommitted changes if requested
+  if (includeUncommitted) {
     cmd += ` && git diff HEAD${flag}${pathFilter}`;
   }
 
@@ -295,9 +295,9 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
   // Persist diff base per workspace (falls back to global default)
   const [diffBase, setDiffBase] = usePersistedState(`review-diff-base:${workspaceId}`, defaultBase);
 
-  // Persist includeDirty flag per workspace
-  const [includeDirty, setIncludeDirty] = usePersistedState(
-    `review-include-dirty:${workspaceId}`,
+  // Persist includeUncommitted flag per workspace
+  const [includeUncommitted, setIncludeUncommitted] = usePersistedState(
+    `review-include-uncommitted:${workspaceId}`,
     false
   );
 
@@ -305,7 +305,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
     showReviewed: true,
     statusFilter: "all",
     diffBase: diffBase,
-    includeDirty: includeDirty,
+    includeUncommitted: includeUncommitted,
   });
 
   // Load file tree - when workspace, diffBase, or refreshTrigger changes
@@ -317,7 +317,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
       try {
         const numstatCommand = buildGitDiffCommand(
           filters.diffBase,
-          filters.includeDirty,
+          filters.includeUncommitted,
           "", // No path filter for file tree
           "numstat"
         );
@@ -352,7 +352,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [workspaceId, workspacePath, filters.diffBase, filters.includeDirty, refreshTrigger]);
+  }, [workspaceId, workspacePath, filters.diffBase, filters.includeUncommitted, refreshTrigger]);
 
   // Load diff hunks - when workspace, diffBase, selected path, or refreshTrigger changes
   useEffect(() => {
@@ -369,7 +369,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
 
         const diffCommand = buildGitDiffCommand(
           filters.diffBase,
-          filters.includeDirty,
+          filters.includeUncommitted,
           pathFilter,
           "diff"
         );
@@ -435,7 +435,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
     workspaceId,
     workspacePath,
     filters.diffBase,
-    filters.includeDirty,
+    filters.includeUncommitted,
     selectedFilePath,
     refreshTrigger,
   ]);
@@ -445,10 +445,10 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
     setDiffBase(filters.diffBase);
   }, [filters.diffBase, setDiffBase]);
 
-  // Persist includeDirty when it changes
+  // Persist includeUncommitted when it changes
   useEffect(() => {
-    setIncludeDirty(filters.includeDirty);
-  }, [filters.includeDirty, setIncludeDirty]);
+    setIncludeUncommitted(filters.includeUncommitted);
+  }, [filters.includeUncommitted, setIncludeUncommitted]);
 
   // For MVP: No review state tracking, just show all hunks
   const filteredHunks = hunks;
