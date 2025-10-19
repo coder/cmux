@@ -207,6 +207,8 @@ interface SelectableDiffRendererProps extends DiffRendererProps {
   filePath: string;
   /** Callback when user submits a review note */
   onReviewNote?: (note: string) => void;
+  /** Callback when user clicks on a line (to activate parent hunk) */
+  onLineClick?: () => void;
 }
 
 interface LineSelection {
@@ -276,6 +278,7 @@ export const SelectableDiffRenderer: React.FC<SelectableDiffRendererProps> = ({
   newStart = 1,
   filePath,
   onReviewNote,
+  onLineClick,
 }) => {
   const [selection, setSelection] = React.useState<LineSelection | null>(null);
   const [noteText, setNoteText] = React.useState("");
@@ -333,6 +336,9 @@ export const SelectableDiffRenderer: React.FC<SelectableDiffRendererProps> = ({
   });
 
   const handleClick = (lineIndex: number, shiftKey: boolean) => {
+    // Notify parent that this hunk should become active
+    onLineClick?.();
+
     // Shift-click: extend existing selection
     if (shiftKey && selection && isSelectingMode) {
       const start = selection.startIndex;

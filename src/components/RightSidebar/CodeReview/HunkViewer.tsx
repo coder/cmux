@@ -249,6 +249,7 @@ export const HunkViewer: React.FC<HunkViewerProps> = ({
             oldStart={hunk.oldStart}
             newStart={hunk.newStart}
             onReviewNote={onReviewNote}
+            onLineClick={onClick}
           />
         </HunkContent>
       ) : (
