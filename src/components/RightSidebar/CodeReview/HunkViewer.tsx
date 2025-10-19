@@ -10,10 +10,11 @@ import { Tooltip, TooltipWrapper } from "../../Tooltip";
 
 interface HunkViewerProps {
   hunk: DiffHunk;
+  hunkId: string;
   isSelected?: boolean;
   isRead?: boolean;
-  onClick?: () => void;
-  onToggleRead?: () => void;
+  onClick?: (e: React.MouseEvent<HTMLElement>) => void;
+  onToggleRead?: (e: React.MouseEvent<HTMLElement>) => void;
   onReviewNote?: (note: string) => void;
 }
 
@@ -164,7 +165,7 @@ const ToggleReadButton = styled.button`
 `;
 
 export const HunkViewer = React.memo<HunkViewerProps>(
-  ({ hunk, isSelected, isRead = false, onClick, onToggleRead, onReviewNote }) => {
+  ({ hunk, hunkId, isSelected, isRead = false, onClick, onToggleRead, onReviewNote }) => {
     // Collapse by default if marked as read
     const [isExpanded, setIsExpanded] = useState(!isRead);
 
@@ -178,9 +179,9 @@ export const HunkViewer = React.memo<HunkViewerProps>(
       setIsExpanded(!isExpanded);
     };
 
-    const handleToggleRead = (e: React.MouseEvent) => {
+    const handleToggleRead = (e: React.MouseEvent<HTMLButtonElement>) => {
       e.stopPropagation();
-      onToggleRead?.();
+      onToggleRead?.(e);
     };
 
     // Parse diff lines
@@ -203,11 +204,12 @@ export const HunkViewer = React.memo<HunkViewerProps>(
         onClick={onClick}
         role="button"
         tabIndex={0}
-        data-hunk-id={hunk.id}
+        data-hunk-id={hunkId}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
-            onClick?.();
+            // Cast to MouseEvent-like for onClick handler
+            onClick?.(e as unknown as React.MouseEvent<HTMLElement>);
           }
         }}
       >
@@ -233,7 +235,11 @@ export const HunkViewer = React.memo<HunkViewerProps>(
             </LineCount>
             {onToggleRead && (
               <TooltipWrapper inline>
-                <ToggleReadButton onClick={handleToggleRead} aria-label="Mark as read (m)">
+                <ToggleReadButton
+                  data-hunk-id={hunkId}
+                  onClick={handleToggleRead}
+                  aria-label="Mark as read (m)"
+                >
                   {isRead ? "○" : "◉"}
                 </ToggleReadButton>
                 <Tooltip align="right" position="top">
@@ -256,7 +262,7 @@ export const HunkViewer = React.memo<HunkViewerProps>(
               oldStart={hunk.oldStart}
               newStart={hunk.newStart}
               onReviewNote={onReviewNote}
-              onLineClick={onClick}
+              onLineClick={() => onClick?.(undefined as any)}
             />
           </HunkContent>
         ) : (

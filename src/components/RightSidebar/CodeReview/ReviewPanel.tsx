@@ -525,17 +525,16 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
     [isRead, toggleRead, filters.showReadHunks, hunks, selectedHunkId]
   );
 
-  // Stable callback creators for HunkViewer props (prevents re-render on every map)
-  const createOnClick = useCallback(
-    (hunkId: string) => () => {
-      setSelectedHunkId(hunkId);
-    },
-    []
-  );
+  // Stable callbacks for HunkViewer (single callback shared across all hunks)
+  const handleHunkClick = useCallback((e: React.MouseEvent<HTMLElement>) => {
+    const hunkId = e.currentTarget.dataset.hunkId;
+    if (hunkId) setSelectedHunkId(hunkId);
+  }, []);
 
-  const createOnToggleRead = useCallback(
-    (hunkId: string) => () => {
-      handleToggleRead(hunkId);
+  const handleHunkToggleRead = useCallback(
+    (e: React.MouseEvent<HTMLElement>) => {
+      const hunkId = e.currentTarget.dataset.hunkId;
+      if (hunkId) handleToggleRead(hunkId);
     },
     [handleToggleRead]
   );
@@ -698,10 +697,11 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
                     <HunkViewer
                       key={hunk.id}
                       hunk={hunk}
+                      hunkId={hunk.id}
                       isSelected={isSelected}
                       isRead={hunkIsRead}
-                      onClick={createOnClick(hunk.id)}
-                      onToggleRead={createOnToggleRead(hunk.id)}
+                      onClick={handleHunkClick}
+                      onToggleRead={handleHunkToggleRead}
                       onReviewNote={onReviewNote}
                     />
                   );
