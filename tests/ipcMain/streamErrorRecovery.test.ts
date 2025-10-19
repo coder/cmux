@@ -89,13 +89,13 @@ async function waitForStreamWithContent(
   timeoutMs = 10000
 ): Promise<void> {
   await collector.waitForEvent("stream-start", 5000);
-  
+
   // Wait for several deltas to ensure we have text content
   // Early deltas might just be thinking/setup
   for (let i = 0; i < 5; i++) {
     await collector.waitForEvent("stream-delta", timeoutMs);
   }
-  
+
   // Small delay to let content accumulate in streamInfo.parts
   await new Promise((resolve) => setTimeout(resolve, 200));
 }
@@ -108,13 +108,18 @@ async function triggerStreamError(
   workspaceId: string,
   errorMessage: string
 ): Promise<void> {
-  const result = await (mockIpcRenderer as { invoke: (channel: string, ...args: unknown[]) => Promise<{ success: boolean; error?: string }> }).invoke(
-    IPC_CHANNELS.DEBUG_TRIGGER_STREAM_ERROR,
-    workspaceId,
-    errorMessage
-  );
+  const result = await (
+    mockIpcRenderer as {
+      invoke: (
+        channel: string,
+        ...args: unknown[]
+      ) => Promise<{ success: boolean; error?: string }>;
+    }
+  ).invoke(IPC_CHANNELS.DEBUG_TRIGGER_STREAM_ERROR, workspaceId, errorMessage);
   if (!result.success) {
-    throw new Error(`Failed to trigger stream error: ${errorMessage}. Reason: ${result.error || "unknown"}`);
+    throw new Error(
+      `Failed to trigger stream error: ${errorMessage}. Reason: ${result.error || "unknown"}`
+    );
   }
 }
 
@@ -131,13 +136,16 @@ async function resumeAndWaitForSuccess(
 ): Promise<void> {
   // Capture event count before resume to filter old error events
   const eventCountBeforeResume = sentEvents.length;
-  
-  const resumeResult = await (mockIpcRenderer as { invoke: (channel: string, ...args: unknown[]) => Promise<{ success: boolean; error?: string }> }).invoke(
-    IPC_CHANNELS.WORKSPACE_RESUME_STREAM,
-    workspaceId,
-    { model }
-  );
-  
+
+  const resumeResult = await (
+    mockIpcRenderer as {
+      invoke: (
+        channel: string,
+        ...args: unknown[]
+      ) => Promise<{ success: boolean; error?: string }>;
+    }
+  ).invoke(IPC_CHANNELS.WORKSPACE_RESUME_STREAM, workspaceId, { model });
+
   if (!resumeResult.success) {
     throw new Error(`Resume failed: ${resumeResult.error}`);
   }
@@ -145,18 +153,18 @@ async function resumeAndWaitForSuccess(
   // Wait for stream-end event after resume
   const collector = createEventCollector(sentEvents, workspaceId);
   const streamEnd = await collector.waitForEvent("stream-end", timeoutMs);
-  
+
   if (!streamEnd) {
     throw new Error("Stream did not complete after resume");
   }
-  
+
   // Check that the resumed stream itself didn't error (ignore previous errors)
   const eventsAfterResume = sentEvents.slice(eventCountBeforeResume);
   const chatChannel = `chat:${workspaceId}`;
   const newEvents = eventsAfterResume
     .filter((e) => e.channel === chatChannel)
     .map((e) => e.data as { type?: string });
-  
+
   const hasNewError = newEvents.some((e) => e.type === "stream-error");
   if (hasNewError) {
     throw new Error("Resumed stream encountered an error");
@@ -234,6 +242,4 @@ describeIntegration("Stream Error Recovery (No Amnesia)", () => {
     },
     40000
   );
-
-
 });
