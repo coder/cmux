@@ -103,27 +103,12 @@ export function getFileTreeExpandStateKey(workspaceId: string): string {
 }
 
 /**
- * Get the localStorage key for Review search input text per workspace
- * Format: "reviewSearchInput:{workspaceId}"
+ * Get the localStorage key for unified Review search state per workspace
+ * Stores: { input: string, useRegex: boolean, matchCase: boolean }
+ * Format: "reviewSearchState:{workspaceId}"
  */
-export function getReviewSearchInputKey(workspaceId: string): string {
-  return `reviewSearchInput:${workspaceId}`;
-}
-
-/**
- * Get the localStorage key for Review regex search toggle per workspace
- * Format: "reviewSearchRegex:{workspaceId}"
- */
-export function getReviewSearchRegexKey(workspaceId: string): string {
-  return `reviewSearchRegex:${workspaceId}`;
-}
-
-/**
- * Get the localStorage key for Review match case toggle per workspace
- * Format: "reviewSearchMatchCase:{workspaceId}"
- */
-export function getReviewSearchMatchCaseKey(workspaceId: string): string {
-  return `reviewSearchMatchCase:${workspaceId}`;
+export function getReviewSearchStateKey(workspaceId: string): string {
+  return `reviewSearchState:${workspaceId}`;
 }
 
 /**
@@ -139,9 +124,7 @@ const PERSISTENT_WORKSPACE_KEY_FUNCTIONS: Array<(workspaceId: string) => string>
   getRetryStateKey,
   getReviewExpandStateKey,
   getFileTreeExpandStateKey,
-  getReviewSearchInputKey,
-  getReviewSearchRegexKey,
-  getReviewSearchMatchCaseKey,
+  getReviewSearchStateKey,
 ];
 
 /**

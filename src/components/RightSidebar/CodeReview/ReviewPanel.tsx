@@ -30,11 +30,8 @@ import { FileTree } from "./FileTree";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { useReviewState } from "@/hooks/useReviewState";
 import { parseDiff, extractAllHunks } from "@/utils/git/diffParser";
-import {
-  getReviewSearchInputKey,
-  getReviewSearchRegexKey,
-  getReviewSearchMatchCaseKey,
-} from "@/constants/storage";
+import { getReviewSearchStateKey } from "@/constants/storage";
+import { Tooltip, TooltipWrapper } from "@/components/Tooltip";
 import {
   parseNumstat,
   buildFileTree,
@@ -52,6 +49,12 @@ interface ReviewPanelProps {
   onReviewNote?: (note: string) => void;
   /** Trigger to focus panel (increment to trigger) */
   focusTrigger?: number;
+}
+
+interface ReviewSearchState {
+  input: string;
+  useRegex: boolean;
+  matchCase: boolean;
 }
 
 const PanelContainer = styled.div`
@@ -102,8 +105,8 @@ const SearchContainer = styled.div`
   border-bottom: 1px solid #3e3e42;
   background: #252526;
   display: flex;
-  align-items: center;
-  gap: 8px;
+  align-items: stretch;
+  gap: 0;
 `;
 
 const SearchInput = styled.input`
@@ -111,7 +114,8 @@ const SearchInput = styled.input`
   padding: 6px 10px;
   background: #1e1e1e;
   border: 1px solid #3e3e42;
-  border-radius: 4px;
+  border-radius: 4px 0 0 4px;
+  border-right: none;
   color: #ccc;
   font-size: 12px;
   font-family: var(--font-sans);
@@ -132,12 +136,13 @@ const SearchInput = styled.input`
   }
 `;
 
-const SearchButton = styled.button<{ active: boolean }>`
+const SearchButton = styled.button<{ active: boolean; isLast?: boolean }>`
   padding: 6px 10px;
-  background: ${(props) => (props.active ? "#007acc" : "#1e1e1e")};
-  border: 1px solid ${(props) => (props.active ? "#007acc" : "#3e3e42")};
-  border-radius: 4px;
-  color: ${(props) => (props.active ? "#fff" : "#ccc")};
+  background: ${(props) => (props.active ? "#3a3a3a" : "#1e1e1e")};
+  border: 1px solid #3e3e42;
+  border-left: ${(props) => (props.active ? "1px solid #3e3e42" : "none")};
+  border-radius: ${(props) => (props.isLast ? "0 4px 4px 0" : "0")};
+  color: ${(props) => (props.active ? "#fff" : "#999")};
   font-size: 11px;
   font-family: var(--font-monospace);
   font-weight: 600;
@@ -147,8 +152,8 @@ const SearchButton = styled.button<{ active: boolean }>`
   white-space: nowrap;
 
   &:hover {
-    background: ${(props) => (props.active ? "#0098ff" : "#252526")};
-    border-color: ${(props) => (props.active ? "#0098ff" : "#4e4e52")};
+    background: ${(props) => (props.active ? "#4a4a4a" : "#252526")};
+    color: ${(props) => (props.active ? "#fff" : "#ccc")};
   }
 
   &:active {
@@ -399,20 +404,12 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
   // Map of hunkId -> toggle function for expand/collapse
   const toggleExpandFnsRef = useRef<Map<string, () => void>>(new Map());
 
-  // Search state (per-workspace persistence)
-  const [searchInputValue, setSearchInputValue] = usePersistedState(
-    getReviewSearchInputKey(workspaceId),
-    ""
+  // Unified search state (per-workspace persistence)
+  const [searchState, setSearchState] = usePersistedState<ReviewSearchState>(
+    getReviewSearchStateKey(workspaceId),
+    { input: "", useRegex: false, matchCase: false }
   );
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
-  const [isRegexSearch, setIsRegexSearch] = usePersistedState(
-    getReviewSearchRegexKey(workspaceId),
-    false
-  );
-  const [isMatchCase, setIsMatchCase] = usePersistedState(
-    getReviewSearchMatchCaseKey(workspaceId),
-    false
-  );
 
   // Persist file filter per workspace
   const [selectedFilePath, setSelectedFilePath] = usePersistedState<string | null>(
@@ -457,10 +454,10 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
   // Debounce search input
   useEffect(() => {
     const timer = setTimeout(() => {
-      setDebouncedSearchTerm(searchInputValue);
+      setDebouncedSearchTerm(searchState.input);
     }, 300);
     return () => clearTimeout(timer);
-  }, [searchInputValue]);
+  }, [searchState.input]);
 
   // Load file tree - when workspace, diffBase, or refreshTrigger changes
   useEffect(() => {
@@ -635,10 +632,17 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
       showReadHunks: filters.showReadHunks,
       isRead,
       searchTerm: debouncedSearchTerm,
-      useRegex: isRegexSearch,
-      matchCase: isMatchCase,
+      useRegex: searchState.useRegex,
+      matchCase: searchState.matchCase,
     });
-  }, [hunks, filters.showReadHunks, isRead, debouncedSearchTerm, isRegexSearch, isMatchCase]);
+  }, [
+    hunks,
+    filters.showReadHunks,
+    isRead,
+    debouncedSearchTerm,
+    searchState.useRegex,
+    searchState.matchCase,
+  ]);
 
   // Handle toggling read state with auto-navigation
   const handleToggleRead = useCallback(
@@ -814,25 +818,38 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
                 ref={searchInputRef}
                 type="text"
                 placeholder={`Search in files and hunks... (${formatKeybind(KEYBINDS.FOCUS_REVIEW_SEARCH)})`}
-                value={searchInputValue}
-                onChange={(e) => setSearchInputValue(e.target.value)}
+                value={searchState.input}
+                onChange={(e) => setSearchState({ ...searchState, input: e.target.value })}
               />
-              <SearchButton
-                active={isRegexSearch}
-                onClick={() => setIsRegexSearch(!isRegexSearch)}
-                title={isRegexSearch ? "Using regex search" : "Using substring search"}
-              >
-                .*
-              </SearchButton>
-              <SearchButton
-                active={isMatchCase}
-                onClick={() => setIsMatchCase(!isMatchCase)}
-                title={
-                  isMatchCase ? "Match case (case-sensitive)" : "Ignore case (case-insensitive)"
-                }
-              >
-                Aa
-              </SearchButton>
+              <TooltipWrapper inline>
+                <SearchButton
+                  active={searchState.useRegex}
+                  onClick={() =>
+                    setSearchState({ ...searchState, useRegex: !searchState.useRegex })
+                  }
+                >
+                  .*
+                </SearchButton>
+                <Tooltip position="bottom">
+                  {searchState.useRegex ? "Using regex search" : "Using substring search"}
+                </Tooltip>
+              </TooltipWrapper>
+              <TooltipWrapper inline>
+                <SearchButton
+                  active={searchState.matchCase}
+                  onClick={() =>
+                    setSearchState({ ...searchState, matchCase: !searchState.matchCase })
+                  }
+                  isLast
+                >
+                  Aa
+                </SearchButton>
+                <Tooltip position="bottom">
+                  {searchState.matchCase
+                    ? "Match case (case-sensitive)"
+                    : "Ignore case (case-insensitive)"}
+                </Tooltip>
+              </TooltipWrapper>
             </SearchContainer>
 
             <HunkList>
