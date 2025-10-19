@@ -221,7 +221,7 @@ export const HunkViewer = React.memo<HunkViewerProps>(
       <HunkHeader>
         {isRead && (
           <TooltipWrapper inline>
-            <ReadIndicator>✓</ReadIndicator>
+            <ReadIndicator aria-label="Marked as read">✓</ReadIndicator>
             <Tooltip align="center" position="top">
               Marked as read
             </Tooltip>
@@ -240,7 +240,9 @@ export const HunkViewer = React.memo<HunkViewerProps>(
           </LineCount>
           {onToggleRead && (
             <TooltipWrapper inline>
-              <ToggleReadButton onClick={handleToggleRead}>{isRead ? "○" : "◉"}</ToggleReadButton>
+              <ToggleReadButton onClick={handleToggleRead} aria-label="Mark as read (m)">
+                {isRead ? "○" : "◉"}
+              </ToggleReadButton>
               <Tooltip align="right" position="top">
                 Mark as read (m)
               </Tooltip>
