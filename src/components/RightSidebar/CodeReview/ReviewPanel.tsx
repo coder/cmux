@@ -38,7 +38,7 @@ import {
 } from "@/utils/git/numstatParser";
 import type { DiffHunk, ReviewFilters as ReviewFiltersType } from "@/types/review";
 import type { FileTreeNode } from "@/utils/git/numstatParser";
-import { matchesKeybind, KEYBINDS } from "@/utils/ui/keybinds";
+import { matchesKeybind, KEYBINDS, formatKeybind } from "@/utils/ui/keybinds";
 import { applyFrontendFilters } from "@/utils/review/filterHunks";
 
 interface ReviewPanelProps {
@@ -352,6 +352,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
   focusTrigger,
 }) => {
   const panelRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [hunks, setHunks] = useState<DiffHunk[]>([]);
   const [selectedHunkId, setSelectedHunkId] = useState<string | null>(null);
   const [isLoadingHunks, setIsLoadingHunks] = useState(true);
@@ -719,12 +720,15 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isPanelFocused, selectedHunkId, filteredHunks, handleToggleRead]);
 
-  // Global keyboard shortcut for refresh (Ctrl+R / Cmd+R)
+  // Global keyboard shortcuts (Ctrl+R / Cmd+R for refresh, Ctrl+F / Cmd+F for search)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (matchesKeybind(e, KEYBINDS.REFRESH_REVIEW)) {
         e.preventDefault();
         setRefreshTrigger((prev) => prev + 1);
+      } else if (matchesKeybind(e, KEYBINDS.FOCUS_REVIEW_SEARCH)) {
+        e.preventDefault();
+        searchInputRef.current?.focus();
       }
     };
 
@@ -762,8 +766,9 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
 
             <SearchContainer>
               <SearchInput
+                ref={searchInputRef}
                 type="text"
-                placeholder="Search in files and hunks..."
+                placeholder={`Search in files and hunks... (${formatKeybind(KEYBINDS.FOCUS_REVIEW_SEARCH)})`}
                 value={searchInputValue}
                 onChange={(e) => setSearchInputValue(e.target.value)}
               />
