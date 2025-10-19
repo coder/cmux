@@ -112,7 +112,7 @@ export const DiffContainer = styled.div`
   padding: 6px 0;
   background: rgba(0, 0, 0, 0.2);
   border-radius: 3px;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.4;
   max-height: 400px;
   overflow-y: auto;
@@ -306,7 +306,6 @@ const CommentButton = styled.button`
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
   color: white;
   font-weight: bold;
   flex-shrink: 0;
@@ -335,10 +334,10 @@ const InlineNoteContainer = styled.div`
 
 const NoteTextarea = styled.textarea`
   width: 100%;
-  min-height: calc(11px * 1.4 * 3 + 12px); /* 3 lines + padding */
+  min-height: calc(12px * 1.4 * 3 + 12px); /* 3 lines + padding */
   padding: 6px 8px;
   font-family: var(--font-monospace);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.4;
   background: #1e1e1e;
   border: 1px solid hsl(from var(--color-review-accent) h s l / 0.4);
