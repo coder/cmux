@@ -31,6 +31,11 @@ import { usePersistedState } from "@/hooks/usePersistedState";
 import { useReviewState } from "@/hooks/useReviewState";
 import { parseDiff, extractAllHunks } from "@/utils/git/diffParser";
 import {
+  getReviewSearchInputKey,
+  getReviewSearchRegexKey,
+  getReviewSearchMatchCaseKey,
+} from "@/constants/storage";
+import {
   parseNumstat,
   buildFileTree,
   extractNewPath,
@@ -127,7 +132,7 @@ const SearchInput = styled.input`
   }
 `;
 
-const RegexButton = styled.button<{ active: boolean }>`
+const SearchButton = styled.button<{ active: boolean }>`
   padding: 6px 10px;
   background: ${(props) => (props.active ? "#007acc" : "#1e1e1e")};
   border: 1px solid ${(props) => (props.active ? "#007acc" : "#3e3e42")};
@@ -394,10 +399,20 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
   // Map of hunkId -> toggle function for expand/collapse
   const toggleExpandFnsRef = useRef<Map<string, () => void>>(new Map());
 
-  // Search state
-  const [searchInputValue, setSearchInputValue] = useState("");
+  // Search state (per-workspace persistence)
+  const [searchInputValue, setSearchInputValue] = usePersistedState(
+    getReviewSearchInputKey(workspaceId),
+    ""
+  );
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
-  const [isRegexSearch, setIsRegexSearch] = useState(false);
+  const [isRegexSearch, setIsRegexSearch] = usePersistedState(
+    getReviewSearchRegexKey(workspaceId),
+    false
+  );
+  const [isMatchCase, setIsMatchCase] = usePersistedState(
+    getReviewSearchMatchCaseKey(workspaceId),
+    false
+  );
 
   // Persist file filter per workspace
   const [selectedFilePath, setSelectedFilePath] = usePersistedState<string | null>(
@@ -621,8 +636,9 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
       isRead,
       searchTerm: debouncedSearchTerm,
       useRegex: isRegexSearch,
+      matchCase: isMatchCase,
     });
-  }, [hunks, filters.showReadHunks, isRead, debouncedSearchTerm, isRegexSearch]);
+  }, [hunks, filters.showReadHunks, isRead, debouncedSearchTerm, isRegexSearch, isMatchCase]);
 
   // Handle toggling read state with auto-navigation
   const handleToggleRead = useCallback(
@@ -801,13 +817,22 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
                 value={searchInputValue}
                 onChange={(e) => setSearchInputValue(e.target.value)}
               />
-              <RegexButton
+              <SearchButton
                 active={isRegexSearch}
                 onClick={() => setIsRegexSearch(!isRegexSearch)}
                 title={isRegexSearch ? "Using regex search" : "Using substring search"}
               >
                 .*
-              </RegexButton>
+              </SearchButton>
+              <SearchButton
+                active={isMatchCase}
+                onClick={() => setIsMatchCase(!isMatchCase)}
+                title={
+                  isMatchCase ? "Match case (case-sensitive)" : "Ignore case (case-insensitive)"
+                }
+              >
+                Aa
+              </SearchButton>
             </SearchContainer>
 
             <HunkList>

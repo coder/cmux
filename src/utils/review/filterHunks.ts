@@ -26,17 +26,20 @@ export function filterByReadState(
  * @param hunks - Hunks to filter
  * @param searchTerm - Search string (substring or regex)
  * @param useRegex - If true, treat searchTerm as regex pattern
+ * @param matchCase - If true, perform case-sensitive search
  */
 export function filterBySearch(
   hunks: DiffHunk[],
   searchTerm: string,
-  useRegex = false
+  useRegex = false,
+  matchCase = false
 ): DiffHunk[] {
   if (!searchTerm.trim()) return hunks;
 
   if (useRegex) {
     try {
-      const regex = new RegExp(searchTerm, "i"); // case-insensitive
+      const flags = matchCase ? "" : "i"; // case-insensitive unless matchCase is true
+      const regex = new RegExp(searchTerm, flags);
       return hunks.filter((hunk) => {
         // Search in filename or hunk content
         return regex.test(hunk.filePath) || regex.test(hunk.content);
@@ -46,19 +49,22 @@ export function filterBySearch(
       return [];
     }
   } else {
-    // Substring search (case-insensitive)
-    const searchLower = searchTerm.toLowerCase();
-    return hunks.filter((hunk) => {
-      // Search in filename
-      if (hunk.filePath.toLowerCase().includes(searchLower)) {
-        return true;
-      }
-      // Search in hunk content (includes context lines, not just changes)
-      if (hunk.content.toLowerCase().includes(searchLower)) {
-        return true;
-      }
-      return false;
-    });
+    // Substring search
+    if (matchCase) {
+      // Case-sensitive substring search
+      return hunks.filter((hunk) => {
+        return hunk.filePath.includes(searchTerm) || hunk.content.includes(searchTerm);
+      });
+    } else {
+      // Case-insensitive substring search
+      const searchLower = searchTerm.toLowerCase();
+      return hunks.filter((hunk) => {
+        return (
+          hunk.filePath.toLowerCase().includes(searchLower) ||
+          hunk.content.toLowerCase().includes(searchLower)
+        );
+      });
+    }
   }
 }
 
@@ -76,10 +82,11 @@ export function applyFrontendFilters(
     isRead: (id: string) => boolean;
     searchTerm: string;
     useRegex?: boolean;
+    matchCase?: boolean;
   }
 ): DiffHunk[] {
   let result = hunks;
   result = filterByReadState(result, filters.isRead, filters.showReadHunks);
-  result = filterBySearch(result, filters.searchTerm, filters.useRegex);
+  result = filterBySearch(result, filters.searchTerm, filters.useRegex, filters.matchCase);
   return result;
 }
