@@ -3,7 +3,7 @@
  * Displays diff hunks for viewing changes in the workspace
  */
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import styled from "@emotion/styled";
 import { HunkViewer } from "./HunkViewer";
 import { ReviewControls } from "./ReviewControls";
@@ -464,6 +464,29 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
     setShowReadHunks(filters.showReadHunks);
   }, [filters.showReadHunks, setShowReadHunks]);
 
+  // Handler to mark all hunks in a file as read
+  const handleMarkFileAsRead = useCallback(
+    (filePath: string) => {
+      const fileHunks = hunks.filter((h) => h.filePath === filePath);
+      const hunkIds = fileHunks.map((h) => h.id);
+      if (hunkIds.length > 0) {
+        reviewState.markAsRead(hunkIds);
+      }
+    },
+    [hunks, reviewState]
+  );
+
+  // Get read status for a file
+  const getFileReadStatus = useCallback(
+    (filePath: string) => {
+      const fileHunks = hunks.filter((h) => h.filePath === filePath);
+      const total = fileHunks.length;
+      const read = fileHunks.filter((h) => reviewState.isRead(h.id)).length;
+      return { total, read };
+    },
+    [hunks, reviewState]
+  );
+
   // Filter hunks based on read state
   const filteredHunks = useMemo(() => {
     if (filters.showReadHunks) {
@@ -651,6 +674,8 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
                 onSelectFile={setSelectedFilePath}
                 isLoading={isLoadingTree}
                 commonPrefix={commonPrefix}
+                onMarkFileAsRead={handleMarkFileAsRead}
+                getFileReadStatus={getFileReadStatus}
               />
             </FileTreeSection>
           )}

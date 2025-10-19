@@ -40,8 +40,8 @@ function evictOldestReviews(
 export interface UseReviewStateReturn {
   /** Check if a hunk is marked as read */
   isRead: (hunkId: string) => boolean;
-  /** Mark a hunk as read */
-  markAsRead: (hunkId: string) => void;
+  /** Mark one or more hunks as read */
+  markAsRead: (hunkIds: string | string[]) => void;
   /** Mark a hunk as unread */
   markAsUnread: (hunkId: string) => void;
   /** Toggle read state of a hunk */
@@ -93,22 +93,29 @@ export function useReviewState(workspaceId: string): UseReviewStateReturn {
   );
 
   /**
-   * Mark a hunk as read
+   * Mark one or more hunks as read
    */
   const markAsRead = useCallback(
-    (hunkId: string) => {
-      setReviewState((prev) => ({
-        ...prev,
-        readState: {
-          ...prev.readState,
-          [hunkId]: {
+    (hunkIds: string | string[]) => {
+      const ids = Array.isArray(hunkIds) ? hunkIds : [hunkIds];
+      if (ids.length === 0) return;
+
+      const timestamp = Date.now();
+      setReviewState((prev) => {
+        const newReadState = { ...prev.readState };
+        for (const hunkId of ids) {
+          newReadState[hunkId] = {
             hunkId,
             isRead: true,
-            timestamp: Date.now(),
-          },
-        },
-        lastUpdated: Date.now(),
-      }));
+            timestamp,
+          };
+        }
+        return {
+          ...prev,
+          readState: newReadState,
+          lastUpdated: timestamp,
+        };
+      });
     },
     [setReviewState]
   );

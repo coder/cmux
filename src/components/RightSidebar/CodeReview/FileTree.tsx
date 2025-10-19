@@ -117,13 +117,54 @@ const EmptyState = styled.div`
   text-align: center;
 `;
 
+const MarkReadButton = styled.button`
+  background: transparent;
+  border: 1px solid rgba(74, 222, 128, 0.3);
+  border-radius: 3px;
+  padding: 2px 6px;
+  color: #4ade80;
+  font-size: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  opacity: 0.7;
+
+  &:hover {
+    opacity: 1;
+    background: rgba(74, 222, 128, 0.1);
+    border-color: #4ade80;
+  }
+
+  &:active {
+    transform: scale(0.95);
+  }
+`;
+
+const ReadStatus = styled.span`
+  font-size: 10px;
+  color: #4ade80;
+  opacity: 0.7;
+`;
+
 const TreeNodeContent: React.FC<{
   node: FileTreeNode;
   depth: number;
   selectedPath: string | null;
   onSelectFile: (path: string | null) => void;
   commonPrefix: string | null;
-}> = ({ node, depth, selectedPath, onSelectFile, commonPrefix }) => {
+  onMarkFileAsRead?: (filePath: string) => void;
+  getFileReadStatus?: (filePath: string) => { total: number; read: number };
+}> = ({
+  node,
+  depth,
+  selectedPath,
+  onSelectFile,
+  commonPrefix,
+  onMarkFileAsRead,
+  getFileReadStatus,
+}) => {
   const [isOpen, setIsOpen] = useState(depth < 2); // Auto-expand first 2 levels
 
   const handleClick = (e: React.MouseEvent) => {
@@ -152,7 +193,15 @@ const TreeNodeContent: React.FC<{
     setIsOpen(!isOpen);
   };
 
+  const handleMarkAsRead = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onMarkFileAsRead) {
+      onMarkFileAsRead(node.path);
+    }
+  };
+
   const isSelected = selectedPath === node.path;
+  const readStatus = !node.isDirectory && getFileReadStatus ? getFileReadStatus(node.path) : null;
 
   return (
     <>
@@ -191,6 +240,17 @@ const TreeNodeContent: React.FC<{
                 {node.stats.deletions > 0 && <Deletions>-{node.stats.deletions}</Deletions>}
               </Stats>
             )}
+            {readStatus && readStatus.total > 0 && (
+              <>
+                {readStatus.read === readStatus.total ? (
+                  <ReadStatus>✓</ReadStatus>
+                ) : (
+                  <MarkReadButton onClick={handleMarkAsRead} title="Mark all hunks as read">
+                    ✓
+                  </MarkReadButton>
+                )}
+              </>
+            )}
           </>
         )}
       </TreeNode>
@@ -205,6 +265,8 @@ const TreeNodeContent: React.FC<{
             selectedPath={selectedPath}
             onSelectFile={onSelectFile}
             commonPrefix={commonPrefix}
+            onMarkFileAsRead={onMarkFileAsRead}
+            getFileReadStatus={getFileReadStatus}
           />
         ))}
     </>
@@ -217,6 +279,8 @@ interface FileTreeExternalProps {
   onSelectFile: (path: string | null) => void;
   isLoading?: boolean;
   commonPrefix?: string | null;
+  onMarkFileAsRead?: (filePath: string) => void;
+  getFileReadStatus?: (filePath: string) => { total: number; read: number };
 }
 
 export const FileTree: React.FC<FileTreeExternalProps> = ({
@@ -225,6 +289,8 @@ export const FileTree: React.FC<FileTreeExternalProps> = ({
   onSelectFile,
   isLoading = false,
   commonPrefix = null,
+  onMarkFileAsRead,
+  getFileReadStatus,
 }) => {
   // Find the node at the common prefix path to start rendering from
   const startNode = React.useMemo(() => {
@@ -262,6 +328,8 @@ export const FileTree: React.FC<FileTreeExternalProps> = ({
               selectedPath={selectedPath}
               onSelectFile={onSelectFile}
               commonPrefix={commonPrefix}
+              onMarkFileAsRead={onMarkFileAsRead}
+              getFileReadStatus={getFileReadStatus}
             />
           ))
         ) : (
