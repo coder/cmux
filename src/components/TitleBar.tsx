@@ -168,7 +168,7 @@ export function TitleBar() {
 
   const getUpdateTooltip = () => {
     if (!telemetryEnabled) {
-      return "Update checks disabled (telemetry is off)";
+      return "Update checks disabled (telemetry is off). Enable telemetry to receive updates.";
     }
 
     switch (updateStatus.type) {
@@ -178,12 +178,14 @@ export function TitleBar() {
         return `Downloading update: ${updateStatus.percent}%`;
       case "downloaded":
         return `Update ready: ${updateStatus.info.version}. Click to install and restart.`;
+      case "not-available":
+        return "No updates available. Checks every 4 hours.";
       default:
-        return "";
+        return "Checking for updates...";
     }
   };
 
-  const getIndicatorStatus = (): "available" | "downloading" | "downloaded" | "disabled" | null => {
+  const getIndicatorStatus = (): "available" | "downloading" | "downloaded" | "disabled" => {
     if (!telemetryEnabled) return "disabled";
 
     switch (updateStatus.type) {
@@ -194,12 +196,14 @@ export function TitleBar() {
       case "downloaded":
         return "downloaded";
       default:
-        return null;
+        return "disabled"; // Show disabled when no update available
     }
   };
 
   const indicatorStatus = getIndicatorStatus();
-  const showUpdateIndicator = indicatorStatus !== null;
+  // Always show indicator in packaged builds (or dev with DEBUG_UPDATER)
+  // In dev without DEBUG_UPDATER, the backend won't initialize updater service
+  const showUpdateIndicator = true;
 
   return (
     <TitleBarContainer>
