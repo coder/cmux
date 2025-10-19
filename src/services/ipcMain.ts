@@ -855,6 +855,24 @@ export class IpcMain {
         log.error(`Failed to open terminal: ${message}`);
       }
     });
+
+    // Debug IPC - only for testing
+    ipcMain.handle(
+      IPC_CHANNELS.DEBUG_TRIGGER_STREAM_ERROR,
+      async (_event, workspaceId: string, errorMessage: string) => {
+        try {
+          const triggered = this.aiService["streamManager"].debugTriggerStreamError(
+            workspaceId,
+            errorMessage
+          );
+          return { success: triggered };
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          log.error(`Failed to trigger stream error: ${message}`);
+          return { success: false, error: message };
+        }
+      }
+    );
   }
 
   /**

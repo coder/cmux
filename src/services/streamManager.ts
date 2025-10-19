@@ -1271,4 +1271,55 @@ export class StreamManager extends EventEmitter {
       this.emitPartAsEvent(typedWorkspaceId, streamInfo.messageId, part);
     }
   }
+
+  /**
+   * DEBUG ONLY: Trigger an artificial stream error for testing
+   * This method allows integration tests to simulate stream errors without
+   * mocking the AI SDK or network layer. It triggers the same error handling
+   * path as genuine stream errors by aborting the stream and manually triggering
+   * the error event (since abort alone doesn't throw, it just sets a flag).
+   */
+  debugTriggerStreamError(workspaceId: string, errorMessage: string): boolean {
+    const typedWorkspaceId = workspaceId as WorkspaceId;
+    const streamInfo = this.workspaceStreams.get(typedWorkspaceId);
+
+    // Only trigger error if stream is actively running
+    if (
+      !streamInfo ||
+      (streamInfo.state !== StreamState.STARTING && streamInfo.state !== StreamState.STREAMING)
+    ) {
+      return false;
+    }
+
+    // Abort the stream first
+    streamInfo.abortController.abort(new Error(errorMessage));
+
+    // Write error state to partial.json (same as real error handling)
+    const errorPartialMessage: CmuxMessage = {
+      id: streamInfo.messageId,
+      role: "assistant",
+      metadata: {
+        historySequence: streamInfo.historySequence,
+        timestamp: streamInfo.startTime,
+        model: streamInfo.model,
+        partial: true,
+        error: errorMessage,
+        errorType: "network", // Test errors are network-like
+        ...streamInfo.initialMetadata,
+      },
+      parts: streamInfo.parts,
+    };
+    void this.partialService.writePartial(workspaceId, errorPartialMessage);
+
+    // Emit error event (same as real error handling)
+    this.emit("error", {
+      type: "error",
+      workspaceId: workspaceId as string,
+      messageId: streamInfo.messageId,
+      error: errorMessage,
+      errorType: "network",
+    } as ErrorEvent);
+
+    return true;
+  }
 }

@@ -39,6 +39,9 @@ export const IPC_CHANNELS = {
   // Window channels
   WINDOW_SET_TITLE: "window:setTitle",
 
+  // Debug channels (for testing only)
+  DEBUG_TRIGGER_STREAM_ERROR: "debug:triggerStreamError",
+
   // Dynamic channel prefixes
   WORKSPACE_CHAT_PREFIX: "workspace:chat:",
   WORKSPACE_METADATA: "workspace:metadata",
