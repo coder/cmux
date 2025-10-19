@@ -10,6 +10,7 @@ interface UntrackedStatusProps {
   workspaceId: string;
   workspacePath: string;
   refreshTrigger?: number;
+  onRefresh?: () => void;
 }
 
 const Container = styled.div`
@@ -128,6 +129,7 @@ export const UntrackedStatus: React.FC<UntrackedStatusProps> = ({
   workspaceId,
   workspacePath,
   refreshTrigger,
+  onRefresh,
 }) => {
   const [untrackedFiles, setUntrackedFiles] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -210,6 +212,8 @@ export const UntrackedStatus: React.FC<UntrackedStatusProps> = ({
       if (result.success) {
         setUntrackedFiles([]);
         setShowTooltip(false);
+        // Trigger refresh to update hunks, tree, and untracked count
+        onRefresh?.();
       } else {
         console.error("Failed to track files:", result.error);
       }

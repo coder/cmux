@@ -210,6 +210,7 @@ export const ReviewControls: React.FC<ReviewControlsProps> = ({
         workspaceId={workspaceId}
         workspacePath={workspacePath}
         refreshTrigger={refreshTrigger}
+        onRefresh={onRefresh}
       />
 
       <Separator />
