@@ -93,6 +93,8 @@ const ShortcutHint = styled.span`
   font-family: var(--font-monospace);
 `;
 
+
+
 interface CommandPaletteProps {
   getSlashContext?: () => { providerNames: string[]; workspaceId?: string };
 }
@@ -177,6 +179,27 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ getSlashContext 
     });
   }, []);
 
+  // Listen for EXECUTE_COMMAND events
+  useEffect(() => {
+    const handleExecuteCommand = (e: Event) => {
+      const customEvent = e as CustomEvent<{ commandId: string }>;
+      const { commandId } = customEvent.detail;
+      
+      const action = getActions().find(a => a.id === commandId);
+      if (!action) {
+        console.warn(`Command not found: ${commandId}`);
+        return;
+      }
+      
+      // Run the action directly
+      void action.run();
+      addRecent(action.id);
+    };
+    
+    window.addEventListener(CUSTOM_EVENTS.EXECUTE_COMMAND, handleExecuteCommand);
+    return () => window.removeEventListener(CUSTOM_EVENTS.EXECUTE_COMMAND, handleExecuteCommand);
+  }, [getActions, startPrompt, addRecent]);
+
   const handlePromptValue = useCallback(
     (value: string) => {
       let nextInitial: string | null = null;
@@ -236,6 +259,9 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ getSlashContext 
     },
     [activePrompt]
   );
+
+
+
 
   const generalResults = useMemo(() => {
     const q = query.trim();

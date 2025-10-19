@@ -10,7 +10,13 @@ import { useMode } from "@/contexts/ModeContext";
 import { ChatToggles } from "./ChatToggles";
 import { useSendMessageOptions } from "@/hooks/useSendMessageOptions";
 import { getModelKey, getInputKey } from "@/constants/storage";
-import { forkWorkspace } from "@/utils/workspaceFork";
+import {
+  handleNewCommand,
+  handleCompactCommand,
+  forkWorkspace,
+  prepareCompactionMessage,
+  type CommandHandlerContext,
+} from "@/utils/chatCommands";
 import { ToggleGroup } from "./ToggleGroup";
 import { CUSTOM_EVENTS } from "@/constants/events";
 import type { UIMode } from "@/types/mode";
@@ -31,10 +37,7 @@ import {
 } from "@/utils/imageHandling";
 
 import type { ThinkingLevel } from "@/types/thinking";
-import type { CmuxFrontendMetadata, CompactionRequestData } from "@/types/message";
-import type { SendMessageOptions } from "@/types/ipc";
-import { applyCompactionOverrides } from "@/utils/messages/compactionOptions";
-import { resolveCompactionModel } from "@/utils/messages/compactionModelPreference";
+import type { CmuxFrontendMetadata } from "@/types/message";
 import { useTelemetry } from "@/hooks/useTelemetry";
 import { setTelemetryEnabled } from "@/telemetry";
 
@@ -159,49 +162,6 @@ export interface ChatInputProps {
 }
 
 // Helper function to convert parsed command to display toast
-/**
- * Prepare compaction message from /compact command
- * Returns the actual message text (summarization request), metadata, and options
- */
-function prepareCompactionMessage(
-  command: string,
-  sendMessageOptions: SendMessageOptions
-): {
-  messageText: string;
-  metadata: CmuxFrontendMetadata;
-  options: Partial<SendMessageOptions>;
-} {
-  const parsed = parseCommand(command);
-  if (parsed?.type !== "compact") {
-    throw new Error("Not a compact command");
-  }
-
-  const targetWords = parsed.maxOutputTokens ? Math.round(parsed.maxOutputTokens / 1.3) : 2000;
-
-  const messageText = `Summarize this conversation into a compact form for a new Assistant to continue helping the user. Use approximately ${targetWords} words.`;
-
-  // Handle model preference (sticky globally)
-  const effectiveModel = resolveCompactionModel(parsed.model);
-
-  // Create compaction metadata (will be stored in user message)
-  const compactData: CompactionRequestData = {
-    model: effectiveModel,
-    maxOutputTokens: parsed.maxOutputTokens,
-    continueMessage: parsed.continueMessage,
-  };
-
-  const metadata: CmuxFrontendMetadata = {
-    type: "compaction-request",
-    rawCommand: command,
-    parsed: compactData,
-  };
-
-  // Apply compaction overrides using shared transformation function
-  // This same function is used by useResumeManager to ensure consistency
-  const options = applyCompactionOverrides(sendMessageOptions, compactData);
-
-  return { messageText, metadata, options };
-}
 
 export const ChatInput: React.FC<ChatInputProps> = ({
   workspaceId,
@@ -572,51 +532,19 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
         // Handle /compact command
         if (parsed.type === "compact") {
-          setInput(""); // Clear input immediately
-          setIsSending(true);
+          const context: CommandHandlerContext = {
+            workspaceId,
+            sendMessageOptions,
+            editMessageId: editingMessage?.id,
+            setInput,
+            setIsSending,
+            setToast,
+            onCancelEdit,
+          };
 
-          try {
-            const {
-              messageText: compactionMessage,
-              metadata,
-              options,
-            } = prepareCompactionMessage(messageText, sendMessageOptions);
-
-            const result = await window.api.workspace.sendMessage(workspaceId, compactionMessage, {
-              ...sendMessageOptions,
-              ...options,
-              cmuxMetadata: metadata,
-              editMessageId: editingMessage?.id, // Support editing compaction messages
-            });
-
-            if (!result.success) {
-              console.error("Failed to initiate compaction:", result.error);
-              setToast(createErrorToast(result.error));
-              setInput(messageText); // Restore input on error
-            } else {
-              setToast({
-                id: Date.now().toString(),
-                type: "success",
-                message:
-                  metadata.type === "compaction-request" && metadata.parsed.continueMessage
-                    ? "Compaction started. Will continue automatically after completion."
-                    : "Compaction started. AI will summarize the conversation.",
-              });
-              // Clear editing state on success
-              if (editingMessage && onCancelEdit) {
-                onCancelEdit();
-              }
-            }
-          } catch (error) {
-            console.error("Compaction error:", error);
-            setToast({
-              id: Date.now().toString(),
-              type: "error",
-              message: error instanceof Error ? error.message : "Failed to start compaction",
-            });
+          const result = await handleCompactCommand(parsed, context);
+          if (!result.clearInput) {
             setInput(messageText); // Restore input on error
-          } finally {
-            setIsSending(false);
           }
           return;
         }
@@ -664,6 +592,23 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           }
 
           setIsSending(false);
+          return;
+        }
+
+        // Handle /new command
+        if (parsed.type === "new") {
+          const context: CommandHandlerContext = {
+            workspaceId,
+            sendMessageOptions,
+            setInput,
+            setIsSending,
+            setToast,
+          };
+
+          const result = await handleNewCommand(parsed, context);
+          if (!result.clearInput) {
+            setInput(messageText); // Restore input on error
+          }
           return;
         }
 
@@ -719,11 +664,17 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             const {
               messageText: regeneratedText,
               metadata,
-              options,
-            } = prepareCompactionMessage(messageText, sendMessageOptions);
+              sendOptions,
+            } = prepareCompactionMessage({
+              workspaceId,
+              maxOutputTokens: parsed.maxOutputTokens,
+              continueMessage: parsed.continueMessage,
+              model: parsed.model,
+              sendMessageOptions,
+            });
             actualMessageText = regeneratedText;
             cmuxMetadata = metadata;
-            compactionOptions = options;
+            compactionOptions = sendOptions;
           }
         }
 

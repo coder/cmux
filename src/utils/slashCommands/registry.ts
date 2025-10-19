@@ -10,6 +10,34 @@ import type {
 } from "./types";
 import minimist from "minimist";
 
+/**
+ * Parse multiline command input into first-line tokens and remaining message
+ * Used by commands that support messages on subsequent lines (/compact, /fork, /new)
+ */
+function parseMultilineCommand(rawInput: string): {
+  firstLine: string;
+  tokens: string[];
+  message: string | undefined;
+  hasMultiline: boolean;
+} {
+  const hasMultiline = rawInput.includes("\n");
+  const lines = rawInput.split("\n");
+  const firstLine = lines[0];
+  const remainingLines = lines.slice(1).join("\n").trim();
+
+  // Tokenize first line only (preserving quotes)
+  const tokens = (firstLine.match(/(?:[^\s"]+|"[^"]*")+/g) ?? []).map((token) =>
+    token.replace(/^"(.*)"$/, "$1")
+  );
+
+  return {
+    firstLine,
+    tokens,
+    message: remainingLines.length > 0 ? remainingLines : undefined,
+    hasMultiline,
+  };
+}
+
 // Model abbreviations for common models
 // Order matters: first model becomes the default for new chats
 export const MODEL_ABBREVIATIONS: Record<string, string> = {
@@ -174,18 +202,7 @@ const compactCommandDefinition: SlashCommandDefinition = {
   description:
     "Compact conversation history using AI summarization. Use -t <tokens> to set max output tokens, -m <model> to set compaction model. Add continue message on lines after the command.",
   handler: ({ rawInput }): ParsedCommand => {
-    // Split rawInput into first line (for flags) and remaining lines (for multiline continue)
-    // rawInput format: "-t 5000\nContinue here" or "\nContinue here" (starts with newline if no flags)
-    const hasMultilineContent = rawInput.includes("\n");
-    const lines = rawInput.split("\n");
-    const firstLine = lines[0]; // First line contains flags
-    const remainingLines = lines.slice(1).join("\n").trim();
-
-    // Tokenize ONLY the first line to extract flags
-    // This prevents content after newlines from being parsed as flags
-    const firstLineTokens = (firstLine.match(/(?:[^\s"]+|"[^"]*")+/g) ?? []).map((token) =>
-      token.replace(/^"(.*)"$/, "$1")
-    );
+    const { tokens: firstLineTokens, message: remainingLines, hasMultiline } = parseMultilineCommand(rawInput);
 
     // Parse flags from first line using minimist
     const parsed = minimist(firstLineTokens, {
@@ -235,7 +252,7 @@ const compactCommandDefinition: SlashCommandDefinition = {
 
     // Reject extra positional arguments UNLESS they're from multiline content
     // (multiline content gets parsed as positional args by minimist since newlines become spaces)
-    if (parsed._.length > 0 && !hasMultilineContent) {
+    if (parsed._.length > 0 && !hasMultiline) {
       return {
         type: "unknown-command",
         command: "compact",
@@ -251,7 +268,7 @@ const compactCommandDefinition: SlashCommandDefinition = {
     if (parsed.c !== undefined && typeof parsed.c === "string" && parsed.c.trim().length > 0) {
       // -c flag takes precedence (backwards compatibility)
       continueMessage = parsed.c.trim();
-    } else if (remainingLines.length > 0) {
+    } else if (remainingLines) {
       // Use multiline content
       continueMessage = remainingLines;
     }
@@ -438,31 +455,101 @@ const telemetryCommandDefinition: SlashCommandDefinition = {
 
 const forkCommandDefinition: SlashCommandDefinition = {
   key: "fork",
-  description: "Fork workspace with new name and optional start message",
-  handler: ({ cleanRemainingTokens, remainingTokens }): ParsedCommand => {
-    if (cleanRemainingTokens.length === 0) {
+  description: "Fork workspace with new name and optional start message. Add start message on lines after the command.",
+  handler: ({ rawInput }): ParsedCommand => {
+    const { tokens, message } = parseMultilineCommand(rawInput);
+
+    if (tokens.length === 0) {
       return {
         type: "fork-help",
       };
     }
 
-    const newName = cleanRemainingTokens[0];
+    const newName = tokens[0];
 
-    // Everything after the first token (workspace name) becomes the start message
-    // We need to reconstruct from remainingTokens to preserve quotes
-    const startMessage =
-      remainingTokens.length > 1
-        ? remainingTokens
-            .slice(1)
-            .map((token) => token.replace(/^"(.*)"$/, "$1"))
-            .join(" ")
-            .trim()
-        : undefined;
+    // Start message can be from remaining tokens on same line or multiline content
+    let startMessage: string | undefined;
+    if (message) {
+      // Multiline content takes precedence
+      startMessage = message;
+    } else if (tokens.length > 1) {
+      // Join remaining tokens on first line
+      startMessage = tokens.slice(1).join(" ").trim();
+    }
 
     return {
       type: "fork",
       newName,
       startMessage: startMessage && startMessage.length > 0 ? startMessage : undefined,
+    };
+  },
+};
+
+const newCommandDefinition: SlashCommandDefinition = {
+  key: "new",
+  description: "Create new workspace with optional trunk branch. Use -t <branch> to specify trunk. Add start message on lines after the command.",
+  handler: ({ rawInput }): ParsedCommand => {
+    const { tokens: firstLineTokens, message: remainingLines, hasMultiline } = parseMultilineCommand(rawInput);
+
+    // Parse flags from first line using minimist
+    const parsed = minimist(firstLineTokens, {
+      string: ["t"],
+      unknown: (arg: string) => {
+        // Unknown flags starting with - are errors
+        if (arg.startsWith("-")) {
+          return false;
+        }
+        return true;
+      },
+    });
+
+    // Check for unknown flags - return undefined workspaceName to open modal
+    const unknownFlags = firstLineTokens.filter(
+      (token) => token.startsWith("-") && token !== "-t"
+    );
+    if (unknownFlags.length > 0) {
+      return {
+        type: "new",
+        workspaceName: undefined,
+        trunkBranch: undefined,
+        startMessage: undefined,
+      };
+    }
+
+    // No workspace name provided - return undefined to open modal
+    if (parsed._.length === 0) {
+      return {
+        type: "new",
+        workspaceName: undefined,
+        trunkBranch: undefined,
+        startMessage: undefined,
+      };
+    }
+
+    // Get workspace name (first positional argument)
+    const workspaceName = String(parsed._[0]);
+
+    // Reject extra positional arguments - return undefined to open modal
+    if (parsed._.length > 1 && !hasMultiline) {
+      return {
+        type: "new",
+        workspaceName: undefined,
+        trunkBranch: undefined,
+        startMessage: undefined,
+      };
+    }
+
+    // Get trunk branch from -t flag
+    let trunkBranch: string | undefined;
+    if (parsed.t !== undefined && typeof parsed.t === "string" && parsed.t.trim().length > 0) {
+      trunkBranch = parsed.t.trim();
+    }
+
+    return {
+      type: "new",
+      workspaceName,
+      trunkBranch,
+      startMessage: remainingLines,
     };
   },
 };
@@ -475,6 +562,7 @@ export const SLASH_COMMAND_DEFINITIONS: readonly SlashCommandDefinition[] = [
   providersCommandDefinition,
   telemetryCommandDefinition,
   forkCommandDefinition,
+  newCommandDefinition,
 ];
 
 export const SLASH_COMMAND_DEFINITION_MAP = new Map(
