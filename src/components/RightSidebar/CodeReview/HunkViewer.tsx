@@ -262,7 +262,13 @@ export const HunkViewer = React.memo<HunkViewerProps>(
               oldStart={hunk.oldStart}
               newStart={hunk.newStart}
               onReviewNote={onReviewNote}
-              onLineClick={() => onClick?.(undefined as any)}
+              onLineClick={() => {
+                // Create synthetic event with data-hunk-id for parent handler
+                const syntheticEvent = {
+                  currentTarget: { dataset: { hunkId } },
+                } as React.MouseEvent<HTMLElement>;
+                onClick?.(syntheticEvent);
+              }}
             />
           </HunkContent>
         ) : (
