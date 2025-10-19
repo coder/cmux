@@ -125,3 +125,12 @@ export const EmptyContent: Story = {
     }),
   },
 };
+
+export const WithKebabMenu: Story = {
+  args: {
+    message: createUserMessage(
+      "User messages now have a kebab menu (⋮) with the Edit action hidden inside. Click the three dots to access it."
+    ),
+    onEdit: action("onEdit"),
+  },
+};

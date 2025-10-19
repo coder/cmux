@@ -28,6 +28,8 @@ const ModelDisplay = styled.div<{ clickable?: boolean }>`
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 150px;
+  direction: rtl; /* Right-to-left to show end of text */
+  text-align: left; /* Keep visual alignment left */
 
   &:hover {
     background: ${(props) => (props.clickable ? "#2a2a2b" : "transparent")};

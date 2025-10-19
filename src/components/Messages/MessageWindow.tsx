@@ -5,6 +5,7 @@ import type { CmuxMessage, DisplayedMessage } from "@/types/message";
 import { HeaderButton } from "../tools/shared/ToolPrimitives";
 import { formatTimestamp } from "@/utils/ui/dateTime";
 import { TooltipWrapper, Tooltip } from "../Tooltip";
+import { KebabMenu, type KebabMenuItem } from "../KebabMenu";
 
 const MessageBlock = styled.div<{ borderColor: string; backgroundColor?: string }>`
   position: relative;
@@ -19,7 +20,7 @@ const MessageBlock = styled.div<{ borderColor: string; backgroundColor?: string 
 const MessageHeader = styled.div`
   position: relative;
   z-index: 1;
-  padding: 8px 12px;
+  padding: 4px 12px;
   background: rgba(255, 255, 255, 0.05);
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   display: flex;
@@ -32,14 +33,20 @@ const MessageHeader = styled.div`
 
 const LeftSection = styled.div`
   display: flex;
-  align-items: center;
+  align-items: baseline; /* Use baseline for consistent text alignment */
   gap: 12px;
+  min-width: 0; /* Allow flex children to shrink below content size */
+  flex: 1; /* Take available space but allow ButtonGroup to stay on same line */
 `;
 
 const MessageTypeLabel = styled.div`
   display: inline-flex;
+  align-items: baseline; /* Ensure children align on baseline */
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  white-space: nowrap; /* Prevent line breaking */
+  overflow: hidden; /* Hide overflow */
+  min-width: 0; /* Allow shrinking */
 `;
 
 const TimestampText = styled.span`
@@ -87,6 +94,7 @@ interface MessageWindowProps {
   backgroundColor?: string;
   message: CmuxMessage | DisplayedMessage;
   buttons?: ButtonConfig[];
+  kebabMenuItems?: KebabMenuItem[]; // Optional kebab menu items (provide empty array to use kebab with only Show JSON)
   children: ReactNode;
   className?: string;
   rightLabel?: ReactNode;
@@ -99,6 +107,7 @@ export const MessageWindow: React.FC<MessageWindowProps> = ({
   backgroundColor,
   message,
   buttons = [],
+  kebabMenuItems = [],
   children,
   className,
   rightLabel,
@@ -117,14 +126,21 @@ export const MessageWindow: React.FC<MessageWindowProps> = ({
   );
 
   return (
-    <MessageBlock borderColor={borderColor} backgroundColor={backgroundColor} className={className}>
+    <MessageBlock
+      borderColor={borderColor}
+      backgroundColor={backgroundColor}
+      className={className}
+      data-message-block
+    >
       {backgroundEffect}
-      <MessageHeader>
-        <LeftSection>
-          <MessageTypeLabel>{label}</MessageTypeLabel>
-          {formattedTimestamp && <TimestampText>{formattedTimestamp}</TimestampText>}
+      <MessageHeader data-message-header>
+        <LeftSection data-message-header-left>
+          <MessageTypeLabel data-message-type-label>{label}</MessageTypeLabel>
+          {formattedTimestamp && (
+            <TimestampText data-message-timestamp>{formattedTimestamp}</TimestampText>
+          )}
         </LeftSection>
-        <ButtonGroup>
+        <ButtonGroup data-message-header-buttons>
           {rightLabel}
           {buttons.map((button, index) =>
             button.tooltip ? (
@@ -145,12 +161,24 @@ export const MessageWindow: React.FC<MessageWindowProps> = ({
               />
             )
           )}
-          <HeaderButton active={showJson} onClick={() => setShowJson(!showJson)}>
-            {showJson ? "Hide JSON" : "Show JSON"}
-          </HeaderButton>
+          {kebabMenuItems !== undefined ? (
+            <KebabMenu
+              items={[
+                ...kebabMenuItems,
+                {
+                  label: showJson ? "Hide JSON" : "Show JSON",
+                  onClick: () => setShowJson(!showJson),
+                },
+              ]}
+            />
+          ) : (
+            <HeaderButton active={showJson} onClick={() => setShowJson(!showJson)}>
+              {showJson ? "Hide JSON" : "Show JSON"}
+            </HeaderButton>
+          )}
         </ButtonGroup>
       </MessageHeader>
-      <MessageContent>
+      <MessageContent data-message-content>
         {showJson ? <JsonContent>{JSON.stringify(message, null, 2)}</JsonContent> : children}
       </MessageContent>
     </MessageBlock>

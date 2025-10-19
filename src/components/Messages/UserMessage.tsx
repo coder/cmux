@@ -5,6 +5,7 @@ import type { ButtonConfig } from "./MessageWindow";
 import { MessageWindow } from "./MessageWindow";
 import { TerminalOutput } from "./TerminalOutput";
 import { formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
+import type { KebabMenuItem } from "@/components/KebabMenu";
 
 const FormattedContent = styled.pre`
   margin: 0;
@@ -94,6 +95,8 @@ export const UserMessage: React.FC<UserMessageProps> = ({
     }
   };
 
+  // Keep Copy and Edit buttons visible (most common actions)
+  // Kebab menu saves horizontal space by collapsing less-used actions
   const buttons: ButtonConfig[] = [
     ...(onEdit && !isLocalCommandOutput
       ? [
@@ -108,10 +111,14 @@ export const UserMessage: React.FC<UserMessageProps> = ({
         ]
       : []),
     {
-      label: copied ? "✓ Copied" : "Copy Text",
+      label: copied ? "✓ Copied" : "Copy",
       onClick: () => void handleCopy(),
     },
   ];
+
+  // Currently no additional kebab items for user messages
+  // MessageWindow will add "Show JSON" to kebab menu automatically if kebabMenuItems is provided
+  const kebabMenuItems: KebabMenuItem[] = [];
 
   // If it's a local command output, render with TerminalOutput
   if (isLocalCommandOutput) {
@@ -121,6 +128,7 @@ export const UserMessage: React.FC<UserMessageProps> = ({
         borderColor="var(--color-user-border)"
         message={message}
         buttons={buttons}
+        kebabMenuItems={kebabMenuItems}
         className={className}
       >
         <TerminalOutput output={extractedOutput} isError={false} />
@@ -135,6 +143,7 @@ export const UserMessage: React.FC<UserMessageProps> = ({
       borderColor="var(--color-user-border)"
       message={message}
       buttons={buttons}
+      kebabMenuItems={kebabMenuItems}
       className={className}
     >
       {content && <FormattedContent>{content}</FormattedContent>}

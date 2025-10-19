@@ -10,6 +10,7 @@ import { COMPACTED_EMOJI } from "@/constants/ui";
 import { ModelDisplay } from "./ModelDisplay";
 import { CompactingMessageContent } from "./CompactingMessageContent";
 import { CompactionBackground } from "./CompactionBackground";
+import type { KebabMenuItem } from "@/components/KebabMenu";
 
 const RawContent = styled.pre`
   font-family: var(--font-monospace);
@@ -74,7 +75,6 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({
   const {
     openModal,
     buttonLabel,
-    buttonEmoji,
     disabled: startHereDisabled,
     modal,
   } = useStartHere(workspaceId, content, isCompacted);
@@ -89,8 +89,19 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({
     }
   };
 
-  // Buttons only when not streaming
+  // Keep only Copy button visible (most common action)
+  // Kebab menu saves horizontal space by collapsing less-used actions into a single ⋮ button
   const buttons: ButtonConfig[] = isStreaming
+    ? []
+    : [
+        {
+          label: copied ? "✓ Copied" : "Copy",
+          onClick: () => void handleCopy(),
+        },
+      ];
+
+  // Kebab menu items (less frequently used actions)
+  const kebabMenuItems: KebabMenuItem[] = isStreaming
     ? []
     : [
         // Add Start Here button if workspaceId is available and message is not already compacted
@@ -98,17 +109,12 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({
           ? [
               {
                 label: buttonLabel,
-                emoji: buttonEmoji,
                 onClick: openModal,
                 disabled: startHereDisabled,
                 tooltip: "Replace all chat history with this message",
               },
             ]
           : []),
-        {
-          label: copied ? "✓ Copied" : "Copy Text",
-          onClick: () => void handleCopy(),
-        },
         {
           label: showRaw ? "Show Markdown" : "Show Text",
           onClick: () => setShowRaw(!showRaw),
@@ -165,6 +171,7 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({
         borderColor="var(--color-assistant-border)"
         message={message}
         buttons={buttons}
+        kebabMenuItems={kebabMenuItems}
         className={className}
         backgroundEffect={isStreamingCompaction ? <CompactionBackground /> : undefined}
       >

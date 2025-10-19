@@ -236,3 +236,24 @@ export const EmptyContent: Story = {
     message: createAssistantMessage(""),
   },
 };
+
+export const LongModelName: Story = {
+  args: {
+    message: createAssistantMessage(
+      "This message has a very long model name that should be truncated to show the end.",
+      {
+        model: "anthropic:claude-opus-4-20250514-preview-experimental",
+      }
+    ),
+  },
+};
+
+export const WithKebabMenu: Story = {
+  args: {
+    message: createAssistantMessage(
+      "The header now uses a kebab menu (⋮) to reduce clutter. " +
+        "Click the three dots to see actions like 'Show Text' and 'Show JSON'. " +
+        "The 'Copy Text' button remains visible for quick access."
+    ),
+  },
+};

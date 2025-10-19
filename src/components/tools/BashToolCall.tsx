@@ -50,6 +50,8 @@ const ExitCodeBadge = styled.span<{ exitCode: number }>`
   font-size: 10px;
   font-weight: 500;
   margin-left: 8px;
+  white-space: nowrap;
+  flex-shrink: 0; /* Prevent shrinking in flex container */
 `;
 
 const TimeoutInfo = styled.span<{ status?: ToolStatus }>`

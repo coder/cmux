@@ -18,11 +18,11 @@ import {
   DetailSection,
   DetailLabel,
   LoadingDots,
-  HeaderButton,
 } from "./shared/ToolPrimitives";
 import { useToolExpansion, getStatusDisplay, type ToolStatus } from "./shared/toolUtils";
 import { TooltipWrapper, Tooltip } from "../Tooltip";
 import { DiffContainer, DiffRenderer, SelectableDiffRenderer } from "../shared/DiffRenderer";
+import { KebabMenu, type KebabMenuItem } from "../KebabMenu";
 
 // File edit specific styled components
 
@@ -64,9 +64,7 @@ const LeftContent = styled.div`
   }
 `;
 
-const ButtonGroup = styled.div`
-  display: flex;
-  gap: 6px;
+const KebabWrapper = styled.div`
   margin-right: 8px;
 `;
 
@@ -155,6 +153,22 @@ export const FileEditToolCall: React.FC<FileEditToolCallProps> = ({
     }
   };
 
+  // Build kebab menu items for successful edits with diffs
+  const kebabMenuItems: KebabMenuItem[] =
+    result && result.success && result.diff
+      ? [
+          {
+            label: copied ? "✓ Copied" : "Copy Patch",
+            onClick: () => void handleCopyPatch(),
+          },
+          {
+            label: showRaw ? "Show Parsed" : "Show Patch",
+            onClick: () => setShowRaw(!showRaw),
+            active: showRaw,
+          },
+        ]
+      : [];
+
   return (
     <ToolContainer expanded={expanded}>
       <StyledToolHeader>
@@ -169,26 +183,10 @@ export const FileEditToolCall: React.FC<FileEditToolCallProps> = ({
         {!(result && result.success && result.diff) && (
           <StatusIndicator status={status}>{getStatusDisplay(status)}</StatusIndicator>
         )}
-        {result && result.success && result.diff && (
-          <ButtonGroup>
-            <HeaderButton
-              onClick={(e: React.MouseEvent) => {
-                e.stopPropagation();
-                void handleCopyPatch();
-              }}
-            >
-              {copied ? "✓ Copied" : "Copy Patch"}
-            </HeaderButton>
-            <HeaderButton
-              active={showRaw}
-              onClick={(e: React.MouseEvent) => {
-                e.stopPropagation();
-                setShowRaw(!showRaw);
-              }}
-            >
-              {showRaw ? "Show Parsed" : "Show Patch"}
-            </HeaderButton>
-          </ButtonGroup>
+        {kebabMenuItems.length > 0 && (
+          <KebabWrapper>
+            <KebabMenu items={kebabMenuItems} />
+          </KebabWrapper>
         )}
       </StyledToolHeader>
 
