@@ -317,9 +317,12 @@ async function loadServices(): Promise<void> {
   ipcMain = new IpcMainClass(config);
   loadTokenizerModulesFn = loadTokenizerFn;
 
-  // Initialize updater service only in packaged builds
-  if (app.isPackaged) {
+  // Initialize updater service in packaged builds or when DEBUG_UPDATER is set
+  if (app.isPackaged || process.env.DEBUG_UPDATER === "1") {
     updaterService = new UpdaterServiceClass();
+    console.log(
+      `[${timestamp()}] Updater service initialized (packaged: ${app.isPackaged}, debug: ${process.env.DEBUG_UPDATER === "1"})`
+    );
   }
 
   const loadTime = Date.now() - startTime;
@@ -372,9 +375,11 @@ function createWindow() {
     updaterService.installUpdate();
   });
 
-  electronIpcMain.handle(IPC_CHANNELS.UPDATE_GET_STATUS, () => {
-    if (!updaterService) return { type: "not-available" };
-    return updaterService.getStatus();
+  // Handle status subscription requests
+  electronIpcMain.on(IPC_CHANNELS.UPDATE_STATUS_SUBSCRIBE, () => {
+    if (!mainWindow) return;
+    const status = updaterService ? updaterService.getStatus() : { type: "not-available" };
+    mainWindow.webContents.send(IPC_CHANNELS.UPDATE_STATUS, status);
   });
 
   // Set up updater service with the main window (only in production)

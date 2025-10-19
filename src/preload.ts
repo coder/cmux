@@ -118,12 +118,17 @@ const api: IPCApi = {
     check: () => ipcRenderer.invoke(IPC_CHANNELS.UPDATE_CHECK),
     download: () => ipcRenderer.invoke(IPC_CHANNELS.UPDATE_DOWNLOAD),
     install: () => ipcRenderer.invoke(IPC_CHANNELS.UPDATE_INSTALL),
-    getStatus: () => ipcRenderer.invoke(IPC_CHANNELS.UPDATE_GET_STATUS),
     onStatus: (callback: (status: UpdateStatus) => void) => {
       const handler = (_event: unknown, status: UpdateStatus) => {
         callback(status);
       };
+
+      // Subscribe to status updates
       ipcRenderer.on(IPC_CHANNELS.UPDATE_STATUS, handler);
+
+      // Request current status - consistent subscription pattern
+      ipcRenderer.send(IPC_CHANNELS.UPDATE_STATUS_SUBSCRIBE);
+
       return () => {
         ipcRenderer.removeListener(IPC_CHANNELS.UPDATE_STATUS, handler);
       };

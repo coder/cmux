@@ -246,7 +246,6 @@ export interface IPCApi {
     check(): Promise<UpdateStatus>;
     download(): Promise<void>;
     install(): void;
-    getStatus(): Promise<UpdateStatus>;
     onStatus(callback: (status: UpdateStatus) => void): () => void;
   };
 }

@@ -134,13 +134,10 @@ export function TitleBar() {
       return;
     }
 
-    // Subscribe to update status changes
+    // Subscribe to update status changes (will receive current status immediately)
     const unsubscribe = window.api.update.onStatus((status) => {
       setUpdateStatus(status);
     });
-
-    // Get initial status
-    window.api.update.getStatus().then(setUpdateStatus).catch(console.error);
 
     return unsubscribe;
   }, [telemetryEnabled]);
