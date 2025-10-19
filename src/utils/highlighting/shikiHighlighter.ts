@@ -1,38 +1,44 @@
 import { createHighlighter, type Highlighter } from 'shiki';
 
-// Singleton instance (lazy-loaded on first use)
-let highlighterInstance: Highlighter | null = null;
+// Singleton promise (cached to prevent race conditions)
+// Multiple concurrent calls will await the same Promise
+let highlighterPromise: Promise<Highlighter> | null = null;
 
 /**
  * Get or create Shiki highlighter instance
  * Lazy-loads WASM and themes on first call
+ * Thread-safe: concurrent calls share the same initialization Promise
  */
 export async function getShikiHighlighter(): Promise<Highlighter> {
-  highlighterInstance ??= await createHighlighter({
-    themes: ['dark-plus'],
-    langs: [
-      'typescript',
-      'javascript',
-      'tsx',
-      'jsx',
-      'python',
-      'rust',
-      'go',
-      'java',
-      'c',
-      'cpp',
-      'html',
-      'css',
-      'json',
-      'yaml',
-      'markdown',
-      'bash',
-      'shell',
-      'sql',
-      'xml',
-    ],
-  });
-  return highlighterInstance;
+  // Must use if-check instead of ??= to prevent race condition
+  // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+  if (!highlighterPromise) {
+    highlighterPromise = createHighlighter({
+      themes: ['dark-plus'],
+      langs: [
+        'typescript',
+        'javascript',
+        'tsx',
+        'jsx',
+        'python',
+        'rust',
+        'go',
+        'java',
+        'c',
+        'cpp',
+        'html',
+        'css',
+        'json',
+        'yaml',
+        'markdown',
+        'bash',
+        'shell',
+        'sql',
+        'xml',
+      ],
+    });
+  }
+  return highlighterPromise;
 }
 
 /**
