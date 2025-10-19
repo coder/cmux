@@ -6,11 +6,16 @@ import type { DiffHunk, FileDiff } from "@/types/review";
 
 /**
  * Generate a stable content-based ID for a hunk
- * Uses file path + diff content (not line numbers) to survive rebases
+ * Uses file path + line range + diff content to ensure uniqueness
  */
-function generateHunkId(filePath: string, content: string): string {
-  // Hash file path + actual diff content for rebase stability
-  const str = `${filePath}:${content}`;
+function generateHunkId(
+  filePath: string,
+  oldStart: number,
+  newStart: number,
+  content: string
+): string {
+  // Hash file path + line range + diff content for uniqueness and rebase stability
+  const str = `${filePath}:${oldStart}-${newStart}:${content}`;
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
     const char = str.charCodeAt(i);
@@ -56,7 +61,12 @@ export function parseDiff(diffOutput: string): FileDiff[] {
   const finishHunk = () => {
     if (currentHunk && currentFile && hunkLines.length > 0) {
       const content = hunkLines.join("\n");
-      const hunkId = generateHunkId(currentFile.filePath, content);
+      const hunkId = generateHunkId(
+        currentFile.filePath,
+        currentHunk.oldStart!,
+        currentHunk.newStart!,
+        content
+      );
       currentFile.hunks.push({
         ...currentHunk,
         id: hunkId,
