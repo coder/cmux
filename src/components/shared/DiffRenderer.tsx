@@ -107,14 +107,14 @@ export const DiffIndicator = styled.span<{ type: DiffLineType }>`
   flex-shrink: 0;
 `;
 
-export const DiffContainer = styled.div<{ fontSize?: string }>`
+export const DiffContainer = styled.div<{ fontSize?: string; maxHeight?: string }>`
   margin: 0;
   padding: 6px 0;
   background: rgba(0, 0, 0, 0.2);
   border-radius: 3px;
   font-size: ${({ fontSize }) => fontSize ?? "12px"};
   line-height: 1.4;
-  max-height: 400px;
+  max-height: ${({ maxHeight }) => maxHeight ?? "400px"};
   overflow-y: auto;
   overflow-x: auto;
 
@@ -141,6 +141,8 @@ interface DiffRendererProps {
   filePath?: string;
   /** Font size for diff content (default: "12px") */
   fontSize?: string;
+  /** Max height for diff container (default: "400px", use "none" for no limit) */
+  maxHeight?: string;
 }
 
 /**
@@ -197,6 +199,7 @@ export const DiffRenderer: React.FC<DiffRendererProps> = ({
   newStart = 1,
   filePath,
   fontSize,
+  maxHeight,
 }) => {
   const lines = content.split("\n").filter((line) => line.length > 0);
 
@@ -210,7 +213,7 @@ export const DiffRenderer: React.FC<DiffRendererProps> = ({
   let newLineNum = newStart;
 
   return (
-    <DiffContainer fontSize={fontSize}>
+    <DiffContainer fontSize={fontSize} maxHeight={maxHeight}>
       {lines.map((line, index) => {
         const firstChar = line[0];
         const lineContent = line.slice(1); // Remove the +/-/@ prefix
@@ -455,6 +458,7 @@ export const SelectableDiffRenderer = React.memo<SelectableDiffRendererProps>(
     newStart = 1,
     filePath,
     fontSize,
+    maxHeight,
     onReviewNote,
     onLineClick,
   }) => {
@@ -565,7 +569,7 @@ export const SelectableDiffRenderer = React.memo<SelectableDiffRendererProps>(
     const lines = content.split("\n").filter((line) => line.length > 0);
 
     return (
-      <DiffContainer fontSize={fontSize}>
+      <DiffContainer fontSize={fontSize} maxHeight={maxHeight}>
         {lineData.map((lineInfo, displayIndex) => {
           const isSelected = isLineSelected(displayIndex);
 

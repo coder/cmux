@@ -166,13 +166,31 @@ const ToggleReadButton = styled.button`
 
 export const HunkViewer = React.memo<HunkViewerProps>(
   ({ hunk, hunkId, isSelected, isRead = false, onClick, onToggleRead, onReviewNote }) => {
-    // Collapse by default if marked as read
-    const [isExpanded, setIsExpanded] = useState(!isRead);
+    // Parse diff lines (memoized - only recompute if hunk.content changes)
+    // Must be done before state initialization to determine initial collapse state
+    const { lineCount, additions, deletions, isLargeHunk } = React.useMemo(() => {
+      const lines = hunk.content.split("\n").filter((line) => line.length > 0);
+      const count = lines.length;
+      return {
+        lineCount: count,
+        additions: lines.filter((line) => line.startsWith("+")).length,
+        deletions: lines.filter((line) => line.startsWith("-")).length,
+        isLargeHunk: count > 200, // Memoize to prevent useEffect re-runs
+      };
+    }, [hunk.content]);
 
-    // Auto-collapse when marked as read, auto-expand when unmarked
+    // Collapse by default if marked as read OR if hunk has >200 lines
+    const [isExpanded, setIsExpanded] = useState(() => !isRead && !isLargeHunk);
+
+    // Auto-collapse when marked as read, auto-expand when unmarked (but respect large hunk threshold)
     React.useEffect(() => {
-      setIsExpanded(!isRead);
-    }, [isRead]);
+      if (isRead) {
+        setIsExpanded(false);
+      } else if (!isLargeHunk) {
+        setIsExpanded(true);
+      }
+      // Note: When unmarking as read, large hunks remain collapsed
+    }, [isRead, isLargeHunk]);
 
     const handleToggleExpand = (e: React.MouseEvent) => {
       e.stopPropagation();
@@ -183,15 +201,6 @@ export const HunkViewer = React.memo<HunkViewerProps>(
       e.stopPropagation();
       onToggleRead?.(e);
     };
-
-    // Parse diff lines
-    const diffLines = hunk.content.split("\n").filter((line) => line.length > 0);
-    const lineCount = diffLines.length;
-    const shouldCollapse = lineCount > 20; // Collapse hunks with more than 20 lines
-
-    // Calculate net LoC (additions - deletions)
-    const additions = diffLines.filter((line) => line.startsWith("+")).length;
-    const deletions = diffLines.filter((line) => line.startsWith("-")).length;
 
     // Detect pure rename: if renamed and content hasn't changed (zero additions and deletions)
     const isPureRename =
@@ -261,6 +270,7 @@ export const HunkViewer = React.memo<HunkViewerProps>(
               filePath={hunk.filePath}
               oldStart={hunk.oldStart}
               newStart={hunk.newStart}
+              maxHeight="none"
               onReviewNote={onReviewNote}
               onLineClick={() => {
                 // Create synthetic event with data-hunk-id for parent handler
@@ -277,7 +287,7 @@ export const HunkViewer = React.memo<HunkViewerProps>(
           </CollapsedIndicator>
         )}
 
-        {shouldCollapse && isExpanded && !isPureRename && (
+        {isLargeHunk && isExpanded && !isPureRename && (
           <CollapsedIndicator onClick={handleToggleExpand}>Click to collapse</CollapsedIndicator>
         )}
       </HunkContainer>
