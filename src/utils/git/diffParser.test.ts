@@ -369,14 +369,9 @@ function greet(name) {
   });
 
   it("should show unified diff when includeUncommitted is true", () => {
-    // This test verifies that when using "includeUncommitted" flag,
-    // we get a single unified diff from base to working directory
-    // (not separate diffs for committed and uncommitted)
-
-    // Reset and setup: create a branch with committed changes
+    // Verify includeUncommitted produces single unified diff (not separate committed + uncommitted)
     execSync("git reset --hard HEAD", { cwd: testRepoPath });
 
-    // Get the current branch name (will be our base branch)
     const baseBranch = execSync("git rev-parse --abbrev-ref HEAD", {
       cwd: testRepoPath,
       encoding: "utf-8",
@@ -384,88 +379,91 @@ function greet(name) {
 
     execSync("git checkout -b unified-test", { cwd: testRepoPath });
 
-    // Make and commit a change
+    // Commit a change, then make uncommitted change
     writeFileSync(join(testRepoPath, "test-file.txt"), "Line 1\nLine 2\nLine 3\n");
     execSync("git add test-file.txt && git commit -m 'Add test file'", { cwd: testRepoPath });
-
-    // Now make an uncommitted change (different line)
     writeFileSync(join(testRepoPath, "test-file.txt"), "Line 1\nLine 2\nLine 3 modified\nLine 4\n");
 
-    // Use buildGitDiffCommand with includeUncommitted=true
     const gitCommand = buildGitDiffCommand(baseBranch, true, "", "diff");
-
-    // Execute the command
-    const diffOutput = execSync(gitCommand, {
-      cwd: testRepoPath,
-      encoding: "utf-8",
-    });
-
-    // Parse the diff
+    const diffOutput = execSync(gitCommand, { cwd: testRepoPath, encoding: "utf-8" });
     const fileDiffs = parseDiff(diffOutput);
 
-    // Should get a single FileDiff (no duplicates)
+    // Single FileDiff with unified changes (no duplicates)
     expect(fileDiffs.length).toBe(1);
     expect(fileDiffs[0].filePath).toBe("test-file.txt");
 
-    // Should have hunks showing unified changes
     const allHunks = extractAllHunks(fileDiffs);
-    expect(allHunks.length).toBeGreaterThan(0);
-
-    // All hunks should reference the same file
-    expect(allHunks.every((h) => h.filePath === "test-file.txt")).toBe(true);
-
-    // The diff should include BOTH the committed and uncommitted changes
-    // in a single unified view (not as separate hunks with different base states)
     const allContent = allHunks.map((h) => h.content).join("\n");
     expect(allContent.includes("Line 3 modified") || allContent.includes("Line 4")).toBe(true);
 
-    // Clean up: reset and go back to previous branch
+    execSync("git reset --hard HEAD && git checkout -", { cwd: testRepoPath });
+  });
+
+  it("should exclude uncommitted changes when includeUncommitted is false", () => {
+    // Verify includeUncommitted=false uses three-dot (committed only)
+    execSync("git reset --hard HEAD", { cwd: testRepoPath });
+
+    const baseBranch = execSync("git rev-parse --abbrev-ref HEAD", {
+      cwd: testRepoPath,
+      encoding: "utf-8",
+    }).trim();
+
+    execSync("git checkout -b committed-only-test", { cwd: testRepoPath });
+
+    // Commit a change
+    writeFileSync(join(testRepoPath, "committed-file.txt"), "Line 1\nLine 2\n");
+    execSync("git add committed-file.txt && git commit -m 'Add committed file'", {
+      cwd: testRepoPath,
+    });
+
+    // Make uncommitted change (should NOT appear in diff)
+    writeFileSync(join(testRepoPath, "committed-file.txt"), "Line 1\nLine 2\nUncommitted line\n");
+
+    const gitCommand = buildGitDiffCommand(baseBranch, false, "", "diff");
+    const diffOutput = execSync(gitCommand, { cwd: testRepoPath, encoding: "utf-8" });
+    const fileDiffs = parseDiff(diffOutput);
+
+    // Should get FileDiff showing only committed changes
+    expect(fileDiffs.length).toBe(1);
+    expect(fileDiffs[0].filePath).toBe("committed-file.txt");
+
+    const allHunks = extractAllHunks(fileDiffs);
+    const allContent = allHunks.map((h) => h.content).join("\n");
+
+    // Should NOT include uncommitted "Uncommitted line"
+    expect(allContent.includes("Uncommitted line")).toBe(false);
+    // Should include committed content
+    expect(allContent.includes("Line 1") || allContent.includes("Line 2")).toBe(true);
+
     execSync("git reset --hard HEAD && git checkout -", { cwd: testRepoPath });
   });
 
   it("should handle staged + uncommitted when diffBase is --staged", () => {
-    // When diffBase="--staged" with includeUncommitted=true,
-    // we want TWO separate diffs: staged changes AND unstaged changes
-    // This is the only case where we keep the && behavior
-
-    // Reset
+    // Verify --staged with includeUncommitted produces TWO diffs (staged + unstaged)
     execSync("git reset --hard HEAD", { cwd: testRepoPath });
 
-    // Create a file with changes
     writeFileSync(join(testRepoPath, "staged-test.txt"), "Line 1\nLine 2\nLine 3\n");
     execSync("git add staged-test.txt", { cwd: testRepoPath });
 
-    // Stage some changes
     writeFileSync(join(testRepoPath, "staged-test.txt"), "Line 1\nLine 2 staged\nLine 3\n");
     execSync("git add staged-test.txt", { cwd: testRepoPath });
 
-    // Make additional unstaged changes
     writeFileSync(
       join(testRepoPath, "staged-test.txt"),
       "Line 1\nLine 2 staged\nLine 3 unstaged\n"
     );
 
-    // Build command with --staged and includeUncommitted
     const gitCommand = buildGitDiffCommand("--staged", true, "", "diff");
-
-    // Execute
-    const diffOutput = execSync(gitCommand, {
-      cwd: testRepoPath,
-      encoding: "utf-8",
-    });
-
-    // Parse
+    const diffOutput = execSync(gitCommand, { cwd: testRepoPath, encoding: "utf-8" });
     const fileDiffs = parseDiff(diffOutput);
 
-    // Should get TWO FileDiff entries for the same file (staged + unstaged)
+    // Two FileDiff entries (staged + unstaged)
     expect(fileDiffs.length).toBe(2);
     expect(fileDiffs.every((f) => f.filePath === "staged-test.txt")).toBe(true);
 
-    // Should have hunks from both diffs
     const allHunks = extractAllHunks(fileDiffs);
     expect(allHunks.length).toBe(2);
 
-    // Content should show both staged and unstaged changes
     const allContent = allHunks.map((h) => h.content).join("\n");
     expect(allContent.includes("staged")).toBe(true);
     expect(allContent.includes("unstaged")).toBe(true);

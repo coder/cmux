@@ -241,18 +241,10 @@ interface DiagnosticInfo {
  * Shared logic between numstat (file tree) and diff (hunks) commands
  * Exported for testing
  *
- * Git diff semantics:
- * - `git diff A...B` (three-dot): Shows changes committed on B since branching from A
- *   → Useful for reviewing "what did I commit on this branch?"
- * - `git diff A` (two-dot/implicit): Shows all differences from A to working directory
- *   → Useful for "what changed since I branched, including uncommitted?"
- * - `git diff HEAD`: Shows uncommitted changes only (working vs HEAD)
- * - `git diff --staged`: Shows staged changes only (index vs HEAD)
- *
- * @param diffBase - The base reference (e.g., "main", "HEAD", "--staged")
- * @param includeUncommitted - Whether to include uncommitted working directory changes
- * @param pathFilter - Optional file path filter (e.g., ' -- "src/foo.ts"')
- * @param command - "diff" for unified diffs, "numstat" for file stats
+ * @param diffBase - Base reference ("main", "HEAD", "--staged")
+ * @param includeUncommitted - Include uncommitted working directory changes
+ * @param pathFilter - Optional path filter (e.g., ' -- "src/foo.ts"')
+ * @param command - "diff" (unified) or "numstat" (file stats)
  */
 export function buildGitDiffCommand(
   diffBase: string,
@@ -260,40 +252,22 @@ export function buildGitDiffCommand(
   pathFilter: string,
   command: "diff" | "numstat"
 ): string {
-  const isNumstat = command === "numstat";
-  const flag = isNumstat ? " -M --numstat" : " -M";
-
-  let cmd: string;
+  const flags = command === "numstat" ? " -M --numstat" : " -M";
 
   if (diffBase === "--staged") {
-    // Special case: reviewing staged changes
-    // Always show staged changes, optionally append unstaged as a separate diff
-    cmd = `git diff --staged${flag}${pathFilter}`;
-    if (includeUncommitted) {
-      // Append unstaged changes as second diff (uses &&)
-      // This is intentionally separate - user wants to see staged vs unstaged distinctly
-      cmd += ` && git diff HEAD${flag}${pathFilter}`;
-    }
-  } else if (diffBase === "HEAD") {
-    // HEAD as base: always shows uncommitted changes (working vs HEAD)
-    // includeUncommitted is redundant here but doesn't hurt
-    cmd = `git diff HEAD${flag}${pathFilter}`;
-  } else {
-    // Branch diff (e.g., diffBase = "main", "origin/develop")
-    if (includeUncommitted) {
-      // Two-dot (implicit): Compare base to working directory
-      // Shows ALL changes: committed on this branch + uncommitted working changes
-      // Example: `git diff main` shows everything changed since branching from main
-      cmd = `git diff ${diffBase}${flag}${pathFilter}`;
-    } else {
-      // Three-dot: Compare base merge-base to HEAD
-      // Shows ONLY committed changes (excludes working directory)
-      // Example: `git diff main...HEAD` shows commits on current branch, not dirty files
-      cmd = `git diff ${diffBase}...HEAD${flag}${pathFilter}`;
-    }
+    // Staged changes, optionally with unstaged appended as separate diff
+    const base = `git diff --staged${flags}${pathFilter}`;
+    return includeUncommitted ? `${base} && git diff HEAD${flags}${pathFilter}` : base;
   }
 
-  return cmd;
+  if (diffBase === "HEAD") {
+    // Uncommitted changes only (working vs HEAD)
+    return `git diff HEAD${flags}${pathFilter}`;
+  }
+
+  // Branch diff: two-dot includes uncommitted, three-dot excludes
+  const range = includeUncommitted ? diffBase : `${diffBase}...HEAD`;
+  return `git diff ${range}${flags}${pathFilter}`;
 }
 
 export const ReviewPanel: React.FC<ReviewPanelProps> = ({
