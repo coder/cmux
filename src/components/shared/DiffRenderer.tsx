@@ -76,7 +76,6 @@ export const LineNumber = styled.span<{ type: DiffLineType }>`
   justify-content: flex-end;
   min-width: 35px;
   padding-right: 4px;
-  font-size: ${({ type }) => (type === "header" ? "14px" : "inherit")};
   font-weight: ${({ type }) => (type === "header" ? "bold" : "normal")};
   color: ${({ type }) => getContrastColor(type)};
   opacity: ${({ type }) => (type === "add" || type === "remove" ? 0.9 : 0.6)};
@@ -122,6 +121,11 @@ export const DiffContainer = styled.div`
   /* CSS Grid ensures all lines span the same width (width of longest line) */
   display: grid;
   grid-template-columns: minmax(min-content, 1fr);
+
+  /* Ensure all child elements inherit font size from container */
+  * {
+    font-size: inherit;
+  }
 `;
 
 interface DiffRendererProps {
@@ -158,11 +162,13 @@ const HighlightedContent: React.FC<{ code: string; language: string }> = ({ code
         padding: 0,
         margin: 0,
         background: "transparent",
+        fontSize: "inherit",
       }}
       codeTagProps={{
         style: {
           display: "inline",
           fontFamily: "inherit",
+          fontSize: "inherit",
         },
       }}
     >
@@ -300,7 +306,7 @@ const CommentButton = styled.button`
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 10px;
+  font-size: 11px;
   color: white;
   font-weight: bold;
   flex-shrink: 0;
@@ -331,7 +337,7 @@ const NoteTextarea = styled.textarea`
   width: 100%;
   min-height: calc(11px * 1.4 * 3 + 12px); /* 3 lines + padding */
   padding: 6px 8px;
-  font-family: var(--font-sans);
+  font-family: var(--font-monospace);
   font-size: 11px;
   line-height: 1.4;
   background: #1e1e1e;
@@ -348,7 +354,6 @@ const NoteTextarea = styled.textarea`
 
   &::placeholder {
     color: #888;
-    font-size: 11px;
   }
 `;
 
