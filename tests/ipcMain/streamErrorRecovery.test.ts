@@ -39,7 +39,9 @@ const STABLE_PREFIX_THRESHOLD = 10;
  * Generate a random nonce for unique marker identification
  */
 function generateNonce(length = 10): string {
-  return Math.random().toString(36).substring(2, 2 + length);
+  return Math.random()
+    .toString(36)
+    .substring(2, 2 + length);
 }
 
 /**
@@ -153,7 +155,7 @@ async function resumeAndWaitForSuccess(
 /**
  * Collect stream deltas until predicate returns true
  * Returns the accumulated buffer
- * 
+ *
  * This function properly tracks consumed events to avoid returning duplicates
  */
 async function collectStreamUntil(
@@ -174,7 +176,7 @@ async function collectStreamUntil(
 
     // Process only new deltas (beyond lastProcessedIndex)
     const newDeltas = allDeltas.slice(lastProcessedIndex + 1);
-    
+
     if (newDeltas.length > 0) {
       for (const delta of newDeltas) {
         const deltaData = delta as { delta?: string };
@@ -204,11 +206,11 @@ async function collectStreamUntil(
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
 
-  console.error(
-    `[collectStreamUntil] Timeout after processing deltas, predicate never satisfied`
-  );
+  console.error(`[collectStreamUntil] Timeout after processing deltas, predicate never satisfied`);
   console.error(`[collectStreamUntil] Final buffer length: ${buffer.length}`);
-  console.error(`[collectStreamUntil] Buffer sample (first 500 chars): ${buffer.substring(0, 500)}`);
+  console.error(
+    `[collectStreamUntil] Buffer sample (first 500 chars): ${buffer.substring(0, 500)}`
+  );
   throw new Error("Timeout: predicate never satisfied");
 }
 
@@ -239,7 +241,6 @@ ${nonce}-5: five
 Continue this pattern all the way to 100. Use only single-word number names (six, seven, eight, etc.).
 
 IMPORTANT: Do not add any other text. Start immediately with ${nonce}-1: one. If interrupted, resume from where you stopped without repeating any lines.`;
-
 
         const sendResult = await sendMessageWithModel(
           env.mockIpcRenderer,
