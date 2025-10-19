@@ -59,6 +59,11 @@ Download pre-built binaries from [the releases page](https://github.com/coder/cm
 ## Screenshots
 
 <div align="center">
+  <p><em>Integrated code-review for faster iteration:</p>
+  <img src="./docs/img/code-review.webp" alt="Screenshot of code review" />
+</div>
+
+<div align="center">
   <p><em>Git divergence UI keeps you looped in on changes and potential conflicts:</em></p>
   <img src="./docs/img/git-status.webp" alt="Screenshot of git status" />
 </div>
