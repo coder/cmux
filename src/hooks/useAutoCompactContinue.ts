@@ -60,7 +60,8 @@ export function useAutoCompactContinue() {
       // The summary message has compaction-result metadata with the continueMessage
       const summaryMessage = state.cmuxMessages[0]; // Single compacted message
       const cmuxMeta = summaryMessage?.metadata?.cmuxMetadata;
-      const continueMessage = cmuxMeta?.type === "compaction-result" ? cmuxMeta.continueMessage : undefined;
+      const continueMessage =
+        cmuxMeta?.type === "compaction-result" ? cmuxMeta.continueMessage : undefined;
 
       if (!continueMessage) continue;
 
@@ -70,7 +71,10 @@ export function useAutoCompactContinue() {
       if (firedForWorkspace.current.has(workspaceId)) continue; // Double-check
       firedForWorkspace.current.add(workspaceId);
 
-      console.log(`[useAutoCompactContinue] Sending continue message for ${workspaceId}:`, continueMessage);
+      console.log(
+        `[useAutoCompactContinue] Sending continue message for ${workspaceId}:`,
+        continueMessage
+      );
 
       // Build options and send message directly
       const options = buildSendMessageOptions(workspaceId);
