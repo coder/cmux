@@ -25,6 +25,12 @@ const reactCompilerConfig = {
   target: "18", // Target React 18 (requires react-compiler-runtime package)
 };
 
+// Babel plugins configuration (shared between dev and production)
+const babelPlugins = [
+  ["babel-plugin-react-compiler", reactCompilerConfig],
+  "@emotion/babel-plugin", // Required for component selector syntax (e.g., ${Component}:hover &)
+];
+
 export default defineConfig(({ mode }) => ({
   // This prevents mermaid initialization errors in production while allowing dev to work
   plugins:
@@ -33,10 +39,7 @@ export default defineConfig(({ mode }) => ({
           svgr(),
           react({
             babel: {
-              plugins: [
-                ["babel-plugin-react-compiler", reactCompilerConfig],
-                "@emotion/babel-plugin",
-              ],
+              plugins: babelPlugins,
             },
           }),
           topLevelAwait(),
@@ -45,10 +48,7 @@ export default defineConfig(({ mode }) => ({
           svgr(),
           react({
             babel: {
-              plugins: [
-                ["babel-plugin-react-compiler", reactCompilerConfig],
-                "@emotion/babel-plugin",
-              ],
+              plugins: babelPlugins,
             },
           }),
         ],
