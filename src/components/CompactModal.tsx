@@ -11,6 +11,7 @@ import {
   CommandLabel,
 } from "./Modal";
 import { formatCompactCommand, type CompactOptions } from "@/utils/chatCommands";
+import { useCompactOptions } from "@/hooks/useCompactOptions";
 
 interface CompactModalProps {
   isOpen: boolean;
@@ -19,30 +20,29 @@ interface CompactModalProps {
 }
 
 const CompactModal: React.FC<CompactModalProps> = ({ isOpen, onClose, onCompact }) => {
-  const [options, setOptions] = useState<CompactOptions>({});
+  const { options, setOptions, resetOptions } = useCompactOptions();
   const [maxOutputTokensInput, setMaxOutputTokensInput] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const infoId = useId();
 
-  // Sync options with input fields
+  // Sync maxOutputTokens from input field to options
   useEffect(() => {
-    setOptions({
+    setOptions((prev) => ({
+      ...prev,
       maxOutputTokens: maxOutputTokensInput.trim()
         ? parseInt(maxOutputTokensInput.trim(), 10)
         : undefined,
-      model: options.model?.trim() ?? undefined,
-      continueMessage: options.continueMessage?.trim() ?? undefined,
-    });
-  }, [maxOutputTokensInput, options.model, options.continueMessage]);
+    }));
+  }, [maxOutputTokensInput, setOptions]);
 
   // Reset form when modal opens
   useEffect(() => {
     if (isOpen) {
-      setOptions({});
+      resetOptions();
       setMaxOutputTokensInput("");
       setIsLoading(false);
     }
-  }, [isOpen]);
+  }, [isOpen, resetOptions]);
 
   const handleCancel = () => {
     if (!isLoading) {
