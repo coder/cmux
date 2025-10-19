@@ -151,8 +151,9 @@ export class PartialService {
       );
 
       const shouldCommit =
-        !existingMessage || // No message with this sequence yet
-        (partial.parts?.length ?? 0) > (existingMessage.parts?.length ?? 0); // Partial has more parts
+        (!existingMessage || // No message with this sequence yet
+          (partial.parts?.length ?? 0) > (existingMessage.parts?.length ?? 0)) && // Partial has more parts
+        (partial.parts?.length ?? 0) > 0; // Don't commit empty messages
 
       if (shouldCommit) {
         if (existingMessage) {

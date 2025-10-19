@@ -153,4 +153,44 @@ describe("PartialService - Error Recovery", () => {
     const deletePartial = partialService.deletePartial as ReturnType<typeof mock>;
     expect(deletePartial).toHaveBeenCalledWith(workspaceId);
   });
+
+  test("commitToHistory should skip empty errored partial", async () => {
+    const workspaceId = "test-workspace";
+    const emptyErrorPartial: CmuxMessage = {
+      id: "msg-1",
+      role: "assistant",
+      metadata: {
+        historySequence: 1,
+        timestamp: Date.now(),
+        model: "test-model",
+        partial: true,
+        error: "Network error",
+        errorType: "network",
+      },
+      parts: [], // Empty - no content accumulated before error
+    };
+
+    // Mock readPartial to return empty errored partial
+    partialService.readPartial = mock(() => Promise.resolve(emptyErrorPartial));
+
+    // Mock deletePartial
+    partialService.deletePartial = mock(() => Promise.resolve(Ok(undefined)));
+
+    // Mock getHistory to return no existing messages
+    mockHistoryService.getHistory = mock(() => Promise.resolve(Ok([])));
+
+    // Call commitToHistory
+    const result = await partialService.commitToHistory(workspaceId);
+
+    // Should succeed
+    expect(result.success).toBe(true);
+
+    // Should NOT call appendToHistory for empty message (no value to preserve)
+    const appendToHistory = mockHistoryService.appendToHistory as ReturnType<typeof mock>;
+    expect(appendToHistory).not.toHaveBeenCalled();
+
+    // Should still delete the partial (cleanup)
+    const deletePartial = partialService.deletePartial as ReturnType<typeof mock>;
+    expect(deletePartial).toHaveBeenCalledWith(workspaceId);
+  });
 });
