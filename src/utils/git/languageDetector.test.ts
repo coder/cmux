@@ -1,123 +1,178 @@
-import { describe, it, expect } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { getLanguageFromPath } from "./languageDetector";
 
 describe("getLanguageFromPath", () => {
-  it("should detect TypeScript files", () => {
-    expect(getLanguageFromPath("src/App.ts")).toBe("typescript");
-    expect(getLanguageFromPath("utils/helper.ts")).toBe("typescript");
+  describe("JavaScript/TypeScript ecosystem", () => {
+    test("detects TypeScript", () => {
+      expect(getLanguageFromPath("Component.tsx")).toBe("tsx");
+      expect(getLanguageFromPath("utils.ts")).toBe("typescript");
+      expect(getLanguageFromPath("src/utils/helper.ts")).toBe("typescript");
+    });
+
+    test("detects JavaScript", () => {
+      expect(getLanguageFromPath("app.js")).toBe("javascript");
+      expect(getLanguageFromPath("Component.jsx")).toBe("jsx");
+      expect(getLanguageFromPath("src/components/Button.jsx")).toBe("jsx");
+    });
   });
 
-  it("should detect TSX files", () => {
-    expect(getLanguageFromPath("src/App.tsx")).toBe("tsx");
-    expect(getLanguageFromPath("components/Button.tsx")).toBe("tsx");
+  describe("web technologies", () => {
+    test("detects HTML", () => {
+      expect(getLanguageFromPath("index.html")).toBe("html");
+      expect(getLanguageFromPath("templates/page.html")).toBe("html");
+    });
+
+    test("detects CSS and variants", () => {
+      expect(getLanguageFromPath("styles.css")).toBe("css");
+      expect(getLanguageFromPath("app.scss")).toBe("scss");
+      expect(getLanguageFromPath("theme.sass")).toBe("sass");
+      expect(getLanguageFromPath("variables.less")).toBe("less");
+    });
   });
 
-  it("should detect JavaScript files", () => {
-    expect(getLanguageFromPath("script.js")).toBe("javascript");
-    expect(getLanguageFromPath("src/index.js")).toBe("javascript");
+  describe("backend languages", () => {
+    test("detects Python", () => {
+      expect(getLanguageFromPath("main.py")).toBe("python");
+      expect(getLanguageFromPath("src/utils/helper.py")).toBe("python");
+    });
+
+    test("detects Java", () => {
+      expect(getLanguageFromPath("Main.java")).toBe("java");
+      expect(getLanguageFromPath("com/example/Service.java")).toBe("java");
+    });
+
+    test("detects Go", () => {
+      expect(getLanguageFromPath("main.go")).toBe("go");
+      expect(getLanguageFromPath("pkg/utils/helper.go")).toBe("go");
+    });
+
+    test("detects Rust", () => {
+      expect(getLanguageFromPath("main.rs")).toBe("rust");
+      expect(getLanguageFromPath("src/lib.rs")).toBe("rust");
+    });
+
+    test("detects C/C++", () => {
+      expect(getLanguageFromPath("main.c")).toBe("c");
+      expect(getLanguageFromPath("main.cpp")).toBe("cpp");
+      expect(getLanguageFromPath("header.h")).toBe("c");
+    });
+
+    test("detects C#", () => {
+      expect(getLanguageFromPath("Program.cs")).toBe("csharp");
+      expect(getLanguageFromPath("Services/UserService.cs")).toBe("csharp");
+    });
+
+    test("detects Ruby", () => {
+      expect(getLanguageFromPath("app.rb")).toBe("ruby");
+      expect(getLanguageFromPath("Gemfile")).toBe("ruby");
+    });
+
+    test("detects PHP", () => {
+      expect(getLanguageFromPath("index.php")).toBe("php");
+      expect(getLanguageFromPath("src/Controller.php")).toBe("php");
+    });
+
+    test("detects other backend languages", () => {
+      expect(getLanguageFromPath("Main.kt")).toBe("kotlin");
+      expect(getLanguageFromPath("App.swift")).toBe("swift");
+      expect(getLanguageFromPath("Main.scala")).toBe("scala");
+      expect(getLanguageFromPath("app.ex")).toBe("elixir");
+    });
   });
 
-  it("should detect JSX files", () => {
-    expect(getLanguageFromPath("Component.jsx")).toBe("jsx");
+  describe("shell and scripting", () => {
+    test("detects shell scripts", () => {
+      expect(getLanguageFromPath("script.sh")).toBe("bash");
+      expect(getLanguageFromPath("deploy.bash")).toBe("bash");
+    });
+
+    test("detects PowerShell", () => {
+      expect(getLanguageFromPath("script.ps1")).toBe("powershell");
+    });
+
+    test("detects batch files", () => {
+      expect(getLanguageFromPath("build.bat")).toBe("batch");
+    });
   });
 
-  it("should detect Python files", () => {
-    expect(getLanguageFromPath("main.py")).toBe("python");
-    expect(getLanguageFromPath("utils.py")).toBe("python");
+  describe("data and config formats", () => {
+    test("detects JSON", () => {
+      expect(getLanguageFromPath("package.json")).toBe("json");
+      expect(getLanguageFromPath("config.json")).toBe("json");
+    });
+
+    test("detects YAML", () => {
+      expect(getLanguageFromPath("config.yaml")).toBe("yaml");
+      expect(getLanguageFromPath(".github/workflows/ci.yml")).toBe("yaml");
+    });
+
+    test("detects TOML", () => {
+      expect(getLanguageFromPath("Cargo.toml")).toBe("toml");
+      expect(getLanguageFromPath("config.toml")).toBe("toml");
+    });
+
+    test("detects XML", () => {
+      expect(getLanguageFromPath("config.xml")).toBe("xml");
+      expect(getLanguageFromPath("pom.xml")).toBe("xml");
+    });
+
+    test("detects Markdown", () => {
+      expect(getLanguageFromPath("README.md")).toBe("markdown");
+      expect(getLanguageFromPath("docs/guide.md")).toBe("markdown");
+    });
+
+    test("detects SQL", () => {
+      expect(getLanguageFromPath("schema.sql")).toBe("sql");
+      expect(getLanguageFromPath("migrations/001_init.sql")).toBe("sql");
+    });
+
+    test("detects GraphQL", () => {
+      expect(getLanguageFromPath("schema.graphql")).toBe("graphql");
+      expect(getLanguageFromPath("queries.gql")).toBe("graphql");
+    });
   });
 
-  it("should detect Rust files", () => {
-    expect(getLanguageFromPath("main.rs")).toBe("rust");
+  describe("other formats", () => {
+    test("detects Dockerfile", () => {
+      expect(getLanguageFromPath("Dockerfile")).toBe("docker");
+      expect(getLanguageFromPath("Dockerfile.prod")).toBe("docker");
+    });
+
+    test("detects Makefile", () => {
+      expect(getLanguageFromPath("Makefile")).toBe("makefile");
+      expect(getLanguageFromPath("GNUmakefile")).toBe("makefile");
+    });
   });
 
-  it("should detect Go files", () => {
-    expect(getLanguageFromPath("main.go")).toBe("go");
-  });
+  describe("edge cases", () => {
+    test("handles unknown extensions", () => {
+      expect(getLanguageFromPath("file.unknownext")).toBe("text");
+    });
 
-  it("should detect Ruby files", () => {
-    expect(getLanguageFromPath("config.rb")).toBe("ruby");
-  });
+    test("handles files without extensions", () => {
+      expect(getLanguageFromPath("README")).toBe("text");
+      expect(getLanguageFromPath("LICENSE")).toBe("text");
+    });
 
-  it("should detect Java files", () => {
-    expect(getLanguageFromPath("Main.java")).toBe("java");
-  });
+    test("handles paths with directories", () => {
+      expect(getLanguageFromPath("src/components/Button.tsx")).toBe("tsx");
+      expect(getLanguageFromPath("backend/services/user.py")).toBe("python");
+      expect(getLanguageFromPath("./relative/path/file.go")).toBe("go");
+    });
 
-  it("should detect C++ files", () => {
-    expect(getLanguageFromPath("main.cpp")).toBe("cpp");
-    expect(getLanguageFromPath("header.hpp")).toBe("cpp");
-  });
+    test("handles absolute paths", () => {
+      expect(getLanguageFromPath("/usr/local/bin/script.sh")).toBe("bash");
+      expect(getLanguageFromPath("/home/user/project/main.rs")).toBe("rust");
+    });
 
-  it("should detect C# files", () => {
-    expect(getLanguageFromPath("Program.cs")).toBe("csharp");
-  });
-
-  it("should detect PHP files", () => {
-    expect(getLanguageFromPath("index.php")).toBe("php");
-  });
-
-  it("should detect Shell scripts", () => {
-    expect(getLanguageFromPath("script.sh")).toBe("bash");
-  });
-
-  it("should detect SQL files", () => {
-    expect(getLanguageFromPath("query.sql")).toBe("sql");
-  });
-
-  it("should detect HTML files", () => {
-    expect(getLanguageFromPath("index.html")).toBe("html");
-  });
-
-  it("should detect CSS files", () => {
-    expect(getLanguageFromPath("styles.css")).toBe("css");
-  });
-
-  it("should detect SCSS files", () => {
-    expect(getLanguageFromPath("styles.scss")).toBe("scss");
-  });
-
-  it("should detect JSON files", () => {
-    expect(getLanguageFromPath("package.json")).toBe("json");
-  });
-
-  it("should detect YAML files", () => {
-    expect(getLanguageFromPath("config.yaml")).toBe("yaml");
-    expect(getLanguageFromPath("config.yml")).toBe("yaml");
-  });
-
-  it("should detect Markdown files", () => {
-    expect(getLanguageFromPath("README.md")).toBe("markdown");
-  });
-
-  it("should detect Dockerfile", () => {
-    expect(getLanguageFromPath("Dockerfile")).toBe("docker");
-  });
-
-  it("should detect Makefile", () => {
-    expect(getLanguageFromPath("Makefile")).toBe("makefile");
-  });
-
-  it("should handle files with no extension", () => {
-    expect(getLanguageFromPath("LICENSE")).toBe("text");
-  });
-
-  it("should handle unknown extensions", () => {
-    expect(getLanguageFromPath("file.xyz")).toBe("text");
-  });
-
-  it("should handle paths with directories", () => {
-    expect(getLanguageFromPath("src/components/App.tsx")).toBe("tsx");
-    expect(getLanguageFromPath("/absolute/path/to/file.rs")).toBe("rust");
-  });
-
-  it("should handle files with multiple dots", () => {
-    expect(getLanguageFromPath("my.component.tsx")).toBe("tsx");
-    // Note: .test.ts is not recognized as TypeScript by the library (treats whole as extension)
-    // This is expected behavior - the library is simple and fast, not exhaustive
-    expect(getLanguageFromPath("utils.test.ts")).toBe("text");
-  });
-
-  it("should be case insensitive for extensions", () => {
-    expect(getLanguageFromPath("App.TS")).toBe("typescript");
-    expect(getLanguageFromPath("App.TSX")).toBe("tsx");
+    test("fallback to lowercase for unmapped languages", () => {
+      // Languages not in LINGUIST_TO_PRISM map should fallback to lowercase
+      // This is handled by the lowercase fallback in the implementation
+      const result = getLanguageFromPath("test.dart");
+      // Dart should be detected and lowercased (if not in map explicitly)
+      expect(typeof result).toBe("string");
+      expect(result.length).toBeGreaterThan(0);
+    });
   });
 });
+

@@ -1,118 +1,139 @@
 /**
- * Language detection for syntax highlighting in diffs
- * Maps file paths to Prism language identifiers
+ * Language detection utility for syntax highlighting in diffs
+ * Maps file paths to Prism language identifiers using file extensions
  */
-
-// Note: Using require because the ESM export is broken in detect-programming-language
-// eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-unsafe-member-access
-const getProgrammingLanguage = require("detect-programming-language").default as (
-  fileName: string
-) => string | undefined;
 
 /**
- * Map GitHub Linguist language names to Prism language identifiers
- * Only includes mappings where the names differ
+ * Maps file extensions to Prism language identifiers
+ * Comprehensive mapping covering common programming languages and formats
  */
-const LINGUIST_TO_PRISM: Record<string, string> = {
-  // Common languages where names differ or need explicit mapping
-  TypeScript: "typescript",
-  JavaScript: "javascript",
-  Python: "python",
-  Rust: "rust",
-  Ruby: "ruby",
-  Go: "go",
-  Java: "java",
-  "C++": "cpp",
-  Smalltalk: "csharp", // The library returns "Smalltalk" for .cs files
-  PHP: "php",
-  Swift: "swift",
-  Kotlin: "kotlin",
-  Scala: "scala",
-  Haskell: "haskell",
-  Clojure: "clojure",
-  Elixir: "elixir",
-  Erlang: "erlang",
-  Lua: "lua",
-  Perl: "perl",
-  R: "r",
-  Shell: "bash",
-  PowerShell: "powershell",
-  TSQL: "sql", // The library returns "TSQL" for .sql files
-  SCSS: "scss",
-  Sass: "sass",
-  Less: "less",
-  TOML: "toml",
-  "Objective-C": "objectivec",
-  Dart: "dart",
-  Groovy: "groovy",
-  GraphQL: "graphql",
-  Solidity: "solidity",
-  WebAssembly: "wasm",
-  Vim: "vim",
-  // TSX/JSX are special cases handled by extension
-  TSX: "tsx",
-  JSX: "jsx",
+const EXTENSION_TO_PRISM: Record<string, string> = {
+  // JavaScript/TypeScript ecosystem
+  ".ts": "typescript",
+  ".tsx": "tsx",
+  ".js": "javascript",
+  ".mjs": "javascript",
+  ".cjs": "javascript",
+  ".jsx": "jsx",
+
+  // Web technologies
+  ".html": "html",
+  ".htm": "html",
+  ".css": "css",
+  ".scss": "scss",
+  ".sass": "sass",
+  ".less": "less",
+
+  // Backend languages
+  ".py": "python",
+  ".pyw": "python",
+  ".java": "java",
+  ".cs": "csharp",
+  ".cpp": "cpp",
+  ".cc": "cpp",
+  ".cxx": "cpp",
+  ".c": "c",
+  ".h": "c",
+  ".go": "go",
+  ".rs": "rust",
+  ".rb": "ruby",
+  ".php": "php",
+  ".kt": "kotlin",
+  ".kts": "kotlin",
+  ".swift": "swift",
+  ".scala": "scala",
+  ".sc": "scala",
+  ".ex": "elixir",
+  ".exs": "elixir",
+  ".erl": "erlang",
+  ".hrl": "erlang",
+  ".hs": "haskell",
+  ".lhs": "haskell",
+  ".lua": "lua",
+  ".pl": "perl",
+  ".pm": "perl",
+  ".r": "r",
+  ".R": "r",
+
+  // Shell/scripting
+  ".sh": "bash",
+  ".bash": "bash",
+  ".zsh": "bash",
+  ".ps1": "powershell",
+  ".psm1": "powershell",
+  ".bat": "batch",
+  ".cmd": "batch",
+
+  // Data/config formats
+  ".json": "json",
+  ".jsonc": "json",
+  ".yaml": "yaml",
+  ".yml": "yaml",
+  ".toml": "toml",
+  ".xml": "xml",
+  ".md": "markdown",
+  ".markdown": "markdown",
+  ".sql": "sql",
+  ".graphql": "graphql",
+  ".gql": "graphql",
+
+  // Other languages
+  ".vim": "vim",
+  ".diff": "diff",
+  ".patch": "diff",
+  ".clj": "clojure",
+  ".cljs": "clojurescript",
+  ".coffee": "coffeescript",
+  ".dart": "dart",
+  ".elm": "elm",
+  ".jl": "julia",
+  ".nim": "nim",
+  ".ml": "ocaml",
+  ".re": "reason",
+  ".sol": "solidity",
+  ".zig": "zig",
 };
 
 /**
- * Extensions that the library doesn't recognize
- * Map them directly to Prism language identifiers
+ * Maps special filenames to Prism language identifiers
  */
-const EXT_TO_PRISM: Record<string, string> = {
-  html: "html",
-  htm: "html",
-  css: "css",
-  scss: "scss",
-  sass: "sass",
-  less: "less",
-  json: "json",
-  yaml: "yaml",
-  yml: "yaml",
-  xml: "xml",
-  md: "markdown",
-  markdown: "markdown",
+const FILENAME_TO_PRISM: Record<string, string> = {
+  Dockerfile: "docker",
+  "Dockerfile.dev": "docker",
+  "Dockerfile.prod": "docker",
+  "Dockerfile.test": "docker",
+  Makefile: "makefile",
+  GNUmakefile: "makefile",
+  makefile: "makefile",
+  Gemfile: "ruby",
+  "Gemfile.lock": "ruby",
+  Rakefile: "ruby",
+  Vagrantfile: "ruby",
 };
 
 /**
- * Get Prism language identifier from file path
- * @param filePath - Path to file (can be relative or absolute)
- * @returns Prism language identifier or 'text' if unknown
+ * Detects the programming language from a file path for syntax highlighting
+ * @param filePath - Relative or absolute file path
+ * @returns Prism language identifier (e.g., "typescript", "python") or "text" if unknown
  */
 export function getLanguageFromPath(filePath: string): string {
-  // Extract extension (handle case-insensitivity and multi-dot filenames)
-  const parts = filePath.split("/").pop()?.split(".") ?? [];
-  if (parts.length < 2) {
-    // Special case: Dockerfile and Makefile have no extension
-    const fileName = parts[0]?.toLowerCase();
-    if (fileName === "dockerfile") return "docker";
-    if (fileName === "makefile") return "makefile";
-    return "text";
+  // Extract filename and extension
+  const parts = filePath.split("/");
+  const filename = parts[parts.length - 1];
+  const lastDot = filename.lastIndexOf(".");
+  const extension = lastDot >= 0 ? filename.slice(lastDot).toLowerCase() : "";
+
+  // Check special filenames first (Dockerfile, Makefile, etc.)
+  if (FILENAME_TO_PRISM[filename]) {
+    return FILENAME_TO_PRISM[filename];
   }
 
-  // Get the last part as extension, lowercase for consistency
-  const ext = parts[parts.length - 1].toLowerCase();
+  // Check extension mapping
+  if (extension && EXTENSION_TO_PRISM[extension]) {
+    return EXTENSION_TO_PRISM[extension];
+  }
 
-  // TSX and JSX need special handling
-  if (ext === "tsx") return "tsx";
-  if (ext === "jsx") return "jsx";
-
-  // Check direct extension mapping first (for extensions the library doesn't recognize)
-  if (EXT_TO_PRISM[ext]) return EXT_TO_PRISM[ext];
-
-  // Normalize the filename to lowercase for the library
-  // (it only recognizes lowercase extensions)
-  const normalizedPath = filePath.toLowerCase();
-
-  // Use detect-programming-language to get GitHub Linguist name
-  const linguistName = getProgrammingLanguage(normalizedPath);
-
-  // If no language detected, fallback to text
-  if (!linguistName) return "text";
-
-  // Map to Prism identifier (if mapping exists) or lowercase linguist name
-  const prismLang = LINGUIST_TO_PRISM[linguistName];
-  if (prismLang !== undefined) return prismLang;
-
-  // Default: lowercase the linguist name (works for many languages)
-  return linguistName.toLowerCase();
+  // Unknown file type
+  return "text";
 }
+

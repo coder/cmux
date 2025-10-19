@@ -12,7 +12,6 @@
         "ai-tokenizer": "^1.0.3",
         "cmdk": "^1.0.0",
         "crc-32": "^1.2.2",
-        "detect-programming-language": "^1.0.4",
         "diff": "^8.0.2",
         "disposablestack": "^1.1.7",
         "jsonc-parser": "^3.3.1",
@@ -1211,8 +1210,6 @@
     "detect-node": ["detect-node@2.1.0", "", {}, "sha512-T0NIuQpnTvFDATNuHN5roPwSBG83rFsuO+MXXH9/3N1eFbn4wcPjttvjMLEPWJ0RGUYgQE7cGgS3tNxbqCGM7g=="],
 
     "detect-node-es": ["detect-node-es@1.1.0", "", {}, "sha512-ypdmJU/TbBby2Dxibuv7ZLW3Bs1QEmM7nHjEANfohJLvE0XVujisn1qPJcZxg+qDucsr+bP6fLD1rPS3AhJ7EQ=="],
-
-    "detect-programming-language": ["detect-programming-language@1.0.4", "", {}, "sha512-2aurszyozOe27JAVyWvtA0JQLfbRIj0Vu1YngZrVk/qX6fgqOyH5m+bnPBTTWjMiYW64vTHXujCW/kQQSyHs9g=="],
 
     "devlop": ["devlop@1.1.0", "", { "dependencies": { "dequal": "^2.0.0" } }, "sha512-RWmIqhcFf1lRYBvNmr7qTNuyCt/7/ns2jbpp1+PalgE/rDQcBT0fioSMUpJ93irlUhC5hrg4cYqe6U+0ImW0rA=="],
 
