@@ -10,6 +10,7 @@ import { join } from "path";
 import { tmpdir } from "os";
 import { execSync } from "child_process";
 import { parseDiff, extractAllHunks } from "./diffParser";
+import { buildGitDiffCommand } from "@/components/RightSidebar/CodeReview/ReviewPanel";
 
 describe("git diff parser (real repository)", () => {
   let testRepoPath: string;
@@ -365,5 +366,106 @@ function greet(name) {
 
     // Pure directory renames should have NO hunks (files are identical)
     expect(allHunks.length).toBe(0);
+  });
+
+  it("should show unified diff when includeUncommitted is true", () => {
+    // Verify includeUncommitted produces single unified diff (not separate committed + uncommitted)
+    execSync("git reset --hard HEAD", { cwd: testRepoPath });
+
+    const baseBranch = execSync("git rev-parse --abbrev-ref HEAD", {
+      cwd: testRepoPath,
+      encoding: "utf-8",
+    }).trim();
+
+    execSync("git checkout -b unified-test", { cwd: testRepoPath });
+
+    // Commit a change, then make uncommitted change
+    writeFileSync(join(testRepoPath, "test-file.txt"), "Line 1\nLine 2\nLine 3\n");
+    execSync("git add test-file.txt && git commit -m 'Add test file'", { cwd: testRepoPath });
+    writeFileSync(join(testRepoPath, "test-file.txt"), "Line 1\nLine 2\nLine 3 modified\nLine 4\n");
+
+    const gitCommand = buildGitDiffCommand(baseBranch, true, "", "diff");
+    const diffOutput = execSync(gitCommand, { cwd: testRepoPath, encoding: "utf-8" });
+    const fileDiffs = parseDiff(diffOutput);
+
+    // Single FileDiff with unified changes (no duplicates)
+    expect(fileDiffs.length).toBe(1);
+    expect(fileDiffs[0].filePath).toBe("test-file.txt");
+
+    const allHunks = extractAllHunks(fileDiffs);
+    const allContent = allHunks.map((h) => h.content).join("\n");
+    expect(allContent.includes("Line 3 modified") || allContent.includes("Line 4")).toBe(true);
+
+    execSync("git reset --hard HEAD && git checkout -", { cwd: testRepoPath });
+  });
+
+  it("should exclude uncommitted changes when includeUncommitted is false", () => {
+    // Verify includeUncommitted=false uses three-dot (committed only)
+    execSync("git reset --hard HEAD", { cwd: testRepoPath });
+
+    const baseBranch = execSync("git rev-parse --abbrev-ref HEAD", {
+      cwd: testRepoPath,
+      encoding: "utf-8",
+    }).trim();
+
+    execSync("git checkout -b committed-only-test", { cwd: testRepoPath });
+
+    // Commit a change
+    writeFileSync(join(testRepoPath, "committed-file.txt"), "Line 1\nLine 2\n");
+    execSync("git add committed-file.txt && git commit -m 'Add committed file'", {
+      cwd: testRepoPath,
+    });
+
+    // Make uncommitted change (should NOT appear in diff)
+    writeFileSync(join(testRepoPath, "committed-file.txt"), "Line 1\nLine 2\nUncommitted line\n");
+
+    const gitCommand = buildGitDiffCommand(baseBranch, false, "", "diff");
+    const diffOutput = execSync(gitCommand, { cwd: testRepoPath, encoding: "utf-8" });
+    const fileDiffs = parseDiff(diffOutput);
+
+    // Should get FileDiff showing only committed changes
+    expect(fileDiffs.length).toBe(1);
+    expect(fileDiffs[0].filePath).toBe("committed-file.txt");
+
+    const allHunks = extractAllHunks(fileDiffs);
+    const allContent = allHunks.map((h) => h.content).join("\n");
+
+    // Should NOT include uncommitted "Uncommitted line"
+    expect(allContent.includes("Uncommitted line")).toBe(false);
+    // Should include committed content
+    expect(allContent.includes("Line 1") || allContent.includes("Line 2")).toBe(true);
+
+    execSync("git reset --hard HEAD && git checkout -", { cwd: testRepoPath });
+  });
+
+  it("should handle staged + uncommitted when diffBase is --staged", () => {
+    // Verify --staged with includeUncommitted produces TWO diffs (staged + unstaged)
+    execSync("git reset --hard HEAD", { cwd: testRepoPath });
+
+    writeFileSync(join(testRepoPath, "staged-test.txt"), "Line 1\nLine 2\nLine 3\n");
+    execSync("git add staged-test.txt", { cwd: testRepoPath });
+
+    writeFileSync(join(testRepoPath, "staged-test.txt"), "Line 1\nLine 2 staged\nLine 3\n");
+    execSync("git add staged-test.txt", { cwd: testRepoPath });
+
+    writeFileSync(
+      join(testRepoPath, "staged-test.txt"),
+      "Line 1\nLine 2 staged\nLine 3 unstaged\n"
+    );
+
+    const gitCommand = buildGitDiffCommand("--staged", true, "", "diff");
+    const diffOutput = execSync(gitCommand, { cwd: testRepoPath, encoding: "utf-8" });
+    const fileDiffs = parseDiff(diffOutput);
+
+    // Two FileDiff entries (staged + unstaged)
+    expect(fileDiffs.length).toBe(2);
+    expect(fileDiffs.every((f) => f.filePath === "staged-test.txt")).toBe(true);
+
+    const allHunks = extractAllHunks(fileDiffs);
+    expect(allHunks.length).toBe(2);
+
+    const allContent = allHunks.map((h) => h.content).join("\n");
+    expect(allContent.includes("staged")).toBe(true);
+    expect(allContent.includes("unstaged")).toBe(true);
   });
 });
