@@ -60,21 +60,29 @@ export function useAutoCompactContinue() {
       // The summary message has compaction-result metadata with the continueMessage
       const summaryMessage = state.cmuxMessages[0]; // Single compacted message
       const cmuxMeta = summaryMessage?.metadata?.cmuxMetadata;
+      const continueMessage =
+        cmuxMeta?.type === "compaction-result" ? cmuxMeta.continueMessage : undefined;
 
-      if (cmuxMeta?.type === "compaction-result" && cmuxMeta.continueMessage) {
-        // Mark as fired immediately to avoid re-entry on rapid renders
-        firedForWorkspace.current.add(workspaceId);
+      if (!continueMessage) continue;
 
-        // Build options and send message directly
-        const options = buildSendMessageOptions(workspaceId);
-        window.api.workspace
-          .sendMessage(workspaceId, cmuxMeta.continueMessage, options)
-          .catch((error) => {
-            console.error("Failed to send continue message:", error);
-            // If sending failed, allow another attempt on next render by clearing the guard
-            firedForWorkspace.current.delete(workspaceId);
-          });
-      }
+      // Mark as fired BEFORE any async operations to prevent race conditions
+      // This MUST come immediately after checking continueMessage to ensure
+      // only one of multiple concurrent checkAutoCompact() runs can proceed
+      if (firedForWorkspace.current.has(workspaceId)) continue; // Double-check
+      firedForWorkspace.current.add(workspaceId);
+
+      console.log(
+        `[useAutoCompactContinue] Sending continue message for ${workspaceId}:`,
+        continueMessage
+      );
+
+      // Build options and send message directly
+      const options = buildSendMessageOptions(workspaceId);
+      window.api.workspace.sendMessage(workspaceId, continueMessage, options).catch((error) => {
+        console.error("Failed to send continue message:", error);
+        // If sending failed, allow another attempt on next render by clearing the guard
+        firedForWorkspace.current.delete(workspaceId);
+      });
     }
   };
 
