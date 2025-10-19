@@ -72,6 +72,38 @@ const HunksSection = styled.div`
   order: 1; /* Stay in middle regardless of layout */
 `;
 
+const SearchContainer = styled.div`
+  padding: 8px 12px;
+  border-bottom: 1px solid #3e3e42;
+  background: #252526;
+`;
+
+const SearchInput = styled.input`
+  width: 100%;
+  padding: 6px 10px;
+  background: #1e1e1e;
+  border: 1px solid #3e3e42;
+  border-radius: 4px;
+  color: #ccc;
+  font-size: 12px;
+  font-family: var(--font-sans);
+  outline: none;
+  transition: border-color 0.15s ease;
+
+  &::placeholder {
+    color: #666;
+  }
+
+  &:focus {
+    border-color: #007acc;
+    background: #1a1a1a;
+  }
+
+  &:hover:not(:focus) {
+    border-color: #4e4e52;
+  }
+`;
+
 const HunkList = styled.div`
   flex: 1;
   min-height: 0;
@@ -314,6 +346,10 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
   // Map of hunkId -> toggle function for expand/collapse
   const toggleExpandFnsRef = useRef<Map<string, () => void>>(new Map());
 
+  // Search state
+  const [searchInputValue, setSearchInputValue] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
+
   // Persist file filter per workspace
   const [selectedFilePath, setSelectedFilePath] = usePersistedState<string | null>(
     `review-file-filter:${workspaceId}`,
@@ -353,6 +389,14 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
       panelRef.current?.focus();
     }
   }, [focusTrigger]);
+
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchInputValue);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchInputValue]);
 
   // Load file tree - when workspace, diffBase, or refreshTrigger changes
   useEffect(() => {
@@ -517,13 +561,33 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
     [hunks, isRead]
   );
 
-  // Filter hunks based on read state
+  // Filter hunks based on read state and search term
   const filteredHunks = useMemo(() => {
-    if (filters.showReadHunks) {
-      return hunks;
+    let result = hunks;
+
+    // Filter by read state
+    if (!filters.showReadHunks) {
+      result = result.filter((hunk) => !isRead(hunk.id));
     }
-    return hunks.filter((hunk) => !isRead(hunk.id));
-  }, [hunks, filters.showReadHunks, isRead]);
+
+    // Filter by search term
+    if (debouncedSearchTerm.trim()) {
+      const searchLower = debouncedSearchTerm.toLowerCase();
+      result = result.filter((hunk) => {
+        // Search in filename
+        if (hunk.filePath.toLowerCase().includes(searchLower)) {
+          return true;
+        }
+        // Search in hunk content
+        if (hunk.content.toLowerCase().includes(searchLower)) {
+          return true;
+        }
+        return false;
+      });
+    }
+
+    return result;
+  }, [hunks, filters.showReadHunks, isRead, debouncedSearchTerm]);
 
   // Handle toggling read state with auto-navigation
   const handleToggleRead = useCallback(
@@ -691,6 +755,15 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
           <HunksSection>
             {truncationWarning && <TruncationBanner>{truncationWarning}</TruncationBanner>}
 
+            <SearchContainer>
+              <SearchInput
+                type="text"
+                placeholder="Search in files and hunks..."
+                value={searchInputValue}
+                onChange={(e) => setSearchInputValue(e.target.value)}
+              />
+            </SearchContainer>
+
             <HunkList>
               {hunks.length === 0 ? (
                 <EmptyState>
@@ -729,9 +802,11 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
               ) : filteredHunks.length === 0 ? (
                 <EmptyState>
                   <EmptyStateText>
-                    {selectedFilePath
-                      ? `No hunks in ${selectedFilePath}. Try selecting a different file.`
-                      : "No hunks match the current filters. Try adjusting your filter settings."}
+                    {debouncedSearchTerm.trim()
+                      ? `No hunks match "${debouncedSearchTerm}". Try a different search term.`
+                      : selectedFilePath
+                        ? `No hunks in ${selectedFilePath}. Try selecting a different file.`
+                        : "No hunks match the current filters. Try adjusting your filter settings."}
                   </EmptyStateText>
                 </EmptyState>
               ) : (
