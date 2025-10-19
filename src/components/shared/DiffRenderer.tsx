@@ -10,6 +10,7 @@ import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { syntaxStyleNoBackgrounds } from "@/styles/syntaxHighlighting";
 import { getLanguageFromPath } from "@/utils/git/languageDetector";
 import { Tooltip, TooltipWrapper } from "../Tooltip";
+import "@/styles/prism-syntax.css";
 
 // Shared type for diff line types
 export type DiffLineType = "add" | "remove" | "context" | "header";
@@ -159,6 +160,7 @@ const HighlightedContent = React.memo<{ code: string; language: string }>(({ cod
     <SyntaxHighlighter
       language={language}
       style={syntaxStyleNoBackgrounds}
+      useInlineStyles={false}
       PreTag="span"
       CodeTag="span"
       customStyle={{
