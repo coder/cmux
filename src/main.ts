@@ -361,8 +361,8 @@ function createWindow() {
 
   // Register updater IPC handlers (available in both dev and prod)
   electronIpcMain.handle(IPC_CHANNELS.UPDATE_CHECK, async () => {
-    if (!updaterService) return { type: "not-available" };
-    return await updaterService.checkForUpdates();
+    if (!updaterService) return;
+    await updaterService.checkForUpdates();
   });
 
   electronIpcMain.handle(IPC_CHANNELS.UPDATE_DOWNLOAD, async () => {

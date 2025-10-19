@@ -243,7 +243,7 @@ export interface IPCApi {
     setTitle(title: string): Promise<void>;
   };
   update: {
-    check(): Promise<UpdateStatus>;
+    check(): Promise<void>;
     download(): Promise<void>;
     install(): void;
     onStatus(callback: (status: UpdateStatus) => void): () => void;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import styled from "@emotion/styled";
 import { VERSION } from "@/version";
 import { TooltipWrapper, Tooltip } from "./Tooltip";
@@ -133,6 +133,7 @@ export function TitleBar() {
   const { buildDate, extendedTimestamp, gitDescribe } = parseBuildInfo(VERSION satisfies unknown);
   const [updateStatus, setUpdateStatus] = useState<UpdateStatus>({ type: "not-available" });
   const [isCheckingOnHover, setIsCheckingOnHover] = useState(false);
+  const lastHoverCheckTime = useRef<number>(0);
   const telemetryEnabled = isTelemetryEnabled();
 
   useEffect(() => {
@@ -167,8 +168,17 @@ export function TitleBar() {
   const handleIndicatorHover = () => {
     if (!telemetryEnabled) return;
 
+    // Debounce: Only check once per minute on hover
+    const now = Date.now();
+    const HOVER_CHECK_COOLDOWN = 60 * 1000; // 1 minute
+    
+    if (now - lastHoverCheckTime.current < HOVER_CHECK_COOLDOWN) {
+      return; // Too soon since last hover check
+    }
+
     // Only trigger check if not already checking and no update available/downloading/downloaded
     if (updateStatus.type === "not-available" && !isCheckingOnHover) {
+      lastHoverCheckTime.current = now;
       setIsCheckingOnHover(true);
       window.api.update.check().catch((error) => {
         console.error("Update check failed:", error);

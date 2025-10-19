@@ -83,16 +83,26 @@ export class UpdaterService {
 
   /**
    * Check for updates manually
+   * 
+   * This triggers the check but returns immediately. The actual results
+   * will be delivered via event handlers (checking-for-update, update-available, etc.)
    */
-  async checkForUpdates(): Promise<UpdateStatus> {
+  async checkForUpdates(): Promise<void> {
     try {
-      await autoUpdater.checkForUpdates();
-      return this.updateStatus;
+      // Set checking status immediately
+      this.updateStatus = { type: "checking" };
+      this.notifyRenderer();
+      
+      // Trigger the check (don't await - it never resolves, just fires events)
+      autoUpdater.checkForUpdates().catch((error) => {
+        const message = error instanceof Error ? error.message : "Unknown error";
+        this.updateStatus = { type: "error", message };
+        this.notifyRenderer();
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error";
       this.updateStatus = { type: "error", message };
       this.notifyRenderer();
-      return this.updateStatus;
     }
   }
 
