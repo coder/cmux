@@ -136,4 +136,3 @@ export function getLanguageFromPath(filePath: string): string {
   // Unknown file type
   return "text";
 }
-
