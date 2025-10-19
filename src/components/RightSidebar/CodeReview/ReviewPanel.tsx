@@ -25,7 +25,7 @@ interface ReviewPanelProps {
   workspaceId: string;
   workspacePath: string;
   onReviewNote?: (note: string) => void;
-  /** Trigger to focus first hunk (increment to trigger) */
+  /** Trigger to focus panel (increment to trigger) */
   focusTrigger?: number;
 }
 
@@ -326,13 +326,12 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
     includeUncommitted: includeUncommitted,
   });
 
-  // Focus first hunk when focusTrigger changes
+  // Focus panel when focusTrigger changes (preserves current hunk selection)
   useEffect(() => {
-    if (focusTrigger && focusTrigger > 0 && hunks.length > 0) {
+    if (focusTrigger && focusTrigger > 0) {
       panelRef.current?.focus();
-      setSelectedHunkId(hunks[0].id);
     }
-  }, [focusTrigger, hunks]);
+  }, [focusTrigger]);
 
   // Load file tree - when workspace, diffBase, or refreshTrigger changes
   useEffect(() => {

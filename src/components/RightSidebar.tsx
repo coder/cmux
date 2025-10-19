@@ -179,7 +179,7 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
   // Global tab preference (not per-workspace)
   const [selectedTab, setSelectedTab] = usePersistedState<TabType>("right-sidebar-tab", "costs");
 
-  // Trigger for focusing first hunk in Review panel
+  // Trigger for focusing Review panel (preserves hunk selection)
   const [focusTrigger, setFocusTrigger] = React.useState(0);
 
   // Notify parent (AIView) of tab changes so it can enable/disable resize functionality
@@ -195,7 +195,7 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
         setSelectedTab("costs");
       } else if (matchesKeybind(e, KEYBINDS.REVIEW_TAB)) {
         e.preventDefault();
-        // If already on Review tab, focus the first hunk
+        // If already on Review tab, focus the panel
         if (selectedTab === "review") {
           setFocusTrigger((prev) => prev + 1);
         } else {
