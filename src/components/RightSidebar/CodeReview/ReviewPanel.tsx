@@ -3,7 +3,7 @@
  * Displays diff hunks for viewing changes in the workspace
  */
 
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import styled from "@emotion/styled";
 import { HunkViewer } from "./HunkViewer";
 import { ReviewControls } from "./ReviewControls";
@@ -286,6 +286,8 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [fileTree, setFileTree] = useState<FileTreeNode | null>(null);
   const [commonPrefix, setCommonPrefix] = useState<string | null>(null);
+  // Map of hunkId -> toggle function for expand/collapse
+  const toggleExpandFnsRef = useRef<Map<string, () => void>>(new Map());
 
   // Persist file filter per workspace
   const [selectedFilePath, setSelectedFilePath] = usePersistedState<string | null>(
@@ -539,6 +541,10 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
     [handleToggleRead]
   );
 
+  const handleRegisterToggleExpand = useCallback((hunkId: string, toggleFn: () => void) => {
+    toggleExpandFnsRef.current.set(hunkId, toggleFn);
+  }, []);
+
   // Calculate stats
   const stats = useMemo(() => {
     const total = hunks.length;
@@ -598,6 +604,13 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
         // Toggle read state of selected hunk
         e.preventDefault();
         handleToggleRead(selectedHunkId);
+      } else if (matchesKeybind(e, KEYBINDS.TOGGLE_HUNK_COLLAPSE)) {
+        // Toggle expand/collapse state of selected hunk
+        e.preventDefault();
+        const toggleFn = toggleExpandFnsRef.current.get(selectedHunkId);
+        if (toggleFn) {
+          toggleFn();
+        }
       }
     };
 
@@ -698,10 +711,12 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
                       key={hunk.id}
                       hunk={hunk}
                       hunkId={hunk.id}
+                      workspaceId={workspaceId}
                       isSelected={isSelected}
                       isRead={hunkIsRead}
                       onClick={handleHunkClick}
                       onToggleRead={handleHunkToggleRead}
+                      onRegisterToggleExpand={handleRegisterToggleExpand}
                       onReviewNote={onReviewNote}
                     />
                   );

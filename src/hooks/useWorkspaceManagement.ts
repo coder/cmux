@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import type { FrontendWorkspaceMetadata } from "@/types/workspace";
 import type { WorkspaceSelection } from "@/components/ProjectSidebar";
 import type { ProjectConfig } from "@/config";
+import { deleteWorkspaceStorage } from "@/constants/storage";
 
 interface UseWorkspaceManagementProps {
   selectedWorkspace: WorkspaceSelection | null;
@@ -118,6 +119,9 @@ export function useWorkspaceManagement({
     ): Promise<{ success: boolean; error?: string }> => {
       const result = await window.api.workspace.remove(workspaceId, options);
       if (result.success) {
+        // Clean up workspace-specific localStorage keys
+        deleteWorkspaceStorage(workspaceId);
+
         // Backend has already updated the config - reload projects to get updated state
         const projectsList = await window.api.projects.list();
         const loadedProjects = new Map<string, ProjectConfig>(projectsList);
