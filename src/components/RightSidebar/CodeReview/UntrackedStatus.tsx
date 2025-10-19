@@ -145,7 +145,7 @@ export const UntrackedStatus: React.FC<UntrackedStatusProps> = ({
       if (!hasLoadedOnce.current) {
         setIsLoading(true);
       }
-      
+
       try {
         const result = await window.api.workspace.executeBash(
           workspaceId,
@@ -162,7 +162,7 @@ export const UntrackedStatus: React.FC<UntrackedStatusProps> = ({
             .filter(Boolean);
           setUntrackedFiles(files);
         }
-        
+
         hasLoadedOnce.current = true;
       } catch (err) {
         console.error("Failed to load untracked files:", err);
@@ -246,4 +246,3 @@ export const UntrackedStatus: React.FC<UntrackedStatusProps> = ({
     </Container>
   );
 };
-
