@@ -470,6 +470,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
               gitStatus={gitStatus}
               workspaceId={workspaceId}
               tooltipPosition="bottom"
+              isStreaming={canInterrupt}
             />
             <WorkspaceName>
               {projectName} / {branch}
