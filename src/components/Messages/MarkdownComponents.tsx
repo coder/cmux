@@ -1,18 +1,8 @@
 import type { ReactNode } from "react";
-import type { CSSProperties } from "react";
 import React from "react";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
+import { syntaxStyleNoBackgrounds } from "@/styles/syntaxHighlighting";
 import { Mermaid } from "./Mermaid";
-
-// Create style with colors only (no backgrounds)
-const syntaxStyleNoBackgrounds: Record<string, CSSProperties> = {};
-for (const [key, value] of Object.entries(vscDarkPlus as Record<string, unknown>)) {
-  if (typeof value === "object" && value !== null) {
-    const { background, backgroundColor, ...rest } = value as Record<string, unknown>;
-    syntaxStyleNoBackgrounds[key] = rest as CSSProperties;
-  }
-}
 
 interface CodeProps {
   node?: unknown;

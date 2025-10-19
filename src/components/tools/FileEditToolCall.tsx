@@ -109,6 +109,7 @@ function renderDiff(
                 oldStart={hunk.oldStart}
                 newStart={hunk.newStart}
                 filePath={filePath}
+                fontSize="11px"
                 onReviewNote={onReviewNote}
               />
             ) : (
@@ -117,6 +118,8 @@ function renderDiff(
                 showLineNumbers={true}
                 oldStart={hunk.oldStart}
                 newStart={hunk.newStart}
+                filePath={filePath}
+                fontSize="11px"
               />
             )}
           </React.Fragment>

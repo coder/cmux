@@ -6,6 +6,9 @@
 
 import React from "react";
 import styled from "@emotion/styled";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { syntaxStyleNoBackgrounds } from "@/styles/syntaxHighlighting";
+import { getLanguageFromPath } from "@/utils/git/languageDetector";
 import { Tooltip, TooltipWrapper } from "../Tooltip";
 
 // Shared type for diff line types
@@ -73,7 +76,6 @@ export const LineNumber = styled.span<{ type: DiffLineType }>`
   justify-content: flex-end;
   min-width: 35px;
   padding-right: 4px;
-  font-size: ${({ type }) => (type === "header" ? "14px" : "inherit")};
   font-weight: ${({ type }) => (type === "header" ? "bold" : "normal")};
   color: ${({ type }) => getContrastColor(type)};
   opacity: ${({ type }) => (type === "add" || type === "remove" ? 0.9 : 0.6)};
@@ -105,12 +107,12 @@ export const DiffIndicator = styled.span<{ type: DiffLineType }>`
   flex-shrink: 0;
 `;
 
-export const DiffContainer = styled.div`
+export const DiffContainer = styled.div<{ fontSize?: string }>`
   margin: 0;
   padding: 6px 0;
   background: rgba(0, 0, 0, 0.2);
   border-radius: 3px;
-  font-size: 11px;
+  font-size: ${({ fontSize }) => fontSize ?? "12px"};
   line-height: 1.4;
   max-height: 400px;
   overflow-y: auto;
@@ -119,6 +121,11 @@ export const DiffContainer = styled.div`
   /* CSS Grid ensures all lines span the same width (width of longest line) */
   display: grid;
   grid-template-columns: minmax(min-content, 1fr);
+
+  /* Ensure all child elements inherit font size from container */
+  * {
+    font-size: inherit;
+  }
 `;
 
 interface DiffRendererProps {
@@ -130,7 +137,47 @@ interface DiffRendererProps {
   oldStart?: number;
   /** Starting new line number for context */
   newStart?: number;
+  /** File path for language detection (optional, enables syntax highlighting) */
+  filePath?: string;
+  /** Font size for diff content (default: "12px") */
+  fontSize?: string;
 }
+
+/**
+ * Highlighted code content - wraps syntax highlighted tokens
+ * This component applies syntax highlighting while preserving diff styling
+ */
+const HighlightedContent: React.FC<{ code: string; language: string }> = ({ code, language }) => {
+  // Don't highlight if language is unknown
+  if (language === "text") {
+    return <>{code}</>;
+  }
+
+  return (
+    <SyntaxHighlighter
+      language={language}
+      style={syntaxStyleNoBackgrounds}
+      PreTag="span"
+      CodeTag="span"
+      customStyle={{
+        display: "inline",
+        padding: 0,
+        margin: 0,
+        background: "transparent",
+        fontSize: "inherit",
+      }}
+      codeTagProps={{
+        style: {
+          display: "inline",
+          fontFamily: "inherit",
+          fontSize: "inherit",
+        },
+      }}
+    >
+      {code}
+    </SyntaxHighlighter>
+  );
+};
 
 /**
  * DiffRenderer - Renders diff content with consistent styling
@@ -146,14 +193,19 @@ export const DiffRenderer: React.FC<DiffRendererProps> = ({
   showLineNumbers = true,
   oldStart = 1,
   newStart = 1,
+  filePath,
+  fontSize,
 }) => {
   const lines = content.split("\n").filter((line) => line.length > 0);
+
+  // Detect language for syntax highlighting
+  const language = filePath ? getLanguageFromPath(filePath) : "text";
 
   let oldLineNum = oldStart;
   let newLineNum = newStart;
 
   return (
-    <>
+    <DiffContainer fontSize={fontSize}>
       {lines.map((line, index) => {
         const firstChar = line[0];
         const lineContent = line.slice(1); // Remove the +/-/@ prefix
@@ -193,17 +245,19 @@ export const DiffRenderer: React.FC<DiffRendererProps> = ({
             <DiffLine type={type}>
               <DiffIndicator type={type}>{firstChar}</DiffIndicator>
               {showLineNumbers && <LineNumber type={type}>{lineNumDisplay}</LineNumber>}
-              <LineContent type={type}>{lineContent}</LineContent>
+              <LineContent type={type}>
+                <HighlightedContent code={lineContent} language={language} />
+              </LineContent>
             </DiffLine>
           </DiffLineWrapper>
         );
       })}
-    </>
+    </DiffContainer>
   );
 };
 
 // Selectable version of DiffRenderer for Code Review
-interface SelectableDiffRendererProps extends DiffRendererProps {
+interface SelectableDiffRendererProps extends Omit<DiffRendererProps, "filePath"> {
   /** File path for generating review notes */
   filePath: string;
   /** Callback when user submits a review note */
@@ -255,7 +309,6 @@ const CommentButton = styled.button`
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 10px;
   color: white;
   font-weight: bold;
   flex-shrink: 0;
@@ -284,10 +337,10 @@ const InlineNoteContainer = styled.div`
 
 const NoteTextarea = styled.textarea`
   width: 100%;
-  min-height: calc(11px * 1.4 * 3 + 12px); /* 3 lines + padding */
+  min-height: calc(12px * 1.4 * 3 + 12px); /* 3 lines + padding */
   padding: 6px 8px;
-  font-family: var(--font-sans);
-  font-size: 11px;
+  font-family: var(--font-monospace);
+  font-size: 12px;
   line-height: 1.4;
   background: #1e1e1e;
   border: 1px solid hsl(from var(--color-review-accent) h s l / 0.4);
@@ -303,7 +356,6 @@ const NoteTextarea = styled.textarea`
 
   &::placeholder {
     color: #888;
-    font-size: 11px;
   }
 `;
 
@@ -396,12 +448,16 @@ export const SelectableDiffRenderer: React.FC<SelectableDiffRendererProps> = ({
   oldStart = 1,
   newStart = 1,
   filePath,
+  fontSize,
   onReviewNote,
   onLineClick,
 }) => {
   const [selection, setSelection] = React.useState<LineSelection | null>(null);
 
   const lines = content.split("\n").filter((line) => line.length > 0);
+
+  // Detect language for syntax highlighting
+  const language = filePath ? getLanguageFromPath(filePath) : "text";
 
   // Parse lines to get line numbers
   const lineData: Array<{
@@ -494,7 +550,7 @@ export const SelectableDiffRenderer: React.FC<SelectableDiffRendererProps> = ({
   };
 
   return (
-    <>
+    <DiffContainer fontSize={fontSize}>
       {lineData.map((lineInfo, displayIndex) => {
         const isSelected = isLineSelected(displayIndex);
 
@@ -522,7 +578,9 @@ export const SelectableDiffRenderer: React.FC<SelectableDiffRendererProps> = ({
                 {showLineNumbers && (
                   <LineNumber type={lineInfo.type}>{lineInfo.lineNum}</LineNumber>
                 )}
-                <LineContent type={lineInfo.type}>{lineInfo.content}</LineContent>
+                <LineContent type={lineInfo.type}>
+                  <HighlightedContent code={lineInfo.content} language={language} />
+                </LineContent>
               </DiffLine>
             </SelectableDiffLineWrapper>
 
@@ -542,6 +600,6 @@ export const SelectableDiffRenderer: React.FC<SelectableDiffRendererProps> = ({
           </React.Fragment>
         );
       })}
-    </>
+    </DiffContainer>
   );
 };
