@@ -226,7 +226,6 @@ export const UntrackedStatus: React.FC<UntrackedStatusProps> = ({
       <Badge
         hasUntracked={hasUntracked}
         onClick={() => hasUntracked && setShowTooltip(!showTooltip)}
-        title={hasUntracked ? "Click to see untracked files" : undefined}
       >
         {isLoading ? "..." : `${count} Untracked`}
       </Badge>
