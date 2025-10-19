@@ -10,25 +10,36 @@ import {
   CommandDisplay,
   CommandLabel,
 } from "./Modal";
-import { formatCompactCommand } from "@/utils/chatCommands";
+import { formatCompactCommand, type CompactOptions } from "@/utils/chatCommands";
 
 interface CompactModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onCompact: (maxOutputTokens?: number, model?: string) => Promise<void>;
+  onCompact: (options: CompactOptions) => Promise<void>;
 }
 
 const CompactModal: React.FC<CompactModalProps> = ({ isOpen, onClose, onCompact }) => {
-  const [maxOutputTokens, setMaxOutputTokens] = useState<string>("");
-  const [model, setModel] = useState<string>("");
+  const [options, setOptions] = useState<CompactOptions>({});
+  const [maxOutputTokensInput, setMaxOutputTokensInput] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const infoId = useId();
+
+  // Sync options with input fields
+  useEffect(() => {
+    setOptions({
+      maxOutputTokens: maxOutputTokensInput.trim()
+        ? parseInt(maxOutputTokensInput.trim(), 10)
+        : undefined,
+      model: options.model?.trim() || undefined,
+      continueMessage: options.continueMessage?.trim() || undefined,
+    });
+  }, [maxOutputTokensInput]);
 
   // Reset form when modal opens
   useEffect(() => {
     if (isOpen) {
-      setMaxOutputTokens("");
-      setModel("");
+      setOptions({});
+      setMaxOutputTokensInput("");
       setIsLoading(false);
     }
   }, [isOpen]);
@@ -45,12 +56,9 @@ const CompactModal: React.FC<CompactModalProps> = ({ isOpen, onClose, onCompact 
     setIsLoading(true);
 
     try {
-      const tokens = maxOutputTokens.trim() ? parseInt(maxOutputTokens.trim(), 10) : undefined;
-      const modelParam = model.trim() || undefined;
-
-      await onCompact(tokens, modelParam);
-      setMaxOutputTokens("");
-      setModel("");
+      await onCompact(options);
+      setOptions({});
+      setMaxOutputTokensInput("");
       onClose();
     } catch (err) {
       console.error("Compact failed:", err);
@@ -59,9 +67,6 @@ const CompactModal: React.FC<CompactModalProps> = ({ isOpen, onClose, onCompact 
       setIsLoading(false);
     }
   };
-
-  const tokensValue = maxOutputTokens.trim() ? parseInt(maxOutputTokens.trim(), 10) : undefined;
-  const modelValue = model.trim() || undefined;
 
   return (
     <Modal
@@ -78,8 +83,8 @@ const CompactModal: React.FC<CompactModalProps> = ({ isOpen, onClose, onCompact 
           <input
             id="maxOutputTokens"
             type="number"
-            value={maxOutputTokens}
-            onChange={(event) => setMaxOutputTokens(event.target.value)}
+            value={maxOutputTokensInput}
+            onChange={(event) => setMaxOutputTokensInput(event.target.value)}
             disabled={isLoading}
             placeholder="e.g., 3000"
             min="100"
@@ -94,12 +99,31 @@ const CompactModal: React.FC<CompactModalProps> = ({ isOpen, onClose, onCompact 
           <input
             id="model"
             type="text"
-            value={model}
-            onChange={(event) => setModel(event.target.value)}
+            value={options.model ?? ""}
+            onChange={(event) =>
+              setOptions({ ...options, model: event.target.value || undefined })
+            }
             disabled={isLoading}
             placeholder="e.g., claude-3-5-sonnet-20241022"
           />
           <HelpText>Specify a model for compaction. Leave empty to use current model.</HelpText>
+        </FormGroup>
+
+        <FormGroup>
+          <label htmlFor="continueMessage">Continue Message (optional):</label>
+          <input
+            id="continueMessage"
+            type="text"
+            value={options.continueMessage ?? ""}
+            onChange={(event) =>
+              setOptions({ ...options, continueMessage: event.target.value || undefined })
+            }
+            disabled={isLoading}
+            placeholder="Message to send after compaction completes"
+          />
+          <HelpText>
+            If provided, this message will be sent automatically after compaction finishes.
+          </HelpText>
         </FormGroup>
 
         <ModalInfo id={infoId}>
@@ -112,7 +136,7 @@ const CompactModal: React.FC<CompactModalProps> = ({ isOpen, onClose, onCompact 
 
         <div>
           <CommandLabel>Equivalent command:</CommandLabel>
-          <CommandDisplay>{formatCompactCommand(tokensValue, modelValue)}</CommandDisplay>
+          <CommandDisplay>{formatCompactCommand(options)}</CommandDisplay>
         </div>
 
         <ModalActions>

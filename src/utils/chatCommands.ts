@@ -101,18 +101,35 @@ export function formatNewCommand(
 }
 
 // ============================================================================
-// Workspace Forking (re-exported from workspaceFork for convenience)
+// Workspace Forking
 // ============================================================================
 
-export { forkWorkspace, type ForkOptions, type ForkResult } from "./workspaceFork";
+export { forkWorkspace, type ForkResult } from "./workspaceFork";
+// Re-export internal type with different name to avoid confusion
+export type { ForkOptions as ForkExecutionOptions } from "./workspaceFork";
+
+/**
+ * User-facing fork options (modal/command inputs)
+ */
+export interface ForkOptions {
+  newName: string;
+  startMessage?: string;
+}
 
 /**
  * Format /fork command string for display
  */
-export function formatForkCommand(newName: string, startMessage?: string): string {
-  let cmd = `/fork ${newName}`;
-  if (startMessage) {
-    cmd += `\n${startMessage}`;
+export function formatForkCommand(options: ForkOptions): string;
+export function formatForkCommand(newName: string, startMessage?: string): string;
+export function formatForkCommand(
+  optionsOrName: ForkOptions | string,
+  startMessage?: string
+): string {
+  const name = typeof optionsOrName === "string" ? optionsOrName : optionsOrName.newName;
+  const msg = typeof optionsOrName === "string" ? startMessage : optionsOrName.startMessage;
+  let cmd = `/fork ${name}`;
+  if (msg) {
+    cmd += `\n${msg}`;
   }
   return cmd;
 }
@@ -121,7 +138,19 @@ export function formatForkCommand(newName: string, startMessage?: string): strin
 // Compaction
 // ============================================================================
 
-export interface CompactionOptions {
+/**
+ * User-facing compaction options (modal/command inputs)
+ */
+export interface CompactOptions {
+  maxOutputTokens?: number;
+  model?: string;
+  continueMessage?: string;
+}
+
+/**
+ * Internal execution options (includes workspace context)
+ */
+export interface CompactExecutionOptions {
   workspaceId: string;
   maxOutputTokens?: number;
   continueMessage?: string;
@@ -139,7 +168,7 @@ export interface CompactionResult {
  * Prepare compaction message from options
  * Returns the actual message text (summarization request), metadata, and options
  */
-export function prepareCompactionMessage(options: CompactionOptions): {
+export function prepareCompactionMessage(options: CompactExecutionOptions): {
   messageText: string;
   metadata: CmuxFrontendMetadata;
   sendOptions: SendMessageOptions;
@@ -178,7 +207,9 @@ export function prepareCompactionMessage(options: CompactionOptions): {
 /**
  * Execute a compaction command
  */
-export async function executeCompaction(options: CompactionOptions): Promise<CompactionResult> {
+export async function executeCompaction(
+  options: CompactExecutionOptions
+): Promise<CompactionResult> {
   const { messageText, metadata, sendOptions } = prepareCompactionMessage(options);
 
   const result = await window.api.workspace.sendMessage(options.workspaceId, messageText, {
@@ -205,30 +236,46 @@ export async function executeCompaction(options: CompactionOptions): Promise<Com
 /**
  * Format compaction command string for display
  */
+export function formatCompactCommand(options: CompactOptions): string;
 export function formatCompactCommand(
   maxOutputTokens?: number,
   model?: string,
   continueMessage?: string
+): string;
+export function formatCompactCommand(
+  optionsOrTokens?: CompactOptions | number,
+  model?: string,
+  continueMessage?: string
 ): string {
+  const tokens =
+    typeof optionsOrTokens === "object" ? optionsOrTokens.maxOutputTokens : optionsOrTokens;
+  const mdl = typeof optionsOrTokens === "object" ? optionsOrTokens.model : model;
+  const msg =
+    typeof optionsOrTokens === "object" ? optionsOrTokens.continueMessage : continueMessage;
+
   let cmd = "/compact";
-  if (maxOutputTokens) {
-    cmd += ` -t ${maxOutputTokens}`;
+  if (tokens) {
+    cmd += ` -t ${tokens}`;
   }
-  if (model) {
-    cmd += ` -m ${model}`;
+  if (mdl) {
+    cmd += ` -m ${mdl}`;
   }
-  if (continueMessage) {
-    cmd += `\n${continueMessage}`;
+  if (msg) {
+    cmd += `\n${msg}`;
   }
   return cmd;
 }
 
 /**
- * Format compaction command string for display (accepts CompactionOptions)
- * @deprecated Use formatCompactCommand with individual arguments instead
+ * Format compaction command string for display (accepts CompactExecutionOptions)
+ * @deprecated Use formatCompactCommand with CompactOptions instead
  */
-function formatCompactionCommand(options: CompactionOptions): string {
-  return formatCompactCommand(options.maxOutputTokens, options.model, options.continueMessage);
+function formatCompactionCommand(options: CompactExecutionOptions): string {
+  return formatCompactCommand({
+    maxOutputTokens: options.maxOutputTokens,
+    model: options.model,
+    continueMessage: options.continueMessage,
+  });
 }
 
 // ============================================================================

@@ -19,7 +19,12 @@ import { WorkspaceListItem, type WorkspaceSelection } from "./WorkspaceListItem"
 import { RenameProvider } from "@/contexts/WorkspaceRenameContext";
 import ForkWorkspaceModal from "./ForkWorkspaceModal";
 import CompactModal from "./CompactModal";
-import { forkWorkspace, executeCompaction } from "@/utils/chatCommands";
+import {
+  forkWorkspace,
+  executeCompaction,
+  type ForkOptions,
+  type CompactOptions,
+} from "@/utils/chatCommands";
 import { useSendMessageOptions } from "@/hooks/useSendMessageOptions";
 
 // Re-export WorkspaceSelection for backwards compatibility
@@ -679,14 +684,15 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
     setCompactModalState({ workspaceId });
   };
 
-  const handleForkSubmit = async (newName: string) => {
+  const handleForkSubmit = async (options: ForkOptions) => {
     if (!forkModalState) {
       return;
     }
 
     const result = await forkWorkspace({
       sourceWorkspaceId: forkModalState.workspaceId,
-      newName,
+      newName: options.newName,
+      startMessage: options.startMessage,
       sendMessageOptions,
     });
 
@@ -695,15 +701,16 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
     }
   };
 
-  const handleCompactSubmit = async (maxOutputTokens?: number, model?: string) => {
+  const handleCompactSubmit = async (options: CompactOptions) => {
     if (!compactModalState) {
       return;
     }
 
     const result = await executeCompaction({
       workspaceId: compactModalState.workspaceId,
-      maxOutputTokens,
-      model,
+      maxOutputTokens: options.maxOutputTokens,
+      model: options.model,
+      continueMessage: options.continueMessage,
       sendMessageOptions,
     });
 

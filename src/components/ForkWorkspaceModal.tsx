@@ -10,13 +10,13 @@ import {
   CommandDisplay,
   CommandLabel,
 } from "./Modal";
-import { formatForkCommand } from "@/utils/chatCommands";
+import { formatForkCommand, type ForkOptions } from "@/utils/chatCommands";
 
 interface ForkWorkspaceModalProps {
   isOpen: boolean;
   sourceWorkspaceName: string;
   onClose: () => void;
-  onFork: (newName: string) => Promise<void>;
+  onFork: (options: ForkOptions) => Promise<void>;
 }
 
 const ForkWorkspaceModal: React.FC<ForkWorkspaceModalProps> = ({
@@ -25,7 +25,7 @@ const ForkWorkspaceModal: React.FC<ForkWorkspaceModalProps> = ({
   onClose,
   onFork,
 }) => {
-  const [newName, setNewName] = useState<string>("");
+  const [options, setOptions] = useState<ForkOptions>({ newName: "" });
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const infoId = useId();
@@ -33,7 +33,7 @@ const ForkWorkspaceModal: React.FC<ForkWorkspaceModalProps> = ({
   // Reset form when modal opens
   useEffect(() => {
     if (isOpen) {
-      setNewName("");
+      setOptions({ newName: "" });
       setError(null);
       setIsLoading(false);
     }
@@ -48,7 +48,7 @@ const ForkWorkspaceModal: React.FC<ForkWorkspaceModalProps> = ({
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
-    const trimmedName = newName.trim();
+    const trimmedName = options.newName.trim();
     if (!trimmedName) {
       setError("Workspace name cannot be empty");
       return;
@@ -58,8 +58,8 @@ const ForkWorkspaceModal: React.FC<ForkWorkspaceModalProps> = ({
     setError(null);
 
     try {
-      await onFork(trimmedName);
-      setNewName("");
+      await onFork({ ...options, newName: trimmedName });
+      setOptions({ newName: "" });
       onClose();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to fork workspace";
@@ -84,8 +84,8 @@ const ForkWorkspaceModal: React.FC<ForkWorkspaceModalProps> = ({
           <input
             id="newName"
             type="text"
-            value={newName}
-            onChange={(event) => setNewName(event.target.value)}
+            value={options.newName}
+            onChange={(event) => setOptions({ ...options, newName: event.target.value })}
             disabled={isLoading}
             placeholder="Enter new workspace name"
             required
@@ -102,10 +102,12 @@ const ForkWorkspaceModal: React.FC<ForkWorkspaceModalProps> = ({
           </p>
         </ModalInfo>
 
-        {newName.trim() && (
+        {options.newName.trim() && (
           <div>
             <CommandLabel>Equivalent command:</CommandLabel>
-            <CommandDisplay>{formatForkCommand(newName.trim())}</CommandDisplay>
+            <CommandDisplay>
+              {formatForkCommand({ ...options, newName: options.newName.trim() })}
+            </CommandDisplay>
           </div>
         )}
 
@@ -113,7 +115,7 @@ const ForkWorkspaceModal: React.FC<ForkWorkspaceModalProps> = ({
           <CancelButton type="button" onClick={handleCancel} disabled={isLoading}>
             Cancel
           </CancelButton>
-          <PrimaryButton type="submit" disabled={isLoading || newName.trim().length === 0}>
+          <PrimaryButton type="submit" disabled={isLoading || options.newName.trim().length === 0}>
             {isLoading ? "Forking..." : "Fork Workspace"}
           </PrimaryButton>
         </ModalActions>
