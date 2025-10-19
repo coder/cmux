@@ -33,7 +33,10 @@ export default defineConfig(({ mode }) => ({
           svgr(),
           react({
             babel: {
-              plugins: [["babel-plugin-react-compiler", reactCompilerConfig]],
+              plugins: [
+                ["babel-plugin-react-compiler", reactCompilerConfig],
+                "@emotion/babel-plugin",
+              ],
             },
           }),
           topLevelAwait(),
@@ -42,7 +45,10 @@ export default defineConfig(({ mode }) => ({
           svgr(),
           react({
             babel: {
-              plugins: [["babel-plugin-react-compiler", reactCompilerConfig]],
+              plugins: [
+                ["babel-plugin-react-compiler", reactCompilerConfig],
+                "@emotion/babel-plugin",
+              ],
             },
           }),
         ],
