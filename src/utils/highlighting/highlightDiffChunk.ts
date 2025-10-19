@@ -1,6 +1,19 @@
 import { getShikiHighlighter, mapToShikiLang } from './shikiHighlighter';
 import type { DiffChunk } from './diffChunking';
 
+/**
+ * Chunk-based diff highlighting with Shiki
+ * 
+ * Current approach: Parse Shiki HTML to extract individual line HTMLs
+ * - Groups consecutive lines by type (add/remove/context)
+ * - Highlights each chunk with Shiki
+ * - Extracts per-line HTML for individual rendering
+ * 
+ * Future optimization: Could render entire <code> blocks and use CSS to style
+ * .line spans instead of extracting per-line HTML. Would simplify parsing
+ * and reduce dangerouslySetInnerHTML usage.
+ */
+
 export interface HighlightedLine {
   html: string; // HTML content (already escaped and tokenized)
   lineNumber: number;
@@ -93,7 +106,10 @@ function createFallbackChunk(chunk: DiffChunk): HighlightedChunk {
 
 /**
  * Extract individual line contents from Shiki's HTML output
- * Shiki wraps output in <pre><code>...</code></pre> with <span> tags for tokens
+ * Shiki wraps output in <pre><code>...</code></pre> with <span class="line">...</span> per line
+ * 
+ * Strategy: Split on newlines (which separate line spans), then extract inner HTML
+ * from each line span. This handles nested spans correctly.
  */
 function extractLinesFromHtml(html: string): string[] {
   // Remove <pre> and <code> wrappers
@@ -103,20 +119,36 @@ function extractLinesFromHtml(html: string): string[] {
 
   const codeContent = codeMatch[1];
 
-  // Split by line breaks (Shiki uses <span class="line">...</span> per line)
-  const lineRegex = /<span class="line">(.*?)<\/span>/g;
-  const lineMatches = codeContent.match(lineRegex);
-  if (!lineMatches) {
-    // Fallback: split by newlines and escape
-    return codeContent.split('\n').map(escapeHtml);
-  }
-
-  const extractRegex = /<span class="line">(.*?)<\/span>/;
-  return lineMatches.map((lineHtml) => {
-    // Extract content from <span class="line">...</span>
-    const match = extractRegex.exec(lineHtml);
-    return match ? match[1] : '';
-  });
+  // Split by newlines - Shiki separates line spans with \n
+  const lineChunks = codeContent.split('\n');
+  
+  return lineChunks
+    .map(chunk => {
+      // Extract content from <span class="line">CONTENT</span>
+      // We need to handle nested spans, so we:
+      // 1. Find the opening tag
+      // 2. Find the LAST closing </span> (which closes the line wrapper)
+      // 3. Extract everything between them
+      
+      const openTag = '<span class="line">';
+      const closeTag = '</span>';
+      
+      const openIndex = chunk.indexOf(openTag);
+      if (openIndex === -1) {
+        // No line span - might be empty line or malformed
+        return '';
+      }
+      
+      const contentStart = openIndex + openTag.length;
+      const closeIndex = chunk.lastIndexOf(closeTag);
+      if (closeIndex === -1 || closeIndex < contentStart) {
+        // Malformed - no closing tag
+        return '';
+      }
+      
+      return chunk.substring(contentStart, closeIndex);
+    })
+    .filter(line => line !== null); // Remove malformed lines
 }
 
 /**
