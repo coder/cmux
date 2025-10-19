@@ -239,9 +239,7 @@ export const HunkViewer: React.FC<HunkViewerProps> = ({
           </LineCount>
           {onToggleRead && (
             <TooltipWrapper inline>
-              <ToggleReadButton onClick={handleToggleRead}>
-                {isRead ? "○" : "◉"}
-              </ToggleReadButton>
+              <ToggleReadButton onClick={handleToggleRead}>{isRead ? "○" : "◉"}</ToggleReadButton>
               <Tooltip align="right" position="top">
                 Mark as read (m)
               </Tooltip>
