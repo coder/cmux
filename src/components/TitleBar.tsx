@@ -3,6 +3,7 @@ import styled from "@emotion/styled";
 import { VERSION } from "@/version";
 import { TooltipWrapper, Tooltip } from "./Tooltip";
 import type { UpdateStatus } from "@/types/ipc";
+import { isTelemetryEnabled } from "@/telemetry";
 
 const TitleBarContainer = styled.div`
   padding: 8px 16px;
@@ -31,13 +32,15 @@ const TitleText = styled.div`
   cursor: text;
 `;
 
-const UpdateIndicator = styled.div<{ status: "available" | "downloading" | "downloaded" }>`
+const UpdateIndicator = styled.div<{
+  status: "available" | "downloading" | "downloaded" | "disabled";
+}>`
   width: 16px;
   height: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
+  cursor: ${(props) => (props.status === "disabled" ? "default" : "pointer")};
   color: ${(props) => {
     switch (props.status) {
       case "available":
@@ -46,11 +49,13 @@ const UpdateIndicator = styled.div<{ status: "available" | "downloading" | "down
         return "#2196F3"; // Blue for downloading
       case "downloaded":
         return "#FF9800"; // Orange for ready to install
+      case "disabled":
+        return "#666666"; // Gray for disabled
     }
   }};
 
   &:hover {
-    opacity: 0.7;
+    opacity: ${(props) => (props.status === "disabled" ? "1" : "0.7")};
   }
 `;
 
@@ -121,8 +126,14 @@ function parseBuildInfo(version: unknown) {
 export function TitleBar() {
   const { buildDate, extendedTimestamp, gitDescribe } = parseBuildInfo(VERSION satisfies unknown);
   const [updateStatus, setUpdateStatus] = useState<UpdateStatus>({ type: "not-available" });
+  const telemetryEnabled = isTelemetryEnabled();
 
   useEffect(() => {
+    // Skip update checks if telemetry is disabled
+    if (!telemetryEnabled) {
+      return;
+    }
+
     // Subscribe to update status changes
     const unsubscribe = window.api.update.onStatus((status) => {
       setUpdateStatus(status);
@@ -132,9 +143,11 @@ export function TitleBar() {
     window.api.update.getStatus().then(setUpdateStatus).catch(console.error);
 
     return unsubscribe;
-  }, []);
+  }, [telemetryEnabled]);
 
   const handleUpdateClick = () => {
+    if (!telemetryEnabled) return; // No-op if telemetry disabled
+
     if (updateStatus.type === "available") {
       window.api.update.download().catch(console.error);
     } else if (updateStatus.type === "downloaded") {
@@ -143,6 +156,10 @@ export function TitleBar() {
   };
 
   const getUpdateTooltip = () => {
+    if (!telemetryEnabled) {
+      return "Update checks disabled (telemetry is off)";
+    }
+
     switch (updateStatus.type) {
       case "available":
         return `Update available: ${updateStatus.info.version}. Click to download.`;
@@ -155,18 +172,37 @@ export function TitleBar() {
     }
   };
 
-  const showUpdateIndicator =
-    updateStatus.type === "available" ||
-    updateStatus.type === "downloading" ||
-    updateStatus.type === "downloaded";
+  const getIndicatorStatus = (): "available" | "downloading" | "downloaded" | "disabled" | null => {
+    if (!telemetryEnabled) return "disabled";
+
+    switch (updateStatus.type) {
+      case "available":
+        return "available";
+      case "downloading":
+        return "downloading";
+      case "downloaded":
+        return "downloaded";
+      default:
+        return null;
+    }
+  };
+
+  const indicatorStatus = getIndicatorStatus();
+  const showUpdateIndicator = indicatorStatus !== null;
 
   return (
     <TitleBarContainer>
       <LeftSection>
         {showUpdateIndicator && (
           <TooltipWrapper>
-            <UpdateIndicator status={updateStatus.type} onClick={handleUpdateClick}>
-              <UpdateIcon>{updateStatus.type === "downloading" ? "⟳" : "↓"}</UpdateIcon>
+            <UpdateIndicator status={indicatorStatus} onClick={handleUpdateClick}>
+              <UpdateIcon>
+                {indicatorStatus === "disabled"
+                  ? "⊘"
+                  : indicatorStatus === "downloading"
+                    ? "⟳"
+                    : "↓"}
+              </UpdateIcon>
             </UpdateIndicator>
             <Tooltip align="left">{getUpdateTooltip()}</Tooltip>
           </TooltipWrapper>
