@@ -95,28 +95,31 @@ const FileItem = styled.div`
 
 const TrackButton = styled.button`
   width: 100%;
-  padding: 6px 12px;
-  background: #0e639c;
-  color: #fff;
-  border: none;
+  padding: 4px 8px;
+  background: transparent;
+  color: #888;
+  border: 1px solid #444;
   border-radius: 3px;
   font-size: 11px;
-  font-weight: 500;
   cursor: pointer;
-  transition: background 0.2s ease;
+  transition: all 0.2s ease;
+  font-family: var(--font-primary);
 
   &:hover {
-    background: #1177bb;
+    background: rgba(255, 255, 255, 0.05);
+    color: #ccc;
+    border-color: #666;
   }
 
   &:active {
-    background: #0d5a8f;
+    background: rgba(255, 255, 255, 0.1);
   }
 
   &:disabled {
-    background: #3e3e42;
-    color: #666;
+    color: #555;
+    border-color: #333;
     cursor: not-allowed;
+    background: transparent;
   }
 `;
 
