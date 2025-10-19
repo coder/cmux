@@ -164,7 +164,21 @@ export function parseDiff(diffOutput: string): FileDiff[] {
   // Finish last file
   finishFile();
 
-  return files;
+  // Deduplicate files by path - merge hunks from duplicate entries
+  // This happens when combining multiple git diff commands (e.g., base...HEAD && HEAD)
+  // which produces separate FileDiff entries for the same file
+  const fileMap = new Map<string, FileDiff>();
+  for (const file of files) {
+    const existing = fileMap.get(file.filePath);
+    if (existing) {
+      // Merge hunks from duplicate entry into the first one
+      existing.hunks.push(...file.hunks);
+    } else {
+      fileMap.set(file.filePath, file);
+    }
+  }
+
+  return Array.from(fileMap.values());
 }
 
 /**

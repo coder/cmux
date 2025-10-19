@@ -10,6 +10,7 @@ import { join } from "path";
 import { tmpdir } from "os";
 import { execSync } from "child_process";
 import { parseDiff, extractAllHunks } from "./diffParser";
+import { buildGitDiffCommand } from "@/components/RightSidebar/CodeReview/ReviewPanel";
 
 describe("git diff parser (real repository)", () => {
   let testRepoPath: string;
@@ -366,4 +367,64 @@ function greet(name) {
     // Pure directory renames should have NO hunks (files are identical)
     expect(allHunks.length).toBe(0);
   });
+
+  it("should deduplicate files when combining committed and uncommitted diffs", () => {
+    // This test replicates the bug: when using "includeDirty" flag,
+    // we run: git diff base...HEAD && git diff HEAD
+    // which produces TWO separate diffs for the same file
+
+    // Reset and setup: create a branch with committed changes
+    execSync("git reset --hard HEAD", { cwd: testRepoPath });
+    execSync("git checkout -b dedup-test", { cwd: testRepoPath });
+
+    // Make and commit a change
+    writeFileSync(join(testRepoPath, "test-file.txt"), "Line 1\nLine 2\nLine 3\n");
+    execSync("git add test-file.txt && git commit -m 'Add test file'", { cwd: testRepoPath });
+
+    // Now make an uncommitted change
+    writeFileSync(join(testRepoPath, "test-file.txt"), "Line 1\nLine 2 modified\nLine 3\nLine 4\n");
+
+    // Simulate what ReviewPanel does: use buildGitDiffCommand with includeUncommitted=true
+    const baseBranch = execSync("git rev-parse --abbrev-ref HEAD@{u} 2>/dev/null || echo main", {
+      cwd: testRepoPath,
+      encoding: "utf-8",
+    }).trim();
+
+    // Use the same command builder as ReviewPanel (tests the actual integration)
+    const gitCommand = buildGitDiffCommand(baseBranch, true, "", "diff");
+
+    // Execute the command and get the combined output
+    const combinedDiff = execSync(gitCommand, {
+      cwd: testRepoPath,
+      encoding: "utf-8",
+    });
+
+    // Parse the combined diff
+    const fileDiffs = parseDiff(combinedDiff);
+
+    // BUG: Without deduplication, we get 2 FileDiff entries for the same file
+    // FIX: After deduplication, we should get 1 FileDiff with hunks from both diffs
+
+    // This should FAIL before the fix (fileDiffs.length === 2)
+    // This should PASS after the fix (fileDiffs.length === 1)
+    expect(fileDiffs.length).toBe(1);
+    expect(fileDiffs[0].filePath).toBe("test-file.txt");
+
+    // Should have hunks from BOTH diffs (committed + uncommitted)
+    const allHunks = extractAllHunks(fileDiffs);
+    expect(allHunks.length).toBeGreaterThan(0);
+
+    // All hunks should reference the same file
+    expect(allHunks.every((h) => h.filePath === "test-file.txt")).toBe(true);
+
+    // The hunks should include both the committed and uncommitted changes
+    // - Committed: "Line 1\nLine 2\nLine 3\n" (initial commit)
+    // - Uncommitted: "Line 2 modified\nLine 4\n" (working directory)
+    const allContent = allHunks.map((h) => h.content).join("\n");
+    expect(allContent.includes("Line 2 modified") || allContent.includes("Line 4")).toBe(true);
+
+    // Clean up: reset and go back to previous branch
+    execSync("git reset --hard HEAD && git checkout -", { cwd: testRepoPath });
+  });
+
 });

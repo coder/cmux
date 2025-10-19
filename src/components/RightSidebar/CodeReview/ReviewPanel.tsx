@@ -239,8 +239,9 @@ interface DiagnosticInfo {
 /**
  * Build git diff command based on diffBase and includeUncommitted flag
  * Shared logic between numstat (file tree) and diff (hunks) commands
+ * Exported for testing
  */
-function buildGitDiffCommand(
+export function buildGitDiffCommand(
   diffBase: string,
   includeUncommitted: boolean,
   pathFilter: string,
