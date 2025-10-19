@@ -307,6 +307,84 @@ const NoteTextarea = styled.textarea`
   }
 `;
 
+// Separate component to prevent re-rendering diff lines on every keystroke
+interface ReviewNoteInputProps {
+  selection: LineSelection;
+  lineData: Array<{ index: number; type: DiffLineType; lineNum: number; content: string }>;
+  lines: string[];
+  filePath: string;
+  onSubmit: (note: string) => void;
+  onCancel: () => void;
+}
+
+const ReviewNoteInput: React.FC<ReviewNoteInputProps> = React.memo(
+  ({ selection, lineData, lines, filePath, onSubmit, onCancel }) => {
+    const [noteText, setNoteText] = React.useState("");
+    const textareaRef = React.useRef<HTMLTextAreaElement>(null);
+
+    // Auto-focus on mount
+    React.useEffect(() => {
+      textareaRef.current?.focus();
+    }, []);
+
+    // Auto-expand textarea as user types
+    React.useEffect(() => {
+      const textarea = textareaRef.current;
+      if (!textarea) return;
+
+      textarea.style.height = "auto";
+      textarea.style.height = `${textarea.scrollHeight}px`;
+    }, [noteText]);
+
+    const handleSubmit = () => {
+      if (!noteText.trim()) return;
+
+      const lineRange =
+        selection.startLineNum === selection.endLineNum
+          ? `${selection.startLineNum}`
+          : `${selection.startLineNum}-${selection.endLineNum}`;
+
+      const [start, end] = [selection.startIndex, selection.endIndex].sort((a, b) => a - b);
+      const selectedLines = lineData
+        .slice(start, end + 1)
+        .map((lineInfo) => {
+          const indicator = lines[lineInfo.index][0];
+          const content = lineInfo.content;
+          return `${lineInfo.lineNum} ${indicator} ${content}`;
+        })
+        .join("\n");
+
+      const reviewNote = `<review>\nRe ${filePath}:${lineRange}\n\`\`\`\n${selectedLines}\n\`\`\`\n> ${noteText.trim()}\n</review>`;
+      onSubmit(reviewNote);
+    };
+
+    return (
+      <InlineNoteContainer>
+        <NoteTextarea
+          ref={textareaRef}
+          placeholder="Add a review note to chat (Shift-click + button to select range, Cmd+Enter to submit, Esc to cancel)&#10;j, k to iterate through hunks, m to toggle as read"
+          value={noteText}
+          onChange={(e) => setNoteText(e.target.value)}
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => {
+            e.stopPropagation();
+
+            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+              e.preventDefault();
+              handleSubmit();
+            } else if (e.key === "Escape") {
+              e.preventDefault();
+              onCancel();
+            }
+          }}
+        />
+      </InlineNoteContainer>
+    );
+  }
+);
+
+ReviewNoteInput.displayName = "ReviewNoteInput";
+
 export const SelectableDiffRenderer: React.FC<SelectableDiffRendererProps> = ({
   content,
   showLineNumbers = true,
@@ -317,8 +395,6 @@ export const SelectableDiffRenderer: React.FC<SelectableDiffRendererProps> = ({
   onLineClick,
 }) => {
   const [selection, setSelection] = React.useState<LineSelection | null>(null);
-  const [noteText, setNoteText] = React.useState("");
-  const textareaRef = React.useRef<HTMLTextAreaElement>(null);
 
   const lines = content.split("\n").filter((line) => line.length > 0);
 
@@ -396,59 +472,15 @@ export const SelectableDiffRenderer: React.FC<SelectableDiffRendererProps> = ({
     });
   };
 
-  const handleSubmitNote = () => {
-    if (!noteText.trim() || !selection || !onReviewNote) return;
-
-    const lineRange =
-      selection.startLineNum === selection.endLineNum
-        ? `${selection.startLineNum}`
-        : `${selection.startLineNum}-${selection.endLineNum}`;
-
-    // Extract selected lines with line numbers and +/- indicators
-    const [start, end] = [selection.startIndex, selection.endIndex].sort((a, b) => a - b);
-    const selectedLines = lineData
-      .slice(start, end + 1)
-      .map((lineInfo) => {
-        const indicator = lines[lineInfo.index][0]; // +, -, or space
-        const content = lineInfo.content;
-        return `${lineInfo.lineNum} ${indicator} ${content}`;
-      })
-      .join("\n");
-
-    const reviewNote = `<review>\nRe ${filePath}:${lineRange}\n\`\`\`\n${selectedLines}\n\`\`\`\n> ${noteText.trim()}\n</review>`;
-
+  const handleSubmitNote = (reviewNote: string) => {
+    if (!onReviewNote) return;
     onReviewNote(reviewNote);
-
-    // Reset state
     setSelection(null);
-    setNoteText("");
   };
 
   const handleCancelNote = () => {
     setSelection(null);
-    setNoteText("");
   };
-
-  // Auto-focus textarea when selection is made or changed
-  React.useEffect(() => {
-    if (selection && textareaRef.current) {
-      // Small delay to ensure textarea is rendered
-      setTimeout(() => {
-        textareaRef.current?.focus();
-      }, 0);
-    }
-  }, [selection]);
-
-  // Auto-expand textarea as user types
-  React.useEffect(() => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-
-    // Reset height to minimum to get accurate scrollHeight
-    textarea.style.height = "auto";
-    // Set to scrollHeight to fit content
-    textarea.style.height = `${textarea.scrollHeight}px`;
-  }, [noteText]);
 
   const isLineSelected = (index: number) => {
     if (!selection) return false;
@@ -493,27 +525,14 @@ export const SelectableDiffRenderer: React.FC<SelectableDiffRendererProps> = ({
             {isSelected &&
               selection &&
               displayIndex === Math.max(selection.startIndex, selection.endIndex) && (
-                <InlineNoteContainer>
-                  <NoteTextarea
-                    ref={textareaRef}
-                    placeholder="Add a review note to chat (Shift-click + button to select range, Cmd+Enter to submit, Esc to cancel)&#10;j, k to iterate through hunks, m to toggle as read"
-                    value={noteText}
-                    onChange={(e) => setNoteText(e.target.value)}
-                    onClick={(e) => e.stopPropagation()}
-                    onKeyDown={(e) => {
-                      // Stop propagation for all keys to prevent parent handlers
-                      e.stopPropagation();
-
-                      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-                        e.preventDefault();
-                        handleSubmitNote();
-                      } else if (e.key === "Escape") {
-                        e.preventDefault();
-                        handleCancelNote();
-                      }
-                    }}
-                  />
-                </InlineNoteContainer>
+                <ReviewNoteInput
+                  selection={selection}
+                  lineData={lineData}
+                  lines={lines}
+                  filePath={filePath}
+                  onSubmit={handleSubmitNote}
+                  onCancel={handleCancelNote}
+                />
               )}
           </React.Fragment>
         );
