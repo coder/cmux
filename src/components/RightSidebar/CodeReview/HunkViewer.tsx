@@ -26,13 +26,6 @@ const HunkContainer = styled.div<{ isSelected: boolean; isRead: boolean }>`
   transition: all 0.2s ease;
 
   ${(props) =>
-    props.isRead &&
-    `
-    background: rgba(74, 222, 128, 0.05);
-    border-color: rgba(74, 222, 128, 0.2);
-  `}
-
-  ${(props) =>
     props.isSelected &&
     `
     border-color: #007acc;
@@ -44,8 +37,8 @@ const HunkContainer = styled.div<{ isSelected: boolean; isRead: boolean }>`
   }
 `;
 
-const HunkHeader = styled.div`
-  background: #252526;
+const HunkHeader = styled.div<{ isRead: boolean }>`
+  background: ${(props) => (props.isRead ? "rgba(74, 222, 128, 0.15)" : "#252526")};
   padding: 8px 12px;
   border-bottom: 1px solid #3e3e42;
   display: flex;
@@ -54,6 +47,7 @@ const HunkHeader = styled.div`
   font-family: var(--font-monospace);
   font-size: 12px;
   gap: 8px;
+  transition: background 0.2s ease;
 `;
 
 const FilePath = styled.div`
@@ -220,7 +214,7 @@ export const HunkViewer: React.FC<HunkViewerProps> = ({
         }
       }}
     >
-      <HunkHeader>
+      <HunkHeader isRead={isRead}>
         {isRead && <ReadIndicator title="Marked as read">✓</ReadIndicator>}
         <FilePath>{hunk.filePath}</FilePath>
         <LineInfo>
