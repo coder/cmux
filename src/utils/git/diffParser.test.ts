@@ -375,13 +375,13 @@ function greet(name) {
 
     // Reset and setup: create a branch with committed changes
     execSync("git reset --hard HEAD", { cwd: testRepoPath });
-    
+
     // Get the current branch name (will be our base branch)
     const baseBranch = execSync("git rev-parse --abbrev-ref HEAD", {
       cwd: testRepoPath,
       encoding: "utf-8",
     }).trim();
-    
+
     execSync("git checkout -b unified-test", { cwd: testRepoPath });
 
     // Make and commit a change
@@ -440,7 +440,10 @@ function greet(name) {
     execSync("git add staged-test.txt", { cwd: testRepoPath });
 
     // Make additional unstaged changes
-    writeFileSync(join(testRepoPath, "staged-test.txt"), "Line 1\nLine 2 staged\nLine 3 unstaged\n");
+    writeFileSync(
+      join(testRepoPath, "staged-test.txt"),
+      "Line 1\nLine 2 staged\nLine 3 unstaged\n"
+    );
 
     // Build command with --staged and includeUncommitted
     const gitCommand = buildGitDiffCommand("--staged", true, "", "diff");
@@ -467,6 +470,4 @@ function greet(name) {
     expect(allContent.includes("staged")).toBe(true);
     expect(allContent.includes("unstaged")).toBe(true);
   });
-
-
 });
