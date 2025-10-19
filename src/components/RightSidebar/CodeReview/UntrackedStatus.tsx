@@ -184,7 +184,7 @@ export const UntrackedStatus: React.FC<UntrackedStatusProps> = ({
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [workspaceId, workspacePath, refreshTrigger]);
 
   // Close tooltip when clicking outside
