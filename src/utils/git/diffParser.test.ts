@@ -510,7 +510,10 @@ function greet(name) {
       cwd: testRepoPath,
     });
 
-    writeFileSync(join(testRepoPath, "main-file.txt"), "Initial content\nCommit Y\nCommit Z\nCommit W\n");
+    writeFileSync(
+      join(testRepoPath, "main-file.txt"),
+      "Initial content\nCommit Y\nCommit Z\nCommit W\n"
+    );
     execSync("git add main-file.txt && git commit -m 'Commit W on main'", {
       cwd: testRepoPath,
     });
@@ -532,7 +535,9 @@ function greet(name) {
     const featureFileCommittedOnly = fileDiffsCommittedOnly.find(
       (f) => f.filePath === "feature-file.txt"
     );
-    const mainFileCommittedOnly = fileDiffsCommittedOnly.find((f) => f.filePath === "main-file.txt");
+    const mainFileCommittedOnly = fileDiffsCommittedOnly.find(
+      (f) => f.filePath === "main-file.txt"
+    );
 
     expect(featureFileCommittedOnly).toBeDefined();
     expect(mainFileCommittedOnly).toBeUndefined(); // No inverse deltas
