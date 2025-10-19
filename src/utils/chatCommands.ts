@@ -194,7 +194,11 @@ export function prepareCompactionMessage(options: CompactExecutionOptions): {
 
   const metadata: CmuxFrontendMetadata = {
     type: "compaction-request",
-    rawCommand: formatCompactionCommand(options),
+    rawCommand: formatCompactCommand({
+      maxOutputTokens: options.maxOutputTokens,
+      model: options.model,
+      continueMessage: options.continueMessage,
+    }),
     parsed: compactData,
   };
 
@@ -266,17 +270,7 @@ export function formatCompactCommand(
   return cmd;
 }
 
-/**
- * Format compaction command string for display (accepts CompactExecutionOptions)
- * @deprecated Use formatCompactCommand with CompactOptions instead
- */
-function formatCompactionCommand(options: CompactExecutionOptions): string {
-  return formatCompactCommand({
-    maxOutputTokens: options.maxOutputTokens,
-    model: options.model,
-    continueMessage: options.continueMessage,
-  });
-}
+
 
 // ============================================================================
 // Command Handler Types

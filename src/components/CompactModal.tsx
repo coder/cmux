@@ -100,9 +100,7 @@ const CompactModal: React.FC<CompactModalProps> = ({ isOpen, onClose, onCompact 
             id="model"
             type="text"
             value={options.model ?? ""}
-            onChange={(event) =>
-              setOptions({ ...options, model: event.target.value || undefined })
-            }
+            onChange={(event) => setOptions({ ...options, model: event.target.value || undefined })}
             disabled={isLoading}
             placeholder="e.g., claude-3-5-sonnet-20241022"
           />
