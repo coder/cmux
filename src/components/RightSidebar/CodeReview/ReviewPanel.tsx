@@ -253,16 +253,23 @@ export function buildGitDiffCommand(
   let cmd: string;
 
   if (diffBase === "--staged") {
+    // Staged: show staged changes, optionally append unstaged
     cmd = `git diff --staged${flag}${pathFilter}`;
+    if (includeUncommitted) {
+      cmd += ` && git diff HEAD${flag}${pathFilter}`;
+    }
   } else if (diffBase === "HEAD") {
+    // HEAD: already shows uncommitted changes (working directory vs HEAD)
     cmd = `git diff HEAD${flag}${pathFilter}`;
   } else {
-    cmd = `git diff ${diffBase}...HEAD${flag}${pathFilter}`;
-  }
-
-  // Append uncommitted changes if requested
-  if (includeUncommitted) {
-    cmd += ` && git diff HEAD${flag}${pathFilter}`;
+    // Branch diff: use three-dot for committed only, two-dot for all changes
+    if (includeUncommitted) {
+      // Two-dot: shows all changes from base to working directory (unified)
+      cmd = `git diff ${diffBase}${flag}${pathFilter}`;
+    } else {
+      // Three-dot: shows only committed changes (base...HEAD)
+      cmd = `git diff ${diffBase}...HEAD${flag}${pathFilter}`;
+    }
   }
 
   return cmd;

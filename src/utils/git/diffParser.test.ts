@@ -368,63 +368,104 @@ function greet(name) {
     expect(allHunks.length).toBe(0);
   });
 
-  it("should deduplicate files when combining committed and uncommitted diffs", () => {
-    // This test replicates the bug: when using "includeDirty" flag,
-    // we run: git diff base...HEAD && git diff HEAD
-    // which produces TWO separate diffs for the same file
+  it("should show unified diff when includeUncommitted is true", () => {
+    // This test verifies that when using "includeUncommitted" flag,
+    // we get a single unified diff from base to working directory
+    // (not separate diffs for committed and uncommitted)
 
     // Reset and setup: create a branch with committed changes
     execSync("git reset --hard HEAD", { cwd: testRepoPath });
-    execSync("git checkout -b dedup-test", { cwd: testRepoPath });
+    execSync("git checkout -b unified-test", { cwd: testRepoPath });
 
     // Make and commit a change
     writeFileSync(join(testRepoPath, "test-file.txt"), "Line 1\nLine 2\nLine 3\n");
     execSync("git add test-file.txt && git commit -m 'Add test file'", { cwd: testRepoPath });
 
-    // Now make an uncommitted change
-    writeFileSync(join(testRepoPath, "test-file.txt"), "Line 1\nLine 2 modified\nLine 3\nLine 4\n");
+    // Now make an uncommitted change (different line)
+    writeFileSync(join(testRepoPath, "test-file.txt"), "Line 1\nLine 2\nLine 3 modified\nLine 4\n");
 
-    // Simulate what ReviewPanel does: use buildGitDiffCommand with includeUncommitted=true
+    // Get base branch
     const baseBranch = execSync("git rev-parse --abbrev-ref HEAD@{u} 2>/dev/null || echo main", {
       cwd: testRepoPath,
       encoding: "utf-8",
     }).trim();
 
-    // Use the same command builder as ReviewPanel (tests the actual integration)
+    // Use buildGitDiffCommand with includeUncommitted=true
     const gitCommand = buildGitDiffCommand(baseBranch, true, "", "diff");
 
-    // Execute the command and get the combined output
-    const combinedDiff = execSync(gitCommand, {
+    // Execute the command
+    const diffOutput = execSync(gitCommand, {
       cwd: testRepoPath,
       encoding: "utf-8",
     });
 
-    // Parse the combined diff
-    const fileDiffs = parseDiff(combinedDiff);
+    // Parse the diff
+    const fileDiffs = parseDiff(diffOutput);
 
-    // BUG: Without deduplication, we get 2 FileDiff entries for the same file
-    // FIX: After deduplication, we should get 1 FileDiff with hunks from both diffs
-
-    // This should FAIL before the fix (fileDiffs.length === 2)
-    // This should PASS after the fix (fileDiffs.length === 1)
+    // Should get a single FileDiff (no duplicates)
     expect(fileDiffs.length).toBe(1);
     expect(fileDiffs[0].filePath).toBe("test-file.txt");
 
-    // Should have hunks from BOTH diffs (committed + uncommitted)
+    // Should have hunks showing unified changes
     const allHunks = extractAllHunks(fileDiffs);
     expect(allHunks.length).toBeGreaterThan(0);
 
     // All hunks should reference the same file
     expect(allHunks.every((h) => h.filePath === "test-file.txt")).toBe(true);
 
-    // The hunks should include both the committed and uncommitted changes
-    // - Committed: "Line 1\nLine 2\nLine 3\n" (initial commit)
-    // - Uncommitted: "Line 2 modified\nLine 4\n" (working directory)
+    // The diff should include BOTH the committed and uncommitted changes
+    // in a single unified view (not as separate hunks with different base states)
     const allContent = allHunks.map((h) => h.content).join("\n");
-    expect(allContent.includes("Line 2 modified") || allContent.includes("Line 4")).toBe(true);
+    expect(allContent.includes("Line 3 modified") || allContent.includes("Line 4")).toBe(true);
 
     // Clean up: reset and go back to previous branch
     execSync("git reset --hard HEAD && git checkout -", { cwd: testRepoPath });
   });
+
+  it("should handle staged + uncommitted when diffBase is --staged", () => {
+    // When diffBase="--staged" with includeUncommitted=true,
+    // we want TWO separate diffs: staged changes AND unstaged changes
+    // This is the only case where we keep the && behavior
+
+    // Reset
+    execSync("git reset --hard HEAD", { cwd: testRepoPath });
+
+    // Create a file with changes
+    writeFileSync(join(testRepoPath, "staged-test.txt"), "Line 1\nLine 2\nLine 3\n");
+    execSync("git add staged-test.txt", { cwd: testRepoPath });
+
+    // Stage some changes
+    writeFileSync(join(testRepoPath, "staged-test.txt"), "Line 1\nLine 2 staged\nLine 3\n");
+    execSync("git add staged-test.txt", { cwd: testRepoPath });
+
+    // Make additional unstaged changes
+    writeFileSync(join(testRepoPath, "staged-test.txt"), "Line 1\nLine 2 staged\nLine 3 unstaged\n");
+
+    // Build command with --staged and includeUncommitted
+    const gitCommand = buildGitDiffCommand("--staged", true, "", "diff");
+
+    // Execute
+    const diffOutput = execSync(gitCommand, {
+      cwd: testRepoPath,
+      encoding: "utf-8",
+    });
+
+    // Parse
+    const fileDiffs = parseDiff(diffOutput);
+
+    // Should get TWO FileDiff entries for the same file (staged + unstaged)
+    expect(fileDiffs.length).toBe(2);
+    expect(fileDiffs.every((f) => f.filePath === "staged-test.txt")).toBe(true);
+
+    // Should have hunks from both diffs
+    const allHunks = extractAllHunks(fileDiffs);
+    expect(allHunks.length).toBe(2);
+
+    // Content should show both staged and unstaged changes
+    const allContent = allHunks.map((h) => h.content).join("\n");
+    expect(allContent.includes("staged")).toBe(true);
+    expect(allContent.includes("unstaged")).toBe(true);
+  });
+
 
 });
