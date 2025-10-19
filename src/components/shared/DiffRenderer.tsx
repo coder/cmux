@@ -550,7 +550,7 @@ export const SelectableDiffRenderer: React.FC<SelectableDiffRendererProps> = ({
   };
 
   return (
-    <>
+    <DiffContainer fontSize={fontSize}>
       {lineData.map((lineInfo, displayIndex) => {
         const isSelected = isLineSelected(displayIndex);
 
