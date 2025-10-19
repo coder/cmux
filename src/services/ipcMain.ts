@@ -859,8 +859,9 @@ export class IpcMain {
     // Debug IPC - only for testing
     ipcMain.handle(
       IPC_CHANNELS.DEBUG_TRIGGER_STREAM_ERROR,
-      async (_event, workspaceId: string, errorMessage: string) => {
+      (_event, workspaceId: string, errorMessage: string) => {
         try {
+          // eslint-disable-next-line @typescript-eslint/dot-notation -- accessing private member for testing
           const triggered = this.aiService["streamManager"].debugTriggerStreamError(
             workspaceId,
             errorMessage

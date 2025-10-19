@@ -1314,7 +1314,7 @@ export class StreamManager extends EventEmitter {
     // Emit error event (same as real error handling)
     this.emit("error", {
       type: "error",
-      workspaceId: workspaceId as string,
+      workspaceId,
       messageId: streamInfo.messageId,
       error: errorMessage,
       errorType: "network",

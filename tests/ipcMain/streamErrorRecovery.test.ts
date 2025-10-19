@@ -1,14 +1,7 @@
 import * as fs from "fs/promises";
 import * as path from "path";
-import {
-  setupWorkspace,
-  shouldRunIntegrationTests,
-  validateApiKeys,
-} from "./setup";
-import {
-  sendMessageWithModel,
-  createEventCollector,
-} from "./helpers";
+import { setupWorkspace, shouldRunIntegrationTests, validateApiKeys } from "./setup";
+import { sendMessageWithModel, createEventCollector } from "./helpers";
 import { IPC_CHANNELS } from "../../src/constants/ipc-constants";
 import type { CmuxMessage } from "../../src/types/message";
 import type { StreamErrorMessage } from "../../src/types/ipc";
@@ -131,12 +124,12 @@ describeIntegration("Stream Error Recovery (No Amnesia)", () => {
         // The key test is that the resumed stream has access to the partial's content (no amnesia)
         const historyAfterResume = await readChatHistoryWithMetadata(env.tempDir, workspaceId);
         const allAssistantMessages = historyAfterResume.filter((m) => m.role === "assistant");
-        
+
         // Should have the errored partial (committed) plus the resumed completion
         expect(allAssistantMessages.length).toBeGreaterThanOrEqual(1);
-        
+
         // Find the successful completion message (no error)
-        const successfulMessage = allAssistantMessages.find(m => !m.metadata?.error);
+        const successfulMessage = allAssistantMessages.find((m) => !m.metadata?.error);
         expect(successfulMessage).toBeDefined();
         expect(successfulMessage!.parts.length).toBeGreaterThan(0);
 
@@ -239,7 +232,7 @@ describeIntegration("Stream Error Recovery (No Amnesia)", () => {
         expect(allAssistantMessages.length).toBeGreaterThanOrEqual(1);
 
         // Find the successful completion message (no error)
-        const successfulMessage = allAssistantMessages.find(m => !m.metadata?.error);
+        const successfulMessage = allAssistantMessages.find((m) => !m.metadata?.error);
         expect(successfulMessage).toBeDefined();
         expect(successfulMessage!.parts.length).toBeGreaterThan(0); // Has content
 
@@ -257,4 +250,3 @@ describeIntegration("Stream Error Recovery (No Amnesia)", () => {
     60000
   );
 });
-
