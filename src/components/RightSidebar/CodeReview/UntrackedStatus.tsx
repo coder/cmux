@@ -130,7 +130,7 @@ export const UntrackedStatus: React.FC<UntrackedStatusProps> = ({
   refreshTrigger,
 }) => {
   const [untrackedFiles, setUntrackedFiles] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [showTooltip, setShowTooltip] = useState(false);
   const [isTracking, setIsTracking] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
