@@ -1294,6 +1294,13 @@ export class StreamManager extends EventEmitter {
     // Abort the stream first
     streamInfo.abortController.abort(new Error(errorMessage));
 
+    // Update streamInfo metadata with error (so subsequent flushes preserve it)
+    streamInfo.initialMetadata = {
+      ...streamInfo.initialMetadata,
+      error: errorMessage,
+      errorType: "network",
+    };
+
     // Write error state to partial.json (same as real error handling)
     const errorPartialMessage: CmuxMessage = {
       id: streamInfo.messageId,
