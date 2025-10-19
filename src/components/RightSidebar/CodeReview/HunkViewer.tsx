@@ -6,6 +6,7 @@ import React, { useState } from "react";
 import styled from "@emotion/styled";
 import type { DiffHunk } from "@/types/review";
 import { SelectableDiffRenderer } from "../../shared/DiffRenderer";
+import { Tooltip, TooltipWrapper } from "../../Tooltip";
 
 interface HunkViewerProps {
   hunk: DiffHunk;
@@ -217,7 +218,14 @@ export const HunkViewer: React.FC<HunkViewerProps> = ({
       }}
     >
       <HunkHeader>
-        {isRead && <ReadIndicator title="Marked as read">✓</ReadIndicator>}
+        {isRead && (
+          <TooltipWrapper inline>
+            <ReadIndicator>✓</ReadIndicator>
+            <Tooltip align="center" position="top">
+              Marked as read
+            </Tooltip>
+          </TooltipWrapper>
+        )}
         <FilePath>{hunk.filePath}</FilePath>
         <LineInfo>
           {!isPureRename && (
@@ -230,9 +238,14 @@ export const HunkViewer: React.FC<HunkViewerProps> = ({
             ({lineCount} {lineCount === 1 ? "line" : "lines"})
           </LineCount>
           {onToggleRead && (
-            <ToggleReadButton onClick={handleToggleRead} title="Mark as read (m)">
-              {isRead ? "○" : "◉"}
-            </ToggleReadButton>
+            <TooltipWrapper inline>
+              <ToggleReadButton onClick={handleToggleRead}>
+                {isRead ? "○" : "◉"}
+              </ToggleReadButton>
+              <Tooltip align="right" position="top">
+                Mark as read (m)
+              </Tooltip>
+            </TooltipWrapper>
           )}
         </LineInfo>
       </HunkHeader>

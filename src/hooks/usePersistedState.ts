@@ -134,25 +134,27 @@ export function usePersistedState<T>(
       setState((prevState) => {
         const newValue = value instanceof Function ? value(prevState) : value;
 
-        // Persist to localStorage
-        if (typeof window !== "undefined" && window.localStorage) {
-          try {
-            if (newValue === undefined || newValue === null) {
-              window.localStorage.removeItem(key);
-            } else {
-              window.localStorage.setItem(key, JSON.stringify(newValue));
-            }
+        // Batch localStorage writes in microtask to avoid blocking UI
+        queueMicrotask(() => {
+          if (typeof window !== "undefined" && window.localStorage) {
+            try {
+              if (newValue === undefined || newValue === null) {
+                window.localStorage.removeItem(key);
+              } else {
+                window.localStorage.setItem(key, JSON.stringify(newValue));
+              }
 
-            // Dispatch custom event for same-tab synchronization
-            // Include origin marker to prevent echo
-            const customEvent = new CustomEvent(getStorageChangeEvent(key), {
-              detail: { key, newValue, origin: componentIdRef.current },
-            });
-            window.dispatchEvent(customEvent);
-          } catch (error) {
-            console.warn(`Error writing to localStorage key "${key}":`, error);
+              // Dispatch custom event for same-tab synchronization
+              // Include origin marker to prevent echo
+              const customEvent = new CustomEvent(getStorageChangeEvent(key), {
+                detail: { key, newValue, origin: componentIdRef.current },
+              });
+              window.dispatchEvent(customEvent);
+            } catch (error) {
+              console.warn(`Error writing to localStorage key "${key}":`, error);
+            }
           }
-        }
+        });
 
         return newValue;
       });
