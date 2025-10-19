@@ -137,7 +137,7 @@ export function prepareCompactionMessage(options: CompactionOptions): {
 
   // Build compaction message with optional continue context
   let messageText = `Summarize this conversation into a compact form for a new Assistant to continue helping the user. Use approximately ${targetWords} words.`;
-  
+
   if (options.continueMessage) {
     messageText += `\n\nThe user wants to continue with: ${options.continueMessage}`;
   }
