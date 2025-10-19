@@ -492,22 +492,27 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
       const wasRead = reviewState.isRead(hunkId);
       reviewState.toggleRead(hunkId);
 
-      // If marking as read and "Show read hunks" is off, move to next visible hunk
-      if (!wasRead && !filters.showReadHunks) {
-        const currentIndex = filteredHunks.findIndex((h) => h.id === hunkId);
-        if (currentIndex !== -1) {
-          // Select the hunk that will be at the same position after filtering
-          if (currentIndex < filteredHunks.length - 1) {
-            setSelectedHunkId(filteredHunks[currentIndex + 1].id);
-          } else if (currentIndex > 0) {
-            setSelectedHunkId(filteredHunks[currentIndex - 1].id);
-          } else {
-            setSelectedHunkId(null);
+      // If toggling the selected hunk, check if it will still be visible after toggle
+      if (hunkId === selectedHunkId) {
+        // Hunk is visible if: showReadHunks is on OR it will be unread after toggle
+        const willBeVisible = filters.showReadHunks || wasRead;
+
+        if (!willBeVisible) {
+          // Hunk will be filtered out - move to next visible hunk
+          const currentIndex = filteredHunks.findIndex((h) => h.id === hunkId);
+          if (currentIndex !== -1) {
+            if (currentIndex < filteredHunks.length - 1) {
+              setSelectedHunkId(filteredHunks[currentIndex + 1].id);
+            } else if (currentIndex > 0) {
+              setSelectedHunkId(filteredHunks[currentIndex - 1].id);
+            } else {
+              setSelectedHunkId(null);
+            }
           }
         }
       }
     },
-    [reviewState, filters.showReadHunks, filteredHunks]
+    [reviewState, filters.showReadHunks, filteredHunks, selectedHunkId]
   );
 
   // Calculate stats
