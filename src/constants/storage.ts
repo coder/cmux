@@ -135,8 +135,11 @@ export function copyWorkspaceStorage(sourceWorkspaceId: string, destWorkspaceId:
  * Should be called when a workspace is deleted to prevent orphaned data
  */
 export function deleteWorkspaceStorage(workspaceId: string): void {
-  const allKeyFunctions = [...PERSISTENT_WORKSPACE_KEY_FUNCTIONS, ...EPHEMERAL_WORKSPACE_KEY_FUNCTIONS];
-  
+  const allKeyFunctions = [
+    ...PERSISTENT_WORKSPACE_KEY_FUNCTIONS,
+    ...EPHEMERAL_WORKSPACE_KEY_FUNCTIONS,
+  ];
+
   for (const getKey of allKeyFunctions) {
     const key = getKey(workspaceId);
     localStorage.removeItem(key);

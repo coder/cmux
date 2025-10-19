@@ -261,10 +261,19 @@ export const HunkViewer = React.memo<HunkViewerProps>(
         tabIndex={0}
         data-hunk-id={hunkId}
         onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
+          if (e.key === "Enter") {
             e.preventDefault();
             // Cast to MouseEvent-like for onClick handler
             onClick?.(e as unknown as React.MouseEvent<HTMLElement>);
+          } else if (e.key === " ") {
+            e.preventDefault();
+            // Space toggles expand/collapse for non-rename hunks
+            if (!isPureRename) {
+              handleToggleExpand(e as unknown as React.MouseEvent);
+            } else {
+              // For renames, Space selects the hunk
+              onClick?.(e as unknown as React.MouseEvent<HTMLElement>);
+            }
           }
         }}
       >
@@ -333,8 +342,10 @@ export const HunkViewer = React.memo<HunkViewerProps>(
           </CollapsedIndicator>
         )}
 
-        {isLargeHunk && isExpanded && !isPureRename && (
-          <CollapsedIndicator onClick={handleToggleExpand}>Click to collapse</CollapsedIndicator>
+        {hasManualState && isExpanded && !isPureRename && (
+          <CollapsedIndicator onClick={handleToggleExpand}>
+            Click here or press [Space] to collapse
+          </CollapsedIndicator>
         )}
       </HunkContainer>
     );
