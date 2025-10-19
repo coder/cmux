@@ -140,7 +140,11 @@ export const UntrackedStatus: React.FC<UntrackedStatusProps> = ({
     let cancelled = false;
 
     const loadUntracked = async () => {
-      setIsLoading(true);
+      // Only show loading on initial mount when we have no data
+      if (untrackedFiles.length === 0) {
+        setIsLoading(true);
+      }
+      
       try {
         const result = await window.api.workspace.executeBash(
           workspaceId,
@@ -169,6 +173,7 @@ export const UntrackedStatus: React.FC<UntrackedStatusProps> = ({
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workspaceId, workspacePath, refreshTrigger]);
 
   // Close tooltip when clicking outside
