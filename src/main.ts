@@ -459,6 +459,21 @@ if (gotTheLock) {
     }
   });
 
+  // Cleanup worker threads on quit
+  app.on("will-quit", () => {
+    console.log("App will quit - cleaning up worker threads");
+    void (async () => {
+      try {
+        // Dynamic import is acceptable here - only loaded if worker was used
+        /* eslint-disable-next-line no-restricted-syntax */
+        const { tokenizerWorkerPool } = await import("@/services/tokenizerWorkerPool");
+        tokenizerWorkerPool.terminate();
+      } catch (error) {
+        console.error("Error terminating worker pool:", error);
+      }
+    })();
+  });
+
   app.on("activate", () => {
     // Only create window if app is ready and no window exists
     // This prevents "Cannot create BrowserWindow before app is ready" error
