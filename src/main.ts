@@ -3,7 +3,15 @@ import "source-map-support/register";
 import "disposablestack/auto";
 
 import type { MenuItemConstructorOptions } from "electron";
-import { app, BrowserWindow, ipcMain as electronIpcMain, Menu, shell, dialog } from "electron";
+import {
+  app,
+  BrowserWindow,
+  ipcMain as electronIpcMain,
+  Menu,
+  shell,
+  dialog,
+  screen,
+} from "electron";
 import * as fs from "fs";
 import * as path from "path";
 import type { Config } from "./config";
@@ -314,9 +322,16 @@ function createWindow() {
     throw new Error("Services must be loaded before creating window");
   }
 
+  // Calculate window size based on screen dimensions (80% of available space)
+  const primaryDisplay = screen.getPrimaryDisplay();
+  const { width: screenWidth, height: screenHeight } = primaryDisplay.workArea;
+
+  const windowWidth = Math.max(1200, Math.floor(screenWidth * 0.8));
+  const windowHeight = Math.max(800, Math.floor(screenHeight * 0.8));
+
   mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 800,
+    width: windowWidth,
+    height: windowHeight,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
