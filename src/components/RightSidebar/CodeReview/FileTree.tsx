@@ -156,7 +156,6 @@ function computeDirectoryReadStatus(
   if (!node.isDirectory || !getFileReadStatus) return null;
 
   let hasUnknown = false;
-  let hasPartiallyRead = false;
   let fileCount = 0;
   let fullyReadCount = 0;
 
@@ -172,8 +171,6 @@ function computeDirectoryReadStatus(
         hasUnknown = true;
       } else if (status.read === status.total && status.total > 0) {
         fullyReadCount++;
-      } else {
-        hasPartiallyRead = true;
       }
     }
   };
