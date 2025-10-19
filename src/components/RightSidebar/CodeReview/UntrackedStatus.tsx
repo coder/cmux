@@ -137,12 +137,17 @@ export const UntrackedStatus: React.FC<UntrackedStatusProps> = ({
   const [isTracking, setIsTracking] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const hasLoadedOnce = useRef(false);
+  const loadingRef = useRef(false); // Prevent concurrent loads
 
   // Load untracked files
   useEffect(() => {
     let cancelled = false;
 
     const loadUntracked = async () => {
+      // Prevent concurrent loads
+      if (loadingRef.current) return;
+      loadingRef.current = true;
+
       // Only show loading on first load ever, not on subsequent refreshes
       if (!hasLoadedOnce.current) {
         setIsLoading(true);
@@ -169,6 +174,7 @@ export const UntrackedStatus: React.FC<UntrackedStatusProps> = ({
       } catch (err) {
         console.error("Failed to load untracked files:", err);
       } finally {
+        loadingRef.current = false;
         setIsLoading(false);
       }
     };
@@ -210,9 +216,10 @@ export const UntrackedStatus: React.FC<UntrackedStatusProps> = ({
       );
 
       if (result.success) {
-        setUntrackedFiles([]);
+        // Close tooltip first
         setShowTooltip(false);
-        // Trigger refresh to update hunks, tree, and untracked count
+        // Trigger refresh - this will reload untracked files from git
+        // Don't clear untrackedFiles optimistically to avoid flicker
         onRefresh?.();
       } else {
         console.error("Failed to track files:", result.error);
