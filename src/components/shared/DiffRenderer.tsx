@@ -276,23 +276,25 @@ const CommentButton = styled.button`
 `;
 
 const InlineNoteContainer = styled.div`
-  padding: 10px 8px 8px 8px;
-  background: #252526;
+  padding: 6px 8px;
+  background: #1e1e1e;
   border-top: 1px solid hsl(from var(--color-review-accent) h s l / 0.3);
   margin: 0;
 `;
 
 const NoteTextarea = styled.textarea`
   width: 100%;
-  min-height: 50px;
+  min-height: calc(11px * 1.4 * 3 + 12px); /* 3 lines + padding */
   padding: 6px 8px;
   font-family: var(--font-sans);
   font-size: 11px;
+  line-height: 1.4;
   background: #1e1e1e;
   border: 1px solid hsl(from var(--color-review-accent) h s l / 0.4);
   border-radius: 2px;
   color: var(--color-text);
-  resize: vertical;
+  resize: none; /* Disable manual resize since we auto-grow */
+  overflow-y: hidden; /* Hide scrollbar during auto-grow */
 
   &:focus {
     outline: none;
@@ -436,6 +438,17 @@ export const SelectableDiffRenderer: React.FC<SelectableDiffRendererProps> = ({
       }, 0);
     }
   }, [selection]);
+
+  // Auto-expand textarea as user types
+  React.useEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    // Reset height to minimum to get accurate scrollHeight
+    textarea.style.height = "auto";
+    // Set to scrollHeight to fit content
+    textarea.style.height = `${textarea.scrollHeight}px`;
+  }, [noteText]);
 
   const isLineSelected = (index: number) => {
     if (!selection) return false;
