@@ -39,6 +39,7 @@ const FileName = styled.span<{ isFullyRead?: boolean }>`
   ${(props) =>
     props.isFullyRead &&
     `
+    color: #666;
     text-decoration: line-through;
     text-decoration-color: var(--color-read);
     text-decoration-thickness: 2px;

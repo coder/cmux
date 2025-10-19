@@ -116,6 +116,11 @@ export const GlobalColors = () => (
         --color-interrupted: hsl(38 92% 50%); /* #f59e0b */
         --color-interrupted-alpha: hsl(from var(--color-interrupted) h s l / 0.3);
 
+        /* Review/Selection Colors (Yellow/Orange) */
+        --color-review-accent: hsl(48 100% 50%); /* rgb(255, 200, 0) - used for review notes and active hunks */
+        --color-review-accent-alpha: hsl(from var(--color-review-accent) h s l / 0.4);
+        --color-review-accent-alpha-hover: hsl(from var(--color-review-accent) h s l / 0.6);
+
         /* Git Dirty/Uncommitted Changes Colors */
         --color-git-dirty: hsl(38 92% 50%); /* Same as interrupted - orange warning color */
 

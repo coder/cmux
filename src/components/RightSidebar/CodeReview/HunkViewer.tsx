@@ -34,13 +34,9 @@ const HunkContainer = styled.div<{ isSelected: boolean; isRead: boolean }>`
   ${(props) =>
     props.isSelected &&
     `
-    border-color: #f59e0b;
-    box-shadow: 0 0 0 1px #f59e0b;
+    border-color: var(--color-review-accent);
+    box-shadow: 0 0 0 1px var(--color-review-accent);
   `}
-
-  &:hover {
-    border-color: #f59e0b;
-  }
 `;
 
 const HunkHeader = styled.div`
