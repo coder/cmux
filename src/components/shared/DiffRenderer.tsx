@@ -111,6 +111,7 @@ export const DiffIndicator = styled.span<{ type: DiffLineType }>`
 export const DiffContainer = styled.div<{ fontSize?: string; maxHeight?: string }>`
   margin: 0;
   padding: 6px 0;
+  background: var(--color-code-bg);
   border-radius: 3px;
   font-size: ${({ fontSize }) => fontSize ?? "12px"};
   line-height: 1.4;

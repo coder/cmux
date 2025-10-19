@@ -35,7 +35,7 @@ const MetadataText = styled.span`
 const ContentBlock = styled.div`
   margin: 0;
   padding: 6px 8px;
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--color-code-bg);
   border-radius: 3px;
   font-size: 11px;
   line-height: 1.4;
@@ -79,7 +79,7 @@ const FileInfoRow = styled.div`
   flex-wrap: wrap;
   gap: 16px;
   padding: 6px 8px;
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--color-code-bg);
   border-radius: 3px;
   font-size: 11px;
   line-height: 1.4;

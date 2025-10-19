@@ -96,7 +96,7 @@ const RawContent = styled.pre`
   word-break: break-word;
   margin: 0;
   padding: 8px;
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--color-code-bg);
   border-radius: 3px;
 `;
 

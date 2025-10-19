@@ -165,7 +165,7 @@ export const Mermaid: React.FC<{ chart: string }> = ({ chart }) => {
         <div
           style={{
             color: "var(--color-text-secondary)",
-            background: "rgba(0, 0, 0, 0.2)",
+            background: "var(--color-code-bg)",
             padding: "12px",
             fontStyle: "italic",
           }}
@@ -189,7 +189,7 @@ export const Mermaid: React.FC<{ chart: string }> = ({ chart }) => {
         style={{
           position: "relative",
           margin: "1em 0",
-          background: "rgba(0, 0, 0, 0.2)",
+          background: "var(--color-code-bg)",
           borderRadius: "4px",
           padding: "16px",
         }}
@@ -243,7 +243,7 @@ export const Mermaid: React.FC<{ chart: string }> = ({ chart }) => {
             ref={modalContainerRef}
             className="mermaid-container mermaid-modal"
             style={{
-              background: "rgba(0, 0, 0, 0.2)",
+              background: "var(--color-code-bg)",
               padding: "24px",
               borderRadius: "8px",
               minWidth: "80vw",

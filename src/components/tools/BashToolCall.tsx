@@ -30,7 +30,7 @@ const ScriptPreview = styled.span`
 const OutputBlock = styled.pre`
   margin: 0;
   padding: 6px 8px;
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--color-code-bg);
   border-radius: 3px;
   border-left: 2px solid #4caf50;
   font-size: 11px;

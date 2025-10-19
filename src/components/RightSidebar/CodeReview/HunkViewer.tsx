@@ -107,7 +107,7 @@ const HunkContent = styled.div`
   font-size: 11px;
   line-height: 1.4;
   overflow-x: auto;
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--color-code-bg);
 
   /* CSS Grid ensures all diff lines span the same width (width of longest line) */
   display: grid;
