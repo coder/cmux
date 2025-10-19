@@ -163,8 +163,15 @@ export function formatKeybind(keybind: Keybind): string {
     if (keybind.meta) parts.push("Meta");
   }
 
-  // Add the key (capitalize single letters)
-  const key = keybind.key.length === 1 ? keybind.key.toUpperCase() : keybind.key;
+  // Add the key (handle special cases, then capitalize single letters)
+  let key: string;
+  if (keybind.key === " ") {
+    key = "Space";
+  } else if (keybind.key.length === 1) {
+    key = keybind.key.toUpperCase();
+  } else {
+    key = keybind.key;
+  }
   parts.push(key);
 
   return isMac() ? parts.join("\u00B7") : parts.join("+"); // · on Mac, + elsewhere
