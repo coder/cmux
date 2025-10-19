@@ -468,4 +468,119 @@ function greet(name) {
     expect(allContent.includes("staged")).toBe(true);
     expect(allContent.includes("unstaged")).toBe(true);
   });
+
+  it("should not show inverse deltas when branch is behind base ref", () => {
+    // Scenario: Branch A is 3 commits behind origin/main
+    //
+    // Git history:
+    //   test-main:  Initial---Y---Z---W (3 commits ahead)
+    //                 \
+    //   feature:       Feature (committed) + uncommitted changes
+    //
+    // Problem: Old behavior with includeUncommitted=true used two-dot diff,
+    // comparing W to working directory, showing Y, Z, W as inverse deltas.
+    //
+    // Expected: Should only show feature branch changes (committed + uncommitted),
+    // NOT inverse deltas from Y, Z, W commits that landed on test-main.
+    execSync("git reset --hard HEAD", { cwd: testRepoPath });
+
+    // Create a "main" branch and add 3 commits
+    execSync("git checkout -b test-main", { cwd: testRepoPath });
+    writeFileSync(join(testRepoPath, "main-file.txt"), "Initial content\n");
+    execSync("git add main-file.txt && git commit -m 'Initial on main'", { cwd: testRepoPath });
+
+    // Branch off from here (this is the merge-base)
+    execSync("git checkout -b feature-branch", { cwd: testRepoPath });
+
+    // Add commits on feature branch
+    writeFileSync(join(testRepoPath, "feature-file.txt"), "Feature content\n");
+    execSync("git add feature-file.txt && git commit -m 'Add feature file'", {
+      cwd: testRepoPath,
+    });
+
+    // Simulate origin/main moving forward (3 commits ahead)
+    execSync("git checkout test-main", { cwd: testRepoPath });
+    writeFileSync(join(testRepoPath, "main-file.txt"), "Initial content\nCommit Y\n");
+    execSync("git add main-file.txt && git commit -m 'Commit Y on main'", {
+      cwd: testRepoPath,
+    });
+
+    writeFileSync(join(testRepoPath, "main-file.txt"), "Initial content\nCommit Y\nCommit Z\n");
+    execSync("git add main-file.txt && git commit -m 'Commit Z on main'", {
+      cwd: testRepoPath,
+    });
+
+    writeFileSync(
+      join(testRepoPath, "main-file.txt"),
+      "Initial content\nCommit Y\nCommit Z\nCommit W\n"
+    );
+    execSync("git add main-file.txt && git commit -m 'Commit W on main'", {
+      cwd: testRepoPath,
+    });
+
+    // Back to feature branch
+    execSync("git checkout feature-branch", { cwd: testRepoPath });
+
+    // Add uncommitted changes to feature branch
+    writeFileSync(join(testRepoPath, "feature-file.txt"), "Feature content\nUncommitted change\n");
+
+    // Test 1: includeUncommitted=false (committed only, uses three-dot)
+    const gitCommandCommittedOnly = buildGitDiffCommand("test-main", false, "", "diff");
+    const diffOutputCommittedOnly = execSync(gitCommandCommittedOnly, {
+      cwd: testRepoPath,
+      encoding: "utf-8",
+    });
+    const fileDiffsCommittedOnly = parseDiff(diffOutputCommittedOnly);
+
+    const featureFileCommittedOnly = fileDiffsCommittedOnly.find(
+      (f) => f.filePath === "feature-file.txt"
+    );
+    const mainFileCommittedOnly = fileDiffsCommittedOnly.find(
+      (f) => f.filePath === "main-file.txt"
+    );
+
+    expect(featureFileCommittedOnly).toBeDefined();
+    expect(mainFileCommittedOnly).toBeUndefined(); // No inverse deltas
+
+    const hunksCommittedOnly = extractAllHunks(fileDiffsCommittedOnly);
+    const contentCommittedOnly = hunksCommittedOnly.map((h) => h.content).join("\n");
+
+    // Should show committed feature work
+    expect(contentCommittedOnly.includes("Feature content")).toBe(true);
+    // Should NOT show uncommitted changes (key difference from includeUncommitted=true)
+    expect(contentCommittedOnly.includes("Uncommitted change")).toBe(false);
+    // Should NOT show inverse deltas from main
+    expect(contentCommittedOnly.includes("Commit Y")).toBe(false);
+    expect(contentCommittedOnly.includes("Commit Z")).toBe(false);
+    expect(contentCommittedOnly.includes("Commit W")).toBe(false);
+
+    // Test 2: includeUncommitted=true (committed + uncommitted, uses merge-base)
+    const gitCommand = buildGitDiffCommand("test-main", true, "", "diff");
+    const diffOutput = execSync(gitCommand, { cwd: testRepoPath, encoding: "utf-8" });
+    const fileDiffs = parseDiff(diffOutput);
+
+    // Should show only feature-file.txt (the file we added/modified)
+    // Should NOT show main-file.txt as deletions (inverse deltas)
+    const featureFile = fileDiffs.find((f) => f.filePath === "feature-file.txt");
+    const mainFile = fileDiffs.find((f) => f.filePath === "main-file.txt");
+
+    expect(featureFile).toBeDefined();
+    expect(mainFile).toBeUndefined(); // Should NOT appear
+
+    // Verify we see both committed and uncommitted changes in feature-file.txt
+    const allHunks = extractAllHunks(fileDiffs);
+    const allContent = allHunks.map((h) => h.content).join("\n");
+
+    expect(allContent.includes("Feature content")).toBe(true);
+    expect(allContent.includes("Uncommitted change")).toBe(true);
+
+    // Critically: should NOT show any deletions from Commit Y, Z, W
+    expect(allContent.includes("Commit Y")).toBe(false);
+    expect(allContent.includes("Commit Z")).toBe(false);
+    expect(allContent.includes("Commit W")).toBe(false);
+
+    // Cleanup
+    execSync("git checkout test-main --force", { cwd: testRepoPath });
+    execSync("git branch -D feature-branch", { cwd: testRepoPath });
+  });
 });
