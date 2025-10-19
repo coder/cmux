@@ -9,6 +9,7 @@ import { keyframes } from "@emotion/react";
 interface UntrackedStatusProps {
   workspaceId: string;
   workspacePath: string;
+  refreshTrigger?: number;
 }
 
 const Container = styled.div`
@@ -123,7 +124,11 @@ const TrackButton = styled.button`
   }
 `;
 
-export const UntrackedStatus: React.FC<UntrackedStatusProps> = ({ workspaceId, workspacePath }) => {
+export const UntrackedStatus: React.FC<UntrackedStatusProps> = ({
+  workspaceId,
+  workspacePath,
+  refreshTrigger,
+}) => {
   const [untrackedFiles, setUntrackedFiles] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showTooltip, setShowTooltip] = useState(false);
@@ -164,7 +169,7 @@ export const UntrackedStatus: React.FC<UntrackedStatusProps> = ({ workspaceId, w
     return () => {
       cancelled = true;
     };
-  }, [workspaceId, workspacePath]);
+  }, [workspaceId, workspacePath, refreshTrigger]);
 
   // Close tooltip when clicking outside
   useEffect(() => {

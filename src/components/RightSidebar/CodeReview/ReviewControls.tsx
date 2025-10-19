@@ -17,6 +17,7 @@ interface ReviewControlsProps {
   isLoading?: boolean;
   workspaceId: string;
   workspacePath: string;
+  refreshTrigger?: number;
 }
 
 const ControlsContainer = styled.div`
@@ -122,6 +123,7 @@ export const ReviewControls: React.FC<ReviewControlsProps> = ({
   isLoading = false,
   workspaceId,
   workspacePath,
+  refreshTrigger,
 }) => {
   // Local state for input value - only commit on blur/Enter
   const [inputValue, setInputValue] = useState(filters.diffBase);
@@ -204,7 +206,11 @@ export const ReviewControls: React.FC<ReviewControlsProps> = ({
         Dirty
       </CheckboxLabel>
 
-      <UntrackedStatus workspaceId={workspaceId} workspacePath={workspacePath} />
+      <UntrackedStatus
+        workspaceId={workspaceId}
+        workspacePath={workspacePath}
+        refreshTrigger={refreshTrigger}
+      />
 
       <Separator />
 

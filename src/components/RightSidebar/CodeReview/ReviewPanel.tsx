@@ -528,6 +528,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
         isLoading={isLoadingHunks || isLoadingTree}
         workspaceId={workspaceId}
         workspacePath={workspacePath}
+        refreshTrigger={refreshTrigger}
       />
 
       {error ? (
