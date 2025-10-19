@@ -94,6 +94,15 @@ export function getReviewExpandStateKey(workspaceId: string): string {
 }
 
 /**
+ * Get the localStorage key for FileTree expand/collapse state in Review tab
+ * Stores directory expand/collapse preferences per workspace
+ * Format: "fileTreeExpandState:{workspaceId}"
+ */
+export function getFileTreeExpandStateKey(workspaceId: string): string {
+  return `fileTreeExpandState:${workspaceId}`;
+}
+
+/**
  * List of workspace-scoped key functions that should be copied on fork and deleted on removal
  * Note: Excludes ephemeral keys like getCompactContinueMessageKey
  */
@@ -105,6 +114,7 @@ const PERSISTENT_WORKSPACE_KEY_FUNCTIONS: Array<(workspaceId: string) => string>
   getAutoRetryKey,
   getRetryStateKey,
   getReviewExpandStateKey,
+  getFileTreeExpandStateKey,
 ];
 
 /**
@@ -117,7 +127,7 @@ const EPHEMERAL_WORKSPACE_KEY_FUNCTIONS: Array<(workspaceId: string) => string> 
 
 /**
  * Copy all workspace-specific localStorage keys from source to destination workspace
- * This includes: model, input, mode, thinking level, auto-retry, retry state, review expand state
+ * This includes: model, input, mode, thinking level, auto-retry, retry state, review expand state, file tree expand state
  */
 export function copyWorkspaceStorage(sourceWorkspaceId: string, destWorkspaceId: string): void {
   for (const getKey of PERSISTENT_WORKSPACE_KEY_FUNCTIONS) {

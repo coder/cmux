@@ -2,9 +2,11 @@
  * FileTree - Displays file hierarchy with diff statistics
  */
 
-import React, { useState } from "react";
+import React from "react";
 import styled from "@emotion/styled";
 import type { FileTreeNode } from "@/utils/git/numstatParser";
+import { usePersistedState } from "@/hooks/usePersistedState";
+import { getFileTreeExpandStateKey } from "@/constants/storage";
 
 const TreeContainer = styled.div`
   flex: 1;
@@ -194,8 +196,30 @@ const TreeNodeContent: React.FC<{
   onSelectFile: (path: string | null) => void;
   commonPrefix: string | null;
   getFileReadStatus?: (filePath: string) => { total: number; read: number } | null;
-}> = ({ node, depth, selectedPath, onSelectFile, commonPrefix, getFileReadStatus }) => {
-  const [isOpen, setIsOpen] = useState(depth < 2); // Auto-expand first 2 levels
+  expandStateMap: Record<string, boolean>;
+  setExpandStateMap: (
+    value: Record<string, boolean> | ((prev: Record<string, boolean>) => Record<string, boolean>)
+  ) => void;
+}> = ({
+  node,
+  depth,
+  selectedPath,
+  onSelectFile,
+  commonPrefix,
+  getFileReadStatus,
+  expandStateMap,
+  setExpandStateMap,
+}) => {
+  // Check if user has manually set expand state for this directory
+  const hasManualState = node.path in expandStateMap;
+  const isOpen = hasManualState ? expandStateMap[node.path] : depth < 2; // Default: auto-expand first 2 levels
+
+  const setIsOpen = (open: boolean) => {
+    setExpandStateMap((prev) => ({
+      ...prev,
+      [node.path]: open,
+    }));
+  };
 
   const handleClick = (e: React.MouseEvent) => {
     if (node.isDirectory) {
@@ -295,6 +319,8 @@ const TreeNodeContent: React.FC<{
             onSelectFile={onSelectFile}
             commonPrefix={commonPrefix}
             getFileReadStatus={getFileReadStatus}
+            expandStateMap={expandStateMap}
+            setExpandStateMap={setExpandStateMap}
           />
         ))}
     </>
@@ -308,6 +334,7 @@ interface FileTreeExternalProps {
   isLoading?: boolean;
   commonPrefix?: string | null;
   getFileReadStatus?: (filePath: string) => { total: number; read: number } | null;
+  workspaceId: string;
 }
 
 export const FileTree: React.FC<FileTreeExternalProps> = ({
@@ -317,7 +344,15 @@ export const FileTree: React.FC<FileTreeExternalProps> = ({
   isLoading = false,
   commonPrefix = null,
   getFileReadStatus,
+  workspaceId,
 }) => {
+  // Use persisted state for expand/collapse per workspace (lifted to parent to avoid O(n) re-renders)
+  const [expandStateMap, setExpandStateMap] = usePersistedState<Record<string, boolean>>(
+    getFileTreeExpandStateKey(workspaceId),
+    {},
+    { listener: true }
+  );
+
   // Find the node at the common prefix path to start rendering from
   const startNode = React.useMemo(() => {
     if (!commonPrefix || !root) return root;
@@ -355,6 +390,8 @@ export const FileTree: React.FC<FileTreeExternalProps> = ({
               onSelectFile={onSelectFile}
               commonPrefix={commonPrefix}
               getFileReadStatus={getFileReadStatus}
+              expandStateMap={expandStateMap}
+              setExpandStateMap={setExpandStateMap}
             />
           ))
         ) : (

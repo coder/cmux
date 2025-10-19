@@ -25,8 +25,9 @@ pre[class*="language-"] {
   ms-hyphens: none;
   hyphens: none;
   padding: 1em;
-  margin: .5em 0;
+  margin: 0.5em 0;
   overflow: auto;
+  background: transparent;
 }
 
 code[class*="language-"] {
@@ -64,17 +65,17 @@ code[class*="language-"] *::selection {
 }
 
 :not(pre) > code[class*="language-"] {
-  padding: .1em .3em;
-  border-radius: .3em;
+  padding: 0.1em 0.3em;
+  border-radius: 0.3em;
   color: #db4c69;
 }
 
 .namespace {
-  -opacity: .7;
+  -opacity: 0.7;
 }
 
 doctype.doctype-tag {
-  color: #569CD6;
+  color: #569cd6;
 }
 
 doctype.name {
@@ -170,7 +171,7 @@ doctype.name {
 }
 
 operator.arrow {
-  color: #569CD6;
+  color: #569cd6;
 }
 
 .token.atrule {
@@ -194,7 +195,7 @@ atrule.url.punctuation {
 }
 
 .token.keyword {
-  color: #569CD6;
+  color: #569cd6;
 }
 
 keyword.module {

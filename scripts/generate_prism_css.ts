@@ -25,8 +25,8 @@ for (const [key, value] of Object.entries(vscDarkPlus as Record<string, unknown>
 }
 
 // Convert CSS properties object to CSS string
-function cssPropertiesToString(props: CSSProperties): string {
-  return Object.entries(props)
+function cssPropertiesToString(props: CSSProperties, selector: string): string {
+  const entries = Object.entries(props)
     .filter(([key]) => {
       // Skip font-family and font-size - we want to inherit these
       return key !== "fontFamily" && key !== "fontSize";
@@ -35,8 +35,14 @@ function cssPropertiesToString(props: CSSProperties): string {
       // Convert camelCase to kebab-case
       const cssKey = key.replace(/([A-Z])/g, "-$1").toLowerCase();
       return `  ${cssKey}: ${value};`;
-    })
-    .join("\n");
+    });
+
+  // Add background: transparent to pre/code elements to prevent double backgrounds
+  if (selector.startsWith("pre") || selector.startsWith("code")) {
+    entries.push("  background: transparent;");
+  }
+
+  return entries.join("\n");
 }
 
 // Generate CSS content
@@ -55,7 +61,7 @@ function generateCSS(): string {
   ];
 
   for (const [selector, props] of Object.entries(syntaxStyleNoBackgrounds)) {
-    const cssRules = cssPropertiesToString(props);
+    const cssRules = cssPropertiesToString(props, selector);
     if (cssRules.trim().length > 0) {
       // Handle selectors that need .token prefix
       let cssSelector = selector;

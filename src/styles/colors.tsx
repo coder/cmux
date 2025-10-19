@@ -67,6 +67,11 @@ export const GlobalColors = () => (
         --color-text: hsl(0 0% 83%);
         --color-text-secondary: hsl(0 0% 42%);
 
+        /* Code Block Background */
+        --color-code-bg: hsl(
+          0deg 6.43% 8.04%
+        ); /* Slightly darker than main background for code/diff containers */
+
         /* Button Colors */
         --color-button-bg: hsl(0 0% 24%);
         --color-button-text: hsl(0 0% 80%);
