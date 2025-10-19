@@ -30,6 +30,9 @@ const TitleText = styled.div`
   letter-spacing: 0.5px;
   user-select: text;
   cursor: text;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 `;
 
 const UpdateIndicator = styled.div<{
@@ -167,21 +170,23 @@ export function TitleBar() {
   };
 
   const getUpdateTooltip = () => {
+    const currentVersion = gitDescribe ?? "dev";
+
     if (!telemetryEnabled) {
-      return "Update checks disabled (telemetry is off). Enable telemetry to receive updates.";
+      return `Current: ${currentVersion}. Update checks disabled (telemetry is off). Enable telemetry to receive updates.`;
     }
 
     switch (updateStatus.type) {
       case "available":
-        return `Update available: ${updateStatus.info.version}. Click to download.`;
+        return `Current: ${currentVersion}. Update available: ${updateStatus.info.version}. Click to download.`;
       case "downloading":
-        return `Downloading update: ${updateStatus.percent}%`;
+        return `Current: ${currentVersion}. Downloading update: ${updateStatus.percent}%`;
       case "downloaded":
-        return `Update ready: ${updateStatus.info.version}. Click to install and restart.`;
+        return `Current: ${currentVersion}. Update ready: ${updateStatus.info.version}. Click to install and restart.`;
       case "not-available":
-        return "No updates available. Checks every 4 hours.";
+        return `Current: ${currentVersion}. No updates available. Checks every 4 hours.`;
       default:
-        return "Checking for updates...";
+        return `Current: ${currentVersion}. Checking for updates...`;
     }
   };
 
