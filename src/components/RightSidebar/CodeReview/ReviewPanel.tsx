@@ -1,6 +1,25 @@
 /**
  * ReviewPanel - Main code review interface
  * Displays diff hunks for viewing changes in the workspace
+ *
+ * FILTERING ARCHITECTURE:
+ *
+ * Two-tier pipeline:
+ *
+ * 1. Git-level filters (affect data fetching):
+ *    - diffBase: target branch/commit to diff against
+ *    - includeUncommitted: include working directory changes
+ *    - selectedFilePath: CRITICAL for truncation handling - when full diff
+ *      exceeds bash output limits, path filter retrieves specific files
+ *
+ * 2. Frontend filters (applied in-memory to loaded hunks):
+ *    - showReadHunks: hide hunks marked as reviewed
+ *    - searchTerm: substring match on filenames + hunk content
+ *
+ * Why hybrid? Performance and necessity:
+ * - selectedFilePath MUST be git-level (truncation recovery)
+ * - search/read filters are better frontend (more flexible, simpler UX)
+ * - Frontend filtering is fast even for 1000+ hunks (<5ms)
  */
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
@@ -20,6 +39,7 @@ import {
 import type { DiffHunk, ReviewFilters as ReviewFiltersType } from "@/types/review";
 import type { FileTreeNode } from "@/utils/git/numstatParser";
 import { matchesKeybind, KEYBINDS } from "@/utils/ui/keybinds";
+import { applyFrontendFilters } from "@/utils/review/filterHunks";
 
 interface ReviewPanelProps {
   workspaceId: string;
@@ -453,8 +473,11 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
       setError(null);
       setTruncationWarning(null);
       try {
-        // Add path filter if a file/folder is selected
-        // Extract new path from rename syntax (e.g., "{old => new}" -> "new")
+        // Git-level filters (affect what data is fetched):
+        // - diffBase: what to diff against
+        // - includeUncommitted: include working directory changes
+        // - selectedFilePath: ESSENTIAL for truncation - if full diff is cut off,
+        //   path filter lets us retrieve specific file's hunks
         const pathFilter = selectedFilePath ? ` -- "${extractNewPath(selectedFilePath)}"` : "";
 
         const diffCommand = buildGitDiffCommand(
@@ -561,32 +584,14 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
     [hunks, isRead]
   );
 
-  // Filter hunks based on read state and search term
+  // Apply frontend filters (read state, search term)
+  // Note: selectedFilePath is a git-level filter, applied when fetching hunks
   const filteredHunks = useMemo(() => {
-    let result = hunks;
-
-    // Filter by read state
-    if (!filters.showReadHunks) {
-      result = result.filter((hunk) => !isRead(hunk.id));
-    }
-
-    // Filter by search term
-    if (debouncedSearchTerm.trim()) {
-      const searchLower = debouncedSearchTerm.toLowerCase();
-      result = result.filter((hunk) => {
-        // Search in filename
-        if (hunk.filePath.toLowerCase().includes(searchLower)) {
-          return true;
-        }
-        // Search in hunk content
-        if (hunk.content.toLowerCase().includes(searchLower)) {
-          return true;
-        }
-        return false;
-      });
-    }
-
-    return result;
+    return applyFrontendFilters(hunks, {
+      showReadHunks: filters.showReadHunks,
+      isRead,
+      searchTerm: debouncedSearchTerm,
+    });
   }, [hunks, filters.showReadHunks, isRead, debouncedSearchTerm]);
 
   // Handle toggling read state with auto-navigation
