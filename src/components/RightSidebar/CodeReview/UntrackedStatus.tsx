@@ -198,10 +198,12 @@ export const UntrackedStatus: React.FC<UntrackedStatusProps> = ({
 
     setIsTracking(true);
     try {
-      // Use git add to stage all untracked files
+      // Use git add with -- to treat all arguments as file paths
+      // Escape single quotes by replacing ' with '\'' for safe shell quoting
+      const escapedFiles = untrackedFiles.map((f) => `'${f.replace(/'/g, "'\\''")}'`).join(" ");
       const result = await window.api.workspace.executeBash(
         workspaceId,
-        `git add ${untrackedFiles.map((f) => `"${f}"`).join(" ")}`,
+        `git add -- ${escapedFiles}`,
         { timeout_secs: 10 }
       );
 
