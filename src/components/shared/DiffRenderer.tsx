@@ -221,23 +221,52 @@ interface LineSelection {
 const SelectableDiffLineWrapper = styled(DiffLineWrapper)<{
   type: DiffLineType;
   isSelected: boolean;
-  isSelecting: boolean;
 }>`
-  cursor: ${({ isSelecting }) => (isSelecting ? "pointer" : "default")};
   position: relative;
+  cursor: text; /* Allow text selection by default */
 
   ${({ isSelected }) =>
     isSelected &&
     `
     background: hsl(from var(--color-review-accent) h s l / 0.2) !important;
   `}
+`;
+
+const CommentButton = styled.button`
+  position: absolute;
+  left: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: 0; /* Hidden by default */
+  background: var(--color-review-accent);
+  border: none;
+  border-radius: 2px;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: white;
+  font-weight: bold;
+  z-index: 1;
+  flex-shrink: 0;
+
+  /* Show button on line hover */
+  ${SelectableDiffLineWrapper}:hover & {
+    opacity: 0.7;
+  }
 
   &:hover {
-    ${({ isSelecting }) =>
-      isSelecting &&
-      `
-      background: hsl(from var(--color-review-accent) h s l / 0.1);
-    `}
+    opacity: 1 !important;
+    background: hsl(from var(--color-review-accent) h s calc(l * 1.2));
+  }
+
+  &:active {
+    transform: translateY(-50%) scale(0.9);
   }
 `;
 
@@ -282,7 +311,6 @@ export const SelectableDiffRenderer: React.FC<SelectableDiffRendererProps> = ({
 }) => {
   const [selection, setSelection] = React.useState<LineSelection | null>(null);
   const [noteText, setNoteText] = React.useState("");
-  const [isSelectingMode, setIsSelectingMode] = React.useState(false);
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
 
   const lines = content.split("\n").filter((line) => line.length > 0);
@@ -335,12 +363,12 @@ export const SelectableDiffRenderer: React.FC<SelectableDiffRendererProps> = ({
     });
   });
 
-  const handleClick = (lineIndex: number, shiftKey: boolean) => {
+  const handleCommentButtonClick = (lineIndex: number, shiftKey: boolean) => {
     // Notify parent that this hunk should become active
     onLineClick?.();
 
     // Shift-click: extend existing selection
-    if (shiftKey && selection && isSelectingMode) {
+    if (shiftKey && selection) {
       const start = selection.startIndex;
       const [sortedStart, sortedEnd] = [start, lineIndex].sort((a, b) => a - b);
       setSelection({
@@ -353,7 +381,6 @@ export const SelectableDiffRenderer: React.FC<SelectableDiffRendererProps> = ({
     }
 
     // Regular click: start new selection
-    setIsSelectingMode(true);
     setSelection({
       startIndex: lineIndex,
       endIndex: lineIndex,
@@ -388,13 +415,11 @@ export const SelectableDiffRenderer: React.FC<SelectableDiffRendererProps> = ({
     // Reset state
     setSelection(null);
     setNoteText("");
-    setIsSelectingMode(false);
   };
 
   const handleCancelNote = () => {
     setSelection(null);
     setNoteText("");
-    setIsSelectingMode(false);
   };
 
   // Auto-focus textarea when selection is made or changed
@@ -420,15 +445,17 @@ export const SelectableDiffRenderer: React.FC<SelectableDiffRendererProps> = ({
 
         return (
           <React.Fragment key={displayIndex}>
-            <SelectableDiffLineWrapper
-              type={lineInfo.type}
-              isSelected={isSelected}
-              isSelecting={isSelectingMode}
-              onClick={(e) => {
-                e.stopPropagation();
-                handleClick(displayIndex, e.shiftKey);
-              }}
-            >
+            <SelectableDiffLineWrapper type={lineInfo.type} isSelected={isSelected}>
+              <CommentButton
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleCommentButtonClick(displayIndex, e.shiftKey);
+                }}
+                title="Add review comment (Shift-click to select range)"
+                aria-label="Add review comment"
+              >
+                +
+              </CommentButton>
               <DiffLine type={lineInfo.type}>
                 <DiffIndicator type={lineInfo.type}>{lines[lineInfo.index][0]}</DiffIndicator>
                 {showLineNumbers && (
@@ -445,7 +472,7 @@ export const SelectableDiffRenderer: React.FC<SelectableDiffRendererProps> = ({
                 <InlineNoteContainer>
                   <NoteTextarea
                     ref={textareaRef}
-                    placeholder="Add a review note to chat (Shift-click to select range, Cmd+Enter to submit, Esc to cancel)&#10;j, k to iterate through hunks, m to toggle as read"
+                    placeholder="Add a review note to chat (Shift-click + button to select range, Cmd+Enter to submit, Esc to cancel)&#10;j, k to iterate through hunks, m to toggle as read"
                     value={noteText}
                     onChange={(e) => setNoteText(e.target.value)}
                     onClick={(e) => e.stopPropagation()}
