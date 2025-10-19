@@ -162,8 +162,8 @@ export const ReviewControls: React.FC<ReviewControlsProps> = ({
     }
   };
 
-  const handleDirtyToggle = (e: React.ChangeEvent<HTMLInputElement>) => {
-    onFiltersChange({ ...filters, includeDirty: e.target.checked });
+  const handleUncommittedToggle = (e: React.ChangeEvent<HTMLInputElement>) => {
+    onFiltersChange({ ...filters, includeUncommitted: e.target.checked });
   };
 
   const handleSetDefault = () => {
@@ -202,8 +202,12 @@ export const ReviewControls: React.FC<ReviewControlsProps> = ({
       )}
 
       <CheckboxLabel>
-        <input type="checkbox" checked={filters.includeDirty} onChange={handleDirtyToggle} />
-        Dirty
+        <input
+          type="checkbox"
+          checked={filters.includeUncommitted}
+          onChange={handleUncommittedToggle}
+        />
+        Uncommitted
       </CheckboxLabel>
 
       <UntrackedStatus
