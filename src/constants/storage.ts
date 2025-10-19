@@ -85,27 +85,60 @@ export function getCompactContinueMessageKey(workspaceId: string): string {
 }
 
 /**
+ * Get the localStorage key for hunk expand/collapse state in Review tab
+ * Stores user's manual expand/collapse preferences per hunk
+ * Format: "reviewExpandState:{workspaceId}"
+ */
+export function getReviewExpandStateKey(workspaceId: string): string {
+  return `reviewExpandState:${workspaceId}`;
+}
+
+/**
+ * List of workspace-scoped key functions that should be copied on fork and deleted on removal
+ * Note: Excludes ephemeral keys like getCompactContinueMessageKey
+ */
+const PERSISTENT_WORKSPACE_KEY_FUNCTIONS: Array<(workspaceId: string) => string> = [
+  getModelKey,
+  getInputKey,
+  getModeKey,
+  getThinkingLevelKey,
+  getAutoRetryKey,
+  getRetryStateKey,
+  getReviewExpandStateKey,
+];
+
+/**
+ * Additional ephemeral keys to delete on workspace removal (not copied on fork)
+ */
+const EPHEMERAL_WORKSPACE_KEY_FUNCTIONS: Array<(workspaceId: string) => string> = [
+  getCancelledCompactionKey,
+  getCompactContinueMessageKey,
+];
+
+/**
  * Copy all workspace-specific localStorage keys from source to destination workspace
- * This includes: model, input, mode, thinking level, auto-retry, retry state
+ * This includes: model, input, mode, thinking level, auto-retry, retry state, review expand state
  */
 export function copyWorkspaceStorage(sourceWorkspaceId: string, destWorkspaceId: string): void {
-  // List of key-generating functions to copy
-  // Note: We deliberately skip getCompactContinueMessageKey as it's ephemeral
-  const keyFunctions: Array<(workspaceId: string) => string> = [
-    getModelKey,
-    getInputKey,
-    getModeKey,
-    getThinkingLevelKey,
-    getAutoRetryKey,
-    getRetryStateKey,
-  ];
-
-  for (const getKey of keyFunctions) {
+  for (const getKey of PERSISTENT_WORKSPACE_KEY_FUNCTIONS) {
     const sourceKey = getKey(sourceWorkspaceId);
     const destKey = getKey(destWorkspaceId);
     const value = localStorage.getItem(sourceKey);
     if (value !== null) {
       localStorage.setItem(destKey, value);
     }
+  }
+}
+
+/**
+ * Delete all workspace-specific localStorage keys for a workspace
+ * Should be called when a workspace is deleted to prevent orphaned data
+ */
+export function deleteWorkspaceStorage(workspaceId: string): void {
+  const allKeyFunctions = [...PERSISTENT_WORKSPACE_KEY_FUNCTIONS, ...EPHEMERAL_WORKSPACE_KEY_FUNCTIONS];
+  
+  for (const getKey of allKeyFunctions) {
+    const key = getKey(workspaceId);
+    localStorage.removeItem(key);
   }
 }

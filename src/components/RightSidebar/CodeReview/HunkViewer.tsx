@@ -8,6 +8,7 @@ import type { DiffHunk } from "@/types/review";
 import { SelectableDiffRenderer } from "../../shared/DiffRenderer";
 import { Tooltip, TooltipWrapper } from "../../Tooltip";
 import { usePersistedState } from "@/hooks/usePersistedState";
+import { getReviewExpandStateKey } from "@/constants/storage";
 
 interface HunkViewerProps {
   hunk: DiffHunk;
@@ -193,7 +194,7 @@ export const HunkViewer = React.memo<HunkViewerProps>(
     // Persist manual expand/collapse state across remounts per workspace
     // Maps hunkId -> isExpanded for user's manual preferences
     const [expandStateMap, setExpandStateMap] = usePersistedState<Record<string, boolean>>(
-      `review:expand:${workspaceId}`,
+      getReviewExpandStateKey(workspaceId),
       {}
     );
 
