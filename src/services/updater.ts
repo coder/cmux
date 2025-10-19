@@ -23,6 +23,7 @@ export type UpdateStatus =
 export class UpdaterService {
   private mainWindow: BrowserWindow | null = null;
   private updateStatus: UpdateStatus = { type: "not-available" };
+  private checkTimeout: NodeJS.Timeout | null = null;
 
   constructor() {
     // Configure auto-updater
@@ -42,12 +43,14 @@ export class UpdaterService {
 
     autoUpdater.on("update-available", (info: UpdateInfo) => {
       console.log("Update available:", info.version);
+      this.clearCheckTimeout();
       this.updateStatus = { type: "available", info };
       this.notifyRenderer();
     });
 
     autoUpdater.on("update-not-available", () => {
       console.log("No updates available");
+      this.clearCheckTimeout();
       this.updateStatus = { type: "not-available" };
       this.notifyRenderer();
     });
@@ -67,9 +70,20 @@ export class UpdaterService {
 
     autoUpdater.on("error", (error) => {
       console.error("Update error:", error);
+      this.clearCheckTimeout();
       this.updateStatus = { type: "error", message: error.message };
       this.notifyRenderer();
     });
+  }
+
+  /**
+   * Clear the check timeout
+   */
+  private clearCheckTimeout() {
+    if (this.checkTimeout) {
+      clearTimeout(this.checkTimeout);
+      this.checkTimeout = null;
+    }
   }
 
   /**
@@ -86,21 +100,39 @@ export class UpdaterService {
    * 
    * This triggers the check but returns immediately. The actual results
    * will be delivered via event handlers (checking-for-update, update-available, etc.)
+   * 
+   * A 30-second timeout ensures we don't stay in "checking" state indefinitely.
    */
   async checkForUpdates(): Promise<void> {
     try {
+      // Clear any existing timeout
+      this.clearCheckTimeout();
+      
       // Set checking status immediately
       this.updateStatus = { type: "checking" };
       this.notifyRenderer();
       
+      // Set timeout to prevent hanging in "checking" state
+      this.checkTimeout = setTimeout(() => {
+        if (this.updateStatus.type === "checking") {
+          console.log("Update check timed out after 30s");
+          this.updateStatus = { type: "not-available" };
+          this.notifyRenderer();
+        }
+      }, 30000); // 30 seconds
+      
       // Trigger the check (don't await - it never resolves, just fires events)
       autoUpdater.checkForUpdates().catch((error) => {
+        this.clearCheckTimeout();
         const message = error instanceof Error ? error.message : "Unknown error";
+        console.error("Update check failed:", message);
         this.updateStatus = { type: "error", message };
         this.notifyRenderer();
       });
     } catch (error) {
+      this.clearCheckTimeout();
       const message = error instanceof Error ? error.message : "Unknown error";
+      console.error("Update check error:", message);
       this.updateStatus = { type: "error", message };
       this.notifyRenderer();
     }
