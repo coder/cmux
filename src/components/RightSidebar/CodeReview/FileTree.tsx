@@ -33,7 +33,7 @@ const TreeNode = styled.div<{ depth: number; isSelected: boolean }>`
   }
 `;
 
-const FileName = styled.span<{ isFullyRead?: boolean }>`
+const FileName = styled.span<{ isFullyRead?: boolean; isUnknownState?: boolean }>`
   color: #ccc;
   flex: 1;
   ${(props) =>
@@ -43,6 +43,12 @@ const FileName = styled.span<{ isFullyRead?: boolean }>`
     text-decoration: line-through;
     text-decoration-color: var(--color-read);
     text-decoration-thickness: 2px;
+  `}
+  ${(props) =>
+    props.isUnknownState &&
+    !props.isFullyRead &&
+    `
+    color: #666;
   `}
 `;
 
@@ -166,6 +172,8 @@ const TreeNodeContent: React.FC<{
   const isFullyRead = readStatus
     ? readStatus.read === readStatus.total && readStatus.total > 0
     : false;
+  // Dim files when we don't have hunk data (unknown state)
+  const isUnknownState = !node.isDirectory && getFileReadStatus && readStatus === null;
 
   return (
     <>
@@ -197,7 +205,9 @@ const TreeNodeContent: React.FC<{
         ) : (
           <>
             <span style={{ width: "12px" }} />
-            <FileName isFullyRead={isFullyRead}>{node.name}</FileName>
+            <FileName isFullyRead={isFullyRead} isUnknownState={isUnknownState}>
+              {node.name}
+            </FileName>
             {node.stats && (
               <Stats>
                 {node.stats.additions > 0 && <Additions>+{node.stats.additions}</Additions>}
