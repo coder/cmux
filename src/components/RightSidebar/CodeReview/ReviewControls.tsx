@@ -166,6 +166,10 @@ export const ReviewControls: React.FC<ReviewControlsProps> = ({
     onFiltersChange({ ...filters, includeUncommitted: e.target.checked });
   };
 
+  const handleShowReadToggle = (e: React.ChangeEvent<HTMLInputElement>) => {
+    onFiltersChange({ ...filters, showReadHunks: e.target.checked });
+  };
+
   const handleSetDefault = () => {
     setDefaultBase(filters.diffBase);
   };
@@ -210,6 +214,11 @@ export const ReviewControls: React.FC<ReviewControlsProps> = ({
         Uncommitted
       </CheckboxLabel>
 
+      <CheckboxLabel>
+        <input type="checkbox" checked={filters.showReadHunks} onChange={handleShowReadToggle} />
+        Show read
+      </CheckboxLabel>
+
       <UntrackedStatus
         workspaceId={workspaceId}
         workspacePath={workspacePath}
@@ -220,7 +229,7 @@ export const ReviewControls: React.FC<ReviewControlsProps> = ({
       <Separator />
 
       <StatBadge>
-        {stats.total} {stats.total === 1 ? "hunk" : "hunks"}
+        {stats.read} read / {stats.total} total
       </StatBadge>
     </ControlsContainer>
   );

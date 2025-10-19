@@ -207,6 +207,8 @@ interface SelectableDiffRendererProps extends DiffRendererProps {
   filePath: string;
   /** Callback when user submits a review note */
   onReviewNote?: (note: string) => void;
+  /** Callback when user clicks on a line (to activate parent hunk) */
+  onLineClick?: () => void;
 }
 
 interface LineSelection {
@@ -227,14 +229,14 @@ const SelectableDiffLineWrapper = styled(DiffLineWrapper)<{
   ${({ isSelected }) =>
     isSelected &&
     `
-    background: rgba(255, 200, 0, 0.2) !important;
+    background: hsl(from var(--color-review-accent) h s l / 0.2) !important;
   `}
 
   &:hover {
     ${({ isSelecting }) =>
       isSelecting &&
       `
-      background: rgba(255, 200, 0, 0.1);
+      background: hsl(from var(--color-review-accent) h s l / 0.1);
     `}
   }
 `;
@@ -242,7 +244,7 @@ const SelectableDiffLineWrapper = styled(DiffLineWrapper)<{
 const InlineNoteContainer = styled.div`
   padding: 10px 8px 8px 8px;
   background: #252526;
-  border-top: 1px solid rgba(255, 200, 0, 0.3);
+  border-top: 1px solid hsl(from var(--color-review-accent) h s l / 0.3);
   margin: 0;
 `;
 
@@ -253,14 +255,14 @@ const NoteTextarea = styled.textarea`
   font-family: var(--font-sans);
   font-size: 11px;
   background: #1e1e1e;
-  border: 1px solid rgba(255, 200, 0, 0.4);
+  border: 1px solid hsl(from var(--color-review-accent) h s l / 0.4);
   border-radius: 2px;
   color: var(--color-text);
   resize: vertical;
 
   &:focus {
     outline: none;
-    border-color: rgba(255, 200, 0, 0.6);
+    border-color: hsl(from var(--color-review-accent) h s l / 0.6);
   }
 
   &::placeholder {
@@ -276,6 +278,7 @@ export const SelectableDiffRenderer: React.FC<SelectableDiffRendererProps> = ({
   newStart = 1,
   filePath,
   onReviewNote,
+  onLineClick,
 }) => {
   const [selection, setSelection] = React.useState<LineSelection | null>(null);
   const [noteText, setNoteText] = React.useState("");
@@ -333,6 +336,9 @@ export const SelectableDiffRenderer: React.FC<SelectableDiffRendererProps> = ({
   });
 
   const handleClick = (lineIndex: number, shiftKey: boolean) => {
+    // Notify parent that this hunk should become active
+    onLineClick?.();
+
     // Shift-click: extend existing selection
     if (shiftKey && selection && isSelectingMode) {
       const start = selection.startIndex;
@@ -439,7 +445,7 @@ export const SelectableDiffRenderer: React.FC<SelectableDiffRendererProps> = ({
                 <InlineNoteContainer>
                   <NoteTextarea
                     ref={textareaRef}
-                    placeholder="Add a review note to chat (Shift-click to select range, Cmd+Enter to submit, Esc to cancel)"
+                    placeholder="Add a review note to chat (Shift-click to select range, Cmd+Enter to submit, Esc to cancel)&#10;j, k to iterate through hunks, m to toggle as read"
                     value={noteText}
                     onChange={(e) => setNoteText(e.target.value)}
                     onClick={(e) => e.stopPropagation()}

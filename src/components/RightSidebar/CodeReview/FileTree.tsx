@@ -33,14 +33,42 @@ const TreeNode = styled.div<{ depth: number; isSelected: boolean }>`
   }
 `;
 
-const FileName = styled.span`
+const FileName = styled.span<{ isFullyRead?: boolean; isUnknownState?: boolean }>`
   color: #ccc;
   flex: 1;
+  ${(props) =>
+    props.isFullyRead &&
+    `
+    color: #666;
+    text-decoration: line-through;
+    text-decoration-color: var(--color-read);
+    text-decoration-thickness: 2px;
+  `}
+  ${(props) =>
+    props.isUnknownState &&
+    !props.isFullyRead &&
+    `
+    color: #666;
+  `}
 `;
 
-const DirectoryName = styled.span`
+const DirectoryName = styled.span<{ isFullyRead?: boolean; isUnknownState?: boolean }>`
   color: #888;
   flex: 1;
+  ${(props) =>
+    props.isFullyRead &&
+    `
+    color: #666;
+    text-decoration: line-through;
+    text-decoration-color: var(--color-read);
+    text-decoration-thickness: 2px;
+  `}
+  ${(props) =>
+    props.isUnknownState &&
+    !props.isFullyRead &&
+    `
+    color: #666;
+  `}
 `;
 
 const DirectoryStats = styled.span<{ isOpen: boolean }>`
@@ -117,13 +145,56 @@ const EmptyState = styled.div`
   text-align: center;
 `;
 
+/**
+ * Compute read status for a directory by recursively checking all descendant files
+ * Returns "fully-read" if all files are fully read, "unknown" if any file has unknown status, null otherwise
+ */
+function computeDirectoryReadStatus(
+  node: FileTreeNode,
+  getFileReadStatus?: (filePath: string) => { total: number; read: number } | null
+): "fully-read" | "unknown" | null {
+  if (!node.isDirectory || !getFileReadStatus) return null;
+
+  let hasUnknown = false;
+  let fileCount = 0;
+  let fullyReadCount = 0;
+
+  const checkNode = (n: FileTreeNode) => {
+    if (n.isDirectory) {
+      // Recurse into children
+      n.children.forEach(checkNode);
+    } else {
+      // Check file status
+      fileCount++;
+      const status = getFileReadStatus(n.path);
+      if (status === null) {
+        hasUnknown = true;
+      } else if (status.read === status.total && status.total > 0) {
+        fullyReadCount++;
+      }
+    }
+  };
+
+  checkNode(node);
+
+  // If any file has unknown state, directory is unknown
+  if (hasUnknown) return "unknown";
+
+  // If all files are fully read, directory is fully read
+  if (fileCount > 0 && fullyReadCount === fileCount) return "fully-read";
+
+  // Otherwise, directory has partial/no read state
+  return null;
+}
+
 const TreeNodeContent: React.FC<{
   node: FileTreeNode;
   depth: number;
   selectedPath: string | null;
   onSelectFile: (path: string | null) => void;
   commonPrefix: string | null;
-}> = ({ node, depth, selectedPath, onSelectFile, commonPrefix }) => {
+  getFileReadStatus?: (filePath: string) => { total: number; read: number } | null;
+}> = ({ node, depth, selectedPath, onSelectFile, commonPrefix, getFileReadStatus }) => {
   const [isOpen, setIsOpen] = useState(depth < 2); // Auto-expand first 2 levels
 
   const handleClick = (e: React.MouseEvent) => {
@@ -154,6 +225,20 @@ const TreeNodeContent: React.FC<{
 
   const isSelected = selectedPath === node.path;
 
+  // Compute read status for files and directories
+  let isFullyRead = false;
+  let isUnknownState = false;
+
+  if (node.isDirectory) {
+    const dirStatus = computeDirectoryReadStatus(node, getFileReadStatus);
+    isFullyRead = dirStatus === "fully-read";
+    isUnknownState = dirStatus === "unknown";
+  } else if (getFileReadStatus) {
+    const readStatus = getFileReadStatus(node.path);
+    isFullyRead = readStatus ? readStatus.read === readStatus.total && readStatus.total > 0 : false;
+    isUnknownState = readStatus === null;
+  }
+
   return (
     <>
       <TreeNode depth={depth} isSelected={isSelected} onClick={handleClick}>
@@ -162,7 +247,9 @@ const TreeNodeContent: React.FC<{
             <ToggleIcon isOpen={isOpen} data-toggle onClick={handleToggleClick}>
               ▶
             </ToggleIcon>
-            <DirectoryName>{node.name || "/"}</DirectoryName>
+            <DirectoryName isFullyRead={isFullyRead} isUnknownState={isUnknownState}>
+              {node.name || "/"}
+            </DirectoryName>
             {node.totalStats &&
               (node.totalStats.additions > 0 || node.totalStats.deletions > 0) && (
                 <DirectoryStats isOpen={isOpen}>
@@ -184,7 +271,9 @@ const TreeNodeContent: React.FC<{
         ) : (
           <>
             <span style={{ width: "12px" }} />
-            <FileName>{node.name}</FileName>
+            <FileName isFullyRead={isFullyRead} isUnknownState={isUnknownState}>
+              {node.name}
+            </FileName>
             {node.stats && (
               <Stats>
                 {node.stats.additions > 0 && <Additions>+{node.stats.additions}</Additions>}
@@ -205,6 +294,7 @@ const TreeNodeContent: React.FC<{
             selectedPath={selectedPath}
             onSelectFile={onSelectFile}
             commonPrefix={commonPrefix}
+            getFileReadStatus={getFileReadStatus}
           />
         ))}
     </>
@@ -217,6 +307,7 @@ interface FileTreeExternalProps {
   onSelectFile: (path: string | null) => void;
   isLoading?: boolean;
   commonPrefix?: string | null;
+  getFileReadStatus?: (filePath: string) => { total: number; read: number } | null;
 }
 
 export const FileTree: React.FC<FileTreeExternalProps> = ({
@@ -225,6 +316,7 @@ export const FileTree: React.FC<FileTreeExternalProps> = ({
   onSelectFile,
   isLoading = false,
   commonPrefix = null,
+  getFileReadStatus,
 }) => {
   // Find the node at the common prefix path to start rendering from
   const startNode = React.useMemo(() => {
@@ -262,6 +354,7 @@ export const FileTree: React.FC<FileTreeExternalProps> = ({
               selectedPath={selectedPath}
               onSelectFile={onSelectFile}
               commonPrefix={commonPrefix}
+              getFileReadStatus={getFileReadStatus}
             />
           ))
         ) : (

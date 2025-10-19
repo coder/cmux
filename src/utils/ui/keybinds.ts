@@ -254,4 +254,7 @@ export const KEYBINDS = {
   /** Refresh diff in Code Review panel */
   // macOS: Cmd+R, Win/Linux: Ctrl+R
   REFRESH_REVIEW: { key: "r", ctrl: true },
+
+  /** Mark selected hunk as read/unread in Code Review panel */
+  TOGGLE_HUNK_READ: { key: "m" },
 } as const;

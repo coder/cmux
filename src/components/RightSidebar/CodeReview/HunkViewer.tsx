@@ -10,11 +10,13 @@ import { SelectableDiffRenderer } from "../../shared/DiffRenderer";
 interface HunkViewerProps {
   hunk: DiffHunk;
   isSelected?: boolean;
+  isRead?: boolean;
   onClick?: () => void;
+  onToggleRead?: () => void;
   onReviewNote?: (note: string) => void;
 }
 
-const HunkContainer = styled.div<{ isSelected: boolean }>`
+const HunkContainer = styled.div<{ isSelected: boolean; isRead: boolean }>`
   background: #1e1e1e;
   border: 1px solid #3e3e42;
   border-radius: 4px;
@@ -24,18 +26,21 @@ const HunkContainer = styled.div<{ isSelected: boolean }>`
   transition: all 0.2s ease;
 
   ${(props) =>
-    props.isSelected &&
+    props.isRead &&
     `
-    border-color: #007acc;
-    box-shadow: 0 0 0 1px #007acc;
+    border-color: var(--color-read);
   `}
 
-  &:hover {
-    border-color: #007acc;
-  }
+  ${(props) =>
+    props.isSelected &&
+    `
+    border-color: var(--color-review-accent);
+    box-shadow: 0 0 0 1px var(--color-review-accent);
+  `}
 `;
 
 const HunkHeader = styled.div`
+  /* Keep grayscale to avoid clashing with green/red LoC indicators */
   background: #252526;
   padding: 8px 12px;
   border-bottom: 1px solid #3e3e42;
@@ -44,6 +49,7 @@ const HunkHeader = styled.div`
   align-items: center;
   font-family: var(--font-monospace);
   font-size: 12px;
+  gap: 8px;
 `;
 
 const FilePath = styled.div`
@@ -124,17 +130,62 @@ const RenameInfo = styled.div`
   }
 `;
 
+const ReadIndicator = styled.span`
+  display: inline-flex;
+  align-items: center;
+  color: var(--color-read);
+  font-size: 14px;
+  margin-right: 4px;
+`;
+
+const ToggleReadButton = styled.button`
+  background: transparent;
+  border: 1px solid #3e3e42;
+  border-radius: 3px;
+  padding: 2px 6px;
+  color: #888;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: var(--color-read);
+    color: var(--color-read);
+  }
+
+  &:active {
+    transform: scale(0.95);
+  }
+`;
+
 export const HunkViewer: React.FC<HunkViewerProps> = ({
   hunk,
   isSelected,
+  isRead = false,
   onClick,
+  onToggleRead,
   onReviewNote,
 }) => {
-  const [isExpanded, setIsExpanded] = useState(true);
+  // Collapse by default if marked as read
+  const [isExpanded, setIsExpanded] = useState(!isRead);
+
+  // Auto-collapse when marked as read, auto-expand when unmarked
+  React.useEffect(() => {
+    setIsExpanded(!isRead);
+  }, [isRead]);
 
   const handleToggleExpand = (e: React.MouseEvent) => {
     e.stopPropagation();
     setIsExpanded(!isExpanded);
+  };
+
+  const handleToggleRead = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onToggleRead?.();
   };
 
   // Parse diff lines
@@ -153,9 +204,11 @@ export const HunkViewer: React.FC<HunkViewerProps> = ({
   return (
     <HunkContainer
       isSelected={isSelected ?? false}
+      isRead={isRead}
       onClick={onClick}
       role="button"
       tabIndex={0}
+      data-hunk-id={hunk.id}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
@@ -164,6 +217,7 @@ export const HunkViewer: React.FC<HunkViewerProps> = ({
       }}
     >
       <HunkHeader>
+        {isRead && <ReadIndicator title="Marked as read">✓</ReadIndicator>}
         <FilePath>{hunk.filePath}</FilePath>
         <LineInfo>
           {!isPureRename && (
@@ -175,6 +229,11 @@ export const HunkViewer: React.FC<HunkViewerProps> = ({
           <LineCount>
             ({lineCount} {lineCount === 1 ? "line" : "lines"})
           </LineCount>
+          {onToggleRead && (
+            <ToggleReadButton onClick={handleToggleRead} title="Mark as read (m)">
+              {isRead ? "○" : "◉"}
+            </ToggleReadButton>
+          )}
         </LineInfo>
       </HunkHeader>
 
@@ -190,11 +249,12 @@ export const HunkViewer: React.FC<HunkViewerProps> = ({
             oldStart={hunk.oldStart}
             newStart={hunk.newStart}
             onReviewNote={onReviewNote}
+            onLineClick={onClick}
           />
         </HunkContent>
       ) : (
         <CollapsedIndicator onClick={handleToggleExpand}>
-          Click to expand ({lineCount} lines)
+          {isRead && "Hunk marked as read. "}Click to expand ({lineCount} lines)
         </CollapsedIndicator>
       )}
 

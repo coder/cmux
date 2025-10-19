@@ -37,6 +37,10 @@ export const GlobalColors = () => (
         --color-edit-mode-alpha: hsl(from var(--color-edit-mode) h s l / 0.1);
         --color-edit-mode-alpha-hover: hsl(from var(--color-edit-mode) h s l / 0.15);
 
+        /* Read State Colors (Blue - reuses plan mode color for consistency) */
+        --color-read: var(--color-plan-mode);
+        --color-read-alpha: var(--color-plan-mode-alpha);
+
         /* Editing Mode Colors */
         --color-editing-mode: hsl(30 100% 50%);
         --color-editing-mode-alpha: hsl(from var(--color-editing-mode) h s l / 0.1);
@@ -111,6 +115,14 @@ export const GlobalColors = () => (
         /* Interrupted/Warning Colors */
         --color-interrupted: hsl(38 92% 50%); /* #f59e0b */
         --color-interrupted-alpha: hsl(from var(--color-interrupted) h s l / 0.3);
+
+        /* Review/Selection Colors (Yellow/Orange) */
+        --color-review-accent: hsl(
+          48 70% 50% / 0.75
+        ); /* Muted yellow/orange - used for review notes and active hunks */
+        /* ANTI-PATTERN: Don't create variants like --color-review-accent-alpha-10, -20, -30, etc.
+           Instead, use inline alpha: hsl(from var(--color-review-accent) h s l / 0.2) directly in components.
+           This avoids cluttering color definitions with every possible alpha variant. */
 
         /* Git Dirty/Uncommitted Changes Colors */
         --color-git-dirty: hsl(38 92% 50%); /* Same as interrupted - orange warning color */

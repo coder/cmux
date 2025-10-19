@@ -1,75 +1,136 @@
 /**
- * Hook for managing code review state
- * Provides interface for reading/updating hunk reviews with localStorage persistence
+ * Hook for managing hunk read state
+ * Provides interface for tracking which hunks have been reviewed with localStorage persistence
  */
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useEffect, useState } from "react";
 import { usePersistedState } from "./usePersistedState";
-import type { ReviewState, HunkReview, ReviewStats, DiffHunk } from "@/types/review";
+import type { ReviewState, HunkReadState } from "@/types/review";
+
+/**
+ * Maximum number of read states to keep per workspace (LRU eviction)
+ */
+const MAX_READ_STATES = 1024;
 
 /**
  * Get the localStorage key for review state
  */
 function getReviewStateKey(workspaceId: string): string {
-  return `code-review:${workspaceId}`;
+  return `review-state:${workspaceId}`;
 }
 
 /**
- * Hook for managing code review state for a workspace
- * Persists reviews to localStorage and provides helpers for common operations
+ * Evict oldest read states if count exceeds max
+ * Keeps the newest MAX_READ_STATES entries
+ * Exported for testing
  */
-export function useReviewState(workspaceId: string) {
+export function evictOldestReviews(
+  readState: Record<string, HunkReadState>,
+  maxCount: number
+): Record<string, HunkReadState> {
+  const entries = Object.entries(readState);
+  if (entries.length <= maxCount) return readState;
+
+  // Sort by timestamp descending (newest first)
+  entries.sort((a, b) => b[1].timestamp - a[1].timestamp);
+
+  // Keep only the newest maxCount
+  return Object.fromEntries(entries.slice(0, maxCount));
+}
+
+export interface UseReviewStateReturn {
+  /** Check if a hunk is marked as read */
+  isRead: (hunkId: string) => boolean;
+  /** Mark one or more hunks as read */
+  markAsRead: (hunkIds: string | string[]) => void;
+  /** Mark a hunk as unread */
+  markAsUnread: (hunkId: string) => void;
+  /** Toggle read state of a hunk */
+  toggleRead: (hunkId: string) => void;
+  /** Clear all read states */
+  clearAll: () => void;
+  /** Number of hunks marked as read */
+  readCount: number;
+}
+
+/**
+ * Hook for managing hunk read state for a workspace
+ * Persists read states to localStorage with automatic LRU eviction
+ */
+export function useReviewState(workspaceId: string): UseReviewStateReturn {
   const [reviewState, setReviewState] = usePersistedState<ReviewState>(
     getReviewStateKey(workspaceId),
     {
       workspaceId,
-      reviews: {},
+      readState: {},
       lastUpdated: Date.now(),
     }
   );
 
+  // Apply LRU eviction on initial load
+  const [hasAppliedEviction, setHasAppliedEviction] = useState(false);
+  useEffect(() => {
+    if (!hasAppliedEviction) {
+      setHasAppliedEviction(true);
+      const evicted = evictOldestReviews(reviewState.readState, MAX_READ_STATES);
+      if (Object.keys(evicted).length !== Object.keys(reviewState.readState).length) {
+        setReviewState((prev) => ({
+          ...prev,
+          readState: evicted,
+          lastUpdated: Date.now(),
+        }));
+      }
+    }
+  }, [hasAppliedEviction, reviewState.readState, setReviewState]);
+
   /**
-   * Get review for a specific hunk
+   * Check if a hunk is marked as read
    */
-  const getReview = useCallback(
-    (hunkId: string): HunkReview | undefined => {
-      return reviewState.reviews[hunkId];
+  const isRead = useCallback(
+    (hunkId: string): boolean => {
+      return reviewState.readState[hunkId]?.isRead ?? false;
     },
-    [reviewState.reviews]
+    [reviewState.readState]
   );
 
   /**
-   * Set or update a review for a hunk
+   * Mark one or more hunks as read
    */
-  const setReview = useCallback(
-    (hunkId: string, status: "accepted" | "rejected", note?: string) => {
-      setReviewState((prev) => ({
-        ...prev,
-        reviews: {
-          ...prev.reviews,
-          [hunkId]: {
+  const markAsRead = useCallback(
+    (hunkIds: string | string[]) => {
+      const ids = Array.isArray(hunkIds) ? hunkIds : [hunkIds];
+      if (ids.length === 0) return;
+
+      const timestamp = Date.now();
+      setReviewState((prev) => {
+        const newReadState = { ...prev.readState };
+        for (const hunkId of ids) {
+          newReadState[hunkId] = {
             hunkId,
-            status,
-            note,
-            timestamp: Date.now(),
-          },
-        },
-        lastUpdated: Date.now(),
-      }));
+            isRead: true,
+            timestamp,
+          };
+        }
+        return {
+          ...prev,
+          readState: newReadState,
+          lastUpdated: timestamp,
+        };
+      });
     },
     [setReviewState]
   );
 
   /**
-   * Delete a review for a hunk
+   * Mark a hunk as unread
    */
-  const deleteReview = useCallback(
+  const markAsUnread = useCallback(
     (hunkId: string) => {
       setReviewState((prev) => {
-        const { [hunkId]: _, ...rest } = prev.reviews;
+        const { [hunkId]: _, ...rest } = prev.readState;
         return {
           ...prev,
-          reviews: rest,
+          readState: rest,
           lastUpdated: Date.now(),
         };
       });
@@ -78,106 +139,43 @@ export function useReviewState(workspaceId: string) {
   );
 
   /**
-   * Clear all reviews
+   * Toggle read state of a hunk
    */
-  const clearAllReviews = useCallback(() => {
+  const toggleRead = useCallback(
+    (hunkId: string) => {
+      if (isRead(hunkId)) {
+        markAsUnread(hunkId);
+      } else {
+        markAsRead(hunkId);
+      }
+    },
+    [isRead, markAsRead, markAsUnread]
+  );
+
+  /**
+   * Clear all read states
+   */
+  const clearAll = useCallback(() => {
     setReviewState((prev) => ({
       ...prev,
-      reviews: {},
+      readState: {},
       lastUpdated: Date.now(),
     }));
   }, [setReviewState]);
 
   /**
-   * Remove stale reviews (hunks that no longer exist in the diff)
+   * Calculate number of read hunks
    */
-  const removeStaleReviews = useCallback(
-    (currentHunkIds: string[]) => {
-      const currentIdSet = new Set(currentHunkIds);
-      setReviewState((prev) => {
-        const cleanedReviews: Record<string, HunkReview> = {};
-        let changed = false;
-
-        for (const [hunkId, review] of Object.entries(prev.reviews)) {
-          if (currentIdSet.has(hunkId)) {
-            cleanedReviews[hunkId] = review;
-          } else {
-            changed = true;
-          }
-        }
-
-        if (!changed) return prev;
-
-        return {
-          ...prev,
-          reviews: cleanedReviews,
-          lastUpdated: Date.now(),
-        };
-      });
-    },
-    [setReviewState]
-  );
-
-  /**
-   * Calculate review statistics
-   */
-  const stats = useMemo((): ReviewStats => {
-    const reviews = Object.values(reviewState.reviews);
-    return {
-      total: reviews.length,
-      accepted: reviews.filter((r) => r.status === "accepted").length,
-      rejected: reviews.filter((r) => r.status === "rejected").length,
-      unreviewed: 0, // Will be calculated by consumer based on total hunks
-    };
-  }, [reviewState.reviews]);
-
-  /**
-   * Check if there are any stale reviews (reviews for hunks not in current set)
-   */
-  const hasStaleReviews = useCallback(
-    (currentHunkIds: string[]): boolean => {
-      const currentIdSet = new Set(currentHunkIds);
-      return Object.keys(reviewState.reviews).some((hunkId) => !currentIdSet.has(hunkId));
-    },
-    [reviewState.reviews]
-  );
-
-  /**
-   * Calculate stats for a specific set of hunks
-   */
-  const calculateStats = useCallback(
-    (hunks: DiffHunk[]): ReviewStats => {
-      const total = hunks.length;
-      let accepted = 0;
-      let rejected = 0;
-
-      for (const hunk of hunks) {
-        const review = reviewState.reviews[hunk.id];
-        if (review) {
-          if (review.status === "accepted") accepted++;
-          else if (review.status === "rejected") rejected++;
-        }
-      }
-
-      return {
-        total,
-        accepted,
-        rejected,
-        unreviewed: total - accepted - rejected,
-      };
-    },
-    [reviewState.reviews]
-  );
+  const readCount = useMemo(() => {
+    return Object.values(reviewState.readState).filter((state) => state.isRead).length;
+  }, [reviewState.readState]);
 
   return {
-    reviewState,
-    getReview,
-    setReview,
-    deleteReview,
-    clearAllReviews,
-    removeStaleReviews,
-    hasStaleReviews,
-    stats,
-    calculateStats,
+    isRead,
+    markAsRead,
+    markAsUnread,
+    toggleRead,
+    clearAll,
+    readCount,
   };
 }
