@@ -9,6 +9,7 @@ import { SelectableDiffRenderer } from "../../shared/DiffRenderer";
 import { Tooltip, TooltipWrapper } from "../../Tooltip";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { getReviewExpandStateKey } from "@/constants/storage";
+import { KEYBINDS, formatKeybind } from "@/utils/ui/keybinds";
 
 interface HunkViewerProps {
   hunk: DiffHunk;
@@ -18,6 +19,7 @@ interface HunkViewerProps {
   isRead?: boolean;
   onClick?: (e: React.MouseEvent<HTMLElement>) => void;
   onToggleRead?: (e: React.MouseEvent<HTMLElement>) => void;
+  onRegisterToggleExpand?: (hunkId: string, toggleFn: () => void) => void;
   onReviewNote?: (note: string) => void;
 }
 
@@ -29,6 +31,12 @@ const HunkContainer = styled.div<{ isSelected: boolean; isRead: boolean }>`
   overflow: hidden;
   cursor: pointer;
   transition: all 0.2s ease;
+
+  /* Remove default focus ring - keyboard navigation uses isSelected state */
+  &:focus,
+  &:focus-visible {
+    outline: none;
+  }
 
   ${(props) =>
     props.isRead &&
@@ -176,6 +184,7 @@ export const HunkViewer = React.memo<HunkViewerProps>(
     isRead = false,
     onClick,
     onToggleRead,
+    onRegisterToggleExpand,
     onReviewNote,
   }) => {
     // Parse diff lines (memoized - only recompute if hunk.content changes)
@@ -232,16 +241,26 @@ export const HunkViewer = React.memo<HunkViewerProps>(
       }
     }, [hasManualState, manualExpandState]);
 
-    const handleToggleExpand = (e: React.MouseEvent) => {
-      e.stopPropagation();
-      const newExpandState = !isExpanded;
-      setIsExpanded(newExpandState);
-      // Persist manual expand/collapse choice
-      setExpandStateMap((prev) => ({
-        ...prev,
-        [hunkId]: newExpandState,
-      }));
-    };
+    const handleToggleExpand = React.useCallback(
+      (e?: React.MouseEvent) => {
+        e?.stopPropagation();
+        const newExpandState = !isExpanded;
+        setIsExpanded(newExpandState);
+        // Persist manual expand/collapse choice
+        setExpandStateMap((prev) => ({
+          ...prev,
+          [hunkId]: newExpandState,
+        }));
+      },
+      [isExpanded, hunkId, setExpandStateMap]
+    );
+
+    // Register toggle method with parent component
+    React.useEffect(() => {
+      if (onRegisterToggleExpand) {
+        onRegisterToggleExpand(hunkId, handleToggleExpand);
+      }
+    }, [hunkId, onRegisterToggleExpand, handleToggleExpand]);
 
     const handleToggleRead = (e: React.MouseEvent<HTMLButtonElement>) => {
       e.stopPropagation();
@@ -260,22 +279,6 @@ export const HunkViewer = React.memo<HunkViewerProps>(
         role="button"
         tabIndex={0}
         data-hunk-id={hunkId}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            e.preventDefault();
-            // Cast to MouseEvent-like for onClick handler
-            onClick?.(e as unknown as React.MouseEvent<HTMLElement>);
-          } else if (e.key === " ") {
-            e.preventDefault();
-            // Space toggles expand/collapse for non-rename hunks
-            if (!isPureRename) {
-              handleToggleExpand(e as unknown as React.MouseEvent);
-            } else {
-              // For renames, Space selects the hunk
-              onClick?.(e as unknown as React.MouseEvent<HTMLElement>);
-            }
-          }
-        }}
       >
         <HunkHeader>
           {isRead && (
@@ -302,12 +305,12 @@ export const HunkViewer = React.memo<HunkViewerProps>(
                 <ToggleReadButton
                   data-hunk-id={hunkId}
                   onClick={handleToggleRead}
-                  aria-label="Mark as read (m)"
+                  aria-label={`Mark as read (${formatKeybind(KEYBINDS.TOGGLE_HUNK_READ)})`}
                 >
                   {isRead ? "○" : "◉"}
                 </ToggleReadButton>
                 <Tooltip align="right" position="top">
-                  Mark as read (m)
+                  Mark as read ({formatKeybind(KEYBINDS.TOGGLE_HUNK_READ)})
                 </Tooltip>
               </TooltipWrapper>
             )}
@@ -338,13 +341,14 @@ export const HunkViewer = React.memo<HunkViewerProps>(
           </HunkContent>
         ) : (
           <CollapsedIndicator onClick={handleToggleExpand}>
-            {isRead && "Hunk marked as read. "}Click to expand ({lineCount} lines)
+            {isRead && "Hunk marked as read. "}Click to expand ({lineCount} lines) or press{" "}
+            {formatKeybind(KEYBINDS.TOGGLE_HUNK_COLLAPSE)}
           </CollapsedIndicator>
         )}
 
         {hasManualState && isExpanded && !isPureRename && (
           <CollapsedIndicator onClick={handleToggleExpand}>
-            Click here or press [Space] to collapse
+            Click here or press {formatKeybind(KEYBINDS.TOGGLE_HUNK_COLLAPSE)} to collapse
           </CollapsedIndicator>
         )}
       </HunkContainer>
