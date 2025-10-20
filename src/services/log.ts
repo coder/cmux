@@ -39,14 +39,14 @@ function getTimestamp(): string {
   let hours = now.getHours();
   const minutes = now.getMinutes();
   const milliseconds = now.getMilliseconds();
-  
+
   const ampm = hours >= 12 ? "PM" : "AM";
   hours = hours % 12;
   hours = hours ? hours : 12; // Convert 0 to 12
-  
+
   const mm = String(minutes).padStart(2, "0");
   const ms = String(milliseconds).padStart(3, "0"); // 3 digits: 000-999
-  
+
   return `${hours}:${mm}.${ms}${ampm}`;
 }
 
@@ -92,13 +92,13 @@ function safePipeLog(level: "info" | "error" | "debug", ...args: unknown[]): voi
   const timestamp = getTimestamp();
   const location = getCallerLocation();
   const useColor = supportsColor();
-  
+
   // Apply colors based on level (if terminal supports it)
   let prefix: string;
   if (useColor) {
     const coloredTimestamp = chalk.dim(timestamp);
     const coloredLocation = chalk.cyan(location);
-    
+
     if (level === "error") {
       prefix = `${coloredTimestamp} ${coloredLocation}`;
     } else if (level === "debug") {
@@ -116,9 +116,10 @@ function safePipeLog(level: "info" | "error" | "debug", ...args: unknown[]): voi
     if (level === "error") {
       // Color the entire error message red if supported
       if (useColor) {
-        console.error(prefix, ...args.map(arg => 
-          typeof arg === "string" ? chalk.red(arg) : arg
-        ));
+        console.error(
+          prefix,
+          ...args.map((arg) => (typeof arg === "string" ? chalk.red(arg) : arg))
+        );
       } else {
         console.error(prefix, ...args);
       }

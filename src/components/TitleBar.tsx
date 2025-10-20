@@ -156,12 +156,9 @@ export function TitleBar() {
     window.api.update.check().catch(console.error);
 
     // Check periodically
-    const checkInterval = setInterval(
-      () => {
-        window.api.update.check().catch(console.error);
-      },
-      UPDATE_CHECK_INTERVAL_MS
-    );
+    const checkInterval = setInterval(() => {
+      window.api.update.check().catch(console.error);
+    }, UPDATE_CHECK_INTERVAL_MS);
 
     return () => {
       unsubscribe();
@@ -174,13 +171,16 @@ export function TitleBar() {
 
     // Debounce: Only check once per cooldown period on hover
     const now = Date.now();
-    
+
     if (now - lastHoverCheckTime.current < UPDATE_CHECK_HOVER_COOLDOWN_MS) {
       return; // Too soon since last hover check
     }
 
     // Only trigger check if idle/up-to-date and not already checking
-    if ((updateStatus.type === "idle" || updateStatus.type === "up-to-date") && !isCheckingOnHover) {
+    if (
+      (updateStatus.type === "idle" || updateStatus.type === "up-to-date") &&
+      !isCheckingOnHover
+    ) {
       lastHoverCheckTime.current = now;
       setIsCheckingOnHover(true);
       window.api.update.check().catch((error) => {
@@ -236,11 +236,7 @@ export function TitleBar() {
 
     // Always add releases link as defense-in-depth
     lines.push(
-      <a
-        href="https://github.com/coder/cmux/releases"
-        target="_blank"
-        rel="noopener noreferrer"
-      >
+      <a href="https://github.com/coder/cmux/releases" target="_blank" rel="noopener noreferrer">
         View all releases
       </a>
     );
@@ -297,7 +293,9 @@ export function TitleBar() {
                     : "↓"}
               </UpdateIcon>
             </UpdateIndicator>
-            <Tooltip align="left" interactive={true}>{getUpdateTooltip()}</Tooltip>
+            <Tooltip align="left" interactive={true}>
+              {getUpdateTooltip()}
+            </Tooltip>
           </TooltipWrapper>
         )}
         <TitleText>cmux {gitDescribe ?? "(dev)"}</TitleText>

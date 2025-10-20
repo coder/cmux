@@ -19,6 +19,8 @@ import type { IpcMain } from "./services/ipcMain";
 import { VERSION } from "./version";
 import type { loadTokenizerModules } from "./utils/main/tokenizer";
 import { IPC_CHANNELS } from "./constants/ipc-constants";
+import { log } from "./services/log";
+import { parseDebugUpdater } from "./utils/env";
 
 // React DevTools for development profiling
 // Using require() instead of import since it's dev-only and conditionally loaded
@@ -65,6 +67,7 @@ if (!app.isPackaged) {
 let config: Config | null = null;
 let ipcMain: IpcMain | null = null;
 let loadTokenizerModulesFn: typeof loadTokenizerModules | null = null;
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 let updaterService: typeof import("./services/updater").UpdaterService.prototype | null = null;
 const isE2ETest = process.env.CMUX_E2E === "1";
 const forceDistLoad = process.env.CMUX_E2E_LOAD_DIST === "1";
@@ -318,12 +321,11 @@ async function loadServices(): Promise<void> {
   loadTokenizerModulesFn = loadTokenizerFn;
 
   // Initialize updater service in packaged builds or when DEBUG_UPDATER is set
-  const { parseDebugUpdater } = await import("./utils/env");
   const debugConfig = parseDebugUpdater(process.env.DEBUG_UPDATER);
-  
+
   if (app.isPackaged || debugConfig.enabled) {
     updaterService = new UpdaterServiceClass();
-    const debugInfo = debugConfig.fakeVersion 
+    const debugInfo = debugConfig.fakeVersion
       ? `debug with fake version ${debugConfig.fakeVersion}`
       : `debug enabled`;
     console.log(
@@ -370,21 +372,20 @@ function createWindow() {
   ipcMain.register(electronIpcMain, mainWindow);
 
   // Register updater IPC handlers (available in both dev and prod)
-  electronIpcMain.handle(IPC_CHANNELS.UPDATE_CHECK, async () => {
+  electronIpcMain.handle(IPC_CHANNELS.UPDATE_CHECK, () => {
     // Note: log interface already includes timestamp and file location
-    const { log } = await import("./services/log");
     log.debug(`UPDATE_CHECK called (updaterService: ${updaterService ? "available" : "null"})`);
     if (!updaterService) {
       // Send "idle" status if updater not initialized (dev mode without DEBUG_UPDATER)
       if (mainWindow) {
-        mainWindow.webContents.send(IPC_CHANNELS.UPDATE_STATUS, { 
-          type: "idle" as const
+        mainWindow.webContents.send(IPC_CHANNELS.UPDATE_STATUS, {
+          type: "idle" as const,
         });
       }
       return;
     }
     log.debug("Calling updaterService.checkForUpdates()");
-    await updaterService.checkForUpdates();
+    updaterService.checkForUpdates();
   });
 
   electronIpcMain.handle(IPC_CHANNELS.UPDATE_DOWNLOAD, async () => {
@@ -399,8 +400,7 @@ function createWindow() {
 
   // Handle status subscription requests
   // Note: React StrictMode in dev causes components to mount twice, resulting in duplicate calls
-  electronIpcMain.on(IPC_CHANNELS.UPDATE_STATUS_SUBSCRIBE, async () => {
-    const { log } = await import("./services/log");
+  electronIpcMain.on(IPC_CHANNELS.UPDATE_STATUS_SUBSCRIBE, () => {
     log.debug("UPDATE_STATUS_SUBSCRIBE called");
     if (!mainWindow) return;
     const status = updaterService ? updaterService.getStatus() : { type: "idle" };

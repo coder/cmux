@@ -27,6 +27,10 @@ module.exports = {
   },
   // Transform ESM modules (like shiki) to CommonJS for Jest
   transformIgnorePatterns: ["node_modules/(?!(shiki)/)"],
+  // Mock chalk (ESM-only, not needed in tests)
+  moduleNameMapper: {
+    "^chalk$": "<rootDir>/tests/__mocks__/chalk.js",
+  },
   // Run tests in parallel (use 50% of available cores, or 4 minimum)
   maxWorkers: "50%",
   // Force exit after tests complete to avoid hanging on lingering handles

@@ -117,7 +117,9 @@ const api: IPCApi = {
   update: {
     check: () => ipcRenderer.invoke(IPC_CHANNELS.UPDATE_CHECK),
     download: () => ipcRenderer.invoke(IPC_CHANNELS.UPDATE_DOWNLOAD),
-    install: () => ipcRenderer.invoke(IPC_CHANNELS.UPDATE_INSTALL),
+    install: () => {
+      void ipcRenderer.invoke(IPC_CHANNELS.UPDATE_INSTALL);
+    },
     onStatus: (callback: (status: UpdateStatus) => void) => {
       const handler = (_event: unknown, status: UpdateStatus) => {
         callback(status);

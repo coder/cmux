@@ -31,7 +31,7 @@ export class UpdaterService {
   private mainWindow: BrowserWindow | null = null;
   private updateStatus: UpdateStatus = { type: "idle" };
   private checkTimeout: NodeJS.Timeout | null = null;
-  private fakeVersion: string | undefined;
+  private readonly fakeVersion: string | undefined;
 
   constructor() {
     // Configure auto-updater
@@ -45,7 +45,7 @@ export class UpdaterService {
     if (debugConfig.enabled) {
       log.debug("Forcing dev update config (DEBUG_UPDATER is set)");
       autoUpdater.forceDevUpdateConfig = true;
-      
+
       if (this.fakeVersion) {
         log.debug(`DEBUG_UPDATER fake version enabled: ${this.fakeVersion}`);
       }
@@ -119,50 +119,54 @@ export class UpdaterService {
 
   /**
    * Check for updates manually
-   * 
+   *
    * This triggers the check but returns immediately. The actual results
    * will be delivered via event handlers (checking-for-update, update-available, etc.)
-   * 
+   *
    * A 30-second timeout ensures we don't stay in "checking" state indefinitely.
    */
-  async checkForUpdates(): Promise<void> {
+  checkForUpdates(): void {
     log.debug("checkForUpdates() called");
     try {
       // Clear any existing timeout
       this.clearCheckTimeout();
-      
+
       // Set checking status immediately
       log.debug("Setting status to 'checking'");
       this.updateStatus = { type: "checking" };
       this.notifyRenderer();
-      
+
       // If fake version is set, immediately report it as available
       if (this.fakeVersion) {
         log.debug(`Faking update available: ${this.fakeVersion}`);
+        const version = this.fakeVersion;
         setTimeout(() => {
+          const fakeInfo = {
+            version,
+          } satisfies Partial<UpdateInfo> as UpdateInfo;
           this.updateStatus = {
             type: "available",
-            info: {
-              version: this.fakeVersion!,
-            } as UpdateInfo,
+            info: fakeInfo,
           };
           this.notifyRenderer();
         }, 500); // Small delay to simulate check
         return;
       }
-      
+
       // Set timeout to prevent hanging in "checking" state
       log.debug(`Setting ${UPDATE_CHECK_TIMEOUT_MS}ms timeout`);
       this.checkTimeout = setTimeout(() => {
         if (this.updateStatus.type === "checking") {
-          log.debug(`Update check timed out after ${UPDATE_CHECK_TIMEOUT_MS}ms, returning to idle state`);
+          log.debug(
+            `Update check timed out after ${UPDATE_CHECK_TIMEOUT_MS}ms, returning to idle state`
+          );
           this.updateStatus = { type: "idle" };
           this.notifyRenderer();
         } else {
           log.debug(`Timeout fired but status already changed to: ${this.updateStatus.type}`);
         }
       }, UPDATE_CHECK_TIMEOUT_MS);
-      
+
       // Trigger the check (don't await - it never resolves, just fires events)
       log.debug("Calling autoUpdater.checkForUpdates()");
       autoUpdater.checkForUpdates().catch((error) => {
@@ -188,29 +192,31 @@ export class UpdaterService {
     if (this.updateStatus.type !== "available") {
       throw new Error("No update available to download");
     }
-    
+
     // If using fake version, simulate download progress
     if (this.fakeVersion) {
       log.debug(`Faking download for version ${this.fakeVersion}`);
       this.updateStatus = { type: "downloading", percent: 0 };
       this.notifyRenderer();
-      
+
       // Simulate download progress
       for (let percent = 0; percent <= 100; percent += 10) {
-        await new Promise(resolve => setTimeout(resolve, 200));
+        await new Promise((resolve) => setTimeout(resolve, 200));
         this.updateStatus = { type: "downloading", percent };
         this.notifyRenderer();
       }
-      
+
       // Mark as downloaded
+      const version = this.fakeVersion;
+      const fakeDownloadedInfo = { version } satisfies Partial<UpdateInfo> as UpdateInfo;
       this.updateStatus = {
         type: "downloaded",
-        info: { version: this.fakeVersion } as UpdateInfo,
+        info: fakeDownloadedInfo,
       };
       this.notifyRenderer();
       return;
     }
-    
+
     await autoUpdater.downloadUpdate();
   }
 
@@ -221,13 +227,13 @@ export class UpdaterService {
     if (this.updateStatus.type !== "downloaded") {
       throw new Error("No update downloaded to install");
     }
-    
+
     // If using fake version, just log (can't actually restart with fake update)
     if (this.fakeVersion) {
       log.debug(`Fake update install requested for ${this.fakeVersion} - would restart app here`);
       return;
     }
-    
+
     autoUpdater.quitAndInstall();
   }
 
