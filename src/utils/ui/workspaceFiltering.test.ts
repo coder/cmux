@@ -98,11 +98,7 @@ describe("partitionWorkspacesByAge", () => {
   });
 
   it("should always show at least one workspace when all are old", () => {
-    const workspaces = [
-      createWorkspace("old1"),
-      createWorkspace("old2"),
-      createWorkspace("old3"),
-    ];
+    const workspaces = [createWorkspace("old1"), createWorkspace("old2"), createWorkspace("old3")];
 
     const workspaceRecency = {
       old1: now - 2 * ONE_DAY_MS,
@@ -128,4 +124,3 @@ describe("formatOldWorkspaceThreshold", () => {
     expect(result).toBe("1 day");
   });
 });
-
