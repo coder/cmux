@@ -44,6 +44,18 @@ function escapeRegex(str: string): string {
 }
 
 /**
+ * Escape HTML entities for safe injection
+ */
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+/**
  * Walk all text nodes in a DOM tree and apply a callback
  */
 function walkTextNodes(node: Node, callback: (textNode: Text) => void): void {
@@ -96,13 +108,13 @@ export function highlightSearchInText(text: string, config: SearchHighlightConfi
 
     let match;
     while ((match = pattern.exec(text)) !== null) {
-      // Add text before match
+      // Add text before match (escaped)
       if (match.index > lastIndex) {
-        result += text.slice(lastIndex, match.index);
+        result += escapeHtml(text.slice(lastIndex, match.index));
       }
 
-      // Add highlighted match
-      result += `<mark class="search-highlight">${match[0]}</mark>`;
+      // Add highlighted match (escaped)
+      result += `<mark class="search-highlight">${escapeHtml(match[0])}</mark>`;
 
       lastIndex = match.index + match[0].length;
 
@@ -112,9 +124,9 @@ export function highlightSearchInText(text: string, config: SearchHighlightConfi
       }
     }
 
-    // Add remaining text after last match
+    // Add remaining text after last match (escaped)
     if (lastIndex < text.length) {
-      result += text.slice(lastIndex);
+      result += escapeHtml(text.slice(lastIndex));
     }
 
     return result;
