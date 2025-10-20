@@ -1,0 +1,48 @@
+name: Publish to NPM
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write # Required for OIDC trusted publishing
+
+jobs:
+  publish:
+    name: Publish to NPM
+    runs-on: ${{ github.repository_owner == 'coder' && 'depot-ubuntu-22.04-16' || 'ubuntu-latest' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Required for git describe to find tags
+
+      - uses: ./.github/actions/setup-cmux
+
+      - name: Generate version file
+        run: ./scripts/generate-version.sh
+
+      - name: Build application
+        run: make build
+
+      - name: Determine NPM tag
+        id: npm-tag
+        run: |
+          if [[ $GITHUB_REF == refs/tags/* ]]; then
+            echo "tag=latest" >> $GITHUB_OUTPUT
+            echo "Publishing as 'latest' tag (stable release)"
+          else
+            echo "tag=next" >> $GITHUB_OUTPUT
+            echo "Publishing as 'next' tag (pre-release from main)"
+          fi
+
+      - name: Publish to NPM
+        run: npm publish --tag ${{ steps.npm-tag.outputs.tag }} --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
