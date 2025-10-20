@@ -72,13 +72,13 @@ export function highlightSearchMatches(html: string, config: SearchHighlightConf
     // Check cache for parsed DOM (keyed only by html, not search config)
     const htmlChecksum = CRC32.str(html);
     let doc = domCache.get(htmlChecksum);
-    
+
     if (!doc) {
       // Parse HTML into DOM for safe manipulation
       doc = parserInstance.parseFromString(html, "text/html");
       domCache.set(htmlChecksum, doc);
     }
-    
+
     // Clone the cached DOM so we don't mutate the cached version
     // This is cheaper than re-parsing and allows cache reuse across different searches
     const workingDoc = doc.cloneNode(true) as Document;
@@ -86,7 +86,7 @@ export function highlightSearchMatches(html: string, config: SearchHighlightConf
     // Build regex pattern (with caching)
     const regexCacheKey = `${searchTerm}:${useRegex}:${matchCase}`;
     let pattern = regexCache.get(regexCacheKey);
-    
+
     if (!pattern) {
       try {
         pattern = useRegex

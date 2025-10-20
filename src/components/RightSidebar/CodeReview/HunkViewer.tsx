@@ -2,11 +2,15 @@
  * HunkViewer - Displays a single diff hunk with syntax highlighting
  */
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import styled from "@emotion/styled";
 import type { DiffHunk } from "@/types/review";
 import { SelectableDiffRenderer } from "../../shared/DiffRenderer";
-import type { SearchHighlightConfig } from "@/utils/highlighting/highlightSearchTerms";
+import {
+  type SearchHighlightConfig,
+  highlightSearchMatches,
+} from "@/utils/highlighting/highlightSearchTerms";
+import { escapeHtml } from "@/utils/highlighting/highlightDiffChunk";
 import { Tooltip, TooltipWrapper } from "../../Tooltip";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { getReviewExpandStateKey } from "@/constants/storage";
@@ -203,6 +207,14 @@ export const HunkViewer = React.memo<HunkViewerProps>(
       };
     }, [hunk.content]);
 
+    // Highlight filePath if search is active
+    const highlightedFilePath = useMemo(() => {
+      if (!searchConfig) {
+        return hunk.filePath;
+      }
+      return highlightSearchMatches(escapeHtml(hunk.filePath), searchConfig);
+    }, [hunk.filePath, searchConfig]);
+
     // Persist manual expand/collapse state across remounts per workspace
     // Maps hunkId -> isExpanded for user's manual preferences
     // Enable listener to synchronize updates across all HunkViewer instances
@@ -294,7 +306,7 @@ export const HunkViewer = React.memo<HunkViewerProps>(
               </Tooltip>
             </TooltipWrapper>
           )}
-          <FilePath>{hunk.filePath}</FilePath>
+          <FilePath dangerouslySetInnerHTML={{ __html: highlightedFilePath }} />
           <LineInfo>
             {!isPureRename && (
               <LocStats>
