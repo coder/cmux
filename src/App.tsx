@@ -101,7 +101,9 @@ const globalStyles = css`
   }
 
   /* Search term highlighting - global for consistent styling across components */
-  mark.search-highlight {
+  /* Applied to <mark> for plain text and <span> for Shiki-highlighted code */
+  mark.search-highlight,
+  span.search-highlight {
     background: rgba(255, 215, 0, 0.3);
     color: inherit;
     padding: 0;

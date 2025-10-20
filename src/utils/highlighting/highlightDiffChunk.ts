@@ -50,12 +50,13 @@ export async function highlightDiffChunk(
   }
 
   // Enforce size limit for performance
-  // Calculate size in bytes (rough estimate using string length)
-  const code = chunk.lines.join("\n");
-  const sizeBytes = new TextEncoder().encode(code).length;
+  // Calculate size by summing line lengths + newlines (more performant than TextEncoder)
+  const sizeBytes = chunk.lines.reduce((total, line) => total + line.length, 0) + chunk.lines.length - 1;
   if (sizeBytes > MAX_DIFF_SIZE_BYTES) {
     return createFallbackChunk(chunk);
   }
+
+  const code = chunk.lines.join("\n");
 
   try {
     const highlighter = await getShikiHighlighter();
