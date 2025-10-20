@@ -929,6 +929,15 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
                       onToggleRead={handleHunkToggleRead}
                       onRegisterToggleExpand={handleRegisterToggleExpand}
                       onReviewNote={onReviewNote}
+                      searchConfig={
+                        debouncedSearchTerm
+                          ? {
+                              searchTerm: debouncedSearchTerm,
+                              useRegex: searchState.useRegex,
+                              matchCase: searchState.matchCase,
+                            }
+                          : undefined
+                      }
                     />
                   );
                 })

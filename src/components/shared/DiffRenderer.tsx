@@ -10,6 +10,10 @@ import { getLanguageFromPath } from "@/utils/git/languageDetector";
 import { Tooltip, TooltipWrapper } from "../Tooltip";
 import { groupDiffLines } from "@/utils/highlighting/diffChunking";
 import { highlightDiffChunk, type HighlightedChunk } from "@/utils/highlighting/highlightDiffChunk";
+import {
+  highlightSearchMatches,
+  type SearchHighlightConfig,
+} from "@/utils/highlighting/highlightSearchTerms";
 
 // Shared type for diff line types
 export type DiffLineType = "add" | "remove" | "context" | "header";
@@ -100,6 +104,14 @@ export const LineContent = styled.span<{ type: DiffLineType }>`
   /* Ensure Shiki spans don't interfere with diff backgrounds */
   span {
     background: transparent !important;
+  }
+
+  /* Search term highlighting */
+  mark.search-highlight {
+    background: rgba(255, 215, 0, 0.3);
+    color: inherit;
+    padding: 0;
+    border-radius: 2px;
   }
 `;
 
@@ -257,6 +269,8 @@ interface SelectableDiffRendererProps extends Omit<DiffRendererProps, "filePath"
   onReviewNote?: (note: string) => void;
   /** Callback when user clicks on a line (to activate parent hunk) */
   onLineClick?: () => void;
+  /** Search highlight configuration (optional) */
+  searchConfig?: SearchHighlightConfig;
 }
 
 interface LineSelection {
@@ -457,6 +471,7 @@ export const SelectableDiffRenderer = React.memo<SelectableDiffRendererProps>(
     maxHeight,
     onReviewNote,
     onLineClick,
+    searchConfig,
   }) => {
     const [selection, setSelection] = React.useState<LineSelection | null>(null);
 
@@ -581,7 +596,13 @@ export const SelectableDiffRenderer = React.memo<SelectableDiffRendererProps>(
                     <LineNumber type={lineInfo.type}>{lineInfo.lineNum}</LineNumber>
                   )}
                   <LineContent type={lineInfo.type}>
-                    <span dangerouslySetInnerHTML={{ __html: lineInfo.html }} />
+                    <span
+                      dangerouslySetInnerHTML={{
+                        __html: searchConfig
+                          ? highlightSearchMatches(lineInfo.html, searchConfig)
+                          : lineInfo.html,
+                      }}
+                    />
                   </LineContent>
                 </DiffLine>
               </SelectableDiffLineWrapper>

@@ -6,6 +6,7 @@ import React, { useState } from "react";
 import styled from "@emotion/styled";
 import type { DiffHunk } from "@/types/review";
 import { SelectableDiffRenderer } from "../../shared/DiffRenderer";
+import type { SearchHighlightConfig } from "@/utils/highlighting/highlightSearchTerms";
 import { Tooltip, TooltipWrapper } from "../../Tooltip";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { getReviewExpandStateKey } from "@/constants/storage";
@@ -21,6 +22,7 @@ interface HunkViewerProps {
   onToggleRead?: (e: React.MouseEvent<HTMLElement>) => void;
   onRegisterToggleExpand?: (hunkId: string, toggleFn: () => void) => void;
   onReviewNote?: (note: string) => void;
+  searchConfig?: SearchHighlightConfig;
 }
 
 const HunkContainer = styled.div<{ isSelected: boolean; isRead: boolean }>`
@@ -186,6 +188,7 @@ export const HunkViewer = React.memo<HunkViewerProps>(
     onToggleRead,
     onRegisterToggleExpand,
     onReviewNote,
+    searchConfig,
   }) => {
     // Parse diff lines (memoized - only recompute if hunk.content changes)
     // Must be done before state initialization to determine initial collapse state
@@ -339,6 +342,7 @@ export const HunkViewer = React.memo<HunkViewerProps>(
                 } as unknown as React.MouseEvent<HTMLElement>;
                 onClick?.(syntheticEvent);
               }}
+              searchConfig={searchConfig}
             />
           </HunkContent>
         ) : (
