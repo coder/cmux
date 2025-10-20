@@ -125,6 +125,7 @@
     "rehype-sanitize": "^6.0.0",
     "remark-gfm": "^4.0.1",
     "remark-math": "^6.0.0",
+    "rollup-plugin-visualizer": "^6.0.5",
     "shiki": "^3.13.0",
     "storybook": "^8.6.14",
     "ts-jest": "^29.4.4",

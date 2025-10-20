@@ -71,12 +71,13 @@ export async function highlightDiffChunk(
     const loadedLangs = highlighter.getLoadedLanguages();
     if (!loadedLangs.includes(shikiLang)) {
       try {
-        // TypeScript doesn't know shikiLang is valid, but we handle errors gracefully
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
-        await highlighter.loadLanguage(shikiLang as any);
-      } catch {
+        // Dynamically import the language grammar
+        const langModule = await import(`shiki/langs/${shikiLang}.mjs`);
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access
+        await highlighter.loadLanguage(langModule.default);
+      } catch (error) {
         // Language not available in Shiki bundle - fall back to plain text
-        console.warn(`Language '${shikiLang}' not available in Shiki, using plain text`);
+        console.warn(`Language '${shikiLang}' not available in Shiki, using plain text`, error);
         return createFallbackChunk(chunk);
       }
     }

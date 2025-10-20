@@ -22,15 +22,14 @@ interface TokenizerModuleImports {
   AITokenizer: typeof import("ai-tokenizer").default;
   // eslint-disable-next-line @typescript-eslint/consistent-type-imports
   models: typeof import("ai-tokenizer").models;
-  // eslint-disable-next-line @typescript-eslint/consistent-type-imports
-  o200k_base: typeof import("ai-tokenizer/encoding/o200k_base");
-  // eslint-disable-next-line @typescript-eslint/consistent-type-imports
-  claude: typeof import("ai-tokenizer/encoding/claude");
 }
 
 let tokenizerModules: TokenizerModuleImports | null = null;
 
 let tokenizerLoadPromise: Promise<void> | null = null;
+
+// Cache for loaded encodings (loaded on-demand)
+const loadedEncodings = new Map<string, unknown>();
 
 /**
  * Load tokenizer modules asynchronously
@@ -46,23 +45,43 @@ export async function loadTokenizerModules(): Promise<void> {
   tokenizerLoadPromise = (async () => {
     // Performance: lazy load tokenizer modules to reduce startup time from ~8.8s to <1s
     /* eslint-disable no-restricted-syntax */
-    const [AITokenizerModule, modelsModule, o200k_base, claude] = await Promise.all([
+    const [AITokenizerModule, modelsModule] = await Promise.all([
       import("ai-tokenizer"),
       import("ai-tokenizer"),
-      import("ai-tokenizer/encoding/o200k_base"),
-      import("ai-tokenizer/encoding/claude"),
     ]);
     /* eslint-enable no-restricted-syntax */
 
     tokenizerModules = {
       AITokenizer: AITokenizerModule.default,
       models: modelsModule.models,
-      o200k_base,
-      claude,
     };
   })();
 
   return tokenizerLoadPromise;
+}
+
+/**
+ * Load an encoding module on-demand
+ * Only loads the specific encoding needed (o200k_base or claude)
+ */
+async function loadEncoding(encodingName: string): Promise<unknown> {
+  const cached = loadedEncodings.get(encodingName);
+  if (cached) return cached;
+
+  let encoding: unknown;
+  if (encodingName === "claude") {
+    /* eslint-disable no-restricted-syntax */
+    encoding = await import("ai-tokenizer/encoding/claude");
+    /* eslint-enable no-restricted-syntax */
+  } else {
+    // Default to o200k_base for all other encodings
+    /* eslint-disable no-restricted-syntax */
+    encoding = await import("ai-tokenizer/encoding/o200k_base");
+    /* eslint-enable no-restricted-syntax */
+  }
+
+  loadedEncodings.set(encodingName, encoding);
+  return encoding;
 }
 
 /**
@@ -160,15 +179,16 @@ function getTokenizerEncoding(modelString: string, modules: TokenizerModules | n
  * Count tokens using loaded tokenizer modules
  * Assumes tokenizerModules is not null
  */
-function countTokensWithLoadedModules(
+async function countTokensWithLoadedModules(
   text: string,
   modelString: string,
   modules: NonNullable<typeof tokenizerModules>
-): number {
+): Promise<number> {
   const encodingName = getTokenizerEncoding(modelString, modules);
 
-  const encoding = encodingName === "claude" ? modules.claude : modules.o200k_base;
-  const tokenizer = new modules.AITokenizer(encoding);
+  const encoding = await loadEncoding(encodingName);
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-explicit-any
+  const tokenizer = new modules.AITokenizer(encoding as any);
   return tokenizer.count(text);
 }
 
@@ -187,24 +207,11 @@ export function getTokenizerForModel(modelString: string): Tokenizer {
       return getTokenizerEncoding(modelString, tokenizerModules);
     },
     countTokens: (text: string) => {
-      // If tokenizer already loaded, use synchronous path for accurate counts
-      if (tokenizerModules) {
-        return countTokensCached(text, () => {
-          try {
-            return countTokensWithLoadedModules(text, modelString, tokenizerModules!);
-          } catch (error) {
-            // Unexpected error during tokenization, fallback to approximation
-            console.error("Failed to tokenize, falling back to approximation:", error);
-            return Math.ceil(text.length / 4);
-          }
-        });
-      }
-
-      // Tokenizer not yet loaded - use async path (returns approximation immediately)
+      // Always use async path since encodings are loaded on-demand
       return countTokensCached(text, async () => {
         await loadTokenizerModules();
         try {
-          return countTokensWithLoadedModules(text, modelString, tokenizerModules!);
+          return await countTokensWithLoadedModules(text, modelString, tokenizerModules!);
         } catch (error) {
           // Unexpected error during tokenization, fallback to approximation
           console.error("Failed to tokenize, falling back to approximation:", error);

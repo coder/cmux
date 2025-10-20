@@ -1,11 +1,15 @@
 import type { ReactNode } from "react";
-import React, { useState, useEffect } from "react";
-import { Mermaid } from "./Mermaid";
+import React, { useState, useEffect, Suspense, lazy } from "react";
 import {
   getShikiHighlighter,
   mapToShikiLang,
   SHIKI_THEME,
 } from "@/utils/highlighting/shikiHighlighter";
+
+// Lazy load Mermaid to keep it out of the main bundle
+const Mermaid = lazy(() =>
+  import("./Mermaid").then((module) => ({ default: module.Mermaid }))
+);
 
 interface CodeProps {
   node?: unknown;
@@ -143,7 +147,11 @@ export const markdownComponents = {
 
     // Handle mermaid diagrams specially
     if (!isInline && language === "mermaid") {
-      return <Mermaid chart={childString} />;
+      return (
+        <Suspense fallback={<div style={{ padding: "1rem" }}>Loading diagram...</div>}>
+          <Mermaid chart={childString} />
+        </Suspense>
+      );
     }
 
     // Code blocks with language - use async Shiki highlighting

@@ -4,6 +4,7 @@ import topLevelAwait from "vite-plugin-top-level-await";
 import svgr from "vite-plugin-svgr";
 import path from "path";
 import { fileURLToPath } from "url";
+import { visualizer } from "rollup-plugin-visualizer";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const disableMermaid = process.env.VITE_DISABLE_MERMAID === "1";
@@ -46,7 +47,15 @@ export default defineConfig(({ mode }) => ({
   plugins:
     mode === "development"
       ? [...basePlugins, topLevelAwait()]
-      : basePlugins,
+      : [
+          ...basePlugins,
+          visualizer({
+            filename: "dist/stats.html",
+            open: false,
+            gzipSize: true,
+            brotliSize: true,
+          }),
+        ],
   resolve: {
     alias,
   },
@@ -58,6 +67,11 @@ export default defineConfig(({ mode }) => ({
     sourcemap: true,
     minify: "esbuild",
     rollupOptions: {
+      external: [
+        // Externalize tokenizer encodings - these are large and should be lazy-loaded
+        "ai-tokenizer/encoding/o200k_base",
+        "ai-tokenizer/encoding/claude",
+      ],
       output: {
         format: "es",
         inlineDynamicImports: false,
