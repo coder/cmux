@@ -66,17 +66,6 @@ export function indexAt(text: string, row: number, col: number): number {
 }
 
 /**
- * Get the end index of the line containing idx.
- */
-export function lineEndAtIndex(text: string, idx: number): number {
-  const { lines, starts } = getLinesInfo(text);
-  let row = 0;
-  while (row + 1 < starts.length && starts[row + 1] <= idx) row++;
-  const lineEnd = starts[row] + lines[row].length;
-  return lineEnd;
-}
-
-/**
  * Get line bounds (start, end) for the line containing cursor.
  */
 export function getLineBounds(

@@ -86,34 +86,6 @@ export function parseCommand(input: string): ParsedCommand {
 }
 
 /**
- * Set a nested property value using a key path
- * @param obj The object to modify
- * @param keyPath Array of keys representing the path (e.g., ["baseUrl", "scheme"])
- * @param value The value to set
- */
-export function setNestedProperty(
-  obj: Record<string, unknown>,
-  keyPath: string[],
-  value: string
-): void {
-  if (keyPath.length === 0) {
-    return;
-  }
-
-  let current = obj;
-  for (let i = 0; i < keyPath.length - 1; i++) {
-    const key = keyPath[i];
-    if (!(key in current) || typeof current[key] !== "object" || current[key] === null) {
-      current[key] = {};
-    }
-    current = current[key] as Record<string, unknown>;
-  }
-
-  const lastKey = keyPath[keyPath.length - 1];
-  current[lastKey] = value;
-}
-
-/**
  * Get slash command definitions for use in suggestions
  */
 export function getSlashCommandDefinitions(): readonly SlashCommandDefinition[] {

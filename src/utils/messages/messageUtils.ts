@@ -1,14 +1,4 @@
-import type { CmuxMessage, CmuxTextPart, DisplayedMessage } from "@/types/message";
-
-/**
- * Extracts text content from message parts
- */
-export function extractTextContent(message: CmuxMessage): string {
-  return message.parts
-    .filter((p): p is CmuxTextPart => p.type === "text")
-    .map((p) => p.text || "")
-    .join("");
-}
+import type { DisplayedMessage } from "@/types/message";
 
 /**
  * Determines if the interrupted barrier should be shown for a DisplayedMessage.
@@ -41,13 +31,6 @@ export function isStreamingPart(part: unknown): part is { type: "text"; state: "
     "state" in part &&
     part.state === "streaming"
   );
-}
-
-/**
- * Checks if a message is currently streaming
- */
-export function isStreamingMessage(message: CmuxMessage): boolean {
-  return message.parts.some(isStreamingPart);
 }
 
 /**

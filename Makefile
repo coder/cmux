@@ -155,6 +155,17 @@ typecheck: node_modules/.installed src/version.ts ## Run TypeScript type checkin
 		"$(TSGO) --noEmit" \
 		"$(TSGO) --noEmit -p tsconfig.main.json"
 
+check-deadcode: node_modules/.installed ## Check for potential dead code (manual only, not in static-check)
+	@echo "Checking for potential dead code with ts-prune..."
+	@echo "(Note: Some unused exports are legitimate - types, public APIs, entry points, etc.)"
+	@echo ""
+	@bun x ts-prune -i '(test|spec|mock|bench|debug|storybook)' \
+		| grep -v "used in module" \
+		| grep -v "src/App.tsx.*default" \
+		| grep -v "src/types/" \
+		| grep -v "telemetry/index.ts" \
+		|| echo "✓ No obvious dead code found"
+
 ## Testing
 test-integration: node_modules/.installed ## Run all tests (unit + integration)
 	@bun test src

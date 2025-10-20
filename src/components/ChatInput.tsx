@@ -227,21 +227,24 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   // Method to restore text to input (used by compaction cancel)
   const restoreText = useCallback(
     (text: string) => {
-      setInput(text);
+      setInput(() => text);
       focusMessageInput();
     },
-    [focusMessageInput]
+    [focusMessageInput, setInput]
   );
 
   // Method to append text to input (used by Code Review notes)
-  const appendText = useCallback((text: string) => {
-    setInput((prev) => {
-      // Add blank line before if there's existing content
-      const separator = prev.trim() ? "\n\n" : "";
-      return prev + separator + text;
-    });
-    // Don't focus - user wants to keep reviewing
-  }, []);
+  const appendText = useCallback(
+    (text: string) => {
+      setInput((prev) => {
+        // Add blank line before if there's existing content
+        const separator = prev.trim() ? "\n\n" : "";
+        return prev + separator + text;
+      });
+      // Don't focus - user wants to keep reviewing
+    },
+    [setInput]
+  );
 
   // Provide API to parent via callback
   useEffect(() => {

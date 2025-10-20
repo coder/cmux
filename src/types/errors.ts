@@ -15,22 +15,6 @@ export type SendMessageError =
   | { type: "unknown"; raw: string };
 
 /**
- * Type guard to check if error is an API key error
- */
-export function isApiKeyError(
-  error: SendMessageError
-): error is { type: "api_key_not_found"; provider: string } {
-  return error.type === "api_key_not_found";
-}
-
-/**
- * Type guard to check if error is an unknown error
- */
-export function isUnknownError(error: SendMessageError): error is { type: "unknown"; raw: string } {
-  return error.type === "unknown";
-}
-
-/**
  * Stream error types - categorizes errors during AI streaming
  * Used across backend (StreamManager) and frontend (StreamErrorMessage)
  */

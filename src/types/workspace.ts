@@ -75,20 +75,3 @@ export interface FrontendWorkspaceMetadata extends WorkspaceMetadata {
  * @deprecated Use FrontendWorkspaceMetadata instead
  */
 export type WorkspaceMetadataWithPaths = FrontendWorkspaceMetadata;
-
-/**
- * Frontend-enriched workspace metadata with additional UI-specific data.
- * Extends backend WorkspaceMetadata with frontend-computed information.
- */
-export interface DisplayedWorkspaceMetadata extends FrontendWorkspaceMetadata {
-  /** Git status relative to origin's primary branch (null if not available) */
-  gitStatus: GitStatus | null;
-}
-
-/**
- * Event emitted when workspace metadata changes
- */
-export interface WorkspaceMetadataUpdate {
-  workspaceId: string;
-  metadata: WorkspaceMetadata;
-}

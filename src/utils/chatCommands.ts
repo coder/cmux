@@ -104,7 +104,7 @@ export function formatNewCommand(
 // Workspace Forking (re-exported from workspaceFork for convenience)
 // ============================================================================
 
-export { forkWorkspace, type ForkOptions, type ForkResult } from "./workspaceFork";
+export { forkWorkspace } from "./workspaceFork";
 
 // ============================================================================
 // Compaction

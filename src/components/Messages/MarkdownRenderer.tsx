@@ -32,19 +32,3 @@ export const PlanMarkdownContainer = styled.div`
     color: var(--color-plan-mode-hover);
   }
 `;
-
-interface PlanMarkdownRendererProps {
-  content: string;
-  className?: string;
-}
-
-export const PlanMarkdownRenderer: React.FC<PlanMarkdownRendererProps> = ({
-  content,
-  className,
-}) => {
-  return (
-    <PlanMarkdownContainer className={className}>
-      <MarkdownCore content={content} />
-    </PlanMarkdownContainer>
-  );
-};

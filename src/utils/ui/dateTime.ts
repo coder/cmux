@@ -36,26 +36,6 @@ export function formatTimestamp(timestamp: number): string {
 }
 
 /**
- * Formats a Unix timestamp (milliseconds) into a full date/time string with high precision.
- * Used for tooltips and detailed views.
- *
- * @param timestamp Unix timestamp in milliseconds
- * @returns Formatted full timestamp string (e.g., "October 23, 2025, 8:13:42 PM")
- */
-export function formatFullTimestamp(timestamp: number): string {
-  const date = new Date(timestamp);
-  return date.toLocaleString("en-US", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: true,
-  });
-}
-
-/**
  * Formats a Unix timestamp (milliseconds) into a human-readable relative time string.
  * Examples: "2 minutes ago", "3 hours ago", "2 days ago", "3 weeks ago"
  *
