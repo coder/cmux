@@ -21,7 +21,8 @@ FILENAME="${FILENAME%.webp}"
 FILENAME="${FILENAME%.png}"
 
 # Find the latest screenshot - check custom location first, then Desktop
-LATEST_SCREENSHOT=$(ls -t ~/Documents/Screenshots/Screen*.png ~/Desktop/Screen*.png 2>/dev/null | head -1)
+# Check for both WebP and PNG files
+LATEST_SCREENSHOT=$(ls -t ~/Documents/Screenshots/*.{webp,png} ~/Desktop/*.{webp,png} 2>/dev/null | head -1)
 
 if [ -z "$LATEST_SCREENSHOT" ]; then
   echo "❌ Error: No screenshots found in ~/Documents/Screenshots/ or ~/Desktop/"
@@ -35,14 +36,19 @@ mkdir -p "$PROJECT_ROOT/docs/img"
 
 OUTPUT_FILE="$PROJECT_ROOT/docs/img/$FILENAME.webp"
 
-# Convert PNG to WebP using cwebp (as suggested by lint)
-echo "Converting to WebP..."
-if ! command -v cwebp &>/dev/null; then
-  echo "❌ Error: cwebp not found. Install with: brew install webp"
-  exit 1
+# Check if the screenshot is already WebP
+if [[ "$LATEST_SCREENSHOT" == *.webp ]]; then
+  echo "Using existing WebP file..."
+  cp "$LATEST_SCREENSHOT" "$OUTPUT_FILE"
+else
+  # Convert PNG to WebP using cwebp
+  echo "Converting PNG to WebP..."
+  if ! command -v cwebp &>/dev/null; then
+    echo "❌ Error: cwebp not found. Install with: brew install webp"
+    exit 1
+  fi
+  cwebp "$LATEST_SCREENSHOT" -o "$OUTPUT_FILE" -q 85
 fi
-
-cwebp "$LATEST_SCREENSHOT" -o "$OUTPUT_FILE" -q 85
 
 # Remove the original screenshot
 rm "$LATEST_SCREENSHOT"
