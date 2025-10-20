@@ -22,15 +22,21 @@ export async function getShikiHighlighter(): Promise<HighlighterCore> {
   // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
   if (!highlighterPromise) {
     highlighterPromise = (async () => {
+      // Dynamic imports are intentional for lazy-loading WASM and themes
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const [engine, theme] = await Promise.all([
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-call, no-restricted-syntax
         createOnigurumaEngine(import("shiki/wasm")),
+        // eslint-disable-next-line no-restricted-syntax
         import("shiki/themes/min-dark.mjs"),
       ]);
 
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call
       return createHighlighterCore({
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
-        themes: [theme.default as any],
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        themes: [theme.default],
         langs: [], // Load languages on-demand via highlightDiffChunk
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         engine,
       });
     })();

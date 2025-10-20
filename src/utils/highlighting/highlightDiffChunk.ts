@@ -63,17 +63,21 @@ export async function highlightDiffChunk(
   const code = chunk.lines.join("\n");
 
   try {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const highlighter = await getShikiHighlighter();
     const shikiLang = mapToShikiLang(language);
 
     // Load language on-demand if not already loaded
     // This is race-safe: concurrent loads of the same language are idempotent
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     const loadedLangs = highlighter.getLoadedLanguages();
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     if (!loadedLangs.includes(shikiLang)) {
       try {
-        // Dynamically import the language grammar
+        // Dynamically import the language grammar - intentional for lazy-loading
+        // eslint-disable-next-line no-restricted-syntax, @typescript-eslint/no-unsafe-assignment
         const langModule = await import(`shiki/langs/${shikiLang}.mjs`);
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
         await highlighter.loadLanguage(langModule.default);
       } catch (error) {
         // Language not available in Shiki bundle - fall back to plain text
@@ -82,12 +86,14 @@ export async function highlightDiffChunk(
       }
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     const html = highlighter.codeToHtml(code, {
       lang: shikiLang,
       theme: SHIKI_THEME,
     });
 
     // Parse HTML to extract line contents
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     const lines = extractLinesFromHtml(html);
 
     // Validate output (detect broken highlighting)

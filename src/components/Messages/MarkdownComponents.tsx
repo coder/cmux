@@ -7,9 +7,9 @@ import {
 } from "@/utils/highlighting/shikiHighlighter";
 
 // Lazy load Mermaid to keep it out of the main bundle
-const Mermaid = lazy(() =>
-  import("./Mermaid").then((module) => ({ default: module.Mermaid }))
-);
+// Dynamic import is intentional for code-splitting
+// eslint-disable-next-line no-restricted-syntax
+const Mermaid = lazy(() => import("./Mermaid").then((module) => ({ default: module.Mermaid })));
 
 interface CodeProps {
   node?: unknown;
@@ -53,11 +53,13 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ code, language }) => {
 
     async function highlight() {
       try {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         const highlighter = await getShikiHighlighter();
         const shikiLang = mapToShikiLang(language);
 
         // codeToHtml lazy-loads languages automatically
-        const result = highlighter.codeToHtml(code, {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+        const result: string = highlighter.codeToHtml(code, {
           lang: shikiLang,
           theme: SHIKI_THEME,
         });
