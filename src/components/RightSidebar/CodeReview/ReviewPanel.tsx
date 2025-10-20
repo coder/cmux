@@ -100,48 +100,61 @@ const HunksSection = styled.div`
   order: 1; /* Stay in middle regardless of layout */
 `;
 
+// Search bar styling - unified component approach
 const SearchContainer = styled.div`
   padding: 8px 12px;
   border-bottom: 1px solid #3e3e42;
   background: #252526;
+`;
+
+/**
+ * SearchBar - Unified search control wrapper
+ * Provides outer border and radius, children handle internal layout
+ */
+const SearchBar = styled.div`
   display: flex;
   align-items: stretch;
-  gap: 0;
+  border: 1px solid #3e3e42;
+  border-radius: 4px;
+  overflow: hidden; /* Ensures children respect parent radius */
+  background: #1e1e1e;
+  transition: border-color 0.15s ease;
+
+  /* Show focus ring when input inside is focused */
+  &:focus-within {
+    border-color: #007acc;
+  }
+
+  &:hover:not(:focus-within) {
+    border-color: #4e4e52;
+  }
 `;
 
 const SearchInput = styled.input`
   flex: 1;
   padding: 6px 10px;
-  background: #1e1e1e;
-  border: 1px solid #3e3e42;
-  border-radius: 4px 0 0 4px;
-  border-right: none;
+  background: transparent;
+  border: none;
   color: #ccc;
   font-size: 12px;
   font-family: var(--font-sans);
   line-height: 1.4;
   outline: none;
-  transition: border-color 0.15s ease;
 
   &::placeholder {
     color: #666;
   }
 
   &:focus {
-    border-color: #007acc;
     background: #1a1a1a;
-  }
-
-  &:hover:not(:focus) {
-    border-color: #4e4e52;
   }
 `;
 
-const SearchButton = styled.button<{ active: boolean; isLast?: boolean }>`
+const SearchButton = styled.button<{ active: boolean }>`
   padding: 6px 10px;
-  background: ${(props) => (props.active ? "#3a3a3a" : "#1e1e1e")};
-  border: 1px solid #3e3e42;
-  border-radius: ${(props) => (props.isLast ? "0 4px 4px 0" : "0")};
+  background: ${(props) => (props.active ? "#3a3a3a" : "transparent")};
+  border: none;
+  border-left: 1px solid #3e3e42;
   color: ${(props) => (props.active ? "#fff" : "#999")};
   font-size: 11px;
   font-family: var(--font-monospace);
@@ -815,42 +828,43 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
             {truncationWarning && <TruncationBanner>{truncationWarning}</TruncationBanner>}
 
             <SearchContainer>
-              <SearchInput
-                ref={searchInputRef}
-                type="text"
-                placeholder={`Search in files and hunks... (${formatKeybind(KEYBINDS.FOCUS_REVIEW_SEARCH)})`}
-                value={searchState.input}
-                onChange={(e) => setSearchState({ ...searchState, input: e.target.value })}
-              />
-              <TooltipWrapper inline>
-                <SearchButton
-                  active={searchState.useRegex}
-                  onClick={() =>
-                    setSearchState({ ...searchState, useRegex: !searchState.useRegex })
-                  }
-                >
-                  .*
-                </SearchButton>
-                <Tooltip position="bottom">
-                  {searchState.useRegex ? "Using regex search" : "Using substring search"}
-                </Tooltip>
-              </TooltipWrapper>
-              <TooltipWrapper inline>
-                <SearchButton
-                  active={searchState.matchCase}
-                  onClick={() =>
-                    setSearchState({ ...searchState, matchCase: !searchState.matchCase })
-                  }
-                  isLast
-                >
-                  Aa
-                </SearchButton>
-                <Tooltip position="bottom">
-                  {searchState.matchCase
-                    ? "Match case (case-sensitive)"
-                    : "Ignore case (case-insensitive)"}
-                </Tooltip>
-              </TooltipWrapper>
+              <SearchBar>
+                <SearchInput
+                  ref={searchInputRef}
+                  type="text"
+                  placeholder={`Search in files and hunks... (${formatKeybind(KEYBINDS.FOCUS_REVIEW_SEARCH)})`}
+                  value={searchState.input}
+                  onChange={(e) => setSearchState({ ...searchState, input: e.target.value })}
+                />
+                <TooltipWrapper inline>
+                  <SearchButton
+                    active={searchState.useRegex}
+                    onClick={() =>
+                      setSearchState({ ...searchState, useRegex: !searchState.useRegex })
+                    }
+                  >
+                    .*
+                  </SearchButton>
+                  <Tooltip position="bottom">
+                    {searchState.useRegex ? "Using regex search" : "Using substring search"}
+                  </Tooltip>
+                </TooltipWrapper>
+                <TooltipWrapper inline>
+                  <SearchButton
+                    active={searchState.matchCase}
+                    onClick={() =>
+                      setSearchState({ ...searchState, matchCase: !searchState.matchCase })
+                    }
+                  >
+                    Aa
+                  </SearchButton>
+                  <Tooltip position="bottom">
+                    {searchState.matchCase
+                      ? "Match case (case-sensitive)"
+                      : "Ignore case (case-insensitive)"}
+                  </Tooltip>
+                </TooltipWrapper>
+              </SearchBar>
             </SearchContainer>
 
             <HunkList>
