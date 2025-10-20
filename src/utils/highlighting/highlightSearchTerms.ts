@@ -117,7 +117,7 @@ export function highlightSearchMatches(html: string, config: SearchHighlightConf
       }
 
       // Build replacement fragment with wrapped matches
-      const fragment = document.createDocumentFragment();
+      const fragment = workingDoc.createDocumentFragment();
       let lastIndex = 0;
       pattern.lastIndex = 0; // Reset again for actual iteration
 
@@ -125,11 +125,11 @@ export function highlightSearchMatches(html: string, config: SearchHighlightConf
       while ((match = pattern.exec(text)) !== null) {
         // Add text before match
         if (match.index > lastIndex) {
-          fragment.appendChild(document.createTextNode(text.slice(lastIndex, match.index)));
+          fragment.appendChild(workingDoc.createTextNode(text.slice(lastIndex, match.index)));
         }
 
         // Add highlighted match
-        const mark = document.createElement("mark");
+        const mark = workingDoc.createElement("mark");
         mark.className = "search-highlight";
         mark.textContent = match[0];
         fragment.appendChild(mark);
@@ -144,7 +144,7 @@ export function highlightSearchMatches(html: string, config: SearchHighlightConf
 
       // Add remaining text after last match
       if (lastIndex < text.length) {
-        fragment.appendChild(document.createTextNode(text.slice(lastIndex)));
+        fragment.appendChild(workingDoc.createTextNode(text.slice(lastIndex)));
       }
 
       // Replace text node with fragment
