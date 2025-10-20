@@ -15,8 +15,11 @@ export interface SearchHighlightConfig {
 // Module-level caches for performance
 const parserInstance = new DOMParser();
 
-// Cache compiled regex patterns (small memory footprint)
-const regexCache = new Map<string, RegExp>();
+// LRU cache for compiled regex patterns
+// Key: search config string, Value: compiled RegExp
+const regexCache = new LRUCache<string, RegExp>({
+  max: 100, // Max 100 unique search patterns (plenty for typical usage)
+});
 
 // LRU cache for highlighted HTML results
 // Key: CRC32 checksum of (html + config), Value: highlighted HTML
