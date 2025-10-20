@@ -469,7 +469,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearchTerm(searchState.input);
-    }, 300);
+    }, 150);
     return () => clearTimeout(timer);
   }, [searchState.input]);
 
