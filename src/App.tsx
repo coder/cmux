@@ -109,6 +109,12 @@ const globalStyles = css`
     padding: 0;
     border-radius: 2px;
   }
+
+  /* Override Shiki theme background to use our global color */
+  .shiki,
+  .shiki pre {
+    background: var(--color-code-bg) !important;
+  }
 `;
 
 // Styled Components
