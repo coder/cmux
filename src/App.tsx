@@ -99,6 +99,14 @@ const globalStyles = css`
     z-index: 1000;
     pointer-events: none;
   }
+
+  /* Search term highlighting - global for consistent styling across components */
+  mark.search-highlight {
+    background: rgba(255, 215, 0, 0.3);
+    color: inherit;
+    padding: 0;
+    border-radius: 2px;
+  }
 `;
 
 // Styled Components

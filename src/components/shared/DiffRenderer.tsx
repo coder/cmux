@@ -105,14 +105,6 @@ export const LineContent = styled.span<{ type: DiffLineType }>`
   span {
     background: transparent !important;
   }
-
-  /* Search term highlighting */
-  mark.search-highlight {
-    background: rgba(255, 215, 0, 0.3);
-    color: inherit;
-    padding: 0;
-    border-radius: 2px;
-  }
 `;
 
 export const DiffIndicator = styled.span<{ type: DiffLineType }>`
