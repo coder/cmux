@@ -366,222 +366,222 @@ export const ActiveWorkspaceWithChat: Story = {
               openTerminal: () => Promise.resolve(undefined),
               onChat: (workspaceId, callback) => {
                 // Send chat history immediately when subscribed
-              setTimeout(() => {
-                // User message
-                callback({
-                  id: "msg-1",
-                  role: "user",
-                  parts: [{ type: "text", text: "Add authentication to the user API endpoint" }],
-                  metadata: {
-                    historySequence: 1,
-                    timestamp: Date.now() - 300000,
-                  },
-                });
-
-                // Assistant message with tool calls
-                callback({
-                  id: "msg-2",
-                  role: "assistant",
-                  parts: [
-                    {
-                      type: "text",
-                      text: "I'll help you add authentication to the user API endpoint. Let me first check the current implementation.",
+                setTimeout(() => {
+                  // User message
+                  callback({
+                    id: "msg-1",
+                    role: "user",
+                    parts: [{ type: "text", text: "Add authentication to the user API endpoint" }],
+                    metadata: {
+                      historySequence: 1,
+                      timestamp: Date.now() - 300000,
                     },
-                    {
-                      type: "dynamic-tool",
-                      toolCallId: "call-1",
-                      toolName: "read_file",
-                      state: "output-available",
-                      input: { target_file: "src/api/users.ts" },
-                      output: {
-                        success: true,
-                        content:
-                          "export function getUser(req, res) {\n  const user = db.users.find(req.params.id);\n  res.json(user);\n}",
+                  });
+
+                  // Assistant message with tool calls
+                  callback({
+                    id: "msg-2",
+                    role: "assistant",
+                    parts: [
+                      {
+                        type: "text",
+                        text: "I'll help you add authentication to the user API endpoint. Let me first check the current implementation.",
                       },
-                    },
-                  ],
-                  metadata: {
-                    historySequence: 2,
-                    timestamp: Date.now() - 290000,
-                    model: "claude-sonnet-4-20250514",
-                    usage: {
-                      inputTokens: 1250,
-                      outputTokens: 450,
-                      totalTokens: 1700,
-                    },
-                    duration: 3500,
-                  },
-                });
-
-                // User response
-                callback({
-                  id: "msg-3",
-                  role: "user",
-                  parts: [{ type: "text", text: "Yes, add JWT token validation" }],
-                  metadata: {
-                    historySequence: 3,
-                    timestamp: Date.now() - 280000,
-                  },
-                });
-
-                // Assistant message with file edit
-                callback({
-                  id: "msg-4",
-                  role: "assistant",
-                  parts: [
-                    {
-                      type: "text",
-                      text: "I'll add JWT token validation to the endpoint. Let me update the file.",
-                    },
-                    {
-                      type: "dynamic-tool",
-                      toolCallId: "call-2",
-                      toolName: "search_replace",
-                      state: "output-available",
-                      input: {
-                        file_path: "src/api/users.ts",
-                        old_string: "export function getUser(req, res) {",
-                        new_string:
-                          "import { verifyToken } from '../auth/jwt';\n\nexport function getUser(req, res) {\n  const token = req.headers.authorization?.split(' ')[1];\n  if (!token || !verifyToken(token)) {\n    return res.status(401).json({ error: 'Unauthorized' });\n  }",
+                      {
+                        type: "dynamic-tool",
+                        toolCallId: "call-1",
+                        toolName: "read_file",
+                        state: "output-available",
+                        input: { target_file: "src/api/users.ts" },
+                        output: {
+                          success: true,
+                          content:
+                            "export function getUser(req, res) {\n  const user = db.users.find(req.params.id);\n  res.json(user);\n}",
+                        },
                       },
-                      output: {
-                        success: true,
-                        message: "File updated successfully",
+                    ],
+                    metadata: {
+                      historySequence: 2,
+                      timestamp: Date.now() - 290000,
+                      model: "claude-sonnet-4-20250514",
+                      usage: {
+                        inputTokens: 1250,
+                        outputTokens: 450,
+                        totalTokens: 1700,
                       },
+                      duration: 3500,
                     },
-                  ],
-                  metadata: {
-                    historySequence: 4,
-                    timestamp: Date.now() - 270000,
-                    model: "claude-sonnet-4-20250514",
-                    usage: {
-                      inputTokens: 2100,
-                      outputTokens: 680,
-                      totalTokens: 2780,
-                    },
-                    duration: 4200,
-                  },
-                });
+                  });
 
-                // User asking to run tests
-                callback({
-                  id: "msg-5",
-                  role: "user",
-                  parts: [{ type: "text", text: "Can you run the tests to make sure it works?" }],
-                  metadata: {
-                    historySequence: 5,
-                    timestamp: Date.now() - 240000,
-                  },
-                });
-
-                // Assistant running tests
-                callback({
-                  id: "msg-6",
-                  role: "assistant",
-                  parts: [
-                    {
-                      type: "text",
-                      text: "I'll run the tests to verify the authentication is working correctly.",
+                  // User response
+                  callback({
+                    id: "msg-3",
+                    role: "user",
+                    parts: [{ type: "text", text: "Yes, add JWT token validation" }],
+                    metadata: {
+                      historySequence: 3,
+                      timestamp: Date.now() - 280000,
                     },
-                    {
-                      type: "dynamic-tool",
-                      toolCallId: "call-3",
-                      toolName: "run_terminal_cmd",
-                      state: "output-available",
-                      input: {
-                        command: "npm test src/api/users.test.ts",
-                        explanation: "Running tests for the users API endpoint",
+                  });
+
+                  // Assistant message with file edit
+                  callback({
+                    id: "msg-4",
+                    role: "assistant",
+                    parts: [
+                      {
+                        type: "text",
+                        text: "I'll add JWT token validation to the endpoint. Let me update the file.",
                       },
-                      output: {
-                        success: true,
-                        stdout:
-                          "PASS src/api/users.test.ts\n  ✓ should return user when authenticated (24ms)\n  ✓ should return 401 when no token (18ms)\n  ✓ should return 401 when invalid token (15ms)\n\nTest Suites: 1 passed, 1 total\nTests:       3 passed, 3 total",
-                        exitCode: 0,
+                      {
+                        type: "dynamic-tool",
+                        toolCallId: "call-2",
+                        toolName: "search_replace",
+                        state: "output-available",
+                        input: {
+                          file_path: "src/api/users.ts",
+                          old_string: "export function getUser(req, res) {",
+                          new_string:
+                            "import { verifyToken } from '../auth/jwt';\n\nexport function getUser(req, res) {\n  const token = req.headers.authorization?.split(' ')[1];\n  if (!token || !verifyToken(token)) {\n    return res.status(401).json({ error: 'Unauthorized' });\n  }",
+                        },
+                        output: {
+                          success: true,
+                          message: "File updated successfully",
+                        },
                       },
-                    },
-                  ],
-                  metadata: {
-                    historySequence: 6,
-                    timestamp: Date.now() - 230000,
-                    model: "claude-sonnet-4-20250514",
-                    usage: {
-                      inputTokens: 2800,
-                      outputTokens: 420,
-                      totalTokens: 3220,
-                    },
-                    duration: 5100,
-                  },
-                });
-
-                // User follow-up about error handling
-                callback({
-                  id: "msg-7",
-                  role: "user",
-                  parts: [
-                    {
-                      type: "text",
-                      text: "Great! What about error handling if the JWT library throws?",
-                    },
-                  ],
-                  metadata: {
-                    historySequence: 7,
-                    timestamp: Date.now() - 180000,
-                  },
-                });
-
-                // Assistant response with thinking (reasoning)
-                callback({
-                  id: "msg-8",
-                  role: "assistant",
-                  parts: [
-                    {
-                      type: "reasoning",
-                      text: "The user is asking about error handling for JWT verification. The verifyToken function could throw if the token is malformed or if there's an issue with the secret. I should wrap it in a try-catch block and return a proper error response.",
-                    },
-                    {
-                      type: "text",
-                      text: "Good catch! We should add try-catch error handling around the JWT verification. Let me update that.",
-                    },
-                    {
-                      type: "dynamic-tool",
-                      toolCallId: "call-4",
-                      toolName: "search_replace",
-                      state: "output-available",
-                      input: {
-                        file_path: "src/api/users.ts",
-                        old_string:
-                          "  const token = req.headers.authorization?.split(' ')[1];\n  if (!token || !verifyToken(token)) {\n    return res.status(401).json({ error: 'Unauthorized' });\n  }",
-                        new_string:
-                          "  try {\n    const token = req.headers.authorization?.split(' ')[1];\n    if (!token || !verifyToken(token)) {\n      return res.status(401).json({ error: 'Unauthorized' });\n    }\n  } catch (err) {\n    console.error('Token verification failed:', err);\n    return res.status(401).json({ error: 'Invalid token' });\n  }",
+                    ],
+                    metadata: {
+                      historySequence: 4,
+                      timestamp: Date.now() - 270000,
+                      model: "claude-sonnet-4-20250514",
+                      usage: {
+                        inputTokens: 2100,
+                        outputTokens: 680,
+                        totalTokens: 2780,
                       },
-                      output: {
-                        success: true,
-                        message: "File updated successfully",
+                      duration: 4200,
+                    },
+                  });
+
+                  // User asking to run tests
+                  callback({
+                    id: "msg-5",
+                    role: "user",
+                    parts: [{ type: "text", text: "Can you run the tests to make sure it works?" }],
+                    metadata: {
+                      historySequence: 5,
+                      timestamp: Date.now() - 240000,
+                    },
+                  });
+
+                  // Assistant running tests
+                  callback({
+                    id: "msg-6",
+                    role: "assistant",
+                    parts: [
+                      {
+                        type: "text",
+                        text: "I'll run the tests to verify the authentication is working correctly.",
                       },
+                      {
+                        type: "dynamic-tool",
+                        toolCallId: "call-3",
+                        toolName: "run_terminal_cmd",
+                        state: "output-available",
+                        input: {
+                          command: "npm test src/api/users.test.ts",
+                          explanation: "Running tests for the users API endpoint",
+                        },
+                        output: {
+                          success: true,
+                          stdout:
+                            "PASS src/api/users.test.ts\n  ✓ should return user when authenticated (24ms)\n  ✓ should return 401 when no token (18ms)\n  ✓ should return 401 when invalid token (15ms)\n\nTest Suites: 1 passed, 1 total\nTests:       3 passed, 3 total",
+                          exitCode: 0,
+                        },
+                      },
+                    ],
+                    metadata: {
+                      historySequence: 6,
+                      timestamp: Date.now() - 230000,
+                      model: "claude-sonnet-4-20250514",
+                      usage: {
+                        inputTokens: 2800,
+                        outputTokens: 420,
+                        totalTokens: 3220,
+                      },
+                      duration: 5100,
                     },
-                  ],
-                  metadata: {
-                    historySequence: 8,
-                    timestamp: Date.now() - 170000,
-                    model: "claude-sonnet-4-20250514",
-                    usage: {
-                      inputTokens: 3500,
-                      outputTokens: 520,
-                      totalTokens: 4020,
-                      reasoningTokens: 150,
+                  });
+
+                  // User follow-up about error handling
+                  callback({
+                    id: "msg-7",
+                    role: "user",
+                    parts: [
+                      {
+                        type: "text",
+                        text: "Great! What about error handling if the JWT library throws?",
+                      },
+                    ],
+                    metadata: {
+                      historySequence: 7,
+                      timestamp: Date.now() - 180000,
                     },
-                    duration: 6200,
-                  },
-                });
+                  });
 
-                // Mark as caught up
-                callback({ type: "caught-up" });
-              }, 100);
+                  // Assistant response with thinking (reasoning)
+                  callback({
+                    id: "msg-8",
+                    role: "assistant",
+                    parts: [
+                      {
+                        type: "reasoning",
+                        text: "The user is asking about error handling for JWT verification. The verifyToken function could throw if the token is malformed or if there's an issue with the secret. I should wrap it in a try-catch block and return a proper error response.",
+                      },
+                      {
+                        type: "text",
+                        text: "Good catch! We should add try-catch error handling around the JWT verification. Let me update that.",
+                      },
+                      {
+                        type: "dynamic-tool",
+                        toolCallId: "call-4",
+                        toolName: "search_replace",
+                        state: "output-available",
+                        input: {
+                          file_path: "src/api/users.ts",
+                          old_string:
+                            "  const token = req.headers.authorization?.split(' ')[1];\n  if (!token || !verifyToken(token)) {\n    return res.status(401).json({ error: 'Unauthorized' });\n  }",
+                          new_string:
+                            "  try {\n    const token = req.headers.authorization?.split(' ')[1];\n    if (!token || !verifyToken(token)) {\n      return res.status(401).json({ error: 'Unauthorized' });\n    }\n  } catch (err) {\n    console.error('Token verification failed:', err);\n    return res.status(401).json({ error: 'Invalid token' });\n  }",
+                        },
+                        output: {
+                          success: true,
+                          message: "File updated successfully",
+                        },
+                      },
+                    ],
+                    metadata: {
+                      historySequence: 8,
+                      timestamp: Date.now() - 170000,
+                      model: "claude-sonnet-4-20250514",
+                      usage: {
+                        inputTokens: 3500,
+                        outputTokens: 520,
+                        totalTokens: 4020,
+                        reasoningTokens: 150,
+                      },
+                      duration: 6200,
+                    },
+                  });
 
-              return () => {
-                // Cleanup
-              };
-            },
+                  // Mark as caught up
+                  callback({ type: "caught-up" });
+                }, 100);
+
+                return () => {
+                  // Cleanup
+                };
+              },
               onMetadata: () => () => undefined,
               sendMessage: () => Promise.resolve({ success: true, data: undefined }),
               resumeStream: () => Promise.resolve({ success: true, data: undefined }),
