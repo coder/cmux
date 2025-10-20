@@ -417,6 +417,9 @@ export class WorkspaceStore {
    * Handle compact_summary tool completion.
    * Returns true if compaction was handled (caller should early return).
    */
+  // Track processed compaction-request IDs to dedupe performCompaction across duplicated events
+  private processedCompactionRequestIds = new Set<string>();
+
   private handleCompactionCompletion(
     workspaceId: string,
     aggregator: StreamingMessageAggregator,
@@ -430,12 +433,26 @@ export class WorkspaceStore {
       return false;
     }
 
+    // Extract the compaction-request message to identify this compaction run
+    const compactionRequestMsg = findCompactionRequestMessage(aggregator);
+    if (!compactionRequestMsg) {
+      return false;
+    }
+
+    // Dedupe: If we've already processed this compaction-request, skip re-running
+    if (this.processedCompactionRequestIds.has(compactionRequestMsg.id)) {
+      return true; // Already handled compaction for this request
+    }
+
     // Extract the summary text from the assistant's response
     const summary = aggregator.getCompactionSummary(data.messageId);
     if (!summary) {
       console.warn("[WorkspaceStore] Compaction completed but no summary text found");
       return false;
     }
+
+    // Mark this compaction-request as processed before performing compaction
+    this.processedCompactionRequestIds.add(compactionRequestMsg.id);
 
     this.performCompaction(workspaceId, aggregator, data, summary);
     return true;
@@ -544,7 +561,7 @@ export class WorkspaceStore {
             : undefined,
         // Store continueMessage in summary so it survives history replacement
         cmuxMetadata: continueMessage
-          ? { type: "compaction-result", continueMessage }
+          ? { type: "compaction-result", continueMessage, requestId: compactRequestMsg?.id }
           : { type: "normal" },
       }
     );

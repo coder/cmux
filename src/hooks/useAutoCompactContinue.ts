@@ -1,5 +1,5 @@
 import { useRef, useEffect } from "react";
-import { useWorkspaceStoreRaw, type WorkspaceState } from "@/stores/WorkspaceStore";
+import { useWorkspaceStoreRaw } from "@/stores/WorkspaceStore";
 import { buildSendMessageOptions } from "@/hooks/useSendMessageOptions";
 
 /**
@@ -28,8 +28,6 @@ export function useAutoCompactContinue() {
   // re-rendering AppInner on every workspace state change. This hook only needs
   // to react when messages change to a single compacted message state.
   const store = useWorkspaceStoreRaw();
-  const workspaceStatesRef = useRef<Map<string, WorkspaceState>>(new Map());
-
   // Track which specific compaction summary messages we've already processed.
   // Key insight: Each compaction creates a unique message. Track by message ID,
   // not workspace ID, to prevent processing the same compaction result multiple times.
@@ -39,7 +37,6 @@ export function useAutoCompactContinue() {
   // Update ref and check for auto-continue condition
   const checkAutoCompact = () => {
     const newStates = store.getAllStates();
-    workspaceStatesRef.current = newStates;
 
     // Check all workspaces for completed compaction
     for (const [workspaceId, state] of newStates) {
@@ -59,22 +56,23 @@ export function useAutoCompactContinue() {
       // After compaction, history is replaced with a single summary message
       // The summary message has compaction-result metadata with the continueMessage
       const summaryMessage = state.cmuxMessages[0]; // Single compacted message
-      const messageId = summaryMessage.id;
-
-      // Have we already processed this specific compaction message?
-      // This check is race-safe because message IDs are unique and immutable.
-      if (processedMessageIds.current.has(messageId)) continue;
-
       const cmuxMeta = summaryMessage?.metadata?.cmuxMetadata;
       const continueMessage =
         cmuxMeta?.type === "compaction-result" ? cmuxMeta.continueMessage : undefined;
 
       if (!continueMessage) continue;
 
-      // Mark THIS MESSAGE as processed before sending
-      // Multiple concurrent checkAutoCompact() calls will all see the same message ID,
-      // so only the first call that reaches this point will proceed
-      processedMessageIds.current.add(messageId);
+      // Prefer compaction-request ID for idempotency; fall back to summary message ID
+      const idForGuard =
+        cmuxMeta?.type === "compaction-result" && cmuxMeta.requestId
+          ? `req:${cmuxMeta.requestId}`
+          : `msg:${summaryMessage.id}`;
+
+      // Have we already processed this specific compaction result?
+      if (processedMessageIds.current.has(idForGuard)) continue;
+
+      // Mark THIS RESULT as processed before sending to prevent duplicates
+      processedMessageIds.current.add(idForGuard);
 
       console.log(
         `[useAutoCompactContinue] Sending continue message for ${workspaceId}:`,
@@ -86,7 +84,7 @@ export function useAutoCompactContinue() {
       window.api.workspace.sendMessage(workspaceId, continueMessage, options).catch((error) => {
         console.error("Failed to send continue message:", error);
         // If sending failed, remove from processed set to allow retry
-        processedMessageIds.current.delete(messageId);
+        processedMessageIds.current.delete(idForGuard);
       });
     }
   };
