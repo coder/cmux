@@ -9,6 +9,7 @@ import type { WorkspaceSelection } from "./components/ProjectSidebar";
 import type { FrontendWorkspaceMetadata } from "./types/workspace";
 import { LeftSidebar } from "./components/LeftSidebar";
 import NewWorkspaceModal from "./components/NewWorkspaceModal";
+import { DirectorySelectModal } from "./components/DirectorySelectModal";
 import { AIView } from "./components/AIView";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { usePersistedState, updatePersistedState } from "./hooks/usePersistedState";
@@ -870,6 +871,7 @@ function AppInner() {
             onAdd={handleCreateWorkspace}
           />
         )}
+        <DirectorySelectModal />
       </AppContainer>
     </>
   );

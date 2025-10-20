@@ -6,6 +6,13 @@
     "noEmit": false,
     "sourceMap": true
   },
-  "include": ["src/main.ts", "src/constants/**/*", "src/types/**/*.d.ts"],
+  "include": [
+    "src/main.ts",
+    "src/main-server.ts",
+    "src/main-desktop.ts",
+    "src/constants/**/*",
+    "src/web/**/*",
+    "src/types/**/*.d.ts"
+  ],
   "exclude": ["src/App.tsx", "src/main.tsx"]
 }
