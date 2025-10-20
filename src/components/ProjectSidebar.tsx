@@ -11,6 +11,10 @@ import { useDrag, useDrop, useDragLayer } from "react-dnd";
 import { sortProjectsByOrder, reorderProjects, normalizeOrder } from "@/utils/projectOrdering";
 import { matchesKeybind, formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
 import { abbreviatePath } from "@/utils/ui/pathAbbreviation";
+import {
+  partitionWorkspacesByAge,
+  formatOldWorkspaceThreshold,
+} from "@/utils/ui/workspaceFiltering";
 import { TooltipWrapper, Tooltip } from "./Tooltip";
 import SecretsModal from "./SecretsModal";
 import type { Secret } from "@/types/secrets";
@@ -312,6 +316,49 @@ const AddWorkspaceBtn = styled.button`
   }
 `;
 
+const OldWorkspacesSection = styled.button<{ expanded: boolean }>`
+  width: 100%;
+  padding: 8px 12px 8px 22px;
+  background: transparent;
+  color: #858585;
+  border: none;
+  border-top: 1px solid #2a2a2b;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 500;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.03);
+    color: #aaa;
+
+    .arrow {
+      color: #aaa;
+    }
+  }
+
+  .label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .count {
+    color: #666;
+    font-weight: 400;
+  }
+
+  .arrow {
+    font-size: 11px;
+    color: #666;
+    transition: transform 0.2s ease;
+    transform: ${(props) => (props.expanded ? "rotate(90deg)" : "rotate(0deg)")};
+  }
+`;
+
 const RemoveErrorToast = styled.div<{ top: number; left: number }>`
   position: fixed;
   top: ${(props) => props.top}px;
@@ -492,6 +539,7 @@ interface ProjectSidebarProps {
   onGetSecrets: (projectPath: string) => Promise<Secret[]>;
   onUpdateSecrets: (projectPath: string, secrets: Secret[]) => Promise<void>;
   sortedWorkspacesByProject: Map<string, FrontendWorkspaceMetadata[]>;
+  workspaceRecency: Record<string, number>;
 }
 
 const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
@@ -510,6 +558,7 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
   onGetSecrets,
   onUpdateSecrets,
   sortedWorkspacesByProject,
+  workspaceRecency,
 }) => {
   // Workspace-specific subscriptions moved to WorkspaceListItem component
 
@@ -525,6 +574,11 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
   const setExpandedProjects = (projects: Set<string>) => {
     setExpandedProjectsArray(Array.from(projects));
   };
+
+  // Track which projects have old workspaces expanded (per-project)
+  const [expandedOldWorkspaces, setExpandedOldWorkspaces] = usePersistedState<
+    Record<string, boolean>
+  >("expandedOldWorkspaces", {});
   const [removeError, setRemoveError] = useState<{
     workspaceId: string;
     error: string;
@@ -559,6 +613,13 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
       newExpanded.add(projectPath);
     }
     setExpandedProjects(newExpanded);
+  };
+
+  const toggleOldWorkspaces = (projectPath: string) => {
+    setExpandedOldWorkspaces((prev) => ({
+      ...prev,
+      [projectPath]: !prev[projectPath],
+    }));
   };
 
   const showRemoveError = useCallback(
@@ -825,23 +886,56 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
                                   ` (${formatKeybind(KEYBINDS.NEW_WORKSPACE)})`}
                               </AddWorkspaceBtn>
                             </WorkspaceHeader>
-                            {sortedWorkspacesByProject.get(projectPath)?.map((metadata) => {
-                              const isSelected = selectedWorkspace?.workspaceId === metadata.id;
+                            {(() => {
+                              const allWorkspaces =
+                                sortedWorkspacesByProject.get(projectPath) ?? [];
+                              const { recent, old } = partitionWorkspacesByAge(
+                                allWorkspaces,
+                                workspaceRecency
+                              );
+                              const showOldWorkspaces = expandedOldWorkspaces[projectPath] ?? false;
 
-                              return (
+                              const renderWorkspace = (metadata: FrontendWorkspaceMetadata) => (
                                 <WorkspaceListItem
                                   key={metadata.id}
                                   metadata={metadata}
                                   projectPath={projectPath}
                                   projectName={projectName}
-                                  isSelected={isSelected}
+                                  isSelected={selectedWorkspace?.workspaceId === metadata.id}
                                   lastReadTimestamp={lastReadTimestamps[metadata.id] ?? 0}
                                   onSelectWorkspace={onSelectWorkspace}
                                   onRemoveWorkspace={handleRemoveWorkspace}
                                   onToggleUnread={_onToggleUnread}
                                 />
                               );
-                            })}
+
+                              return (
+                                <>
+                                  {recent.map(renderWorkspace)}
+                                  {old.length > 0 && (
+                                    <>
+                                      <OldWorkspacesSection
+                                        onClick={() => toggleOldWorkspaces(projectPath)}
+                                        aria-label={
+                                          showOldWorkspaces
+                                            ? `Collapse workspaces older than ${formatOldWorkspaceThreshold()}`
+                                            : `Expand workspaces older than ${formatOldWorkspaceThreshold()}`
+                                        }
+                                        aria-expanded={showOldWorkspaces}
+                                        expanded={showOldWorkspaces}
+                                      >
+                                        <div className="label">
+                                          <span>Older than {formatOldWorkspaceThreshold()}</span>
+                                          <span className="count">({old.length})</span>
+                                        </div>
+                                        <span className="arrow">▶</span>
+                                      </OldWorkspacesSection>
+                                      {showOldWorkspaces && old.map(renderWorkspace)}
+                                    </>
+                                  )}
+                                </>
+                              );
+                            })()}
                           </WorkspacesContainer>
                         )}
                       </ProjectGroup>

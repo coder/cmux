@@ -820,6 +820,7 @@ function AppInner() {
           onGetSecrets={handleGetSecrets}
           onUpdateSecrets={handleUpdateSecrets}
           sortedWorkspacesByProject={sortedWorkspacesByProject}
+          workspaceRecency={workspaceRecency}
         />
         <MainContent>
           <ContentArea>
