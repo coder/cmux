@@ -28,11 +28,3 @@ export function isDynamicToolPart(part: unknown): part is DynamicToolPart {
     typeof part === "object" && part !== null && "type" in part && part.type === "dynamic-tool"
   );
 }
-
-export function isDynamicToolPartAvailable(part: unknown): part is DynamicToolPartAvailable {
-  return isDynamicToolPart(part) && part.state === "output-available";
-}
-
-export function isDynamicToolPartPending(part: unknown): part is DynamicToolPartPending {
-  return isDynamicToolPart(part) && part.state === "input-available";
-}

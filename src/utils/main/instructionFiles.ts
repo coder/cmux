@@ -44,20 +44,7 @@ export async function readFirstAvailableFile(
  *
  * Local files allow users to keep personal preferences separate from
  * shared team instructions (e.g., add AGENTS.local.md to .gitignore).
- *
- * @param directory - Directory to search in
- * @returns Content of the local instruction file, or null if it doesn't exist
  */
-export async function readLocalInstructionFile(directory: string): Promise<string | null> {
-  try {
-    const localFilePath = path.join(directory, LOCAL_INSTRUCTION_FILENAME);
-    const content = await fs.readFile(localFilePath, "utf-8");
-    return content;
-  } catch {
-    // Local file doesn't exist, which is fine
-    return null;
-  }
-}
 
 /**
  * Reads a base file with an optional local variant and returns their combined content.

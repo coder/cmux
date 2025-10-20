@@ -104,9 +104,3 @@ export const ensureProvidersConfig = (
   config.saveProvidersConfig(providersFromEnv);
   return providersFromEnv;
 };
-
-export const getProvidersFromEnv = (env: NodeJS.ProcessEnv = process.env): ProvidersConfig =>
-  buildProvidersFromEnv(env);
-
-export const hasAnyProvidersConfigured = (providers: ProvidersConfig | null | undefined): boolean =>
-  hasAnyConfiguredProvider(providers);

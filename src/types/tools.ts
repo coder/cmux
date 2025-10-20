@@ -122,16 +122,6 @@ export type FileEditToolArgs =
   | FileEditReplaceLinesToolArgs
   | FileEditInsertToolArgs;
 
-export interface FileEditToolMessage {
-  toolName: FileEditToolName;
-  args: FileEditToolArgs;
-  result?: FileEditSharedToolResult;
-}
-
-export function isFileEditToolName(value: string): value is FileEditToolName {
-  return (FILE_EDIT_TOOL_NAMES as readonly string[]).includes(value);
-}
-
 // Propose Plan Tool Types
 export interface ProposePlanToolArgs {
   title: string;
@@ -158,8 +148,4 @@ export interface TodoWriteToolArgs {
 export interface TodoWriteToolResult {
   success: true;
   count: number;
-}
-
-export interface TodoReadToolResult {
-  todos: TodoItem[];
 }

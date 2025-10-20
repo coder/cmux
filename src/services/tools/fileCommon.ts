@@ -1,4 +1,3 @@
-import * as crypto from "crypto";
 import type * as fs from "fs";
 import * as path from "path";
 import { createPatch } from "diff";
@@ -19,15 +18,7 @@ export const MAX_FILE_SIZE = 1024 * 1024; // 1MB
  * Compute a 6-character hexadecimal lease from file content.
  * The lease changes when file content is modified.
  * Uses a deterministic hash so leases are consistent across processes.
- *
- * @param content - File content as string or Buffer
- * @returns 6-character hexadecimal lease string
  */
-export function leaseFromContent(content: string | Buffer): string {
-  // Use deterministic SHA-256 hash of content so leases are consistent
-  // across processes and restarts
-  return crypto.createHash("sha256").update(content).digest("hex").slice(0, 6);
-}
 
 /**
  * Generate a unified diff between old and new content using jsdiff.
