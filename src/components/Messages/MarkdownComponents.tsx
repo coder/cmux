@@ -86,7 +86,7 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ code, language }) => {
     return (
       <pre
         style={{
-          background: "rgba(0, 0, 0, 0.3)",
+          background: "var(--color-code-bg)",
           margin: "1em 0",
           borderRadius: "4px",
           fontSize: "12px",
@@ -163,7 +163,7 @@ export const markdownComponents = {
       return (
         <pre
           style={{
-            background: "rgba(0, 0, 0, 0.3)",
+            background: "var(--color-code-bg)",
             margin: "1em 0",
             borderRadius: "4px",
             fontSize: "12px",
