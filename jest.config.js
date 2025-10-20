@@ -11,6 +11,7 @@ module.exports = {
   setupFilesAfterEnv: ["<rootDir>/tests/setup.ts"],
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",
+    "^chalk$": "<rootDir>/tests/__mocks__/chalk.js",
   },
   transform: {
     "^.+\\.tsx?$": [

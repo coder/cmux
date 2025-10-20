@@ -10,7 +10,9 @@
 
 import * as fs from "fs";
 import * as path from "path";
+import chalk from "chalk";
 import { defaultConfig } from "@/config";
+import { parseBoolEnv } from "@/utils/env";
 
 const DEBUG_OBJ_DIR = path.join(defaultConfig.rootDir, "debug_obj");
 
@@ -18,7 +20,34 @@ const DEBUG_OBJ_DIR = path.join(defaultConfig.rootDir, "debug_obj");
  * Check if debug mode is enabled
  */
 function isDebugMode(): boolean {
-  return !!process.env.CMUX_DEBUG;
+  return parseBoolEnv(process.env.CMUX_DEBUG);
+}
+
+/**
+ * Check if we're running in a TTY (terminal) that supports colors
+ */
+function supportsColor(): boolean {
+  return process.stdout.isTTY ?? false;
+}
+
+/**
+ * Get kitchen time timestamp for logs (12-hour format with milliseconds)
+ * Format: 8:23.456PM (hours:minutes.milliseconds)
+ */
+function getTimestamp(): string {
+  const now = new Date();
+  let hours = now.getHours();
+  const minutes = now.getMinutes();
+  const milliseconds = now.getMilliseconds();
+
+  const ampm = hours >= 12 ? "PM" : "AM";
+  hours = hours % 12;
+  hours = hours ? hours : 12; // Convert 0 to 12
+
+  const mm = String(minutes).padStart(2, "0");
+  const ms = String(milliseconds).padStart(3, "0"); // 3 digits: 000-999
+
+  return `${hours}:${mm}.${ms}${ampm}`;
 }
 
 /**
@@ -54,17 +83,46 @@ function getCallerLocation(): string {
 }
 
 /**
- * Pipe-safe logging function with caller location prefix
+ * Pipe-safe logging function with styled timestamp and caller location
+ * Format: 8:23.456PM src/main.ts:23 <message>
  * @param level - "info", "error", or "debug"
  * @param args - Arguments to log
  */
 function safePipeLog(level: "info" | "error" | "debug", ...args: unknown[]): void {
+  const timestamp = getTimestamp();
   const location = getCallerLocation();
-  const prefix = `[${location}]`;
+  const useColor = supportsColor();
+
+  // Apply colors based on level (if terminal supports it)
+  let prefix: string;
+  if (useColor) {
+    const coloredTimestamp = chalk.dim(timestamp);
+    const coloredLocation = chalk.cyan(location);
+
+    if (level === "error") {
+      prefix = `${coloredTimestamp} ${coloredLocation}`;
+    } else if (level === "debug") {
+      prefix = `${coloredTimestamp} ${chalk.gray(location)}`;
+    } else {
+      // info
+      prefix = `${coloredTimestamp} ${coloredLocation}`;
+    }
+  } else {
+    // No colors
+    prefix = `${timestamp} ${location}`;
+  }
 
   try {
     if (level === "error") {
-      console.error(prefix, ...args);
+      // Color the entire error message red if supported
+      if (useColor) {
+        console.error(
+          prefix,
+          ...args.map((arg) => (typeof arg === "string" ? chalk.red(arg) : arg))
+        );
+      } else {
+        console.error(prefix, ...args);
+      }
     } else if (level === "debug") {
       // Only log debug messages if CMUX_DEBUG is set
       if (isDebugMode()) {
@@ -85,7 +143,7 @@ function safePipeLog(level: "info" | "error" | "debug", ...args: unknown[]): voi
     if (errorCode !== "EPIPE") {
       try {
         const stream = level === "error" ? process.stderr : process.stdout;
-        stream.write(`${prefix} Console error: ${errorMessage}\n`);
+        stream.write(`${timestamp} ${location} Console error: ${errorMessage}\n`);
       } catch {
         // Even the fallback might fail, just ignore
       }

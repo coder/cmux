@@ -42,6 +42,13 @@ export const IPC_CHANNELS = {
   // Debug channels (for testing only)
   DEBUG_TRIGGER_STREAM_ERROR: "debug:triggerStreamError",
 
+  // Update channels
+  UPDATE_CHECK: "update:check",
+  UPDATE_DOWNLOAD: "update:download",
+  UPDATE_INSTALL: "update:install",
+  UPDATE_STATUS: "update:status",
+  UPDATE_STATUS_SUBSCRIBE: "update:status:subscribe",
+
   // Dynamic channel prefixes
   WORKSPACE_CHAT_PREFIX: "workspace:chat:",
   WORKSPACE_METADATA: "workspace:metadata",

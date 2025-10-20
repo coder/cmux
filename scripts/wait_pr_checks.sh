@@ -25,7 +25,7 @@ fi
 CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
 
 # Get remote tracking branch
-REMOTE_BRANCH=$(git rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null || echo "")
+REMOTE_BRANCH=$(git rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>/dev/null || echo "")
 
 if [[ -z "$REMOTE_BRANCH" ]]; then
   echo "❌ Error: Current branch '$CURRENT_BRANCH' has no upstream branch." >&2
@@ -119,6 +119,10 @@ while true; do
     echo "❌ Some checks failed:"
     echo ""
     gh pr checks "$PR_NUMBER"
+    echo ""
+    echo "💡 To extract detailed logs from the failed run:"
+    echo "   ./scripts/extract_pr_logs.sh $PR_NUMBER"
+    echo "   ./scripts/extract_pr_logs.sh $PR_NUMBER <job_pattern>  # e.g., Integration"
     exit 1
   fi
 
@@ -126,7 +130,7 @@ while true; do
   if ! ./scripts/check_pr_reviews.sh "$PR_NUMBER" >/dev/null 2>&1; then
     echo ""
     echo "❌ Unresolved review comments found!"
-    echo "   👉 Tip: run ./scripts/check_pr_reviews.sh "$PR_NUMBER" to list them."
+    echo "   👉 Tip: run ./scripts/check_pr_reviews.sh $PR_NUMBER to list them."
     ./scripts/check_pr_reviews.sh "$PR_NUMBER"
     exit 1
   fi
@@ -147,7 +151,7 @@ while true; do
       else
         echo ""
         echo "❌ Please resolve Codex comments before merging."
-        echo "   👉 Tip: use ./scripts/check_pr_reviews.sh "$PR_NUMBER" to list unresolved comments."
+        echo "   👉 Tip: use ./scripts/check_pr_reviews.sh $PR_NUMBER to list unresolved comments."
         exit 1
       fi
     elif [ "$MERGE_STATE" = "BLOCKED" ]; then

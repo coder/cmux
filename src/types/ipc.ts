@@ -242,4 +242,20 @@ export interface IPCApi {
   window: {
     setTitle(title: string): Promise<void>;
   };
+  update: {
+    check(): Promise<void>;
+    download(): Promise<void>;
+    install(): void;
+    onStatus(callback: (status: UpdateStatus) => void): () => void;
+  };
 }
+
+// Update status type (matches updater service)
+export type UpdateStatus =
+  | { type: "idle" } // Initial state, no check performed yet
+  | { type: "checking" }
+  | { type: "available"; info: { version: string } }
+  | { type: "up-to-date" } // Explicitly checked, no updates available
+  | { type: "downloading"; percent: number }
+  | { type: "downloaded"; info: { version: string } }
+  | { type: "error"; message: string };

@@ -18,6 +18,9 @@ import type { Config } from "./config";
 import type { IpcMain } from "./services/ipcMain";
 import { VERSION } from "./version";
 import type { loadTokenizerModules } from "./utils/main/tokenizer";
+import { IPC_CHANNELS } from "./constants/ipc-constants";
+import { log } from "./services/log";
+import { parseDebugUpdater } from "./utils/env";
 
 // React DevTools for development profiling
 // Using require() instead of import since it's dev-only and conditionally loaded
@@ -64,6 +67,8 @@ if (!app.isPackaged) {
 let config: Config | null = null;
 let ipcMain: IpcMain | null = null;
 let loadTokenizerModulesFn: typeof loadTokenizerModules | null = null;
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+let updaterService: typeof import("./services/updater").UpdaterService.prototype | null = null;
 const isE2ETest = process.env.CMUX_E2E === "1";
 const forceDistLoad = process.env.CMUX_E2E_LOAD_DIST === "1";
 
@@ -303,15 +308,34 @@ async function loadServices(): Promise<void> {
     { Config: ConfigClass },
     { IpcMain: IpcMainClass },
     { loadTokenizerModules: loadTokenizerFn },
+    { UpdaterService: UpdaterServiceClass },
   ] = await Promise.all([
     import("./config"),
     import("./services/ipcMain"),
     import("./utils/main/tokenizer"),
+    import("./services/updater"),
   ]);
   /* eslint-enable no-restricted-syntax */
   config = new ConfigClass();
   ipcMain = new IpcMainClass(config);
   loadTokenizerModulesFn = loadTokenizerFn;
+
+  // Initialize updater service in packaged builds or when DEBUG_UPDATER is set
+  const debugConfig = parseDebugUpdater(process.env.DEBUG_UPDATER);
+
+  if (app.isPackaged || debugConfig.enabled) {
+    updaterService = new UpdaterServiceClass();
+    const debugInfo = debugConfig.fakeVersion
+      ? `debug with fake version ${debugConfig.fakeVersion}`
+      : `debug enabled`;
+    console.log(
+      `[${timestamp()}] Updater service initialized (packaged: ${app.isPackaged}, ${debugConfig.enabled ? debugInfo : ""})`
+    );
+  } else {
+    console.log(
+      `[${timestamp()}] Updater service disabled in dev mode (set DEBUG_UPDATER=1 or DEBUG_UPDATER=<version> to enable)`
+    );
+  }
 
   const loadTime = Date.now() - startTime;
   console.log(`[${timestamp()}] Services loaded in ${loadTime}ms`);
@@ -346,6 +370,49 @@ function createWindow() {
 
   // Register IPC handlers with the main window
   ipcMain.register(electronIpcMain, mainWindow);
+
+  // Register updater IPC handlers (available in both dev and prod)
+  electronIpcMain.handle(IPC_CHANNELS.UPDATE_CHECK, () => {
+    // Note: log interface already includes timestamp and file location
+    log.debug(`UPDATE_CHECK called (updaterService: ${updaterService ? "available" : "null"})`);
+    if (!updaterService) {
+      // Send "idle" status if updater not initialized (dev mode without DEBUG_UPDATER)
+      if (mainWindow) {
+        mainWindow.webContents.send(IPC_CHANNELS.UPDATE_STATUS, {
+          type: "idle" as const,
+        });
+      }
+      return;
+    }
+    log.debug("Calling updaterService.checkForUpdates()");
+    updaterService.checkForUpdates();
+  });
+
+  electronIpcMain.handle(IPC_CHANNELS.UPDATE_DOWNLOAD, async () => {
+    if (!updaterService) throw new Error("Updater not available in development");
+    await updaterService.downloadUpdate();
+  });
+
+  electronIpcMain.handle(IPC_CHANNELS.UPDATE_INSTALL, () => {
+    if (!updaterService) throw new Error("Updater not available in development");
+    updaterService.installUpdate();
+  });
+
+  // Handle status subscription requests
+  // Note: React StrictMode in dev causes components to mount twice, resulting in duplicate calls
+  electronIpcMain.on(IPC_CHANNELS.UPDATE_STATUS_SUBSCRIBE, () => {
+    log.debug("UPDATE_STATUS_SUBSCRIBE called");
+    if (!mainWindow) return;
+    const status = updaterService ? updaterService.getStatus() : { type: "idle" };
+    log.debug("Sending current status to renderer:", status);
+    mainWindow.webContents.send(IPC_CHANNELS.UPDATE_STATUS, status);
+  });
+
+  // Set up updater service with the main window (only in production)
+  if (updaterService) {
+    updaterService.setMainWindow(mainWindow);
+    // Note: Checks are initiated by frontend to respect telemetry preference
+  }
 
   // Show window once it's ready and close splash
   mainWindow.once("ready-to-show", () => {
