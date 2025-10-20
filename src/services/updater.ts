@@ -184,6 +184,29 @@ export class UpdaterService {
     if (this.updateStatus.type !== "available") {
       throw new Error("No update available to download");
     }
+    
+    // If using fake version, simulate download progress
+    if (this.fakeVersion) {
+      log.info(`Faking download for version ${this.fakeVersion}`);
+      this.updateStatus = { type: "downloading", percent: 0 };
+      this.notifyRenderer();
+      
+      // Simulate download progress
+      for (let percent = 0; percent <= 100; percent += 10) {
+        await new Promise(resolve => setTimeout(resolve, 200));
+        this.updateStatus = { type: "downloading", percent };
+        this.notifyRenderer();
+      }
+      
+      // Mark as downloaded
+      this.updateStatus = {
+        type: "downloaded",
+        info: { version: this.fakeVersion } as UpdateInfo,
+      };
+      this.notifyRenderer();
+      return;
+    }
+    
     await autoUpdater.downloadUpdate();
   }
 
@@ -194,6 +217,13 @@ export class UpdaterService {
     if (this.updateStatus.type !== "downloaded") {
       throw new Error("No update downloaded to install");
     }
+    
+    // If using fake version, just log (can't actually restart with fake update)
+    if (this.fakeVersion) {
+      log.info(`Fake update install requested for ${this.fakeVersion} - would restart app here`);
+      return;
+    }
+    
     autoUpdater.quitAndInstall();
   }
 
