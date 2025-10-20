@@ -119,6 +119,17 @@ while true; do
     echo "❌ Some checks failed:"
     echo ""
     gh pr checks "$PR_NUMBER"
+    echo ""
+    
+    # Extract run ID from the first failed check
+    RUN_ID=$(gh pr checks "$PR_NUMBER" --json name,link,conclusion --jq '.[] | select(.conclusion == "FAILURE") | .link' | head -1 | sed -E 's|.*/runs/([0-9]+).*|\1|')
+    
+    if [[ -n "$RUN_ID" ]]; then
+      echo "💡 To extract detailed logs from the failed run:"
+      echo "   ./scripts/extract_pr_logs.sh $RUN_ID"
+      echo "   ./scripts/extract_pr_logs.sh $RUN_ID <job_pattern>  # e.g., Integration"
+    fi
+    
     exit 1
   fi
 
