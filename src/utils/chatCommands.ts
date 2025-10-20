@@ -101,20 +101,45 @@ export function formatNewCommand(
 }
 
 // ============================================================================
-// Workspace Forking (re-exported from workspaceFork for convenience)
+// Workspace Forking
 // ============================================================================
 
-export { forkWorkspace, type ForkOptions, type ForkResult } from "./workspaceFork";
+export { forkWorkspace, type ForkResult } from "./workspaceFork";
+export type {
+  ForkOptions as ForkExecutionOptions,
+  UserForkOptions as ForkOptions,
+} from "./workspaceFork";
+import type { UserForkOptions } from "./workspaceFork";
+
+/**
+ * Format /fork command string for display
+ */
+export function formatForkCommand(options: UserForkOptions): string {
+  let cmd = `/fork ${options.newName}`;
+  if (options.startMessage) {
+    cmd += `\n${options.startMessage}`;
+  }
+  return cmd;
+}
 
 // ============================================================================
 // Compaction
 // ============================================================================
 
-export interface CompactionOptions {
-  workspaceId: string;
+/**
+ * User-facing compaction options (modal/command inputs)
+ */
+export interface CompactOptions {
   maxOutputTokens?: number;
-  continueMessage?: string;
   model?: string;
+  continueMessage?: string;
+}
+
+/**
+ * Internal execution options (includes workspace context)
+ */
+export interface CompactExecutionOptions extends CompactOptions {
+  workspaceId: string;
   sendMessageOptions: SendMessageOptions;
   editMessageId?: string;
 }
@@ -128,7 +153,7 @@ export interface CompactionResult {
  * Prepare compaction message from options
  * Returns the actual message text (summarization request), metadata, and options
  */
-export function prepareCompactionMessage(options: CompactionOptions): {
+export function prepareCompactionMessage(options: CompactExecutionOptions): {
   messageText: string;
   metadata: CmuxFrontendMetadata;
   sendOptions: SendMessageOptions;
@@ -154,7 +179,7 @@ export function prepareCompactionMessage(options: CompactionOptions): {
 
   const metadata: CmuxFrontendMetadata = {
     type: "compaction-request",
-    rawCommand: formatCompactionCommand(options),
+    rawCommand: formatCompactCommand(options),
     parsed: compactData,
   };
 
@@ -167,7 +192,9 @@ export function prepareCompactionMessage(options: CompactionOptions): {
 /**
  * Execute a compaction command
  */
-export async function executeCompaction(options: CompactionOptions): Promise<CompactionResult> {
+export async function executeCompaction(
+  options: CompactExecutionOptions
+): Promise<CompactionResult> {
   const { messageText, metadata, sendOptions } = prepareCompactionMessage(options);
 
   const result = await window.api.workspace.sendMessage(options.workspaceId, messageText, {
@@ -194,7 +221,7 @@ export async function executeCompaction(options: CompactionOptions): Promise<Com
 /**
  * Format compaction command string for display
  */
-function formatCompactionCommand(options: CompactionOptions): string {
+export function formatCompactCommand(options: CompactOptions): string {
   let cmd = "/compact";
   if (options.maxOutputTokens) {
     cmd += ` -t ${options.maxOutputTokens}`;
@@ -207,6 +234,8 @@ function formatCompactionCommand(options: CompactionOptions): string {
   }
   return cmd;
 }
+
+
 
 // ============================================================================
 // Command Handler Types
