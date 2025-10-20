@@ -119,6 +119,7 @@ const SearchInput = styled.input`
   color: #ccc;
   font-size: 12px;
   font-family: var(--font-sans);
+  line-height: 1.4;
   outline: none;
   transition: border-color 0.15s ease;
 
@@ -140,12 +141,12 @@ const SearchButton = styled.button<{ active: boolean; isLast?: boolean }>`
   padding: 6px 10px;
   background: ${(props) => (props.active ? "#3a3a3a" : "#1e1e1e")};
   border: 1px solid #3e3e42;
-  border-left: ${(props) => (props.active ? "1px solid #3e3e42" : "none")};
   border-radius: ${(props) => (props.isLast ? "0 4px 4px 0" : "0")};
   color: ${(props) => (props.active ? "#fff" : "#999")};
   font-size: 11px;
   font-family: var(--font-monospace);
   font-weight: 600;
+  line-height: 1.4;
   cursor: pointer;
   outline: none;
   transition: all 0.15s ease;
