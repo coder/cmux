@@ -166,7 +166,8 @@ describe("bash tool", () => {
     });
 
     const args: BashToolArgs = {
-      script: "for i in {1..11000}; do echo line$i; done", // Exceeds 10K line hard cap for truncate policy
+      // Generate ~1.5MB of output (1700 lines * 900 bytes) to exceed 1MB byte limit
+      script: 'perl -e \'for (1..1700) { print "A" x 900 . "\\n" }\'',
       timeout_secs: 5,
     };
 
@@ -177,15 +178,14 @@ describe("bash tool", () => {
     expect(result.truncated).toBeDefined();
     if (result.truncated) {
       expect(result.truncated.reason).toContain("exceeded");
-      // Should collect all lines up to when truncation was triggered
-      expect(result.truncated.totalLines).toBeGreaterThan(10000);
+      // Should collect lines up to ~1MB (around 1150-1170 lines with 900 bytes each)
+      expect(result.truncated.totalLines).toBeGreaterThan(1000);
+      expect(result.truncated.totalLines).toBeLessThan(1300);
     }
 
-    // Should contain collected lines
-    expect(result.output).toContain("line1");
-    expect(result.output).toContain("line10000");
-    // Might or might not contain line 11000 depending on when truncation triggers
-    expect(result.output).toContain("line11000");
+    // Should contain output that's around 1MB
+    expect(result.output?.length).toBeGreaterThan(1000000);
+    expect(result.output?.length).toBeLessThan(1100000);
 
     // Should NOT create temp file with truncate policy
     const files = fs.readdirSync(tempDir.path);
