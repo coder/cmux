@@ -27,6 +27,11 @@ interface SummaryProps {
   children?: ReactNode;
 }
 
+interface AnchorProps {
+  href?: string;
+  children?: ReactNode;
+}
+
 interface CodeBlockProps {
   code: string;
   language: string;
@@ -88,6 +93,13 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ code, language }) => {
 export const markdownComponents = {
   // Pass through pre element - let code component handle the wrapping
   pre: ({ children }: PreProps) => <>{children}</>,
+
+  // Custom anchor to open links externally
+  a: ({ href, children }: AnchorProps) => (
+    <a href={href} target="_blank" rel="noopener noreferrer">
+      {children}
+    </a>
+  ),
 
   // Custom details/summary for collapsible sections
   details: ({ children, open }: DetailsProps) => (
