@@ -90,6 +90,7 @@ export class UpdaterService {
    * Set the main window for sending status updates
    */
   setMainWindow(window: BrowserWindow) {
+    console.log("[UpdaterService] setMainWindow() called");
     this.mainWindow = window;
     // Send current status to newly connected window
     this.notifyRenderer();
@@ -104,35 +105,41 @@ export class UpdaterService {
    * A 30-second timeout ensures we don't stay in "checking" state indefinitely.
    */
   async checkForUpdates(): Promise<void> {
+    console.log("[UpdaterService] checkForUpdates() called");
     try {
       // Clear any existing timeout
       this.clearCheckTimeout();
       
       // Set checking status immediately
+      console.log("[UpdaterService] Setting status to 'checking'");
       this.updateStatus = { type: "checking" };
       this.notifyRenderer();
       
       // Set timeout to prevent hanging in "checking" state
+      console.log("[UpdaterService] Setting 30s timeout");
       this.checkTimeout = setTimeout(() => {
         if (this.updateStatus.type === "checking") {
-          console.log("Update check timed out after 30s");
+          console.log("[UpdaterService] Update check timed out after 30s, setting to 'not-available'");
           this.updateStatus = { type: "not-available" };
           this.notifyRenderer();
+        } else {
+          console.log(`[UpdaterService] Timeout fired but status already changed to: ${this.updateStatus.type}`);
         }
       }, 30000); // 30 seconds
       
       // Trigger the check (don't await - it never resolves, just fires events)
+      console.log("[UpdaterService] Calling autoUpdater.checkForUpdates()");
       autoUpdater.checkForUpdates().catch((error) => {
         this.clearCheckTimeout();
         const message = error instanceof Error ? error.message : "Unknown error";
-        console.error("Update check failed:", message);
+        console.error("[UpdaterService] Update check failed:", message);
         this.updateStatus = { type: "error", message };
         this.notifyRenderer();
       });
     } catch (error) {
       this.clearCheckTimeout();
       const message = error instanceof Error ? error.message : "Unknown error";
-      console.error("Update check error:", message);
+      console.error("[UpdaterService] Update check error:", message);
       this.updateStatus = { type: "error", message };
       this.notifyRenderer();
     }
@@ -169,8 +176,12 @@ export class UpdaterService {
    * Notify the renderer process of status changes
    */
   private notifyRenderer() {
+    console.log("[UpdaterService] notifyRenderer() called, status:", this.updateStatus);
     if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+      console.log("[UpdaterService] Sending status to renderer via IPC");
       this.mainWindow.webContents.send(IPC_CHANNELS.UPDATE_STATUS, this.updateStatus);
+    } else {
+      console.log("[UpdaterService] Cannot send - mainWindow is null or destroyed");
     }
   }
 }
