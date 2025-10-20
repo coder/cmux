@@ -252,9 +252,10 @@ export interface IPCApi {
 
 // Update status type (matches updater service)
 export type UpdateStatus =
+  | { type: "idle" } // Initial state, no check performed yet
   | { type: "checking" }
   | { type: "available"; info: { version: string } }
-  | { type: "not-available" }
+  | { type: "up-to-date" } // Explicitly checked, no updates available
   | { type: "downloading"; percent: number }
   | { type: "downloaded"; info: { version: string } }
   | { type: "error"; message: string };

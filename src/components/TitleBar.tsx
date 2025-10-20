@@ -131,7 +131,7 @@ function parseBuildInfo(version: unknown) {
 
 export function TitleBar() {
   const { buildDate, extendedTimestamp, gitDescribe } = parseBuildInfo(VERSION satisfies unknown);
-  const [updateStatus, setUpdateStatus] = useState<UpdateStatus>({ type: "not-available" });
+  const [updateStatus, setUpdateStatus] = useState<UpdateStatus>({ type: "idle" });
   const [isCheckingOnHover, setIsCheckingOnHover] = useState(false);
   const lastHoverCheckTime = useRef<number>(0);
   const telemetryEnabled = isTelemetryEnabled();
@@ -176,8 +176,8 @@ export function TitleBar() {
       return; // Too soon since last hover check
     }
 
-    // Only trigger check if not already checking and no update available/downloading/downloaded
-    if (updateStatus.type === "not-available" && !isCheckingOnHover) {
+    // Only trigger check if idle/up-to-date and not already checking
+    if ((updateStatus.type === "idle" || updateStatus.type === "up-to-date") && !isCheckingOnHover) {
       lastHoverCheckTime.current = now;
       setIsCheckingOnHover(true);
       window.api.update.check().catch((error) => {
@@ -219,8 +219,11 @@ export function TitleBar() {
         case "downloaded":
           lines.push(`Update ready: ${updateStatus.info.version}`, "Click to install and restart.");
           break;
-        case "not-available":
-          lines.push("No updates available");
+        case "idle":
+          lines.push("Hover to check for updates");
+          break;
+        case "up-to-date":
+          lines.push("Up to date");
           break;
         case "error":
           lines.push("Update check failed", updateStatus.message);

@@ -52,7 +52,7 @@ describe("UpdaterService", () => {
       );
     });
 
-    it("should transition to 'not-available' when no update found", async () => {
+    it("should transition to 'up-to-date' when no update found", async () => {
       // Setup
       const checkForUpdatesMock = autoUpdater.checkForUpdates as jest.Mock;
       checkForUpdatesMock.mockImplementation(() => {
@@ -69,10 +69,10 @@ describe("UpdaterService", () => {
       // Wait for event to be processed
       await new Promise((resolve) => setImmediate(resolve));
 
-      // Assert - should notify with 'not-available' status
+      // Assert - should notify with 'up-to-date' status
       const calls = (mockWindow.webContents.send as jest.Mock).mock.calls;
       expect(calls).toContainEqual(["update:status", { type: "checking" }]);
-      expect(calls).toContainEqual(["update:status", { type: "not-available" }]);
+      expect(calls).toContainEqual(["update:status", { type: "up-to-date" }]);
     });
 
     it("should transition to 'available' when update found", async () => {
@@ -169,10 +169,10 @@ describe("UpdaterService", () => {
       expect(timeoutCallback).toBeTruthy();
       timeoutCallback!();
 
-      // Should have timed out and returned to not-available
+      // Should have timed out and returned to idle
       const calls = (mockWindow.webContents.send as jest.Mock).mock.calls;
       const lastCall = calls[calls.length - 1];
-      expect(lastCall).toEqual(["update:status", { type: "not-available" }]);
+      expect(lastCall).toEqual(["update:status", { type: "idle" }]);
 
       // Restore original setTimeout
       global.setTimeout = originalSetTimeout;
@@ -180,9 +180,9 @@ describe("UpdaterService", () => {
   });
 
   describe("getStatus", () => {
-    it("should return initial status as not-available", () => {
+    it("should return initial status as idle", () => {
       const status = service.getStatus();
-      expect(status).toEqual({ type: "not-available" });
+      expect(status).toEqual({ type: "idle" });
     });
 
     it("should return current status after check starts", async () => {

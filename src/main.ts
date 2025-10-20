@@ -372,10 +372,10 @@ function createWindow() {
     const { log } = await import("./services/log");
     log.debug(`UPDATE_CHECK called (updaterService: ${updaterService ? "available" : "null"})`);
     if (!updaterService) {
-      // Send "not-available" status if updater not initialized (dev mode without DEBUG_UPDATER)
+      // Send "idle" status if updater not initialized (dev mode without DEBUG_UPDATER)
       if (mainWindow) {
         mainWindow.webContents.send(IPC_CHANNELS.UPDATE_STATUS, { 
-          type: "not-available" as const
+          type: "idle" as const
         });
       }
       return;
@@ -400,7 +400,7 @@ function createWindow() {
     const { log } = await import("./services/log");
     log.debug("UPDATE_STATUS_SUBSCRIBE called");
     if (!mainWindow) return;
-    const status = updaterService ? updaterService.getStatus() : { type: "not-available" };
+    const status = updaterService ? updaterService.getStatus() : { type: "idle" };
     log.debug("Sending current status to renderer:", status);
     mainWindow.webContents.send(IPC_CHANNELS.UPDATE_STATUS, status);
   });

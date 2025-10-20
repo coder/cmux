@@ -12,9 +12,10 @@ function parseBoolEnv(value: string | undefined): boolean {
 }
 
 export type UpdateStatus =
+  | { type: "idle" } // Initial state, no check performed yet
   | { type: "checking" }
   | { type: "available"; info: UpdateInfo }
-  | { type: "not-available" }
+  | { type: "up-to-date" } // Explicitly checked, no updates available
   | { type: "downloading"; percent: number }
   | { type: "downloaded"; info: UpdateInfo }
   | { type: "error"; message: string };
@@ -30,7 +31,7 @@ export type UpdateStatus =
  */
 export class UpdaterService {
   private mainWindow: BrowserWindow | null = null;
-  private updateStatus: UpdateStatus = { type: "not-available" };
+  private updateStatus: UpdateStatus = { type: "idle" };
   private checkTimeout: NodeJS.Timeout | null = null;
 
   constructor() {
@@ -63,9 +64,9 @@ export class UpdaterService {
     });
 
     autoUpdater.on("update-not-available", () => {
-      log.info("No updates available");
+      log.info("No updates available - up to date");
       this.clearCheckTimeout();
-      this.updateStatus = { type: "not-available" };
+      this.updateStatus = { type: "up-to-date" };
       this.notifyRenderer();
     });
 
@@ -133,8 +134,8 @@ export class UpdaterService {
       log.info("Setting 30s timeout");
       this.checkTimeout = setTimeout(() => {
         if (this.updateStatus.type === "checking") {
-          log.info("Update check timed out after 30s, setting to 'not-available'");
-          this.updateStatus = { type: "not-available" };
+          log.info("Update check timed out after 30s, returning to idle state");
+          this.updateStatus = { type: "idle" };
           this.notifyRenderer();
         } else {
           log.info(`Timeout fired but status already changed to: ${this.updateStatus.type}`);
