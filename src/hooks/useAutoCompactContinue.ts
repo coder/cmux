@@ -28,8 +28,6 @@ export function useAutoCompactContinue() {
   // re-rendering AppInner on every workspace state change. This hook only needs
   // to react when messages change to a single compacted message state.
   const store = useWorkspaceStoreRaw();
-  const workspaceStatesRef = useRef<Map<string, WorkspaceState>>(new Map());
-
   // Track which specific compaction summary messages we've already processed.
   // Key insight: Each compaction creates a unique message. Track by message ID,
   // not workspace ID, to prevent processing the same compaction result multiple times.
@@ -39,7 +37,6 @@ export function useAutoCompactContinue() {
   // Update ref and check for auto-continue condition
   const checkAutoCompact = () => {
     const newStates = store.getAllStates();
-    workspaceStatesRef.current = newStates;
 
     // Check all workspaces for completed compaction
     for (const [workspaceId, state] of newStates) {
