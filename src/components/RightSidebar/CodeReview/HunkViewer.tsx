@@ -8,9 +8,8 @@ import type { DiffHunk } from "@/types/review";
 import { SelectableDiffRenderer } from "../../shared/DiffRenderer";
 import {
   type SearchHighlightConfig,
-  highlightSearchMatches,
+  highlightSearchInText,
 } from "@/utils/highlighting/highlightSearchTerms";
-import { escapeHtml } from "@/utils/highlighting/highlightDiffChunk";
 import { Tooltip, TooltipWrapper } from "../../Tooltip";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { getReviewExpandStateKey } from "@/constants/storage";
@@ -212,7 +211,7 @@ export const HunkViewer = React.memo<HunkViewerProps>(
       if (!searchConfig) {
         return hunk.filePath;
       }
-      return highlightSearchMatches(escapeHtml(hunk.filePath), searchConfig);
+      return highlightSearchInText(hunk.filePath, searchConfig);
     }, [hunk.filePath, searchConfig]);
 
     // Persist manual expand/collapse state across remounts per workspace

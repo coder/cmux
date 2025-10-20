@@ -1,5 +1,12 @@
 import { createHighlighter, type Highlighter } from "shiki";
 
+// Shiki theme used throughout the application
+export const SHIKI_THEME = "min-dark";
+
+// Maximum diff size to highlight (in bytes)
+// Diffs larger than this will fall back to plain text for performance
+export const MAX_DIFF_SIZE_BYTES = 4096; // 4kb
+
 // Singleton promise (cached to prevent race conditions)
 // Multiple concurrent calls will await the same Promise
 let highlighterPromise: Promise<Highlighter> | null = null;
@@ -14,7 +21,7 @@ export async function getShikiHighlighter(): Promise<Highlighter> {
   // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
   if (!highlighterPromise) {
     highlighterPromise = createHighlighter({
-      themes: ["dark-plus"],
+      themes: [SHIKI_THEME],
       langs: [], // Load languages on-demand via highlightDiffChunk
     });
   }

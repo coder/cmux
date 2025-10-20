@@ -1,5 +1,6 @@
-import { getShikiHighlighter, mapToShikiLang } from "./shikiHighlighter";
+import { getShikiHighlighter, mapToShikiLang, SHIKI_THEME, MAX_DIFF_SIZE_BYTES } from "./shikiHighlighter";
 import type { DiffChunk } from "./diffChunking";
+import { computeSearchDecorations, type SearchHighlightConfig } from "./highlightSearchTerms";
 
 /**
  * Chunk-based diff highlighting with Shiki
@@ -32,7 +33,8 @@ export interface HighlightedChunk {
  */
 export async function highlightDiffChunk(
   chunk: DiffChunk,
-  language: string
+  language: string,
+  searchConfig?: SearchHighlightConfig
 ): Promise<HighlightedChunk> {
   // Fast path: no highlighting for text files
   if (language === "text" || language === "plaintext") {
@@ -45,6 +47,14 @@ export async function highlightDiffChunk(
       })),
       usedFallback: false,
     };
+  }
+
+  // Enforce size limit for performance
+  // Calculate size in bytes (rough estimate using string length)
+  const code = chunk.lines.join("\n");
+  const sizeBytes = new TextEncoder().encode(code).length;
+  if (sizeBytes > MAX_DIFF_SIZE_BYTES) {
+    return createFallbackChunk(chunk);
   }
 
   try {
@@ -66,11 +76,13 @@ export async function highlightDiffChunk(
       }
     }
 
-    // Highlight entire chunk as one block
-    const code = chunk.lines.join("\n");
+    // Compute decorations for search matches if search is active
+    const decorations = searchConfig ? computeSearchDecorations(code, searchConfig) : [];
+    
     const html = highlighter.codeToHtml(code, {
       lang: shikiLang,
-      theme: "dark-plus",
+      theme: SHIKI_THEME,
+      decorations,
     });
 
     // Parse HTML to extract line contents

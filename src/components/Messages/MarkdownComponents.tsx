@@ -1,7 +1,5 @@
 import type { ReactNode } from "react";
 import React from "react";
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { syntaxStyleNoBackgrounds } from "@/styles/syntaxHighlighting";
 import { Mermaid } from "./Mermaid";
 
 interface CodeProps {
@@ -58,7 +56,8 @@ export const markdownComponents = {
     </summary>
   ),
 
-  // Custom code block renderer with syntax highlighting
+  // Custom code block renderer
+  // Shiki rehype handles syntax highlighting for code blocks
   code: ({ inline, className, children, node, ...props }: CodeProps) => {
     const match = /language-(\w+)/.exec(className ?? "");
     const language = match ? match[1] : "";
@@ -69,46 +68,14 @@ export const markdownComponents = {
     const hasMultipleLines = childString.includes("\n");
     const isInline = inline ?? !hasMultipleLines;
 
-    if (!isInline && language) {
-      // Extract text content from children (react-markdown passes string or array of strings)
+    if (!isInline && language === "mermaid") {
+      // Handle mermaid diagrams specially
       const code =
         typeof children === "string" ? children : Array.isArray(children) ? children.join("") : "";
-
-      // Handle mermaid diagrams
-      if (language === "mermaid") {
-        return <Mermaid chart={code} />;
-      }
-
-      // Code block with language - use syntax highlighter
-      return (
-        <SyntaxHighlighter
-          style={syntaxStyleNoBackgrounds}
-          language={language}
-          PreTag="pre"
-          customStyle={{
-            background: "rgba(0, 0, 0, 0.3)",
-            margin: "1em 0",
-            borderRadius: "4px",
-            fontSize: "12px",
-            padding: "12px",
-          }}
-        >
-          {code.replace(/\n$/, "")}
-        </SyntaxHighlighter>
-      );
+      return <Mermaid chart={code} />;
     }
 
-    if (!isInline) {
-      // Code block without language - plain pre/code
-      return (
-        <pre>
-          <code className={className} {...props}>
-            {children}
-          </code>
-        </pre>
-      );
-    }
-
+    // For all other code blocks and inline code, let Shiki/default rendering handle it
     // Inline code (filter out node prop to avoid [object Object])
     return (
       <code className={className} {...props}>
