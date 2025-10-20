@@ -575,17 +575,10 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
     setExpandedProjectsArray(Array.from(projects));
   };
 
-  // Track which projects have old workspaces expanded
-  const [expandedOldWorkspacesArray, setExpandedOldWorkspacesArray] = usePersistedState<string[]>(
-    "expandedOldWorkspaces",
-    []
-  );
-  const expandedOldWorkspaces = new Set(
-    Array.isArray(expandedOldWorkspacesArray) ? expandedOldWorkspacesArray : []
-  );
-  const setExpandedOldWorkspaces = (projects: Set<string>) => {
-    setExpandedOldWorkspacesArray(Array.from(projects));
-  };
+  // Track which projects have old workspaces expanded (per-project)
+  const [expandedOldWorkspaces, setExpandedOldWorkspaces] = usePersistedState<
+    Record<string, boolean>
+  >("expandedOldWorkspaces", {});
   const [removeError, setRemoveError] = useState<{
     workspaceId: string;
     error: string;
@@ -623,13 +616,10 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
   };
 
   const toggleOldWorkspaces = (projectPath: string) => {
-    const newExpanded = new Set(expandedOldWorkspaces);
-    if (newExpanded.has(projectPath)) {
-      newExpanded.delete(projectPath);
-    } else {
-      newExpanded.add(projectPath);
-    }
-    setExpandedOldWorkspaces(newExpanded);
+    setExpandedOldWorkspaces((prev) => ({
+      ...prev,
+      [projectPath]: !prev[projectPath],
+    }));
   };
 
   const showRemoveError = useCallback(
@@ -890,7 +880,7 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
                               allWorkspaces,
                               workspaceRecency
                             );
-                            const showOldWorkspaces = expandedOldWorkspaces.has(projectPath);
+                            const showOldWorkspaces = expandedOldWorkspaces[projectPath] ?? false;
 
                             return (
                               <WorkspacesContainer id={workspaceListId}>
