@@ -56,7 +56,7 @@ jobs:
         run: make -j3 static-check
 
   test:
-    name: Test
+    name: Unit Tests
     runs-on: ${{ github.repository_owner == 'coder' && 'depot-ubuntu-22.04-16' || 'ubuntu-latest' }}
     steps:
       - name: Checkout code
