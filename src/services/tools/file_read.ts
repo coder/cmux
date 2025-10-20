@@ -18,7 +18,7 @@ export const createFileReadTool: ToolFactory = (config: ToolConfiguration) => {
     inputSchema: TOOL_DEFINITIONS.file_read.schema,
     toModelOutput: (output: FileReadToolResult) => {
       // If this is an image file with a mime type, return it as media content
-      if (output.success && output.mime_type && output.mime_type.startsWith("image/")) {
+      if (output.success && output.mime_type?.startsWith("image/")) {
         return {
           type: "content",
           value: [
@@ -78,7 +78,7 @@ export const createFileReadTool: ToolFactory = (config: ToolConfiguration) => {
         const mimeType = mime.lookup(resolvedPath) || undefined;
 
         // Check if this is a binary image file
-        if (mimeType && mimeType.startsWith("image/")) {
+        if (mimeType?.startsWith("image/")) {
           // Read as binary and encode as base64 for images
           const buffer = await fs.readFile(resolvedPath);
           const base64Content = buffer.toString("base64");
