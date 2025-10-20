@@ -13,7 +13,14 @@ export interface SearchHighlightConfig {
 }
 
 // Module-level caches for performance
-const parserInstance = new DOMParser();
+// Lazy-loaded to avoid DOMParser instantiation in non-browser environments (e.g., tests)
+let parserInstance: DOMParser | null = null;
+const getParser = (): DOMParser => {
+  if (!parserInstance) {
+    parserInstance = new DOMParser();
+  }
+  return parserInstance;
+};
 
 // LRU cache for compiled regex patterns
 // Key: search config string, Value: compiled RegExp
@@ -75,7 +82,7 @@ export function highlightSearchMatches(html: string, config: SearchHighlightConf
 
     if (!doc) {
       // Parse HTML into DOM for safe manipulation
-      doc = parserInstance.parseFromString(html, "text/html");
+      doc = getParser().parseFromString(html, "text/html");
       domCache.set(htmlChecksum, doc);
     }
 
