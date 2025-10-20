@@ -66,8 +66,16 @@ jobs:
 
       - uses: ./.github/actions/setup-cmux
 
-      - name: Run tests
-        run: make test-unit
+      - name: Run tests with coverage
+        run: bun test --coverage src
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage/lcov.info
+          flags: unit-tests
+          fail_ci_if_error: false
 
   integration-test:
     name: Integration Tests
@@ -80,11 +88,19 @@ jobs:
 
       - uses: ./.github/actions/setup-cmux
 
-      - name: Run integration tests
-        run: make test-integration
+      - name: Run integration tests with coverage
+        run: TEST_INTEGRATION=1 bun x jest --coverage tests
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage/lcov.info
+          flags: integration-tests
+          fail_ci_if_error: false
 
   storybook-test:
     name: Storybook Interaction Tests
