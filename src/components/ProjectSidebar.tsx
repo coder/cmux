@@ -313,29 +313,27 @@ const AddWorkspaceBtn = styled.button`
   }
 `;
 
-const OldWorkspacesSection = styled.button`
+const OldWorkspacesSection = styled.button<{ expanded: boolean }>`
   width: 100%;
   padding: 8px 12px 8px 22px;
   background: transparent;
-  color: #787878;
+  color: #858585;
   border: none;
   border-top: 1px solid #2a2a2b;
   cursor: pointer;
-  font-size: 11px;
+  font-size: 12px;
   transition: all 0.15s;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  font-weight: 600;
+  font-weight: 500;
 
   &:hover {
     background: rgba(255, 255, 255, 0.03);
-    color: #999;
+    color: #aaa;
 
     .arrow {
-      color: #999;
+      color: #aaa;
     }
   }
 
@@ -346,13 +344,15 @@ const OldWorkspacesSection = styled.button`
   }
 
   .count {
-    color: #5a5a5a;
+    color: #666;
+    font-weight: 400;
   }
 
   .arrow {
-    font-size: 10px;
+    font-size: 11px;
     color: #666;
-    transition: transform 0.15s ease;
+    transition: transform 0.2s ease;
+    transform: ${(props) => (props.expanded ? "rotate(90deg)" : "rotate(0deg)")};
   }
 `;
 
@@ -921,12 +921,13 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
                                     onClick={() => toggleOldWorkspaces(projectPath)}
                                     aria-label={showOldWorkspaces ? `Collapse workspaces older than ${formatOldWorkspaceThreshold()}` : `Expand workspaces older than ${formatOldWorkspaceThreshold()}`}
                                     aria-expanded={showOldWorkspaces}
+                                    expanded={showOldWorkspaces}
                                   >
                                     <div className="label">
-                                      <span className="arrow">{showOldWorkspaces ? "▼" : "▶"}</span>
                                       <span>Older than {formatOldWorkspaceThreshold()}</span>
                                       <span className="count">({old.length})</span>
                                     </div>
+                                    <span className="arrow">▶</span>
                                   </OldWorkspacesSection>
                                   {showOldWorkspaces && old.map((metadata) => {
                                     const isSelected = selectedWorkspace?.workspaceId === metadata.id;
