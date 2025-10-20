@@ -1,8 +1,11 @@
 import type { ReactNode } from "react";
-import React from "react";
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { syntaxStyleNoBackgrounds } from "@/styles/syntaxHighlighting";
+import React, { useState, useEffect } from "react";
 import { Mermaid } from "./Mermaid";
+import {
+  getShikiHighlighter,
+  mapToShikiLang,
+  SHIKI_THEME,
+} from "@/utils/highlighting/shikiHighlighter";
 
 interface CodeProps {
   node?: unknown;
@@ -23,6 +26,63 @@ interface DetailsProps {
 interface SummaryProps {
   children?: ReactNode;
 }
+
+interface CodeBlockProps {
+  code: string;
+  language: string;
+}
+
+/**
+ * CodeBlock component with async Shiki highlighting
+ * Reuses shared highlighter instance from diff rendering
+ */
+const CodeBlock: React.FC<CodeBlockProps> = ({ code, language }) => {
+  const [html, setHtml] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function highlight() {
+      try {
+        const highlighter = await getShikiHighlighter();
+        const shikiLang = mapToShikiLang(language);
+
+        // codeToHtml lazy-loads languages automatically
+        const result = highlighter.codeToHtml(code, {
+          lang: shikiLang,
+          theme: SHIKI_THEME,
+        });
+
+        if (!cancelled) {
+          setHtml(result);
+        }
+      } catch (error) {
+        console.warn(`Failed to highlight code block (${language}):`, error);
+        if (!cancelled) {
+          setHtml(null);
+        }
+      }
+    }
+
+    void highlight();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [code, language]);
+
+  // Show loading state or fall back to plain code
+  if (html === null) {
+    return (
+      <pre>
+        <code>{code}</code>
+      </pre>
+    );
+  }
+
+  // Render highlighted HTML
+  return <div dangerouslySetInnerHTML={{ __html: html }} />;
+};
 
 // Custom components for markdown rendering
 export const markdownComponents = {
@@ -58,48 +118,29 @@ export const markdownComponents = {
     </summary>
   ),
 
-  // Custom code block renderer with syntax highlighting
+  // Custom code block renderer with async Shiki highlighting
   code: ({ inline, className, children, node, ...props }: CodeProps) => {
     const match = /language-(\w+)/.exec(className ?? "");
     const language = match ? match[1] : "";
 
-    // Better inline detection: check for multiline content
+    // Extract text content
     const childString =
       typeof children === "string" ? children : Array.isArray(children) ? children.join("") : "";
     const hasMultipleLines = childString.includes("\n");
     const isInline = inline ?? !hasMultipleLines;
 
-    if (!isInline && language) {
-      // Extract text content from children (react-markdown passes string or array of strings)
-      const code =
-        typeof children === "string" ? children : Array.isArray(children) ? children.join("") : "";
-
-      // Handle mermaid diagrams
-      if (language === "mermaid") {
-        return <Mermaid chart={code} />;
-      }
-
-      // Code block with language - use syntax highlighter
-      return (
-        <SyntaxHighlighter
-          style={syntaxStyleNoBackgrounds}
-          language={language}
-          PreTag="pre"
-          customStyle={{
-            background: "rgba(0, 0, 0, 0.3)",
-            margin: "1em 0",
-            borderRadius: "4px",
-            fontSize: "12px",
-            padding: "12px",
-          }}
-        >
-          {code.replace(/\n$/, "")}
-        </SyntaxHighlighter>
-      );
+    // Handle mermaid diagrams specially
+    if (!isInline && language === "mermaid") {
+      return <Mermaid chart={childString} />;
     }
 
+    // Code blocks with language - use async Shiki highlighting
+    if (!isInline && language) {
+      return <CodeBlock code={childString} language={language} />;
+    }
+
+    // Code blocks without language (global CSS provides styling)
     if (!isInline) {
-      // Code block without language - plain pre/code
       return (
         <pre>
           <code className={className} {...props}>

@@ -101,11 +101,30 @@ const globalStyles = css`
   }
 
   /* Search term highlighting - global for consistent styling across components */
-  mark.search-highlight {
+  /* Applied to <mark> for plain text and <span> for Shiki-highlighted code */
+  mark.search-highlight,
+  span.search-highlight {
     background: rgba(255, 215, 0, 0.3);
     color: inherit;
     padding: 0;
     border-radius: 2px;
+  }
+
+  /* Override Shiki theme background to use our global color */
+  .shiki,
+  .shiki pre {
+    background: var(--color-code-bg) !important;
+  }
+
+  /* Global styling for markdown code blocks */
+  pre code {
+    display: block;
+    background: var(--color-code-bg);
+    margin: 1em 0;
+    border-radius: 4px;
+    font-size: 12px;
+    padding: 12px;
+    overflow: auto;
   }
 `;
 

@@ -102,7 +102,8 @@ export const LineContent = styled.span<{ type: DiffLineType }>`
   }};
 
   /* Ensure Shiki spans don't interfere with diff backgrounds */
-  span {
+  /* Exclude search-highlight to allow search marking to show */
+  span:not(.search-highlight) {
     background: transparent !important;
   }
 `;
@@ -156,7 +157,7 @@ interface DiffRendererProps {
 
 /**
  * Hook to pre-process and highlight diff content in chunks
- * Runs once when content/language changes
+ * Runs once when content/language changes (NOT search - that's applied post-process)
  */
 function useHighlightedDiff(
   content: string,
@@ -176,7 +177,7 @@ function useHighlightedDiff(
       // Group into chunks
       const diffChunks = groupDiffLines(lines, oldStart, newStart);
 
-      // Highlight each chunk
+      // Highlight each chunk (without search decorations - those are applied later)
       const highlighted = await Promise.all(
         diffChunks.map((chunk) => highlightDiffChunk(chunk, language))
       );

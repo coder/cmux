@@ -1,4 +1,9 @@
-import { getShikiHighlighter, mapToShikiLang } from "./shikiHighlighter";
+import {
+  getShikiHighlighter,
+  mapToShikiLang,
+  SHIKI_THEME,
+  MAX_DIFF_SIZE_BYTES,
+} from "./shikiHighlighter";
 import type { DiffChunk } from "./diffChunking";
 
 /**
@@ -47,6 +52,16 @@ export async function highlightDiffChunk(
     };
   }
 
+  // Enforce size limit for performance
+  // Calculate size by summing line lengths + newlines (more performant than TextEncoder)
+  const sizeBytes =
+    chunk.lines.reduce((total, line) => total + line.length, 0) + chunk.lines.length - 1;
+  if (sizeBytes > MAX_DIFF_SIZE_BYTES) {
+    return createFallbackChunk(chunk);
+  }
+
+  const code = chunk.lines.join("\n");
+
   try {
     const highlighter = await getShikiHighlighter();
     const shikiLang = mapToShikiLang(language);
@@ -66,11 +81,9 @@ export async function highlightDiffChunk(
       }
     }
 
-    // Highlight entire chunk as one block
-    const code = chunk.lines.join("\n");
     const html = highlighter.codeToHtml(code, {
       lang: shikiLang,
-      theme: "dark-plus",
+      theme: SHIKI_THEME,
     });
 
     // Parse HTML to extract line contents
