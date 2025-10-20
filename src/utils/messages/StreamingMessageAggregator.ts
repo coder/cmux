@@ -85,6 +85,18 @@ export class StreamingMessageAggregator {
   }
 
   /**
+   * Check if two TODO lists are equal (deep comparison).
+   * Prevents unnecessary re-renders when todo_write is called with identical content.
+   */
+  private todosEqual(a: TodoItem[], b: TodoItem[]): boolean {
+    if (a.length !== b.length) return false;
+    return a.every((todoA, i) => {
+      const todoB = b[i];
+      return todoA.content === todoB.content && todoA.status === todoB.status;
+    });
+  }
+
+  /**
    * Get the current TODO list.
    * Updated whenever todo_write succeeds.
    */
@@ -438,7 +450,10 @@ export class StreamingMessageAggregator {
           data.result.success
         ) {
           const args = toolPart.input as { todos: TodoItem[] };
-          this.currentTodos = args.todos;
+          // Only update if todos actually changed (prevents flickering from reference changes)
+          if (!this.todosEqual(this.currentTodos, args.todos)) {
+            this.currentTodos = args.todos;
+          }
         }
       }
       this.invalidateCache();
