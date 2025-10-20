@@ -5,6 +5,10 @@ import { IPC_CHANNELS } from "@/constants/ipc-constants";
 import { log } from "./log";
 import { parseDebugUpdater } from "@/utils/env";
 
+// Update check timeout in milliseconds (30 seconds)
+const UPDATE_CHECK_TIMEOUT_MS = 30_000;
+
+// Backend UpdateStatus type (uses full UpdateInfo from electron-updater)
 export type UpdateStatus =
   | { type: "idle" } // Initial state, no check performed yet
   | { type: "checking" }
@@ -39,11 +43,11 @@ export class UpdaterService {
     this.fakeVersion = debugConfig.fakeVersion;
 
     if (debugConfig.enabled) {
-      log.info("Forcing dev update config (DEBUG_UPDATER is set)");
+      log.debug("Forcing dev update config (DEBUG_UPDATER is set)");
       autoUpdater.forceDevUpdateConfig = true;
       
       if (this.fakeVersion) {
-        log.info(`DEBUG_UPDATER fake version enabled: ${this.fakeVersion}`);
+        log.debug(`DEBUG_UPDATER fake version enabled: ${this.fakeVersion}`);
       }
     }
 
@@ -53,7 +57,7 @@ export class UpdaterService {
 
   private setupEventHandlers() {
     autoUpdater.on("checking-for-update", () => {
-      log.info("Checking for updates...");
+      log.debug("Checking for updates...");
       this.updateStatus = { type: "checking" };
       this.notifyRenderer();
     });
@@ -66,7 +70,7 @@ export class UpdaterService {
     });
 
     autoUpdater.on("update-not-available", () => {
-      log.info("No updates available - up to date");
+      log.debug("No updates available - up to date");
       this.clearCheckTimeout();
       this.updateStatus = { type: "up-to-date" };
       this.notifyRenderer();
@@ -74,7 +78,7 @@ export class UpdaterService {
 
     autoUpdater.on("download-progress", (progress) => {
       const percent = Math.round(progress.percent);
-      log.info(`Download progress: ${percent}%`);
+      log.debug(`Download progress: ${percent}%`);
       this.updateStatus = { type: "downloading", percent };
       this.notifyRenderer();
     });
@@ -107,7 +111,7 @@ export class UpdaterService {
    * Set the main window for sending status updates
    */
   setMainWindow(window: BrowserWindow) {
-    log.info("setMainWindow() called");
+    log.debug("setMainWindow() called");
     this.mainWindow = window;
     // Send current status to newly connected window
     this.notifyRenderer();
@@ -122,19 +126,19 @@ export class UpdaterService {
    * A 30-second timeout ensures we don't stay in "checking" state indefinitely.
    */
   async checkForUpdates(): Promise<void> {
-    log.info("checkForUpdates() called");
+    log.debug("checkForUpdates() called");
     try {
       // Clear any existing timeout
       this.clearCheckTimeout();
       
       // Set checking status immediately
-      log.info("Setting status to 'checking'");
+      log.debug("Setting status to 'checking'");
       this.updateStatus = { type: "checking" };
       this.notifyRenderer();
       
       // If fake version is set, immediately report it as available
       if (this.fakeVersion) {
-        log.info(`Faking update available: ${this.fakeVersion}`);
+        log.debug(`Faking update available: ${this.fakeVersion}`);
         setTimeout(() => {
           this.updateStatus = {
             type: "available",
@@ -148,19 +152,19 @@ export class UpdaterService {
       }
       
       // Set timeout to prevent hanging in "checking" state
-      log.info("Setting 30s timeout");
+      log.debug(`Setting ${UPDATE_CHECK_TIMEOUT_MS}ms timeout`);
       this.checkTimeout = setTimeout(() => {
         if (this.updateStatus.type === "checking") {
-          log.info("Update check timed out after 30s, returning to idle state");
+          log.debug(`Update check timed out after ${UPDATE_CHECK_TIMEOUT_MS}ms, returning to idle state`);
           this.updateStatus = { type: "idle" };
           this.notifyRenderer();
         } else {
-          log.info(`Timeout fired but status already changed to: ${this.updateStatus.type}`);
+          log.debug(`Timeout fired but status already changed to: ${this.updateStatus.type}`);
         }
-      }, 30000); // 30 seconds
+      }, UPDATE_CHECK_TIMEOUT_MS);
       
       // Trigger the check (don't await - it never resolves, just fires events)
-      log.info("Calling autoUpdater.checkForUpdates()");
+      log.debug("Calling autoUpdater.checkForUpdates()");
       autoUpdater.checkForUpdates().catch((error) => {
         this.clearCheckTimeout();
         const message = error instanceof Error ? error.message : "Unknown error";
@@ -187,7 +191,7 @@ export class UpdaterService {
     
     // If using fake version, simulate download progress
     if (this.fakeVersion) {
-      log.info(`Faking download for version ${this.fakeVersion}`);
+      log.debug(`Faking download for version ${this.fakeVersion}`);
       this.updateStatus = { type: "downloading", percent: 0 };
       this.notifyRenderer();
       
@@ -220,7 +224,7 @@ export class UpdaterService {
     
     // If using fake version, just log (can't actually restart with fake update)
     if (this.fakeVersion) {
-      log.info(`Fake update install requested for ${this.fakeVersion} - would restart app here`);
+      log.debug(`Fake update install requested for ${this.fakeVersion} - would restart app here`);
       return;
     }
     
@@ -238,12 +242,12 @@ export class UpdaterService {
    * Notify the renderer process of status changes
    */
   private notifyRenderer() {
-    log.info("notifyRenderer() called, status:", this.updateStatus);
+    log.debug("notifyRenderer() called, status:", this.updateStatus);
     if (this.mainWindow && !this.mainWindow.isDestroyed()) {
-      log.info("Sending status to renderer via IPC");
+      log.debug("Sending status to renderer via IPC");
       this.mainWindow.webContents.send(IPC_CHANNELS.UPDATE_STATUS, this.updateStatus);
     } else {
-      log.info("Cannot send - mainWindow is null or destroyed");
+      log.debug("Cannot send - mainWindow is null or destroyed");
     }
   }
 }

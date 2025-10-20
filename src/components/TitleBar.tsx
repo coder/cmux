@@ -5,6 +5,10 @@ import { TooltipWrapper, Tooltip } from "./Tooltip";
 import type { UpdateStatus } from "@/types/ipc";
 import { isTelemetryEnabled } from "@/telemetry";
 
+// Update check intervals
+const UPDATE_CHECK_INTERVAL_MS = 4 * 60 * 60 * 1000; // 4 hours
+const UPDATE_CHECK_HOVER_COOLDOWN_MS = 60 * 1000; // 1 minute
+
 const TitleBarContainer = styled.div`
   padding: 8px 16px;
   background: #1e1e1e;
@@ -151,12 +155,12 @@ export function TitleBar() {
     // Check for updates on mount
     window.api.update.check().catch(console.error);
 
-    // Check periodically (every 4 hours)
+    // Check periodically
     const checkInterval = setInterval(
       () => {
         window.api.update.check().catch(console.error);
       },
-      4 * 60 * 60 * 1000
+      UPDATE_CHECK_INTERVAL_MS
     );
 
     return () => {
@@ -168,11 +172,10 @@ export function TitleBar() {
   const handleIndicatorHover = () => {
     if (!telemetryEnabled) return;
 
-    // Debounce: Only check once per minute on hover
+    // Debounce: Only check once per cooldown period on hover
     const now = Date.now();
-    const HOVER_CHECK_COOLDOWN = 60 * 1000; // 1 minute
     
-    if (now - lastHoverCheckTime.current < HOVER_CHECK_COOLDOWN) {
+    if (now - lastHoverCheckTime.current < UPDATE_CHECK_HOVER_COOLDOWN_MS) {
       return; // Too soon since last hover check
     }
 
