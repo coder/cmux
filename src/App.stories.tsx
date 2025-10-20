@@ -10,6 +10,7 @@ function setupMockAPI(options: {
   projects?: Map<string, ProjectConfig>;
   workspaces?: FrontendWorkspaceMetadata[];
   selectedWorkspaceId?: string;
+  apiOverrides?: Partial<IPCApi>;
 }) {
   const mockProjects = options.projects ?? new Map();
   const mockWorkspaces = options.workspaces ?? [];
@@ -80,6 +81,7 @@ function setupMockAPI(options: {
       install: () => undefined,
       onStatus: () => () => undefined,
     },
+    ...options.apiOverrides,
   };
 
   // @ts-expect-error - Assigning mock API to window for Storybook
@@ -333,40 +335,37 @@ export const ActiveWorkspaceWithChat: Story = {
       // Set up mock API only once per component instance (not on every render)
       const initialized = useRef(false);
       if (!initialized.current) {
-        const mockProjects = projects;
-        const mockWorkspaces = workspaces;
-
-        const mockApi: IPCApi = {
-          dialog: {
-            selectDirectory: () => Promise.resolve(null),
-          },
-          providers: {
-            setProviderConfig: () => Promise.resolve({ success: true, data: undefined }),
-            list: () => Promise.resolve(["anthropic", "openai"]),
-          },
-          workspace: {
-            create: (projectPath: string, branchName: string) =>
-              Promise.resolve({
-                success: true,
-                metadata: {
-                  id: `${projectPath.split("/").pop() ?? "project"}-${branchName}`,
-                  name: branchName,
-                  projectPath,
-                  projectName: projectPath.split("/").pop() ?? "project",
-                  namedWorkspacePath: `/mock/workspace/${branchName}`,
-                },
-              }),
-            list: () => Promise.resolve(mockWorkspaces),
-            rename: (workspaceId: string) =>
-              Promise.resolve({
-                success: true,
-                data: { newWorkspaceId: workspaceId },
-              }),
-            remove: () => Promise.resolve({ success: true }),
-            fork: () => Promise.resolve({ success: false, error: "Not implemented in mock" }),
-            openTerminal: () => Promise.resolve(undefined),
-            onChat: (workspaceId, callback) => {
-              // Send chat history immediately when subscribed
+        setupMockAPI({
+          projects,
+          workspaces,
+          apiOverrides: {
+            providers: {
+              setProviderConfig: () => Promise.resolve({ success: true, data: undefined }),
+              list: () => Promise.resolve(["anthropic", "openai"]),
+            },
+            workspace: {
+              create: (projectPath: string, branchName: string) =>
+                Promise.resolve({
+                  success: true,
+                  metadata: {
+                    id: `${projectPath.split("/").pop() ?? "project"}-${branchName}`,
+                    name: branchName,
+                    projectPath,
+                    projectName: projectPath.split("/").pop() ?? "project",
+                    namedWorkspacePath: `/mock/workspace/${branchName}`,
+                  },
+                }),
+              list: () => Promise.resolve(workspaces),
+              rename: (workspaceId: string) =>
+                Promise.resolve({
+                  success: true,
+                  data: { newWorkspaceId: workspaceId },
+                }),
+              remove: () => Promise.resolve({ success: true }),
+              fork: () => Promise.resolve({ success: false, error: "Not implemented in mock" }),
+              openTerminal: () => Promise.resolve(undefined),
+              onChat: (workspaceId, callback) => {
+                // Send chat history immediately when subscribed
               setTimeout(() => {
                 // User message
                 callback({
@@ -583,46 +582,21 @@ export const ActiveWorkspaceWithChat: Story = {
                 // Cleanup
               };
             },
-            onMetadata: () => () => undefined,
-            sendMessage: () => Promise.resolve({ success: true, data: undefined }),
-            resumeStream: () => Promise.resolve({ success: true, data: undefined }),
-            interruptStream: () => Promise.resolve({ success: true, data: undefined }),
-            truncateHistory: () => Promise.resolve({ success: true, data: undefined }),
-            replaceChatHistory: () => Promise.resolve({ success: true, data: undefined }),
-            getInfo: () => Promise.resolve(null),
-            executeBash: () =>
-              Promise.resolve({
-                success: true,
-                data: { success: true, output: "", exitCode: 0, wall_duration_ms: 0 },
-              }),
-          },
-          projects: {
-            list: () => Promise.resolve(Array.from(mockProjects.entries())),
-            create: () => Promise.resolve({ success: true, data: { workspaces: [] } }),
-            remove: () => Promise.resolve({ success: true, data: undefined }),
-            listBranches: () =>
-              Promise.resolve({
-                branches: ["main", "develop", "feature/auth"],
-                recommendedTrunk: "main",
-              }),
-            secrets: {
-              get: () => Promise.resolve([]),
-              update: () => Promise.resolve({ success: true, data: undefined }),
+              onMetadata: () => () => undefined,
+              sendMessage: () => Promise.resolve({ success: true, data: undefined }),
+              resumeStream: () => Promise.resolve({ success: true, data: undefined }),
+              interruptStream: () => Promise.resolve({ success: true, data: undefined }),
+              truncateHistory: () => Promise.resolve({ success: true, data: undefined }),
+              replaceChatHistory: () => Promise.resolve({ success: true, data: undefined }),
+              getInfo: () => Promise.resolve(null),
+              executeBash: () =>
+                Promise.resolve({
+                  success: true,
+                  data: { success: true, output: "", exitCode: 0, wall_duration_ms: 0 },
+                }),
             },
           },
-          window: {
-            setTitle: () => Promise.resolve(undefined),
-          },
-          update: {
-            check: () => Promise.resolve(undefined),
-            download: () => Promise.resolve(undefined),
-            install: () => undefined,
-            onStatus: () => () => undefined,
-          },
-        };
-
-        // @ts-expect-error - Assigning mock API to window for Storybook
-        window.api = mockApi;
+        });
 
         // Set initial workspace selection
         localStorage.setItem(
