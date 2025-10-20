@@ -117,18 +117,14 @@ const globalStyles = css`
   }
 
   /* Global styling for markdown code blocks */
-  pre {
+  pre code {
+    display: block;
     background: var(--color-code-bg);
     margin: 1em 0;
     border-radius: 4px;
     font-size: 12px;
     padding: 12px;
     overflow: auto;
-  }
-
-  pre > code {
-    background: transparent;
-    padding: 0;
   }
 `;
 
