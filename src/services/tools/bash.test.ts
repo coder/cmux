@@ -221,7 +221,7 @@ describe("bash tool", () => {
     }
 
     // CRITICAL: Output must NOT contain the 2MB line - should be empty or nearly empty
-    expect(result.output?.length || 0).toBeLessThan(100);
+    expect(result.output?.length ?? 0).toBeLessThan(100);
 
     tempDir[Symbol.dispose]();
   });
