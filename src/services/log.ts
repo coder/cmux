@@ -12,19 +12,9 @@ import * as fs from "fs";
 import * as path from "path";
 import chalk from "chalk";
 import { defaultConfig } from "@/config";
+import { parseBoolEnv } from "@/utils/env";
 
 const DEBUG_OBJ_DIR = path.join(defaultConfig.rootDir, "debug_obj");
-
-/**
- * Parse environment variable as boolean
- * Accepts: "1", "true", "TRUE", "yes", "YES" as true
- * Everything else (including undefined, "0", "false", "FALSE") as false
- */
-function parseBoolEnv(value: string | undefined): boolean {
-  if (!value) return false;
-  const normalized = value.toLowerCase();
-  return normalized === "1" || normalized === "true" || normalized === "yes";
-}
 
 /**
  * Check if debug mode is enabled
@@ -236,10 +226,4 @@ export const log = {
    * Check if debug mode is enabled
    */
   isDebugMode,
-
-  /**
-   * Parse environment variable as boolean
-   * Accepts: "1", "true", "TRUE", "yes", "YES" as true
-   */
-  parseBoolEnv,
 };

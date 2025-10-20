@@ -3,13 +3,7 @@ import type { UpdateInfo } from "electron-updater";
 import type { BrowserWindow } from "electron";
 import { IPC_CHANNELS } from "@/constants/ipc-constants";
 import { log } from "./log";
-
-// Helper to parse boolean env vars consistently
-function parseBoolEnv(value: string | undefined): boolean {
-  if (!value) return false;
-  const normalized = value.toLowerCase();
-  return normalized === "1" || normalized === "true" || normalized === "yes";
-}
+import { parseBoolEnv } from "@/utils/env";
 
 export type UpdateStatus =
   | { type: "idle" } // Initial state, no check performed yet

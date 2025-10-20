@@ -318,8 +318,8 @@ async function loadServices(): Promise<void> {
   loadTokenizerModulesFn = loadTokenizerFn;
 
   // Initialize updater service in packaged builds or when DEBUG_UPDATER is set
-  const { log: logService } = await import("./services/log");
-  const debugUpdaterEnabled = logService.parseBoolEnv(process.env.DEBUG_UPDATER);
+  const { parseBoolEnv } = await import("./utils/env");
+  const debugUpdaterEnabled = parseBoolEnv(process.env.DEBUG_UPDATER);
   
   if (app.isPackaged || debugUpdaterEnabled) {
     updaterService = new UpdaterServiceClass();
