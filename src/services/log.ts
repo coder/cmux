@@ -22,10 +22,25 @@ function isDebugMode(): boolean {
 }
 
 /**
- * Get ISO timestamp for logs
+ * Get kitchen time timestamp for logs (12-hour format with milliseconds)
+ * Format: 8:23.232PM
  */
 function getTimestamp(): string {
-  return new Date().toISOString();
+  const now = new Date();
+  let hours = now.getHours();
+  const minutes = now.getMinutes();
+  const seconds = now.getSeconds();
+  const milliseconds = now.getMilliseconds();
+  
+  const ampm = hours >= 12 ? "PM" : "AM";
+  hours = hours % 12;
+  hours = hours ? hours : 12; // Convert 0 to 12
+  
+  const mm = String(minutes).padStart(2, "0");
+  const ss = String(seconds).padStart(2, "0");
+  const ms = String(milliseconds).padStart(3, "0");
+  
+  return `${hours}:${mm}.${ss}${ms}${ampm}`;
 }
 
 /**
@@ -61,14 +76,17 @@ function getCallerLocation(): string {
 }
 
 /**
- * Pipe-safe logging function with timestamp and caller location prefix
+ * Pipe-safe logging function with styled timestamp and caller location
+ * Format: 8:23.232PM src/main.ts:23 <message>
  * @param level - "info", "error", or "debug"
  * @param args - Arguments to log
  */
 function safePipeLog(level: "info" | "error" | "debug", ...args: unknown[]): void {
   const timestamp = getTimestamp();
   const location = getCallerLocation();
-  const prefix = `[${timestamp}] [${location}]`;
+  
+  // Kitchen time format: 8:23.232PM src/main.ts:23 <msg>
+  const prefix = `${timestamp} ${location}`;
 
   try {
     if (level === "error") {
