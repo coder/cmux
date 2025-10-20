@@ -62,7 +62,7 @@ describe("partitionWorkspacesByAge", () => {
     expect(old).toHaveLength(0);
   });
 
-  it("should handle workspace at exactly 24 hours (should be old)", () => {
+  it("should handle workspace at exactly 24 hours (should show as recent due to always-show-one rule)", () => {
     const workspaces = [createWorkspace("exactly-24h")];
 
     const workspaceRecency = {
@@ -71,12 +71,33 @@ describe("partitionWorkspacesByAge", () => {
 
     const { recent, old } = partitionWorkspacesByAge(workspaces, workspaceRecency);
 
-    expect(recent).toHaveLength(0);
-    expect(old).toHaveLength(1);
-    expect(old[0].id).toBe("exactly-24h");
+    // Even though it's exactly 24 hours old, it should show as recent (always show at least one)
+    expect(recent).toHaveLength(1);
+    expect(recent[0].id).toBe("exactly-24h");
+    expect(old).toHaveLength(0);
   });
 
   it("should preserve workspace order within partitions", () => {
+    const workspaces = [
+      createWorkspace("recent"),
+      createWorkspace("old1"),
+      createWorkspace("old2"),
+      createWorkspace("old3"),
+    ];
+
+    const workspaceRecency = {
+      recent: now - 1000,
+      old1: now - 2 * ONE_DAY_MS,
+      old2: now - 3 * ONE_DAY_MS,
+      old3: now - 4 * ONE_DAY_MS,
+    };
+
+    const { old } = partitionWorkspacesByAge(workspaces, workspaceRecency);
+
+    expect(old.map((w) => w.id)).toEqual(["old1", "old2", "old3"]);
+  });
+
+  it("should always show at least one workspace when all are old", () => {
     const workspaces = [
       createWorkspace("old1"),
       createWorkspace("old2"),
@@ -89,9 +110,15 @@ describe("partitionWorkspacesByAge", () => {
       old3: now - 4 * ONE_DAY_MS,
     };
 
-    const { old } = partitionWorkspacesByAge(workspaces, workspaceRecency);
+    const { recent, old } = partitionWorkspacesByAge(workspaces, workspaceRecency);
 
-    expect(old.map((w) => w.id)).toEqual(["old1", "old2", "old3"]);
+    // Most recent should be moved to recent section
+    expect(recent).toHaveLength(1);
+    expect(recent[0].id).toBe("old1");
+
+    // Remaining should stay in old section
+    expect(old).toHaveLength(2);
+    expect(old.map((w) => w.id)).toEqual(["old2", "old3"]);
   });
 });
 

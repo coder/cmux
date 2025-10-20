@@ -21,6 +21,7 @@ export function formatOldWorkspaceThreshold(): string {
 /**
  * Partition workspaces into recent and old based on recency timestamp.
  * Workspaces with no activity in the last 24 hours are considered "old".
+ * Always shows at least one workspace in the recent section (the most recent one).
  */
 export function partitionWorkspacesByAge(
   workspaces: FrontendWorkspaceMetadata[],
@@ -29,6 +30,10 @@ export function partitionWorkspacesByAge(
   recent: FrontendWorkspaceMetadata[];
   old: FrontendWorkspaceMetadata[];
 } {
+  if (workspaces.length === 0) {
+    return { recent: [], old: [] };
+  }
+
   const now = Date.now();
   const recent: FrontendWorkspaceMetadata[] = [];
   const old: FrontendWorkspaceMetadata[] = [];
@@ -42,6 +47,11 @@ export function partitionWorkspacesByAge(
     } else {
       recent.push(workspace);
     }
+  }
+
+  // Always show at least one workspace - move the most recent from old to recent
+  if (recent.length === 0 && old.length > 0) {
+    recent.push(old.shift()!);
   }
 
   return { recent, old };
