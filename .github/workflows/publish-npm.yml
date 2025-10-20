@@ -24,6 +24,11 @@ jobs:
 
       - uses: ./.github/actions/setup-cmux
 
+      # Sets up .npmrc with the auth token
+      - uses: actions/setup-node@v4
+        with:
+          registry-url: 'https://registry.npmjs.org'
+
       - name: Generate version file
         run: ./scripts/generate-version.sh
 
@@ -43,4 +48,5 @@ jobs:
 
       - name: Publish to NPM
         run: npm publish --tag ${{ steps.npm-tag.outputs.tag }} --provenance
-
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
