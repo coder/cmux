@@ -355,8 +355,8 @@ const NoteTextarea = styled.textarea`
 // Separate component to prevent re-rendering diff lines on every keystroke
 interface ReviewNoteInputProps {
   selection: LineSelection;
-  lineData: Array<{ index: number; type: DiffLineType; lineNum: number; content: string }>;
-  lines: string[];
+  lineData: Array<{ index: number; type: DiffLineType; lineNum: number }>;
+  lines: string[]; // Original diff lines with +/- prefix
   filePath: string;
   onSubmit: (note: string) => void;
   onCancel: () => void;
@@ -390,14 +390,25 @@ const ReviewNoteInput: React.FC<ReviewNoteInputProps> = React.memo(
           : `${selection.startLineNum}-${selection.endLineNum}`;
 
       const [start, end] = [selection.startIndex, selection.endIndex].sort((a, b) => a - b);
-      const selectedLines = lineData
-        .slice(start, end + 1)
-        .map((lineInfo) => {
-          const indicator = lines[lineInfo.index][0];
-          const content = lineInfo.content;
-          return `${lineInfo.lineNum} ${indicator} ${content}`;
-        })
-        .join("\n");
+      const allLines = lineData.slice(start, end + 1).map((lineInfo) => {
+        const line = lines[lineInfo.index];
+        const indicator = line[0]; // +, -, or space
+        const content = line.slice(1); // Remove the indicator
+        return `${lineInfo.lineNum} ${indicator} ${content}`;
+      });
+
+      // Elide middle lines if more than 3 lines selected
+      let selectedLines: string;
+      if (allLines.length <= 3) {
+        selectedLines = allLines.join("\n");
+      } else {
+        const omittedCount = allLines.length - 2;
+        selectedLines = [
+          allLines[0],
+          `    (${omittedCount} lines omitted)`,
+          allLines[allLines.length - 1],
+        ].join("\n");
+      }
 
       const reviewNote = `<review>\nRe ${filePath}:${lineRange}\n\`\`\`\n${selectedLines}\n\`\`\`\n> ${noteText.trim()}\n</review>`;
       onSubmit(reviewNote);
@@ -458,6 +469,7 @@ export const SelectableDiffRenderer = React.memo<SelectableDiffRendererProps>(
     const highlightedChunks = useHighlightedDiff(content, language, oldStart, newStart);
 
     // Build lineData from highlighted chunks (memoized to prevent repeated parsing)
+    // Note: content field is NOT included - must be extracted from lines array when needed
     const lineData = React.useMemo(() => {
       if (!highlightedChunks) return [];
 
@@ -465,7 +477,6 @@ export const SelectableDiffRenderer = React.memo<SelectableDiffRendererProps>(
         index: number;
         type: DiffLineType;
         lineNum: number;
-        content: string;
         html: string;
       }> = [];
 
@@ -475,7 +486,6 @@ export const SelectableDiffRenderer = React.memo<SelectableDiffRendererProps>(
             index: line.originalIndex,
             type: chunk.type,
             lineNum: line.lineNumber,
-            content: "", // Not used in rendering anymore
             html: line.html,
           });
         });
