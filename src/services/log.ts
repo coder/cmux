@@ -16,10 +16,21 @@ import { defaultConfig } from "@/config";
 const DEBUG_OBJ_DIR = path.join(defaultConfig.rootDir, "debug_obj");
 
 /**
+ * Parse environment variable as boolean
+ * Accepts: "1", "true", "TRUE", "yes", "YES" as true
+ * Everything else (including undefined, "0", "false", "FALSE") as false
+ */
+function parseBoolEnv(value: string | undefined): boolean {
+  if (!value) return false;
+  const normalized = value.toLowerCase();
+  return normalized === "1" || normalized === "true" || normalized === "yes";
+}
+
+/**
  * Check if debug mode is enabled
  */
 function isDebugMode(): boolean {
-  return !!process.env.CMUX_DEBUG;
+  return parseBoolEnv(process.env.CMUX_DEBUG);
 }
 
 /**
@@ -225,4 +236,10 @@ export const log = {
    * Check if debug mode is enabled
    */
   isDebugMode,
+
+  /**
+   * Parse environment variable as boolean
+   * Accepts: "1", "true", "TRUE", "yes", "YES" as true
+   */
+  parseBoolEnv,
 };

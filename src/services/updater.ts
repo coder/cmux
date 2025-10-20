@@ -4,6 +4,13 @@ import type { BrowserWindow } from "electron";
 import { IPC_CHANNELS } from "@/constants/ipc-constants";
 import { log } from "./log";
 
+// Helper to parse boolean env vars consistently
+function parseBoolEnv(value: string | undefined): boolean {
+  if (!value) return false;
+  const normalized = value.toLowerCase();
+  return normalized === "1" || normalized === "true" || normalized === "yes";
+}
+
 export type UpdateStatus =
   | { type: "checking" }
   | { type: "available"; info: UpdateInfo }
@@ -30,6 +37,12 @@ export class UpdaterService {
     // Configure auto-updater
     autoUpdater.autoDownload = false; // Wait for user confirmation
     autoUpdater.autoInstallOnAppQuit = true;
+
+    // Enable dev mode if DEBUG_UPDATER is set (allows checking for updates in unpacked app)
+    if (parseBoolEnv(process.env.DEBUG_UPDATER)) {
+      log.info("Forcing dev update config (DEBUG_UPDATER is set)");
+      autoUpdater.forceDevUpdateConfig = true;
+    }
 
     // Set up event handlers
     this.setupEventHandlers();
