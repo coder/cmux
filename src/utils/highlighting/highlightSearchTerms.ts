@@ -5,6 +5,7 @@
 
 import { LRUCache } from "lru-cache";
 import CRC32 from "crc-32";
+import escapeHtml from "escape-html";
 
 export interface SearchHighlightConfig {
   searchTerm: string;
@@ -41,18 +42,6 @@ const domCache = new LRUCache<number, Document>({
  */
 function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-/**
- * Escape HTML entities for safe injection
- */
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
 }
 
 /**
