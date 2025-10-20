@@ -3,6 +3,10 @@ import ReactDOM from "react-dom/client";
 import App from "./App";
 import { initTelemetry, trackAppStarted } from "./telemetry";
 
+// Shims the `window.api` object with the browser API.
+// This occurs if we are not running in Electron.
+import "./browser/api";
+
 // Initialize telemetry on app startup
 initTelemetry();
 trackAppStarted();
