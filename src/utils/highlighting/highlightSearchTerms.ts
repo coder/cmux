@@ -16,9 +16,7 @@ export interface SearchHighlightConfig {
 // Lazy-loaded to avoid DOMParser instantiation in non-browser environments (e.g., tests)
 let parserInstance: DOMParser | null = null;
 const getParser = (): DOMParser => {
-  if (!parserInstance) {
-    parserInstance = new DOMParser();
-  }
+  parserInstance ??= new DOMParser();
   return parserInstance;
 };
 
