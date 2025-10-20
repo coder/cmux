@@ -569,7 +569,9 @@ export const SelectableDiffRenderer = React.memo<SelectableDiffRendererProps>(
                       +
                     </CommentButton>
                     <Tooltip position="bottom" align="left">
-                      Add review comment (Shift-click to select range)
+                      Add review comment
+                      <br />
+                      (Shift-click to select range)
                     </Tooltip>
                   </TooltipWrapper>
                 </CommentButtonWrapper>
