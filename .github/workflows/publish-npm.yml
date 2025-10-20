@@ -48,5 +48,3 @@ jobs:
 
       - name: Publish to NPM
         run: npm publish --tag ${{ steps.npm-tag.outputs.tag }} --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
