@@ -21,12 +21,14 @@ const regexCache = new LRUCache<string, RegExp>({
   max: 100, // Max 100 unique search patterns (plenty for typical usage)
 });
 
-// LRU cache for highlighted HTML results
-// Key: CRC32 checksum of (html + config), Value: highlighted HTML
-const highlightCache = new LRUCache<number, string>({
-  max: 5000, // Max number of cached lines
-  maxSize: 2 * 1024 * 1024, // 2MB total cache size
-  sizeCalculation: (html) => html.length,
+// LRU cache for parsed DOM documents
+// Key: CRC32 checksum of html, Value: parsed Document
+// Caching the parsed DOM is more efficient than caching the final highlighted HTML
+// because the parsing step is identical regardless of search config
+const domCache = new LRUCache<number, Document>({
+  max: 2000, // Max number of cached parsed documents
+  maxSize: 8 * 1024 * 1024, // 8MB total cache size (DOM objects are larger than strings)
+  sizeCalculation: () => 4096, // Rough estimate: ~4KB per parsed document
 });
 
 /**
@@ -66,16 +68,20 @@ export function highlightSearchMatches(html: string, config: SearchHighlightConf
     return html;
   }
 
-  // Check cache first (using CRC32 checksum of html + config as key)
-  const cacheKey = CRC32.str(html + JSON.stringify(config));
-  const cached = highlightCache.get(cacheKey);
-  if (cached !== undefined) {
-    return cached;
-  }
-
   try {
-    // Reuse DOMParser instance for better performance
-    const doc = parserInstance.parseFromString(html, "text/html");
+    // Check cache for parsed DOM (keyed only by html, not search config)
+    const htmlChecksum = CRC32.str(html);
+    let doc = domCache.get(htmlChecksum);
+    
+    if (!doc) {
+      // Parse HTML into DOM for safe manipulation
+      doc = parserInstance.parseFromString(html, "text/html");
+      domCache.set(htmlChecksum, doc);
+    }
+    
+    // Clone the cached DOM so we don't mutate the cached version
+    // This is cheaper than re-parsing and allows cache reuse across different searches
+    const workingDoc = doc.cloneNode(true) as Document;
 
     // Build regex pattern (with caching)
     const regexCacheKey = `${searchTerm}:${useRegex}:${matchCase}`;
@@ -93,8 +99,8 @@ export function highlightSearchMatches(html: string, config: SearchHighlightConf
       }
     }
 
-    // Walk all text nodes and wrap matches
-    walkTextNodes(doc.body, (textNode) => {
+    // Walk all text nodes and wrap matches in the working copy
+    walkTextNodes(workingDoc.body, (textNode) => {
       const text = textNode.textContent || "";
 
       // Quick check: does this text node contain any matches?
@@ -138,12 +144,7 @@ export function highlightSearchMatches(html: string, config: SearchHighlightConf
       textNode.parentNode?.replaceChild(fragment, textNode);
     });
 
-    const result = doc.body.innerHTML;
-
-    // Cache the result for future lookups
-    highlightCache.set(cacheKey, result);
-
-    return result;
+    return workingDoc.body.innerHTML;
   } catch (error) {
     // Failed to parse/process - return original HTML
     console.warn("Failed to highlight search matches:", error);
