@@ -345,12 +345,18 @@ const AIViewInner: React.FC<AIViewProps> = ({
     void window.api.workspace.openTerminal(namedWorkspacePath);
   }, [namedWorkspacePath]);
 
-  // Auto-scroll when messages update (during streaming)
+  // Auto-scroll when messages or todos update (during streaming)
   useEffect(() => {
     if (workspaceState && autoScroll) {
       performAutoScroll();
     }
-  }, [workspaceState?.messages, autoScroll, performAutoScroll, workspaceState]);
+  }, [
+    workspaceState?.messages,
+    workspaceState?.todos,
+    autoScroll,
+    performAutoScroll,
+    workspaceState,
+  ]);
 
   // Scroll to bottom when workspace loads or changes
   useEffect(() => {
