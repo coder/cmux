@@ -4,7 +4,7 @@
   "description": "cmux - coder multiplexer",
   "main": "dist/main.js",
   "bin": {
-    "cmux": "dist/main.js"
+    "cmux": "bin/cmux.js"
   },
   "license": "AGPL-3.0-only",
   "repository": {
@@ -136,6 +136,7 @@
     "vite-plugin-top-level-await": "^1.6.0"
   },
   "files": [
+    "bin/cmux.js",
     "dist/**/*.js",
     "dist/**/*.js.map",
     "dist/**/*.wasm",
