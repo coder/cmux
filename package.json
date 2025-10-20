@@ -37,7 +37,6 @@
     "@ai-sdk/openai": "^2.0.52",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
-    "@shikijs/rehype": "^3.13.0",
     "ai": "^5.0.72",
     "ai-tokenizer": "^1.0.3",
     "chalk": "^5.6.2",

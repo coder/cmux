@@ -6,8 +6,6 @@ import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
-import rehypeShiki from "@shikijs/rehype";
-import { SHIKI_THEME } from "@/utils/highlighting/shikiHighlighter";
 import "katex/dist/katex.min.css";
 import { normalizeMarkdown } from "./MarkdownStyles";
 import { markdownComponents } from "./MarkdownComponents";
@@ -36,15 +34,6 @@ const REHYPE_PLUGINS: PluggableList = [
   rehypeRaw, // Parse HTML elements
   [rehypeSanitize, SANITIZE_SCHEMA], // Sanitize to whitelist only
   rehypeKatex, // Render math (must be after sanitization)
-  [
-    rehypeShiki,
-    {
-      theme: SHIKI_THEME,
-      // Note: lazy must be false because ReactMarkdown uses runSync (not async)
-      // Languages are loaded on-demand by the shared highlighter instance
-      lazy: false,
-    },
-  ],
 ];
 
 /**
