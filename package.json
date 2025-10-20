@@ -12,8 +12,7 @@
     "url": "https://github.com/coder/cmux.git"
   },
   "publishConfig": {
-    "access": "public",
-    "provenance": true
+    "access": "public"
   },
   "scripts": {
     "dev": "make dev",
