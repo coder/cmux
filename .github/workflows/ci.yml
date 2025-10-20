@@ -67,7 +67,7 @@ jobs:
       - uses: ./.github/actions/setup-cmux
 
       - name: Run tests with coverage
-        run: bun test --coverage src
+        run: bun test --coverage --coverage-reporter=lcov src
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
