@@ -178,7 +178,9 @@ function useHighlightedDiff(
       const diffChunks = groupDiffLines(lines, oldStart, newStart);
 
       // Highlight each chunk (without search decorations - those are applied later)
-      const highlighted = await Promise.all(diffChunks.map((chunk) => highlightDiffChunk(chunk, language)));
+      const highlighted = await Promise.all(
+        diffChunks.map((chunk) => highlightDiffChunk(chunk, language))
+      );
 
       if (!cancelled) {
         setChunks(highlighted);

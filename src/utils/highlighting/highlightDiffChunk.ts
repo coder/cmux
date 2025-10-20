@@ -1,4 +1,9 @@
-import { getShikiHighlighter, mapToShikiLang, SHIKI_THEME, MAX_DIFF_SIZE_BYTES } from "./shikiHighlighter";
+import {
+  getShikiHighlighter,
+  mapToShikiLang,
+  SHIKI_THEME,
+  MAX_DIFF_SIZE_BYTES,
+} from "./shikiHighlighter";
 import type { DiffChunk } from "./diffChunking";
 
 /**
@@ -49,7 +54,8 @@ export async function highlightDiffChunk(
 
   // Enforce size limit for performance
   // Calculate size by summing line lengths + newlines (more performant than TextEncoder)
-  const sizeBytes = chunk.lines.reduce((total, line) => total + line.length, 0) + chunk.lines.length - 1;
+  const sizeBytes =
+    chunk.lines.reduce((total, line) => total + line.length, 0) + chunk.lines.length - 1;
   if (sizeBytes > MAX_DIFF_SIZE_BYTES) {
     return createFallbackChunk(chunk);
   }

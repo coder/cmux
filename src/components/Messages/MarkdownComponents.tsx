@@ -1,7 +1,11 @@
 import type { ReactNode } from "react";
 import React, { useState, useEffect } from "react";
 import { Mermaid } from "./Mermaid";
-import { getShikiHighlighter, mapToShikiLang, SHIKI_THEME } from "@/utils/highlighting/shikiHighlighter";
+import {
+  getShikiHighlighter,
+  mapToShikiLang,
+  SHIKI_THEME,
+} from "@/utils/highlighting/shikiHighlighter";
 
 interface CodeProps {
   node?: unknown;
