@@ -1,6 +1,4 @@
-/**
- * The main CLI entrypoint for cmux.
- */
+#!/usr/bin/env node
 
 const isServer = process.argv.length > 2 && process.argv[2] === "server";
 
