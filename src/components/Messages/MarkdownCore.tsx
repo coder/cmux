@@ -40,8 +40,9 @@ const REHYPE_PLUGINS: PluggableList = [
     rehypeShiki,
     {
       theme: SHIKI_THEME,
-      // Load languages on-demand for better performance
-      lazy: true,
+      // Note: lazy must be false because ReactMarkdown uses runSync (not async)
+      // Languages are loaded on-demand by the shared highlighter instance
+      lazy: false,
     },
   ],
 ];
