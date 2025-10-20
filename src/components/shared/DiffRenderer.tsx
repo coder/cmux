@@ -4,13 +4,12 @@
  * ReviewPanel uses SelectableDiffRenderer for interactive line selection.
  */
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import styled from "@emotion/styled";
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { syntaxStyleNoBackgrounds } from "@/styles/syntaxHighlighting";
 import { getLanguageFromPath } from "@/utils/git/languageDetector";
 import { Tooltip, TooltipWrapper } from "../Tooltip";
-import "@/styles/prism-syntax.css";
+import { groupDiffLines } from "@/utils/highlighting/diffChunking";
+import { highlightDiffChunk, type HighlightedChunk } from "@/utils/highlighting/highlightDiffChunk";
 
 // Shared type for diff line types
 export type DiffLineType = "add" | "remove" | "context" | "header";
@@ -97,6 +96,11 @@ export const LineContent = styled.span<{ type: DiffLineType }>`
         return "var(--color-text)";
     }
   }};
+
+  /* Ensure Shiki spans don't interfere with diff backgrounds */
+  span {
+    background: transparent !important;
+  }
 `;
 
 export const DiffIndicator = styled.span<{ type: DiffLineType }>`
@@ -147,43 +151,46 @@ interface DiffRendererProps {
 }
 
 /**
- * Highlighted code content - wraps syntax highlighted tokens
- * This component applies syntax highlighting while preserving diff styling
+ * Hook to pre-process and highlight diff content in chunks
+ * Runs once when content/language changes
  */
-const HighlightedContent = React.memo<{ code: string; language: string }>(({ code, language }) => {
-  // Don't highlight if language is unknown
-  if (language === "text") {
-    return <>{code}</>;
-  }
+function useHighlightedDiff(
+  content: string,
+  language: string,
+  oldStart: number,
+  newStart: number
+): HighlightedChunk[] | null {
+  const [chunks, setChunks] = useState<HighlightedChunk[] | null>(null);
 
-  return (
-    <SyntaxHighlighter
-      language={language}
-      style={syntaxStyleNoBackgrounds}
-      useInlineStyles={false}
-      PreTag="span"
-      CodeTag="span"
-      customStyle={{
-        display: "inline",
-        padding: 0,
-        margin: 0,
-        background: "transparent",
-        fontSize: "inherit",
-      }}
-      codeTagProps={{
-        style: {
-          display: "inline",
-          fontFamily: "inherit",
-          fontSize: "inherit",
-        },
-      }}
-    >
-      {code}
-    </SyntaxHighlighter>
-  );
-});
+  useEffect(() => {
+    let cancelled = false;
 
-HighlightedContent.displayName = "HighlightedContent";
+    async function highlight() {
+      // Split into lines
+      const lines = content.split("\n").filter((line) => line.length > 0);
+
+      // Group into chunks
+      const diffChunks = groupDiffLines(lines, oldStart, newStart);
+
+      // Highlight each chunk
+      const highlighted = await Promise.all(
+        diffChunks.map((chunk) => highlightDiffChunk(chunk, language))
+      );
+
+      if (!cancelled) {
+        setChunks(highlighted);
+      }
+    }
+
+    void highlight();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [content, language, oldStart, newStart]);
+
+  return chunks;
+}
 
 /**
  * DiffRenderer - Renders diff content with consistent styling
@@ -203,65 +210,41 @@ export const DiffRenderer: React.FC<DiffRendererProps> = ({
   fontSize,
   maxHeight,
 }) => {
-  const lines = content.split("\n").filter((line) => line.length > 0);
-
   // Detect language for syntax highlighting (memoized to prevent repeated detection)
   const language = React.useMemo(
     () => (filePath ? getLanguageFromPath(filePath) : "text"),
     [filePath]
   );
 
-  let oldLineNum = oldStart;
-  let newLineNum = newStart;
+  const highlightedChunks = useHighlightedDiff(content, language, oldStart, newStart);
+
+  // Show loading state while highlighting
+  if (!highlightedChunks) {
+    return (
+      <DiffContainer fontSize={fontSize} maxHeight={maxHeight}>
+        <div style={{ opacity: 0.5, padding: "8px" }}>Processing...</div>
+      </DiffContainer>
+    );
+  }
 
   return (
     <DiffContainer fontSize={fontSize} maxHeight={maxHeight}>
-      {lines.map((line, index) => {
-        const firstChar = line[0];
-        const lineContent = line.slice(1); // Remove the +/-/@ prefix
-        let type: DiffLineType = "context";
-        let lineNumDisplay = "";
-
-        // Detect header lines (@@) - parse for line numbers but don't render
-        if (line.startsWith("@@")) {
-          // Parse hunk header for line numbers
-          const regex = /^@@\s+-(\d+)(?:,\d+)?\s+\+(\d+)(?:,\d+)?\s+@@/;
-          const match = regex.exec(line);
-          if (match) {
-            oldLineNum = parseInt(match[1], 10);
-            newLineNum = parseInt(match[2], 10);
-          }
-          // Don't render the header - it cuts off file names
-          return null;
-        }
-
-        if (firstChar === "+") {
-          type = "add";
-          lineNumDisplay = `${newLineNum}`;
-          newLineNum++;
-        } else if (firstChar === "-") {
-          type = "remove";
-          lineNumDisplay = `${oldLineNum}`;
-          oldLineNum++;
-        } else {
-          // Context line
-          lineNumDisplay = `${oldLineNum}`;
-          oldLineNum++;
-          newLineNum++;
-        }
-
-        return (
-          <DiffLineWrapper key={index} type={type}>
-            <DiffLine type={type}>
-              <DiffIndicator type={type}>{firstChar}</DiffIndicator>
-              {showLineNumbers && <LineNumber type={type}>{lineNumDisplay}</LineNumber>}
-              <LineContent type={type}>
-                <HighlightedContent code={lineContent} language={language} />
-              </LineContent>
-            </DiffLine>
-          </DiffLineWrapper>
-        );
-      })}
+      {highlightedChunks.flatMap((chunk) =>
+        chunk.lines.map((line) => {
+          const indicator = chunk.type === "add" ? "+" : chunk.type === "remove" ? "-" : " ";
+          return (
+            <DiffLineWrapper key={line.originalIndex} type={chunk.type}>
+              <DiffLine type={chunk.type}>
+                <DiffIndicator type={chunk.type}>{indicator}</DiffIndicator>
+                {showLineNumbers && <LineNumber type={chunk.type}>{line.lineNumber}</LineNumber>}
+                <LineContent type={chunk.type}>
+                  <span dangerouslySetInnerHTML={{ __html: line.html }} />
+                </LineContent>
+              </DiffLine>
+            </DiffLineWrapper>
+          );
+        })
+      )}
     </DiffContainer>
   );
 };
@@ -372,8 +355,8 @@ const NoteTextarea = styled.textarea`
 // Separate component to prevent re-rendering diff lines on every keystroke
 interface ReviewNoteInputProps {
   selection: LineSelection;
-  lineData: Array<{ index: number; type: DiffLineType; lineNum: number; content: string }>;
-  lines: string[];
+  lineData: Array<{ index: number; type: DiffLineType; lineNum: number }>;
+  lines: string[]; // Original diff lines with +/- prefix
   filePath: string;
   onSubmit: (note: string) => void;
   onCancel: () => void;
@@ -407,14 +390,25 @@ const ReviewNoteInput: React.FC<ReviewNoteInputProps> = React.memo(
           : `${selection.startLineNum}-${selection.endLineNum}`;
 
       const [start, end] = [selection.startIndex, selection.endIndex].sort((a, b) => a - b);
-      const selectedLines = lineData
-        .slice(start, end + 1)
-        .map((lineInfo) => {
-          const indicator = lines[lineInfo.index][0];
-          const content = lineInfo.content;
-          return `${lineInfo.lineNum} ${indicator} ${content}`;
-        })
-        .join("\n");
+      const allLines = lineData.slice(start, end + 1).map((lineInfo) => {
+        const line = lines[lineInfo.index];
+        const indicator = line[0]; // +, -, or space
+        const content = line.slice(1); // Remove the indicator
+        return `${lineInfo.lineNum} ${indicator} ${content}`;
+      });
+
+      // Elide middle lines if more than 3 lines selected
+      let selectedLines: string;
+      if (allLines.length <= 3) {
+        selectedLines = allLines.join("\n");
+      } else {
+        const omittedCount = allLines.length - 2;
+        selectedLines = [
+          allLines[0],
+          `    (${omittedCount} lines omitted)`,
+          allLines[allLines.length - 1],
+        ].join("\n");
+      }
 
       const reviewNote = `<review>\nRe ${filePath}:${lineRange}\n\`\`\`\n${selectedLines}\n\`\`\`\n> ${noteText.trim()}\n</review>`;
       onSubmit(reviewNote);
@@ -472,58 +466,33 @@ export const SelectableDiffRenderer = React.memo<SelectableDiffRendererProps>(
       [filePath]
     );
 
-    // Parse lines to get line numbers (memoized to prevent repeated parsing)
+    const highlightedChunks = useHighlightedDiff(content, language, oldStart, newStart);
+
+    // Build lineData from highlighted chunks (memoized to prevent repeated parsing)
+    // Note: content field is NOT included - must be extracted from lines array when needed
     const lineData = React.useMemo(() => {
-      const lines = content.split("\n").filter((line) => line.length > 0);
+      if (!highlightedChunks) return [];
+
       const data: Array<{
         index: number;
         type: DiffLineType;
         lineNum: number;
-        content: string;
+        html: string;
       }> = [];
 
-      let oldLineNum = oldStart;
-      let newLineNum = newStart;
-
-      lines.forEach((line, index) => {
-        const firstChar = line[0];
-
-        // Skip header lines
-        if (line.startsWith("@@")) {
-          const regex = /^@@\s+-(\d+)(?:,\d+)?\s+\+(\d+)(?:,\d+)?\s+@@/;
-          const match = regex.exec(line);
-          if (match) {
-            oldLineNum = parseInt(match[1], 10);
-            newLineNum = parseInt(match[2], 10);
-          }
-          return;
-        }
-
-        let type: DiffLineType = "context";
-        let lineNum = 0;
-
-        if (firstChar === "+") {
-          type = "add";
-          lineNum = newLineNum++;
-        } else if (firstChar === "-") {
-          type = "remove";
-          lineNum = oldLineNum++;
-        } else {
-          lineNum = newLineNum;
-          oldLineNum++;
-          newLineNum++;
-        }
-
-        data.push({
-          index,
-          type,
-          lineNum,
-          content: line.slice(1),
+      highlightedChunks.forEach((chunk) => {
+        chunk.lines.forEach((line) => {
+          data.push({
+            index: line.originalIndex,
+            type: chunk.type,
+            lineNum: line.lineNumber,
+            html: line.html,
+          });
         });
       });
 
       return data;
-    }, [content, oldStart, newStart]);
+    }, [highlightedChunks]);
 
     const handleCommentButtonClick = (lineIndex: number, shiftKey: boolean) => {
       // Notify parent that this hunk should become active
@@ -567,6 +536,15 @@ export const SelectableDiffRenderer = React.memo<SelectableDiffRendererProps>(
       return index >= start && index <= end;
     };
 
+    // Show loading state while highlighting
+    if (!highlightedChunks || lineData.length === 0) {
+      return (
+        <DiffContainer fontSize={fontSize} maxHeight={maxHeight}>
+          <div style={{ opacity: 0.5, padding: "8px" }}>Processing...</div>
+        </DiffContainer>
+      );
+    }
+
     // Extract lines for rendering (done once, outside map)
     const lines = content.split("\n").filter((line) => line.length > 0);
 
@@ -574,6 +552,7 @@ export const SelectableDiffRenderer = React.memo<SelectableDiffRendererProps>(
       <DiffContainer fontSize={fontSize} maxHeight={maxHeight}>
         {lineData.map((lineInfo, displayIndex) => {
           const isSelected = isLineSelected(displayIndex);
+          const indicator = lineInfo.type === "add" ? "+" : lineInfo.type === "remove" ? "-" : " ";
 
           return (
             <React.Fragment key={displayIndex}>
@@ -595,12 +574,12 @@ export const SelectableDiffRenderer = React.memo<SelectableDiffRendererProps>(
                   </TooltipWrapper>
                 </CommentButtonWrapper>
                 <DiffLine type={lineInfo.type}>
-                  <DiffIndicator type={lineInfo.type}>{lines[lineInfo.index][0]}</DiffIndicator>
+                  <DiffIndicator type={lineInfo.type}>{indicator}</DiffIndicator>
                   {showLineNumbers && (
                     <LineNumber type={lineInfo.type}>{lineInfo.lineNum}</LineNumber>
                   )}
                   <LineContent type={lineInfo.type}>
-                    <HighlightedContent code={lineInfo.content} language={language} />
+                    <span dangerouslySetInnerHTML={{ __html: lineInfo.html }} />
                   </LineContent>
                 </DiffLine>
               </SelectableDiffLineWrapper>

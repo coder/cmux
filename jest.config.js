@@ -25,6 +25,8 @@ module.exports = {
       },
     ],
   },
+  // Transform ESM modules (like shiki) to CommonJS for Jest
+  transformIgnorePatterns: ["node_modules/(?!(shiki)/)"],
   // Run tests in parallel (use 50% of available cores, or 4 minimum)
   maxWorkers: "50%",
   // Force exit after tests complete to avoid hanging on lingering handles
