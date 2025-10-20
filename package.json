@@ -40,6 +40,7 @@
     "@types/react-syntax-highlighter": "^15.5.13",
     "ai": "^5.0.72",
     "ai-tokenizer": "^1.0.3",
+    "chalk": "^5.6.2",
     "cmdk": "^1.0.0",
     "crc-32": "^1.2.2",
     "diff": "^8.0.2",

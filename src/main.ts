@@ -323,6 +323,10 @@ async function loadServices(): Promise<void> {
     console.log(
       `[${timestamp()}] Updater service initialized (packaged: ${app.isPackaged}, debug: ${process.env.DEBUG_UPDATER === "1"})`
     );
+  } else {
+    console.log(
+      `[${timestamp()}] Updater service disabled in dev mode (set DEBUG_UPDATER=1 to enable)`
+    );
   }
 
   const loadTime = Date.now() - startTime;
@@ -363,10 +367,9 @@ function createWindow() {
   electronIpcMain.handle(IPC_CHANNELS.UPDATE_CHECK, async () => {
     // Note: log interface already includes timestamp and file location
     const { log } = await import("./services/log");
-    log.info(`UPDATE_CHECK called (updaterService: ${updaterService ? "available" : "null"})`);
+    log.debug(`UPDATE_CHECK called (updaterService: ${updaterService ? "available" : "null"})`);
     if (!updaterService) {
       // Send "not-available" status if updater not initialized (dev mode without DEBUG_UPDATER)
-      log.info("Updater not available, sending 'not-available' status to renderer");
       if (mainWindow) {
         mainWindow.webContents.send(IPC_CHANNELS.UPDATE_STATUS, { 
           type: "not-available" as const
@@ -374,7 +377,7 @@ function createWindow() {
       }
       return;
     }
-    log.info("Calling updaterService.checkForUpdates()");
+    log.debug("Calling updaterService.checkForUpdates()");
     await updaterService.checkForUpdates();
   });
 
@@ -389,12 +392,13 @@ function createWindow() {
   });
 
   // Handle status subscription requests
+  // Note: React StrictMode in dev causes components to mount twice, resulting in duplicate calls
   electronIpcMain.on(IPC_CHANNELS.UPDATE_STATUS_SUBSCRIBE, async () => {
     const { log } = await import("./services/log");
-    log.info("UPDATE_STATUS_SUBSCRIBE called");
+    log.debug("UPDATE_STATUS_SUBSCRIBE called");
     if (!mainWindow) return;
     const status = updaterService ? updaterService.getStatus() : { type: "not-available" };
-    log.info("Sending current status to renderer:", status);
+    log.debug("Sending current status to renderer:", status);
     mainWindow.webContents.send(IPC_CHANNELS.UPDATE_STATUS, status);
   });
 
