@@ -8,6 +8,13 @@ import type { DisplayedMessage } from "@/types/message";
  * - useResumeManager: To determine if workspace is eligible for auto-retry
  *
  * This ensures DRY - both use the same logic for what constitutes a retryable state.
+ *
+ * Returns true if:
+ * 1. Last message is a stream-error
+ * 2. Last message is a partial assistant/tool/reasoning message
+ * 3. Last message is a user message (indicating we sent it but never got a response)
+ *    - This handles app restarts during slow model responses (models can take 30-60s to first token)
+ *    - User messages are only at the end when response hasn't started/completed
  */
 export function hasInterruptedStream(messages: DisplayedMessage[]): boolean {
   if (messages.length === 0) return false;
@@ -16,6 +23,7 @@ export function hasInterruptedStream(messages: DisplayedMessage[]): boolean {
 
   return (
     lastMessage.type === "stream-error" || // Stream errored out
+    lastMessage.type === "user" || // No response received yet (e.g., app restarted during slow model)
     (lastMessage.type === "assistant" && lastMessage.isPartial === true) ||
     (lastMessage.type === "tool" && lastMessage.isPartial === true) ||
     (lastMessage.type === "reasoning" && lastMessage.isPartial === true)
