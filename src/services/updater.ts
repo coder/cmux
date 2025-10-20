@@ -2,6 +2,7 @@ import { autoUpdater } from "electron-updater";
 import type { UpdateInfo } from "electron-updater";
 import type { BrowserWindow } from "electron";
 import { IPC_CHANNELS } from "@/constants/ipc-constants";
+import { log } from "./log";
 
 export type UpdateStatus =
   | { type: "checking" }
@@ -36,20 +37,20 @@ export class UpdaterService {
 
   private setupEventHandlers() {
     autoUpdater.on("checking-for-update", () => {
-      console.log("Checking for updates...");
+      log.info("Checking for updates...");
       this.updateStatus = { type: "checking" };
       this.notifyRenderer();
     });
 
     autoUpdater.on("update-available", (info: UpdateInfo) => {
-      console.log("Update available:", info.version);
+      log.info("Update available:", info.version);
       this.clearCheckTimeout();
       this.updateStatus = { type: "available", info };
       this.notifyRenderer();
     });
 
     autoUpdater.on("update-not-available", () => {
-      console.log("No updates available");
+      log.info("No updates available");
       this.clearCheckTimeout();
       this.updateStatus = { type: "not-available" };
       this.notifyRenderer();
@@ -57,19 +58,19 @@ export class UpdaterService {
 
     autoUpdater.on("download-progress", (progress) => {
       const percent = Math.round(progress.percent);
-      console.log(`Download progress: ${percent}%`);
+      log.info(`Download progress: ${percent}%`);
       this.updateStatus = { type: "downloading", percent };
       this.notifyRenderer();
     });
 
     autoUpdater.on("update-downloaded", (info: UpdateInfo) => {
-      console.log("Update downloaded:", info.version);
+      log.info("Update downloaded:", info.version);
       this.updateStatus = { type: "downloaded", info };
       this.notifyRenderer();
     });
 
     autoUpdater.on("error", (error) => {
-      console.error("Update error:", error);
+      log.error("Update error:", error);
       this.clearCheckTimeout();
       this.updateStatus = { type: "error", message: error.message };
       this.notifyRenderer();
@@ -90,7 +91,7 @@ export class UpdaterService {
    * Set the main window for sending status updates
    */
   setMainWindow(window: BrowserWindow) {
-    console.log("[UpdaterService] setMainWindow() called");
+    log.info("setMainWindow() called");
     this.mainWindow = window;
     // Send current status to newly connected window
     this.notifyRenderer();
@@ -105,41 +106,41 @@ export class UpdaterService {
    * A 30-second timeout ensures we don't stay in "checking" state indefinitely.
    */
   async checkForUpdates(): Promise<void> {
-    console.log("[UpdaterService] checkForUpdates() called");
+    log.info("checkForUpdates() called");
     try {
       // Clear any existing timeout
       this.clearCheckTimeout();
       
       // Set checking status immediately
-      console.log("[UpdaterService] Setting status to 'checking'");
+      log.info("Setting status to 'checking'");
       this.updateStatus = { type: "checking" };
       this.notifyRenderer();
       
       // Set timeout to prevent hanging in "checking" state
-      console.log("[UpdaterService] Setting 30s timeout");
+      log.info("Setting 30s timeout");
       this.checkTimeout = setTimeout(() => {
         if (this.updateStatus.type === "checking") {
-          console.log("[UpdaterService] Update check timed out after 30s, setting to 'not-available'");
+          log.info("Update check timed out after 30s, setting to 'not-available'");
           this.updateStatus = { type: "not-available" };
           this.notifyRenderer();
         } else {
-          console.log(`[UpdaterService] Timeout fired but status already changed to: ${this.updateStatus.type}`);
+          log.info(`Timeout fired but status already changed to: ${this.updateStatus.type}`);
         }
       }, 30000); // 30 seconds
       
       // Trigger the check (don't await - it never resolves, just fires events)
-      console.log("[UpdaterService] Calling autoUpdater.checkForUpdates()");
+      log.info("Calling autoUpdater.checkForUpdates()");
       autoUpdater.checkForUpdates().catch((error) => {
         this.clearCheckTimeout();
         const message = error instanceof Error ? error.message : "Unknown error";
-        console.error("[UpdaterService] Update check failed:", message);
+        log.error("Update check failed:", message);
         this.updateStatus = { type: "error", message };
         this.notifyRenderer();
       });
     } catch (error) {
       this.clearCheckTimeout();
       const message = error instanceof Error ? error.message : "Unknown error";
-      console.error("[UpdaterService] Update check error:", message);
+      log.error("Update check error:", message);
       this.updateStatus = { type: "error", message };
       this.notifyRenderer();
     }
@@ -176,12 +177,12 @@ export class UpdaterService {
    * Notify the renderer process of status changes
    */
   private notifyRenderer() {
-    console.log("[UpdaterService] notifyRenderer() called, status:", this.updateStatus);
+    log.info("notifyRenderer() called, status:", this.updateStatus);
     if (this.mainWindow && !this.mainWindow.isDestroyed()) {
-      console.log("[UpdaterService] Sending status to renderer via IPC");
+      log.info("Sending status to renderer via IPC");
       this.mainWindow.webContents.send(IPC_CHANNELS.UPDATE_STATUS, this.updateStatus);
     } else {
-      console.log("[UpdaterService] Cannot send - mainWindow is null or destroyed");
+      log.info("Cannot send - mainWindow is null or destroyed");
     }
   }
 }

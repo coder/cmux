@@ -361,14 +361,12 @@ function createWindow() {
 
   // Register updater IPC handlers (available in both dev and prod)
   electronIpcMain.handle(IPC_CHANNELS.UPDATE_CHECK, async () => {
-    console.log(
-      `[${timestamp()}] UPDATE_CHECK called (updaterService: ${updaterService ? "available" : "null"})`
-    );
+    // Note: log interface already includes timestamp and file location
+    const { log } = await import("./services/log");
+    log.info(`UPDATE_CHECK called (updaterService: ${updaterService ? "available" : "null"})`);
     if (!updaterService) {
       // Send "not-available" status if updater not initialized (dev mode without DEBUG_UPDATER)
-      console.log(
-        `[${timestamp()}] Updater not available, sending 'not-available' status to renderer`
-      );
+      log.info("Updater not available, sending 'not-available' status to renderer");
       if (mainWindow) {
         mainWindow.webContents.send(IPC_CHANNELS.UPDATE_STATUS, { 
           type: "not-available" as const
@@ -376,7 +374,7 @@ function createWindow() {
       }
       return;
     }
-    console.log(`[${timestamp()}] Calling updaterService.checkForUpdates()`);
+    log.info("Calling updaterService.checkForUpdates()");
     await updaterService.checkForUpdates();
   });
 
@@ -391,11 +389,12 @@ function createWindow() {
   });
 
   // Handle status subscription requests
-  electronIpcMain.on(IPC_CHANNELS.UPDATE_STATUS_SUBSCRIBE, () => {
-    console.log(`[${timestamp()}] UPDATE_STATUS_SUBSCRIBE called`);
+  electronIpcMain.on(IPC_CHANNELS.UPDATE_STATUS_SUBSCRIBE, async () => {
+    const { log } = await import("./services/log");
+    log.info("UPDATE_STATUS_SUBSCRIBE called");
     if (!mainWindow) return;
     const status = updaterService ? updaterService.getStatus() : { type: "not-available" };
-    console.log(`[${timestamp()}] Sending current status to renderer:`, status);
+    log.info("Sending current status to renderer:", status);
     mainWindow.webContents.send(IPC_CHANNELS.UPDATE_STATUS, status);
   });
 

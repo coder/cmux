@@ -22,6 +22,13 @@ function isDebugMode(): boolean {
 }
 
 /**
+ * Get ISO timestamp for logs
+ */
+function getTimestamp(): string {
+  return new Date().toISOString();
+}
+
+/**
  * Get the caller's file path and line number from the stack trace
  * Returns format: "path/to/file.ts:123"
  */
@@ -54,13 +61,14 @@ function getCallerLocation(): string {
 }
 
 /**
- * Pipe-safe logging function with caller location prefix
+ * Pipe-safe logging function with timestamp and caller location prefix
  * @param level - "info", "error", or "debug"
  * @param args - Arguments to log
  */
 function safePipeLog(level: "info" | "error" | "debug", ...args: unknown[]): void {
+  const timestamp = getTimestamp();
   const location = getCallerLocation();
-  const prefix = `[${location}]`;
+  const prefix = `[${timestamp}] [${location}]`;
 
   try {
     if (level === "error") {
