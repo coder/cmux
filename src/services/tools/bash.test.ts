@@ -177,7 +177,7 @@ describe("bash tool", () => {
     expect(result.success).toBe(true);
     expect(result.truncated).toBeDefined();
     if (result.truncated) {
-      expect(result.truncated.reason).toContain("exceeded");
+      expect(result.truncated.reason).toContain("exceed");
       // Should collect lines up to ~1MB (around 1150-1170 lines with 900 bytes each)
       expect(result.truncated.totalLines).toBeGreaterThan(1000);
       expect(result.truncated.totalLines).toBeLessThan(1300);
@@ -191,6 +191,72 @@ describe("bash tool", () => {
     const files = fs.readdirSync(tempDir.path);
     const bashFiles = files.filter((f) => f.startsWith("bash-"));
     expect(bashFiles.length).toBe(0);
+
+    tempDir[Symbol.dispose]();
+  });
+
+  it("should reject single overlong line before storing it (IPC mode)", async () => {
+    const tempDir = new TestTempDir("test-bash-overlong-line");
+    const tool = createBashTool({
+      cwd: process.cwd(),
+      tempDir: tempDir.path,
+      overflow_policy: "truncate",
+    });
+
+    const args: BashToolArgs = {
+      // Generate a single 2MB line (exceeds 1MB total limit)
+      script: 'perl -e \'print "A" x 2000000 . "\\n"\'',
+      timeout_secs: 5,
+    };
+
+    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
+
+    // Should succeed but with truncation before storing the overlong line
+    expect(result.success).toBe(true);
+    expect(result.truncated).toBeDefined();
+    if (result.truncated) {
+      expect(result.truncated.reason).toContain("would exceed file preservation limit");
+      // Should have 0 lines collected since the first line was too long
+      expect(result.truncated.totalLines).toBe(0);
+    }
+
+    // CRITICAL: Output must NOT contain the 2MB line - should be empty or nearly empty
+    expect(result.output?.length || 0).toBeLessThan(100);
+
+    tempDir[Symbol.dispose]();
+  });
+
+  it("should reject overlong line at boundary (IPC mode)", async () => {
+    const tempDir = new TestTempDir("test-bash-boundary");
+    const tool = createBashTool({
+      cwd: process.cwd(),
+      tempDir: tempDir.path,
+      overflow_policy: "truncate",
+    });
+
+    const args: BashToolArgs = {
+      // First line: 500KB (within limit)
+      // Second line: 600KB (would exceed 1MB when added)
+      script: 'perl -e \'print "A" x 500000 . "\\n"; print "B" x 600000 . "\\n"\'',
+      timeout_secs: 5,
+    };
+
+    const result = (await tool.execute!(args, mockToolCallOptions)) as BashToolResult;
+
+    expect(result.success).toBe(true);
+    expect(result.truncated).toBeDefined();
+    if (result.truncated) {
+      expect(result.truncated.reason).toContain("would exceed");
+      // Should have collected exactly 1 line (the 500KB line)
+      expect(result.truncated.totalLines).toBe(1);
+    }
+
+    // Output should contain only the first line (~500KB), not the second line
+    expect(result.output?.length).toBeGreaterThanOrEqual(500000);
+    expect(result.output?.length).toBeLessThan(600000);
+    // Verify content is only 'A's, not 'B's
+    expect(result.output).toContain("AAAA");
+    expect(result.output).not.toContain("BBBB");
 
     tempDir[Symbol.dispose]();
   });

@@ -245,17 +245,18 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
               return;
             }
 
-            // Collect this line (even if display is truncated, keep for file)
-            lines.push(line);
-            totalBytesAccumulated += lineBytes + 1; // +1 for newline
-
-            // Check file limit first (hard stop)
-            if (totalBytesAccumulated > maxFileBytes) {
+            // Check file limit BEFORE adding line to prevent overlong lines from being returned
+            const bytesAfterLine = totalBytesAccumulated + lineBytes + 1; // +1 for newline
+            if (bytesAfterLine > maxFileBytes) {
               triggerFileTruncation(
-                `Total output exceeded file preservation limit: ${totalBytesAccumulated} bytes > ${maxFileBytes} bytes (at line ${lines.length})`
+                `Total output would exceed file preservation limit: ${bytesAfterLine} bytes > ${maxFileBytes} bytes (at line ${lines.length + 1})`
               );
               return;
             }
+
+            // Collect this line (even if display is truncated, keep for file)
+            lines.push(line);
+            totalBytesAccumulated = bytesAfterLine;
 
             // Check display limits (soft stop - keep collecting for file)
             if (!displayTruncated) {
@@ -287,17 +288,18 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
               return;
             }
 
-            // Collect this line (even if display is truncated, keep for file)
-            lines.push(line);
-            totalBytesAccumulated += lineBytes + 1; // +1 for newline
-
-            // Check file limit first (hard stop)
-            if (totalBytesAccumulated > maxFileBytes) {
+            // Check file limit BEFORE adding line to prevent overlong lines from being returned
+            const bytesAfterLine = totalBytesAccumulated + lineBytes + 1; // +1 for newline
+            if (bytesAfterLine > maxFileBytes) {
               triggerFileTruncation(
-                `Total output exceeded file preservation limit: ${totalBytesAccumulated} bytes > ${maxFileBytes} bytes (at line ${lines.length})`
+                `Total output would exceed file preservation limit: ${bytesAfterLine} bytes > ${maxFileBytes} bytes (at line ${lines.length + 1})`
               );
               return;
             }
+
+            // Collect this line (even if display is truncated, keep for file)
+            lines.push(line);
+            totalBytesAccumulated = bytesAfterLine;
 
             // Check display limits (soft stop - keep collecting for file)
             if (!displayTruncated) {
