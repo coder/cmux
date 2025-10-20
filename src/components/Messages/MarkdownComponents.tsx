@@ -43,21 +43,7 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ code, language }) => {
         const highlighter = await getShikiHighlighter();
         const shikiLang = mapToShikiLang(language);
 
-        // Load language on-demand if needed
-        const loadedLangs = highlighter.getLoadedLanguages();
-        if (!loadedLangs.includes(shikiLang)) {
-          try {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
-            await highlighter.loadLanguage(shikiLang as any);
-          } catch {
-            // Language not available - fall back to plain code
-            if (!cancelled) {
-              setHtml(null);
-            }
-            return;
-          }
-        }
-
+        // codeToHtml lazy-loads languages automatically
         const result = highlighter.codeToHtml(code, {
           lang: shikiLang,
           theme: SHIKI_THEME,
