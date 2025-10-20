@@ -41,6 +41,11 @@ const ViewContainer = styled.div`
   overflow-x: auto;
   overflow-y: hidden;
   container-type: inline-size;
+
+  /* Mobile: Stack vertically */
+  @media (max-width: 768px) {
+    flex-direction: column;
+  }
 `;
 
 const ChatArea = styled.div`
@@ -48,6 +53,12 @@ const ChatArea = styled.div`
   min-width: 400px; /* Reduced from 750px to allow narrower layout when Review panel is wide */
   display: flex;
   flex-direction: column;
+
+  /* Mobile: Remove min-width and take full width */
+  @media (max-width: 768px) {
+    min-width: 0;
+    width: 100%;
+  }
 `;
 
 const ViewHeader = styled.div`
@@ -57,6 +68,13 @@ const ViewHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
+
+  /* Mobile: Add padding for hamburger button and adjust spacing */
+  @media (max-width: 768px) {
+    padding: 8px 15px 8px 60px; /* Extra left padding for hamburger button */
+    flex-wrap: wrap;
+    gap: 8px;
+  }
 `;
 
 const WorkspaceTitle = styled.div`
