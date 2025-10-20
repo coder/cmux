@@ -101,6 +101,14 @@ const InfoValue = styled.span`
   word-break: break-all;
 `;
 
+const ImagePreview = styled.img`
+  max-width: 100%;
+  max-height: 400px;
+  border-radius: 3px;
+  display: block;
+  margin: 8px 0;
+`;
+
 interface FileReadToolCallProps {
   args: FileReadToolArgs;
   result?: FileReadToolResult;
@@ -170,7 +178,10 @@ export const FileReadToolCall: React.FC<FileReadToolCallProps> = ({
           <Tooltip>file_read</Tooltip>
         </TooltipWrapper>
         <FilePathText>{filePath}</FilePathText>
-        {result && result.success && parsedContent && (
+        {result && result.success && result.mime_type?.startsWith("image/") && (
+          <MetadataText>{result.mime_type}</MetadataText>
+        )}
+        {result && result.success && parsedContent && !result.mime_type?.startsWith("image/") && (
           <MetadataText>
             read {formatBytes(parsedContent.actualBytes)} of {formatBytes(result.file_size)}
           </MetadataText>
@@ -210,19 +221,32 @@ export const FileReadToolCall: React.FC<FileReadToolCallProps> = ({
                 </DetailSection>
               )}
 
-              {result.success && result.content && parsedContent && (
+              {result.success && result.mime_type?.startsWith("image/") && (
                 <DetailSection>
-                  <DetailLabel>Content</DetailLabel>
-                  <ContentBlock>
-                    <LineNumbers>
-                      {parsedContent.lineNumbers.map((lineNum, i) => (
-                        <div key={i}>{lineNum}</div>
-                      ))}
-                    </LineNumbers>
-                    <ContentText>{parsedContent.actualContent}</ContentText>
-                  </ContentBlock>
+                  <DetailLabel>Image Preview</DetailLabel>
+                  <ImagePreview
+                    src={`data:${result.mime_type};base64,${result.content}`}
+                    alt={args.filePath}
+                  />
                 </DetailSection>
               )}
+
+              {result.success &&
+                result.content &&
+                !result.mime_type?.startsWith("image/") &&
+                parsedContent && (
+                  <DetailSection>
+                    <DetailLabel>Content</DetailLabel>
+                    <ContentBlock>
+                      <LineNumbers>
+                        {parsedContent.lineNumbers.map((lineNum, i) => (
+                          <div key={i}>{lineNum}</div>
+                        ))}
+                      </LineNumbers>
+                      <ContentText>{parsedContent.actualContent}</ContentText>
+                    </ContentBlock>
+                  </DetailSection>
+                )}
             </>
           )}
 
