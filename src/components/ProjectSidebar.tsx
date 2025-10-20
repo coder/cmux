@@ -11,7 +11,7 @@ import { useDrag, useDrop, useDragLayer } from "react-dnd";
 import { sortProjectsByOrder, reorderProjects, normalizeOrder } from "@/utils/projectOrdering";
 import { matchesKeybind, formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
 import { abbreviatePath } from "@/utils/ui/pathAbbreviation";
-import { partitionWorkspacesByAge } from "@/utils/ui/workspaceFiltering";
+import { partitionWorkspacesByAge, formatOldWorkspaceThreshold } from "@/utils/ui/workspaceFiltering";
 import { TooltipWrapper, Tooltip } from "./Tooltip";
 import SecretsModal from "./SecretsModal";
 import type { Secret } from "@/types/secrets";
@@ -315,21 +315,34 @@ const AddWorkspaceBtn = styled.button`
 
 const ShowOldWorkspacesBtn = styled.button`
   width: 100%;
-  padding: 6px 12px 6px 22px;
+  padding: 8px 12px 8px 22px;
   background: transparent;
-  color: #666;
+  color: #858585;
   border: none;
+  border-top: 1px solid #2a2a2b;
   cursor: pointer;
   font-size: 12px;
-  transition: all 0.2s;
+  transition: all 0.15s;
   text-align: left;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  font-weight: 500;
 
   &:hover {
-    background: #2a2a2b;
-    color: #888;
+    background: rgba(255, 255, 255, 0.03);
+    color: #aaa;
+  }
+
+  .arrow {
+    font-size: 10px;
+    color: #666;
+    transition: transform 0.15s;
+  }
+
+  .count {
+    color: #666;
+    font-weight: 400;
   }
 `;
 
@@ -896,10 +909,13 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
                                 <>
                                   <ShowOldWorkspacesBtn
                                     onClick={() => toggleOldWorkspaces(projectPath)}
-                                    aria-label={showOldWorkspaces ? `Hide ${old.length} older workspaces` : `Show ${old.length} older workspaces`}
+                                    aria-label={showOldWorkspaces ? `Hide workspaces older than ${formatOldWorkspaceThreshold()}` : `Show workspaces older than ${formatOldWorkspaceThreshold()}`}
                                   >
-                                    <span>{showOldWorkspaces ? "▼" : "▶"}</span>
-                                    <span>{showOldWorkspaces ? "Hide" : "Show"} {old.length} older workspace{old.length !== 1 ? "s" : ""}</span>
+                                    <span className="arrow">{showOldWorkspaces ? "▼" : "▶"}</span>
+                                    <span>
+                                      {showOldWorkspaces ? "Hide" : "Show"} workspaces older than {formatOldWorkspaceThreshold()}
+                                    </span>
+                                    <span className="count">({old.length})</span>
                                   </ShowOldWorkspacesBtn>
                                   {showOldWorkspaces && old.map((metadata) => {
                                     const isSelected = selectedWorkspace?.workspaceId === metadata.id;

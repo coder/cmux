@@ -1,5 +1,5 @@
 import { describe, it, expect } from "@jest/globals";
-import { partitionWorkspacesByAge } from "./workspaceFiltering";
+import { partitionWorkspacesByAge, formatOldWorkspaceThreshold } from "./workspaceFiltering";
 import type { FrontendWorkspaceMetadata } from "@/types/workspace";
 
 describe("partitionWorkspacesByAge", () => {
@@ -92,6 +92,13 @@ describe("partitionWorkspacesByAge", () => {
     const { old } = partitionWorkspacesByAge(workspaces, workspaceRecency);
 
     expect(old.map((w) => w.id)).toEqual(["old1", "old2", "old3"]);
+  });
+});
+
+describe("formatOldWorkspaceThreshold", () => {
+  it("should format the threshold as a human-readable string", () => {
+    const result = formatOldWorkspaceThreshold();
+    expect(result).toBe("1 day");
   });
 });
 
