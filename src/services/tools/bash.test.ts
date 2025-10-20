@@ -167,7 +167,7 @@ describe("bash tool", () => {
 
     const args: BashToolArgs = {
       // Generate ~1.5MB of output (1700 lines * 900 bytes) to exceed 1MB byte limit
-      script: "perl -e 'for (1..1700) { print \"A\" x 900 . \"\\n\" }'",
+      script: 'perl -e \'for (1..1700) { print "A" x 900 . "\\n" }\'',
       timeout_secs: 5,
     };
 
