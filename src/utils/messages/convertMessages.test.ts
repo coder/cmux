@@ -20,10 +20,11 @@ describe("convertToModelMessages with tools", () => {
         0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82,
       ]);
       const imgPath = path.join(tmpDir, "test.png");
-      fs.writeFileSync(imgPath, png);
+      await fs.promises.writeFile(imgPath, png);
 
       // Create tool and execute
       const tool = createFileReadTool({ cwd: tmpDir, tempDir: tmpDir });
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const result = await tool.execute!(
         { filePath: imgPath },
         { toolCallId: "test", messages: [] }
@@ -56,7 +57,7 @@ describe("convertToModelMessages with tools", () => {
       const withoutTools = convertToModelMessages(messages);
       const toolMessage = withoutTools.find((m) => m.role === "tool");
       expect(toolMessage).toBeDefined();
-      if (toolMessage && toolMessage.role === "tool") {
+      if (toolMessage?.role === "tool") {
         const content = toolMessage.content[0];
         expect(content.type).toBe("tool-result");
         if (content.type === "tool-result") {
@@ -71,7 +72,7 @@ describe("convertToModelMessages with tools", () => {
       });
       const toolMessageWithTools = withTools.find((m) => m.role === "tool");
       expect(toolMessageWithTools).toBeDefined();
-      if (toolMessageWithTools && toolMessageWithTools.role === "tool") {
+      if (toolMessageWithTools?.role === "tool") {
         const content = toolMessageWithTools.content[0];
         expect(content.type).toBe("tool-result");
         if (content.type === "tool-result") {
