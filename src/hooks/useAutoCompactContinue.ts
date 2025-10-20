@@ -1,5 +1,5 @@
 import { useRef, useEffect } from "react";
-import { useWorkspaceStoreRaw, type WorkspaceState } from "@/stores/WorkspaceStore";
+import { useWorkspaceStoreRaw } from "@/stores/WorkspaceStore";
 import { buildSendMessageOptions } from "@/hooks/useSendMessageOptions";
 
 /**
