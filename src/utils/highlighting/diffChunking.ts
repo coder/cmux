@@ -1,7 +1,7 @@
-import type { DiffLineType } from '@/components/shared/DiffRenderer';
+import type { DiffLineType } from "@/components/shared/DiffRenderer";
 
 export interface DiffChunk {
-  type: Exclude<DiffLineType, 'header'>; // 'add' | 'remove' | 'context'
+  type: Exclude<DiffLineType, "header">; // 'add' | 'remove' | 'context'
   lines: string[]; // Line content (without +/- prefix)
   startIndex: number; // Original line index in diff
   lineNumbers: number[]; // Line numbers for display
@@ -11,11 +11,7 @@ export interface DiffChunk {
  * Group consecutive lines of same type into chunks
  * This provides more syntactic context to the highlighter
  */
-export function groupDiffLines(
-  lines: string[],
-  oldStart: number,
-  newStart: number
-): DiffChunk[] {
+export function groupDiffLines(lines: string[], oldStart: number, newStart: number): DiffChunk[] {
   const chunks: DiffChunk[] = [];
   let currentChunk: DiffChunk | null = null;
 
@@ -27,7 +23,7 @@ export function groupDiffLines(
     const firstChar = line[0];
 
     // Skip headers (@@) - they reset line numbers
-    if (line.startsWith('@@')) {
+    if (line.startsWith("@@")) {
       // Flush current chunk
       if (currentChunk && currentChunk.lines.length > 0) {
         chunks.push(currentChunk);
@@ -45,17 +41,17 @@ export function groupDiffLines(
     }
 
     // Determine line type and number
-    let type: Exclude<DiffLineType, 'header'>;
+    let type: Exclude<DiffLineType, "header">;
     let lineNum: number;
 
-    if (firstChar === '+') {
-      type = 'add';
+    if (firstChar === "+") {
+      type = "add";
       lineNum = newLineNum++;
-    } else if (firstChar === '-') {
-      type = 'remove';
+    } else if (firstChar === "-") {
+      type = "remove";
       lineNum = oldLineNum++;
     } else {
-      type = 'context';
+      type = "context";
       lineNum = oldLineNum;
       oldLineNum++;
       newLineNum++;
@@ -89,4 +85,3 @@ export function groupDiffLines(
 
   return chunks;
 }
-

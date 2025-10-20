@@ -1,4 +1,4 @@
-import { createHighlighter, type Highlighter } from 'shiki';
+import { createHighlighter, type Highlighter } from "shiki";
 
 // Singleton promise (cached to prevent race conditions)
 // Multiple concurrent calls will await the same Promise
@@ -14,7 +14,7 @@ export async function getShikiHighlighter(): Promise<Highlighter> {
   // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
   if (!highlighterPromise) {
     highlighterPromise = createHighlighter({
-      themes: ['dark-plus'],
+      themes: ["dark-plus"],
       langs: [], // Load languages on-demand via highlightDiffChunk
     });
   }
@@ -28,10 +28,9 @@ export async function getShikiHighlighter(): Promise<Highlighter> {
 export function mapToShikiLang(detectedLang: string): string {
   // Most languages match 1:1, but handle special cases
   const mapping: Record<string, string> = {
-    text: 'plaintext',
-    sh: 'bash',
+    text: "plaintext",
+    sh: "bash",
     // Add more mappings if needed
   };
   return mapping[detectedLang] || detectedLang;
 }
-

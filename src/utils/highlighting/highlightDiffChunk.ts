@@ -1,14 +1,14 @@
-import { getShikiHighlighter, mapToShikiLang } from './shikiHighlighter';
-import type { DiffChunk } from './diffChunking';
+import { getShikiHighlighter, mapToShikiLang } from "./shikiHighlighter";
+import type { DiffChunk } from "./diffChunking";
 
 /**
  * Chunk-based diff highlighting with Shiki
- * 
+ *
  * Current approach: Parse Shiki HTML to extract individual line HTMLs
  * - Groups consecutive lines by type (add/remove/context)
  * - Highlights each chunk with Shiki
  * - Extracts per-line HTML for individual rendering
- * 
+ *
  * Future optimization: Could render entire <code> blocks and use CSS to style
  * .line spans instead of extracting per-line HTML. Would simplify parsing
  * and reduce dangerouslySetInnerHTML usage.
@@ -21,7 +21,7 @@ export interface HighlightedLine {
 }
 
 export interface HighlightedChunk {
-  type: DiffChunk['type'];
+  type: DiffChunk["type"];
   lines: HighlightedLine[];
   usedFallback: boolean; // True if highlighting failed
 }
@@ -35,7 +35,7 @@ export async function highlightDiffChunk(
   language: string
 ): Promise<HighlightedChunk> {
   // Fast path: no highlighting for text files
-  if (language === 'text' || language === 'plaintext') {
+  if (language === "text" || language === "plaintext") {
     return {
       type: chunk.type,
       lines: chunk.lines.map((line, i) => ({
@@ -67,10 +67,10 @@ export async function highlightDiffChunk(
     }
 
     // Highlight entire chunk as one block
-    const code = chunk.lines.join('\n');
+    const code = chunk.lines.join("\n");
     const html = highlighter.codeToHtml(code, {
       lang: shikiLang,
-      theme: 'dark-plus',
+      theme: "dark-plus",
     });
 
     // Parse HTML to extract line contents
@@ -115,7 +115,7 @@ function createFallbackChunk(chunk: DiffChunk): HighlightedChunk {
 /**
  * Extract individual line contents from Shiki's HTML output
  * Shiki wraps output in <pre><code>...</code></pre> with <span class="line">...</span> per line
- * 
+ *
  * Strategy: Split on newlines (which separate line spans), then extract inner HTML
  * from each line span. This handles nested spans correctly.
  */
@@ -128,35 +128,35 @@ function extractLinesFromHtml(html: string): string[] {
   const codeContent = codeMatch[1];
 
   // Split by newlines - Shiki separates line spans with \n
-  const lineChunks = codeContent.split('\n');
-  
+  const lineChunks = codeContent.split("\n");
+
   return lineChunks
-    .map(chunk => {
+    .map((chunk) => {
       // Extract content from <span class="line">CONTENT</span>
       // We need to handle nested spans, so we:
       // 1. Find the opening tag
       // 2. Find the LAST closing </span> (which closes the line wrapper)
       // 3. Extract everything between them
-      
+
       const openTag = '<span class="line">';
-      const closeTag = '</span>';
-      
+      const closeTag = "</span>";
+
       const openIndex = chunk.indexOf(openTag);
       if (openIndex === -1) {
         // No line span - might be empty line or malformed
-        return '';
+        return "";
       }
-      
+
       const contentStart = openIndex + openTag.length;
       const closeIndex = chunk.lastIndexOf(closeTag);
       if (closeIndex === -1 || closeIndex < contentStart) {
         // Malformed - no closing tag
-        return '';
+        return "";
       }
-      
+
       return chunk.substring(contentStart, closeIndex);
     })
-    .filter(line => line !== null); // Remove malformed lines
+    .filter((line) => line !== null); // Remove malformed lines
 }
 
 /**
@@ -164,10 +164,9 @@ function extractLinesFromHtml(html: string): string[] {
  */
 function escapeHtml(text: string): string {
   return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
-

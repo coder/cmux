@@ -184,7 +184,6 @@ export const UntrackedStatus: React.FC<UntrackedStatusProps> = ({
     return () => {
       cancelled = true;
     };
-     
   }, [workspaceId, workspacePath, refreshTrigger]);
 
   // Close tooltip when clicking outside
