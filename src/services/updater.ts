@@ -3,7 +3,7 @@ import type { UpdateInfo } from "electron-updater";
 import type { BrowserWindow } from "electron";
 import { IPC_CHANNELS } from "@/constants/ipc-constants";
 import { log } from "./log";
-import { parseBoolEnv } from "@/utils/env";
+import { parseDebugUpdater } from "@/utils/env";
 
 export type UpdateStatus =
   | { type: "idle" } // Initial state, no check performed yet
@@ -27,16 +27,24 @@ export class UpdaterService {
   private mainWindow: BrowserWindow | null = null;
   private updateStatus: UpdateStatus = { type: "idle" };
   private checkTimeout: NodeJS.Timeout | null = null;
+  private fakeVersion: string | undefined;
 
   constructor() {
     // Configure auto-updater
     autoUpdater.autoDownload = false; // Wait for user confirmation
     autoUpdater.autoInstallOnAppQuit = true;
 
-    // Enable dev mode if DEBUG_UPDATER is set (allows checking for updates in unpacked app)
-    if (parseBoolEnv(process.env.DEBUG_UPDATER)) {
+    // Parse DEBUG_UPDATER for dev mode and optional fake version
+    const debugConfig = parseDebugUpdater(process.env.DEBUG_UPDATER);
+    this.fakeVersion = debugConfig.fakeVersion;
+
+    if (debugConfig.enabled) {
       log.info("Forcing dev update config (DEBUG_UPDATER is set)");
       autoUpdater.forceDevUpdateConfig = true;
+      
+      if (this.fakeVersion) {
+        log.info(`DEBUG_UPDATER fake version enabled: ${this.fakeVersion}`);
+      }
     }
 
     // Set up event handlers
@@ -123,6 +131,21 @@ export class UpdaterService {
       log.info("Setting status to 'checking'");
       this.updateStatus = { type: "checking" };
       this.notifyRenderer();
+      
+      // If fake version is set, immediately report it as available
+      if (this.fakeVersion) {
+        log.info(`Faking update available: ${this.fakeVersion}`);
+        setTimeout(() => {
+          this.updateStatus = {
+            type: "available",
+            info: {
+              version: this.fakeVersion!,
+            } as UpdateInfo,
+          };
+          this.notifyRenderer();
+        }, 500); // Small delay to simulate check
+        return;
+      }
       
       // Set timeout to prevent hanging in "checking" state
       log.info("Setting 30s timeout");

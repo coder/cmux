@@ -20,9 +20,13 @@ jest.mock("electron-updater", () => {
 describe("UpdaterService", () => {
   let service: UpdaterService;
   let mockWindow: jest.Mocked<BrowserWindow>;
+  let originalDebugUpdater: string | undefined;
 
   beforeEach(() => {
     jest.clearAllMocks();
+    // Save and clear DEBUG_UPDATER to ensure clean test environment
+    originalDebugUpdater = process.env.DEBUG_UPDATER;
+    delete process.env.DEBUG_UPDATER;
     service = new UpdaterService();
     
     // Create mock window
@@ -34,6 +38,15 @@ describe("UpdaterService", () => {
     } as any;
     
     service.setMainWindow(mockWindow);
+  });
+
+  afterEach(() => {
+    // Restore DEBUG_UPDATER
+    if (originalDebugUpdater !== undefined) {
+      process.env.DEBUG_UPDATER = originalDebugUpdater;
+    } else {
+      delete process.env.DEBUG_UPDATER;
+    }
   });
 
   describe("checkForUpdates", () => {
