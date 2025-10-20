@@ -10,8 +10,8 @@ import {
   BASH_MAX_LINE_BYTES,
   BASH_MAX_TOTAL_BYTES,
   BASH_MAX_FILE_BYTES,
-  BASH_TRUNCATE_HARD_MAX_LINES,
   BASH_TRUNCATE_MAX_TOTAL_BYTES,
+  BASH_TRUNCATE_MAX_FILE_BYTES,
 } from "@/constants/toolLimits";
 
 import type { BashToolResult } from "@/types/tools";
@@ -62,13 +62,14 @@ class DisposableProcess implements Disposable {
  */
 export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
   // Select limits based on overflow policy
-  // truncate = IPC calls (generous limits for UI features)
+  // truncate = IPC calls (generous limits for UI features, no line limit)
   // tmpfile = AI agent calls (conservative limits for LLM context)
   const overflowPolicy = config.overflow_policy ?? "tmpfile";
   const maxTotalBytes =
     overflowPolicy === "truncate" ? BASH_TRUNCATE_MAX_TOTAL_BYTES : BASH_MAX_TOTAL_BYTES;
-  const maxLines =
-    overflowPolicy === "truncate" ? BASH_TRUNCATE_HARD_MAX_LINES : BASH_HARD_MAX_LINES;
+  const maxFileBytes =
+    overflowPolicy === "truncate" ? BASH_TRUNCATE_MAX_FILE_BYTES : BASH_MAX_FILE_BYTES;
+  const maxLines = overflowPolicy === "truncate" ? Infinity : BASH_HARD_MAX_LINES;
 
   return tool({
     description: TOOL_DEFINITIONS.bash.description + "\nRuns in " + config.cwd + " - no cd needed",
@@ -248,9 +249,9 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
             totalBytesAccumulated += lineBytes + 1; // +1 for newline
 
             // Check file limit first (hard stop)
-            if (totalBytesAccumulated > BASH_MAX_FILE_BYTES) {
+            if (totalBytesAccumulated > maxFileBytes) {
               triggerFileTruncation(
-                `Total output exceeded file preservation limit: ${totalBytesAccumulated} bytes > ${BASH_MAX_FILE_BYTES} bytes (at line ${lines.length})`
+                `Total output exceeded file preservation limit: ${totalBytesAccumulated} bytes > ${maxFileBytes} bytes (at line ${lines.length})`
               );
               return;
             }
@@ -290,9 +291,9 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
             totalBytesAccumulated += lineBytes + 1; // +1 for newline
 
             // Check file limit first (hard stop)
-            if (totalBytesAccumulated > BASH_MAX_FILE_BYTES) {
+            if (totalBytesAccumulated > maxFileBytes) {
               triggerFileTruncation(
-                `Total output exceeded file preservation limit: ${totalBytesAccumulated} bytes > ${BASH_MAX_FILE_BYTES} bytes (at line ${lines.length})`
+                `Total output exceeded file preservation limit: ${totalBytesAccumulated} bytes > ${maxFileBytes} bytes (at line ${lines.length})`
               );
               return;
             }
