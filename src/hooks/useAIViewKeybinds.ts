@@ -53,12 +53,12 @@ export function useAIViewKeybinds({
     const handleKeyDown = (e: KeyboardEvent) => {
       // Ctrl+C during compaction: cancel and restore command to input
       // (different from Ctrl+A which accepts early with [truncated])
+      // Only intercept if actively compacting (otherwise allow browser default for copy)
       if (matchesKeybind(e, KEYBINDS.INTERRUPT_STREAM)) {
-        e.preventDefault();
-
         if (canInterrupt && isCompactingStream(aggregator)) {
           // Ctrl+C during compaction: restore original state and enter edit mode
           // Stores cancellation marker in localStorage (persists across reloads)
+          e.preventDefault();
           void cancelCompaction(workspaceId, aggregator, (messageId, command) => {
             setEditingMessage({ id: messageId, content: command });
           });
@@ -67,24 +67,30 @@ export function useAIViewKeybinds({
         }
 
         // Normal stream interrupt (non-compaction)
-        if (canInterrupt || showRetryBarrier) {
+        // Don't intercept if user is typing in an input field
+        if (!isEditableElement(e.target) && (canInterrupt || showRetryBarrier)) {
+          e.preventDefault();
           setAutoRetry(false); // User explicitly stopped - don't auto-retry
           void window.api.workspace.interruptStream(workspaceId);
+          return;
         }
+
+        // Let browser handle Ctrl+C (copy) in editable elements
         return;
       }
 
       // Ctrl+A during compaction: accept early with [truncated] sentinel
       // (different from Ctrl+C which cancels and restores original state)
+      // Only intercept if actively compacting (otherwise allow browser default for select all)
       if (matchesKeybind(e, KEYBINDS.ACCEPT_EARLY_COMPACTION)) {
-        e.preventDefault();
-
         if (canInterrupt && isCompactingStream(aggregator)) {
           // Ctrl+A during compaction: perform compaction with partial summary
           // No flag set - handleCompactionAbort will perform compaction with [truncated]
+          e.preventDefault();
           setAutoRetry(false);
           void window.api.workspace.interruptStream(workspaceId);
         }
+        // Let browser handle Ctrl+A (select all) when not compacting
         return;
       }
 
