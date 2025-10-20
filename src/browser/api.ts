@@ -178,14 +178,26 @@ class WebSocketManager {
 
 const wsManager = new WebSocketManager();
 
+// Directory selection via custom event (for browser mode)
+interface DirectorySelectEvent extends CustomEvent {
+  detail: {
+    resolve: (path: string | null) => void;
+  };
+}
+
+function requestDirectorySelection(): Promise<string | null> {
+  return new Promise((resolve) => {
+    const event = new CustomEvent("directory-select-request", {
+      detail: { resolve },
+    }) as DirectorySelectEvent;
+    window.dispatchEvent(event);
+  });
+}
+
 // Create the Web API implementation
 const webApi: IPCApi = {
   dialog: {
-    selectDirectory: async () => {
-      // TODO: Implement remote directory selection for mobile
-      // For now, return hardcoded path for testing
-      return "/home/kyle/projects/coder/cmux";
-    },
+    selectDirectory: requestDirectorySelection,
   },
   providers: {
     setProviderConfig: (provider, keyPath, value) =>
