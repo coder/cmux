@@ -51,11 +51,19 @@ export async function highlightDiffChunk(
     const highlighter = await getShikiHighlighter();
     const shikiLang = mapToShikiLang(language);
 
-    // Check if language is supported
+    // Load language on-demand if not already loaded
+    // This is race-safe: concurrent loads of the same language are idempotent
     const loadedLangs = highlighter.getLoadedLanguages();
     if (!loadedLangs.includes(shikiLang)) {
-      // Language not loaded - fall back to plain text
-      return createFallbackChunk(chunk);
+      try {
+        // TypeScript doesn't know shikiLang is valid, but we handle errors gracefully
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
+        await highlighter.loadLanguage(shikiLang as any);
+      } catch {
+        // Language not available in Shiki bundle - fall back to plain text
+        console.warn(`Language '${shikiLang}' not available in Shiki, using plain text`);
+        return createFallbackChunk(chunk);
+      }
     }
 
     // Highlight entire chunk as one block

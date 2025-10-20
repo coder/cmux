@@ -209,5 +209,67 @@ describe('highlightDiffChunk', () => {
       expect(result.lines[0].html).not.toContain('return');
       expect(result.lines[2].html).not.toContain('function');
     });
+
+    describe('lazy language loading', () => {
+    it('should load language on first use', async () => {
+      const chunk: DiffChunk = {
+        type: 'add',
+        lines: ['def hello():', '    print("world")'],
+        startIndex: 0,
+        lineNumbers: [1, 2],
+      };
+
+      // Python might not be loaded yet
+      const result = await highlightDiffChunk(chunk, 'python');
+
+      // Should succeed by loading Python on-demand
+      expect(result.lines).toHaveLength(2);
+      expect(result.usedFallback).toBe(false);
+      expect(result.lines[0].html).toContain('def');
+    });
+
+    it('should handle unsupported language gracefully', async () => {
+      const chunk: DiffChunk = {
+        type: 'add',
+        lines: ['some code in unknown language'],
+        startIndex: 0,
+        lineNumbers: [1],
+      };
+
+      const result = await highlightDiffChunk(chunk, 'totally-fake-language');
+
+      // Should fall back to plain text
+      expect(result.lines).toHaveLength(1);
+      expect(result.usedFallback).toBe(true);
+      expect(result.lines[0].html).toBe('some code in unknown language');
+    });
+
+    it('should handle concurrent highlighting of same language', async () => {
+      const chunk1: DiffChunk = {
+        type: 'add',
+        lines: ['const x = 1;'],
+        startIndex: 0,
+        lineNumbers: [1],
+      };
+
+      const chunk2: DiffChunk = {
+        type: 'add',
+        lines: ['const y = 2;'],
+        startIndex: 0,
+        lineNumbers: [1],
+      };
+
+      // Highlight both concurrently - should handle race safely
+      const [result1, result2] = await Promise.all([
+        highlightDiffChunk(chunk1, 'typescript'),
+        highlightDiffChunk(chunk2, 'typescript'),
+      ]);
+
+      expect(result1.lines[0].html).toContain('const');
+      expect(result2.lines[0].html).toContain('const');
+      expect(result1.usedFallback).toBe(false);
+      expect(result2.usedFallback).toBe(false);
+    });
+  });
   });
 });
