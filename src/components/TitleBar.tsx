@@ -228,6 +228,17 @@ export function TitleBar() {
       }
     }
 
+    // Always add releases link as defense-in-depth
+    lines.push(
+      <a
+        href="https://github.com/coder/cmux/releases"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        View all releases
+      </a>
+    );
+
     return (
       <>
         {lines.map((line, i) => (
@@ -280,7 +291,7 @@ export function TitleBar() {
                     : "↓"}
               </UpdateIcon>
             </UpdateIndicator>
-            <Tooltip align="left">{getUpdateTooltip()}</Tooltip>
+            <Tooltip align="left" interactive={true}>{getUpdateTooltip()}</Tooltip>
           </TooltipWrapper>
         )}
         <TitleText>cmux {gitDescribe ?? "(dev)"}</TitleText>
