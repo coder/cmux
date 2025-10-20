@@ -11,6 +11,7 @@ import { useDrag, useDrop, useDragLayer } from "react-dnd";
 import { sortProjectsByOrder, reorderProjects, normalizeOrder } from "@/utils/projectOrdering";
 import { matchesKeybind, formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
 import { abbreviatePath } from "@/utils/ui/pathAbbreviation";
+import { partitionWorkspacesByAge } from "@/utils/ui/workspaceFiltering";
 import { TooltipWrapper, Tooltip } from "./Tooltip";
 import SecretsModal from "./SecretsModal";
 import type { Secret } from "@/types/secrets";
@@ -312,6 +313,26 @@ const AddWorkspaceBtn = styled.button`
   }
 `;
 
+const ShowOldWorkspacesBtn = styled.button`
+  width: 100%;
+  padding: 6px 12px 6px 22px;
+  background: transparent;
+  color: #666;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  &:hover {
+    background: #2a2a2b;
+    color: #888;
+  }
+`;
+
 const RemoveErrorToast = styled.div<{ top: number; left: number }>`
   position: fixed;
   top: ${(props) => props.top}px;
@@ -492,6 +513,7 @@ interface ProjectSidebarProps {
   onGetSecrets: (projectPath: string) => Promise<Secret[]>;
   onUpdateSecrets: (projectPath: string, secrets: Secret[]) => Promise<void>;
   sortedWorkspacesByProject: Map<string, FrontendWorkspaceMetadata[]>;
+  workspaceRecency: Record<string, number>;
 }
 
 const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
@@ -510,6 +532,7 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
   onGetSecrets,
   onUpdateSecrets,
   sortedWorkspacesByProject,
+  workspaceRecency,
 }) => {
   // Workspace-specific subscriptions moved to WorkspaceListItem component
 
@@ -524,6 +547,18 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
   );
   const setExpandedProjects = (projects: Set<string>) => {
     setExpandedProjectsArray(Array.from(projects));
+  };
+
+  // Track which projects have old workspaces expanded
+  const [expandedOldWorkspacesArray, setExpandedOldWorkspacesArray] = usePersistedState<string[]>(
+    "expandedOldWorkspaces",
+    []
+  );
+  const expandedOldWorkspaces = new Set(
+    Array.isArray(expandedOldWorkspacesArray) ? expandedOldWorkspacesArray : []
+  );
+  const setExpandedOldWorkspaces = (projects: Set<string>) => {
+    setExpandedOldWorkspacesArray(Array.from(projects));
   };
   const [removeError, setRemoveError] = useState<{
     workspaceId: string;
@@ -559,6 +594,16 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
       newExpanded.add(projectPath);
     }
     setExpandedProjects(newExpanded);
+  };
+
+  const toggleOldWorkspaces = (projectPath: string) => {
+    const newExpanded = new Set(expandedOldWorkspaces);
+    if (newExpanded.has(projectPath)) {
+      newExpanded.delete(projectPath);
+    } else {
+      newExpanded.add(projectPath);
+    }
+    setExpandedOldWorkspaces(newExpanded);
   };
 
   const showRemoveError = useCallback(
@@ -812,38 +857,72 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
                           </TooltipWrapper>
                         </DraggableProjectItem>
 
-                        {isExpanded && (
-                          <WorkspacesContainer id={workspaceListId}>
-                            <WorkspaceHeader>
-                              <AddWorkspaceBtn
-                                onClick={() => onAddWorkspace(projectPath)}
-                                data-project-path={projectPath}
-                                aria-label={`Add workspace to ${projectName}`}
-                              >
-                                + New Workspace
-                                {selectedWorkspace?.projectPath === projectPath &&
-                                  ` (${formatKeybind(KEYBINDS.NEW_WORKSPACE)})`}
-                              </AddWorkspaceBtn>
-                            </WorkspaceHeader>
-                            {sortedWorkspacesByProject.get(projectPath)?.map((metadata) => {
-                              const isSelected = selectedWorkspace?.workspaceId === metadata.id;
+                        {isExpanded && (() => {
+                          const allWorkspaces = sortedWorkspacesByProject.get(projectPath) ?? [];
+                          const { recent, old } = partitionWorkspacesByAge(allWorkspaces, workspaceRecency);
+                          const showOldWorkspaces = expandedOldWorkspaces.has(projectPath);
 
-                              return (
-                                <WorkspaceListItem
-                                  key={metadata.id}
-                                  metadata={metadata}
-                                  projectPath={projectPath}
-                                  projectName={projectName}
-                                  isSelected={isSelected}
-                                  lastReadTimestamp={lastReadTimestamps[metadata.id] ?? 0}
-                                  onSelectWorkspace={onSelectWorkspace}
-                                  onRemoveWorkspace={handleRemoveWorkspace}
-                                  onToggleUnread={_onToggleUnread}
-                                />
-                              );
-                            })}
-                          </WorkspacesContainer>
-                        )}
+                          return (
+                            <WorkspacesContainer id={workspaceListId}>
+                              <WorkspaceHeader>
+                                <AddWorkspaceBtn
+                                  onClick={() => onAddWorkspace(projectPath)}
+                                  data-project-path={projectPath}
+                                  aria-label={`Add workspace to ${projectName}`}
+                                >
+                                  + New Workspace
+                                  {selectedWorkspace?.projectPath === projectPath &&
+                                    ` (${formatKeybind(KEYBINDS.NEW_WORKSPACE)})`}
+                                </AddWorkspaceBtn>
+                              </WorkspaceHeader>
+                              {recent.map((metadata) => {
+                                const isSelected = selectedWorkspace?.workspaceId === metadata.id;
+
+                                return (
+                                  <WorkspaceListItem
+                                    key={metadata.id}
+                                    metadata={metadata}
+                                    projectPath={projectPath}
+                                    projectName={projectName}
+                                    isSelected={isSelected}
+                                    lastReadTimestamp={lastReadTimestamps[metadata.id] ?? 0}
+                                    onSelectWorkspace={onSelectWorkspace}
+                                    onRemoveWorkspace={handleRemoveWorkspace}
+                                    onToggleUnread={_onToggleUnread}
+                                  />
+                                );
+                              })}
+                              {old.length > 0 && (
+                                <>
+                                  <ShowOldWorkspacesBtn
+                                    onClick={() => toggleOldWorkspaces(projectPath)}
+                                    aria-label={showOldWorkspaces ? `Hide ${old.length} older workspaces` : `Show ${old.length} older workspaces`}
+                                  >
+                                    <span>{showOldWorkspaces ? "▼" : "▶"}</span>
+                                    <span>{showOldWorkspaces ? "Hide" : "Show"} {old.length} older workspace{old.length !== 1 ? "s" : ""}</span>
+                                  </ShowOldWorkspacesBtn>
+                                  {showOldWorkspaces && old.map((metadata) => {
+                                    const isSelected = selectedWorkspace?.workspaceId === metadata.id;
+
+                                    return (
+                                      <WorkspaceListItem
+                                        key={metadata.id}
+                                        metadata={metadata}
+                                        projectPath={projectPath}
+                                        projectName={projectName}
+                                        isSelected={isSelected}
+                                        lastReadTimestamp={lastReadTimestamps[metadata.id] ?? 0}
+                                        onSelectWorkspace={onSelectWorkspace}
+                                        onRemoveWorkspace={handleRemoveWorkspace}
+                                        onToggleUnread={_onToggleUnread}
+                                      />
+                                    );
+                                  })}
+                                </>
+                              )}
+                            </WorkspacesContainer>
+                          );
+                        })()}
                       </ProjectGroup>
                     );
                   })
