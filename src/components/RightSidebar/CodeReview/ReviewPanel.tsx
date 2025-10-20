@@ -140,6 +140,9 @@ const SearchInput = styled.input`
   font-family: var(--font-sans);
   line-height: 1.4;
   outline: none;
+  display: flex;
+  align-items: center;
+  height: 100%;
 
   &::placeholder {
     color: #666;
@@ -152,10 +155,10 @@ const SearchInput = styled.input`
 
 const SearchButton = styled.button<{ active: boolean }>`
   padding: 6px 10px;
-  background: ${(props) => (props.active ? "#3a3a3a" : "transparent")};
+  background: ${(props) => (props.active ? "#2a3a4a" : "transparent")};
   border: none;
   border-left: 1px solid #3e3e42;
-  color: ${(props) => (props.active ? "#fff" : "#999")};
+  color: ${(props) => (props.active ? "#4db8ff" : "#999")};
   font-size: 11px;
   font-family: var(--font-monospace);
   font-weight: 600;
@@ -164,10 +167,19 @@ const SearchButton = styled.button<{ active: boolean }>`
   outline: none;
   transition: all 0.15s ease;
   white-space: nowrap;
+  display: flex;
+  align-items: center;
+  height: 100%;
+
+  ${(props) =>
+    props.active &&
+    `
+    box-shadow: inset 0 0 0 1px rgba(77, 184, 255, 0.4);
+  `}
 
   &:hover {
-    background: ${(props) => (props.active ? "#4a4a4a" : "#252526")};
-    color: ${(props) => (props.active ? "#fff" : "#ccc")};
+    background: ${(props) => (props.active ? "#2a4050" : "#252526")};
+    color: ${(props) => (props.active ? "#4db8ff" : "#ccc")};
   }
 
   &:active {
