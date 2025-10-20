@@ -15,27 +15,7 @@ export async function getShikiHighlighter(): Promise<Highlighter> {
   if (!highlighterPromise) {
     highlighterPromise = createHighlighter({
       themes: ['dark-plus'],
-      langs: [
-        'typescript',
-        'javascript',
-        'tsx',
-        'jsx',
-        'python',
-        'rust',
-        'go',
-        'java',
-        'c',
-        'cpp',
-        'html',
-        'css',
-        'json',
-        'yaml',
-        'markdown',
-        'bash',
-        'shell',
-        'sql',
-        'xml',
-      ],
+      langs: [], // Load languages on-demand via highlightDiffChunk
     });
   }
   return highlighterPromise;
