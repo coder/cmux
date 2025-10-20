@@ -220,7 +220,7 @@ export function TitleBar() {
           lines.push(`Update ready: ${updateStatus.info.version}`, "Click to install and restart.");
           break;
         case "not-available":
-          lines.push("No updates available", "Checks every 4 hours.");
+          lines.push("No updates available");
           break;
         case "error":
           lines.push("Update check failed", updateStatus.message);
