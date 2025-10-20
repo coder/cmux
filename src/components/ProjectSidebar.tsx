@@ -887,7 +887,8 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
                               </AddWorkspaceBtn>
                             </WorkspaceHeader>
                             {(() => {
-                              const allWorkspaces = sortedWorkspacesByProject.get(projectPath) ?? [];
+                              const allWorkspaces =
+                                sortedWorkspacesByProject.get(projectPath) ?? [];
                               const { recent, old } = partitionWorkspacesByAge(
                                 allWorkspaces,
                                 workspaceRecency
