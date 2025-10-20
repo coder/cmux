@@ -10,6 +10,7 @@ import type { BrowserWindow, IpcMain as ElectronIpcMain } from "electron";
 import express from "express";
 import * as http from "http";
 import * as path from "path";
+import type { RawData } from "ws";
 import { WebSocket, WebSocketServer } from "ws";
 
 // Mock Electron's ipcMain for HTTP
@@ -17,7 +18,7 @@ class HttpIpcMainAdapter {
   private handlers = new Map<string, (event: unknown, ...args: unknown[]) => Promise<unknown>>();
   private listeners = new Map<string, Array<(event: unknown, ...args: unknown[]) => void>>();
 
-  constructor(private app: express.Application) {}
+  constructor(private readonly app: express.Application) {}
 
   handle(channel: string, handler: (event: unknown, ...args: unknown[]) => Promise<unknown>): void {
     this.handlers.set(channel, handler);
@@ -25,7 +26,8 @@ class HttpIpcMainAdapter {
     // Create HTTP endpoint for this handler
     this.app.post(`/ipc/${encodeURIComponent(channel)}`, async (req, res) => {
       try {
-        const args = req.body.args || [];
+        const body = req.body as { args?: unknown[] };
+        const args: unknown[] = body.args ?? [];
         const result = await handler(null, ...args);
 
         // If handler returns an error result object, unwrap it and send as error response
@@ -71,7 +73,7 @@ type Clients = Map<WebSocket, { chatSubscriptions: Set<string>; metadataSubscrip
 
 // Mock BrowserWindow for events
 class MockBrowserWindow {
-  constructor(private clients: Clients) {}
+  constructor(private readonly clients: Clients) {}
 
   webContents = {
     send: (channel: string, ...args: unknown[]) => {
@@ -153,16 +155,32 @@ wss.on("connection", (ws) => {
     metadataSubscription: false,
   });
 
-  ws.on("message", (data) => {
+  ws.on("message", (rawData: RawData) => {
     try {
-      const message = JSON.parse(data.toString());
-      const { type, channel, workspaceId, args } = message;
+      // WebSocket data can be Buffer, ArrayBuffer, or string - convert to string
+      let dataStr: string;
+      if (typeof rawData === "string") {
+        dataStr = rawData;
+      } else if (Buffer.isBuffer(rawData)) {
+        dataStr = rawData.toString("utf-8");
+      } else if (rawData instanceof ArrayBuffer) {
+        dataStr = Buffer.from(rawData).toString("utf-8");
+      } else {
+        // Array of Buffers
+        dataStr = Buffer.concat(rawData as Buffer[]).toString("utf-8");
+      }
+      const message = JSON.parse(dataStr) as {
+        type: string;
+        channel: string;
+        workspaceId?: string;
+      };
+      const { type, channel, workspaceId } = message;
 
       const clientInfo = clients.get(ws);
       if (!clientInfo) return;
 
       if (type === "subscribe") {
-        if (channel === "workspace:chat") {
+        if (channel === "workspace:chat" && workspaceId) {
           console.log(`[WS] Client subscribed to workspace chat: ${workspaceId}`);
           clientInfo.chatSubscriptions.add(workspaceId);
           console.log(
@@ -181,7 +199,7 @@ wss.on("connection", (ws) => {
           httpIpcMain.send("workspace:metadata:subscribe");
         }
       } else if (type === "unsubscribe") {
-        if (channel === "workspace:chat") {
+        if (channel === "workspace:chat" && workspaceId) {
           console.log(`Client unsubscribed from workspace chat: ${workspaceId}`);
           clientInfo.chatSubscriptions.delete(workspaceId);
 

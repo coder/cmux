@@ -27,10 +27,10 @@ async function invokeIPC<T>(channel: string, ...args: unknown[]): Promise<T> {
     throw new Error(`HTTP error! status: ${response.status}`);
   }
 
-  const result: InvokeResponse<T> = await response.json();
+  const result = (await response.json()) as InvokeResponse<T>;
 
   if (!result.success) {
-    throw new Error(result.error || "Unknown error");
+    throw new Error(result.error ?? "Unknown error");
   }
 
   return result.data as T;
@@ -66,9 +66,10 @@ class WebSocketManager {
 
     this.ws.onmessage = (event) => {
       try {
-        const { channel, args } = JSON.parse(event.data);
+        const parsed = JSON.parse(event.data as string) as { channel: string; args: unknown[] };
+        const { channel, args } = parsed;
         const handlers = this.messageHandlers.get(channel);
-        if (handlers) {
+        if (handlers && args.length > 0) {
           handlers.forEach((handler) => handler(args[0]));
         }
       } catch (error) {
@@ -97,7 +98,7 @@ class WebSocketManager {
     if (this.ws?.readyState === WebSocket.OPEN) {
       if (channel.startsWith(IPC_CHANNELS.WORKSPACE_CHAT_PREFIX)) {
         console.log(
-          `[WebSocketManager] Subscribing to workspace chat for workspaceId: ${workspaceId}`
+          `[WebSocketManager] Subscribing to workspace chat for workspaceId: ${workspaceId ?? "undefined"}`
         );
         this.ws.send(
           JSON.stringify({
@@ -260,7 +261,7 @@ const webApi: IPCApi = {
     download: () => invokeIPC(IPC_CHANNELS.UPDATE_DOWNLOAD),
     install: () => {
       // Install is a one-way call that doesn't wait for response
-      invokeIPC(IPC_CHANNELS.UPDATE_INSTALL);
+      void invokeIPC(IPC_CHANNELS.UPDATE_INSTALL);
     },
     onStatus: (callback) => {
       return wsManager.on(IPC_CHANNELS.UPDATE_STATUS, callback as (data: unknown) => void);
@@ -268,9 +269,9 @@ const webApi: IPCApi = {
   },
 };
 
-if (typeof window["api"] === "undefined") {
-  // @ts-ignore
-  window["api"] = webApi;
+if (typeof window.api === "undefined") {
+  // @ts-expect-error - Assigning to window.api which is not in TypeScript types
+  window.api = webApi;
 }
 
 window.addEventListener("beforeunload", () => {

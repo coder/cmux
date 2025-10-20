@@ -78,13 +78,15 @@ if (isE2ETest) {
   // However, we must respect CMUX_TEST_ROOT to maintain test isolation
   const testRoot = process.env.CMUX_TEST_ROOT ?? path.join(process.env.HOME ?? "~", ".cmux");
   const e2eUserData = path.join(testRoot, "user-data");
-  try {
-    fs.mkdirSync(e2eUserData, { recursive: true });
-    app.setPath("userData", e2eUserData);
-    console.log("Using test userData directory:", e2eUserData);
-  } catch (error) {
-    console.warn("Failed to prepare test userData directory:", error);
-  }
+  void (async () => {
+    try {
+      await fs.promises.mkdir(e2eUserData, { recursive: true });
+      app.setPath("userData", e2eUserData);
+      console.log("Using test userData directory:", e2eUserData);
+    } catch (error) {
+      console.warn("Failed to prepare test userData directory:", error);
+    }
+  })();
 }
 
 const devServerPort = process.env.CMUX_DEVSERVER_PORT ?? "5173";
