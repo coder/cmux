@@ -658,6 +658,20 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
     searchState.matchCase,
   ]);
 
+  // Memoize search config to prevent re-creating object on every render
+  // This allows React.memo on HunkViewer to work properly
+  const searchConfig = useMemo(
+    () =>
+      debouncedSearchTerm
+        ? {
+            searchTerm: debouncedSearchTerm,
+            useRegex: searchState.useRegex,
+            matchCase: searchState.matchCase,
+          }
+        : undefined,
+    [debouncedSearchTerm, searchState.useRegex, searchState.matchCase]
+  );
+
   // Handle toggling read state with auto-navigation
   const handleToggleRead = useCallback(
     (hunkId: string) => {
@@ -929,15 +943,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
                       onToggleRead={handleHunkToggleRead}
                       onRegisterToggleExpand={handleRegisterToggleExpand}
                       onReviewNote={onReviewNote}
-                      searchConfig={
-                        debouncedSearchTerm
-                          ? {
-                              searchTerm: debouncedSearchTerm,
-                              useRegex: searchState.useRegex,
-                              matchCase: searchState.matchCase,
-                            }
-                          : undefined
-                      }
+                      searchConfig={searchConfig}
                     />
                   );
                 })

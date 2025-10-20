@@ -3,11 +3,28 @@
  * Post-processes Shiki-highlighted HTML to add search match highlights
  */
 
+import { LRUCache } from "lru-cache";
+import CRC32 from "crc-32";
+
 export interface SearchHighlightConfig {
   searchTerm: string;
   useRegex: boolean;
   matchCase: boolean;
 }
+
+// Module-level caches for performance
+const parserInstance = new DOMParser();
+
+// Cache compiled regex patterns (small memory footprint)
+const regexCache = new Map<string, RegExp>();
+
+// LRU cache for highlighted HTML results
+// Key: CRC32 checksum of (html + config), Value: highlighted HTML
+const highlightCache = new LRUCache<number, string>({
+  max: 5000, // Max number of cached lines
+  maxSize: 2 * 1024 * 1024, // 2MB total cache size
+  sizeCalculation: (html) => html.length,
+});
 
 /**
  * Escape special regex characters for literal string matching
@@ -46,20 +63,31 @@ export function highlightSearchMatches(html: string, config: SearchHighlightConf
     return html;
   }
 
-  try {
-    // Parse HTML into DOM for safe manipulation
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, "text/html");
+  // Check cache first (using CRC32 checksum of html + config as key)
+  const cacheKey = CRC32.str(html + JSON.stringify(config));
+  const cached = highlightCache.get(cacheKey);
+  if (cached !== undefined) {
+    return cached;
+  }
 
-    // Build regex pattern
-    let pattern: RegExp;
-    try {
-      pattern = useRegex
-        ? new RegExp(searchTerm, matchCase ? "g" : "gi")
-        : new RegExp(escapeRegex(searchTerm), matchCase ? "g" : "gi");
-    } catch {
-      // Invalid regex pattern - return original HTML
-      return html;
+  try {
+    // Reuse DOMParser instance for better performance
+    const doc = parserInstance.parseFromString(html, "text/html");
+
+    // Build regex pattern (with caching)
+    const regexCacheKey = `${searchTerm}:${useRegex}:${matchCase}`;
+    let pattern = regexCache.get(regexCacheKey);
+    
+    if (!pattern) {
+      try {
+        pattern = useRegex
+          ? new RegExp(searchTerm, matchCase ? "g" : "gi")
+          : new RegExp(escapeRegex(searchTerm), matchCase ? "g" : "gi");
+        regexCache.set(regexCacheKey, pattern);
+      } catch {
+        // Invalid regex pattern - return original HTML
+        return html;
+      }
     }
 
     // Walk all text nodes and wrap matches
@@ -107,7 +135,12 @@ export function highlightSearchMatches(html: string, config: SearchHighlightConf
       textNode.parentNode?.replaceChild(fragment, textNode);
     });
 
-    return doc.body.innerHTML;
+    const result = doc.body.innerHTML;
+
+    // Cache the result for future lookups
+    highlightCache.set(cacheKey, result);
+
+    return result;
   } catch (error) {
     // Failed to parse/process - return original HTML
     console.warn("Failed to highlight search matches:", error);
