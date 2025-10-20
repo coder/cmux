@@ -70,16 +70,7 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ code, language }) => {
   // Show loading state or fall back to plain code
   if (html === null) {
     return (
-      <pre
-        style={{
-          background: "var(--color-code-bg)",
-          margin: "1em 0",
-          borderRadius: "4px",
-          fontSize: "12px",
-          padding: "12px",
-          overflow: "auto",
-        }}
-      >
+      <pre>
         <code>{code}</code>
       </pre>
     );
@@ -144,19 +135,10 @@ export const markdownComponents = {
       return <CodeBlock code={childString} language={language} />;
     }
 
-    // Code blocks without language
+    // Code blocks without language (global CSS provides styling)
     if (!isInline) {
       return (
-        <pre
-          style={{
-            background: "var(--color-code-bg)",
-            margin: "1em 0",
-            borderRadius: "4px",
-            fontSize: "12px",
-            padding: "12px",
-            overflow: "auto",
-          }}
-        >
+        <pre>
           <code className={className} {...props}>
             {children}
           </code>
