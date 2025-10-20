@@ -3,7 +3,8 @@
  * and OS-aware display across the application.
  *
  * NOTE: This file is the source of truth for keybind definitions.
- * When adding/modifying keybinds, also update docs/keybinds.md
+ * When adding/modifying keybinds, update docs/keybinds.md ONLY if the keybind
+ * is not discoverable in the UI (e.g., no tooltip, placeholder text, or visible hint).
  */
 
 /**
@@ -261,6 +262,10 @@ export const KEYBINDS = {
   /** Refresh diff in Code Review panel */
   // macOS: Cmd+R, Win/Linux: Ctrl+R
   REFRESH_REVIEW: { key: "r", ctrl: true },
+
+  /** Focus search input in Code Review panel */
+  // macOS: Cmd+F, Win/Linux: Ctrl+F
+  FOCUS_REVIEW_SEARCH: { key: "f", ctrl: true },
 
   /** Mark selected hunk as read/unread in Code Review panel */
   TOGGLE_HUNK_READ: { key: "m" },

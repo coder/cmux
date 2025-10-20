@@ -10,6 +10,10 @@ import { getLanguageFromPath } from "@/utils/git/languageDetector";
 import { Tooltip, TooltipWrapper } from "../Tooltip";
 import { groupDiffLines } from "@/utils/highlighting/diffChunking";
 import { highlightDiffChunk, type HighlightedChunk } from "@/utils/highlighting/highlightDiffChunk";
+import {
+  highlightSearchMatches,
+  type SearchHighlightConfig,
+} from "@/utils/highlighting/highlightSearchTerms";
 
 // Shared type for diff line types
 export type DiffLineType = "add" | "remove" | "context" | "header";
@@ -257,6 +261,8 @@ interface SelectableDiffRendererProps extends Omit<DiffRendererProps, "filePath"
   onReviewNote?: (note: string) => void;
   /** Callback when user clicks on a line (to activate parent hunk) */
   onLineClick?: () => void;
+  /** Search highlight configuration (optional) */
+  searchConfig?: SearchHighlightConfig;
 }
 
 interface LineSelection {
@@ -457,6 +463,7 @@ export const SelectableDiffRenderer = React.memo<SelectableDiffRendererProps>(
     maxHeight,
     onReviewNote,
     onLineClick,
+    searchConfig,
   }) => {
     const [selection, setSelection] = React.useState<LineSelection | null>(null);
 
@@ -493,6 +500,17 @@ export const SelectableDiffRenderer = React.memo<SelectableDiffRendererProps>(
 
       return data;
     }, [highlightedChunks]);
+
+    // Memoize highlighted line data to avoid re-parsing HTML on every render
+    // Only recalculate when lineData or searchConfig changes
+    const highlightedLineData = React.useMemo(() => {
+      if (!searchConfig) return lineData;
+
+      return lineData.map((line) => ({
+        ...line,
+        html: highlightSearchMatches(line.html, searchConfig),
+      }));
+    }, [lineData, searchConfig]);
 
     const handleCommentButtonClick = (lineIndex: number, shiftKey: boolean) => {
       // Notify parent that this hunk should become active
@@ -537,7 +555,7 @@ export const SelectableDiffRenderer = React.memo<SelectableDiffRendererProps>(
     };
 
     // Show loading state while highlighting
-    if (!highlightedChunks || lineData.length === 0) {
+    if (!highlightedChunks || highlightedLineData.length === 0) {
       return (
         <DiffContainer fontSize={fontSize} maxHeight={maxHeight}>
           <div style={{ opacity: 0.5, padding: "8px" }}>Processing...</div>
@@ -550,7 +568,7 @@ export const SelectableDiffRenderer = React.memo<SelectableDiffRendererProps>(
 
     return (
       <DiffContainer fontSize={fontSize} maxHeight={maxHeight}>
-        {lineData.map((lineInfo, displayIndex) => {
+        {highlightedLineData.map((lineInfo, displayIndex) => {
           const isSelected = isLineSelected(displayIndex);
           const indicator = lineInfo.type === "add" ? "+" : lineInfo.type === "remove" ? "-" : " ";
 
@@ -569,7 +587,9 @@ export const SelectableDiffRenderer = React.memo<SelectableDiffRendererProps>(
                       +
                     </CommentButton>
                     <Tooltip position="bottom" align="left">
-                      Add review comment (Shift-click to select range)
+                      Add review comment
+                      <br />
+                      (Shift-click to select range)
                     </Tooltip>
                   </TooltipWrapper>
                 </CommentButtonWrapper>

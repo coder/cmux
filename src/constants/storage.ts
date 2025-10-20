@@ -103,6 +103,15 @@ export function getFileTreeExpandStateKey(workspaceId: string): string {
 }
 
 /**
+ * Get the localStorage key for unified Review search state per workspace
+ * Stores: { input: string, useRegex: boolean, matchCase: boolean }
+ * Format: "reviewSearchState:{workspaceId}"
+ */
+export function getReviewSearchStateKey(workspaceId: string): string {
+  return `reviewSearchState:${workspaceId}`;
+}
+
+/**
  * List of workspace-scoped key functions that should be copied on fork and deleted on removal
  * Note: Excludes ephemeral keys like getCompactContinueMessageKey
  */
@@ -115,6 +124,7 @@ const PERSISTENT_WORKSPACE_KEY_FUNCTIONS: Array<(workspaceId: string) => string>
   getRetryStateKey,
   getReviewExpandStateKey,
   getFileTreeExpandStateKey,
+  getReviewSearchStateKey,
 ];
 
 /**

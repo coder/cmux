@@ -1,6 +1,25 @@
 /**
  * ReviewPanel - Main code review interface
  * Displays diff hunks for viewing changes in the workspace
+ *
+ * FILTERING ARCHITECTURE:
+ *
+ * Two-tier pipeline:
+ *
+ * 1. Git-level filters (affect data fetching):
+ *    - diffBase: target branch/commit to diff against
+ *    - includeUncommitted: include working directory changes
+ *    - selectedFilePath: CRITICAL for truncation handling - when full diff
+ *      exceeds bash output limits, path filter retrieves specific files
+ *
+ * 2. Frontend filters (applied in-memory to loaded hunks):
+ *    - showReadHunks: hide hunks marked as reviewed
+ *    - searchTerm: substring match on filenames + hunk content
+ *
+ * Why hybrid? Performance and necessity:
+ * - selectedFilePath MUST be git-level (truncation recovery)
+ * - search/read filters are better frontend (more flexible, simpler UX)
+ * - Frontend filtering is fast even for 1000+ hunks (<5ms)
  */
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
@@ -11,6 +30,8 @@ import { FileTree } from "./FileTree";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { useReviewState } from "@/hooks/useReviewState";
 import { parseDiff, extractAllHunks } from "@/utils/git/diffParser";
+import { getReviewSearchStateKey } from "@/constants/storage";
+import { Tooltip, TooltipWrapper } from "@/components/Tooltip";
 import {
   parseNumstat,
   buildFileTree,
@@ -19,7 +40,8 @@ import {
 } from "@/utils/git/numstatParser";
 import type { DiffHunk, ReviewFilters as ReviewFiltersType } from "@/types/review";
 import type { FileTreeNode } from "@/utils/git/numstatParser";
-import { matchesKeybind, KEYBINDS } from "@/utils/ui/keybinds";
+import { matchesKeybind, KEYBINDS, formatKeybind } from "@/utils/ui/keybinds";
+import { applyFrontendFilters } from "@/utils/review/filterHunks";
 
 interface ReviewPanelProps {
   workspaceId: string;
@@ -27,6 +49,12 @@ interface ReviewPanelProps {
   onReviewNote?: (note: string) => void;
   /** Trigger to focus panel (increment to trigger) */
   focusTrigger?: number;
+}
+
+interface ReviewSearchState {
+  input: string;
+  useRegex: boolean;
+  matchCase: boolean;
 }
 
 const PanelContainer = styled.div`
@@ -70,6 +98,93 @@ const HunksSection = styled.div`
   overflow: hidden;
   min-width: 0;
   order: 1; /* Stay in middle regardless of layout */
+`;
+
+// Search bar styling - unified component approach
+const SearchContainer = styled.div`
+  padding: 8px 12px;
+  border-bottom: 1px solid #3e3e42;
+  background: #252526;
+`;
+
+/**
+ * SearchBar - Unified search control wrapper
+ * Provides outer border and radius, children handle internal layout
+ */
+const SearchBar = styled.div`
+  display: flex;
+  align-items: stretch;
+  border: 1px solid #3e3e42;
+  border-radius: 4px;
+  overflow: hidden; /* Ensures children respect parent radius */
+  background: #1e1e1e;
+  transition: border-color 0.15s ease;
+
+  /* Show focus ring when input inside is focused */
+  &:focus-within {
+    border-color: #007acc;
+  }
+
+  &:hover:not(:focus-within) {
+    border-color: #4e4e52;
+  }
+`;
+
+const SearchInput = styled.input`
+  flex: 1;
+  padding: 6px 10px;
+  background: transparent;
+  border: none;
+  color: #ccc;
+  font-size: 12px;
+  font-family: var(--font-sans);
+  line-height: 1.4;
+  outline: none;
+  display: flex;
+  align-items: center;
+  height: 100%;
+
+  &::placeholder {
+    color: #666;
+  }
+
+  &:focus {
+    background: #1a1a1a;
+  }
+`;
+
+const SearchButton = styled.button<{ active: boolean }>`
+  padding: 6px 10px;
+  background: ${(props) => (props.active ? "#2a3a4a" : "transparent")};
+  border: none;
+  border-left: 1px solid #3e3e42;
+  color: ${(props) => (props.active ? "#4db8ff" : "#999")};
+  font-size: 11px;
+  font-family: var(--font-monospace);
+  font-weight: 600;
+  line-height: 1.4;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  height: 100%;
+
+  ${(props) =>
+    props.active &&
+    `
+    box-shadow: inset 0 0 0 1px rgba(77, 184, 255, 0.4);
+  `}
+
+  &:hover {
+    background: ${(props) => (props.active ? "#2a4050" : "#252526")};
+    color: ${(props) => (props.active ? "#4db8ff" : "#ccc")};
+  }
+
+  &:active {
+    transform: translateY(1px);
+  }
 `;
 
 const HunkList = styled.div`
@@ -300,6 +415,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
   focusTrigger,
 }) => {
   const panelRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [hunks, setHunks] = useState<DiffHunk[]>([]);
   const [selectedHunkId, setSelectedHunkId] = useState<string | null>(null);
   const [isLoadingHunks, setIsLoadingHunks] = useState(true);
@@ -313,6 +429,13 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
   const [commonPrefix, setCommonPrefix] = useState<string | null>(null);
   // Map of hunkId -> toggle function for expand/collapse
   const toggleExpandFnsRef = useRef<Map<string, () => void>>(new Map());
+
+  // Unified search state (per-workspace persistence)
+  const [searchState, setSearchState] = usePersistedState<ReviewSearchState>(
+    getReviewSearchStateKey(workspaceId),
+    { input: "", useRegex: false, matchCase: false }
+  );
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
 
   // Persist file filter per workspace
   const [selectedFilePath, setSelectedFilePath] = usePersistedState<string | null>(
@@ -353,6 +476,14 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
       panelRef.current?.focus();
     }
   }, [focusTrigger]);
+
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchState.input);
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [searchState.input]);
 
   // Load file tree - when workspace, diffBase, or refreshTrigger changes
   useEffect(() => {
@@ -409,8 +540,11 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
       setError(null);
       setTruncationWarning(null);
       try {
-        // Add path filter if a file/folder is selected
-        // Extract new path from rename syntax (e.g., "{old => new}" -> "new")
+        // Git-level filters (affect what data is fetched):
+        // - diffBase: what to diff against
+        // - includeUncommitted: include working directory changes
+        // - selectedFilePath: ESSENTIAL for truncation - if full diff is cut off,
+        //   path filter lets us retrieve specific file's hunks
         const pathFilter = selectedFilePath ? ` -- "${extractNewPath(selectedFilePath)}"` : "";
 
         const diffCommand = buildGitDiffCommand(
@@ -517,13 +651,38 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
     [hunks, isRead]
   );
 
-  // Filter hunks based on read state
+  // Apply frontend filters (read state, search term)
+  // Note: selectedFilePath is a git-level filter, applied when fetching hunks
   const filteredHunks = useMemo(() => {
-    if (filters.showReadHunks) {
-      return hunks;
-    }
-    return hunks.filter((hunk) => !isRead(hunk.id));
-  }, [hunks, filters.showReadHunks, isRead]);
+    return applyFrontendFilters(hunks, {
+      showReadHunks: filters.showReadHunks,
+      isRead,
+      searchTerm: debouncedSearchTerm,
+      useRegex: searchState.useRegex,
+      matchCase: searchState.matchCase,
+    });
+  }, [
+    hunks,
+    filters.showReadHunks,
+    isRead,
+    debouncedSearchTerm,
+    searchState.useRegex,
+    searchState.matchCase,
+  ]);
+
+  // Memoize search config to prevent re-creating object on every render
+  // This allows React.memo on HunkViewer to work properly
+  const searchConfig = useMemo(
+    () =>
+      debouncedSearchTerm
+        ? {
+            searchTerm: debouncedSearchTerm,
+            useRegex: searchState.useRegex,
+            matchCase: searchState.matchCase,
+          }
+        : undefined,
+    [debouncedSearchTerm, searchState.useRegex, searchState.matchCase]
+  );
 
   // Handle toggling read state with auto-navigation
   const handleToggleRead = useCallback(
@@ -650,12 +809,15 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isPanelFocused, selectedHunkId, filteredHunks, handleToggleRead]);
 
-  // Global keyboard shortcut for refresh (Ctrl+R / Cmd+R)
+  // Global keyboard shortcuts (Ctrl+R / Cmd+R for refresh, Ctrl+F / Cmd+F for search)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (matchesKeybind(e, KEYBINDS.REFRESH_REVIEW)) {
         e.preventDefault();
         setRefreshTrigger((prev) => prev + 1);
+      } else if (matchesKeybind(e, KEYBINDS.FOCUS_REVIEW_SEARCH)) {
+        e.preventDefault();
+        searchInputRef.current?.focus();
       }
     };
 
@@ -690,6 +852,46 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
         <ContentContainer>
           <HunksSection>
             {truncationWarning && <TruncationBanner>{truncationWarning}</TruncationBanner>}
+
+            <SearchContainer>
+              <SearchBar>
+                <SearchInput
+                  ref={searchInputRef}
+                  type="text"
+                  placeholder={`Search in files and hunks... (${formatKeybind(KEYBINDS.FOCUS_REVIEW_SEARCH)})`}
+                  value={searchState.input}
+                  onChange={(e) => setSearchState({ ...searchState, input: e.target.value })}
+                />
+                <TooltipWrapper inline>
+                  <SearchButton
+                    active={searchState.useRegex}
+                    onClick={() =>
+                      setSearchState({ ...searchState, useRegex: !searchState.useRegex })
+                    }
+                  >
+                    .*
+                  </SearchButton>
+                  <Tooltip position="bottom">
+                    {searchState.useRegex ? "Using regex search" : "Using substring search"}
+                  </Tooltip>
+                </TooltipWrapper>
+                <TooltipWrapper inline>
+                  <SearchButton
+                    active={searchState.matchCase}
+                    onClick={() =>
+                      setSearchState({ ...searchState, matchCase: !searchState.matchCase })
+                    }
+                  >
+                    Aa
+                  </SearchButton>
+                  <Tooltip position="bottom">
+                    {searchState.matchCase
+                      ? "Match case (case-sensitive)"
+                      : "Ignore case (case-insensitive)"}
+                  </Tooltip>
+                </TooltipWrapper>
+              </SearchBar>
+            </SearchContainer>
 
             <HunkList>
               {hunks.length === 0 ? (
@@ -729,9 +931,11 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
               ) : filteredHunks.length === 0 ? (
                 <EmptyState>
                   <EmptyStateText>
-                    {selectedFilePath
-                      ? `No hunks in ${selectedFilePath}. Try selecting a different file.`
-                      : "No hunks match the current filters. Try adjusting your filter settings."}
+                    {debouncedSearchTerm.trim()
+                      ? `No hunks match "${debouncedSearchTerm}". Try a different search term.`
+                      : selectedFilePath
+                        ? `No hunks in ${selectedFilePath}. Try selecting a different file.`
+                        : "No hunks match the current filters. Try adjusting your filter settings."}
                   </EmptyStateText>
                 </EmptyState>
               ) : (
@@ -751,6 +955,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
                       onToggleRead={handleHunkToggleRead}
                       onRegisterToggleExpand={handleRegisterToggleExpand}
                       onReviewNote={onReviewNote}
+                      searchConfig={searchConfig}
                     />
                   );
                 })

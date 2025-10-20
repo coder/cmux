@@ -2,10 +2,15 @@
  * HunkViewer - Displays a single diff hunk with syntax highlighting
  */
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import styled from "@emotion/styled";
 import type { DiffHunk } from "@/types/review";
 import { SelectableDiffRenderer } from "../../shared/DiffRenderer";
+import {
+  type SearchHighlightConfig,
+  highlightSearchMatches,
+} from "@/utils/highlighting/highlightSearchTerms";
+import { escapeHtml } from "@/utils/highlighting/highlightDiffChunk";
 import { Tooltip, TooltipWrapper } from "../../Tooltip";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { getReviewExpandStateKey } from "@/constants/storage";
@@ -21,6 +26,7 @@ interface HunkViewerProps {
   onToggleRead?: (e: React.MouseEvent<HTMLElement>) => void;
   onRegisterToggleExpand?: (hunkId: string, toggleFn: () => void) => void;
   onReviewNote?: (note: string) => void;
+  searchConfig?: SearchHighlightConfig;
 }
 
 const HunkContainer = styled.div<{ isSelected: boolean; isRead: boolean }>`
@@ -186,6 +192,7 @@ export const HunkViewer = React.memo<HunkViewerProps>(
     onToggleRead,
     onRegisterToggleExpand,
     onReviewNote,
+    searchConfig,
   }) => {
     // Parse diff lines (memoized - only recompute if hunk.content changes)
     // Must be done before state initialization to determine initial collapse state
@@ -199,6 +206,14 @@ export const HunkViewer = React.memo<HunkViewerProps>(
         isLargeHunk: count > 200, // Memoize to prevent useEffect re-runs
       };
     }, [hunk.content]);
+
+    // Highlight filePath if search is active
+    const highlightedFilePath = useMemo(() => {
+      if (!searchConfig) {
+        return hunk.filePath;
+      }
+      return highlightSearchMatches(escapeHtml(hunk.filePath), searchConfig);
+    }, [hunk.filePath, searchConfig]);
 
     // Persist manual expand/collapse state across remounts per workspace
     // Maps hunkId -> isExpanded for user's manual preferences
@@ -291,7 +306,7 @@ export const HunkViewer = React.memo<HunkViewerProps>(
               </Tooltip>
             </TooltipWrapper>
           )}
-          <FilePath>{hunk.filePath}</FilePath>
+          <FilePath dangerouslySetInnerHTML={{ __html: highlightedFilePath }} />
           <LineInfo>
             {!isPureRename && (
               <LocStats>
@@ -339,6 +354,7 @@ export const HunkViewer = React.memo<HunkViewerProps>(
                 } as unknown as React.MouseEvent<HTMLElement>;
                 onClick?.(syntheticEvent);
               }}
+              searchConfig={searchConfig}
             />
           </HunkContent>
         ) : (
