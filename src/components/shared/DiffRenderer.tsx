@@ -99,7 +99,8 @@ export const LineContent = styled.span<{ type: DiffLineType }>`
   }};
 
   /* Ensure Shiki spans don't interfere with diff backgrounds */
-  span {
+  /* Exclude search-highlight to allow search marking to show */
+  span:not(.search-highlight) {
     background: transparent !important;
   }
 `;
