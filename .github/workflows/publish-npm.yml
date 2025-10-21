@@ -27,7 +27,12 @@ jobs:
       # Sets up .npmrc with the auth token
       - uses: actions/setup-node@v4
         with:
+          node-version: '24.x'
           registry-url: 'https://registry.npmjs.org'
+      
+      # Upgrade npm to 11.5.1+ for OIDC trusted publishing support
+      - name: Upgrade npm
+        run: npm install -g npm@latest
 
       - name: Generate version file
         run: ./scripts/generate-version.sh
@@ -47,4 +52,4 @@ jobs:
           fi
 
       - name: Publish to NPM
-        run: npm publish --tag ${{ steps.npm-tag.outputs.tag }} --provenance
+        run: npm publish --tag ${{ steps.npm-tag.outputs.tag }}
