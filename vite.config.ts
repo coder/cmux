@@ -67,11 +67,6 @@ export default defineConfig(({ mode }) => ({
     sourcemap: true,
     minify: "esbuild",
     rollupOptions: {
-      external: [
-        // Externalize tokenizer encodings - these are large and should be lazy-loaded
-        "ai-tokenizer/encoding/o200k_base",
-        "ai-tokenizer/encoding/claude",
-      ],
       output: {
         format: "es",
         inlineDynamicImports: false,

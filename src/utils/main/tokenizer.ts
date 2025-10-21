@@ -193,6 +193,25 @@ async function countTokensWithLoadedModules(
 }
 
 /**
+ * Count tokens synchronously using loaded tokenizer modules and encodings
+ * Returns null if modules or encodings are not loaded yet
+ */
+function countTokensSynchronously(
+  text: string,
+  modelString: string,
+  modules: NonNullable<typeof tokenizerModules>
+): number | null {
+  const encodingName = getTokenizerEncoding(modelString, modules);
+
+  const encoding = loadedEncodings.get(encodingName);
+  if (!encoding) return null;
+
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-explicit-any
+  const tokenizer = new modules.AITokenizer(encoding as any);
+  return tokenizer.count(text);
+}
+
+/**
  * Get the appropriate tokenizer for a given model string
  *
  * @param modelString - Model identifier (e.g., "anthropic:claude-opus-4-1", "openai:gpt-4")
@@ -207,7 +226,15 @@ export function getTokenizerForModel(modelString: string): Tokenizer {
       return getTokenizerEncoding(modelString, tokenizerModules);
     },
     countTokens: (text: string) => {
-      // Always use async path since encodings are loaded on-demand
+      // Try synchronous path if modules and encodings are already loaded
+      if (tokenizerModules) {
+        const syncResult = countTokensSynchronously(text, modelString, tokenizerModules);
+        if (syncResult !== null) {
+          return countTokensCached(text, () => syncResult);
+        }
+      }
+
+      // Fallback to async path for first-time loading
       return countTokensCached(text, async () => {
         await loadTokenizerModules();
         try {
