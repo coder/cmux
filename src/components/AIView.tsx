@@ -58,6 +58,7 @@ const ChatArea = styled.div`
   @media (max-width: 768px) {
     min-width: 0;
     width: 100%;
+    max-height: 100%;
   }
 `;
 
