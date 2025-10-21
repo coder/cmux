@@ -201,7 +201,9 @@ export function getTokenizerForModel(modelString: string): Tokenizer {
       // Try synchronous path if modules are already loaded
       if (tokenizerModules) {
         try {
-          return countTokensCached(text, () => countTokensWithLoadedModules(text, modelString, tokenizerModules!));
+          return countTokensCached(text, () =>
+            countTokensWithLoadedModules(text, modelString, tokenizerModules!)
+          );
         } catch (error) {
           // Unexpected error during tokenization, fallback to approximation
           console.error("Failed to tokenize, falling back to approximation:", error);
