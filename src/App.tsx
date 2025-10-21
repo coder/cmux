@@ -64,8 +64,6 @@ const globalStyles = css`
     html {
       /* Prevent text size adjustment on orientation change */
       -webkit-text-size-adjust: 100%;
-      /* Improve tap responsiveness */
-      touch-action: manipulation;
     }
 
     body {
@@ -79,6 +77,15 @@ const globalStyles = css`
     [role="button"] {
       min-height: 44px;
       min-width: 44px;
+      /* Improve tap responsiveness on buttons only */
+      touch-action: manipulation;
+    }
+
+    /* Ensure input elements allow default touch behavior for iOS keyboard */
+    input,
+    textarea,
+    select {
+      touch-action: auto;
     }
   }
 
