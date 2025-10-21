@@ -67,7 +67,41 @@ jobs:
       - name: Build application
         run: make build
 
+      - name: Check if version exists
+        id: check-exists
+        run: |
+          PACKAGE_NAME=$(node -p "require('./package.json').name")
+          VERSION="${{ steps.version.outputs.version }}"
+          
+          if npm view "${PACKAGE_NAME}@${VERSION}" version &>/dev/null; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "Version ${VERSION} already exists on npm"
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "Version ${VERSION} does not exist, will publish"
+          fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
       - name: Publish to NPM
+        if: steps.check-exists.outputs.exists == 'false'
         run: npm publish --tag ${{ steps.version.outputs.tag }}
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Update dist-tag (version already exists)
+        if: steps.check-exists.outputs.exists == 'true' && github.ref_type == 'tag'
+        run: |
+          PACKAGE_NAME=$(node -p "require('./package.json').name")
+          VERSION="${{ steps.version.outputs.version }}"
+          TAG="${{ steps.version.outputs.tag }}"
+          
+          echo "Version ${VERSION} already published, updating dist-tag to ${TAG}"
+          npm dist-tag add "${PACKAGE_NAME}@${VERSION}" "${TAG}"
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Skip (pre-release already exists)
+        if: steps.check-exists.outputs.exists == 'true' && github.ref_type != 'tag'
+        run: |
+          echo "⏭️ Pre-release version already exists, skipping"
