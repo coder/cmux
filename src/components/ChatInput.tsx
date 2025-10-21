@@ -56,15 +56,12 @@ const InputControls = styled.div`
   display: flex;
   gap: 10px;
   align-items: flex-end;
-  position: relative;
 `;
 
 const AttachButton = styled.button`
-  position: absolute;
-  right: 8px;
-  bottom: 8px;
   width: 32px;
   height: 32px;
+  flex-shrink: 0;
   border-radius: 4px;
   background: #3e3e42;
   color: #cccccc;
