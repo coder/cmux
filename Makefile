@@ -106,6 +106,7 @@ build-static: ## Copy static assets to dist
 	@echo "Copying static assets..."
 	@mkdir -p dist
 	@cp static/splash.html dist/splash.html
+	@cp -r public/* dist/
 
 # Always regenerate version file (marked as .PHONY above)
 version: ## Generate version file
