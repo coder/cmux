@@ -30,21 +30,14 @@ class HttpIpcMainAdapter {
         const args: unknown[] = body.args ?? [];
         const result = await handler(null, ...args);
 
-        // If handler returns an error result object, unwrap it and send as error response
-        // This ensures webApi.ts will throw with the proper error message
-        if (
-          result &&
-          typeof result === "object" &&
-          "success" in result &&
-          result.success === false
-        ) {
-          const errorMessage =
-            "error" in result && typeof result.error === "string" ? result.error : "Unknown error";
-          // Return 200 with error structure so webApi can throw with the detailed message
-          res.json({ success: false, error: errorMessage });
+        // If handler returns a Result type (has success field), pass it through as-is
+        // This preserves the full Result<T, E> structure including typed errors
+        if (result && typeof result === "object" && "success" in result) {
+          res.json(result);
           return;
         }
 
+        // For non-Result return values, wrap in success response
         res.json({ success: true, data: result });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);

@@ -10,7 +10,7 @@ const WS_BASE = API_BASE.replace("http://", "ws://").replace("https://", "wss://
 interface InvokeResponse<T> {
   success: boolean;
   data?: T;
-  error?: string;
+  error?: unknown; // Can be string or structured error object
 }
 
 // Helper function to invoke IPC handlers via HTTP
@@ -27,13 +27,27 @@ async function invokeIPC<T>(channel: string, ...args: unknown[]): Promise<T> {
     throw new Error(`HTTP error! status: ${response.status}`);
   }
 
-  const result = (await response.json()) as InvokeResponse<T>;
+  const result = (await response.json()) as InvokeResponse<T> | T;
 
-  if (!result.success) {
-    throw new Error(result.error ?? "Unknown error");
+  // If result is a Result type (has success field), return it as-is
+  // This handles operations like sendMessage that return Result<T, E>
+  if (result && typeof result === "object" && "success" in result && typeof result.success === "boolean") {
+    return result as T;
   }
 
-  return result.data as T;
+  // For wrapped responses, check if they're successful
+  const wrappedResult = result as InvokeResponse<T>;
+  if ("success" in wrappedResult) {
+    if (!wrappedResult.success) {
+      throw new Error(
+        typeof wrappedResult.error === "string" ? wrappedResult.error : "Unknown error"
+      );
+    }
+    return wrappedResult.data as T;
+  }
+
+  // Direct return value (shouldn't happen with current server implementation)
+  return result as T;
 }
 
 // WebSocket connection manager
