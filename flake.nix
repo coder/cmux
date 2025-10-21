@@ -133,7 +133,16 @@
             # Terminal bench
             uv
             asciinema
+
+            # Playwright dependencies for screenshot generation
+            playwright-driver.browsers
           ];
+
+          # Set up library paths for Playwright
+          shellHook = ''
+            export PLAYWRIGHT_BROWSERS_PATH=${pkgs.playwright-driver.browsers}
+            export PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS=true
+          '';
         };
       }
     );

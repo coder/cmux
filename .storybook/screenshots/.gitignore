@@ -1,0 +1,9 @@
+# Screenshot images
+*.png
+*.jpg
+*.jpeg
+
+# Keep README and examples
+!README.md
+!example-*.png
+
