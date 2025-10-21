@@ -35,8 +35,25 @@ jobs:
       - name: Build application
         run: make build
 
+      - name: Check if version already published
+        id: check-version
+        run: |
+          PACKAGE_VERSION=$(node -p "require('./package.json').version")
+          PACKAGE_NAME=$(node -p "require('./package.json').name")
+          
+          echo "Checking if ${PACKAGE_NAME}@${PACKAGE_VERSION} exists on npm..."
+          
+          if npm view "${PACKAGE_NAME}@${PACKAGE_VERSION}" version &>/dev/null; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "Version ${PACKAGE_VERSION} already exists on npm"
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "Version ${PACKAGE_VERSION} is new and can be published"
+          fi
+
       - name: Determine NPM tag
         id: npm-tag
+        if: steps.check-version.outputs.exists == 'false'
         run: |
           if [[ $GITHUB_REF == refs/tags/* ]]; then
             echo "tag=latest" >> $GITHUB_OUTPUT
@@ -47,4 +64,13 @@ jobs:
           fi
 
       - name: Publish to NPM
+        if: steps.check-version.outputs.exists == 'false'
         run: npm publish --tag ${{ steps.npm-tag.outputs.tag }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Skip publishing (version exists)
+        if: steps.check-version.outputs.exists == 'true'
+        run: |
+          echo "⏭️ Skipping publish - version already exists on npm"
+          echo "To publish a new version, update the version in package.json"
