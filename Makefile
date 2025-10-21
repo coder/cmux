@@ -245,7 +245,7 @@ docs-watch: ## Watch and rebuild documentation
 storybook: node_modules/.installed ## Start Storybook development server
 	@bun x storybook dev -p 6006
 
-storybook-build: node_modules/.installed ## Build static Storybook
+storybook-build: node_modules/.installed src/version.ts ## Build static Storybook
 	@bun x storybook build
 
 test-storybook: node_modules/.installed ## Run Storybook interaction tests (requires Storybook to be running or built)

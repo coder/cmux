@@ -18,7 +18,7 @@ const config: StorybookConfig = {
       // Inherit project aliases
       resolve: {
         alias: {
-          "@": path.resolve(__dirname, "../src"),
+          "@": path.join(process.cwd(), "src"),
         },
       },
     });
