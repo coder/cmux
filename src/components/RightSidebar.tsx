@@ -54,6 +54,16 @@ const SidebarContainer = styled.div<SidebarContainerStyleProps>`
     z-index: 10;
     box-shadow: -2px 0 4px rgba(0, 0, 0, 0.2);
   `}
+
+  /* Mobile: Full width when expanded, hide when collapsed */
+  @media (max-width: 768px) {
+    width: ${(props) => (props.collapsed ? "0" : "100%")};
+    border-left: none;
+    border-top: 1px solid #3e3e42;
+    max-height: ${(props) => (props.collapsed ? "0" : "50vh")};
+    position: ${(props) => (props.collapsed ? "absolute" : "relative")};
+    bottom: ${(props) => (props.collapsed ? "0" : "auto")};
+  }
 `;
 
 const FullView = styled.div<{ visible: boolean }>`

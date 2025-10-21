@@ -59,6 +59,29 @@ const globalStyles = css`
     -moz-osx-font-smoothing: grayscale;
   }
 
+  /* Mobile: Improve touch interactions */
+  @media (max-width: 768px) {
+    html {
+      /* Prevent text size adjustment on orientation change */
+      -webkit-text-size-adjust: 100%;
+      /* Improve tap responsiveness */
+      touch-action: manipulation;
+    }
+
+    body {
+      /* Slightly larger font for better readability on mobile */
+      font-size: 15px;
+    }
+
+    /* Make buttons and interactive elements easier to tap */
+    button,
+    a,
+    [role="button"] {
+      min-height: 44px;
+      min-width: 44px;
+    }
+  }
+
   code {
     font-family: var(--font-monospace);
   }
@@ -135,6 +158,11 @@ const AppContainer = styled.div`
   height: 100vh;
   overflow: hidden;
   background: #1e1e1e;
+
+  /* Mobile: Ensure content takes full width */
+  @media (max-width: 768px) {
+    flex-direction: column;
+  }
 `;
 
 const MainContent = styled.div`
@@ -142,12 +170,23 @@ const MainContent = styled.div`
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  min-width: 0; /* Allow content to shrink below its minimum content size */
+
+  /* Mobile: Take full width */
+  @media (max-width: 768px) {
+    width: 100%;
+  }
 `;
 
 const ContentArea = styled.div`
   flex: 1;
   display: flex;
   overflow: hidden;
+
+  /* Mobile: Stack content vertically if needed */
+  @media (max-width: 768px) {
+    flex-direction: column;
+  }
 `;
 
 const WelcomeView = styled.div`
@@ -186,7 +225,10 @@ function AppInner() {
   );
   const [workspaceModalLoadError, setWorkspaceModalLoadError] = useState<string | null>(null);
   const workspaceModalProjectRef = useRef<string | null>(null);
-  const [sidebarCollapsed, setSidebarCollapsed] = usePersistedState("sidebarCollapsed", false);
+
+  // Auto-collapse sidebar on mobile by default
+  const isMobile = typeof window !== "undefined" && window.innerWidth <= 768;
+  const [sidebarCollapsed, setSidebarCollapsed] = usePersistedState("sidebarCollapsed", isMobile);
 
   const handleToggleSidebar = useCallback(() => {
     setSidebarCollapsed((prev) => !prev);
