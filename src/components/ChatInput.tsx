@@ -450,7 +450,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
   // Handle file selection from file input (for mobile)
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
