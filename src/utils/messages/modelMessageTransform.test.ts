@@ -953,124 +953,123 @@ describe("injectModeTransition", () => {
   });
 });
 
-  describe("filterEmptyAssistantMessages", () => {
-    it("should filter out assistant messages with only reasoning when preserveReasoningOnly=false", () => {
-      const messages: CmuxMessage[] = [
-        {
-          id: "user-1",
-          role: "user",
-          parts: [{ type: "text", text: "Hello" }],
-          metadata: { timestamp: 1000 },
-        },
-        {
-          id: "assistant-1",
-          role: "assistant",
-          parts: [{ type: "reasoning", text: "Let me think about this..." }],
-          metadata: { timestamp: 2000 },
-        },
-      ];
+describe("filterEmptyAssistantMessages", () => {
+  it("should filter out assistant messages with only reasoning when preserveReasoningOnly=false", () => {
+    const messages: CmuxMessage[] = [
+      {
+        id: "user-1",
+        role: "user",
+        parts: [{ type: "text", text: "Hello" }],
+        metadata: { timestamp: 1000 },
+      },
+      {
+        id: "assistant-1",
+        role: "assistant",
+        parts: [{ type: "reasoning", text: "Let me think about this..." }],
+        metadata: { timestamp: 2000 },
+      },
+    ];
 
-      const result = filterEmptyAssistantMessages(messages, false);
+    const result = filterEmptyAssistantMessages(messages, false);
 
-      // Reasoning-only message should be filtered out
-      expect(result.length).toBe(1);
-      expect(result[0].id).toBe("user-1");
-    });
-
-    it("should preserve assistant messages with only reasoning when preserveReasoningOnly=true", () => {
-      const messages: CmuxMessage[] = [
-        {
-          id: "user-1",
-          role: "user",
-          parts: [{ type: "text", text: "Hello" }],
-          metadata: { timestamp: 1000 },
-        },
-        {
-          id: "assistant-1",
-          role: "assistant",
-          parts: [{ type: "reasoning", text: "Let me think about this..." }],
-          metadata: { timestamp: 2000 },
-        },
-      ];
-
-      const result = filterEmptyAssistantMessages(messages, true);
-
-      // Reasoning-only message should be preserved when preserveReasoningOnly=true
-      expect(result.length).toBe(2);
-      expect(result[1].id).toBe("assistant-1");
-      expect(result[1].parts).toEqual([{ type: "reasoning", text: "Let me think about this..." }]);
-    });
-
-    it("should preserve assistant messages with text content regardless of preserveReasoningOnly", () => {
-      const messages: CmuxMessage[] = [
-        {
-          id: "assistant-1",
-          role: "assistant",
-          parts: [
-            { type: "reasoning", text: "Thinking..." },
-            { type: "text", text: "Here's my answer" },
-          ],
-          metadata: { timestamp: 2000 },
-        },
-      ];
-
-      // With preserveReasoningOnly=false
-      const result1 = filterEmptyAssistantMessages(messages, false);
-      expect(result1.length).toBe(1);
-      expect(result1[0].id).toBe("assistant-1");
-
-      // With preserveReasoningOnly=true
-      const result2 = filterEmptyAssistantMessages(messages, true);
-      expect(result2.length).toBe(1);
-      expect(result2[0].id).toBe("assistant-1");
-    });
-
-    it("should filter out assistant messages with only empty text regardless of preserveReasoningOnly", () => {
-      const messages: CmuxMessage[] = [
-        {
-          id: "assistant-1",
-          role: "assistant",
-          parts: [{ type: "text", text: "" }],
-          metadata: { timestamp: 2000 },
-        },
-      ];
-
-      // With preserveReasoningOnly=false
-      const result1 = filterEmptyAssistantMessages(messages, false);
-      expect(result1.length).toBe(0);
-
-      // With preserveReasoningOnly=true
-      const result2 = filterEmptyAssistantMessages(messages, true);
-      expect(result2.length).toBe(0);
-    });
-
-    it("should preserve messages interrupted during thinking phase when preserveReasoningOnly=true", () => {
-      // Simulates an interrupted stream during Extended Thinking
-      const messages: CmuxMessage[] = [
-        {
-          id: "user-1",
-          role: "user",
-          parts: [{ type: "text", text: "Solve this problem" }],
-          metadata: { timestamp: 1000 },
-        },
-        {
-          id: "assistant-1",
-          role: "assistant",
-          parts: [{ type: "reasoning", text: "Let me analyze this step by step..." }],
-          metadata: { timestamp: 2000, partial: true },
-        },
-      ];
-
-      // When thinking is disabled, filter out reasoning-only message
-      const result1 = filterEmptyAssistantMessages(messages, false);
-      expect(result1.length).toBe(1);
-      expect(result1[0].id).toBe("user-1");
-
-      // When thinking is enabled, preserve it for API compliance
-      const result2 = filterEmptyAssistantMessages(messages, true);
-      expect(result2.length).toBe(2);
-      expect(result2[1].id).toBe("assistant-1");
-      expect(result2[1].metadata?.partial).toBe(true);
-    });
+    // Reasoning-only message should be filtered out
+    expect(result.length).toBe(1);
+    expect(result[0].id).toBe("user-1");
   });
 
+  it("should preserve assistant messages with only reasoning when preserveReasoningOnly=true", () => {
+    const messages: CmuxMessage[] = [
+      {
+        id: "user-1",
+        role: "user",
+        parts: [{ type: "text", text: "Hello" }],
+        metadata: { timestamp: 1000 },
+      },
+      {
+        id: "assistant-1",
+        role: "assistant",
+        parts: [{ type: "reasoning", text: "Let me think about this..." }],
+        metadata: { timestamp: 2000 },
+      },
+    ];
+
+    const result = filterEmptyAssistantMessages(messages, true);
+
+    // Reasoning-only message should be preserved when preserveReasoningOnly=true
+    expect(result.length).toBe(2);
+    expect(result[1].id).toBe("assistant-1");
+    expect(result[1].parts).toEqual([{ type: "reasoning", text: "Let me think about this..." }]);
+  });
+
+  it("should preserve assistant messages with text content regardless of preserveReasoningOnly", () => {
+    const messages: CmuxMessage[] = [
+      {
+        id: "assistant-1",
+        role: "assistant",
+        parts: [
+          { type: "reasoning", text: "Thinking..." },
+          { type: "text", text: "Here's my answer" },
+        ],
+        metadata: { timestamp: 2000 },
+      },
+    ];
+
+    // With preserveReasoningOnly=false
+    const result1 = filterEmptyAssistantMessages(messages, false);
+    expect(result1.length).toBe(1);
+    expect(result1[0].id).toBe("assistant-1");
+
+    // With preserveReasoningOnly=true
+    const result2 = filterEmptyAssistantMessages(messages, true);
+    expect(result2.length).toBe(1);
+    expect(result2[0].id).toBe("assistant-1");
+  });
+
+  it("should filter out assistant messages with only empty text regardless of preserveReasoningOnly", () => {
+    const messages: CmuxMessage[] = [
+      {
+        id: "assistant-1",
+        role: "assistant",
+        parts: [{ type: "text", text: "" }],
+        metadata: { timestamp: 2000 },
+      },
+    ];
+
+    // With preserveReasoningOnly=false
+    const result1 = filterEmptyAssistantMessages(messages, false);
+    expect(result1.length).toBe(0);
+
+    // With preserveReasoningOnly=true
+    const result2 = filterEmptyAssistantMessages(messages, true);
+    expect(result2.length).toBe(0);
+  });
+
+  it("should preserve messages interrupted during thinking phase when preserveReasoningOnly=true", () => {
+    // Simulates an interrupted stream during Extended Thinking
+    const messages: CmuxMessage[] = [
+      {
+        id: "user-1",
+        role: "user",
+        parts: [{ type: "text", text: "Solve this problem" }],
+        metadata: { timestamp: 1000 },
+      },
+      {
+        id: "assistant-1",
+        role: "assistant",
+        parts: [{ type: "reasoning", text: "Let me analyze this step by step..." }],
+        metadata: { timestamp: 2000, partial: true },
+      },
+    ];
+
+    // When thinking is disabled, filter out reasoning-only message
+    const result1 = filterEmptyAssistantMessages(messages, false);
+    expect(result1.length).toBe(1);
+    expect(result1[0].id).toBe("user-1");
+
+    // When thinking is enabled, preserve it for API compliance
+    const result2 = filterEmptyAssistantMessages(messages, true);
+    expect(result2.length).toBe(2);
+    expect(result2[1].id).toBe("assistant-1");
+    expect(result2[1].metadata?.partial).toBe(true);
+  });
+});
