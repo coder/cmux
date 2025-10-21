@@ -30,14 +30,22 @@ class HttpIpcMainAdapter {
         const args: unknown[] = body.args ?? [];
         const result = await handler(null, ...args);
 
-        // If handler returns a Result type (has success field), pass it through as-is
-        // This preserves the full Result<T, E> structure including typed errors
-        if (result && typeof result === "object" && "success" in result) {
+        // If handler returns a failed Result type, pass through the error
+        // This preserves structured error types like SendMessageError
+        if (
+          result &&
+          typeof result === "object" &&
+          "success" in result &&
+          result.success === false &&
+          "error" in result
+        ) {
+          // Pass through failed Result to preserve error structure
           res.json(result);
           return;
         }
 
-        // For non-Result return values, wrap in success response
+        // For all other return values (including successful Results), wrap in success response
+        // The browser API will unwrap the data field
         res.json({ success: true, data: result });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);

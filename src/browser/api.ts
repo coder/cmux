@@ -27,27 +27,20 @@ async function invokeIPC<T>(channel: string, ...args: unknown[]): Promise<T> {
     throw new Error(`HTTP error! status: ${response.status}`);
   }
 
-  const result = (await response.json()) as InvokeResponse<T> | T;
+  const result = (await response.json()) as InvokeResponse<T>;
 
-  // If result is a Result type (has success field), return it as-is
-  // This handles operations like sendMessage that return Result<T, E>
-  if (result && typeof result === "object" && "success" in result && typeof result.success === "boolean") {
-    return result as T;
-  }
-
-  // For wrapped responses, check if they're successful
-  const wrappedResult = result as InvokeResponse<T>;
-  if ("success" in wrappedResult) {
-    if (!wrappedResult.success) {
-      throw new Error(
-        typeof wrappedResult.error === "string" ? wrappedResult.error : "Unknown error"
-      );
+  if (!result.success) {
+    // Failed response - check if it's a structured error or simple string
+    if (typeof result.error === "object" && result.error !== null) {
+      // Structured error (e.g., SendMessageError) - return as Result<T, E> for caller to handle
+      return result as T;
     }
-    return wrappedResult.data as T;
+    // Simple string error - throw it
+    throw new Error(typeof result.error === "string" ? result.error : "Unknown error");
   }
 
-  // Direct return value (shouldn't happen with current server implementation)
-  return result as T;
+  // Success - unwrap and return the data
+  return result.data as T;
 }
 
 // WebSocket connection manager
