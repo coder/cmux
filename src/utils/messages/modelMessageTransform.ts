@@ -7,9 +7,13 @@ import type { ModelMessage, AssistantModelMessage, ToolModelMessage } from "ai";
 import type { CmuxMessage } from "@/types/message";
 
 /**
- * Filter out assistant messages that only contain reasoning parts (no text or tool parts).
- * These messages are invalid for the API and provide no value to the model.
- * This happens when a message is interrupted during thinking before producing any text.
+ * Filter out assistant messages that are empty or only contain reasoning parts.
+ * Empty messages (no parts or only empty text) and reasoning-only messages are
+ * invalid for the API and provide no value to the model.
+ *
+ * Common scenarios:
+ * 1. Placeholder messages with empty parts arrays (stream interrupted before any content)
+ * 2. Messages interrupted during thinking phase before producing text
  *
  * EXCEPTION: When extended thinking is enabled, preserve reasoning-only messages.
  * The Extended Thinking API requires thinking blocks to be present in message history,
@@ -30,6 +34,11 @@ export function filterEmptyAssistantMessages(
     // Keep all non-assistant messages
     if (msg.role !== "assistant") {
       return true;
+    }
+
+    // Filter out messages with no parts at all (placeholder messages)
+    if (msg.parts?.length === 0) {
+      return false;
     }
 
     // Keep assistant messages that have at least one text or tool part

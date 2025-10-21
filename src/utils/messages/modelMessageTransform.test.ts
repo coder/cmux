@@ -977,6 +977,38 @@ describe("filterEmptyAssistantMessages", () => {
     expect(result[0].id).toBe("user-1");
   });
 
+  it("should filter out assistant messages with empty parts array (placeholder messages)", () => {
+    const messages: CmuxMessage[] = [
+      {
+        id: "user-1",
+        role: "user",
+        parts: [{ type: "text", text: "Hello" }],
+        metadata: { timestamp: 1000 },
+      },
+      {
+        id: "assistant-1",
+        role: "assistant",
+        parts: [], // Empty placeholder message
+        metadata: { timestamp: 2000 },
+      },
+      {
+        id: "assistant-2",
+        role: "assistant",
+        parts: [], // Another empty placeholder
+        metadata: { timestamp: 3000 },
+      },
+    ];
+
+    // Empty messages should be filtered out regardless of preserveReasoningOnly
+    const result1 = filterEmptyAssistantMessages(messages, false);
+    expect(result1.length).toBe(1);
+    expect(result1[0].id).toBe("user-1");
+
+    const result2 = filterEmptyAssistantMessages(messages, true);
+    expect(result2.length).toBe(1);
+    expect(result2[0].id).toBe("user-1");
+  });
+
   it("should preserve assistant messages with only reasoning when preserveReasoningOnly=true", () => {
     const messages: CmuxMessage[] = [
       {
