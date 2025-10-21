@@ -428,7 +428,10 @@ export class AIService extends EventEmitter {
       const toolNamesForSentinel = Object.keys(earlyTools);
 
       // Filter out assistant messages with only reasoning (no text/tools)
-      const filteredMessages = filterEmptyAssistantMessages(messages);
+      // EXCEPTION: When extended thinking is enabled, preserve reasoning-only messages
+      // to comply with Extended Thinking API requirements
+      const preserveReasoningOnly = Boolean(thinkingLevel);
+      const filteredMessages = filterEmptyAssistantMessages(messages, preserveReasoningOnly);
       log.debug(`Filtered ${messages.length - filteredMessages.length} empty assistant messages`);
       log.debug_obj(`${workspaceId}/1a_filtered_messages.json`, filteredMessages);
 

@@ -11,11 +11,21 @@ import type { CmuxMessage } from "@/types/message";
  * These messages are invalid for the API and provide no value to the model.
  * This happens when a message is interrupted during thinking before producing any text.
  *
+ * EXCEPTION: When extended thinking is enabled, preserve reasoning-only messages.
+ * The Extended Thinking API requires thinking blocks to be present in message history,
+ * even if they were interrupted before producing text content.
+ *
  * Note: This function filters out reasoning-only messages but does NOT strip reasoning
  * parts from messages that have other content. Reasoning parts are handled differently
  * per provider (see stripReasoningForOpenAI).
+ *
+ * @param messages - The messages to filter
+ * @param preserveReasoningOnly - If true, keep reasoning-only messages (for Extended Thinking)
  */
-export function filterEmptyAssistantMessages(messages: CmuxMessage[]): CmuxMessage[] {
+export function filterEmptyAssistantMessages(
+  messages: CmuxMessage[],
+  preserveReasoningOnly = false
+): CmuxMessage[] {
   return messages.filter((msg) => {
     // Keep all non-assistant messages
     if (msg.role !== "assistant") {
@@ -27,7 +37,18 @@ export function filterEmptyAssistantMessages(messages: CmuxMessage[]): CmuxMessa
       (part) => (part.type === "text" && part.text) || part.type === "dynamic-tool"
     );
 
-    return hasContent;
+    if (hasContent) {
+      return true;
+    }
+
+    // If preserveReasoningOnly is enabled, keep messages with reasoning parts
+    // (needed for Extended Thinking API compliance)
+    if (preserveReasoningOnly) {
+      const hasReasoning = msg.parts.some((part) => part.type === "reasoning");
+      return hasReasoning;
+    }
+
+    return false;
   });
 }
 
