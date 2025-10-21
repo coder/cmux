@@ -5,6 +5,8 @@
 import { LRUCache } from "lru-cache";
 import CRC32 from "crc-32";
 import { getToolSchemas, getAvailableTools } from "@/utils/tools/toolDefinitions";
+import * as o200k_base_encoding from "ai-tokenizer/encoding/o200k_base";
+import * as claude_encoding from "ai-tokenizer/encoding/claude";
 
 export interface Tokenizer {
   encoding: string;
@@ -61,25 +63,14 @@ export async function loadTokenizerModules(): Promise<void> {
 }
 
 /**
- * Load an encoding module on-demand
- * Only loads the specific encoding needed (o200k_base or claude)
+ * Get encoding module (pre-loaded at startup)
+ * Returns the appropriate encoding for the given name
  */
-async function loadEncoding(encodingName: string): Promise<unknown> {
+function getEncoding(encodingName: string): unknown {
   const cached = loadedEncodings.get(encodingName);
   if (cached) return cached;
 
-  let encoding: unknown;
-  if (encodingName === "claude") {
-    /* eslint-disable no-restricted-syntax */
-    encoding = await import("ai-tokenizer/encoding/claude");
-    /* eslint-enable no-restricted-syntax */
-  } else {
-    // Default to o200k_base for all other encodings
-    /* eslint-disable no-restricted-syntax */
-    encoding = await import("ai-tokenizer/encoding/o200k_base");
-    /* eslint-enable no-restricted-syntax */
-  }
-
+  const encoding = encodingName === "claude" ? claude_encoding : o200k_base_encoding;
   loadedEncodings.set(encodingName, encoding);
   return encoding;
 }
@@ -179,33 +170,14 @@ function getTokenizerEncoding(modelString: string, modules: TokenizerModules | n
  * Count tokens using loaded tokenizer modules
  * Assumes tokenizerModules is not null
  */
-async function countTokensWithLoadedModules(
+function countTokensWithLoadedModules(
   text: string,
   modelString: string,
   modules: NonNullable<typeof tokenizerModules>
-): Promise<number> {
+): number {
   const encodingName = getTokenizerEncoding(modelString, modules);
 
-  const encoding = await loadEncoding(encodingName);
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-explicit-any
-  const tokenizer = new modules.AITokenizer(encoding as any);
-  return tokenizer.count(text);
-}
-
-/**
- * Count tokens synchronously using loaded tokenizer modules and encodings
- * Returns null if modules or encodings are not loaded yet
- */
-function countTokensSynchronously(
-  text: string,
-  modelString: string,
-  modules: NonNullable<typeof tokenizerModules>
-): number | null {
-  const encodingName = getTokenizerEncoding(modelString, modules);
-
-  const encoding = loadedEncodings.get(encodingName);
-  if (!encoding) return null;
-
+  const encoding = getEncoding(encodingName);
   // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-explicit-any
   const tokenizer = new modules.AITokenizer(encoding as any);
   return tokenizer.count(text);
@@ -226,11 +198,14 @@ export function getTokenizerForModel(modelString: string): Tokenizer {
       return getTokenizerEncoding(modelString, tokenizerModules);
     },
     countTokens: (text: string) => {
-      // Try synchronous path if modules and encodings are already loaded
+      // Try synchronous path if modules are already loaded
       if (tokenizerModules) {
-        const syncResult = countTokensSynchronously(text, modelString, tokenizerModules);
-        if (syncResult !== null) {
-          return countTokensCached(text, () => syncResult);
+        try {
+          return countTokensCached(text, () => countTokensWithLoadedModules(text, modelString, tokenizerModules!));
+        } catch (error) {
+          // Unexpected error during tokenization, fallback to approximation
+          console.error("Failed to tokenize, falling back to approximation:", error);
+          return Math.ceil(text.length / 4);
         }
       }
 
@@ -238,7 +213,7 @@ export function getTokenizerForModel(modelString: string): Tokenizer {
       return countTokensCached(text, async () => {
         await loadTokenizerModules();
         try {
-          return await countTokensWithLoadedModules(text, modelString, tokenizerModules!);
+          return countTokensWithLoadedModules(text, modelString, tokenizerModules!);
         } catch (error) {
           // Unexpected error during tokenization, fallback to approximation
           console.error("Failed to tokenize, falling back to approximation:", error);
