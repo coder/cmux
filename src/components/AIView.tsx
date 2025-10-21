@@ -97,6 +97,11 @@ const WorkspacePath = styled.span`
   overflow: hidden;
   text-overflow: ellipsis;
   min-width: 0;
+
+  /* Hide path on mobile to save space */
+  @media (max-width: 768px) {
+    display: none;
+  }
 `;
 
 const WorkspaceName = styled.span`

@@ -32,7 +32,7 @@ const FilePath = styled.span`
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 400px;
+  max-width: min(400px, 80vw);
 `;
 
 const ErrorMessage = styled.div`
