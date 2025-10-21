@@ -70,11 +70,16 @@ const AttachButton = styled.button`
   color: #cccccc;
   border: none;
   cursor: pointer;
-  display: flex;
+  display: none;
   align-items: center;
   justify-content: center;
   font-size: 18px;
   transition: background 0.2s;
+
+  /* Show only on mobile (viewport width <= 768px) */
+  @media (max-width: 768px) {
+    display: flex;
+  }
 
   &:hover {
     background: #505050;
