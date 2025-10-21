@@ -1,0 +1,20 @@
+name: Generate Screenshots (Temp)
+on:
+  push:
+    branches:
+      - storybook-screenshots
+
+jobs:
+  screenshots:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install
+      - run: bash scripts/generate-version.sh
+      - run: bunx playwright install --with-deps chromium
+      - run: bun scripts/screenshot-storybook.ts
+      - uses: actions/upload-artifact@v4
+        with:
+          name: storybook-screenshots
+          path: artifacts/storybook-screenshots/
