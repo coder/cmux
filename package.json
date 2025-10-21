@@ -141,6 +141,8 @@
     "dist/**/*.wasm",
     "dist/**/*.html",
     "dist/**/*.css",
+    "dist/**/*.json",
+    "dist/**/*.png",
     "dist/assets/**/*",
     "README.md",
     "LICENSE"
