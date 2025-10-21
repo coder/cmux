@@ -47,10 +47,17 @@ async function startStorybook(): Promise<() => void> {
 
     let output = "";
 
+    // Timeout after 60 seconds
+    const timeout = setTimeout(() => {
+      storybookProcess.kill();
+      reject(new Error("Storybook failed to start within 60 seconds"));
+    }, 60000);
+
     const onData = (data: Buffer) => {
       output += data.toString();
       if (output.includes("Local:") || output.includes("ready")) {
         console.log("✓ Storybook is ready");
+        clearTimeout(timeout);
         storybookProcess.stdout?.off("data", onData);
         storybookProcess.stderr?.off("data", onData);
         
@@ -67,12 +74,6 @@ async function startStorybook(): Promise<() => void> {
     storybookProcess.stderr?.on("data", onData);
 
     storybookProcess.on("error", reject);
-    
-    // Timeout after 60 seconds
-    setTimeout(() => {
-      storybookProcess.kill();
-      reject(new Error("Storybook failed to start within 60 seconds"));
-    }, 60000);
   });
 }
 
