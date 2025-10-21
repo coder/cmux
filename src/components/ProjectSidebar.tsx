@@ -363,7 +363,7 @@ const RemoveErrorToast = styled.div<{ top: number; left: number }>`
   position: fixed;
   top: ${(props) => props.top}px;
   left: ${(props) => props.left}px;
-  max-width: 400px;
+  max-width: min(400px, calc(100vw - 40px));
   padding: 12px 16px;
   background: var(--color-error-bg);
   border: 1px solid var(--color-error);

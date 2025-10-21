@@ -27,7 +27,7 @@ const ModelDisplay = styled.div<{ clickable?: boolean }>`
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 150px;
+  max-width: min(150px, 40vw);
   direction: rtl; /* Right-to-left to show end of text */
   text-align: left; /* Keep visual alignment left */
 
@@ -45,7 +45,7 @@ const InputField = styled.input`
   padding: 2px 4px;
   font-family: var(--font-monospace);
   line-height: 11px;
-  width: 200px;
+  width: min(200px, 60vw);
   outline: none;
 
   &:focus {
@@ -63,7 +63,7 @@ const Dropdown = styled.div`
   border-radius: 4px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   z-index: 1000;
-  min-width: 300px;
+  min-width: min(300px, 85vw);
   max-height: 200px;
   overflow-y: auto;
 `;

@@ -244,7 +244,8 @@ const StyledTooltip = styled.div<{ width: string; interactive: boolean }>`
   padding: 6px 10px;
   z-index: 9999;
   white-space: ${(props) => (props.width === "wide" ? "normal" : "nowrap")};
-  ${(props) => props.width === "wide" && "max-width: 300px; width: max-content;"}
+  ${(props) =>
+    props.width === "wide" && "max-width: min(300px, calc(100vw - 40px)); width: max-content;"}
   font-size: 11px;
   font-weight: normal;
   font-family: var(--font-primary);

@@ -26,7 +26,7 @@ const ImageContainer = styled.div`
 `;
 
 const MessageImage = styled.img`
-  max-width: 300px;
+  max-width: min(300px, calc(100vw - 100px));
   max-height: 300px;
   border-radius: 4px;
   border: 1px solid #3e3e42;
