@@ -132,7 +132,11 @@ export function LeftSidebar(props: LeftSidebarProps) {
       {/* Sidebar */}
       <LeftSidebarContainer collapsed={collapsed}>
         {!collapsed && <TitleBar />}
-        <ProjectSidebar {...projectSidebarProps} collapsed={collapsed} onToggleCollapsed={onToggleCollapsed} />
+        <ProjectSidebar
+          {...projectSidebarProps}
+          collapsed={collapsed}
+          onToggleCollapsed={onToggleCollapsed}
+        />
       </LeftSidebarContainer>
     </>
   );
