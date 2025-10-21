@@ -10,7 +10,7 @@ const WS_BASE = API_BASE.replace("http://", "ws://").replace("https://", "wss://
 interface InvokeResponse<T> {
   success: boolean;
   data?: T;
-  error?: string;
+  error?: unknown; // Can be string or structured error object
 }
 
 // Helper function to invoke IPC handlers via HTTP
@@ -30,9 +30,16 @@ async function invokeIPC<T>(channel: string, ...args: unknown[]): Promise<T> {
   const result = (await response.json()) as InvokeResponse<T>;
 
   if (!result.success) {
-    throw new Error(result.error ?? "Unknown error");
+    // Failed response - check if it's a structured error or simple string
+    if (typeof result.error === "object" && result.error !== null) {
+      // Structured error (e.g., SendMessageError) - return as Result<T, E> for caller to handle
+      return result as T;
+    }
+    // Simple string error - throw it
+    throw new Error(typeof result.error === "string" ? result.error : "Unknown error");
   }
 
+  // Success - unwrap and return the data
   return result.data as T;
 }
 
