@@ -285,6 +285,9 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
             mode={mode}
             vimMode={vimMode}
             spellCheck={false}
+            autoCorrect="off"
+            autoCapitalize="none"
+            autoComplete="off"
             {...rest}
           />
           {vimMode === "normal" && value.length === 0 && <EmptyCursor />}
