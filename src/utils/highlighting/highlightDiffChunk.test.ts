@@ -111,7 +111,6 @@ describe("highlightDiffChunk", () => {
       expect(result.lines[0].html).toMatch(/x(\s|&nbsp;){2}=/);
     });
 
-
     it("should detect and fallback when HTML extraction returns empty strings", async () => {
       // This is a regression test for the whitespace bug where extractLinesFromHtml
       // could return empty strings without triggering fallback
@@ -137,8 +136,6 @@ describe("highlightDiffChunk", () => {
       expect(result.lines[1].html).toContain("const");
       expect(result.lines[2].html).toContain("const");
     });
-
-
   });
 
   describe("with real Shiki syntax highlighting", () => {
