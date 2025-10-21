@@ -5,7 +5,6 @@
  * - Pattern: [a-z0-9_-]{1,64}
  */
 export function validateWorkspaceName(name: string): { valid: boolean; error?: string } {
-   
   if (!name || name.length === 0) {
     return { valid: false, error: "Workspace name cannot be empty" };
   }
