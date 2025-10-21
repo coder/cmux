@@ -28,6 +28,7 @@ import type { HistoryService } from "./historyService";
 import type { PartialService } from "./partialService";
 import { buildSystemMessage } from "./systemMessage";
 import { getTokenizerForModel } from "@/utils/main/tokenizer";
+import { normalizeProviderBaseUrl } from "@/utils/providers/normalizeProviderBaseUrl";
 import { buildProviderOptions } from "@/utils/ai/providerOptions";
 import type { ThinkingLevel } from "@/types/thinking";
 import type {
@@ -228,7 +229,7 @@ export class AIService extends EventEmitter {
 
       // Load providers configuration - the ONLY source of truth
       const providersConfig = this.config.loadProvidersConfig();
-      const providerConfig = providersConfig?.[providerName] ?? {};
+      const providerConfig = normalizeProviderBaseUrl(providersConfig?.[providerName]);
 
       // Handle Anthropic provider
       if (providerName === "anthropic") {
