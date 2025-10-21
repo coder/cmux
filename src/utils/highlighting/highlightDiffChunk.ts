@@ -95,6 +95,15 @@ export async function highlightDiffChunk(
       return createFallbackChunk(chunk);
     }
 
+    // Check if any non-empty line became empty after extraction (indicates malformed HTML)
+    // This prevents rendering empty spans when original line had content (especially whitespace)
+    const hasEmptyExtraction = lines.some(
+      (extractedHtml, i) => extractedHtml.length === 0 && chunk.lines[i].length > 0
+    );
+    if (hasEmptyExtraction) {
+      return createFallbackChunk(chunk);
+    }
+
     return {
       type: chunk.type,
       lines: lines.map((html, i) => ({
