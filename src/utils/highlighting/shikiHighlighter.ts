@@ -5,7 +5,7 @@ export const SHIKI_THEME = "min-dark";
 
 // Maximum diff size to highlight (in bytes)
 // Diffs larger than this will fall back to plain text for performance
-export const MAX_DIFF_SIZE_BYTES = 4096; // 4kb
+export const MAX_DIFF_SIZE_BYTES = 32768; // 32kb
 
 // Singleton promise (cached to prevent race conditions)
 // Multiple concurrent calls will await the same Promise

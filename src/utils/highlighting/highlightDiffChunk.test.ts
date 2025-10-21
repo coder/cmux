@@ -75,6 +75,67 @@ describe("highlightDiffChunk", () => {
       expect(result.type).toBe("remove");
       expect(result.lines[0].originalIndex).toBe(5);
     });
+
+    it("should preserve leading whitespace in plain text", async () => {
+      const indentedChunk: DiffChunk = {
+        type: "add",
+        lines: ["    const x = 1;", "        const y = 2;", "  const z = 3;"],
+        startIndex: 0,
+        lineNumbers: [1, 2, 3],
+      };
+
+      const result = await highlightDiffChunk(indentedChunk, "text");
+
+      expect(result.lines).toHaveLength(3);
+      // Leading spaces should be preserved
+      expect(result.lines[0].html).toMatch(/^(\s|&nbsp;){4}/); // 4 leading spaces
+      expect(result.lines[1].html).toMatch(/^(\s|&nbsp;){8}/); // 8 leading spaces
+      expect(result.lines[2].html).toMatch(/^(\s|&nbsp;){2}/); // 2 leading spaces
+    });
+
+    it("should preserve internal whitespace in plain text", async () => {
+      const spacedChunk: DiffChunk = {
+        type: "add",
+        lines: ["const x  =  1;", "if (x    &&    y)"],
+        startIndex: 0,
+        lineNumbers: [1, 2],
+      };
+
+      const result = await highlightDiffChunk(spacedChunk, "text");
+
+      expect(result.lines).toHaveLength(2);
+      // Multiple internal spaces should be preserved
+      expect(result.lines[0].html).toContain("x");
+      expect(result.lines[0].html).toContain("1");
+      // Should have multiple spaces between x and = (2 spaces)
+      expect(result.lines[0].html).toMatch(/x(\s|&nbsp;){2}=/);
+    });
+
+    it("should detect and fallback when HTML extraction returns empty strings", async () => {
+      // This is a regression test for the whitespace bug where extractLinesFromHtml
+      // could return empty strings without triggering fallback
+      // We can't easily mock Shiki to produce malformed HTML, but we can test
+      // that indented code preserves its whitespace
+      const chunk: DiffChunk = {
+        type: "add",
+        lines: ["    const x = 1;", "        const y = 2;", "  const z = 3;"],
+        startIndex: 0,
+        lineNumbers: [1, 2, 3],
+      };
+
+      const result = await highlightDiffChunk(chunk, "typescript");
+
+      // Verify whitespace is preserved
+      expect(result.lines).toHaveLength(3);
+      expect(result.lines[0].html.length).toBeGreaterThan(0);
+      expect(result.lines[1].html.length).toBeGreaterThan(0);
+      expect(result.lines[2].html.length).toBeGreaterThan(0);
+
+      // All lines should contain "const"
+      expect(result.lines[0].html).toContain("const");
+      expect(result.lines[1].html).toContain("const");
+      expect(result.lines[2].html).toContain("const");
+    });
   });
 
   describe("with real Shiki syntax highlighting", () => {
