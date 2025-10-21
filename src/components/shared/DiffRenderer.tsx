@@ -333,10 +333,16 @@ const InlineNoteContainer = styled.div`
   background: #1e1e1e;
   border-top: 1px solid hsl(from var(--color-review-accent) h s l / 0.3);
   margin: 0;
+  /* Remove from grid flow to prevent inheriting wide content width */
+  position: sticky;
+  left: 0;
+  right: 0;
+  width: 100%;
 `;
 
 const NoteTextarea = styled.textarea`
   width: 100%;
+  max-width: 100%;
   min-height: calc(12px * 1.4 * 3 + 12px); /* 3 lines + padding */
   padding: 6px 8px;
   font-family: var(--font-monospace);
@@ -347,7 +353,11 @@ const NoteTextarea = styled.textarea`
   border-radius: 2px;
   color: var(--color-text);
   resize: none; /* Disable manual resize since we auto-grow */
-  overflow-y: hidden; /* Hide scrollbar during auto-grow */
+  overflow-y: auto; /* Allow scrolling for tall content */
+  overflow-x: hidden; /* Prevent horizontal scroll */
+  white-space: pre-wrap; /* Wrap long lines to fit visible boundaries */
+  word-wrap: break-word; /* Break long words if needed */
+  box-sizing: border-box; /* Include padding in width calculation */
 
   &:focus {
     outline: none;
