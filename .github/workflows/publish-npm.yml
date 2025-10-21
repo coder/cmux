@@ -29,6 +29,8 @@ jobs:
         with:
           registry-url: 'https://registry.npmjs.org'
 
+      - run: npm i -g npm@latest
+
       - name: Generate unique version from git
         id: version
         run: |
