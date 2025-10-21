@@ -1,5 +1,5 @@
 {
-  "name": "cmux",
+  "name": "@coder/cmux",
   "version": "0.3.0",
   "description": "cmux - coder multiplexer",
   "main": "dist/main.js",
