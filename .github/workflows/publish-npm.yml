@@ -29,48 +29,45 @@ jobs:
         with:
           registry-url: 'https://registry.npmjs.org'
 
+      - name: Generate unique version from git
+        id: version
+        run: |
+          # Get base version from package.json
+          BASE_VERSION=$(node -p "require('./package.json').version")
+          
+          # Generate git describe version
+          GIT_DESCRIBE=$(git describe --tags --always --dirty 2>/dev/null || echo "unknown")
+          
+          if [[ $GITHUB_REF == refs/tags/* ]]; then
+            # For tags, use the base version as-is (stable release)
+            NPM_VERSION="${BASE_VERSION}"
+            NPM_TAG="latest"
+            echo "Publishing stable release: ${NPM_VERSION}"
+          else
+            # For main branch, create a pre-release version using git describe
+            # Format: 0.3.0-next.5.g1a2b3c4 (base-next.commits.hash)
+            GIT_COMMIT=$(git rev-parse --short HEAD)
+            COMMITS_SINCE_TAG=$(git rev-list --count HEAD ^$(git describe --tags --abbrev=0 2>/dev/null || echo HEAD) 2>/dev/null || echo "0")
+            NPM_VERSION="${BASE_VERSION}-next.${COMMITS_SINCE_TAG}.g${GIT_COMMIT}"
+            NPM_TAG="next"
+            echo "Publishing pre-release: ${NPM_VERSION}"
+          fi
+          
+          echo "version=${NPM_VERSION}" >> $GITHUB_OUTPUT
+          echo "tag=${NPM_TAG}" >> $GITHUB_OUTPUT
+          
+          # Update package.json with the new version
+          node -e "const fs = require('fs'); const pkg = JSON.parse(fs.readFileSync('package.json')); pkg.version = '${NPM_VERSION}'; fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');"
+          
+          echo "Updated package.json to version ${NPM_VERSION}"
+
       - name: Generate version file
         run: ./scripts/generate-version.sh
 
       - name: Build application
         run: make build
 
-      - name: Check if version already published
-        id: check-version
-        run: |
-          PACKAGE_VERSION=$(node -p "require('./package.json').version")
-          PACKAGE_NAME=$(node -p "require('./package.json').name")
-          
-          echo "Checking if ${PACKAGE_NAME}@${PACKAGE_VERSION} exists on npm..."
-          
-          if npm view "${PACKAGE_NAME}@${PACKAGE_VERSION}" version &>/dev/null; then
-            echo "exists=true" >> $GITHUB_OUTPUT
-            echo "Version ${PACKAGE_VERSION} already exists on npm"
-          else
-            echo "exists=false" >> $GITHUB_OUTPUT
-            echo "Version ${PACKAGE_VERSION} is new and can be published"
-          fi
-
-      - name: Determine NPM tag
-        id: npm-tag
-        if: steps.check-version.outputs.exists == 'false'
-        run: |
-          if [[ $GITHUB_REF == refs/tags/* ]]; then
-            echo "tag=latest" >> $GITHUB_OUTPUT
-            echo "Publishing as 'latest' tag (stable release)"
-          else
-            echo "tag=next" >> $GITHUB_OUTPUT
-            echo "Publishing as 'next' tag (pre-release from main)"
-          fi
-
       - name: Publish to NPM
-        if: steps.check-version.outputs.exists == 'false'
-        run: npm publish --tag ${{ steps.npm-tag.outputs.tag }}
+        run: npm publish --tag ${{ steps.version.outputs.tag }}
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Skip publishing (version exists)
-        if: steps.check-version.outputs.exists == 'true'
-        run: |
-          echo "⏭️ Skipping publish - version already exists on npm"
-          echo "To publish a new version, update the version in package.json"
