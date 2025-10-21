@@ -50,6 +50,7 @@ export type FileReadToolResult =
       modifiedTime: string;
       lines_read: number;
       content: string;
+      mime_type?: string;
     }
   | {
       success: false;

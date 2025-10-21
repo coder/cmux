@@ -1,6 +1,7 @@
 import { tool } from "ai";
 import * as fs from "fs/promises";
 import * as path from "path";
+import * as mime from "mime-types";
 import type { FileReadToolResult } from "@/types/tools";
 import type { ToolConfiguration, ToolFactory } from "@/utils/tools/tools";
 import { TOOL_DEFINITIONS } from "@/utils/tools/toolDefinitions";
@@ -15,6 +16,26 @@ export const createFileReadTool: ToolFactory = (config: ToolConfiguration) => {
   return tool({
     description: TOOL_DEFINITIONS.file_read.description,
     inputSchema: TOOL_DEFINITIONS.file_read.schema,
+    toModelOutput: (output: FileReadToolResult) => {
+      // If this is an image file with a mime type, return it as media content
+      if (output.success && output.mime_type?.startsWith("image/")) {
+        return {
+          type: "content",
+          value: [
+            {
+              type: "media",
+              data: output.content,
+              mediaType: output.mime_type,
+            },
+          ],
+        };
+      }
+      // Otherwise return as JSON (text files)
+      return {
+        type: "json",
+        value: output,
+      };
+    },
     execute: async (
       { filePath, offset, limit },
       { abortSignal: _abortSignal }
@@ -53,7 +74,26 @@ export const createFileReadTool: ToolFactory = (config: ToolConfiguration) => {
           };
         }
 
-        // Read full file content
+        // Detect MIME type
+        const mimeType = mime.lookup(resolvedPath) || undefined;
+
+        // Check if this is a binary image file
+        if (mimeType?.startsWith("image/")) {
+          // Read as binary and encode as base64 for images
+          const buffer = await fs.readFile(resolvedPath);
+          const base64Content = buffer.toString("base64");
+
+          return {
+            success: true,
+            file_size: stats.size,
+            modifiedTime: stats.mtime.toISOString(),
+            lines_read: 0, // Images don't have lines
+            content: base64Content,
+            mime_type: mimeType,
+          };
+        }
+
+        // Read full file content as text for non-image files
         const fullContent = await fs.readFile(resolvedPath, { encoding: "utf-8" });
 
         const startLineNumber = offset ?? 1;

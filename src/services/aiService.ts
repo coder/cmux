@@ -455,9 +455,13 @@ export class AIService extends EventEmitter {
       log.debug_obj(`${workspaceId}/2a_redacted_messages.json`, redactedForProvider);
 
       // Convert CmuxMessage to ModelMessage format using Vercel AI SDK utility
+      // Pass earlyTools so convertToModelMessages can use toModelOutput for tool results
+      // (earlyTools has stub config but same tool definitions with toModelOutput functions)
       // Type assertion needed because CmuxMessage has custom tool parts for interrupted tools
       // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
-      const modelMessages = convertToModelMessages(redactedForProvider as any);
+      const modelMessages = convertToModelMessages(redactedForProvider as any, {
+        tools: earlyTools,
+      });
       log.debug_obj(`${workspaceId}/2_model_messages.json`, modelMessages);
 
       // Apply ModelMessage transforms based on provider requirements

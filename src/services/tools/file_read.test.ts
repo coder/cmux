@@ -388,4 +388,180 @@ describe("file_read tool", () => {
       expect(result.content).toContain("content in subdir");
     }
   });
+
+  it("should read image files and return base64 content with mime type", async () => {
+    // Setup - create a simple 1x1 PNG image (smallest valid PNG)
+    const pngBuffer = Buffer.from([
+      0x89,
+      0x50,
+      0x4e,
+      0x47,
+      0x0d,
+      0x0a,
+      0x1a,
+      0x0a, // PNG signature
+      0x00,
+      0x00,
+      0x00,
+      0x0d,
+      0x49,
+      0x48,
+      0x44,
+      0x52, // IHDR chunk
+      0x00,
+      0x00,
+      0x00,
+      0x01,
+      0x00,
+      0x00,
+      0x00,
+      0x01, // 1x1 dimensions
+      0x08,
+      0x06,
+      0x00,
+      0x00,
+      0x00,
+      0x1f,
+      0x15,
+      0xc4,
+      0x89,
+      0x00,
+      0x00,
+      0x00,
+      0x0a,
+      0x49,
+      0x44,
+      0x41,
+      0x54,
+      0x78,
+      0x9c,
+      0x63,
+      0x00,
+      0x01,
+      0x00,
+      0x00,
+      0x05,
+      0x00,
+      0x01,
+      0x0d,
+      0x0a,
+      0x2d,
+      0xb4,
+      0x00,
+      0x00,
+      0x00,
+      0x00,
+      0x49,
+      0x45,
+      0x4e,
+      0x44,
+      0xae,
+      0x42,
+      0x60,
+      0x82,
+    ]);
+    const imagePath = path.join(testDir, "test.png");
+    await fs.writeFile(imagePath, pngBuffer);
+
+    using testEnv = createTestFileReadTool({ cwd: testDir });
+    const tool = testEnv.tool;
+    const args: FileReadToolArgs = {
+      filePath: imagePath,
+    };
+
+    // Execute
+    const result = (await tool.execute!(args, mockToolCallOptions)) as FileReadToolResult;
+
+    // Assert
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.mime_type).toBe("image/png");
+      expect(result.lines_read).toBe(0); // Images don't have lines
+      expect(result.content).toBe(pngBuffer.toString("base64"));
+      expect(result.file_size).toBe(pngBuffer.length);
+    }
+  });
+
+  it("should return media content for images via toModelOutput", async () => {
+    // Setup - create a simple image
+    const jpegBuffer = Buffer.from([
+      0xff,
+      0xd8,
+      0xff,
+      0xe0,
+      0x00,
+      0x10,
+      0x4a,
+      0x46, // JPEG header
+      0x49,
+      0x46,
+      0x00,
+      0x01,
+      0x01,
+      0x00,
+      0x00,
+      0x01,
+      0x00,
+      0x01,
+      0x00,
+      0x00,
+      0xff,
+      0xd9, // End of image
+    ]);
+    const imagePath = path.join(testDir, "test.jpg");
+    await fs.writeFile(imagePath, jpegBuffer);
+
+    using testEnv = createTestFileReadTool({ cwd: testDir });
+    const tool = testEnv.tool;
+    const args: FileReadToolArgs = {
+      filePath: imagePath,
+    };
+
+    // Execute
+    const result = (await tool.execute!(args, mockToolCallOptions)) as FileReadToolResult;
+
+    // Assert execute result
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.mime_type).toBe("image/jpeg");
+
+      // Test toModelOutput transformation
+      const modelOutput = tool.toModelOutput!(result);
+      expect(modelOutput.type).toBe("content");
+      if (modelOutput.type === "content") {
+        expect(modelOutput.value).toHaveLength(1);
+        expect(modelOutput.value[0].type).toBe("media");
+        if (modelOutput.value[0].type === "media") {
+          expect(modelOutput.value[0].mediaType).toBe("image/jpeg");
+          expect(modelOutput.value[0].data).toBe(jpegBuffer.toString("base64"));
+        }
+      }
+    }
+  });
+
+  it("should return json for text files via toModelOutput", async () => {
+    // Setup
+    const content = "line one\nline two";
+    await fs.writeFile(testFilePath, content);
+
+    using testEnv = createTestFileReadTool({ cwd: testDir });
+    const tool = testEnv.tool;
+    const args: FileReadToolArgs = {
+      filePath: testFilePath,
+    };
+
+    // Execute
+    const result = (await tool.execute!(args, mockToolCallOptions)) as FileReadToolResult;
+
+    // Assert
+    expect(result.success).toBe(true);
+    if (result.success) {
+      // Test toModelOutput transformation
+      const modelOutput = tool.toModelOutput!(result);
+      expect(modelOutput.type).toBe("json");
+      if (modelOutput.type === "json") {
+        expect(modelOutput.value).toEqual(result);
+      }
+    }
+  });
 });
