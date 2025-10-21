@@ -47,4 +47,4 @@ jobs:
           fi
 
       - name: Publish to NPM
-        run: npm publish --tag ${{ steps.npm-tag.outputs.tag }} --provenance
+        run: npm publish --tag ${{ steps.npm-tag.outputs.tag }}
