@@ -150,7 +150,7 @@ async function getStories(page: Page): Promise<Story[]> {
     console.log("Falling back to sidebar parsing...");
     return await page.evaluate(() => {
       const stories: Story[] = [];
-      const links = document.querySelectorAll('[data-item-id]');
+      const links = document.querySelectorAll("[data-item-id]");
       links.forEach((link) => {
         const id = link.getAttribute("data-item-id");
         if (id && id.includes("--")) {
@@ -176,12 +176,14 @@ async function screenshotStory(
   outputDir: string,
   width: number,
   height: number,
+  baseUrl: string
 ): Promise<void> {
   console.log(`📸 Screenshotting: ${story.title} / ${story.name}`);
 
-  // Navigate to the story
-  const storyUrl = `iframe.html?id=${story.id}&viewMode=story`;
-  await page.goto(storyUrl, { waitUntil: "networkidle" });
+  // Navigate to the story in the main Storybook UI (not iframe.html directly)
+  const storyUrl = new URL(baseUrl);
+  storyUrl.searchParams.set("path", `/story/${story.id}`);
+  await page.goto(storyUrl.toString(), { waitUntil: "networkidle" });
 
   // Wait a bit for any animations to settle
   await page.waitForTimeout(500);
@@ -275,7 +277,14 @@ async function main() {
 
     // Screenshot each story
     for (const story of storiesToScreenshot) {
-      await screenshotStory(page, story, options.output, options.width, options.height);
+      await screenshotStory(
+        page,
+        story,
+        options.output,
+        options.width,
+        options.height,
+        options.url
+      );
     }
 
     console.log("\n✨ Done! Screenshots saved to:", options.output);
@@ -294,4 +303,3 @@ async function main() {
 }
 
 main();
-
