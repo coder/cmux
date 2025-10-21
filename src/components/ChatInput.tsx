@@ -56,6 +56,42 @@ const InputControls = styled.div`
   display: flex;
   gap: 10px;
   align-items: flex-end;
+  position: relative;
+`;
+
+const AttachButton = styled.button`
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  background: #3e3e42;
+  color: #cccccc;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  transition: background 0.2s;
+
+  &:hover {
+    background: #505050;
+  }
+
+  &:active {
+    background: #5a5a5a;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+`;
+
+const HiddenFileInput = styled.input`
+  display: none;
 `;
 
 // Input now rendered by VimTextArea; styles moved there
@@ -405,6 +441,28 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   // Handle removing an image attachment
   const handleRemoveImage = useCallback((id: string) => {
     setImageAttachments((prev) => prev.filter((img) => img.id !== id));
+  }, []);
+
+  // Handle file selection from file input (for mobile)
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const fileArray = Array.from(files);
+    void processImageFiles(fileArray).then((attachments) => {
+      setImageAttachments((prev) => [...prev, ...attachments]);
+    });
+
+    // Reset input so same file can be selected again
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  }, []);
+
+  const handleAttachClick = useCallback(() => {
+    fileInputRef.current?.click();
   }, []);
 
   // Handle drag over to allow drop
@@ -833,6 +891,21 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           }
           aria-expanded={showCommandSuggestions && commandSuggestions.length > 0}
         />
+        <HiddenFileInput
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          onChange={handleFileSelect}
+        />
+        <AttachButton
+          onClick={handleAttachClick}
+          disabled={!editingMessage && (disabled || isSending || isCompacting)}
+          title="Attach images"
+          aria-label="Attach images"
+        >
+          📎
+        </AttachButton>
       </InputControls>
       <ImageAttachments images={imageAttachments} onRemove={handleRemoveImage} />
       <ModeToggles data-component="ChatModeToggles">
