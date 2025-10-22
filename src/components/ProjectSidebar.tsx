@@ -783,9 +783,14 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
             <>
               <SidebarHeader>
                 <h2>Projects</h2>
-                <AddProjectBtn onClick={onAddProject} title="Add Project" aria-label="Add project">
-                  +
-                </AddProjectBtn>
+                <TooltipWrapper inline>
+                  <AddProjectBtn onClick={onAddProject} aria-label="Add project">
+                    +
+                  </AddProjectBtn>
+                  <Tooltip className="tooltip" align="right">
+                    Add Project
+                  </Tooltip>
+                </TooltipWrapper>
               </SidebarHeader>
               <ProjectsList>
                 {projects.size === 0 ? (
