@@ -1,11 +1,6 @@
 import React from "react";
-import styled from "@emotion/styled";
-import { markdownStyles } from "./MarkdownStyles";
 import { MarkdownCore } from "./MarkdownCore";
-
-const MarkdownContainer = styled.div`
-  ${markdownStyles}
-`;
+import { cn } from "@/lib/utils";
 
 interface MarkdownRendererProps {
   content: string;
@@ -14,21 +9,28 @@ interface MarkdownRendererProps {
 
 export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, className }) => {
   return (
-    <MarkdownContainer className={className}>
+    <div className={cn("markdown-content", className)}>
       <MarkdownCore content={content} />
-    </MarkdownContainer>
+    </div>
   );
 };
 
 // For plan-specific styling
-export const PlanMarkdownContainer = styled.div`
-  ${markdownStyles}
-
-  blockquote {
-    border-left-color: var(--color-plan-mode);
-  }
-
-  code {
-    color: var(--color-plan-mode-hover);
-  }
-`;
+export const PlanMarkdownContainer: React.FC<{ children: React.ReactNode; className?: string }> = ({
+  children,
+  className,
+}) => {
+  return (
+    <div
+      className={cn("markdown-content", className)}
+      style={{
+        // Plan-specific overrides
+        // @ts-expect-error CSS custom property
+        "--blockquote-color": "var(--color-plan-mode)",
+        "--code-color": "var(--color-plan-mode-hover)",
+      }}
+    >
+      {children}
+    </div>
+  );
+};

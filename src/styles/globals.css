@@ -317,6 +317,217 @@
   [title]:hover::before {
     content: "";
     position: absolute;
+
+/* Markdown Content Styles */
+.markdown-content {
+  font-family: var(--font-primary);
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--color-text);
+  white-space: normal;
+}
+
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3,
+.markdown-content h4,
+.markdown-content h5,
+.markdown-content h6 {
+  margin: 1.2em 0 0.6em 0;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.markdown-content h1 {
+  font-size: 20px;
+}
+.markdown-content h2 {
+  font-size: 18px;
+}
+.markdown-content h3 {
+  font-size: 16px;
+}
+.markdown-content h4 {
+  font-size: 14px;
+}
+.markdown-content h5,
+.markdown-content h6 {
+  font-size: 13px;
+}
+
+.markdown-content p {
+  margin: 0.8em 0;
+}
+
+/* Remove default margins on first and last elements */
+.markdown-content > :first-child {
+  margin-top: 0;
+}
+
+.markdown-content > :last-child {
+  margin-bottom: 0;
+}
+
+.markdown-content ul,
+.markdown-content ol {
+  margin: 0.8em 0;
+  padding-left: 20px;
+}
+
+.markdown-content li {
+  margin: 0.4em 0;
+}
+
+.markdown-content code {
+  background: rgba(0, 0, 0, 0);
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-family: var(--font-monospace);
+  font-size: 12px;
+  color: #d19a66;
+}
+
+.markdown-content pre {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 12px;
+  border-radius: 4px;
+  overflow-x: auto;
+  margin: 1em 0;
+}
+
+.markdown-content pre code {
+  background: none;
+  padding: 0;
+  color: var(--color-text);
+}
+
+.markdown-content blockquote {
+  border-left: 3px solid var(--color-border);
+  padding-left: 12px;
+  margin: 1em 0;
+  color: var(--color-text-secondary);
+  font-style: italic;
+}
+
+.markdown-content strong {
+  font-weight: 600;
+}
+
+.markdown-content em {
+  font-style: italic;
+}
+
+.markdown-content hr {
+  border: none;
+  border-top: 1px solid var(--color-border);
+  margin: 1.4em 0;
+}
+
+.markdown-content a {
+  color: #569cd6;
+  text-decoration: none;
+}
+
+.markdown-content a:hover {
+  text-decoration: underline;
+}
+
+.markdown-content table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1em 0;
+}
+
+.markdown-content table th,
+.markdown-content table td {
+  border: 1px solid var(--color-border);
+  padding: 6px 12px;
+  text-align: left;
+}
+
+.markdown-content table th {
+  background: rgba(255, 255, 255, 0.05);
+  font-weight: 600;
+}
+
+.markdown-content table tr:nth-of-type(even) {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.markdown-content img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Task lists */
+.markdown-content input[type="checkbox"] {
+  margin-right: 6px;
+}
+
+/* Strikethrough */
+.markdown-content del {
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+
+/* Mermaid diagrams */
+.markdown-content .mermaid-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.markdown-content .mermaid-container svg {
+  min-width: min-content;
+  max-width: none;
+  max-height: var(--diagram-max-height, 300px);
+  height: auto;
+}
+
+/* Mermaid in modal - allow larger sizing */
+.markdown-content .mermaid-modal svg {
+  max-width: none;
+  width: auto;
+  max-height: 80vh;
+}
+
+/* Zoom wrapper for mermaid */
+.markdown-content .react-transform-wrapper {
+  position: relative;
+  width: 100%;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  margin: 1em 0;
+}
+
+.markdown-content .react-transform-component {
+  width: 100%;
+  height: 100%;
+}
+
+/* KaTeX math rendering */
+.markdown-content .katex {
+  font-size: 1.1em;
+}
+
+.markdown-content .katex-display {
+  margin: 1em 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.markdown-content .katex-display > .katex {
+  text-align: center;
+}
+
+/* Math inline */
+.markdown-content p .katex,
+.markdown-content li .katex {
+  display: inline;
+}
+
     bottom: 100%;
     left: 50%;
     transform: translateX(-50%);
