@@ -3,9 +3,17 @@
  * Provides a clean async API for calculating stats off the main thread
  */
 
+import assert from "@/utils/assert";
 import type { CmuxMessage } from "@/types/message";
 import type { ChatStats } from "@/types/chatStats";
-import type { WorkerRequest, WorkerResponse, WorkerError } from "./tokenStats.worker";
+import type {
+  WorkerRequest,
+  WorkerResponse,
+  WorkerError,
+  WorkerNotification,
+} from "./tokenStats.worker";
+
+type WorkerMessage = WorkerResponse | WorkerError | WorkerNotification;
 
 /**
  * TokenStatsWorker manages a dedicated Web Worker for calculating token statistics
@@ -19,6 +27,10 @@ export class TokenStatsWorker {
     resolve: (stats: ChatStats) => void;
     reject: (error: Error) => void;
   } | null = null;
+  private readonly tokenizerReadyListeners = new Set<() => void>();
+  private readonly encodingListeners = new Set<(encodingName: string) => void>();
+  private tokenizerReady = false;
+  private readonly loadedEncodings = new Set<string>();
 
   constructor() {
     // Create worker using Vite's Web Worker support
@@ -29,6 +41,41 @@ export class TokenStatsWorker {
 
     this.worker.onmessage = this.handleMessage.bind(this);
     this.worker.onerror = this.handleError.bind(this);
+  }
+
+  onTokenizerReady(listener: () => void): () => void {
+    assert(typeof listener === "function", "Tokenizer ready listener must be a function");
+    this.tokenizerReadyListeners.add(listener);
+    if (this.tokenizerReady) {
+      try {
+        listener();
+      } catch (error) {
+        console.error("[TokenStatsWorker] Tokenizer ready listener threw", error);
+      }
+    }
+    return () => {
+      this.tokenizerReadyListeners.delete(listener);
+    };
+  }
+
+  onEncodingLoaded(listener: (encodingName: string) => void): () => void {
+    assert(typeof listener === "function", "Tokenizer encoding listener must be a function");
+    this.encodingListeners.add(listener);
+    if (this.loadedEncodings.size > 0) {
+      for (const encodingName of this.loadedEncodings) {
+        try {
+          listener(encodingName);
+        } catch (error) {
+          console.error(
+            `[TokenStatsWorker] Tokenizer encoding listener threw for '${encodingName}' during replay`,
+            error
+          );
+        }
+      }
+    }
+    return () => {
+      this.encodingListeners.delete(listener);
+    };
   }
 
   /**
@@ -67,8 +114,21 @@ export class TokenStatsWorker {
   /**
    * Handle successful or error responses from worker
    */
-  private handleMessage(e: MessageEvent<WorkerResponse | WorkerError>) {
+  private handleMessage(e: MessageEvent<WorkerMessage>) {
     const response = e.data;
+
+    if ("type" in response) {
+      if (response.type === "tokenizer-ready") {
+        this.notifyTokenizerReady();
+        return;
+      }
+      if (response.type === "encoding-loaded") {
+        this.notifyEncodingLoaded(response.encodingName);
+        return;
+      }
+      assert(false, "Received unknown worker notification type");
+      return;
+    }
 
     // Ignore responses for cancelled requests
     if (!this.pendingRequest || this.pendingRequest.id !== response.id) {
@@ -104,5 +164,44 @@ export class TokenStatsWorker {
       this.pendingRequest = null;
     }
     this.worker.terminate();
+    this.tokenizerReadyListeners.clear();
+    this.encodingListeners.clear();
+    this.loadedEncodings.clear();
+    this.tokenizerReady = false;
+  }
+
+  private notifyTokenizerReady(): void {
+    this.tokenizerReady = true;
+    if (this.tokenizerReadyListeners.size === 0) {
+      return;
+    }
+    for (const listener of this.tokenizerReadyListeners) {
+      try {
+        listener();
+      } catch (error) {
+        console.error("[TokenStatsWorker] Tokenizer ready listener threw", error);
+      }
+    }
+  }
+
+  private notifyEncodingLoaded(encodingName: string): void {
+    assert(
+      typeof encodingName === "string" && encodingName.length > 0,
+      "Tokenizer encoding notifications require a non-empty encoding name"
+    );
+    this.loadedEncodings.add(encodingName);
+    if (this.encodingListeners.size === 0) {
+      return;
+    }
+    for (const listener of this.encodingListeners) {
+      try {
+        listener(encodingName);
+      } catch (error) {
+        console.error(
+          `[TokenStatsWorker] Tokenizer encoding listener threw for '${encodingName}'`,
+          error
+        );
+      }
+    }
   }
 }

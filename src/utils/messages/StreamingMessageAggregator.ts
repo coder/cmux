@@ -131,6 +131,17 @@ export class StreamingMessageAggregator {
   }
 
   addMessage(message: CmuxMessage): void {
+    const existing = this.messages.get(message.id);
+    if (existing) {
+      const existingParts = Array.isArray(existing.parts) ? existing.parts.length : 0;
+      const incomingParts = Array.isArray(message.parts) ? message.parts.length : 0;
+
+      // Prefer richer content when duplicates arrive (e.g., placeholder vs completed message)
+      if (incomingParts < existingParts) {
+        return;
+      }
+    }
+
     // Just store the message - backend assigns historySequence
     this.messages.set(message.id, message);
     this.invalidateCache();

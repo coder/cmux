@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 
-import assert from "node:assert/strict";
+import assert from "@/utils/assert";
 import * as fs from "fs/promises";
 import * as path from "path";
 import { parseArgs } from "util";
