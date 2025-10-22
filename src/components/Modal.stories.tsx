@@ -209,9 +209,9 @@ export const EscapeKeyCloses: Story = {
     await userEvent.keyboard("{Escape}");
 
     // Wait for modal to be removed from DOM
-    await waitFor(() => {
+    await waitFor(async () => {
       const closedModal = document.querySelector('[role="dialog"]');
-      expect(closedModal).not.toBeInTheDocument();
+      await expect(closedModal).not.toBeInTheDocument();
     });
   },
 };
@@ -249,9 +249,9 @@ export const OverlayClickCloses: Story = {
     await userEvent.click(overlay!);
 
     // Wait for modal to be removed from DOM
-    await waitFor(() => {
+    await waitFor(async () => {
       const closedModal = document.querySelector('[role="dialog"]');
-      expect(closedModal).not.toBeInTheDocument();
+      await expect(closedModal).not.toBeInTheDocument();
     });
   },
 };
