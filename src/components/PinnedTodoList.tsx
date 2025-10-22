@@ -1,41 +1,8 @@
 import React, { useSyncExternalStore } from "react";
-import styled from "@emotion/styled";
 import { TodoList } from "./TodoList";
 import { useWorkspaceStoreRaw } from "@/stores/WorkspaceStore";
 import { usePersistedState } from "@/hooks/usePersistedState";
-
-const PinnedContainer = styled.div`
-  background: var(--color-panel-background);
-  border-top: 1px dashed hsl(0deg 0% 28.64%);
-  margin: 0;
-  max-height: 300px;
-  overflow-y: auto;
-`;
-
-const TodoHeader = styled.div`
-  padding: 4px 8px 2px 8px;
-  font-family: var(--font-monospace);
-  font-size: 10px;
-  color: var(--color-text-secondary);
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  cursor: pointer;
-  user-select: none;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-
-  &:hover {
-    opacity: 0.8;
-  }
-`;
-
-const Caret = styled.span<{ expanded: boolean }>`
-  display: inline-block;
-  transition: transform 0.2s;
-  transform: ${(props) => (props.expanded ? "rotate(90deg)" : "rotate(0deg)")};
-  font-size: 8px;
-`;
+import { cn } from "@/lib/utils";
 
 interface PinnedTodoListProps {
   workspaceId: string;
@@ -65,12 +32,22 @@ export const PinnedTodoList: React.FC<PinnedTodoListProps> = ({ workspaceId }) =
   }
 
   return (
-    <PinnedContainer>
-      <TodoHeader onClick={() => setExpanded(!expanded)}>
-        <Caret expanded={expanded}>▶</Caret>
+    <div className="bg-panel-background border-t border-dashed border-[hsl(0deg_0%_28.64%)] m-0 max-h-[300px] overflow-y-auto">
+      <div
+        className="px-2 pt-1 pb-0.5 font-mono text-[10px] text-text-secondary font-semibold tracking-wider cursor-pointer select-none flex items-center gap-1 hover:opacity-80"
+        onClick={() => setExpanded(!expanded)}
+      >
+        <span
+          className={cn(
+            "inline-block transition-transform duration-200 text-[8px]",
+            expanded ? "rotate-90" : "rotate-0"
+          )}
+        >
+          ▶
+        </span>
         TODO{expanded ? ":" : ""}
-      </TodoHeader>
+      </div>
       {expanded && <TodoList todos={todos} />}
-    </PinnedContainer>
+    </div>
   );
 };
