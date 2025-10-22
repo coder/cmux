@@ -39,14 +39,7 @@ const basePlugins = [
       plugins: babelPlugins,
     },
   }),
-  {
-    ...tailwindcss(),
-    // Prevent Tailwind from applying to worker builds
-    apply(config, { command }) {
-      // Only apply to client builds, not workers
-      return !config.build?.ssr && config.worker === undefined;
-    },
-  },
+  tailwindcss(),
 ];
 
 export default defineConfig(({ mode }) => ({
