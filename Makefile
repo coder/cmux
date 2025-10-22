@@ -38,7 +38,7 @@ include fmt.mk
 .PHONY: test test-unit test-integration test-watch test-coverage test-e2e
 .PHONY: dist dist-mac dist-win dist-linux
 .PHONY: docs docs-build docs-watch
-.PHONY: storybook storybook-build test-storybook
+.PHONY: storybook storybook-build test-storybook chromatic
 .PHONY: benchmark-terminal
 .PHONY: ensure-deps
 .PHONY: check-eager-imports check-bundle-size check-startup
@@ -251,6 +251,9 @@ storybook-build: node_modules/.installed src/version.ts ## Build static Storyboo
 
 test-storybook: node_modules/.installed ## Run Storybook interaction tests (requires Storybook to be running or built)
 	@bun x test-storybook
+
+chromatic: node_modules/.installed ## Run Chromatic for visual regression testing
+	@bun x chromatic --exit-zero-on-changes
 
 ## Benchmarks
 benchmark-terminal: ## Run Terminal-Bench with the cmux agent (use TB_DATASET/TB_SAMPLE_SIZE/TB_ARGS to customize)
