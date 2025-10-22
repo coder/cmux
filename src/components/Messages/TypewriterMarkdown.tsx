@@ -1,12 +1,7 @@
 import React, { useMemo } from "react";
-import styled from "@emotion/styled";
-import { markdownStyles } from "../Messages/MarkdownStyles";
+import { cn } from "@/lib/utils";
 import { MarkdownCore } from "./MarkdownCore";
 import { StreamingContext } from "./StreamingContext";
-
-const MarkdownContainer = styled.div`
-  ${markdownStyles}
-`;
 
 interface TypewriterMarkdownProps {
   deltas: string[];
@@ -30,9 +25,9 @@ export const TypewriterMarkdown = React.memo<TypewriterMarkdownProps>(function T
 
   return (
     <StreamingContext.Provider value={streamingContextValue}>
-      <MarkdownContainer className={className}>
+      <div className={cn("markdown-content", className)}>
         <MarkdownCore content={content} />
-      </MarkdownContainer>
+      </div>
     </StreamingContext.Provider>
   );
 });
