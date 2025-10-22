@@ -81,7 +81,7 @@ describeIntegration("IpcMain rename workspace integration tests", () => {
         );
         expect(newMetadataResult).toBeTruthy();
         expect(newMetadataResult.id).toBe(workspaceId); // ID unchanged
-        expect(newMetadataResult.name).toBe(newName); // Name updated
+        expect(newMetadataResult.title).toBe(newName); // Title updated
         expect(newMetadataResult.projectName).toBe(projectName);
 
         // Path DOES change (directory is renamed from old name to new name)
@@ -96,7 +96,7 @@ describeIntegration("IpcMain rename workspace integration tests", () => {
           const workspace = projectConfig.workspaces.find((w) => w.path === newWorkspacePath);
           if (workspace) {
             foundWorkspace = true;
-            expect(workspace.name).toBe(newName); // Name updated in config
+            expect(workspace.title).toBe(newName); // Title updated in config
             expect(workspace.id).toBe(workspaceId); // ID unchanged
             break;
           }

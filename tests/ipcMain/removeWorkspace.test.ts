@@ -42,7 +42,7 @@ describeIntegration("IpcMain remove workspace integration tests", () => {
 
         // Get the symlink path before removing
         const projectName = tempGitRepo.split("/").pop() || "unknown";
-        const symlinkPath = `${env.config.srcDir}/${projectName}/${metadata.title}`;
+        const symlinkPath = `${env.config.srcDir}/${projectName}/${metadata.id}`;
         const symlinkExistsBefore = await fs
           .lstat(symlinkPath)
           .then(() => true)
