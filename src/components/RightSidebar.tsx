@@ -1,5 +1,4 @@
 import React from "react";
-import styled from "@emotion/styled";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { useWorkspaceUsage } from "@/stores/WorkspaceStore";
 import { use1MContext } from "@/hooks/use1MContext";
@@ -10,15 +9,16 @@ import { ReviewPanel } from "./RightSidebar/CodeReview/ReviewPanel";
 import { calculateTokenMeterData } from "@/utils/tokens/tokenMeterUtils";
 import { matchesKeybind, KEYBINDS, formatKeybind } from "@/utils/ui/keybinds";
 import { TooltipWrapper, Tooltip } from "./Tooltip";
+import { cn } from "@/lib/utils";
 
 interface SidebarContainerProps {
   collapsed: boolean;
   wide?: boolean;
-}
-
-interface SidebarContainerStyleProps extends SidebarContainerProps {
   /** Custom width from drag-resize (takes precedence over collapsed/wide) */
   customWidth?: number;
+  children: React.ReactNode;
+  role: string;
+  "aria-label": string;
 }
 
 /**
@@ -30,131 +30,40 @@ interface SidebarContainerStyleProps extends SidebarContainerProps {
  * 3. wide - Auto-calculated max width for Review tab (when not resizing)
  * 4. default (300px) - Costs/Tools tabs
  */
-const SidebarContainer = styled.div<SidebarContainerStyleProps>`
-  width: ${(props) => {
-    if (props.collapsed) return "20px";
-    if (props.customWidth) return `${props.customWidth}px`; // Drag-resized width
-    if (props.wide) return "min(1200px, calc(100vw - 400px))"; // Auto-width for Review
-    return "300px"; // Default for Costs/Tools
-  }};
-  background: #252526;
-  border-left: 1px solid #3e3e42;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  transition: ${(props) => (props.customWidth ? "none" : "width 0.2s ease")};
-  flex-shrink: 0;
+const SidebarContainer: React.FC<SidebarContainerProps> = ({
+  collapsed,
+  wide,
+  customWidth,
+  children,
+  role,
+  "aria-label": ariaLabel,
+}) => {
+  const width = collapsed
+    ? "20px"
+    : customWidth
+      ? `${customWidth}px`
+      : wide
+        ? "min(1200px, calc(100vw - 400px))"
+        : "300px";
 
-  /* Keep vertical bar always visible when collapsed */
-  ${(props) =>
-    props.collapsed &&
-    `
-    position: sticky;
-    right: 0;
-    z-index: 10;
-    box-shadow: -2px 0 4px rgba(0, 0, 0, 0.2);
-  `}
-
-  /* Mobile: Full width when expanded, hide when collapsed */
-  @media (max-width: 768px) {
-    width: ${(props) => (props.collapsed ? "0" : "100%")};
-    border-left: none;
-    border-top: 1px solid #3e3e42;
-    max-height: ${(props) => (props.collapsed ? "0" : "50vh")};
-    position: ${(props) => (props.collapsed ? "absolute" : "relative")};
-    bottom: ${(props) => (props.collapsed ? "0" : "auto")};
-  }
-`;
-
-const FullView = styled.div<{ visible: boolean }>`
-  display: ${(props) => (props.visible ? "flex" : "none")};
-  flex-direction: row; /* Horizontal layout: meter | handle | content */
-  height: 100%;
-`;
-
-const ContentColumn = styled.div`
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-width: 0;
-`;
-
-const CollapsedView = styled.div<{ visible: boolean }>`
-  display: ${(props) => (props.visible ? "flex" : "none")};
-  height: 100%;
-`;
-
-const MeterContainer = styled.div<{ visible: boolean }>`
-  width: 20px;
-  background: #252526;
-  border-right: 1px solid #3e3e42;
-  display: ${(props) => (props.visible ? "flex" : "none")};
-  flex-direction: column;
-  flex-shrink: 0;
-`;
-
-/**
- * ResizeHandle - Draggable border between VerticalTokenMeter and sidebar content
- * Only visible when Review tab is active
- */
-const ResizeHandle = styled.div<{ visible: boolean; isResizing: boolean }>`
-  width: 4px;
-  background: ${(props) => (props.visible ? "#3e3e42" : "transparent")};
-  cursor: ${(props) => (props.visible ? "col-resize" : "default")};
-  flex-shrink: 0;
-  transition: background 0.15s ease;
-  z-index: 10;
-
-  &:hover {
-    background: ${(props) => (props.visible ? "#007acc" : "transparent")};
-  }
-
-  ${(props) =>
-    props.isResizing &&
-    `
-    background: #007acc;
-  `}
-`;
-
-const TabBar = styled.div`
-  display: flex;
-  background: #2d2d2d;
-  border-bottom: 1px solid #3e3e42;
-
-  /* Make TooltipWrapper behave as flex child */
-  > * {
-    flex: 1;
-  }
-`;
-
-interface TabButtonProps {
-  active: boolean;
-}
-
-const TabButton = styled.button<TabButtonProps>`
-  width: 100%; /* Fill parent TooltipWrapper */
-  padding: 10px 15px;
-  background: ${(props) => (props.active ? "#252526" : "transparent")};
-  color: ${(props) => (props.active ? "#ffffff" : "#888888")};
-  border: none;
-  border-bottom: 2px solid ${(props) => (props.active ? "#007acc" : "transparent")};
-  cursor: pointer;
-  font-family: var(--font-primary);
-  font-size: 13px;
-  font-weight: 500;
-  transition: all 0.2s ease;
-
-  &:hover {
-    background: ${(props) => (props.active ? "#252526" : "#2d2d2d")};
-    color: ${(props) => (props.active ? "#ffffff" : "#cccccc")};
-  }
-`;
-
-const TabContent = styled.div<{ noPadding?: boolean }>`
-  flex: 1;
-  overflow-y: auto;
-  padding: ${(props) => (props.noPadding ? "0" : "15px")};
-`;
+  return (
+    <div
+      className={cn(
+        "bg-[#252526] border-l border-[#3e3e42] flex flex-col overflow-hidden flex-shrink-0",
+        customWidth ? "" : "transition-[width] duration-200",
+        collapsed && "sticky right-0 z-10 shadow-[-2px_0_4px_rgba(0,0,0,0.2)]",
+        "max-md:border-l-0 max-md:border-t max-md:border-[#3e3e42]",
+        collapsed && "max-md:w-0 max-md:absolute max-md:bottom-0",
+        !collapsed && "max-md:w-full max-md:relative max-md:max-h-[50vh]"
+      )}
+      style={{ width }}
+      role={role}
+      aria-label={ariaLabel}
+    >
+      {children}
+    </div>
+  );
+};
 
 type TabType = "costs" | "review";
 
@@ -288,26 +197,37 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
       role="complementary"
       aria-label="Workspace insights"
     >
-      <FullView visible={!showCollapsed}>
+      {/* Full view when not collapsed */}
+      <div className={cn("flex-row h-full", !showCollapsed ? "flex" : "hidden")}>
         {/* Render meter when Review tab is active */}
         {selectedTab === "review" && (
-          <MeterContainer visible={true}>{verticalMeter}</MeterContainer>
+          <div className="w-5 bg-[#252526] border-r border-[#3e3e42] flex flex-col flex-shrink-0">
+            {verticalMeter}
+          </div>
         )}
 
         {/* Render resize handle to right of meter when Review tab is active */}
         {selectedTab === "review" && onStartResize && (
-          <ResizeHandle
-            visible={true}
-            isResizing={isResizing}
+          <div
+            className={cn(
+              "w-1 flex-shrink-0 z-10 transition-[background] duration-150",
+              "bg-[#3e3e42] cursor-col-resize hover:bg-[#007acc]",
+              isResizing && "bg-[#007acc]"
+            )}
             onMouseDown={(e) => onStartResize(e as unknown as React.MouseEvent)}
           />
         )}
 
-        <ContentColumn>
-          <TabBar role="tablist" aria-label="Metadata views">
+        <div className="flex flex-col flex-1 min-w-0">
+          <div className="flex bg-[#2d2d2d] border-b border-[#3e3e42] [&>*]:flex-1" role="tablist" aria-label="Metadata views">
             <TooltipWrapper inline>
-              <TabButton
-                active={selectedTab === "costs"}
+              <button
+                className={cn(
+                  "w-full py-2.5 px-[15px] border-none cursor-pointer font-[var(--font-primary)] text-[13px] font-medium transition-all duration-200",
+                  selectedTab === "costs"
+                    ? "bg-[#252526] text-white border-b-2 border-b-[#007acc]"
+                    : "bg-transparent text-[#888888] border-b-2 border-b-transparent hover:bg-[#2d2d2d] hover:text-[#cccccc]"
+                )}
                 onClick={() => setSelectedTab("costs")}
                 id={costsTabId}
                 role="tab"
@@ -316,14 +236,19 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
                 aria-controls={costsPanelId}
               >
                 Costs
-              </TabButton>
+              </button>
               <Tooltip className="tooltip" position="bottom" align="center">
                 {formatKeybind(KEYBINDS.COSTS_TAB)}
               </Tooltip>
             </TooltipWrapper>
             <TooltipWrapper inline>
-              <TabButton
-                active={selectedTab === "review"}
+              <button
+                className={cn(
+                  "w-full py-2.5 px-[15px] border-none cursor-pointer font-[var(--font-primary)] text-[13px] font-medium transition-all duration-200",
+                  selectedTab === "review"
+                    ? "bg-[#252526] text-white border-b-2 border-b-[#007acc]"
+                    : "bg-transparent text-[#888888] border-b-2 border-b-transparent hover:bg-[#2d2d2d] hover:text-[#cccccc]"
+                )}
                 onClick={() => setSelectedTab("review")}
                 id={reviewTabId}
                 role="tab"
@@ -332,13 +257,13 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
                 aria-controls={reviewPanelId}
               >
                 Review
-              </TabButton>
+              </button>
               <Tooltip className="tooltip" position="bottom" align="center">
                 {formatKeybind(KEYBINDS.REVIEW_TAB)}
               </Tooltip>
             </TooltipWrapper>
-          </TabBar>
-          <TabContent noPadding={selectedTab === "review"}>
+          </div>
+          <div className={cn("flex-1 overflow-y-auto", selectedTab === "review" ? "p-0" : "p-[15px]")}>
             {selectedTab === "costs" && (
               <div role="tabpanel" id={costsPanelId} aria-labelledby={costsTabId}>
                 <CostsTab workspaceId={workspaceId} />
@@ -349,7 +274,7 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
                 role="tabpanel"
                 id={reviewPanelId}
                 aria-labelledby={reviewTabId}
-                style={{ height: "100%" }}
+                className="h-full"
               >
                 <ReviewPanel
                   workspaceId={workspaceId}
@@ -359,11 +284,11 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
                 />
               </div>
             )}
-          </TabContent>
-        </ContentColumn>
-      </FullView>
+          </div>
+        </div>
+      </div>
       {/* Render meter in collapsed view when sidebar is collapsed */}
-      <CollapsedView visible={showCollapsed}>{verticalMeter}</CollapsedView>
+      <div className={cn("h-full", showCollapsed ? "flex" : "hidden")}>{verticalMeter}</div>
     </SidebarContainer>
   );
 };
