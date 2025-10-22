@@ -6,7 +6,7 @@ import { createFileReadTool } from "./file_read";
 import type { FileReadToolArgs, FileReadToolResult } from "@/types/tools";
 import type { ToolCallOptions } from "ai";
 import { TestTempDir } from "./testHelpers";
-import { LocalRuntime } from "@/runtime/LocalRuntime";
+import { createRuntime } from "@/runtime/runtimeFactory";
 
 // Mock ToolCallOptions for testing
 const mockToolCallOptions: ToolCallOptions = {
@@ -20,7 +20,7 @@ function createTestFileReadTool(options?: { cwd?: string }) {
   const tempDir = new TestTempDir("test-file-read");
   const tool = createFileReadTool({
     cwd: options?.cwd ?? process.cwd(),
-    runtime: new LocalRuntime(),
+    runtime: createRuntime({ type: "local" }),
     tempDir: tempDir.path,
   });
 
@@ -332,7 +332,7 @@ describe("file_read tool", () => {
     await fs.mkdir(subDir);
 
     // Try to read file outside cwd by going up
-    const tool = createFileReadTool({ cwd: subDir, runtime: new LocalRuntime(), tempDir: "/tmp" });
+    const tool = createFileReadTool({ cwd: subDir, runtime: createRuntime({ type: "local" }), tempDir: "/tmp" });
     const args: FileReadToolArgs = {
       filePath: "../test.txt", // This goes outside subDir back to testDir
     };

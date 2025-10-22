@@ -13,7 +13,7 @@ import type { Config } from "@/config";
 import { StreamManager } from "./streamManager";
 import type { SendMessageError } from "@/types/errors";
 import { getToolsForModel } from "@/utils/tools/tools";
-import { LocalRuntime } from "@/runtime/LocalRuntime";
+import { createRuntime } from "@/runtime/runtimeFactory";
 import { secretsToRecord } from "@/types/secrets";
 import type { CmuxProviderOptions } from "@/types/providerOptions";
 import { log } from "./log";
@@ -420,9 +420,10 @@ export class AIService extends EventEmitter {
       const [providerName] = modelString.split(":");
 
       // Get tool names early for mode transition sentinel (stub config, no workspace context needed)
+      const earlyRuntime = createRuntime({ type: "local" });
       const earlyAllTools = await getToolsForModel(modelString, {
         cwd: process.cwd(),
-        runtime: new LocalRuntime(),
+        runtime: earlyRuntime,
         tempDir: os.tmpdir(),
         secrets: {},
       });
@@ -519,10 +520,13 @@ export class AIService extends EventEmitter {
       const streamToken = this.streamManager.generateStreamToken();
       const tempDir = this.streamManager.createTempDirForStream(streamToken);
 
+      // Create runtime from workspace metadata config (defaults to local)
+      const runtime = createRuntime(metadata.runtimeConfig ?? { type: "local" });
+
       // Get model-specific tools with workspace path configuration and secrets
       const allTools = await getToolsForModel(modelString, {
         cwd: workspacePath,
-        runtime: new LocalRuntime(),
+        runtime,
         secrets: secretsToRecord(projectSecrets),
         tempDir,
       });
