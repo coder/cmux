@@ -1,165 +1,178 @@
 import React, { useEffect, useCallback, useId } from "react";
-import styled from "@emotion/styled";
+import { cn } from "@/lib/utils";
 import { matchesKeybind, KEYBINDS } from "@/utils/ui/keybinds";
 
-// Styled Components
-export const ModalOverlay = styled.div`
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-`;
+// Export utility components for backwards compatibility
+export const ModalOverlay: React.FC<{
+  children: React.ReactNode;
+  onClick?: () => void;
+  role?: string;
+  className?: string;
+}> = ({ children, onClick, role, className }) => (
+  <div
+    role={role}
+    onClick={onClick}
+    className={cn(
+      "fixed inset-0 bg-black/50 flex justify-center items-center z-[1000]",
+      className
+    )}
+  >
+    {children}
+  </div>
+);
 
-export const ModalContent = styled.div<{ maxWidth?: string; maxHeight?: string }>`
-  background: #1e1e1e;
-  border-radius: 8px;
-  padding: 24px;
-  width: 90%;
-  max-width: ${(props) => props.maxWidth ?? "500px"};
-  ${(props) => props.maxHeight && `max-height: ${props.maxHeight};`}
-  display: flex;
-  flex-direction: column;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
-  border: 1px solid #333;
+export const ModalContent: React.FC<
+  {
+    children: React.ReactNode;
+    maxWidth?: string;
+    maxHeight?: string;
+    className?: string;
+  } & React.HTMLAttributes<HTMLDivElement>
+> = ({ children, maxWidth = "500px", maxHeight, className, ...props }) => (
+  <div
+    className={cn(
+      "bg-[#1e1e1e] rounded-lg p-6 w-[90%] flex flex-col shadow-lg border border-[#333]",
+      "[&_h2]:mt-0 [&_h2]:mb-2 [&_h2]:text-white",
+      className
+    )}
+    style={{ maxWidth, ...(maxHeight && { maxHeight }) }}
+    {...props}
+  >
+    {children}
+  </div>
+);
 
-  h2 {
-    margin-top: 0;
-    margin-bottom: 8px;
-    color: #fff;
-  }
-`;
+export const ModalSubtitle: React.FC<{
+  children: React.ReactNode;
+  id?: string;
+  className?: string;
+}> = ({ children, id, className }) => (
+  <p id={id} className={cn("text-[#888] text-sm mb-5", className)}>
+    {children}
+  </p>
+);
 
-export const ModalSubtitle = styled.p`
-  color: #888;
-  font-size: 14px;
-  margin-bottom: 20px;
-`;
+export const ModalInfo: React.FC<{
+  children: React.ReactNode;
+  className?: string;
+  id?: string;
+}> = ({ children, className, id }) => (
+  <div
+    id={id}
+    className={cn(
+      "bg-[#2d2d2d] border border-[#444] rounded p-3 mb-5 text-[13px]",
+      "[&_p]:m-0 [&_p]:mb-2 [&_p]:text-[#888] [&_p:last-child]:mb-0",
+      "[&_code]:text-[#569cd6] [&_code]:font-mono",
+      className
+    )}
+  >
+    {children}
+  </div>
+);
 
-export const ModalInfo = styled.div`
-  background: #2d2d2d;
-  border: 1px solid #444;
-  border-radius: 4px;
-  padding: 12px;
-  margin-bottom: 20px;
-  font-size: 13px;
-
-  p {
-    margin: 0 0 8px 0;
-    color: #888;
-
-    &:last-child {
-      margin-bottom: 0;
-    }
-  }
-
-  code {
-    color: #569cd6;
-    font-family: var(--font-monospace);
-  }
-`;
-
-export const ModalActions = styled.div`
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  margin-top: 24px;
-`;
+export const ModalActions: React.FC<{ children: React.ReactNode; className?: string }> = ({
+  children,
+  className,
+}) => (
+  <div className={cn("flex justify-end gap-3 mt-6", className)}>{children}</div>
+);
 
 // Reusable error/warning display components for modals
-export const ErrorSection = styled.div`
-  margin: 16px 0;
-`;
+export const ErrorSection: React.FC<{ children: React.ReactNode; className?: string }> = ({
+  children,
+  className,
+}) => <div className={cn("my-4", className)}>{children}</div>;
 
-export const ErrorLabel = styled.div`
-  font-size: 11px;
-  color: var(--color-text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 8px;
-`;
+export const ErrorLabel: React.FC<{ children: React.ReactNode; className?: string }> = ({
+  children,
+  className,
+}) => (
+  <div className={cn("text-[11px] text-foreground-secondary uppercase tracking-wide mb-2", className)}>
+    {children}
+  </div>
+);
 
-export const ErrorCodeBlock = styled.pre`
-  background: var(--color-background-secondary);
-  border: 1px solid var(--color-border);
-  border-radius: 4px;
-  padding: 12px;
-  font-size: 12px;
-  font-family: var(--font-monospace);
-  color: var(--color-text);
-  overflow-x: auto;
-  white-space: pre-wrap;
-  word-break: break-word;
-  line-height: 1.4;
-`;
+export const ErrorCodeBlock: React.FC<{ children: React.ReactNode; className?: string }> = ({
+  children,
+  className,
+}) => (
+  <pre
+    className={cn(
+      "bg-background-secondary border border-border rounded p-3",
+      "text-xs font-mono text-foreground overflow-x-auto whitespace-pre-wrap break-words leading-relaxed",
+      className
+    )}
+  >
+    {children}
+  </pre>
+);
 
-export const WarningBox = styled.div`
-  background: var(--color-error-bg);
-  border-left: 3px solid var(--color-error);
-  border-radius: 4px;
-  padding: 12px 16px;
-  margin: 16px 0;
-`;
+export const WarningBox: React.FC<{ children: React.ReactNode; className?: string }> = ({
+  children,
+  className,
+}) => (
+  <div className={cn("bg-error-bg border-l-[3px] border-error rounded p-3 px-4 my-4", className)}>
+    {children}
+  </div>
+);
 
-export const WarningTitle = styled.div`
-  font-weight: 600;
-  font-size: 13px;
-  color: var(--color-error);
-  margin-bottom: 4px;
-`;
+export const WarningTitle: React.FC<{ children: React.ReactNode; className?: string }> = ({
+  children,
+  className,
+}) => <div className={cn("font-semibold text-[13px] text-error mb-1", className)}>{children}</div>;
 
-export const WarningText = styled.div`
-  font-size: 13px;
-  color: var(--color-text);
-  line-height: 1.5;
-`;
+export const WarningText: React.FC<{ children: React.ReactNode; className?: string }> = ({
+  children,
+  className,
+}) => <div className={cn("text-[13px] text-foreground leading-normal", className)}>{children}</div>;
 
-export const Button = styled.button`
-  padding: 8px 20px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
-  transition: all 0.2s;
+// Button components
+interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  children: React.ReactNode;
+}
 
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-`;
+export const Button: React.FC<ButtonProps> = ({ children, className, ...props }) => (
+  <button
+    className={cn(
+      "px-5 py-2 border-none rounded cursor-pointer text-sm font-medium transition-all duration-200",
+      "disabled:opacity-50 disabled:cursor-not-allowed",
+      className
+    )}
+    {...props}
+  >
+    {children}
+  </button>
+);
 
-export const CancelButton = styled(Button)`
-  background: #444;
-  color: #ccc;
+export const CancelButton: React.FC<ButtonProps> = ({ children, className, ...props }) => (
+  <Button
+    className={cn("bg-[#444] text-[#ccc] hover:bg-[#555] disabled:hover:bg-[#444]", className)}
+    {...props}
+  >
+    {children}
+  </Button>
+);
 
-  &:hover:not(:disabled) {
-    background: #555;
-  }
-`;
+export const PrimaryButton: React.FC<ButtonProps> = ({ children, className, ...props }) => (
+  <Button
+    className={cn("bg-[#007acc] text-white hover:bg-[#005a9e] disabled:hover:bg-[#007acc]", className)}
+    {...props}
+  >
+    {children}
+  </Button>
+);
 
-export const PrimaryButton = styled(Button)`
-  background: #007acc;
-  color: white;
-
-  &:hover:not(:disabled) {
-    background: #005a9e;
-  }
-`;
-
-export const DangerButton = styled(Button)`
-  background: var(--color-error);
-  color: white;
-
-  &:hover:not(:disabled) {
-    background: color-mix(in srgb, var(--color-error), #fff 20%);
-  }
-`;
+export const DangerButton: React.FC<ButtonProps> = ({ children, className, ...props }) => (
+  <Button
+    className={cn(
+      "bg-error text-white hover:brightness-110 disabled:hover:brightness-100",
+      className
+    )}
+    {...props}
+  >
+    {children}
+  </Button>
+);
 
 // Modal wrapper component
 interface ModalProps {
