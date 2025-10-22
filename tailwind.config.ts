@@ -100,6 +100,7 @@ export default {
         "accordion-up": "accordion-up 0.2s ease-out",
       },
       fontFamily: {
+        primary: ["IBM Plex Sans", "sans-serif"],
         sans: ["IBM Plex Sans", "sans-serif"],
         mono: ["JetBrains Mono", "Consolas", "Monaco", "monospace"],
       },
