@@ -1,68 +1,6 @@
 import React, { useState, useEffect } from "react";
-import styled from "@emotion/styled";
 import { Modal, ModalInfo, ModalActions, CancelButton, PrimaryButton } from "./Modal";
 import type { Secret } from "@/types/secrets";
-
-// Domain-specific styled components
-
-const SecretsList = styled.div`
-  flex: 1;
-  overflow-y: auto;
-  margin-bottom: 16px;
-  min-height: 200px;
-`;
-
-const SecretsGrid = styled.div`
-  display: grid;
-  grid-template-columns: 1fr 1fr auto auto;
-  gap: 4px;
-  align-items: end;
-
-  & > label {
-    font-size: 11px;
-    color: #888;
-    margin-bottom: 3px;
-  }
-`;
-
-const SecretInput = styled.input`
-  padding: 6px 10px;
-  background: #2d2d2d;
-  border: 1px solid #444;
-  border-radius: 4px;
-  color: #fff;
-  font-size: 13px;
-  font-family: var(--font-monospace);
-  width: 100%;
-
-  &:focus {
-    outline: none;
-    border-color: #007acc;
-  }
-
-  &::placeholder {
-    color: #666;
-  }
-`;
-
-const ToggleVisibilityBtn = styled.button`
-  background: transparent;
-  border: none;
-  color: #888;
-  cursor: pointer;
-  font-size: 16px;
-  padding: 2px 4px;
-  border-radius: 3px;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  align-self: center;
-
-  &:hover {
-    color: #ccc;
-  }
-`;
 
 // Visibility toggle icon component
 const ToggleVisibilityIcon: React.FC<{ visible: boolean }> = ({ visible }) => {
@@ -103,46 +41,7 @@ const ToggleVisibilityIcon: React.FC<{ visible: boolean }> = ({ visible }) => {
   );
 };
 
-const RemoveBtn = styled.button`
-  padding: 6px 10px;
-  background: transparent;
-  color: #ff5555;
-  border: 1px solid #ff5555;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 13px;
-  transition: all 0.2s;
 
-  &:hover {
-    background: rgba(255, 85, 85, 0.1);
-  }
-`;
-
-const AddSecretBtn = styled.button`
-  width: 100%;
-  padding: 8px 12px;
-  background: transparent;
-  color: #888;
-  border: 1px dashed #444;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 13px;
-  transition: all 0.2s;
-  margin-bottom: 16px;
-
-  &:hover {
-    background: #2a2a2b;
-    border-color: #555;
-    color: #ccc;
-  }
-`;
-
-const EmptyState = styled.div`
-  padding: 32px 16px;
-  text-align: center;
-  color: #888;
-  font-size: 13px;
-`;
 
 interface SecretsModalProps {
   isOpen: boolean;
@@ -241,50 +140,64 @@ const SecretsModal: React.FC<SecretsModalProps> = ({
         <p>Secrets are injected as environment variables to compute commands (e.g. Bash)</p>
       </ModalInfo>
 
-      <SecretsList>
+      <div className="flex-1 overflow-y-auto mb-4 min-h-[200px]">
         {secrets.length === 0 ? (
-          <EmptyState>No secrets configured</EmptyState>
+          <div className="py-8 px-4 text-center text-[#888] text-[13px]">
+            No secrets configured
+          </div>
         ) : (
-          <SecretsGrid>
+          <div className="grid grid-cols-[1fr_1fr_auto_auto] gap-1 items-end [&>label]:text-[11px] [&>label]:text-[#888] [&>label]:mb-0.5">
             <label>Key</label>
             <label>Value</label>
             <div /> {/* Empty cell for eye icon column */}
             <div /> {/* Empty cell for delete button column */}
             {secrets.map((secret, index) => (
               <React.Fragment key={index}>
-                <SecretInput
+                <input
                   type="text"
                   value={secret.key}
                   onChange={(e) => updateSecret(index, "key", e.target.value)}
                   placeholder="SECRET_NAME"
                   disabled={isLoading}
+                  className="py-1.5 px-2.5 bg-[#2d2d2d] border border-[#444] rounded text-white text-[13px] font-mono w-full focus:outline-none focus:border-[#007acc] placeholder:text-[#666]"
                 />
-                <SecretInput
+                <input
                   type={visibleSecrets.has(index) ? "text" : "password"}
                   value={secret.value}
                   onChange={(e) => updateSecret(index, "value", e.target.value)}
                   placeholder="secret value"
                   disabled={isLoading}
+                  className="py-1.5 px-2.5 bg-[#2d2d2d] border border-[#444] rounded text-white text-[13px] font-mono w-full focus:outline-none focus:border-[#007acc] placeholder:text-[#666]"
                 />
-                <ToggleVisibilityBtn
+                <button
                   type="button"
                   onClick={() => toggleVisibility(index)}
                   disabled={isLoading}
+                  className="bg-transparent border-none text-[#888] cursor-pointer text-base px-1 py-0.5 rounded-sm transition-all duration-200 flex items-center justify-center self-center hover:text-[#ccc]"
                 >
                   <ToggleVisibilityIcon visible={visibleSecrets.has(index)} />
-                </ToggleVisibilityBtn>
-                <RemoveBtn type="button" onClick={() => removeSecret(index)} disabled={isLoading}>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => removeSecret(index)}
+                  disabled={isLoading}
+                  className="py-1.5 px-2.5 bg-transparent text-[#ff5555] border border-[#ff5555] rounded cursor-pointer text-[13px] transition-all duration-200 hover:bg-[#ff5555]/10"
+                >
                   ×
-                </RemoveBtn>
+                </button>
               </React.Fragment>
             ))}
-          </SecretsGrid>
+          </div>
         )}
-      </SecretsList>
+      </div>
 
-      <AddSecretBtn onClick={addSecret} disabled={isLoading}>
+      <button
+        onClick={addSecret}
+        disabled={isLoading}
+        className="w-full py-2 px-3 bg-transparent text-[#888] border border-dashed border-[#444] rounded cursor-pointer text-[13px] transition-all duration-200 mb-4 hover:bg-[#2a2a2b] hover:border-[#555] hover:text-[#ccc]"
+      >
         + Add Secret
-      </AddSecretBtn>
+      </button>
 
       <ModalActions>
         <CancelButton type="button" onClick={handleCancel} disabled={isLoading}>
