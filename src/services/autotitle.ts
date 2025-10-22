@@ -29,13 +29,15 @@ const TITLE_GENERATION_PROMPT = `Generate a concise 3-7 word title that captures
  * Generate a workspace title based on conversation history
  * @param workspaceId - Workspace identifier
  * @param historyService - Service to retrieve chat history
- * @param model - Language model to use for generation (should be a fast, cheap model like haiku)
+ * @param model - Language model instance (already configured)
+ * @param modelString - Model string for token counting (e.g., "anthropic:claude-haiku-4")
  * @returns Result containing generated title or error
  */
 export async function generateWorkspaceTitle(
   workspaceId: string,
   historyService: HistoryService,
-  model: LanguageModel
+  model: LanguageModel,
+  modelString: string
 ): Promise<Result<string, string>> {
   try {
     // Get conversation history
@@ -53,8 +55,7 @@ export async function generateWorkspaceTitle(
 
     // Take first few messages up to token limit
     // This gives enough context without excessive cost
-    const modelStr = typeof model === "string" ? model : model.modelId;
-    const tokenizer = getTokenizerForModel(modelStr);
+    const tokenizer = getTokenizerForModel(modelString);
     let tokensUsed = 0;
     const selectedMessages = [];
 

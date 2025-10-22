@@ -431,12 +431,52 @@ export class AgentSession {
         return; // Not first message, skip
       }
 
-      // 3. Generate title using autotitle service
-      const { generateWorkspaceTitle } = await import("@/services/autotitle");
-      const { anthropic } = await import("@ai-sdk/anthropic");
-      const model = anthropic("claude-haiku-4");
+      // 3. Determine which provider to use
+      const providersConfig = this.config.loadProvidersConfig();
+      let modelString = "anthropic:claude-haiku-4"; // Default
 
-      const result = await generateWorkspaceTitle(this.workspaceId, this.historyService, model);
+      if (providersConfig) {
+        // Use first configured provider's cheapest model
+        const providers = Object.keys(providersConfig);
+        if (providers.length > 0) {
+          const provider = providers[0];
+          if (provider === "anthropic") {
+            modelString = "anthropic:claude-haiku-4";
+          } else if (provider === "openai") {
+            modelString = "openai:gpt-4o-mini";
+          }
+        }
+      }
+
+      // 4. Create model instance using AIService (handles provider config loading)
+      const [providerName, modelId] = modelString.split(":");
+      let model;
+
+      if (providerName === "anthropic") {
+        const { createAnthropic } = await import("@ai-sdk/anthropic");
+        const providerConfig = providersConfig?.[providerName] ?? {};
+        const anthropic = createAnthropic(providerConfig);
+        model = anthropic(modelId);
+      } else if (providerName === "openai") {
+        const { createOpenAI } = await import("@ai-sdk/openai");
+        const providerConfig = providersConfig?.[providerName] ?? {};
+        const openai = createOpenAI(providerConfig);
+        model = openai(modelId);
+      } else {
+        // Fallback to anthropic
+        const { createAnthropic } = await import("@ai-sdk/anthropic");
+        const anthropic = createAnthropic({});
+        model = anthropic("claude-haiku-4");
+      }
+
+      // 5. Generate title
+      const { generateWorkspaceTitle } = await import("@/services/autotitle");
+      const result = await generateWorkspaceTitle(
+        this.workspaceId,
+        this.historyService,
+        model,
+        modelString
+      );
 
       if (!result.success) {
         // Non-fatal: just log and continue without title
@@ -446,7 +486,7 @@ export class AgentSession {
 
       const title = result.data;
 
-      // 4. Update config with new title
+      // 6. Update config with new title
       this.config.editConfig((config) => {
         for (const [_projectPath, projectConfig] of config.projects) {
           const workspace = projectConfig.workspaces.find((w) => w.id === this.workspaceId);
@@ -458,7 +498,7 @@ export class AgentSession {
         return config;
       });
 
-      // 5. Emit metadata update so UI refreshes
+      // 7. Emit metadata update so UI refreshes
       const updatedMetadataResult = this.aiService.getWorkspaceMetadata(this.workspaceId);
       if (updatedMetadataResult.success) {
         this.emitMetadata(updatedMetadataResult.data);

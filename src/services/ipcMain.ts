@@ -331,15 +331,51 @@ export class IpcMain {
       IPC_CHANNELS.WORKSPACE_GENERATE_TITLE,
       async (_event, workspaceId: string) => {
         try {
-          const { generateWorkspaceTitle } = await import("@/services/autotitle");
-          const { anthropic } = await import("@ai-sdk/anthropic");
+          // Determine which provider to use
+          const providersConfig = this.config.loadProvidersConfig();
+          let modelString = "anthropic:claude-haiku-4"; // Default
 
-          // Generate title using Haiku (fast and cheap)
-          const model = anthropic("claude-haiku-4");
+          if (providersConfig) {
+            // Use first configured provider's cheapest model
+            const providers = Object.keys(providersConfig);
+            if (providers.length > 0) {
+              const provider = providers[0];
+              if (provider === "anthropic") {
+                modelString = "anthropic:claude-haiku-4";
+              } else if (provider === "openai") {
+                modelString = "openai:gpt-4o-mini";
+              }
+            }
+          }
+
+          // Create model instance
+          const [providerName, modelId] = modelString.split(":");
+          let model;
+
+          if (providerName === "anthropic") {
+            const { createAnthropic } = await import("@ai-sdk/anthropic");
+            const providerConfig = providersConfig?.[providerName] ?? {};
+            const anthropic = createAnthropic(providerConfig);
+            model = anthropic(modelId);
+          } else if (providerName === "openai") {
+            const { createOpenAI } = await import("@ai-sdk/openai");
+            const providerConfig = providersConfig?.[providerName] ?? {};
+            const openai = createOpenAI(providerConfig);
+            model = openai(modelId);
+          } else {
+            // Fallback to anthropic
+            const { createAnthropic } = await import("@ai-sdk/anthropic");
+            const anthropic = createAnthropic({});
+            model = anthropic("claude-haiku-4");
+          }
+
+          // Generate title
+          const { generateWorkspaceTitle } = await import("@/services/autotitle");
           const result = await generateWorkspaceTitle(
             workspaceId,
             this.historyService,
-            model
+            model,
+            modelString
           );
 
           if (!result.success) {

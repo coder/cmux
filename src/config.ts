@@ -262,7 +262,8 @@ export class Config {
           if (workspace.id) {
             const metadata: WorkspaceMetadata = {
               id: workspace.id,
-              title: workspace.title, // May be undefined (OK - falls back to id in UI)
+              // Use title if present, otherwise fallback to legacy name field
+              title: workspace.title || (workspace as { name?: string }).name || undefined,
               projectName,
               projectPath,
               createdAt: workspace.createdAt,
@@ -281,10 +282,10 @@ export class Config {
             const data = fs.readFileSync(metadataPath, "utf-8");
             const legacyMetadata = JSON.parse(data) as WorkspaceMetadata & { name?: string };
 
-            // Migrate from old format: name → no field (title will be generated)
+            // Migrate from old format: use name as fallback title
             const metadata: WorkspaceMetadata = {
               id: legacyMetadata.id,
-              title: undefined, // Will be generated after first message
+              title: legacyMetadata.name || undefined, // Use legacy name as fallback title
               projectName: legacyMetadata.projectName ?? projectName,
               projectPath: legacyMetadata.projectPath ?? projectPath,
               createdAt: legacyMetadata.createdAt,
@@ -292,7 +293,7 @@ export class Config {
 
             // Migrate to config for next load
             workspace.id = metadata.id;
-            workspace.title = undefined; // Don't copy legacy name
+            workspace.title = legacyMetadata.name || undefined; // Preserve legacy name as title
             workspace.createdAt = metadata.createdAt;
             configModified = true;
 
