@@ -1,103 +1,151 @@
 @import "tailwindcss";
 
-@layer base {
-  :root {
-    /* Color Variables */
-    --color-plan-mode: hsl(210 70% 40%);
-    --color-plan-mode-hover: hsl(210 70% 52%);
-    --color-plan-mode-light: hsl(210 70% 68%);
-    --color-exec-mode: hsl(268.56 94.04% 55.19%);
-    --color-exec-mode-hover: hsl(268.56 94.04% 67%);
-    --color-exec-mode-light: hsl(268.56 94.04% 78%);
-    --color-edit-mode: hsl(120 50% 35%);
-    --color-edit-mode-hover: hsl(120 50% 47%);
-    --color-edit-mode-light: hsl(120 50% 62%);
-    --color-editing-mode: hsl(30 100% 50%);
-    --color-debug-mode: hsl(214 100% 64%);
-    --color-debug-light: hsl(214 100% 76%);
-    --color-debug-text: hsl(214 100% 80%);
-    --color-thinking-mode: hsl(271 76% 53%);
-    --color-thinking-mode-light: hsl(271 76% 65%);
-    --color-thinking-border: hsl(271 76% 53%);
-    --color-background: hsl(0 0% 12%);
-    --color-background-secondary: hsl(60 1% 15%);
-    --color-border: hsl(240 2% 25%);
-    --color-foreground: hsl(0 0% 83%);
-    --color-foreground-secondary: hsl(0 0% 42%);
-    --color-code-bg: hsl(0 6.43% 8.04%);
-    --color-button-bg: hsl(0 0% 24%);
-    --color-button-text: hsl(0 0% 80%);
-    --color-button-hover: hsl(0 0% 29%);
-    --color-user-border: hsl(0 0% 38%);
-    --color-user-border-hover: hsl(0 0% 44%);
-    --color-assistant-border: hsl(207 45% 40%);
-    --color-assistant-border-hover: hsl(207 45% 50%);
-    --color-message-header: hsl(0 0% 80%);
-    --color-token-prompt: hsl(0 0% 40%);
-    --color-token-completion: hsl(207 100% 40%);
-    --color-token-variable: hsl(207 100% 40%);
-    --color-token-fixed: hsl(0 0% 40%);
-    --color-token-input: hsl(120 40% 35%);
-    --color-token-output: hsl(207 100% 40%);
-    --color-token-cached: hsl(0 0% 50%);
-    --color-toggle-bg: hsl(0 0% 16.5%);
-    --color-toggle-active: hsl(0 0% 22.7%);
-    --color-toggle-hover: hsl(0 0% 17.6%);
-    --color-toggle-text: hsl(0 0% 53.3%);
-    --color-toggle-text-active: hsl(0 0% 100%);
-    --color-toggle-text-hover: hsl(0 0% 66.7%);
-    --color-interrupted: hsl(38 92% 50%);
-    --color-review-accent: hsl(48 70% 50%);
-    --color-git-dirty: hsl(38 92% 50%);
-    --color-error: hsl(0 70% 50%);
-    --color-error-bg: hsl(0 32% 18%);
-    --color-pending: hsl(30 100% 70%);
-    --color-input-bg: hsl(0 0% 12%);
-    --color-input-text: hsl(0 0% 80%);
-    --color-input-border: hsl(207 51% 59%);
-    --color-input-border-focus: hsl(193 91% 64%);
-
-    /* Legacy variables for backwards compatibility (used in inline styles) */
+:root {
+    /* Plan Mode Colors (Blue) */
+    --plan-mode: 210 70% 40%;
     --plan-mode-rgb: 31, 107, 184;
+    --plan-mode-hover: 210 70% 52%;
+    --plan-mode-light: 210 70% 68%;
+
+    /* Exec Mode Colors (Purple) */
+    --exec-mode: 268.56 94.04% 55.19%;
+    --exec-mode-hover: 268.56 94.04% 67%;
+    --exec-mode-light: 268.56 94.04% 78%;
+
+    /* Edit Mode Colors (Green) */
+    --edit-mode: 120 50% 35%;
+    --edit-mode-hover: 120 50% 47%;
+    --edit-mode-light: 120 50% 62%;
+
+    /* Read State Colors (Blue - reuses plan mode) */
+    --read: 210 70% 40%;
+
+    /* Editing Mode Colors */
+    --editing-mode: 30 100% 50%;
+
+    /* Pending Colors */
+    --pending: 30 100% 70%;
+
+    /* Debug Mode Colors */
+    --debug-mode: 214 100% 64%;
+    --debug-light: 214 100% 76%;
+    --debug-text: 214 100% 80%;
+
+    /* Thinking Mode Colors */
+    --thinking-mode: 271 76% 53%;
+    --thinking-mode-light: 271 76% 65%;
+    --thinking-border: 271 76% 53%;
+
+    /* Background & Layout Colors */
+    --background: 0 0% 12%;
+    --background-secondary: 60 1% 15%;
+    --border: 240 2% 25%;
+    --foreground: 0 0% 83%;
+    --foreground-secondary: 0 0% 42%;
+
+    /* Code Block Background */
+    --code-bg: 0 6.43% 8.04%;
+
+    /* Button Colors */
+    --button-bg: 0 0% 24%;
+    --button-text: 0 0% 80%;
+    --button-hover: 0 0% 29%;
+
+    /* User Message Colors */
+    --user-border: 0 0% 38%;
+    --user-border-hover: 0 0% 44%;
+
+    /* Assistant Message Colors */
+    --assistant-border: 207 45% 40%;
+    --assistant-border-hover: 207 45% 50%;
+
+    /* Message Header Colors */
+    --message-header: 0 0% 80%;
+
+    /* Token Usage Colors */
+    --token-prompt: 0 0% 40%;
+    --token-completion: 207 100% 40%;
+    --token-variable: 207 100% 40%;
+    --token-fixed: 0 0% 40%;
+    --token-input: 120 40% 35%;
+    --token-output: 207 100% 40%;
+    --token-cached: 0 0% 50%;
+
+    /* Toggle Group Colors */
+    --toggle-bg: 0 0% 16.5%;
+    --toggle-active: 0 0% 22.7%;
+    --toggle-hover: 0 0% 17.6%;
+    --toggle-text: 0 0% 53.3%;
+    --toggle-text-active: 0 0% 100%;
+    --toggle-text-hover: 0 0% 66.7%;
+
+    /* Interrupted/Warning Colors */
+    --interrupted: 38 92% 50%;
+
+    /* Review/Selection Colors */
+    --review-accent: 48 70% 50%;
+
+    /* Git Dirty/Uncommitted Changes Colors */
+    --git-dirty: 38 92% 50%;
+
+    /* Error Colors */
+    --error: 0 70% 50%;
+    --error-bg: 0 32% 18%;
+
+    /* Input Colors */
+    --input-bg: 0 0% 12%;
+    --input-text: 0 0% 80%;
+    --input-border: 207 51% 59%;
+    --input-border-focus: 193 91% 64%;
+
+    /* Scrollbar Colors */
     --scrollbar-track: 0 0% 18%;
     --scrollbar-thumb: 0 0% 32%;
     --scrollbar-thumb-hover: 0 0% 42%;
 
-    /* Legacy aliases for --color-* prefix (used in inline styles and raw CSS) */
-    --color-plan-mode-alpha: color-mix(in srgb, var(--color-plan-mode), transparent 90%);
-    --color-editing-mode-alpha: color-mix(in srgb, var(--color-editing-mode), transparent 90%);
-    --color-text: var(--color-foreground);
-    --color-text-secondary: var(--color-foreground-secondary);
+    /* Radius */
+    --radius: 0.5rem;
 
-    /* Font Variables (for var() usage in custom CSS) */
+    /* Legacy aliases for backwards compatibility with --color-* prefix */
+    --color-plan-mode: hsl(var(--plan-mode));
+    --color-plan-mode-hover: hsl(var(--plan-mode-hover));
+    --color-plan-mode-alpha: hsla(var(--plan-mode) / 0.1);
+    --color-exec-mode: hsl(var(--exec-mode));
+    --color-edit-mode: hsl(var(--edit-mode));
+    --color-editing-mode: hsl(var(--editing-mode));
+    --color-editing-mode-alpha: hsla(var(--editing-mode) / 0.1);
+    --color-read: hsl(var(--read));
+    --color-thinking-mode: hsl(var(--thinking-mode));
+    --color-pending: hsl(var(--pending));
+    --color-interrupted: hsl(var(--interrupted));
+    --color-code-bg: hsl(var(--code-bg));
+    --color-border: hsl(var(--border));
+    --color-text: hsl(var(--foreground));
+    --color-text-secondary: hsl(var(--foreground-secondary));
+    --color-user-border: hsl(var(--user-border));
+    --color-assistant-border: hsl(var(--assistant-border));
+    --color-review-accent: hsl(var(--review-accent));
+    --color-token-input: hsl(var(--token-input));
+    --color-token-output: hsl(var(--token-output));
+    --color-token-variable: hsl(var(--token-variable));
+    --color-token-fixed: hsl(var(--token-fixed));
+    --color-token-cached: hsl(var(--token-cached));
+
+    /* Font Variables */
     --font-primary: IBM Plex Sans, sans-serif;
     --font-monospace: JetBrains Mono, Consolas, Monaco, monospace;
-
-    /* Other theme values */
-    --radius: 0.5rem;
   }
 
-  /* Keyframes for animations */
-  @keyframes accordion-down {
-    from { height: 0; }
-    to { height: var(--radix-accordion-content-height); }
-  }
+* {
+  border-color: hsl(var(--border));
+}
 
-  @keyframes accordion-up {
-    from { height: var(--radix-accordion-content-height); }
-    to { height: 0; }
-  }
-
-  * {
-    border-color: var(--color-border);
-  }
-
-  body {
-    background-color: var(--color-background);
-    color: var(--color-foreground);
-    font-family: var(--font-sans);
-    font-size: 14px;
-  }
+body {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: IBM Plex Sans, sans-serif;
+  font-size: 14px;
+}
 
   /* Custom scrollbar styles */
   ::-webkit-scrollbar {
@@ -151,9 +199,9 @@
     }
   }
 
-  code {
-    font-family: var(--font-mono);
-  }
+code {
+  font-family: JetBrains Mono, Consolas, Monaco, monospace;
+}
 
   /* Native tooltips */
   [title] {
@@ -544,102 +592,101 @@
     padding: 12px;
     overflow: auto;
   }
-}
 
 
 /* Thinking Slider - Range Input with Dynamic CSS Variables */
 .thinking-slider {
-  width: 80px;
-  height: 4px;
-  -webkit-appearance: none;
-  appearance: none;
-  background: #3e3e42;
-  outline: none;
-  border-radius: 2px;
-  transition: box-shadow 0.2s ease;
-  box-shadow: var(--track-shadow, none);
+width: 80px;
+height: 4px;
+-webkit-appearance: none;
+appearance: none;
+background: #3e3e42;
+outline: none;
+border-radius: 2px;
+transition: box-shadow 0.2s ease;
+box-shadow: var(--track-shadow, none);
 }
 
 .thinking-slider::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: var(--thumb-bg, #606060);
-  cursor: pointer;
-  transition: background 0.2s ease, box-shadow 0.2s ease;
-  box-shadow: var(--thumb-shadow, none);
+-webkit-appearance: none;
+appearance: none;
+width: 12px;
+height: 12px;
+border-radius: 50%;
+background: var(--thumb-bg, #606060);
+cursor: pointer;
+transition: background 0.2s ease, box-shadow 0.2s ease;
+box-shadow: var(--thumb-shadow, none);
 }
 
 .thinking-slider::-moz-range-thumb {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: var(--thumb-bg, #606060);
-  cursor: pointer;
-  border: none;
-  transition: background 0.2s ease, box-shadow 0.2s ease;
-  box-shadow: var(--thumb-shadow, none);
+width: 12px;
+height: 12px;
+border-radius: 50%;
+background: var(--thumb-bg, #606060);
+cursor: pointer;
+border: none;
+transition: background 0.2s ease, box-shadow 0.2s ease;
+box-shadow: var(--thumb-shadow, none);
 }
 
 
 /* Custom animations for CompactionBackground */
 @keyframes shimmer {
-  0% {
+0% {
     background-position: -1000px 0;
-  }
-  100% {
+}
+100% {
     background-position: 1000px 0;
-  }
+}
 }
 
 @keyframes toastSlideIn {
-  from {
+from {
     transform: translateY(10px);
     opacity: 0;
-  }
-  to {
+}
+to {
     transform: translateY(0);
     opacity: 1;
-  }
+}
 }
 
 @keyframes toastFadeOut {
-  from {
+from {
     opacity: 1;
-  }
-  to {
+}
+to {
     opacity: 0;
-  }
+}
 }
 
 
 @keyframes ellipsis {
-  0% {
+0% {
     content: "";
-  }
-  25% {
+}
+25% {
     content: ".";
-  }
-  50% {
+}
+50% {
     content: "..";
-  }
-  75% {
+}
+75% {
     content: "...";
-  }
+}
 }
 
 
 @keyframes gradient-move {
-  0% {
+0% {
     background-position: 0% 50%;
-  }
-  50% {
+}
+50% {
     background-position: 100% 50%;
-  }
-  100% {
+}
+100% {
     background-position: 0% 50%;
-  }
+}
 }
 
