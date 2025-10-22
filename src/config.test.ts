@@ -57,7 +57,7 @@ describe("Config", () => {
       expect(allMetadata).toHaveLength(1);
       const metadata = allMetadata[0];
       expect(metadata.id).toBe("project-feature-branch"); // Legacy ID format
-      expect(metadata.title).toBe("feature-branch");
+      expect(metadata.title).toBeUndefined(); // No title - will be auto-generated
       expect(metadata.projectName).toBe("project");
       expect(metadata.projectPath).toBe(projectPath);
 
@@ -68,7 +68,7 @@ describe("Config", () => {
       expect(projectConfig!.workspaces).toHaveLength(1);
       const workspace = projectConfig!.workspaces[0];
       expect(workspace.id).toBe("project-feature-branch");
-      expect(workspace.title).toBe("feature-branch");
+      expect(workspace.title).toBeUndefined();
     });
 
     it("should use existing metadata file if present (legacy format)", () => {

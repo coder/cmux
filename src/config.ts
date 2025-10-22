@@ -300,18 +300,16 @@ export class Config {
           // No metadata found anywhere - create basic metadata
           if (!metadataFound) {
             const legacyId = this.generateWorkspaceId(projectPath, workspace.path);
-            // Extract workspace basename from path as fallback title for legacy workspaces
-            const workspaceBasename = path.basename(workspace.path);
             const metadata: WorkspaceMetadata = {
               id: legacyId,
-              title: workspaceBasename, // Use basename as fallback title
+              title: undefined, // No title - will be auto-generated on first use
               projectName,
               projectPath,
             };
 
             // Save to config for next load
             workspace.id = metadata.id;
-            workspace.title = workspaceBasename;
+            workspace.title = undefined;
             configModified = true;
 
             workspaceMetadata.push(this.addPathsToMetadata(metadata, workspace.path, projectPath));
