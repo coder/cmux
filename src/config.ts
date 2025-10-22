@@ -135,13 +135,14 @@ export class Config {
 
   /**
    * Compute workspace path from metadata.
-   * Directory uses workspace name (e.g., ~/.cmux/src/project/workspace-name).
+   * Directory uses workspace id (e.g., ~/.cmux/src/project/a1b2c3d4e5).
+   * For legacy workspaces, id may be in old format (e.g., cmux-feature-branch).
    */
   getWorkspacePaths(metadata: WorkspaceMetadata): {
-    /** Worktree path (uses workspace name as directory) */
+    /** Worktree path (uses workspace id as directory) */
     namedWorkspacePath: string;
   } {
-    const path = this.getWorkspacePath(metadata.projectPath, metadata.name);
+    const path = this.getWorkspacePath(metadata.projectPath, metadata.id);
     return {
       namedWorkspacePath: path,
     };
@@ -258,10 +259,10 @@ export class Config {
 
         try {
           // NEW FORMAT: If workspace has metadata in config, use it directly
-          if (workspace.id && workspace.name) {
+          if (workspace.id) {
             const metadata: WorkspaceMetadata = {
               id: workspace.id,
-              name: workspace.name,
+              title: workspace.title, // May be undefined (OK - falls back to id in UI)
               projectName,
               projectPath,
               createdAt: workspace.createdAt,
@@ -278,21 +279,20 @@ export class Config {
 
           if (fs.existsSync(metadataPath)) {
             const data = fs.readFileSync(metadataPath, "utf-8");
-            let metadata = JSON.parse(data) as WorkspaceMetadata;
+            const legacyMetadata = JSON.parse(data) as WorkspaceMetadata & { name?: string };
 
-            // Ensure required fields are present
-            if (!metadata.name || !metadata.projectPath) {
-              metadata = {
-                ...metadata,
-                name: metadata.name ?? workspaceBasename,
-                projectPath: metadata.projectPath ?? projectPath,
-                projectName: metadata.projectName ?? projectName,
-              };
-            }
+            // Migrate from old format: name → no field (title will be generated)
+            const metadata: WorkspaceMetadata = {
+              id: legacyMetadata.id,
+              title: undefined, // Will be generated after first message
+              projectName: legacyMetadata.projectName ?? projectName,
+              projectPath: legacyMetadata.projectPath ?? projectPath,
+              createdAt: legacyMetadata.createdAt,
+            };
 
             // Migrate to config for next load
             workspace.id = metadata.id;
-            workspace.name = metadata.name;
+            workspace.title = undefined; // Don't copy legacy name
             workspace.createdAt = metadata.createdAt;
             configModified = true;
 
@@ -305,14 +305,14 @@ export class Config {
             const legacyId = this.generateWorkspaceId(projectPath, workspace.path);
             const metadata: WorkspaceMetadata = {
               id: legacyId,
-              name: workspaceBasename,
+              title: undefined, // Will be generated after first message
               projectName,
               projectPath,
             };
 
             // Save to config for next load
             workspace.id = metadata.id;
-            workspace.name = metadata.name;
+            workspace.title = undefined;
             configModified = true;
 
             workspaceMetadata.push(this.addPathsToMetadata(metadata, workspace.path, projectPath));
@@ -323,7 +323,7 @@ export class Config {
           const legacyId = this.generateWorkspaceId(projectPath, workspace.path);
           const metadata: WorkspaceMetadata = {
             id: legacyId,
-            name: workspaceBasename,
+            title: undefined, // No title for fallback case
             projectName,
             projectPath,
           };
@@ -359,11 +359,11 @@ export class Config {
       // Check if workspace already exists (by ID)
       const existingIndex = project.workspaces.findIndex((w) => w.id === metadata.id);
 
-      const workspacePath = this.getWorkspacePath(projectPath, metadata.name);
+      const workspacePath = this.getWorkspacePath(projectPath, metadata.id);
       const workspaceEntry: Workspace = {
         path: workspacePath,
         id: metadata.id,
-        name: metadata.name,
+        title: metadata.title,
         createdAt: metadata.createdAt,
       };
 

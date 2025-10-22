@@ -191,23 +191,24 @@ export class IpcMain {
 
         const normalizedTrunkBranch = trunkBranch.trim();
 
-        // Generate stable workspace ID (stored in config, not used for directory name)
+        // Generate stable workspace ID (used for both config and directory name)
         const workspaceId = this.config.generateStableId();
 
-        // Create the git worktree with the workspace name as directory name
+        // Create the git worktree with the workspace ID as directory name
+        // This allows title changes without filesystem moves
         const result = await createWorktree(this.config, projectPath, branchName, {
           trunkBranch: normalizedTrunkBranch,
-          workspaceId: branchName, // Use name for directory (workspaceId param is misnamed, it's directoryName)
+          workspaceId: workspaceId, // Use stable ID for directory
         });
 
         if (result.success && result.path) {
           const projectName =
             projectPath.split("/").pop() ?? projectPath.split("\\").pop() ?? "unknown";
 
-          // Initialize workspace metadata with stable ID and name
+          // Initialize workspace metadata with stable ID (no title initially)
           const metadata = {
             id: workspaceId,
-            name: branchName, // Name is separate from ID
+            title: undefined, // Title will be auto-generated after first message
             projectName,
             projectPath, // Full project path for computing worktree path
             createdAt: new Date().toISOString(),
@@ -228,7 +229,7 @@ export class IpcMain {
             projectConfig.workspaces.push({
               path: result.path!,
               id: workspaceId,
-              name: branchName,
+              title: undefined, // No title yet
               createdAt: metadata.createdAt,
             });
             return config;
@@ -267,21 +268,10 @@ export class IpcMain {
 
     ipcMain.handle(
       IPC_CHANNELS.WORKSPACE_RENAME,
-      (_event, workspaceId: string, newName: string) => {
+      (_event, workspaceId: string, newTitle: string) => {
         try {
-          // Block rename during active streaming to prevent race conditions
-          // (bash processes would have stale cwd, system message would be wrong)
-          if (this.aiService.isStreaming(workspaceId)) {
-            return Err(
-              "Cannot rename workspace while AI stream is active. Please wait for the stream to complete."
-            );
-          }
-
-          // Validate workspace name
-          const validation = validateWorkspaceName(newName);
-          if (!validation.valid) {
-            return Err(validation.error ?? "Invalid workspace name");
-          }
+          // Editing title is allowed during streaming (doesn't affect filesystem)
+          // Title is purely cosmetic - no filesystem operations needed
 
           // Get current metadata
           const metadataResult = this.aiService.getWorkspaceMetadata(workspaceId);
@@ -289,69 +279,36 @@ export class IpcMain {
             return Err(`Failed to get workspace metadata: ${metadataResult.error}`);
           }
           const oldMetadata = metadataResult.data;
-          const oldName = oldMetadata.name;
+          const oldTitle = oldMetadata.title;
 
-          // If renaming to itself, just return success (no-op)
-          if (newName === oldName) {
+          // If setting to same title, just return success (no-op)
+          if (newTitle === oldTitle) {
             return Ok({ newWorkspaceId: workspaceId });
           }
 
-          // Check if new name collides with existing workspace name or ID
-          const allWorkspaces = this.config.getAllWorkspaceMetadata();
-          const collision = allWorkspaces.find(
-            (ws) => (ws.name === newName || ws.id === newName) && ws.id !== workspaceId
-          );
-          if (collision) {
-            return Err(`Workspace with name "${newName}" already exists`);
-          }
+          // Titles can be duplicate (IDs ensure uniqueness)
+          // Empty title is OK (falls back to showing ID)
 
-          // Find project path from config
-          const workspace = this.config.findWorkspace(workspaceId);
-          if (!workspace) {
-            return Err("Failed to find workspace in config");
-          }
-          const { projectPath, workspacePath } = workspace;
-
-          // Compute new path (based on name)
-          const oldPath = workspacePath;
-          const newPath = this.config.getWorkspacePath(projectPath, newName);
-
-          // Use git worktree move to rename the worktree directory
-          // This updates git's internal worktree metadata correctly
-          try {
-            const result = spawnSync("git", ["worktree", "move", oldPath, newPath], {
-              cwd: projectPath,
-            });
-            if (result.status !== 0) {
-              const stderr = result.stderr?.toString() || "Unknown error";
-              return Err(`Failed to move worktree: ${stderr}`);
-            }
-          } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            return Err(`Failed to move worktree: ${message}`);
-          }
-
-          // Update config with new name and path
+          // Update config with new title (no filesystem changes)
           this.config.editConfig((config) => {
-            const projectConfig = config.projects.get(projectPath);
-            if (projectConfig) {
-              const workspaceEntry = projectConfig.workspaces.find((w) => w.path === oldPath);
-              if (workspaceEntry) {
-                workspaceEntry.name = newName;
-                workspaceEntry.path = newPath; // Update path to reflect new directory name
+            for (const [_projectPath, projectConfig] of config.projects) {
+              const workspace = projectConfig.workspaces.find((w) => w.id === workspaceId);
+              if (workspace) {
+                workspace.title = newTitle || undefined; // Empty string becomes undefined
+                break;
               }
             }
             return config;
           });
 
-          // Get updated metadata from config (includes updated name and paths)
+          // Get updated metadata from config
           const allMetadata = this.config.getAllWorkspaceMetadata();
           const updatedMetadata = allMetadata.find((m) => m.id === workspaceId);
           if (!updatedMetadata) {
             return Err("Failed to retrieve updated workspace metadata");
           }
 
-          // Emit metadata event with updated metadata (same workspace ID)
+          // Emit metadata event with updated title (same workspace ID)
           const session = this.sessions.get(workspaceId);
           if (session) {
             session.emitMetadata(updatedMetadata);
@@ -365,10 +322,72 @@ export class IpcMain {
           return Ok({ newWorkspaceId: workspaceId });
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
-          return Err(`Failed to rename workspace: ${message}`);
+          return Err(`Failed to edit title: ${message}`);
         }
       }
     );
+
+    ipcMain.handle(
+      IPC_CHANNELS.WORKSPACE_GENERATE_TITLE,
+      async (_event, workspaceId: string) => {
+        try {
+          const { generateWorkspaceTitle } = await import("@/services/autotitle");
+          const { anthropic } = await import("@ai-sdk/anthropic");
+
+          // Generate title using Haiku (fast and cheap)
+          const model = anthropic("claude-haiku-4");
+          const result = await generateWorkspaceTitle(
+            workspaceId,
+            this.historyService,
+            model
+          );
+
+          if (!result.success) {
+            return Err(result.error);
+          }
+
+          const title = result.data;
+
+          // Update config with new title
+          this.config.editConfig((config) => {
+            for (const [projectPath, projectConfig] of config.projects) {
+              const workspace = projectConfig.workspaces.find(
+                (w) => w.id === workspaceId
+              );
+              if (workspace) {
+                workspace.title = title;
+                break;
+              }
+            }
+            return config;
+          });
+
+          // Get updated metadata from config
+          const allMetadata = this.config.getAllWorkspaceMetadata();
+          const updatedMetadata = allMetadata.find((m) => m.id === workspaceId);
+          if (!updatedMetadata) {
+            return Err("Failed to retrieve updated workspace metadata");
+          }
+
+          // Emit metadata event with updated title
+          const session = this.sessions.get(workspaceId);
+          if (session) {
+            session.emitMetadata(updatedMetadata);
+          } else if (this.mainWindow) {
+            this.mainWindow.webContents.send(IPC_CHANNELS.WORKSPACE_METADATA, {
+              workspaceId,
+              metadata: updatedMetadata,
+            });
+          }
+
+          return Ok({ title });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          return Err(`Failed to generate title: ${message}`);
+        }
+      }
+    );
+
 
     ipcMain.handle(
       IPC_CHANNELS.WORKSPACE_FORK,
@@ -397,10 +416,10 @@ export class IpcMain {
           const sourceMetadata = sourceMetadataResult.data;
           const foundProjectPath = sourceMetadata.projectPath;
 
-          // Compute source workspace path from metadata (use name for directory lookup)
+          // Compute source workspace path from metadata (use id for directory lookup)
           const sourceWorkspacePath = this.config.getWorkspacePath(
             foundProjectPath,
-            sourceMetadata.name
+            sourceMetadata.id
           );
 
           // Get current branch from source workspace (fork from current branch, not trunk)
@@ -418,7 +437,7 @@ export class IpcMain {
           // Create new git worktree branching from source workspace's branch
           const result = await createWorktree(this.config, foundProjectPath, newName, {
             trunkBranch: sourceBranch,
-            workspaceId: newName, // Use name for directory (workspaceId param is misnamed, it's directoryName)
+            workspaceId: newWorkspaceId, // Use stable ID for directory
           });
 
           if (!result.success || !result.path) {
@@ -478,10 +497,10 @@ export class IpcMain {
             return { success: false, error: `Failed to copy chat history: ${message}` };
           }
 
-          // Initialize workspace metadata with stable ID and name
+          // Initialize workspace metadata with stable ID (no title initially)
           const metadata: WorkspaceMetadata = {
             id: newWorkspaceId,
-            name: newName, // Name is separate from ID
+            title: undefined, // Title will be auto-generated after first message
             projectName,
             projectPath: foundProjectPath,
             createdAt: new Date().toISOString(),
@@ -740,8 +759,8 @@ export class IpcMain {
             return Err(`Workspace ${workspaceId} not found in config`);
           }
 
-          // Get workspace path (directory name uses workspace name)
-          const namedPath = this.config.getWorkspacePath(metadata.projectPath, metadata.name);
+          // Get workspace path (directory name uses workspace id)
+          const namedPath = this.config.getWorkspacePath(metadata.projectPath, metadata.id);
 
           // Load project secrets
           const projectSecrets = this.config.getProjectSecrets(metadata.projectPath);

@@ -228,6 +228,7 @@ export interface IPCApi {
       }
     ): Promise<Result<BashToolResult, string>>;
     openTerminal(workspacePath: string): Promise<void>;
+    generateTitle(workspaceId: string): Promise<Result<{ title: string }, string>>;
 
     // Event subscriptions (renderer-only)
     // These methods are designed to send current state immediately upon subscription,

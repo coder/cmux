@@ -35,6 +35,7 @@ export const IPC_CHANNELS = {
   WORKSPACE_GET_INFO: "workspace:getInfo",
   WORKSPACE_EXECUTE_BASH: "workspace:executeBash",
   WORKSPACE_OPEN_TERMINAL: "workspace:openTerminal",
+  WORKSPACE_GENERATE_TITLE: "workspace:generateTitle",
 
   // Window channels
   WINDOW_SET_TITLE: "window:setTitle",

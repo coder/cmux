@@ -495,8 +495,8 @@ export class AIService extends EventEmitter {
         return Err({ type: "unknown", raw: `Workspace ${workspaceId} not found in config` });
       }
 
-      // Get workspace path (directory name uses workspace name)
-      const workspacePath = this.config.getWorkspacePath(metadata.projectPath, metadata.name);
+      // Get workspace path (directory name uses workspace id)
+      const workspacePath = this.config.getWorkspacePath(metadata.projectPath, metadata.id);
 
       // Build system message from workspace metadata
       const systemMessage = await buildSystemMessage(

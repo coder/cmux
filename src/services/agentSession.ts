@@ -158,8 +158,8 @@ export class AgentSession {
     if (existing.success) {
       // Metadata already exists, verify workspace path matches
       const metadata = existing.data;
-      // Directory name uses workspace name (not stable ID)
-      const expectedPath = this.config.getWorkspacePath(metadata.projectPath, metadata.name);
+      // Directory name uses workspace id (not title)
+      const expectedPath = this.config.getWorkspacePath(metadata.projectPath, metadata.id);
       assert(
         expectedPath === normalizedWorkspacePath,
         `Existing metadata workspace path mismatch for ${this.workspaceId}: expected ${expectedPath}, got ${normalizedWorkspacePath}`
@@ -175,12 +175,10 @@ export class AgentSession {
         ? projectName.trim()
         : path.basename(derivedProjectPath) || "unknown";
 
-    // Extract name from workspace path (last component)
-    const workspaceName = path.basename(normalizedWorkspacePath);
-
+    // No title initially - will be auto-generated after first message
     const metadata: WorkspaceMetadata = {
       id: this.workspaceId,
-      name: workspaceName,
+      title: undefined,
       projectName: derivedProjectName,
       projectPath: derivedProjectPath,
     };
