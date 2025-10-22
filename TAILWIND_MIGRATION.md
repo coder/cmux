@@ -17,7 +17,7 @@ This PR establishes the foundation for migrating from `@emotion/styled` to Tailw
 - ✅ Updated `App.tsx` to import `globals.css` instead of Emotion Global components
 - ✅ Verified build works with Tailwind
 
-### Converted Components (13/64 = 20%)
+### Converted Components (15/64 = 23%)
 
 **Completed:**
 - ✅ `src/components/ErrorMessage.tsx` - Error display component
@@ -33,14 +33,16 @@ This PR establishes the foundation for migrating from `@emotion/styled` to Tailw
 - ✅ `src/components/Messages/TerminalOutput.tsx` - Terminal output display
 - ✅ `src/components/Messages/CompactingMessageContent.tsx` - Compaction fade container
 - ✅ `src/components/Messages/TypewriterMarkdown.tsx` - Streaming markdown
+- ✅ `src/components/LeftSidebar.tsx` - Sidebar with responsive mobile behavior
+- ✅ `src/components/ErrorBoundary.tsx` - Error boundary UI
 
 ## What's Remaining ⏳
 
-### Components Using styled-components (51 files)
+### Components Using styled-components (49 files)
 
-**Current Progress:** 13 of 64 components converted = **20% complete**
+**Current Progress:** 15 of 64 components converted = **23% complete**
 
-The remaining 51 components include the most complex files in the codebase:
+The remaining 49 components include the most complex files in the codebase:
 
 **Critical Path Components:**
 - `src/App.tsx` - App container, main content, welcome view
