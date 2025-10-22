@@ -1,0 +1,32 @@
+name: Chromatic
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  chromatic:
+    name: Visual Regression Testing
+    runs-on: ${{ github.repository_owner == 'coder' && 'depot-ubuntu-22.04-8' || 'ubuntu-latest' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Required for Chromatic to track changes
+
+      - uses: ./.github/actions/setup-cmux
+
+      - name: Generate version file
+        run: ./scripts/generate-version.sh
+
+      - name: Run Chromatic
+        uses: chromaui/action@latest
+        with:
+          projectToken: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
+          exitZeroOnChanges: true
+          onlyChanged: true
+          buildScriptName: storybook:build
+
