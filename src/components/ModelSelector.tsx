@@ -275,41 +275,51 @@ export const ModelSelector = forwardRef<ModelSelectorRef, ModelSelectorProps>(
 
     if (!isEditing) {
       return (
-        <Container ref={containerRef}>
-          <ModelDisplay clickable onClick={handleClick}>
+        <div ref={containerRef} className="relative flex items-center gap-1">
+          <div
+            className="text-[10px] text-[#808080] font-monospace leading-[11px] cursor-pointer py-0.5 px-1 rounded-sm transition-colors duration-200 whitespace-nowrap overflow-hidden text-ellipsis max-w-[150px] dir-rtl text-left hover:bg-[#2a2a2b]"
+            onClick={handleClick}
+          >
             {value}
-          </ModelDisplay>
-        </Container>
+          </div>
+        </div>
       );
     }
 
     return (
-      <Container ref={containerRef}>
+      <div ref={containerRef} className="relative flex items-center gap-1">
         <div>
-          <InputField
+          <input
             ref={inputRef}
             value={inputValue}
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
             placeholder="provider:model-name"
+            className="text-[10px] text-[#d4d4d4] bg-[#1e1e1e] border border-[#3e3e42] rounded-sm py-0.5 px-1 font-monospace leading-[11px] w-[200px] outline-none focus:border-exec-mode"
           />
-          {error && <ErrorText>{error}</ErrorText>}
+          {error && <div className="text-[9px] text-[#f48771] font-monospace mt-0.5">{error}</div>}
         </div>
         {showDropdown && filteredModels.length > 0 && (
-          <Dropdown>
+          <div className="absolute bottom-full left-0 mb-1 bg-[#252526] border border-[#3e3e42] rounded shadow-[0_4px_12px_rgba(0,0,0,0.3)] z-[1000] min-w-[300px] max-h-[200px] overflow-y-auto">
             {filteredModels.map((model, index) => (
-              <DropdownItem
+              <div
                 key={model}
                 ref={(el) => (dropdownItemRefs.current[index] = el)}
-                highlighted={index === highlightedIndex}
+                className={cn(
+                  "text-[11px] font-monospace py-1.5 px-2.5 cursor-pointer transition-colors duration-100",
+                  "first:rounded-t last:rounded-b",
+                  index === highlightedIndex
+                    ? "text-white bg-[#2a2a2b]"
+                    : "text-[#d4d4d4] bg-transparent hover:bg-[#2a2a2b] hover:text-white"
+                )}
                 onClick={() => handleSelectModel(model)}
               >
                 {model}
-              </DropdownItem>
+              </div>
             ))}
-          </Dropdown>
+          </div>
         )}
-      </Container>
+      </div>
     );
   }
 );
