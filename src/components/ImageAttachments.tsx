@@ -1,51 +1,4 @@
 import React from "react";
-import styled from "@emotion/styled";
-
-const AttachmentsContainer = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 8px 0;
-`;
-
-const ImagePreview = styled.div`
-  position: relative;
-  width: 80px;
-  height: 80px;
-  border-radius: 4px;
-  overflow: hidden;
-  border: 1px solid #3e3e42;
-  background: #1e1e1e;
-`;
-
-const PreviewImage = styled.img`
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-`;
-
-const RemoveButton = styled.button`
-  position: absolute;
-  top: 4px;
-  right: 4px;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.7);
-  color: white;
-  border: none;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-  line-height: 1;
-  padding: 0;
-
-  &:hover {
-    background: rgba(0, 0, 0, 0.9);
-  }
-`;
 
 export interface ImageAttachment {
   id: string;
@@ -62,15 +15,22 @@ export const ImageAttachments: React.FC<ImageAttachmentsProps> = ({ images, onRe
   if (images.length === 0) return null;
 
   return (
-    <AttachmentsContainer>
+    <div className="flex flex-wrap gap-2 py-2">
       {images.map((image) => (
-        <ImagePreview key={image.id}>
-          <PreviewImage src={image.url} alt="Attached image" />
-          <RemoveButton onClick={() => onRemove(image.id)} title="Remove image">
+        <div
+          key={image.id}
+          className="relative w-20 h-20 rounded overflow-hidden border border-[#3e3e42] bg-[#1e1e1e]"
+        >
+          <img src={image.url} alt="Attached image" className="w-full h-full object-cover" />
+          <button
+            onClick={() => onRemove(image.id)}
+            title="Remove image"
+            className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/70 text-white border-0 cursor-pointer flex items-center justify-center text-sm leading-none p-0 hover:bg-black/90"
+          >
             ×
-          </RemoveButton>
-        </ImagePreview>
+          </button>
+        </div>
       ))}
-    </AttachmentsContainer>
+    </div>
   );
 };
