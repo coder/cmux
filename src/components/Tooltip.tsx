@@ -1,6 +1,6 @@
 import React, { useState, useRef, useLayoutEffect, createContext, useContext } from "react";
 import { createPortal } from "react-dom";
-import styled from "@emotion/styled";
+import { cn } from "@/lib/utils";
 
 // Context for passing hover state and trigger ref from wrapper to tooltip
 interface TooltipContextValue {
@@ -44,22 +44,17 @@ export const TooltipWrapper: React.FC<TooltipWrapperProps> = ({ inline = false, 
 
   return (
     <TooltipContext.Provider value={{ isHovered, setIsHovered, triggerRef }}>
-      <StyledWrapper
+      <span
         ref={triggerRef}
-        inline={inline}
+        className={cn("relative", inline ? "inline-block" : "block")}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
       >
         {children}
-      </StyledWrapper>
+      </span>
     </TooltipContext.Provider>
   );
 };
-
-const StyledWrapper = styled.span<{ inline: boolean }>`
-  position: relative;
-  display: ${(props) => (props.inline ? "inline-block" : "block")};
-`;
 
 // Tooltip - Portal-based component with collision detection
 interface TooltipProps {
@@ -213,7 +208,7 @@ export const Tooltip: React.FC<TooltipProps> = ({
   }
 
   return createPortal(
-    <StyledTooltip
+    <div
       ref={tooltipRef}
       style={{
         // Always include position styles for measurement
@@ -223,15 +218,22 @@ export const Tooltip: React.FC<TooltipProps> = ({
         visibility: tooltipState.isPositioned ? "visible" : "hidden",
         opacity: tooltipState.isPositioned ? 1 : 0,
       }}
-      width={width}
-      className={className}
-      interactive={interactive}
+      className={cn(
+        "bg-[#2d2d30] text-[#cccccc] text-left rounded px-[10px] py-[6px] z-[9999]",
+        "text-[11px] font-normal font-sans border border-[#464647] shadow-[0_2px_8px_rgba(0,0,0,0.4)]",
+        width === "wide" ? "whitespace-normal max-w-[300px] w-max" : "whitespace-nowrap",
+        interactive ? "pointer-events-auto" : "pointer-events-none",
+        className
+      )}
       onMouseEnter={handleTooltipMouseEnter}
       onMouseLeave={handleTooltipMouseLeave}
     >
       {children}
-      <Arrow style={tooltipState.arrowStyle} />
-    </StyledTooltip>,
+      <div
+        className="absolute border-[5px] border-solid -translate-x-1/2"
+        style={tooltipState.arrowStyle}
+      />
+    </div>,
     document.body
   );
 };
