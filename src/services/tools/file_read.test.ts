@@ -199,7 +199,7 @@ describe("file_read tool", () => {
     // Assert
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error).toContain("File not found");
+      expect(result.error).toMatch(/File not found|Failed to stat.*ENOENT/);
     }
   });
 
@@ -332,7 +332,7 @@ describe("file_read tool", () => {
     await fs.mkdir(subDir);
 
     // Try to read file outside cwd by going up
-    const tool = createFileReadTool({ cwd: subDir, tempDir: "/tmp" });
+    const tool = createFileReadTool({ cwd: subDir, runtime: new LocalRuntime(), tempDir: "/tmp" });
     const args: FileReadToolArgs = {
       filePath: "../test.txt", // This goes outside subDir back to testDir
     };

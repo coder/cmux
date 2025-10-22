@@ -11,6 +11,7 @@ import type {
   FileEditReplaceLinesToolResult,
 } from "@/types/tools";
 import type { ToolCallOptions } from "ai";
+import { LocalRuntime } from "@/runtime/LocalRuntime";
 
 // Mock ToolCallOptions for testing
 const mockToolCallOptions: ToolCallOptions = {

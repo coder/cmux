@@ -156,8 +156,8 @@ export const createFileReadTool: ToolFactory = (config: ToolConfiguration) => {
         // Return file info and content
         return {
           success: true,
-          file_size: stats.size,
-          modifiedTime: stats.mtime.toISOString(),
+          file_size: fileStat.size,
+          modifiedTime: fileStat.modifiedTime.toISOString(),
           lines_read: numberedLines.length,
           content,
         };

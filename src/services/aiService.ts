@@ -422,6 +422,7 @@ export class AIService extends EventEmitter {
       // Get tool names early for mode transition sentinel (stub config, no workspace context needed)
       const earlyAllTools = await getToolsForModel(modelString, {
         cwd: process.cwd(),
+        runtime: new LocalRuntime(),
         tempDir: os.tmpdir(),
         secrets: {},
       });
