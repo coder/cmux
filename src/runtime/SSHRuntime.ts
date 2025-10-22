@@ -94,11 +94,7 @@ export class SSHRuntime implements Runtime {
           if (err) {
             client.end();
             reject(
-              new RuntimeErrorClass(
-                `Failed to create SFTP session: ${err.message}`,
-                "network",
-                err
-              )
+              new RuntimeErrorClass(`Failed to create SFTP session: ${err.message}`, "network", err)
             );
             return;
           }
@@ -110,13 +106,7 @@ export class SSHRuntime implements Runtime {
       });
 
       client.on("error", (err) => {
-        reject(
-          new RuntimeErrorClass(
-            `SSH connection error: ${err.message}`,
-            "network",
-            err
-          )
-        );
+        reject(new RuntimeErrorClass(`SSH connection error: ${err.message}`, "network", err));
       });
 
       client.on("close", () => {
@@ -188,31 +178,20 @@ export class SSHRuntime implements Runtime {
       // Set timeout
       const timeout = options.timeout ?? 3;
       timeoutHandle = setTimeout(() => {
-        rejectOnce(
-          new RuntimeErrorClass(
-            `Command timed out after ${timeout} seconds`,
-            "exec"
-          )
-        );
+        rejectOnce(new RuntimeErrorClass(`Command timed out after ${timeout} seconds`, "exec"));
       }, timeout * 1000);
 
       // Handle abort signal
       if (options.abortSignal) {
         options.abortSignal.addEventListener("abort", () => {
-          rejectOnce(
-            new RuntimeErrorClass("Command aborted", "exec")
-          );
+          rejectOnce(new RuntimeErrorClass("Command aborted", "exec"));
         });
       }
 
       this.sshClient!.exec(fullCommand, { pty: false }, (err, stream) => {
         if (err) {
           rejectOnce(
-            new RuntimeErrorClass(
-              `Failed to execute command: ${err.message}`,
-              "exec",
-              err
-            )
+            new RuntimeErrorClass(`Failed to execute command: ${err.message}`, "exec", err)
           );
           return;
         }
@@ -242,13 +221,7 @@ export class SSHRuntime implements Runtime {
         });
 
         stream.on("error", (err: Error) => {
-          rejectOnce(
-            new RuntimeErrorClass(
-              `Stream error: ${err.message}`,
-              "exec",
-              err
-            )
-          );
+          rejectOnce(new RuntimeErrorClass(`Stream error: ${err.message}`, "exec", err));
         });
       });
     });
@@ -265,11 +238,7 @@ export class SSHRuntime implements Runtime {
       this.sftpClient!.readFile(path, "utf8", (err, data) => {
         if (err) {
           reject(
-            new RuntimeErrorClass(
-              `Failed to read file ${path}: ${err.message}`,
-              "file_io",
-              err
-            )
+            new RuntimeErrorClass(`Failed to read file ${path}: ${err.message}`, "file_io", err)
           );
         } else {
           resolve(data.toString());
@@ -293,11 +262,7 @@ export class SSHRuntime implements Runtime {
       this.sftpClient!.writeFile(tempPath, Buffer.from(content, "utf-8"), (err) => {
         if (err) {
           reject(
-            new RuntimeErrorClass(
-              `Failed to write file ${path}: ${err.message}`,
-              "file_io",
-              err
-            )
+            new RuntimeErrorClass(`Failed to write file ${path}: ${err.message}`, "file_io", err)
           );
           return;
         }
@@ -306,11 +271,7 @@ export class SSHRuntime implements Runtime {
         this.sftpClient!.chmod(tempPath, 0o600, (err) => {
           if (err) {
             reject(
-              new RuntimeErrorClass(
-                `Failed to chmod file ${path}: ${err.message}`,
-                "file_io",
-                err
-              )
+              new RuntimeErrorClass(`Failed to chmod file ${path}: ${err.message}`, "file_io", err)
             );
             return;
           }
@@ -344,13 +305,7 @@ export class SSHRuntime implements Runtime {
     return new Promise((resolve, reject) => {
       this.sftpClient!.stat(path, (err, stats) => {
         if (err) {
-          reject(
-            new RuntimeErrorClass(
-              `Failed to stat ${path}: ${err.message}`,
-              "file_io",
-              err
-            )
-          );
+          reject(new RuntimeErrorClass(`Failed to stat ${path}: ${err.message}`, "file_io", err));
         } else {
           resolve({
             size: stats.size,
@@ -377,4 +332,3 @@ export class SSHRuntime implements Runtime {
     });
   }
 }
-

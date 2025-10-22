@@ -25,4 +25,3 @@ export function createRuntime(config: RuntimeConfig): Runtime {
       throw new Error(`Unknown runtime type: ${(config as any).type}`);
   }
 }
-

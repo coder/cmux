@@ -332,7 +332,11 @@ describe("file_read tool", () => {
     await fs.mkdir(subDir);
 
     // Try to read file outside cwd by going up
-    const tool = createFileReadTool({ cwd: subDir, runtime: createRuntime({ type: "local" }), tempDir: "/tmp" });
+    const tool = createFileReadTool({
+      cwd: subDir,
+      runtime: createRuntime({ type: "local" }),
+      tempDir: "/tmp",
+    });
     const args: FileReadToolArgs = {
       filePath: "../test.txt", // This goes outside subDir back to testDir
     };
