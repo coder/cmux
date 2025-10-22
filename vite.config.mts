@@ -39,7 +39,13 @@ const basePlugins = [
       plugins: babelPlugins,
     },
   }),
-  tailwindcss(),
+  tailwindcss({
+    // Explicitly configure to avoid interfering with worker builds
+    scan: {
+      include: ['src/**/*.{ts,tsx,js,jsx}'],
+      exclude: ['**/*.worker.ts'],
+    },
+  }),
 ];
 
 export default defineConfig(({ mode }) => ({
@@ -78,7 +84,12 @@ export default defineConfig(({ mode }) => ({
   },
   worker: {
     format: "es",
-    plugins: [topLevelAwait()],
+    plugins: () => [topLevelAwait()],
+    rollupOptions: {
+      output: {
+        format: "es",
+      },
+    },
   },
   server: {
     host: "127.0.0.1",
