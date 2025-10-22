@@ -22,11 +22,13 @@ jobs:
       - name: Generate version file
         run: ./scripts/generate-version.sh
 
+      - name: Build Storybook
+        run: make storybook-build
+
       - name: Run Chromatic
         uses: chromaui/action@latest
         with:
           projectToken: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
           exitZeroOnChanges: true
           onlyChanged: true
-          buildScriptName: storybook:build
 
