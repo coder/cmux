@@ -6,6 +6,7 @@ import * as path from "path";
 import writeFileAtomic from "write-file-atomic";
 import type { Runtime, ExecOptions, ExecResult, FileStat, RuntimeError } from "./Runtime";
 import { RuntimeError as RuntimeErrorClass } from "./Runtime";
+import { NON_INTERACTIVE_ENV_VARS } from "../constants/env";
 
 /**
  * Wraps a ChildProcess to make it disposable for use with `using` statements
@@ -47,14 +48,8 @@ export class LocalRuntime implements Runtime {
           ...process.env,
           // Inject provided environment variables
           ...(options.env ?? {}),
-          // Prevent interactive editors from blocking bash execution
-          // This is critical for git operations like rebase/commit that try to open editors
-          GIT_EDITOR: "true", // Git-specific editor (highest priority)
-          GIT_SEQUENCE_EDITOR: "true", // For interactive rebase sequences
-          EDITOR: "true", // General fallback for non-git commands
-          VISUAL: "true", // Another common editor environment variable
-          // Prevent git from prompting for credentials
-          GIT_TERMINAL_PROMPT: "0", // Disables git credential prompts
+          // Prevent interactive editors and credential prompts
+          ...NON_INTERACTIVE_ENV_VARS,
         },
         stdio: [options.stdin !== undefined ? "pipe" : "ignore", "pipe", "pipe"],
       })

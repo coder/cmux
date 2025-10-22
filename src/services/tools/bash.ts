@@ -13,6 +13,7 @@ import {
   BASH_TRUNCATE_MAX_TOTAL_BYTES,
   BASH_TRUNCATE_MAX_FILE_BYTES,
 } from "@/constants/toolLimits";
+import { NON_INTERACTIVE_ENV_VARS } from "@/constants/env";
 
 import type { BashToolResult } from "@/types/tools";
 import type { ToolConfiguration, ToolFactory } from "@/utils/tools/tools";
@@ -149,16 +150,8 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
             ...process.env,
             // Inject secrets as environment variables
             ...(config.secrets ?? {}),
-            // Prevent interactive editors from blocking bash execution
-            // This is critical for git operations like rebase/commit that try to open editors
-            GIT_EDITOR: "true", // Git-specific editor (highest priority)
-            GIT_SEQUENCE_EDITOR: "true", // For interactive rebase sequences
-            EDITOR: "true", // General fallback for non-git commands
-            VISUAL: "true", // Another common editor environment variable
-            // Prevent git from prompting for credentials
-            // This is critical for operations like fetch/pull that might try to authenticate
-            // Without this, git can hang waiting for user input if credentials aren't configured
-            GIT_TERMINAL_PROMPT: "0", // Disables git credential prompts
+            // Prevent interactive editors and credential prompts
+            ...NON_INTERACTIVE_ENV_VARS,
           },
           stdio: ["ignore", "pipe", "pipe"],
           // CRITICAL: Spawn as detached process group leader to prevent zombie processes.
