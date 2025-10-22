@@ -1,44 +1,5 @@
 import type { ReactNode } from "react";
 import React, { Component } from "react";
-import styled from "@emotion/styled";
-
-const ErrorContainer = styled.div`
-  padding: 20px;
-  background: #3c1f1f;
-  border: 1px solid #f48771;
-  border-radius: 4px;
-  color: #f48771;
-  margin: 20px;
-`;
-
-const ErrorTitle = styled.h3`
-  margin: 0 0 10px 0;
-  font-size: 16px;
-`;
-
-const ErrorDetails = styled.pre`
-  margin: 10px 0;
-  padding: 10px;
-  background: rgba(0, 0, 0, 0.3);
-  border-radius: 3px;
-  font-size: 12px;
-  white-space: pre-wrap;
-  word-break: break-all;
-`;
-
-const ResetButton = styled.button`
-  padding: 8px 16px;
-  background: #f48771;
-  color: white;
-  border: none;
-  border-radius: 3px;
-  cursor: pointer;
-  font-size: 14px;
-
-  &:hover {
-    background: #ff9980;
-  }
-`;
 
 interface Props {
   children: ReactNode;
@@ -81,12 +42,12 @@ export class ErrorBoundary extends Component<Props, State> {
       }
 
       return (
-        <ErrorContainer>
-          <ErrorTitle>
+        <div className="p-5 bg-[#3c1f1f] border border-[#f48771] rounded text-[#f48771] m-5">
+          <h3 className="m-0 mb-2.5 text-base">
             Something went wrong{this.props.workspaceInfo && ` in ${this.props.workspaceInfo}`}
-          </ErrorTitle>
+          </h3>
           {this.state.error && (
-            <ErrorDetails>
+            <pre className="my-2.5 p-2.5 bg-black/30 rounded-sm text-xs whitespace-pre-wrap break-all">
               {this.state.error.toString()}
               {this.state.errorInfo && (
                 <>
@@ -94,10 +55,15 @@ export class ErrorBoundary extends Component<Props, State> {
                   {this.state.errorInfo.componentStack}
                 </>
               )}
-            </ErrorDetails>
+            </pre>
           )}
-          <ResetButton onClick={this.handleReset}>Reset</ResetButton>
-        </ErrorContainer>
+          <button
+            onClick={this.handleReset}
+            className="py-2 px-4 bg-[#f48771] text-white border-none rounded-sm cursor-pointer text-sm hover:bg-[#ff9980]"
+          >
+            Reset
+          </button>
+        </div>
       );
     }
 
