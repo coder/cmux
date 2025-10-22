@@ -1,97 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import styled from "@emotion/styled";
 import { Command } from "cmdk";
 import { useCommandRegistry } from "@/contexts/CommandRegistryContext";
 import type { CommandAction } from "@/contexts/CommandRegistryContext";
 import { formatKeybind, KEYBINDS, isEditableElement, matchesKeybind } from "@/utils/ui/keybinds";
 import { getSlashCommandSuggestions } from "@/utils/slashCommands/suggestions";
 import { CUSTOM_EVENTS } from "@/constants/events";
-
-const Overlay = styled.div`
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.4);
-  z-index: 2000;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding-top: 10vh;
-`;
-
-const PaletteContainer = styled(Command)`
-  width: min(720px, 92vw);
-  background: #1f1f1f;
-  border: 1px solid #333;
-  border-radius: 8px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
-  color: #e5e5e5;
-  font-family: var(--font-primary);
-  overflow: hidden;
-` as unknown as typeof Command;
-
-const PaletteInput = styled(Command.Input)`
-  width: 100%;
-  padding: 12px 14px;
-  background: #161616;
-  color: #e5e5e5;
-  border: none;
-  outline: none;
-  font-size: 14px;
-  border-bottom: 1px solid #2a2a2a;
-` as unknown as typeof Command.Input;
-
-const Empty = styled.div`
-  padding: 16px;
-  color: #7a7a7a;
-  font-size: 13px;
-`;
-
-const List = styled(Command.List)`
-  max-height: 420px;
-  overflow: auto;
-` as unknown as typeof Command.List;
-
-const Group = styled(Command.Group)`
-  &[cmdk-group] {
-    padding: 8px 6px;
-  }
-  &[cmdk-group-heading] {
-    padding: 4px 10px;
-    color: #9a9a9a;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-  }
-` as unknown as typeof Command.Group;
-
-const Item = styled(Command.Item)`
-  display: grid;
-  grid-template-columns: 1fr auto;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  font-size: 13px;
-  cursor: pointer;
-  border-radius: 6px;
-  margin: 2px 4px;
-  &:hover {
-    background: #2a2a2a;
-  }
-  &[aria-selected="true"] {
-    background: #2f2f2f;
-  }
-` as unknown as typeof Command.Item;
-
-const Subtitle = styled.span`
-  color: #9a9a9a;
-  font-size: 12px;
-`;
-
-const ShortcutHint = styled.span`
-  color: #9a9a9a;
-  font-size: 11px;
-  font-family: var(--font-monospace);
-`;
 
 interface CommandPaletteProps {
   getSlashContext?: () => { providerNames: string[]; workspaceId?: string };
@@ -441,7 +354,8 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ getSlashContext 
   const hasAnyItems = groupsWithItems.length > 0;
 
   return (
-    <Overlay
+    <div
+      className="fixed inset-0 bg-black/40 z-[2000] flex items-start justify-center pt-[10vh]"
       onMouseDown={() => {
         setActivePrompt(null);
         setPromptError(null);
@@ -449,11 +363,13 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ getSlashContext 
         close();
       }}
     >
-      <PaletteContainer
+      <Command
+        className="w-[min(720px,92vw)] bg-[#1f1f1f] border border-[#333] rounded-lg shadow-[0_10px_40px_rgba(0,0,0,0.4)] text-[#e5e5e5] font-primary overflow-hidden"
         onMouseDown={(e: React.MouseEvent) => e.stopPropagation()}
         shouldFilter={shouldUseCmdkFilter}
       >
-        <PaletteInput
+        <Command.Input
+          className="w-full py-3 px-3.5 bg-[#161616] text-[#e5e5e5] border-none outline-none text-sm border-b border-[#2a2a2a]"
           value={query}
           onValueChange={handleQueryChange}
           placeholder={
@@ -484,12 +400,17 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ getSlashContext 
             }
           }}
         />
-        <List>
+        <Command.List className="max-h-[420px] overflow-auto">
           {groupsWithItems.map((group) => (
-            <Group key={group.name} heading={group.name}>
+            <Command.Group
+              key={group.name}
+              heading={group.name}
+              className="[&[cmdk-group]]:py-2 [&[cmdk-group]]:px-1.5 [&[cmdk-group-heading]]:py-1 [&[cmdk-group-heading]]:px-2.5 [&[cmdk-group-heading]]:text-[#9a9a9a] [&[cmdk-group-heading]]:text-[11px] [&[cmdk-group-heading]]:uppercase [&[cmdk-group-heading]]:tracking-[0.08em]"
+            >
               {group.items.map((item) => (
-                <Item
+                <Command.Item
                   key={item.id}
+                  className="grid grid-cols-[1fr_auto] items-center gap-2 py-2 px-3 text-[13px] cursor-pointer rounded-md my-0.5 mx-1 hover:bg-[#2a2a2a] aria-selected:bg-[#2f2f2f]"
                   onSelect={() => {
                     if ("prompt" in item && item.prompt) {
                       addRecent(item.id);
@@ -514,20 +435,20 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ getSlashContext 
                     {"subtitle" in item && item.subtitle && (
                       <>
                         <br />
-                        <Subtitle>{item.subtitle}</Subtitle>
+                        <span className="text-[#9a9a9a] text-xs">{item.subtitle}</span>
                       </>
                     )}
                   </div>
                   {"shortcutHint" in item && item.shortcutHint && (
-                    <ShortcutHint>{item.shortcutHint}</ShortcutHint>
+                    <span className="text-[#9a9a9a] text-[11px] font-monospace">{item.shortcutHint}</span>
                   )}
-                </Item>
+                </Command.Item>
               ))}
-            </Group>
+            </Command.Group>
           ))}
-          {!hasAnyItems && <Empty>{emptyText ?? "No results"}</Empty>}
-        </List>
-      </PaletteContainer>
-    </Overlay>
+          {!hasAnyItems && <div className="p-4 text-[#7a7a7a] text-[13px]">{emptyText ?? "No results"}</div>}
+        </Command.List>
+      </Command>
+    </div>
   );
 };
