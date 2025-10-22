@@ -1,4 +1,5 @@
 import { Client as SSHClient, type ConnectConfig, type SFTPWrapper } from "ssh2";
+import * as fs from "fs/promises";
 import type { Runtime, ExecOptions, ExecResult, FileStat } from "./Runtime";
 import { RuntimeError as RuntimeErrorClass } from "./Runtime";
 
@@ -64,6 +65,20 @@ export class SSHRuntime implements Runtime {
    * Establish SSH connection and SFTP session
    */
   private async connect(): Promise<void> {
+    // Read private key if keyPath is provided
+    let privateKey: Buffer | undefined;
+    if (this.config.keyPath) {
+      try {
+        privateKey = await fs.readFile(this.config.keyPath);
+      } catch (err) {
+        throw new RuntimeErrorClass(
+          `Failed to read SSH key from ${this.config.keyPath}: ${err instanceof Error ? err.message : String(err)}`,
+          "file_io",
+          err instanceof Error ? err : undefined
+        );
+      }
+    }
+
     return new Promise((resolve, reject) => {
       const client = new SSHClient();
 
@@ -74,8 +89,8 @@ export class SSHRuntime implements Runtime {
       };
 
       // Add auth method
-      if (this.config.keyPath) {
-        connectConfig.privateKey = require("fs").readFileSync(this.config.keyPath);
+      if (privateKey) {
+        connectConfig.privateKey = privateKey;
       } else if (this.config.password) {
         connectConfig.password = this.config.password;
       } else {
@@ -121,7 +136,7 @@ export class SSHRuntime implements Runtime {
   /**
    * Close SSH connection
    */
-  async close(): Promise<void> {
+  close(): void {
     if (this.sftpClient) {
       this.sftpClient.end();
       this.sftpClient = null;

@@ -21,7 +21,9 @@ export function createRuntime(config: RuntimeConfig): Runtime {
         workdir: config.workdir,
       });
 
-    default:
-      throw new Error(`Unknown runtime type: ${(config as any).type}`);
+    default: {
+      const unknownConfig = config as { type?: string };
+      throw new Error(`Unknown runtime type: ${unknownConfig.type ?? "undefined"}`);
+    }
   }
 }
