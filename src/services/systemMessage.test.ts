@@ -47,7 +47,7 @@ Use diagrams where appropriate.
 
     const metadata: WorkspaceMetadata = {
       id: "test-workspace",
-      name: "test-workspace",
+      title: "test-workspace",
       projectName: "test-project",
       projectPath: tempDir,
     };
@@ -78,7 +78,7 @@ Focus on planning and design.
 
     const metadata: WorkspaceMetadata = {
       id: "test-workspace",
-      name: "test-workspace",
+      title: "test-workspace",
       projectName: "test-project",
       projectPath: tempDir,
     };
@@ -117,7 +117,7 @@ Workspace plan instructions (should win).
 
     const metadata: WorkspaceMetadata = {
       id: "test-workspace",
-      name: "test-workspace",
+      title: "test-workspace",
       projectName: "test-project",
       projectPath: tempDir,
     };
@@ -152,7 +152,7 @@ Just general workspace stuff.
 
     const metadata: WorkspaceMetadata = {
       id: "test-workspace",
-      name: "test-workspace",
+      title: "test-workspace",
       projectName: "test-project",
       projectPath: tempDir,
     };
@@ -173,7 +173,7 @@ Special mode instructions.
 
     const metadata: WorkspaceMetadata = {
       id: "test-workspace",
-      name: "test-workspace",
+      title: "test-workspace",
       projectName: "test-project",
       projectPath: tempDir,
     };

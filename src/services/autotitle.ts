@@ -61,7 +61,7 @@ export async function generateWorkspaceTitle(
     for (const message of messages) {
       // Estimate tokens for this message
       const messageText = JSON.stringify(message);
-      const messageTokens = await tokenizer.count(messageText);
+      const messageTokens = tokenizer.countTokens(messageText);
 
       if (tokensUsed + messageTokens > AUTOTITLE_TOKEN_LIMIT) {
         break;
@@ -80,21 +80,12 @@ export async function generateWorkspaceTitle(
     const conversationContext = selectedMessages
       .map((msg) => {
         const role = msg.role === "user" ? "User" : "Assistant";
-        // Handle both old string format and new content format
-        let contentText: string;
-        if (typeof msg.content === "string") {
-          contentText = msg.content;
-        } else if (Array.isArray(msg.content)) {
-          contentText = msg.content
-            .map((c: { type?: string; text?: string }) => {
-              if ("text" in c && c.text) return c.text;
-              return "[non-text content]";
-            })
-            .join(" ");
-        } else {
-          contentText = String(msg.content);
-        }
-        return `${role}: ${contentText}`;
+        // Extract text from parts array
+        const textParts = msg.parts
+          .filter((part) => part.type === "text")
+          .map((part) => ("text" in part ? part.text : ""))
+          .join(" ");
+        return `${role}: ${textParts || "[no text content]"}`;
       })
       .join("\n\n");
 
@@ -107,7 +98,7 @@ export async function generateWorkspaceTitle(
     const result = await generateText({
       model,
       prompt: `${conversationContext}\n\n${TITLE_GENERATION_PROMPT}`,
-      maxTokens: AUTOTITLE_OUTPUT_TOKENS,
+      maxTokens: 150, // Single generation step
       temperature: 0.3, // Lower temperature for more focused titles
     });
 

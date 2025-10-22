@@ -94,23 +94,23 @@ export function buildCoreSources(p: BuildSourcesParams): Array<() => CommandActi
       const isStreaming = p.streamingModels?.has(meta.id) ?? false;
       list.push({
         id: `ws:switch:${meta.id}`,
-        title: `${isCurrent ? "• " : ""}Switch to ${meta.name}`,
+        title: `${isCurrent ? "• " : ""}Switch to ${meta.title}`,
         subtitle: `${meta.projectName}${isStreaming ? " • streaming" : ""}`,
         section: section.workspaces,
-        keywords: [meta.name, meta.projectName, meta.namedWorkspacePath],
+        keywords: [meta.title, meta.projectName, meta.titledWorkspacePath],
         run: () =>
           p.onSelectWorkspace({
             projectPath: meta.projectPath,
             projectName: meta.projectName,
-            namedWorkspacePath: meta.namedWorkspacePath,
+            namedWorkspacePath: meta.titledWorkspacePath,
             workspaceId: meta.id,
           }),
       });
     }
 
     // Remove current workspace (rename action intentionally omitted until we add a proper modal)
-    if (selected?.namedWorkspacePath) {
-      const workspaceDisplayName = `${selected.projectName}/${selected.namedWorkspacePath.split("/").pop() ?? selected.namedWorkspacePath}`;
+    if (selected?.titledWorkspacePath) {
+      const workspaceDisplayName = `${selected.projectName}/${selected.titledWorkspacePath.split("/").pop() ?? selected.titledWorkspacePath}`;
       list.push({
         id: "ws:open-terminal-current",
         title: "Open Current Workspace in Terminal",
@@ -146,8 +146,8 @@ export function buildCoreSources(p: BuildSourcesParams): Array<() => CommandActi
               label: "New name",
               placeholder: "Enter new workspace name",
               // Use workspace metadata name (not path) for initial value
-              initialValue: p.workspaceMetadata.get(selected.workspaceId)?.name ?? "",
-              getInitialValue: () => p.workspaceMetadata.get(selected.workspaceId)?.name ?? "",
+              initialValue: p.workspaceMetadata.get(selected.workspaceId)?.title ?? "",
+              getInitialValue: () => p.workspaceMetadata.get(selected.workspaceId)?.title ?? "",
               validate: (v) => (!v.trim() ? "Name is required" : null),
             },
           ],
@@ -169,17 +169,17 @@ export function buildCoreSources(p: BuildSourcesParams): Array<() => CommandActi
           fields: [
             {
               type: "select",
-              name: "workspaceId",
+              title: "workspaceId",
               label: "Workspace",
               placeholder: "Search workspaces…",
               getOptions: () =>
                 Array.from(p.workspaceMetadata.values()).map((meta) => {
                   // Use workspace name instead of extracting from path
-                  const label = `${meta.projectName} / ${meta.name}`;
+                  const label = `${meta.projectName} / ${meta.title}`;
                   return {
                     id: meta.id,
                     label,
-                    keywords: [meta.name, meta.projectName, meta.namedWorkspacePath, meta.id],
+                    keywords: [meta.title, meta.projectName, meta.titledWorkspacePath, meta.id],
                   };
                 }),
             },
@@ -199,16 +199,16 @@ export function buildCoreSources(p: BuildSourcesParams): Array<() => CommandActi
           fields: [
             {
               type: "select",
-              name: "workspaceId",
+              title: "workspaceId",
               label: "Select workspace",
               placeholder: "Search workspaces…",
               getOptions: () =>
                 Array.from(p.workspaceMetadata.values()).map((meta) => {
-                  const label = `${meta.projectName} / ${meta.name}`;
+                  const label = `${meta.projectName} / ${meta.title}`;
                   return {
                     id: meta.id,
                     label,
-                    keywords: [meta.name, meta.projectName, meta.namedWorkspacePath, meta.id],
+                    keywords: [meta.title, meta.projectName, meta.titledWorkspacePath, meta.id],
                   };
                 }),
             },
@@ -221,7 +221,7 @@ export function buildCoreSources(p: BuildSourcesParams): Array<() => CommandActi
                 const meta = Array.from(p.workspaceMetadata.values()).find(
                   (m) => m.id === values.workspaceId
                 );
-                return meta ? meta.name : "";
+                return meta ? meta.title : "";
               },
               validate: (v) => (!v.trim() ? "Name is required" : null),
             },
@@ -241,16 +241,16 @@ export function buildCoreSources(p: BuildSourcesParams): Array<() => CommandActi
           fields: [
             {
               type: "select",
-              name: "workspaceId",
+              title: "workspaceId",
               label: "Select workspace",
               placeholder: "Search workspaces…",
               getOptions: () =>
                 Array.from(p.workspaceMetadata.values()).map((meta) => {
-                  const label = `${meta.projectName}/${meta.name}`;
+                  const label = `${meta.projectName}/${meta.title}`;
                   return {
                     id: meta.id,
                     label,
-                    keywords: [meta.name, meta.projectName, meta.namedWorkspacePath, meta.id],
+                    keywords: [meta.title, meta.projectName, meta.titledWorkspacePath, meta.id],
                   };
                 }),
             },
@@ -259,7 +259,7 @@ export function buildCoreSources(p: BuildSourcesParams): Array<() => CommandActi
             const meta = Array.from(p.workspaceMetadata.values()).find(
               (m) => m.id === vals.workspaceId
             );
-            const workspaceName = meta ? `${meta.projectName}/${meta.name}` : vals.workspaceId;
+            const workspaceName = meta ? `${meta.projectName}/${meta.title}` : vals.workspaceId;
             const ok = confirm(`Remove workspace ${workspaceName}? This cannot be undone.`);
             if (ok) {
               await p.onRemoveWorkspace(vals.workspaceId);

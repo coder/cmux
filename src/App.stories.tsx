@@ -32,7 +32,7 @@ function setupMockAPI(options: {
           success: true,
           metadata: {
             id: `${projectPath.split("/").pop() ?? "project"}-${branchName}`,
-            name: branchName,
+            title: branchName,
             projectPath,
             projectName: projectPath.split("/").pop() ?? "project",
             namedWorkspacePath: `/mock/workspace/${branchName}`,
@@ -59,6 +59,11 @@ function setupMockAPI(options: {
         Promise.resolve({
           success: true,
           data: { success: true, output: "", exitCode: 0, wall_duration_ms: 0 },
+        }),
+      generateTitle: () =>
+        Promise.resolve({
+          success: true,
+          data: { title: "Generated Title" },
         }),
     },
     projects: {
@@ -135,16 +140,16 @@ export const SingleProject: Story = {
         "/home/user/projects/my-app",
         {
           workspaces: [
-            { path: "/home/user/.cmux/src/my-app/main", id: "my-app-main", name: "main" },
+            { path: "/home/user/.cmux/src/my-app/main", id: "my-app-main", title: "main" },
             {
               path: "/home/user/.cmux/src/my-app/feature-auth",
               id: "my-app-feature-auth",
-              name: "feature/auth",
+              title: "feature/auth",
             },
             {
               path: "/home/user/.cmux/src/my-app/bugfix",
               id: "my-app-bugfix",
-              name: "bugfix/memory-leak",
+              title: "bugfix/memory-leak",
             },
           ],
         },
@@ -154,21 +159,21 @@ export const SingleProject: Story = {
     const workspaces: FrontendWorkspaceMetadata[] = [
       {
         id: "my-app-main",
-        name: "main",
+        title: "main",
         projectPath: "/home/user/projects/my-app",
         projectName: "my-app",
         namedWorkspacePath: "/home/user/.cmux/src/my-app/main",
       },
       {
         id: "my-app-feature-auth",
-        name: "feature/auth",
+        title: "feature/auth",
         projectPath: "/home/user/projects/my-app",
         projectName: "my-app",
         namedWorkspacePath: "/home/user/.cmux/src/my-app/feature-auth",
       },
       {
         id: "my-app-bugfix",
-        name: "bugfix/memory-leak",
+        title: "bugfix/memory-leak",
         projectPath: "/home/user/projects/my-app",
         projectName: "my-app",
         namedWorkspacePath: "/home/user/.cmux/src/my-app/bugfix",
@@ -186,11 +191,11 @@ export const MultipleProjects: Story = {
         "/home/user/projects/frontend",
         {
           workspaces: [
-            { path: "/home/user/.cmux/src/frontend/main", id: "frontend-main", name: "main" },
+            { path: "/home/user/.cmux/src/frontend/main", id: "frontend-main", title: "main" },
             {
               path: "/home/user/.cmux/src/frontend/redesign",
               id: "frontend-redesign",
-              name: "redesign",
+              title: "redesign",
             },
           ],
         },
@@ -199,12 +204,12 @@ export const MultipleProjects: Story = {
         "/home/user/projects/backend",
         {
           workspaces: [
-            { path: "/home/user/.cmux/src/backend/main", id: "backend-main", name: "main" },
-            { path: "/home/user/.cmux/src/backend/api-v2", id: "backend-api-v2", name: "api-v2" },
+            { path: "/home/user/.cmux/src/backend/main", id: "backend-main", title: "main" },
+            { path: "/home/user/.cmux/src/backend/api-v2", id: "backend-api-v2", title: "api-v2" },
             {
               path: "/home/user/.cmux/src/backend/db-migration",
               id: "backend-db-migration",
-              name: "db-migration",
+              title: "db-migration",
             },
           ],
         },
@@ -213,7 +218,7 @@ export const MultipleProjects: Story = {
         "/home/user/projects/mobile",
         {
           workspaces: [
-            { path: "/home/user/.cmux/src/mobile/main", id: "mobile-main", name: "main" },
+            { path: "/home/user/.cmux/src/mobile/main", id: "mobile-main", title: "main" },
           ],
         },
       ],
@@ -222,42 +227,42 @@ export const MultipleProjects: Story = {
     const workspaces: FrontendWorkspaceMetadata[] = [
       {
         id: "frontend-main",
-        name: "main",
+        title: "main",
         projectPath: "/home/user/projects/frontend",
         projectName: "frontend",
         namedWorkspacePath: "/home/user/.cmux/src/frontend/main",
       },
       {
         id: "frontend-redesign",
-        name: "redesign",
+        title: "redesign",
         projectPath: "/home/user/projects/frontend",
         projectName: "frontend",
         namedWorkspacePath: "/home/user/.cmux/src/frontend/redesign",
       },
       {
         id: "backend-main",
-        name: "main",
+        title: "main",
         projectPath: "/home/user/projects/backend",
         projectName: "backend",
         namedWorkspacePath: "/home/user/.cmux/src/backend/main",
       },
       {
         id: "backend-api-v2",
-        name: "api-v2",
+        title: "api-v2",
         projectPath: "/home/user/projects/backend",
         projectName: "backend",
         namedWorkspacePath: "/home/user/.cmux/src/backend/api-v2",
       },
       {
         id: "backend-db-migration",
-        name: "db-migration",
+        title: "db-migration",
         projectPath: "/home/user/projects/backend",
         projectName: "backend",
         namedWorkspacePath: "/home/user/.cmux/src/backend/db-migration",
       },
       {
         id: "mobile-main",
-        name: "main",
+        title: "main",
         projectPath: "/home/user/projects/mobile",
         projectName: "mobile",
         namedWorkspacePath: "/home/user/.cmux/src/mobile/main",
@@ -318,7 +323,7 @@ export const ActiveWorkspaceWithChat: Story = {
         "/home/user/projects/my-app",
         {
           workspaces: [
-            { path: "/home/user/.cmux/src/my-app/feature", id: workspaceId, name: "feature/auth" },
+            { path: "/home/user/.cmux/src/my-app/feature", id: workspaceId, title: "feature/auth" },
           ],
         },
       ],
@@ -327,7 +332,7 @@ export const ActiveWorkspaceWithChat: Story = {
     const workspaces: FrontendWorkspaceMetadata[] = [
       {
         id: workspaceId,
-        name: "feature/auth",
+        title: "feature/auth",
         projectPath: "/home/user/projects/my-app",
         projectName: "my-app",
         namedWorkspacePath: "/home/user/.cmux/src/my-app/feature",
@@ -352,7 +357,7 @@ export const ActiveWorkspaceWithChat: Story = {
                   success: true,
                   metadata: {
                     id: `${projectPath.split("/").pop() ?? "project"}-${branchName}`,
-                    name: branchName,
+                    title: branchName,
                     projectPath,
                     projectName: projectPath.split("/").pop() ?? "project",
                     namedWorkspacePath: `/mock/workspace/${branchName}`,
@@ -596,6 +601,11 @@ export const ActiveWorkspaceWithChat: Story = {
                 Promise.resolve({
                   success: true,
                   data: { success: true, output: "", exitCode: 0, wall_duration_ms: 0 },
+                }),
+              generateTitle: () =>
+                Promise.resolve({
+                  success: true,
+                  data: { title: "Generated Title" },
                 }),
             },
           },

@@ -57,7 +57,7 @@ describe("Config", () => {
       expect(allMetadata).toHaveLength(1);
       const metadata = allMetadata[0];
       expect(metadata.id).toBe("project-feature-branch"); // Legacy ID format
-      expect(metadata.name).toBe("feature-branch");
+      expect(metadata.title).toBe("feature-branch");
       expect(metadata.projectName).toBe("project");
       expect(metadata.projectPath).toBe(projectPath);
 
@@ -68,7 +68,7 @@ describe("Config", () => {
       expect(projectConfig!.workspaces).toHaveLength(1);
       const workspace = projectConfig!.workspaces[0];
       expect(workspace.id).toBe("project-feature-branch");
-      expect(workspace.name).toBe("feature-branch");
+      expect(workspace.title).toBe("feature-branch");
     });
 
     it("should use existing metadata file if present (legacy format)", () => {
@@ -107,7 +107,7 @@ describe("Config", () => {
       expect(allMetadata).toHaveLength(1);
       const metadata = allMetadata[0];
       expect(metadata.id).toBe(legacyId);
-      expect(metadata.name).toBe(workspaceName);
+      expect(metadata.title).toBe(workspaceName);
       expect(metadata.createdAt).toBe("2025-01-01T00:00:00.000Z");
 
       // Verify metadata was migrated to config
@@ -117,7 +117,7 @@ describe("Config", () => {
       expect(projectConfig!.workspaces).toHaveLength(1);
       const workspace = projectConfig!.workspaces[0];
       expect(workspace.id).toBe(legacyId);
-      expect(workspace.name).toBe(workspaceName);
+      expect(workspace.title).toBe(workspaceName);
       expect(workspace.createdAt).toBe("2025-01-01T00:00:00.000Z");
     });
   });

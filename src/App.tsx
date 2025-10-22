@@ -141,10 +141,10 @@ function AppInner() {
         window.history.replaceState(null, "", newHash);
       }
 
-      // Update window title with workspace name
-      const workspaceName =
-        workspaceMetadata.get(selectedWorkspace.workspaceId)?.name ?? selectedWorkspace.workspaceId;
-      const title = `${workspaceName} - ${selectedWorkspace.projectName} - cmux`;
+      // Update window title with workspace title or ID
+      const workspaceTitle =
+        workspaceMetadata.get(selectedWorkspace.workspaceId)?.title ?? selectedWorkspace.workspaceId;
+      const title = `${workspaceTitle} - ${selectedWorkspace.projectName} - cmux`;
       void window.api.window.setTitle(title);
     } else {
       // Clear hash when no workspace selected
@@ -359,11 +359,11 @@ function AppInner() {
       if (
         !compareMaps(prev, next, (a, b) => {
           if (a.length !== b.length) return false;
-          // Check both ID and name to detect renames
+          // Check both ID and title to detect changes
           return a.every((metadata, i) => {
             const bMeta = b[i];
             if (!bMeta || !metadata) return false; // Null-safe
-            return metadata.id === bMeta.id && metadata.name === bMeta.name;
+            return metadata.id === bMeta.id && metadata.title === bMeta.title;
           });
         })
       ) {
