@@ -5,7 +5,7 @@
  */
 
 import React, { useEffect, useState } from "react";
-import styled from "@emotion/styled";
+import { cn } from "@/lib/utils";
 import { getLanguageFromPath } from "@/utils/git/languageDetector";
 import { Tooltip, TooltipWrapper } from "../Tooltip";
 import { groupDiffLines } from "@/utils/highlighting/diffChunking";
@@ -18,125 +18,74 @@ import {
 // Shared type for diff line types
 export type DiffLineType = "add" | "remove" | "context" | "header";
 
+// Helper function for getting diff line background color
+const getDiffLineBackground = (type: DiffLineType): string => {
+  switch (type) {
+    case "add":
+      return "rgba(46, 160, 67, 0.15)";
+    case "remove":
+      return "rgba(248, 81, 73, 0.15)";
+    default:
+      return "transparent";
+  }
+};
+
+// Helper function for getting diff line text color
+const getDiffLineColor = (type: DiffLineType): string => {
+  switch (type) {
+    case "add":
+      return "#4caf50";
+    case "remove":
+      return "#f44336";
+    case "header":
+      return "#2196f3";
+    case "context":
+    default:
+      return "var(--color-text)";
+  }
+};
+
+// Helper function for getting line content color
+const getLineContentColor = (type: DiffLineType): string => {
+  switch (type) {
+    case "header":
+      return "#2196f3";
+    case "context":
+      return "var(--color-text-secondary)";
+    case "add":
+    case "remove":
+      return "var(--color-text)";
+  }
+};
+
 // Helper function for computing contrast color for add/remove indicators
-const getContrastColor = (type: DiffLineType) => {
+const getContrastColor = (type: DiffLineType): string => {
   return type === "add" || type === "remove"
     ? "color-mix(in srgb, var(--color-text-secondary), white 50%)"
     : "var(--color-text-secondary)";
 };
 
 /**
- * Wrapper for diff lines - works with CSS Grid parent to ensure uniform widths
- *
- * Problem: Lines of varying length created jagged backgrounds during horizontal scroll
- * because each wrapper was only as wide as its content.
- *
- * Solution: Parent container uses CSS Grid, which automatically makes all grid items
- * (these wrappers) the same width as the widest item. This ensures backgrounds span
- * the full scrollable area without creating infinite scroll.
- *
- * Key insight: width: 100% makes each wrapper span the full grid column width,
- * which CSS Grid automatically sets to the widest line's content.
+ * Container component for diff rendering - exported for custom diff displays
+ * Used by FileEditToolCall for wrapping custom diff content
  */
-export const DiffLineWrapper = styled.div<{ type: DiffLineType }>`
-  display: block;
-  width: 100%; /* Span full grid column (width of longest line) */
-
-  background: ${({ type }) => {
-    switch (type) {
-      case "add":
-        return "rgba(46, 160, 67, 0.15)";
-      case "remove":
-        return "rgba(248, 81, 73, 0.15)";
-      default:
-        return "transparent";
-    }
-  }};
-`;
-
-export const DiffLine = styled.div<{ type: DiffLineType }>`
-  font-family: var(--font-monospace);
-  white-space: pre;
-  display: flex;
-  padding: ${({ type }) => (type === "header" ? "4px 8px" : "0 8px")};
-  color: ${({ type }) => {
-    switch (type) {
-      case "add":
-        return "#4caf50";
-      case "remove":
-        return "#f44336";
-      case "header":
-        return "#2196f3";
-      case "context":
-      default:
-        return "var(--color-text)";
-    }
-  }};
-`;
-
-export const LineNumber = styled.span<{ type: DiffLineType }>`
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  min-width: 35px;
-  padding-right: 4px;
-  font-weight: ${({ type }) => (type === "header" ? "bold" : "normal")};
-  color: ${({ type }) => getContrastColor(type)};
-  opacity: ${({ type }) => (type === "add" || type === "remove" ? 0.9 : 0.6)};
-  user-select: none;
-  flex-shrink: 0;
-`;
-
-export const LineContent = styled.span<{ type: DiffLineType }>`
-  padding-left: 8px;
-  color: ${({ type }) => {
-    switch (type) {
-      case "header":
-        return "#2196f3";
-      case "context":
-        return "var(--color-text-secondary)";
-      case "add":
-      case "remove":
-        return "var(--color-text)";
-    }
-  }};
-
-  /* Ensure Shiki spans don't interfere with diff backgrounds */
-  /* Exclude search-highlight to allow search marking to show */
-  span:not(.search-highlight) {
-    background: transparent !important;
-  }
-`;
-
-export const DiffIndicator = styled.span<{ type: DiffLineType }>`
-  display: inline-block;
-  width: 4px;
-  text-align: center;
-  color: ${({ type }) => getContrastColor(type)};
-  opacity: ${({ type }) => (type === "add" || type === "remove" ? 0.9 : 0.6)};
-  flex-shrink: 0;
-`;
-
-export const DiffContainer = styled.div<{ fontSize?: string; maxHeight?: string }>`
-  margin: 0;
-  padding: 6px 0;
-  background: var(--color-code-bg);
-  border-radius: 3px;
-  font-size: ${({ fontSize }) => fontSize ?? "12px"};
-  line-height: 1.4;
-  max-height: ${({ maxHeight }) => maxHeight ?? "400px"};
-  overflow-y: auto;
-  overflow-x: auto;
-
-  /* CSS Grid ensures all lines span the same width (width of longest line) */
-  display: grid;
-  grid-template-columns: minmax(min-content, 1fr);
-
-  /* Ensure all child elements inherit font size from container */
-  * {
-    font-size: inherit;
-  }
-`;
+export const DiffContainer: React.FC<
+  React.PropsWithChildren<{ fontSize?: string; maxHeight?: string; className?: string }>
+> = ({ children, fontSize, maxHeight, className }) => {
+  return (
+    <div
+      className={cn("m-0 py-1.5 bg-code-bg rounded grid overflow-y-auto overflow-x-auto [&_*]:text-[inherit]", className)}
+      style={{
+        fontSize: fontSize ?? "12px",
+        lineHeight: 1.4,
+        maxHeight: maxHeight ?? "400px",
+        gridTemplateColumns: "minmax(min-content, 1fr)",
+      }}
+    >
+      {children}
+    </div>
+  );
+};
 
 interface DiffRendererProps {
   /** Raw diff content with +/- prefixes */
@@ -226,31 +175,75 @@ export const DiffRenderer: React.FC<DiffRendererProps> = ({
   // Show loading state while highlighting
   if (!highlightedChunks) {
     return (
-      <DiffContainer fontSize={fontSize} maxHeight={maxHeight}>
+      <div
+        className="m-0 py-1.5 bg-code-bg rounded grid overflow-y-auto overflow-x-auto [&_*]:text-[inherit]"
+        style={{
+          fontSize: fontSize ?? "12px",
+          lineHeight: 1.4,
+          maxHeight: maxHeight ?? "400px",
+          gridTemplateColumns: "minmax(min-content, 1fr)",
+        }}
+      >
         <div style={{ opacity: 0.5, padding: "8px" }}>Processing...</div>
-      </DiffContainer>
+      </div>
     );
   }
 
   return (
-    <DiffContainer fontSize={fontSize} maxHeight={maxHeight}>
+    <div
+      className="m-0 py-1.5 bg-code-bg rounded grid overflow-y-auto overflow-x-auto [&_*]:text-[inherit]"
+      style={{
+        fontSize: fontSize ?? "12px",
+        lineHeight: 1.4,
+        maxHeight: maxHeight ?? "400px",
+        gridTemplateColumns: "minmax(min-content, 1fr)",
+      }}
+    >
       {highlightedChunks.flatMap((chunk) =>
         chunk.lines.map((line) => {
           const indicator = chunk.type === "add" ? "+" : chunk.type === "remove" ? "-" : " ";
           return (
-            <DiffLineWrapper key={line.originalIndex} type={chunk.type}>
-              <DiffLine type={chunk.type}>
-                <DiffIndicator type={chunk.type}>{indicator}</DiffIndicator>
-                {showLineNumbers && <LineNumber type={chunk.type}>{line.lineNumber}</LineNumber>}
-                <LineContent type={chunk.type}>
+            <div
+              key={line.originalIndex}
+              className="block w-full"
+              style={{ background: getDiffLineBackground(chunk.type) }}
+            >
+              <div
+                className="font-mono whitespace-pre flex px-2"
+                style={{ color: getDiffLineColor(chunk.type) }}
+              >
+                <span
+                  className="inline-block w-1 text-center shrink-0"
+                  style={{
+                    color: getContrastColor(chunk.type),
+                    opacity: chunk.type === "add" || chunk.type === "remove" ? 0.9 : 0.6,
+                  }}
+                >
+                  {indicator}
+                </span>
+                {showLineNumbers && (
+                  <span
+                    className="flex items-center justify-end min-w-[35px] pr-1 select-none shrink-0"
+                    style={{
+                      color: getContrastColor(chunk.type),
+                      opacity: chunk.type === "add" || chunk.type === "remove" ? 0.9 : 0.6,
+                    }}
+                  >
+                    {line.lineNumber}
+                  </span>
+                )}
+                <span
+                  className="pl-2 [&_span:not(.search-highlight)]:!bg-transparent"
+                  style={{ color: getLineContentColor(chunk.type) }}
+                >
                   <span dangerouslySetInnerHTML={{ __html: line.html }} />
-                </LineContent>
-              </DiffLine>
-            </DiffLineWrapper>
+                </span>
+              </div>
+            </div>
           );
         })
       )}
-    </DiffContainer>
+    </div>
   );
 };
 
@@ -273,91 +266,8 @@ interface LineSelection {
   endLineNum: number;
 }
 
-const SelectableDiffLineWrapper = styled(DiffLineWrapper)<{
-  type: DiffLineType;
-  isSelected: boolean;
-}>`
-  position: relative;
-  cursor: text; /* Allow text selection by default */
-
-  ${({ isSelected }) =>
-    isSelected &&
-    `
-    background: hsl(from var(--color-review-accent) h s l / 0.2) !important;
-  `}
-`;
-
-// Wrapper for CommentButton tooltip - doesn't interfere with absolute positioning
-const CommentButtonWrapper = styled.span`
-  position: absolute;
-  left: 4px;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 1;
-`;
-
-const CommentButton = styled.button`
-  opacity: 0; /* Hidden by default */
-  background: var(--color-review-accent);
-  border: none;
-  border-radius: 2px;
-  width: 14px;
-  height: 14px;
-  padding: 0;
-  cursor: pointer;
-  transition: opacity 0.15s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-weight: bold;
-  flex-shrink: 0;
-
-  /* Show button on line hover */
-  ${SelectableDiffLineWrapper}:hover & {
-    opacity: 0.7;
-  }
-
-  &:hover {
-    opacity: 1 !important;
-    background: hsl(from var(--color-review-accent) h s calc(l * 1.2));
-  }
-
-  &:active {
-    transform: scale(0.9);
-  }
-`;
-
-const InlineNoteContainer = styled.div`
-  padding: 6px 8px;
-  background: #1e1e1e;
-  border-top: 1px solid hsl(from var(--color-review-accent) h s l / 0.3);
-  margin: 0;
-`;
-
-const NoteTextarea = styled.textarea`
-  width: 100%;
-  min-height: calc(12px * 1.4 * 3 + 12px); /* 3 lines + padding */
-  padding: 6px 8px;
-  font-family: var(--font-monospace);
-  font-size: 12px;
-  line-height: 1.4;
-  background: #1e1e1e;
-  border: 1px solid hsl(from var(--color-review-accent) h s l / 0.4);
-  border-radius: 2px;
-  color: var(--color-text);
-  resize: none; /* Disable manual resize since we auto-grow */
-  overflow-y: hidden; /* Hide scrollbar during auto-grow */
-
-  &:focus {
-    outline: none;
-    border-color: hsl(from var(--color-review-accent) h s l / 0.6);
-  }
-
-  &::placeholder {
-    color: #888;
-  }
-`;
+// CSS class for diff line wrapper - used by arbitrary selector in CommentButton
+const SELECTABLE_DIFF_LINE_CLASS = "selectable-diff-line";
 
 // Separate component to prevent re-rendering diff lines on every keystroke
 interface ReviewNoteInputProps {
@@ -422,9 +332,14 @@ const ReviewNoteInput: React.FC<ReviewNoteInputProps> = React.memo(
     };
 
     return (
-      <InlineNoteContainer>
-        <NoteTextarea
+      <div className="py-1.5 px-2 bg-[#1e1e1e] border-t m-0" style={{ borderColor: "hsl(from var(--color-review-accent) h s l / 0.3)" }}>
+        <textarea
           ref={textareaRef}
+          className="w-full px-2 py-1.5 font-mono text-xs leading-[1.4] bg-[#1e1e1e] border rounded-sm text-text resize-none overflow-y-hidden placeholder:text-[#888] focus:outline-none focus:border-[hsl(from_var(--color-review-accent)_h_s_l_/_0.6)]"
+          style={{
+            minHeight: "calc(12px * 1.4 * 3 + 12px)",
+            borderColor: "hsl(from var(--color-review-accent) h s l / 0.4)",
+          }}
           placeholder="Add a review note to chat (Shift-click + button to select range, Enter to submit, Shift+Enter for newline, Esc to cancel)&#10;j, k to iterate through hunks, m to toggle as read"
           value={noteText}
           onChange={(e) => setNoteText(e.target.value)}
@@ -446,7 +361,7 @@ const ReviewNoteInput: React.FC<ReviewNoteInputProps> = React.memo(
             }
           }}
         />
-      </InlineNoteContainer>
+      </div>
     );
   }
 );
@@ -558,9 +473,17 @@ export const SelectableDiffRenderer = React.memo<SelectableDiffRendererProps>(
     // Show loading state while highlighting
     if (!highlightedChunks || highlightedLineData.length === 0) {
       return (
-        <DiffContainer fontSize={fontSize} maxHeight={maxHeight}>
+        <div
+          className="m-0 py-1.5 bg-code-bg rounded grid overflow-y-auto overflow-x-auto [&_*]:text-[inherit]"
+          style={{
+            fontSize: fontSize ?? "12px",
+            lineHeight: 1.4,
+            maxHeight: maxHeight ?? "400px",
+            gridTemplateColumns: "minmax(min-content, 1fr)",
+          }}
+        >
           <div style={{ opacity: 0.5, padding: "8px" }}>Processing...</div>
-        </DiffContainer>
+        </div>
       );
     }
 
@@ -568,42 +491,94 @@ export const SelectableDiffRenderer = React.memo<SelectableDiffRendererProps>(
     const lines = content.split("\n").filter((line) => line.length > 0);
 
     return (
-      <DiffContainer fontSize={fontSize} maxHeight={maxHeight}>
+      <div
+        className="m-0 py-1.5 bg-code-bg rounded grid overflow-y-auto overflow-x-auto [&_*]:text-[inherit]"
+        style={{
+          fontSize: fontSize ?? "12px",
+          lineHeight: 1.4,
+          maxHeight: maxHeight ?? "400px",
+          gridTemplateColumns: "minmax(min-content, 1fr)",
+        }}
+      >
         {highlightedLineData.map((lineInfo, displayIndex) => {
           const isSelected = isLineSelected(displayIndex);
           const indicator = lineInfo.type === "add" ? "+" : lineInfo.type === "remove" ? "-" : " ";
 
           return (
             <React.Fragment key={displayIndex}>
-              <SelectableDiffLineWrapper type={lineInfo.type} isSelected={isSelected}>
-                <CommentButtonWrapper>
+              <div
+                className={cn(
+                  SELECTABLE_DIFF_LINE_CLASS,
+                  "block w-full relative cursor-text group"
+                )}
+                style={{
+                  background: isSelected
+                    ? "hsl(from var(--color-review-accent) h s l / 0.2)"
+                    : getDiffLineBackground(lineInfo.type),
+                }}
+              >
+                <span className="absolute left-1 top-1/2 -translate-y-1/2 z-[1]">
                   <TooltipWrapper inline>
-                    <CommentButton
+                    <button
+                      className="opacity-0 bg-review-accent border-none rounded-sm w-3.5 h-3.5 p-0 cursor-pointer transition-opacity duration-150 flex items-center justify-center text-white font-bold shrink-0 group-hover:opacity-70 hover:!opacity-100 active:scale-90"
+                      style={{
+                        background: "var(--color-review-accent)",
+                      }}
                       onClick={(e) => {
                         e.stopPropagation();
                         handleCommentButtonClick(displayIndex, e.shiftKey);
                       }}
+                      onMouseEnter={(e) => {
+                        const target = e.currentTarget;
+                        target.style.background = "hsl(from var(--color-review-accent) h s calc(l * 1.2))";
+                      }}
+                      onMouseLeave={(e) => {
+                        const target = e.currentTarget;
+                        target.style.background = "var(--color-review-accent)";
+                      }}
                       aria-label="Add review comment"
                     >
                       +
-                    </CommentButton>
+                    </button>
                     <Tooltip position="bottom" align="left">
                       Add review comment
                       <br />
                       (Shift-click to select range)
                     </Tooltip>
                   </TooltipWrapper>
-                </CommentButtonWrapper>
-                <DiffLine type={lineInfo.type}>
-                  <DiffIndicator type={lineInfo.type}>{indicator}</DiffIndicator>
+                </span>
+                <div
+                  className="font-mono whitespace-pre flex px-2"
+                  style={{ color: getDiffLineColor(lineInfo.type) }}
+                >
+                  <span
+                    className="inline-block w-1 text-center shrink-0"
+                    style={{
+                      color: getContrastColor(lineInfo.type),
+                      opacity: lineInfo.type === "add" || lineInfo.type === "remove" ? 0.9 : 0.6,
+                    }}
+                  >
+                    {indicator}
+                  </span>
                   {showLineNumbers && (
-                    <LineNumber type={lineInfo.type}>{lineInfo.lineNum}</LineNumber>
+                    <span
+                      className="flex items-center justify-end min-w-[35px] pr-1 select-none shrink-0"
+                      style={{
+                        color: getContrastColor(lineInfo.type),
+                        opacity: lineInfo.type === "add" || lineInfo.type === "remove" ? 0.9 : 0.6,
+                      }}
+                    >
+                      {lineInfo.lineNum}
+                    </span>
                   )}
-                  <LineContent type={lineInfo.type}>
+                  <span
+                    className="pl-2 [&_span:not(.search-highlight)]:!bg-transparent"
+                    style={{ color: getLineContentColor(lineInfo.type) }}
+                  >
                     <span dangerouslySetInnerHTML={{ __html: lineInfo.html }} />
-                  </LineContent>
-                </DiffLine>
-              </SelectableDiffLineWrapper>
+                  </span>
+                </div>
+              </div>
 
               {/* Show textarea after the last selected line */}
               {isSelected &&
@@ -621,7 +596,7 @@ export const SelectableDiffRenderer = React.memo<SelectableDiffRendererProps>(
             </React.Fragment>
           );
         })}
-      </DiffContainer>
+      </div>
     );
   }
 );
