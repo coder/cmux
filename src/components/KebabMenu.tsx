@@ -1,86 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
-import styled from "@emotion/styled";
 import { TooltipWrapper, Tooltip } from "./Tooltip";
-
-const KebabButton = styled.button<{ active?: boolean }>`
-  background: ${(props) => (props.active ? "rgba(255, 255, 255, 0.1)" : "none")};
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: #cccccc;
-  font-size: 10px;
-  padding: 2px 8px;
-  border-radius: 3px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-family: var(--font-primary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  white-space: nowrap;
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: rgba(255, 255, 255, 0.3);
-  }
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-`;
-
-const DropdownMenu = styled.div`
-  position: fixed;
-  background: #1e1e1e;
-  border: 1px solid #3e3e42;
-  border-radius: 3px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.8);
-  z-index: 10000;
-  min-width: 160px;
-  overflow: hidden;
-`;
-
-const MenuItem = styled.button<{ active?: boolean; disabled?: boolean }>`
-  width: 100%;
-  background: ${(props) => (props.active ? "rgba(255, 255, 255, 0.15)" : "#1e1e1e")};
-  border: none;
-  border-bottom: 1px solid #2d2d30;
-  color: ${(props) => (props.disabled ? "#808080" : "#cccccc")};
-  font-size: 11px;
-  padding: 8px 12px;
-  text-align: left;
-  cursor: ${(props) => (props.disabled ? "not-allowed" : "pointer")};
-  transition: all 0.15s ease;
-  font-family: var(--font-primary);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  opacity: ${(props) => (props.disabled ? 0.5 : 1)};
-
-  &:last-child {
-    border-bottom: none;
-  }
-
-  &:hover {
-    background: ${(props) => (props.disabled ? "#1e1e1e" : "rgba(255, 255, 255, 0.15)")};
-    color: ${(props) => (props.disabled ? "#808080" : "#ffffff")};
-  }
-`;
-
-const MenuItemEmoji = styled.span`
-  font-size: 13px;
-  width: 16px;
-  text-align: center;
-  flex-shrink: 0;
-`;
-
-const MenuItemLabel = styled.span`
-  flex: 1;
-`;
-
-const MenuContainer = styled.div`
-  position: relative;
-`;
+import { cn } from "@/lib/utils";
 
 export interface KebabMenuItem {
   label: string;
@@ -149,47 +70,60 @@ export const KebabMenu: React.FC<KebabMenuProps> = ({ items, className }) => {
   };
 
   const button = (
-    <KebabButton
+    <button
       ref={buttonRef}
-      active={isOpen}
       onClick={() => setIsOpen(!isOpen)}
-      className={className}
+      className={cn(
+        "border border-white/20 text-[#cccccc] text-[10px] py-0.5 px-2 rounded-[3px] cursor-pointer transition-all duration-200 font-primary flex items-center justify-center whitespace-nowrap",
+        isOpen ? "bg-white/10" : "bg-none",
+        "hover:bg-white/10 hover:border-white/30",
+        "disabled:opacity-50 disabled:cursor-not-allowed",
+        className
+      )}
     >
       ⋮
-    </KebabButton>
+    </button>
   );
 
   return (
     <>
-      <MenuContainer>
+      <div className="relative">
         <TooltipWrapper inline>
           {button}
           <Tooltip align="center">More actions</Tooltip>
         </TooltipWrapper>
-      </MenuContainer>
+      </div>
 
       {isOpen &&
         createPortal(
-          <DropdownMenu
+          <div
             ref={menuRef}
+            className="fixed bg-[#1e1e1e] border border-[#3e3e42] rounded-[3px] shadow-[0_4px_16px_rgba(0,0,0,0.8)] z-[10000] min-w-[160px] overflow-hidden"
             style={{
               top: `${dropdownPosition.top}px`,
               left: `${dropdownPosition.left}px`,
             }}
           >
             {items.map((item, index) => (
-              <MenuItem
+              <button
                 key={index}
-                active={item.active}
-                disabled={item.disabled}
                 onClick={() => handleItemClick(item)}
                 title={item.tooltip}
+                className={cn(
+                  "w-full border-none border-b border-[#2d2d30] text-[11px] py-2 px-3 text-left transition-all duration-150 font-primary flex items-center gap-2",
+                  "last:border-b-0",
+                  item.disabled
+                    ? "bg-[#1e1e1e] text-[#808080] cursor-not-allowed opacity-50 hover:bg-[#1e1e1e] hover:text-[#808080]"
+                    : item.active
+                      ? "bg-white/15 text-[#cccccc] cursor-pointer hover:bg-white/15 hover:text-white"
+                      : "bg-[#1e1e1e] text-[#cccccc] cursor-pointer hover:bg-white/15 hover:text-white"
+                )}
               >
-                {item.emoji && <MenuItemEmoji>{item.emoji}</MenuItemEmoji>}
-                <MenuItemLabel>{item.label}</MenuItemLabel>
-              </MenuItem>
+                {item.emoji && <span className="text-[13px] w-4 text-center flex-shrink-0">{item.emoji}</span>}
+                <span className="flex-1">{item.label}</span>
+              </button>
             ))}
-          </DropdownMenu>,
+          </div>,
           document.body
         )}
     </>
