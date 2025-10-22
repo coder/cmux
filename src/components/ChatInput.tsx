@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect, useId } from "react";
-import styled from "@emotion/styled";
+import { cn } from "@/lib/utils";
 import { CommandSuggestions, COMMAND_SUGGESTION_KEYS } from "./CommandSuggestions";
 import type { Toast } from "./ChatInputToast";
 import { ChatInputToast } from "./ChatInputToast";
@@ -862,7 +862,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   })();
 
   return (
-    <InputSection data-component="ChatInputSection">
+    <div className="relative pt-[5px] px-[15px] pb-[15px] bg-[#252526] border-t border-[#3e3e42] flex flex-col gap-2" style={{ containerType: "inline-size" }} data-component="ChatInputSection">
       <ChatInputToast toast={toast} onDismiss={handleToastDismiss} />
       <CommandSuggestions
         suggestions={commandSuggestions}
@@ -872,7 +872,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         ariaLabel="Slash command suggestions"
         listId={commandListId}
       />
-      <InputControls data-component="ChatInputControls">
+      <div className="flex gap-2.5 items-end" data-component="ChatInputControls">
         <VimTextArea
           ref={inputRef}
           value={input}
@@ -910,15 +910,15 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         </AttachButton>
       </InputControls>
       <ImageAttachments images={imageAttachments} onRemove={handleRemoveImage} />
-      <ModeToggles data-component="ChatModeToggles">
+      <div className="flex flex-col gap-1" data-component="ChatModeToggles">
         {editingMessage && (
-          <EditingIndicator>
+          <div className="text-[11px] text-edit-mode font-medium">
             Editing message ({formatKeybind(KEYBINDS.CANCEL_EDIT)} to cancel)
-          </EditingIndicator>
+          </div>
         )}
-        <ModeTogglesRow>
+        <div className="flex items-center">
           <ChatToggles modelString={preferredModel}>
-            <ModelDisplayWrapper>
+            <div className="flex items-center gap-1 mr-3 h-[11px] @[700px]:[&_.help-indicator-wrapper]:hidden">
               <ModelSelector
                 ref={modelSelectorRef}
                 value={preferredModel}
@@ -947,10 +947,15 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                   </Tooltip>
                 </TooltipWrapper>
               </span>
-            </ModelDisplayWrapper>
+            </div>
           </ChatToggles>
-          <ModeToggleWrapper>
-            <StyledToggleContainer mode={mode}>
+          <div className="flex items-center gap-1.5 ml-auto @[700px]:hidden">
+            <div className={cn(
+              "flex gap-0 bg-toggle-bg rounded",
+              "[&>button:first-of-type]:rounded-l [&>button:last-of-type]:rounded-r",
+              mode === "exec" && "[&>button:first-of-type]:bg-exec-mode [&>button:first-of-type]:text-white [&>button:first-of-type]:hover:bg-exec-mode-hover",
+              mode === "plan" && "[&>button:last-of-type]:bg-plan-mode [&>button:last-of-type]:text-white [&>button:last-of-type]:hover:bg-plan-mode-hover"
+            )}>
               <ToggleGroup<UIMode>
                 options={[
                   { value: "exec", label: "Exec" },
@@ -959,7 +964,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                 value={mode}
                 onChange={setMode}
               />
-            </StyledToggleContainer>
+            </div>
             <span className="help-indicator-wrapper">
               <TooltipWrapper inline>
                 <HelpIndicator>?</HelpIndicator>
@@ -974,9 +979,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                 </Tooltip>
               </TooltipWrapper>
             </span>
-          </ModeToggleWrapper>
-        </ModeTogglesRow>
-      </ModeToggles>
-    </InputSection>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 };
