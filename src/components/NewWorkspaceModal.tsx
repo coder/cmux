@@ -1,89 +1,7 @@
 import React, { useEffect, useId, useState } from "react";
-import styled from "@emotion/styled";
 import { Modal, ModalInfo, ModalActions, CancelButton, PrimaryButton } from "./Modal";
 import { TooltipWrapper, Tooltip } from "./Tooltip";
 import { formatNewCommand } from "@/utils/chatCommands";
-
-const FormGroup = styled.div`
-  margin-bottom: 20px;
-
-  label {
-    display: block;
-    margin-bottom: 8px;
-    color: #ccc;
-    font-size: 14px;
-  }
-
-  input,
-  select {
-    width: 100%;
-    padding: 8px 12px;
-    background: #2d2d2d;
-    border: 1px solid #444;
-    border-radius: 4px;
-    color: #fff;
-    font-size: 14px;
-
-    &:focus {
-      outline: none;
-      border-color: #007acc;
-    }
-
-    &:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
-  }
-
-  select {
-    cursor: pointer;
-
-    option {
-      background: #2d2d2d;
-      color: #fff;
-    }
-  }
-`;
-
-const ErrorMessage = styled.div`
-  color: #ff5555;
-  font-size: 13px;
-  margin-top: 6px;
-`;
-
-const InfoCode = styled.code`
-  display: block;
-  word-break: break-all;
-`;
-
-const UnderlinedLabel = styled.span`
-  text-decoration: underline dotted #666;
-  text-underline-offset: 2px;
-  cursor: help;
-`;
-
-const CommandDisplay = styled.div`
-  margin-top: 20px;
-  padding: 12px;
-  background: #1e1e1e;
-  border: 1px solid #3e3e42;
-  border-radius: 4px;
-  font-family: "Menlo", "Monaco", "Courier New", monospace;
-  font-size: 13px;
-  color: #d4d4d4;
-  white-space: pre-wrap;
-  word-break: break-all;
-`;
-
-const CommandLabel = styled.div`
-  font-size: 12px;
-  color: #888;
-  margin-bottom: 8px;
-  font-family:
-    system-ui,
-    -apple-system,
-    sans-serif;
-`;
 
 interface NewWorkspaceModalProps {
   isOpen: boolean;
@@ -182,13 +100,15 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
       describedById={infoId}
     >
       <form onSubmit={(event) => void handleSubmit(event)}>
-        <FormGroup>
+        <div className="mb-5 [&_label]:block [&_label]:mb-2 [&_label]:text-[#ccc] [&_label]:text-sm [&_input]:w-full [&_input]:py-2 [&_input]:px-3 [&_input]:bg-[#2d2d2d] [&_input]:border [&_input]:border-[#444] [&_input]:rounded [&_input]:text-white [&_input]:text-sm [&_input]:focus:outline-none [&_input]:focus:border-[#007acc] [&_input]:disabled:opacity-60 [&_input]:disabled:cursor-not-allowed [&_select]:w-full [&_select]:py-2 [&_select]:px-3 [&_select]:bg-[#2d2d2d] [&_select]:border [&_select]:border-[#444] [&_select]:rounded [&_select]:text-white [&_select]:text-sm [&_select]:focus:outline-none [&_select]:focus:border-[#007acc] [&_select]:disabled:opacity-60 [&_select]:disabled:cursor-not-allowed [&_select]:cursor-pointer [&_option]:bg-[#2d2d2d] [&_option]:text-white">
           <label htmlFor="branchName">
             <TooltipWrapper inline>
-              <UnderlinedLabel>Workspace Branch Name:</UnderlinedLabel>
+              <span className="underline decoration-dotted decoration-[#666] underline-offset-2 cursor-help">
+                Workspace Branch Name:
+              </span>
               <Tooltip width="wide" position="bottom" interactive>
                 <strong>About Workspaces:</strong>
-                <ul style={{ margin: "4px 0", paddingLeft: "16px" }}>
+                <ul className="my-1 pl-4">
                   <li>Uses git worktrees (separate directories sharing .git)</li>
                   <li>All committed changes visible across all worktrees</li>
                   <li>Agent can switch branches freely during session</li>
@@ -214,10 +134,10 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
             required
             aria-required="true"
           />
-          {error && <ErrorMessage>{error}</ErrorMessage>}
-        </FormGroup>
+          {error && <div className="text-[#ff5555] text-[13px] mt-1.5">{error}</div>}
+        </div>
 
-        <FormGroup>
+        <div className="mb-5 [&_label]:block [&_label]:mb-2 [&_label]:text-[#ccc] [&_label]:text-sm [&_input]:w-full [&_input]:py-2 [&_input]:px-3 [&_input]:bg-[#2d2d2d] [&_input]:border [&_input]:border-[#444] [&_input]:rounded [&_input]:text-white [&_input]:text-sm [&_input]:focus:outline-none [&_input]:focus:border-[#007acc] [&_input]:disabled:opacity-60 [&_input]:disabled:cursor-not-allowed [&_select]:w-full [&_select]:py-2 [&_select]:px-3 [&_select]:bg-[#2d2d2d] [&_select]:border [&_select]:border-[#444] [&_select]:rounded [&_select]:text-white [&_select]:text-sm [&_select]:focus:outline-none [&_select]:focus:border-[#007acc] [&_select]:disabled:opacity-60 [&_select]:disabled:cursor-not-allowed [&_select]:cursor-pointer [&_option]:bg-[#2d2d2d] [&_option]:text-white">
           <label htmlFor="trunkBranch">Trunk Branch:</label>
           {hasBranches ? (
             <select
@@ -247,25 +167,25 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
             />
           )}
           {!hasBranches && (
-            <ErrorMessage>
+            <div className="text-[#ff5555] text-[13px] mt-1.5">
               No branches were detected automatically. Enter the trunk branch manually.
-            </ErrorMessage>
+            </div>
           )}
-        </FormGroup>
+        </div>
 
         <ModalInfo id={infoId}>
           <p>This will create a git worktree at:</p>
-          <InfoCode>
+          <code className="block break-all">
             ~/.cmux/src/{projectName}/{branchName || "<branch-name>"}
-          </InfoCode>
+          </code>
         </ModalInfo>
 
         {branchName.trim() && (
           <div>
-            <CommandLabel>Equivalent command:</CommandLabel>
-            <CommandDisplay>
+            <div className="text-xs text-[#888] mb-2 font-sans">Equivalent command:</div>
+            <div className="mt-5 p-3 bg-[#1e1e1e] border border-[#3e3e42] rounded font-mono text-[13px] text-[#d4d4d4] whitespace-pre-wrap break-all">
               {formatNewCommand(branchName.trim(), trunkBranch.trim() || undefined)}
-            </CommandDisplay>
+            </div>
           </div>
         )}
 
