@@ -332,6 +332,12 @@ export class IpcMain {
       IPC_CHANNELS.WORKSPACE_GENERATE_TITLE,
       async (_event, workspaceId: string, modelString: string) => {
         try {
+          // Check if workspace already has a title
+          const metadataResult = this.aiService.getWorkspaceMetadata(workspaceId);
+          if (metadataResult.success && metadataResult.data.title) {
+            return Err("Workspace already has a title");
+          }
+
           if (!modelString || !modelString.includes(":")) {
             return Err(
               'Invalid model string format. Expected "provider:model-id" (e.g., "anthropic:claude-3-5-sonnet-20241022")'
@@ -343,7 +349,7 @@ export class IpcMain {
 
           // Create model instance using utility
           const { createModelFromString } = await import("@/utils/ai/modelFactory");
-          const model = createModelFromString(modelString, providersConfig);
+          const model = createModelFromString(modelString, providersConfig ?? undefined);
 
           // Generate title
           const result = await generateWorkspaceTitle(

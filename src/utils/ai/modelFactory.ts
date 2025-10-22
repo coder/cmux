@@ -6,7 +6,9 @@
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createOpenAI } from "@ai-sdk/openai";
 import type { LanguageModel } from "ai";
-import type { ProvidersConfig } from "@/types/providers";
+
+// ProvidersConfig is the type from providers.jsonc (Record<string, unknown>)
+type ProvidersConfig = Record<string, Record<string, unknown>>;
 
 /**
  * Creates a language model instance from a model string like "anthropic:claude-3-5-sonnet-20241022"

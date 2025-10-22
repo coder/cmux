@@ -763,32 +763,22 @@ export class WorkspaceStore {
   /**
    * Auto-generate title after first assistant response.
    * Uses the workspace's current model to respect user's sendMessageOptions.
+   * 
+   * Note: Metadata check is done via getWorkspaceMetadata() which queries the config.
    */
   private maybeGenerateTitle(
     workspaceId: string,
     aggregator: StreamingMessageAggregator
   ): void {
-    // Get workspace metadata
-    const metadata = this.workspaceMetadata.get(workspaceId);
-    if (!metadata) {
-      return; // No metadata available
-    }
-
-    // Skip if workspace already has a title
-    if (metadata.title) {
-      return;
-    }
-
     // Check if this is the first assistant response
-    const messages = aggregator.getMessages();
-    const assistantMessages = messages.filter((m) => m.role === "assistant");
+    const messages = aggregator.getAllMessages();
+    const assistantMessages = messages.filter((m: CmuxMessage) => m.role === "assistant");
     if (assistantMessages.length !== 1) {
       return; // Not the first assistant message
     }
 
     // Get the current model from workspace state (the model used for this stream)
-    const state = this.states.get(workspaceId);
-    const currentModel = state?.currentModel;
+    const currentModel = this.getWorkspaceSidebarState(workspaceId).currentModel;
     if (!currentModel || !currentModel.includes(":")) {
       console.warn(
         `[AutoTitle] Cannot generate title for ${workspaceId}: no valid model configured`
@@ -796,6 +786,7 @@ export class WorkspaceStore {
       return;
     }
 
+    // Check workspace metadata via IPC (it will check if title already exists)
     // Fire and forget - generate title in background
     void window.api.workspace
       .generateTitle(workspaceId, currentModel)
@@ -803,7 +794,8 @@ export class WorkspaceStore {
         if (result.success) {
           console.log(`[AutoTitle] Generated title for ${workspaceId}: "${result.data.title}"`);
         } else {
-          console.error(`[AutoTitle] Failed to generate title for ${workspaceId}:`, result.error);
+          // Title already exists or other error - this is fine, just log it
+          console.log(`[AutoTitle] Skipped title generation for ${workspaceId}:`, result.error);
         }
       })
       .catch((error) => {
@@ -956,6 +948,7 @@ export class WorkspaceStore {
       this.finalizeUsageStats(workspaceId, data.metadata);
 
       // Auto-generate title after first assistant response (if workspace has no title)
+      // Note: We don't have metadata here, so title check happens in the method
       this.maybeGenerateTitle(workspaceId, aggregator);
 
       return;

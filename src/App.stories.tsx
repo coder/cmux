@@ -60,7 +60,7 @@ function setupMockAPI(options: {
           success: true,
           data: { success: true, output: "", exitCode: 0, wall_duration_ms: 0 },
         }),
-      generateTitle: () =>
+      generateTitle: (_workspaceId: string, _modelString: string) =>
         Promise.resolve({
           success: true,
           data: { title: "Generated Title" },
@@ -602,7 +602,7 @@ export const ActiveWorkspaceWithChat: Story = {
                   success: true,
                   data: { success: true, output: "", exitCode: 0, wall_duration_ms: 0 },
                 }),
-              generateTitle: () =>
+              generateTitle: (_workspaceId: string, _modelString: string) =>
                 Promise.resolve({
                   success: true,
                   data: { title: "Generated Title" },
