@@ -1,5 +1,5 @@
 {
-  "projectId": "REPLACE_WITH_YOUR_PROJECT_ID",
+  "projectId": "68e30fca49979473fc9abc73",
   "buildScriptName": "storybook:build",
   "storybookBuildDir": "storybook-static",
   "exitZeroOnChanges": true,
