@@ -135,8 +135,8 @@
     --color-token-cached: hsl(var(--token-cached));
 
     /* Font Variables */
-    --font-primary: "IBM Plex Sans", sans-serif;
-    --font-monospace: "JetBrains Mono", Consolas, Monaco, monospace;
+    --font-primary: IBM Plex Sans, sans-serif;
+    --font-monospace: JetBrains Mono, Consolas, Monaco, monospace;
   }
 
   * {
