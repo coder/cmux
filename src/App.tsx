@@ -1,9 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import styled from "@emotion/styled";
-import { Global, css } from "@emotion/react";
-import { GlobalColors } from "./styles/colors";
-import { GlobalFonts } from "./styles/fonts";
-import { GlobalScrollbars } from "./styles/scrollbars";
+import "./styles/globals.css";
 import type { ProjectConfig } from "./config";
 import type { WorkspaceSelection } from "./components/ProjectSidebar";
 import type { FrontendWorkspaceMetadata } from "./types/workspace";
@@ -847,10 +844,6 @@ function AppInner() {
 
   return (
     <>
-      <GlobalColors />
-      <GlobalFonts />
-      <GlobalScrollbars />
-      <Global styles={globalStyles} />
       <AppContainer>
         <LeftSidebar
           projects={projects}

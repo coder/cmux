@@ -28,7 +28,6 @@ const reactCompilerConfig = {
 // Babel plugins configuration (shared between dev and production)
 const babelPlugins = [
   ["babel-plugin-react-compiler", reactCompilerConfig],
-  "@emotion/babel-plugin", // Required for component selector syntax (e.g., ${Component}:hover &)
 ];
 
 // Base plugins for both dev and production
