@@ -17,13 +17,30 @@ This PR establishes the foundation for migrating from `@emotion/styled` to Tailw
 - ✅ Updated `App.tsx` to import `globals.css` instead of Emotion Global components
 - ✅ Verified build works with Tailwind
 
-### Converted Components (2/64 = 3%)
-- ✅ `src/components/ErrorMessage.tsx` 
-- ✅ `src/components/ToggleGroup.tsx`
+### Converted Components (13/64 = 20%)
+
+**Completed:**
+- ✅ `src/components/ErrorMessage.tsx` - Error display component
+- ✅ `src/components/ToggleGroup.tsx` - Toggle button group
+- ✅ `src/components/StatusIndicator.tsx` - Status dot with tooltip
+- ✅ `src/components/Tooltip.tsx` - Portal-based tooltip with collision detection
+- ✅ `src/components/ChatToggles.tsx` - Chat control toggles container
+- ✅ `src/components/Context1MCheckbox.tsx` - 1M context checkbox
+- ✅ `src/components/Modal.tsx` - All modal components (10+ exports)
+- ✅ `src/components/DirectorySelectModal.tsx` - Directory selection modal
+- ✅ `src/components/tools/shared/ToolPrimitives.tsx` - All tool UI primitives (10+ exports)
+- ✅ `src/components/Messages/HistoryHiddenMessage.tsx` - Hidden message indicator
+- ✅ `src/components/Messages/TerminalOutput.tsx` - Terminal output display
+- ✅ `src/components/Messages/CompactingMessageContent.tsx` - Compaction fade container
+- ✅ `src/components/Messages/TypewriterMarkdown.tsx` - Streaming markdown
 
 ## What's Remaining ⏳
 
-### Components Using styled-components (62 files)
+### Components Using styled-components (51 files)
+
+**Current Progress:** 13 of 64 components converted = **20% complete**
+
+The remaining 51 components include the most complex files in the codebase:
 
 **Critical Path Components:**
 - `src/App.tsx` - App container, main content, welcome view
