@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import styled from "@emotion/styled";
+import { cn } from "@/lib/utils";
 import "./styles/globals.css";
 import type { ProjectConfig } from "./config";
 import type { WorkspaceSelection } from "./components/ProjectSidebar";
@@ -844,7 +844,7 @@ function AppInner() {
 
   return (
     <>
-      <AppContainer>
+      <div className="flex h-screen overflow-hidden bg-[#1e1e1e] [@media(max-width:768px)]:flex-col">
         <LeftSidebar
           projects={projects}
           workspaceMetadata={workspaceMetadata}
@@ -864,8 +864,8 @@ function AppInner() {
           sortedWorkspacesByProject={sortedWorkspacesByProject}
           workspaceRecency={workspaceRecency}
         />
-        <MainContent>
-          <ContentArea>
+        <div className="flex-1 flex flex-col overflow-hidden min-w-0 [@media(max-width:768px)]:w-full">
+          <div className="flex-1 flex overflow-hidden [@media(max-width:768px)]:flex-col">
             {selectedWorkspace ? (
               <ErrorBoundary
                 workspaceInfo={`${selectedWorkspace.projectName}/${selectedWorkspace.namedWorkspacePath?.split("/").pop() ?? selectedWorkspace.workspaceId}`}
@@ -882,13 +882,13 @@ function AppInner() {
                 />
               </ErrorBoundary>
             ) : (
-              <WelcomeView>
-                <h2>Welcome to Cmux</h2>
+              <div className="text-center max-w-[800px] mx-auto w-full [&_h2]:text-white [&_h2]:mb-4 [&_h2]:font-bold [&_h2]:tracking-tight [&_p]:text-[#888] [&_p]:leading-[1.6]" style={{ padding: "clamp(40px, 10vh, 100px) 20px", fontSize: "clamp(14px, 2vw, 16px)" }}>
+                <h2 style={{ fontSize: "clamp(24px, 5vw, 36px)", letterSpacing: "-1px" }}>Welcome to Cmux</h2>
                 <p>Select a workspace from the sidebar or add a new one to get started.</p>
-              </WelcomeView>
+              </div>
             )}
-          </ContentArea>
-        </MainContent>
+          </div>
+        </div>
         <CommandPalette
           getSlashContext={() => ({
             providerNames: [],
@@ -915,7 +915,7 @@ function AppInner() {
           />
         )}
         <DirectorySelectModal />
-      </AppContainer>
+      </div>
     </>
   );
 }
