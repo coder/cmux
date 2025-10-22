@@ -29,6 +29,7 @@ import type { BashToolResult } from "@/types/tools";
 import { secretsToRecord } from "@/types/secrets";
 import { DisposableTempDir } from "@/services/tempDir";
 import { generateWorkspaceTitle } from "@/services/autotitle";
+import { createModelFromString } from "@/utils/ai/modelFactory";
 
 /**
  * IpcMain - Manages all IPC handlers and service coordination
@@ -338,7 +339,7 @@ export class IpcMain {
             return Err("Workspace already has a title");
           }
 
-          if (!modelString || !modelString.includes(":")) {
+          if (!modelString?.includes(":")) {
             return Err(
               'Invalid model string format. Expected "provider:model-id" (e.g., "anthropic:claude-3-5-sonnet-20241022")'
             );
@@ -348,7 +349,6 @@ export class IpcMain {
           const providersConfig = this.config.loadProvidersConfig();
 
           // Create model instance using utility
-          const { createModelFromString } = await import("@/utils/ai/modelFactory");
           const model = createModelFromString(modelString, providersConfig ?? undefined);
 
           // Generate title

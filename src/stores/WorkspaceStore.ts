@@ -779,7 +779,7 @@ export class WorkspaceStore {
 
     // Get the current model from workspace state (the model used for this stream)
     const currentModel = this.getWorkspaceSidebarState(workspaceId).currentModel;
-    if (!currentModel || !currentModel.includes(":")) {
+    if (!currentModel?.includes(":")) {
       console.warn(
         `[AutoTitle] Cannot generate title for ${workspaceId}: no valid model configured`
       );
