@@ -158,8 +158,8 @@ describeIntegration("IpcMain rename workspace integration tests", () => {
           IPC_CHANNELS.WORKSPACE_GET_INFO,
           secondWorkspaceId
         );
-        expect(metadata1.title).toBe(secondBranchName);
-        expect(metadata2.title).toBe(secondBranchName);
+        expect(metadata1.title).toBe(secondBranchName); // First workspace was renamed
+        expect(metadata2.title).toBeUndefined(); // Second workspace has no title yet (auto-generated later)
         expect(metadata1.id).not.toBe(metadata2.id); // Different IDs
       } finally {
         await cleanup();
