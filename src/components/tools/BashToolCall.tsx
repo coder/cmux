@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from "react";
-import styled from "@emotion/styled";
 import type { BashToolArgs, BashToolResult } from "@/types/tools";
 import { BASH_DEFAULT_TIMEOUT_SECS } from "@/constants/toolLimits";
 import {
@@ -135,13 +134,30 @@ export const BashToolCall: React.FC<BashToolCallProps> = ({
           <span>🔧</span>
           <Tooltip>bash</Tooltip>
         </TooltipWrapper>
-        <ScriptPreview>{args.script}</ScriptPreview>
-        <TimeoutInfo status={isPending ? status : undefined}>
+        <span className="text-text font-monospace whitespace-nowrap overflow-hidden text-ellipsis max-w-[400px]">
+          {args.script}
+        </span>
+        <span
+          className="text-[10px] ml-2 whitespace-nowrap [@container(max-width:500px)]:hidden"
+          style={{
+            color: isPending ? "var(--color-pending)" : "var(--color-text-secondary)",
+          }}
+        >
           timeout: {args.timeout_secs ?? BASH_DEFAULT_TIMEOUT_SECS}s
           {result && ` • took ${formatDuration(result.wall_duration_ms)}`}
           {!result && isPending && elapsedTime > 0 && ` • ${formatDuration(elapsedTime)}`}
-        </TimeoutInfo>
-        {result && <ExitCodeBadge exitCode={result.exitCode}>{result.exitCode}</ExitCodeBadge>}
+        </span>
+        {result && (
+          <span
+            className="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium ml-2 whitespace-nowrap flex-shrink-0"
+            style={{
+              background: result.exitCode === 0 ? "#4caf50" : "#f44336",
+              color: "white",
+            }}
+          >
+            {result.exitCode}
+          </span>
+        )}
         <StatusIndicator status={status}>{getStatusDisplay(status)}</StatusIndicator>
       </ToolHeader>
 
@@ -157,14 +173,18 @@ export const BashToolCall: React.FC<BashToolCallProps> = ({
               {result.success === false && result.error && (
                 <DetailSection>
                   <DetailLabel>Error</DetailLabel>
-                  <ErrorMessage>{result.error}</ErrorMessage>
+                  <div className="text-[#f44336] text-[11px] px-2 py-1.5 bg-[rgba(244,67,54,0.1)] rounded border-l-2 border-[#f44336]">
+                    {result.error}
+                  </div>
                 </DetailSection>
               )}
 
               {result.output && (
                 <DetailSection>
                   <DetailLabel>Output</DetailLabel>
-                  <OutputBlock>{result.output}</OutputBlock>
+                  <pre className="m-0 px-2 py-1.5 bg-[var(--color-code-bg)] rounded border-l-2 border-[#4caf50] text-[11px] leading-[1.4] whitespace-pre-wrap break-words max-h-[200px] overflow-y-auto">
+                    {result.output}
+                  </pre>
                 </DetailSection>
               )}
             </>
