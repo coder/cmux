@@ -6,31 +6,6 @@ import { TerminalOutput } from "./TerminalOutput";
 import { formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
 import type { KebabMenuItem } from "@/components/KebabMenu";
 
-const FormattedContent = styled.pre`
-  margin: 0;
-  font-family: var(--font-monospace);
-  font-size: 12px;
-  line-height: 1.5;
-  white-space: pre-wrap;
-  word-break: break-word;
-  color: #999999;
-  opacity: 0.9;
-`;
-
-const ImageContainer = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 8px;
-`;
-
-const MessageImage = styled.img`
-  max-width: min(300px, calc(100vw - 100px));
-  max-height: 300px;
-  border-radius: 4px;
-  border: 1px solid #3e3e42;
-`;
-
 interface UserMessageProps {
   message: DisplayedMessage & { type: "user" };
   className?: string;

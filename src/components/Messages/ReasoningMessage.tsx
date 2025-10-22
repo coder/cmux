@@ -45,7 +45,12 @@ export const ReasoningMessage: React.FC<ReasoningMessageProps> = ({ message, cla
   };
 
   return (
-    <div className={cn("my-2 p-0.5 bg-[color-mix(in_srgb,var(--color-thinking-mode)_2%,transparent)] rounded relative", className)}>
+    <div
+      className={cn(
+        "my-2 p-0.5 bg-[color-mix(in_srgb,var(--color-thinking-mode)_2%,transparent)] rounded relative",
+        className
+      )}
+    >
       <div
         className="flex items-center justify-between gap-2 mb-1.5 cursor-pointer select-none"
         onClick={toggleExpanded}

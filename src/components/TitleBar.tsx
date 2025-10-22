@@ -9,15 +9,13 @@ import { isTelemetryEnabled } from "@/telemetry";
 const UPDATE_CHECK_INTERVAL_MS = 4 * 60 * 60 * 1000; // 4 hours
 const UPDATE_CHECK_HOVER_COOLDOWN_MS = 60 * 1000; // 1 minute
 
-const updateStatusColors: Record<
-  "available" | "downloading" | "downloaded" | "disabled",
-  string
-> = {
-  available: "#4CAF50", // Green for available
-  downloading: "#2196F3", // Blue for downloading
-  downloaded: "#FF9800", // Orange for ready to install
-  disabled: "#666666", // Gray for disabled
-};
+const updateStatusColors: Record<"available" | "downloading" | "downloaded" | "disabled", string> =
+  {
+    available: "#4CAF50", // Green for available
+    downloading: "#2196F3", // Blue for downloading
+    downloaded: "#FF9800", // Orange for ready to install
+    disabled: "#666666", // Gray for disabled
+  };
 
 interface VersionMetadata {
   buildTime: string;
@@ -223,7 +221,9 @@ export function TitleBar() {
             <div
               className={cn(
                 "w-4 h-4 flex items-center justify-center",
-                indicatorStatus === "disabled" ? "cursor-default" : "cursor-pointer hover:opacity-70"
+                indicatorStatus === "disabled"
+                  ? "cursor-default"
+                  : "cursor-pointer hover:opacity-70"
               )}
               style={{ color: updateStatusColors[indicatorStatus] }}
               onClick={handleUpdateClick}

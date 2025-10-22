@@ -25,360 +25,6 @@ import { RenameProvider } from "@/contexts/WorkspaceRenameContext";
 // Re-export WorkspaceSelection for backwards compatibility
 export type { WorkspaceSelection } from "./WorkspaceListItem";
 
-// Styled Components
-const SidebarContent = styled.div`
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  overflow: hidden;
-  font-family: var(--font-primary);
-`;
-
-const SidebarHeader = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px;
-  border-bottom: 1px solid #1e1e1e;
-
-  h2 {
-    margin: 0;
-    font-size: 13px;
-    font-weight: 600;
-    color: #cccccc;
-    text-transform: uppercase;
-    letter-spacing: 0.8px;
-  }
-`;
-
-const AddProjectBtn = styled.button`
-  width: 24px;
-  height: 24px;
-  background: transparent;
-  color: #cccccc;
-  border: 1px solid transparent;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 18px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  transition: all 0.2s;
-
-  &:hover {
-    background: #2a2a2b;
-    border-color: #3c3c3c;
-  }
-`;
-
-const CollapseButton = styled.button`
-  width: 100%;
-  height: 36px;
-  background: transparent;
-  color: #888;
-  border: none;
-  border-top: 1px solid #1e1e1e;
-  cursor: pointer;
-  font-size: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  transition: all 0.2s;
-  margin-top: auto;
-
-  &:hover {
-    background: #2a2a2b;
-    color: #ccc;
-  }
-`;
-
-const ProjectsList = styled.div`
-  flex: 1;
-  overflow-y: auto;
-`;
-
-const EmptyState = styled.div`
-  padding: 32px 16px;
-  text-align: center;
-
-  p {
-    color: #888;
-    font-size: 13px;
-    margin-bottom: 16px;
-  }
-`;
-
-const AddFirstProjectBtn = styled.button`
-  background: #007acc;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  padding: 8px 16px;
-  font-size: 13px;
-  cursor: pointer;
-  transition: background 0.2s;
-
-  &:hover {
-    background: #005a9e;
-  }
-`;
-
-const ProjectGroup = styled.div`
-  border-bottom: 1px solid #2a2a2b;
-`;
-
-const ProjectItem = styled.div<{ selected?: boolean; isDragging?: boolean; isOver?: boolean }>`
-  padding: 4px 12px;
-  cursor: ${(props) => (props.isDragging ? "grabbing" : "grab")};
-  display: flex;
-  align-items: center;
-  border-left: 3px solid transparent;
-  transition: all 0.15s;
-  opacity: ${(props) => (props.isDragging ? 0.4 : 1)};
-  background: ${(props) => (props.isOver ? "rgba(0, 122, 204, 0.08)" : "transparent")};
-
-  ${(props) =>
-    props.selected &&
-    css`
-      background: #2a2a2b;
-      border-left-color: #007acc;
-    `}
-
-  ${(props) =>
-    props.isDragging &&
-    css`
-      * {
-        cursor: grabbing !important;
-      }
-    `}
-
-  &:hover {
-    background: #2a2a2b;
-
-    button {
-      opacity: 1;
-    }
-
-    /* Show drag handle on hover - target by data attribute */
-    [data-drag-handle] {
-      opacity: 1;
-    }
-  }
-`;
-
-const ExpandIcon = styled.span<{ expanded?: boolean }>`
-  color: #888;
-  font-size: 10px;
-  margin-right: 8px;
-  transition: transform 0.2s;
-  flex-shrink: 0;
-
-  ${(props) =>
-    props.expanded &&
-    css`
-      transform: rotate(90deg);
-    `}
-`;
-
-// Global DnD drag layer to render a semi-transparent preview of the dragged project
-const DragLayerContainer = styled.div`
-  position: fixed;
-  pointer-events: none;
-  z-index: 9999;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-`;
-
-const DragPreviewItem = styled.div`
-  background: rgba(42, 42, 43, 0.95);
-  color: #ccc;
-  padding: 6px 12px;
-  border-left: 3px solid #007acc;
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  width: fit-content;
-  max-width: 280px;
-  min-width: 180px;
-`;
-
-const DragHandle = styled.span`
-  color: #666;
-  font-size: 12px;
-  margin-right: 6px;
-  cursor: grab;
-  opacity: 0;
-  user-select: none;
-  transition: opacity 0.15s;
-`;
-
-const ProjectInfo = styled.div`
-  flex: 1;
-  min-width: 0;
-  padding-right: 8px;
-`;
-
-const ProjectName = styled.div`
-  color: #cccccc;
-  font-size: 14px;
-  font-weight: 500;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  letter-spacing: 0.2px;
-`;
-
-const ProjectPath = styled.div`
-  color: #6e6e6e;
-  font-size: 11px;
-  margin-top: 1px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-family: var(--font-monospace);
-`;
-
-const RemoveBtn = styled.button`
-  width: 20px;
-  height: 20px;
-  background: transparent;
-  color: #6e6e6e;
-  border: none;
-  border-radius: 3px;
-  cursor: pointer;
-  font-size: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-  opacity: 0;
-  flex-shrink: 0;
-
-  &:hover {
-    color: #ff5555;
-    background: rgba(255, 85, 85, 0.1);
-  }
-`;
-
-const SecretsBtn = styled.button`
-  width: 20px;
-  height: 20px;
-  background: transparent;
-  color: #6e6e6e;
-  border: none;
-  border-radius: 3px;
-  cursor: pointer;
-  font-size: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-  opacity: 0;
-  flex-shrink: 0;
-  margin-right: 4px;
-
-  &:hover {
-    color: #569cd6;
-    background: rgba(86, 156, 214, 0.1);
-  }
-`;
-
-const WorkspacesContainer = styled.div`
-  background: #1a1a1a;
-`;
-
-const WorkspaceHeader = styled.div`
-  padding: 8px 12px 8px 22px;
-  border-bottom: 1px solid #2a2a2b;
-`;
-
-const AddWorkspaceBtn = styled.button`
-  width: 100%;
-  padding: 6px 12px;
-  background: transparent;
-  color: #888;
-  border: 1px dashed #444;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 13px;
-  transition: all 0.2s;
-  text-align: left;
-
-  &:hover {
-    background: #2a2a2b;
-    border-color: #555;
-    color: #ccc;
-  }
-`;
-
-const OldWorkspacesSection = styled.button<{ expanded: boolean }>`
-  width: 100%;
-  padding: 8px 12px 8px 22px;
-  background: transparent;
-  color: #858585;
-  border: none;
-  border-top: 1px solid #2a2a2b;
-  cursor: pointer;
-  font-size: 12px;
-  transition: all 0.15s;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-weight: 500;
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.03);
-    color: #aaa;
-
-    .arrow {
-      color: #aaa;
-    }
-  }
-
-  .label {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
-  .count {
-    color: #666;
-    font-weight: 400;
-  }
-
-  .arrow {
-    font-size: 11px;
-    color: #666;
-    transition: transform 0.2s ease;
-    transform: ${(props) => (props.expanded ? "rotate(90deg)" : "rotate(0deg)")};
-  }
-`;
-
-const RemoveErrorToast = styled.div<{ top: number; left: number }>`
-  position: fixed;
-  top: ${(props) => props.top}px;
-  left: ${(props) => props.left}px;
-  max-width: min(400px, calc(100vw - 40px));
-  padding: 12px 16px;
-  background: var(--color-error-bg);
-  border: 1px solid var(--color-error);
-  border-radius: 6px;
-  color: var(--color-error);
-  font-size: 12px;
-  z-index: 10000;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
-  font-family: var(--font-monospace);
-  line-height: 1.4;
-  white-space: pre-wrap;
-  word-break: break-word;
-  pointer-events: auto;
-`;
-
 // Draggable project item moved to module scope to avoid remounting on every parent render.
 // Defining components inside another component causes a new function identity each render,
 // which forces React to unmount/remount the subtree. That led to hover flicker and high CPU.
@@ -778,6 +424,7 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
     <RenameProvider onRenameWorkspace={onRenameWorkspace}>
       <DndProvider backend={HTML5Backend}>
         <ProjectDragLayer />
+<<<<<<< HEAD
         <SidebarContent role="navigation" aria-label="Projects">
           {!collapsed && (
             <>
@@ -793,6 +440,29 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
                 </TooltipWrapper>
               </SidebarHeader>
               <ProjectsList>
+=======
+        <div
+          className="flex flex-col flex-1 overflow-hidden font-primary"
+          role="navigation"
+          aria-label="Projects"
+        >
+          {!collapsed && (
+            <>
+              <div className="flex justify-between items-center p-4 border-b border-[#1e1e1e]">
+                <h2 className="m-0 text-[13px] font-semibold text-[#cccccc] uppercase tracking-[0.8px]">
+                  Projects
+                </h2>
+                <button
+                  onClick={onAddProject}
+                  title="Add Project"
+                  aria-label="Add project"
+                  className="w-6 h-6 bg-transparent text-[#cccccc] border border-transparent rounded cursor-pointer text-lg flex items-center justify-center p-0 transition-all duration-200 hover:bg-[#2a2a2b] hover:border-[#3c3c3c]"
+                >
+                  +
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto">
+>>>>>>> 6778c48 (🤖 fix: Restore properly converted Tailwind files after rebase)
                 {projects.size === 0 ? (
                   <EmptyState>
                     <p>No projects</p>
@@ -931,10 +601,28 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
                                       >
                                         <div className="label">
                                           <span>Older than {formatOldWorkspaceThreshold()}</span>
+<<<<<<< HEAD
                                           <span className="count">({old.length})</span>
                                         </div>
                                         <span className="arrow">▶</span>
                                       </OldWorkspacesSection>
+=======
+                                          <span className="text-[#666] font-normal">
+                                            ({old.length})
+                                          </span>
+                                        </div>
+                                        <span
+                                          className="arrow text-[11px] text-[#666] transition-transform duration-200 ease-in-out"
+                                          style={{
+                                            transform: showOldWorkspaces
+                                              ? "rotate(90deg)"
+                                              : "rotate(0deg)",
+                                          }}
+                                        >
+                                          ▶
+                                        </span>
+                                      </button>
+>>>>>>> 6778c48 (🤖 fix: Restore properly converted Tailwind files after rebase)
                                       {showOldWorkspaces && old.map(renderWorkspace)}
                                     </>
                                   )}

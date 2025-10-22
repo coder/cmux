@@ -12,10 +12,7 @@ export const ModalOverlay: React.FC<{
   <div
     role={role}
     onClick={onClick}
-    className={cn(
-      "fixed inset-0 bg-black/50 flex justify-center items-center z-[1000]",
-      className
-    )}
+    className={cn("fixed inset-0 bg-black/50 flex justify-center items-center z-[1000]", className)}
   >
     {children}
   </div>
@@ -73,9 +70,7 @@ export const ModalInfo: React.FC<{
 export const ModalActions: React.FC<{ children: React.ReactNode; className?: string }> = ({
   children,
   className,
-}) => (
-  <div className={cn("flex justify-end gap-3 mt-6", className)}>{children}</div>
-);
+}) => <div className={cn("flex justify-end gap-3 mt-6", className)}>{children}</div>;
 
 // Reusable error/warning display components for modals
 export const ErrorSection: React.FC<{ children: React.ReactNode; className?: string }> = ({
@@ -87,7 +82,9 @@ export const ErrorLabel: React.FC<{ children: React.ReactNode; className?: strin
   children,
   className,
 }) => (
-  <div className={cn("text-[11px] text-foreground-secondary uppercase tracking-wide mb-2", className)}>
+  <div
+    className={cn("text-[11px] text-foreground-secondary uppercase tracking-wide mb-2", className)}
+  >
     {children}
   </div>
 );
@@ -155,7 +152,10 @@ export const CancelButton: React.FC<ButtonProps> = ({ children, className, ...pr
 
 export const PrimaryButton: React.FC<ButtonProps> = ({ children, className, ...props }) => (
   <Button
-    className={cn("bg-[#007acc] text-white hover:bg-[#005a9e] disabled:hover:bg-[#007acc]", className)}
+    className={cn(
+      "bg-[#007acc] text-white hover:bg-[#005a9e] disabled:hover:bg-[#007acc]",
+      className
+    )}
     {...props}
   >
     {children}

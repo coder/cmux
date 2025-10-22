@@ -31,8 +31,6 @@ export interface VimTextAreaProps
   suppressKeys?: string[]; // keys for which Vim should not interfere (e.g. ["Tab","ArrowUp","ArrowDown","Escape"]) when popovers are open
 }
 
-
-
 type VimMode = vim.VimMode;
 
 export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProps>(
@@ -217,10 +215,7 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
               isEditing
                 ? "bg-[var(--color-editing-mode-alpha)] border-[var(--color-editing-mode)] focus:border-[var(--color-editing-mode)]"
                 : "bg-[#1e1e1e] border-[#3e3e42]",
-              !isEditing &&
-                (mode === "plan"
-                  ? "focus:border-plan-mode"
-                  : "focus:border-exec-mode"),
+              !isEditing && (mode === "plan" ? "focus:border-plan-mode" : "focus:border-exec-mode"),
               vimMode === "normal"
                 ? "caret-transparent selection:bg-white/50"
                 : "caret-white selection:bg-[rgba(51,153,255,0.5)]"

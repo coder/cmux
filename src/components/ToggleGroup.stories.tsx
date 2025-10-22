@@ -165,7 +165,13 @@ export const ManyOptions: Story = {
   },
 };
 
-const StyledModeToggle = ({ mode, children }: { mode: "exec" | "plan"; children: React.ReactNode }) => (
+const StyledModeToggle = ({
+  mode,
+  children,
+}: {
+  mode: "exec" | "plan";
+  children: React.ReactNode;
+}) => (
   <div
     className={cn(
       "flex gap-0 bg-toggle-bg rounded",

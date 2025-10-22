@@ -238,55 +238,18 @@ export const Tooltip: React.FC<TooltipProps> = ({
   );
 };
 
-const StyledTooltip = styled.div<{ width: string; interactive: boolean }>`
-  background-color: #2d2d30;
-  color: #cccccc;
-  text-align: left;
-  border-radius: 4px;
-  padding: 6px 10px;
-  z-index: 9999;
-  white-space: ${(props) => (props.width === "wide" ? "normal" : "nowrap")};
-  ${(props) =>
-    props.width === "wide" && "max-width: min(300px, calc(100vw - 40px)); width: max-content;"}
-  font-size: 11px;
-  font-weight: normal;
-  font-family: var(--font-primary);
-  border: 1px solid #464647;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
-  pointer-events: ${(props) => (props.interactive ? "auto" : "none")};
-  /* No default visibility/opacity - controlled via inline styles */
-
-  a {
-    color: #4ec9b0;
-    text-decoration: underline;
-    cursor: pointer;
-
-    &:hover {
-      color: #6fd9c0;
-    }
-  }
-`;
-
-const Arrow = styled.div`
-  content: "";
-  position: absolute;
-  border-width: 5px;
-  border-style: solid;
-  transform: translateX(-50%);
-`;
-
-export const HelpIndicator = styled.span`
-  color: #666666;
-  font-size: 7px;
-  cursor: help;
-  display: inline-block;
-  vertical-align: baseline;
-  border: 1px solid #666666;
-  border-radius: 50%;
-  width: 10px;
-  height: 10px;
-  line-height: 8px;
-  text-align: center;
-  font-weight: bold;
-  margin-bottom: 2px;
-`;
+export const HelpIndicator: React.FC<{ className?: string; children?: React.ReactNode }> = ({
+  className,
+  children,
+}) => (
+  <span
+    className={cn(
+      "text-[#666] text-[7px] cursor-help inline-block align-baseline",
+      "border border-[#666] rounded-full w-[10px] h-[10px] leading-[8px]",
+      "text-center font-bold mb-[2px]",
+      className
+    )}
+  >
+    {children}
+  </span>
+);

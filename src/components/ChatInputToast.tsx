@@ -99,7 +99,9 @@ export const ChatInputToast: React.FC<ChatInputToastProps> = ({ toast, onDismiss
         aria-live={toast.type === "error" ? "assertive" : "polite"}
         className={cn(
           "px-3 py-1.5 rounded text-xs flex items-center gap-1.5 shadow-[0_4px_12px_rgba(0,0,0,0.3)]",
-          isLeaving ? "animate-[toastFadeOut_0.2s_ease-out_forwards]" : "animate-[toastSlideIn_0.2s_ease-out]",
+          isLeaving
+            ? "animate-[toastFadeOut_0.2s_ease-out_forwards]"
+            : "animate-[toastSlideIn_0.2s_ease-out]",
           toastTypeStyles[toast.type]
         )}
       >

@@ -100,7 +100,9 @@ export const LockedThinking: Story = {
         Some models have locked thinking levels based on their capabilities:
       </div>
       <div>
-        <div className="text-xs text-[#808080] font-primary mb-2">GPT-5-Pro (locked to &ldquo;high&rdquo;)</div>
+        <div className="text-xs text-[#808080] font-primary mb-2">
+          GPT-5-Pro (locked to &ldquo;high&rdquo;)
+        </div>
         <ThinkingSliderComponent modelString={args.modelString} />
       </div>
       <div className="text-[11px] text-[#808080] font-primary mt-2.5">

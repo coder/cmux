@@ -219,7 +219,11 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
         )}
 
         <div className="flex flex-col flex-1 min-w-0">
-          <div className="flex bg-[#2d2d2d] border-b border-[#3e3e42] [&>*]:flex-1" role="tablist" aria-label="Metadata views">
+          <div
+            className="flex bg-[#2d2d2d] border-b border-[#3e3e42] [&>*]:flex-1"
+            role="tablist"
+            aria-label="Metadata views"
+          >
             <TooltipWrapper inline>
               <button
                 className={cn(
@@ -263,7 +267,9 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
               </Tooltip>
             </TooltipWrapper>
           </div>
-          <div className={cn("flex-1 overflow-y-auto", selectedTab === "review" ? "p-0" : "p-[15px]")}>
+          <div
+            className={cn("flex-1 overflow-y-auto", selectedTab === "review" ? "p-0" : "p-[15px]")}
+          >
             {selectedTab === "costs" && (
               <div role="tabpanel" id={costsPanelId} aria-labelledby={costsTabId}>
                 <CostsTab workspaceId={workspaceId} />

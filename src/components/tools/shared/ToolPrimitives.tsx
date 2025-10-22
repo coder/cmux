@@ -22,7 +22,10 @@ export const ToolContainer: React.FC<ToolContainerProps> = ({ expanded, classNam
   />
 );
 
-export const ToolHeader: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ className, ...props }) => (
+export const ToolHeader: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
+  className,
+  ...props
+}) => (
   <div
     className={cn(
       "flex items-center gap-2 cursor-pointer select-none text-foreground-secondary hover:text-foreground",
@@ -47,9 +50,10 @@ export const ExpandIcon: React.FC<ExpandIconProps> = ({ expanded, className, ...
   />
 );
 
-export const ToolName: React.FC<React.HTMLAttributes<HTMLSpanElement>> = ({ className, ...props }) => (
-  <span className={cn("font-medium", className)} {...props} />
-);
+export const ToolName: React.FC<React.HTMLAttributes<HTMLSpanElement>> = ({
+  className,
+  ...props
+}) => <span className={cn("font-medium", className)} {...props} />;
 
 interface StatusIndicatorProps extends React.HTMLAttributes<HTMLSpanElement> {
   status: string;
@@ -89,11 +93,11 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({
   </span>
 );
 
-export const ToolDetails: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ className, ...props }) => (
-  <div
-    className={cn("mt-2 pt-2 border-t border-white/5 text-foreground", className)}
-    {...props}
-  />
+export const ToolDetails: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
+  className,
+  ...props
+}) => (
+  <div className={cn("mt-2 pt-2 border-t border-white/5 text-foreground", className)} {...props} />
 );
 
 export const DetailSection: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
@@ -101,14 +105,20 @@ export const DetailSection: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
   ...props
 }) => <div className={cn("my-1.5", className)} {...props} />;
 
-export const DetailLabel: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ className, ...props }) => (
+export const DetailLabel: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
+  className,
+  ...props
+}) => (
   <div
     className={cn("text-[10px] text-foreground-secondary mb-1 uppercase tracking-wide", className)}
     {...props}
   />
 );
 
-export const DetailContent: React.FC<React.HTMLAttributes<HTMLPreElement>> = ({ className, ...props }) => (
+export const DetailContent: React.FC<React.HTMLAttributes<HTMLPreElement>> = ({
+  className,
+  ...props
+}) => (
   <pre
     className={cn(
       "m-0 px-2 py-1.5 bg-code-bg rounded-sm text-[11px] leading-relaxed whitespace-pre-wrap break-words max-h-[200px] overflow-y-auto",
@@ -118,7 +128,10 @@ export const DetailContent: React.FC<React.HTMLAttributes<HTMLPreElement>> = ({ 
   />
 );
 
-export const LoadingDots: React.FC<React.HTMLAttributes<HTMLSpanElement>> = ({ className, ...props }) => (
+export const LoadingDots: React.FC<React.HTMLAttributes<HTMLSpanElement>> = ({
+  className,
+  ...props
+}) => (
   <span
     className={cn(
       "after:content-['...'] after:animate-[dots_1.5s_infinite]",

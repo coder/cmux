@@ -440,13 +440,17 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ getSlashContext 
                     )}
                   </div>
                   {"shortcutHint" in item && item.shortcutHint && (
-                    <span className="text-[#9a9a9a] text-[11px] font-monospace">{item.shortcutHint}</span>
+                    <span className="text-[#9a9a9a] text-[11px] font-monospace">
+                      {item.shortcutHint}
+                    </span>
                   )}
                 </Command.Item>
               ))}
             </Command.Group>
           ))}
-          {!hasAnyItems && <div className="p-4 text-[#7a7a7a] text-[13px]">{emptyText ?? "No results"}</div>}
+          {!hasAnyItems && (
+            <div className="p-4 text-[#7a7a7a] text-[13px]">{emptyText ?? "No results"}</div>
+          )}
         </Command.List>
       </Command>
     </div>

@@ -71,10 +71,7 @@ export const MessageWindow: React.FC<MessageWindowProps> = ({
         className="relative z-10 py-1 px-3 bg-white/5 border-b border-white/10 flex justify-between items-center text-[11px] text-message-header font-medium"
         data-message-header
       >
-        <div
-          className="flex items-baseline gap-3 min-w-0 flex-1"
-          data-message-header-left
-        >
+        <div className="flex items-baseline gap-3 min-w-0 flex-1" data-message-header-left>
           <div
             className="inline-flex items-baseline uppercase tracking-wider whitespace-nowrap overflow-hidden min-w-0"
             data-message-type-label

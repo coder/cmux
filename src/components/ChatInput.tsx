@@ -41,143 +41,6 @@ import type { CmuxFrontendMetadata } from "@/types/message";
 import { useTelemetry } from "@/hooks/useTelemetry";
 import { setTelemetryEnabled } from "@/telemetry";
 
-const InputSection = styled.div`
-  position: relative;
-  padding: 5px 15px 15px 15px; /* Reduced top padding from 15px to 5px */
-  background: #252526;
-  border-top: 1px solid #3e3e42;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  container-type: inline-size; /* Enable container queries for responsive behavior */
-`;
-
-const InputControls = styled.div`
-  display: flex;
-  gap: 10px;
-  align-items: flex-end;
-`;
-
-const AttachButton = styled.button`
-  width: 32px;
-  height: 32px;
-  flex-shrink: 0;
-  border-radius: 4px;
-  background: #3e3e42;
-  color: #cccccc;
-  border: none;
-  cursor: pointer;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  font-size: 18px;
-  transition: background 0.2s;
-
-  /* Show only on mobile (viewport width <= 768px) */
-  @media (max-width: 768px) {
-    display: flex;
-  }
-
-  &:hover {
-    background: #505050;
-  }
-
-  &:active {
-    background: #5a5a5a;
-  }
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-`;
-
-const HiddenFileInput = styled.input`
-  display: none;
-`;
-
-// Input now rendered by VimTextArea; styles moved there
-
-const ModeToggles = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-`;
-
-const ModeTogglesRow = styled.div`
-  display: flex;
-  align-items: center;
-`;
-
-const ModeToggleWrapper = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-left: auto;
-
-  /* Hide mode toggle on narrow containers */
-  /* Note: Text area border changes color with mode, so this omission is acceptable */
-  @container (max-width: 700px) {
-    display: none;
-  }
-`;
-
-const StyledToggleContainer = styled.div<{ mode: UIMode }>`
-  display: flex;
-  gap: 0;
-  background: var(--color-toggle-bg);
-  border-radius: 4px;
-
-  button {
-    &:first-of-type {
-      ${(props) =>
-        props.mode === "exec" &&
-        `
-        background: var(--color-exec-mode);
-        color: white;
-
-        &:hover {
-          background: var(--color-exec-mode-hover);
-        }
-      `}
-    }
-
-    &:last-of-type {
-      ${(props) =>
-        props.mode === "plan" &&
-        `
-        background: var(--color-plan-mode);
-        color: white;
-
-        &:hover {
-          background: var(--color-plan-mode-hover);
-        }
-      `}
-    }
-  }
-`;
-
-const EditingIndicator = styled.div`
-  font-size: 11px;
-  color: var(--color-editing-mode);
-  font-weight: 500;
-`;
-
-const ModelDisplayWrapper = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin-right: 12px;
-  height: 11px;
-
-  /* Hide help indicators on narrow containers */
-  @container (max-width: 700px) {
-    .help-indicator-wrapper {
-      display: none;
-    }
-  }
-`;
-
 export interface ChatInputAPI {
   focus: () => void;
   restoreText: (text: string) => void;
@@ -443,28 +306,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   // Handle removing an image attachment
   const handleRemoveImage = useCallback((id: string) => {
     setImageAttachments((prev) => prev.filter((img) => img.id !== id));
-  }, []);
-
-  // Handle file selection from file input (for mobile)
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-
-    const fileArray = Array.from(files);
-    void processImageFiles(fileArray).then((attachments) => {
-      setImageAttachments((prev) => [...prev, ...attachments]);
-    });
-
-    // Reset input so same file can be selected again
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
-  }, []);
-
-  const handleAttachClick = useCallback(() => {
-    fileInputRef.current?.click();
   }, []);
 
   // Handle drag over to allow drop
@@ -862,7 +703,11 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   })();
 
   return (
-    <div className="relative pt-[5px] px-[15px] pb-[15px] bg-[#252526] border-t border-[#3e3e42] flex flex-col gap-2" style={{ containerType: "inline-size" }} data-component="ChatInputSection">
+    <div
+      className="relative pt-[5px] px-[15px] pb-[15px] bg-[#252526] border-t border-[#3e3e42] flex flex-col gap-2"
+      style={{ containerType: "inline-size" }}
+      data-component="ChatInputSection"
+    >
       <ChatInputToast toast={toast} onDismiss={handleToastDismiss} />
       <CommandSuggestions
         suggestions={commandSuggestions}
@@ -893,22 +738,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           }
           aria-expanded={showCommandSuggestions && commandSuggestions.length > 0}
         />
-        <HiddenFileInput
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          multiple
-          onChange={handleFileSelect}
-        />
-        <AttachButton
-          onClick={handleAttachClick}
-          disabled={!editingMessage && (disabled || isSending || isCompacting)}
-          title="Attach images"
-          aria-label="Attach images"
-        >
-          📎
-        </AttachButton>
-      </InputControls>
+      </div>
       <ImageAttachments images={imageAttachments} onRemove={handleRemoveImage} />
       <div className="flex flex-col gap-1" data-component="ChatModeToggles">
         {editingMessage && (
@@ -950,12 +780,16 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             </div>
           </ChatToggles>
           <div className="flex items-center gap-1.5 ml-auto @[700px]:hidden">
-            <div className={cn(
-              "flex gap-0 bg-toggle-bg rounded",
-              "[&>button:first-of-type]:rounded-l [&>button:last-of-type]:rounded-r",
-              mode === "exec" && "[&>button:first-of-type]:bg-exec-mode [&>button:first-of-type]:text-white [&>button:first-of-type]:hover:bg-exec-mode-hover",
-              mode === "plan" && "[&>button:last-of-type]:bg-plan-mode [&>button:last-of-type]:text-white [&>button:last-of-type]:hover:bg-plan-mode-hover"
-            )}>
+            <div
+              className={cn(
+                "flex gap-0 bg-toggle-bg rounded",
+                "[&>button:first-of-type]:rounded-l [&>button:last-of-type]:rounded-r",
+                mode === "exec" &&
+                  "[&>button:first-of-type]:bg-exec-mode [&>button:first-of-type]:text-white [&>button:first-of-type]:hover:bg-exec-mode-hover",
+                mode === "plan" &&
+                  "[&>button:last-of-type]:bg-plan-mode [&>button:last-of-type]:text-white [&>button:last-of-type]:hover:bg-plan-mode-hover"
+              )}
+            >
               <ToggleGroup<UIMode>
                 options={[
                   { value: "exec", label: "Exec" },

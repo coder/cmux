@@ -134,7 +134,9 @@ export const RetryBarrier: React.FC<RetryBarrierProps> = ({
       >
         <div className="flex items-center gap-3 flex-1">
           <span className="text-lg leading-none">⚠️</span>
-          <div className="font-primary text-[13px] text-foreground font-medium">Stream interrupted</div>
+          <div className="font-primary text-[13px] text-foreground font-medium">
+            Stream interrupted
+          </div>
         </div>
         <button
           className="bg-warning border-none rounded px-4 py-2 font-primary text-xs font-semibold text-background cursor-pointer transition-all duration-200 whitespace-nowrap hover:brightness-120 hover:-translate-y-px active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed"
