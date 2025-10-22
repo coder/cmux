@@ -52,8 +52,8 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
   const [editingTitle, setEditingTitle] = useState<string>("");
   const [renameError, setRenameError] = useState<string | null>(null);
 
-  // Display title if available, otherwise fall back to showing the workspace ID
-  const displayName = title ?? workspaceId;
+  // Display title if available, otherwise show "New Workspace" as placeholder
+  const displayName = title ?? "New Workspace";
   const isStreaming = sidebarState.canInterrupt;
   const streamingModel = sidebarState.currentModel;
   const isEditing = editingWorkspaceId === workspaceId;
@@ -72,7 +72,7 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
   };
 
   const handleConfirmRename = async () => {
-    // Empty title is OK - will fall back to showing ID
+    // Empty title is OK - will show "New Workspace" until auto-generated
     const newTitle = editingTitle.trim();
 
     const result = await confirmRename(workspaceId, newTitle);
