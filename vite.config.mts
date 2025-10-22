@@ -2,6 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import topLevelAwait from "vite-plugin-top-level-await";
 import svgr from "vite-plugin-svgr";
+import tailwindcss from "@tailwindcss/vite";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -38,6 +39,7 @@ const basePlugins = [
       plugins: babelPlugins,
     },
   }),
+  tailwindcss(),
 ];
 
 export default defineConfig(({ mode }) => ({
@@ -76,7 +78,7 @@ export default defineConfig(({ mode }) => ({
   },
   worker: {
     format: "es",
-    plugins: [topLevelAwait()],
+    plugins: () => [topLevelAwait()],
   },
   server: {
     host: "127.0.0.1",
