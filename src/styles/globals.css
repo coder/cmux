@@ -108,6 +108,31 @@
 
     /* Radius */
     --radius: 0.5rem;
+
+    /* Legacy aliases for backwards compatibility with --color-* prefix */
+    --color-plan-mode: hsl(var(--plan-mode));
+    --color-plan-mode-hover: hsl(var(--plan-mode-hover));
+    --color-plan-mode-alpha: hsla(var(--plan-mode) / 0.1);
+    --color-exec-mode: hsl(var(--exec-mode));
+    --color-edit-mode: hsl(var(--edit-mode));
+    --color-editing-mode: hsl(var(--editing-mode));
+    --color-editing-mode-alpha: hsla(var(--editing-mode) / 0.1);
+    --color-read: hsl(var(--read));
+    --color-thinking-mode: hsl(var(--thinking-mode));
+    --color-pending: hsl(var(--pending));
+    --color-interrupted: hsl(var(--interrupted));
+    --color-code-bg: hsl(var(--code-bg));
+    --color-border: hsl(var(--border));
+    --color-text: hsl(var(--foreground));
+    --color-text-secondary: hsl(var(--foreground-secondary));
+    --color-user-border: hsl(var(--user-border));
+    --color-assistant-border: hsl(var(--assistant-border));
+    --color-review-accent: hsl(var(--review-accent));
+    --color-token-input: hsl(var(--token-input));
+    --color-token-output: hsl(var(--token-output));
+    --color-token-variable: hsl(var(--token-variable));
+    --color-token-fixed: hsl(var(--token-fixed));
+    --color-token-cached: hsl(var(--token-cached));
   }
 
   * {
