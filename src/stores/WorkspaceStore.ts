@@ -763,13 +763,10 @@ export class WorkspaceStore {
   /**
    * Auto-generate title after first assistant response.
    * Uses the workspace's current model to respect user's sendMessageOptions.
-   * 
+   *
    * Note: Metadata check is done via getWorkspaceMetadata() which queries the config.
    */
-  private maybeGenerateTitle(
-    workspaceId: string,
-    aggregator: StreamingMessageAggregator
-  ): void {
+  private maybeGenerateTitle(workspaceId: string, aggregator: StreamingMessageAggregator): void {
     // Check if this is the first assistant response
     const messages = aggregator.getAllMessages();
     const assistantMessages = messages.filter((m: CmuxMessage) => m.role === "assistant");

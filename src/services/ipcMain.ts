@@ -359,48 +359,49 @@ export class IpcMain {
             modelString
           );
 
-        if (!result.success) {
-          return Err(result.error);
-        }
-
-        const title = result.data;
-
-        // Update config with new title
-        this.config.editConfig((config) => {
-          for (const [_projectPath, projectConfig] of config.projects) {
-            const workspace = projectConfig.workspaces.find((w) => w.id === workspaceId);
-            if (workspace) {
-              workspace.title = title;
-              break;
-            }
+          if (!result.success) {
+            return Err(result.error);
           }
-          return config;
-        });
 
-        // Get updated metadata from config
-        const allMetadata = this.config.getAllWorkspaceMetadata();
-        const updatedMetadata = allMetadata.find((m) => m.id === workspaceId);
-        if (!updatedMetadata) {
-          return Err("Failed to retrieve updated workspace metadata");
-        }
+          const title = result.data;
 
-        // Emit metadata event with updated title
-        const session = this.sessions.get(workspaceId);
-        if (session) {
-          session.emitMetadata(updatedMetadata);
-        } else if (this.mainWindow) {
-          this.mainWindow.webContents.send(IPC_CHANNELS.WORKSPACE_METADATA, {
-            workspaceId,
-            metadata: updatedMetadata,
+          // Update config with new title
+          this.config.editConfig((config) => {
+            for (const [_projectPath, projectConfig] of config.projects) {
+              const workspace = projectConfig.workspaces.find((w) => w.id === workspaceId);
+              if (workspace) {
+                workspace.title = title;
+                break;
+              }
+            }
+            return config;
           });
-        }
 
-        return Ok({ title });
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        return Err(`Failed to generate title: ${message}`);
+          // Get updated metadata from config
+          const allMetadata = this.config.getAllWorkspaceMetadata();
+          const updatedMetadata = allMetadata.find((m) => m.id === workspaceId);
+          if (!updatedMetadata) {
+            return Err("Failed to retrieve updated workspace metadata");
+          }
+
+          // Emit metadata event with updated title
+          const session = this.sessions.get(workspaceId);
+          if (session) {
+            session.emitMetadata(updatedMetadata);
+          } else if (this.mainWindow) {
+            this.mainWindow.webContents.send(IPC_CHANNELS.WORKSPACE_METADATA, {
+              workspaceId,
+              metadata: updatedMetadata,
+            });
+          }
+
+          return Ok({ title });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          return Err(`Failed to generate title: ${message}`);
+        }
       }
-    });
+    );
 
     ipcMain.handle(
       IPC_CHANNELS.WORKSPACE_FORK,
