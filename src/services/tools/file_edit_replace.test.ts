@@ -57,8 +57,11 @@ describe("file_edit_replace_string tool", () => {
 
   it("should apply a single edit successfully", async () => {
     await setupFile(testFilePath, "Hello world\nThis is a test\nGoodbye world");
-    const tool = createFileEditReplaceStringTool({ cwd: testDir,
-      runtime: new LocalRuntime(), tempDir: "/tmp" });
+    const tool = createFileEditReplaceStringTool({
+      cwd: testDir,
+      runtime: new LocalRuntime(),
+      tempDir: "/tmp",
+    });
 
     const payload: FileEditReplaceStringToolArgs = {
       file_path: testFilePath,
@@ -92,8 +95,11 @@ describe("file_edit_replace_lines tool", () => {
 
   it("should replace a line range successfully", async () => {
     await setupFile(testFilePath, "line1\nline2\nline3\nline4");
-    const tool = createFileEditReplaceLinesTool({ cwd: testDir,
-      runtime: new LocalRuntime(), tempDir: "/tmp" });
+    const tool = createFileEditReplaceLinesTool({
+      cwd: testDir,
+      runtime: new LocalRuntime(),
+      tempDir: "/tmp",
+    });
 
     const payload: FileEditReplaceLinesToolArgs = {
       file_path: testFilePath,
