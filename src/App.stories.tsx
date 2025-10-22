@@ -5,15 +5,45 @@ import type { ProjectConfig } from "./config";
 import type { FrontendWorkspaceMetadata } from "./types/workspace";
 import type { IPCApi } from "./types/ipc";
 
+// Helper to create git status script output
+function createGitStatusOutput(ahead: number, behind: number, dirty: number): string {
+  // Create show-branch output format based on ahead/behind counts
+  const lines: string[] = [];
+  lines.push("! [HEAD] current branch");
+  lines.push(" ! [origin/main] remote branch");
+  lines.push("--");
+  
+  // Add "ahead" commits (in HEAD but not origin)
+  for (let i = 0; i < ahead; i++) {
+    lines.push(`-  [abc${i.toString().padStart(4, '0')}] commit ahead ${i + 1}`);
+  }
+  
+  // Add "behind" commits (in origin but not HEAD)
+  for (let i = 0; i < behind; i++) {
+    lines.push(` + [def${i.toString().padStart(4, '0')}] commit behind ${i + 1}`);
+  }
+  
+  const showBranchOutput = lines.join("\n");
+  
+  return `---PRIMARY---
+main
+---SHOW_BRANCH---
+${showBranchOutput}
+---DIRTY---
+${dirty}`;
+}
+
 // Mock window.api for App component
 function setupMockAPI(options: {
   projects?: Map<string, ProjectConfig>;
   workspaces?: FrontendWorkspaceMetadata[];
   selectedWorkspaceId?: string;
   apiOverrides?: Partial<IPCApi>;
+  gitStatusMap?: Map<string, { ahead: number; behind: number; dirty: number }>;
 }) {
   const mockProjects = options.projects ?? new Map();
   const mockWorkspaces = options.workspaces ?? [];
+  const gitStatusMap = options.gitStatusMap ?? new Map();
 
   const mockApi: IPCApi = {
     dialog: {
@@ -52,11 +82,31 @@ function setupMockAPI(options: {
       truncateHistory: () => Promise.resolve({ success: true, data: undefined }),
       replaceChatHistory: () => Promise.resolve({ success: true, data: undefined }),
       getInfo: () => Promise.resolve(null),
-      executeBash: () =>
-        Promise.resolve({
+      executeBash: (workspaceId: string) => {
+        // Return mocked git status if available
+        const gitStatus = gitStatusMap.get(workspaceId);
+        if (gitStatus) {
+          return Promise.resolve({
+            success: true,
+            data: {
+              success: true,
+              output: createGitStatusOutput(gitStatus.ahead, gitStatus.behind, gitStatus.dirty),
+              exitCode: 0,
+              wall_duration_ms: 10,
+            },
+          });
+        }
+        // Default: clean status
+        return Promise.resolve({
           success: true,
-          data: { success: true, output: "", exitCode: 0, wall_duration_ms: 0 },
-        }),
+          data: {
+            success: true,
+            output: createGitStatusOutput(0, 0, 0),
+            exitCode: 0,
+            wall_duration_ms: 10,
+          },
+        });
+      },
     },
     projects: {
       list: () => Promise.resolve(Array.from(mockProjects.entries())),
@@ -109,12 +159,14 @@ const AppWithMocks: React.FC<{
   projects?: Map<string, ProjectConfig>;
   workspaces?: FrontendWorkspaceMetadata[];
   selectedWorkspaceId?: string;
-}> = ({ projects, workspaces, selectedWorkspaceId }) => {
+  gitStatusMap?: Map<string, { ahead: number; behind: number; dirty: number }>;
+  apiOverrides?: Partial<IPCApi>;
+}> = ({ projects, workspaces, selectedWorkspaceId, gitStatusMap, apiOverrides }) => {
   // Set up mock API only once per component instance (not on every render)
   // Use useRef to ensure it runs synchronously before first render
   const initialized = useRef(false);
   if (!initialized.current) {
-    setupMockAPI({ projects, workspaces, selectedWorkspaceId });
+    setupMockAPI({ projects, workspaces, selectedWorkspaceId, gitStatusMap, apiOverrides });
     initialized.current = true;
   }
 
@@ -304,6 +356,330 @@ export const ManyWorkspaces: Story = {
     }));
 
     return <AppWithMocks projects={projects} workspaces={workspaces} />;
+  },
+};
+
+export const GitStatusClean: Story = {
+  render: () => {
+    const projects = new Map<string, ProjectConfig>([
+      [
+        "/home/user/projects/web-app",
+        {
+          workspaces: [
+            { path: "/home/user/.cmux/src/web-app/main", id: "web-app-main", name: "main" },
+            {
+              path: "/home/user/.cmux/src/web-app/feature",
+              id: "web-app-feature",
+              name: "feature/ui-update",
+            },
+          ],
+        },
+      ],
+    ]);
+
+    const workspaces: FrontendWorkspaceMetadata[] = [
+      {
+        id: "web-app-main",
+        name: "main",
+        projectPath: "/home/user/projects/web-app",
+        projectName: "web-app",
+        namedWorkspacePath: "/home/user/.cmux/src/web-app/main",
+      },
+      {
+        id: "web-app-feature",
+        name: "feature/ui-update",
+        projectPath: "/home/user/projects/web-app",
+        projectName: "web-app",
+        namedWorkspacePath: "/home/user/.cmux/src/web-app/feature",
+      },
+    ];
+
+    // All workspaces clean and synced
+    const gitStatusMap = new Map([
+      ["web-app-main", { ahead: 0, behind: 0, dirty: 0 }],
+      ["web-app-feature", { ahead: 0, behind: 0, dirty: 0 }],
+    ]);
+
+    return <AppWithMocks projects={projects} workspaces={workspaces} gitStatusMap={gitStatusMap} />;
+  },
+};
+
+export const GitStatusDirty: Story = {
+  render: () => {
+    const projects = new Map<string, ProjectConfig>([
+      [
+        "/home/user/projects/backend-api",
+        {
+          workspaces: [
+            {
+              path: "/home/user/.cmux/src/backend-api/main",
+              id: "backend-api-main",
+              name: "main",
+            },
+            {
+              path: "/home/user/.cmux/src/backend-api/wip",
+              id: "backend-api-wip",
+              name: "wip/refactor",
+            },
+            {
+              path: "/home/user/.cmux/src/backend-api/debug",
+              id: "backend-api-debug",
+              name: "debug/login-issue",
+            },
+          ],
+        },
+      ],
+    ]);
+
+    const workspaces: FrontendWorkspaceMetadata[] = [
+      {
+        id: "backend-api-main",
+        name: "main",
+        projectPath: "/home/user/projects/backend-api",
+        projectName: "backend-api",
+        namedWorkspacePath: "/home/user/.cmux/src/backend-api/main",
+      },
+      {
+        id: "backend-api-wip",
+        name: "wip/refactor",
+        projectPath: "/home/user/projects/backend-api",
+        projectName: "backend-api",
+        namedWorkspacePath: "/home/user/.cmux/src/backend-api/wip",
+      },
+      {
+        id: "backend-api-debug",
+        name: "debug/login-issue",
+        projectPath: "/home/user/projects/backend-api",
+        projectName: "backend-api",
+        namedWorkspacePath: "/home/user/.cmux/src/backend-api/debug",
+      },
+    ];
+
+    // Workspaces with uncommitted changes
+    const gitStatusMap = new Map([
+      ["backend-api-main", { ahead: 0, behind: 0, dirty: 0 }], // main is clean
+      ["backend-api-wip", { ahead: 0, behind: 0, dirty: 8 }], // 8 modified files
+      ["backend-api-debug", { ahead: 0, behind: 0, dirty: 3 }], // 3 modified files
+    ]);
+
+    return <AppWithMocks projects={projects} workspaces={workspaces} gitStatusMap={gitStatusMap} />;
+  },
+};
+
+export const GitStatusAhead: Story = {
+  render: () => {
+    const projects = new Map<string, ProjectConfig>([
+      [
+        "/home/user/projects/docs-site",
+        {
+          workspaces: [
+            { path: "/home/user/.cmux/src/docs-site/main", id: "docs-site-main", name: "main" },
+            {
+              path: "/home/user/.cmux/src/docs-site/content",
+              id: "docs-site-content",
+              name: "update/content",
+            },
+            {
+              path: "/home/user/.cmux/src/docs-site/images",
+              id: "docs-site-images",
+              name: "add/images",
+            },
+          ],
+        },
+      ],
+    ]);
+
+    const workspaces: FrontendWorkspaceMetadata[] = [
+      {
+        id: "docs-site-main",
+        name: "main",
+        projectPath: "/home/user/projects/docs-site",
+        projectName: "docs-site",
+        namedWorkspacePath: "/home/user/.cmux/src/docs-site/main",
+      },
+      {
+        id: "docs-site-content",
+        name: "update/content",
+        projectPath: "/home/user/projects/docs-site",
+        projectName: "docs-site",
+        namedWorkspacePath: "/home/user/.cmux/src/docs-site/content",
+      },
+      {
+        id: "docs-site-images",
+        name: "add/images",
+        projectPath: "/home/user/projects/docs-site",
+        projectName: "docs-site",
+        namedWorkspacePath: "/home/user/.cmux/src/docs-site/images",
+      },
+    ];
+
+    // Workspaces with commits ahead of origin
+    const gitStatusMap = new Map([
+      ["docs-site-main", { ahead: 0, behind: 0, dirty: 0 }], // main is synced
+      ["docs-site-content", { ahead: 3, behind: 0, dirty: 0 }], // 3 commits ahead
+      ["docs-site-images", { ahead: 1, behind: 0, dirty: 0 }], // 1 commit ahead
+    ]);
+
+    return <AppWithMocks projects={projects} workspaces={workspaces} gitStatusMap={gitStatusMap} />;
+  },
+};
+
+export const GitStatusBehind: Story = {
+  render: () => {
+    const projects = new Map<string, ProjectConfig>([
+      [
+        "/home/user/projects/mobile-app",
+        {
+          workspaces: [
+            {
+              path: "/home/user/.cmux/src/mobile-app/main",
+              id: "mobile-app-main",
+              name: "main",
+            },
+            {
+              path: "/home/user/.cmux/src/mobile-app/stale",
+              id: "mobile-app-stale",
+              name: "feature/old-work",
+            },
+          ],
+        },
+      ],
+    ]);
+
+    const workspaces: FrontendWorkspaceMetadata[] = [
+      {
+        id: "mobile-app-main",
+        name: "main",
+        projectPath: "/home/user/projects/mobile-app",
+        projectName: "mobile-app",
+        namedWorkspacePath: "/home/user/.cmux/src/mobile-app/main",
+      },
+      {
+        id: "mobile-app-stale",
+        name: "feature/old-work",
+        projectPath: "/home/user/projects/mobile-app",
+        projectName: "mobile-app",
+        namedWorkspacePath: "/home/user/.cmux/src/mobile-app/stale",
+      },
+    ];
+
+    // Workspace behind origin (needs rebase/merge)
+    const gitStatusMap = new Map([
+      ["mobile-app-main", { ahead: 0, behind: 0, dirty: 0 }], // main is synced
+      ["mobile-app-stale", { ahead: 0, behind: 12, dirty: 0 }], // 12 commits behind
+    ]);
+
+    return <AppWithMocks projects={projects} workspaces={workspaces} gitStatusMap={gitStatusMap} />;
+  },
+};
+
+export const GitStatusMixed: Story = {
+  render: () => {
+    const projects = new Map<string, ProjectConfig>([
+      [
+        "/home/user/projects/monorepo",
+        {
+          workspaces: [
+            { path: "/home/user/.cmux/src/monorepo/main", id: "monorepo-main", name: "main" },
+            {
+              path: "/home/user/.cmux/src/monorepo/clean",
+              id: "monorepo-clean",
+              name: "feature/clean-branch",
+            },
+            {
+              path: "/home/user/.cmux/src/monorepo/dirty",
+              id: "monorepo-dirty",
+              name: "wip/dirty-changes",
+            },
+            {
+              path: "/home/user/.cmux/src/monorepo/ahead",
+              id: "monorepo-ahead",
+              name: "ready/for-review",
+            },
+            {
+              path: "/home/user/.cmux/src/monorepo/behind",
+              id: "monorepo-behind",
+              name: "old/needs-rebase",
+            },
+            {
+              path: "/home/user/.cmux/src/monorepo/diverged",
+              id: "monorepo-diverged",
+              name: "conflict/diverged",
+            },
+            {
+              path: "/home/user/.cmux/src/monorepo/dirty-ahead",
+              id: "monorepo-dirty-ahead",
+              name: "active/working-on-it",
+            },
+          ],
+        },
+      ],
+    ]);
+
+    const workspaces: FrontendWorkspaceMetadata[] = [
+      {
+        id: "monorepo-main",
+        name: "main",
+        projectPath: "/home/user/projects/monorepo",
+        projectName: "monorepo",
+        namedWorkspacePath: "/home/user/.cmux/src/monorepo/main",
+      },
+      {
+        id: "monorepo-clean",
+        name: "feature/clean-branch",
+        projectPath: "/home/user/projects/monorepo",
+        projectName: "monorepo",
+        namedWorkspacePath: "/home/user/.cmux/src/monorepo/clean",
+      },
+      {
+        id: "monorepo-dirty",
+        name: "wip/dirty-changes",
+        projectPath: "/home/user/projects/monorepo",
+        projectName: "monorepo",
+        namedWorkspacePath: "/home/user/.cmux/src/monorepo/dirty",
+      },
+      {
+        id: "monorepo-ahead",
+        name: "ready/for-review",
+        projectPath: "/home/user/projects/monorepo",
+        projectName: "monorepo",
+        namedWorkspacePath: "/home/user/.cmux/src/monorepo/ahead",
+      },
+      {
+        id: "monorepo-behind",
+        name: "old/needs-rebase",
+        projectPath: "/home/user/projects/monorepo",
+        projectName: "monorepo",
+        namedWorkspacePath: "/home/user/.cmux/src/monorepo/behind",
+      },
+      {
+        id: "monorepo-diverged",
+        name: "conflict/diverged",
+        projectPath: "/home/user/projects/monorepo",
+        projectName: "monorepo",
+        namedWorkspacePath: "/home/user/.cmux/src/monorepo/diverged",
+      },
+      {
+        id: "monorepo-dirty-ahead",
+        name: "active/working-on-it",
+        projectPath: "/home/user/projects/monorepo",
+        projectName: "monorepo",
+        namedWorkspacePath: "/home/user/.cmux/src/monorepo/dirty-ahead",
+      },
+    ];
+
+    // Mix of all git states to showcase the full range of indicators
+    const gitStatusMap = new Map([
+      ["monorepo-main", { ahead: 0, behind: 0, dirty: 0 }], // Clean, synced
+      ["monorepo-clean", { ahead: 0, behind: 0, dirty: 0 }], // Clean, synced
+      ["monorepo-dirty", { ahead: 0, behind: 0, dirty: 5 }], // Only dirty
+      ["monorepo-ahead", { ahead: 4, behind: 0, dirty: 0 }], // Only ahead
+      ["monorepo-behind", { ahead: 0, behind: 7, dirty: 0 }], // Only behind
+      ["monorepo-diverged", { ahead: 3, behind: 8, dirty: 0 }], // Ahead and behind (diverged)
+      ["monorepo-dirty-ahead", { ahead: 2, behind: 0, dirty: 3 }], // Dirty and ahead
+    ]);
+
+    return <AppWithMocks projects={projects} workspaces={workspaces} gitStatusMap={gitStatusMap} />;
   },
 };
 

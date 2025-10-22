@@ -13,7 +13,7 @@ import { DirectorySelectModal } from "./components/DirectorySelectModal";
 import { AIView } from "./components/AIView";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { usePersistedState, updatePersistedState } from "./hooks/usePersistedState";
-import { matchesKeybind, KEYBINDS } from "./utils/ui/keybinds";
+import { matchesKeybind, KEYBINDS, formatKeybind } from "./utils/ui/keybinds";
 import { useProjectManagement } from "./hooks/useProjectManagement";
 import { useWorkspaceManagement } from "./hooks/useWorkspaceManagement";
 import { useResumeManager } from "./hooks/useResumeManager";
@@ -188,6 +188,8 @@ const MainContent = styled.div`
 const ContentArea = styled.div`
   flex: 1;
   display: flex;
+  align-items: center;
+  justify-content: center;
   overflow: hidden;
 
   /* Mobile: Stack content vertically if needed */
@@ -198,23 +200,66 @@ const ContentArea = styled.div`
 
 const WelcomeView = styled.div`
   text-align: center;
-  padding: clamp(40px, 10vh, 100px) 20px;
-  max-width: 800px;
-  margin: 0 auto;
+  padding: 32px;
+  max-width: 520px;
   width: 100%;
 
   h2 {
-    color: #fff;
-    font-size: clamp(24px, 5vw, 36px);
-    margin-bottom: 16px;
-    font-weight: 700;
-    letter-spacing: -1px;
+    color: #e0e0e0;
+    font-size: clamp(20px, 4vw, 28px);
+    margin-bottom: 24px;
+    font-weight: 400;
+    letter-spacing: -0.5px;
   }
 
   p {
-    color: #888;
-    font-size: clamp(14px, 2vw, 16px);
-    line-height: 1.6;
+    color: #999;
+    font-size: clamp(13px, 1.8vw, 15px);
+    line-height: 1.8;
+    margin-bottom: 12px;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  .hint {
+    color: #666;
+    font-size: clamp(12px, 1.6vw, 14px);
+    margin-top: 32px;
+    padding-top: 24px;
+    border-top: 1px solid #333;
+
+    code {
+      background: rgba(255, 255, 255, 0.05);
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: var(--font-monospace);
+      font-size: 0.9em;
+      color: #aaa;
+    }
+  }
+`;
+
+const AddProjectButton = styled.button`
+  margin-top: 16px;
+  padding: 12px 24px;
+  background: #2d2d30;
+  color: #e0e0e0;
+  border: 1px solid #464647;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover {
+    background: #3e3e42;
+    border-color: #565659;
+  }
+
+  &:active {
+    transform: translateY(1px);
   }
 `;
 
@@ -890,8 +935,14 @@ function AppInner() {
               </ErrorBoundary>
             ) : (
               <WelcomeView>
-                <h2>Welcome to Cmux</h2>
-                <p>Select a workspace from the sidebar or add a new one to get started.</p>
+                <h2>Welcome to cmux</h2>
+                <p>Get started by adding a codebase you'd like to work on.</p>
+                <p>Then create workspaces—each workspace runs on its own git branch using worktrees.</p>
+                <AddProjectButton onClick={handleAddProjectCallback}>Open Folder</AddProjectButton>
+                <p className="hint">
+                  Use <code>{formatKeybind(KEYBINDS.OPEN_COMMAND_PALETTE)}</code> to open the command
+                  palette
+                </p>
               </WelcomeView>
             )}
           </ContentArea>

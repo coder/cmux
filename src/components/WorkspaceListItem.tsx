@@ -17,47 +17,56 @@ const WorkspaceStatusIndicator = styled(StatusIndicator)`
 `;
 
 const WorkspaceItem = styled.div<{ selected?: boolean }>`
-  padding: 6px 12px 6px 28px;
+  padding: 10px 16px 10px 32px;
   cursor: pointer;
   display: grid;
   grid-template-columns: auto auto 1fr auto;
-  gap: 8px;
+  gap: 12px;
   align-items: center;
-  border-left: 3px solid transparent;
-  transition: all 0.15s;
-  font-size: 13px;
+  border-left: 2px solid transparent;
+  transition: all 0.12s cubic-bezier(0.4, 0, 0.2, 1);
+  font-size: 12px;
   position: relative;
 
   ${(props) =>
     props.selected &&
     css`
-      background: #2a2a2b;
-      border-left-color: #569cd6;
+      background: hsl(0 0% 12%);
+      border-left-color: hsl(207 100% 55%);
     `}
 
   &:hover {
-    background: #2a2a2b;
+    background: hsl(0 0% 11%);
 
     button {
       opacity: 1;
     }
   }
+
+  /* Focus visible state for keyboard navigation */
+  &:focus-visible {
+    outline: 2px solid hsl(207 100% 55%);
+    outline-offset: -2px;
+  }
 `;
 
 const WorkspaceName = styled.span`
-  color: #ccc;
+  color: hsl(0 0% 75%);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   cursor: pointer;
-  padding: 2px 4px;
-  border-radius: 3px;
-  transition: background 0.2s;
+  padding: 3px 6px;
+  border-radius: 4px;
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   min-width: 0; /* Allow grid item to shrink below content size */
   text-align: right;
+  font-weight: 500;
+  letter-spacing: 0.01em;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.05);
+    background: hsl(0 0% 16%);
+    color: hsl(0 0% 85%);
   }
 `;
 
@@ -65,54 +74,65 @@ const WorkspaceNameInput = styled.input`
   background: var(--color-input-bg);
   color: var(--color-input-text);
   border: 1px solid var(--color-input-border);
-  border-radius: 3px;
-  padding: 2px 4px;
-  font-size: 13px;
+  border-radius: 4px;
+  padding: 3px 6px;
+  font-size: 12px;
   font-family: inherit;
+  font-weight: 500;
   outline: none;
   min-width: 0; /* Allow grid item to shrink */
   text-align: right;
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
 
   &:focus {
     border-color: var(--color-input-border-focus);
+    box-shadow: 0 0 0 3px hsl(from var(--color-input-border-focus) h s l / 0.1);
   }
 `;
 
 const WorkspaceErrorContainer = styled.div`
   position: absolute;
   top: 100%;
-  left: 28px;
-  right: 32px;
-  margin-top: 4px;
-  padding: 6px 8px;
+  left: 32px;
+  right: 36px;
+  margin-top: 6px;
+  padding: 8px 10px;
   background: var(--color-error-bg);
   border: 1px solid var(--color-error);
-  border-radius: 3px;
+  border-radius: 6px;
   color: var(--color-error);
-  font-size: 12px;
+  font-size: 11px;
+  line-height: 1.4;
   z-index: 10;
+  box-shadow: 
+    0 0 0 1px hsl(0 70% 50% / 0.2),
+    0 4px 12px rgba(0, 0, 0, 0.4);
 `;
 
 const RemoveBtn = styled.button`
   opacity: 0;
   background: transparent;
-  color: #888;
+  color: hsl(0 0% 45%);
   border: none;
   cursor: pointer;
-  font-size: 16px;
+  font-size: 18px;
   padding: 0;
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   flex-shrink: 0;
+  border-radius: 5px;
 
   &:hover {
-    color: #ccc;
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 3px;
+    color: hsl(0 70% 60%);
+    background: hsl(0 70% 50% / 0.12);
+  }
+
+  &:active {
+    transform: scale(0.9);
   }
 `;
 

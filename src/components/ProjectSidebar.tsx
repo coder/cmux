@@ -32,118 +32,168 @@ const SidebarContent = styled.div`
   flex: 1;
   overflow: hidden;
   font-family: var(--font-primary);
+  background: hsl(0 0% 10%);
 `;
 
 const SidebarHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px;
-  border-bottom: 1px solid #1e1e1e;
+  padding: 12px 16px;
+  border-bottom: 1px solid hsl(0 0% 16%);
+  background: hsl(0 0% 11%);
 
   h2 {
     margin: 0;
-    font-size: 13px;
+    font-size: 11px;
     font-weight: 600;
-    color: #cccccc;
+    color: hsl(0 0% 60%);
     text-transform: uppercase;
-    letter-spacing: 0.8px;
+    letter-spacing: 1px;
   }
 `;
 
 const AddProjectBtn = styled.button`
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   background: transparent;
-  color: #cccccc;
+  color: hsl(0 0% 60%);
   border: 1px solid transparent;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
   font-size: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 0;
-  transition: all 0.2s;
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
 
   &:hover {
-    background: #2a2a2b;
-    border-color: #3c3c3c;
+    background: hsl(0 0% 16%);
+    color: hsl(0 0% 85%);
+    border-color: hsl(0 0% 22%);
+  }
+
+  &:active {
+    transform: scale(0.95);
   }
 `;
 
 const CollapseButton = styled.button`
   width: 100%;
-  height: 36px;
-  background: transparent;
-  color: #888;
+  height: 40px;
+  background: hsl(0 0% 11%);
+  color: hsl(0 0% 50%);
   border: none;
-  border-top: 1px solid #1e1e1e;
+  border-top: 1px solid hsl(0 0% 16%);
   cursor: pointer;
-  font-size: 14px;
+  font-size: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 0;
-  transition: all 0.2s;
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   margin-top: auto;
 
   &:hover {
-    background: #2a2a2b;
-    color: #ccc;
+    background: hsl(0 0% 14%);
+    color: hsl(0 0% 75%);
+  }
+
+  &:active {
+    background: hsl(0 0% 16%);
   }
 `;
 
 const ProjectsList = styled.div`
   flex: 1;
   overflow-y: auto;
+
+  /* Custom scrollbar styling */
+  &::-webkit-scrollbar {
+    width: 10px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: hsl(0 0% 24%);
+    border-radius: 5px;
+    border: 2px solid hsl(0 0% 10%);
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background: hsl(0 0% 32%);
+  }
 `;
 
 const EmptyState = styled.div`
-  padding: 32px 16px;
+  padding: 48px 24px;
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
 
   p {
-    color: #888;
+    color: hsl(0 0% 50%);
     font-size: 13px;
-    margin-bottom: 16px;
+    margin: 0;
+    line-height: 1.5;
   }
 `;
 
 const AddFirstProjectBtn = styled.button`
-  background: #007acc;
+  background: hsl(207 100% 45%);
   color: white;
   border: none;
-  border-radius: 4px;
-  padding: 8px 16px;
+  border-radius: 6px;
+  padding: 10px 20px;
   font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.3);
 
   &:hover {
-    background: #005a9e;
+    background: hsl(207 100% 50%);
+    box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.4);
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
   }
 `;
 
 const ProjectGroup = styled.div`
-  border-bottom: 1px solid #2a2a2b;
+  border-bottom: 1px solid hsl(0 0% 14%);
+  
+  &:last-child {
+    border-bottom: none;
+  }
 `;
 
 const ProjectItem = styled.div<{ selected?: boolean; isDragging?: boolean; isOver?: boolean }>`
-  padding: 4px 12px;
+  padding: 12px 16px 12px 12px;
   cursor: ${(props) => (props.isDragging ? "grabbing" : "grab")};
   display: flex;
   align-items: center;
-  border-left: 3px solid transparent;
-  transition: all 0.15s;
+  gap: 10px;
+  border-left: 2px solid transparent;
+  transition: all 0.12s cubic-bezier(0.4, 0, 0.2, 1);
   opacity: ${(props) => (props.isDragging ? 0.4 : 1)};
-  background: ${(props) => (props.isOver ? "rgba(0, 122, 204, 0.08)" : "transparent")};
+  background: ${(props) => (props.isOver ? "hsl(207 100% 45% / 0.08)" : "transparent")};
+  position: relative;
 
   ${(props) =>
     props.selected &&
     css`
-      background: #2a2a2b;
-      border-left-color: #007acc;
+      background: hsl(0 0% 15%);
+      border-left-color: hsl(207 100% 55%);
     `}
 
   ${(props) =>
@@ -155,7 +205,7 @@ const ProjectItem = styled.div<{ selected?: boolean; isDragging?: boolean; isOve
     `}
 
   &:hover {
-    background: #2a2a2b;
+    background: hsl(0 0% 14%);
 
     button {
       opacity: 1;
@@ -166,19 +216,29 @@ const ProjectItem = styled.div<{ selected?: boolean; isDragging?: boolean; isOve
       opacity: 1;
     }
   }
+
+  /* Focus visible state for keyboard navigation */
+  &:focus-visible {
+    outline: 2px solid hsl(207 100% 55%);
+    outline-offset: -2px;
+  }
 `;
 
 const ExpandIcon = styled.span<{ expanded?: boolean }>`
-  color: #888;
+  color: hsl(0 0% 50%);
   font-size: 10px;
-  margin-right: 8px;
-  transition: transform 0.2s;
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   flex-shrink: 0;
+  width: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 
   ${(props) =>
     props.expanded &&
     css`
       transform: rotate(90deg);
+      color: hsl(0 0% 65%);
     `}
 `;
 
@@ -194,27 +254,39 @@ const DragLayerContainer = styled.div`
 `;
 
 const DragPreviewItem = styled.div`
-  background: rgba(42, 42, 43, 0.95);
-  color: #ccc;
-  padding: 6px 12px;
-  border-left: 3px solid #007acc;
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
-  border-radius: 4px;
+  background: hsl(0 0% 14% / 0.98);
+  backdrop-filter: blur(8px);
+  color: hsl(0 0% 85%);
+  padding: 10px 14px;
+  border-left: 2px solid hsl(207 100% 55%);
+  box-shadow: 
+    0 0 0 1px hsl(0 0% 20%),
+    0 8px 32px rgba(0, 0, 0, 0.5),
+    0 0 0 1px hsl(207 100% 55% / 0.2) inset;
+  border-radius: 6px;
   display: flex;
   align-items: center;
   width: fit-content;
-  max-width: 280px;
-  min-width: 180px;
+  max-width: 300px;
+  min-width: 200px;
 `;
 
 const DragHandle = styled.span`
-  color: #666;
+  color: hsl(0 0% 40%);
   font-size: 12px;
-  margin-right: 6px;
   cursor: grab;
   opacity: 0;
   user-select: none;
-  transition: opacity 0.15s;
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  flex-shrink: 0;
+  width: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    color: hsl(0 0% 60%);
+  }
 `;
 
 const ProjectInfo = styled.div`
@@ -224,137 +296,156 @@ const ProjectInfo = styled.div`
 `;
 
 const ProjectName = styled.div`
-  color: #cccccc;
-  font-size: 14px;
+  color: hsl(0 0% 85%);
+  font-size: 13px;
   font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  letter-spacing: 0.2px;
+  letter-spacing: 0.1px;
+  line-height: 1.4;
 `;
 
 const ProjectPath = styled.div`
-  color: #6e6e6e;
+  color: hsl(0 0% 50%);
   font-size: 11px;
-  margin-top: 1px;
+  margin-top: 2px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   font-family: var(--font-monospace);
+  line-height: 1.3;
 `;
 
 const RemoveBtn = styled.button`
-  width: 20px;
-  height: 20px;
+  width: 28px;
+  height: 28px;
   background: transparent;
-  color: #6e6e6e;
+  color: hsl(0 0% 45%);
   border: none;
-  border-radius: 3px;
+  border-radius: 5px;
   cursor: pointer;
-  font-size: 16px;
+  font-size: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   opacity: 0;
   flex-shrink: 0;
 
   &:hover {
-    color: #ff5555;
-    background: rgba(255, 85, 85, 0.1);
+    color: hsl(0 70% 60%);
+    background: hsl(0 70% 50% / 0.12);
+  }
+
+  &:active {
+    transform: scale(0.9);
   }
 `;
 
 const SecretsBtn = styled.button`
-  width: 20px;
-  height: 20px;
+  width: 28px;
+  height: 28px;
   background: transparent;
-  color: #6e6e6e;
+  color: hsl(0 0% 45%);
   border: none;
-  border-radius: 3px;
+  border-radius: 5px;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 15px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   opacity: 0;
   flex-shrink: 0;
-  margin-right: 4px;
 
   &:hover {
-    color: #569cd6;
-    background: rgba(86, 156, 214, 0.1);
+    color: hsl(45 100% 60%);
+    background: hsl(45 100% 50% / 0.12);
+  }
+
+  &:active {
+    transform: scale(0.9);
   }
 `;
 
 const WorkspacesContainer = styled.div`
-  background: #1a1a1a;
+  background: hsl(0 0% 8%);
 `;
 
 const WorkspaceHeader = styled.div`
-  padding: 8px 12px 8px 22px;
-  border-bottom: 1px solid #2a2a2b;
+  padding: 12px 16px 12px 32px;
+  border-bottom: 1px solid hsl(0 0% 12%);
 `;
 
 const AddWorkspaceBtn = styled.button`
   width: 100%;
-  padding: 6px 12px;
+  padding: 8px 12px;
   background: transparent;
-  color: #888;
-  border: 1px dashed #444;
-  border-radius: 4px;
+  color: hsl(0 0% 55%);
+  border: 1px dashed hsl(0 0% 26%);
+  border-radius: 6px;
   cursor: pointer;
-  font-size: 13px;
-  transition: all 0.2s;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   text-align: left;
 
   &:hover {
-    background: #2a2a2b;
-    border-color: #555;
-    color: #ccc;
+    background: hsl(0 0% 12%);
+    border-color: hsl(0 0% 32%);
+    color: hsl(0 0% 75%);
+  }
+
+  &:active {
+    background: hsl(0 0% 14%);
   }
 `;
 
 const OldWorkspacesSection = styled.button<{ expanded: boolean }>`
   width: 100%;
-  padding: 8px 12px 8px 22px;
+  padding: 12px 16px 12px 32px;
   background: transparent;
-  color: #858585;
+  color: hsl(0 0% 50%);
   border: none;
-  border-top: 1px solid #2a2a2b;
+  border-top: 1px solid hsl(0 0% 12%);
   cursor: pointer;
   font-size: 12px;
-  transition: all 0.15s;
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   align-items: center;
   justify-content: space-between;
   font-weight: 500;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.03);
-    color: #aaa;
+    background: hsl(0 0% 10%);
+    color: hsl(0 0% 65%);
 
     .arrow {
-      color: #aaa;
+      color: hsl(0 0% 65%);
     }
+  }
+
+  &:active {
+    background: hsl(0 0% 12%);
   }
 
   .label {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
   }
 
   .count {
-    color: #666;
+    color: hsl(0 0% 40%);
     font-weight: 400;
+    font-size: 11px;
   }
 
   .arrow {
-    font-size: 11px;
-    color: #666;
-    transition: transform 0.2s ease;
+    font-size: 10px;
+    color: hsl(0 0% 40%);
+    transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1);
     transform: ${(props) => (props.expanded ? "rotate(90deg)" : "rotate(0deg)")};
   }
 `;
@@ -367,13 +458,15 @@ const RemoveErrorToast = styled.div<{ top: number; left: number }>`
   padding: 12px 16px;
   background: var(--color-error-bg);
   border: 1px solid var(--color-error);
-  border-radius: 6px;
+  border-radius: 8px;
   color: var(--color-error);
   font-size: 12px;
   z-index: 10000;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  box-shadow: 
+    0 0 0 1px hsl(0 70% 50% / 0.2),
+    0 8px 24px rgba(0, 0, 0, 0.6);
   font-family: var(--font-monospace);
-  line-height: 1.4;
+  line-height: 1.5;
   white-space: pre-wrap;
   word-break: break-word;
   pointer-events: auto;
