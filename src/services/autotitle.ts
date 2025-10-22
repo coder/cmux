@@ -98,7 +98,7 @@ export async function generateWorkspaceTitle(
     const result = await generateText({
       model,
       prompt: `${conversationContext}\n\n${TITLE_GENERATION_PROMPT}`,
-      maxTokens: 50, // Short titles only (3-7 words ≈ 10-20 tokens + buffer)
+      maxOutputTokens: 50, // Short titles only (3-7 words ≈ 10-20 tokens + buffer)
       temperature: 0.3, // Lower temperature for more focused titles
     });
 
