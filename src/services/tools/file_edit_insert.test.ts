@@ -6,7 +6,7 @@ import { createFileEditInsertTool } from "./file_edit_insert";
 import type { FileEditInsertToolArgs, FileEditInsertToolResult } from "@/types/tools";
 import type { ToolCallOptions } from "ai";
 import { TestTempDir } from "./testHelpers";
-import { LocalRuntime } from "@/runtime/LocalRuntime";
+import { createRuntime } from "@/runtime/runtimeFactory";
 
 // Mock ToolCallOptions for testing
 const mockToolCallOptions: ToolCallOptions = {
@@ -20,7 +20,7 @@ function createTestFileEditInsertTool(options?: { cwd?: string }) {
   const tempDir = new TestTempDir("test-file-edit-insert");
   const tool = createFileEditInsertTool({
     cwd: options?.cwd ?? process.cwd(),
-    runtime: new LocalRuntime(),
+    runtime: createRuntime({ type: "local" }),
     tempDir: tempDir.path,
   });
 
@@ -213,7 +213,7 @@ describe("file_edit_insert tool", () => {
 
     const tool = createFileEditInsertTool({
       cwd: testDir,
-      runtime: new LocalRuntime(),
+      runtime: createRuntime({ type: "local" }),
       tempDir: "/tmp",
     });
     const args: FileEditInsertToolArgs = {
@@ -239,7 +239,7 @@ describe("file_edit_insert tool", () => {
 
     const tool = createFileEditInsertTool({
       cwd: testDir,
-      runtime: new LocalRuntime(),
+      runtime: createRuntime({ type: "local" }),
       tempDir: "/tmp",
     });
     const args: FileEditInsertToolArgs = {
@@ -266,7 +266,7 @@ describe("file_edit_insert tool", () => {
 
     const tool = createFileEditInsertTool({
       cwd: testDir,
-      runtime: new LocalRuntime(),
+      runtime: createRuntime({ type: "local" }),
       tempDir: "/tmp",
     });
     const args: FileEditInsertToolArgs = {

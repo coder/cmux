@@ -11,7 +11,7 @@ import type {
   FileEditReplaceLinesToolResult,
 } from "@/types/tools";
 import type { ToolCallOptions } from "ai";
-import { LocalRuntime } from "@/runtime/LocalRuntime";
+import { createRuntime } from "@/runtime/runtimeFactory";
 
 // Mock ToolCallOptions for testing
 const mockToolCallOptions: ToolCallOptions = {
@@ -59,7 +59,7 @@ describe("file_edit_replace_string tool", () => {
     await setupFile(testFilePath, "Hello world\nThis is a test\nGoodbye world");
     const tool = createFileEditReplaceStringTool({
       cwd: testDir,
-      runtime: new LocalRuntime(),
+      runtime: createRuntime({ type: "local" }),
       tempDir: "/tmp",
     });
 
@@ -97,7 +97,7 @@ describe("file_edit_replace_lines tool", () => {
     await setupFile(testFilePath, "line1\nline2\nline3\nline4");
     const tool = createFileEditReplaceLinesTool({
       cwd: testDir,
-      runtime: new LocalRuntime(),
+      runtime: createRuntime({ type: "local" }),
       tempDir: "/tmp",
     });
 

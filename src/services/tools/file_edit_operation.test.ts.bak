@@ -1,5 +1,13 @@
-import { describe, test, expect, beforeEach } from "@jest/globals";
+import { describe, it, expect } from "bun:test";
+import { executeFileEditOperation } from "./file_edit_operation";
+<<<<<<< HEAD
+import { WRITE_DENIED_PREFIX } from "@/types/tools";
 import { LocalRuntime } from "@/runtime/LocalRuntime";
+||||||| parent of a522bfce (🤖 Integrate runtime config with workspace metadata and AIService)
+import { WRITE_DENIED_PREFIX } from "./fileCommon";
+import { LocalRuntime } from "@/runtime/LocalRuntime";
+=======
+import { WRITE_DENIED_PREFIX } from "./fileCommon";
 import { createRuntime } from "@/runtime/runtimeFactory";
 >>>>>>> a522bfce (🤖 Integrate runtime config with workspace metadata and AIService)
 
