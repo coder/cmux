@@ -76,9 +76,6 @@
     "zod-to-json-schema": "^3.24.6"
   },
   "devDependencies": {
-    "@emotion/babel-plugin": "^11.13.5",
-    "@emotion/react": "^11.14.0",
-    "@emotion/styled": "^11.14.1",
     "@eslint/js": "^9.36.0",
     "@playwright/test": "^1.56.0",
     "@storybook/addon-essentials": "^8.6.14",

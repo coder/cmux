@@ -1,29 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { expect, userEvent, within, waitFor } from "@storybook/test";
 import { TooltipWrapper, Tooltip, HelpIndicator } from "./Tooltip";
-import styled from "@emotion/styled";
-
-const DemoButton = styled.button`
-  padding: 8px 16px;
-  background: #0e639c;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-family: var(--font-primary);
-  font-size: 13px;
-
-  &:hover {
-    background: #1177bb;
-  }
-`;
-
-const DemoContainer = styled.div`
-  display: flex;
-  gap: 20px;
-  padding: 40px;
-  flex-wrap: wrap;
-`;
 
 const meta = {
   title: "Components/Tooltip",
@@ -41,7 +18,9 @@ export const BasicTooltip: Story = {
   args: { children: "This is a helpful tooltip" },
   render: () => (
     <TooltipWrapper>
-      <DemoButton>Hover me</DemoButton>
+      <button className="py-2 px-4 bg-[#0e639c] text-white border-none rounded cursor-pointer font-primary text-[13px] hover:bg-[#1177bb]">
+        Hover me
+      </button>
       <Tooltip>This is a helpful tooltip</Tooltip>
     </TooltipWrapper>
   ),
@@ -85,39 +64,39 @@ export const BasicTooltip: Story = {
 export const TooltipPositions: Story = {
   args: { children: "Tooltip content" },
   render: () => (
-    <DemoContainer>
+    <div className="flex gap-5 p-10 flex-wrap">
       <TooltipWrapper>
-        <DemoButton>Top (default)</DemoButton>
+        <button className="py-2 px-4 bg-[#0e639c] text-white border-none rounded cursor-pointer font-primary text-[13px] hover:bg-[#1177bb]">Top (default)</button>
         <Tooltip position="top">Tooltip appears above</Tooltip>
       </TooltipWrapper>
 
       <TooltipWrapper>
-        <DemoButton>Bottom</DemoButton>
+        <button className="py-2 px-4 bg-[#0e639c] text-white border-none rounded cursor-pointer font-primary text-[13px] hover:bg-[#1177bb]">Bottom</button>
         <Tooltip position="bottom">Tooltip appears below</Tooltip>
       </TooltipWrapper>
-    </DemoContainer>
+    </div>
   ),
 };
 
 export const TooltipAlignments: Story = {
   args: { children: "Tooltip content" },
   render: () => (
-    <DemoContainer>
+    <div className="flex gap-5 p-10 flex-wrap">
       <TooltipWrapper>
-        <DemoButton>Left Aligned</DemoButton>
+        <button className="py-2 px-4 bg-[#0e639c] text-white border-none rounded cursor-pointer font-primary text-[13px] hover:bg-[#1177bb]">Left Aligned</button>
         <Tooltip align="left">Left-aligned tooltip</Tooltip>
       </TooltipWrapper>
 
       <TooltipWrapper>
-        <DemoButton>Center Aligned</DemoButton>
+        <button className="py-2 px-4 bg-[#0e639c] text-white border-none rounded cursor-pointer font-primary text-[13px] hover:bg-[#1177bb]">Center Aligned</button>
         <Tooltip align="center">Center-aligned tooltip</Tooltip>
       </TooltipWrapper>
 
       <TooltipWrapper>
-        <DemoButton>Right Aligned</DemoButton>
+        <button className="py-2 px-4 bg-[#0e639c] text-white border-none rounded cursor-pointer font-primary text-[13px] hover:bg-[#1177bb]">Right Aligned</button>
         <Tooltip align="right">Right-aligned tooltip</Tooltip>
       </TooltipWrapper>
-    </DemoContainer>
+    </div>
   ),
 };
 
@@ -125,7 +104,7 @@ export const WideTooltip: Story = {
   args: { children: "Tooltip content" },
   render: () => (
     <TooltipWrapper>
-      <DemoButton>Hover for detailed info</DemoButton>
+      <button className="py-2 px-4 bg-[#0e639c] text-white border-none rounded cursor-pointer font-primary text-[13px] hover:bg-[#1177bb]">Hover for detailed info</button>
       <Tooltip width="wide">
         This is a wider tooltip that can contain more detailed information. It will wrap text
         automatically and has a maximum width of 300px.
@@ -170,7 +149,7 @@ export const KeyboardShortcut: Story = {
   args: { children: "Tooltip content" },
   render: () => (
     <TooltipWrapper>
-      <DemoButton>Save File</DemoButton>
+      <button className="py-2 px-4 bg-[#0e639c] text-white border-none rounded cursor-pointer font-primary text-[13px] hover:bg-[#1177bb]">Save File</button>
       <Tooltip align="center">
         Save File <kbd>⌘S</kbd>
       </Tooltip>
@@ -182,7 +161,7 @@ export const LongContent: Story = {
   args: { children: "Tooltip content" },
   render: () => (
     <TooltipWrapper>
-      <DemoButton>Documentation</DemoButton>
+      <button className="py-2 px-4 bg-[#0e639c] text-white border-none rounded cursor-pointer font-primary text-[13px] hover:bg-[#1177bb]">Documentation</button>
       <Tooltip width="wide">
         <strong>Getting Started:</strong>
         <br />

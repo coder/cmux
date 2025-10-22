@@ -4,14 +4,7 @@ import { expect, userEvent, within, waitFor } from "@storybook/test";
 import { useArgs } from "@storybook/preview-api";
 import { ToggleGroup, type ToggleOption } from "./ToggleGroup";
 import { useState } from "react";
-import styled from "@emotion/styled";
-
-const DemoContainer = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  padding: 20px;
-`;
+import { cn } from "@/lib/utils";
 
 const meta = {
   title: "Components/ToggleGroup",
@@ -172,40 +165,19 @@ export const ManyOptions: Story = {
   },
 };
 
-const StyledModeToggle = styled.div<{ mode: "exec" | "plan" }>`
-  display: flex;
-  gap: 0;
-  background: var(--color-toggle-bg);
-  border-radius: 4px;
-
-  button {
-    &:first-of-type {
-      ${(props) =>
-        props.mode === "exec" &&
-        `
-        background: var(--color-exec-mode);
-        color: white;
-
-        &:hover {
-          background: var(--color-exec-mode-hover);
-        }
-      `}
-    }
-
-    &:last-of-type {
-      ${(props) =>
-        props.mode === "plan" &&
-        `
-        background: var(--color-plan-mode);
-        color: white;
-
-        &:hover {
-          background: var(--color-plan-mode-hover);
-        }
-      `}
-    }
-  }
-`;
+const StyledModeToggle = ({ mode, children }: { mode: "exec" | "plan"; children: React.ReactNode }) => (
+  <div
+    className={cn(
+      "flex gap-0 bg-toggle-bg rounded",
+      mode === "exec" &&
+        "[&_button:first-of-type]:bg-exec-mode [&_button:first-of-type]:text-white [&_button:first-of-type:hover]:bg-exec-mode-hover",
+      mode === "plan" &&
+        "[&_button:last-of-type]:bg-plan-mode [&_button:last-of-type]:text-white [&_button:last-of-type:hover]:bg-plan-mode-hover"
+    )}
+  >
+    {children}
+  </div>
+);
 
 export const PermissionModes: Story = {
   args: {
@@ -276,22 +248,16 @@ export const WithStateDisplay: Story = {
     const [{ value }, updateArgs] = useArgs<Story["args"]>();
 
     return (
-      <DemoContainer>
+      <div className="flex flex-col gap-5 p-5">
         <ToggleGroup
           {...args}
           value={value}
           onChange={(newValue) => updateArgs({ value: newValue })}
         />
-        <div
-          style={{
-            fontSize: "12px",
-            color: "#808080",
-            fontFamily: "var(--font-primary)",
-          }}
-        >
-          Current selection: <strong style={{ color: "#cccccc" }}>{value}</strong>
+        <div className="text-xs text-[#808080] font-primary">
+          Current selection: <strong className="text-[#cccccc]">{value}</strong>
         </div>
-      </DemoContainer>
+      </div>
     );
   },
 };
@@ -342,49 +308,22 @@ export const MultipleGroups: Story = {
     };
 
     return (
-      <DemoContainer>
+      <div className="flex flex-col gap-5 p-5">
         <div>
-          <div
-            style={{
-              fontSize: "11px",
-              color: "#808080",
-              marginBottom: "6px",
-              fontFamily: "var(--font-primary)",
-            }}
-          >
-            Theme
-          </div>
+          <div className="text-[11px] text-[#808080] mb-1.5 font-primary">Theme</div>
           <ToggleGroup options={themeOptions} value={theme} onChange={handleThemeChange} />
         </div>
 
         <div>
-          <div
-            style={{
-              fontSize: "11px",
-              color: "#808080",
-              marginBottom: "6px",
-              fontFamily: "var(--font-primary)",
-            }}
-          >
-            Size
-          </div>
+          <div className="text-[11px] text-[#808080] mb-1.5 font-primary">Size</div>
           <ToggleGroup options={sizeOptions} value={size} onChange={handleSizeChange} />
         </div>
 
         <div>
-          <div
-            style={{
-              fontSize: "11px",
-              color: "#808080",
-              marginBottom: "6px",
-              fontFamily: "var(--font-primary)",
-            }}
-          >
-            Layout
-          </div>
+          <div className="text-[11px] text-[#808080] mb-1.5 font-primary">Layout</div>
           <ToggleGroup options={layoutOptions} value={layout} onChange={handleLayoutChange} />
         </div>
-      </DemoContainer>
+      </div>
     );
   },
 };

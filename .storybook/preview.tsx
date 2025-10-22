@@ -1,15 +1,10 @@
 import type { Preview } from "@storybook/react";
-import { GlobalColors } from "../src/styles/colors";
-import { GlobalFonts } from "../src/styles/fonts";
-import { GlobalScrollbars } from "../src/styles/scrollbars";
+import "../src/styles/globals.css";
 
 const preview: Preview = {
   decorators: [
     (Story) => (
       <>
-        <GlobalColors />
-        <GlobalFonts />
-        <GlobalScrollbars />
         <Story />
       </>
     ),

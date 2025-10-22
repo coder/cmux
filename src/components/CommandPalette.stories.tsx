@@ -5,56 +5,6 @@ import { CommandRegistryProvider } from "@/contexts/CommandRegistryContext";
 import type { CommandAction } from "@/contexts/CommandRegistryContext";
 import { useEffect } from "react";
 import { useCommandRegistry } from "@/contexts/CommandRegistryContext";
-import styled from "@emotion/styled";
-
-const StoryWrapper = styled.div`
-  min-height: 600px;
-  background: #1e1e1e;
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-`;
-
-const InfoBox = styled.div`
-  padding: 16px;
-  background: #252526;
-  border: 1px solid #3e3e42;
-  border-radius: 4px;
-  color: #cccccc;
-  font-family: var(--font-primary);
-  font-size: 13px;
-  line-height: 1.6;
-
-  kbd {
-    padding: 2px 6px;
-    background: #1e1e1e;
-    border: 1px solid #3e3e42;
-    border-radius: 3px;
-    font-family: var(--font-monospace);
-    font-size: 11px;
-  }
-`;
-
-const ReopenButton = styled.button`
-  padding: 8px 16px;
-  background: #0e639c;
-  color: #ffffff;
-  border: none;
-  border-radius: 4px;
-  font-family: var(--font-primary);
-  font-size: 13px;
-  cursor: pointer;
-  align-self: flex-start;
-
-  &:hover {
-    background: #1177bb;
-  }
-
-  &:active {
-    background: #0d5689;
-  }
-`;
 
 // Mock command actions for the demo
 const mockCommands: CommandAction[] = [
@@ -180,7 +130,12 @@ const PaletteDemo: React.FC<{ autoOpen?: boolean }> = ({ autoOpen = true }) => {
 
   return (
     <>
-      <ReopenButton onClick={() => open()}>Open Command Palette (⌘⇧P)</ReopenButton>
+      <button
+        onClick={() => open()}
+        className="py-2 px-4 bg-[#0e639c] text-white border-none rounded cursor-pointer font-primary text-[13px] self-start hover:bg-[#1177bb] active:bg-[#0d5689]"
+      >
+        Open Command Palette (⌘⇧P)
+      </button>
       <CommandPalette
         getSlashContext={() => ({
           providerNames: ["anthropic", "openai", "google"],
@@ -219,8 +174,8 @@ type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {
   render: () => (
-    <StoryWrapper>
-      <InfoBox>
+    <div className="min-h-[600px] bg-[#1e1e1e] p-5 flex flex-col gap-5">
+      <div className="p-4 bg-[#252526] border border-[#3e3e42] rounded text-[#cccccc] font-primary text-[13px] leading-[1.6] [&_kbd]:py-0.5 [&_kbd]:px-1.5 [&_kbd]:bg-[#1e1e1e] [&_kbd]:border [&_kbd]:border-[#3e3e42] [&_kbd]:rounded-[3px] [&_kbd]:font-monospace [&_kbd]:text-[11px]">
         <strong>Command Palette</strong>
         <br />
         <br />
@@ -240,8 +195,8 @@ export const Default: Story = {
         <br />• Start with <kbd>/</kbd> to see slash commands
         <br />• Commands are organized into sections (Workspace, Chat, Mode, Settings, Project,
         Help)
-      </InfoBox>
+      </div>
       <PaletteDemo />
-    </StoryWrapper>
+    </div>
   ),
 };
