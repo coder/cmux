@@ -69,7 +69,7 @@ const CostsTabComponent: React.FC<CostsTabProps> = ({ workspaceId }) => {
   // Only show empty state if truly no data anywhere
   if (!hasAnyData) {
     return (
-      <div className="text-[#d4d4d4] font-[var(--font-primary)] text-[13px] leading-relaxed">
+      <div className="text-[#d4d4d4] font-primary text-[13px] leading-relaxed">
         <div className="text-text-secondary text-center py-10 px-5">
           <p>No messages yet.</p>
           <p>Send a message to see token usage statistics.</p>
@@ -90,7 +90,7 @@ const CostsTabComponent: React.FC<CostsTabProps> = ({ workspaceId }) => {
       : sumUsageHistory(usage.usageHistory);
 
   return (
-    <div className="text-[#d4d4d4] font-[var(--font-primary)] text-[13px] leading-relaxed">
+    <div className="text-[#d4d4d4] font-primary text-[13px] leading-relaxed">
       {hasUsageData && (
         <div data-testid="context-usage-section" className="mt-2 mb-5">
           <div data-testid="context-usage-list" className="flex flex-col gap-3">
