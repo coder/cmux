@@ -28,8 +28,6 @@ import { createBashTool } from "@/services/tools/bash";
 import type { BashToolResult } from "@/types/tools";
 import { secretsToRecord } from "@/types/secrets";
 import { DisposableTempDir } from "@/services/tempDir";
-import { createAnthropic } from "@ai-sdk/anthropic";
-import { createOpenAI } from "@ai-sdk/openai";
 import { generateWorkspaceTitle } from "@/services/autotitle";
 
 /**
@@ -330,50 +328,30 @@ export class IpcMain {
       }
     );
 
-    ipcMain.handle(IPC_CHANNELS.WORKSPACE_GENERATE_TITLE, async (_event, workspaceId: string) => {
-      try {
-        // Determine which provider to use
-        const providersConfig = this.config.loadProvidersConfig();
-        let modelString = "anthropic:claude-haiku-4"; // Default
-
-        if (providersConfig) {
-          // Use first configured provider's cheapest model
-          const providers = Object.keys(providersConfig);
-          if (providers.length > 0) {
-            const provider = providers[0];
-            if (provider === "anthropic") {
-              modelString = "anthropic:claude-haiku-4";
-            } else if (provider === "openai") {
-              modelString = "openai:gpt-4o-mini";
-            }
+    ipcMain.handle(
+      IPC_CHANNELS.WORKSPACE_GENERATE_TITLE,
+      async (_event, workspaceId: string, modelString: string) => {
+        try {
+          if (!modelString || !modelString.includes(":")) {
+            return Err(
+              'Invalid model string format. Expected "provider:model-id" (e.g., "anthropic:claude-3-5-sonnet-20241022")'
+            );
           }
-        }
 
-        // Create model instance
-        const [providerName, modelId] = modelString.split(":");
-        let model;
+          // Load provider configs for API keys, base URLs, etc.
+          const providersConfig = this.config.loadProvidersConfig();
 
-        if (providerName === "anthropic") {
-          const providerConfig = providersConfig?.[providerName] ?? {};
-          const anthropic = createAnthropic(providerConfig);
-          model = anthropic(modelId);
-        } else if (providerName === "openai") {
-          const providerConfig = providersConfig?.[providerName] ?? {};
-          const openai = createOpenAI(providerConfig);
-          model = openai(modelId);
-        } else {
-          // Fallback to anthropic
-          const anthropic = createAnthropic({});
-          model = anthropic("claude-haiku-4");
-        }
+          // Create model instance using utility
+          const { createModelFromString } = await import("@/utils/ai/modelFactory");
+          const model = createModelFromString(modelString, providersConfig);
 
-        // Generate title
-        const result = await generateWorkspaceTitle(
-          workspaceId,
-          this.historyService,
-          model,
-          modelString
-        );
+          // Generate title
+          const result = await generateWorkspaceTitle(
+            workspaceId,
+            this.historyService,
+            model,
+            modelString
+          );
 
         if (!result.success) {
           return Err(result.error);

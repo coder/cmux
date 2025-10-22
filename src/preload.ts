@@ -72,8 +72,8 @@ const api: IPCApi = {
       ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_EXECUTE_BASH, workspaceId, script, options),
     openTerminal: (workspacePath) =>
       ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_OPEN_TERMINAL, workspacePath),
-    generateTitle: (workspaceId: string) =>
-      ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_GENERATE_TITLE, workspaceId),
+    generateTitle: (workspaceId: string, modelString: string) =>
+      ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_GENERATE_TITLE, workspaceId, modelString),
 
     onChat: (workspaceId, callback) => {
       const channel = getChatChannel(workspaceId);

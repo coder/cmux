@@ -14,9 +14,6 @@ import type { Result } from "@/types/result";
 import { Ok, Err } from "@/types/result";
 import { enforceThinkingPolicy } from "@/utils/thinking/policy";
 import { loadTokenizerForModel } from "@/utils/main/tokenizer";
-import { createAnthropic } from "@ai-sdk/anthropic";
-import { createOpenAI } from "@ai-sdk/openai";
-import { generateWorkspaceTitle } from "@/services/autotitle";
 
 interface ImagePart {
   url: string;
@@ -371,8 +368,6 @@ export class AgentSession {
     forward("stream-delta", (payload) => this.emitChatEvent(payload));
     forward("stream-end", (payload) => {
       this.emitChatEvent(payload);
-      // Auto-generate title after first assistant response (fire-and-forget)
-      void this.maybeGenerateTitle();
     });
     forward("tool-call-start", (payload) => this.emitChatEvent(payload));
     forward("tool-call-delta", (payload) => this.emitChatEvent(payload));
@@ -408,109 +403,6 @@ export class AgentSession {
 
     this.aiListeners.push({ event: "error", handler: errorHandler });
     this.aiService.on("error", errorHandler as never);
-  }
-
-  /**
-   * Auto-generate workspace title after first assistant response.
-   * This is a fire-and-forget operation that happens in the background.
-   * Errors are logged but don't affect the stream completion.
-   */
-  private async maybeGenerateTitle(): Promise<void> {
-    try {
-      // 1. Check if workspace already has a title
-      const metadataResult = this.aiService.getWorkspaceMetadata(this.workspaceId);
-      if (!metadataResult.success || metadataResult.data.title) {
-        return; // Already has title, skip
-      }
-
-      // 2. Check if this is the first assistant response
-      const historyResult = await this.historyService.getHistory(this.workspaceId);
-      if (!historyResult.success) {
-        return;
-      }
-
-      const assistantMessages = historyResult.data.filter((m) => m.role === "assistant");
-      if (assistantMessages.length !== 1) {
-        return; // Not first message, skip
-      }
-
-      // 3. Determine which provider to use
-      const providersConfig = this.config.loadProvidersConfig();
-      let modelString = "anthropic:claude-haiku-4"; // Default
-
-      if (providersConfig) {
-        // Use first configured provider's cheapest model
-        const providers = Object.keys(providersConfig);
-        if (providers.length > 0) {
-          const provider = providers[0];
-          if (provider === "anthropic") {
-            modelString = "anthropic:claude-haiku-4";
-          } else if (provider === "openai") {
-            modelString = "openai:gpt-4o-mini";
-          }
-        }
-      }
-
-      // 4. Create model instance using AIService (handles provider config loading)
-      const [providerName, modelId] = modelString.split(":");
-      let model;
-
-      if (providerName === "anthropic") {
-        const providerConfig = providersConfig?.[providerName] ?? {};
-        const anthropic = createAnthropic(providerConfig);
-        model = anthropic(modelId);
-      } else if (providerName === "openai") {
-        const providerConfig = providersConfig?.[providerName] ?? {};
-        const openai = createOpenAI(providerConfig);
-        model = openai(modelId);
-      } else {
-        // Fallback to anthropic
-        const anthropic = createAnthropic({});
-        model = anthropic("claude-haiku-4");
-      }
-
-      // 5. Generate title
-      const result = await generateWorkspaceTitle(
-        this.workspaceId,
-        this.historyService,
-        model,
-        modelString
-      );
-
-      if (!result.success) {
-        // Non-fatal: just log and continue without title
-        console.error(
-          `[Autotitle] Failed to generate title for ${this.workspaceId}:`,
-          result.error
-        );
-        return;
-      }
-
-      const title = result.data;
-
-      // 6. Update config with new title
-      this.config.editConfig((config) => {
-        for (const [_projectPath, projectConfig] of config.projects) {
-          const workspace = projectConfig.workspaces.find((w) => w.id === this.workspaceId);
-          if (workspace) {
-            workspace.title = title;
-            break;
-          }
-        }
-        return config;
-      });
-
-      // 7. Emit metadata update so UI refreshes
-      const updatedMetadataResult = this.aiService.getWorkspaceMetadata(this.workspaceId);
-      if (updatedMetadataResult.success) {
-        this.emitMetadata(updatedMetadataResult.data);
-      }
-
-      console.log(`[Autotitle] Generated title for ${this.workspaceId}: "${title}"`);
-    } catch (error) {
-      // Catch any unexpected errors to prevent breaking the stream
-      console.error(`[Autotitle] Unexpected error for ${this.workspaceId}:`, error);
-    }
   }
 
   private emitChatEvent(message: WorkspaceChatMessage): void {
