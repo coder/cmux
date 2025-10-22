@@ -1,169 +1,22 @@
 import React from "react";
 import { createPortal } from "react-dom";
-import styled from "@emotion/styled";
 import type { GitStatus } from "@/types/workspace";
 import type { GitCommit, GitBranchHeader } from "@/utils/git/parseGitLog";
+import { cn } from "@/lib/utils";
 
-const Container = styled.span`
-  color: #569cd6;
-  font-size: 11px;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin-right: 6px;
-  font-family: var(--font-monospace);
-  position: relative;
-`;
-
-const Arrow = styled.span`
-  display: flex;
-  align-items: center;
-  font-weight: normal;
-`;
-
-const DirtyIndicator = styled.span`
-  display: flex;
-  align-items: center;
-  font-weight: normal;
-  color: var(--color-git-dirty);
-  line-height: 1;
-`;
-
-const Tooltip = styled.div<{ show: boolean }>`
-  position: fixed;
-  z-index: 10000;
-  background: #2d2d30;
-  color: #cccccc;
-  border: 1px solid #464647;
-  border-radius: 4px;
-  padding: 8px 12px;
-  font-size: 11px;
-  font-family: var(--font-monospace);
-  white-space: pre;
-  max-width: 600px;
-  max-height: 400px;
-  overflow: auto;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-  pointer-events: auto;
-  opacity: ${(props) => (props.show ? 1 : 0)};
-  visibility: ${(props) => (props.show ? "visible" : "hidden")};
-  transition:
-    opacity 0.2s,
-    visibility 0.2s;
-`;
-
-const BranchHeader = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  margin-bottom: 8px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid #464647;
-`;
-
-const BranchHeaderLine = styled.div`
-  display: flex;
-  gap: 8px;
-  font-family: var(--font-monospace);
-  line-height: 1.4;
-`;
-
-const BranchName = styled.span`
-  color: #cccccc;
-`;
-
-const DirtySection = styled.div`
-  margin-bottom: 8px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid #464647;
-`;
-
-const DirtySectionTitle = styled.div`
-  color: var(--color-git-dirty);
-  font-weight: 600;
-  margin-bottom: 4px;
-  font-family: var(--font-monospace);
-`;
-
-const DirtyFileList = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-`;
-
-const DirtyFileLine = styled.div`
-  color: #cccccc;
-  font-family: var(--font-monospace);
-  font-size: 11px;
-  line-height: 1.4;
-  white-space: pre;
-`;
-
-const TruncationNote = styled.div`
-  color: #808080;
-  font-style: italic;
-  margin-top: 4px;
-  font-size: 10px;
-`;
-
-const CommitList = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-`;
-
-const CommitLine = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-`;
-
-const CommitMainLine = styled.div`
-  display: flex;
-  gap: 8px;
-  font-family: var(--font-monospace);
-  line-height: 1.4;
-`;
-
-const CommitIndicators = styled.span`
-  color: #6b6b6b;
-  white-space: pre;
-  flex-shrink: 0;
-  font-family: var(--font-monospace);
-  margin-right: 8px;
-`;
-
-const IndicatorChar = styled.span<{ branch: number }>`
-  color: ${(props) => {
-    switch (props.branch) {
-      case 0:
-        return "#6bcc6b"; // Green for HEAD
-      case 1:
-        return "#6ba3cc"; // Blue for origin/main
-      case 2:
-        return "#b66bcc"; // Purple for origin/branch
-      default:
-        return "#6b6b6b"; // Gray fallback
-    }
-  }};
-`;
-
-const CommitHash = styled.span`
-  color: #569cd6;
-  flex-shrink: 0;
-  user-select: all;
-`;
-
-const CommitDate = styled.span`
-  color: #808080;
-  flex-shrink: 0;
-`;
-
-const CommitSubject = styled.span`
-  color: #cccccc;
-  flex: 1;
-  word-break: break-word;
-`;
+// Helper for indicator colors
+const getIndicatorColor = (branch: number): string => {
+  switch (branch) {
+    case 0:
+      return "#6bcc6b"; // Green for HEAD
+    case 1:
+      return "#6ba3cc"; // Blue for origin/main
+    case 2:
+      return "#b66bcc"; // Purple for origin/branch
+    default:
+      return "#6b6b6b"; // Gray fallback
+  }
+};
 
 export interface GitStatusIndicatorViewProps {
   gitStatus: GitStatus | null;
@@ -207,24 +60,24 @@ export const GitStatusIndicatorView: React.FC<GitStatusIndicatorViewProps> = ({
 }) => {
   // Handle null gitStatus (loading state)
   if (!gitStatus) {
-    return <Container aria-hidden="true" />;
+    return <span className="text-[#569cd6] text-[11px] flex items-center gap-1 mr-1.5 font-mono relative" aria-hidden="true" />;
   }
 
   // Render empty placeholder when nothing to show (prevents layout shift)
   if (gitStatus.ahead === 0 && gitStatus.behind === 0 && !gitStatus.dirty) {
-    return <Container aria-hidden="true" />;
+    return <span className="text-[#569cd6] text-[11px] flex items-center gap-1 mr-1.5 font-mono relative" aria-hidden="true" />;
   }
 
   // Render colored indicator characters
   const renderIndicators = (indicators: string) => {
     return (
-      <CommitIndicators>
+      <span className="text-[#6b6b6b] whitespace-pre flex-shrink-0 font-mono mr-2">
         {Array.from(indicators).map((char, index) => (
-          <IndicatorChar key={index} branch={index}>
+          <span key={index} style={{ color: getIndicatorColor(index) }}>
             {char}
-          </IndicatorChar>
+          </span>
         ))}
-      </CommitIndicators>
+      </span>
     );
   };
 
@@ -235,22 +88,22 @@ export const GitStatusIndicatorView: React.FC<GitStatusIndicatorViewProps> = ({
     }
 
     return (
-      <BranchHeader>
+      <div className="flex flex-col gap-0.5 mb-2 pb-2 border-b border-[#464647]">
         {branchHeaders.map((header, index) => (
-          <BranchHeaderLine key={index}>
-            <CommitIndicators>
+          <div key={index} className="flex gap-2 font-mono leading-snug">
+            <span className="text-[#6b6b6b] whitespace-pre flex-shrink-0 font-mono mr-2">
               {/* Create spacing to align with column */}
               {Array.from({ length: header.columnIndex }).map((_, i) => (
-                <IndicatorChar key={i} branch={i}>
+                <span key={i} style={{ color: getIndicatorColor(i) }}>
                   {" "}
-                </IndicatorChar>
+                </span>
               ))}
-              <IndicatorChar branch={header.columnIndex}>!</IndicatorChar>
-            </CommitIndicators>
-            <BranchName>[{header.branch}]</BranchName>
-          </BranchHeaderLine>
+              <span style={{ color: getIndicatorColor(header.columnIndex) }}>!</span>
+            </span>
+            <span className="text-[#cccccc]">[{header.branch}]</span>
+          </div>
         ))}
-      </BranchHeader>
+      </div>
     );
   };
 
@@ -265,19 +118,21 @@ export const GitStatusIndicatorView: React.FC<GitStatusIndicatorViewProps> = ({
     const isTruncated = dirtyFiles.length > LIMIT;
 
     return (
-      <DirtySection>
-        <DirtySectionTitle>Uncommitted changes:</DirtySectionTitle>
-        <DirtyFileList>
+      <div className="mb-2 pb-2 border-b border-[#464647]">
+        <div className="text-git-dirty font-semibold mb-1 font-mono">Uncommitted changes:</div>
+        <div className="flex flex-col gap-px">
           {displayFiles.map((line, index) => (
-            <DirtyFileLine key={index}>{line}</DirtyFileLine>
+            <div key={index} className="text-[#cccccc] font-mono text-[11px] leading-snug whitespace-pre">
+              {line}
+            </div>
           ))}
-        </DirtyFileList>
+        </div>
         {isTruncated && (
-          <TruncationNote>
+          <div className="text-[#808080] italic mt-1 text-[10px]">
             (showing {LIMIT} of {dirtyFiles.length} files)
-          </TruncationNote>
+          </div>
         )}
-      </DirtySection>
+      </div>
     );
   };
 
@@ -299,26 +154,29 @@ export const GitStatusIndicatorView: React.FC<GitStatusIndicatorViewProps> = ({
       <>
         {renderDirtySection()}
         {renderBranchHeaders()}
-        <CommitList>
+        <div className="flex flex-col gap-1">
           {commits.map((commit, index) => (
-            <CommitLine key={`${commit.hash}-${index}`}>
-              <CommitMainLine>
+            <div key={`${commit.hash}-${index}`} className="flex flex-col gap-0.5">
+              <div className="flex gap-2 font-mono leading-snug">
                 {renderIndicators(commit.indicators)}
-                <CommitHash>{commit.hash}</CommitHash>
-                <CommitDate>{commit.date}</CommitDate>
-                <CommitSubject>{commit.subject}</CommitSubject>
-              </CommitMainLine>
-            </CommitLine>
+                <span className="text-[#569cd6] flex-shrink-0 select-all">{commit.hash}</span>
+                <span className="text-[#808080] flex-shrink-0">{commit.date}</span>
+                <span className="text-[#cccccc] flex-1 break-words">{commit.subject}</span>
+              </div>
+            </div>
           ))}
-        </CommitList>
+        </div>
       </>
     );
   };
 
   // Render tooltip via portal to bypass overflow constraints
   const tooltipElement = (
-    <Tooltip
-      show={showTooltip}
+    <div
+      className={cn(
+        "fixed z-[10000] bg-[#2d2d30] text-[#cccccc] border border-[#464647] rounded px-3 py-2 text-[11px] font-mono whitespace-pre max-w-[600px] max-h-[400px] overflow-auto shadow-[0_4px_12px_rgba(0,0,0,0.5)] pointer-events-auto transition-opacity duration-200",
+        showTooltip ? "opacity-100 visible" : "opacity-0 invisible"
+      )}
       style={{
         top: `${tooltipCoords.top}px`,
         left: `${tooltipCoords.left}px`,
@@ -328,16 +186,21 @@ export const GitStatusIndicatorView: React.FC<GitStatusIndicatorViewProps> = ({
       onMouseLeave={onTooltipMouseLeave}
     >
       {renderTooltipContent()}
-    </Tooltip>
+    </div>
   );
 
   return (
     <>
-      <Container ref={onContainerRef} onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
-        {gitStatus.ahead > 0 && <Arrow>↑{gitStatus.ahead}</Arrow>}
-        {gitStatus.behind > 0 && <Arrow>↓{gitStatus.behind}</Arrow>}
-        {gitStatus.dirty && <DirtyIndicator>*</DirtyIndicator>}
-      </Container>
+      <span
+        ref={onContainerRef}
+        onMouseEnter={onMouseEnter}
+        onMouseLeave={onMouseLeave}
+        className="text-[#569cd6] text-[11px] flex items-center gap-1 mr-1.5 font-mono relative"
+      >
+        {gitStatus.ahead > 0 && <span className="flex items-center font-normal">↑{gitStatus.ahead}</span>}
+        {gitStatus.behind > 0 && <span className="flex items-center font-normal">↓{gitStatus.behind}</span>}
+        {gitStatus.dirty && <span className="flex items-center font-normal text-git-dirty leading-none">*</span>}
+      </span>
 
       {createPortal(tooltipElement, document.body)}
     </>
