@@ -132,15 +132,6 @@ const TreeHeader = styled.div`
   gap: 8px;
 `;
 
-const CommonPrefix = styled.div`
-  padding: 6px 12px;
-  background: #1e1e1e;
-  border-bottom: 1px solid #3e3e42;
-  font-size: 11px;
-  color: #888;
-  font-family: var(--font-monospace);
-`;
-
 const EmptyState = styled.div`
   padding: 20px;
   color: #888;
@@ -194,7 +185,6 @@ const TreeNodeContent: React.FC<{
   depth: number;
   selectedPath: string | null;
   onSelectFile: (path: string | null) => void;
-  commonPrefix: string | null;
   getFileReadStatus?: (filePath: string) => { total: number; read: number } | null;
   expandStateMap: Record<string, boolean>;
   setExpandStateMap: (
@@ -205,7 +195,6 @@ const TreeNodeContent: React.FC<{
   depth,
   selectedPath,
   onSelectFile,
-  commonPrefix,
   getFileReadStatus,
   expandStateMap,
   setExpandStateMap,
@@ -317,7 +306,6 @@ const TreeNodeContent: React.FC<{
             depth={depth + 1}
             selectedPath={selectedPath}
             onSelectFile={onSelectFile}
-            commonPrefix={commonPrefix}
             getFileReadStatus={getFileReadStatus}
             expandStateMap={expandStateMap}
             setExpandStateMap={setExpandStateMap}
@@ -332,7 +320,6 @@ interface FileTreeExternalProps {
   selectedPath: string | null;
   onSelectFile: (path: string | null) => void;
   isLoading?: boolean;
-  commonPrefix?: string | null;
   getFileReadStatus?: (filePath: string) => { total: number; read: number } | null;
   workspaceId: string;
 }
@@ -342,7 +329,6 @@ export const FileTree: React.FC<FileTreeExternalProps> = ({
   selectedPath,
   onSelectFile,
   isLoading = false,
-  commonPrefix = null,
   getFileReadStatus,
   workspaceId,
 }) => {
@@ -353,42 +339,23 @@ export const FileTree: React.FC<FileTreeExternalProps> = ({
     { listener: true }
   );
 
-  // Find the node at the common prefix path to start rendering from
-  const startNode = React.useMemo(() => {
-    if (!commonPrefix || !root) return root;
-
-    // Navigate to the node at the common prefix path
-    const parts = commonPrefix.split("/");
-    let current = root;
-
-    for (const part of parts) {
-      const child = current.children.find((c) => c.name === part);
-      if (!child) return root; // Fallback if path not found
-      current = child;
-    }
-
-    return current;
-  }, [root, commonPrefix]);
-
   return (
     <>
       <TreeHeader>
         <span>Files Changed</span>
         {selectedPath && <ClearButton onClick={() => onSelectFile(null)}>Clear filter</ClearButton>}
       </TreeHeader>
-      {commonPrefix && <CommonPrefix>{commonPrefix}/</CommonPrefix>}
       <TreeContainer>
-        {isLoading && !startNode ? (
+        {isLoading && !root ? (
           <EmptyState>Loading file tree...</EmptyState>
-        ) : startNode ? (
-          startNode.children.map((child) => (
+        ) : root ? (
+          root.children.map((child) => (
             <TreeNodeContent
               key={child.path}
               node={child}
               depth={0}
               selectedPath={selectedPath}
               onSelectFile={onSelectFile}
-              commonPrefix={commonPrefix}
               getFileReadStatus={getFileReadStatus}
               expandStateMap={expandStateMap}
               setExpandStateMap={setExpandStateMap}

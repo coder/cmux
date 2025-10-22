@@ -32,12 +32,7 @@ import { useReviewState } from "@/hooks/useReviewState";
 import { parseDiff, extractAllHunks } from "@/utils/git/diffParser";
 import { getReviewSearchStateKey } from "@/constants/storage";
 import { Tooltip, TooltipWrapper } from "@/components/Tooltip";
-import {
-  parseNumstat,
-  buildFileTree,
-  extractNewPath,
-  extractCommonPrefix,
-} from "@/utils/git/numstatParser";
+import { parseNumstat, buildFileTree, extractNewPath } from "@/utils/git/numstatParser";
 import type { DiffHunk, ReviewFilters as ReviewFiltersType } from "@/types/review";
 import type { FileTreeNode } from "@/utils/git/numstatParser";
 import { matchesKeybind, KEYBINDS, formatKeybind } from "@/utils/ui/keybinds";
@@ -79,25 +74,26 @@ const PanelContainer = styled.div`
 
 const ContentContainer = styled.div`
   display: flex;
-  flex-direction: row; /* Default: wide layout */
+  flex-direction: column;
   flex: 1;
   min-height: 0;
   overflow: hidden;
+`;
 
-  /* Switch to vertical layout when container is narrow */
-  @container review-panel (max-width: 800px) {
-    flex-direction: column;
-  }
+const ScrollableContent = styled.div`
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
 `;
 
 const HunksSection = styled.div`
-  flex: 1;
-  min-height: 0;
+  flex: 0 0 auto; /* Size based on content, no scrolling */
   display: flex;
   flex-direction: column;
-  overflow: hidden;
   min-width: 0;
-  order: 1; /* Stay in middle regardless of layout */
+  padding: 12px;
 `;
 
 // Search bar styling - unified component approach
@@ -188,32 +184,19 @@ const SearchButton = styled.button<{ active: boolean }>`
 `;
 
 const HunkList = styled.div`
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 `;
 
 const FileTreeSection = styled.div`
-  /* Default: Wide layout - fixed width on right side */
-  width: 300px;
-  flex-shrink: 0;
-  border-left: 1px solid #3e3e42;
+  /* Part of scrollable content, not sticky */
+  width: 100%;
+  flex: 0 0 auto; /* Size based on content */
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  min-height: 0;
-  order: 2; /* Come after HunksSection in wide mode */
-
-  /* Narrow layout: full width, grow to fit full tree, above hunks */
-  @container review-panel (max-width: 800px) {
-    width: 100%;
-    height: auto; /* Let it grow to show full tree */
-    flex: 0 0 auto; /* Fixed size based on content */
-    border-left: none;
-    border-bottom: 1px solid #3e3e42;
-    order: 0; /* Come before HunksSection in narrow mode */
-  }
+  border-bottom: 1px solid #3e3e42;
 `;
 
 const EmptyState = styled.div`
@@ -426,7 +409,6 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
   const [isPanelFocused, setIsPanelFocused] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [fileTree, setFileTree] = useState<FileTreeNode | null>(null);
-  const [commonPrefix, setCommonPrefix] = useState<string | null>(null);
   // Map of hunkId -> toggle function for expand/collapse
   const toggleExpandFnsRef = useRef<Map<string, () => void>>(new Map());
 
@@ -509,13 +491,9 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
           const numstatOutput = numstatResult.data.output ?? "";
           const fileStats = parseNumstat(numstatOutput);
 
-          // Extract common prefix for display (don't modify paths)
-          const prefix = extractCommonPrefix(fileStats);
-
           // Build tree with original paths (needed for git commands)
           const tree = buildFileTree(fileStats);
           setFileTree(tree);
-          setCommonPrefix(prefix);
         }
       } catch (err) {
         console.error("Failed to load file tree:", err);
@@ -850,133 +828,137 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
         <LoadingState>Loading diff...</LoadingState>
       ) : (
         <ContentContainer>
-          <HunksSection>
-            {truncationWarning && <TruncationBanner>{truncationWarning}</TruncationBanner>}
+          {truncationWarning && <TruncationBanner>{truncationWarning}</TruncationBanner>}
 
-            <SearchContainer>
-              <SearchBar>
-                <SearchInput
-                  ref={searchInputRef}
-                  type="text"
-                  placeholder={`Search in files and hunks... (${formatKeybind(KEYBINDS.FOCUS_REVIEW_SEARCH)})`}
-                  value={searchState.input}
-                  onChange={(e) => setSearchState({ ...searchState, input: e.target.value })}
-                />
-                <TooltipWrapper inline>
-                  <SearchButton
-                    active={searchState.useRegex}
-                    onClick={() =>
-                      setSearchState({ ...searchState, useRegex: !searchState.useRegex })
-                    }
-                  >
-                    .*
-                  </SearchButton>
-                  <Tooltip position="bottom">
-                    {searchState.useRegex ? "Using regex search" : "Using substring search"}
-                  </Tooltip>
-                </TooltipWrapper>
-                <TooltipWrapper inline>
-                  <SearchButton
-                    active={searchState.matchCase}
-                    onClick={() =>
-                      setSearchState({ ...searchState, matchCase: !searchState.matchCase })
-                    }
-                  >
-                    Aa
-                  </SearchButton>
-                  <Tooltip position="bottom">
-                    {searchState.matchCase
-                      ? "Match case (case-sensitive)"
-                      : "Ignore case (case-insensitive)"}
-                  </Tooltip>
-                </TooltipWrapper>
-              </SearchBar>
-            </SearchContainer>
-
-            <HunkList>
-              {hunks.length === 0 ? (
-                <EmptyState>
-                  <EmptyStateTitle>No changes found</EmptyStateTitle>
-                  <EmptyStateText>
-                    No changes found for the selected diff base.
-                    <br />
-                    Try selecting a different base or make some changes.
-                  </EmptyStateText>
-                  {diagnosticInfo && (
-                    <DiagnosticSection>
-                      <summary>Show diagnostic info</summary>
-                      <DiagnosticContent>
-                        <DiagnosticRow>
-                          <DiagnosticLabel>Command:</DiagnosticLabel>
-                          <DiagnosticValue>{diagnosticInfo.command}</DiagnosticValue>
-                        </DiagnosticRow>
-                        <DiagnosticRow>
-                          <DiagnosticLabel>Output size:</DiagnosticLabel>
-                          <DiagnosticValue>
-                            {diagnosticInfo.outputLength.toLocaleString()} bytes
-                          </DiagnosticValue>
-                        </DiagnosticRow>
-                        <DiagnosticRow>
-                          <DiagnosticLabel>Files parsed:</DiagnosticLabel>
-                          <DiagnosticValue>{diagnosticInfo.fileDiffCount}</DiagnosticValue>
-                        </DiagnosticRow>
-                        <DiagnosticRow>
-                          <DiagnosticLabel>Hunks extracted:</DiagnosticLabel>
-                          <DiagnosticValue>{diagnosticInfo.hunkCount}</DiagnosticValue>
-                        </DiagnosticRow>
-                      </DiagnosticContent>
-                    </DiagnosticSection>
-                  )}
-                </EmptyState>
-              ) : filteredHunks.length === 0 ? (
-                <EmptyState>
-                  <EmptyStateText>
-                    {debouncedSearchTerm.trim()
-                      ? `No hunks match "${debouncedSearchTerm}". Try a different search term.`
-                      : selectedFilePath
-                        ? `No hunks in ${selectedFilePath}. Try selecting a different file.`
-                        : "No hunks match the current filters. Try adjusting your filter settings."}
-                  </EmptyStateText>
-                </EmptyState>
-              ) : (
-                filteredHunks.map((hunk) => {
-                  const isSelected = hunk.id === selectedHunkId;
-                  const hunkIsRead = isRead(hunk.id);
-
-                  return (
-                    <HunkViewer
-                      key={hunk.id}
-                      hunk={hunk}
-                      hunkId={hunk.id}
-                      workspaceId={workspaceId}
-                      isSelected={isSelected}
-                      isRead={hunkIsRead}
-                      onClick={handleHunkClick}
-                      onToggleRead={handleHunkToggleRead}
-                      onRegisterToggleExpand={handleRegisterToggleExpand}
-                      onReviewNote={onReviewNote}
-                      searchConfig={searchConfig}
-                    />
-                  );
-                })
-              )}
-            </HunkList>
-          </HunksSection>
-
-          {/* FileTree positioning handled by CSS order property */}
-          {(fileTree ?? isLoadingTree) && (
-            <FileTreeSection>
-              <FileTree
-                root={fileTree}
-                selectedPath={selectedFilePath}
-                onSelectFile={setSelectedFilePath}
-                isLoading={isLoadingTree}
-                commonPrefix={commonPrefix}
-                getFileReadStatus={getFileReadStatus}
-                workspaceId={workspaceId}
+          {/* Search bar - always visible at top, not sticky */}
+          <SearchContainer>
+            <SearchBar>
+              <SearchInput
+                ref={searchInputRef}
+                type="text"
+                placeholder={`Search in files and hunks... (${formatKeybind(KEYBINDS.FOCUS_REVIEW_SEARCH)})`}
+                value={searchState.input}
+                onChange={(e) => setSearchState({ ...searchState, input: e.target.value })}
               />
-            </FileTreeSection>
-          )}
+              <TooltipWrapper inline>
+                <SearchButton
+                  active={searchState.useRegex}
+                  onClick={() =>
+                    setSearchState({ ...searchState, useRegex: !searchState.useRegex })
+                  }
+                >
+                  .*
+                </SearchButton>
+                <Tooltip position="bottom">
+                  {searchState.useRegex ? "Using regex search" : "Using substring search"}
+                </Tooltip>
+              </TooltipWrapper>
+              <TooltipWrapper inline>
+                <SearchButton
+                  active={searchState.matchCase}
+                  onClick={() =>
+                    setSearchState({ ...searchState, matchCase: !searchState.matchCase })
+                  }
+                >
+                  Aa
+                </SearchButton>
+                <Tooltip position="bottom">
+                  {searchState.matchCase
+                    ? "Match case (case-sensitive)"
+                    : "Ignore case (case-insensitive)"}
+                </Tooltip>
+              </TooltipWrapper>
+            </SearchBar>
+          </SearchContainer>
+
+          {/* Single scrollable area containing both file tree and hunks */}
+          <ScrollableContent>
+            {/* FileTree at the top */}
+            {(fileTree ?? isLoadingTree) && (
+              <FileTreeSection>
+                <FileTree
+                  root={fileTree}
+                  selectedPath={selectedFilePath}
+                  onSelectFile={setSelectedFilePath}
+                  isLoading={isLoadingTree}
+                  getFileReadStatus={getFileReadStatus}
+                  workspaceId={workspaceId}
+                />
+              </FileTreeSection>
+            )}
+
+            {/* Hunks below the file tree */}
+            <HunksSection>
+              <HunkList>
+                {hunks.length === 0 ? (
+                  <EmptyState>
+                    <EmptyStateTitle>No changes found</EmptyStateTitle>
+                    <EmptyStateText>
+                      No changes found for the selected diff base.
+                      <br />
+                      Try selecting a different base or make some changes.
+                    </EmptyStateText>
+                    {diagnosticInfo && (
+                      <DiagnosticSection>
+                        <summary>Show diagnostic info</summary>
+                        <DiagnosticContent>
+                          <DiagnosticRow>
+                            <DiagnosticLabel>Command:</DiagnosticLabel>
+                            <DiagnosticValue>{diagnosticInfo.command}</DiagnosticValue>
+                          </DiagnosticRow>
+                          <DiagnosticRow>
+                            <DiagnosticLabel>Output size:</DiagnosticLabel>
+                            <DiagnosticValue>
+                              {diagnosticInfo.outputLength.toLocaleString()} bytes
+                            </DiagnosticValue>
+                          </DiagnosticRow>
+                          <DiagnosticRow>
+                            <DiagnosticLabel>Files parsed:</DiagnosticLabel>
+                            <DiagnosticValue>{diagnosticInfo.fileDiffCount}</DiagnosticValue>
+                          </DiagnosticRow>
+                          <DiagnosticRow>
+                            <DiagnosticLabel>Hunks extracted:</DiagnosticLabel>
+                            <DiagnosticValue>{diagnosticInfo.hunkCount}</DiagnosticValue>
+                          </DiagnosticRow>
+                        </DiagnosticContent>
+                      </DiagnosticSection>
+                    )}
+                  </EmptyState>
+                ) : filteredHunks.length === 0 ? (
+                  <EmptyState>
+                    <EmptyStateText>
+                      {debouncedSearchTerm.trim()
+                        ? `No hunks match "${debouncedSearchTerm}". Try a different search term.`
+                        : selectedFilePath
+                          ? `No hunks in ${selectedFilePath}. Try selecting a different file.`
+                          : "No hunks match the current filters. Try adjusting your filter settings."}
+                    </EmptyStateText>
+                  </EmptyState>
+                ) : (
+                  filteredHunks.map((hunk) => {
+                    const isSelected = hunk.id === selectedHunkId;
+                    const hunkIsRead = isRead(hunk.id);
+
+                    return (
+                      <HunkViewer
+                        key={hunk.id}
+                        hunk={hunk}
+                        hunkId={hunk.id}
+                        workspaceId={workspaceId}
+                        isSelected={isSelected}
+                        isRead={hunkIsRead}
+                        onClick={handleHunkClick}
+                        onToggleRead={handleHunkToggleRead}
+                        onRegisterToggleExpand={handleRegisterToggleExpand}
+                        onReviewNote={onReviewNote}
+                        searchConfig={searchConfig}
+                      />
+                    );
+                  })
+                )}
+              </HunkList>
+            </HunksSection>
+          </ScrollableContent>
         </ContentContainer>
       )}
     </PanelContainer>
