@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import styled from "@emotion/styled";
 import {
   Modal,
   ModalActions,
@@ -12,10 +11,6 @@ import {
   WarningTitle,
   WarningText,
 } from "./Modal";
-
-const CenteredActions = styled(ModalActions)`
-  justify-content: center;
-`;
 
 interface ForceDeleteModalProps {
   isOpen: boolean;
@@ -70,14 +65,14 @@ export const ForceDeleteModal: React.FC<ForceDeleteModalProps> = ({
         </WarningText>
       </WarningBox>
 
-      <CenteredActions>
+      <ModalActions className="justify-center">
         <CancelButton onClick={onClose} disabled={isDeleting}>
           Cancel
         </CancelButton>
         <DangerButton onClick={handleForceDelete} disabled={isDeleting}>
           {isDeleting ? "Deleting..." : "Force Delete"}
         </DangerButton>
-      </CenteredActions>
+      </ModalActions>
     </Modal>
   );
 };
