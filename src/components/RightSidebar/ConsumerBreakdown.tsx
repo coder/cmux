@@ -1,109 +1,6 @@
 import React from "react";
-import styled from "@emotion/styled";
 import type { WorkspaceConsumersState } from "@/stores/WorkspaceStore";
 import { TooltipWrapper, Tooltip, HelpIndicator } from "../Tooltip";
-
-const TokenizerInfo = styled.div`
-  color: #888888;
-  font-size: 12px;
-  margin-bottom: 8px;
-`;
-
-const ConsumerList = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-`;
-
-const ConsumerRow = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-bottom: 8px;
-`;
-
-const ConsumerHeader = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 4px;
-`;
-
-const ConsumerName = styled.span`
-  color: #cccccc;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-`;
-
-const ConsumerTokens = styled.span`
-  color: #888888;
-  font-size: 12px;
-`;
-
-const PercentageBarWrapper = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-`;
-
-const PercentageBar = styled.div`
-  width: 100%;
-  height: 8px;
-  background: #2a2a2a;
-  border-radius: 4px;
-  overflow: hidden;
-  display: flex;
-`;
-
-interface SegmentProps {
-  percentage: number;
-}
-
-const PercentageFill = styled.div<SegmentProps>`
-  height: 100%;
-  width: ${(props) => props.percentage}%;
-  background: linear-gradient(90deg, #4a9eff 0%, #6b5ce7 100%);
-  transition: width 0.3s ease;
-`;
-
-const FixedSegment = styled.div<SegmentProps>`
-  height: 100%;
-  width: ${(props) => props.percentage}%;
-  background: var(--color-token-fixed);
-  transition: width 0.3s ease;
-`;
-
-const VariableSegment = styled.div<SegmentProps>`
-  height: 100%;
-  width: ${(props) => props.percentage}%;
-  background: var(--color-token-variable);
-  transition: width 0.3s ease;
-`;
-
-const TokenDetails = styled.div`
-  color: #666666;
-  font-size: 11px;
-  text-align: left;
-`;
-
-const LoadingState = styled.div`
-  color: #888888;
-  font-style: italic;
-  padding: 12px 0;
-`;
-
-const EmptyState = styled.div`
-  color: #666666;
-  font-style: italic;
-  padding: 12px 0;
-  text-align: left;
-
-  p {
-    margin: 4px 0;
-  }
-`;
 
 // Format token display - show k for thousands with 1 decimal
 const formatTokens = (tokens: number) =>
@@ -115,19 +12,19 @@ interface ConsumerBreakdownProps {
 
 const ConsumerBreakdownComponent: React.FC<ConsumerBreakdownProps> = ({ consumers }) => {
   if (consumers.isCalculating) {
-    return <LoadingState>Calculating consumer breakdown...</LoadingState>;
+    return <div className="text-text-secondary italic py-3">Calculating consumer breakdown...</div>;
   }
 
   if (consumers.consumers.length === 0) {
-    return <EmptyState>No consumer data available</EmptyState>;
+    return <div className="text-[#666666] italic py-3 text-left">No consumer data available</div>;
   }
 
   return (
     <>
-      <TokenizerInfo>
+      <div className="text-[#888888] text-xs mb-2">
         Tokenizer: <span>{consumers.tokenizerName}</span>
-      </TokenizerInfo>
-      <ConsumerList>
+      </div>
+      <div className="flex flex-col gap-3">
         {consumers.consumers.map((consumer) => {
           // Calculate percentages for fixed and variable segments
           const fixedPercentage = consumer.fixedTokens
@@ -140,9 +37,9 @@ const ConsumerBreakdownComponent: React.FC<ConsumerBreakdownProps> = ({ consumer
           const tokenDisplay = formatTokens(consumer.tokens);
 
           return (
-            <ConsumerRow key={consumer.name}>
-              <ConsumerHeader>
-                <ConsumerName>
+            <div key={consumer.name} className="flex flex-col gap-1 mb-2">
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-[#cccccc] font-medium flex items-center gap-1">
                   {consumer.name}
                   {consumer.name === "web_search" && (
                     <TooltipWrapper inline>
@@ -153,33 +50,51 @@ const ConsumerBreakdownComponent: React.FC<ConsumerBreakdownProps> = ({ consumer
                       </Tooltip>
                     </TooltipWrapper>
                   )}
-                </ConsumerName>
-                <ConsumerTokens>
+                </span>
+                <span className="text-[#888888] text-xs">
                   {tokenDisplay} ({consumer.percentage.toFixed(1)}%)
-                </ConsumerTokens>
-              </ConsumerHeader>
-              <PercentageBarWrapper>
-                <PercentageBar>
+                </span>
+              </div>
+              <div className="flex flex-col gap-1">
+                <div className="w-full h-2 bg-[#2a2a2a] rounded overflow-hidden flex">
                   {consumer.fixedTokens && consumer.variableTokens ? (
                     <>
-                      <FixedSegment percentage={fixedPercentage} />
-                      <VariableSegment percentage={variablePercentage} />
+                      <div
+                        className="h-full transition-[width] duration-300"
+                        style={{
+                          width: `${fixedPercentage}%`,
+                          background: "var(--color-token-fixed)",
+                        }}
+                      />
+                      <div
+                        className="h-full transition-[width] duration-300"
+                        style={{
+                          width: `${variablePercentage}%`,
+                          background: "var(--color-token-variable)",
+                        }}
+                      />
                     </>
                   ) : (
-                    <PercentageFill percentage={consumer.percentage} />
+                    <div
+                      className="h-full transition-[width] duration-300"
+                      style={{
+                        width: `${consumer.percentage}%`,
+                        background: "linear-gradient(90deg, #4a9eff 0%, #6b5ce7 100%)",
+                      }}
+                    />
                   )}
-                </PercentageBar>
+                </div>
                 {consumer.fixedTokens && consumer.variableTokens && (
-                  <TokenDetails>
+                  <div className="text-[#666666] text-[11px] text-left">
                     Tool definition: {formatTokens(consumer.fixedTokens)} • Usage:{" "}
                     {formatTokens(consumer.variableTokens)}
-                  </TokenDetails>
+                  </div>
                 )}
-              </PercentageBarWrapper>
-            </ConsumerRow>
+              </div>
+            </div>
           );
         })}
-      </ConsumerList>
+      </div>
     </>
   );
 };
