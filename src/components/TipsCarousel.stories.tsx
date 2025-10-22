@@ -1,15 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { TipsCarousel } from "./TipsCarousel";
-import styled from "@emotion/styled";
-
-const DemoContainer = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  padding: 20px;
-  background: #1e1e1e;
-  min-width: 500px;
-`;
 
 const meta = {
   title: "Components/TipsCarousel",
@@ -34,85 +24,42 @@ export const Default: Story = {
 
 export const WithExplanation: Story = {
   render: () => (
-    <DemoContainer>
-      <div
-        style={{
-          fontSize: "13px",
-          color: "#cccccc",
-          fontFamily: "var(--font-primary)",
-        }}
-      >
+    <div className="flex flex-col gap-5 p-5 bg-[#1e1e1e] min-w-[500px]">
+      <div className="text-[13px] text-[#cccccc] font-primary">
         Tips rotate automatically based on time. Hover to see the gradient effect:
       </div>
       <TipsCarousel />
-      <div
-        style={{
-          fontSize: "11px",
-          color: "#808080",
-          fontFamily: "var(--font-primary)",
-        }}
-      >
+      <div className="text-[11px] text-[#808080] font-primary">
         Tips change every hour to provide variety and convey UX information.
       </div>
-    </DemoContainer>
+    </div>
   ),
 };
 
 export const DebugControls: Story = {
   render: () => (
-    <DemoContainer>
-      <div
-        style={{
-          fontSize: "13px",
-          color: "#cccccc",
-          fontFamily: "var(--font-primary)",
-        }}
-      >
+    <div className="flex flex-col gap-5 p-5 bg-[#1e1e1e] min-w-[500px]">
+      <div className="text-[13px] text-[#cccccc] font-primary">
         For debugging, you can use:
       </div>
       <TipsCarousel />
-      <div
-        style={{
-          fontSize: "11px",
-          color: "#808080",
-          fontFamily: "var(--font-monospace)",
-          padding: "12px",
-          background: "#2d2d30",
-          borderRadius: "4px",
-        }}
-      >
+      <div className="text-[11px] text-[#808080] font-monospace p-3 bg-[#2d2d30] rounded">
         <div>window.setTip(0) // Show first tip</div>
         <div>window.setTip(1) // Show second tip</div>
         <div>window.clearTip() // Return to auto-rotation</div>
       </div>
-    </DemoContainer>
+    </div>
   ),
 };
 
 export const InContext: Story = {
   render: () => {
-    const ToolbarMock = styled.div`
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 8px 12px;
-      background: #252526;
-      border-bottom: 1px solid #3e3e42;
-      font-family: var(--font-primary);
-    `;
-
-    const ToolbarSection = styled.div`
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    `;
-
     return (
-      <ToolbarMock>
-        <ToolbarSection>
-          <span style={{ fontSize: "11px", color: "#808080" }}>Workspace:</span>
-          <span style={{ fontSize: "11px", color: "#cccccc" }}>main</span>
-        </ToolbarSection>
+      <div className="flex items-center gap-3 py-2 px-3 bg-[#252526] border-b border-[#3e3e42] font-primary">
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] text-[#808080]">Workspace:</span>
+          <span className="text-[11px] text-[#cccccc]">main</span>
+        </div>
         <div
           style={{
             flex: 1,
@@ -122,10 +69,10 @@ export const InContext: Story = {
         >
           <TipsCarousel />
         </div>
-        <ToolbarSection>
-          <span style={{ fontSize: "11px", color: "#808080" }}>Mode: Plan</span>
-        </ToolbarSection>
-      </ToolbarMock>
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] text-[#808080]">Mode: Plan</span>
+        </div>
+      </div>
     );
   },
 };
