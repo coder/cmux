@@ -138,6 +138,7 @@ describeIntegration("IpcMain rename workspace integration tests", () => {
           secondBranchName
         );
         expect(createResult.success).toBe(true);
+        if (!createResult.success) throw new Error("Failed to create workspace");
         const secondWorkspaceId = createResult.metadata.id;
 
         // Rename first workspace to the second workspace's title - should succeed
