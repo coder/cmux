@@ -78,7 +78,7 @@ export default defineConfig(({ mode }) => ({
   },
   worker: {
     format: "es",
-    plugins: () => [topLevelAwait()],
+    plugins: [topLevelAwait()],
   },
   server: {
     host: "127.0.0.1",
