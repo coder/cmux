@@ -1,94 +1,7 @@
 import React from "react";
-import styled from "@emotion/styled";
 import { TooltipWrapper, Tooltip } from "../Tooltip";
 import { TokenMeter } from "./TokenMeter";
 import { type TokenMeterData, formatTokens, getSegmentLabel } from "@/utils/tokens/tokenMeterUtils";
-
-const Container = styled.div`
-  width: 20px;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 12px 0;
-  background: #252526;
-  border-left: 1px solid #3e3e42;
-`;
-
-const PercentageLabel = styled.div`
-  font-family: var(--font-primary);
-  font-size: 8px;
-  font-weight: 600;
-  color: #cccccc;
-  margin-bottom: 4px;
-  text-align: center;
-  flex-shrink: 0;
-`;
-
-const MeterWrapper = styled.div`
-  flex: 1;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  min-height: 0;
-`;
-
-const EmptySpace = styled.div<{ percentage: number }>`
-  flex: ${(props) => Math.max(0, 100 - props.percentage)};
-  width: 100%;
-`;
-
-const MeterContainer = styled.div<{ percentage: number }>`
-  flex: ${(props) => props.percentage};
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  min-height: 20px;
-`;
-
-const BarWrapper = styled.div`
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: 100%;
-
-  /* Force TooltipWrapper to expand to fill height */
-  > * {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-  }
-`;
-
-const Content = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  font-family: var(--font-primary);
-  font-size: 12px;
-`;
-
-const Row = styled.div`
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-`;
-
-const Dot = styled.div<{ color: string }>`
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: ${(props) => props.color};
-  flex-shrink: 0;
-`;
-
-const Divider = styled.div`
-  border-top: 1px solid #3e3e42;
-  margin: 4px 0;
-`;
 
 const VerticalTokenMeterComponent: React.FC<{ data: TokenMeterData }> = ({ data }) => {
   if (data.segments.length === 0) return null;
@@ -97,19 +10,20 @@ const VerticalTokenMeterComponent: React.FC<{ data: TokenMeterData }> = ({ data 
   const usagePercentage = data.maxTokens ? data.totalPercentage : 100;
 
   return (
-    <Container data-component="vertical-token-meter">
+    <div className="w-5 h-full flex flex-col items-center py-3 bg-[#252526] border-l border-[#3e3e42]" data-component="vertical-token-meter">
       {data.maxTokens && (
-        <PercentageLabel data-label="context-percentage">
+        <div className="font-primary text-[8px] font-semibold text-[#cccccc] mb-1 text-center flex-shrink-0" data-label="context-percentage">
           {Math.round(data.totalPercentage)}
-        </PercentageLabel>
+        </div>
       )}
-      <MeterWrapper data-wrapper="meter-wrapper">
-        <MeterContainer
-          percentage={usagePercentage}
+      <div className="flex-1 w-full flex flex-col items-center min-h-0" data-wrapper="meter-wrapper">
+        <div
+          className="w-full flex flex-col items-center min-h-[20px]"
+          style={{ flex: usagePercentage }}
           data-container="meter-container"
           data-usage-percentage={Math.round(usagePercentage)}
         >
-          <BarWrapper data-bar-wrapper="expand">
+          <div className="flex-1 flex flex-col items-center w-full [&>*]:flex-1 [&>*]:flex [&>*]:flex-col" data-bar-wrapper="expand">
             <TooltipWrapper data-tooltip-wrapper="vertical-meter">
               <TokenMeter
                 segments={data.segments}
@@ -118,34 +32,39 @@ const VerticalTokenMeterComponent: React.FC<{ data: TokenMeterData }> = ({ data 
                 data-segment-count={data.segments.length}
               />
               <Tooltip data-tooltip="meter-details">
-                <Content data-tooltip-content="usage-breakdown">
+                <div className="flex flex-col gap-2 font-primary text-xs" data-tooltip-content="usage-breakdown">
                   <div
-                    style={{ fontWeight: 600, fontSize: 13, color: "#cccccc" }}
+                    className="font-semibold text-[13px] text-[#cccccc]"
                     data-tooltip-title="last-request"
                   >
                     Last Request
                   </div>
-                  <Divider data-divider="top" />
+                  <div className="border-t border-[#3e3e42] my-1" data-divider="top" />
                   {data.segments.map((seg, i) => (
-                    <Row
+                    <div
                       key={i}
+                      className="flex justify-between gap-4"
                       data-row="segment"
                       data-segment-type={seg.type}
                       data-segment-tokens={seg.tokens}
                       data-segment-percentage={seg.percentage.toFixed(1)}
                     >
-                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <Dot color={seg.color} data-dot={seg.type} />
+                      <div className="flex items-center gap-1.5">
+                        <div
+                          className="w-2 h-2 rounded-full flex-shrink-0"
+                          style={{ background: seg.color }}
+                          data-dot={seg.type}
+                        />
                         <span data-label="segment-name">{getSegmentLabel(seg.type)}</span>
                       </div>
-                      <span style={{ color: "#cccccc", fontWeight: 500 }} data-value="tokens">
+                      <span className="text-[#cccccc] font-medium" data-value="tokens">
                         {formatTokens(seg.tokens)}
                       </span>
-                    </Row>
+                    </div>
                   ))}
-                  <Divider data-divider="bottom" />
+                  <div className="border-t border-[#3e3e42] my-1" data-divider="bottom" />
                   <div
-                    style={{ color: "#888888", fontSize: 11 }}
+                    className="text-[#888] text-[11px]"
                     data-summary="total"
                     data-total-tokens={data.totalTokens}
                     data-max-tokens={data.maxTokens}
@@ -154,23 +73,22 @@ const VerticalTokenMeterComponent: React.FC<{ data: TokenMeterData }> = ({ data 
                     {data.maxTokens && ` / ${formatTokens(data.maxTokens)}`}
                     {data.maxTokens && ` (${data.totalPercentage.toFixed(1)}%)`}
                   </div>
-                  <div
-                    style={{ color: "#666666", fontSize: 10, marginTop: 8, fontStyle: "italic" }}
-                  >
+                  <div className="text-[#666] text-[10px] mt-2 italic">
                     💡 Expand your viewport to see full details
                   </div>
-                </Content>
+                </div>
               </Tooltip>
             </TooltipWrapper>
-          </BarWrapper>
-        </MeterContainer>
-        <EmptySpace
-          percentage={usagePercentage}
+          </div>
+        </div>
+        <div
+          className="w-full"
+          style={{ flex: Math.max(0, 100 - usagePercentage) }}
           data-space="empty-space"
           data-empty-percentage={Math.round(100 - usagePercentage)}
         />
-      </MeterWrapper>
-    </Container>
+      </div>
+    </div>
   );
 };
 
