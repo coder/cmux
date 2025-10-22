@@ -1,11 +1,12 @@
 import { describe, it, expect } from "bun:test";
 import { executeFileEditOperation } from "./file_edit_operation";
 import { WRITE_DENIED_PREFIX } from "@/types/tools";
+import { LocalRuntime } from "@/runtime/LocalRuntime";
 
 const TEST_CWD = "/tmp";
 
 function createConfig() {
-  return { cwd: TEST_CWD, tempDir: "/tmp" };
+  return { cwd: TEST_CWD, runtime: new LocalRuntime(), tempDir: "/tmp" };
 }
 
 describe("executeFileEditOperation", () => {
