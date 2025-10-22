@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from "react";
-import styled from "@emotion/styled";
+import { cn } from "@/lib/utils";
 import { MessageRenderer } from "./Messages/MessageRenderer";
 import { InterruptedBarrier } from "./Messages/ChatBarrier/InterruptedBarrier";
 import { StreamingBarrier } from "./Messages/ChatBarrier/StreamingBarrier";
@@ -431,11 +431,11 @@ const AIViewInner: React.FC<AIViewProps> = ({
   // Return early if workspace state not loaded yet
   if (!workspaceState) {
     return (
-      <ViewContainer className={className}>
-        <EmptyState>
-          <h3>Loading workspace...</h3>
-        </EmptyState>
-      </ViewContainer>
+      <div className={cn("flex flex-1 flex-row bg-[#1e1e1e] text-[#d4d4d4] font-mono text-xs overflow-x-auto overflow-y-hidden [@media(max-width:768px)]:flex-col", className)} style={{ containerType: "inline-size" }}>
+        <div className="flex-1 flex flex-col items-center justify-center h-full text-[#6b6b6b] text-center">
+          <h3 className="m-0 mb-2.5 text-base font-medium">Loading workspace...</h3>
+        </div>
+      </div>
     );
   }
 
@@ -466,30 +466,30 @@ const AIViewInner: React.FC<AIViewProps> = ({
 
   if (loading) {
     return (
-      <ViewContainer className={className}>
-        <EmptyState>
-          <h3>Loading workspace...</h3>
-        </EmptyState>
-      </ViewContainer>
+      <div className={cn("flex flex-1 flex-row bg-[#1e1e1e] text-[#d4d4d4] font-mono text-xs overflow-x-auto overflow-y-hidden [@media(max-width:768px)]:flex-col", className)} style={{ containerType: "inline-size" }}>
+        <div className="flex-1 flex flex-col items-center justify-center h-full text-[#6b6b6b] text-center">
+          <h3 className="m-0 mb-2.5 text-base font-medium">Loading workspace...</h3>
+        </div>
+      </div>
     );
   }
 
   if (!projectName || !branch) {
     return (
-      <ViewContainer className={className}>
-        <EmptyState>
-          <h3>No Workspace Selected</h3>
-          <p>Select a workspace from the sidebar to view and interact with Claude</p>
-        </EmptyState>
-      </ViewContainer>
+      <div className={cn("flex flex-1 flex-row bg-[#1e1e1e] text-[#d4d4d4] font-mono text-xs overflow-x-auto overflow-y-hidden [@media(max-width:768px)]:flex-col", className)} style={{ containerType: "inline-size" }}>
+        <div className="flex-1 flex flex-col items-center justify-center h-full text-[#6b6b6b] text-center">
+          <h3 className="m-0 mb-2.5 text-base font-medium">No Workspace Selected</h3>
+          <p className="m-0 text-[13px]">Select a workspace from the sidebar to view and interact with Claude</p>
+        </div>
+      </div>
     );
   }
 
   return (
-    <ViewContainer className={className}>
-      <ChatArea ref={chatAreaRef}>
-        <ViewHeader>
-          <WorkspaceTitle>
+    <div className={cn("flex flex-1 flex-row bg-[#1e1e1e] text-[#d4d4d4] font-mono text-xs overflow-x-auto overflow-y-hidden [@media(max-width:768px)]:flex-col", className)} style={{ containerType: "inline-size" }}>
+      <div ref={chatAreaRef} className="flex-1 min-w-[400px] flex flex-col [@media(max-width:768px)]:min-w-0 [@media(max-width:768px)]:w-full [@media(max-width:768px)]:max-h-full">
+        <div className="py-1 px-[15px] bg-[#252526] border-b border-[#3e3e42] flex justify-between items-center [@media(max-width:768px)]:py-2 [@media(max-width:768px)]:pl-[60px] [@media(max-width:768px)]:flex-wrap [@media(max-width:768px)]:gap-2">
+          <div className="font-semibold text-[#ccc] flex items-center gap-2 min-w-0 overflow-hidden">
             <StatusIndicator
               streaming={canInterrupt}
               title={
@@ -501,25 +501,28 @@ const AIViewInner: React.FC<AIViewProps> = ({
               workspaceId={workspaceId}
               tooltipPosition="bottom"
             />
-            <WorkspaceName>
+            <span className="whitespace-nowrap overflow-hidden text-ellipsis min-w-0">
               {projectName} / {branch}
-            </WorkspaceName>
-            <WorkspacePath>{namedWorkspacePath}</WorkspacePath>
+            </span>
+            <span className="font-mono text-[#888] font-normal text-[11px] whitespace-nowrap overflow-hidden text-ellipsis min-w-0">{namedWorkspacePath}</span>
             <TooltipWrapper inline>
-              <TerminalIconButton onClick={handleOpenTerminal}>
+              <button
+                onClick={handleOpenTerminal}
+                className="bg-transparent border-none cursor-pointer p-1 flex items-center justify-center text-[#888] transition-colors hover:text-[#ccc] [&_svg]:w-4 [&_svg]:h-4"
+              >
                 <svg viewBox="0 0 16 16" fill="currentColor">
                   <path d="M0 2.75C0 1.784.784 1 1.75 1h12.5c.966 0 1.75.784 1.75 1.75v10.5A1.75 1.75 0 0114.25 15H1.75A1.75 1.75 0 010 13.25V2.75zm1.75-.25a.25.25 0 00-.25.25v10.5c0 .138.112.25.25.25h12.5a.25.25 0 00.25-.25V2.75a.25.25 0 00-.25-.25H1.75zM7.25 8a.75.75 0 01-.22.53l-2.25 2.25a.75.75 0 01-1.06-1.06L5.44 8 3.72 6.28a.75.75 0 111.06-1.06l2.25 2.25c.141.14.22.331.22.53zm1.5 1.5a.75.75 0 000 1.5h3a.75.75 0 000-1.5h-3z" />
                 </svg>
-              </TerminalIconButton>
+              </button>
               <Tooltip className="tooltip" position="bottom" align="center">
                 Open in terminal ({formatKeybind(KEYBINDS.OPEN_TERMINAL)})
               </Tooltip>
             </TooltipWrapper>
-          </WorkspaceTitle>
-        </ViewHeader>
+          </div>
+        </div>
 
-        <OutputContainer>
-          <OutputContent
+        <div className="flex-1 relative overflow-hidden">
+          <div
             ref={contentRef}
             onWheel={markUserInteraction}
             onTouchMove={markUserInteraction}
@@ -529,12 +532,13 @@ const AIViewInner: React.FC<AIViewProps> = ({
             aria-busy={canInterrupt}
             aria-label="Conversation transcript"
             tabIndex={0}
+            className="h-full overflow-y-auto p-[15px] whitespace-pre-wrap break-words leading-[1.5]"
           >
             {mergedMessages.length === 0 ? (
-              <EmptyState>
+              <div className="flex-1 flex flex-col items-center justify-center h-full text-[#6b6b6b] text-center [&_h3]:m-0 [&_h3]:mb-2.5 [&_h3]:text-base [&_h3]:font-medium [&_p]:m-0 [&_p]:text-[13px]">
                 <h3>No Messages Yet</h3>
                 <p>Send a message below to begin</p>
-              </EmptyState>
+              </div>
             ) : (
               <>
                 {mergedMessages.map((msg) => {
@@ -556,9 +560,15 @@ const AIViewInner: React.FC<AIViewProps> = ({
                         />
                       </div>
                       {isAtCutoff && (
-                        <EditBarrier>
+                        <div
+                          className="my-5 py-3 px-[15px] text-xs font-medium text-center text-edit-mode bg-edit-mode/10"
+                          style={{
+                            borderBottom: "3px solid",
+                            borderImage: "repeating-linear-gradient(45deg, var(--color-editing-mode), var(--color-editing-mode) 10px, transparent 10px, transparent 20px) 1",
+                          }}
+                        >
                           ⚠️ Messages below this line will be removed when you submit the edit
-                        </EditBarrier>
+                        </div>
                       )}
                       {shouldShowInterruptedBarrier(msg) && <InterruptedBarrier />}
                     </React.Fragment>
@@ -604,13 +614,31 @@ const AIViewInner: React.FC<AIViewProps> = ({
                 }
               />
             )}
-          </OutputContent>
+          </div>
           {!autoScroll && (
-            <JumpToBottomIndicator onClick={jumpToBottom} type="button">
+            <button
+              onClick={jumpToBottom}
+              type="button"
+              className="absolute bottom-2 left-1/2 -translate-x-1/2 py-1 px-2 text-white border rounded-[20px] text-xs font-medium shadow-[0_4px_12px_rgba(0,0,0,0.3)] cursor-pointer transition-all duration-200 z-[100] font-primary backdrop-blur-[1px] hover:scale-105 active:scale-95"
+              style={{
+                background: "hsl(from var(--color-assistant-border) h s l / 0.1)",
+                borderColor: "hsl(from var(--color-assistant-border) h s l / 0.4)",
+              }}
+              onMouseEnter={(e) => {
+                const target = e.currentTarget;
+                target.style.background = "hsl(from var(--color-assistant-border) h s l / 0.4)";
+                target.style.borderColor = "hsl(from var(--color-assistant-border) h s l / 0.6)";
+              }}
+              onMouseLeave={(e) => {
+                const target = e.currentTarget;
+                target.style.background = "hsl(from var(--color-assistant-border) h s l / 0.1)";
+                target.style.borderColor = "hsl(from var(--color-assistant-border) h s l / 0.4)";
+              }}
+            >
               Press {formatKeybind(KEYBINDS.JUMP_TO_BOTTOM)} to jump to bottom
-            </JumpToBottomIndicator>
+            </button>
           )}
-        </OutputContainer>
+        </div>
 
         <ChatInput
           workspaceId={workspaceId}
@@ -625,7 +653,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
           canInterrupt={canInterrupt}
           onReady={handleChatInputReady}
         />
-      </ChatArea>
+      </div>
 
       <RightSidebar
         key={workspaceId}
@@ -638,7 +666,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
         isResizing={isResizing} // Pass resizing state
         onReviewNote={handleReviewNote} // Pass review note handler to append to chat
       />
-    </ViewContainer>
+    </div>
   );
 };
 
