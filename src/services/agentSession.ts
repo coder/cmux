@@ -366,7 +366,11 @@ export class AgentSession {
 
     forward("stream-start", (payload) => this.emitChatEvent(payload));
     forward("stream-delta", (payload) => this.emitChatEvent(payload));
-    forward("stream-end", (payload) => this.emitChatEvent(payload));
+    forward("stream-end", (payload) => {
+      this.emitChatEvent(payload);
+      // Auto-generate title after first assistant response (fire-and-forget)
+      void this.maybeGenerateTitle();
+    });
     forward("tool-call-start", (payload) => this.emitChatEvent(payload));
     forward("tool-call-delta", (payload) => this.emitChatEvent(payload));
     forward("tool-call-end", (payload) => this.emitChatEvent(payload));
@@ -401,6 +405,70 @@ export class AgentSession {
 
     this.aiListeners.push({ event: "error", handler: errorHandler });
     this.aiService.on("error", errorHandler as never);
+  }
+
+  /**
+   * Auto-generate workspace title after first assistant response.
+   * This is a fire-and-forget operation that happens in the background.
+   * Errors are logged but don't affect the stream completion.
+   */
+  private async maybeGenerateTitle(): Promise<void> {
+    try {
+      // 1. Check if workspace already has a title
+      const metadataResult = this.aiService.getWorkspaceMetadata(this.workspaceId);
+      if (!metadataResult.success || metadataResult.data.title) {
+        return; // Already has title, skip
+      }
+
+      // 2. Check if this is the first assistant response
+      const historyResult = await this.historyService.getHistory(this.workspaceId);
+      if (!historyResult.success) {
+        return;
+      }
+
+      const assistantMessages = historyResult.data.filter((m) => m.role === "assistant");
+      if (assistantMessages.length !== 1) {
+        return; // Not first message, skip
+      }
+
+      // 3. Generate title using autotitle service
+      const { generateWorkspaceTitle } = await import("@/services/autotitle");
+      const { anthropic } = await import("@ai-sdk/anthropic");
+      const model = anthropic("claude-haiku-4");
+
+      const result = await generateWorkspaceTitle(this.workspaceId, this.historyService, model);
+
+      if (!result.success) {
+        // Non-fatal: just log and continue without title
+        console.error(`[Autotitle] Failed to generate title for ${this.workspaceId}:`, result.error);
+        return;
+      }
+
+      const title = result.data;
+
+      // 4. Update config with new title
+      this.config.editConfig((config) => {
+        for (const [_projectPath, projectConfig] of config.projects) {
+          const workspace = projectConfig.workspaces.find((w) => w.id === this.workspaceId);
+          if (workspace) {
+            workspace.title = title;
+            break;
+          }
+        }
+        return config;
+      });
+
+      // 5. Emit metadata update so UI refreshes
+      const updatedMetadataResult = this.aiService.getWorkspaceMetadata(this.workspaceId);
+      if (updatedMetadataResult.success) {
+        this.emitMetadata(updatedMetadataResult.data);
+      }
+
+      console.log(`[Autotitle] Generated title for ${this.workspaceId}: "${title}"`);
+    } catch (error) {
+      // Catch any unexpected errors to prevent breaking the stream
+      console.error(`[Autotitle] Unexpected error for ${this.workspaceId}:`, error);
+    }
   }
 
   private emitChatEvent(message: WorkspaceChatMessage): void {
