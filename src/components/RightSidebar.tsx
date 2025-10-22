@@ -227,7 +227,7 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
             <TooltipWrapper inline>
               <button
                 className={cn(
-                  "w-full py-2.5 px-[15px] border-none cursor-pointer font-[var(--font-primary)] text-[13px] font-medium transition-all duration-200",
+                  "w-full py-2.5 px-[15px] border-none cursor-pointer font-primary text-[13px] font-medium transition-all duration-200",
                   selectedTab === "costs"
                     ? "bg-[#252526] text-white border-b-2 border-b-[#007acc]"
                     : "bg-transparent text-[#888888] border-b-2 border-b-transparent hover:bg-[#2d2d2d] hover:text-[#cccccc]"
@@ -248,7 +248,7 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
             <TooltipWrapper inline>
               <button
                 className={cn(
-                  "w-full py-2.5 px-[15px] border-none cursor-pointer font-[var(--font-primary)] text-[13px] font-medium transition-all duration-200",
+                  "w-full py-2.5 px-[15px] border-none cursor-pointer font-primary text-[13px] font-medium transition-all duration-200",
                   selectedTab === "review"
                     ? "bg-[#252526] text-white border-b-2 border-b-[#007acc]"
                     : "bg-transparent text-[#888888] border-b-2 border-b-transparent hover:bg-[#2d2d2d] hover:text-[#cccccc]"

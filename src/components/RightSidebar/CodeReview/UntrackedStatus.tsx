@@ -143,7 +143,7 @@ export const UntrackedStatus: React.FC<UntrackedStatusProps> = ({
             {untrackedFiles.map((file) => (
               <div
                 key={file}
-                className="text-[11px] text-[#aaa] py-0.5 px-1 font-[var(--font-monospace)] whitespace-nowrap overflow-hidden text-ellipsis hover:bg-[#37373d]"
+                className="text-[11px] text-[#aaa] py-0.5 px-1 font-mono whitespace-nowrap overflow-hidden text-ellipsis hover:bg-[#37373d]"
               >
                 {file}
               </div>
@@ -153,7 +153,7 @@ export const UntrackedStatus: React.FC<UntrackedStatusProps> = ({
             onClick={() => void handleTrackAll()}
             disabled={isTracking}
             className={cn(
-              "w-full py-1 px-2 bg-transparent text-[#888] border border-[#444] rounded text-[11px] cursor-pointer transition-all duration-200 font-[var(--font-primary)]",
+              "w-full py-1 px-2 bg-transparent text-[#888] border border-[#444] rounded text-[11px] cursor-pointer transition-all duration-200 font-primary",
               "hover:bg-[rgba(255,255,255,0.05)] hover:text-[#ccc] hover:border-[#666]",
               "active:bg-[rgba(255,255,255,0.1)]",
               "disabled:text-[#555] disabled:border-[#333] disabled:cursor-not-allowed disabled:bg-transparent"
