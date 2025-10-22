@@ -1,77 +1,8 @@
 import React, { useState, useEffect, useCallback } from "react";
-import styled from "@emotion/styled";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { getRetryStateKey } from "@/constants/storage";
 import { CUSTOM_EVENTS } from "@/constants/events";
-
-const BarrierContainer = styled.div`
-  margin: 20px 0;
-  padding: 16px 20px;
-  background: linear-gradient(135deg, rgba(255, 165, 0, 0.1) 0%, rgba(255, 140, 0, 0.1) 100%);
-  border-left: 4px solid var(--color-warning);
-  border-radius: 4px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 16px;
-`;
-
-const BarrierContent = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex: 1;
-`;
-
-const Icon = styled.span`
-  font-size: 18px;
-  line-height: 1;
-`;
-
-const Message = styled.div`
-  font-family: var(--font-primary);
-  font-size: 13px;
-  color: var(--color-text);
-  font-weight: 500;
-`;
-
-const Countdown = styled.span`
-  font-family: var(--font-monospace);
-  font-weight: 600;
-  color: var(--color-warning);
-`;
-
-const Button = styled.button<{ variant?: "primary" | "secondary" }>`
-  background: ${(props) =>
-    props.variant === "secondary" ? "transparent" : "var(--color-warning)"};
-  border: ${(props) => (props.variant === "secondary" ? "1px solid var(--color-warning)" : "none")};
-  border-radius: 4px;
-  padding: 8px 16px;
-  font-family: var(--font-primary);
-  font-size: 12px;
-  font-weight: 600;
-  color: ${(props) => (props.variant === "secondary" ? "var(--color-warning)" : "var(--color-bg)")};
-  cursor: pointer;
-  transition: all 0.2s;
-  white-space: nowrap;
-
-  &:hover:not(:disabled) {
-    background: ${(props) =>
-      props.variant === "secondary"
-        ? "rgba(255, 165, 0, 0.1)"
-        : "hsl(from var(--color-warning) h s calc(l * 1.2))"};
-    transform: translateY(-1px);
-  }
-
-  &:active:not(:disabled) {
-    transform: translateY(0);
-  }
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-`;
+import { cn } from "@/lib/utils";
 
 interface RetryBarrierProps {
   workspaceId: string;
@@ -164,34 +95,54 @@ export const RetryBarrier: React.FC<RetryBarrierProps> = ({
     // Auto-retry mode: Show countdown and stop button
     // useResumeManager handles the actual retry logic
     return (
-      <BarrierContainer className={className}>
-        <BarrierContent>
-          <Icon>🔄</Icon>
-          <Message>
+      <div
+        className={cn(
+          "my-5 px-5 py-4 bg-gradient-to-br from-[rgba(255,165,0,0.1)] to-[rgba(255,140,0,0.1)] border-l-4 border-warning rounded flex justify-between items-center gap-4",
+          className
+        )}
+      >
+        <div className="flex items-center gap-3 flex-1">
+          <span className="text-lg leading-none">🔄</span>
+          <div className="font-primary text-[13px] text-foreground font-medium">
             {countdown === 0 ? (
               <>Retrying... (attempt {attempt + 1})</>
             ) : (
               <>
-                Retrying in <Countdown>{countdown}s</Countdown> (attempt {attempt + 1})
+                Retrying in{" "}
+                <span className="font-mono font-semibold text-warning">{countdown}s</span> (attempt{" "}
+                {attempt + 1})
               </>
             )}
-          </Message>
-        </BarrierContent>
-        <Button variant="secondary" onClick={handleStopAutoRetry}>
+          </div>
+        </div>
+        <button
+          className="bg-transparent border border-warning rounded px-4 py-2 font-primary text-xs font-semibold text-warning cursor-pointer transition-all duration-200 whitespace-nowrap hover:bg-[rgba(255,165,0,0.1)] hover:-translate-y-px active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed"
+          onClick={handleStopAutoRetry}
+        >
           Stop Auto-Retry
-        </Button>
-      </BarrierContainer>
+        </button>
+      </div>
     );
   } else {
     // Manual retry mode: Show retry button
     return (
-      <BarrierContainer className={className}>
-        <BarrierContent>
-          <Icon>⚠️</Icon>
-          <Message>Stream interrupted</Message>
-        </BarrierContent>
-        <Button onClick={handleManualRetry}>Retry</Button>
-      </BarrierContainer>
+      <div
+        className={cn(
+          "my-5 px-5 py-4 bg-gradient-to-br from-[rgba(255,165,0,0.1)] to-[rgba(255,140,0,0.1)] border-l-4 border-warning rounded flex justify-between items-center gap-4",
+          className
+        )}
+      >
+        <div className="flex items-center gap-3 flex-1">
+          <span className="text-lg leading-none">⚠️</span>
+          <div className="font-primary text-[13px] text-foreground font-medium">Stream interrupted</div>
+        </div>
+        <button
+          className="bg-warning border-none rounded px-4 py-2 font-primary text-xs font-semibold text-background cursor-pointer transition-all duration-200 whitespace-nowrap hover:brightness-120 hover:-translate-y-px active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed"
+          onClick={handleManualRetry}
+        >
+          Retry
+        </button>
+      </div>
     );
   }
 };
