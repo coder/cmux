@@ -241,6 +241,43 @@
 }
 
 
+/* Thinking Slider - Range Input with Dynamic CSS Variables */
+.thinking-slider {
+  width: 80px;
+  height: 4px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: #3e3e42;
+  outline: none;
+  border-radius: 2px;
+  transition: box-shadow 0.2s ease;
+  box-shadow: var(--track-shadow, none);
+}
+
+.thinking-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--thumb-bg, #606060);
+  cursor: pointer;
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: var(--thumb-shadow, none);
+}
+
+.thinking-slider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--thumb-bg, #606060);
+  cursor: pointer;
+  border: none;
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: var(--thumb-shadow, none);
+}
+
+
 /* Custom animations for CompactionBackground */
 @keyframes shimmer {
   0% {
