@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import styled from "@emotion/styled";
+import { cn } from "@/lib/utils";
 import { VERSION } from "@/version";
 import { TooltipWrapper, Tooltip } from "./Tooltip";
 import type { UpdateStatus } from "@/types/ipc";
@@ -9,75 +9,15 @@ import { isTelemetryEnabled } from "@/telemetry";
 const UPDATE_CHECK_INTERVAL_MS = 4 * 60 * 60 * 1000; // 4 hours
 const UPDATE_CHECK_HOVER_COOLDOWN_MS = 60 * 1000; // 1 minute
 
-const TitleBarContainer = styled.div`
-  padding: 8px 16px;
-  background: #1e1e1e;
-  border-bottom: 1px solid #3c3c3c;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-family: var(--font-primary);
-  font-size: 11px;
-  color: #858585;
-  user-select: none;
-  flex-shrink: 0;
-`;
-
-const LeftSection = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0; /* Allow flex items to shrink */
-  margin-right: 16px; /* Ensure space between title and date */
-`;
-
-const TitleText = styled.div`
-  font-weight: normal;
-  letter-spacing: 0.5px;
-  user-select: text;
-  cursor: text;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  min-width: 0; /* Allow ellipsis to work in flex container */
-`;
-
-const UpdateIndicator = styled.div<{
-  status: "available" | "downloading" | "downloaded" | "disabled";
-}>`
-  width: 16px;
-  height: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: ${(props) => (props.status === "disabled" ? "default" : "pointer")};
-  color: ${(props) => {
-    switch (props.status) {
-      case "available":
-        return "#4CAF50"; // Green for available
-      case "downloading":
-        return "#2196F3"; // Blue for downloading
-      case "downloaded":
-        return "#FF9800"; // Orange for ready to install
-      case "disabled":
-        return "#666666"; // Gray for disabled
-    }
-  }};
-
-  &:hover {
-    opacity: ${(props) => (props.status === "disabled" ? "1" : "0.7")};
-  }
-`;
-
-const UpdateIcon = styled.span`
-  font-size: 14px;
-`;
-
-const BuildInfo = styled.div`
-  font-size: 10px;
-  opacity: 0.7;
-  cursor: default;
-`;
+const updateStatusColors: Record<
+  "available" | "downloading" | "downloaded" | "disabled",
+  string
+> = {
+  available: "#4CAF50", // Green for available
+  downloading: "#2196F3", // Blue for downloading
+  downloaded: "#FF9800", // Orange for ready to install
+  disabled: "#666666", // Gray for disabled
+};
 
 interface VersionMetadata {
   buildTime: string;
@@ -276,34 +216,40 @@ export function TitleBar() {
   const showUpdateIndicator = true;
 
   return (
-    <TitleBarContainer>
-      <LeftSection>
+    <div className="px-4 py-2 bg-[#1e1e1e] border-b border-[#3c3c3c] flex items-center justify-between font-primary text-[11px] text-[#858585] select-none flex-shrink-0">
+      <div className="flex items-center gap-2 min-w-0 mr-4">
         {showUpdateIndicator && (
           <TooltipWrapper>
-            <UpdateIndicator
-              status={indicatorStatus}
+            <div
+              className={cn(
+                "w-4 h-4 flex items-center justify-center",
+                indicatorStatus === "disabled" ? "cursor-default" : "cursor-pointer hover:opacity-70"
+              )}
+              style={{ color: updateStatusColors[indicatorStatus] }}
               onClick={handleUpdateClick}
               onMouseEnter={handleIndicatorHover}
             >
-              <UpdateIcon>
+              <span className="text-sm">
                 {indicatorStatus === "disabled"
                   ? "⊘"
                   : indicatorStatus === "downloading"
                     ? "⟳"
                     : "↓"}
-              </UpdateIcon>
-            </UpdateIndicator>
+              </span>
+            </div>
             <Tooltip align="left" interactive={true}>
               {getUpdateTooltip()}
             </Tooltip>
           </TooltipWrapper>
         )}
-        <TitleText>cmux {gitDescribe ?? "(dev)"}</TitleText>
-      </LeftSection>
+        <div className="font-normal tracking-wide select-text cursor-text whitespace-nowrap overflow-hidden text-ellipsis min-w-0">
+          cmux {gitDescribe ?? "(dev)"}
+        </div>
+      </div>
       <TooltipWrapper>
-        <BuildInfo>{buildDate}</BuildInfo>
+        <div className="text-[10px] opacity-70 cursor-default">{buildDate}</div>
         <Tooltip align="right">Built at {extendedTimestamp}</Tooltip>
       </TooltipWrapper>
-    </TitleBarContainer>
+    </div>
   );
 }

@@ -1,60 +1,24 @@
 import React from "react";
-import styled from "@emotion/styled";
+import { cn } from "@/lib/utils";
 import type { TodoItem } from "@/types/tools";
 
-const TodoListContainer = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  padding: 6px 8px;
-`;
+const statusBgColors: Record<TodoItem["status"], string> = {
+  completed: "color-mix(in srgb, #4caf50, transparent 92%)",
+  in_progress: "color-mix(in srgb, #2196f3, transparent 92%)",
+  pending: "color-mix(in srgb, #888, transparent 96%)",
+};
 
-const TodoItemContainer = styled.div<{ status: TodoItem["status"] }>`
-  display: flex;
-  align-items: flex-start;
-  gap: 6px;
-  padding: 4px 8px;
-  background: ${(props) => {
-    switch (props.status) {
-      case "completed":
-        return "color-mix(in srgb, #4caf50, transparent 92%)";
-      case "in_progress":
-        return "color-mix(in srgb, #2196f3, transparent 92%)";
-      case "pending":
-      default:
-        return "color-mix(in srgb, #888, transparent 96%)";
-    }
-  }};
-  border-left: 2px solid
-    ${(props) => {
-      switch (props.status) {
-        case "completed":
-          return "#4caf50";
-        case "in_progress":
-          return "#2196f3";
-        case "pending":
-        default:
-          return "#666";
-      }
-    }};
-  border-radius: 3px;
-  font-family: var(--font-monospace);
-  font-size: 11px;
-  line-height: 1.35;
-  color: var(--color-text);
-`;
+const statusBorderColors: Record<TodoItem["status"], string> = {
+  completed: "#4caf50",
+  in_progress: "#2196f3",
+  pending: "#666",
+};
 
-const TodoIcon = styled.div`
-  font-size: 12px;
-  flex-shrink: 0;
-  margin-top: 1px;
-  opacity: 0.8;
-`;
-
-const TodoContent = styled.div`
-  flex: 1;
-  min-width: 0;
-`;
+const statusTextColors: Record<TodoItem["status"], string> = {
+  completed: "#888",
+  in_progress: "#2196f3",
+  pending: "var(--color-text)",
+};
 
 /**
  * Calculate opacity fade for items distant from the center (exponential decay).
@@ -66,81 +30,40 @@ function calculateFadeOpacity(distance: number, minOpacity: number): number {
   return Math.max(minOpacity, 1 - distance * 0.15);
 }
 
-const TodoText = styled.div<{
-  status: TodoItem["status"];
-  completedIndex?: number;
-  totalCompleted?: number;
-  pendingIndex?: number;
-  totalPending?: number;
-}>`
-  color: ${(props) => {
-    switch (props.status) {
-      case "completed":
-        return "#888";
-      case "in_progress":
-        return "#2196f3";
-      default:
-        return "var(--color-text)";
+function calculateTextOpacity(
+  status: TodoItem["status"],
+  completedIndex?: number,
+  totalCompleted?: number,
+  pendingIndex?: number,
+  totalPending?: number
+): number {
+  if (status === "completed") {
+    // Apply gradient fade for old completed items (distant past)
+    if (
+      completedIndex !== undefined &&
+      totalCompleted !== undefined &&
+      totalCompleted > 2 &&
+      completedIndex < totalCompleted - 2
+    ) {
+      const distance = totalCompleted - completedIndex;
+      return calculateFadeOpacity(distance, 0.35);
     }
-  }};
-  text-decoration: ${(props) => (props.status === "completed" ? "line-through" : "none")};
-  opacity: ${(props) => {
-    if (props.status === "completed") {
-      // Apply gradient fade for old completed items (distant past)
-      if (
-        props.completedIndex !== undefined &&
-        props.totalCompleted !== undefined &&
-        props.totalCompleted > 2 &&
-        props.completedIndex < props.totalCompleted - 2
-      ) {
-        const distance = props.totalCompleted - props.completedIndex;
-        return calculateFadeOpacity(distance, 0.35);
-      }
-      return "0.7";
+    return 0.7;
+  }
+  if (status === "pending") {
+    // Apply gradient fade for far future pending items (distant future)
+    if (
+      pendingIndex !== undefined &&
+      totalPending !== undefined &&
+      totalPending > 2 &&
+      pendingIndex > 1
+    ) {
+      const distance = pendingIndex - 1;
+      return calculateFadeOpacity(distance, 0.5);
     }
-    if (props.status === "pending") {
-      // Apply gradient fade for far future pending items (distant future)
-      if (
-        props.pendingIndex !== undefined &&
-        props.totalPending !== undefined &&
-        props.totalPending > 2 &&
-        props.pendingIndex > 1
-      ) {
-        const distance = props.pendingIndex - 1;
-        return calculateFadeOpacity(distance, 0.5);
-      }
-    }
-    return "1";
-  }};
-  font-weight: ${(props) => (props.status === "in_progress" ? "500" : "normal")};
-  white-space: nowrap;
-
-  ${(props) =>
-    props.status === "in_progress" &&
-    `
-    &::after {
-      content: "...";
-      display: inline;
-      overflow: hidden;
-      animation: ellipsis 1.5s steps(4, end) infinite;
-    }
-
-    @keyframes ellipsis {
-      0% {
-        content: "";
-      }
-      25% {
-        content: ".";
-      }
-      50% {
-        content: "..";
-      }
-      75% {
-        content: "...";
-      }
-    }
-  `}
-`;
+  }
+  return 1;
+}
 
 interface TodoListProps {
   todos: TodoItem[];
@@ -171,28 +94,51 @@ export const TodoList: React.FC<TodoListProps> = ({ todos }) => {
   let pendingIndex = 0;
 
   return (
-    <TodoListContainer>
+    <div className="flex flex-col gap-[3px] px-2 py-1.5">
       {todos.map((todo, index) => {
         const currentCompletedIndex = todo.status === "completed" ? completedIndex++ : undefined;
         const currentPendingIndex = todo.status === "pending" ? pendingIndex++ : undefined;
 
+        const textOpacity = calculateTextOpacity(
+          todo.status,
+          currentCompletedIndex,
+          completedCount,
+          currentPendingIndex,
+          pendingCount
+        );
+
         return (
-          <TodoItemContainer key={index} status={todo.status}>
-            <TodoIcon>{getStatusIcon(todo.status)}</TodoIcon>
-            <TodoContent>
-              <TodoText
-                status={todo.status}
-                completedIndex={currentCompletedIndex}
-                totalCompleted={completedCount}
-                pendingIndex={currentPendingIndex}
-                totalPending={pendingCount}
+          <div
+            key={index}
+            className="flex items-start gap-1.5 px-2 py-1 rounded border-l-2 font-monospace text-[11px] leading-[1.35]"
+            style={{
+              background: statusBgColors[todo.status],
+              borderLeftColor: statusBorderColors[todo.status],
+              color: "var(--color-text)",
+            }}
+          >
+            <div className="text-xs flex-shrink-0 mt-px opacity-80">
+              {getStatusIcon(todo.status)}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div
+                className={cn(
+                  "whitespace-nowrap",
+                  todo.status === "completed" && "line-through",
+                  todo.status === "in_progress" &&
+                    "font-medium after:content-['...'] after:inline after:overflow-hidden after:animate-[ellipsis_1.5s_steps(4,end)_infinite]"
+                )}
+                style={{
+                  color: statusTextColors[todo.status],
+                  opacity: textOpacity,
+                }}
               >
                 {todo.content}
-              </TodoText>
-            </TodoContent>
-          </TodoItemContainer>
+              </div>
+            </div>
+          </div>
         );
       })}
-    </TodoListContainer>
+    </div>
   );
 };
