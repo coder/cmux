@@ -3,61 +3,14 @@
  */
 
 import React, { useState, useRef, useEffect } from "react";
-import styled from "@emotion/styled";
 import { TooltipWrapper, Tooltip } from "@/components/Tooltip";
 import { formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
+import { cn } from "@/lib/utils";
 
 interface RefreshButtonProps {
   onClick: () => void;
   isLoading?: boolean;
 }
-
-const Button = styled.button<{ $animationState: "idle" | "spinning" | "stopping" }>`
-  background: transparent;
-  border: none;
-  padding: 2px;
-  cursor: ${(props) => (props.$animationState !== "idle" ? "default" : "pointer")};
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: ${(props) => (props.$animationState === "spinning" ? "#007acc" : "#888")};
-  transition: color 1.5s ease-out;
-
-  &:hover {
-    color: ${(props) => (props.$animationState === "spinning" ? "#007acc" : "#ccc")};
-  }
-
-  svg {
-    width: 12px;
-    height: 12px;
-  }
-
-  &.spinning svg {
-    animation: spin 0.8s linear infinite;
-  }
-
-  &.spin-once svg {
-    animation: spin-once 0.8s ease-out forwards;
-  }
-
-  @keyframes spin {
-    from {
-      transform: rotate(0deg);
-    }
-    to {
-      transform: rotate(360deg);
-    }
-  }
-
-  @keyframes spin-once {
-    from {
-      transform: rotate(0deg);
-    }
-    to {
-      transform: rotate(360deg);
-    }
-  }
-`;
 
 export const RefreshButton: React.FC<RefreshButtonProps> = ({ onClick, isLoading = false }) => {
   // Track animation state for graceful stopping
@@ -94,16 +47,32 @@ export const RefreshButton: React.FC<RefreshButtonProps> = ({ onClick, isLoading
     };
   }, []);
 
-  const className =
-    animationState === "spinning" ? "spinning" : animationState === "stopping" ? "spin-once" : "";
-
   return (
     <TooltipWrapper inline>
-      <Button onClick={onClick} $animationState={animationState} className={className}>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <button
+        onClick={onClick}
+        className={cn(
+          "flex items-center justify-center bg-transparent border-none p-0.5 transition-colors duration-[1500ms] ease-out",
+          animationState === "spinning"
+            ? "text-[#007acc] cursor-default hover:text-[#007acc]"
+            : "text-[#888] cursor-pointer hover:text-[#ccc]",
+          animationState === "stopping" && "cursor-default"
+        )}
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          className={cn(
+            "w-3 h-3",
+            animationState === "spinning" && "animate-spin",
+            animationState === "stopping" && "animate-[spin_0.8s_ease-out_forwards]"
+          )}
+        >
           <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" />
         </svg>
-      </Button>
+      </button>
       <Tooltip position="bottom" align="left">
         {animationState !== "idle"
           ? "Refreshing..."
