@@ -141,7 +141,8 @@ export const HunkViewer = React.memo<HunkViewerProps>(
           "bg-[#1e1e1e] border rounded mb-3 overflow-hidden cursor-pointer transition-all duration-200",
           "focus:outline-none focus-visible:outline-none",
           isRead ? "border-[var(--color-read)]" : "border-[#3e3e42]",
-          isSelected && "border-[var(--color-review-accent)] shadow-[0_0_0_1px_var(--color-review-accent)]"
+          isSelected &&
+            "border-[var(--color-review-accent)] shadow-[0_0_0_1px_var(--color-review-accent)]"
         )}
         onClick={onClick}
         role="button"
@@ -151,7 +152,10 @@ export const HunkViewer = React.memo<HunkViewerProps>(
         <div className="bg-[#252526] py-2 px-3 border-b border-[#3e3e42] flex justify-between items-center font-monospace text-xs gap-2">
           {isRead && (
             <TooltipWrapper inline>
-              <span className="inline-flex items-center text-[var(--color-read)] text-sm mr-1" aria-label="Marked as read">
+              <span
+                className="inline-flex items-center text-[var(--color-read)] text-sm mr-1"
+                aria-label="Marked as read"
+              >
                 ✓
               </span>
               <Tooltip align="center" position="top">
@@ -215,14 +219,20 @@ export const HunkViewer = React.memo<HunkViewerProps>(
             />
           </div>
         ) : (
-          <div className="py-2 px-3 text-center text-[#888] text-[11px] italic cursor-pointer hover:text-[#ccc]" onClick={handleToggleExpand}>
+          <div
+            className="py-2 px-3 text-center text-[#888] text-[11px] italic cursor-pointer hover:text-[#ccc]"
+            onClick={handleToggleExpand}
+          >
             {isRead && "Hunk marked as read. "}Click to expand ({lineCount} lines) or press{" "}
             {formatKeybind(KEYBINDS.TOGGLE_HUNK_COLLAPSE)}
           </div>
         )}
 
         {hasManualState && isExpanded && !isPureRename && (
-          <div className="py-2 px-3 text-center text-[#888] text-[11px] italic cursor-pointer hover:text-[#ccc]" onClick={handleToggleExpand}>
+          <div
+            className="py-2 px-3 text-center text-[#888] text-[11px] italic cursor-pointer hover:text-[#ccc]"
+            onClick={handleToggleExpand}
+          >
             Click here or press {formatKeybind(KEYBINDS.TOGGLE_HUNK_COLLAPSE)} to collapse
           </div>
         )}

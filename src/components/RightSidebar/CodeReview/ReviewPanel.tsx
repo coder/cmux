@@ -641,7 +641,9 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
                       <div className="mt-3 font-monospace text-[11px] text-[#ccc] leading-[1.6]">
                         <div className="grid grid-cols-[140px_1fr] gap-3 py-1 [&:not(:last-child)]:border-b [&:not(:last-child)]:border-[#3e3e42]">
                           <div className="text-[#888] font-medium">Command:</div>
-                          <div className="text-[#ccc] break-all select-all">{diagnosticInfo.command}</div>
+                          <div className="text-[#ccc] break-all select-all">
+                            {diagnosticInfo.command}
+                          </div>
                         </div>
                         <div className="grid grid-cols-[140px_1fr] gap-3 py-1 [&:not(:last-child)]:border-b [&:not(:last-child)]:border-[#3e3e42]">
                           <div className="text-[#888] font-medium">Output size:</div>
@@ -651,11 +653,15 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
                         </div>
                         <div className="grid grid-cols-[140px_1fr] gap-3 py-1 [&:not(:last-child)]:border-b [&:not(:last-child)]:border-[#3e3e42]">
                           <div className="text-[#888] font-medium">Files parsed:</div>
-                          <div className="text-[#ccc] break-all select-all">{diagnosticInfo.fileDiffCount}</div>
+                          <div className="text-[#ccc] break-all select-all">
+                            {diagnosticInfo.fileDiffCount}
+                          </div>
                         </div>
                         <div className="grid grid-cols-[140px_1fr] gap-3 py-1">
                           <div className="text-[#888] font-medium">Hunks extracted:</div>
-                          <div className="text-[#ccc] break-all select-all">{diagnosticInfo.hunkCount}</div>
+                          <div className="text-[#ccc] break-all select-all">
+                            {diagnosticInfo.hunkCount}
+                          </div>
                         </div>
                       </div>
                     </details>

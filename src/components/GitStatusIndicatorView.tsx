@@ -60,12 +60,22 @@ export const GitStatusIndicatorView: React.FC<GitStatusIndicatorViewProps> = ({
 }) => {
   // Handle null gitStatus (loading state)
   if (!gitStatus) {
-    return <span className="text-[#569cd6] text-[11px] flex items-center gap-1 mr-1.5 font-mono relative" aria-hidden="true" />;
+    return (
+      <span
+        className="text-[#569cd6] text-[11px] flex items-center gap-1 mr-1.5 font-mono relative"
+        aria-hidden="true"
+      />
+    );
   }
 
   // Render empty placeholder when nothing to show (prevents layout shift)
   if (gitStatus.ahead === 0 && gitStatus.behind === 0 && !gitStatus.dirty) {
-    return <span className="text-[#569cd6] text-[11px] flex items-center gap-1 mr-1.5 font-mono relative" aria-hidden="true" />;
+    return (
+      <span
+        className="text-[#569cd6] text-[11px] flex items-center gap-1 mr-1.5 font-mono relative"
+        aria-hidden="true"
+      />
+    );
   }
 
   // Render colored indicator characters
@@ -122,7 +132,10 @@ export const GitStatusIndicatorView: React.FC<GitStatusIndicatorViewProps> = ({
         <div className="text-git-dirty font-semibold mb-1 font-mono">Uncommitted changes:</div>
         <div className="flex flex-col gap-px">
           {displayFiles.map((line, index) => (
-            <div key={index} className="text-[#cccccc] font-mono text-[11px] leading-snug whitespace-pre">
+            <div
+              key={index}
+              className="text-[#cccccc] font-mono text-[11px] leading-snug whitespace-pre"
+            >
               {line}
             </div>
           ))}
@@ -197,9 +210,15 @@ export const GitStatusIndicatorView: React.FC<GitStatusIndicatorViewProps> = ({
         onMouseLeave={onMouseLeave}
         className="text-[#569cd6] text-[11px] flex items-center gap-1 mr-1.5 font-mono relative"
       >
-        {gitStatus.ahead > 0 && <span className="flex items-center font-normal">↑{gitStatus.ahead}</span>}
-        {gitStatus.behind > 0 && <span className="flex items-center font-normal">↓{gitStatus.behind}</span>}
-        {gitStatus.dirty && <span className="flex items-center font-normal text-git-dirty leading-none">*</span>}
+        {gitStatus.ahead > 0 && (
+          <span className="flex items-center font-normal">↑{gitStatus.ahead}</span>
+        )}
+        {gitStatus.behind > 0 && (
+          <span className="flex items-center font-normal">↓{gitStatus.behind}</span>
+        )}
+        {gitStatus.dirty && (
+          <span className="flex items-center font-normal text-git-dirty leading-none">*</span>
+        )}
       </span>
 
       {createPortal(tooltipElement, document.body)}

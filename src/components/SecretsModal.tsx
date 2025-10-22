@@ -41,8 +41,6 @@ const ToggleVisibilityIcon: React.FC<{ visible: boolean }> = ({ visible }) => {
   );
 };
 
-
-
 interface SecretsModalProps {
   isOpen: boolean;
   projectPath: string;
@@ -142,9 +140,7 @@ const SecretsModal: React.FC<SecretsModalProps> = ({
 
       <div className="flex-1 overflow-y-auto mb-4 min-h-[200px]">
         {secrets.length === 0 ? (
-          <div className="py-8 px-4 text-center text-[#888] text-[13px]">
-            No secrets configured
-          </div>
+          <div className="py-8 px-4 text-center text-[#888] text-[13px]">No secrets configured</div>
         ) : (
           <div className="grid grid-cols-[1fr_1fr_auto_auto] gap-1 items-end [&>label]:text-[11px] [&>label]:text-[#888] [&>label]:mb-0.5">
             <label>Key</label>

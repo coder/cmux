@@ -74,7 +74,10 @@ export const DiffContainer: React.FC<
 > = ({ children, fontSize, maxHeight, className }) => {
   return (
     <div
-      className={cn("m-0 py-1.5 bg-code-bg rounded grid overflow-y-auto overflow-x-auto [&_*]:text-[inherit]", className)}
+      className={cn(
+        "m-0 py-1.5 bg-code-bg rounded grid overflow-y-auto overflow-x-auto [&_*]:text-[inherit]",
+        className
+      )}
       style={{
         fontSize: fontSize ?? "12px",
         lineHeight: 1.4,
@@ -332,7 +335,10 @@ const ReviewNoteInput: React.FC<ReviewNoteInputProps> = React.memo(
     };
 
     return (
-      <div className="py-1.5 px-2 bg-[#1e1e1e] border-t m-0" style={{ borderColor: "hsl(from var(--color-review-accent) h s l / 0.3)" }}>
+      <div
+        className="py-1.5 px-2 bg-[#1e1e1e] border-t m-0"
+        style={{ borderColor: "hsl(from var(--color-review-accent) h s l / 0.3)" }}
+      >
         <textarea
           ref={textareaRef}
           className="w-full px-2 py-1.5 font-mono text-xs leading-[1.4] bg-[#1e1e1e] border rounded-sm text-text resize-none overflow-y-hidden placeholder:text-[#888] focus:outline-none focus:border-[hsl(from_var(--color-review-accent)_h_s_l_/_0.6)]"
@@ -530,7 +536,8 @@ export const SelectableDiffRenderer = React.memo<SelectableDiffRendererProps>(
                       }}
                       onMouseEnter={(e) => {
                         const target = e.currentTarget;
-                        target.style.background = "hsl(from var(--color-review-accent) h s calc(l * 1.2))";
+                        target.style.background =
+                          "hsl(from var(--color-review-accent) h s calc(l * 1.2))";
                       }}
                       onMouseLeave={(e) => {
                         const target = e.currentTarget;

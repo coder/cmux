@@ -23,50 +23,6 @@ import { TooltipWrapper, Tooltip } from "../Tooltip";
 import { DiffContainer, DiffRenderer, SelectableDiffRenderer } from "../shared/DiffRenderer";
 import { KebabMenu, type KebabMenuItem } from "../KebabMenu";
 
-// File edit specific styled components
-
-const FilePath = styled.span`
-  color: var(--color-text);
-  font-family: var(--font-monospace);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: min(400px, 80vw);
-`;
-
-const ErrorMessage = styled.div`
-  color: #f44336;
-  font-size: 11px;
-  padding: 6px 8px;
-  background: rgba(244, 67, 54, 0.1);
-  border-radius: 3px;
-  border-left: 2px solid #f44336;
-`;
-
-const StyledToolHeader = styled(ToolHeader)`
-  cursor: default;
-
-  &:hover {
-    color: var(--color-text-secondary);
-  }
-`;
-
-const LeftContent = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 1;
-  cursor: pointer;
-
-  &:hover {
-    color: var(--color-text);
-  }
-`;
-
-const KebabWrapper = styled.div`
-  margin-right: 8px;
-`;
-
 type FileEditOperationArgs =
   | FileEditReplaceStringToolArgs
   | FileEditReplaceLinesToolArgs

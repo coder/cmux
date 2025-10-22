@@ -10,20 +10,32 @@ const VerticalTokenMeterComponent: React.FC<{ data: TokenMeterData }> = ({ data 
   const usagePercentage = data.maxTokens ? data.totalPercentage : 100;
 
   return (
-    <div className="w-5 h-full flex flex-col items-center py-3 bg-[#252526] border-l border-[#3e3e42]" data-component="vertical-token-meter">
+    <div
+      className="w-5 h-full flex flex-col items-center py-3 bg-[#252526] border-l border-[#3e3e42]"
+      data-component="vertical-token-meter"
+    >
       {data.maxTokens && (
-        <div className="font-primary text-[8px] font-semibold text-[#cccccc] mb-1 text-center flex-shrink-0" data-label="context-percentage">
+        <div
+          className="font-primary text-[8px] font-semibold text-[#cccccc] mb-1 text-center flex-shrink-0"
+          data-label="context-percentage"
+        >
           {Math.round(data.totalPercentage)}
         </div>
       )}
-      <div className="flex-1 w-full flex flex-col items-center min-h-0" data-wrapper="meter-wrapper">
+      <div
+        className="flex-1 w-full flex flex-col items-center min-h-0"
+        data-wrapper="meter-wrapper"
+      >
         <div
           className="w-full flex flex-col items-center min-h-[20px]"
           style={{ flex: usagePercentage }}
           data-container="meter-container"
           data-usage-percentage={Math.round(usagePercentage)}
         >
-          <div className="flex-1 flex flex-col items-center w-full [&>*]:flex-1 [&>*]:flex [&>*]:flex-col" data-bar-wrapper="expand">
+          <div
+            className="flex-1 flex flex-col items-center w-full [&>*]:flex-1 [&>*]:flex [&>*]:flex-col"
+            data-bar-wrapper="expand"
+          >
             <TooltipWrapper data-tooltip-wrapper="vertical-meter">
               <TokenMeter
                 segments={data.segments}
@@ -32,7 +44,10 @@ const VerticalTokenMeterComponent: React.FC<{ data: TokenMeterData }> = ({ data 
                 data-segment-count={data.segments.length}
               />
               <Tooltip data-tooltip="meter-details">
-                <div className="flex flex-col gap-2 font-primary text-xs" data-tooltip-content="usage-breakdown">
+                <div
+                  className="flex flex-col gap-2 font-primary text-xs"
+                  data-tooltip-content="usage-breakdown"
+                >
                   <div
                     className="font-semibold text-[13px] text-[#cccccc]"
                     data-tooltip-title="last-request"

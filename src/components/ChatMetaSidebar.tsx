@@ -1,5 +1,5 @@
 import React from "react";
-import styled from "@emotion/styled";
+import { cn } from "@/lib/utils";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { useWorkspaceUsage } from "@/stores/WorkspaceStore";
 import { use1MContext } from "@/hooks/use1MContext";
@@ -7,48 +7,6 @@ import { useResizeObserver } from "@/hooks/useResizeObserver";
 import { CostsTab } from "./RightSidebar/CostsTab";
 import { VerticalTokenMeter } from "./RightSidebar/VerticalTokenMeter";
 import { calculateTokenMeterData } from "@/utils/tokens/tokenMeterUtils";
-
-interface SidebarContainerProps {
-  collapsed: boolean;
-}
-
-const SidebarContainer = styled.div<SidebarContainerProps>`
-  width: ${(props) => (props.collapsed ? "20px" : "300px")};
-  background: #252526;
-  border-left: 1px solid #3e3e42;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  transition: width 0.2s ease;
-  flex-shrink: 0;
-
-  /* Keep vertical bar always visible when collapsed */
-  ${(props) =>
-    props.collapsed &&
-    `
-    position: sticky;
-    right: 0;
-    z-index: 10;
-    box-shadow: -2px 0 4px rgba(0, 0, 0, 0.2);
-  `}
-`;
-
-const FullView = styled.div<{ visible: boolean }>`
-  display: ${(props) => (props.visible ? "flex" : "none")};
-  flex-direction: column;
-  height: 100%;
-`;
-
-const CollapsedView = styled.div<{ visible: boolean }>`
-  display: ${(props) => (props.visible ? "flex" : "none")};
-  height: 100%;
-`;
-
-const ContentScroll = styled.div`
-  flex: 1;
-  overflow-y: auto;
-  padding: 15px;
-`;
 
 interface ChatMetaSidebarProps {
   workspaceId: string;
@@ -99,20 +57,23 @@ const ChatMetaSidebarComponent: React.FC<ChatMetaSidebarProps> = ({ workspaceId,
   }, [chatAreaWidth, setShowCollapsed]);
 
   return (
-    <SidebarContainer
-      collapsed={showCollapsed}
+    <div
+      className={cn(
+        "bg-[#252526] border-l border-[#3e3e42] flex flex-col overflow-hidden transition-[width] duration-200 flex-shrink-0",
+        showCollapsed ? "w-5 sticky right-0 z-10 shadow-[-2px_0_4px_rgba(0,0,0,0.2)]" : "w-[300px]"
+      )}
       role="complementary"
       aria-label="Workspace insights"
     >
-      <FullView visible={!showCollapsed}>
-        <ContentScroll role="region" aria-label="Cost breakdown">
+      <div className={cn("flex flex-col h-full", showCollapsed && "hidden")}>
+        <div className="flex-1 overflow-y-auto p-[15px]" role="region" aria-label="Cost breakdown">
           <CostsTab workspaceId={workspaceId} />
-        </ContentScroll>
-      </FullView>
-      <CollapsedView visible={showCollapsed}>
+        </div>
+      </div>
+      <div className={cn("flex h-full", !showCollapsed && "hidden")}>
         <VerticalTokenMeter data={verticalMeterData} />
-      </CollapsedView>
-    </SidebarContainer>
+      </div>
+    </div>
   );
 };
 

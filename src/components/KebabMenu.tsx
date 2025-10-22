@@ -119,7 +119,9 @@ export const KebabMenu: React.FC<KebabMenuProps> = ({ items, className }) => {
                       : "bg-[#1e1e1e] text-[#cccccc] cursor-pointer hover:bg-white/15 hover:text-white"
                 )}
               >
-                {item.emoji && <span className="text-[13px] w-4 text-center flex-shrink-0">{item.emoji}</span>}
+                {item.emoji && (
+                  <span className="text-[13px] w-4 text-center flex-shrink-0">{item.emoji}</span>
+                )}
                 <span className="flex-1">{item.label}</span>
               </button>
             ))}

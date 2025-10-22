@@ -39,9 +39,7 @@ export const WithExplanation: Story = {
 export const DebugControls: Story = {
   render: () => (
     <div className="flex flex-col gap-5 p-5 bg-[#1e1e1e] min-w-[500px]">
-      <div className="text-[13px] text-[#cccccc] font-primary">
-        For debugging, you can use:
-      </div>
+      <div className="text-[13px] text-[#cccccc] font-primary">For debugging, you can use:</div>
       <TipsCarousel />
       <div className="text-[11px] text-[#808080] font-monospace p-3 bg-[#2d2d30] rounded">
         <div>window.setTip(0) // Show first tip</div>

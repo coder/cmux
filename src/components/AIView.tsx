@@ -30,194 +30,6 @@ import { TooltipWrapper, Tooltip } from "./Tooltip";
 import type { DisplayedMessage } from "@/types/message";
 import { useAIViewKeybinds } from "@/hooks/useAIViewKeybinds";
 
-const ViewContainer = styled.div`
-  flex: 1;
-  display: flex;
-  flex-direction: row;
-  background: #1e1e1e;
-  color: #d4d4d4;
-  font-family: var(--font-monospace);
-  font-size: 12px;
-  overflow-x: auto;
-  overflow-y: hidden;
-  container-type: inline-size;
-
-  /* Mobile: Stack vertically */
-  @media (max-width: 768px) {
-    flex-direction: column;
-  }
-`;
-
-const ChatArea = styled.div`
-  flex: 1;
-  min-width: 400px; /* Reduced from 750px to allow narrower layout when Review panel is wide */
-  display: flex;
-  flex-direction: column;
-
-  /* Mobile: Remove min-width and take full width */
-  @media (max-width: 768px) {
-    min-width: 0;
-    width: 100%;
-    max-height: 100%;
-  }
-`;
-
-const ViewHeader = styled.div`
-  padding: 4px 15px;
-  background: #252526;
-  border-bottom: 1px solid #3e3e42;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-
-  /* Mobile: Add padding for hamburger button and adjust spacing */
-  @media (max-width: 768px) {
-    padding: 8px 15px 8px 60px; /* Extra left padding for hamburger button */
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-`;
-
-const WorkspaceTitle = styled.div`
-  font-weight: 600;
-  color: #cccccc;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0; /* Allow flex children to shrink */
-  overflow: hidden;
-`;
-
-const WorkspacePath = styled.span`
-  font-family: var(--font-monospace);
-  color: #888;
-  font-weight: 400;
-  font-size: 11px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  min-width: 0;
-
-  /* Hide path on mobile to save space */
-  @media (max-width: 768px) {
-    display: none;
-  }
-`;
-
-const WorkspaceName = styled.span`
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  min-width: 0;
-`;
-
-const TerminalIconButton = styled.button`
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  padding: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #888;
-  transition: color 0.2s;
-
-  &:hover {
-    color: #ccc;
-  }
-
-  svg {
-    width: 16px;
-    height: 16px;
-  }
-`;
-
-const OutputContainer = styled.div`
-  flex: 1;
-  position: relative;
-  overflow: hidden;
-`;
-
-const OutputContent = styled.div`
-  height: 100%;
-  overflow-y: auto;
-  padding: 15px;
-  white-space: pre-wrap;
-  word-break: break-word;
-  line-height: 1.5;
-`;
-
-const EmptyState = styled.div`
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  color: #6b6b6b;
-  text-align: center;
-
-  h3 {
-    margin: 0 0 10px 0;
-    font-size: 16px;
-    font-weight: 500;
-  }
-
-  p {
-    margin: 0;
-    font-size: 13px;
-  }
-`;
-
-const EditBarrier = styled.div`
-  margin: 20px 0;
-  padding: 12px 15px;
-  background: var(--color-editing-mode-alpha);
-  border-bottom: 3px solid;
-  border-image: repeating-linear-gradient(
-      45deg,
-      var(--color-editing-mode),
-      var(--color-editing-mode) 10px,
-      transparent 10px,
-      transparent 20px
-    )
-    1;
-  color: var(--color-editing-mode);
-  font-size: 12px;
-  font-weight: 500;
-  text-align: center;
-`;
-
-const JumpToBottomIndicator = styled.button`
-  position: absolute;
-  bottom: 8px;
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 4px 8px;
-  background: hsl(from var(--color-assistant-border) h s l / 0.1);
-  color: white;
-  border: 1px solid hsl(from var(--color-assistant-border) h s l / 0.4);
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 500;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  z-index: 100;
-  font-family: var(--font-primary);
-  backdrop-filter: blur(1px);
-
-  &:hover {
-    background: hsl(from var(--color-assistant-border) h s l / 0.4);
-    border-color: hsl(from var(--color-assistant-border) h s l / 0.6);
-    transform: translateX(-50%) scale(1.05);
-  }
-
-  &:active {
-    transform: translateX(-50%) scale(0.95);
-  }
-`;
-
 interface AIViewProps {
   workspaceId: string;
   projectName: string;
@@ -431,7 +243,13 @@ const AIViewInner: React.FC<AIViewProps> = ({
   // Return early if workspace state not loaded yet
   if (!workspaceState) {
     return (
-      <div className={cn("flex flex-1 flex-row bg-[#1e1e1e] text-[#d4d4d4] font-mono text-xs overflow-x-auto overflow-y-hidden [@media(max-width:768px)]:flex-col", className)} style={{ containerType: "inline-size" }}>
+      <div
+        className={cn(
+          "flex flex-1 flex-row bg-[#1e1e1e] text-[#d4d4d4] font-mono text-xs overflow-x-auto overflow-y-hidden [@media(max-width:768px)]:flex-col",
+          className
+        )}
+        style={{ containerType: "inline-size" }}
+      >
         <div className="flex-1 flex flex-col items-center justify-center h-full text-[#6b6b6b] text-center">
           <h3 className="m-0 mb-2.5 text-base font-medium">Loading workspace...</h3>
         </div>
@@ -466,7 +284,13 @@ const AIViewInner: React.FC<AIViewProps> = ({
 
   if (loading) {
     return (
-      <div className={cn("flex flex-1 flex-row bg-[#1e1e1e] text-[#d4d4d4] font-mono text-xs overflow-x-auto overflow-y-hidden [@media(max-width:768px)]:flex-col", className)} style={{ containerType: "inline-size" }}>
+      <div
+        className={cn(
+          "flex flex-1 flex-row bg-[#1e1e1e] text-[#d4d4d4] font-mono text-xs overflow-x-auto overflow-y-hidden [@media(max-width:768px)]:flex-col",
+          className
+        )}
+        style={{ containerType: "inline-size" }}
+      >
         <div className="flex-1 flex flex-col items-center justify-center h-full text-[#6b6b6b] text-center">
           <h3 className="m-0 mb-2.5 text-base font-medium">Loading workspace...</h3>
         </div>
@@ -476,18 +300,35 @@ const AIViewInner: React.FC<AIViewProps> = ({
 
   if (!projectName || !branch) {
     return (
-      <div className={cn("flex flex-1 flex-row bg-[#1e1e1e] text-[#d4d4d4] font-mono text-xs overflow-x-auto overflow-y-hidden [@media(max-width:768px)]:flex-col", className)} style={{ containerType: "inline-size" }}>
+      <div
+        className={cn(
+          "flex flex-1 flex-row bg-[#1e1e1e] text-[#d4d4d4] font-mono text-xs overflow-x-auto overflow-y-hidden [@media(max-width:768px)]:flex-col",
+          className
+        )}
+        style={{ containerType: "inline-size" }}
+      >
         <div className="flex-1 flex flex-col items-center justify-center h-full text-[#6b6b6b] text-center">
           <h3 className="m-0 mb-2.5 text-base font-medium">No Workspace Selected</h3>
-          <p className="m-0 text-[13px]">Select a workspace from the sidebar to view and interact with Claude</p>
+          <p className="m-0 text-[13px]">
+            Select a workspace from the sidebar to view and interact with Claude
+          </p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className={cn("flex flex-1 flex-row bg-[#1e1e1e] text-[#d4d4d4] font-mono text-xs overflow-x-auto overflow-y-hidden [@media(max-width:768px)]:flex-col", className)} style={{ containerType: "inline-size" }}>
-      <div ref={chatAreaRef} className="flex-1 min-w-[400px] flex flex-col [@media(max-width:768px)]:min-w-0 [@media(max-width:768px)]:w-full [@media(max-width:768px)]:max-h-full">
+    <div
+      className={cn(
+        "flex flex-1 flex-row bg-[#1e1e1e] text-[#d4d4d4] font-mono text-xs overflow-x-auto overflow-y-hidden [@media(max-width:768px)]:flex-col",
+        className
+      )}
+      style={{ containerType: "inline-size" }}
+    >
+      <div
+        ref={chatAreaRef}
+        className="flex-1 min-w-[400px] flex flex-col [@media(max-width:768px)]:min-w-0 [@media(max-width:768px)]:w-full [@media(max-width:768px)]:max-h-full"
+      >
         <div className="py-1 px-[15px] bg-[#252526] border-b border-[#3e3e42] flex justify-between items-center [@media(max-width:768px)]:py-2 [@media(max-width:768px)]:pl-[60px] [@media(max-width:768px)]:flex-wrap [@media(max-width:768px)]:gap-2">
           <div className="font-semibold text-[#ccc] flex items-center gap-2 min-w-0 overflow-hidden">
             <StatusIndicator
@@ -504,7 +345,9 @@ const AIViewInner: React.FC<AIViewProps> = ({
             <span className="whitespace-nowrap overflow-hidden text-ellipsis min-w-0">
               {projectName} / {branch}
             </span>
-            <span className="font-mono text-[#888] font-normal text-[11px] whitespace-nowrap overflow-hidden text-ellipsis min-w-0">{namedWorkspacePath}</span>
+            <span className="font-mono text-[#888] font-normal text-[11px] whitespace-nowrap overflow-hidden text-ellipsis min-w-0">
+              {namedWorkspacePath}
+            </span>
             <TooltipWrapper inline>
               <button
                 onClick={handleOpenTerminal}
@@ -564,7 +407,8 @@ const AIViewInner: React.FC<AIViewProps> = ({
                           className="my-5 py-3 px-[15px] text-xs font-medium text-center text-edit-mode bg-edit-mode/10"
                           style={{
                             borderBottom: "3px solid",
-                            borderImage: "repeating-linear-gradient(45deg, var(--color-editing-mode), var(--color-editing-mode) 10px, transparent 10px, transparent 20px) 1",
+                            borderImage:
+                              "repeating-linear-gradient(45deg, var(--color-editing-mode), var(--color-editing-mode) 10px, transparent 10px, transparent 20px) 1",
                           }}
                         >
                           ⚠️ Messages below this line will be removed when you submit the edit

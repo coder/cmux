@@ -164,7 +164,9 @@ const CostsTabComponent: React.FC<CostsTabProps> = ({ workspaceId }) => {
                 <>
                   <div data-testid="context-usage" className="flex flex-col gap-1 mb-2 relative">
                     <div className="flex justify-between items-baseline">
-                      <span className="text-[#cccccc] font-medium inline-flex items-baseline gap-1">Context Usage</span>
+                      <span className="text-[#cccccc] font-medium inline-flex items-baseline gap-1">
+                        Context Usage
+                      </span>
                       <span className="text-[#888888] text-xs">
                         {totalDisplay}
                         {maxDisplay}
@@ -218,7 +220,9 @@ const CostsTabComponent: React.FC<CostsTabProps> = ({ workspaceId }) => {
                     </div>
                   </div>
                   {showWarning && (
-                    <div className="text-[#999999] text-[11px] mt-2 italic">Unknown model limits - showing relative usage only</div>
+                    <div className="text-[#999999] text-[11px] mt-2 italic">
+                      Unknown model limits - showing relative usage only
+                    </div>
                   )}
                 </>
               );
@@ -340,16 +344,23 @@ const CostsTabComponent: React.FC<CostsTabProps> = ({ workspaceId }) => {
                 <>
                   {totalCost !== undefined && totalCost >= 0 && (
                     <div data-testid="cost-bar" className="flex flex-col gap-1 mb-2 relative">
-                      <div data-testid="cost-header" className="flex justify-between items-baseline mb-2">
+                      <div
+                        data-testid="cost-header"
+                        className="flex justify-between items-baseline mb-2"
+                      >
                         <div className="flex gap-3 items-center">
-                          <span className="text-[#cccccc] font-medium inline-flex items-baseline gap-1">Cost</span>
+                          <span className="text-[#cccccc] font-medium inline-flex items-baseline gap-1">
+                            Cost
+                          </span>
                           <ToggleGroup
                             options={VIEW_MODE_OPTIONS}
                             value={viewMode}
                             onChange={setViewMode}
                           />
                         </div>
-                        <span className="text-[#888888] text-xs">{formatCostWithDollar(totalCost)}</span>
+                        <span className="text-[#888888] text-xs">
+                          {formatCostWithDollar(totalCost)}
+                        </span>
                       </div>
                       <div className="relative w-full">
                         <div className="w-full h-1.5 bg-[#3e3e42] rounded-[3px] overflow-hidden flex">
@@ -398,12 +409,21 @@ const CostsTabComponent: React.FC<CostsTabProps> = ({ workspaceId }) => {
                       </div>
                     </div>
                   )}
-                  <table data-testid="cost-details" className="w-full mt-1 border-collapse text-[11px]">
+                  <table
+                    data-testid="cost-details"
+                    className="w-full mt-1 border-collapse text-[11px]"
+                  >
                     <thead>
                       <tr className="border-b border-[#3e3e42]">
-                        <th className="text-left text-[#888888] font-medium py-1 pr-2 [&:last-child]:text-right [&:last-child]:pr-0">Component</th>
-                        <th className="text-left text-[#888888] font-medium py-1 pr-2 [&:last-child]:text-right [&:last-child]:pr-0">Tokens</th>
-                        <th className="text-left text-[#888888] font-medium py-1 pr-2 [&:last-child]:text-right [&:last-child]:pr-0">Cost</th>
+                        <th className="text-left text-[#888888] font-medium py-1 pr-2 [&:last-child]:text-right [&:last-child]:pr-0">
+                          Component
+                        </th>
+                        <th className="text-left text-[#888888] font-medium py-1 pr-2 [&:last-child]:text-right [&:last-child]:pr-0">
+                          Tokens
+                        </th>
+                        <th className="text-left text-[#888888] font-medium py-1 pr-2 [&:last-child]:text-right [&:last-child]:pr-0">
+                          Cost
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
@@ -425,9 +445,15 @@ const CostsTabComponent: React.FC<CostsTabProps> = ({ workspaceId }) => {
                                 {component.name}
                               </div>
                             </td>
-                            <td className="py-1 pr-2 text-[#cccccc] [&:last-child]:text-right [&:last-child]:pr-0">{formatTokens(component.tokens)}</td>
                             <td className="py-1 pr-2 text-[#cccccc] [&:last-child]:text-right [&:last-child]:pr-0">
-                              {isNegligible ? <span className="text-[#666666] italic">{costDisplay}</span> : costDisplay}
+                              {formatTokens(component.tokens)}
+                            </td>
+                            <td className="py-1 pr-2 text-[#cccccc] [&:last-child]:text-right [&:last-child]:pr-0">
+                              {isNegligible ? (
+                                <span className="text-[#666666] italic">{costDisplay}</span>
+                              ) : (
+                                costDisplay
+                              )}
                             </td>
                           </tr>
                         );
@@ -442,7 +468,9 @@ const CostsTabComponent: React.FC<CostsTabProps> = ({ workspaceId }) => {
       )}
 
       <div className="mb-6">
-        <h3 className="text-[#999999] text-sm font-semibold m-0 mb-3 uppercase tracking-wide">Breakdown by Consumer</h3>
+        <h3 className="text-[#999999] text-sm font-semibold m-0 mb-3 uppercase tracking-wide">
+          Breakdown by Consumer
+        </h3>
         <ConsumerBreakdown consumers={consumers} />
       </div>
     </div>

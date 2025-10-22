@@ -147,7 +147,8 @@ const TreeNodeContent: React.FC<{
             <span
               className={cn(
                 "flex-1",
-                isFullyRead && "text-[#666] line-through [text-decoration-color:var(--color-read)] [text-decoration-thickness:2px]",
+                isFullyRead &&
+                  "text-[#666] line-through [text-decoration-color:var(--color-read)] [text-decoration-thickness:2px]",
                 isUnknownState && !isFullyRead && "text-[#666]",
                 !isFullyRead && !isUnknownState && "text-[#888]"
               )}
@@ -181,7 +182,8 @@ const TreeNodeContent: React.FC<{
             <span
               className={cn(
                 "flex-1",
-                isFullyRead && "text-[#666] line-through [text-decoration-color:var(--color-read)] [text-decoration-thickness:2px]",
+                isFullyRead &&
+                  "text-[#666] line-through [text-decoration-color:var(--color-read)] [text-decoration-thickness:2px]",
                 isUnknownState && !isFullyRead && "text-[#666]",
                 !isFullyRead && !isUnknownState && "text-[#ccc]"
               )}
@@ -190,8 +192,12 @@ const TreeNodeContent: React.FC<{
             </span>
             {node.stats && (
               <span className="flex gap-2 text-[11px]">
-                {node.stats.additions > 0 && <span className="text-[#4ade80]">+{node.stats.additions}</span>}
-                {node.stats.deletions > 0 && <span className="text-[#f87171]">-{node.stats.deletions}</span>}
+                {node.stats.additions > 0 && (
+                  <span className="text-[#4ade80]">+{node.stats.additions}</span>
+                )}
+                {node.stats.deletions > 0 && (
+                  <span className="text-[#f87171]">-{node.stats.deletions}</span>
+                )}
               </span>
             )}
           </>

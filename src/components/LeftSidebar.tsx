@@ -74,7 +74,9 @@ export function LeftSidebar(props: LeftSidebarProps) {
           collapsed ? "w-8" : "w-[280px]",
           "max-md:fixed max-md:left-0 max-md:top-0 max-md:w-[280px] max-md:z-[1000]",
           "max-md:transition-transform max-md:duration-300",
-          collapsed ? "max-md:-translate-x-full max-md:shadow-none" : "max-md:translate-x-0 max-md:shadow-[2px_0_8px_rgba(0,0,0,0.5)]"
+          collapsed
+            ? "max-md:-translate-x-full max-md:shadow-none"
+            : "max-md:translate-x-0 max-md:shadow-[2px_0_8px_rgba(0,0,0,0.5)]"
         )}
       >
         {!collapsed && <TitleBar />}

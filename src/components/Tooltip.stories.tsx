@@ -66,12 +66,16 @@ export const TooltipPositions: Story = {
   render: () => (
     <div className="flex gap-5 p-10 flex-wrap">
       <TooltipWrapper>
-        <button className="py-2 px-4 bg-[#0e639c] text-white border-none rounded cursor-pointer font-primary text-[13px] hover:bg-[#1177bb]">Top (default)</button>
+        <button className="py-2 px-4 bg-[#0e639c] text-white border-none rounded cursor-pointer font-primary text-[13px] hover:bg-[#1177bb]">
+          Top (default)
+        </button>
         <Tooltip position="top">Tooltip appears above</Tooltip>
       </TooltipWrapper>
 
       <TooltipWrapper>
-        <button className="py-2 px-4 bg-[#0e639c] text-white border-none rounded cursor-pointer font-primary text-[13px] hover:bg-[#1177bb]">Bottom</button>
+        <button className="py-2 px-4 bg-[#0e639c] text-white border-none rounded cursor-pointer font-primary text-[13px] hover:bg-[#1177bb]">
+          Bottom
+        </button>
         <Tooltip position="bottom">Tooltip appears below</Tooltip>
       </TooltipWrapper>
     </div>
@@ -83,17 +87,23 @@ export const TooltipAlignments: Story = {
   render: () => (
     <div className="flex gap-5 p-10 flex-wrap">
       <TooltipWrapper>
-        <button className="py-2 px-4 bg-[#0e639c] text-white border-none rounded cursor-pointer font-primary text-[13px] hover:bg-[#1177bb]">Left Aligned</button>
+        <button className="py-2 px-4 bg-[#0e639c] text-white border-none rounded cursor-pointer font-primary text-[13px] hover:bg-[#1177bb]">
+          Left Aligned
+        </button>
         <Tooltip align="left">Left-aligned tooltip</Tooltip>
       </TooltipWrapper>
 
       <TooltipWrapper>
-        <button className="py-2 px-4 bg-[#0e639c] text-white border-none rounded cursor-pointer font-primary text-[13px] hover:bg-[#1177bb]">Center Aligned</button>
+        <button className="py-2 px-4 bg-[#0e639c] text-white border-none rounded cursor-pointer font-primary text-[13px] hover:bg-[#1177bb]">
+          Center Aligned
+        </button>
         <Tooltip align="center">Center-aligned tooltip</Tooltip>
       </TooltipWrapper>
 
       <TooltipWrapper>
-        <button className="py-2 px-4 bg-[#0e639c] text-white border-none rounded cursor-pointer font-primary text-[13px] hover:bg-[#1177bb]">Right Aligned</button>
+        <button className="py-2 px-4 bg-[#0e639c] text-white border-none rounded cursor-pointer font-primary text-[13px] hover:bg-[#1177bb]">
+          Right Aligned
+        </button>
         <Tooltip align="right">Right-aligned tooltip</Tooltip>
       </TooltipWrapper>
     </div>
@@ -104,7 +114,9 @@ export const WideTooltip: Story = {
   args: { children: "Tooltip content" },
   render: () => (
     <TooltipWrapper>
-      <button className="py-2 px-4 bg-[#0e639c] text-white border-none rounded cursor-pointer font-primary text-[13px] hover:bg-[#1177bb]">Hover for detailed info</button>
+      <button className="py-2 px-4 bg-[#0e639c] text-white border-none rounded cursor-pointer font-primary text-[13px] hover:bg-[#1177bb]">
+        Hover for detailed info
+      </button>
       <Tooltip width="wide">
         This is a wider tooltip that can contain more detailed information. It will wrap text
         automatically and has a maximum width of 300px.
@@ -149,7 +161,9 @@ export const KeyboardShortcut: Story = {
   args: { children: "Tooltip content" },
   render: () => (
     <TooltipWrapper>
-      <button className="py-2 px-4 bg-[#0e639c] text-white border-none rounded cursor-pointer font-primary text-[13px] hover:bg-[#1177bb]">Save File</button>
+      <button className="py-2 px-4 bg-[#0e639c] text-white border-none rounded cursor-pointer font-primary text-[13px] hover:bg-[#1177bb]">
+        Save File
+      </button>
       <Tooltip align="center">
         Save File <kbd>⌘S</kbd>
       </Tooltip>
@@ -161,7 +175,9 @@ export const LongContent: Story = {
   args: { children: "Tooltip content" },
   render: () => (
     <TooltipWrapper>
-      <button className="py-2 px-4 bg-[#0e639c] text-white border-none rounded cursor-pointer font-primary text-[13px] hover:bg-[#1177bb]">Documentation</button>
+      <button className="py-2 px-4 bg-[#0e639c] text-white border-none rounded cursor-pointer font-primary text-[13px] hover:bg-[#1177bb]">
+        Documentation
+      </button>
       <Tooltip width="wide">
         <strong>Getting Started:</strong>
         <br />

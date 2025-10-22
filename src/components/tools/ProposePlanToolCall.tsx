@@ -80,7 +80,10 @@ export const ProposePlanToolCall: React.FC<ProposePlanToolCallProps> = ({
           >
             <div
               className="flex items-center gap-2 mb-3 pb-2"
-              style={{ borderBottom: "1px solid color-mix(in srgb, var(--color-plan-mode), transparent 80%)" }}
+              style={{
+                borderBottom:
+                  "1px solid color-mix(in srgb, var(--color-plan-mode), transparent 80%)",
+              }}
             >
               <div className="flex items-center gap-2 flex-1">
                 <div className="text-base">📋</div>
@@ -97,27 +100,30 @@ export const ProposePlanToolCall: React.FC<ProposePlanToolCallProps> = ({
                       className={cn(
                         "px-2 py-1 text-[10px] font-mono rounded-sm cursor-pointer transition-all duration-150",
                         "active:translate-y-px",
-                        startHereDisabled
-                          ? "opacity-50 cursor-not-allowed"
-                          : "hover:text-plan-mode"
+                        startHereDisabled ? "opacity-50 cursor-not-allowed" : "hover:text-plan-mode"
                       )}
                       style={{
                         color: "var(--color-plan-mode)",
                         background: "color-mix(in srgb, var(--color-plan-mode), transparent 90%)",
-                        border: "1px solid color-mix(in srgb, var(--color-plan-mode), transparent 70%)",
+                        border:
+                          "1px solid color-mix(in srgb, var(--color-plan-mode), transparent 70%)",
                       }}
                       onMouseEnter={(e) => {
                         if (!startHereDisabled) {
                           setIsHovered(true);
-                          (e.currentTarget as HTMLButtonElement).style.background = "color-mix(in srgb, var(--color-plan-mode), transparent 85%)";
-                          (e.currentTarget as HTMLButtonElement).style.borderColor = "color-mix(in srgb, var(--color-plan-mode), transparent 60%)";
+                          (e.currentTarget as HTMLButtonElement).style.background =
+                            "color-mix(in srgb, var(--color-plan-mode), transparent 85%)";
+                          (e.currentTarget as HTMLButtonElement).style.borderColor =
+                            "color-mix(in srgb, var(--color-plan-mode), transparent 60%)";
                         }
                       }}
                       onMouseLeave={(e) => {
                         setIsHovered(false);
                         if (!startHereDisabled) {
-                          (e.currentTarget as HTMLButtonElement).style.background = "color-mix(in srgb, var(--color-plan-mode), transparent 90%)";
-                          (e.currentTarget as HTMLButtonElement).style.borderColor = "color-mix(in srgb, var(--color-plan-mode), transparent 70%)";
+                          (e.currentTarget as HTMLButtonElement).style.background =
+                            "color-mix(in srgb, var(--color-plan-mode), transparent 90%)";
+                          (e.currentTarget as HTMLButtonElement).style.borderColor =
+                            "color-mix(in srgb, var(--color-plan-mode), transparent 70%)";
                         }
                       }}
                     >
@@ -134,12 +140,15 @@ export const ProposePlanToolCall: React.FC<ProposePlanToolCallProps> = ({
                     border: "1px solid rgba(136, 136, 136, 0.3)",
                   }}
                   onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLButtonElement).style.background = "color-mix(in srgb, var(--color-plan-mode), transparent 85%)";
-                    (e.currentTarget as HTMLButtonElement).style.borderColor = "color-mix(in srgb, var(--color-plan-mode), transparent 60%)";
+                    (e.currentTarget as HTMLButtonElement).style.background =
+                      "color-mix(in srgb, var(--color-plan-mode), transparent 85%)";
+                    (e.currentTarget as HTMLButtonElement).style.borderColor =
+                      "color-mix(in srgb, var(--color-plan-mode), transparent 60%)";
                   }}
                   onMouseLeave={(e) => {
                     (e.currentTarget as HTMLButtonElement).style.background = "transparent";
-                    (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(136, 136, 136, 0.3)";
+                    (e.currentTarget as HTMLButtonElement).style.borderColor =
+                      "rgba(136, 136, 136, 0.3)";
                   }}
                 >
                   {copied ? "✓ Copied" : "Copy"}
@@ -159,8 +168,10 @@ export const ProposePlanToolCall: React.FC<ProposePlanToolCallProps> = ({
                       : "1px solid rgba(136, 136, 136, 0.3)",
                   }}
                   onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLButtonElement).style.background = "color-mix(in srgb, var(--color-plan-mode), transparent 85%)";
-                    (e.currentTarget as HTMLButtonElement).style.borderColor = "color-mix(in srgb, var(--color-plan-mode), transparent 60%)";
+                    (e.currentTarget as HTMLButtonElement).style.background =
+                      "color-mix(in srgb, var(--color-plan-mode), transparent 85%)";
+                    (e.currentTarget as HTMLButtonElement).style.borderColor =
+                      "color-mix(in srgb, var(--color-plan-mode), transparent 60%)";
                   }}
                   onMouseLeave={(e) => {
                     (e.currentTarget as HTMLButtonElement).style.background = showRaw
@@ -189,11 +200,16 @@ export const ProposePlanToolCall: React.FC<ProposePlanToolCallProps> = ({
             {status === "completed" && (
               <div
                 className="mt-3 pt-3 text-[11px] text-[#888] italic leading-normal"
-                style={{ borderTop: "1px solid color-mix(in srgb, var(--color-plan-mode), transparent 80%)" }}
+                style={{
+                  borderTop:
+                    "1px solid color-mix(in srgb, var(--color-plan-mode), transparent 80%)",
+                }}
               >
                 Respond with revisions or switch to Exec mode (
-                <span className="font-primary not-italic">{formatKeybind(KEYBINDS.TOGGLE_MODE)}</span>) and ask to
-                implement.
+                <span className="font-primary not-italic">
+                  {formatKeybind(KEYBINDS.TOGGLE_MODE)}
+                </span>
+                ) and ask to implement.
               </div>
             )}
           </div>
