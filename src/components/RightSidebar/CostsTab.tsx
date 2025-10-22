@@ -8,7 +8,6 @@ import { use1MContext } from "@/hooks/use1MContext";
 import { supports1MContext } from "@/utils/ai/models";
 import { TOKEN_COMPONENT_COLORS } from "@/utils/tokens/tokenMeterUtils";
 import { ConsumerBreakdown } from "./ConsumerBreakdown";
-import { cn } from "@/lib/utils";
 
 // Format token display - show k for thousands with 1 decimal
 const formatTokens = (tokens: number) =>

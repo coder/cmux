@@ -17,7 +17,7 @@ export const StreamingBarrier: React.FC<StreamingBarrierProps> = ({
   tps,
 }) => {
   return (
-    <div className={`flex items-center justify-between gap-4 ${className || ""}`}>
+    <div className={`flex items-center justify-between gap-4 ${className ?? ""}`}>
       <div className="flex items-center gap-2 flex-1">
         <BaseBarrier text={statusText} color="var(--color-assistant-border)" animate />
         {tokenCount !== undefined && (

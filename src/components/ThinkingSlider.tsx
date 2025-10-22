@@ -46,7 +46,7 @@ const getTextStyle = (n: number) => {
   };
 };
 
-const getSliderStyles = (value: number, isHover: boolean = false) => {
+const getSliderStyles = (value: number, isHover = false) => {
   const effectiveValue = isHover ? Math.min(value + 1, 3) : value;
   const thumbBg = value === 0 ? "#606060" : `hsl(271 76% ${53 + value * 5}%)`;
 
