@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { cn } from "@/lib/utils";
 import "./styles/globals.css";
 import type { ProjectConfig } from "./config";
 import type { WorkspaceSelection } from "./components/ProjectSidebar";
