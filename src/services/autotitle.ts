@@ -17,7 +17,6 @@ import { getTokenizerForModel } from "@/utils/main/tokenizer";
  */
 
 const AUTOTITLE_TOKEN_LIMIT = 2000;
-const AUTOTITLE_OUTPUT_TOKENS = 150;
 
 /**
  * Prompt strategy: Ask for concise 3-7 word title that captures main topic
@@ -99,7 +98,6 @@ export async function generateWorkspaceTitle(
     const result = await generateText({
       model,
       prompt: `${conversationContext}\n\n${TITLE_GENERATION_PROMPT}`,
-      maxTokens: 150, // Single generation step
       temperature: 0.3, // Lower temperature for more focused titles
     });
 
@@ -126,4 +124,3 @@ export async function generateWorkspaceTitle(
     return Err(`Title generation failed: ${message}`);
   }
 }
-

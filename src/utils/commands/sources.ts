@@ -94,23 +94,25 @@ export function buildCoreSources(p: BuildSourcesParams): Array<() => CommandActi
       const isStreaming = p.streamingModels?.has(meta.id) ?? false;
       list.push({
         id: `ws:switch:${meta.id}`,
-        title: `${isCurrent ? "• " : ""}Switch to ${meta.title}`,
+        title: `${isCurrent ? "• " : ""}Switch to ${meta.title ?? meta.id}`,
         subtitle: `${meta.projectName}${isStreaming ? " • streaming" : ""}`,
         section: section.workspaces,
-        keywords: [meta.title, meta.projectName, meta.titledWorkspacePath],
+        keywords: [meta.title ?? meta.id, meta.projectName, meta.namedWorkspacePath],
         run: () =>
           p.onSelectWorkspace({
             projectPath: meta.projectPath,
             projectName: meta.projectName,
-            namedWorkspacePath: meta.titledWorkspacePath,
+            namedWorkspacePath: meta.namedWorkspacePath,
             workspaceId: meta.id,
           }),
       });
     }
 
     // Remove current workspace (rename action intentionally omitted until we add a proper modal)
-    if (selected?.titledWorkspacePath) {
-      const workspaceDisplayName = `${selected.projectName}/${selected.titledWorkspacePath.split("/").pop() ?? selected.titledWorkspacePath}`;
+    if (selected?.namedWorkspacePath) {
+      const pathParts = selected.namedWorkspacePath.split("/");
+      const workspaceName = pathParts[pathParts.length - 1] ?? selected.namedWorkspacePath;
+      const workspaceDisplayName = `${selected.projectName}/${workspaceName}`;
       list.push({
         id: "ws:open-terminal-current",
         title: "Open Current Workspace in Terminal",
@@ -169,17 +171,22 @@ export function buildCoreSources(p: BuildSourcesParams): Array<() => CommandActi
           fields: [
             {
               type: "select",
-              title: "workspaceId",
+              name: "workspaceId",
               label: "Workspace",
               placeholder: "Search workspaces…",
               getOptions: () =>
                 Array.from(p.workspaceMetadata.values()).map((meta) => {
                   // Use workspace name instead of extracting from path
-                  const label = `${meta.projectName} / ${meta.title}`;
+                  const label = `${meta.projectName} / ${meta.title ?? meta.id}`;
                   return {
                     id: meta.id,
                     label,
-                    keywords: [meta.title, meta.projectName, meta.titledWorkspacePath, meta.id],
+                    keywords: [
+                      meta.title ?? meta.id,
+                      meta.projectName,
+                      meta.namedWorkspacePath,
+                      meta.id,
+                    ],
                   };
                 }),
             },
@@ -199,16 +206,21 @@ export function buildCoreSources(p: BuildSourcesParams): Array<() => CommandActi
           fields: [
             {
               type: "select",
-              title: "workspaceId",
+              name: "workspaceId",
               label: "Select workspace",
               placeholder: "Search workspaces…",
               getOptions: () =>
                 Array.from(p.workspaceMetadata.values()).map((meta) => {
-                  const label = `${meta.projectName} / ${meta.title}`;
+                  const label = `${meta.projectName} / ${meta.title ?? meta.id}`;
                   return {
                     id: meta.id,
                     label,
-                    keywords: [meta.title, meta.projectName, meta.titledWorkspacePath, meta.id],
+                    keywords: [
+                      meta.title ?? meta.id,
+                      meta.projectName,
+                      meta.namedWorkspacePath,
+                      meta.id,
+                    ],
                   };
                 }),
             },
@@ -221,7 +233,7 @@ export function buildCoreSources(p: BuildSourcesParams): Array<() => CommandActi
                 const meta = Array.from(p.workspaceMetadata.values()).find(
                   (m) => m.id === values.workspaceId
                 );
-                return meta ? meta.title : "";
+                return meta ? (meta.title ?? meta.id) : "";
               },
               validate: (v) => (!v.trim() ? "Name is required" : null),
             },
@@ -241,16 +253,21 @@ export function buildCoreSources(p: BuildSourcesParams): Array<() => CommandActi
           fields: [
             {
               type: "select",
-              title: "workspaceId",
+              name: "workspaceId",
               label: "Select workspace",
               placeholder: "Search workspaces…",
               getOptions: () =>
                 Array.from(p.workspaceMetadata.values()).map((meta) => {
-                  const label = `${meta.projectName}/${meta.title}`;
+                  const label = `${meta.projectName}/${meta.title ?? meta.id}`;
                   return {
                     id: meta.id,
                     label,
-                    keywords: [meta.title, meta.projectName, meta.titledWorkspacePath, meta.id],
+                    keywords: [
+                      meta.title ?? meta.id,
+                      meta.projectName,
+                      meta.namedWorkspacePath,
+                      meta.id,
+                    ],
                   };
                 }),
             },
@@ -259,7 +276,9 @@ export function buildCoreSources(p: BuildSourcesParams): Array<() => CommandActi
             const meta = Array.from(p.workspaceMetadata.values()).find(
               (m) => m.id === vals.workspaceId
             );
-            const workspaceName = meta ? `${meta.projectName}/${meta.title}` : vals.workspaceId;
+            const workspaceName = meta
+              ? `${meta.projectName}/${meta.title ?? meta.id}`
+              : vals.workspaceId;
             const ok = confirm(`Remove workspace ${workspaceName}? This cannot be undone.`);
             if (ok) {
               await p.onRemoveWorkspace(vals.workspaceId);

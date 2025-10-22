@@ -53,7 +53,7 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
   const [renameError, setRenameError] = useState<string | null>(null);
 
   // Display title if available, otherwise fall back to showing the workspace ID
-  const displayName = title || workspaceId;
+  const displayName = title ?? workspaceId;
   const isStreaming = sidebarState.canInterrupt;
   const streamingModel = sidebarState.currentModel;
   const isEditing = editingWorkspaceId === workspaceId;

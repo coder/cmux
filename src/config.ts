@@ -253,17 +253,13 @@ export class Config {
       const projectName = this.getProjectName(projectPath);
 
       for (const workspace of projectConfig.workspaces) {
-        // Extract workspace basename from path (could be stable ID or legacy name)
-        const workspaceBasename =
-          workspace.path.split("/").pop() ?? workspace.path.split("\\").pop() ?? "unknown";
-
         try {
           // NEW FORMAT: If workspace has metadata in config, use it directly
           if (workspace.id) {
             const metadata: WorkspaceMetadata = {
               id: workspace.id,
               // Use title if present, otherwise fallback to legacy name field
-              title: workspace.title || (workspace as { name?: string }).name || undefined,
+              title: workspace.title ?? (workspace as { name?: string }).name ?? undefined,
               projectName,
               projectPath,
               createdAt: workspace.createdAt,
@@ -285,7 +281,7 @@ export class Config {
             // Migrate from old format: use name as fallback title
             const metadata: WorkspaceMetadata = {
               id: legacyMetadata.id,
-              title: legacyMetadata.name || undefined, // Use legacy name as fallback title
+              title: legacyMetadata.name ?? undefined, // Use legacy name as fallback title
               projectName: legacyMetadata.projectName ?? projectName,
               projectPath: legacyMetadata.projectPath ?? projectPath,
               createdAt: legacyMetadata.createdAt,
@@ -293,7 +289,7 @@ export class Config {
 
             // Migrate to config for next load
             workspace.id = metadata.id;
-            workspace.title = legacyMetadata.name || undefined; // Preserve legacy name as title
+            workspace.title = legacyMetadata.name ?? undefined; // Preserve legacy name as title
             workspace.createdAt = metadata.createdAt;
             configModified = true;
 

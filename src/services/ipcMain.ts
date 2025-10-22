@@ -28,6 +28,9 @@ import { createBashTool } from "@/services/tools/bash";
 import type { BashToolResult } from "@/types/tools";
 import { secretsToRecord } from "@/types/secrets";
 import { DisposableTempDir } from "@/services/tempDir";
+import { createAnthropic } from "@ai-sdk/anthropic";
+import { createOpenAI } from "@ai-sdk/openai";
+import { generateWorkspaceTitle } from "@/services/autotitle";
 
 /**
  * IpcMain - Manages all IPC handlers and service coordination
@@ -327,103 +330,93 @@ export class IpcMain {
       }
     );
 
-    ipcMain.handle(
-      IPC_CHANNELS.WORKSPACE_GENERATE_TITLE,
-      async (_event, workspaceId: string) => {
-        try {
-          // Determine which provider to use
-          const providersConfig = this.config.loadProvidersConfig();
-          let modelString = "anthropic:claude-haiku-4"; // Default
+    ipcMain.handle(IPC_CHANNELS.WORKSPACE_GENERATE_TITLE, async (_event, workspaceId: string) => {
+      try {
+        // Determine which provider to use
+        const providersConfig = this.config.loadProvidersConfig();
+        let modelString = "anthropic:claude-haiku-4"; // Default
 
-          if (providersConfig) {
-            // Use first configured provider's cheapest model
-            const providers = Object.keys(providersConfig);
-            if (providers.length > 0) {
-              const provider = providers[0];
-              if (provider === "anthropic") {
-                modelString = "anthropic:claude-haiku-4";
-              } else if (provider === "openai") {
-                modelString = "openai:gpt-4o-mini";
-              }
+        if (providersConfig) {
+          // Use first configured provider's cheapest model
+          const providers = Object.keys(providersConfig);
+          if (providers.length > 0) {
+            const provider = providers[0];
+            if (provider === "anthropic") {
+              modelString = "anthropic:claude-haiku-4";
+            } else if (provider === "openai") {
+              modelString = "openai:gpt-4o-mini";
             }
           }
-
-          // Create model instance
-          const [providerName, modelId] = modelString.split(":");
-          let model;
-
-          if (providerName === "anthropic") {
-            const { createAnthropic } = await import("@ai-sdk/anthropic");
-            const providerConfig = providersConfig?.[providerName] ?? {};
-            const anthropic = createAnthropic(providerConfig);
-            model = anthropic(modelId);
-          } else if (providerName === "openai") {
-            const { createOpenAI } = await import("@ai-sdk/openai");
-            const providerConfig = providersConfig?.[providerName] ?? {};
-            const openai = createOpenAI(providerConfig);
-            model = openai(modelId);
-          } else {
-            // Fallback to anthropic
-            const { createAnthropic } = await import("@ai-sdk/anthropic");
-            const anthropic = createAnthropic({});
-            model = anthropic("claude-haiku-4");
-          }
-
-          // Generate title
-          const { generateWorkspaceTitle } = await import("@/services/autotitle");
-          const result = await generateWorkspaceTitle(
-            workspaceId,
-            this.historyService,
-            model,
-            modelString
-          );
-
-          if (!result.success) {
-            return Err(result.error);
-          }
-
-          const title = result.data;
-
-          // Update config with new title
-          this.config.editConfig((config) => {
-            for (const [projectPath, projectConfig] of config.projects) {
-              const workspace = projectConfig.workspaces.find(
-                (w) => w.id === workspaceId
-              );
-              if (workspace) {
-                workspace.title = title;
-                break;
-              }
-            }
-            return config;
-          });
-
-          // Get updated metadata from config
-          const allMetadata = this.config.getAllWorkspaceMetadata();
-          const updatedMetadata = allMetadata.find((m) => m.id === workspaceId);
-          if (!updatedMetadata) {
-            return Err("Failed to retrieve updated workspace metadata");
-          }
-
-          // Emit metadata event with updated title
-          const session = this.sessions.get(workspaceId);
-          if (session) {
-            session.emitMetadata(updatedMetadata);
-          } else if (this.mainWindow) {
-            this.mainWindow.webContents.send(IPC_CHANNELS.WORKSPACE_METADATA, {
-              workspaceId,
-              metadata: updatedMetadata,
-            });
-          }
-
-          return Ok({ title });
-        } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
-          return Err(`Failed to generate title: ${message}`);
         }
-      }
-    );
 
+        // Create model instance
+        const [providerName, modelId] = modelString.split(":");
+        let model;
+
+        if (providerName === "anthropic") {
+          const providerConfig = providersConfig?.[providerName] ?? {};
+          const anthropic = createAnthropic(providerConfig);
+          model = anthropic(modelId);
+        } else if (providerName === "openai") {
+          const providerConfig = providersConfig?.[providerName] ?? {};
+          const openai = createOpenAI(providerConfig);
+          model = openai(modelId);
+        } else {
+          // Fallback to anthropic
+          const anthropic = createAnthropic({});
+          model = anthropic("claude-haiku-4");
+        }
+
+        // Generate title
+        const result = await generateWorkspaceTitle(
+          workspaceId,
+          this.historyService,
+          model,
+          modelString
+        );
+
+        if (!result.success) {
+          return Err(result.error);
+        }
+
+        const title = result.data;
+
+        // Update config with new title
+        this.config.editConfig((config) => {
+          for (const [_projectPath, projectConfig] of config.projects) {
+            const workspace = projectConfig.workspaces.find((w) => w.id === workspaceId);
+            if (workspace) {
+              workspace.title = title;
+              break;
+            }
+          }
+          return config;
+        });
+
+        // Get updated metadata from config
+        const allMetadata = this.config.getAllWorkspaceMetadata();
+        const updatedMetadata = allMetadata.find((m) => m.id === workspaceId);
+        if (!updatedMetadata) {
+          return Err("Failed to retrieve updated workspace metadata");
+        }
+
+        // Emit metadata event with updated title
+        const session = this.sessions.get(workspaceId);
+        if (session) {
+          session.emitMetadata(updatedMetadata);
+        } else if (this.mainWindow) {
+          this.mainWindow.webContents.send(IPC_CHANNELS.WORKSPACE_METADATA, {
+            workspaceId,
+            metadata: updatedMetadata,
+          });
+        }
+
+        return Ok({ title });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        return Err(`Failed to generate title: ${message}`);
+      }
+    });
 
     ipcMain.handle(
       IPC_CHANNELS.WORKSPACE_FORK,

@@ -110,7 +110,7 @@ build-static: ## Copy static assets to dist
 
 # Always regenerate version file (marked as .PHONY above)
 version: ## Generate version file
-	@./scripts/generate-version.sh
+	@bash ./scripts/generate-version.sh
 
 src/version.ts: version
 

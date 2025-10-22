@@ -70,7 +70,7 @@ describe("GitStatusStore", () => {
         "ws1",
         {
           id: "ws1",
-          name: "main",
+          title: "main",
           projectName: "test-project",
           projectPath: "/home/user/test-project",
           namedWorkspacePath: "/home/user/.cmux/src/test-project/main",
@@ -91,7 +91,7 @@ describe("GitStatusStore", () => {
         "ws1",
         {
           id: "ws1",
-          name: "main",
+          title: "main",
           projectName: "test-project",
           projectPath: "/home/user/test-project",
           namedWorkspacePath: "/home/user/.cmux/src/test-project/main",
@@ -101,7 +101,7 @@ describe("GitStatusStore", () => {
         "ws2",
         {
           id: "ws2",
-          name: "feature",
+          title: "feature",
           projectName: "test-project",
           projectPath: "/home/user/test-project",
           namedWorkspacePath: "/home/user/.cmux/src/test-project/feature",
@@ -123,7 +123,7 @@ describe("GitStatusStore", () => {
         "ws1",
         {
           id: "ws1",
-          name: "main",
+          title: "main",
           projectName: "test-project",
           projectPath: "/home/user/test-project",
           namedWorkspacePath: "/home/user/.cmux/src/test-project/main",
@@ -147,7 +147,7 @@ describe("GitStatusStore", () => {
         "ws1",
         {
           id: "ws1",
-          name: "main",
+          title: "main",
           projectName: "test-project",
           projectPath: "/home/user/test-project",
           namedWorkspacePath: "/home/user/.cmux/src/test-project/main",
@@ -172,7 +172,7 @@ describe("GitStatusStore", () => {
         "ws1",
         {
           id: "ws1",
-          name: "main",
+          title: "main",
           projectName: "test-project",
           projectPath: "/home/user/test-project",
           namedWorkspacePath: "/home/user/.cmux/src/test-project/main",
@@ -201,7 +201,7 @@ describe("GitStatusStore", () => {
         "ws1",
         {
           id: "ws1",
-          name: "main",
+          title: "main",
           projectName: "test-project",
           projectPath: "/home/user/test-project",
           namedWorkspacePath: "/home/user/.cmux/src/test-project/main",
@@ -228,7 +228,7 @@ describe("GitStatusStore", () => {
         "ws1",
         {
           id: "ws1",
-          name: "main",
+          title: "main",
           projectName: "test-project",
           projectPath: "/home/user/test-project",
           namedWorkspacePath: "/home/user/.cmux/src/test-project/main",
@@ -256,7 +256,7 @@ describe("GitStatusStore", () => {
         "ws1",
         {
           id: "ws1",
-          name: "main",
+          title: "main",
           projectName: "test-project",
           projectPath: "/home/user/test-project",
           namedWorkspacePath: "/home/user/.cmux/src/test-project/main",

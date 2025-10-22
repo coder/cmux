@@ -8,7 +8,7 @@ describe("partitionWorkspacesByAge", () => {
 
   const createWorkspace = (id: string): FrontendWorkspaceMetadata => ({
     id,
-    name: `workspace-${id}`,
+    title: `workspace-${id}`,
     projectName: "test-project",
     projectPath: "/test/project",
     namedWorkspacePath: `/test/project/.worktrees/${id}`,

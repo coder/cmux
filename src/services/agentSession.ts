@@ -14,6 +14,9 @@ import type { Result } from "@/types/result";
 import { Ok, Err } from "@/types/result";
 import { enforceThinkingPolicy } from "@/utils/thinking/policy";
 import { loadTokenizerForModel } from "@/utils/main/tokenizer";
+import { createAnthropic } from "@ai-sdk/anthropic";
+import { createOpenAI } from "@ai-sdk/openai";
+import { generateWorkspaceTitle } from "@/services/autotitle";
 
 interface ImagePart {
   url: string;
@@ -453,24 +456,20 @@ export class AgentSession {
       let model;
 
       if (providerName === "anthropic") {
-        const { createAnthropic } = await import("@ai-sdk/anthropic");
         const providerConfig = providersConfig?.[providerName] ?? {};
         const anthropic = createAnthropic(providerConfig);
         model = anthropic(modelId);
       } else if (providerName === "openai") {
-        const { createOpenAI } = await import("@ai-sdk/openai");
         const providerConfig = providersConfig?.[providerName] ?? {};
         const openai = createOpenAI(providerConfig);
         model = openai(modelId);
       } else {
         // Fallback to anthropic
-        const { createAnthropic } = await import("@ai-sdk/anthropic");
         const anthropic = createAnthropic({});
         model = anthropic("claude-haiku-4");
       }
 
       // 5. Generate title
-      const { generateWorkspaceTitle } = await import("@/services/autotitle");
       const result = await generateWorkspaceTitle(
         this.workspaceId,
         this.historyService,
@@ -480,7 +479,10 @@ export class AgentSession {
 
       if (!result.success) {
         // Non-fatal: just log and continue without title
-        console.error(`[Autotitle] Failed to generate title for ${this.workspaceId}:`, result.error);
+        console.error(
+          `[Autotitle] Failed to generate title for ${this.workspaceId}:`,
+          result.error
+        );
         return;
       }
 

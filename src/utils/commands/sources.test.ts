@@ -10,14 +10,14 @@ const mk = (over: Partial<Parameters<typeof buildCoreSources>[0]> = {}) => {
   const workspaceMetadata = new Map<string, FrontendWorkspaceMetadata>();
   workspaceMetadata.set("w1", {
     id: "w1",
-    name: "feat-x",
+    title: "feat-x",
     projectName: "a",
     projectPath: "/repo/a",
     namedWorkspacePath: "/repo/a/feat-x",
   });
   workspaceMetadata.set("w2", {
     id: "w2",
-    name: "feat-y",
+    title: "feat-y",
     projectName: "a",
     projectPath: "/repo/a",
     namedWorkspacePath: "/repo/a/feat-y",

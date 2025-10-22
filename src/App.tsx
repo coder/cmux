@@ -143,7 +143,8 @@ function AppInner() {
 
       // Update window title with workspace title or ID
       const workspaceTitle =
-        workspaceMetadata.get(selectedWorkspace.workspaceId)?.title ?? selectedWorkspace.workspaceId;
+        workspaceMetadata.get(selectedWorkspace.workspaceId)?.title ??
+        selectedWorkspace.workspaceId;
       const title = `${workspaceTitle} - ${selectedWorkspace.projectName} - cmux`;
       void window.api.window.setTitle(title);
     } else {
