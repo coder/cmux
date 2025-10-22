@@ -79,11 +79,6 @@ export default defineConfig(({ mode }) => ({
   worker: {
     format: "es",
     plugins: () => [topLevelAwait()],
-    rollupOptions: {
-      output: {
-        format: "es",
-      },
-    },
   },
   server: {
     host: "127.0.0.1",
