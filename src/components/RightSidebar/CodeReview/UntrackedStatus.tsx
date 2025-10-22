@@ -3,8 +3,7 @@
  */
 
 import React, { useState, useEffect, useRef } from "react";
-import styled from "@emotion/styled";
-import { keyframes } from "@emotion/react";
+import { cn } from "@/lib/utils";
 
 interface UntrackedStatusProps {
   workspaceId: string;
@@ -12,118 +11,6 @@ interface UntrackedStatusProps {
   refreshTrigger?: number;
   onRefresh?: () => void;
 }
-
-const Container = styled.div`
-  position: relative;
-  display: inline-block;
-`;
-
-const Badge = styled.div<{ hasUntracked: boolean }>`
-  padding: 4px 10px;
-  border-radius: 3px;
-  font-weight: 500;
-  font-size: 11px;
-  background: ${(props) => (props.hasUntracked ? "#3e2a00" : "transparent")};
-  border: 1px solid ${(props) => (props.hasUntracked ? "#806000" : "transparent")};
-  color: ${(props) => (props.hasUntracked ? "#ffb347" : "#888")};
-  white-space: nowrap;
-  cursor: ${(props) => (props.hasUntracked ? "pointer" : "default")};
-  transition: all 0.2s ease;
-
-  &:hover {
-    ${(props) =>
-      props.hasUntracked &&
-      `
-      background: #4a3200;
-      border-color: #a07000;
-    `}
-  }
-`;
-
-const fadeIn = keyframes`
-  from {
-    opacity: 0;
-    transform: translateY(-4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-`;
-
-const Tooltip = styled.div`
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  background: #2d2d30;
-  border: 1px solid #454545;
-  border-radius: 4px;
-  padding: 8px;
-  min-width: 200px;
-  max-width: 400px;
-  z-index: 1000;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  animation: ${fadeIn} 0.15s ease;
-`;
-
-const TooltipHeader = styled.div`
-  font-size: 11px;
-  font-weight: 600;
-  color: #ccc;
-  margin-bottom: 8px;
-  padding-bottom: 6px;
-  border-bottom: 1px solid #3e3e42;
-`;
-
-const FileList = styled.div`
-  max-height: 200px;
-  overflow-y: auto;
-  margin-bottom: 8px;
-`;
-
-const FileItem = styled.div`
-  font-size: 11px;
-  color: #aaa;
-  padding: 3px 4px;
-  font-family: var(--font-monospace);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-
-  &:hover {
-    background: #37373d;
-  }
-`;
-
-const TrackButton = styled.button`
-  width: 100%;
-  padding: 4px 8px;
-  background: transparent;
-  color: #888;
-  border: 1px solid #444;
-  border-radius: 3px;
-  font-size: 11px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-family: var(--font-primary);
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.05);
-    color: #ccc;
-    border-color: #666;
-  }
-
-  &:active {
-    background: rgba(255, 255, 255, 0.1);
-  }
-
-  &:disabled {
-    color: #555;
-    border-color: #333;
-    cursor: not-allowed;
-    background: transparent;
-  }
-`;
 
 export const UntrackedStatus: React.FC<UntrackedStatusProps> = ({
   workspaceId,
@@ -234,27 +121,48 @@ export const UntrackedStatus: React.FC<UntrackedStatusProps> = ({
   const hasUntracked = count > 0;
 
   return (
-    <Container ref={containerRef}>
-      <Badge
-        hasUntracked={hasUntracked}
+    <div ref={containerRef} className="relative inline-block">
+      <div
+        className={cn(
+          "py-1 px-2.5 rounded font-medium text-[11px] whitespace-nowrap transition-all duration-200",
+          hasUntracked
+            ? "bg-[#3e2a00] border border-[#806000] text-[#ffb347] cursor-pointer hover:bg-[#4a3200] hover:border-[#a07000]"
+            : "bg-transparent border border-transparent text-[#888] cursor-default"
+        )}
         onClick={() => hasUntracked && setShowTooltip(!showTooltip)}
       >
         {isLoading ? "..." : `${count} Untracked`}
-      </Badge>
+      </div>
 
       {showTooltip && hasUntracked && (
-        <Tooltip>
-          <TooltipHeader>Untracked Files ({count})</TooltipHeader>
-          <FileList>
+        <div className="absolute top-[calc(100%+8px)] right-0 bg-[#2d2d30] border border-[#454545] rounded p-2 min-w-[200px] max-w-[400px] z-[1000] shadow-[0_4px_12px_rgba(0,0,0,0.3)] animate-in fade-in slide-in-from-top-1 duration-150">
+          <div className="text-[11px] font-semibold text-[#ccc] mb-2 pb-1.5 border-b border-[#3e3e42]">
+            Untracked Files ({count})
+          </div>
+          <div className="max-h-[200px] overflow-y-auto mb-2">
             {untrackedFiles.map((file) => (
-              <FileItem key={file}>{file}</FileItem>
+              <div
+                key={file}
+                className="text-[11px] text-[#aaa] py-0.5 px-1 font-[var(--font-monospace)] whitespace-nowrap overflow-hidden text-ellipsis hover:bg-[#37373d]"
+              >
+                {file}
+              </div>
             ))}
-          </FileList>
-          <TrackButton onClick={() => void handleTrackAll()} disabled={isTracking}>
+          </div>
+          <button
+            onClick={() => void handleTrackAll()}
+            disabled={isTracking}
+            className={cn(
+              "w-full py-1 px-2 bg-transparent text-[#888] border border-[#444] rounded text-[11px] cursor-pointer transition-all duration-200 font-[var(--font-primary)]",
+              "hover:bg-[rgba(255,255,255,0.05)] hover:text-[#ccc] hover:border-[#666]",
+              "active:bg-[rgba(255,255,255,0.1)]",
+              "disabled:text-[#555] disabled:border-[#333] disabled:cursor-not-allowed disabled:bg-transparent"
+            )}
+          >
             {isTracking ? "Tracking..." : "Track All"}
-          </TrackButton>
-        </Tooltip>
+          </button>
+        </div>
       )}
-    </Container>
+    </div>
   );
 };
