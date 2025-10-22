@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import styled from "@emotion/styled";
+import { cn } from "@/lib/utils";
 import type { SlashSuggestion } from "@/utils/slashCommands/types";
 
 // Export the keys that CommandSuggestions handles
@@ -14,70 +14,6 @@ interface CommandSuggestionsProps {
   ariaLabel?: string;
   listId?: string;
 }
-
-// Styled components
-const PopoverContainer = styled.div`
-  position: absolute;
-  bottom: 100%;
-  left: 0;
-  right: 0;
-  margin-bottom: 8px;
-  background: #252526;
-  border: 1px solid #3e3e42;
-  border-radius: 4px;
-  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.4);
-  max-height: 200px;
-  overflow-y: auto;
-  z-index: 100;
-  display: flex;
-  flex-direction: column;
-`;
-
-const CommandItem = styled.div<{ selected: boolean }>`
-  padding: 6px 10px;
-  cursor: pointer;
-  background: ${(props) => (props.selected ? "#094771" : "transparent")};
-  transition: background 0.15s ease;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-
-  &:hover {
-    background: #094771;
-  }
-`;
-
-const CommandText = styled.div`
-  color: #569cd6;
-  font-family: var(--font-monospace);
-  font-size: 12px;
-  flex-shrink: 0;
-`;
-
-const CommandDescription = styled.div`
-  color: #969696;
-  font-size: 11px;
-  text-align: right;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-`;
-
-const HelperText = styled.div`
-  padding: 4px 10px;
-  border-top: 1px solid #3e3e42;
-  background: #1e1e1e;
-  color: #6b6b6b;
-  font-size: 10px;
-  text-align: center;
-  flex-shrink: 0;
-
-  span {
-    color: #969696;
-    font-weight: 500;
-  }
-`;
 
 // Main component
 export const CommandSuggestions: React.FC<CommandSuggestionsProps> = ({
@@ -149,7 +85,7 @@ export const CommandSuggestions: React.FC<CommandSuggestionsProps> = ({
   const resolvedListId = listId ?? `command-suggestions-list`;
 
   return (
-    <PopoverContainer
+    <div
       id={resolvedListId}
       role="listbox"
       aria-label={ariaLabel}
@@ -157,24 +93,32 @@ export const CommandSuggestions: React.FC<CommandSuggestionsProps> = ({
         activeSuggestion ? `${resolvedListId}-option-${activeSuggestion.id}` : undefined
       }
       data-command-suggestions
+      className="absolute bottom-full left-0 right-0 mb-2 bg-[#252526] border border-[#3e3e42] rounded shadow-[0_-4px_12px_rgba(0,0,0,0.4)] max-h-[200px] overflow-y-auto z-[100] flex flex-col"
     >
       {suggestions.map((suggestion, index) => (
-        <CommandItem
+        <div
           key={suggestion.id}
-          selected={index === selectedIndex}
           onMouseEnter={() => setSelectedIndex(index)}
           onClick={() => onSelectSuggestion(suggestion)}
           id={`${resolvedListId}-option-${suggestion.id}`}
           role="option"
           aria-selected={index === selectedIndex}
+          className={cn(
+            "px-2.5 py-1.5 cursor-pointer transition-colors duration-150 flex items-center justify-between gap-3 hover:bg-[#094771]",
+            index === selectedIndex ? "bg-[#094771]" : "bg-transparent"
+          )}
         >
-          <CommandText>{suggestion.display}</CommandText>
-          <CommandDescription>{suggestion.description}</CommandDescription>
-        </CommandItem>
+          <div className="text-[#569cd6] font-monospace text-xs flex-shrink-0">
+            {suggestion.display}
+          </div>
+          <div className="text-[#969696] text-[11px] text-right overflow-hidden text-ellipsis whitespace-nowrap">
+            {suggestion.description}
+          </div>
+        </div>
       ))}
-      <HelperText>
+      <div className="px-2.5 py-1 border-t border-[#3e3e42] bg-[#1e1e1e] text-[#6b6b6b] text-[10px] text-center flex-shrink-0 [&_span]:text-[#969696] [&_span]:font-medium">
         <span>Tab</span> to complete • <span>↑↓</span> to navigate • <span>Esc</span> to dismiss
-      </HelperText>
-    </PopoverContainer>
+      </div>
+    </div>
   );
 };
