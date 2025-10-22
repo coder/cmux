@@ -1,0 +1,242 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Plan Mode Colors (Blue) */
+    --plan-mode: 210 70% 40%;
+    --plan-mode-rgb: 31, 107, 184;
+    --plan-mode-hover: 210 70% 52%;
+    --plan-mode-light: 210 70% 68%;
+
+    /* Exec Mode Colors (Purple) */
+    --exec-mode: 268.56 94.04% 55.19%;
+    --exec-mode-hover: 268.56 94.04% 67%;
+    --exec-mode-light: 268.56 94.04% 78%;
+
+    /* Edit Mode Colors (Green) */
+    --edit-mode: 120 50% 35%;
+    --edit-mode-hover: 120 50% 47%;
+    --edit-mode-light: 120 50% 62%;
+
+    /* Read State Colors (Blue - reuses plan mode) */
+    --read: 210 70% 40%;
+
+    /* Editing Mode Colors */
+    --editing-mode: 30 100% 50%;
+
+    /* Pending Colors */
+    --pending: 30 100% 70%;
+
+    /* Debug Mode Colors */
+    --debug-mode: 214 100% 64%;
+    --debug-light: 214 100% 76%;
+    --debug-text: 214 100% 80%;
+
+    /* Thinking Mode Colors */
+    --thinking-mode: 271 76% 53%;
+    --thinking-mode-light: 271 76% 65%;
+    --thinking-border: 271 76% 53%;
+
+    /* Background & Layout Colors */
+    --background: 0 0% 12%;
+    --background-secondary: 60 1% 15%;
+    --border: 240 2% 25%;
+    --foreground: 0 0% 83%;
+    --foreground-secondary: 0 0% 42%;
+
+    /* Code Block Background */
+    --code-bg: 0 6.43% 8.04%;
+
+    /* Button Colors */
+    --button-bg: 0 0% 24%;
+    --button-text: 0 0% 80%;
+    --button-hover: 0 0% 29%;
+
+    /* User Message Colors */
+    --user-border: 0 0% 38%;
+    --user-border-hover: 0 0% 44%;
+
+    /* Assistant Message Colors */
+    --assistant-border: 207 45% 40%;
+    --assistant-border-hover: 207 45% 50%;
+
+    /* Message Header Colors */
+    --message-header: 0 0% 80%;
+
+    /* Token Usage Colors */
+    --token-prompt: 0 0% 40%;
+    --token-completion: 207 100% 40%;
+    --token-variable: 207 100% 40%;
+    --token-fixed: 0 0% 40%;
+    --token-input: 120 40% 35%;
+    --token-output: 207 100% 40%;
+    --token-cached: 0 0% 50%;
+
+    /* Toggle Group Colors */
+    --toggle-bg: 0 0% 16.5%;
+    --toggle-active: 0 0% 22.7%;
+    --toggle-hover: 0 0% 17.6%;
+    --toggle-text: 0 0% 53.3%;
+    --toggle-text-active: 0 0% 100%;
+    --toggle-text-hover: 0 0% 66.7%;
+
+    /* Interrupted/Warning Colors */
+    --interrupted: 38 92% 50%;
+
+    /* Review/Selection Colors */
+    --review-accent: 48 70% 50%;
+
+    /* Git Dirty/Uncommitted Changes Colors */
+    --git-dirty: 38 92% 50%;
+
+    /* Error Colors */
+    --error: 0 70% 50%;
+    --error-bg: 0 32% 18%;
+
+    /* Input Colors */
+    --input-bg: 0 0% 12%;
+    --input-text: 0 0% 80%;
+    --input-border: 207 51% 59%;
+    --input-border-focus: 193 91% 64%;
+
+    /* Scrollbar Colors */
+    --scrollbar-track: 0 0% 18%;
+    --scrollbar-thumb: 0 0% 32%;
+    --scrollbar-thumb-hover: 0 0% 42%;
+
+    /* Radius */
+    --radius: 0.5rem;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans;
+    font-size: 14px;
+  }
+
+  /* Custom scrollbar styles */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: hsl(var(--scrollbar-track));
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--scrollbar-thumb));
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--scrollbar-thumb-hover));
+  }
+
+  /* Firefox scrollbar */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--scrollbar-thumb)) hsl(var(--scrollbar-track));
+  }
+
+  /* Root container */
+  html,
+  body,
+  #root {
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* Mobile improvements */
+  @media (max-width: 768px) {
+    html {
+      -webkit-text-size-adjust: 100%;
+      touch-action: manipulation;
+    }
+
+    body {
+      font-size: 15px;
+    }
+
+    button,
+    a,
+    [role="button"] {
+      min-height: 44px;
+      min-width: 44px;
+    }
+  }
+
+  code {
+    @apply font-mono;
+  }
+
+  /* Native tooltips */
+  [title] {
+    position: relative;
+  }
+
+  [title]:hover::after {
+    content: attr(title);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-bottom: 8px;
+    padding: 6px 10px;
+    background: #2d2d30;
+    color: #cccccc;
+    border: 1px solid #464647;
+    border-radius: 4px;
+    font-size: 11px;
+    white-space: nowrap;
+    z-index: 1000;
+    pointer-events: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  }
+
+  [title]:hover::before {
+    content: "";
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-bottom: 3px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: #2d2d30 transparent transparent transparent;
+    z-index: 1000;
+    pointer-events: none;
+  }
+
+  /* Search highlighting */
+  mark.search-highlight,
+  span.search-highlight {
+    background: rgba(255, 215, 0, 0.3);
+    color: inherit;
+    padding: 0;
+    border-radius: 2px;
+  }
+
+  /* Shiki code highlighting */
+  .shiki,
+  .shiki pre {
+    background: hsl(var(--code-bg)) !important;
+  }
+
+  /* Markdown code blocks */
+  pre code {
+    display: block;
+    background: hsl(var(--code-bg));
+    margin: 1em 0;
+    border-radius: 4px;
+    font-size: 12px;
+    padding: 12px;
+    overflow: auto;
+  }
+}
+
