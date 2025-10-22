@@ -35,7 +35,7 @@ describeIntegration("IpcMain rename workspace integration tests", () => {
           projectConfig.workspaces.push({
             path: workspacePath,
             id: workspaceId,
-            name: branchName,
+            title: branchName,
           });
           env.config.saveConfig(projectsConfig);
         }
@@ -84,20 +84,21 @@ describeIntegration("IpcMain rename workspace integration tests", () => {
         expect(newMetadataResult.title).toBe(newName); // Title updated
         expect(newMetadataResult.projectName).toBe(projectName);
 
-        // Path DOES change (directory is renamed from old name to new name)
+        // Path DOES NOT change (directories use stable IDs, not titles)
         const newWorkspacePath = newMetadataResult.namedWorkspacePath;
-        expect(newWorkspacePath).not.toBe(oldWorkspacePath);
-        expect(newWorkspacePath).toContain(newName); // New path includes new name
+        expect(newWorkspacePath).toBe(oldWorkspacePath); // Path stays the same
+        expect(newWorkspacePath).toContain(workspaceId); // Path contains workspace ID
 
-        // Verify config was updated with new path
+        // Verify config was updated with new title (path unchanged)
         const config = env.config.loadConfigOrDefault();
         let foundWorkspace = false;
         for (const [, projectConfig] of config.projects.entries()) {
-          const workspace = projectConfig.workspaces.find((w) => w.path === newWorkspacePath);
+          const workspace = projectConfig.workspaces.find((w) => w.id === workspaceId);
           if (workspace) {
             foundWorkspace = true;
             expect(workspace.title).toBe(newName); // Title updated in config
             expect(workspace.id).toBe(workspaceId); // ID unchanged
+            expect(workspace.path).toBe(oldWorkspacePath); // Path unchanged
             break;
           }
         }
@@ -113,7 +114,7 @@ describeIntegration("IpcMain rename workspace integration tests", () => {
           workspaceId,
           metadata: expect.objectContaining({
             id: workspaceId,
-            name: newName,
+            title: newName,
             projectName,
           }),
         });
@@ -125,7 +126,7 @@ describeIntegration("IpcMain rename workspace integration tests", () => {
   );
 
   test.concurrent(
-    "should fail to rename if new name conflicts with existing workspace",
+    "should allow duplicate titles (IDs ensure uniqueness)",
     async () => {
       const { env, workspaceId, tempGitRepo, cleanup } = await setupWorkspace("anthropic");
       try {
@@ -137,23 +138,28 @@ describeIntegration("IpcMain rename workspace integration tests", () => {
           secondBranchName
         );
         expect(createResult.success).toBe(true);
+        const secondWorkspaceId = createResult.metadata.id;
 
-        // Try to rename first workspace to the second workspace's name
+        // Rename first workspace to the second workspace's title - should succeed
         const renameResult = await env.mockIpcRenderer.invoke(
           IPC_CHANNELS.WORKSPACE_RENAME,
           workspaceId,
           secondBranchName
         );
-        expect(renameResult.success).toBe(false);
-        expect(renameResult.error).toContain("already exists");
+        expect(renameResult.success).toBe(true);
 
-        // Verify original workspace still exists and wasn't modified
-        const metadataResult = await env.mockIpcRenderer.invoke(
+        // Verify both workspaces exist with the same title but different IDs
+        const metadata1 = await env.mockIpcRenderer.invoke(
           IPC_CHANNELS.WORKSPACE_GET_INFO,
           workspaceId
         );
-        expect(metadataResult).toBeTruthy();
-        expect(metadataResult.id).toBe(workspaceId);
+        const metadata2 = await env.mockIpcRenderer.invoke(
+          IPC_CHANNELS.WORKSPACE_GET_INFO,
+          secondWorkspaceId
+        );
+        expect(metadata1.title).toBe(secondBranchName);
+        expect(metadata2.title).toBe(secondBranchName);
+        expect(metadata1.id).not.toBe(metadata2.id); // Different IDs
       } finally {
         await cleanup();
       }
@@ -176,7 +182,7 @@ describeIntegration("IpcMain rename workspace integration tests", () => {
           projectConfig.workspaces.push({
             path: workspacePath,
             id: workspaceId,
-            name: branchName,
+            title: branchName,
           });
           env.config.saveConfig(projectsConfig);
         }
@@ -233,31 +239,30 @@ describeIntegration("IpcMain rename workspace integration tests", () => {
   );
 
   test.concurrent(
-    "should fail to rename with invalid workspace name",
+    "should allow any title format (titles are cosmetic)",
     async () => {
       const { env, workspaceId, cleanup } = await setupWorkspace("anthropic");
       try {
-        // Test various invalid names
-        const invalidNames = [
-          { name: "", expectedError: "empty" },
-          { name: "My-Branch", expectedError: "lowercase" },
-          { name: "branch name", expectedError: "lowercase" },
-          { name: "branch@123", expectedError: "lowercase" },
-          { name: "branch/test", expectedError: "lowercase" },
-          { name: "a".repeat(65), expectedError: "64 characters" },
+        // Test various title formats - all should be valid
+        const validTitles = [
+          "", // Empty (falls back to ID display)
+          "My-Branch", // Uppercase
+          "branch name", // Spaces
+          "branch@123", // Special chars
+          "branch/test", // Slashes
+          "a".repeat(100), // Long titles
         ];
 
-        for (const { name, expectedError } of invalidNames) {
+        for (const title of validTitles) {
           const renameResult = await env.mockIpcRenderer.invoke(
             IPC_CHANNELS.WORKSPACE_RENAME,
             workspaceId,
-            name
+            title
           );
-          expect(renameResult.success).toBe(false);
-          expect(renameResult.error.toLowerCase()).toContain(expectedError.toLowerCase());
+          expect(renameResult.success).toBe(true);
         }
 
-        // Verify original workspace still exists and wasn't modified
+        // Verify workspace still exists
         const metadataResult = await env.mockIpcRenderer.invoke(
           IPC_CHANNELS.WORKSPACE_GET_INFO,
           workspaceId
@@ -286,7 +291,7 @@ describeIntegration("IpcMain rename workspace integration tests", () => {
           projectConfig.workspaces.push({
             path: workspacePath,
             id: workspaceId,
-            name: branchName,
+            title: branchName,
           });
           env.config.saveConfig(projectsConfig);
         }
@@ -349,7 +354,7 @@ describeIntegration("IpcMain rename workspace integration tests", () => {
           projectConfig.workspaces.push({
             path: workspacePath,
             id: workspaceId,
-            name: branchName,
+            title: branchName,
           });
           env.config.saveConfig(projectsConfig);
         }
@@ -450,7 +455,7 @@ describeIntegration("IpcMain rename workspace integration tests", () => {
           projectConfig.workspaces.push({
             path: workspacePath,
             id: workspaceId,
-            name: branchName,
+            title: branchName,
           });
           env.config.saveConfig(projectsConfig);
         }
@@ -466,7 +471,7 @@ describeIntegration("IpcMain rename workspace integration tests", () => {
         const collector = createEventCollector(env.sentEvents, workspaceId);
         await collector.waitForEvent("stream-start", 5000);
 
-        // Attempt to rename while streaming - should fail
+        // Attempt to rename while streaming - should succeed (titles are cosmetic)
         const newName = "renamed-during-stream";
         const renameResult = await env.mockIpcRenderer.invoke(
           IPC_CHANNELS.WORKSPACE_RENAME,
@@ -474,9 +479,8 @@ describeIntegration("IpcMain rename workspace integration tests", () => {
           newName
         );
 
-        // Verify rename was blocked due to active stream
-        expect(renameResult.success).toBe(false);
-        expect(renameResult.error).toContain("stream is active");
+        // Verify rename succeeded even during streaming
+        expect(renameResult.success).toBe(true);
 
         // Wait for stream to complete
         await collector.waitForEvent("stream-end", 10000);
