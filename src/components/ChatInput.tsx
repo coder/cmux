@@ -779,7 +779,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
               </span>
             </div>
           </ChatToggles>
-          <div className="flex items-center gap-1.5 ml-auto @[700px]:hidden">
+          <div className="flex items-center gap-1.5 ml-auto max-@[700px]:hidden">
             <div
               className={cn(
                 "flex gap-0 bg-toggle-bg rounded",
