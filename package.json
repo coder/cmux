@@ -41,7 +41,8 @@
     "docs:watch": "make docs-watch",
     "storybook": "make storybook",
     "storybook:build": "make storybook-build",
-    "test:storybook": "make test-storybook"
+    "test:storybook": "make test-storybook",
+    "rebuild": "echo \"No native modules to rebuild\""
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.29",
