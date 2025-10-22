@@ -3,7 +3,6 @@
  */
 
 import React, { useState, useMemo } from "react";
-import styled from "@emotion/styled";
 import type { DiffHunk } from "@/types/review";
 import { SelectableDiffRenderer } from "../../shared/DiffRenderer";
 import {
@@ -14,6 +13,7 @@ import { Tooltip, TooltipWrapper } from "../../Tooltip";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { getReviewExpandStateKey } from "@/constants/storage";
 import { KEYBINDS, formatKeybind } from "@/utils/ui/keybinds";
+import { cn } from "@/lib/utils";
 
 interface HunkViewerProps {
   hunk: DiffHunk;
@@ -27,158 +27,6 @@ interface HunkViewerProps {
   onReviewNote?: (note: string) => void;
   searchConfig?: SearchHighlightConfig;
 }
-
-const HunkContainer = styled.div<{ isSelected: boolean; isRead: boolean }>`
-  background: #1e1e1e;
-  border: 1px solid #3e3e42;
-  border-radius: 4px;
-  margin-bottom: 12px;
-  overflow: hidden;
-  cursor: pointer;
-  transition: all 0.2s ease;
-
-  /* Remove default focus ring - keyboard navigation uses isSelected state */
-  &:focus,
-  &:focus-visible {
-    outline: none;
-  }
-
-  ${(props) =>
-    props.isRead &&
-    `
-    border-color: var(--color-read);
-  `}
-
-  ${(props) =>
-    props.isSelected &&
-    `
-    border-color: var(--color-review-accent);
-    box-shadow: 0 0 0 1px var(--color-review-accent);
-  `}
-`;
-
-const HunkHeader = styled.div`
-  /* Keep grayscale to avoid clashing with green/red LoC indicators */
-  background: #252526;
-  padding: 8px 12px;
-  border-bottom: 1px solid #3e3e42;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-family: var(--font-monospace);
-  font-size: 12px;
-  gap: 8px;
-`;
-
-const FilePath = styled.div`
-  color: #cccccc;
-  font-weight: 500;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  min-width: 0;
-`;
-
-const LineInfo = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 11px;
-  white-space: nowrap;
-  flex-shrink: 0;
-`;
-
-const LocStats = styled.span`
-  display: flex;
-  gap: 8px;
-  font-size: 11px;
-`;
-
-const Additions = styled.span`
-  color: #4ade80;
-`;
-
-const Deletions = styled.span`
-  color: #f87171;
-`;
-
-const LineCount = styled.span`
-  color: #888888;
-`;
-
-const HunkContent = styled.div`
-  padding: 6px 8px;
-  font-family: var(--font-monospace);
-  font-size: 11px;
-  line-height: 1.4;
-  overflow-x: auto;
-  background: var(--color-code-bg);
-
-  /* CSS Grid ensures all diff lines span the same width (width of longest line) */
-  display: grid;
-  grid-template-columns: minmax(min-content, 1fr);
-`;
-
-const CollapsedIndicator = styled.div`
-  padding: 8px 12px;
-  text-align: center;
-  color: #888;
-  font-size: 11px;
-  font-style: italic;
-  cursor: pointer;
-
-  &:hover {
-    color: #ccc;
-  }
-`;
-
-const RenameInfo = styled.div`
-  padding: 12px;
-  color: #888;
-  font-size: 11px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: rgba(100, 150, 255, 0.05);
-
-  &::before {
-    content: "→";
-    font-size: 14px;
-    color: #6496ff;
-  }
-`;
-
-const ReadIndicator = styled.span`
-  display: inline-flex;
-  align-items: center;
-  color: var(--color-read);
-  font-size: 14px;
-  margin-right: 4px;
-`;
-
-const ToggleReadButton = styled.button`
-  background: transparent;
-  border: 1px solid #3e3e42;
-  border-radius: 3px;
-  padding: 2px 6px;
-  color: #888;
-  font-size: 11px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.05);
-    border-color: var(--color-read);
-    color: var(--color-read);
-  }
-
-  &:active {
-    transform: scale(0.95);
-  }
-`;
 
 export const HunkViewer = React.memo<HunkViewerProps>(
   ({
@@ -288,57 +136,67 @@ export const HunkViewer = React.memo<HunkViewerProps>(
       hunk.changeType === "renamed" && hunk.oldPath && additions === 0 && deletions === 0;
 
     return (
-      <HunkContainer
-        isSelected={isSelected ?? false}
-        isRead={isRead}
+      <div
+        className={cn(
+          "bg-[#1e1e1e] border rounded mb-3 overflow-hidden cursor-pointer transition-all duration-200",
+          "focus:outline-none focus-visible:outline-none",
+          isRead ? "border-[var(--color-read)]" : "border-[#3e3e42]",
+          isSelected && "border-[var(--color-review-accent)] shadow-[0_0_0_1px_var(--color-review-accent)]"
+        )}
         onClick={onClick}
         role="button"
         tabIndex={0}
         data-hunk-id={hunkId}
       >
-        <HunkHeader>
+        <div className="bg-[#252526] py-2 px-3 border-b border-[#3e3e42] flex justify-between items-center font-monospace text-xs gap-2">
           {isRead && (
             <TooltipWrapper inline>
-              <ReadIndicator aria-label="Marked as read">✓</ReadIndicator>
+              <span className="inline-flex items-center text-[var(--color-read)] text-sm mr-1" aria-label="Marked as read">
+                ✓
+              </span>
               <Tooltip align="center" position="top">
                 Marked as read
               </Tooltip>
             </TooltipWrapper>
           )}
-          <FilePath dangerouslySetInnerHTML={{ __html: highlightedFilePath }} />
-          <LineInfo>
+          <div
+            className="text-[#cccccc] font-medium whitespace-nowrap overflow-hidden text-ellipsis min-w-0"
+            dangerouslySetInnerHTML={{ __html: highlightedFilePath }}
+          />
+          <div className="flex items-center gap-2 text-[11px] whitespace-nowrap flex-shrink-0">
             {!isPureRename && (
-              <LocStats>
-                {additions > 0 && <Additions>+{additions}</Additions>}
-                {deletions > 0 && <Deletions>-{deletions}</Deletions>}
-              </LocStats>
+              <span className="flex gap-2 text-[11px]">
+                {additions > 0 && <span className="text-[#4ade80]">+{additions}</span>}
+                {deletions > 0 && <span className="text-[#f87171]">-{deletions}</span>}
+              </span>
             )}
-            <LineCount>
+            <span className="text-[#888888]">
               ({lineCount} {lineCount === 1 ? "line" : "lines"})
-            </LineCount>
+            </span>
             {onToggleRead && (
               <TooltipWrapper inline>
-                <ToggleReadButton
+                <button
+                  className="bg-transparent border border-[#3e3e42] rounded-[3px] py-0.5 px-1.5 text-[#888] text-[11px] cursor-pointer transition-all duration-200 flex items-center gap-1 hover:bg-white/5 hover:border-[var(--color-read)] hover:text-[var(--color-read)] active:scale-95"
                   data-hunk-id={hunkId}
                   onClick={handleToggleRead}
                   aria-label={`Mark as read (${formatKeybind(KEYBINDS.TOGGLE_HUNK_READ)})`}
                 >
                   {isRead ? "○" : "◉"}
-                </ToggleReadButton>
+                </button>
                 <Tooltip align="right" position="top">
                   Mark as read ({formatKeybind(KEYBINDS.TOGGLE_HUNK_READ)})
                 </Tooltip>
               </TooltipWrapper>
             )}
-          </LineInfo>
-        </HunkHeader>
+          </div>
+        </div>
 
         {isPureRename ? (
-          <RenameInfo>
+          <div className="p-3 text-[#888] text-[11px] flex items-center gap-2 bg-[rgba(100,150,255,0.05)] before:content-['→'] before:text-sm before:text-[#6496ff]">
             Renamed from <code>{hunk.oldPath}</code>
-          </RenameInfo>
+          </div>
         ) : isExpanded ? (
-          <HunkContent>
+          <div className="py-1.5 px-2 font-monospace text-[11px] leading-[1.4] overflow-x-auto bg-code-bg grid grid-cols-[minmax(min-content,1fr)]">
             <SelectableDiffRenderer
               content={hunk.content}
               filePath={hunk.filePath}
@@ -355,20 +213,20 @@ export const HunkViewer = React.memo<HunkViewerProps>(
               }}
               searchConfig={searchConfig}
             />
-          </HunkContent>
+          </div>
         ) : (
-          <CollapsedIndicator onClick={handleToggleExpand}>
+          <div className="py-2 px-3 text-center text-[#888] text-[11px] italic cursor-pointer hover:text-[#ccc]" onClick={handleToggleExpand}>
             {isRead && "Hunk marked as read. "}Click to expand ({lineCount} lines) or press{" "}
             {formatKeybind(KEYBINDS.TOGGLE_HUNK_COLLAPSE)}
-          </CollapsedIndicator>
+          </div>
         )}
 
         {hasManualState && isExpanded && !isPureRename && (
-          <CollapsedIndicator onClick={handleToggleExpand}>
+          <div className="py-2 px-3 text-center text-[#888] text-[11px] italic cursor-pointer hover:text-[#ccc]" onClick={handleToggleExpand}>
             Click here or press {formatKeybind(KEYBINDS.TOGGLE_HUNK_COLLAPSE)} to collapse
-          </CollapsedIndicator>
+          </div>
         )}
-      </HunkContainer>
+      </div>
     );
   }
 );
