@@ -1,10 +1,5 @@
 import React, { useState, useCallback } from "react";
-import styled from "@emotion/styled";
 import { Modal, ModalActions, CancelButton, PrimaryButton } from "./Modal";
-
-const CenteredActions = styled(ModalActions)`
-  justify-content: center;
-`;
 
 interface StartHereModalProps {
   isOpen: boolean;
@@ -41,14 +36,14 @@ export const StartHereModal: React.FC<StartHereModalProps> = ({ isOpen, onClose,
       onClose={handleCancel}
       isLoading={isExecuting}
     >
-      <CenteredActions>
+      <ModalActions className="justify-center">
         <CancelButton onClick={handleCancel} disabled={isExecuting}>
           Cancel
         </CancelButton>
         <PrimaryButton onClick={() => void handleConfirm()} disabled={isExecuting}>
           {isExecuting ? "Starting..." : "OK"}
         </PrimaryButton>
-      </CenteredActions>
+      </ModalActions>
     </Modal>
   );
 };
