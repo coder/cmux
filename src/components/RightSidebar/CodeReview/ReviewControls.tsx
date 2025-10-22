@@ -3,7 +3,6 @@
  */
 
 import React, { useState } from "react";
-import styled from "@emotion/styled";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import type { ReviewFilters, ReviewStats } from "@/types/review";
 import { RefreshButton } from "./RefreshButton";
@@ -19,101 +18,6 @@ interface ReviewControlsProps {
   workspacePath: string;
   refreshTrigger?: number;
 }
-
-const ControlsContainer = styled.div`
-  padding: 8px 12px;
-  background: #252526;
-  border-bottom: 1px solid #3e3e42;
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  flex-wrap: wrap;
-  font-size: 11px;
-`;
-
-const Label = styled.label`
-  color: #888;
-  font-weight: 500;
-  white-space: nowrap;
-`;
-
-const BaseInput = styled.input`
-  padding: 4px 8px;
-  background: #1e1e1e;
-  color: #ccc;
-  border: 1px solid #444;
-  border-radius: 3px;
-  font-size: 11px;
-  font-family: var(--font-monospace);
-  width: 140px;
-  transition: border-color 0.2s ease;
-
-  &:hover {
-    border-color: #007acc;
-  }
-
-  &:focus {
-    outline: none;
-    border-color: #007acc;
-  }
-
-  &::placeholder {
-    color: #666;
-  }
-`;
-
-const StatBadge = styled.div`
-  padding: 4px 10px;
-  border-radius: 3px;
-  font-weight: 500;
-  font-size: 11px;
-  background: transparent;
-  border: 1px solid transparent;
-  white-space: nowrap;
-  color: #888;
-`;
-
-const Separator = styled.div`
-  width: 1px;
-  height: 16px;
-  background: #3e3e42;
-`;
-
-const CheckboxLabel = styled.label`
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: #ccc;
-  font-size: 11px;
-  cursor: pointer;
-  white-space: nowrap;
-
-  &:hover {
-    color: #fff;
-  }
-
-  input[type="checkbox"] {
-    cursor: pointer;
-  }
-`;
-
-const SetDefaultButton = styled.button`
-  padding: 2px 8px;
-  background: transparent;
-  color: #888;
-  border: none;
-  border-radius: 3px;
-  font-size: 11px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-family: var(--font-primary);
-  white-space: nowrap;
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.05);
-    color: #ccc;
-  }
-`;
 
 export const ReviewControls: React.FC<ReviewControlsProps> = ({
   filters,
@@ -178,10 +82,10 @@ export const ReviewControls: React.FC<ReviewControlsProps> = ({
   const showSetDefault = filters.diffBase !== defaultBase;
 
   return (
-    <ControlsContainer>
+    <div className="py-2 px-3 bg-[#252526] border-b border-[#3e3e42] flex gap-3 items-center flex-wrap text-[11px]">
       {onRefresh && <RefreshButton onClick={onRefresh} isLoading={isLoading} />}
-      <Label>Base:</Label>
-      <BaseInput
+      <label className="text-[#888] font-medium whitespace-nowrap">Base:</label>
+      <input
         type="text"
         list="base-suggestions"
         value={inputValue}
@@ -189,6 +93,7 @@ export const ReviewControls: React.FC<ReviewControlsProps> = ({
         onBlur={handleBaseBlur}
         onKeyDown={handleBaseKeyDown}
         placeholder="HEAD, main, etc."
+        className="py-1 px-2 bg-[#1e1e1e] text-[#ccc] border border-[#444] rounded text-[11px] font-[var(--font-monospace)] w-[140px] transition-[border-color] duration-200 hover:border-[#007acc] focus:outline-none focus:border-[#007acc] placeholder:text-[#666]"
       />
       <datalist id="base-suggestions">
         <option value="HEAD" />
@@ -202,22 +107,27 @@ export const ReviewControls: React.FC<ReviewControlsProps> = ({
       </datalist>
 
       {showSetDefault && (
-        <SetDefaultButton onClick={handleSetDefault}>Set Default</SetDefaultButton>
+        <button
+          onClick={handleSetDefault}
+          className="py-0.5 px-2 bg-transparent text-[#888] border-none rounded text-[11px] cursor-pointer transition-all duration-200 font-[var(--font-primary)] whitespace-nowrap hover:bg-[rgba(255,255,255,0.05)] hover:text-[#ccc]"
+        >
+          Set Default
+        </button>
       )}
 
-      <CheckboxLabel>
+      <label className="flex items-center gap-1.5 text-[#ccc] text-[11px] cursor-pointer whitespace-nowrap hover:text-white [&_input[type='checkbox']]:cursor-pointer">
         <input
           type="checkbox"
           checked={filters.includeUncommitted}
           onChange={handleUncommittedToggle}
         />
         Uncommitted
-      </CheckboxLabel>
+      </label>
 
-      <CheckboxLabel>
+      <label className="flex items-center gap-1.5 text-[#ccc] text-[11px] cursor-pointer whitespace-nowrap hover:text-white [&_input[type='checkbox']]:cursor-pointer">
         <input type="checkbox" checked={filters.showReadHunks} onChange={handleShowReadToggle} />
         Show read
-      </CheckboxLabel>
+      </label>
 
       <UntrackedStatus
         workspaceId={workspaceId}
@@ -226,11 +136,11 @@ export const ReviewControls: React.FC<ReviewControlsProps> = ({
         onRefresh={onRefresh}
       />
 
-      <Separator />
+      <div className="w-px h-4 bg-[#3e3e42]" />
 
-      <StatBadge>
+      <div className="py-1 px-2.5 rounded font-medium text-[11px] bg-transparent border border-transparent whitespace-nowrap text-[#888]">
         {stats.read} read / {stats.total} total
-      </StatBadge>
-    </ControlsContainer>
+      </div>
+    </div>
   );
 };
