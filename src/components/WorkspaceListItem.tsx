@@ -1,6 +1,4 @@
 import React, { useState, useCallback, useMemo } from "react";
-import styled from "@emotion/styled";
-import { css } from "@emotion/react";
 import type { FrontendWorkspaceMetadata } from "@/types/workspace";
 import { useWorkspaceSidebarState } from "@/stores/WorkspaceStore";
 import { useGitStatus } from "@/stores/GitStatusStore";
@@ -10,115 +8,7 @@ import { GitStatusIndicator } from "./GitStatusIndicator";
 import { ModelDisplay } from "./Messages/ModelDisplay";
 import { StatusIndicator } from "./StatusIndicator";
 import { useRename } from "@/contexts/WorkspaceRenameContext";
-
-// Styled Components
-const WorkspaceStatusIndicator = styled(StatusIndicator)`
-  margin-left: 8px;
-`;
-
-const WorkspaceItem = styled.div<{ selected?: boolean }>`
-  padding: 6px 12px 6px 28px;
-  cursor: pointer;
-  display: grid;
-  grid-template-columns: auto auto 1fr auto;
-  gap: 8px;
-  align-items: center;
-  border-left: 3px solid transparent;
-  transition: all 0.15s;
-  font-size: 13px;
-  position: relative;
-
-  ${(props) =>
-    props.selected &&
-    css`
-      background: #2a2a2b;
-      border-left-color: #569cd6;
-    `}
-
-  &:hover {
-    background: #2a2a2b;
-
-    button {
-      opacity: 1;
-    }
-  }
-`;
-
-const WorkspaceName = styled.span`
-  color: #ccc;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  cursor: pointer;
-  padding: 2px 4px;
-  border-radius: 3px;
-  transition: background 0.2s;
-  min-width: 0; /* Allow grid item to shrink below content size */
-  text-align: right;
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.05);
-  }
-`;
-
-const WorkspaceNameInput = styled.input`
-  background: var(--color-input-bg);
-  color: var(--color-input-text);
-  border: 1px solid var(--color-input-border);
-  border-radius: 3px;
-  padding: 2px 4px;
-  font-size: 13px;
-  font-family: inherit;
-  outline: none;
-  min-width: 0; /* Allow grid item to shrink */
-  text-align: right;
-
-  &:focus {
-    border-color: var(--color-input-border-focus);
-  }
-`;
-
-const WorkspaceErrorContainer = styled.div`
-  position: absolute;
-  top: 100%;
-  left: 28px;
-  right: 32px;
-  margin-top: 4px;
-  padding: 6px 8px;
-  background: var(--color-error-bg);
-  border: 1px solid var(--color-error);
-  border-radius: 3px;
-  color: var(--color-error);
-  font-size: 12px;
-  z-index: 10;
-`;
-
-const RemoveBtn = styled.button`
-  opacity: 0;
-  background: transparent;
-  color: #888;
-  border: none;
-  cursor: pointer;
-  font-size: 16px;
-  padding: 0;
-  width: 20px;
-  height: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-  flex-shrink: 0;
-
-  &:hover {
-    color: #ccc;
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 3px;
-  }
-`;
-
-const WorkspaceRemoveBtn = styled(RemoveBtn)`
-  grid-column: 1;
-`;
+import { cn } from "@/lib/utils";
 
 export interface WorkspaceSelection {
   projectPath: string;
@@ -240,8 +130,11 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
 
   return (
     <React.Fragment>
-      <WorkspaceItem
-        selected={isSelected}
+      <div
+        className={cn(
+          "py-1.5 px-3 pl-7 cursor-pointer grid grid-cols-[auto_auto_1fr_auto] gap-2 items-center border-l-[3px] border-transparent transition-all duration-150 text-[13px] relative hover:bg-[#2a2a2b] [&:hover_button]:opacity-100",
+          isSelected && "bg-[#2a2a2b] border-l-[#569cd6]"
+        )}
         onClick={() =>
           onSelectWorkspace({
             projectPath,
@@ -268,7 +161,8 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
         data-workspace-id={workspaceId}
       >
         <TooltipWrapper inline>
-          <WorkspaceRemoveBtn
+          <button
+            className="opacity-0 bg-transparent text-[#888] border-none cursor-pointer text-base p-0 w-5 h-5 flex items-center justify-center transition-all duration-200 flex-shrink-0 col-start-1 hover:text-[#ccc] hover:bg-white/10 hover:rounded-sm"
             onClick={(e) => {
               e.stopPropagation();
               void onRemoveWorkspace(workspaceId, e.currentTarget);
@@ -277,7 +171,7 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
             data-workspace-id={workspaceId}
           >
             ×
-          </WorkspaceRemoveBtn>
+          </button>
           <Tooltip className="tooltip" align="right">
             Remove workspace
           </Tooltip>
@@ -288,7 +182,8 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
           tooltipPosition="right"
         />
         {isEditing ? (
-          <WorkspaceNameInput
+          <input
+            className="bg-input-bg text-input-text border border-input-border rounded-sm px-1 py-0.5 text-[13px] font-inherit outline-none min-w-0 text-right focus:border-input-border-focus"
             value={editingName}
             onChange={(e) => setEditingName(e.target.value)}
             onKeyDown={handleRenameKeyDown}
@@ -299,7 +194,8 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
             data-workspace-id={workspaceId}
           />
         ) : (
-          <WorkspaceName
+          <span
+            className="text-[#ccc] whitespace-nowrap overflow-hidden text-ellipsis cursor-pointer px-1 py-0.5 rounded-sm transition-colors duration-200 min-w-0 text-right hover:bg-white/5"
             onDoubleClick={(e) => {
               e.stopPropagation();
               startRenaming();
@@ -307,16 +203,21 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
             title="Double-click to rename"
           >
             {displayName}
-          </WorkspaceName>
+          </span>
         )}
-        <WorkspaceStatusIndicator
+        <StatusIndicator
+          className="ml-2"
           streaming={isStreaming}
           unread={isUnread}
           onClick={handleToggleUnread}
           title={statusTooltipTitle}
         />
-      </WorkspaceItem>
-      {renameError && isEditing && <WorkspaceErrorContainer>{renameError}</WorkspaceErrorContainer>}
+      </div>
+      {renameError && isEditing && (
+        <div className="absolute top-full left-7 right-8 mt-1 px-2 py-1.5 bg-error-bg border border-error rounded-sm text-error text-xs z-10">
+          {renameError}
+        </div>
+      )}
     </React.Fragment>
   );
 };
