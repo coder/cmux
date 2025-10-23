@@ -78,11 +78,11 @@ const DraggableProjectItemBase: React.FC<DraggableProjectItemProps> = ({
     <div
       ref={(node) => drag(drop(node))}
       className={cn(
-        "py-1 px-3 flex items-center border-l-transparent transition-all duration-150 bg-neutral-900",
+        "py-1 px-3 flex items-center border-l-transparent transition-all duration-150 bg-neutral-800",
         isDragging ? "cursor-grabbing opacity-40 [&_*]:!cursor-grabbing" : "cursor-grab",
         isOver && "bg-sky-600/[0.08]",
-        selected && "bg-neutral-900 border-l-accent",
-        "hover:bg-neutral-900 hover:[&_button]:opacity-100 hover:[&_[data-drag-handle]]:opacity-100"
+        selected && "bg-neutral-800 border-l-accent",
+        "hover:bg-neutral-800 hover:[&_button]:opacity-100 hover:[&_[data-drag-handle]]:opacity-100"
       )}
       {...rest}
     >
@@ -136,7 +136,7 @@ const ProjectDragLayer: React.FC = () => {
   return (
     <div className="pointer-events-none fixed inset-0 z-[9999] cursor-grabbing">
       <div style={{ transform: `translate(${currentOffset.x + 10}px, ${currentOffset.y + 10}px)` }}>
-        <div className="border-l-accent flex w-fit max-w-72 min-w-44 items-center rounded border-l-[3px] bg-neutral-900/95 px-3 py-1.5 text-neutral-300 shadow-[0_6px_24px_rgba(0,0,0,0.4)]">
+        <div className="border-l-accent flex w-fit max-w-72 min-w-44 items-center rounded border-l-[3px] bg-neutral-800/95 px-3 py-1.5 text-neutral-300 shadow-[0_6px_24px_rgba(0,0,0,0.4)]">
           <span className="mr-1.5 text-xs text-neutral-400">⠿</span>
           <span className="mr-2 text-[10px] text-neutral-400">▶</span>
           <div className="min-w-0 flex-1">
@@ -416,13 +416,13 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
       <DndProvider backend={HTML5Backend}>
         <ProjectDragLayer />
         <div
-          className="font-primary flex flex-1 flex-col overflow-hidden border-r border-neutral-800 bg-neutral-900"
+          className="font-primary flex flex-1 flex-col overflow-hidden border-r border-neutral-800 bg-neutral-800"
           role="navigation"
           aria-label="Projects"
         >
           {!collapsed && (
             <>
-              <div className="flex items-center justify-between border-b border-neutral-950 bg-neutral-900 p-4">
+              <div className="flex items-center justify-between border-b border-neutral-950 bg-neutral-800 p-4">
                 <h2 className="m-0 text-[13px] font-semibold tracking-[0.8px] text-neutral-300 uppercase">
                   Projects
                 </h2>
@@ -430,7 +430,7 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
                   <button
                     onClick={onAddProject}
                     aria-label="Add project"
-                    className="flex h-6 w-6 cursor-pointer items-center justify-center rounded border border-transparent bg-transparent p-0 text-lg text-neutral-300 transition-all duration-200 hover:border-neutral-800 hover:bg-neutral-900"
+                    className="flex h-6 w-6 cursor-pointer items-center justify-center rounded border border-transparent bg-transparent p-0 text-lg text-neutral-300 transition-all duration-200 hover:border-neutral-800 hover:bg-neutral-800"
                   >
                     +
                   </button>
@@ -549,7 +549,7 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
                                 onClick={() => onAddWorkspace(projectPath)}
                                 data-project-path={projectPath}
                                 aria-label={`Add workspace to ${projectName}`}
-                                className="hover:border-neutral-800-darker w-full cursor-pointer rounded border border-dashed border-neutral-700 bg-transparent px-3 py-1.5 text-left text-[13px] text-neutral-400 transition-all duration-200 hover:bg-neutral-900 hover:text-neutral-300"
+                                className="hover:border-neutral-800-darker w-full cursor-pointer rounded border border-dashed border-neutral-700 bg-transparent px-3 py-1.5 text-left text-[13px] text-neutral-400 transition-all duration-200 hover:bg-neutral-800 hover:text-neutral-300"
                               >
                                 + New Workspace
                                 {selectedWorkspace?.projectPath === projectPath &&
@@ -629,7 +629,7 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
           <TooltipWrapper inline>
             <button
               onClick={onToggleCollapsed}
-              className="mt-auto flex h-9 w-full cursor-pointer items-center justify-center border-t border-none border-neutral-950 bg-transparent p-0 text-sm text-neutral-400 transition-all duration-200 hover:bg-neutral-900 hover:text-neutral-300"
+              className="mt-auto flex h-9 w-full cursor-pointer items-center justify-center border-t border-none border-neutral-950 bg-transparent p-0 text-sm text-neutral-400 transition-all duration-200 hover:bg-neutral-800 hover:text-neutral-300"
             >
               {collapsed ? "»" : "«"}
             </button>

@@ -704,7 +704,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
   return (
     <div
-      className="relative flex flex-col gap-1 border-t border-neutral-800 bg-neutral-900 px-[15px] pt-[5px] pb-[15px]"
+      className="relative flex flex-col gap-1 border-t border-neutral-800 bg-neutral-800 px-[15px] pt-[5px] pb-[15px]"
       style={{ containerType: "inline-size" }}
       data-component="ChatInputSection"
     >
@@ -782,7 +782,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           <div className="max-@[700px]:hidden ml-auto flex items-center gap-1.5">
             <div
               className={cn(
-                "flex gap-0 bg-neutral-900 rounded",
+                "flex gap-0 bg-neutral-800 rounded",
                 "[&>button:first-of-type]:rounded-l [&>button:last-of-type]:rounded-r",
                 mode === "exec" &&
                   "[&>button:first-of-type]:bg-exec-mode [&>button:first-of-type]:text-white [&>button:first-of-type]:hover:bg-exec-mode-hover",

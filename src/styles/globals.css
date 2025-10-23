@@ -90,7 +90,7 @@ body {
 /* Firefox scrollbar */
 * {
   scrollbar-width: thin;
-  scrollbar-color: theme(colors.gray.600) theme(colors.gray.900);
+  scrollbar-color: theme(colors.neutral.500) theme(colors.neutral.800);
 }
 
 /* Root container */

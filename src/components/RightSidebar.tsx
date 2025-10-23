@@ -49,7 +49,7 @@ const SidebarContainer: React.FC<SidebarContainerProps> = ({
   return (
     <div
       className={cn(
-        "bg-neutral-900 border-l border-neutral-800 flex flex-col overflow-hidden flex-shrink-0",
+        "bg-neutral-800 border-l border-neutral-800 flex flex-col overflow-hidden flex-shrink-0",
         customWidth ? "" : "transition-[width] duration-200",
         collapsed && "sticky right-0 z-10 shadow-[-2px_0_4px_rgba(0,0,0,0.2)]",
         "max-md:border-l-0 max-md:border-t max-md:border-neutral-800",
@@ -201,7 +201,7 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
       <div className={cn("flex-row h-full", !showCollapsed ? "flex" : "hidden")}>
         {/* Render meter when Review tab is active */}
         {selectedTab === "review" && (
-          <div className="flex w-5 shrink-0 flex-col border-r border-neutral-800 bg-neutral-900">
+          <div className="flex w-5 shrink-0 flex-col border-r border-neutral-800 bg-neutral-800">
             {verticalMeter}
           </div>
         )}
@@ -220,7 +220,7 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
 
         <div className="flex min-w-0 flex-1 flex-col">
           <div
-            className="bg-neutral-900-secondary flex border-b border-neutral-800 [&>*]:flex-1"
+            className="bg-neutral-800-secondary flex border-b border-neutral-800 [&>*]:flex-1"
             role="tablist"
             aria-label="Metadata views"
           >
@@ -229,8 +229,8 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
                 className={cn(
                   "w-full py-2.5 px-[15px] border-none border-solid cursor-pointer font-primary text-[13px] font-medium transition-all duration-200",
                   selectedTab === "costs"
-                    ? "text-white bg-neutral-900 border-b-2 border-b-plan-mode"
-                    : "bg-transparent text-neutral-400 border-b-2 border-b-transparent hover:bg-neutral-900-secondary hover:text-neutral-300"
+                    ? "text-white bg-neutral-800 border-b-2 border-b-plan-mode"
+                    : "bg-transparent text-neutral-400 border-b-2 border-b-transparent hover:bg-neutral-800-secondary hover:text-neutral-300"
                 )}
                 onClick={() => setSelectedTab("costs")}
                 id={costsTabId}
@@ -250,8 +250,8 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
                 className={cn(
                   "w-full py-2.5 px-[15px] border-none border-solid cursor-pointer font-primary text-[13px] font-medium transition-all duration-200",
                   selectedTab === "review"
-                    ? "text-white bg-neutral-900 border-b-2 border-b-plan-mode"
-                    : "bg-transparent text-neutral-400 border-b-2 border-b-transparent hover:bg-neutral-900-secondary hover:text-neutral-300"
+                    ? "text-white bg-neutral-800 border-b-2 border-b-plan-mode"
+                    : "bg-transparent text-neutral-400 border-b-2 border-b-transparent hover:bg-neutral-800-secondary hover:text-neutral-300"
                 )}
                 onClick={() => setSelectedTab("review")}
                 id={reviewTabId}
