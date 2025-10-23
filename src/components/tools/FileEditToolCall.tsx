@@ -19,7 +19,7 @@ import {
   LoadingDots,
 } from "./shared/ToolPrimitives";
 import { useToolExpansion, getStatusDisplay, type ToolStatus } from "./shared/toolUtils";
-import { TooltipWrapper, Tooltip } from "../Tooltip";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { DiffContainer, DiffRenderer, SelectableDiffRenderer } from "../shared/DiffRenderer";
 import { KebabMenu, type KebabMenuItem } from "../KebabMenu";
 
@@ -139,10 +139,12 @@ export const FileEditToolCall: React.FC<FileEditToolCallProps> = ({
           className="hover:text-text flex flex-1 cursor-pointer items-center gap-2"
         >
           <ExpandIcon expanded={expanded}>▶</ExpandIcon>
-          <TooltipWrapper inline>
-            <span>✏️</span>
-            <Tooltip>{toolName}</Tooltip>
-          </TooltipWrapper>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span>✏️</span>
+            </TooltipTrigger>
+            <TooltipContent>{toolName}</TooltipContent>
+          </Tooltip>
           <span className="text-text font-monospace max-w-96 truncate">{filePath}</span>
         </div>
         {!(result && result.success && result.diff) && (

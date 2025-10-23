@@ -1,6 +1,6 @@
 import React, { useCallback } from "react";
 import { cn } from "@/lib/utils";
-import { TooltipWrapper, Tooltip } from "./Tooltip";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 
 interface StatusIndicatorProps {
   streaming: boolean;
@@ -51,12 +51,10 @@ const StatusIndicatorInner: React.FC<StatusIndicatorProps> = ({
   // If title provided, wrap with proper Tooltip component
   if (title) {
     return (
-      <TooltipWrapper inline>
-        {indicator}
-        <Tooltip className="tooltip" align="center">
-          {title}
-        </Tooltip>
-      </TooltipWrapper>
+      <Tooltip>
+        <TooltipTrigger asChild>{indicator}</TooltipTrigger>
+        <TooltipContent>{title}</TooltipContent>
+      </Tooltip>
     );
   }
 

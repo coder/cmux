@@ -3,7 +3,7 @@ import type { FrontendWorkspaceMetadata } from "@/types/workspace";
 import { useWorkspaceSidebarState } from "@/stores/WorkspaceStore";
 import { useGitStatus } from "@/stores/GitStatusStore";
 import { formatRelativeTime } from "@/utils/ui/dateTime";
-import { TooltipWrapper, Tooltip } from "./Tooltip";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { GitStatusIndicator } from "./GitStatusIndicator";
 import { ModelDisplay } from "./Messages/ModelDisplay";
 import { StatusIndicator } from "./StatusIndicator";
@@ -160,22 +160,22 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
         data-workspace-path={namedWorkspacePath}
         data-workspace-id={workspaceId}
       >
-        <TooltipWrapper inline>
-          <button
-            className="text-muted hover:text-foreground col-start-1 flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center border-none bg-transparent p-0 text-base opacity-0 transition-all duration-200 hover:rounded-sm hover:bg-white/10"
-            onClick={(e) => {
-              e.stopPropagation();
-              void onRemoveWorkspace(workspaceId, e.currentTarget);
-            }}
-            aria-label={`Remove workspace ${displayName}`}
-            data-workspace-id={workspaceId}
-          >
-            ×
-          </button>
-          <Tooltip className="tooltip" align="right">
-            Remove workspace
-          </Tooltip>
-        </TooltipWrapper>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              className="text-muted hover:text-foreground col-start-1 flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center border-none bg-transparent p-0 text-base opacity-0 transition-all duration-200 hover:rounded-sm hover:bg-white/10"
+              onClick={(e) => {
+                e.stopPropagation();
+                void onRemoveWorkspace(workspaceId, e.currentTarget);
+              }}
+              aria-label={`Remove workspace ${displayName}`}
+              data-workspace-id={workspaceId}
+            >
+              ×
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="right">Remove workspace</TooltipContent>
+        </Tooltip>
         <GitStatusIndicator
           gitStatus={gitStatus}
           workspaceId={workspaceId}

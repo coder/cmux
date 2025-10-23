@@ -25,7 +25,7 @@ import {
   type SlashSuggestion,
 } from "@/utils/slashCommands/suggestions";
 import { Tooltip, TooltipTrigger, TooltipContent } from "./ui/tooltip";
-import { HelpIndicator } from "./Tooltip";
+import { HelpIndicator } from "./HelpIndicator";
 import { matchesKeybind, formatKeybind, KEYBINDS, isEditableElement } from "@/utils/ui/keybinds";
 import { ModelSelector, type ModelSelectorRef } from "./ModelSelector";
 import { useModelLRU } from "@/hooks/useModelLRU";
