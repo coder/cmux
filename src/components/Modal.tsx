@@ -152,10 +152,7 @@ export const CancelButton: React.FC<ButtonProps> = ({ children, className, ...pr
 
 export const PrimaryButton: React.FC<ButtonProps> = ({ children, className, ...props }) => (
   <Button
-    className={cn(
-      "bg-accent text-white hover:bg-accent-dark disabled:hover:bg-accent",
-      className
-    )}
+    className={cn("bg-accent text-white hover:bg-accent-dark disabled:hover:bg-accent", className)}
     {...props}
   >
     {children}
