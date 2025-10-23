@@ -214,13 +214,4 @@ export class LocalRuntime implements Runtime {
       );
     }
   }
-
-  async exists(path: string): Promise<boolean> {
-    try {
-      await fs.access(path);
-      return true;
-    } catch {
-      return false;
-    }
-  }
 }

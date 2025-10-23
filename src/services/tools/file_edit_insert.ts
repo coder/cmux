@@ -7,6 +7,7 @@ import { validatePathInCwd } from "./fileCommon";
 import { WRITE_DENIED_PREFIX } from "@/types/tools";
 import { executeFileEditOperation } from "./file_edit_operation";
 import { RuntimeError } from "@/runtime/Runtime";
+import { fileExists } from "@/utils/runtime/fileExists";
 
 /**
  * File edit insert tool factory for AI assistant
@@ -44,9 +45,9 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
           : path.resolve(config.cwd, file_path);
 
         // Check if file exists using runtime
-        const fileExists = await config.runtime.exists(resolvedPath);
+        const exists = await fileExists(config.runtime, resolvedPath);
 
-        if (!fileExists) {
+        if (!exists) {
           if (!create) {
             return {
               success: false,
