@@ -467,9 +467,7 @@ code {
   font-size: 13px;
 }
 
-.markdown-content p {
-  margin: 0.8em 0;
-}
+
 
 /* Remove default margins on first and last elements */
 .markdown-content > :first-child {
