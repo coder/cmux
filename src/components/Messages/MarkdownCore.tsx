@@ -23,8 +23,9 @@ const REMARK_PLUGINS: Pluggable[] = [
 ];
 
 const REHYPE_PLUGINS: Pluggable[] = [
+  rehypeRaw, // Parse HTML elements first
   [
-    harden,
+    harden, // Sanitize after parsing raw HTML to prevent XSS
     {
       allowedImagePrefixes: ["*"],
       allowedLinkPrefixes: ["*"],
@@ -32,7 +33,6 @@ const REHYPE_PLUGINS: Pluggable[] = [
       allowDataImages: true,
     },
   ],
-  rehypeRaw, // Parse HTML elements
   [rehypeKatex, { errorColor: "var(--color-muted-foreground)" }], // Render math
 ];
 
