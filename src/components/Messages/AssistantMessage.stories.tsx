@@ -3,6 +3,9 @@ import { AssistantMessage } from "./AssistantMessage";
 import type { DisplayedMessage } from "@/types/message";
 import { action } from "@storybook/addon-actions";
 
+// Stable timestamp for visual testing (Apple demo time: Jan 24, 2024, 9:41 AM PST)
+const STABLE_TIMESTAMP = new Date("2024-01-24T09:41:00-08:00").getTime();
+
 const clipboardWriteText = (data: string) => {
   action("copy-text")(data);
   return Promise.resolve();
@@ -52,7 +55,7 @@ const createAssistantMessage = (
   isStreaming: false,
   isPartial: false,
   isCompacted: false,
-  timestamp: Date.now(),
+  timestamp: STABLE_TIMESTAMP,
   model: "anthropic:claude-sonnet-4-5",
   ...overrides,
 });

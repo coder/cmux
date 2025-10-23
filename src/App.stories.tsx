@@ -5,6 +5,9 @@ import type { ProjectConfig } from "./config";
 import type { FrontendWorkspaceMetadata } from "./types/workspace";
 import type { IPCApi } from "./types/ipc";
 
+// Stable timestamp for visual testing (Apple demo time: Jan 24, 2024, 9:41 AM PST)
+const STABLE_TIMESTAMP = new Date("2024-01-24T09:41:00-08:00").getTime();
+
 // Mock window.api for App component
 function setupMockAPI(options: {
   projects?: Map<string, ProjectConfig>;
@@ -374,7 +377,7 @@ export const ActiveWorkspaceWithChat: Story = {
                     parts: [{ type: "text", text: "Add authentication to the user API endpoint" }],
                     metadata: {
                       historySequence: 1,
-                      timestamp: Date.now() - 300000,
+                      timestamp: STABLE_TIMESTAMP - 300000,
                     },
                   });
 
@@ -402,7 +405,7 @@ export const ActiveWorkspaceWithChat: Story = {
                     ],
                     metadata: {
                       historySequence: 2,
-                      timestamp: Date.now() - 290000,
+                      timestamp: STABLE_TIMESTAMP - 290000,
                       model: "claude-sonnet-4-20250514",
                       usage: {
                         inputTokens: 1250,
@@ -420,7 +423,7 @@ export const ActiveWorkspaceWithChat: Story = {
                     parts: [{ type: "text", text: "Yes, add JWT token validation" }],
                     metadata: {
                       historySequence: 3,
-                      timestamp: Date.now() - 280000,
+                      timestamp: STABLE_TIMESTAMP - 280000,
                     },
                   });
 
@@ -452,7 +455,7 @@ export const ActiveWorkspaceWithChat: Story = {
                     ],
                     metadata: {
                       historySequence: 4,
-                      timestamp: Date.now() - 270000,
+                      timestamp: STABLE_TIMESTAMP - 270000,
                       model: "claude-sonnet-4-20250514",
                       usage: {
                         inputTokens: 2100,
@@ -470,7 +473,7 @@ export const ActiveWorkspaceWithChat: Story = {
                     parts: [{ type: "text", text: "Can you run the tests to make sure it works?" }],
                     metadata: {
                       historySequence: 5,
-                      timestamp: Date.now() - 240000,
+                      timestamp: STABLE_TIMESTAMP - 240000,
                     },
                   });
 
@@ -502,7 +505,7 @@ export const ActiveWorkspaceWithChat: Story = {
                     ],
                     metadata: {
                       historySequence: 6,
-                      timestamp: Date.now() - 230000,
+                      timestamp: STABLE_TIMESTAMP - 230000,
                       model: "claude-sonnet-4-20250514",
                       usage: {
                         inputTokens: 2800,
@@ -525,7 +528,7 @@ export const ActiveWorkspaceWithChat: Story = {
                     ],
                     metadata: {
                       historySequence: 7,
-                      timestamp: Date.now() - 180000,
+                      timestamp: STABLE_TIMESTAMP - 180000,
                     },
                   });
 
@@ -562,7 +565,7 @@ export const ActiveWorkspaceWithChat: Story = {
                     ],
                     metadata: {
                       historySequence: 8,
-                      timestamp: Date.now() - 170000,
+                      timestamp: STABLE_TIMESTAMP - 170000,
                       model: "claude-sonnet-4-20250514",
                       usage: {
                         inputTokens: 3500,

@@ -37,7 +37,12 @@ const TIPS = [
   },
 ];
 
-export const TipsCarousel: React.FC = () => {
+interface TipsCarouselProps {
+  /** Override the automatic tip rotation (for testing/Storybook) */
+  fixedTipIndex?: number;
+}
+
+export const TipsCarousel: React.FC<TipsCarouselProps> = ({ fixedTipIndex }) => {
   const [manualTipIndex, setManualTipIndex] = useState<number | null>(null);
 
   // Calculate tip based on hours since epoch
@@ -48,7 +53,7 @@ export const TipsCarousel: React.FC = () => {
     return hoursSinceEpoch % TIPS.length;
   };
 
-  const currentTipIndex = manualTipIndex ?? calculateTipIndex();
+  const currentTipIndex = fixedTipIndex ?? manualTipIndex ?? calculateTipIndex();
 
   // Expose setTip to window for debugging
   useEffect(() => {
