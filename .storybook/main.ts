@@ -19,6 +19,8 @@ const config: StorybookConfig = {
       resolve: {
         alias: {
           "@": path.join(process.cwd(), "src"),
+          // Mock version module for stable visual testing in Storybook
+          "@/version": path.join(process.cwd(), ".storybook/mocks/version.ts"),
         },
       },
     });

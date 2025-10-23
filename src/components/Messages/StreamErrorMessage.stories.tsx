@@ -3,6 +3,9 @@ import { StreamErrorMessage } from "./StreamErrorMessage";
 import type { DisplayedMessage } from "@/types/message";
 import type { StreamErrorType } from "@/types/errors";
 
+// Stable timestamp for visual testing (Apple demo time: Jan 24, 2024, 9:41 AM PST)
+const STABLE_TIMESTAMP = new Date('2024-01-24T09:41:00-08:00').getTime();
+
 const meta = {
   title: "Messages/StreamErrorMessage",
   component: StreamErrorMessage,
@@ -35,7 +38,7 @@ const createStreamErrorMessage = (
   error,
   errorType,
   historySequence: 1,
-  timestamp: Date.now(),
+  timestamp: STABLE_TIMESTAMP,
   ...overrides,
 });
 
