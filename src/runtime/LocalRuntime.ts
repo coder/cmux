@@ -79,8 +79,8 @@ export class LocalRuntime implements Runtime {
     // Handle errors by wrapping in a transform
     const webStream = Readable.toWeb(nodeStream) as unknown as ReadableStream<Uint8Array>;
 
-    return new ReadableStream({
-      async start(controller) {
+    return new ReadableStream<Uint8Array>({
+      async start(controller: ReadableStreamDefaultController<Uint8Array>) {
         try {
           const reader = webStream.getReader();
           while (true) {
@@ -106,7 +106,7 @@ export class LocalRuntime implements Runtime {
     let tempPath: string;
     let writer: WritableStreamDefaultWriter<Uint8Array>;
 
-    return new WritableStream({
+    return new WritableStream<Uint8Array>({
       async start() {
         // Create parent directories if they don't exist
         const parentDir = path.dirname(filePath);
@@ -118,7 +118,7 @@ export class LocalRuntime implements Runtime {
         const webStream = Writable.toWeb(nodeStream) as WritableStream<Uint8Array>;
         writer = webStream.getWriter();
       },
-      async write(chunk) {
+      async write(chunk: Uint8Array) {
         await writer.write(chunk);
       },
       async close() {
@@ -134,7 +134,7 @@ export class LocalRuntime implements Runtime {
           );
         }
       },
-      async abort(reason) {
+      async abort(reason?: unknown) {
         // Clean up temp file on abort
         await writer.abort();
         try {
