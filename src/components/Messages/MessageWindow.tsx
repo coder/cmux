@@ -68,7 +68,7 @@ export const MessageWindow: React.FC<MessageWindowProps> = ({
     >
       {backgroundEffect}
       <div
-        className="text-message-header relative z-10 flex items-center justify-between border-b border-white/10 bg-white/5 px-3 py-1 text-[11px] font-medium"
+        className="text-gray-300 relative z-10 flex items-center justify-between border-b border-white/10 bg-white/5 px-3 py-1 text-[11px] font-medium"
         data-message-header
       >
         <div className="flex min-w-0 flex-1 items-baseline gap-3" data-message-header-left>

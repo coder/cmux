@@ -461,7 +461,7 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
                     const isExpanded = expandedProjects.has(projectPath);
 
                     return (
-                      <div key={projectPath} className="border-hover border-b">
+                      <div key={projectPath} className="border-gray-900 border-b">
                         <DraggableProjectItem
                           projectPath={projectPath}
                           onReorder={handleReorder}
@@ -544,7 +544,7 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
 
                         {isExpanded && (
                           <div id={workspaceListId}>
-                            <div className="border-hover border-b px-3 py-2 pl-[22px]">
+                            <div className="border-gray-900 border-b px-3 py-2 pl-[22px]">
                               <button
                                 onClick={() => onAddWorkspace(projectPath)}
                                 data-project-path={projectPath}
@@ -592,7 +592,7 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
                                             : `Expand workspaces older than ${formatOldWorkspaceThreshold()}`
                                         }
                                         aria-expanded={showOldWorkspaces}
-                                        className="border-hover flex w-full cursor-pointer items-center justify-between border-t border-none bg-transparent px-3 py-2 pl-[22px] text-xs font-medium text-gray-500 transition-all duration-150 hover:bg-white/[0.03] hover:text-gray-400 [&:hover_.arrow]:text-gray-400"
+                                        className="border-gray-900 flex w-full cursor-pointer items-center justify-between border-t border-none bg-transparent px-3 py-2 pl-[22px] text-xs font-medium text-gray-500 transition-all duration-150 hover:bg-white/[0.03] hover:text-gray-400 [&:hover_.arrow]:text-gray-400"
                                       >
                                         <div className="flex items-center gap-1.5">
                                           <span>Older than {formatOldWorkspaceThreshold()}</span>
