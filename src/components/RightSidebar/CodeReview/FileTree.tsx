@@ -3,140 +3,10 @@
  */
 
 import React from "react";
-import styled from "@emotion/styled";
 import type { FileTreeNode } from "@/utils/git/numstatParser";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { getFileTreeExpandStateKey } from "@/constants/storage";
-
-const TreeContainer = styled.div`
-  flex: 1;
-  min-height: 0;
-  padding: 12px;
-  overflow-y: auto;
-  font-family: var(--font-monospace);
-  font-size: 12px;
-`;
-
-const TreeNode = styled.div<{ depth: number; isSelected: boolean }>`
-  padding: 4px 8px;
-  padding-left: ${(props) => props.depth * 16 + 8}px;
-  cursor: pointer;
-  user-select: none;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: ${(props) => (props.isSelected ? "rgba(100, 150, 255, 0.2)" : "transparent")};
-  border-radius: 4px;
-  margin: 2px 0;
-
-  &:hover {
-    background: ${(props) =>
-      props.isSelected ? "rgba(100, 150, 255, 0.2)" : "rgba(255, 255, 255, 0.05)"};
-  }
-`;
-
-const FileName = styled.span<{ isFullyRead?: boolean; isUnknownState?: boolean }>`
-  color: #ccc;
-  flex: 1;
-  ${(props) =>
-    props.isFullyRead &&
-    `
-    color: #666;
-    text-decoration: line-through;
-    text-decoration-color: var(--color-read);
-    text-decoration-thickness: 2px;
-  `}
-  ${(props) =>
-    props.isUnknownState &&
-    !props.isFullyRead &&
-    `
-    color: #666;
-  `}
-`;
-
-const DirectoryName = styled.span<{ isFullyRead?: boolean; isUnknownState?: boolean }>`
-  color: #888;
-  flex: 1;
-  ${(props) =>
-    props.isFullyRead &&
-    `
-    color: #666;
-    text-decoration: line-through;
-    text-decoration-color: var(--color-read);
-    text-decoration-thickness: 2px;
-  `}
-  ${(props) =>
-    props.isUnknownState &&
-    !props.isFullyRead &&
-    `
-    color: #666;
-  `}
-`;
-
-const DirectoryStats = styled.span<{ isOpen: boolean }>`
-  display: flex;
-  gap: 8px;
-  font-size: 11px;
-  color: ${(props) => (props.isOpen ? "#666" : "inherit")};
-  opacity: 0.7;
-`;
-
-const Stats = styled.span`
-  display: flex;
-  gap: 8px;
-  font-size: 11px;
-`;
-
-const Additions = styled.span`
-  color: #4ade80;
-`;
-
-const Deletions = styled.span`
-  color: #f87171;
-`;
-
-const ToggleIcon = styled.span<{ isOpen: boolean }>`
-  width: 12px;
-  display: inline-block;
-  transform: ${(props) => (props.isOpen ? "rotate(90deg)" : "rotate(0deg)")};
-  transition: transform 0.2s ease;
-`;
-
-const ClearButton = styled.button`
-  padding: 2px 8px;
-  background: transparent;
-  color: #888;
-  border: none;
-  border-radius: 3px;
-  font-size: 11px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-family: var(--font-primary);
-  margin-left: auto;
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.05);
-    color: #ccc;
-  }
-`;
-
-const TreeHeader = styled.div`
-  padding: 8px 12px;
-  border-bottom: 1px solid #3e3e42;
-  font-size: 12px;
-  font-weight: 500;
-  color: #ccc;
-  font-family: var(--font-primary);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-`;
-
-const EmptyState = styled.div`
-  padding: 20px;
-  color: #888;
-  text-align: center;
-`;
+import { cn } from "@/lib/utils";
 
 /**
  * Compute read status for a directory by recursively checking all descendant files
@@ -185,6 +55,7 @@ const TreeNodeContent: React.FC<{
   depth: number;
   selectedPath: string | null;
   onSelectFile: (path: string | null) => void;
+  commonPrefix: string | null;
   getFileReadStatus?: (filePath: string) => { total: number; read: number } | null;
   expandStateMap: Record<string, boolean>;
   setExpandStateMap: (
@@ -195,6 +66,7 @@ const TreeNodeContent: React.FC<{
   depth,
   selectedPath,
   onSelectFile,
+  commonPrefix,
   getFileReadStatus,
   expandStateMap,
   setExpandStateMap,
@@ -254,48 +126,83 @@ const TreeNodeContent: React.FC<{
 
   return (
     <>
-      <TreeNode depth={depth} isSelected={isSelected} onClick={handleClick}>
+      <div
+        className={cn(
+          "py-1 px-2 cursor-pointer select-none flex items-center gap-2 rounded my-0.5",
+          isSelected ? "bg-[rgba(100,150,255,0.2)]" : "bg-transparent hover:bg-white/5"
+        )}
+        style={{ paddingLeft: `${depth * 16 + 8}px` }}
+        onClick={handleClick}
+      >
         {node.isDirectory ? (
           <>
-            <ToggleIcon isOpen={isOpen} data-toggle onClick={handleToggleClick}>
+            <span
+              className="w-3 inline-block transition-transform duration-200"
+              style={{ transform: isOpen ? "rotate(90deg)" : "rotate(0deg)" }}
+              data-toggle
+              onClick={handleToggleClick}
+            >
               ▶
-            </ToggleIcon>
-            <DirectoryName isFullyRead={isFullyRead} isUnknownState={isUnknownState}>
+            </span>
+            <span
+              className={cn(
+                "flex-1",
+                isFullyRead &&
+                  "text-[#666] line-through [text-decoration-color:var(--color-read)] [text-decoration-thickness:2px]",
+                isUnknownState && !isFullyRead && "text-[#666]",
+                !isFullyRead && !isUnknownState && "text-[#888]"
+              )}
+            >
               {node.name || "/"}
-            </DirectoryName>
+            </span>
             {node.totalStats &&
               (node.totalStats.additions > 0 || node.totalStats.deletions > 0) && (
-                <DirectoryStats isOpen={isOpen}>
+                <span
+                  className="flex gap-2 text-[11px] opacity-70"
+                  style={{ color: isOpen ? "#666" : "inherit" }}
+                >
                   {node.totalStats.additions > 0 &&
                     (isOpen ? (
                       <span>+{node.totalStats.additions}</span>
                     ) : (
-                      <Additions>+{node.totalStats.additions}</Additions>
+                      <span className="text-[#4ade80]">+{node.totalStats.additions}</span>
                     ))}
                   {node.totalStats.deletions > 0 &&
                     (isOpen ? (
                       <span>-{node.totalStats.deletions}</span>
                     ) : (
-                      <Deletions>-{node.totalStats.deletions}</Deletions>
+                      <span className="text-[#f87171]">-{node.totalStats.deletions}</span>
                     ))}
-                </DirectoryStats>
+                </span>
               )}
           </>
         ) : (
           <>
             <span style={{ width: "12px" }} />
-            <FileName isFullyRead={isFullyRead} isUnknownState={isUnknownState}>
+            <span
+              className={cn(
+                "flex-1",
+                isFullyRead &&
+                  "text-[#666] line-through [text-decoration-color:var(--color-read)] [text-decoration-thickness:2px]",
+                isUnknownState && !isFullyRead && "text-[#666]",
+                !isFullyRead && !isUnknownState && "text-[#ccc]"
+              )}
+            >
               {node.name}
-            </FileName>
+            </span>
             {node.stats && (
-              <Stats>
-                {node.stats.additions > 0 && <Additions>+{node.stats.additions}</Additions>}
-                {node.stats.deletions > 0 && <Deletions>-{node.stats.deletions}</Deletions>}
-              </Stats>
+              <span className="flex gap-2 text-[11px]">
+                {node.stats.additions > 0 && (
+                  <span className="text-[#4ade80]">+{node.stats.additions}</span>
+                )}
+                {node.stats.deletions > 0 && (
+                  <span className="text-[#f87171]">-{node.stats.deletions}</span>
+                )}
+              </span>
             )}
           </>
         )}
-      </TreeNode>
+      </div>
 
       {node.isDirectory &&
         isOpen &&
@@ -306,6 +213,7 @@ const TreeNodeContent: React.FC<{
             depth={depth + 1}
             selectedPath={selectedPath}
             onSelectFile={onSelectFile}
+            commonPrefix={commonPrefix}
             getFileReadStatus={getFileReadStatus}
             expandStateMap={expandStateMap}
             setExpandStateMap={setExpandStateMap}
@@ -320,6 +228,7 @@ interface FileTreeExternalProps {
   selectedPath: string | null;
   onSelectFile: (path: string | null) => void;
   isLoading?: boolean;
+  commonPrefix?: string | null;
   getFileReadStatus?: (filePath: string) => { total: number; read: number } | null;
   workspaceId: string;
 }
@@ -329,6 +238,7 @@ export const FileTree: React.FC<FileTreeExternalProps> = ({
   selectedPath,
   onSelectFile,
   isLoading = false,
+  commonPrefix = null,
   getFileReadStatus,
   workspaceId,
 }) => {
@@ -339,32 +249,62 @@ export const FileTree: React.FC<FileTreeExternalProps> = ({
     { listener: true }
   );
 
+  // Find the node at the common prefix path to start rendering from
+  const startNode = React.useMemo(() => {
+    if (!commonPrefix || !root) return root;
+
+    // Navigate to the node at the common prefix path
+    const parts = commonPrefix.split("/");
+    let current = root;
+
+    for (const part of parts) {
+      const child = current.children.find((c) => c.name === part);
+      if (!child) return root; // Fallback if path not found
+      current = child;
+    }
+
+    return current;
+  }, [root, commonPrefix]);
+
   return (
     <>
-      <TreeHeader>
+      <div className="py-2 px-3 border-b border-[#3e3e42] text-xs font-medium text-[#ccc] font-primary flex items-center gap-2">
         <span>Files Changed</span>
-        {selectedPath && <ClearButton onClick={() => onSelectFile(null)}>Clear filter</ClearButton>}
-      </TreeHeader>
-      <TreeContainer>
-        {isLoading && !root ? (
-          <EmptyState>Loading file tree...</EmptyState>
-        ) : root ? (
-          root.children.map((child) => (
+        {selectedPath && (
+          <button
+            className="py-0.5 px-2 bg-transparent text-[#888] border-none rounded-[3px] text-[11px] cursor-pointer transition-all duration-200 font-primary ml-auto hover:bg-white/5 hover:text-[#ccc]"
+            onClick={() => onSelectFile(null)}
+          >
+            Clear filter
+          </button>
+        )}
+      </div>
+      {commonPrefix && (
+        <div className="py-1.5 px-3 bg-[#1e1e1e] border-b border-[#3e3e42] text-[11px] text-[#888] font-monospace">
+          {commonPrefix}/
+        </div>
+      )}
+      <div className="flex-1 min-h-0 p-3 overflow-y-auto font-monospace text-xs">
+        {isLoading && !startNode ? (
+          <div className="py-5 text-[#888] text-center">Loading file tree...</div>
+        ) : startNode ? (
+          startNode.children.map((child) => (
             <TreeNodeContent
               key={child.path}
               node={child}
               depth={0}
               selectedPath={selectedPath}
               onSelectFile={onSelectFile}
+              commonPrefix={commonPrefix}
               getFileReadStatus={getFileReadStatus}
               expandStateMap={expandStateMap}
               setExpandStateMap={setExpandStateMap}
             />
           ))
         ) : (
-          <EmptyState>No files changed</EmptyState>
+          <div className="py-5 text-[#888] text-center">No files changed</div>
         )}
-      </TreeContainer>
+      </div>
     </>
   );
 };
