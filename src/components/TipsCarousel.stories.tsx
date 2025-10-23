@@ -19,7 +19,7 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {
-  render: () => <TipsCarousel />,
+  render: () => <TipsCarousel fixedTipIndex={0} />,
 };
 
 export const WithExplanation: Story = {
@@ -28,7 +28,7 @@ export const WithExplanation: Story = {
       <div className="text-[13px] text-[#cccccc] font-primary">
         Tips rotate automatically based on time. Hover to see the gradient effect:
       </div>
-      <TipsCarousel />
+      <TipsCarousel fixedTipIndex={0} />
       <div className="text-[11px] text-[#808080] font-primary">
         Tips change every hour to provide variety and convey UX information.
       </div>
@@ -40,7 +40,7 @@ export const DebugControls: Story = {
   render: () => (
     <div className="flex flex-col gap-5 p-5 bg-[#1e1e1e] min-w-[500px]">
       <div className="text-[13px] text-[#cccccc] font-primary">For debugging, you can use:</div>
-      <TipsCarousel />
+      <TipsCarousel fixedTipIndex={1} />
       <div className="text-[11px] text-[#808080] font-monospace p-3 bg-[#2d2d30] rounded">
         <div>window.setTip(0) // Show first tip</div>
         <div>window.setTip(1) // Show second tip</div>
@@ -65,7 +65,7 @@ export const InContext: Story = {
             justifyContent: "center",
           }}
         >
-          <TipsCarousel />
+          <TipsCarousel fixedTipIndex={0} />
         </div>
         <div className="flex items-center gap-2">
           <span className="text-[11px] text-[#808080]">Mode: Plan</span>
