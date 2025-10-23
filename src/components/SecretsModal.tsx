@@ -155,7 +155,7 @@ const SecretsModal: React.FC<SecretsModalProps> = ({
                   onChange={(e) => updateSecret(index, "key", e.target.value)}
                   placeholder="SECRET_NAME"
                   disabled={isLoading}
-                  className="bg-modal-bg border-border-medium focus:border-accent placeholder:text-text-dim w-full rounded border px-2.5 py-1.5 font-mono text-[13px] text-white focus:outline-none"
+                  className="bg-modal-bg border-border-medium focus:border-accent placeholder:text-dim w-full rounded border px-2.5 py-1.5 font-mono text-[13px] text-white focus:outline-none"
                 />
                 <input
                   type={visibleSecrets.has(index) ? "text" : "password"}
@@ -163,7 +163,7 @@ const SecretsModal: React.FC<SecretsModalProps> = ({
                   onChange={(e) => updateSecret(index, "value", e.target.value)}
                   placeholder="secret value"
                   disabled={isLoading}
-                  className="bg-modal-bg border-border-medium focus:border-accent placeholder:text-text-dim w-full rounded border px-2.5 py-1.5 font-mono text-[13px] text-white focus:outline-none"
+                  className="bg-modal-bg border-border-medium focus:border-accent placeholder:text-dim w-full rounded border px-2.5 py-1.5 font-mono text-[13px] text-white focus:outline-none"
                 />
                 <button
                   type="button"

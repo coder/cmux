@@ -24,7 +24,7 @@ export const StreamingBarrier: React.FC<StreamingBarrierProps> = ({
           <span className="text-assistant-border font-mono text-[11px] whitespace-nowrap select-none">
             ~{tokenCount.toLocaleString()} tokens
             {tps !== undefined && tps > 0 && (
-              <span className="text-text-dim ml-1">@ {tps} t/s</span>
+              <span className="text-dim ml-1">@ {tps} t/s</span>
             )}
           </span>
         )}

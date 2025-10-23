@@ -784,3 +784,8 @@ pre code {
   font-family: var(--font-monospace);
 }
 
+/* Text color utility classes */
+.text-dim {
+  color: var(--color-dim);
+}
+
