@@ -799,14 +799,14 @@ export const ChatInput: React.FC<ChatInputProps> = ({
               <ToggleGroupItem
                 value="exec"
                 aria-label="Exec mode"
-                className="px-2 py-1 text-[11px] font-sans rounded-sm border-none cursor-pointer transition-all duration-150 bg-transparent data-[state=on]:bg-exec-mode data-[state=on]:text-white data-[state=on]:hover:bg-exec-mode-hover text-toggle-text font-normal hover:text-toggle-text-hover hover:bg-toggle-hover"
+                className="data-[state=on]:bg-exec-mode data-[state=on]:hover:bg-exec-mode-hover text-toggle-text hover:text-toggle-text-hover hover:bg-toggle-hover cursor-pointer rounded-sm border-none bg-transparent px-2 py-1 font-sans text-[11px] font-normal transition-all duration-150 data-[state=on]:text-white"
               >
                 Exec
               </ToggleGroupItem>
               <ToggleGroupItem
                 value="plan"
                 aria-label="Plan mode"
-                className="px-2 py-1 text-[11px] font-sans rounded-sm border-none cursor-pointer transition-all duration-150 bg-transparent data-[state=on]:bg-plan-mode data-[state=on]:text-white data-[state=on]:hover:bg-plan-mode-hover text-toggle-text font-normal hover:text-toggle-text-hover hover:bg-toggle-hover"
+                className="data-[state=on]:bg-plan-mode data-[state=on]:hover:bg-plan-mode-hover text-toggle-text hover:text-toggle-text-hover hover:bg-toggle-hover cursor-pointer rounded-sm border-none bg-transparent px-2 py-1 font-sans text-[11px] font-normal transition-all duration-150 data-[state=on]:text-white"
               >
                 Plan
               </ToggleGroupItem>

@@ -350,19 +350,19 @@ const CostsTabComponent: React.FC<CostsTabProps> = ({ workspaceId }) => {
                             type="single"
                             value={viewMode}
                             onValueChange={(value) => value && setViewMode(value as ViewMode)}
-                            className="flex gap-0 bg-toggle-bg rounded"
+                            className="bg-toggle-bg flex gap-0 rounded"
                           >
                             <ToggleGroupItem
                               value="session"
                               aria-label="Session view"
-                              className="px-2 py-1 text-[11px] font-sans rounded-sm border-none cursor-pointer transition-all duration-150 bg-transparent data-[state=on]:text-toggle-text-active data-[state=on]:bg-toggle-active data-[state=on]:font-medium text-toggle-text font-normal hover:text-toggle-text-hover hover:bg-toggle-hover"
+                              className="data-[state=on]:text-toggle-text-active data-[state=on]:bg-toggle-active text-toggle-text hover:text-toggle-text-hover hover:bg-toggle-hover cursor-pointer rounded-sm border-none bg-transparent px-2 py-1 font-sans text-[11px] font-normal transition-all duration-150 data-[state=on]:font-medium"
                             >
                               Session
                             </ToggleGroupItem>
                             <ToggleGroupItem
                               value="last-request"
                               aria-label="Last request view"
-                              className="px-2 py-1 text-[11px] font-sans rounded-sm border-none cursor-pointer transition-all duration-150 bg-transparent data-[state=on]:text-toggle-text-active data-[state=on]:bg-toggle-active data-[state=on]:font-medium text-toggle-text font-normal hover:text-toggle-text-hover hover:bg-toggle-hover"
+                              className="data-[state=on]:text-toggle-text-active data-[state=on]:bg-toggle-active text-toggle-text hover:text-toggle-text-hover hover:bg-toggle-hover cursor-pointer rounded-sm border-none bg-transparent px-2 py-1 font-sans text-[11px] font-normal transition-all duration-150 data-[state=on]:font-medium"
                             >
                               Last Request
                             </ToggleGroupItem>
