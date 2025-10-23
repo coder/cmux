@@ -5,11 +5,12 @@ import { cn } from "@/lib/utils";
  * HelpIndicator - Small circular help indicator (typically "?")
  * Used with tooltips to show additional information
  */
-export const HelpIndicator: React.FC<{ className?: string; children?: React.ReactNode }> = ({
-  className,
-  children,
-}) => (
+export const HelpIndicator = React.forwardRef<
+  HTMLSpanElement,
+  { className?: string; children?: React.ReactNode }
+>(({ className, children }, ref) => (
   <span
+    ref={ref}
     className={cn(
       "text-text-dim text-[7px] cursor-help inline-block align-baseline",
       "border border-border-subtle rounded-full w-2.5 h-[10px] leading-[8px]",
@@ -19,4 +20,5 @@ export const HelpIndicator: React.FC<{ className?: string; children?: React.Reac
   >
     {children}
   </span>
-);
+));
+HelpIndicator.displayName = "HelpIndicator";
