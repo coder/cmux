@@ -748,7 +748,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         )}
         <div className="flex items-center">
           <ChatToggles modelString={preferredModel}>
-            <div className="mr-3 flex h-[11px] items-center gap-1 @[700px]:[&_.help-indicator-wrapper]:hidden">
+            <div className="mr-3 flex items-center gap-1.5">
               <ModelSelector
                 ref={modelSelectorRef}
                 value={preferredModel}
@@ -756,27 +756,25 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                 recentModels={recentModels}
                 onComplete={() => inputRef.current?.focus()}
               />
-              <span className="help-indicator-wrapper">
-                <TooltipWrapper inline>
-                  <HelpIndicator>?</HelpIndicator>
-                  <Tooltip className="tooltip" align="left" width="wide">
-                    <strong>Click to edit</strong> or use{" "}
-                    {formatKeybind(KEYBINDS.OPEN_MODEL_SELECTOR)}
-                    <br />
-                    <br />
-                    <strong>Abbreviations:</strong>
-                    <br />• <code>/model opus</code> - Claude Opus 4.1
-                    <br />• <code>/model sonnet</code> - Claude Sonnet 4.5
-                    <br />
-                    <br />
-                    <strong>Full format:</strong>
-                    <br />
-                    <code>/model provider:model-name</code>
-                    <br />
-                    (e.g., <code>/model anthropic:claude-sonnet-4-5</code>)
-                  </Tooltip>
-                </TooltipWrapper>
-              </span>
+              <TooltipWrapper inline>
+                <HelpIndicator>?</HelpIndicator>
+                <Tooltip className="tooltip" align="left" width="wide">
+                  <strong>Click to edit</strong> or use{" "}
+                  {formatKeybind(KEYBINDS.OPEN_MODEL_SELECTOR)}
+                  <br />
+                  <br />
+                  <strong>Abbreviations:</strong>
+                  <br />• <code>/model opus</code> - Claude Opus 4.1
+                  <br />• <code>/model sonnet</code> - Claude Sonnet 4.5
+                  <br />
+                  <br />
+                  <strong>Full format:</strong>
+                  <br />
+                  <code>/model provider:model-name</code>
+                  <br />
+                  (e.g., <code>/model anthropic:claude-sonnet-4-5</code>)
+                </Tooltip>
+              </TooltipWrapper>
             </div>
           </ChatToggles>
           <div className="max-@[700px]:hidden ml-auto flex items-center gap-1.5">
@@ -799,20 +797,18 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                 onChange={setMode}
               />
             </div>
-            <span className="help-indicator-wrapper">
-              <TooltipWrapper inline>
-                <HelpIndicator>?</HelpIndicator>
-                <Tooltip className="tooltip" align="center" width="wide">
-                  <strong>Exec Mode:</strong> AI edits files and execute commands
-                  <br />
-                  <br />
-                  <strong>Plan Mode:</strong> AI proposes plans but does not edit files
-                  <br />
-                  <br />
-                  Toggle with: {formatKeybind(KEYBINDS.TOGGLE_MODE)}
-                </Tooltip>
-              </TooltipWrapper>
-            </span>
+            <TooltipWrapper inline>
+              <HelpIndicator>?</HelpIndicator>
+              <Tooltip className="tooltip" align="center" width="wide">
+                <strong>Exec Mode:</strong> AI edits files and execute commands
+                <br />
+                <br />
+                <strong>Plan Mode:</strong> AI proposes plans but does not edit files
+                <br />
+                <br />
+                Toggle with: {formatKeybind(KEYBINDS.TOGGLE_MODE)}
+              </Tooltip>
+            </TooltipWrapper>
           </div>
         </div>
       </div>
