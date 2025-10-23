@@ -8,7 +8,6 @@ describe("fileCommon", () => {
       const stats: FileStat = {
         size: 1024, // 1KB
         modifiedTime: new Date(),
-        isFile: true,
         isDirectory: false,
       };
 
@@ -19,7 +18,6 @@ describe("fileCommon", () => {
       const stats: FileStat = {
         size: MAX_FILE_SIZE,
         modifiedTime: new Date(),
-        isFile: true,
         isDirectory: false,
       };
 
@@ -30,7 +28,6 @@ describe("fileCommon", () => {
       const stats: FileStat = {
         size: MAX_FILE_SIZE + 1,
         modifiedTime: new Date(),
-        isFile: true,
         isDirectory: false,
       };
 
@@ -44,7 +41,6 @@ describe("fileCommon", () => {
       const stats: FileStat = {
         size: MAX_FILE_SIZE * 2, // 2MB
         modifiedTime: new Date(),
-        isFile: true,
         isDirectory: false,
       };
 
@@ -57,7 +53,6 @@ describe("fileCommon", () => {
       const stats: FileStat = {
         size: MAX_FILE_SIZE + 1,
         modifiedTime: new Date(),
-        isFile: true,
         isDirectory: false,
       };
 

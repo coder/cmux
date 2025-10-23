@@ -49,9 +49,7 @@ export interface FileStat {
   size: number;
   /** Last modified time */
   modifiedTime: Date;
-  /** True if path is a file */
-  isFile: boolean;
-  /** True if path is a directory */
+  /** True if path is a directory (false implies regular file for our purposes) */
   isDirectory: boolean;
 }
 

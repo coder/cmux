@@ -61,10 +61,10 @@ export async function executeFileEditOperation<TMetadata>({
       throw err;
     }
 
-    if (!fileStat.isFile) {
+    if (fileStat.isDirectory) {
       return {
         success: false,
-        error: `${WRITE_DENIED_PREFIX} Path exists but is not a file: ${resolvedPath}`,
+        error: `${WRITE_DENIED_PREFIX} Path is a directory, not a file: ${resolvedPath}`,
       };
     }
 

@@ -156,7 +156,6 @@ export class LocalRuntime implements Runtime {
       return {
         size: stats.size,
         modifiedTime: stats.mtime,
-        isFile: stats.isFile(),
         isDirectory: stats.isDirectory(),
       };
     } catch (err) {
