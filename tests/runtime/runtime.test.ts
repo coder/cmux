@@ -60,6 +60,7 @@ describeIntegration("Runtime integration tests", () => {
 
           const result = await execBuffered(runtime, 'echo "output" && echo "error" >&2', {
             cwd: workspace.path,
+            timeout: 30,
           });
 
           expect(result.stdout.trim()).toBe("output");
@@ -72,7 +73,10 @@ describeIntegration("Runtime integration tests", () => {
           const runtime = createRuntime();
           await using workspace = await TestWorkspace.create(runtime, type);
 
-          const result = await execBuffered(runtime, "exit 42", { cwd: workspace.path });
+          const result = await execBuffered(runtime, "exit 42", {
+            cwd: workspace.path,
+            timeout: 30,
+          });
 
           expect(result.exitCode).toBe(42);
         });
@@ -83,6 +87,7 @@ describeIntegration("Runtime integration tests", () => {
 
           const result = await execBuffered(runtime, "cat", {
             cwd: workspace.path,
+            timeout: 30,
             stdin: "hello from stdin",
           });
 
@@ -96,6 +101,7 @@ describeIntegration("Runtime integration tests", () => {
 
           const result = await execBuffered(runtime, 'echo "$TEST_VAR"', {
             cwd: workspace.path,
+            timeout: 30,
             env: { TEST_VAR: "test-value" },
           });
 
@@ -106,7 +112,7 @@ describeIntegration("Runtime integration tests", () => {
           const runtime = createRuntime();
           await using workspace = await TestWorkspace.create(runtime, type);
 
-          const result = await execBuffered(runtime, "true", { cwd: workspace.path });
+          const result = await execBuffered(runtime, "true", { cwd: workspace.path, timeout: 30 });
 
           expect(result.stdout).toBe("");
           expect(result.stderr).toBe("");
@@ -119,6 +125,7 @@ describeIntegration("Runtime integration tests", () => {
 
           const result = await execBuffered(runtime, 'echo "hello \\"world\\""', {
             cwd: workspace.path,
+            timeout: 30,
           });
 
           expect(result.stdout.trim()).toBe('hello "world"');
@@ -128,7 +135,7 @@ describeIntegration("Runtime integration tests", () => {
           const runtime = createRuntime();
           await using workspace = await TestWorkspace.create(runtime, type);
 
-          const result = await execBuffered(runtime, "pwd", { cwd: workspace.path });
+          const result = await execBuffered(runtime, "pwd", { cwd: workspace.path, timeout: 30 });
 
           expect(result.stdout.trim()).toContain(workspace.path);
         });
@@ -208,7 +215,7 @@ describeIntegration("Runtime integration tests", () => {
           await using workspace = await TestWorkspace.create(runtime, type);
 
           // Create subdirectory
-          await execBuffered(runtime, `mkdir -p subdir`, { cwd: workspace.path });
+          await execBuffered(runtime, `mkdir -p subdir`, { cwd: workspace.path, timeout: 30 });
 
           await expect(readFileString(runtime, `${workspace.path}/subdir`)).rejects.toThrow();
         });
@@ -225,6 +232,7 @@ describeIntegration("Runtime integration tests", () => {
           // Verify by reading back
           const result = await execBuffered(runtime, "cat output.txt", {
             cwd: workspace.path,
+            timeout: 30,
           });
 
           expect(result.stdout).toBe(content);
@@ -269,6 +277,7 @@ describeIntegration("Runtime integration tests", () => {
           // Verify with wc -c (byte count)
           const result = await execBuffered(runtime, "wc -c < binary.dat", {
             cwd: workspace.path,
+            timeout: 30,
           });
 
           expect(result.stdout.trim()).toBe("6");
@@ -318,7 +327,7 @@ describeIntegration("Runtime integration tests", () => {
           const runtime = createRuntime();
           await using workspace = await TestWorkspace.create(runtime, type);
 
-          await execBuffered(runtime, "mkdir subdir", { cwd: workspace.path });
+          await execBuffered(runtime, "mkdir subdir", { cwd: workspace.path, timeout: 30 });
 
           const stat = await runtime.stat(`${workspace.path}/subdir`);
 

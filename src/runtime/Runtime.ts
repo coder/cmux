@@ -17,8 +17,13 @@ export interface ExecOptions {
   cwd: string;
   /** Environment variables to inject */
   env?: Record<string, string>;
-  /** Timeout in seconds */
-  timeout?: number;
+  /**
+   * Timeout in seconds (REQUIRED)
+   *
+   * Prevents zombie processes by ensuring all spawned processes are eventually killed.
+   * Even long-running commands should have a reasonable upper bound (e.g., 3600s for 1 hour).
+   */
+  timeout: number;
   /** Process niceness level (-20 to 19, lower = higher priority) */
   niceness?: number;
   /** Abort signal for cancellation */
