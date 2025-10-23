@@ -106,7 +106,7 @@ export const BashToolCall: React.FC<BashToolCallProps> = ({
               {result.success === false && result.error && (
                 <DetailSection>
                   <DetailLabel>Error</DetailLabel>
-                  <div className="text-danger text-[11px] px-2 py-1.5 bg-[rgba(244,67,54,0.1)] rounded border-l-2 border-[#f44336]">
+                  <div className="text-danger text-[11px] px-2 py-1.5 bg-danger-overlay rounded border-l-2 border-danger">
                     {result.error}
                   </div>
                 </DetailSection>
@@ -115,7 +115,7 @@ export const BashToolCall: React.FC<BashToolCallProps> = ({
               {result.output && (
                 <DetailSection>
                   <DetailLabel>Output</DetailLabel>
-                  <pre className="m-0 px-2 py-1.5 bg-[var(--color-code-bg)] rounded border-l-2 border-[#4caf50] text-[11px] leading-[1.4] whitespace-pre-wrap break-words max-h-[200px] overflow-y-auto">
+                  <pre className="m-0 px-2 py-1.5 bg-code-bg rounded border-l-2 border-success text-[11px] leading-[1.4] whitespace-pre-wrap break-words max-h-[200px] overflow-y-auto">
                     {result.output}
                   </pre>
                 </DetailSection>

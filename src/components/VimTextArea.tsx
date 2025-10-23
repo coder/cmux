@@ -155,7 +155,7 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
     return (
       <div style={{ width: "100%" }} data-component="VimTextAreaContainer">
         <div
-          className="text-[9px] text-[rgba(212,212,212,0.6)] tracking-[0.8px] select-none h-[11px] leading-[11px] mb-px flex items-center justify-between gap-1"
+          className="text-[9px] text-vim-status tracking-[0.8px] select-none h-[11px] leading-[11px] mb-px flex items-center justify-between gap-1"
           aria-live="polite"
         >
           <div className="flex items-center gap-1">
@@ -209,16 +209,16 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
             autoComplete="off"
             {...rest}
             className={cn(
-              "w-full border text-text-light py-1.5 px-2 rounded font-mono text-[13px] resize-none min-h-8 max-h-[50vh] overflow-y-auto",
-              "placeholder:text-[#6b6b6b]",
+              "w-full border text-light py-1.5 px-2 rounded font-mono text-[13px] resize-none min-h-8 max-h-[50vh] overflow-y-auto",
+              "placeholder:text-placeholder",
               "focus:outline-none",
               isEditing
-                ? "bg-[var(--color-editing-mode-alpha)] border-[var(--color-editing-mode)] focus:border-[var(--color-editing-mode)]"
-                : "bg-bg-dark border-border-light",
+                ? "bg-editing-mode-alpha border-editing-mode focus:border-editing-mode"
+                : "bg-dark border-border-light",
               !isEditing && (mode === "plan" ? "focus:border-plan-mode" : "focus:border-exec-mode"),
               vimMode === "normal"
                 ? "caret-transparent selection:bg-white/50"
-                : "caret-white selection:bg-[rgba(51,153,255,0.5)]"
+                : "caret-white selection:bg-selection"
             )}
           />
           {vimMode === "normal" && value.length === 0 && (

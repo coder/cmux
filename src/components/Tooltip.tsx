@@ -220,7 +220,7 @@ export const Tooltip: React.FC<TooltipProps> = ({
       }}
       className={cn(
         "bg-modal-bg text-foreground text-left rounded px-[10px] py-[6px] z-[9999]",
-        "text-[11px] font-normal font-sans border border-[#464647] shadow-[0_2px_8px_rgba(0,0,0,0.4)]",
+        "text-[11px] font-normal font-sans border border-separator-light shadow-[0_2px_8px_rgba(0,0,0,0.4)]",
         width === "wide" ? "whitespace-normal max-w-[300px] w-max" : "whitespace-nowrap",
         interactive ? "pointer-events-auto" : "pointer-events-none",
         className
@@ -245,7 +245,7 @@ export const HelpIndicator: React.FC<{ className?: string; children?: React.Reac
   <span
     className={cn(
       "text-text-dim text-[7px] cursor-help inline-block align-baseline",
-      "border border-[#666] rounded-full w-[10px] h-[10px] leading-[8px]",
+      "border border-border-subtle rounded-full w-[10px] h-[10px] leading-[8px]",
       "text-center font-bold mb-[2px]",
       className
     )}

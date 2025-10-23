@@ -124,7 +124,7 @@ export const MessageWindow: React.FC<MessageWindowProps> = ({
       </div>
       <div className="relative z-10 p-3" data-message-content>
         {showJson ? (
-          <pre className="m-0 font-mono text-[11px] leading-snug whitespace-pre-wrap text-text-light bg-black/30 p-2 rounded-sm overflow-x-auto">
+          <pre className="m-0 font-mono text-[11px] leading-snug whitespace-pre-wrap text-light bg-black/30 p-2 rounded-sm overflow-x-auto">
             {JSON.stringify(message, null, 2)}
           </pre>
         ) : (

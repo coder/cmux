@@ -260,8 +260,8 @@ export const WithStateDisplay: Story = {
           value={value}
           onChange={(newValue) => updateArgs({ value: newValue })}
         />
-        <div className="text-xs text-[#808080] font-primary">
-          Current selection: <strong className="text-[#cccccc]">{value}</strong>
+        <div className="text-xs text-muted-light font-primary">
+          Current selection: <strong className="text-bright">{value}</strong>
         </div>
       </div>
     );
@@ -316,17 +316,17 @@ export const MultipleGroups: Story = {
     return (
       <div className="flex flex-col gap-5 p-5">
         <div>
-          <div className="text-[11px] text-[#808080] mb-1.5 font-primary">Theme</div>
+          <div className="text-[11px] text-muted-light mb-1.5 font-primary">Theme</div>
           <ToggleGroup options={themeOptions} value={theme} onChange={handleThemeChange} />
         </div>
 
         <div>
-          <div className="text-[11px] text-[#808080] mb-1.5 font-primary">Size</div>
+          <div className="text-[11px] text-muted-light mb-1.5 font-primary">Size</div>
           <ToggleGroup options={sizeOptions} value={size} onChange={handleSizeChange} />
         </div>
 
         <div>
-          <div className="text-[11px] text-[#808080] mb-1.5 font-primary">Layout</div>
+          <div className="text-[11px] text-muted-light mb-1.5 font-primary">Layout</div>
           <ToggleGroup options={layoutOptions} value={layout} onChange={handleLayoutChange} />
         </div>
       </div>

@@ -100,7 +100,7 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
       describedById={infoId}
     >
       <form onSubmit={(event) => void handleSubmit(event)}>
-        <div className="mb-5 [&_label]:block [&_label]:mb-2 [&_label]:text-foreground [&_label]:text-sm [&_input]:w-full [&_input]:py-2 [&_input]:px-3 [&_input]:bg-modal-bg [&_input]:border [&_input]:border-[#444] [&_input]:rounded [&_input]:text-white [&_input]:text-sm [&_input]:focus:outline-none [&_input]:focus:border-accent [&_input]:disabled:opacity-60 [&_input]:disabled:cursor-not-allowed [&_select]:w-full [&_select]:py-2 [&_select]:px-3 [&_select]:bg-modal-bg [&_select]:border [&_select]:border-[#444] [&_select]:rounded [&_select]:text-white [&_select]:text-sm [&_select]:focus:outline-none [&_select]:focus:border-accent [&_select]:disabled:opacity-60 [&_select]:disabled:cursor-not-allowed [&_select]:cursor-pointer [&_option]:bg-modal-bg [&_option]:text-white">
+        <div className="mb-5 [&_label]:block [&_label]:mb-2 [&_label]:text-foreground [&_label]:text-sm [&_input]:w-full [&_input]:py-2 [&_input]:px-3 [&_input]:bg-modal-bg [&_input]:border [&_input]:border-border-medium [&_input]:rounded [&_input]:text-white [&_input]:text-sm [&_input]:focus:outline-none [&_input]:focus:border-accent [&_input]:disabled:opacity-60 [&_input]:disabled:cursor-not-allowed [&_select]:w-full [&_select]:py-2 [&_select]:px-3 [&_select]:bg-modal-bg [&_select]:border [&_select]:border-border-medium [&_select]:rounded [&_select]:text-white [&_select]:text-sm [&_select]:focus:outline-none [&_select]:focus:border-accent [&_select]:disabled:opacity-60 [&_select]:disabled:cursor-not-allowed [&_select]:cursor-pointer [&_option]:bg-modal-bg [&_option]:text-white">
           <label htmlFor="branchName">
             <TooltipWrapper inline>
               <span className="underline decoration-dotted decoration-[#666] underline-offset-2 cursor-help">
@@ -134,10 +134,10 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
             required
             aria-required="true"
           />
-          {error && <div className="text-[#ff5555] text-[13px] mt-1.5">{error}</div>}
+          {error && <div className="text-danger-light text-[13px] mt-1.5">{error}</div>}
         </div>
 
-        <div className="mb-5 [&_label]:block [&_label]:mb-2 [&_label]:text-foreground [&_label]:text-sm [&_input]:w-full [&_input]:py-2 [&_input]:px-3 [&_input]:bg-modal-bg [&_input]:border [&_input]:border-[#444] [&_input]:rounded [&_input]:text-white [&_input]:text-sm [&_input]:focus:outline-none [&_input]:focus:border-accent [&_input]:disabled:opacity-60 [&_input]:disabled:cursor-not-allowed [&_select]:w-full [&_select]:py-2 [&_select]:px-3 [&_select]:bg-modal-bg [&_select]:border [&_select]:border-[#444] [&_select]:rounded [&_select]:text-white [&_select]:text-sm [&_select]:focus:outline-none [&_select]:focus:border-accent [&_select]:disabled:opacity-60 [&_select]:disabled:cursor-not-allowed [&_select]:cursor-pointer [&_option]:bg-modal-bg [&_option]:text-white">
+        <div className="mb-5 [&_label]:block [&_label]:mb-2 [&_label]:text-foreground [&_label]:text-sm [&_input]:w-full [&_input]:py-2 [&_input]:px-3 [&_input]:bg-modal-bg [&_input]:border [&_input]:border-border-medium [&_input]:rounded [&_input]:text-white [&_input]:text-sm [&_input]:focus:outline-none [&_input]:focus:border-accent [&_input]:disabled:opacity-60 [&_input]:disabled:cursor-not-allowed [&_select]:w-full [&_select]:py-2 [&_select]:px-3 [&_select]:bg-modal-bg [&_select]:border [&_select]:border-border-medium [&_select]:rounded [&_select]:text-white [&_select]:text-sm [&_select]:focus:outline-none [&_select]:focus:border-accent [&_select]:disabled:opacity-60 [&_select]:disabled:cursor-not-allowed [&_select]:cursor-pointer [&_option]:bg-modal-bg [&_option]:text-white">
           <label htmlFor="trunkBranch">Trunk Branch:</label>
           {hasBranches ? (
             <select
@@ -167,7 +167,7 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
             />
           )}
           {!hasBranches && (
-            <div className="text-[#ff5555] text-[13px] mt-1.5">
+            <div className="text-danger-light text-[13px] mt-1.5">
               No branches were detected automatically. Enter the trunk branch manually.
             </div>
           )}
@@ -183,7 +183,7 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
         {branchName.trim() && (
           <div>
             <div className="text-xs text-muted mb-2 font-sans">Equivalent command:</div>
-            <div className="mt-5 p-3 bg-bg-dark border border-border-light rounded font-mono text-[13px] text-text-light whitespace-pre-wrap break-all">
+            <div className="mt-5 p-3 bg-dark border border-border-light rounded font-mono text-[13px] text-light whitespace-pre-wrap break-all">
               {formatNewCommand(branchName.trim(), trunkBranch.trim() || undefined)}
             </div>
           </div>

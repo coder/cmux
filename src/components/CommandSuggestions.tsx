@@ -104,19 +104,19 @@ export const CommandSuggestions: React.FC<CommandSuggestionsProps> = ({
           role="option"
           aria-selected={index === selectedIndex}
           className={cn(
-            "px-2.5 py-1.5 cursor-pointer transition-colors duration-150 flex items-center justify-between gap-3 hover:bg-[#094771]",
-            index === selectedIndex ? "bg-[#094771]" : "bg-transparent"
+            "px-2.5 py-1.5 cursor-pointer transition-colors duration-150 flex items-center justify-between gap-3 hover:bg-accent-darker",
+            index === selectedIndex ? "bg-accent-darker" : "bg-transparent"
           )}
         >
-          <div className="text-[#569cd6] font-monospace text-xs flex-shrink-0">
+          <div className="text-accent font-monospace text-xs flex-shrink-0">
             {suggestion.display}
           </div>
-          <div className="text-[#969696] text-[11px] text-right overflow-hidden text-ellipsis whitespace-nowrap">
+          <div className="text-medium text-[11px] text-right overflow-hidden text-ellipsis whitespace-nowrap">
             {suggestion.description}
           </div>
         </div>
       ))}
-      <div className="px-2.5 py-1 border-t border-border-light bg-bg-dark text-[#6b6b6b] text-[10px] text-center flex-shrink-0 [&_span]:text-[#969696] [&_span]:font-medium">
+      <div className="px-2.5 py-1 border-t border-border-light bg-dark text-placeholder text-[10px] text-center flex-shrink-0 [&_span]:text-medium [&_span]:font-medium">
         <span>Tab</span> to complete • <span>↑↓</span> to navigate • <span>Esc</span> to dismiss
       </div>
     </div>

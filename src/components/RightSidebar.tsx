@@ -211,7 +211,7 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
           <div
             className={cn(
               "w-1 flex-shrink-0 z-10 transition-[background] duration-150",
-              "bg-[#3e3e42] cursor-col-resize hover:bg-accent",
+              "bg-border-light cursor-col-resize hover:bg-accent",
               isResizing && "bg-accent"
             )}
             onMouseDown={(e) => onStartResize(e as unknown as React.MouseEvent)}

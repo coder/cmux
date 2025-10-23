@@ -127,7 +127,7 @@ const TreeNodeContent: React.FC<{
       <div
         className={cn(
           "py-1 px-2 cursor-pointer select-none flex items-center gap-2 rounded my-0.5",
-          isSelected ? "bg-[rgba(100,150,255,0.2)]" : "bg-transparent hover:bg-white/5"
+          isSelected ? "bg-code-keyword-overlay" : "bg-transparent hover:bg-white/5"
         )}
         style={{ paddingLeft: `${depth * 16 + 8}px` }}
         onClick={handleClick}
@@ -163,13 +163,13 @@ const TreeNodeContent: React.FC<{
                     (isOpen ? (
                       <span>+{node.totalStats.additions}</span>
                     ) : (
-                      <span className="text-[#4ade80]">+{node.totalStats.additions}</span>
+                      <span className="text-success-light">+{node.totalStats.additions}</span>
                     ))}
                   {node.totalStats.deletions > 0 &&
                     (isOpen ? (
                       <span>-{node.totalStats.deletions}</span>
                     ) : (
-                      <span className="text-[#f87171]">-{node.totalStats.deletions}</span>
+                      <span className="text-warning-light">-{node.totalStats.deletions}</span>
                     ))}
                 </span>
               )}
@@ -191,10 +191,10 @@ const TreeNodeContent: React.FC<{
             {node.stats && (
               <span className="flex gap-2 text-[11px]">
                 {node.stats.additions > 0 && (
-                  <span className="text-[#4ade80]">+{node.stats.additions}</span>
+                  <span className="text-success-light">+{node.stats.additions}</span>
                 )}
                 {node.stats.deletions > 0 && (
-                  <span className="text-[#f87171]">-{node.stats.deletions}</span>
+                  <span className="text-warning-light">-{node.stats.deletions}</span>
                 )}
               </span>
             )}

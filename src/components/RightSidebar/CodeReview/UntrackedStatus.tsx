@@ -126,7 +126,7 @@ export const UntrackedStatus: React.FC<UntrackedStatusProps> = ({
         className={cn(
           "py-1 px-2.5 rounded font-medium text-[11px] whitespace-nowrap transition-all duration-200",
           hasUntracked
-            ? "bg-[#3e2a00] border border-[#806000] text-[#ffb347] cursor-pointer hover:bg-[#4a3200] hover:border-[#a07000]"
+            ? "bg-review-bg-warning border border-review-warning text-info-yellow cursor-pointer hover:bg-review-warning-light hover:border-review-warning-medium"
             : "bg-transparent border border-transparent text-muted cursor-default"
         )}
         onClick={() => hasUntracked && setShowTooltip(!showTooltip)}
@@ -135,7 +135,7 @@ export const UntrackedStatus: React.FC<UntrackedStatusProps> = ({
       </div>
 
       {showTooltip && hasUntracked && (
-        <div className="absolute top-[calc(100%+8px)] right-0 bg-modal-bg border border-[#454545] rounded p-2 min-w-[200px] max-w-[400px] z-[1000] shadow-[0_4px_12px_rgba(0,0,0,0.3)] animate-in fade-in slide-in-from-top-1 duration-150">
+        <div className="absolute top-[calc(100%+8px)] right-0 bg-modal-bg border border-bg-medium rounded p-2 min-w-[200px] max-w-[400px] z-[1000] shadow-[0_4px_12px_rgba(0,0,0,0.3)] animate-in fade-in slide-in-from-top-1 duration-150">
           <div className="text-[11px] font-semibold text-foreground mb-2 pb-1.5 border-b border-border-light">
             Untracked Files ({count})
           </div>
@@ -143,7 +143,7 @@ export const UntrackedStatus: React.FC<UntrackedStatusProps> = ({
             {untrackedFiles.map((file) => (
               <div
                 key={file}
-                className="text-[11px] text-[#aaa] py-0.5 px-1 font-mono whitespace-nowrap overflow-hidden text-ellipsis hover:bg-[#37373d]"
+                className="text-[11px] text-label py-0.5 px-1 font-mono whitespace-nowrap overflow-hidden text-ellipsis hover:bg-bg-subtle"
               >
                 {file}
               </div>
@@ -153,10 +153,10 @@ export const UntrackedStatus: React.FC<UntrackedStatusProps> = ({
             onClick={() => void handleTrackAll()}
             disabled={isTracking}
             className={cn(
-              "w-full py-1 px-2 bg-transparent text-muted border border-[#444] rounded text-[11px] cursor-pointer transition-all duration-200 font-primary",
-              "hover:bg-[rgba(255,255,255,0.05)] hover:text-foreground hover:border-[#666]",
-              "active:bg-[rgba(255,255,255,0.1)]",
-              "disabled:text-[#555] disabled:border-[#333] disabled:cursor-not-allowed disabled:bg-transparent"
+              "w-full py-1 px-2 bg-transparent text-muted border border-border-medium rounded text-[11px] cursor-pointer transition-all duration-200 font-primary",
+              "hover:bg-white-overlay-light hover:text-foreground hover:border-border-subtle",
+              "active:bg-white-overlay",
+              "disabled:text-border-darker disabled:border-border disabled:cursor-not-allowed disabled:bg-transparent"
             )}
           >
             {isTracking ? "Tracking..." : "Track All"}

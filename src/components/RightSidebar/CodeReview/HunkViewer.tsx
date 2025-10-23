@@ -138,11 +138,10 @@ export const HunkViewer = React.memo<HunkViewerProps>(
     return (
       <div
         className={cn(
-          "bg-bg-dark border rounded mb-3 overflow-hidden cursor-pointer transition-all duration-200",
+          "bg-dark border rounded mb-3 overflow-hidden cursor-pointer transition-all duration-200",
           "focus:outline-none focus-visible:outline-none",
-          isRead ? "border-[var(--color-read)]" : "border-border-light",
-          isSelected &&
-            "border-[var(--color-review-accent)] shadow-[0_0_0_1px_var(--color-review-accent)]"
+          isRead ? "border-read" : "border-border-light",
+          isSelected && "border-review-accent shadow-[0_0_0_1px_var(--color-review-accent)]"
         )}
         onClick={onClick}
         role="button"
@@ -153,7 +152,7 @@ export const HunkViewer = React.memo<HunkViewerProps>(
           {isRead && (
             <TooltipWrapper inline>
               <span
-                className="inline-flex items-center text-[var(--color-read)] text-sm mr-1"
+                className="inline-flex items-center text-read text-sm mr-1"
                 aria-label="Marked as read"
               >
                 ✓
@@ -170,8 +169,8 @@ export const HunkViewer = React.memo<HunkViewerProps>(
           <div className="flex items-center gap-2 text-[11px] whitespace-nowrap flex-shrink-0">
             {!isPureRename && (
               <span className="flex gap-2 text-[11px]">
-                {additions > 0 && <span className="text-[#4ade80]">+{additions}</span>}
-                {deletions > 0 && <span className="text-[#f87171]">-{deletions}</span>}
+                {additions > 0 && <span className="text-success-light">+{additions}</span>}
+                {deletions > 0 && <span className="text-warning-light">-{deletions}</span>}
               </span>
             )}
             <span className="text-muted">
@@ -180,7 +179,7 @@ export const HunkViewer = React.memo<HunkViewerProps>(
             {onToggleRead && (
               <TooltipWrapper inline>
                 <button
-                  className="bg-transparent border border-border-light rounded-[3px] py-0.5 px-1.5 text-muted text-[11px] cursor-pointer transition-all duration-200 flex items-center gap-1 hover:bg-white/5 hover:border-[var(--color-read)] hover:text-[var(--color-read)] active:scale-95"
+                  className="bg-transparent border border-border-light rounded-[3px] py-0.5 px-1.5 text-muted text-[11px] cursor-pointer transition-all duration-200 flex items-center gap-1 hover:bg-white/5 hover:border-read hover:text-read active:scale-95"
                   data-hunk-id={hunkId}
                   onClick={handleToggleRead}
                   aria-label={`Mark as read (${formatKeybind(KEYBINDS.TOGGLE_HUNK_READ)})`}
@@ -196,7 +195,7 @@ export const HunkViewer = React.memo<HunkViewerProps>(
         </div>
 
         {isPureRename ? (
-          <div className="p-3 text-muted text-[11px] flex items-center gap-2 bg-[rgba(100,150,255,0.05)] before:content-['→'] before:text-sm before:text-[#6496ff]">
+          <div className="p-3 text-muted text-[11px] flex items-center gap-2 bg-code-keyword-overlay-light before:content-['→'] before:text-sm before:text-code-keyword">
             Renamed from <code>{hunk.oldPath}</code>
           </div>
         ) : isExpanded ? (

@@ -60,22 +60,24 @@ export const AllStates: Story = {
     <div className="flex gap-[30px] p-5 items-center flex-wrap">
       <div className="flex flex-col gap-2 items-center">
         <StatusIndicator streaming={false} unread={false} />
-        <span className="text-[11px] text-[#808080] font-primary">Default</span>
+        <span className="text-[11px] text-muted-light font-primary">Default</span>
       </div>
 
       <div className="flex flex-col gap-2 items-center">
         <StatusIndicator streaming={true} unread={false} />
-        <span className="text-[11px] text-[#808080] font-primary">Streaming</span>
+        <span className="text-[11px] text-muted-light font-primary">Streaming</span>
       </div>
 
       <div className="flex flex-col gap-2 items-center">
         <StatusIndicator streaming={false} unread={true} />
-        <span className="text-[11px] text-[#808080] font-primary">Unread</span>
+        <span className="text-[11px] text-muted-light font-primary">Unread</span>
       </div>
 
       <div className="flex flex-col gap-2 items-center">
         <StatusIndicator streaming={true} unread={true} />
-        <span className="text-[11px] text-[#808080] font-primary">Streaming (unread ignored)</span>
+        <span className="text-[11px] text-muted-light font-primary">
+          Streaming (unread ignored)
+        </span>
       </div>
     </div>
   ),
@@ -87,27 +89,27 @@ export const DifferentSizes: Story = {
     <div className="flex gap-[30px] p-5 items-center flex-wrap">
       <div className="flex flex-col gap-2 items-center">
         <StatusIndicator streaming={false} unread={true} size={4} />
-        <span className="text-[11px] text-[#808080] font-primary">4px</span>
+        <span className="text-[11px] text-muted-light font-primary">4px</span>
       </div>
 
       <div className="flex flex-col gap-2 items-center">
         <StatusIndicator streaming={false} unread={true} size={8} />
-        <span className="text-[11px] text-[#808080] font-primary">8px (default)</span>
+        <span className="text-[11px] text-muted-light font-primary">8px (default)</span>
       </div>
 
       <div className="flex flex-col gap-2 items-center">
         <StatusIndicator streaming={false} unread={true} size={12} />
-        <span className="text-[11px] text-[#808080] font-primary">12px</span>
+        <span className="text-[11px] text-muted-light font-primary">12px</span>
       </div>
 
       <div className="flex flex-col gap-2 items-center">
         <StatusIndicator streaming={false} unread={true} size={16} />
-        <span className="text-[11px] text-[#808080] font-primary">16px</span>
+        <span className="text-[11px] text-muted-light font-primary">16px</span>
       </div>
 
       <div className="flex flex-col gap-2 items-center">
         <StatusIndicator streaming={false} unread={true} size={20} />
-        <span className="text-[11px] text-[#808080] font-primary">20px</span>
+        <span className="text-[11px] text-muted-light font-primary">20px</span>
       </div>
     </div>
   ),
@@ -243,17 +245,17 @@ export const InContext: Story = {
   render: () => {
     return (
       <div className="flex flex-col gap-2">
-        <div className="flex items-center gap-2 py-2 px-3 bg-[#2d2d30] rounded font-primary text-[13px] text-[#cccccc]">
+        <div className="flex items-center gap-2 py-2 px-3 bg-modal-bg rounded font-primary text-[13px] text-bright">
           <StatusIndicator streaming={false} unread={false} />
           <span>workspace-feature-branch</span>
         </div>
 
-        <div className="flex items-center gap-2 py-2 px-3 bg-[#2d2d30] rounded font-primary text-[13px] text-[#cccccc]">
+        <div className="flex items-center gap-2 py-2 px-3 bg-modal-bg rounded font-primary text-[13px] text-bright">
           <StatusIndicator streaming={true} unread={false} />
           <span>workspace-main (streaming)</span>
         </div>
 
-        <div className="flex items-center gap-2 py-2 px-3 bg-[#2d2d30] rounded font-primary text-[13px] text-[#cccccc]">
+        <div className="flex items-center gap-2 py-2 px-3 bg-modal-bg rounded font-primary text-[13px] text-bright">
           <StatusIndicator streaming={false} unread={true} />
           <span>workspace-bugfix (3 unread)</span>
         </div>
