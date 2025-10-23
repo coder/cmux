@@ -49,10 +49,10 @@ const SidebarContainer: React.FC<SidebarContainerProps> = ({
   return (
     <div
       className={cn(
-        "bg-neutral-800 border-l border-neutral-800 flex flex-col overflow-hidden flex-shrink-0",
+        "bg-separator border-l border-border-light flex flex-col overflow-hidden flex-shrink-0",
         customWidth ? "" : "transition-[width] duration-200",
         collapsed && "sticky right-0 z-10 shadow-[-2px_0_4px_rgba(0,0,0,0.2)]",
-        "max-md:border-l-0 max-md:border-t max-md:border-neutral-800",
+        "max-md:border-l-0 max-md:border-t max-md:border-border-light",
         collapsed && "max-md:w-0 max-md:absolute max-md:bottom-0",
         !collapsed && "max-md:w-full max-md:relative max-md:max-h-[50vh]"
       )}

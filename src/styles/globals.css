@@ -31,6 +31,14 @@
   --color-git-dirty: hsl(38 92% 50%);
   --color-code-bg: hsl(0 6.43% 8.04%);
   
+  /* Sidebar Colors */
+  --color-separator: hsl(0 0% 15%);          /* #252526 - base sidebar bg */
+  --color-hover: hsl(0 0% 16.5%);            /* #2a2a2b - hover/selected states */
+  
+  /* Borders */
+  --color-border: hsl(0 0% 25%);             /* #404040 - base borders */
+  --color-border-light: hsl(0 0% 27%);       /* #464647 - lighter borders */
+  
   /* Message Borders */
   --color-user-border: hsl(0 0% 38%);
   --color-assistant-border: hsl(207 45% 40%);

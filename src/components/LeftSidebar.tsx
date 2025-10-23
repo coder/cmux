@@ -46,10 +46,10 @@ export function LeftSidebar(props: LeftSidebarProps) {
           aria-label="Open sidebar menu"
           className={cn(
             "hidden max-md:flex fixed top-3 left-3 z-[998]",
-            "w-10 h-10 bg-neutral-800 border border-neutral-800 rounded-md cursor-pointer",
+            "w-10 h-10 bg-separator border border-border-light rounded-md cursor-pointer",
             "items-center justify-center text-neutral-300 text-xl transition-all duration-200",
             "shadow-[0_2px_4px_rgba(0,0,0,0.3)]",
-            "hover:bg-neutral-800 hover:border-neutral-800",
+            "hover:bg-hover hover:border-border-light",
             "active:scale-95"
           )}
         >
@@ -69,7 +69,7 @@ export function LeftSidebar(props: LeftSidebarProps) {
       {/* Sidebar */}
       <div
         className={cn(
-          "h-screen bg-neutral-800 border-r border-neutral-950 flex flex-col shrink-0",
+          "h-screen bg-separator border-r border-border flex flex-col shrink-0",
           "transition-all duration-200 overflow-hidden relative z-[100]",
           collapsed ? "w-8" : "w-72",
           "max-md:fixed max-md:left-0 max-md:top-0 max-md:w-72 max-md:z-[1000]",
