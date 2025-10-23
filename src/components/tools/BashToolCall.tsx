@@ -82,7 +82,7 @@ export const BashToolCall: React.FC<BashToolCallProps> = ({
           <span
             className="ml-2 inline-block shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium whitespace-nowrap"
             style={{
-              background: result.exitCode === 0 ? "#4caf50" : "#f44336",
+              background: result.exitCode === 0 ? "var(--color-success)" : "var(--color-error)",
               color: "white",
             }}
           >

@@ -22,6 +22,7 @@ import { useToolExpansion, getStatusDisplay, type ToolStatus } from "./shared/to
 import { TooltipWrapper, Tooltip } from "../Tooltip";
 import { DiffContainer, DiffRenderer, SelectableDiffRenderer } from "../shared/DiffRenderer";
 import { KebabMenu, type KebabMenuItem } from "../KebabMenu";
+import { useClipboard } from "@/utils/ui/clipboard";
 
 type FileEditOperationArgs =
   | FileEditReplaceStringToolArgs
@@ -49,7 +50,7 @@ function renderDiff(
   try {
     const patches = parsePatch(diff);
     if (patches.length === 0) {
-      return <div style={{ padding: "8px", color: "#888" }}>No changes</div>;
+      return <div style={{ padding: "8px", color: "var(--color-muted)" }}>No changes</div>;
     }
 
     // Render each hunk using SelectableDiffRenderer if we have a callback, otherwise DiffRenderer
@@ -99,16 +100,14 @@ export const FileEditToolCall: React.FC<FileEditToolCallProps> = ({
 }) => {
   const { expanded, toggleExpanded } = useToolExpansion(true);
   const [showRaw, setShowRaw] = React.useState(false);
-  const [copied, setCopied] = React.useState(false);
+  const { copied, copy } = useClipboard();
 
   const filePath = "file_path" in args ? args.file_path : undefined;
 
   const handleCopyPatch = async () => {
     if (result && result.success && result.diff) {
       try {
-        await navigator.clipboard.writeText(result.diff);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
+        await copy(result.diff);
       } catch (err) {
         console.error("Failed to copy:", err);
       }

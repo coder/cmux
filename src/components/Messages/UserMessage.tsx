@@ -1,10 +1,11 @@
-import React, { useState } from "react";
+import React from "react";
 import type { DisplayedMessage } from "@/types/message";
 import type { ButtonConfig } from "./MessageWindow";
 import { MessageWindow } from "./MessageWindow";
 import { TerminalOutput } from "./TerminalOutput";
 import { formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
 import type { KebabMenuItem } from "@/components/KebabMenu";
+import { useClipboard } from "@/utils/ui/clipboard";
 
 interface UserMessageProps {
   message: DisplayedMessage & { type: "user" };
@@ -30,7 +31,7 @@ export const UserMessage: React.FC<UserMessageProps> = ({
   isCompacting,
   clipboardWriteText = defaultClipboardWriteText,
 }) => {
-  const [copied, setCopied] = useState(false);
+  const { copied, copy } = useClipboard({ writeText: clipboardWriteText });
 
   const content = message.content;
 
@@ -55,9 +56,7 @@ export const UserMessage: React.FC<UserMessageProps> = ({
     );
 
     try {
-      await clipboardWriteText(content);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      await copy(content);
     } catch (err) {
       console.error("Failed to copy:", err);
     }

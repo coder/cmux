@@ -10,6 +10,7 @@ import { ModelDisplay } from "./ModelDisplay";
 import { CompactingMessageContent } from "./CompactingMessageContent";
 import { CompactionBackground } from "./CompactionBackground";
 import type { KebabMenuItem } from "@/components/KebabMenu";
+import { useClipboard } from "@/utils/ui/clipboard";
 
 interface AssistantMessageProps {
   message: DisplayedMessage & { type: "assistant" };
@@ -27,7 +28,7 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({
   clipboardWriteText = (data: string) => navigator.clipboard.writeText(data),
 }) => {
   const [showRaw, setShowRaw] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const { copied, copy } = useClipboard({ writeText: clipboardWriteText });
 
   const content = message.content;
   const isStreaming = message.isStreaming;
@@ -44,9 +45,7 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({
 
   const handleCopy = async () => {
     try {
-      await clipboardWriteText(content);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      await copy(content);
     } catch (err) {
       console.error("Failed to copy:", err);
     }

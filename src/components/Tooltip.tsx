@@ -1,6 +1,7 @@
 import React, { useState, useRef, useLayoutEffect, createContext, useContext } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
+import { TIMING } from "@/constants/timing";
 
 // Context for passing hover state and trigger ref from wrapper to tooltip
 interface TooltipContextValue {
@@ -39,7 +40,7 @@ export const TooltipWrapper: React.FC<TooltipWrapperProps> = ({ inline = false, 
     // Delay hiding to allow moving mouse to tooltip
     leaveTimerRef.current = setTimeout(() => {
       setIsHovered(false);
-    }, 100);
+    }, TIMING.TOOLTIP_LEAVE_DELAY);
   };
 
   return (

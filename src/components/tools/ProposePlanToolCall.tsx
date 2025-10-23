@@ -14,6 +14,7 @@ import { formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
 import { useStartHere } from "@/hooks/useStartHere";
 import { TooltipWrapper, Tooltip } from "../Tooltip";
 import { cn } from "@/lib/utils";
+import { useClipboard } from "@/utils/ui/clipboard";
 
 interface ProposePlanToolCallProps {
   args: ProposePlanToolArgs;
@@ -30,7 +31,7 @@ export const ProposePlanToolCall: React.FC<ProposePlanToolCallProps> = ({
 }) => {
   const { expanded, toggleExpanded } = useToolExpansion(true); // Expand by default
   const [showRaw, setShowRaw] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const { copied, copy } = useClipboard();
 
   // Format: Title as H1 + plan content for "Start Here" functionality
   const startHereContent = `# ${args.title}\n\n${args.plan}`;
@@ -52,9 +53,7 @@ export const ProposePlanToolCall: React.FC<ProposePlanToolCallProps> = ({
 
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(args.plan);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      await copy(args.plan);
     } catch (err) {
       console.error("Failed to copy:", err);
     }
@@ -159,7 +158,7 @@ export const ProposePlanToolCall: React.FC<ProposePlanToolCallProps> = ({
                     "px-2 py-1 text-[10px] font-mono rounded-sm cursor-pointer transition-all duration-150 active:translate-y-px hover:text-plan-mode"
                   )}
                   style={{
-                    color: showRaw ? "var(--color-plan-mode)" : "#888",
+                    color: showRaw ? "var(--color-plan-mode)" : "var(--color-muted)",
                     background: showRaw
                       ? "color-mix(in srgb, var(--color-plan-mode), transparent 90%)"
                       : "transparent",

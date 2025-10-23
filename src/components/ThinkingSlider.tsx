@@ -24,7 +24,7 @@ const GLOW_INTENSITIES: Record<number, { track: string; thumb: string }> = {
 const getTextStyle = (n: number) => {
   if (n === 0) {
     return {
-      color: "#606060",
+      color: "var(--color-subdued)",
       fontWeight: 400,
       textShadow: "none",
       fontSize: "10px",

@@ -69,6 +69,7 @@
   --color-interrupted: hsl(38 92% 50%);
   --color-review-accent: hsl(48 70% 50%);
   --color-git-dirty: hsl(38 92% 50%);
+  --color-success: hsl(122 39% 49%);      /* #4caf50 - success/pass */
   --color-error: hsl(0 70% 50%);
   --color-error-bg: hsl(0 32% 18%);
   
