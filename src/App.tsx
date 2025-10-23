@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { TooltipProvider } from "./components/ui/tooltip";
 import "./styles/globals.css";
 import type { ProjectConfig } from "./config";
 import type { WorkspaceSelection } from "./components/ProjectSidebar";
@@ -748,9 +749,11 @@ function AppInner() {
 
 function App() {
   return (
-    <CommandRegistryProvider>
-      <AppInner />
-    </CommandRegistryProvider>
+    <TooltipProvider>
+      <CommandRegistryProvider>
+        <AppInner />
+      </CommandRegistryProvider>
+    </TooltipProvider>
   );
 }
 

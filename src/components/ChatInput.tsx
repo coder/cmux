@@ -17,14 +17,15 @@ import {
   prepareCompactionMessage,
   type CommandHandlerContext,
 } from "@/utils/chatCommands";
-import { ToggleGroup } from "./ToggleGroup";
+import { ToggleGroup, ToggleGroupItem } from "./ui/toggle-group";
 import { CUSTOM_EVENTS } from "@/constants/events";
 import type { UIMode } from "@/types/mode";
 import {
   getSlashCommandSuggestions,
   type SlashSuggestion,
 } from "@/utils/slashCommands/suggestions";
-import { TooltipWrapper, Tooltip, HelpIndicator } from "./Tooltip";
+import { Tooltip, TooltipTrigger, TooltipContent } from "./ui/tooltip";
+import { HelpIndicator } from "./Tooltip";
 import { matchesKeybind, formatKeybind, KEYBINDS, isEditableElement } from "@/utils/ui/keybinds";
 import { ModelSelector, type ModelSelectorRef } from "./ModelSelector";
 import { useModelLRU } from "@/hooks/useModelLRU";
@@ -757,9 +758,11 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                 onComplete={() => inputRef.current?.focus()}
               />
               <span className="help-indicator-wrapper">
-                <TooltipWrapper inline>
-                  <HelpIndicator>?</HelpIndicator>
-                  <Tooltip className="tooltip" align="left" width="wide">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <HelpIndicator>?</HelpIndicator>
+                  </TooltipTrigger>
+                  <TooltipContent side="left">
                     <strong>Click to edit</strong> or use{" "}
                     {formatKeybind(KEYBINDS.OPEN_MODEL_SELECTOR)}
                     <br />
@@ -774,13 +777,16 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                     <code>/model provider:model-name</code>
                     <br />
                     (e.g., <code>/model anthropic:claude-sonnet-4-5</code>)
-                  </Tooltip>
-                </TooltipWrapper>
+                  </TooltipContent>
+                </Tooltip>
               </span>
             </div>
           </ChatToggles>
           <div className="max-@[700px]:hidden ml-auto flex items-center gap-1.5">
-            <div
+            <ToggleGroup
+              type="single"
+              value={mode}
+              onValueChange={(value) => value && setMode(value as UIMode)}
               className={cn(
                 "flex gap-0 bg-toggle-bg rounded",
                 "[&>button:first-of-type]:rounded-l [&>button:last-of-type]:rounded-r",
@@ -790,19 +796,27 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                   "[&>button:last-of-type]:bg-plan-mode [&>button:last-of-type]:text-white [&>button:last-of-type]:hover:bg-plan-mode-hover"
               )}
             >
-              <ToggleGroup<UIMode>
-                options={[
-                  { value: "exec", label: "Exec", activeClassName: "bg-exec-mode text-white" },
-                  { value: "plan", label: "Plan", activeClassName: "bg-plan-mode text-white" },
-                ]}
-                value={mode}
-                onChange={setMode}
-              />
-            </div>
+              <ToggleGroupItem
+                value="exec"
+                aria-label="Exec mode"
+                className="px-2 py-1 text-[11px] font-sans rounded-sm border-none cursor-pointer transition-all duration-150 bg-transparent data-[state=on]:bg-exec-mode data-[state=on]:text-white data-[state=on]:hover:bg-exec-mode-hover text-toggle-text font-normal hover:text-toggle-text-hover hover:bg-toggle-hover"
+              >
+                Exec
+              </ToggleGroupItem>
+              <ToggleGroupItem
+                value="plan"
+                aria-label="Plan mode"
+                className="px-2 py-1 text-[11px] font-sans rounded-sm border-none cursor-pointer transition-all duration-150 bg-transparent data-[state=on]:bg-plan-mode data-[state=on]:text-white data-[state=on]:hover:bg-plan-mode-hover text-toggle-text font-normal hover:text-toggle-text-hover hover:bg-toggle-hover"
+              >
+                Plan
+              </ToggleGroupItem>
+            </ToggleGroup>
             <span className="help-indicator-wrapper">
-              <TooltipWrapper inline>
-                <HelpIndicator>?</HelpIndicator>
-                <Tooltip className="tooltip" align="center" width="wide">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <HelpIndicator>?</HelpIndicator>
+                </TooltipTrigger>
+                <TooltipContent>
                   <strong>Exec Mode:</strong> AI edits files and execute commands
                   <br />
                   <br />
@@ -810,8 +824,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                   <br />
                   <br />
                   Toggle with: {formatKeybind(KEYBINDS.TOGGLE_MODE)}
-                </Tooltip>
-              </TooltipWrapper>
+                </TooltipContent>
+              </Tooltip>
             </span>
           </div>
         </div>

@@ -255,6 +255,28 @@ If IPC is hard to test, fix the test infrastructure or IPC layer, don't work aro
 - Use CSS variables (e.g., `var(--color-plan-mode)`) instead of hardcoded colors
 - Fonts are centralized as CSS variables in `src/styles/fonts.tsx`
 
+## Component Guidelines
+
+**Always use shadcn/ui components from `@/components/ui/*` for standard UI patterns.**
+
+- **Adding components**: `bunx --bun shadcn@latest add <component>`
+- **Common components**: button, input, select, dialog, tooltip, toggle-group, checkbox, switch, etc.
+- **Documentation**: https://ui.shadcn.com/docs/components
+- **Build custom only when**: The component has app-specific behavior with no shadcn equivalent
+
+Example:
+```bash
+# Add a new shadcn component
+bunx --bun shadcn@latest add badge
+
+# Import in your code  
+import { Badge } from "@/components/ui/badge"
+```
+
+Shadcn components automatically respect our CSS variables via the `@/lib/utils` cn() helper and Tailwind config.
+
+
+
 ## TypeScript Best Practices
 
 - **Avoid `as any` in all contexts** - Never use `as any` casts. Instead:
