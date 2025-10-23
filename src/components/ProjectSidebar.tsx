@@ -426,14 +426,18 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
                 <h2 className="m-0 text-[13px] font-semibold text-[#cccccc] uppercase tracking-[0.8px]">
                   Projects
                 </h2>
-                <button
-                  onClick={onAddProject}
-                  title="Add Project"
-                  aria-label="Add project"
-                  className="w-6 h-6 bg-transparent text-[#cccccc] border border-transparent rounded cursor-pointer text-lg flex items-center justify-center p-0 transition-all duration-200 hover:bg-[#2a2a2b] hover:border-[#3c3c3c]"
-                >
-                  +
-                </button>
+                <TooltipWrapper inline>
+                  <button
+                    onClick={onAddProject}
+                    aria-label="Add project"
+                    className="w-6 h-6 bg-transparent text-[#cccccc] border border-transparent rounded cursor-pointer text-lg flex items-center justify-center p-0 transition-all duration-200 hover:bg-[#2a2a2b] hover:border-[#3c3c3c]"
+                  >
+                    +
+                  </button>
+                  <Tooltip className="tooltip" align="right">
+                    Add Project
+                  </Tooltip>
+                </TooltipWrapper>
               </div>
               <div className="flex-1 overflow-y-auto">
                 {projects.size === 0 ? (

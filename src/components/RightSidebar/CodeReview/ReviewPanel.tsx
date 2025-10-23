@@ -31,12 +31,7 @@ import { useReviewState } from "@/hooks/useReviewState";
 import { parseDiff, extractAllHunks } from "@/utils/git/diffParser";
 import { getReviewSearchStateKey } from "@/constants/storage";
 import { Tooltip, TooltipWrapper } from "@/components/Tooltip";
-import {
-  parseNumstat,
-  buildFileTree,
-  extractNewPath,
-  extractCommonPrefix,
-} from "@/utils/git/numstatParser";
+import { parseNumstat, buildFileTree, extractNewPath } from "@/utils/git/numstatParser";
 import type { DiffHunk, ReviewFilters as ReviewFiltersType } from "@/types/review";
 import type { FileTreeNode } from "@/utils/git/numstatParser";
 import { matchesKeybind, KEYBINDS, formatKeybind } from "@/utils/ui/keybinds";
@@ -137,7 +132,6 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
   const [isPanelFocused, setIsPanelFocused] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [fileTree, setFileTree] = useState<FileTreeNode | null>(null);
-  const [commonPrefix, setCommonPrefix] = useState<string | null>(null);
   // Map of hunkId -> toggle function for expand/collapse
   const toggleExpandFnsRef = useRef<Map<string, () => void>>(new Map());
 
@@ -220,13 +214,9 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
           const numstatOutput = numstatResult.data.output ?? "";
           const fileStats = parseNumstat(numstatOutput);
 
-          // Extract common prefix for display (don't modify paths)
-          const prefix = extractCommonPrefix(fileStats);
-
           // Build tree with original paths (needed for git commands)
           const tree = buildFileTree(fileStats);
           setFileTree(tree);
-          setCommonPrefix(prefix);
         }
       } catch (err) {
         console.error("Failed to load file tree:", err);
@@ -710,7 +700,6 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
                 selectedPath={selectedFilePath}
                 onSelectFile={setSelectedFilePath}
                 isLoading={isLoadingTree}
-                commonPrefix={commonPrefix}
                 getFileReadStatus={getFileReadStatus}
                 workspaceId={workspaceId}
               />

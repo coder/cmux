@@ -55,7 +55,6 @@ const TreeNodeContent: React.FC<{
   depth: number;
   selectedPath: string | null;
   onSelectFile: (path: string | null) => void;
-  commonPrefix: string | null;
   getFileReadStatus?: (filePath: string) => { total: number; read: number } | null;
   expandStateMap: Record<string, boolean>;
   setExpandStateMap: (
@@ -66,7 +65,6 @@ const TreeNodeContent: React.FC<{
   depth,
   selectedPath,
   onSelectFile,
-  commonPrefix,
   getFileReadStatus,
   expandStateMap,
   setExpandStateMap,
@@ -213,7 +211,6 @@ const TreeNodeContent: React.FC<{
             depth={depth + 1}
             selectedPath={selectedPath}
             onSelectFile={onSelectFile}
-            commonPrefix={commonPrefix}
             getFileReadStatus={getFileReadStatus}
             expandStateMap={expandStateMap}
             setExpandStateMap={setExpandStateMap}
@@ -228,7 +225,6 @@ interface FileTreeExternalProps {
   selectedPath: string | null;
   onSelectFile: (path: string | null) => void;
   isLoading?: boolean;
-  commonPrefix?: string | null;
   getFileReadStatus?: (filePath: string) => { total: number; read: number } | null;
   workspaceId: string;
 }
@@ -238,7 +234,6 @@ export const FileTree: React.FC<FileTreeExternalProps> = ({
   selectedPath,
   onSelectFile,
   isLoading = false,
-  commonPrefix = null,
   getFileReadStatus,
   workspaceId,
 }) => {
@@ -248,23 +243,6 @@ export const FileTree: React.FC<FileTreeExternalProps> = ({
     {},
     { listener: true }
   );
-
-  // Find the node at the common prefix path to start rendering from
-  const startNode = React.useMemo(() => {
-    if (!commonPrefix || !root) return root;
-
-    // Navigate to the node at the common prefix path
-    const parts = commonPrefix.split("/");
-    let current = root;
-
-    for (const part of parts) {
-      const child = current.children.find((c) => c.name === part);
-      if (!child) return root; // Fallback if path not found
-      current = child;
-    }
-
-    return current;
-  }, [root, commonPrefix]);
 
   return (
     <>
@@ -279,23 +257,17 @@ export const FileTree: React.FC<FileTreeExternalProps> = ({
           </button>
         )}
       </div>
-      {commonPrefix && (
-        <div className="py-1.5 px-3 bg-[#1e1e1e] border-b border-[#3e3e42] text-[11px] text-[#888] font-monospace">
-          {commonPrefix}/
-        </div>
-      )}
       <div className="flex-1 min-h-0 p-3 overflow-y-auto font-monospace text-xs">
-        {isLoading && !startNode ? (
+        {isLoading && !root ? (
           <div className="py-5 text-[#888] text-center">Loading file tree...</div>
-        ) : startNode ? (
-          startNode.children.map((child) => (
+        ) : root ? (
+          root.children.map((child) => (
             <TreeNodeContent
               key={child.path}
               node={child}
               depth={0}
               selectedPath={selectedPath}
               onSelectFile={onSelectFile}
-              commonPrefix={commonPrefix}
               getFileReadStatus={getFileReadStatus}
               expandStateMap={expandStateMap}
               setExpandStateMap={setExpandStateMap}
