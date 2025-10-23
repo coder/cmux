@@ -42,14 +42,10 @@ function createInvokeIPC(
 
     const result = (await response.json()) as InvokeResponse<T>;
 
+    // Return the result as-is - let the caller handle success/failure
+    // This matches the behavior of Electron's ipcRenderer.invoke() which doesn't throw on error
     if (!result.success) {
-      // Failed response - check if it's a structured error or simple string
-      if (typeof result.error === "object" && result.error !== null) {
-        // Structured error (e.g., SendMessageError) - return as Result<T, E> for caller to handle
-        return result as T;
-      }
-      // Simple string error - throw it
-      throw new Error(typeof result.error === "string" ? result.error : "Unknown error");
+      return result as T;
     }
 
     // Success - unwrap and return the data
@@ -60,7 +56,7 @@ function createInvokeIPC(
 }
 
 describe("Browser API invokeIPC", () => {
-  test("CURRENT BEHAVIOR: throws on string error (causes unhandled rejection)", async () => {
+  test("should return error object on failure (matches Electron behavior)", async () => {
     const mockFetch = createMockFetch({
       success: false,
       error: "fatal: contains modified or untracked files",
@@ -68,23 +64,8 @@ describe("Browser API invokeIPC", () => {
 
     const invokeIPC = createInvokeIPC(mockFetch);
 
-    // Current behavior: invokeIPC throws on string errors
-    // eslint-disable-next-line @typescript-eslint/await-thenable
-    await expect(invokeIPC("WORKSPACE_REMOVE", "test-workspace", { force: false })).rejects.toThrow(
-      "fatal: contains modified or untracked files"
-    );
-  });
-
-  test.skip("DESIRED BEHAVIOR: should return error object on string error (match Electron)", async () => {
-    const mockFetch = createMockFetch({
-      success: false,
-      error: "fatal: contains modified or untracked files",
-    });
-
-    const invokeIPC = createInvokeIPC(mockFetch);
-
-    // Desired behavior: Should return { success: false, error: "..." }
-    // This test documents what we want - actual implementation test is below
+    // Fixed behavior: invokeIPC returns error object instead of throwing
+    // This matches Electron's ipcRenderer.invoke() which never throws on error
     const result = await invokeIPC<{ success: boolean; error?: string }>(
       "WORKSPACE_REMOVE",
       "test-workspace",
