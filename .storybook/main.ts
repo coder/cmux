@@ -18,9 +18,10 @@ const config: StorybookConfig = {
       // Inherit project aliases
       resolve: {
         alias: {
-          "@": path.join(process.cwd(), "src"),
           // Mock version module for stable visual testing in Storybook
+          // MUST be before @ alias to take precedence
           "@/version": path.join(process.cwd(), ".storybook/mocks/version.ts"),
+          "@": path.join(process.cwd(), "src"),
         },
       },
     });
