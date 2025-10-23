@@ -245,7 +245,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
     return (
       <div
         className={cn(
-          "flex flex-1 flex-row bg-neutral-900 text-neutral-300 overflow-x-auto overflow-y-hidden [@media(max-width:768px)]:flex-col",
+          "flex flex-1 flex-row bg-neutral-800 text-neutral-300 overflow-x-auto overflow-y-hidden [@media(max-width:768px)]:flex-col",
           className
         )}
         style={{ containerType: "inline-size" }}
@@ -286,7 +286,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
     return (
       <div
         className={cn(
-          "flex flex-1 flex-row bg-neutral-900 text-neutral-300 overflow-x-auto overflow-y-hidden [@media(max-width:768px)]:flex-col",
+          "flex flex-1 flex-row bg-neutral-800 text-neutral-300 overflow-x-auto overflow-y-hidden [@media(max-width:768px)]:flex-col",
           className
         )}
         style={{ containerType: "inline-size" }}
@@ -302,7 +302,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
     return (
       <div
         className={cn(
-          "flex flex-1 flex-row bg-neutral-900 text-neutral-300 overflow-x-auto overflow-y-hidden [@media(max-width:768px)]:flex-col",
+          "flex flex-1 flex-row bg-neutral-800 text-neutral-300 overflow-x-auto overflow-y-hidden [@media(max-width:768px)]:flex-col",
           className
         )}
         style={{ containerType: "inline-size" }}
@@ -320,7 +320,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
   return (
     <div
       className={cn(
-        "flex flex-1 flex-row bg-neutral-900 text-neutral-300 overflow-x-auto overflow-y-hidden [@media(max-width:768px)]:flex-col",
+        "flex flex-1 flex-row bg-neutral-800 text-neutral-300 overflow-x-auto overflow-y-hidden [@media(max-width:768px)]:flex-col",
         className
       )}
       style={{ containerType: "inline-size" }}
@@ -329,7 +329,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
         ref={chatAreaRef}
         className="flex min-w-96 flex-1 flex-col [@media(max-width:768px)]:max-h-full [@media(max-width:768px)]:w-full [@media(max-width:768px)]:min-w-0"
       >
-        <div className="flex items-center justify-between border-b border-neutral-800 bg-neutral-900 px-[15px] py-1 [@media(max-width:768px)]:flex-wrap [@media(max-width:768px)]:gap-2 [@media(max-width:768px)]:py-2 [@media(max-width:768px)]:pl-[60px]">
+        <div className="flex items-center justify-between border-b border-neutral-800 bg-neutral-800 px-[15px] py-1 [@media(max-width:768px)]:flex-wrap [@media(max-width:768px)]:gap-2 [@media(max-width:768px)]:py-2 [@media(max-width:768px)]:pl-[60px]">
           <div className="flex min-w-0 items-center gap-2 overflow-hidden font-semibold text-neutral-300">
             <StatusIndicator
               streaming={canInterrupt}

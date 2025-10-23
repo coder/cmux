@@ -592,7 +592,7 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
                                             : `Expand workspaces older than ${formatOldWorkspaceThreshold()}`
                                         }
                                         aria-expanded={showOldWorkspaces}
-                                        className="flex w-full cursor-pointer items-center justify-between border-t border-none border-neutral-900 bg-transparent px-3 py-2 pl-[22px] text-xs font-medium text-neutral-400 transition-all duration-150 hover:bg-white/[0.03] hover:text-neutral-400 [&:hover_.arrow]:text-neutral-400"
+                                        className="border-hover flex w-full cursor-pointer items-center justify-between border-t border-none bg-transparent px-3 py-2 pl-[22px] text-xs font-medium text-neutral-400 transition-all duration-150 hover:bg-white/[0.03] hover:text-neutral-400 [&:hover_.arrow]:text-neutral-400"
                                       >
                                         <div className="flex items-center gap-1.5">
                                           <span>Older than {formatOldWorkspaceThreshold()}</span>
