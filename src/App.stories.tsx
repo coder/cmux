@@ -6,7 +6,7 @@ import type { FrontendWorkspaceMetadata } from "./types/workspace";
 import type { IPCApi } from "./types/ipc";
 
 // Stable timestamp for visual testing (Apple demo time: Jan 24, 2024, 9:41 AM PST)
-const STABLE_TIMESTAMP = new Date('2024-01-24T09:41:00-08:00').getTime();
+const STABLE_TIMESTAMP = new Date("2024-01-24T09:41:00-08:00").getTime();
 
 // Mock window.api for App component
 function setupMockAPI(options: {

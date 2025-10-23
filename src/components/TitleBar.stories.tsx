@@ -19,7 +19,7 @@ type Story = StoryObj<typeof meta>;
 
 /**
  * The TitleBar shows the cmux version and build date.
- * 
+ *
  * Note: The version displayed is generated at build time from git information.
  * In Storybook, you'll see the current development version.
  */
@@ -35,4 +35,3 @@ export const WithTelemetryDisabled: Story = {
     },
   },
 };
-

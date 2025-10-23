@@ -4,7 +4,7 @@ import { UserMessage } from "./UserMessage";
 import type { DisplayedMessage } from "@/types/message";
 
 // Stable timestamp for visual testing (Apple demo time: Jan 24, 2024, 9:41 AM PST)
-const STABLE_TIMESTAMP = new Date('2024-01-24T09:41:00-08:00').getTime();
+const STABLE_TIMESTAMP = new Date("2024-01-24T09:41:00-08:00").getTime();
 
 const clipboardWriteText = (data: string) => {
   action("copy-text")(data);
