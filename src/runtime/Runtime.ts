@@ -1,5 +1,11 @@
 /**
  * Runtime abstraction for executing tools in different environments.
+ *
+ * DESIGN PRINCIPLE: Keep this interface minimal and low-level.
+ * - Prefer streaming primitives over buffered APIs
+ * - Implement shared helpers (utils/runtime/) that work across all runtimes
+ * - Avoid duplicating helper logic in each runtime implementation
+ *
  * This interface allows tools to run locally, in Docker containers, over SSH, etc.
  */
 
@@ -11,8 +17,6 @@ export interface ExecOptions {
   cwd: string;
   /** Environment variables to inject */
   env?: Record<string, string>;
-  /** Standard input to pipe to command */
-  stdin?: string;
   /** Timeout in seconds */
   timeout?: number;
   /** Process niceness level (-20 to 19, lower = higher priority) */
@@ -22,17 +26,19 @@ export interface ExecOptions {
 }
 
 /**
- * Result from executing a command
+ * Streaming result from executing a command
  */
-export interface ExecResult {
-  /** Standard output */
-  stdout: string;
-  /** Standard error */
-  stderr: string;
-  /** Exit code (0 = success) */
-  exitCode: number;
-  /** Wall clock duration in milliseconds */
-  duration: number;
+export interface ExecStream {
+  /** Standard output stream */
+  stdout: ReadableStream<Uint8Array>;
+  /** Standard error stream */
+  stderr: ReadableStream<Uint8Array>;
+  /** Standard input stream */
+  stdin: WritableStream<Uint8Array>;
+  /** Promise that resolves with exit code when process completes */
+  exitCode: Promise<number>;
+  /** Promise that resolves with wall clock duration in milliseconds */
+  duration: Promise<number>;
 }
 
 /**
@@ -50,33 +56,36 @@ export interface FileStat {
 }
 
 /**
- * Runtime interface - minimal abstraction for tool execution environments
+ * Runtime interface - minimal, low-level abstraction for tool execution environments.
+ *
+ * All methods return streaming primitives for memory efficiency.
+ * Use helpers in utils/runtime/ for convenience wrappers (e.g., readFileString, execBuffered).
  */
 export interface Runtime {
   /**
-   * Execute a bash command
+   * Execute a bash command with streaming I/O
    * @param command The bash script to execute
    * @param options Execution options (cwd, env, timeout, etc.)
-   * @returns Result with stdout, stderr, exit code, and duration
+   * @returns Streaming handles for stdin/stdout/stderr and completion promises
    * @throws RuntimeError if execution fails in an unrecoverable way
    */
-  exec(command: string, options: ExecOptions): Promise<ExecResult>;
+  exec(command: string, options: ExecOptions): ExecStream;
 
   /**
-   * Read file contents as UTF-8 string
+   * Read file contents as a stream
    * @param path Absolute or relative path to file
-   * @returns File contents as string
+   * @returns Readable stream of file contents
    * @throws RuntimeError if file cannot be read
    */
-  readFile(path: string): Promise<string>;
+  readFile(path: string): ReadableStream<Uint8Array>;
 
   /**
-   * Write file contents atomically
+   * Write file contents atomically from a stream
    * @param path Absolute or relative path to file
-   * @param content File contents to write
+   * @returns Writable stream for file contents
    * @throws RuntimeError if file cannot be written
    */
-  writeFile(path: string, content: string): Promise<void>;
+  writeFile(path: string): WritableStream<Uint8Array>;
 
   /**
    * Get file statistics

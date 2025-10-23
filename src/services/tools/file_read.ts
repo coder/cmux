@@ -5,6 +5,7 @@ import type { ToolConfiguration, ToolFactory } from "@/utils/tools/tools";
 import { TOOL_DEFINITIONS } from "@/utils/tools/toolDefinitions";
 import { validatePathInCwd, validateFileSize } from "./fileCommon";
 import { RuntimeError } from "@/runtime/Runtime";
+import { readFileString } from "@/utils/runtime/helpers";
 
 /**
  * File read tool factory for AI assistant
@@ -65,10 +66,10 @@ export const createFileReadTool: ToolFactory = (config: ToolConfiguration) => {
           };
         }
 
-        // Read full file content using runtime
+        // Read full file content using runtime helper
         let fullContent: string;
         try {
-          fullContent = await config.runtime.readFile(resolvedPath);
+          fullContent = await readFileString(config.runtime, resolvedPath);
         } catch (err) {
           if (err instanceof RuntimeError) {
             return {

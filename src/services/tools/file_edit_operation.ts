@@ -4,6 +4,7 @@ import { WRITE_DENIED_PREFIX } from "@/types/tools";
 import type { ToolConfiguration } from "@/utils/tools/tools";
 import { generateDiff, validateFileSize, validatePathInCwd } from "./fileCommon";
 import { RuntimeError } from "@/runtime/Runtime";
+import { readFileString, writeFileString } from "@/utils/runtime/helpers";
 
 type FileEditOperationResult<TMetadata> =
   | {
@@ -75,10 +76,10 @@ export async function executeFileEditOperation<TMetadata>({
       };
     }
 
-    // Read file content using runtime
+    // Read file content using runtime helper
     let originalContent: string;
     try {
-      originalContent = await config.runtime.readFile(resolvedPath);
+      originalContent = await readFileString(config.runtime, resolvedPath);
     } catch (err) {
       if (err instanceof RuntimeError) {
         return {
@@ -97,9 +98,9 @@ export async function executeFileEditOperation<TMetadata>({
       };
     }
 
-    // Write file using runtime
+    // Write file using runtime helper
     try {
-      await config.runtime.writeFile(resolvedPath, operationResult.newContent);
+      await writeFileString(config.runtime, resolvedPath, operationResult.newContent);
     } catch (err) {
       if (err instanceof RuntimeError) {
         return {
