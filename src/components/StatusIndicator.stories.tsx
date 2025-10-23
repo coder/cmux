@@ -221,26 +221,20 @@ export const WithTooltipInteraction: Story = {
     await userEvent.hover(indicator);
 
     // Wait for tooltip to appear (shadcn tooltips use role="tooltip")
-    await waitFor(
-      async () => {
-        const tooltip = document.body.querySelector('[role="tooltip"]');
-        await expect(tooltip).toBeInTheDocument();
-        await expect(tooltip).toHaveTextContent("3 unread messages");
-      },
-      { timeout: 2000 }
-    );
+    await waitFor(() => {
+      const tooltip = document.body.querySelector('[role="tooltip"]');
+      void expect(tooltip).toBeInTheDocument();
+      void expect(tooltip).toHaveTextContent("3 unread messages");
+    });
 
     // Unhover to hide tooltip
     await userEvent.unhover(indicator);
 
     // Wait for tooltip to disappear
-    await waitFor(
-      async () => {
-        const tooltip = document.body.querySelector('[role="tooltip"]');
-        await expect(tooltip).not.toBeInTheDocument();
-      },
-      { timeout: 2000 }
-    );
+    await waitFor(() => {
+      const tooltip = document.body.querySelector('[role="tooltip"]');
+      void expect(tooltip).not.toBeInTheDocument();
+    });
   },
 };
 
