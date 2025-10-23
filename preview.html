@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Purple Theme Preview</title>
+    <style>
+        @import url('./src/styles/globals.css');
+        
+        body {
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: var(--color-background-secondary);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius);
+        }
+        
+        h2 {
+            margin-top: 0;
+            color: var(--color-accent);
+        }
+        
+        .color-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .color-box {
+            padding: 15px;
+            border-radius: 4px;
+            border: 1px solid var(--color-border);
+        }
+        
+        .button {
+            padding: 10px 20px;
+            margin: 5px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            background: var(--color-button-bg);
+            color: var(--color-button-text);
+        }
+        
+        .button:hover {
+            background: var(--color-button-hover);
+        }
+        
+        .button-accent {
+            background: var(--color-accent);
+            color: white;
+        }
+        
+        .button-accent:hover {
+            background: var(--color-accent-hover);
+        }
+        
+        input, textarea {
+            width: 100%;
+            padding: 10px;
+            background: var(--color-input-bg);
+            color: var(--color-input-text);
+            border: 1px solid var(--color-input-border);
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: var(--color-input-border-focus);
+        }
+        
+        .message {
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        
+        .message-user {
+            border: 1px solid var(--color-user-border);
+        }
+        
+        .message-assistant {
+            border: 1px solid var(--color-assistant-border);
+        }
+        
+        code {
+            background: var(--color-code-bg);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: var(--font-monospace);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎨 Subtle Purple Theme Preview</h1>
+        
+        <div class="section">
+            <h2>Backgrounds & Borders</h2>
+            <div class="color-grid">
+                <div class="color-box" style="background: var(--color-background);">
+                    Background
+                </div>
+                <div class="color-box" style="background: var(--color-background-secondary);">
+                    Background Secondary
+                </div>
+                <div class="color-box" style="background: var(--color-dark);">
+                    Dark
+                </div>
+                <div class="color-box" style="background: var(--color-darker);">
+                    Darker
+                </div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>Buttons</h2>
+            <button class="button">Default Button</button>
+            <button class="button-accent">Accent Button</button>
+        </div>
+        
+        <div class="section">
+            <h2>Input Fields</h2>
+            <input type="text" placeholder="Type something...">
+            <textarea rows="3" placeholder="Enter text here..."></textarea>
+        </div>
+        
+        <div class="section">
+            <h2>Messages</h2>
+            <div class="message message-user">
+                User message with <code>inline code</code>
+            </div>
+            <div class="message message-assistant">
+                Assistant message with purple undertones
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>Text Colors</h2>
+            <p style="color: var(--color-foreground);">Primary foreground text</p>
+            <p style="color: var(--color-secondary);">Secondary text</p>
+            <p style="color: var(--color-muted);">Muted text</p>
+            <p style="color: var(--color-accent);">Accent colored text</p>
+        </div>
+    </div>
+</body>
+</html>

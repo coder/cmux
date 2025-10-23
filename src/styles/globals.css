@@ -27,43 +27,43 @@
   --color-thinking-border: hsl(271 76% 53%);
   
   /* Background & Layout */
-  --color-background: hsl(0 0% 12%);
-  --color-background-secondary: hsl(60 1% 15%);
-  --color-border: hsl(240 2% 25%);
-  --color-foreground: hsl(0 0% 83%);
-  --color-secondary: hsl(0 0% 42%);
+  --color-background: hsl(265 8% 12%);
+  --color-background-secondary: hsl(265 6% 15%);
+  --color-border: hsl(265 5% 25%);
+  --color-foreground: hsl(270 5% 83%);
+  --color-secondary: hsl(265 4% 42%);
   
   /* Code */
-  --color-code-bg: hsl(0 6.43% 8.04%);
+  --color-code-bg: hsl(265 8% 8%);
   
   /* Buttons */
-  --color-button-bg: hsl(0 0% 24%);
-  --color-button-text: hsl(0 0% 80%);
-  --color-button-hover: hsl(0 0% 29%);
+  --color-button-bg: hsl(265 5% 24%);
+  --color-button-text: hsl(270 4% 80%);
+  --color-button-hover: hsl(265 5% 29%);
   
   /* Messages */
-  --color-user-border: hsl(0 0% 38%);
-  --color-user-border-hover: hsl(0 0% 44%);
-  --color-assistant-border: hsl(207 45% 40%);
-  --color-assistant-border-hover: hsl(207 45% 50%);
-  --color-message-header: hsl(0 0% 80%);
+  --color-user-border: hsl(265 4% 38%);
+  --color-user-border-hover: hsl(265 5% 44%);
+  --color-assistant-border: hsl(250 35% 45%);
+  --color-assistant-border-hover: hsl(250 35% 55%);
+  --color-message-header: hsl(270 4% 80%);
   
   /* Tokens */
-  --color-token-prompt: hsl(0 0% 40%);
-  --color-token-completion: hsl(207 100% 40%);
-  --color-token-variable: hsl(207 100% 40%);
-  --color-token-fixed: hsl(0 0% 40%);
-  --color-token-input: hsl(120 40% 35%);
-  --color-token-output: hsl(207 100% 40%);
-  --color-token-cached: hsl(0 0% 50%);
+  --color-token-prompt: hsl(265 4% 40%);
+  --color-token-completion: hsl(250 80% 50%);
+  --color-token-variable: hsl(250 80% 50%);
+  --color-token-fixed: hsl(265 4% 40%);
+  --color-token-input: hsl(140 30% 40%);
+  --color-token-output: hsl(250 80% 50%);
+  --color-token-cached: hsl(265 4% 50%);
   
   /* Toggle */
-  --color-toggle-bg: hsl(0 0% 16.5%);
-  --color-toggle-active: hsl(0 0% 22.7%);
-  --color-toggle-hover: hsl(0 0% 17.6%);
-  --color-toggle-text: hsl(0 0% 53.3%);
-  --color-toggle-text-active: hsl(0 0% 100%);
-  --color-toggle-text-hover: hsl(0 0% 66.7%);
+  --color-toggle-bg: hsl(265 6% 16.5%);
+  --color-toggle-active: hsl(265 6% 22.7%);
+  --color-toggle-hover: hsl(265 6% 17.6%);
+  --color-toggle-text: hsl(265 4% 53.3%);
+  --color-toggle-text-active: hsl(270 5% 100%);
+  --color-toggle-text-hover: hsl(265 4% 66.7%);
   
   /* Status */
   --color-interrupted: hsl(38 92% 50%);
@@ -73,53 +73,53 @@
   --color-error-bg: hsl(0 32% 18%);
   
   /* Input */
-  --color-input-bg: hsl(0 0% 12%);
-  --color-input-text: hsl(0 0% 80%);
-  --color-input-border: hsl(207 51% 59%);
-  --color-input-border-focus: hsl(193 91% 64%);
+  --color-input-bg: hsl(265 8% 12%);
+  --color-input-text: hsl(270 4% 80%);
+  --color-input-border: hsl(250 40% 60%);
+  --color-input-border-focus: hsl(260 70% 65%);
   
   /* Scrollbar */
-  --color-scrollbar-track: hsl(0 0% 18%);
-  --color-scrollbar-thumb: hsl(0 0% 32%);
-  --color-scrollbar-thumb-hover: hsl(0 0% 42%);
+  --color-scrollbar-track: hsl(265 6% 18%);
+  --color-scrollbar-thumb: hsl(265 5% 32%);
+  --color-scrollbar-thumb-hover: hsl(265 5% 42%);
   
   /* Additional Semantic Colors */
-  --color-muted: hsl(0 0% 53%);              /* #888 - muted text */
-  --color-muted-light: hsl(0 0% 50%);        /* #808080 - muted light */
-  --color-muted-dark: hsl(0 0% 43%);         /* #6e6e6e - muted darker */
-  --color-placeholder: hsl(0 0% 42%);        /* #6b6b6b - placeholder */
-  --color-subtle: hsl(0 0% 60%);             /* #999 - subtle */
-  --color-dim: hsl(0 0% 42%);                /* #666 - dimmed */
-  --color-light: hsl(0 0% 83%);              /* #d4d4d4 - light */
-  --color-lighter: hsl(0 0% 90%);            /* #e5e5e5 - lighter */
-  --color-bright: hsl(0 0% 80%);             /* #cccccc - bright */
-  --color-subdued: hsl(0 0% 60%);            /* #9a9a9a - subdued */
-  --color-label: hsl(0 0% 67%);              /* #aaa - label */
-  --color-gray: hsl(0 0% 48%);               /* #7a7a7a - gray */
-  --color-medium: hsl(0 0% 59%);             /* #969696 - medium */
+  --color-muted: hsl(265 4% 53%);              /* muted text */
+  --color-muted-light: hsl(265 4% 50%);        /* muted light */
+  --color-muted-dark: hsl(265 4% 43%);         /* muted darker */
+  --color-placeholder: hsl(265 4% 42%);        /* placeholder */
+  --color-subtle: hsl(265 4% 60%);             /* subtle */
+  --color-dim: hsl(265 4% 42%);                /* dimmed */
+  --color-light: hsl(270 4% 83%);              /* light */
+  --color-lighter: hsl(270 4% 90%);            /* lighter */
+  --color-bright: hsl(270 4% 80%);             /* bright */
+  --color-subdued: hsl(265 4% 60%);            /* subdued */
+  --color-label: hsl(265 4% 67%);              /* label */
+  --color-gray: hsl(265 4% 48%);               /* gray */
+  --color-medium: hsl(265 4% 59%);             /* medium */
   
-  --color-border-light: hsl(240 3% 25%);     /* #3e3e42 - lighter borders */
-  --color-border-medium: hsl(0 0% 27%);      /* #444 - medium borders */
-  --color-border-darker: hsl(0 0% 33%);      /* #555 - darker borders */
-  --color-border-subtle: hsl(0 0% 40%);      /* #666 - subtle border */
-  --color-border-gray: hsl(240 1% 31%);      /* #4e4e52 - gray border */
+  --color-border-light: hsl(265 5% 25%);     /* lighter borders */
+  --color-border-medium: hsl(265 5% 27%);      /* medium borders */
+  --color-border-darker: hsl(265 5% 33%);      /* darker borders */
+  --color-border-subtle: hsl(265 4% 40%);      /* subtle border */
+  --color-border-gray: hsl(265 5% 31%);      /* gray border */
   
-  --color-dark: hsl(0 0% 11.5%);             /* #1e1e1e - dark backgrounds */
-  --color-darker: hsl(0 0% 8.6%);            /* #161616 - darker backgrounds */
-  --color-hover: hsl(0 0% 16.5%);            /* #2a2a2b - hover states */
-  --color-bg-medium: hsl(0 0% 27%);          /* #454545 - medium bg */
-  --color-bg-light: hsl(0 0% 30%);           /* #4c4c4c - light bg */
-  --color-bg-subtle: hsl(240 3% 22%);        /* #37373d - subtle bg */
+  --color-dark: hsl(265 7% 11.5%);             /* dark backgrounds */
+  --color-darker: hsl(265 8% 8.6%);            /* darker backgrounds */
+  --color-hover: hsl(265 6% 16.5%);            /* hover states */
+  --color-bg-medium: hsl(265 5% 27%);          /* medium bg */
+  --color-bg-light: hsl(265 5% 30%);           /* light bg */
+  --color-bg-subtle: hsl(265 6% 22%);        /* subtle bg */
   
-  --color-separator: hsl(0 0% 15%);          /* #252526 - separators */
-  --color-separator-light: hsl(0 0% 27%);    /* #464647 - lighter separator */
-  --color-modal-bg: hsl(0 0% 18%);           /* #2d2d30 - modal backgrounds */
+  --color-separator: hsl(265 6% 15%);          /* separators */
+  --color-separator-light: hsl(265 5% 27%);    /* lighter separator */
+  --color-modal-bg: hsl(265 6% 18%);           /* modal backgrounds */
   
-  --color-accent: hsl(207 100% 40%);         /* #007acc - VS Code blue */
-  --color-accent-hover: hsl(207 100% 45%);   /* #1177bb - accent hover */
-  --color-accent-dark: hsl(207 100% 37%);    /* #0e639c - darker accent */
-  --color-accent-darker: hsl(202 100% 23%);  /* #094771 - even darker accent */
-  --color-accent-light: hsl(198 100% 65%);   /* #4db8ff - lighter accent */
+  --color-accent: hsl(250 70% 50%);         /* purple-blue accent */
+  --color-accent-hover: hsl(250 70% 55%);   /* accent hover */
+  --color-accent-dark: hsl(250 70% 45%);    /* darker accent */
+  --color-accent-darker: hsl(250 70% 35%);  /* even darker accent */
+  --color-accent-light: hsl(250 70% 65%);   /* lighter accent */
   
   --color-success: hsl(122 39% 49%);         /* #4caf50 - success green */
   --color-success-light: hsl(123 46% 64%);   /* #4ade80 - lighter success */
@@ -190,18 +190,18 @@
   --color-thinking-mode: hsl(271 76% 53%);
   --color-pending: hsl(30 100% 70%);
   --color-interrupted: hsl(38 92% 50%);
-  --color-code-bg: hsl(0 6.43% 8.04%);
-  --color-border: hsl(240 2% 25%);
-  --color-text: hsl(0 0% 83%);
-  --color-text-secondary: hsl(0 0% 42%);
-  --color-user-border: hsl(0 0% 38%);
-  --color-assistant-border: hsl(207 45% 40%);
+  --color-code-bg: hsl(265 8% 8%);
+  --color-border: hsl(265 5% 25%);
+  --color-text: hsl(270 4% 83%);
+  --color-text-secondary: hsl(265 4% 42%);
+  --color-user-border: hsl(265 4% 38%);
+  --color-assistant-border: hsl(250 35% 45%);
   --color-review-accent: hsl(48 70% 50%);
-  --color-token-input: hsl(120 40% 35%);
-  --color-token-output: hsl(207 100% 40%);
-  --color-token-variable: hsl(207 100% 40%);
-  --color-token-fixed: hsl(0 0% 40%);
-  --color-token-cached: hsl(0 0% 50%);
+  --color-token-input: hsl(140 30% 40%);
+  --color-token-output: hsl(250 80% 50%);
+  --color-token-variable: hsl(250 80% 50%);
+  --color-token-fixed: hsl(265 4% 40%);
+  --color-token-cached: hsl(265 4% 50%);
 
   /* Font Variables */
   --font-primary: IBM Plex Sans, sans-serif;
