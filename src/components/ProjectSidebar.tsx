@@ -78,7 +78,7 @@ const DraggableProjectItemBase: React.FC<DraggableProjectItemProps> = ({
     <div
       ref={(node) => drag(drop(node))}
       className={cn(
-        "py-1 px-3 flex items-center border-l-transparent transition-all duration-150",
+        "py-1 px-3 flex items-center border-l-transparent transition-all duration-150 bg-separator",
         isDragging ? "cursor-grabbing opacity-40 [&_*]:!cursor-grabbing" : "cursor-grab",
         isOver && "bg-accent/[0.08]",
         selected && "bg-hover border-l-accent",
@@ -416,13 +416,13 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
       <DndProvider backend={HTML5Backend}>
         <ProjectDragLayer />
         <div
-          className="font-primary flex flex-1 flex-col overflow-hidden"
+          className="font-primary flex flex-1 flex-col overflow-hidden bg-dark border-r border-border-light"
           role="navigation"
           aria-label="Projects"
         >
           {!collapsed && (
             <>
-              <div className="border-dark flex items-center justify-between border-b p-4">
+              <div className="border-dark flex items-center justify-between border-b p-4 bg-separator">
                 <h2 className="text-foreground m-0 text-[13px] font-semibold tracking-[0.8px] uppercase">
                   Projects
                 </h2>
@@ -543,7 +543,7 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
                         </DraggableProjectItem>
 
                         {isExpanded && (
-                          <div id={workspaceListId} className="bg-separator">
+                          <div id={workspaceListId}>
                             <div className="border-hover border-b px-3 py-2 pl-[22px]">
                               <button
                                 onClick={() => onAddWorkspace(projectPath)}
