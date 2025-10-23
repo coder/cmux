@@ -53,6 +53,7 @@ export const MarkdownCore = React.memo<MarkdownCoreProps>(({ content, children }
         remarkPlugins={REMARK_PLUGINS}
         rehypePlugins={REHYPE_PLUGINS}
         parseIncompleteMarkdown={true}
+        className="space-y-2" // Reduce from default space-y-4 (16px) to space-y-2 (8px)
       >
         {normalizedContent}
       </Streamdown>
