@@ -774,3 +774,13 @@ pre code {
     background-position: 0% 50%;
   }
 }
+
+/* Font utility classes */
+.font-primary {
+  font-family: var(--font-primary);
+}
+
+.font-monospace {
+  font-family: var(--font-monospace);
+}
+
