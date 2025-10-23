@@ -6,99 +6,7 @@ import React, {
   useImperativeHandle,
   forwardRef,
 } from "react";
-import styled from "@emotion/styled";
-
-const Container = styled.div`
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-`;
-
-const ModelDisplay = styled.div<{ clickable?: boolean }>`
-  font-size: 10px;
-  color: #808080;
-  font-family: var(--font-monospace);
-  line-height: 11px;
-  cursor: ${(props) => (props.clickable ? "pointer" : "default")};
-  padding: 2px 4px;
-  border-radius: 2px;
-  transition: background 0.2s;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: min(150px, 40vw);
-  direction: rtl; /* Right-to-left to show end of text */
-  text-align: left; /* Keep visual alignment left */
-
-  &:hover {
-    background: ${(props) => (props.clickable ? "#2a2a2b" : "transparent")};
-  }
-`;
-
-const InputField = styled.input`
-  font-size: 10px;
-  color: #d4d4d4;
-  background: #1e1e1e;
-  border: 1px solid #3e3e42;
-  border-radius: 2px;
-  padding: 2px 4px;
-  font-family: var(--font-monospace);
-  line-height: 11px;
-  width: min(200px, 60vw);
-  outline: none;
-
-  &:focus {
-    border-color: var(--color-exec-mode);
-  }
-`;
-
-const Dropdown = styled.div`
-  position: absolute;
-  bottom: 100%;
-  left: 0;
-  margin-bottom: 4px;
-  background: #252526;
-  border: 1px solid #3e3e42;
-  border-radius: 4px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  z-index: 1000;
-  min-width: min(300px, 85vw);
-  max-height: 200px;
-  overflow-y: auto;
-`;
-
-const DropdownItem = styled.div<{ highlighted?: boolean }>`
-  font-size: 11px;
-  color: ${(props) => (props.highlighted ? "#ffffff" : "#d4d4d4")};
-  background: ${(props) => (props.highlighted ? "#2a2a2b" : "transparent")};
-  font-family: var(--font-monospace);
-  padding: 6px 10px;
-  cursor: pointer;
-  transition: background 0.1s;
-
-  &:hover {
-    background: #2a2a2b;
-    color: #ffffff;
-  }
-
-  &:first-of-type {
-    border-top-left-radius: 4px;
-    border-top-right-radius: 4px;
-  }
-
-  &:last-of-type {
-    border-bottom-left-radius: 4px;
-    border-bottom-right-radius: 4px;
-  }
-`;
-
-const ErrorText = styled.div`
-  font-size: 9px;
-  color: #f48771;
-  font-family: var(--font-monospace);
-  margin-top: 2px;
-`;
+import { cn } from "@/lib/utils";
 
 interface ModelSelectorProps {
   value: string;
@@ -275,41 +183,51 @@ export const ModelSelector = forwardRef<ModelSelectorRef, ModelSelectorProps>(
 
     if (!isEditing) {
       return (
-        <Container ref={containerRef}>
-          <ModelDisplay clickable onClick={handleClick}>
+        <div ref={containerRef} className="relative flex items-center gap-1">
+          <div
+            className="font-mono text-[10px] text-[#808080] font-monospace leading-[11px] cursor-pointer py-0.5 px-1 rounded-sm transition-colors duration-200 whitespace-nowrap overflow-hidden text-ellipsis max-w-[150px] dir-rtl text-left hover:bg-[#2a2a2b]"
+            onClick={handleClick}
+          >
             {value}
-          </ModelDisplay>
-        </Container>
+          </div>
+        </div>
       );
     }
 
     return (
-      <Container ref={containerRef}>
+      <div ref={containerRef} className="relative flex items-center gap-1">
         <div>
-          <InputField
+          <input
             ref={inputRef}
             value={inputValue}
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
             placeholder="provider:model-name"
+            className="text-[10px] text-[#d4d4d4] bg-[#1e1e1e] border border-[#3e3e42] rounded-sm py-0.5 px-1 font-monospace leading-[11px] w-[200px] outline-none focus:border-exec-mode"
           />
-          {error && <ErrorText>{error}</ErrorText>}
+          {error && <div className="text-[9px] text-[#f48771] font-monospace mt-0.5">{error}</div>}
         </div>
         {showDropdown && filteredModels.length > 0 && (
-          <Dropdown>
+          <div className="absolute bottom-full left-0 mb-1 bg-[#252526] border border-[#3e3e42] rounded shadow-[0_4px_12px_rgba(0,0,0,0.3)] z-[1000] min-w-[300px] max-h-[200px] overflow-y-auto">
             {filteredModels.map((model, index) => (
-              <DropdownItem
+              <div
                 key={model}
                 ref={(el) => (dropdownItemRefs.current[index] = el)}
-                highlighted={index === highlightedIndex}
+                className={cn(
+                  "text-[11px] font-monospace py-1.5 px-2.5 cursor-pointer transition-colors duration-100",
+                  "first:rounded-t last:rounded-b",
+                  index === highlightedIndex
+                    ? "text-white bg-[#2a2a2b]"
+                    : "text-[#d4d4d4] bg-transparent hover:bg-[#2a2a2b] hover:text-white"
+                )}
                 onClick={() => handleSelectModel(model)}
               >
                 {model}
-              </DropdownItem>
+              </div>
             ))}
-          </Dropdown>
+          </div>
         )}
-      </Container>
+      </div>
     );
   }
 );

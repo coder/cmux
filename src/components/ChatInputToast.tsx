@@ -1,155 +1,11 @@
 import type { ReactNode } from "react";
 import React, { useEffect, useCallback } from "react";
-import styled from "@emotion/styled";
-import { keyframes, css } from "@emotion/react";
+import { cn } from "@/lib/utils";
 
-const slideIn = keyframes`
-  from {
-    transform: translateY(10px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
-`;
-
-const fadeOut = keyframes`
-  from {
-    opacity: 1;
-  }
-  to {
-    opacity: 0;
-  }
-`;
-
-// Floating wrapper for toasts
-const ToastWrapper = styled.div`
-  position: absolute;
-  bottom: 100%;
-  left: 15px;
-  right: 15px;
-  margin-bottom: 8px;
-  z-index: 1000;
-  pointer-events: none;
-
-  > * {
-    pointer-events: auto;
-  }
-`;
-
-interface ToastContainerProps {
-  type: "success" | "error";
-  isLeaving?: boolean;
-}
-
-const ToastContainer = styled.div<ToastContainerProps>`
-  padding: 6px 12px;
-  border-radius: 4px;
-  font-size: 12px;
-  animation: ${slideIn} 0.2s ease-out;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-
-  ${(props) =>
-    props.isLeaving &&
-    css`
-      animation: ${fadeOut} 0.2s ease-out forwards;
-    `}
-
-  ${(props) =>
-    props.type === "success" &&
-    css`
-      background: #0e639c20;
-      border: 1px solid #0e639c;
-      color: #3794ff;
-    `}
-
-  ${(props) =>
-    props.type === "error" &&
-    css`
-      background: #f1483620;
-      border: 1px solid #f14836;
-      color: #f14836;
-    `}
-`;
-
-const ToastIcon = styled.span`
-  font-size: 14px;
-  line-height: 1;
-`;
-
-const ToastContent = styled.div`
-  flex: 1;
-`;
-
-const CloseButton = styled.button`
-  background: transparent;
-  border: none;
-  color: inherit;
-  cursor: pointer;
-  padding: 0;
-  width: 16px;
-  height: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 16px;
-  line-height: 1;
-  opacity: 0.6;
-  transition: opacity 0.2s;
-
-  &:hover {
-    opacity: 1;
-  }
-`;
-
-const ToastTitle = styled.div`
-  font-weight: 600;
-  margin-bottom: 1px;
-  font-size: 11px;
-`;
-
-const ToastMessage = styled.div`
-  opacity: 0.9;
-`;
-
-// Rich error styling from SendMessageError
-const ErrorContainer = styled.div`
-  background: #2d1f1f;
-  border: 1px solid #5a2c2c;
-  border-radius: 4px;
-  padding: 10px 12px;
-  font-size: 12px;
-  color: #f48771;
-  animation: ${slideIn} 0.2s ease-out;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-`;
-
-const ErrorDetails = styled.div`
-  color: #d4d4d4;
-  line-height: 1.4;
-  margin-top: 6px;
-`;
-
-const ErrorSolution = styled.div`
-  background: #1e1e1e;
-  border-radius: 3px;
-  padding: 6px 8px;
-  margin-top: 8px;
-  font-family: var(--font-monospace);
-  font-size: 11px;
-  color: #9cdcfe;
-`;
-
-export const SolutionLabel = styled.div`
-  color: #808080;
-  font-size: 10px;
-  margin-bottom: 4px;
-  text-transform: uppercase;
-`;
+const toastTypeStyles: Record<"success" | "error", string> = {
+  success: "bg-[#0e639c20] border border-[#0e639c] text-[#3794ff]",
+  error: "bg-[#f1483620] border border-[#f14836] text-[#f14836]",
+};
 
 export interface Toast {
   id: string;
@@ -164,6 +20,10 @@ interface ChatInputToastProps {
   toast: Toast | null;
   onDismiss: () => void;
 }
+
+export const SolutionLabel: React.FC<{ children: ReactNode }> = ({ children }) => (
+  <div className="text-[#808080] text-[10px] mb-1 uppercase">{children}</div>
+);
 
 export const ChatInputToast: React.FC<ChatInputToastProps> = ({ toast, onDismiss }) => {
   const [isLeaving, setIsLeaving] = React.useState(false);
@@ -201,46 +61,65 @@ export const ChatInputToast: React.FC<ChatInputToastProps> = ({ toast, onDismiss
 
   if (isRichError) {
     return (
-      <ToastWrapper>
-        <ErrorContainer role="alert" aria-live="assertive">
-          <div style={{ display: "flex", alignItems: "flex-start", gap: "6px" }}>
-            <ToastIcon>⚠</ToastIcon>
-            <div style={{ flex: 1 }}>
-              {toast.title && (
-                <div style={{ fontWeight: 600, marginBottom: "6px" }}>{toast.title}</div>
+      <div className="absolute bottom-full left-[15px] right-[15px] mb-2 z-[1000] pointer-events-none [&>*]:pointer-events-auto">
+        <div
+          role="alert"
+          aria-live="assertive"
+          className="bg-[#2d1f1f] border border-[#5a2c2c] rounded px-3 py-2.5 text-xs text-[#f48771] animate-[toastSlideIn_0.2s_ease-out] shadow-[0_4px_12px_rgba(0,0,0,0.3)]"
+        >
+          <div className="flex items-start gap-1.5">
+            <span className="text-sm leading-none">⚠</span>
+            <div className="flex-1">
+              {toast.title && <div className="font-semibold mb-1.5">{toast.title}</div>}
+              <div className="text-[#d4d4d4] leading-[1.4] mt-1.5">{toast.message}</div>
+              {toast.solution && (
+                <div className="bg-[#1e1e1e] rounded px-2 py-1.5 mt-2 font-monospace text-[11px] text-[#9cdcfe]">
+                  {toast.solution}
+                </div>
               )}
-              <ErrorDetails>{toast.message}</ErrorDetails>
-              {toast.solution && <ErrorSolution>{toast.solution}</ErrorSolution>}
             </div>
-            <CloseButton onClick={handleDismiss} aria-label="Dismiss">
+            <button
+              onClick={handleDismiss}
+              aria-label="Dismiss"
+              className="bg-transparent border-0 text-inherit cursor-pointer p-0 w-4 h-4 flex items-center justify-center text-base leading-none opacity-60 transition-opacity hover:opacity-100"
+            >
               ×
-            </CloseButton>
+            </button>
           </div>
-        </ErrorContainer>
-      </ToastWrapper>
+        </div>
+      </div>
     );
   }
 
   // Regular toast for simple messages and success
   return (
-    <ToastWrapper>
-      <ToastContainer
-        type={toast.type}
-        isLeaving={isLeaving}
+    <div className="absolute bottom-full left-[15px] right-[15px] mb-2 z-[1000] pointer-events-none [&>*]:pointer-events-auto">
+      <div
         role={toast.type === "error" ? "alert" : "status"}
         aria-live={toast.type === "error" ? "assertive" : "polite"}
-      >
-        <ToastIcon>{toast.type === "success" ? "✓" : "⚠"}</ToastIcon>
-        <ToastContent>
-          {toast.title && <ToastTitle>{toast.title}</ToastTitle>}
-          <ToastMessage>{toast.message}</ToastMessage>
-        </ToastContent>
-        {toast.type === "error" && (
-          <CloseButton onClick={handleDismiss} aria-label="Dismiss">
-            ×
-          </CloseButton>
+        className={cn(
+          "px-3 py-1.5 rounded text-xs flex items-center gap-1.5 shadow-[0_4px_12px_rgba(0,0,0,0.3)]",
+          isLeaving
+            ? "animate-[toastFadeOut_0.2s_ease-out_forwards]"
+            : "animate-[toastSlideIn_0.2s_ease-out]",
+          toastTypeStyles[toast.type]
         )}
-      </ToastContainer>
-    </ToastWrapper>
+      >
+        <span className="text-sm leading-none">{toast.type === "success" ? "✓" : "⚠"}</span>
+        <div className="flex-1">
+          {toast.title && <div className="font-semibold mb-px text-[11px]">{toast.title}</div>}
+          <div className="opacity-90">{toast.message}</div>
+        </div>
+        {toast.type === "error" && (
+          <button
+            onClick={handleDismiss}
+            aria-label="Dismiss"
+            className="bg-transparent border-0 text-inherit cursor-pointer p-0 w-4 h-4 flex items-center justify-center text-base leading-none opacity-60 transition-opacity hover:opacity-100"
+          >
+            ×
+          </button>
+        )}
+      </div>
+    </div>
   );
 };

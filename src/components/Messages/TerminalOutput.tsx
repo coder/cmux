@@ -1,21 +1,5 @@
 import React from "react";
-import styled from "@emotion/styled";
-
-const ResultOutput = styled.pre<{ isError?: boolean }>`
-  margin: 0;
-  padding: 8px;
-  background: rgba(0, 0, 0, 0.3);
-  border-radius: 2px;
-  font-family: var(--font-monospace);
-  font-size: 11px;
-  line-height: 1.4;
-  color: ${(props) => (props.isError ? "#f48771" : "#d4d4d4")};
-  overflow-x: auto;
-  max-height: 300px;
-  overflow-y: auto;
-  white-space: pre-wrap;
-  word-break: break-all;
-`;
+import { cn } from "@/lib/utils";
 
 export interface TerminalOutputProps {
   output: string;
@@ -29,8 +13,15 @@ export const TerminalOutput: React.FC<TerminalOutputProps> = ({
   className,
 }) => {
   return (
-    <ResultOutput className={className} isError={isError}>
+    <pre
+      className={cn(
+        "m-0 p-2 bg-black/30 rounded-sm font-mono text-[11px] leading-relaxed",
+        "overflow-x-auto max-h-[300px] overflow-y-auto whitespace-pre-wrap break-all",
+        isError ? "text-[#f48771]" : "text-[#d4d4d4]",
+        className
+      )}
+    >
       {output}
-    </ResultOutput>
+    </pre>
   );
 };

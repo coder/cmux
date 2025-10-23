@@ -1,5 +1,4 @@
 import React from "react";
-import styled from "@emotion/styled";
 import type { FileReadToolArgs, FileReadToolResult } from "@/types/tools";
 import {
   ToolContainer,
@@ -14,92 +13,6 @@ import {
 } from "./shared/ToolPrimitives";
 import { useToolExpansion, getStatusDisplay, type ToolStatus } from "./shared/toolUtils";
 import { TooltipWrapper, Tooltip } from "../Tooltip";
-
-// FileRead-specific styled components
-
-const FilePathText = styled.span`
-  color: var(--color-text);
-  font-family: var(--font-monospace);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: min(400px, 80vw);
-`;
-
-const MetadataText = styled.span`
-  color: var(--color-text-secondary);
-  font-size: 10px;
-  margin-left: 8px;
-`;
-
-const ContentBlock = styled.div`
-  margin: 0;
-  padding: 6px 8px;
-  background: var(--color-code-bg);
-  border-radius: 3px;
-  font-size: 11px;
-  line-height: 1.4;
-  max-height: 200px;
-  overflow-y: auto;
-  display: flex;
-`;
-
-const LineNumbers = styled.div`
-  color: var(--color-text-secondary);
-  opacity: 0.4;
-  padding-right: 12px;
-  margin-right: 8px;
-  border-right: 1px solid rgba(255, 255, 255, 0.1);
-  user-select: none;
-  text-align: right;
-  min-width: 40px;
-  font-family: var(--font-monospace);
-`;
-
-const ContentText = styled.pre`
-  margin: 0;
-  padding: 0;
-  white-space: pre-wrap;
-  word-break: break-word;
-  flex: 1;
-  font-family: var(--font-monospace);
-`;
-
-const ErrorMessage = styled.div`
-  color: #f44336;
-  font-size: 11px;
-  padding: 6px 8px;
-  background: rgba(244, 67, 54, 0.1);
-  border-radius: 3px;
-  border-left: 2px solid #f44336;
-`;
-
-const FileInfoRow = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-  padding: 6px 8px;
-  background: var(--color-code-bg);
-  border-radius: 3px;
-  font-size: 11px;
-  line-height: 1.4;
-`;
-
-const InfoItem = styled.div`
-  display: flex;
-  gap: 6px;
-`;
-
-const InfoLabel = styled.span`
-  color: var(--color-text-secondary);
-  font-weight: 500;
-`;
-
-const InfoValue = styled.span`
-  color: var(--color-text);
-  font-family: var(--font-monospace);
-  word-break: break-all;
-`;
 
 interface FileReadToolCallProps {
   args: FileReadToolArgs;
@@ -169,11 +82,13 @@ export const FileReadToolCall: React.FC<FileReadToolCallProps> = ({
           <span>📖</span>
           <Tooltip>file_read</Tooltip>
         </TooltipWrapper>
-        <FilePathText>{filePath}</FilePathText>
+        <span className="text-text font-monospace whitespace-nowrap overflow-hidden text-ellipsis max-w-[400px]">
+          {filePath}
+        </span>
         {result && result.success && parsedContent && (
-          <MetadataText>
+          <span className="text-secondary text-[10px] ml-2">
             read {formatBytes(parsedContent.actualBytes)} of {formatBytes(result.file_size)}
-          </MetadataText>
+          </span>
         )}
         <StatusIndicator status={status}>{getStatusDisplay(status)}</StatusIndicator>
       </ToolHeader>
@@ -181,24 +96,24 @@ export const FileReadToolCall: React.FC<FileReadToolCallProps> = ({
       {expanded && (
         <ToolDetails>
           <DetailSection>
-            <FileInfoRow>
-              <InfoItem>
-                <InfoLabel>Path:</InfoLabel>
-                <InfoValue>{args.filePath}</InfoValue>
-              </InfoItem>
+            <div className="flex flex-wrap gap-4 px-2 py-1.5 bg-[var(--color-code-bg)] rounded text-[11px] leading-[1.4]">
+              <div className="flex gap-1.5">
+                <span className="text-secondary font-medium">Path:</span>
+                <span className="text-text font-monospace break-all">{args.filePath}</span>
+              </div>
               {args.offset !== undefined && (
-                <InfoItem>
-                  <InfoLabel>Offset:</InfoLabel>
-                  <InfoValue>line {args.offset}</InfoValue>
-                </InfoItem>
+                <div className="flex gap-1.5">
+                  <span className="text-secondary font-medium">Offset:</span>
+                  <span className="text-text font-monospace break-all">line {args.offset}</span>
+                </div>
               )}
               {args.limit !== undefined && (
-                <InfoItem>
-                  <InfoLabel>Limit:</InfoLabel>
-                  <InfoValue>{args.limit} lines</InfoValue>
-                </InfoItem>
+                <div className="flex gap-1.5">
+                  <span className="text-secondary font-medium">Limit:</span>
+                  <span className="text-text font-monospace break-all">{args.limit} lines</span>
+                </div>
               )}
-            </FileInfoRow>
+            </div>
           </DetailSection>
 
           {result && (
@@ -206,21 +121,25 @@ export const FileReadToolCall: React.FC<FileReadToolCallProps> = ({
               {result.success === false && result.error && (
                 <DetailSection>
                   <DetailLabel>Error</DetailLabel>
-                  <ErrorMessage>{result.error}</ErrorMessage>
+                  <div className="text-[#f44336] text-[11px] px-2 py-1.5 bg-[rgba(244,67,54,0.1)] rounded border-l-2 border-[#f44336]">
+                    {result.error}
+                  </div>
                 </DetailSection>
               )}
 
               {result.success && result.content && parsedContent && (
                 <DetailSection>
                   <DetailLabel>Content</DetailLabel>
-                  <ContentBlock>
-                    <LineNumbers>
+                  <div className="m-0 px-2 py-1.5 bg-[var(--color-code-bg)] rounded text-[11px] leading-[1.4] max-h-[200px] overflow-y-auto flex">
+                    <div className="text-secondary opacity-40 pr-3 mr-2 border-r border-white/10 select-none text-right min-w-[40px] font-monospace">
                       {parsedContent.lineNumbers.map((lineNum, i) => (
                         <div key={i}>{lineNum}</div>
                       ))}
-                    </LineNumbers>
-                    <ContentText>{parsedContent.actualContent}</ContentText>
-                  </ContentBlock>
+                    </div>
+                    <pre className="m-0 p-0 whitespace-pre-wrap break-words flex-1 font-monospace">
+                      {parsedContent.actualContent}
+                    </pre>
+                  </div>
                 </DetailSection>
               )}
             </>

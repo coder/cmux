@@ -1,5 +1,4 @@
 import React from "react";
-import styled from "@emotion/styled";
 import { useWorkspaceUsage, useWorkspaceConsumers } from "@/stores/WorkspaceStore";
 import { getModelStats } from "@/utils/tokens/modelStats";
 import { sumUsageHistory } from "@/utils/tokens/usageAggregator";
@@ -9,175 +8,6 @@ import { use1MContext } from "@/hooks/use1MContext";
 import { supports1MContext } from "@/utils/ai/models";
 import { TOKEN_COMPONENT_COLORS } from "@/utils/tokens/tokenMeterUtils";
 import { ConsumerBreakdown } from "./ConsumerBreakdown";
-
-const Container = styled.div`
-  color: #d4d4d4;
-  font-family: var(--font-primary);
-  font-size: 13px;
-  line-height: 1.6;
-`;
-
-const Section = styled.div<{ marginTop?: string; marginBottom?: string }>`
-  margin-bottom: ${(props) => props.marginBottom ?? "24px"};
-  margin-top: ${(props) => props.marginTop ?? "0"};
-`;
-
-const SectionTitle = styled.h3<{ dimmed?: boolean }>`
-  color: ${(props) => (props.dimmed ? "#999999" : "#cccccc")};
-  font-size: 14px;
-  font-weight: 600;
-  margin: 0 0 12px 0;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-`;
-
-const ConsumerList = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-`;
-
-const ConsumerRow = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-bottom: 8px;
-  position: relative;
-`;
-
-const ConsumerHeader = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-`;
-
-const ConsumerName = styled.span`
-  color: #cccccc;
-  font-weight: 500;
-  display: inline-flex;
-  align-items: baseline;
-  gap: 4px;
-`;
-
-const ConsumerTokens = styled.span`
-  color: #888888;
-  font-size: 12px;
-`;
-
-const PercentageBarWrapper = styled.div`
-  position: relative;
-  width: 100%;
-`;
-
-const PercentageBar = styled.div`
-  width: 100%;
-  height: 6px;
-  background: #3e3e42;
-  border-radius: 3px;
-  overflow: hidden;
-  display: flex;
-`;
-
-interface SegmentProps {
-  percentage: number;
-}
-
-const InputSegment = styled.div<SegmentProps>`
-  height: 100%;
-  width: ${(props) => props.percentage}%;
-  background: ${TOKEN_COMPONENT_COLORS.input};
-  transition: width 0.3s ease;
-`;
-
-const OutputSegment = styled.div<SegmentProps>`
-  height: 100%;
-  width: ${(props) => props.percentage}%;
-  background: ${TOKEN_COMPONENT_COLORS.output};
-  transition: width 0.3s ease;
-`;
-
-const ThinkingSegment = styled.div<SegmentProps>`
-  height: 100%;
-  width: ${(props) => props.percentage}%;
-  background: ${TOKEN_COMPONENT_COLORS.thinking};
-  transition: width 0.3s ease;
-`;
-
-const CachedSegment = styled.div<SegmentProps>`
-  height: 100%;
-  width: ${(props) => props.percentage}%;
-  background: ${TOKEN_COMPONENT_COLORS.cached};
-  transition: width 0.3s ease;
-`;
-
-const EmptyState = styled.div`
-  color: #888888;
-  text-align: center;
-  padding: 40px 20px;
-`;
-
-const ModelWarning = styled.div`
-  color: #999999;
-  font-size: 11px;
-  margin-top: 8px;
-  font-style: italic;
-`;
-
-const DetailsTable = styled.table`
-  width: 100%;
-  margin-top: 4px;
-  border-collapse: collapse;
-  font-size: 11px;
-`;
-
-const DetailsHeaderRow = styled.tr`
-  border-bottom: 1px solid #3e3e42;
-`;
-
-const DetailsHeader = styled.th`
-  text-align: left;
-  color: #888888;
-  font-weight: 500;
-  padding: 4px 8px 4px 0;
-
-  &:last-child {
-    text-align: right;
-    padding-right: 0;
-  }
-`;
-
-const DetailsRow = styled.tr``;
-
-const DetailsCell = styled.td`
-  padding: 4px 8px 4px 0;
-  color: #cccccc;
-
-  &:last-child {
-    text-align: right;
-    padding-right: 0;
-  }
-`;
-
-const ComponentName = styled.div<{ color: string }>`
-  display: flex;
-  align-items: center;
-  gap: 6px;
-
-  &::before {
-    content: "";
-    display: inline-block;
-    width: 8px;
-    height: 8px;
-    border-radius: 2px;
-    background: ${(props) => props.color};
-    flex-shrink: 0;
-  }
-`;
-
-const DimmedCost = styled.span`
-  color: #666666;
-  font-style: italic;
-`;
 
 // Format token display - show k for thousands with 1 decimal
 const formatTokens = (tokens: number) =>
@@ -239,12 +69,12 @@ const CostsTabComponent: React.FC<CostsTabProps> = ({ workspaceId }) => {
   // Only show empty state if truly no data anywhere
   if (!hasAnyData) {
     return (
-      <Container>
-        <EmptyState>
+      <div className="text-[#d4d4d4] font-primary text-[13px] leading-relaxed">
+        <div className="text-secondary text-center py-10 px-5">
           <p>No messages yet.</p>
           <p>Send a message to see token usage statistics.</p>
-        </EmptyState>
-      </Container>
+        </div>
+      </div>
     );
   }
 
@@ -260,10 +90,10 @@ const CostsTabComponent: React.FC<CostsTabProps> = ({ workspaceId }) => {
       : sumUsageHistory(usage.usageHistory);
 
   return (
-    <Container>
+    <div className="text-[#d4d4d4] font-primary text-[13px] leading-relaxed">
       {hasUsageData && (
-        <Section data-testid="context-usage-section" marginTop="8px" marginBottom="20px">
-          <ConsumerList data-testid="context-usage-list">
+        <div data-testid="context-usage-section" className="mt-2 mb-5">
+          <div data-testid="context-usage-list" className="flex flex-col gap-3">
             {(() => {
               // Context Usage always uses last request
               const contextUsage = lastRequestUsage;
@@ -331,42 +161,78 @@ const CostsTabComponent: React.FC<CostsTabProps> = ({ workspaceId }) => {
 
               return (
                 <>
-                  <ConsumerRow data-testid="context-usage">
-                    <ConsumerHeader>
-                      <ConsumerName>Context Usage</ConsumerName>
-                      <ConsumerTokens>
+                  <div data-testid="context-usage" className="flex flex-col gap-1 mb-2 relative">
+                    <div className="flex justify-between items-baseline">
+                      <span className="text-[#cccccc] font-medium inline-flex items-baseline gap-1">
+                        Context Usage
+                      </span>
+                      <span className="text-[#888888] text-xs">
                         {totalDisplay}
                         {maxDisplay}
                         {` (${totalPercentage.toFixed(1)}%)`}
-                      </ConsumerTokens>
-                    </ConsumerHeader>
-                    <PercentageBarWrapper>
-                      <PercentageBar>
-                        {cachedPercentage > 0 && <CachedSegment percentage={cachedPercentage} />}
+                      </span>
+                    </div>
+                    <div className="relative w-full">
+                      <div className="w-full h-1.5 bg-[#3e3e42] rounded-[3px] overflow-hidden flex">
+                        {cachedPercentage > 0 && (
+                          <div
+                            className="h-full transition-[width] duration-300"
+                            style={{
+                              width: `${cachedPercentage}%`,
+                              background: TOKEN_COMPONENT_COLORS.cached,
+                            }}
+                          />
+                        )}
                         {cacheCreatePercentage > 0 && (
-                          <CachedSegment percentage={cacheCreatePercentage} />
+                          <div
+                            className="h-full transition-[width] duration-300"
+                            style={{
+                              width: `${cacheCreatePercentage}%`,
+                              background: TOKEN_COMPONENT_COLORS.cached,
+                            }}
+                          />
                         )}
-                        <InputSegment percentage={inputPercentage} />
-                        <OutputSegment percentage={outputPercentage} />
+                        <div
+                          className="h-full transition-[width] duration-300"
+                          style={{
+                            width: `${inputPercentage}%`,
+                            background: TOKEN_COMPONENT_COLORS.input,
+                          }}
+                        />
+                        <div
+                          className="h-full transition-[width] duration-300"
+                          style={{
+                            width: `${outputPercentage}%`,
+                            background: TOKEN_COMPONENT_COLORS.output,
+                          }}
+                        />
                         {reasoningPercentage > 0 && (
-                          <ThinkingSegment percentage={reasoningPercentage} />
+                          <div
+                            className="h-full transition-[width] duration-300"
+                            style={{
+                              width: `${reasoningPercentage}%`,
+                              background: TOKEN_COMPONENT_COLORS.thinking,
+                            }}
+                          />
                         )}
-                      </PercentageBar>
-                    </PercentageBarWrapper>
-                  </ConsumerRow>
+                      </div>
+                    </div>
+                  </div>
                   {showWarning && (
-                    <ModelWarning>Unknown model limits - showing relative usage only</ModelWarning>
+                    <div className="text-[#999999] text-[11px] mt-2 italic">
+                      Unknown model limits - showing relative usage only
+                    </div>
                   )}
                 </>
               );
             })()}
-          </ConsumerList>
-        </Section>
+          </div>
+        </div>
       )}
 
       {hasUsageData && (
-        <Section data-testid="cost-section">
-          <ConsumerList>
+        <div data-testid="cost-section" className="mb-6">
+          <div className="flex flex-col gap-3">
             {(() => {
               // Cost and Details use viewMode-dependent data
               // Get model from the displayUsage (which could be last request or session sum)
@@ -476,42 +342,88 @@ const CostsTabComponent: React.FC<CostsTabProps> = ({ workspaceId }) => {
               return (
                 <>
                   {totalCost !== undefined && totalCost >= 0 && (
-                    <ConsumerRow data-testid="cost-bar">
-                      <ConsumerHeader data-testid="cost-header" style={{ marginBottom: "8px" }}>
-                        <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-                          <ConsumerName>Cost</ConsumerName>
+                    <div data-testid="cost-bar" className="flex flex-col gap-1 mb-2 relative">
+                      <div
+                        data-testid="cost-header"
+                        className="flex justify-between items-baseline mb-2"
+                      >
+                        <div className="flex gap-3 items-center">
+                          <span className="text-[#cccccc] font-medium inline-flex items-baseline gap-1">
+                            Cost
+                          </span>
                           <ToggleGroup
                             options={VIEW_MODE_OPTIONS}
                             value={viewMode}
                             onChange={setViewMode}
                           />
                         </div>
-                        <ConsumerTokens>{formatCostWithDollar(totalCost)}</ConsumerTokens>
-                      </ConsumerHeader>
-                      <PercentageBarWrapper>
-                        <PercentageBar>
+                        <span className="text-[#888888] text-xs">
+                          {formatCostWithDollar(totalCost)}
+                        </span>
+                      </div>
+                      <div className="relative w-full">
+                        <div className="w-full h-1.5 bg-[#3e3e42] rounded-[3px] overflow-hidden flex">
                           {cachedCostPercentage > 0 && (
-                            <CachedSegment percentage={cachedCostPercentage} />
+                            <div
+                              className="h-full transition-[width] duration-300"
+                              style={{
+                                width: `${cachedCostPercentage}%`,
+                                background: TOKEN_COMPONENT_COLORS.cached,
+                              }}
+                            />
                           )}
                           {cacheCreateCostPercentage > 0 && (
-                            <CachedSegment percentage={cacheCreateCostPercentage} />
+                            <div
+                              className="h-full transition-[width] duration-300"
+                              style={{
+                                width: `${cacheCreateCostPercentage}%`,
+                                background: TOKEN_COMPONENT_COLORS.cached,
+                              }}
+                            />
                           )}
-                          <InputSegment percentage={inputCostPercentage} />
-                          <OutputSegment percentage={outputCostPercentage} />
+                          <div
+                            className="h-full transition-[width] duration-300"
+                            style={{
+                              width: `${inputCostPercentage}%`,
+                              background: TOKEN_COMPONENT_COLORS.input,
+                            }}
+                          />
+                          <div
+                            className="h-full transition-[width] duration-300"
+                            style={{
+                              width: `${outputCostPercentage}%`,
+                              background: TOKEN_COMPONENT_COLORS.output,
+                            }}
+                          />
                           {reasoningCostPercentage > 0 && (
-                            <ThinkingSegment percentage={reasoningCostPercentage} />
+                            <div
+                              className="h-full transition-[width] duration-300"
+                              style={{
+                                width: `${reasoningCostPercentage}%`,
+                                background: TOKEN_COMPONENT_COLORS.thinking,
+                              }}
+                            />
                           )}
-                        </PercentageBar>
-                      </PercentageBarWrapper>
-                    </ConsumerRow>
+                        </div>
+                      </div>
+                    </div>
                   )}
-                  <DetailsTable data-testid="cost-details">
+                  <table
+                    data-testid="cost-details"
+                    className="w-full mt-1 border-collapse text-[11px]"
+                  >
                     <thead>
-                      <DetailsHeaderRow>
-                        <DetailsHeader>Component</DetailsHeader>
-                        <DetailsHeader>Tokens</DetailsHeader>
-                        <DetailsHeader>Cost</DetailsHeader>
-                      </DetailsHeaderRow>
+                      <tr className="border-b border-[#3e3e42]">
+                        <th className="text-left text-[#888888] font-medium py-1 pr-2 [&:last-child]:text-right [&:last-child]:pr-0">
+                          Component
+                        </th>
+                        <th className="text-left text-[#888888] font-medium py-1 pr-2 [&:last-child]:text-right [&:last-child]:pr-0">
+                          Tokens
+                        </th>
+                        <th className="text-left text-[#888888] font-medium py-1 pr-2 [&:last-child]:text-right [&:last-child]:pr-0">
+                          Cost
+                        </th>
+                      </tr>
                     </thead>
                     <tbody>
                       {components.map((component) => {
@@ -522,33 +434,45 @@ const CostsTabComponent: React.FC<CostsTabProps> = ({ workspaceId }) => {
                           component.cost < 0.01;
 
                         return (
-                          <DetailsRow key={component.name}>
-                            <DetailsCell>
-                              <ComponentName color={component.color}>
+                          <tr key={component.name}>
+                            <td className="py-1 pr-2 text-[#cccccc] [&:last-child]:text-right [&:last-child]:pr-0">
+                              <div className="flex items-center gap-1.5">
+                                <div
+                                  className="w-2 h-2 rounded-sm flex-shrink-0"
+                                  style={{ background: component.color }}
+                                />
                                 {component.name}
-                              </ComponentName>
-                            </DetailsCell>
-                            <DetailsCell>{formatTokens(component.tokens)}</DetailsCell>
-                            <DetailsCell>
-                              {isNegligible ? <DimmedCost>{costDisplay}</DimmedCost> : costDisplay}
-                            </DetailsCell>
-                          </DetailsRow>
+                              </div>
+                            </td>
+                            <td className="py-1 pr-2 text-[#cccccc] [&:last-child]:text-right [&:last-child]:pr-0">
+                              {formatTokens(component.tokens)}
+                            </td>
+                            <td className="py-1 pr-2 text-[#cccccc] [&:last-child]:text-right [&:last-child]:pr-0">
+                              {isNegligible ? (
+                                <span className="text-[#666666] italic">{costDisplay}</span>
+                              ) : (
+                                costDisplay
+                              )}
+                            </td>
+                          </tr>
                         );
                       })}
                     </tbody>
-                  </DetailsTable>
+                  </table>
                 </>
               );
             })()}
-          </ConsumerList>
-        </Section>
+          </div>
+        </div>
       )}
 
-      <Section>
-        <SectionTitle dimmed>Breakdown by Consumer</SectionTitle>
+      <div className="mb-6">
+        <h3 className="text-[#999999] text-sm font-semibold m-0 mb-3 uppercase tracking-wide">
+          Breakdown by Consumer
+        </h3>
         <ConsumerBreakdown consumers={consumers} />
-      </Section>
-    </Container>
+      </div>
+    </div>
   );
 };
 

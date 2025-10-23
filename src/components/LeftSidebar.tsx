@@ -1,88 +1,11 @@
 import React from "react";
-import styled from "@emotion/styled";
+import { cn } from "@/lib/utils";
 import type { ProjectConfig } from "@/config";
 import type { FrontendWorkspaceMetadata } from "@/types/workspace";
 import type { WorkspaceSelection } from "./ProjectSidebar";
 import type { Secret } from "@/types/secrets";
 import ProjectSidebar from "./ProjectSidebar";
 import { TitleBar } from "./TitleBar";
-
-const LeftSidebarContainer = styled.div<{ collapsed?: boolean }>`
-  width: ${(props) => (props.collapsed ? "32px" : "280px")};
-  height: 100vh;
-  background: #252526;
-  border-right: 1px solid #1e1e1e;
-  display: flex;
-  flex-direction: column;
-  flex-shrink: 0;
-  transition: width 0.2s ease;
-  overflow: hidden;
-  position: relative;
-  z-index: 100;
-
-  /* Mobile: Sidebar becomes overlay */
-  @media (max-width: 768px) {
-    position: fixed;
-    left: 0;
-    top: 0;
-    width: 280px;
-    z-index: 1000;
-    transform: ${(props) => (props.collapsed ? "translateX(-100%)" : "translateX(0)")};
-    transition: transform 0.3s ease;
-    box-shadow: ${(props) => (props.collapsed ? "none" : "2px 0 8px rgba(0, 0, 0, 0.5)")};
-  }
-`;
-
-const Overlay = styled.div<{ visible: boolean }>`
-  display: none;
-
-  /* Mobile: Show overlay backdrop when sidebar is open */
-  @media (max-width: 768px) {
-    display: ${(props) => (props.visible ? "block" : "none")};
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
-    z-index: 999;
-    backdrop-filter: blur(2px);
-  }
-`;
-
-const HamburgerButton = styled.button`
-  display: none;
-
-  /* Mobile: Show hamburger menu */
-  @media (max-width: 768px) {
-    display: flex;
-    position: fixed;
-    top: 12px;
-    left: 12px;
-    z-index: 998;
-    width: 40px;
-    height: 40px;
-    background: #252526;
-    border: 1px solid #3c3c3c;
-    border-radius: 6px;
-    cursor: pointer;
-    align-items: center;
-    justify-content: center;
-    color: #cccccc;
-    font-size: 20px;
-    transition: all 0.2s;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-
-    &:hover {
-      background: #2a2a2b;
-      border-color: #4c4c4c;
-    }
-
-    &:active {
-      transform: scale(0.95);
-    }
-  }
-`;
 
 interface LeftSidebarProps {
   projects: Map<string, ProjectConfig>;
@@ -117,27 +40,52 @@ export function LeftSidebar(props: LeftSidebarProps) {
     <>
       {/* Hamburger menu button - only visible on mobile */}
       {collapsed && (
-        <HamburgerButton
+        <button
           onClick={onToggleCollapsed}
           title="Open sidebar"
           aria-label="Open sidebar menu"
+          className={cn(
+            "hidden max-md:flex fixed top-3 left-3 z-[998]",
+            "w-10 h-10 bg-[#252526] border border-[#3c3c3c] rounded-md cursor-pointer",
+            "items-center justify-center text-[#ccc] text-xl transition-all duration-200",
+            "shadow-[0_2px_4px_rgba(0,0,0,0.3)]",
+            "hover:bg-[#2a2a2b] hover:border-[#4c4c4c]",
+            "active:scale-95"
+          )}
         >
           ☰
-        </HamburgerButton>
+        </button>
       )}
 
       {/* Overlay backdrop - only visible on mobile when sidebar is open */}
-      <Overlay visible={!collapsed} onClick={onToggleCollapsed} />
+      <div
+        className={cn(
+          "hidden max-md:block fixed inset-0 bg-black/50 z-[999] backdrop-blur-sm",
+          collapsed && "max-md:hidden"
+        )}
+        onClick={onToggleCollapsed}
+      />
 
       {/* Sidebar */}
-      <LeftSidebarContainer collapsed={collapsed}>
+      <div
+        className={cn(
+          "h-screen bg-[#252526] border-r border-[#1e1e1e] flex flex-col shrink-0",
+          "transition-all duration-200 overflow-hidden relative z-[100]",
+          collapsed ? "w-8" : "w-[280px]",
+          "max-md:fixed max-md:left-0 max-md:top-0 max-md:w-[280px] max-md:z-[1000]",
+          "max-md:transition-transform max-md:duration-300",
+          collapsed
+            ? "max-md:-translate-x-full max-md:shadow-none"
+            : "max-md:translate-x-0 max-md:shadow-[2px_0_8px_rgba(0,0,0,0.5)]"
+        )}
+      >
         {!collapsed && <TitleBar />}
         <ProjectSidebar
           {...projectSidebarProps}
           collapsed={collapsed}
           onToggleCollapsed={onToggleCollapsed}
         />
-      </LeftSidebarContainer>
+      </div>
     </>
   );
 }

@@ -1,34 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from "react";
-import styled from "@emotion/styled";
 import { Modal, ModalActions, CancelButton, PrimaryButton } from "./Modal";
-
-const InputField = styled.input`
-  width: 100%;
-  padding: 8px 12px;
-  background: #2d2d2d;
-  border: 1px solid #444;
-  border-radius: 4px;
-  color: #fff;
-  font-size: 14px;
-  font-family: var(--font-monospace);
-  margin-bottom: 20px;
-
-  &:focus {
-    outline: none;
-    border-color: #007acc;
-  }
-
-  &::placeholder {
-    color: #888;
-  }
-`;
-
-const ErrorText = styled.div`
-  color: var(--color-error);
-  font-size: 12px;
-  margin-top: -12px;
-  margin-bottom: 12px;
-`;
 
 /**
  * Self-contained directory selection modal for browser mode.
@@ -101,7 +72,7 @@ export const DirectorySelectModal: React.FC = () => {
       subtitle="Enter the path to your project directory on the server"
       onClose={handleCancel}
     >
-      <InputField
+      <input
         type="text"
         value={path}
         onChange={(e) => {
@@ -111,8 +82,9 @@ export const DirectorySelectModal: React.FC = () => {
         onKeyDown={handleKeyDown}
         placeholder="/home/user/projects/my-project"
         autoFocus
+        className="w-full px-3 py-2 bg-[#2d2d2d] border border-[#444] rounded text-white text-sm font-mono mb-5 focus:outline-none focus:border-[#007acc] placeholder:text-[#888]"
       />
-      {error && <ErrorText>{error}</ErrorText>}
+      {error && <div className="text-error text-xs -mt-3 mb-3">{error}</div>}
       <ModalActions>
         <CancelButton onClick={handleCancel}>Cancel</CancelButton>
         <PrimaryButton onClick={handleSelect}>Select</PrimaryButton>

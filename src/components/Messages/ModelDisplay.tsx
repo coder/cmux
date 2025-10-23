@@ -1,47 +1,8 @@
 import React from "react";
-import styled from "@emotion/styled";
 import AnthropicIcon from "@/assets/icons/anthropic.svg?react";
 import OpenAIIcon from "@/assets/icons/openai.svg?react";
 import { TooltipWrapper, Tooltip } from "@/components/Tooltip";
 import { formatModelDisplayName } from "@/utils/ai/modelDisplay";
-
-const ModelContainer = styled.span`
-  display: inline; /* Keep inline for proper text alignment */
-  font-size: inherit;
-  font-weight: inherit;
-  color: inherit;
-  text-transform: none; /* Override parent's uppercase */
-`;
-
-const IconWrapper = styled.span`
-  display: inline-block;
-  vertical-align: -0.19em; /* Align icon slightly above baseline for visual centering */
-  width: 1.1em; /* Slightly larger than text for visibility */
-  height: 1.1em;
-  margin-right: 0.3em; /* Gap between icon and text */
-
-  svg {
-    display: block; /* Remove inline spacing */
-    width: 100%;
-    height: 100%;
-
-    /* Anthropic icon uses .st0 class */
-    .st0 {
-      fill: currentColor;
-    }
-
-    /* Generic SVG elements - override any fill attributes */
-    path,
-    circle,
-    rect {
-      fill: currentColor !important;
-    }
-  }
-`;
-
-const ModelText = styled.span`
-  display: inline;
-`;
 
 interface ModelDisplayProps {
   modelString: string;
@@ -77,10 +38,17 @@ export const ModelDisplay: React.FC<ModelDisplayProps> = ({ modelString, showToo
   const displayName = formatModelDisplayName(modelName);
 
   const content = (
-    <ModelContainer data-model-display>
-      {providerIcon && <IconWrapper data-model-icon>{providerIcon}</IconWrapper>}
-      <ModelText>{displayName}</ModelText>
-    </ModelContainer>
+    <span className="inline normal-case" data-model-display>
+      {providerIcon && (
+        <span
+          className="inline-block align-[-0.19em] w-[1.1em] h-[1.1em] mr-[0.3em] [&_svg]:block [&_svg]:w-full [&_svg]:h-full [&_svg_.st0]:fill-current [&_svg_path]:!fill-current [&_svg_circle]:!fill-current [&_svg_rect]:!fill-current"
+          data-model-icon
+        >
+          {providerIcon}
+        </span>
+      )}
+      <span className="font-mono inline">{displayName}</span>
+    </span>
   );
 
   if (!showTooltip) {

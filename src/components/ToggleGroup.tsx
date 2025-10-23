@@ -1,36 +1,9 @@
-import styled from "@emotion/styled";
-
-const ToggleContainer = styled.div`
-  display: flex;
-  gap: 0;
-  background: var(--color-toggle-bg);
-  border-radius: 4px;
-`;
-
-const ToggleButton = styled.button<{ active: boolean }>`
-  padding: 4px 8px;
-  font-size: 11px;
-  font-family: var(--font-primary);
-  color: ${(props) =>
-    props.active ? "var(--color-toggle-text-active)" : "var(--color-toggle-text)"};
-  background: ${(props) => (props.active ? "var(--color-toggle-active)" : "transparent")};
-  border: none;
-  border-radius: 3px;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  font-weight: ${(props) => (props.active ? "500" : "400")};
-
-  &:hover {
-    color: ${(props) =>
-      props.active ? "var(--color-toggle-text-active)" : "var(--color-toggle-text-hover)"};
-    background: ${(props) =>
-      props.active ? "var(--color-toggle-active)" : "var(--color-toggle-hover)"};
-  }
-`;
+import { cn } from "@/lib/utils";
 
 export interface ToggleOption<T extends string> {
   value: T;
   label: string;
+  activeClassName?: string;
 }
 
 interface ToggleGroupProps<T extends string> {
@@ -41,18 +14,27 @@ interface ToggleGroupProps<T extends string> {
 
 export function ToggleGroup<T extends string>({ options, value, onChange }: ToggleGroupProps<T>) {
   return (
-    <ToggleContainer>
-      {options.map((option) => (
-        <ToggleButton
-          key={option.value}
-          active={value === option.value}
-          onClick={() => onChange(option.value)}
-          aria-pressed={value === option.value}
-          type="button"
-        >
-          {option.label}
-        </ToggleButton>
-      ))}
-    </ToggleContainer>
+    <div className="flex gap-0 bg-toggle-bg rounded">
+      {options.map((option) => {
+        const isActive = value === option.value;
+        return (
+          <button
+            key={option.value}
+            onClick={() => onChange(option.value)}
+            aria-pressed={isActive}
+            type="button"
+            className={cn(
+              "px-2 py-1 text-[11px] font-sans rounded-sm border-none cursor-pointer transition-all duration-150 bg-transparent",
+              isActive
+                ? "text-toggle-text-active bg-toggle-active font-medium"
+                : "text-toggle-text font-normal hover:text-toggle-text-hover hover:bg-toggle-hover",
+              isActive && option.activeClassName
+            )}
+          >
+            {option.label}
+          </button>
+        );
+      })}
+    </div>
   );
 }

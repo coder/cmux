@@ -23,7 +23,6 @@
  */
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import styled from "@emotion/styled";
 import { HunkViewer } from "./HunkViewer";
 import { ReviewControls } from "./ReviewControls";
 import { FileTree } from "./FileTree";
@@ -37,6 +36,7 @@ import type { DiffHunk, ReviewFilters as ReviewFiltersType } from "@/types/revie
 import type { FileTreeNode } from "@/utils/git/numstatParser";
 import { matchesKeybind, KEYBINDS, formatKeybind } from "@/utils/ui/keybinds";
 import { applyFrontendFilters } from "@/utils/review/filterHunks";
+import { cn } from "@/lib/utils";
 
 interface ReviewPanelProps {
   workspaceId: string;
@@ -51,283 +51,6 @@ interface ReviewSearchState {
   useRegex: boolean;
   matchCase: boolean;
 }
-
-const PanelContainer = styled.div`
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  min-height: 0;
-  background: #1e1e1e;
-
-  /* Enable container queries for responsive layout */
-  container-type: inline-size;
-  container-name: review-panel;
-
-  /* Make focusable for keyboard navigation */
-  outline: none;
-
-  &:focus-within {
-    /* Subtle indicator when panel has focus */
-    box-shadow: inset 0 0 0 1px rgba(0, 122, 204, 0.2);
-  }
-`;
-
-const ContentContainer = styled.div`
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-`;
-
-const ScrollableContent = styled.div`
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-`;
-
-const HunksSection = styled.div`
-  flex: 0 0 auto; /* Size based on content, no scrolling */
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  padding: 12px;
-`;
-
-// Search bar styling - unified component approach
-const SearchContainer = styled.div`
-  padding: 8px 12px;
-  border-bottom: 1px solid #3e3e42;
-  background: #252526;
-`;
-
-/**
- * SearchBar - Unified search control wrapper
- * Provides outer border and radius, children handle internal layout
- */
-const SearchBar = styled.div`
-  display: flex;
-  align-items: stretch;
-  border: 1px solid #3e3e42;
-  border-radius: 4px;
-  overflow: hidden; /* Ensures children respect parent radius */
-  background: #1e1e1e;
-  transition: border-color 0.15s ease;
-
-  /* Show focus ring when input inside is focused */
-  &:focus-within {
-    border-color: #007acc;
-  }
-
-  &:hover:not(:focus-within) {
-    border-color: #4e4e52;
-  }
-`;
-
-const SearchInput = styled.input`
-  flex: 1;
-  padding: 6px 10px;
-  background: transparent;
-  border: none;
-  color: #ccc;
-  font-size: 12px;
-  font-family: var(--font-sans);
-  line-height: 1.4;
-  outline: none;
-  display: flex;
-  align-items: center;
-  height: 100%;
-
-  &::placeholder {
-    color: #666;
-  }
-
-  &:focus {
-    background: #1a1a1a;
-  }
-`;
-
-const SearchButton = styled.button<{ active: boolean }>`
-  padding: 6px 10px;
-  background: ${(props) => (props.active ? "#2a3a4a" : "transparent")};
-  border: none;
-  border-left: 1px solid #3e3e42;
-  color: ${(props) => (props.active ? "#4db8ff" : "#999")};
-  font-size: 11px;
-  font-family: var(--font-monospace);
-  font-weight: 600;
-  line-height: 1.4;
-  cursor: pointer;
-  outline: none;
-  transition: all 0.15s ease;
-  white-space: nowrap;
-  display: flex;
-  align-items: center;
-  height: 100%;
-
-  ${(props) =>
-    props.active &&
-    `
-    box-shadow: inset 0 0 0 1px rgba(77, 184, 255, 0.4);
-  `}
-
-  &:hover {
-    background: ${(props) => (props.active ? "#2a4050" : "#252526")};
-    color: ${(props) => (props.active ? "#4db8ff" : "#ccc")};
-  }
-
-  &:active {
-    transform: translateY(1px);
-  }
-`;
-
-const HunkList = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-`;
-
-const FileTreeSection = styled.div`
-  /* Part of scrollable content, not sticky */
-  width: 100%;
-  flex: 0 0 auto; /* Size based on content */
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  border-bottom: 1px solid #3e3e42;
-`;
-
-const EmptyState = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-start; /* Changed from center to start */
-  padding: 48px 24px 24px 24px; /* More padding on top */
-  color: #888;
-  text-align: center;
-  gap: 12px;
-`;
-
-const EmptyStateTitle = styled.div`
-  font-size: 16px;
-  font-weight: 500;
-  color: #ccc;
-`;
-
-const EmptyStateText = styled.div`
-  font-size: 13px;
-  line-height: 1.5;
-`;
-
-const DiagnosticSection = styled.details`
-  margin-top: 16px;
-  max-width: 500px;
-  width: 100%;
-  background: #2d2d2d;
-  border: 1px solid #3e3e42;
-  border-radius: 4px;
-  padding: 12px;
-  cursor: pointer;
-
-  summary {
-    color: #888;
-    font-size: 12px;
-    font-weight: 500;
-    user-select: none;
-    list-style: none;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-
-    &::-webkit-details-marker {
-      display: none;
-    }
-
-    &::before {
-      content: "▶";
-      font-size: 10px;
-      transition: transform 0.2s ease;
-    }
-  }
-
-  &[open] summary::before {
-    transform: rotate(90deg);
-  }
-`;
-
-const DiagnosticContent = styled.div`
-  margin-top: 12px;
-  font-family: var(--font-monospace);
-  font-size: 11px;
-  color: #ccc;
-  line-height: 1.6;
-`;
-
-const DiagnosticRow = styled.div`
-  display: grid;
-  grid-template-columns: 140px 1fr;
-  gap: 12px;
-  padding: 4px 0;
-
-  &:not(:last-child) {
-    border-bottom: 1px solid #3e3e42;
-  }
-`;
-
-const DiagnosticLabel = styled.div`
-  color: #888;
-  font-weight: 500;
-`;
-
-const DiagnosticValue = styled.div`
-  color: #ccc;
-  word-break: break-all;
-  user-select: all;
-`;
-
-const LoadingState = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  color: #888;
-  font-size: 14px;
-`;
-
-const ErrorState = styled.div`
-  padding: 24px;
-  color: #f48771;
-  background: rgba(244, 135, 113, 0.1);
-  border: 1px solid rgba(244, 135, 113, 0.3);
-  border-radius: 4px;
-  margin: 12px;
-  font-family: var(--font-monospace);
-  font-size: 12px;
-  line-height: 1.5;
-  white-space: pre-wrap;
-  word-break: break-word;
-`;
-
-const TruncationBanner = styled.div`
-  background: rgba(255, 193, 7, 0.1);
-  border: 1px solid rgba(255, 193, 7, 0.3);
-  border-radius: 4px;
-  padding: 6px 12px;
-  margin: 12px;
-  color: #ffc107;
-  font-size: 10px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  line-height: 1.3;
-
-  &::before {
-    content: "⚠️";
-    font-size: 12px;
-  }
-`;
 
 interface DiagnosticInfo {
   command: string;
@@ -804,11 +527,12 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
   }, []);
 
   return (
-    <PanelContainer
+    <div
       ref={panelRef}
       tabIndex={0}
       onFocus={() => setIsPanelFocused(true)}
       onBlur={() => setIsPanelFocused(false)}
+      className="flex flex-col h-full min-h-0 bg-[#1e1e1e] [container-type:inline-size] [container-name:review-panel] outline-none focus-within:shadow-[inset_0_0_0_1px_rgba(0,122,204,0.2)]"
     >
       {/* Always show controls so user can change diff base */}
       <ReviewControls
@@ -823,144 +547,166 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
       />
 
       {error ? (
-        <ErrorState>{error}</ErrorState>
+        <div className="p-6 text-[#f48771] bg-[rgba(244,135,113,0.1)] border border-[rgba(244,135,113,0.3)] rounded m-3 font-monospace text-xs leading-[1.5] whitespace-pre-wrap break-words">
+          {error}
+        </div>
       ) : isLoadingHunks && hunks.length === 0 && !fileTree ? (
-        <LoadingState>Loading diff...</LoadingState>
+        <div className="flex items-center justify-center h-full text-[#888] text-sm">
+          Loading diff...
+        </div>
       ) : (
-        <ContentContainer>
-          {truncationWarning && <TruncationBanner>{truncationWarning}</TruncationBanner>}
-
-          {/* Search bar - always visible at top, not sticky */}
-          <SearchContainer>
-            <SearchBar>
-              <SearchInput
-                ref={searchInputRef}
-                type="text"
-                placeholder={`Search in files and hunks... (${formatKeybind(KEYBINDS.FOCUS_REVIEW_SEARCH)})`}
-                value={searchState.input}
-                onChange={(e) => setSearchState({ ...searchState, input: e.target.value })}
-              />
-              <TooltipWrapper inline>
-                <SearchButton
-                  active={searchState.useRegex}
-                  onClick={() =>
-                    setSearchState({ ...searchState, useRegex: !searchState.useRegex })
-                  }
-                >
-                  .*
-                </SearchButton>
-                <Tooltip position="bottom">
-                  {searchState.useRegex ? "Using regex search" : "Using substring search"}
-                </Tooltip>
-              </TooltipWrapper>
-              <TooltipWrapper inline>
-                <SearchButton
-                  active={searchState.matchCase}
-                  onClick={() =>
-                    setSearchState({ ...searchState, matchCase: !searchState.matchCase })
-                  }
-                >
-                  Aa
-                </SearchButton>
-                <Tooltip position="bottom">
-                  {searchState.matchCase
-                    ? "Match case (case-sensitive)"
-                    : "Ignore case (case-insensitive)"}
-                </Tooltip>
-              </TooltipWrapper>
-            </SearchBar>
-          </SearchContainer>
-
-          {/* Single scrollable area containing both file tree and hunks */}
-          <ScrollableContent>
-            {/* FileTree at the top */}
-            {(fileTree ?? isLoadingTree) && (
-              <FileTreeSection>
-                <FileTree
-                  root={fileTree}
-                  selectedPath={selectedFilePath}
-                  onSelectFile={setSelectedFilePath}
-                  isLoading={isLoadingTree}
-                  getFileReadStatus={getFileReadStatus}
-                  workspaceId={workspaceId}
-                />
-              </FileTreeSection>
+        <div className="flex flex-row flex-1 min-h-0 overflow-hidden @[800px]:flex-col">
+          <div className="flex-1 min-h-0 flex flex-col overflow-hidden min-w-0 order-1">
+            {truncationWarning && (
+              <div className="bg-[rgba(255,193,7,0.1)] border border-[rgba(255,193,7,0.3)] rounded py-1.5 px-3 mx-3 my-3 text-[#ffc107] text-[10px] flex items-center gap-1.5 leading-[1.3] before:content-['⚠️'] before:text-xs">
+                {truncationWarning}
+              </div>
             )}
 
-            {/* Hunks below the file tree */}
-            <HunksSection>
-              <HunkList>
-                {hunks.length === 0 ? (
-                  <EmptyState>
-                    <EmptyStateTitle>No changes found</EmptyStateTitle>
-                    <EmptyStateText>
-                      No changes found for the selected diff base.
-                      <br />
-                      Try selecting a different base or make some changes.
-                    </EmptyStateText>
-                    {diagnosticInfo && (
-                      <DiagnosticSection>
-                        <summary>Show diagnostic info</summary>
-                        <DiagnosticContent>
-                          <DiagnosticRow>
-                            <DiagnosticLabel>Command:</DiagnosticLabel>
-                            <DiagnosticValue>{diagnosticInfo.command}</DiagnosticValue>
-                          </DiagnosticRow>
-                          <DiagnosticRow>
-                            <DiagnosticLabel>Output size:</DiagnosticLabel>
-                            <DiagnosticValue>
-                              {diagnosticInfo.outputLength.toLocaleString()} bytes
-                            </DiagnosticValue>
-                          </DiagnosticRow>
-                          <DiagnosticRow>
-                            <DiagnosticLabel>Files parsed:</DiagnosticLabel>
-                            <DiagnosticValue>{diagnosticInfo.fileDiffCount}</DiagnosticValue>
-                          </DiagnosticRow>
-                          <DiagnosticRow>
-                            <DiagnosticLabel>Hunks extracted:</DiagnosticLabel>
-                            <DiagnosticValue>{diagnosticInfo.hunkCount}</DiagnosticValue>
-                          </DiagnosticRow>
-                        </DiagnosticContent>
-                      </DiagnosticSection>
+            <div className="py-2 px-3 border-b border-[#3e3e42] bg-[#252526]">
+              <div className="flex items-stretch border border-[#3e3e42] rounded overflow-hidden bg-[#1e1e1e] transition-[border-color] duration-150 hover:border-[#4e4e52] focus-within:border-[#007acc] focus-within:hover:border-[#007acc]">
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  placeholder={`Search in files and hunks... (${formatKeybind(KEYBINDS.FOCUS_REVIEW_SEARCH)})`}
+                  value={searchState.input}
+                  onChange={(e) => setSearchState({ ...searchState, input: e.target.value })}
+                  className="flex-1 py-1.5 px-2.5 bg-transparent border-none text-[#ccc] text-xs font-sans leading-[1.4] outline-none flex items-center h-full placeholder:text-[#666] focus:bg-[#1a1a1a]"
+                />
+                <TooltipWrapper inline>
+                  <button
+                    className={cn(
+                      "py-1.5 px-2.5 border-none border-l border-l-[#3e3e42] text-[11px] font-monospace font-semibold leading-[1.4] cursor-pointer outline-none transition-all duration-150 whitespace-nowrap flex items-center h-full",
+                      searchState.useRegex
+                        ? "bg-[#2a3a4a] text-[#4db8ff] shadow-[inset_0_0_0_1px_rgba(77,184,255,0.4)] hover:bg-[#2a4050] hover:text-[#4db8ff]"
+                        : "bg-transparent text-[#999] hover:bg-[#252526] hover:text-[#ccc]",
+                      "active:translate-y-px"
                     )}
-                  </EmptyState>
-                ) : filteredHunks.length === 0 ? (
-                  <EmptyState>
-                    <EmptyStateText>
-                      {debouncedSearchTerm.trim()
-                        ? `No hunks match "${debouncedSearchTerm}". Try a different search term.`
-                        : selectedFilePath
-                          ? `No hunks in ${selectedFilePath}. Try selecting a different file.`
-                          : "No hunks match the current filters. Try adjusting your filter settings."}
-                    </EmptyStateText>
-                  </EmptyState>
-                ) : (
-                  filteredHunks.map((hunk) => {
-                    const isSelected = hunk.id === selectedHunkId;
-                    const hunkIsRead = isRead(hunk.id);
+                    onClick={() =>
+                      setSearchState({ ...searchState, useRegex: !searchState.useRegex })
+                    }
+                  >
+                    .*
+                  </button>
+                  <Tooltip position="bottom">
+                    {searchState.useRegex ? "Using regex search" : "Using substring search"}
+                  </Tooltip>
+                </TooltipWrapper>
+                <TooltipWrapper inline>
+                  <button
+                    className={cn(
+                      "py-1.5 px-2.5 border-none border-l border-l-[#3e3e42] text-[11px] font-monospace font-semibold leading-[1.4] cursor-pointer outline-none transition-all duration-150 whitespace-nowrap flex items-center h-full",
+                      searchState.matchCase
+                        ? "bg-[#2a3a4a] text-[#4db8ff] shadow-[inset_0_0_0_1px_rgba(77,184,255,0.4)] hover:bg-[#2a4050] hover:text-[#4db8ff]"
+                        : "bg-transparent text-[#999] hover:bg-[#252526] hover:text-[#ccc]",
+                      "active:translate-y-px"
+                    )}
+                    onClick={() =>
+                      setSearchState({ ...searchState, matchCase: !searchState.matchCase })
+                    }
+                  >
+                    Aa
+                  </button>
+                  <Tooltip position="bottom">
+                    {searchState.matchCase
+                      ? "Match case (case-sensitive)"
+                      : "Ignore case (case-insensitive)"}
+                  </Tooltip>
+                </TooltipWrapper>
+              </div>
+            </div>
 
-                    return (
-                      <HunkViewer
-                        key={hunk.id}
-                        hunk={hunk}
-                        hunkId={hunk.id}
-                        workspaceId={workspaceId}
-                        isSelected={isSelected}
-                        isRead={hunkIsRead}
-                        onClick={handleHunkClick}
-                        onToggleRead={handleHunkToggleRead}
-                        onRegisterToggleExpand={handleRegisterToggleExpand}
-                        onReviewNote={onReviewNote}
-                        searchConfig={searchConfig}
-                      />
-                    );
-                  })
-                )}
-              </HunkList>
-            </HunksSection>
-          </ScrollableContent>
-        </ContentContainer>
+            <div className="flex-1 min-h-0 overflow-y-auto p-3">
+              {hunks.length === 0 ? (
+                <div className="flex flex-col items-center justify-start pt-12 px-6 pb-6 text-[#888] text-center gap-3">
+                  <div className="text-base font-medium text-[#ccc]">No changes found</div>
+                  <div className="text-[13px] leading-[1.5]">
+                    No changes found for the selected diff base.
+                    <br />
+                    Try selecting a different base or make some changes.
+                  </div>
+                  {diagnosticInfo && (
+                    <details className="mt-4 max-w-[500px] w-full bg-[#2d2d2d] border border-[#3e3e42] rounded p-3 cursor-pointer [&_summary]:text-[#888] [&_summary]:text-xs [&_summary]:font-medium [&_summary]:select-none [&_summary]:list-none [&_summary]:flex [&_summary]:items-center [&_summary]:gap-1.5 [&_summary::-webkit-details-marker]:hidden [&_summary::before]:content-['▶'] [&_summary::before]:text-[10px] [&_summary::before]:transition-transform [&_summary::before]:duration-200 [&[open]_summary::before]:rotate-90">
+                      <summary>Show diagnostic info</summary>
+                      <div className="mt-3 font-monospace text-[11px] text-[#ccc] leading-[1.6]">
+                        <div className="grid grid-cols-[140px_1fr] gap-3 py-1 [&:not(:last-child)]:border-b [&:not(:last-child)]:border-[#3e3e42]">
+                          <div className="text-[#888] font-medium">Command:</div>
+                          <div className="text-[#ccc] break-all select-all">
+                            {diagnosticInfo.command}
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-[140px_1fr] gap-3 py-1 [&:not(:last-child)]:border-b [&:not(:last-child)]:border-[#3e3e42]">
+                          <div className="text-[#888] font-medium">Output size:</div>
+                          <div className="text-[#ccc] break-all select-all">
+                            {diagnosticInfo.outputLength.toLocaleString()} bytes
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-[140px_1fr] gap-3 py-1 [&:not(:last-child)]:border-b [&:not(:last-child)]:border-[#3e3e42]">
+                          <div className="text-[#888] font-medium">Files parsed:</div>
+                          <div className="text-[#ccc] break-all select-all">
+                            {diagnosticInfo.fileDiffCount}
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-[140px_1fr] gap-3 py-1">
+                          <div className="text-[#888] font-medium">Hunks extracted:</div>
+                          <div className="text-[#ccc] break-all select-all">
+                            {diagnosticInfo.hunkCount}
+                          </div>
+                        </div>
+                      </div>
+                    </details>
+                  )}
+                </div>
+              ) : filteredHunks.length === 0 ? (
+                <div className="flex flex-col items-center justify-start pt-12 px-6 pb-6 text-[#888] text-center gap-3">
+                  <div className="text-[13px] leading-[1.5]">
+                    {debouncedSearchTerm.trim()
+                      ? `No hunks match "${debouncedSearchTerm}". Try a different search term.`
+                      : selectedFilePath
+                        ? `No hunks in ${selectedFilePath}. Try selecting a different file.`
+                        : "No hunks match the current filters. Try adjusting your filter settings."}
+                  </div>
+                </div>
+              ) : (
+                filteredHunks.map((hunk) => {
+                  const isSelected = hunk.id === selectedHunkId;
+                  const hunkIsRead = isRead(hunk.id);
+
+                  return (
+                    <HunkViewer
+                      key={hunk.id}
+                      hunk={hunk}
+                      hunkId={hunk.id}
+                      workspaceId={workspaceId}
+                      isSelected={isSelected}
+                      isRead={hunkIsRead}
+                      onClick={handleHunkClick}
+                      onToggleRead={handleHunkToggleRead}
+                      onRegisterToggleExpand={handleRegisterToggleExpand}
+                      onReviewNote={onReviewNote}
+                      searchConfig={searchConfig}
+                    />
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          {/* FileTree positioning handled by CSS order property */}
+          {(fileTree ?? isLoadingTree) && (
+            <div className="w-[300px] flex-shrink-0 border-l border-[#3e3e42] flex flex-col overflow-hidden min-h-0 order-2 @[800px]:w-full @[800px]:h-auto @[800px]:flex-[0_0_auto] @[800px]:border-l-0 @[800px]:border-b @[800px]:border-[#3e3e42] @[800px]:order-0">
+              <FileTree
+                root={fileTree}
+                selectedPath={selectedFilePath}
+                onSelectFile={setSelectedFilePath}
+                isLoading={isLoadingTree}
+                getFileReadStatus={getFileReadStatus}
+                workspaceId={workspaceId}
+              />
+            </div>
+          )}
+        </div>
       )}
-    </PanelContainer>
+    </div>
   );
 };

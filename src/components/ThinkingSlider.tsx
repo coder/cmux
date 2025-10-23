@@ -1,5 +1,4 @@
 import React, { useEffect, useId } from "react";
-import styled from "@emotion/styled";
 import type { ThinkingLevel, ThinkingLevelOn } from "@/types/thinking";
 import { useThinkingLevel } from "@/hooks/useThinkingLevel";
 import { TooltipWrapper, Tooltip } from "./Tooltip";
@@ -7,19 +6,6 @@ import { formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
 import { getThinkingPolicyForModel } from "@/utils/thinking/policy";
 import { updatePersistedState } from "@/hooks/usePersistedState";
 import { getLastThinkingByModelKey } from "@/constants/storage";
-
-const ThinkingSliderContainer = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-left: 20px;
-`;
-
-const ThinkingLabel = styled.label`
-  font-size: 10px;
-  color: #606060;
-  user-select: none;
-`;
 
 // Subtle consistent glow for active levels
 const GLOW = {
@@ -60,87 +46,16 @@ const getTextStyle = (n: number) => {
   };
 };
 
-const ThinkingSlider = styled.input<{ value: number }>`
-  width: 80px;
-  height: 4px;
-  -webkit-appearance: none;
-  appearance: none;
-  background: #3e3e42;
-  outline: none;
-  border-radius: 2px;
-  transition: box-shadow 0.2s ease;
+const getSliderStyles = (value: number, isHover = false) => {
+  const effectiveValue = isHover ? Math.min(value + 1, 3) : value;
+  const thumbBg = value === 0 ? "#606060" : `hsl(271 76% ${53 + value * 5}%)`;
 
-  /* Purple glow that intensifies with level */
-  box-shadow: ${(props) => GLOW_INTENSITIES[props.value].track};
-
-  &::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    background: ${(props) =>
-      props.value === 0
-        ? "#606060"
-        : `hsl(271 76% ${53 + props.value * 5}%)`}; /* Lighter purple as value increases */
-    cursor: pointer;
-    transition:
-      background 0.2s ease,
-      box-shadow 0.2s ease;
-    box-shadow: ${(props) => GLOW_INTENSITIES[props.value].thumb};
-  }
-
-  &::-moz-range-thumb {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    background: ${(props) =>
-      props.value === 0 ? "#606060" : `hsl(271 76% ${53 + props.value * 5}%)`};
-    cursor: pointer;
-    border: none;
-    transition:
-      background 0.2s ease,
-      box-shadow 0.2s ease;
-    box-shadow: ${(props) => GLOW_INTENSITIES[props.value].thumb};
-  }
-
-  &:hover {
-    box-shadow: ${(props) => {
-      const nextValue = Math.min(props.value + 1, 3);
-      return GLOW_INTENSITIES[nextValue].track;
-    }};
-
-    &::-webkit-slider-thumb {
-      box-shadow: ${(props) => {
-        const nextValue = Math.min(props.value + 1, 3);
-        return GLOW_INTENSITIES[nextValue].thumb;
-      }};
-    }
-
-    &::-moz-range-thumb {
-      box-shadow: ${(props) => {
-        const nextValue = Math.min(props.value + 1, 3);
-        return GLOW_INTENSITIES[nextValue].thumb;
-      }};
-    }
-  }
-`;
-
-const ThinkingLevelText = styled.span<{ value: number }>`
-  min-width: 45px;
-  text-transform: uppercase;
-  user-select: none;
-  transition: all 0.2s ease;
-  ${(props) => {
-    const style = getTextStyle(props.value);
-    return `
-      color: ${style.color};
-      font-weight: ${style.fontWeight};
-      text-shadow: ${style.textShadow};
-      font-size: ${style.fontSize};
-    `;
-  }}
-`;
+  return {
+    trackShadow: GLOW_INTENSITIES[effectiveValue].track,
+    thumbShadow: GLOW_INTENSITIES[effectiveValue].thumb,
+    thumbBg,
+  };
+};
 
 // Helper functions to map between slider value and ThinkingLevel
 const THINKING_LEVELS: ThinkingLevel[] = ["off", "low", "medium", "high"];
@@ -159,6 +74,7 @@ interface ThinkingControlProps {
 
 export const ThinkingSliderComponent: React.FC<ThinkingControlProps> = ({ modelString }) => {
   const [thinkingLevel, setThinkingLevel] = useThinkingLevel();
+  const [isHovering, setIsHovering] = React.useState(false);
   const sliderId = useId();
   const allowed = getThinkingPolicyForModel(modelString);
 
@@ -175,25 +91,29 @@ export const ThinkingSliderComponent: React.FC<ThinkingControlProps> = ({ modelS
     const value = thinkingLevelToValue(fixedLevel);
     const formattedLevel = fixedLevel === "off" ? "Off" : fixedLevel;
     const tooltipMessage = `Model ${modelString} locks thinking at ${formattedLevel.toUpperCase()} to match its capabilities.`;
+    const textStyle = getTextStyle(value);
 
     return (
       <TooltipWrapper>
-        <ThinkingSliderContainer>
-          <ThinkingLabel>Thinking:</ThinkingLabel>
-          <ThinkingLevelText
-            value={value}
+        <div className="flex items-center gap-2 ml-5">
+          <label className="text-[10px] text-[#606060] select-none">Thinking:</label>
+          <span
+            className="min-w-[45px] uppercase select-none transition-all duration-200"
+            style={textStyle}
             aria-live="polite"
             aria-label={`Thinking level fixed to ${fixedLevel}`}
           >
             {fixedLevel}
-          </ThinkingLevelText>
-        </ThinkingSliderContainer>
+          </span>
+        </div>
         <Tooltip align="center">{tooltipMessage}</Tooltip>
       </TooltipWrapper>
     );
   }
 
   const value = thinkingLevelToValue(thinkingLevel);
+  const sliderStyles = getSliderStyles(value, isHovering);
+  const textStyle = getTextStyle(value);
 
   const handleThinkingLevelChange = (newLevel: ThinkingLevel) => {
     setThinkingLevel(newLevel);
@@ -207,9 +127,11 @@ export const ThinkingSliderComponent: React.FC<ThinkingControlProps> = ({ modelS
 
   return (
     <TooltipWrapper>
-      <ThinkingSliderContainer>
-        <ThinkingLabel htmlFor={sliderId}>Thinking:</ThinkingLabel>
-        <ThinkingSlider
+      <div className="flex items-center gap-2 ml-5">
+        <label htmlFor={sliderId} className="text-[10px] text-[#606060] select-none">
+          Thinking:
+        </label>
+        <input
           type="range"
           min="0"
           max="3"
@@ -218,17 +140,31 @@ export const ThinkingSliderComponent: React.FC<ThinkingControlProps> = ({ modelS
           onChange={(e) =>
             handleThinkingLevelChange(valueToThinkingLevel(parseInt(e.target.value)))
           }
+          onMouseEnter={() => setIsHovering(true)}
+          onMouseLeave={() => setIsHovering(false)}
           id={sliderId}
           role="slider"
           aria-valuemin={0}
           aria-valuemax={3}
           aria-valuenow={value}
           aria-valuetext={thinkingLevel}
+          className="thinking-slider"
+          style={
+            {
+              "--track-shadow": sliderStyles.trackShadow,
+              "--thumb-shadow": sliderStyles.thumbShadow,
+              "--thumb-bg": sliderStyles.thumbBg,
+            } as React.CSSProperties
+          }
         />
-        <ThinkingLevelText value={value} aria-live="polite">
+        <span
+          className="min-w-[45px] uppercase select-none transition-all duration-200"
+          style={textStyle}
+          aria-live="polite"
+        >
           {thinkingLevel}
-        </ThinkingLevelText>
-      </ThinkingSliderContainer>
+        </span>
+      </div>
       <Tooltip align="center">{formatKeybind(KEYBINDS.TOGGLE_THINKING)} to toggle</Tooltip>
     </TooltipWrapper>
   );

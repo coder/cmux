@@ -1,6 +1,6 @@
 import React, { useState, useRef, useLayoutEffect, createContext, useContext } from "react";
 import { createPortal } from "react-dom";
-import styled from "@emotion/styled";
+import { cn } from "@/lib/utils";
 
 // Context for passing hover state and trigger ref from wrapper to tooltip
 interface TooltipContextValue {
@@ -44,22 +44,17 @@ export const TooltipWrapper: React.FC<TooltipWrapperProps> = ({ inline = false, 
 
   return (
     <TooltipContext.Provider value={{ isHovered, setIsHovered, triggerRef }}>
-      <StyledWrapper
+      <span
         ref={triggerRef}
-        inline={inline}
+        className={cn("relative", inline ? "inline-block" : "block")}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
       >
         {children}
-      </StyledWrapper>
+      </span>
     </TooltipContext.Provider>
   );
 };
-
-const StyledWrapper = styled.span<{ inline: boolean }>`
-  position: relative;
-  display: ${(props) => (props.inline ? "inline-block" : "block")};
-`;
 
 // Tooltip - Portal-based component with collision detection
 interface TooltipProps {
@@ -213,7 +208,7 @@ export const Tooltip: React.FC<TooltipProps> = ({
   }
 
   return createPortal(
-    <StyledTooltip
+    <div
       ref={tooltipRef}
       style={{
         // Always include position styles for measurement
@@ -223,68 +218,38 @@ export const Tooltip: React.FC<TooltipProps> = ({
         visibility: tooltipState.isPositioned ? "visible" : "hidden",
         opacity: tooltipState.isPositioned ? 1 : 0,
       }}
-      width={width}
-      className={className}
-      interactive={interactive}
+      className={cn(
+        "bg-[#2d2d30] text-[#cccccc] text-left rounded px-[10px] py-[6px] z-[9999]",
+        "text-[11px] font-normal font-sans border border-[#464647] shadow-[0_2px_8px_rgba(0,0,0,0.4)]",
+        width === "wide" ? "whitespace-normal max-w-[300px] w-max" : "whitespace-nowrap",
+        interactive ? "pointer-events-auto" : "pointer-events-none",
+        className
+      )}
       onMouseEnter={handleTooltipMouseEnter}
       onMouseLeave={handleTooltipMouseLeave}
     >
       {children}
-      <Arrow style={tooltipState.arrowStyle} />
-    </StyledTooltip>,
+      <div
+        className="absolute border-[5px] border-solid -translate-x-1/2"
+        style={tooltipState.arrowStyle}
+      />
+    </div>,
     document.body
   );
 };
 
-const StyledTooltip = styled.div<{ width: string; interactive: boolean }>`
-  background-color: #2d2d30;
-  color: #cccccc;
-  text-align: left;
-  border-radius: 4px;
-  padding: 6px 10px;
-  z-index: 9999;
-  white-space: ${(props) => (props.width === "wide" ? "normal" : "nowrap")};
-  ${(props) =>
-    props.width === "wide" && "max-width: min(300px, calc(100vw - 40px)); width: max-content;"}
-  font-size: 11px;
-  font-weight: normal;
-  font-family: var(--font-primary);
-  border: 1px solid #464647;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
-  pointer-events: ${(props) => (props.interactive ? "auto" : "none")};
-  /* No default visibility/opacity - controlled via inline styles */
-
-  a {
-    color: #4ec9b0;
-    text-decoration: underline;
-    cursor: pointer;
-
-    &:hover {
-      color: #6fd9c0;
-    }
-  }
-`;
-
-const Arrow = styled.div`
-  content: "";
-  position: absolute;
-  border-width: 5px;
-  border-style: solid;
-  transform: translateX(-50%);
-`;
-
-export const HelpIndicator = styled.span`
-  color: #666666;
-  font-size: 7px;
-  cursor: help;
-  display: inline-block;
-  vertical-align: baseline;
-  border: 1px solid #666666;
-  border-radius: 50%;
-  width: 10px;
-  height: 10px;
-  line-height: 8px;
-  text-align: center;
-  font-weight: bold;
-  margin-bottom: 2px;
-`;
+export const HelpIndicator: React.FC<{ className?: string; children?: React.ReactNode }> = ({
+  className,
+  children,
+}) => (
+  <span
+    className={cn(
+      "text-[#666] text-[7px] cursor-help inline-block align-baseline",
+      "border border-[#666] rounded-full w-[10px] h-[10px] leading-[8px]",
+      "text-center font-bold mb-[2px]",
+      className
+    )}
+  >
+    {children}
+  </span>
+);

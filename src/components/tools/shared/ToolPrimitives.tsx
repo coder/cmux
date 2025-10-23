@@ -1,144 +1,159 @@
-import styled from "@emotion/styled";
+import React from "react";
+import { cn } from "@/lib/utils";
 
 /**
  * Shared styled components for tool UI
  * These primitives provide consistent styling across all tool components
  */
 
-export const ToolContainer = styled.div<{ expanded: boolean }>`
-  margin: 8px 0;
-  padding: ${(props) => (props.expanded ? "8px 12px" : "4px 12px")};
-  background: rgba(100, 100, 100, 0.05);
-  border-radius: 4px;
-  font-family: var(--font-monospace);
-  font-size: 11px;
-  transition: all 0.2s ease;
-  container-type: inline-size; /* Enable container queries */
-`;
+interface ToolContainerProps extends React.HTMLAttributes<HTMLDivElement> {
+  expanded: boolean;
+}
 
-export const ToolHeader = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  user-select: none;
-  color: var(--color-text-secondary);
+export const ToolContainer: React.FC<ToolContainerProps> = ({ expanded, className, ...props }) => (
+  <div
+    className={cn(
+      "my-2 bg-[rgba(100,100,100,0.05)] rounded font-mono text-[11px] transition-all duration-200",
+      "[container-type:inline-size]",
+      expanded ? "py-2 px-3" : "py-1 px-3",
+      className
+    )}
+    {...props}
+  />
+);
 
-  &:hover {
-    color: var(--color-text);
+export const ToolHeader: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
+  className,
+  ...props
+}) => (
+  <div
+    className={cn(
+      "flex items-center gap-2 cursor-pointer select-none text-secondary hover:text-foreground",
+      className
+    )}
+    {...props}
+  />
+);
+
+interface ExpandIconProps extends React.HTMLAttributes<HTMLSpanElement> {
+  expanded: boolean;
+}
+
+export const ExpandIcon: React.FC<ExpandIconProps> = ({ expanded, className, ...props }) => (
+  <span
+    className={cn(
+      "inline-block transition-transform duration-200 text-[10px]",
+      expanded ? "rotate-90" : "rotate-0",
+      className
+    )}
+    {...props}
+  />
+);
+
+export const ToolName: React.FC<React.HTMLAttributes<HTMLSpanElement>> = ({
+  className,
+  ...props
+}) => <span className={cn("font-medium", className)} {...props} />;
+
+interface StatusIndicatorProps extends React.HTMLAttributes<HTMLSpanElement> {
+  status: string;
+}
+
+const getStatusColor = (status: string) => {
+  switch (status) {
+    case "executing":
+      return "text-pending";
+    case "completed":
+      return "text-[#4caf50]";
+    case "failed":
+      return "text-[#f44336]";
+    case "interrupted":
+      return "text-interrupted";
+    default:
+      return "text-foreground-secondary";
   }
-`;
+};
 
-export const ExpandIcon = styled.span<{ expanded: boolean }>`
-  display: inline-block;
-  transition: transform 0.2s ease;
-  transform: ${(props) => (props.expanded ? "rotate(90deg)" : "rotate(0deg)")};
-  font-size: 10px;
-`;
+export const StatusIndicator: React.FC<StatusIndicatorProps> = ({
+  status,
+  className,
+  children,
+  ...props
+}) => (
+  <span
+    className={cn(
+      "text-[10px] ml-auto opacity-80 whitespace-nowrap shrink-0",
+      "[&_.status-text]:inline [@container(max-width:500px)]:&:has(.status-text):after:content-['']  [@container(max-width:500px)]:&_.status-text]:hidden",
+      getStatusColor(status),
+      className
+    )}
+    {...props}
+  >
+    {children}
+  </span>
+);
 
-export const ToolName = styled.span`
-  font-weight: 500;
-`;
+export const ToolDetails: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
+  className,
+  ...props
+}) => (
+  <div className={cn("mt-2 pt-2 border-t border-white/5 text-foreground", className)} {...props} />
+);
 
-export const StatusIndicator = styled.span<{ status: string }>`
-  font-size: 10px;
-  margin-left: auto;
-  opacity: 0.8;
-  white-space: nowrap;
-  flex-shrink: 0;
-  color: ${({ status }) => {
-    switch (status) {
-      case "executing":
-        return "var(--color-pending)";
-      case "completed":
-        return "#4caf50";
-      case "failed":
-        return "#f44336";
-      case "interrupted":
-        return "var(--color-interrupted)";
-      default:
-        return "var(--color-text-secondary)";
-    }
-  }};
+export const DetailSection: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
+  className,
+  ...props
+}) => <div className={cn("my-1.5", className)} {...props} />;
 
-  .status-text {
-    display: inline;
-  }
+export const DetailLabel: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
+  className,
+  ...props
+}) => (
+  <div
+    className={cn("text-[10px] text-foreground-secondary mb-1 uppercase tracking-wide", className)}
+    {...props}
+  />
+);
 
-  /* Hide text on narrow containers, show only icon */
-  @container (max-width: 500px) {
-    .status-text {
-      display: none;
-    }
-  }
-`;
+export const DetailContent: React.FC<React.HTMLAttributes<HTMLPreElement>> = ({
+  className,
+  ...props
+}) => (
+  <pre
+    className={cn(
+      "m-0 px-2 py-1.5 bg-code-bg rounded-sm text-[11px] leading-relaxed whitespace-pre-wrap break-words max-h-[200px] overflow-y-auto",
+      className
+    )}
+    {...props}
+  />
+);
 
-export const ToolDetails = styled.div`
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
-  color: var(--color-text);
-`;
+export const LoadingDots: React.FC<React.HTMLAttributes<HTMLSpanElement>> = ({
+  className,
+  ...props
+}) => (
+  <span
+    className={cn(
+      "after:content-['...'] after:animate-[dots_1.5s_infinite]",
+      "[&]:after:[@keyframes_dots]{0%,20%{content:'.'};40%{content:'..'};60%,100%{content:'...'}}",
+      className
+    )}
+    {...props}
+  />
+);
 
-export const DetailSection = styled.div`
-  margin: 6px 0;
-`;
+interface HeaderButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  active?: boolean;
+}
 
-export const DetailLabel = styled.div`
-  font-size: 10px;
-  color: var(--color-text-secondary);
-  margin-bottom: 4px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-`;
-
-export const DetailContent = styled.pre`
-  margin: 0;
-  padding: 6px 8px;
-  background: var(--color-code-bg);
-  border-radius: 3px;
-  font-size: 11px;
-  line-height: 1.4;
-  white-space: pre-wrap;
-  word-break: break-word;
-  max-height: 200px;
-  overflow-y: auto;
-`;
-
-export const LoadingDots = styled.span`
-  &::after {
-    content: "...";
-    animation: dots 1.5s infinite;
-  }
-
-  @keyframes dots {
-    0%,
-    20% {
-      content: ".";
-    }
-    40% {
-      content: "..";
-    }
-    60%,
-    100% {
-      content: "...";
-    }
-  }
-`;
-
-export const HeaderButton = styled.button<{ active?: boolean }>`
-  background: ${(props) => (props.active ? "rgba(255, 255, 255, 0.1)" : "none")};
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: #cccccc;
-  padding: 2px 8px;
-  border-radius: 3px;
-  cursor: pointer;
-  font-size: 10px;
-  transition: all 0.2s ease;
-  white-space: nowrap;
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: rgba(255, 255, 255, 0.3);
-  }
-`;
+export const HeaderButton: React.FC<HeaderButtonProps> = ({ active, className, ...props }) => (
+  <button
+    className={cn(
+      "border border-white/20 text-[#ccc] px-2 py-0.5 rounded-sm cursor-pointer text-[10px]",
+      "transition-all duration-200 whitespace-nowrap hover:bg-white/10 hover:border-white/30",
+      active && "bg-white/10",
+      className
+    )}
+    {...props}
+  />
+);

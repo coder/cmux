@@ -1,36 +1,10 @@
 import React, { useState } from "react";
-import styled from "@emotion/styled";
 import type { DisplayedMessage } from "@/types/message";
 import type { ButtonConfig } from "./MessageWindow";
 import { MessageWindow } from "./MessageWindow";
 import { TerminalOutput } from "./TerminalOutput";
 import { formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
 import type { KebabMenuItem } from "@/components/KebabMenu";
-
-const FormattedContent = styled.pre`
-  margin: 0;
-  font-family: var(--font-monospace);
-  font-size: 12px;
-  line-height: 1.5;
-  white-space: pre-wrap;
-  word-break: break-word;
-  color: #999999;
-  opacity: 0.9;
-`;
-
-const ImageContainer = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 8px;
-`;
-
-const MessageImage = styled.img`
-  max-width: min(300px, calc(100vw - 100px));
-  max-height: 300px;
-  border-radius: 4px;
-  border: 1px solid #3e3e42;
-`;
 
 interface UserMessageProps {
   message: DisplayedMessage & { type: "user" };
@@ -146,13 +120,22 @@ export const UserMessage: React.FC<UserMessageProps> = ({
       kebabMenuItems={kebabMenuItems}
       className={className}
     >
-      {content && <FormattedContent>{content}</FormattedContent>}
+      {content && (
+        <pre className="m-0 font-mono text-xs leading-4 whitespace-pre-wrap break-words text-[#999999] opacity-90">
+          {content}
+        </pre>
+      )}
       {message.imageParts && message.imageParts.length > 0 && (
-        <ImageContainer>
+        <div className="flex flex-wrap gap-2 mt-2">
           {message.imageParts.map((img, idx) => (
-            <MessageImage key={idx} src={img.url} alt={`Attachment ${idx + 1}`} />
+            <img
+              key={idx}
+              src={img.url}
+              alt={`Attachment ${idx + 1}`}
+              className="max-w-[300px] max-h-[300px] rounded border border-[#3e3e42]"
+            />
           ))}
-        </ImageContainer>
+        </div>
       )}
     </MessageWindow>
   );

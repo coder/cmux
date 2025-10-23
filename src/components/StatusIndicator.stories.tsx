@@ -2,29 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { action } from "@storybook/addon-actions";
 import { expect, userEvent, waitFor } from "@storybook/test";
 import { StatusIndicator } from "./StatusIndicator";
-import styled from "@emotion/styled";
 import { useArgs } from "storybook/internal/preview-api";
-
-const DemoContainer = styled.div`
-  display: flex;
-  gap: 30px;
-  padding: 20px;
-  align-items: center;
-  flex-wrap: wrap;
-`;
-
-const DemoItem = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  align-items: center;
-`;
-
-const Label = styled.span`
-  font-size: 11px;
-  color: #808080;
-  font-family: var(--font-primary);
-`;
 
 const meta = {
   title: "Components/StatusIndicator",
@@ -79,59 +57,59 @@ export const Unread: Story = {
 export const AllStates: Story = {
   args: { streaming: false, unread: false },
   render: () => (
-    <DemoContainer>
-      <DemoItem>
+    <div className="flex gap-[30px] p-5 items-center flex-wrap">
+      <div className="flex flex-col gap-2 items-center">
         <StatusIndicator streaming={false} unread={false} />
-        <Label>Default</Label>
-      </DemoItem>
+        <span className="text-[11px] text-[#808080] font-primary">Default</span>
+      </div>
 
-      <DemoItem>
+      <div className="flex flex-col gap-2 items-center">
         <StatusIndicator streaming={true} unread={false} />
-        <Label>Streaming</Label>
-      </DemoItem>
+        <span className="text-[11px] text-[#808080] font-primary">Streaming</span>
+      </div>
 
-      <DemoItem>
+      <div className="flex flex-col gap-2 items-center">
         <StatusIndicator streaming={false} unread={true} />
-        <Label>Unread</Label>
-      </DemoItem>
+        <span className="text-[11px] text-[#808080] font-primary">Unread</span>
+      </div>
 
-      <DemoItem>
+      <div className="flex flex-col gap-2 items-center">
         <StatusIndicator streaming={true} unread={true} />
-        <Label>Streaming (unread ignored)</Label>
-      </DemoItem>
-    </DemoContainer>
+        <span className="text-[11px] text-[#808080] font-primary">Streaming (unread ignored)</span>
+      </div>
+    </div>
   ),
 };
 
 export const DifferentSizes: Story = {
   args: { streaming: false, unread: false },
   render: () => (
-    <DemoContainer>
-      <DemoItem>
+    <div className="flex gap-[30px] p-5 items-center flex-wrap">
+      <div className="flex flex-col gap-2 items-center">
         <StatusIndicator streaming={false} unread={true} size={4} />
-        <Label>4px</Label>
-      </DemoItem>
+        <span className="text-[11px] text-[#808080] font-primary">4px</span>
+      </div>
 
-      <DemoItem>
+      <div className="flex flex-col gap-2 items-center">
         <StatusIndicator streaming={false} unread={true} size={8} />
-        <Label>8px (default)</Label>
-      </DemoItem>
+        <span className="text-[11px] text-[#808080] font-primary">8px (default)</span>
+      </div>
 
-      <DemoItem>
+      <div className="flex flex-col gap-2 items-center">
         <StatusIndicator streaming={false} unread={true} size={12} />
-        <Label>12px</Label>
-      </DemoItem>
+        <span className="text-[11px] text-[#808080] font-primary">12px</span>
+      </div>
 
-      <DemoItem>
+      <div className="flex flex-col gap-2 items-center">
         <StatusIndicator streaming={false} unread={true} size={16} />
-        <Label>16px</Label>
-      </DemoItem>
+        <span className="text-[11px] text-[#808080] font-primary">16px</span>
+      </div>
 
-      <DemoItem>
+      <div className="flex flex-col gap-2 items-center">
         <StatusIndicator streaming={false} unread={true} size={20} />
-        <Label>20px</Label>
-      </DemoItem>
-    </DemoContainer>
+        <span className="text-[11px] text-[#808080] font-primary">20px</span>
+      </div>
+    </div>
   ),
 };
 
@@ -263,34 +241,22 @@ export const InContext: Story = {
     controls: { disable: true },
   },
   render: () => {
-    const WorkspaceItem = styled.div`
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 8px 12px;
-      background: #2d2d30;
-      border-radius: 4px;
-      font-family: var(--font-primary);
-      font-size: 13px;
-      color: #cccccc;
-    `;
-
     return (
-      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-        <WorkspaceItem>
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center gap-2 py-2 px-3 bg-[#2d2d30] rounded font-primary text-[13px] text-[#cccccc]">
           <StatusIndicator streaming={false} unread={false} />
           <span>workspace-feature-branch</span>
-        </WorkspaceItem>
+        </div>
 
-        <WorkspaceItem>
+        <div className="flex items-center gap-2 py-2 px-3 bg-[#2d2d30] rounded font-primary text-[13px] text-[#cccccc]">
           <StatusIndicator streaming={true} unread={false} />
           <span>workspace-main (streaming)</span>
-        </WorkspaceItem>
+        </div>
 
-        <WorkspaceItem>
+        <div className="flex items-center gap-2 py-2 px-3 bg-[#2d2d30] rounded font-primary text-[13px] text-[#cccccc]">
           <StatusIndicator streaming={false} unread={true} />
           <span>workspace-bugfix (3 unread)</span>
-        </WorkspaceItem>
+        </div>
       </div>
     );
   },

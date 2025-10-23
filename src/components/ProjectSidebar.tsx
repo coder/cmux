@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
-import styled from "@emotion/styled";
-import { css } from "@emotion/react";
+import { cn } from "@/lib/utils";
 import type { ProjectConfig } from "@/config";
 import type { FrontendWorkspaceMetadata } from "@/types/workspace";
 import { usePersistedState } from "@/hooks/usePersistedState";
@@ -25,360 +24,6 @@ import { RenameProvider } from "@/contexts/WorkspaceRenameContext";
 // Re-export WorkspaceSelection for backwards compatibility
 export type { WorkspaceSelection } from "./WorkspaceListItem";
 
-// Styled Components
-const SidebarContent = styled.div`
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  overflow: hidden;
-  font-family: var(--font-primary);
-`;
-
-const SidebarHeader = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px;
-  border-bottom: 1px solid #1e1e1e;
-
-  h2 {
-    margin: 0;
-    font-size: 13px;
-    font-weight: 600;
-    color: #cccccc;
-    text-transform: uppercase;
-    letter-spacing: 0.8px;
-  }
-`;
-
-const AddProjectBtn = styled.button`
-  width: 24px;
-  height: 24px;
-  background: transparent;
-  color: #cccccc;
-  border: 1px solid transparent;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 18px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  transition: all 0.2s;
-
-  &:hover {
-    background: #2a2a2b;
-    border-color: #3c3c3c;
-  }
-`;
-
-const CollapseButton = styled.button`
-  width: 100%;
-  height: 36px;
-  background: transparent;
-  color: #888;
-  border: none;
-  border-top: 1px solid #1e1e1e;
-  cursor: pointer;
-  font-size: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  transition: all 0.2s;
-  margin-top: auto;
-
-  &:hover {
-    background: #2a2a2b;
-    color: #ccc;
-  }
-`;
-
-const ProjectsList = styled.div`
-  flex: 1;
-  overflow-y: auto;
-`;
-
-const EmptyState = styled.div`
-  padding: 32px 16px;
-  text-align: center;
-
-  p {
-    color: #888;
-    font-size: 13px;
-    margin-bottom: 16px;
-  }
-`;
-
-const AddFirstProjectBtn = styled.button`
-  background: #007acc;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  padding: 8px 16px;
-  font-size: 13px;
-  cursor: pointer;
-  transition: background 0.2s;
-
-  &:hover {
-    background: #005a9e;
-  }
-`;
-
-const ProjectGroup = styled.div`
-  border-bottom: 1px solid #2a2a2b;
-`;
-
-const ProjectItem = styled.div<{ selected?: boolean; isDragging?: boolean; isOver?: boolean }>`
-  padding: 4px 12px;
-  cursor: ${(props) => (props.isDragging ? "grabbing" : "grab")};
-  display: flex;
-  align-items: center;
-  border-left: 3px solid transparent;
-  transition: all 0.15s;
-  opacity: ${(props) => (props.isDragging ? 0.4 : 1)};
-  background: ${(props) => (props.isOver ? "rgba(0, 122, 204, 0.08)" : "transparent")};
-
-  ${(props) =>
-    props.selected &&
-    css`
-      background: #2a2a2b;
-      border-left-color: #007acc;
-    `}
-
-  ${(props) =>
-    props.isDragging &&
-    css`
-      * {
-        cursor: grabbing !important;
-      }
-    `}
-
-  &:hover {
-    background: #2a2a2b;
-
-    button {
-      opacity: 1;
-    }
-
-    /* Show drag handle on hover - target by data attribute */
-    [data-drag-handle] {
-      opacity: 1;
-    }
-  }
-`;
-
-const ExpandIcon = styled.span<{ expanded?: boolean }>`
-  color: #888;
-  font-size: 10px;
-  margin-right: 8px;
-  transition: transform 0.2s;
-  flex-shrink: 0;
-
-  ${(props) =>
-    props.expanded &&
-    css`
-      transform: rotate(90deg);
-    `}
-`;
-
-// Global DnD drag layer to render a semi-transparent preview of the dragged project
-const DragLayerContainer = styled.div`
-  position: fixed;
-  pointer-events: none;
-  z-index: 9999;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-`;
-
-const DragPreviewItem = styled.div`
-  background: rgba(42, 42, 43, 0.95);
-  color: #ccc;
-  padding: 6px 12px;
-  border-left: 3px solid #007acc;
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  width: fit-content;
-  max-width: 280px;
-  min-width: 180px;
-`;
-
-const DragHandle = styled.span`
-  color: #666;
-  font-size: 12px;
-  margin-right: 6px;
-  cursor: grab;
-  opacity: 0;
-  user-select: none;
-  transition: opacity 0.15s;
-`;
-
-const ProjectInfo = styled.div`
-  flex: 1;
-  min-width: 0;
-  padding-right: 8px;
-`;
-
-const ProjectName = styled.div`
-  color: #cccccc;
-  font-size: 14px;
-  font-weight: 500;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  letter-spacing: 0.2px;
-`;
-
-const ProjectPath = styled.div`
-  color: #6e6e6e;
-  font-size: 11px;
-  margin-top: 1px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-family: var(--font-monospace);
-`;
-
-const RemoveBtn = styled.button`
-  width: 20px;
-  height: 20px;
-  background: transparent;
-  color: #6e6e6e;
-  border: none;
-  border-radius: 3px;
-  cursor: pointer;
-  font-size: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-  opacity: 0;
-  flex-shrink: 0;
-
-  &:hover {
-    color: #ff5555;
-    background: rgba(255, 85, 85, 0.1);
-  }
-`;
-
-const SecretsBtn = styled.button`
-  width: 20px;
-  height: 20px;
-  background: transparent;
-  color: #6e6e6e;
-  border: none;
-  border-radius: 3px;
-  cursor: pointer;
-  font-size: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-  opacity: 0;
-  flex-shrink: 0;
-  margin-right: 4px;
-
-  &:hover {
-    color: #569cd6;
-    background: rgba(86, 156, 214, 0.1);
-  }
-`;
-
-const WorkspacesContainer = styled.div`
-  background: #1a1a1a;
-`;
-
-const WorkspaceHeader = styled.div`
-  padding: 8px 12px 8px 22px;
-  border-bottom: 1px solid #2a2a2b;
-`;
-
-const AddWorkspaceBtn = styled.button`
-  width: 100%;
-  padding: 6px 12px;
-  background: transparent;
-  color: #888;
-  border: 1px dashed #444;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 13px;
-  transition: all 0.2s;
-  text-align: left;
-
-  &:hover {
-    background: #2a2a2b;
-    border-color: #555;
-    color: #ccc;
-  }
-`;
-
-const OldWorkspacesSection = styled.button<{ expanded: boolean }>`
-  width: 100%;
-  padding: 8px 12px 8px 22px;
-  background: transparent;
-  color: #858585;
-  border: none;
-  border-top: 1px solid #2a2a2b;
-  cursor: pointer;
-  font-size: 12px;
-  transition: all 0.15s;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-weight: 500;
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.03);
-    color: #aaa;
-
-    .arrow {
-      color: #aaa;
-    }
-  }
-
-  .label {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
-  .count {
-    color: #666;
-    font-weight: 400;
-  }
-
-  .arrow {
-    font-size: 11px;
-    color: #666;
-    transition: transform 0.2s ease;
-    transform: ${(props) => (props.expanded ? "rotate(90deg)" : "rotate(0deg)")};
-  }
-`;
-
-const RemoveErrorToast = styled.div<{ top: number; left: number }>`
-  position: fixed;
-  top: ${(props) => props.top}px;
-  left: ${(props) => props.left}px;
-  max-width: min(400px, calc(100vw - 40px));
-  padding: 12px 16px;
-  background: var(--color-error-bg);
-  border: 1px solid var(--color-error);
-  border-radius: 6px;
-  color: var(--color-error);
-  font-size: 12px;
-  z-index: 10000;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
-  font-family: var(--font-monospace);
-  line-height: 1.4;
-  white-space: pre-wrap;
-  word-break: break-word;
-  pointer-events: auto;
-`;
-
 // Draggable project item moved to module scope to avoid remounting on every parent render.
 // Defining components inside another component causes a new function identity each render,
 // which forces React to unmount/remount the subtree. That led to hover flicker and high CPU.
@@ -399,6 +44,7 @@ const DraggableProjectItemBase: React.FC<DraggableProjectItemProps> = ({
   projectPath,
   onReorder,
   children,
+  selected,
   ...rest
 }) => {
   const [{ isDragging }, drag, dragPreview] = useDrag(
@@ -429,9 +75,19 @@ const DraggableProjectItemBase: React.FC<DraggableProjectItemProps> = ({
   );
 
   return (
-    <ProjectItem ref={(node) => drag(drop(node))} isDragging={isDragging} isOver={isOver} {...rest}>
+    <div
+      ref={(node) => drag(drop(node))}
+      className={cn(
+        "py-1 px-3 flex items-center border-l-transparent transition-all duration-150",
+        isDragging ? "cursor-grabbing opacity-40 [&_*]:!cursor-grabbing" : "cursor-grab",
+        isOver && "bg-[rgba(0,122,204,0.08)]",
+        selected && "bg-[#2a2a2b] border-l-[#007acc]",
+        "hover:bg-[#2a2a2b] hover:[&_button]:opacity-100 hover:[&_[data-drag-handle]]:opacity-100"
+      )}
+      {...rest}
+    >
       {children}
-    </ProjectItem>
+    </div>
   );
 };
 
@@ -478,41 +134,22 @@ const ProjectDragLayer: React.FC = () => {
   const abbrevPath = abbreviatePath(item.projectPath);
 
   return (
-    <DragLayerContainer style={{ cursor: "grabbing" }}>
+    <div className="fixed pointer-events-none z-[9999] inset-0 cursor-grabbing">
       <div style={{ transform: `translate(${currentOffset.x + 10}px, ${currentOffset.y + 10}px)` }}>
-        <DragPreviewItem>
-          <span style={{ marginRight: 6, color: "#666", fontSize: 12 }}>⠿</span>
-          <span style={{ marginRight: 8, color: "#888", fontSize: 10 }}>▶</span>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div
-              style={{
-                color: "#cccccc",
-                fontSize: 14,
-                fontWeight: 500,
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-              }}
-            >
+        <div className="bg-[rgba(42,42,43,0.95)] text-[#ccc] py-1.5 px-3 border-l-[3px] border-l-[#007acc] shadow-[0_6px_24px_rgba(0,0,0,0.4)] rounded flex items-center w-fit max-w-[280px] min-w-[180px]">
+          <span className="mr-1.5 text-[#666] text-xs">⠿</span>
+          <span className="mr-2 text-[#888] text-[10px]">▶</span>
+          <div className="flex-1 min-w-0">
+            <div className="text-[#cccccc] text-sm font-medium whitespace-nowrap overflow-hidden text-ellipsis tracking-[0.2px]">
               {name}
             </div>
-            <div
-              style={{
-                color: "#6e6e6e",
-                fontSize: 11,
-                marginTop: 2,
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                fontFamily: "var(--font-monospace)",
-              }}
-            >
+            <div className="text-[#6e6e6e] text-[11px] mt-0.5 whitespace-nowrap overflow-hidden text-ellipsis font-monospace">
               {abbrevPath}
             </div>
           </div>
-        </DragPreviewItem>
+        </div>
       </div>
-    </DragLayerContainer>
+    </div>
   );
 };
 
@@ -778,26 +415,41 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
     <RenameProvider onRenameWorkspace={onRenameWorkspace}>
       <DndProvider backend={HTML5Backend}>
         <ProjectDragLayer />
-        <SidebarContent role="navigation" aria-label="Projects">
+        <div
+          className="flex flex-col flex-1 overflow-hidden font-primary"
+          role="navigation"
+          aria-label="Projects"
+        >
           {!collapsed && (
             <>
-              <SidebarHeader>
-                <h2>Projects</h2>
+              <div className="flex justify-between items-center p-4 border-b border-b-[#1e1e1e]">
+                <h2 className="m-0 text-[13px] font-semibold text-[#cccccc] uppercase tracking-[0.8px]">
+                  Projects
+                </h2>
                 <TooltipWrapper inline>
-                  <AddProjectBtn onClick={onAddProject} aria-label="Add project">
+                  <button
+                    onClick={onAddProject}
+                    aria-label="Add project"
+                    className="w-6 h-6 bg-transparent text-[#cccccc] border border-transparent rounded cursor-pointer text-lg flex items-center justify-center p-0 transition-all duration-200 hover:bg-[#2a2a2b] hover:border-[#3c3c3c]"
+                  >
                     +
-                  </AddProjectBtn>
+                  </button>
                   <Tooltip className="tooltip" align="right">
                     Add Project
                   </Tooltip>
                 </TooltipWrapper>
-              </SidebarHeader>
-              <ProjectsList>
+              </div>
+              <div className="flex-1 overflow-y-auto">
                 {projects.size === 0 ? (
-                  <EmptyState>
-                    <p>No projects</p>
-                    <AddFirstProjectBtn onClick={onAddProject}>Add Project</AddFirstProjectBtn>
-                  </EmptyState>
+                  <div className="py-8 px-4 text-center">
+                    <p className="text-[#888] text-[13px] mb-4">No projects</p>
+                    <button
+                      onClick={onAddProject}
+                      className="bg-[#007acc] text-white border-none rounded py-2 px-4 text-[13px] cursor-pointer transition-colors duration-200 hover:bg-[#005a9e]"
+                    >
+                      Add Project
+                    </button>
+                  </div>
                 ) : (
                   sortedProjectPaths.map((projectPath) => {
                     const config = projects.get(projectPath);
@@ -809,10 +461,11 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
                     const isExpanded = expandedProjects.has(projectPath);
 
                     return (
-                      <ProjectGroup key={projectPath}>
+                      <div key={projectPath} className="border-b border-[#2a2a2b]">
                         <DraggableProjectItem
                           projectPath={projectPath}
                           onReorder={handleReorder}
+                          selected={false}
                           onClick={() => toggleProject(projectPath)}
                           onKeyDown={(e: React.KeyboardEvent) => {
                             if (e.key === "Enter" || e.key === " ") {
@@ -826,42 +479,52 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
                           aria-controls={workspaceListId}
                           data-project-path={projectPath}
                         >
-                          <DragHandle data-drag-handle aria-hidden>
+                          <span
+                            data-drag-handle
+                            aria-hidden
+                            className="text-[#666] text-xs mr-1.5 cursor-grab opacity-0 select-none transition-opacity duration-150"
+                          >
                             ⠿
-                          </DragHandle>
-                          <ExpandIcon
-                            expanded={isExpanded}
+                          </span>
+                          <span
                             data-project-path={projectPath}
                             aria-hidden="true"
+                            className="text-[#888] text-[10px] mr-2 transition-transform duration-200 flex-shrink-0"
+                            style={{ transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)" }}
                           >
                             ▶
-                          </ExpandIcon>
-                          <ProjectInfo>
-                            <ProjectName>{projectName}</ProjectName>
+                          </span>
+                          <div className="flex-1 min-w-0 pr-2">
+                            <div className="text-[#cccccc] text-sm font-medium whitespace-nowrap overflow-hidden text-ellipsis tracking-[0.2px]">
+                              {projectName}
+                            </div>
                             <TooltipWrapper inline>
-                              <ProjectPath>{abbreviatePath(projectPath)}</ProjectPath>
+                              <div className="text-[#6e6e6e] text-[11px] mt-px whitespace-nowrap overflow-hidden text-ellipsis font-monospace">
+                                {abbreviatePath(projectPath)}
+                              </div>
                               <Tooltip className="tooltip" align="left">
                                 {projectPath}
                               </Tooltip>
                             </TooltipWrapper>
-                          </ProjectInfo>
+                          </div>
                           <TooltipWrapper inline>
-                            <SecretsBtn
+                            <button
                               onClick={(event) => {
                                 event.stopPropagation();
                                 void handleOpenSecrets(projectPath);
                               }}
                               aria-label={`Manage secrets for ${projectName}`}
                               data-project-path={projectPath}
+                              className="w-5 h-5 bg-transparent text-[#6e6e6e] border-none rounded-[3px] cursor-pointer text-sm flex items-center justify-center transition-all duration-200 opacity-0 flex-shrink-0 mr-1 hover:text-[#569cd6] hover:bg-[rgba(86,156,214,0.1)]"
                             >
                               🔑
-                            </SecretsBtn>
+                            </button>
                             <Tooltip className="tooltip" align="right">
                               Manage secrets
                             </Tooltip>
                           </TooltipWrapper>
                           <TooltipWrapper inline>
-                            <RemoveBtn
+                            <button
                               onClick={(event) => {
                                 event.stopPropagation();
                                 onRemoveProject(projectPath);
@@ -869,9 +532,10 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
                               title="Remove project"
                               aria-label={`Remove project ${projectName}`}
                               data-project-path={projectPath}
+                              className="w-5 h-5 bg-transparent text-[#6e6e6e] border-none rounded-[3px] cursor-pointer text-base flex items-center justify-center transition-all duration-200 opacity-0 flex-shrink-0 hover:text-[#ff5555] hover:bg-[rgba(255,85,85,0.1)]"
                             >
                               ×
-                            </RemoveBtn>
+                            </button>
                             <Tooltip className="tooltip" align="right">
                               Remove project
                             </Tooltip>
@@ -879,18 +543,19 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
                         </DraggableProjectItem>
 
                         {isExpanded && (
-                          <WorkspacesContainer id={workspaceListId}>
-                            <WorkspaceHeader>
-                              <AddWorkspaceBtn
+                          <div id={workspaceListId} className="bg-[#1a1a1a]">
+                            <div className="py-2 px-3 pl-[22px] border-b border-[#2a2a2b]">
+                              <button
                                 onClick={() => onAddWorkspace(projectPath)}
                                 data-project-path={projectPath}
                                 aria-label={`Add workspace to ${projectName}`}
+                                className="w-full py-1.5 px-3 bg-transparent text-[#888] border border-dashed border-[#444] rounded cursor-pointer text-[13px] transition-all duration-200 text-left hover:bg-[#2a2a2b] hover:border-[#555] hover:text-[#ccc]"
                               >
                                 + New Workspace
                                 {selectedWorkspace?.projectPath === projectPath &&
                                   ` (${formatKeybind(KEYBINDS.NEW_WORKSPACE)})`}
-                              </AddWorkspaceBtn>
-                            </WorkspaceHeader>
+                              </button>
+                            </div>
                             {(() => {
                               const allWorkspaces =
                                 sortedWorkspacesByProject.get(projectPath) ?? [];
@@ -919,7 +584,7 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
                                   {recent.map(renderWorkspace)}
                                   {old.length > 0 && (
                                     <>
-                                      <OldWorkspacesSection
+                                      <button
                                         onClick={() => toggleOldWorkspaces(projectPath)}
                                         aria-label={
                                           showOldWorkspaces
@@ -927,31 +592,47 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
                                             : `Expand workspaces older than ${formatOldWorkspaceThreshold()}`
                                         }
                                         aria-expanded={showOldWorkspaces}
-                                        expanded={showOldWorkspaces}
+                                        className="w-full py-2 px-3 pl-[22px] bg-transparent text-[#858585] border-none border-t border-t-[#2a2a2b] cursor-pointer text-xs transition-all duration-150 flex items-center justify-between font-medium hover:bg-[rgba(255,255,255,0.03)] hover:text-[#aaa] [&:hover_.arrow]:text-[#aaa]"
                                       >
-                                        <div className="label">
+                                        <div className="flex items-center gap-1.5">
                                           <span>Older than {formatOldWorkspaceThreshold()}</span>
-                                          <span className="count">({old.length})</span>
+                                          <span className="text-[#666] font-normal">
+                                            ({old.length})
+                                          </span>
                                         </div>
-                                        <span className="arrow">▶</span>
-                                      </OldWorkspacesSection>
+                                        <span
+                                          className="arrow text-[11px] text-[#666] transition-transform duration-200 ease-in-out"
+                                          style={{
+                                            transform: showOldWorkspaces
+                                              ? "rotate(90deg)"
+                                              : "rotate(0deg)",
+                                          }}
+                                        >
+                                          ▶
+                                        </span>
+                                      </button>
                                       {showOldWorkspaces && old.map(renderWorkspace)}
                                     </>
                                   )}
                                 </>
                               );
                             })()}
-                          </WorkspacesContainer>
+                          </div>
                         )}
-                      </ProjectGroup>
+                      </div>
                     );
                   })
                 )}
-              </ProjectsList>
+              </div>
             </>
           )}
           <TooltipWrapper inline>
-            <CollapseButton onClick={onToggleCollapsed}>{collapsed ? "»" : "«"}</CollapseButton>
+            <button
+              onClick={onToggleCollapsed}
+              className="w-full h-9 bg-transparent text-[#888] border-none border-t border-t-[#1e1e1e] cursor-pointer text-sm flex items-center justify-center p-0 transition-all duration-200 mt-auto hover:bg-[#2a2a2b] hover:text-[#ccc]"
+            >
+              {collapsed ? "»" : "«"}
+            </button>
             <Tooltip className="tooltip" align="center">
               {collapsed ? "Expand sidebar" : "Collapse sidebar"} (
               {formatKeybind(KEYBINDS.TOGGLE_SIDEBAR)})
@@ -978,12 +659,18 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
           )}
           {removeError &&
             createPortal(
-              <RemoveErrorToast top={removeError.position.top} left={removeError.position.left}>
+              <div
+                className="fixed max-w-[400px] p-3 px-4 bg-error-bg border border-error rounded-md text-error text-xs z-[10000] shadow-[0_4px_16px_rgba(0,0,0,0.5)] font-monospace leading-[1.4] whitespace-pre-wrap break-words pointer-events-auto"
+                style={{
+                  top: `${removeError.position.top}px`,
+                  left: `${removeError.position.left}px`,
+                }}
+              >
                 Failed to remove workspace: {removeError.error}
-              </RemoveErrorToast>,
+              </div>,
               document.body
             )}
-        </SidebarContent>
+        </div>
       </DndProvider>
     </RenameProvider>
   );

@@ -2,6 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import topLevelAwait from "vite-plugin-top-level-await";
 import svgr from "vite-plugin-svgr";
+import tailwindcss from "@tailwindcss/vite";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -28,7 +29,6 @@ const reactCompilerConfig = {
 // Babel plugins configuration (shared between dev and production)
 const babelPlugins = [
   ["babel-plugin-react-compiler", reactCompilerConfig],
-  "@emotion/babel-plugin", // Required for component selector syntax (e.g., ${Component}:hover &)
 ];
 
 // Base plugins for both dev and production
@@ -39,6 +39,7 @@ const basePlugins = [
       plugins: babelPlugins,
     },
   }),
+  tailwindcss(),
 ];
 
 export default defineConfig(({ mode }) => ({

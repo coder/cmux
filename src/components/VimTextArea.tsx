@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import styled from "@emotion/styled";
 import type { UIMode } from "@/types/mode";
 import * as vim from "@/utils/vim";
 import { TooltipWrapper, Tooltip, HelpIndicator } from "./Tooltip";
 import { formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
+import { cn } from "@/lib/utils";
 
 /**
  * VimTextArea – minimal Vim-like editing for a textarea.
@@ -30,87 +30,6 @@ export interface VimTextAreaProps
   isEditing?: boolean;
   suppressKeys?: string[]; // keys for which Vim should not interfere (e.g. ["Tab","ArrowUp","ArrowDown","Escape"]) when popovers are open
 }
-
-const StyledTextArea = styled.textarea<{
-  isEditing?: boolean;
-  mode: UIMode;
-  vimMode: VimMode;
-}>`
-  width: 100%;
-  background: ${(props) => (props.isEditing ? "var(--color-editing-mode-alpha)" : "#1e1e1e")};
-  border: 1px solid ${(props) => (props.isEditing ? "var(--color-editing-mode)" : "#3e3e42")};
-  color: #d4d4d4;
-  padding: 6px 8px;
-  border-radius: 4px;
-  font-family: inherit;
-  font-size: 13px;
-  resize: none;
-  min-height: 32px;
-  max-height: 50vh;
-  overflow-y: auto;
-  caret-color: ${(props) => (props.vimMode === "normal" ? "transparent" : "#ffffff")};
-
-  &:focus {
-    outline: none;
-    border-color: ${(props) =>
-      props.isEditing
-        ? "var(--color-editing-mode)"
-        : props.mode === "plan"
-          ? "var(--color-plan-mode)"
-          : "var(--color-exec-mode)"};
-  }
-
-  &::placeholder {
-    color: #6b6b6b;
-  }
-
-  /* Solid block cursor in normal mode (no blinking) */
-  &::selection {
-    background-color: ${(props) =>
-      props.vimMode === "normal" ? "rgba(255, 255, 255, 0.5)" : "rgba(51, 153, 255, 0.5)"};
-  }
-`;
-
-const ModeIndicator = styled.div`
-  font-size: 9px;
-  color: rgba(212, 212, 212, 0.6);
-  letter-spacing: 0.8px;
-  user-select: none;
-  height: 11px; /* Fixed height to prevent border bump */
-  line-height: 11px;
-  margin-bottom: 1px; /* Minimal spacing between indicator and textarea */
-  display: flex;
-  align-items: center;
-  justify-content: space-between; /* Space between left (vim mode) and right (focus hint) */
-  gap: 4px;
-`;
-
-const ModeLeftSection = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 4px;
-`;
-
-const ModeRightSection = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin-left: auto;
-`;
-
-const ModeText = styled.span`
-  text-transform: uppercase; /* Only uppercase the mode name, not commands */
-`;
-
-const EmptyCursor = styled.div`
-  position: absolute;
-  width: 8px;
-  height: 16px;
-  background-color: rgba(255, 255, 255, 0.5);
-  pointer-events: none;
-  left: 8px;
-  top: 6px;
-`;
 
 type VimMode = vim.VimMode;
 
@@ -235,8 +154,11 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
 
     return (
       <div style={{ width: "100%" }} data-component="VimTextAreaContainer">
-        <ModeIndicator aria-live="polite">
-          <ModeLeftSection>
+        <div
+          className="text-[9px] text-[rgba(212,212,212,0.6)] tracking-[0.8px] select-none h-[11px] leading-[11px] mb-px flex items-center justify-between gap-1"
+          aria-live="polite"
+        >
+          <div className="flex items-center gap-1">
             {showVimMode && (
               <>
                 <TooltipWrapper>
@@ -262,35 +184,46 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
                     for full command reference.
                   </Tooltip>
                 </TooltipWrapper>
-                <ModeText>normal</ModeText>
+                <span className="uppercase">normal</span>
                 {pendingCommand && <span>{pendingCommand}</span>}
               </>
             )}
-          </ModeLeftSection>
+          </div>
           {showFocusHint && (
-            <ModeRightSection>
+            <div className="flex items-center gap-1 ml-auto font-mono">
               <span>{formatKeybind(KEYBINDS.FOCUS_CHAT)} to focus</span>
-            </ModeRightSection>
+            </div>
           )}
-        </ModeIndicator>
+        </div>
         <div style={{ position: "relative" }} data-component="VimTextAreaWrapper">
-          <StyledTextArea
+          <textarea
             ref={textareaRef}
             value={value}
             onChange={(e) => onChange(e.target.value)}
             onKeyDown={handleKeyDownInternal}
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
-            isEditing={isEditing}
-            mode={mode}
-            vimMode={vimMode}
             spellCheck={false}
             autoCorrect="off"
             autoCapitalize="none"
             autoComplete="off"
             {...rest}
+            className={cn(
+              "w-full border text-[#d4d4d4] py-1.5 px-2 rounded font-mono text-[13px] resize-none min-h-8 max-h-[50vh] overflow-y-auto",
+              "placeholder:text-[#6b6b6b]",
+              "focus:outline-none",
+              isEditing
+                ? "bg-[var(--color-editing-mode-alpha)] border-[var(--color-editing-mode)] focus:border-[var(--color-editing-mode)]"
+                : "bg-[#1e1e1e] border-[#3e3e42]",
+              !isEditing && (mode === "plan" ? "focus:border-plan-mode" : "focus:border-exec-mode"),
+              vimMode === "normal"
+                ? "caret-transparent selection:bg-white/50"
+                : "caret-white selection:bg-[rgba(51,153,255,0.5)]"
+            )}
           />
-          {vimMode === "normal" && value.length === 0 && <EmptyCursor />}
+          {vimMode === "normal" && value.length === 0 && (
+            <div className="absolute w-2 h-4 bg-white/50 pointer-events-none left-2 top-1.5" />
+          )}
         </div>
       </div>
     );

@@ -1,83 +1,10 @@
 import type { ReactNode } from "react";
 import React, { useState, useMemo } from "react";
-import styled from "@emotion/styled";
 import type { CmuxMessage, DisplayedMessage } from "@/types/message";
 import { HeaderButton } from "../tools/shared/ToolPrimitives";
 import { formatTimestamp } from "@/utils/ui/dateTime";
 import { TooltipWrapper, Tooltip } from "../Tooltip";
 import { KebabMenu, type KebabMenuItem } from "../KebabMenu";
-
-const MessageBlock = styled.div<{ borderColor: string; backgroundColor?: string }>`
-  position: relative;
-  margin-bottom: 15px;
-  margin-top: 15px;
-  background: ${(props) => props.backgroundColor ?? "#1e1e1e"};
-  border-left: 3px solid ${(props) => props.borderColor};
-  border-radius: 3px;
-  overflow: hidden;
-`;
-
-const MessageHeader = styled.div`
-  position: relative;
-  z-index: 1;
-  padding: 4px 12px;
-  background: rgba(255, 255, 255, 0.05);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 11px;
-  color: var(--color-message-header);
-  font-weight: 500;
-`;
-
-const LeftSection = styled.div`
-  display: flex;
-  align-items: baseline; /* Use baseline for consistent text alignment */
-  gap: 12px;
-  min-width: 0; /* Allow flex children to shrink below content size */
-  flex: 1; /* Take available space but allow ButtonGroup to stay on same line */
-`;
-
-const MessageTypeLabel = styled.div`
-  display: inline-flex;
-  align-items: baseline; /* Ensure children align on baseline */
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  white-space: nowrap; /* Prevent line breaking */
-  overflow: hidden; /* Hide overflow */
-  min-width: 0; /* Allow shrinking */
-`;
-
-const TimestampText = styled.span`
-  font-size: 10px;
-  color: var(--color-text-secondary);
-  font-weight: 400;
-`;
-
-const ButtonGroup = styled.div`
-  display: flex;
-  gap: 6px;
-`;
-
-const MessageContent = styled.div`
-  position: relative;
-  z-index: 1;
-  padding: 12px;
-`;
-
-const JsonContent = styled.pre`
-  margin: 0;
-  font-family: var(--font-monospace);
-  font-size: 11px;
-  line-height: 1.4;
-  white-space: pre-wrap;
-  color: #d4d4d4;
-  background: rgba(0, 0, 0, 0.3);
-  padding: 8px;
-  border-radius: 3px;
-  overflow-x: auto;
-`;
 
 export interface ButtonConfig {
   label: string;
@@ -126,21 +53,38 @@ export const MessageWindow: React.FC<MessageWindowProps> = ({
   );
 
   return (
-    <MessageBlock
-      borderColor={borderColor}
-      backgroundColor={backgroundColor}
+    <div
       className={className}
+      style={{
+        position: "relative",
+        marginBottom: "15px",
+        marginTop: "15px",
+        background: backgroundColor ?? "#1e1e1e",
+        borderLeft: `3px solid ${borderColor}`,
+        borderRadius: "3px",
+        overflow: "hidden",
+      }}
       data-message-block
     >
       {backgroundEffect}
-      <MessageHeader data-message-header>
-        <LeftSection data-message-header-left>
-          <MessageTypeLabel data-message-type-label>{label}</MessageTypeLabel>
+      <div
+        className="relative z-10 py-1 px-3 bg-white/5 border-b border-white/10 flex justify-between items-center text-[11px] text-message-header font-medium"
+        data-message-header
+      >
+        <div className="flex items-baseline gap-3 min-w-0 flex-1" data-message-header-left>
+          <div
+            className="font-mono inline-flex items-baseline uppercase tracking-wider whitespace-nowrap overflow-hidden min-w-0"
+            data-message-type-label
+          >
+            {label}
+          </div>
           {formattedTimestamp && (
-            <TimestampText data-message-timestamp>{formattedTimestamp}</TimestampText>
+            <span className="text-[10px] font-normal font-mono opacity-50" data-message-timestamp>
+              {formattedTimestamp}
+            </span>
           )}
-        </LeftSection>
-        <ButtonGroup data-message-header-buttons>
+        </div>
+        <div className="flex gap-1.5" data-message-header-buttons>
           {rightLabel}
           {buttons.map((button, index) =>
             button.tooltip ? (
@@ -176,12 +120,18 @@ export const MessageWindow: React.FC<MessageWindowProps> = ({
               {showJson ? "Hide JSON" : "Show JSON"}
             </HeaderButton>
           )}
-        </ButtonGroup>
-      </MessageHeader>
-      <MessageContent data-message-content>
-        {showJson ? <JsonContent>{JSON.stringify(message, null, 2)}</JsonContent> : children}
-      </MessageContent>
-    </MessageBlock>
+        </div>
+      </div>
+      <div className="relative z-10 p-3" data-message-content>
+        {showJson ? (
+          <pre className="m-0 font-mono text-[11px] leading-snug whitespace-pre-wrap text-[#d4d4d4] bg-black/30 p-2 rounded-sm overflow-x-auto">
+            {JSON.stringify(message, null, 2)}
+          </pre>
+        ) : (
+          children
+        )}
+      </div>
+    </div>
   );
 };
 
@@ -207,7 +157,7 @@ const ButtonWithHoverEmoji: React.FC<ButtonWithHoverEmojiProps> = ({
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {button.emoji && isHovered && <span style={{ marginRight: "4px" }}>{button.emoji}</span>}
+      {button.emoji && isHovered && <span className="mr-1">{button.emoji}</span>}
       {button.label}
     </HeaderButton>
   );

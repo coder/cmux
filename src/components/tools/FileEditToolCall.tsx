@@ -1,5 +1,4 @@
 import React from "react";
-import styled from "@emotion/styled";
 import { parsePatch } from "diff";
 import type {
   FileEditInsertToolArgs,
@@ -23,50 +22,6 @@ import { useToolExpansion, getStatusDisplay, type ToolStatus } from "./shared/to
 import { TooltipWrapper, Tooltip } from "../Tooltip";
 import { DiffContainer, DiffRenderer, SelectableDiffRenderer } from "../shared/DiffRenderer";
 import { KebabMenu, type KebabMenuItem } from "../KebabMenu";
-
-// File edit specific styled components
-
-const FilePath = styled.span`
-  color: var(--color-text);
-  font-family: var(--font-monospace);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: min(400px, 80vw);
-`;
-
-const ErrorMessage = styled.div`
-  color: #f44336;
-  font-size: 11px;
-  padding: 6px 8px;
-  background: rgba(244, 67, 54, 0.1);
-  border-radius: 3px;
-  border-left: 2px solid #f44336;
-`;
-
-const StyledToolHeader = styled(ToolHeader)`
-  cursor: default;
-
-  &:hover {
-    color: var(--color-text-secondary);
-  }
-`;
-
-const LeftContent = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 1;
-  cursor: pointer;
-
-  &:hover {
-    color: var(--color-text);
-  }
-`;
-
-const KebabWrapper = styled.div`
-  margin-right: 8px;
-`;
 
 type FileEditOperationArgs =
   | FileEditReplaceStringToolArgs
@@ -127,7 +82,11 @@ function renderDiff(
       </React.Fragment>
     ));
   } catch (error) {
-    return <ErrorMessage>Failed to parse diff: {String(error)}</ErrorMessage>;
+    return (
+      <div className="text-[#f44336] text-[11px] px-2 py-1.5 bg-[rgba(244,67,54,0.1)] rounded border-l-2 border-[#f44336]">
+        Failed to parse diff: {String(error)}
+      </div>
+    );
   }
 }
 
@@ -174,24 +133,29 @@ export const FileEditToolCall: React.FC<FileEditToolCallProps> = ({
 
   return (
     <ToolContainer expanded={expanded}>
-      <StyledToolHeader>
-        <LeftContent onClick={toggleExpanded}>
+      <ToolHeader className="cursor-default hover:text-secondary">
+        <div
+          onClick={toggleExpanded}
+          className="flex items-center gap-2 flex-1 cursor-pointer hover:text-text"
+        >
           <ExpandIcon expanded={expanded}>▶</ExpandIcon>
           <TooltipWrapper inline>
             <span>✏️</span>
             <Tooltip>{toolName}</Tooltip>
           </TooltipWrapper>
-          <FilePath>{filePath}</FilePath>
-        </LeftContent>
+          <span className="text-text font-monospace whitespace-nowrap overflow-hidden text-ellipsis max-w-[400px]">
+            {filePath}
+          </span>
+        </div>
         {!(result && result.success && result.diff) && (
           <StatusIndicator status={status}>{getStatusDisplay(status)}</StatusIndicator>
         )}
         {kebabMenuItems.length > 0 && (
-          <KebabWrapper>
+          <div className="mr-2">
             <KebabMenu items={kebabMenuItems} />
-          </KebabWrapper>
+          </div>
         )}
-      </StyledToolHeader>
+      </ToolHeader>
 
       {expanded && (
         <ToolDetails>
@@ -200,16 +164,16 @@ export const FileEditToolCall: React.FC<FileEditToolCallProps> = ({
               {result.success === false && result.error && (
                 <DetailSection>
                   <DetailLabel>Error</DetailLabel>
-                  <ErrorMessage>{result.error}</ErrorMessage>
+                  <div className="text-[#f44336] text-[11px] px-2 py-1.5 bg-[rgba(244,67,54,0.1)] rounded border-l-2 border-[#f44336]">
+                    {result.error}
+                  </div>
                 </DetailSection>
               )}
 
               {result.success && result.diff && (
                 <DiffContainer>
                   {showRaw ? (
-                    <pre style={{ margin: 0, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
-                      {result.diff}
-                    </pre>
+                    <pre className="m-0 whitespace-pre-wrap break-words">{result.diff}</pre>
                   ) : (
                     renderDiff(result.diff, filePath, onReviewNote)
                   )}
@@ -220,7 +184,7 @@ export const FileEditToolCall: React.FC<FileEditToolCallProps> = ({
 
           {status === "executing" && !result && (
             <DetailSection>
-              <div style={{ fontSize: "11px", color: "var(--color-text-secondary)" }}>
+              <div className="text-[11px] text-secondary">
                 Waiting for result
                 <LoadingDots />
               </div>

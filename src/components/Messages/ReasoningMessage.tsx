@@ -1,71 +1,8 @@
 import React, { useState, useEffect } from "react";
-import styled from "@emotion/styled";
 import type { DisplayedMessage } from "@/types/message";
 import { MarkdownRenderer } from "./MarkdownRenderer";
 import { TypewriterMarkdown } from "./TypewriterMarkdown";
-
-const ReasoningContainer = styled.div`
-  margin: 8px 0;
-  padding: 2px;
-  background: color-mix(in srgb, var(--color-thinking-mode) 2%, transparent);
-  border-radius: 4px;
-  position: relative;
-`;
-
-const ReasoningHeader = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 6px;
-  cursor: pointer;
-  user-select: none;
-`;
-
-const HeaderLeft = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--color-thinking-mode);
-  font-weight: 600;
-  opacity: 0.8;
-`;
-
-const ThinkingIcon = styled.span`
-  font-size: 12px;
-`;
-
-const Caret = styled.span<{ isExpanded: boolean }>`
-  color: var(--color-thinking-mode);
-  opacity: 0.6;
-  transition: transform 0.2s ease;
-  transform: rotate(${(props) => (props.isExpanded ? "90deg" : "0deg")});
-  font-size: 12px;
-`;
-
-const ReasoningContent = styled.div`
-  font-family: var(--font-primary);
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--color-text-secondary);
-  font-style: italic;
-  opacity: 0.85;
-
-  p {
-    margin: 0 0 4px 0;
-    &:last-child {
-      margin-bottom: 0;
-    }
-  }
-`;
-
-const WaitingMessage = styled.div`
-  color: var(--color-thinking-mode);
-  opacity: 0.6;
-`;
+import { cn } from "@/lib/utils";
 
 interface ReasoningMessageProps {
   message: DisplayedMessage & { type: "reasoning" };
@@ -95,7 +32,7 @@ export const ReasoningMessage: React.FC<ReasoningMessageProps> = ({ message, cla
   const renderContent = () => {
     // Empty streaming state
     if (isStreaming && !content) {
-      return <WaitingMessage>Thinking...</WaitingMessage>;
+      return <div className="text-thinking-mode opacity-60">Thinking...</div>;
     }
 
     // Streaming text gets typewriter effect
@@ -108,16 +45,37 @@ export const ReasoningMessage: React.FC<ReasoningMessageProps> = ({ message, cla
   };
 
   return (
-    <ReasoningContainer className={className}>
-      <ReasoningHeader onClick={toggleExpanded}>
-        <HeaderLeft>
-          <ThinkingIcon>💭</ThinkingIcon>
+    <div
+      className={cn(
+        "my-2 p-0.5 bg-[color-mix(in_srgb,var(--color-thinking-mode)_2%,transparent)] rounded relative",
+        className
+      )}
+    >
+      <div
+        className="flex items-center justify-between gap-2 mb-1.5 cursor-pointer select-none"
+        onClick={toggleExpanded}
+      >
+        <div className="flex items-center gap-2 text-[10px] uppercase tracking-wide text-thinking-mode font-semibold opacity-80">
+          <span className="text-xs">💭</span>
           <span>Thinking</span>
-        </HeaderLeft>
-        {!isStreaming && <Caret isExpanded={isExpanded}>▸</Caret>}
-      </ReasoningHeader>
+        </div>
+        {!isStreaming && (
+          <span
+            className={cn(
+              "text-thinking-mode opacity-60 transition-transform duration-200 ease-in-out text-xs",
+              isExpanded ? "rotate-90" : "rotate-0"
+            )}
+          >
+            ▸
+          </span>
+        )}
+      </div>
 
-      {isExpanded && <ReasoningContent>{renderContent()}</ReasoningContent>}
-    </ReasoningContainer>
+      {isExpanded && (
+        <div className="font-primary text-sm leading-6 italic opacity-85 [&_p]:mb-1 [&_p]:mt-0 [&_p:last-child]:mb-0">
+          {renderContent()}
+        </div>
+      )}
+    </div>
   );
 };

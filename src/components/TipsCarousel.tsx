@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import styled from "@emotion/styled";
 import { formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
 
 // Extend window with tip debugging functions
@@ -10,78 +9,29 @@ declare global {
   }
 }
 
-const TipsContainer = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11px;
-  color: var(--color-text);
-  font-family: var(--font-primary);
-  line-height: 20px;
-  margin: 3px 0 0 0;
-  padding: 4px 8px;
-  border-radius: 4px;
-  transition: all 0.3s ease;
-  cursor: default;
-
-  &:hover {
-    background: linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--color-plan-mode), transparent 85%) 0%,
-      color-mix(in srgb, var(--color-exec-mode), transparent 85%) 50%,
-      color-mix(in srgb, var(--color-thinking-mode), transparent 85%) 100%
-    );
-
-    .tip-label,
-    .tip-content {
-      color: var(--color-text);
-    }
-
-    .keybind,
-    .command {
-      color: #fff;
-    }
-  }
-`;
-
-const TipLabel = styled.span`
-  font-weight: 500;
-  color: color-mix(in srgb, var(--color-text-secondary), transparent 20%);
-  transition: color 0.3s ease;
-`;
-
-const TipContent = styled.span`
-  color: var(--color-text-secondary);
-  transition: color 0.3s ease;
-`;
-
-const Keybind = styled.span`
-  font-family: var(--font-primary);
-  color: color-mix(in srgb, var(--color-text), transparent 30%);
-  transition: color 0.3s ease;
-`;
-
-const Command = styled.code`
-  font-family: var(--font-monospace);
-  color: color-mix(in srgb, var(--color-text), transparent 30%);
-  transition: color 0.3s ease;
-`;
-
 const TIPS = [
   {
     content: (
       <>
         Navigate workspaces with{" "}
-        <Keybind className="keybind">{formatKeybind(KEYBINDS.PREV_WORKSPACE)}</Keybind> and{" "}
-        <Keybind className="keybind">{formatKeybind(KEYBINDS.NEXT_WORKSPACE)}</Keybind>
+        <span className="keybind font-primary text-[color-mix(in_srgb,var(--color-text),transparent_30%)] transition-colors duration-300">
+          {formatKeybind(KEYBINDS.PREV_WORKSPACE)}
+        </span>{" "}
+        and{" "}
+        <span className="keybind font-primary text-[color-mix(in_srgb,var(--color-text),transparent_30%)] transition-colors duration-300">
+          {formatKeybind(KEYBINDS.NEXT_WORKSPACE)}
+        </span>
       </>
     ),
   },
   {
     content: (
       <>
-        Use <Command className="command">/truncate 50</Command> to trim the first 50% of the chat
-        from context
+        Use{" "}
+        <code className="command font-monospace text-[color-mix(in_srgb,var(--color-text),transparent_30%)] transition-colors duration-300">
+          /truncate 50
+        </code>{" "}
+        to trim the first 50% of the chat from context
       </>
     ),
   },
@@ -121,9 +71,18 @@ export const TipsCarousel: React.FC = () => {
   }, []);
 
   return (
-    <TipsContainer role="status" aria-live="polite" aria-atomic="true">
-      <TipLabel className="tip-label">Tip:</TipLabel>
-      <TipContent className="tip-content">{TIPS[currentTipIndex]?.content}</TipContent>
-    </TipsContainer>
+    <div
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+      className="flex items-center gap-1.5 text-[11px] text-text font-primary leading-5 mt-[3px] px-2 py-1 rounded transition-all duration-300 cursor-default hover:bg-[linear-gradient(135deg,color-mix(in_srgb,var(--color-plan-mode),transparent_85%)_0%,color-mix(in_srgb,var(--color-exec-mode),transparent_85%)_50%,color-mix(in_srgb,var(--color-thinking-mode),transparent_85%)_100%)] [&:hover_.tip-label]:text-text [&:hover_.tip-content]:text-text [&:hover_.keybind]:text-white [&:hover_.command]:text-white"
+    >
+      <span className="tip-label font-medium text-[color-mix(in_srgb,var(--color-text-secondary),transparent_20%)] transition-colors duration-300">
+        Tip:
+      </span>
+      <span className="tip-content text-secondary transition-colors duration-300">
+        {TIPS[currentTipIndex]?.content}
+      </span>
+    </div>
   );
 };

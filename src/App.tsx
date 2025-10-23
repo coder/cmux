@@ -1,9 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import styled from "@emotion/styled";
-import { Global, css } from "@emotion/react";
-import { GlobalColors } from "./styles/colors";
-import { GlobalFonts } from "./styles/fonts";
-import { GlobalScrollbars } from "./styles/scrollbars";
+import "./styles/globals.css";
 import type { ProjectConfig } from "./config";
 import type { WorkspaceSelection } from "./components/ProjectSidebar";
 import type { FrontendWorkspaceMetadata } from "./types/workspace";
@@ -36,187 +32,6 @@ import type { BranchListResult } from "./types/ipc";
 import { useTelemetry } from "./hooks/useTelemetry";
 
 const THINKING_LEVELS: ThinkingLevel[] = ["off", "low", "medium", "high"];
-
-// Global Styles with nice fonts
-const globalStyles = css`
-  * {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-  }
-
-  html,
-  body,
-  #root {
-    height: 100vh;
-    overflow: hidden;
-    background: #1e1e1e;
-    color: #fff;
-    font-family: var(--font-primary);
-    font-size: 14px;
-    line-height: 1.5;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-  }
-
-  /* Mobile: Improve touch interactions */
-  @media (max-width: 768px) {
-    html {
-      /* Prevent text size adjustment on orientation change */
-      -webkit-text-size-adjust: 100%;
-    }
-
-    body {
-      /* Slightly larger font for better readability on mobile */
-      font-size: 15px;
-    }
-
-    /* Make buttons and interactive elements easier to tap */
-    button,
-    a,
-    [role="button"] {
-      min-height: 44px;
-      min-width: 44px;
-      /* Improve tap responsiveness on buttons only */
-      touch-action: manipulation;
-    }
-
-    /* Ensure input elements allow default touch behavior for iOS keyboard */
-    input,
-    textarea,
-    select {
-      touch-action: auto;
-    }
-  }
-
-  code {
-    font-family: var(--font-monospace);
-  }
-
-  /* Enable native tooltips */
-  [title] {
-    position: relative;
-  }
-
-  [title]:hover::after {
-    content: attr(title);
-    position: absolute;
-    bottom: 100%;
-    left: 50%;
-    transform: translateX(-50%);
-    margin-bottom: 8px;
-    padding: 6px 10px;
-    background: #2d2d30;
-    color: #cccccc;
-    border: 1px solid #464647;
-    border-radius: 4px;
-    font-size: 11px;
-    white-space: nowrap;
-    z-index: 1000;
-    pointer-events: none;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
-  }
-
-  [title]:hover::before {
-    content: "";
-    position: absolute;
-    bottom: 100%;
-    left: 50%;
-    transform: translateX(-50%);
-    margin-bottom: 3px;
-    border-width: 5px;
-    border-style: solid;
-    border-color: #2d2d30 transparent transparent transparent;
-    z-index: 1000;
-    pointer-events: none;
-  }
-
-  /* Search term highlighting - global for consistent styling across components */
-  /* Applied to <mark> for plain text and <span> for Shiki-highlighted code */
-  mark.search-highlight,
-  span.search-highlight {
-    background: rgba(255, 215, 0, 0.3);
-    color: inherit;
-    padding: 0;
-    border-radius: 2px;
-  }
-
-  /* Override Shiki theme background to use our global color */
-  .shiki,
-  .shiki pre {
-    background: var(--color-code-bg) !important;
-  }
-
-  /* Global styling for markdown code blocks */
-  pre code {
-    display: block;
-    background: var(--color-code-bg);
-    margin: 1em 0;
-    border-radius: 4px;
-    font-size: 12px;
-    padding: 12px;
-    overflow: auto;
-  }
-`;
-
-// Styled Components
-const AppContainer = styled.div`
-  display: flex;
-  height: 100vh;
-  overflow: hidden;
-  background: #1e1e1e;
-
-  /* Mobile: Ensure content takes full width */
-  @media (max-width: 768px) {
-    flex-direction: column;
-  }
-`;
-
-const MainContent = styled.div`
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  min-width: 0; /* Allow content to shrink below its minimum content size */
-
-  /* Mobile: Take full width */
-  @media (max-width: 768px) {
-    width: 100%;
-  }
-`;
-
-const ContentArea = styled.div`
-  flex: 1;
-  display: flex;
-  overflow: hidden;
-
-  /* Mobile: Stack content vertically if needed */
-  @media (max-width: 768px) {
-    flex-direction: column;
-  }
-`;
-
-const WelcomeView = styled.div`
-  text-align: center;
-  padding: clamp(40px, 10vh, 100px) 20px;
-  max-width: 800px;
-  margin: 0 auto;
-  width: 100%;
-
-  h2 {
-    color: #fff;
-    font-size: clamp(24px, 5vw, 36px);
-    margin-bottom: 16px;
-    font-weight: 700;
-    letter-spacing: -1px;
-  }
-
-  p {
-    color: #888;
-    font-size: clamp(14px, 2vw, 16px);
-    line-height: 1.6;
-  }
-`;
 
 function AppInner() {
   const [selectedWorkspace, setSelectedWorkspace] = usePersistedState<WorkspaceSelection | null>(
@@ -847,11 +662,7 @@ function AppInner() {
 
   return (
     <>
-      <GlobalColors />
-      <GlobalFonts />
-      <GlobalScrollbars />
-      <Global styles={globalStyles} />
-      <AppContainer>
+      <div className="flex h-screen overflow-hidden bg-[#1e1e1e] [@media(max-width:768px)]:flex-col">
         <LeftSidebar
           projects={projects}
           workspaceMetadata={workspaceMetadata}
@@ -871,8 +682,8 @@ function AppInner() {
           sortedWorkspacesByProject={sortedWorkspacesByProject}
           workspaceRecency={workspaceRecency}
         />
-        <MainContent>
-          <ContentArea>
+        <div className="flex-1 flex flex-col overflow-hidden min-w-0 [@media(max-width:768px)]:w-full">
+          <div className="flex-1 flex overflow-hidden [@media(max-width:768px)]:flex-col">
             {selectedWorkspace ? (
               <ErrorBoundary
                 workspaceInfo={`${selectedWorkspace.projectName}/${selectedWorkspace.namedWorkspacePath?.split("/").pop() ?? selectedWorkspace.workspaceId}`}
@@ -889,13 +700,21 @@ function AppInner() {
                 />
               </ErrorBoundary>
             ) : (
-              <WelcomeView>
-                <h2>Welcome to Cmux</h2>
+              <div
+                className="text-center max-w-[800px] mx-auto w-full [&_h2]:text-white [&_h2]:mb-4 [&_h2]:font-bold [&_h2]:tracking-tight [&_p]:text-[#888] [&_p]:leading-[1.6]"
+                style={{
+                  padding: "clamp(40px, 10vh, 100px) 20px",
+                  fontSize: "clamp(14px, 2vw, 16px)",
+                }}
+              >
+                <h2 style={{ fontSize: "clamp(24px, 5vw, 36px)", letterSpacing: "-1px" }}>
+                  Welcome to Cmux
+                </h2>
                 <p>Select a workspace from the sidebar or add a new one to get started.</p>
-              </WelcomeView>
+              </div>
             )}
-          </ContentArea>
-        </MainContent>
+          </div>
+        </div>
         <CommandPalette
           getSlashContext={() => ({
             providerNames: [],
@@ -922,7 +741,7 @@ function AppInner() {
           />
         )}
         <DirectorySelectModal />
-      </AppContainer>
+      </div>
     </>
   );
 }

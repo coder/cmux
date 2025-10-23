@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import styled from "@emotion/styled";
 import type { DisplayedMessage } from "@/types/message";
 import { MarkdownRenderer } from "./MarkdownRenderer";
 import { TypewriterMarkdown } from "./TypewriterMarkdown";
@@ -11,42 +10,6 @@ import { ModelDisplay } from "./ModelDisplay";
 import { CompactingMessageContent } from "./CompactingMessageContent";
 import { CompactionBackground } from "./CompactionBackground";
 import type { KebabMenuItem } from "@/components/KebabMenu";
-
-const RawContent = styled.pre`
-  font-family: var(--font-monospace);
-  font-size: 12px;
-  line-height: 1.6;
-  color: var(--color-text);
-  white-space: pre-wrap;
-  word-break: break-word;
-  margin: 0;
-  padding: 8px;
-  background: var(--color-code-bg);
-  border-radius: 3px;
-`;
-
-const WaitingMessage = styled.div`
-  font-family: var(--font-primary);
-  font-size: 13px;
-  color: var(--color-text-secondary);
-  font-style: italic;
-`;
-
-const LabelContainer = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-`;
-
-const CompactedBadge = styled.span`
-  color: var(--color-plan-mode);
-  font-weight: 500;
-  font-size: 10px;
-  padding: 2px 6px;
-  background: var(--color-plan-mode-alpha);
-  border-radius: 3px;
-  text-transform: uppercase;
-`;
 
 interface AssistantMessageProps {
   message: DisplayedMessage & { type: "assistant" };
@@ -126,7 +89,11 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({
   const renderContent = () => {
     // Empty streaming state
     if (isStreaming && !content) {
-      return <WaitingMessage>Waiting for response...</WaitingMessage>;
+      return (
+        <div className="font-primary text-[13px] text-secondary italic">
+          Waiting for response...
+        </div>
+      );
     }
 
     // Streaming text gets typewriter effect
@@ -144,7 +111,9 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({
     // Completed text renders as static content
     return content ? (
       showRaw ? (
-        <RawContent>{content}</RawContent>
+        <pre className="font-mono text-xs leading-relaxed text-text whitespace-pre-wrap break-words m-0 p-2 bg-code-bg rounded-sm">
+          {content}
+        </pre>
       ) : (
         <MarkdownRenderer content={content} />
       )
@@ -157,10 +126,14 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({
     const isCompacted = message.isCompacted;
 
     return (
-      <LabelContainer>
+      <div className="flex items-center gap-2">
         {modelName && <ModelDisplay modelString={modelName} />}
-        {isCompacted && <CompactedBadge>{COMPACTED_EMOJI} compacted</CompactedBadge>}
-      </LabelContainer>
+        {isCompacted && (
+          <span className="text-plan-mode font-medium text-[10px] px-1.5 py-0.5 bg-plan-mode/10 rounded-sm uppercase">
+            {COMPACTED_EMOJI} compacted
+          </span>
+        )}
+      </div>
     );
   };
 

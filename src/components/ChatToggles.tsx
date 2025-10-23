@@ -1,13 +1,6 @@
 import React from "react";
-import styled from "@emotion/styled";
 import { ThinkingSliderComponent } from "./ThinkingSlider";
 import { Context1MCheckbox } from "./Context1MCheckbox";
-
-export const TogglesContainer = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 12px;
-`;
 
 interface ChatTogglesProps {
   modelString: string;
@@ -16,10 +9,15 @@ interface ChatTogglesProps {
 
 export const ChatToggles: React.FC<ChatTogglesProps> = ({ modelString, children }) => {
   return (
-    <TogglesContainer>
+    <div className="flex items-center gap-3">
       {children}
       <ThinkingSliderComponent modelString={modelString} />
       <Context1MCheckbox modelString={modelString} />
-    </TogglesContainer>
+    </div>
   );
 };
+
+// Export for backwards compatibility
+export const TogglesContainer: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <div className="flex items-center gap-3">{children}</div>
+);
