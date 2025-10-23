@@ -265,17 +265,16 @@ If IPC is hard to test, fix the test infrastructure or IPC layer, don't work aro
 - **Build custom only when**: The component has app-specific behavior with no shadcn equivalent
 
 Example:
+
 ```bash
 # Add a new shadcn component
 bunx --bun shadcn@latest add badge
 
-# Import in your code  
+# Import in your code
 import { Badge } from "@/components/ui/badge"
 ```
 
 Shadcn components automatically respect our CSS variables via the `@/lib/utils` cn() helper and Tailwind config.
-
-
 
 ## TypeScript Best Practices
 
