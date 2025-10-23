@@ -33,6 +33,16 @@
   --color-foreground: hsl(0 0% 83%);
   --color-secondary: hsl(0 0% 42%);
   
+  /* Popover (for tooltips, dropdowns, etc.) */
+  --color-popover: hsl(0 0% 18%);
+  --color-popover-foreground: hsl(0 0% 83%);
+  
+  /* Shadcn required variables */
+  --color-input: hsl(240 2% 25%);           /* border-input - same as border */
+  --color-ring: hsl(207 100% 40%);          /* focus ring - uses accent */
+  --color-muted-foreground: hsl(0 0% 60%);  /* muted text */
+  --color-accent-foreground: hsl(0 0% 98%); /* white text on accent */
+  
   /* Code */
   --color-code-bg: hsl(0 6.43% 8.04%);
   
