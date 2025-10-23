@@ -36,6 +36,7 @@
   --color-hover: hsl(0 0% 16.5%);            /* #2a2a2b - hover/selected states */
   --color-border: hsl(0 0% 25%);             /* #404040 - base borders */
   --color-border-light: hsl(0 0% 27%);       /* #464647 - lighter borders */
+  --color-accent: hsl(207 100% 40%);         /* #007acc - VS Code blue */
   
   /* Message Borders */
   --color-user-border: hsl(0 0% 38%);
