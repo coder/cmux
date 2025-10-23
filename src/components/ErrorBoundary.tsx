@@ -42,7 +42,7 @@ export class ErrorBoundary extends Component<Props, State> {
       }
 
       return (
-        <div className="bg-error-bg-dark border-danger-soft text-danger-soft m-5 rounded border p-5">
+        <div className="bg-error-bg-gray-950 border-danger-soft text-danger-soft m-5 rounded border p-5">
           <h3 className="m-0 mb-2.5 text-base">
             Something went wrong{this.props.workspaceInfo && ` in ${this.props.workspaceInfo}`}
           </h3>

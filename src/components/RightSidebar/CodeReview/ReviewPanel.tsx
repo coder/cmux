@@ -532,7 +532,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
       tabIndex={0}
       onFocus={() => setIsPanelFocused(true)}
       onBlur={() => setIsPanelFocused(false)}
-      className="bg-dark [container-type:inline-size] flex h-full min-h-0 flex-col outline-none [container-name:review-panel] focus-within:shadow-[inset_0_0_0_1px_rgba(0,122,204,0.2)]"
+      className="[container-type:inline-size] flex h-full min-h-0 flex-col bg-gray-950 outline-none [container-name:review-panel] focus-within:shadow-[inset_0_0_0_1px_rgba(0,122,204,0.2)]"
     >
       {/* Always show controls so user can change diff base */}
       <ReviewControls
@@ -551,7 +551,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
           {error}
         </div>
       ) : isLoadingHunks && hunks.length === 0 && !fileTree ? (
-        <div className="text-muted flex h-full items-center justify-center text-sm">
+        <div className="flex h-full items-center justify-center text-sm text-gray-500">
           Loading diff...
         </div>
       ) : (
@@ -563,23 +563,23 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
               </div>
             )}
 
-            <div className="border-border-light bg-separator border-b px-3 py-2">
-              <div className="border-border-light bg-dark hover:border-border-gray focus-within:border-accent focus-within:hover:border-accent flex items-stretch overflow-hidden rounded border transition-[border-color] duration-150">
+            <div className="border-b border-gray-800 bg-gray-900 px-3 py-2">
+              <div className="hover:border-gray-800-gray flex items-stretch overflow-hidden rounded border border-gray-800 bg-gray-950 transition-[border-color] duration-150 focus-within:border-sky-600 focus-within:hover:border-sky-600">
                 <input
                   ref={searchInputRef}
                   type="text"
                   placeholder={`Search in files and hunks... (${formatKeybind(KEYBINDS.FOCUS_REVIEW_SEARCH)})`}
                   value={searchState.input}
                   onChange={(e) => setSearchState({ ...searchState, input: e.target.value })}
-                  className="text-foreground placeholder:text-text-dim focus:bg-separator flex h-full flex-1 items-center border-none bg-transparent px-2.5 py-1.5 font-sans text-xs leading-[1.4] outline-none"
+                  className="placeholder:text-gray-200-dim flex h-full flex-1 items-center border-none bg-transparent px-2.5 py-1.5 font-sans text-xs leading-[1.4] text-gray-200 outline-none focus:bg-gray-900"
                 />
                 <TooltipWrapper inline>
                   <button
                     className={cn(
-                      "py-1.5 px-2.5 border-none border-l border-light text-[11px] font-monospace font-semibold leading-[1.4] cursor-pointer outline-none transition-all duration-150 whitespace-nowrap flex items-center h-full",
+                      "py-1.5 px-2.5 border-none border-l border-gray-800 text-[11px] font-monospace font-semibold leading-[1.4] cursor-pointer outline-none transition-all duration-150 whitespace-nowrap flex items-center h-full",
                       searchState.useRegex
-                        ? "bg-review-bg-blue text-accent-light shadow-[inset_0_0_0_1px_rgba(77,184,255,0.4)] hover:bg-review-bg-info hover:text-accent-light"
-                        : "bg-transparent text-subtle hover:bg-separator hover:text-foreground",
+                        ? "bg-review-bg-blue text-sky-600-light shadow-[inset_0_0_0_1px_rgba(77,184,255,0.4)] hover:bg-review-bg-info hover:text-sky-600-light"
+                        : "bg-transparent text-gray-400 hover:bg-gray-900 hover:text-gray-200",
                       "active:translate-y-px"
                     )}
                     onClick={() =>
@@ -595,10 +595,10 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
                 <TooltipWrapper inline>
                   <button
                     className={cn(
-                      "py-1.5 px-2.5 border-none border-l border-light text-[11px] font-monospace font-semibold leading-[1.4] cursor-pointer outline-none transition-all duration-150 whitespace-nowrap flex items-center h-full",
+                      "py-1.5 px-2.5 border-none border-l border-gray-800 text-[11px] font-monospace font-semibold leading-[1.4] cursor-pointer outline-none transition-all duration-150 whitespace-nowrap flex items-center h-full",
                       searchState.matchCase
-                        ? "bg-review-bg-blue text-accent-light shadow-[inset_0_0_0_1px_rgba(77,184,255,0.4)] hover:bg-review-bg-info hover:text-accent-light"
-                        : "bg-transparent text-subtle hover:bg-separator hover:text-foreground",
+                        ? "bg-review-bg-blue text-sky-600-light shadow-[inset_0_0_0_1px_rgba(77,184,255,0.4)] hover:bg-review-bg-info hover:text-sky-600-light"
+                        : "bg-transparent text-gray-400 hover:bg-gray-900 hover:text-gray-200",
                       "active:translate-y-px"
                     )}
                     onClick={() =>
@@ -618,38 +618,38 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
 
             <div className="min-h-0 flex-1 overflow-y-auto p-3">
               {hunks.length === 0 ? (
-                <div className="text-muted flex flex-col items-center justify-start gap-3 px-6 pt-12 pb-6 text-center">
-                  <div className="text-foreground text-base font-medium">No changes found</div>
+                <div className="flex flex-col items-center justify-start gap-3 px-6 pt-12 pb-6 text-center text-gray-500">
+                  <div className="text-base font-medium text-gray-200">No changes found</div>
                   <div className="text-[13px] leading-[1.5]">
                     No changes found for the selected diff base.
                     <br />
                     Try selecting a different base or make some changes.
                   </div>
                   {diagnosticInfo && (
-                    <details className="bg-modal-bg border-border-light [&_summary]:text-muted mt-4 w-full max-w-96 cursor-pointer rounded border p-3 [&_summary]:flex [&_summary]:list-none [&_summary]:items-center [&_summary]:gap-1.5 [&_summary]:text-xs [&_summary]:font-medium [&_summary]:select-none [&_summary::-webkit-details-marker]:hidden [&_summary::before]:text-[10px] [&_summary::before]:transition-transform [&_summary::before]:duration-200 [&_summary::before]:content-['▶'] [&[open]_summary::before]:rotate-90">
+                    <details className="mt-4 w-full max-w-96 cursor-pointer rounded border border-gray-800 bg-gray-900 p-3 [&_summary]:flex [&_summary]:list-none [&_summary]:items-center [&_summary]:gap-1.5 [&_summary]:text-xs [&_summary]:font-medium [&_summary]:text-gray-500 [&_summary]:select-none [&_summary::-webkit-details-marker]:hidden [&_summary::before]:text-[10px] [&_summary::before]:transition-transform [&_summary::before]:duration-200 [&_summary::before]:content-['▶'] [&[open]_summary::before]:rotate-90">
                       <summary>Show diagnostic info</summary>
-                      <div className="font-monospace text-foreground mt-3 text-[11px] leading-[1.6]">
-                        <div className="[&:not(:last-child)]:border-border-light grid grid-cols-[140px_1fr] gap-3 py-1 [&:not(:last-child)]:border-b">
-                          <div className="text-muted font-medium">Command:</div>
-                          <div className="text-foreground break-all select-all">
+                      <div className="font-monospace mt-3 text-[11px] leading-[1.6] text-gray-200">
+                        <div className="grid grid-cols-[140px_1fr] gap-3 py-1 [&:not(:last-child)]:border-b [&:not(:last-child)]:border-gray-800">
+                          <div className="font-medium text-gray-500">Command:</div>
+                          <div className="break-all text-gray-200 select-all">
                             {diagnosticInfo.command}
                           </div>
                         </div>
-                        <div className="[&:not(:last-child)]:border-border-light grid grid-cols-[140px_1fr] gap-3 py-1 [&:not(:last-child)]:border-b">
-                          <div className="text-muted font-medium">Output size:</div>
-                          <div className="text-foreground break-all select-all">
+                        <div className="grid grid-cols-[140px_1fr] gap-3 py-1 [&:not(:last-child)]:border-b [&:not(:last-child)]:border-gray-800">
+                          <div className="font-medium text-gray-500">Output size:</div>
+                          <div className="break-all text-gray-200 select-all">
                             {diagnosticInfo.outputLength.toLocaleString()} bytes
                           </div>
                         </div>
-                        <div className="[&:not(:last-child)]:border-border-light grid grid-cols-[140px_1fr] gap-3 py-1 [&:not(:last-child)]:border-b">
-                          <div className="text-muted font-medium">Files parsed:</div>
-                          <div className="text-foreground break-all select-all">
+                        <div className="grid grid-cols-[140px_1fr] gap-3 py-1 [&:not(:last-child)]:border-b [&:not(:last-child)]:border-gray-800">
+                          <div className="font-medium text-gray-500">Files parsed:</div>
+                          <div className="break-all text-gray-200 select-all">
                             {diagnosticInfo.fileDiffCount}
                           </div>
                         </div>
                         <div className="grid grid-cols-[140px_1fr] gap-3 py-1">
-                          <div className="text-muted font-medium">Hunks extracted:</div>
-                          <div className="text-foreground break-all select-all">
+                          <div className="font-medium text-gray-500">Hunks extracted:</div>
+                          <div className="break-all text-gray-200 select-all">
                             {diagnosticInfo.hunkCount}
                           </div>
                         </div>
@@ -658,7 +658,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
                   )}
                 </div>
               ) : filteredHunks.length === 0 ? (
-                <div className="text-muted flex flex-col items-center justify-start gap-3 px-6 pt-12 pb-6 text-center">
+                <div className="flex flex-col items-center justify-start gap-3 px-6 pt-12 pb-6 text-center text-gray-500">
                   <div className="text-[13px] leading-[1.5]">
                     {debouncedSearchTerm.trim()
                       ? `No hunks match "${debouncedSearchTerm}". Try a different search term.`
@@ -694,7 +694,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
 
           {/* FileTree positioning handled by CSS order property */}
           {(fileTree ?? isLoadingTree) && (
-            <div className="border-border-light @[800px]:border-border-light order-2 flex min-h-0 w-80 shrink-0 flex-col overflow-hidden border-l @[800px]:order-0 @[800px]:h-auto @[800px]:w-full @[800px]:flex-[0_0_auto] @[800px]:border-b @[800px]:border-l-0">
+            <div className="order-2 flex min-h-0 w-80 shrink-0 flex-col overflow-hidden border-l border-gray-800 @[800px]:order-0 @[800px]:h-auto @[800px]:w-full @[800px]:flex-[0_0_auto] @[800px]:border-b @[800px]:border-l-0 @[800px]:border-gray-800">
               <FileTree
                 root={fileTree}
                 selectedPath={selectedFilePath}

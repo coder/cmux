@@ -14,7 +14,7 @@ interface ToggleGroupProps<T extends string> {
 
 export function ToggleGroup<T extends string>({ options, value, onChange }: ToggleGroupProps<T>) {
   return (
-    <div className="bg-toggle-bg flex gap-0 rounded">
+    <div className="flex gap-0 rounded bg-gray-900">
       {options.map((option) => {
         const isActive = value === option.value;
         return (
@@ -26,7 +26,7 @@ export function ToggleGroup<T extends string>({ options, value, onChange }: Togg
             className={cn(
               "px-2 py-1 text-[11px] font-sans rounded-sm border-none cursor-pointer transition-all duration-150 bg-transparent",
               isActive
-                ? "text-toggle-text-active bg-toggle-active font-medium"
+                ? "text-toggle-text-active bg-gray-800 font-medium"
                 : "text-toggle-text font-normal hover:text-toggle-text-hover hover:bg-toggle-hover",
               isActive && option.activeClassName
             )}

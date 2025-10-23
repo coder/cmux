@@ -121,7 +121,7 @@ export const UserMessage: React.FC<UserMessageProps> = ({
       className={className}
     >
       {content && (
-        <pre className="text-subtle m-0 font-mono text-xs leading-4 break-words whitespace-pre-wrap opacity-90">
+        <pre className="m-0 font-mono text-xs leading-4 break-words whitespace-pre-wrap text-gray-400 opacity-90">
           {content}
         </pre>
       )}
@@ -132,7 +132,7 @@ export const UserMessage: React.FC<UserMessageProps> = ({
               key={idx}
               src={img.url}
               alt={`Attachment ${idx + 1}`}
-              className="border-border-light max-h-[300px] max-w-80 rounded border"
+              className="max-h-[300px] max-w-80 rounded border border-gray-800"
             />
           ))}
         </div>

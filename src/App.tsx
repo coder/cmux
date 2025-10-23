@@ -662,7 +662,7 @@ function AppInner() {
 
   return (
     <>
-      <div className="bg-bg-dark flex h-screen overflow-hidden [@media(max-width:768px)]:flex-col">
+      <div className="bg-bg-gray-950 flex h-screen overflow-hidden [@media(max-width:768px)]:flex-col">
         <LeftSidebar
           projects={projects}
           workspaceMetadata={workspaceMetadata}
@@ -701,7 +701,7 @@ function AppInner() {
               </ErrorBoundary>
             ) : (
               <div
-                className="[&_p]:text-muted mx-auto w-full max-w-3xl text-center [&_h2]:mb-4 [&_h2]:font-bold [&_h2]:tracking-tight [&_h2]:text-white [&_p]:leading-[1.6]"
+                className="mx-auto w-full max-w-3xl text-center [&_h2]:mb-4 [&_h2]:font-bold [&_h2]:tracking-tight [&_h2]:text-white [&_p]:leading-[1.6] [&_p]:text-gray-500"
                 style={{
                   padding: "clamp(40px, 10vh, 100px) 20px",
                   fontSize: "clamp(14px, 2vw, 16px)",

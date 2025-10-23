@@ -103,7 +103,7 @@ export const RetryBarrier: React.FC<RetryBarrierProps> = ({
       >
         <div className="flex flex-1 items-center gap-3">
           <span className="text-lg leading-none">🔄</span>
-          <div className="font-primary text-foreground text-[13px] font-medium">
+          <div className="font-primary text-[13px] font-medium text-gray-200">
             {countdown === 0 ? (
               <>Retrying... (attempt {attempt + 1})</>
             ) : (
@@ -134,7 +134,7 @@ export const RetryBarrier: React.FC<RetryBarrierProps> = ({
       >
         <div className="flex flex-1 items-center gap-3">
           <span className="text-lg leading-none">⚠️</span>
-          <div className="font-primary text-foreground text-[13px] font-medium">
+          <div className="font-primary text-[13px] font-medium text-gray-200">
             Stream interrupted
           </div>
         </div>

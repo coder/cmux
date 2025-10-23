@@ -41,7 +41,7 @@ const getDiffLineColor = (type: DiffLineType): string => {
       return "#2196f3";
     case "context":
     default:
-      return "var(--color-text)";
+      return "theme(colors.gray.200)";
   }
 };
 
@@ -51,18 +51,18 @@ const getLineContentColor = (type: DiffLineType): string => {
     case "header":
       return "#2196f3";
     case "context":
-      return "var(--color-text-secondary)";
+      return "theme(colors.gray.600)";
     case "add":
     case "remove":
-      return "var(--color-text)";
+      return "theme(colors.gray.200)";
   }
 };
 
 // Helper function for computing contrast color for add/remove indicators
 const getContrastColor = (type: DiffLineType): string => {
   return type === "add" || type === "remove"
-    ? "color-mix(in srgb, var(--color-text-secondary), white 50%)"
-    : "var(--color-text-secondary)";
+    ? "color-mix(in srgb, theme(colors.gray.600), white 50%)"
+    : "theme(colors.gray.600)";
 };
 
 /**
@@ -336,12 +336,12 @@ const ReviewNoteInput: React.FC<ReviewNoteInputProps> = React.memo(
 
     return (
       <div
-        className="bg-dark m-0 border-t px-2 py-1.5"
+        className="m-0 border-t bg-gray-950 px-2 py-1.5"
         style={{ borderColor: "hsl(from var(--color-review-accent) h s l / 0.3)" }}
       >
         <textarea
           ref={textareaRef}
-          className="bg-dark text-text placeholder:text-muted w-full resize-none overflow-y-hidden rounded-sm border px-2 py-1.5 font-mono text-xs leading-[1.4] focus:border-[hsl(from_var(--color-review-accent)_h_s_l_/_0.6)] focus:outline-none"
+          className="w-full resize-none overflow-y-hidden rounded-sm border bg-gray-950 px-2 py-1.5 font-mono text-xs leading-[1.4] text-gray-200 placeholder:text-gray-500 focus:border-[hsl(from_var(--color-review-accent)_h_s_l_/_0.6)] focus:outline-none"
           style={{
             minHeight: "calc(12px * 1.4 * 3 + 12px)",
             borderColor: "hsl(from var(--color-review-accent) h s l / 0.4)",

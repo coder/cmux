@@ -93,7 +93,7 @@ export const CommandSuggestions: React.FC<CommandSuggestionsProps> = ({
         activeSuggestion ? `${resolvedListId}-option-${activeSuggestion.id}` : undefined
       }
       data-command-suggestions
-      className="bg-separator border-border-light absolute right-0 bottom-full left-0 z-[100] mb-2 flex max-h-[200px] flex-col overflow-y-auto rounded border shadow-[0_-4px_12px_rgba(0,0,0,0.4)]"
+      className="absolute right-0 bottom-full left-0 z-[100] mb-2 flex max-h-[200px] flex-col overflow-y-auto rounded border border-gray-800 bg-gray-900 shadow-[0_-4px_12px_rgba(0,0,0,0.4)]"
     >
       {suggestions.map((suggestion, index) => (
         <div
@@ -108,13 +108,13 @@ export const CommandSuggestions: React.FC<CommandSuggestionsProps> = ({
             index === selectedIndex ? "bg-accent-darker" : "bg-transparent"
           )}
         >
-          <div className="text-accent font-monospace shrink-0 text-xs">{suggestion.display}</div>
-          <div className="text-medium truncate text-right text-[11px]">
+          <div className="font-monospace shrink-0 text-xs text-sky-600">{suggestion.display}</div>
+          <div className="truncate text-right text-[11px] text-gray-400">
             {suggestion.description}
           </div>
         </div>
       ))}
-      <div className="border-border-light bg-dark text-placeholder [&_span]:text-medium shrink-0 border-t px-2.5 py-1 text-center text-[10px] [&_span]:font-medium">
+      <div className="shrink-0 border-t border-gray-800 bg-gray-950 px-2.5 py-1 text-center text-[10px] text-gray-500 [&_span]:font-medium [&_span]:text-gray-400">
         <span>Tab</span> to complete • <span>↑↓</span> to navigate • <span>Esc</span> to dismiss
       </div>
     </div>

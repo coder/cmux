@@ -132,8 +132,8 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
     <React.Fragment>
       <div
         className={cn(
-          "py-1.5 px-3 pl-7 cursor-pointer grid grid-cols-[auto_auto_1fr_auto] gap-2 items-center border-l-[3px] border-transparent transition-all duration-150 text-[13px] relative hover:bg-hover [&:hover_button]:opacity-100",
-          isSelected && "bg-hover border-l-[#569cd6]"
+          "py-1.5 px-3 pl-7 cursor-pointer grid grid-cols-[auto_auto_1fr_auto] gap-2 items-center border-l-[3px] border-transparent transition-all duration-150 text-[13px] relative hover:bg-gray-900 [&:hover_button]:opacity-100",
+          isSelected && "bg-gray-900 border-l-[#569cd6]"
         )}
         onClick={() =>
           onSelectWorkspace({
@@ -162,7 +162,7 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
       >
         <TooltipWrapper inline>
           <button
-            className="text-muted hover:text-foreground col-start-1 flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center border-none bg-transparent p-0 text-base opacity-0 transition-all duration-200 hover:rounded-sm hover:bg-white/10"
+            className="col-start-1 flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center border-none bg-transparent p-0 text-base text-gray-500 opacity-0 transition-all duration-200 hover:rounded-sm hover:bg-white/10 hover:text-gray-200"
             onClick={(e) => {
               e.stopPropagation();
               void onRemoveWorkspace(workspaceId, e.currentTarget);
@@ -195,7 +195,7 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
           />
         ) : (
           <span
-            className="text-foreground min-w-0 cursor-pointer truncate rounded-sm px-1 py-0.5 text-right text-[14px] transition-colors duration-200 hover:bg-white/5"
+            className="min-w-0 cursor-pointer truncate rounded-sm px-1 py-0.5 text-right text-[14px] text-gray-200 transition-colors duration-200 hover:bg-white/5"
             onDoubleClick={(e) => {
               e.stopPropagation();
               startRenaming();

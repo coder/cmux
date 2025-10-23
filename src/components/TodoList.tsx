@@ -17,7 +17,7 @@ const statusBorderColors: Record<TodoItem["status"], string> = {
 const statusTextColors: Record<TodoItem["status"], string> = {
   completed: "#888",
   in_progress: "#2196f3",
-  pending: "var(--color-text)",
+  pending: "theme(colors.gray.200)",
 };
 
 /**
@@ -114,7 +114,7 @@ export const TodoList: React.FC<TodoListProps> = ({ todos }) => {
             style={{
               background: statusBgColors[todo.status],
               borderLeftColor: statusBorderColors[todo.status],
-              color: "var(--color-text)",
+              color: "theme(colors.gray.200)",
             }}
           >
             <div className="mt-px shrink-0 text-xs opacity-80">{getStatusIcon(todo.status)}</div>

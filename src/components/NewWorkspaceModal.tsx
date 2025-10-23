@@ -100,7 +100,7 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
       describedById={infoId}
     >
       <form onSubmit={(event) => void handleSubmit(event)}>
-        <div className="[&_label]:text-foreground [&_input]:bg-modal-bg [&_input]:border-border-medium [&_input]:focus:border-accent [&_select]:bg-modal-bg [&_select]:border-border-medium [&_select]:focus:border-accent [&_option]:bg-modal-bg mb-5 [&_input]:w-full [&_input]:rounded [&_input]:border [&_input]:px-3 [&_input]:py-2 [&_input]:text-sm [&_input]:text-white [&_input]:focus:outline-none [&_input]:disabled:cursor-not-allowed [&_input]:disabled:opacity-60 [&_label]:mb-2 [&_label]:block [&_label]:text-sm [&_option]:text-white [&_select]:w-full [&_select]:cursor-pointer [&_select]:rounded [&_select]:border [&_select]:px-3 [&_select]:py-2 [&_select]:text-sm [&_select]:text-white [&_select]:focus:outline-none [&_select]:disabled:cursor-not-allowed [&_select]:disabled:opacity-60">
+        <div className="[&_input]:border-gray-800-medium [&_select]:border-gray-800-medium mb-5 [&_input]:w-full [&_input]:rounded [&_input]:border [&_input]:bg-gray-900 [&_input]:px-3 [&_input]:py-2 [&_input]:text-sm [&_input]:text-white [&_input]:focus:border-sky-600 [&_input]:focus:outline-none [&_input]:disabled:cursor-not-allowed [&_input]:disabled:opacity-60 [&_label]:mb-2 [&_label]:block [&_label]:text-sm [&_label]:text-gray-200 [&_option]:bg-gray-900 [&_option]:text-white [&_select]:w-full [&_select]:cursor-pointer [&_select]:rounded [&_select]:border [&_select]:bg-gray-900 [&_select]:px-3 [&_select]:py-2 [&_select]:text-sm [&_select]:text-white [&_select]:focus:border-sky-600 [&_select]:focus:outline-none [&_select]:disabled:cursor-not-allowed [&_select]:disabled:opacity-60">
           <label htmlFor="branchName">
             <TooltipWrapper inline>
               <span className="cursor-help underline decoration-[#666] decoration-dotted underline-offset-2">
@@ -137,7 +137,7 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
           {error && <div className="text-danger-light mt-1.5 text-[13px]">{error}</div>}
         </div>
 
-        <div className="[&_label]:text-foreground [&_input]:bg-modal-bg [&_input]:border-border-medium [&_input]:focus:border-accent [&_select]:bg-modal-bg [&_select]:border-border-medium [&_select]:focus:border-accent [&_option]:bg-modal-bg mb-5 [&_input]:w-full [&_input]:rounded [&_input]:border [&_input]:px-3 [&_input]:py-2 [&_input]:text-sm [&_input]:text-white [&_input]:focus:outline-none [&_input]:disabled:cursor-not-allowed [&_input]:disabled:opacity-60 [&_label]:mb-2 [&_label]:block [&_label]:text-sm [&_option]:text-white [&_select]:w-full [&_select]:cursor-pointer [&_select]:rounded [&_select]:border [&_select]:px-3 [&_select]:py-2 [&_select]:text-sm [&_select]:text-white [&_select]:focus:outline-none [&_select]:disabled:cursor-not-allowed [&_select]:disabled:opacity-60">
+        <div className="[&_input]:border-gray-800-medium [&_select]:border-gray-800-medium mb-5 [&_input]:w-full [&_input]:rounded [&_input]:border [&_input]:bg-gray-900 [&_input]:px-3 [&_input]:py-2 [&_input]:text-sm [&_input]:text-white [&_input]:focus:border-sky-600 [&_input]:focus:outline-none [&_input]:disabled:cursor-not-allowed [&_input]:disabled:opacity-60 [&_label]:mb-2 [&_label]:block [&_label]:text-sm [&_label]:text-gray-200 [&_option]:bg-gray-900 [&_option]:text-white [&_select]:w-full [&_select]:cursor-pointer [&_select]:rounded [&_select]:border [&_select]:bg-gray-900 [&_select]:px-3 [&_select]:py-2 [&_select]:text-sm [&_select]:text-white [&_select]:focus:border-sky-600 [&_select]:focus:outline-none [&_select]:disabled:cursor-not-allowed [&_select]:disabled:opacity-60">
           <label htmlFor="trunkBranch">Trunk Branch:</label>
           {hasBranches ? (
             <select
@@ -182,8 +182,8 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
 
         {branchName.trim() && (
           <div>
-            <div className="text-muted mb-2 font-sans text-xs">Equivalent command:</div>
-            <div className="bg-dark border-border-light text-light mt-5 rounded border p-3 font-mono text-[13px] break-all whitespace-pre-wrap">
+            <div className="mb-2 font-sans text-xs text-gray-500">Equivalent command:</div>
+            <div className="mt-5 rounded border border-gray-800 bg-gray-950 p-3 font-mono text-[13px] break-all whitespace-pre-wrap text-gray-200">
               {formatNewCommand(branchName.trim(), trunkBranch.trim() || undefined)}
             </div>
           </div>

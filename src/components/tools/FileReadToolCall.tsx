@@ -82,9 +82,9 @@ export const FileReadToolCall: React.FC<FileReadToolCallProps> = ({
           <span>📖</span>
           <Tooltip>file_read</Tooltip>
         </TooltipWrapper>
-        <span className="text-text font-monospace max-w-96 truncate">{filePath}</span>
+        <span className="font-monospace max-w-96 truncate text-gray-200">{filePath}</span>
         {result && result.success && parsedContent && (
-          <span className="text-secondary ml-2 text-[10px]">
+          <span className="ml-2 text-[10px] text-gray-600">
             read {formatBytes(parsedContent.actualBytes)} of {formatBytes(result.file_size)}
           </span>
         )}
@@ -96,19 +96,19 @@ export const FileReadToolCall: React.FC<FileReadToolCallProps> = ({
           <DetailSection>
             <div className="bg-code-bg flex flex-wrap gap-4 rounded px-2 py-1.5 text-[11px] leading-[1.4]">
               <div className="flex gap-1.5">
-                <span className="text-secondary font-medium">Path:</span>
-                <span className="text-text font-monospace break-all">{args.filePath}</span>
+                <span className="font-medium text-gray-600">Path:</span>
+                <span className="font-monospace break-all text-gray-200">{args.filePath}</span>
               </div>
               {args.offset !== undefined && (
                 <div className="flex gap-1.5">
-                  <span className="text-secondary font-medium">Offset:</span>
-                  <span className="text-text font-monospace break-all">line {args.offset}</span>
+                  <span className="font-medium text-gray-600">Offset:</span>
+                  <span className="font-monospace break-all text-gray-200">line {args.offset}</span>
                 </div>
               )}
               {args.limit !== undefined && (
                 <div className="flex gap-1.5">
-                  <span className="text-secondary font-medium">Limit:</span>
-                  <span className="text-text font-monospace break-all">{args.limit} lines</span>
+                  <span className="font-medium text-gray-600">Limit:</span>
+                  <span className="font-monospace break-all text-gray-200">{args.limit} lines</span>
                 </div>
               )}
             </div>
@@ -129,7 +129,7 @@ export const FileReadToolCall: React.FC<FileReadToolCallProps> = ({
                 <DetailSection>
                   <DetailLabel>Content</DetailLabel>
                   <div className="bg-code-bg m-0 flex max-h-[200px] overflow-y-auto rounded px-2 py-1.5 text-[11px] leading-[1.4]">
-                    <div className="text-secondary font-monospace mr-2 min-w-10 border-r border-white/10 pr-3 text-right opacity-40 select-none">
+                    <div className="font-monospace mr-2 min-w-10 border-r border-white/10 pr-3 text-right text-gray-600 opacity-40 select-none">
                       {parsedContent.lineNumbers.map((lineNum, i) => (
                         <div key={i}>{lineNum}</div>
                       ))}
