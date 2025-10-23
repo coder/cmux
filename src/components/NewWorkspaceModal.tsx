@@ -134,7 +134,7 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
             required
             aria-required="true"
           />
-          {error && <div className="text-danger-light mt-1.5 text-[13px]">{error}</div>}
+          {error && <div className="text-red-400 mt-1.5 text-[13px]">{error}</div>}
         </div>
 
         <div className="mb-5 [&_input]:w-full [&_input]:rounded [&_input]:border [&_input]:border-neutral-700 [&_input]:bg-neutral-900 [&_input]:px-3 [&_input]:py-2 [&_input]:text-sm [&_input]:text-white [&_input]:focus:border-sky-600 [&_input]:focus:outline-none [&_input]:disabled:cursor-not-allowed [&_input]:disabled:opacity-60 [&_label]:mb-2 [&_label]:block [&_label]:text-sm [&_label]:text-neutral-300 [&_option]:bg-neutral-900 [&_option]:text-white [&_select]:w-full [&_select]:cursor-pointer [&_select]:rounded [&_select]:border [&_select]:border-neutral-700 [&_select]:bg-neutral-900 [&_select]:px-3 [&_select]:py-2 [&_select]:text-sm [&_select]:text-white [&_select]:focus:border-sky-600 [&_select]:focus:outline-none [&_select]:disabled:cursor-not-allowed [&_select]:disabled:opacity-60">
@@ -167,7 +167,7 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
             />
           )}
           {!hasBranches && (
-            <div className="text-danger-light mt-1.5 text-[13px]">
+            <div className="text-red-400 mt-1.5 text-[13px]">
               No branches were detected automatically. Enter the trunk branch manually.
             </div>
           )}
@@ -183,7 +183,7 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
         {branchName.trim() && (
           <div>
             <div className="mb-2 font-sans text-xs text-neutral-400">Equivalent command:</div>
-            <div className="mt-5 rounded border border-neutral-800 bg-neutral-950 p-3 font-mono text-[13px] break-all whitespace-pre-wrap text-neutral-300">
+            <div className="mt-5 rounded border border-neutral-800 bg-neutral-900 p-3 font-mono text-[13px] break-all whitespace-pre-wrap text-neutral-300">
               {formatNewCommand(branchName.trim(), trunkBranch.trim() || undefined)}
             </div>
           </div>

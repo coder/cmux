@@ -214,7 +214,7 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
               "focus:outline-none",
               isEditing
                 ? "bg-editing-mode-alpha border-editing-mode focus:border-editing-mode"
-                : "bg-neutral-950 border-neutral-800",
+                : "bg-neutral-900 border-neutral-800",
               !isEditing && (mode === "plan" ? "focus:border-plan-mode" : "focus:border-exec-mode"),
               vimMode === "normal"
                 ? "caret-transparent selection:bg-white/50"

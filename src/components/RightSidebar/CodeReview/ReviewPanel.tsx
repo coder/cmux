@@ -532,7 +532,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
       tabIndex={0}
       onFocus={() => setIsPanelFocused(true)}
       onBlur={() => setIsPanelFocused(false)}
-      className="[container-type:inline-size] flex h-full min-h-0 flex-col bg-neutral-950 outline-none [container-name:review-panel] focus-within:shadow-[inset_0_0_0_1px_rgba(0,122,204,0.2)]"
+      className="[container-type:inline-size] flex h-full min-h-0 flex-col bg-neutral-900 outline-none [container-name:review-panel] focus-within:shadow-[inset_0_0_0_1px_rgba(0,122,204,0.2)]"
     >
       {/* Always show controls so user can change diff base */}
       <ReviewControls
@@ -564,7 +564,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
             )}
 
             <div className="border-b border-neutral-800 bg-neutral-900 px-3 py-2">
-              <div className="hover:border-neutral-800-gray flex items-stretch overflow-hidden rounded border border-neutral-800 bg-neutral-950 transition-[border-color] duration-150 focus-within:border-sky-600 focus-within:hover:border-sky-600">
+              <div className="hover:border-neutral-800-gray flex items-stretch overflow-hidden rounded border border-neutral-800 bg-neutral-900 transition-[border-color] duration-150 focus-within:border-sky-600 focus-within:hover:border-sky-600">
                 <input
                   ref={searchInputRef}
                   type="text"

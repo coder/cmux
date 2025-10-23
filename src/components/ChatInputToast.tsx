@@ -73,7 +73,7 @@ export const ChatInputToast: React.FC<ChatInputToastProps> = ({ toast, onDismiss
               {toast.title && <div className="mb-1.5 font-semibold">{toast.title}</div>}
               <div className="mt-1.5 leading-[1.4] text-neutral-300">{toast.message}</div>
               {toast.solution && (
-                <div className="font-monospace text-code-type mt-2 rounded bg-neutral-950 px-2 py-1.5 text-[11px]">
+                <div className="font-monospace text-code-type mt-2 rounded bg-neutral-900 px-2 py-1.5 text-[11px]">
                   {toast.solution}
                 </div>
               )}

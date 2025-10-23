@@ -416,7 +416,7 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
       <DndProvider backend={HTML5Backend}>
         <ProjectDragLayer />
         <div
-          className="font-primary flex flex-1 flex-col overflow-hidden border-r border-neutral-800 bg-neutral-950"
+          className="font-primary flex flex-1 flex-col overflow-hidden border-r border-neutral-800 bg-neutral-900"
           role="navigation"
           aria-label="Projects"
         >
@@ -532,7 +532,7 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
                               title="Remove project"
                               aria-label={`Remove project ${projectName}`}
                               data-project-path={projectPath}
-                              className="hover:text-danger-light hover:bg-danger-light/10 flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-[3px] border-none bg-transparent text-base text-neutral-400 opacity-0 transition-all duration-200"
+                              className="hover:text-red-400 hover:bg-red-400/10 flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-[3px] border-none bg-transparent text-base text-neutral-400 opacity-0 transition-all duration-200"
                             >
                               ×
                             </button>

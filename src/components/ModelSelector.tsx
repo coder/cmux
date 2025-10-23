@@ -203,7 +203,7 @@ export const ModelSelector = forwardRef<ModelSelectorRef, ModelSelectorProps>(
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
             placeholder="provider:model-name"
-            className="font-monospace focus:border-exec-mode w-48 rounded-sm border border-neutral-800 bg-neutral-950 px-1 py-0.5 text-[10px] leading-[11px] text-neutral-300 outline-none"
+            className="font-monospace focus:border-exec-mode w-48 rounded-sm border border-neutral-800 bg-neutral-900 px-1 py-0.5 text-[10px] leading-[11px] text-neutral-300 outline-none"
           />
           {error && (
             <div className="text-danger-soft font-monospace mt-0.5 text-[9px]">{error}</div>

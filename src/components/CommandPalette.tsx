@@ -369,7 +369,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ getSlashContext 
         shouldFilter={shouldUseCmdkFilter}
       >
         <Command.Input
-          className="w-full border-b border-none border-neutral-900 bg-neutral-950 px-3.5 py-3 text-sm text-neutral-100 outline-none"
+          className="w-full border-b border-none border-neutral-900 bg-neutral-900 px-3.5 py-3 text-sm text-neutral-100 outline-none"
           value={query}
           onValueChange={handleQueryChange}
           placeholder={

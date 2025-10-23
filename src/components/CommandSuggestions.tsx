@@ -114,7 +114,7 @@ export const CommandSuggestions: React.FC<CommandSuggestionsProps> = ({
           </div>
         </div>
       ))}
-      <div className="shrink-0 border-t border-neutral-800 bg-neutral-950 px-2.5 py-1 text-center text-[10px] text-neutral-400 [&_span]:font-medium [&_span]:text-neutral-400">
+      <div className="shrink-0 border-t border-neutral-800 bg-neutral-900 px-2.5 py-1 text-center text-[10px] text-neutral-400 [&_span]:font-medium [&_span]:text-neutral-400">
         <span>Tab</span> to complete • <span>↑↓</span> to navigate • <span>Esc</span> to dismiss
       </div>
     </div>

@@ -28,7 +28,7 @@ export const ModalContent: React.FC<
 > = ({ children, maxWidth = "500px", maxHeight, className, ...props }) => (
   <div
     className={cn(
-      "bg-neutral-950 rounded-lg p-6 w-[90%] flex flex-col shadow-lg border border-neutral-800",
+      "bg-neutral-900 rounded-lg p-6 w-[90%] flex flex-col shadow-lg border border-neutral-800",
       "[&_h2]:mt-0 [&_h2]:mb-2 [&_h2]:text-white",
       className
     )}
@@ -95,7 +95,7 @@ export const ErrorCodeBlock: React.FC<{ children: React.ReactNode; className?: s
 }) => (
   <pre
     className={cn(
-      "bg-neutral-950-secondary border border-neutral-800 rounded p-3",
+      "bg-neutral-900-secondary border border-neutral-800 rounded p-3",
       "text-xs font-mono text-neutral-300 overflow-x-auto whitespace-pre-wrap break-words leading-relaxed",
       className
     )}

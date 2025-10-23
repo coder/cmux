@@ -98,7 +98,7 @@ export const KebabMenu: React.FC<KebabMenuProps> = ({ items, className }) => {
         createPortal(
           <div
             ref={menuRef}
-            className="fixed z-[10000] min-w-40 overflow-hidden rounded-[3px] border border-neutral-800 bg-neutral-950 shadow-[0_4px_16px_rgba(0,0,0,0.8)]"
+            className="fixed z-[10000] min-w-40 overflow-hidden rounded-[3px] border border-neutral-800 bg-neutral-900 shadow-[0_4px_16px_rgba(0,0,0,0.8)]"
             style={{
               top: `${dropdownPosition.top}px`,
               left: `${dropdownPosition.left}px`,
@@ -113,10 +113,10 @@ export const KebabMenu: React.FC<KebabMenuProps> = ({ items, className }) => {
                   "w-full border-none border-b border-modal-bg text-xs py-2 px-3 text-left transition-all duration-150 font-primary flex items-center gap-2",
                   "last:border-b-0",
                   item.disabled
-                    ? "bg-neutral-950 text-neutral-400-light cursor-not-allowed opacity-50 hover:bg-neutral-950 hover:text-neutral-400-light"
+                    ? "bg-neutral-900 text-neutral-400-light cursor-not-allowed opacity-50 hover:bg-neutral-900 hover:text-neutral-400-light"
                     : item.active
                       ? "bg-white/15 text-neutral-300 cursor-pointer hover:bg-white/15 hover:text-white"
-                      : "bg-neutral-950 text-neutral-300 cursor-pointer hover:bg-white/15 hover:text-white"
+                      : "bg-neutral-900 text-neutral-300 cursor-pointer hover:bg-white/15 hover:text-white"
                 )}
               >
                 {item.emoji && (

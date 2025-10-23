@@ -138,7 +138,7 @@ export const HunkViewer = React.memo<HunkViewerProps>(
     return (
       <div
         className={cn(
-          "bg-neutral-950 border rounded mb-3 overflow-hidden cursor-pointer transition-all duration-200",
+          "bg-neutral-900 border rounded mb-3 overflow-hidden cursor-pointer transition-all duration-200",
           "focus:outline-none focus-visible:outline-none",
           isRead ? "border-read" : "border-neutral-800",
           isSelected && "border-review-accent shadow-[0_0_0_1px_var(--color-review-accent)]"

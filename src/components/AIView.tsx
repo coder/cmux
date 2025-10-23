@@ -245,7 +245,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
     return (
       <div
         className={cn(
-          "flex flex-1 flex-row bg-neutral-950 text-neutral-300 overflow-x-auto overflow-y-hidden [@media(max-width:768px)]:flex-col",
+          "flex flex-1 flex-row bg-neutral-900 text-neutral-300 overflow-x-auto overflow-y-hidden [@media(max-width:768px)]:flex-col",
           className
         )}
         style={{ containerType: "inline-size" }}
@@ -286,7 +286,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
     return (
       <div
         className={cn(
-          "flex flex-1 flex-row bg-neutral-950 text-neutral-300 overflow-x-auto overflow-y-hidden [@media(max-width:768px)]:flex-col",
+          "flex flex-1 flex-row bg-neutral-900 text-neutral-300 overflow-x-auto overflow-y-hidden [@media(max-width:768px)]:flex-col",
           className
         )}
         style={{ containerType: "inline-size" }}
@@ -302,7 +302,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
     return (
       <div
         className={cn(
-          "flex flex-1 flex-row bg-neutral-950 text-neutral-300 overflow-x-auto overflow-y-hidden [@media(max-width:768px)]:flex-col",
+          "flex flex-1 flex-row bg-neutral-900 text-neutral-300 overflow-x-auto overflow-y-hidden [@media(max-width:768px)]:flex-col",
           className
         )}
         style={{ containerType: "inline-size" }}
@@ -320,7 +320,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
   return (
     <div
       className={cn(
-        "flex flex-1 flex-row bg-neutral-950 text-neutral-300 overflow-x-auto overflow-y-hidden [@media(max-width:768px)]:flex-col",
+        "flex flex-1 flex-row bg-neutral-900 text-neutral-300 overflow-x-auto overflow-y-hidden [@media(max-width:768px)]:flex-col",
         className
       )}
       style={{ containerType: "inline-size" }}

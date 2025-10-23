@@ -39,7 +39,7 @@ export const Default: Story = {};
 
 export const DifferentModels: Story = {
   render: () => (
-    <div className="flex min-w-80 flex-col gap-[30px] bg-neutral-950 p-10">
+    <div className="flex min-w-80 flex-col gap-[30px] bg-neutral-900 p-10">
       <div>
         <div className="text-neutral-400-light font-primary mb-2 text-xs">Claude Sonnet 4.5</div>
         <ThinkingSliderComponent modelString="anthropic:claude-sonnete-4-5" />
@@ -60,7 +60,7 @@ export const DifferentModels: Story = {
 
 export const InteractiveDemo: Story = {
   render: () => (
-    <div className="flex min-w-80 flex-col gap-[30px] bg-neutral-950 p-10">
+    <div className="flex min-w-80 flex-col gap-[30px] bg-neutral-900 p-10">
       <div className="font-primary mb-2.5 text-[13px] text-neutral-300">
         Try moving the slider to see the purple glow effect intensify:
       </div>
@@ -95,7 +95,7 @@ export const InteractiveDemo: Story = {
 export const LockedThinking: Story = {
   args: { modelString: "openai:gpt-5-pro" },
   render: (args) => (
-    <div className="flex min-w-80 flex-col gap-[30px] bg-neutral-950 p-10">
+    <div className="flex min-w-80 flex-col gap-[30px] bg-neutral-900 p-10">
       <div className="font-primary mb-2.5 text-[13px] text-neutral-300">
         Some models have locked thinking levels based on their capabilities:
       </div>
