@@ -93,7 +93,7 @@ export const ReviewControls: React.FC<ReviewControlsProps> = ({
         onBlur={handleBaseBlur}
         onKeyDown={handleBaseKeyDown}
         placeholder="HEAD, main, etc."
-        className="border-gray-700 placeholder:text-gray-400 w-36 rounded border bg-gray-950 px-2 py-1 font-mono text-[11px] text-gray-200 transition-[border-color] duration-200 hover:border-sky-600 focus:border-sky-600 focus:outline-none"
+        className="w-36 rounded border border-gray-700 bg-gray-950 px-2 py-1 font-mono text-[11px] text-gray-200 transition-[border-color] duration-200 placeholder:text-gray-400 hover:border-sky-600 focus:border-sky-600 focus:outline-none"
       />
       <datalist id="base-suggestions">
         <option value="HEAD" />

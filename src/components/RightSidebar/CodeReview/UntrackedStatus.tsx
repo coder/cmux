@@ -143,7 +143,7 @@ export const UntrackedStatus: React.FC<UntrackedStatusProps> = ({
             {untrackedFiles.map((file) => (
               <div
                 key={file}
-                className="hover:bg-gray-800 truncate px-1 py-0.5 font-mono text-[11px] text-gray-400"
+                className="truncate px-1 py-0.5 font-mono text-[11px] text-gray-400 hover:bg-gray-800"
               >
                 {file}
               </div>

@@ -137,13 +137,13 @@ const ProjectDragLayer: React.FC = () => {
     <div className="pointer-events-none fixed inset-0 z-[9999] cursor-grabbing">
       <div style={{ transform: `translate(${currentOffset.x + 10}px, ${currentOffset.y + 10}px)` }}>
         <div className="border-l-accent flex w-fit max-w-72 min-w-44 items-center rounded border-l-[3px] bg-gray-900/95 px-3 py-1.5 text-gray-200 shadow-[0_6px_24px_rgba(0,0,0,0.4)]">
-          <span className="text-gray-400 mr-1.5 text-xs">⠿</span>
+          <span className="mr-1.5 text-xs text-gray-400">⠿</span>
           <span className="mr-2 text-[10px] text-gray-500">▶</span>
           <div className="min-w-0 flex-1">
             <div className="truncate text-sm font-medium tracking-[0.2px] text-gray-200">
               {name}
             </div>
-            <div className="text-gray-600 font-monospace mt-0.5 truncate text-[11px]">
+            <div className="font-monospace mt-0.5 truncate text-[11px] text-gray-600">
               {abbrevPath}
             </div>
           </div>
@@ -422,7 +422,7 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
         >
           {!collapsed && (
             <>
-              <div className="border-gray-950 flex items-center justify-between border-b bg-gray-900 p-4">
+              <div className="flex items-center justify-between border-b border-gray-950 bg-gray-900 p-4">
                 <h2 className="m-0 text-[13px] font-semibold tracking-[0.8px] text-gray-200 uppercase">
                   Projects
                 </h2>
@@ -445,7 +445,7 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
                     <p className="mb-4 text-[13px] text-gray-500">No projects</p>
                     <button
                       onClick={onAddProject}
-                      className="bg-sky-600 hover:bg-sky-600-dark cursor-pointer rounded border-none px-4 py-2 text-[13px] text-white transition-colors duration-200"
+                      className="hover:bg-sky-600-dark cursor-pointer rounded border-none bg-sky-600 px-4 py-2 text-[13px] text-white transition-colors duration-200"
                     >
                       Add Project
                     </button>
@@ -461,7 +461,7 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
                     const isExpanded = expandedProjects.has(projectPath);
 
                     return (
-                      <div key={projectPath} className="border-gray-900 border-b">
+                      <div key={projectPath} className="border-b border-gray-900">
                         <DraggableProjectItem
                           projectPath={projectPath}
                           onReorder={handleReorder}
@@ -482,7 +482,7 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
                           <span
                             data-drag-handle
                             aria-hidden
-                            className="text-gray-400 mr-1.5 cursor-grab text-xs opacity-0 transition-opacity duration-150 select-none"
+                            className="mr-1.5 cursor-grab text-xs text-gray-400 opacity-0 transition-opacity duration-150 select-none"
                           >
                             ⠿
                           </span>
@@ -499,7 +499,7 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
                               {projectName}
                             </div>
                             <TooltipWrapper inline>
-                              <div className="text-gray-600 font-monospace mt-px truncate text-[11px]">
+                              <div className="font-monospace mt-px truncate text-[11px] text-gray-600">
                                 {abbreviatePath(projectPath)}
                               </div>
                               <Tooltip className="tooltip" align="left">
@@ -515,7 +515,7 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
                               }}
                               aria-label={`Manage secrets for ${projectName}`}
                               data-project-path={projectPath}
-                              className="text-gray-600 hover:bg-sky-600/10 mr-1 flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-[3px] border-none bg-transparent text-sm opacity-0 transition-all duration-200 hover:text-sky-600"
+                              className="mr-1 flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-[3px] border-none bg-transparent text-sm text-gray-600 opacity-0 transition-all duration-200 hover:bg-sky-600/10 hover:text-sky-600"
                             >
                               🔑
                             </button>
@@ -532,7 +532,7 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
                               title="Remove project"
                               aria-label={`Remove project ${projectName}`}
                               data-project-path={projectPath}
-                              className="text-gray-600 hover:text-danger-light hover:bg-danger-light/10 flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-[3px] border-none bg-transparent text-base opacity-0 transition-all duration-200"
+                              className="hover:text-danger-light hover:bg-danger-light/10 flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-[3px] border-none bg-transparent text-base text-gray-600 opacity-0 transition-all duration-200"
                             >
                               ×
                             </button>
@@ -544,12 +544,12 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
 
                         {isExpanded && (
                           <div id={workspaceListId}>
-                            <div className="border-gray-900 border-b px-3 py-2 pl-[22px]">
+                            <div className="border-b border-gray-900 px-3 py-2 pl-[22px]">
                               <button
                                 onClick={() => onAddWorkspace(projectPath)}
                                 data-project-path={projectPath}
                                 aria-label={`Add workspace to ${projectName}`}
-                                className="border-gray-700 hover:border-gray-800-darker w-full cursor-pointer rounded border border-dashed bg-transparent px-3 py-1.5 text-left text-[13px] text-gray-500 transition-all duration-200 hover:bg-gray-900 hover:text-gray-200"
+                                className="hover:border-gray-800-darker w-full cursor-pointer rounded border border-dashed border-gray-700 bg-transparent px-3 py-1.5 text-left text-[13px] text-gray-500 transition-all duration-200 hover:bg-gray-900 hover:text-gray-200"
                               >
                                 + New Workspace
                                 {selectedWorkspace?.projectPath === projectPath &&
@@ -592,16 +592,16 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
                                             : `Expand workspaces older than ${formatOldWorkspaceThreshold()}`
                                         }
                                         aria-expanded={showOldWorkspaces}
-                                        className="border-gray-900 flex w-full cursor-pointer items-center justify-between border-t border-none bg-transparent px-3 py-2 pl-[22px] text-xs font-medium text-gray-500 transition-all duration-150 hover:bg-white/[0.03] hover:text-gray-400 [&:hover_.arrow]:text-gray-400"
+                                        className="flex w-full cursor-pointer items-center justify-between border-t border-none border-gray-900 bg-transparent px-3 py-2 pl-[22px] text-xs font-medium text-gray-500 transition-all duration-150 hover:bg-white/[0.03] hover:text-gray-400 [&:hover_.arrow]:text-gray-400"
                                       >
                                         <div className="flex items-center gap-1.5">
                                           <span>Older than {formatOldWorkspaceThreshold()}</span>
-                                          <span className="text-gray-400 font-normal">
+                                          <span className="font-normal text-gray-400">
                                             ({old.length})
                                           </span>
                                         </div>
                                         <span
-                                          className="arrow text-gray-400 text-[11px] transition-transform duration-200 ease-in-out"
+                                          className="arrow text-[11px] text-gray-400 transition-transform duration-200 ease-in-out"
                                           style={{
                                             transform: showOldWorkspaces
                                               ? "rotate(90deg)"
@@ -629,7 +629,7 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
           <TooltipWrapper inline>
             <button
               onClick={onToggleCollapsed}
-              className="border-gray-950 mt-auto flex h-9 w-full cursor-pointer items-center justify-center border-t border-none bg-transparent p-0 text-sm text-gray-500 transition-all duration-200 hover:bg-gray-900 hover:text-gray-200"
+              className="mt-auto flex h-9 w-full cursor-pointer items-center justify-center border-t border-none border-gray-950 bg-transparent p-0 text-sm text-gray-500 transition-all duration-200 hover:bg-gray-900 hover:text-gray-200"
             >
               {collapsed ? "»" : "«"}
             </button>

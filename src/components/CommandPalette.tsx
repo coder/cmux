@@ -364,12 +364,12 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ getSlashContext 
       }}
     >
       <Command
-        className="text-gray-100 font-primary w-[min(720px,92vw)] overflow-hidden rounded-lg border border-gray-800 bg-gray-900 shadow-[0_10px_40px_rgba(0,0,0,0.4)]"
+        className="font-primary w-[min(720px,92vw)] overflow-hidden rounded-lg border border-gray-800 bg-gray-900 text-gray-100 shadow-[0_10px_40px_rgba(0,0,0,0.4)]"
         onMouseDown={(e: React.MouseEvent) => e.stopPropagation()}
         shouldFilter={shouldUseCmdkFilter}
       >
         <Command.Input
-          className="text-gray-100 border-gray-900 w-full border-b border-none bg-gray-950 px-3.5 py-3 text-sm outline-none"
+          className="w-full border-b border-none border-gray-900 bg-gray-950 px-3.5 py-3 text-sm text-gray-100 outline-none"
           value={query}
           onValueChange={handleQueryChange}
           placeholder={

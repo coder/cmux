@@ -662,7 +662,7 @@ function AppInner() {
 
   return (
     <>
-      <div className="bg-gray-950 flex h-screen overflow-hidden [@media(max-width:768px)]:flex-col">
+      <div className="flex h-screen overflow-hidden bg-gray-950 [@media(max-width:768px)]:flex-col">
         <LeftSidebar
           projects={projects}
           workspaceMetadata={workspaceMetadata}

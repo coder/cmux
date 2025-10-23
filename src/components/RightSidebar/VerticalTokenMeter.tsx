@@ -88,7 +88,7 @@ const VerticalTokenMeterComponent: React.FC<{ data: TokenMeterData }> = ({ data 
                     {data.maxTokens && ` / ${formatTokens(data.maxTokens)}`}
                     {data.maxTokens && ` (${data.totalPercentage.toFixed(1)}%)`}
                   </div>
-                  <div className="text-gray-400 mt-2 text-[10px] italic">
+                  <div className="mt-2 text-[10px] text-gray-400 italic">
                     💡 Expand your viewport to see full details
                   </div>
                 </div>

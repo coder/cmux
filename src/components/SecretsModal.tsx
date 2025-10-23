@@ -157,7 +157,7 @@ const SecretsModal: React.FC<SecretsModalProps> = ({
                   onChange={(e) => updateSecret(index, "key", e.target.value)}
                   placeholder="SECRET_NAME"
                   disabled={isLoading}
-                  className="border-gray-700 placeholder:text-gray-400 w-full rounded border bg-gray-900 px-2.5 py-1.5 font-mono text-[13px] text-white focus:border-sky-600 focus:outline-none"
+                  className="w-full rounded border border-gray-700 bg-gray-900 px-2.5 py-1.5 font-mono text-[13px] text-white placeholder:text-gray-400 focus:border-sky-600 focus:outline-none"
                 />
                 <input
                   type={visibleSecrets.has(index) ? "text" : "password"}
@@ -165,7 +165,7 @@ const SecretsModal: React.FC<SecretsModalProps> = ({
                   onChange={(e) => updateSecret(index, "value", e.target.value)}
                   placeholder="secret value"
                   disabled={isLoading}
-                  className="border-gray-700 placeholder:text-gray-400 w-full rounded border bg-gray-900 px-2.5 py-1.5 font-mono text-[13px] text-white focus:border-sky-600 focus:outline-none"
+                  className="w-full rounded border border-gray-700 bg-gray-900 px-2.5 py-1.5 font-mono text-[13px] text-white placeholder:text-gray-400 focus:border-sky-600 focus:outline-none"
                 />
                 <button
                   type="button"
@@ -192,7 +192,7 @@ const SecretsModal: React.FC<SecretsModalProps> = ({
       <button
         onClick={addSecret}
         disabled={isLoading}
-        className="border-gray-700 hover:border-gray-800-darker mb-4 w-full cursor-pointer rounded border border-dashed bg-transparent px-3 py-2 text-[13px] text-gray-500 transition-all duration-200 hover:bg-gray-900 hover:text-gray-200"
+        className="hover:border-gray-800-darker mb-4 w-full cursor-pointer rounded border border-dashed border-gray-700 bg-transparent px-3 py-2 text-[13px] text-gray-500 transition-all duration-200 hover:bg-gray-900 hover:text-gray-200"
       >
         + Add Secret
       </button>
