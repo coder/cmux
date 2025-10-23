@@ -213,17 +213,17 @@ export const WithTooltipInteraction: Story = {
     title: "3 unread messages",
   },
   play: async ({ canvasElement }) => {
-    // Find the wrapper span
-    const wrapper = canvasElement.querySelector("span");
-    if (!wrapper) throw new Error("Could not find wrapper");
+    // Find the indicator div (TooltipTrigger wraps it)
+    const indicator = canvasElement.querySelector("div");
+    if (!indicator) throw new Error("Could not find indicator");
 
     // Hover over the indicator to show tooltip
-    await userEvent.hover(wrapper);
+    await userEvent.hover(indicator);
 
-    // Wait for tooltip to appear (uses portal to document.body)
+    // Wait for tooltip to appear (shadcn tooltips use role="tooltip")
     await waitFor(
       async () => {
-        const tooltip = document.body.querySelector(".tooltip");
+        const tooltip = document.body.querySelector('[role="tooltip"]');
         await expect(tooltip).toBeInTheDocument();
         await expect(tooltip).toHaveTextContent("3 unread messages");
       },
@@ -231,12 +231,12 @@ export const WithTooltipInteraction: Story = {
     );
 
     // Unhover to hide tooltip
-    await userEvent.unhover(wrapper);
+    await userEvent.unhover(indicator);
 
     // Wait for tooltip to disappear
     await waitFor(
       async () => {
-        const tooltip = document.body.querySelector(".tooltip");
+        const tooltip = document.body.querySelector('[role="tooltip"]');
         await expect(tooltip).not.toBeInTheDocument();
       },
       { timeout: 2000 }
