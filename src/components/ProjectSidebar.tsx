@@ -422,7 +422,7 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
         >
           {!collapsed && (
             <>
-              <div className="flex justify-between items-center p-4 border-b border-b-bg-dark">
+              <div className="flex justify-between items-center p-4 border-b border-dark">
                 <h2 className="m-0 text-[13px] font-semibold text-foreground uppercase tracking-[0.8px]">
                   Projects
                 </h2>
@@ -592,7 +592,7 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
                                             : `Expand workspaces older than ${formatOldWorkspaceThreshold()}`
                                         }
                                         aria-expanded={showOldWorkspaces}
-                                        className="w-full py-2 px-3 pl-[22px] bg-transparent text-muted border-none border-t border-t-bg-hover cursor-pointer text-xs transition-all duration-150 flex items-center justify-between font-medium hover:bg-white/[0.03] hover:text-label [&:hover_.arrow]:text-label"
+                                        className="w-full py-2 px-3 pl-[22px] bg-transparent text-muted border-none border-t border-hover cursor-pointer text-xs transition-all duration-150 flex items-center justify-between font-medium hover:bg-white/[0.03] hover:text-label [&:hover_.arrow]:text-label"
                                       >
                                         <div className="flex items-center gap-1.5">
                                           <span>Older than {formatOldWorkspaceThreshold()}</span>
@@ -629,7 +629,7 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
           <TooltipWrapper inline>
             <button
               onClick={onToggleCollapsed}
-              className="w-full h-9 bg-transparent text-muted border-none border-t border-t-bg-dark cursor-pointer text-sm flex items-center justify-center p-0 transition-all duration-200 mt-auto hover:bg-hover hover:text-foreground"
+              className="w-full h-9 bg-transparent text-muted border-none border-t border-dark cursor-pointer text-sm flex items-center justify-center p-0 transition-all duration-200 mt-auto hover:bg-hover hover:text-foreground"
             >
               {collapsed ? "»" : "«"}
             </button>

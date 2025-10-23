@@ -576,7 +576,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
                 <TooltipWrapper inline>
                   <button
                     className={cn(
-                      "py-1.5 px-2.5 border-none border-l border-l-border-light text-[11px] font-monospace font-semibold leading-[1.4] cursor-pointer outline-none transition-all duration-150 whitespace-nowrap flex items-center h-full",
+                      "py-1.5 px-2.5 border-none border-l border-light text-[11px] font-monospace font-semibold leading-[1.4] cursor-pointer outline-none transition-all duration-150 whitespace-nowrap flex items-center h-full",
                       searchState.useRegex
                         ? "bg-review-bg-blue text-accent-light shadow-[inset_0_0_0_1px_rgba(77,184,255,0.4)] hover:bg-review-bg-info hover:text-accent-light"
                         : "bg-transparent text-subtle hover:bg-separator hover:text-foreground",
@@ -595,7 +595,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
                 <TooltipWrapper inline>
                   <button
                     className={cn(
-                      "py-1.5 px-2.5 border-none border-l border-l-border-light text-[11px] font-monospace font-semibold leading-[1.4] cursor-pointer outline-none transition-all duration-150 whitespace-nowrap flex items-center h-full",
+                      "py-1.5 px-2.5 border-none border-l border-light text-[11px] font-monospace font-semibold leading-[1.4] cursor-pointer outline-none transition-all duration-150 whitespace-nowrap flex items-center h-full",
                       searchState.matchCase
                         ? "bg-review-bg-blue text-accent-light shadow-[inset_0_0_0_1px_rgba(77,184,255,0.4)] hover:bg-review-bg-info hover:text-accent-light"
                         : "bg-transparent text-subtle hover:bg-separator hover:text-foreground",
