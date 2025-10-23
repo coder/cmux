@@ -82,7 +82,7 @@ export const FileReadToolCall: React.FC<FileReadToolCallProps> = ({
           <span>📖</span>
           <Tooltip>file_read</Tooltip>
         </TooltipWrapper>
-        <span className="text-text font-monospace whitespace-nowrap overflow-hidden text-ellipsis max-w-[400px]">
+        <span className="text-text font-monospace whitespace-nowrap overflow-hidden text-ellipsis max-w-96">
           {filePath}
         </span>
         {result && result.success && parsedContent && (
@@ -131,7 +131,7 @@ export const FileReadToolCall: React.FC<FileReadToolCallProps> = ({
                 <DetailSection>
                   <DetailLabel>Content</DetailLabel>
                   <div className="m-0 px-2 py-1.5 bg-code-bg rounded text-[11px] leading-[1.4] max-h-[200px] overflow-y-auto flex">
-                    <div className="text-secondary opacity-40 pr-3 mr-2 border-r border-white/10 select-none text-right min-w-[40px] font-monospace">
+                    <div className="text-secondary opacity-40 pr-3 mr-2 border-r border-white/10 select-none text-right min-w-10 font-monospace">
                       {parsedContent.lineNumbers.map((lineNum, i) => (
                         <div key={i}>{lineNum}</div>
                       ))}

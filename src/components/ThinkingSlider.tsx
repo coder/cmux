@@ -98,7 +98,7 @@ export const ThinkingSliderComponent: React.FC<ThinkingControlProps> = ({ modelS
         <div className="flex items-center gap-2 ml-5">
           <label className="text-[10px] text-subdued select-none">Thinking:</label>
           <span
-            className="min-w-[45px] uppercase select-none transition-all duration-200"
+            className="min-w-11 uppercase select-none transition-all duration-200"
             style={textStyle}
             aria-live="polite"
             aria-label={`Thinking level fixed to ${fixedLevel}`}
@@ -158,7 +158,7 @@ export const ThinkingSliderComponent: React.FC<ThinkingControlProps> = ({ modelS
           }
         />
         <span
-          className="min-w-[45px] uppercase select-none transition-all duration-200"
+          className="min-w-11 uppercase select-none transition-all duration-200"
           style={textStyle}
           aria-live="polite"
         >

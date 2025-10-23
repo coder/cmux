@@ -136,7 +136,7 @@ const ProjectDragLayer: React.FC = () => {
   return (
     <div className="fixed pointer-events-none z-[9999] inset-0 cursor-grabbing">
       <div style={{ transform: `translate(${currentOffset.x + 10}px, ${currentOffset.y + 10}px)` }}>
-        <div className="bg-hover/95 text-foreground py-1.5 px-3 border-l-[3px] border-l-accent shadow-[0_6px_24px_rgba(0,0,0,0.4)] rounded flex items-center w-fit max-w-[280px] min-w-[180px]">
+        <div className="bg-hover/95 text-foreground py-1.5 px-3 border-l-[3px] border-l-accent shadow-[0_6px_24px_rgba(0,0,0,0.4)] rounded flex items-center w-fit max-w-72 min-w-44">
           <span className="mr-1.5 text-text-dim text-xs">⠿</span>
           <span className="mr-2 text-muted text-[10px]">▶</span>
           <div className="flex-1 min-w-0">
@@ -660,7 +660,7 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
           {removeError &&
             createPortal(
               <div
-                className="fixed max-w-[400px] p-3 px-4 bg-error-bg border border-error rounded-md text-error text-xs z-[10000] shadow-[0_4px_16px_rgba(0,0,0,0.5)] font-monospace leading-[1.4] whitespace-pre-wrap break-words pointer-events-auto"
+                className="fixed max-w-96 p-3 px-4 bg-error-bg border border-error rounded-md text-error text-xs z-[10000] shadow-[0_4px_16px_rgba(0,0,0,0.5)] font-monospace leading-[1.4] whitespace-pre-wrap break-words pointer-events-auto"
                 style={{
                   top: `${removeError.position.top}px`,
                   left: `${removeError.position.left}px`,

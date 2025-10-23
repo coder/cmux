@@ -135,7 +135,7 @@ export const UntrackedStatus: React.FC<UntrackedStatusProps> = ({
       </div>
 
       {showTooltip && hasUntracked && (
-        <div className="absolute top-[calc(100%+8px)] right-0 bg-modal-bg border border-bg-medium rounded p-2 min-w-[200px] max-w-[400px] z-[1000] shadow-[0_4px_12px_rgba(0,0,0,0.3)] animate-in fade-in slide-in-from-top-1 duration-150">
+        <div className="absolute top-[calc(100%+8px)] right-0 bg-modal-bg border border-bg-medium rounded p-2 min-w-48 max-w-96 z-[1000] shadow-[0_4px_12px_rgba(0,0,0,0.3)] animate-in fade-in slide-in-from-top-1 duration-150">
           <div className="text-[11px] font-semibold text-foreground mb-2 pb-1.5 border-b border-border-light">
             Untracked Files ({count})
           </div>
