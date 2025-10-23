@@ -11,6 +11,10 @@ export interface SSHRuntimeConfig {
   host: string;
   /** Working directory on remote host */
   workdir: string;
+  /** Optional: Path to SSH private key (if not using ~/.ssh/config or ssh-agent) */
+  identityFile?: string;
+  /** Optional: SSH port (default: 22) */
+  port?: number;
 }
 
 /**
@@ -48,8 +52,27 @@ export class SSHRuntime implements Runtime {
     // Build full command with cwd and env
     const remoteCommand = `cd ${JSON.stringify(options.cwd)} && ${envPrefix}${command}`;
 
+    // Build SSH args
+    const sshArgs: string[] = ["-T"];
+
+    // Add port if specified
+    if (this.config.port) {
+      sshArgs.push("-p", this.config.port.toString());
+    }
+
+    // Add identity file if specified
+    if (this.config.identityFile) {
+      sshArgs.push("-i", this.config.identityFile);
+      // Disable strict host key checking for test environments
+      sshArgs.push("-o", "StrictHostKeyChecking=no");
+      sshArgs.push("-o", "UserKnownHostsFile=/dev/null");
+      sshArgs.push("-o", "LogLevel=ERROR"); // Suppress SSH warnings
+    }
+
+    sshArgs.push(this.config.host, remoteCommand);
+
     // Spawn ssh command
-    const sshProcess = spawn("ssh", ["-T", this.config.host, remoteCommand], {
+    const sshProcess = spawn("ssh", sshArgs, {
       stdio: ["pipe", "pipe", "pipe"],
     });
 
@@ -103,8 +126,8 @@ export class SSHRuntime implements Runtime {
     });
 
     // Return stdout, but wrap to handle errors from exit code
-    return new ReadableStream({
-      async start(controller) {
+    return new ReadableStream<Uint8Array>({
+      async start(controller: ReadableStreamDefaultController<Uint8Array>) {
         try {
           const reader = stream.stdout.getReader();
           const exitCode = stream.exitCode;
@@ -146,15 +169,16 @@ export class SSHRuntime implements Runtime {
    */
   writeFile(path: string): WritableStream<Uint8Array> {
     const tempPath = `${path}.tmp.${Date.now()}`;
-    const writeCommand = `cat > ${JSON.stringify(tempPath)} && chmod 600 ${JSON.stringify(tempPath)} && mv ${JSON.stringify(tempPath)} ${JSON.stringify(path)}`;
+    // Create parent directory if needed, then write file atomically
+    const writeCommand = `mkdir -p $(dirname ${JSON.stringify(path)}) && cat > ${JSON.stringify(tempPath)} && chmod 600 ${JSON.stringify(tempPath)} && mv ${JSON.stringify(tempPath)} ${JSON.stringify(path)}`;
 
     const stream = this.exec(writeCommand, {
       cwd: this.config.workdir,
     });
 
     // Wrap stdin to handle errors from exit code
-    return new WritableStream({
-      async write(chunk) {
+    return new WritableStream<Uint8Array>({
+      async write(chunk: Uint8Array) {
         const writer = stream.stdin.getWriter();
         try {
           await writer.write(chunk);
@@ -172,7 +196,7 @@ export class SSHRuntime implements Runtime {
           throw new RuntimeErrorClass(`Failed to write file ${path}: ${stderr}`, "file_io");
         }
       },
-      async abort(reason) {
+      async abort(reason?: unknown) {
         await stream.stdin.abort();
         throw new RuntimeErrorClass(`Failed to write file ${path}: ${String(reason)}`, "file_io");
       },
