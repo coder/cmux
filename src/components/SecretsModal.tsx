@@ -179,7 +179,7 @@ const SecretsModal: React.FC<SecretsModalProps> = ({
                   type="button"
                   onClick={() => removeSecret(index)}
                   disabled={isLoading}
-                  className="text-red-400 border-danger-light hover:bg-red-400/10 cursor-pointer rounded border bg-transparent px-2.5 py-1.5 text-[13px] transition-all duration-200"
+                  className="border-danger-light cursor-pointer rounded border bg-transparent px-2.5 py-1.5 text-[13px] text-red-400 transition-all duration-200 hover:bg-red-400/10"
                 >
                   ×
                 </button>

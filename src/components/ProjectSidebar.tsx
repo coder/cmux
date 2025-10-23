@@ -532,7 +532,7 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
                               title="Remove project"
                               aria-label={`Remove project ${projectName}`}
                               data-project-path={projectPath}
-                              className="hover:text-red-400 hover:bg-red-400/10 flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-[3px] border-none bg-transparent text-base text-neutral-400 opacity-0 transition-all duration-200"
+                              className="flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-[3px] border-none bg-transparent text-base text-neutral-400 opacity-0 transition-all duration-200 hover:bg-red-400/10 hover:text-red-400"
                             >
                               ×
                             </button>
