@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { action } from "@storybook/addon-actions";
-import { expect, userEvent } from "@storybook/test";
+import { expect, userEvent, waitFor } from "@storybook/test";
 import { useState } from "react";
 import {
   Modal,
@@ -202,18 +202,20 @@ export const EscapeKeyCloses: Story = {
   },
   play: async () => {
     // Modal is initially open
-    let modal = document.querySelector('[role="dialog"]');
+    const modal = document.querySelector('[role="dialog"]');
     await expect(modal).toBeInTheDocument();
+
+    // Wait for modal to be fully mounted and event listeners attached
+    await new Promise((resolve) => setTimeout(resolve, 100));
 
     // Press Escape key
     await userEvent.keyboard("{Escape}");
 
-    // Wait a bit for state update
-    await new Promise((resolve) => setTimeout(resolve, 100));
-
-    // Modal should be closed
-    modal = document.querySelector('[role="dialog"]');
-    await expect(modal).not.toBeInTheDocument();
+    // Wait for modal to be removed from DOM
+    await waitFor(async () => {
+      const closedModal = document.querySelector('[role="dialog"]');
+      await expect(closedModal).not.toBeInTheDocument();
+    });
   },
 };
 
@@ -241,20 +243,22 @@ export const OverlayClickCloses: Story = {
   },
   play: async () => {
     // Modal is initially open
-    let modal = document.querySelector('[role="dialog"]');
+    const modal = document.querySelector('[role="dialog"]');
     await expect(modal).toBeInTheDocument();
+
+    // Wait for modal to be fully mounted and event listeners attached
+    await new Promise((resolve) => setTimeout(resolve, 100));
 
     // Click on overlay (role="presentation")
     const overlay = document.querySelector('[role="presentation"]');
     await expect(overlay).toBeInTheDocument();
     await userEvent.click(overlay!);
 
-    // Wait a bit for state update
-    await new Promise((resolve) => setTimeout(resolve, 100));
-
-    // Modal should be closed
-    modal = document.querySelector('[role="dialog"]');
-    await expect(modal).not.toBeInTheDocument();
+    // Wait for modal to be removed from DOM
+    await waitFor(async () => {
+      const closedModal = document.querySelector('[role="dialog"]');
+      await expect(closedModal).not.toBeInTheDocument();
+    });
   },
 };
 
@@ -283,18 +287,18 @@ export const ContentClickDoesNotClose: Story = {
   },
   play: async () => {
     // Modal is initially open
-    let modal = document.querySelector('[role="dialog"]');
+    const modal = document.querySelector('[role="dialog"]');
     await expect(modal).toBeInTheDocument();
 
     // Click on the modal content itself
     await userEvent.click(modal!);
 
-    // Wait a bit to ensure no state change
+    // Give time for any potential state change
     await new Promise((resolve) => setTimeout(resolve, 100));
 
     // Modal should still be open
-    modal = document.querySelector('[role="dialog"]');
-    await expect(modal).toBeInTheDocument();
+    const stillOpenModal = document.querySelector('[role="dialog"]');
+    await expect(stillOpenModal).toBeInTheDocument();
   },
 };
 
@@ -319,28 +323,28 @@ export const LoadingPreventsClose: Story = {
   },
   play: async () => {
     // Modal is initially open
-    let modal = document.querySelector('[role="dialog"]');
+    const modal = document.querySelector('[role="dialog"]');
     await expect(modal).toBeInTheDocument();
 
     // Try to press Escape (should not work due to isLoading=true)
     await userEvent.keyboard("{Escape}");
 
-    // Wait a bit
+    // Give time for any potential state change
     await new Promise((resolve) => setTimeout(resolve, 100));
 
     // Modal should still be open
-    modal = document.querySelector('[role="dialog"]');
-    await expect(modal).toBeInTheDocument();
+    const stillOpenModal1 = document.querySelector('[role="dialog"]');
+    await expect(stillOpenModal1).toBeInTheDocument();
 
     // Try to click overlay (should also not work)
     const overlay = document.querySelector('[role="presentation"]');
     await userEvent.click(overlay!);
 
-    // Wait a bit
+    // Give time for any potential state change
     await new Promise((resolve) => setTimeout(resolve, 100));
 
     // Modal should still be open
-    modal = document.querySelector('[role="dialog"]');
-    await expect(modal).toBeInTheDocument();
+    const stillOpenModal2 = document.querySelector('[role="dialog"]');
+    await expect(stillOpenModal2).toBeInTheDocument();
   },
 };
