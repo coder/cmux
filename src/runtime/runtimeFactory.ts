@@ -14,10 +14,6 @@ export function createRuntime(config: RuntimeConfig): Runtime {
     case "ssh":
       return new SSHRuntime({
         host: config.host,
-        user: config.user,
-        port: config.port,
-        keyPath: config.keyPath,
-        password: config.password,
         workdir: config.workdir,
       });
 

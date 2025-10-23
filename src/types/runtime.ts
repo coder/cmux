@@ -6,10 +6,8 @@ export type RuntimeConfig =
   | { type: "local" }
   | {
       type: "ssh";
+      /** SSH host (can be hostname, user@host, or SSH config alias) */
       host: string;
-      user: string;
-      port?: number;
-      keyPath?: string;
-      password?: string;
+      /** Working directory on remote host */
       workdir: string;
     };
