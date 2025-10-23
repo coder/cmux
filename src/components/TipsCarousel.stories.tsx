@@ -29,7 +29,7 @@ export const WithExplanation: Story = {
         Tips rotate automatically based on time. Hover to see the gradient effect:
       </div>
       <TipsCarousel fixedTipIndex={0} />
-      <div className="text-neutral-500-light font-primary text-[11px]">
+      <div className="text-neutral-400-light font-primary text-[11px]">
         Tips change every hour to provide variety and convey UX information.
       </div>
     </div>
@@ -41,7 +41,7 @@ export const DebugControls: Story = {
     <div className="flex min-w-96 flex-col gap-5 bg-neutral-950 p-5">
       <div className="font-primary text-[13px] text-neutral-300">For debugging, you can use:</div>
       <TipsCarousel fixedTipIndex={1} />
-      <div className="text-neutral-500-light font-monospace rounded bg-neutral-900 p-3 text-[11px]">
+      <div className="text-neutral-400-light font-monospace rounded bg-neutral-900 p-3 text-[11px]">
         <div>window.setTip(0) // Show first tip</div>
         <div>window.setTip(1) // Show second tip</div>
         <div>window.clearTip() // Return to auto-rotation</div>
@@ -55,7 +55,7 @@ export const InContext: Story = {
     return (
       <div className="font-primary flex items-center gap-3 border-b border-neutral-800 bg-neutral-900 px-3 py-2">
         <div className="flex items-center gap-2">
-          <span className="text-neutral-500-light text-[11px]">Workspace:</span>
+          <span className="text-neutral-400-light text-[11px]">Workspace:</span>
           <span className="text-[11px] text-neutral-300">main</span>
         </div>
         <div
@@ -68,7 +68,7 @@ export const InContext: Story = {
           <TipsCarousel fixedTipIndex={0} />
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-neutral-500-light text-[11px]">Mode: Plan</span>
+          <span className="text-neutral-400-light text-[11px]">Mode: Plan</span>
         </div>
       </div>
     );

@@ -29,7 +29,7 @@ export const StreamingBarrier: React.FC<StreamingBarrierProps> = ({
           </span>
         )}
       </div>
-      <div className="ml-auto text-[11px] whitespace-nowrap text-neutral-500 select-none">
+      <div className="ml-auto text-[11px] whitespace-nowrap text-neutral-400 select-none">
         {cancelText}
       </div>
     </div>

@@ -185,7 +185,7 @@ export const ModelSelector = forwardRef<ModelSelectorRef, ModelSelectorProps>(
       return (
         <div ref={containerRef} className="relative flex items-center gap-1">
           <div
-            className="text-neutral-500-light font-monospace dir-rtl max-w-36 cursor-pointer truncate rounded-sm px-1 py-0.5 text-left font-mono text-[10px] leading-[11px] transition-colors duration-200 hover:bg-neutral-900"
+            className="text-neutral-400-light font-monospace dir-rtl max-w-36 cursor-pointer truncate rounded-sm px-1 py-0.5 text-left font-mono text-[10px] leading-[11px] transition-colors duration-200 hover:bg-neutral-900"
             onClick={handleClick}
           >
             {value}
@@ -203,7 +203,7 @@ export const ModelSelector = forwardRef<ModelSelectorRef, ModelSelectorProps>(
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
             placeholder="provider:model-name"
-            className="font-monospace focus:border-exec-mode w-48 rounded-sm border border-neutral-800 bg-neutral-950 px-1 py-0.5 text-[10px] leading-[11px] text-neutral-200 outline-none"
+            className="font-monospace focus:border-exec-mode w-48 rounded-sm border border-neutral-800 bg-neutral-950 px-1 py-0.5 text-[10px] leading-[11px] text-neutral-300 outline-none"
           />
           {error && (
             <div className="text-danger-soft font-monospace mt-0.5 text-[9px]">{error}</div>
@@ -220,7 +220,7 @@ export const ModelSelector = forwardRef<ModelSelectorRef, ModelSelectorProps>(
                   "first:rounded-t last:rounded-b",
                   index === highlightedIndex
                     ? "text-white bg-neutral-900"
-                    : "text-neutral-200 bg-transparent hover:bg-neutral-900 hover:text-white"
+                    : "text-neutral-300 bg-transparent hover:bg-neutral-900 hover:text-white"
                 )}
                 onClick={() => handleSelectModel(model)}
               >

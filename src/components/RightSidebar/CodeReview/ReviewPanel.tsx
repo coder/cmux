@@ -551,7 +551,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
           {error}
         </div>
       ) : isLoadingHunks && hunks.length === 0 && !fileTree ? (
-        <div className="flex h-full items-center justify-center text-sm text-neutral-500">
+        <div className="flex h-full items-center justify-center text-sm text-neutral-400">
           Loading diff...
         </div>
       ) : (
@@ -571,7 +571,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
                   placeholder={`Search in files and hunks... (${formatKeybind(KEYBINDS.FOCUS_REVIEW_SEARCH)})`}
                   value={searchState.input}
                   onChange={(e) => setSearchState({ ...searchState, input: e.target.value })}
-                  className="flex h-full flex-1 items-center border-none bg-transparent px-2.5 py-1.5 font-sans text-xs leading-[1.4] text-neutral-200 outline-none placeholder:text-neutral-400 focus:bg-neutral-900"
+                  className="flex h-full flex-1 items-center border-none bg-transparent px-2.5 py-1.5 font-sans text-xs leading-[1.4] text-neutral-300 outline-none placeholder:text-neutral-400 focus:bg-neutral-900"
                 />
                 <TooltipWrapper inline>
                   <button
@@ -579,7 +579,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
                       "py-1.5 px-2.5 border-none border-l border-neutral-800 text-[11px] font-monospace font-semibold leading-[1.4] cursor-pointer outline-none transition-all duration-150 whitespace-nowrap flex items-center h-full",
                       searchState.useRegex
                         ? "bg-review-bg-blue text-sky-600-light shadow-[inset_0_0_0_1px_rgba(77,184,255,0.4)] hover:bg-review-bg-info hover:text-sky-600-light"
-                        : "bg-transparent text-neutral-400 hover:bg-neutral-900 hover:text-neutral-200",
+                        : "bg-transparent text-neutral-400 hover:bg-neutral-900 hover:text-neutral-300",
                       "active:translate-y-px"
                     )}
                     onClick={() =>
@@ -598,7 +598,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
                       "py-1.5 px-2.5 border-none border-l border-neutral-800 text-[11px] font-monospace font-semibold leading-[1.4] cursor-pointer outline-none transition-all duration-150 whitespace-nowrap flex items-center h-full",
                       searchState.matchCase
                         ? "bg-review-bg-blue text-sky-600-light shadow-[inset_0_0_0_1px_rgba(77,184,255,0.4)] hover:bg-review-bg-info hover:text-sky-600-light"
-                        : "bg-transparent text-neutral-400 hover:bg-neutral-900 hover:text-neutral-200",
+                        : "bg-transparent text-neutral-400 hover:bg-neutral-900 hover:text-neutral-300",
                       "active:translate-y-px"
                     )}
                     onClick={() =>
@@ -618,38 +618,38 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
 
             <div className="min-h-0 flex-1 overflow-y-auto p-3">
               {hunks.length === 0 ? (
-                <div className="flex flex-col items-center justify-start gap-3 px-6 pt-12 pb-6 text-center text-neutral-500">
-                  <div className="text-base font-medium text-neutral-200">No changes found</div>
+                <div className="flex flex-col items-center justify-start gap-3 px-6 pt-12 pb-6 text-center text-neutral-400">
+                  <div className="text-base font-medium text-neutral-300">No changes found</div>
                   <div className="text-[13px] leading-[1.5]">
                     No changes found for the selected diff base.
                     <br />
                     Try selecting a different base or make some changes.
                   </div>
                   {diagnosticInfo && (
-                    <details className="mt-4 w-full max-w-96 cursor-pointer rounded border border-neutral-800 bg-neutral-900 p-3 [&_summary]:flex [&_summary]:list-none [&_summary]:items-center [&_summary]:gap-1.5 [&_summary]:text-xs [&_summary]:font-medium [&_summary]:text-neutral-500 [&_summary]:select-none [&_summary::-webkit-details-marker]:hidden [&_summary::before]:text-[10px] [&_summary::before]:transition-transform [&_summary::before]:duration-200 [&_summary::before]:content-['▶'] [&[open]_summary::before]:rotate-90">
+                    <details className="mt-4 w-full max-w-96 cursor-pointer rounded border border-neutral-800 bg-neutral-900 p-3 [&_summary]:flex [&_summary]:list-none [&_summary]:items-center [&_summary]:gap-1.5 [&_summary]:text-xs [&_summary]:font-medium [&_summary]:text-neutral-400 [&_summary]:select-none [&_summary::-webkit-details-marker]:hidden [&_summary::before]:text-[10px] [&_summary::before]:transition-transform [&_summary::before]:duration-200 [&_summary::before]:content-['▶'] [&[open]_summary::before]:rotate-90">
                       <summary>Show diagnostic info</summary>
-                      <div className="font-monospace mt-3 text-[11px] leading-[1.6] text-neutral-200">
+                      <div className="font-monospace mt-3 text-[11px] leading-[1.6] text-neutral-300">
                         <div className="grid grid-cols-[140px_1fr] gap-3 py-1 [&:not(:last-child)]:border-b [&:not(:last-child)]:border-neutral-800">
-                          <div className="font-medium text-neutral-500">Command:</div>
-                          <div className="break-all text-neutral-200 select-all">
+                          <div className="font-medium text-neutral-400">Command:</div>
+                          <div className="break-all text-neutral-300 select-all">
                             {diagnosticInfo.command}
                           </div>
                         </div>
                         <div className="grid grid-cols-[140px_1fr] gap-3 py-1 [&:not(:last-child)]:border-b [&:not(:last-child)]:border-neutral-800">
-                          <div className="font-medium text-neutral-500">Output size:</div>
-                          <div className="break-all text-neutral-200 select-all">
+                          <div className="font-medium text-neutral-400">Output size:</div>
+                          <div className="break-all text-neutral-300 select-all">
                             {diagnosticInfo.outputLength.toLocaleString()} bytes
                           </div>
                         </div>
                         <div className="grid grid-cols-[140px_1fr] gap-3 py-1 [&:not(:last-child)]:border-b [&:not(:last-child)]:border-neutral-800">
-                          <div className="font-medium text-neutral-500">Files parsed:</div>
-                          <div className="break-all text-neutral-200 select-all">
+                          <div className="font-medium text-neutral-400">Files parsed:</div>
+                          <div className="break-all text-neutral-300 select-all">
                             {diagnosticInfo.fileDiffCount}
                           </div>
                         </div>
                         <div className="grid grid-cols-[140px_1fr] gap-3 py-1">
-                          <div className="font-medium text-neutral-500">Hunks extracted:</div>
-                          <div className="break-all text-neutral-200 select-all">
+                          <div className="font-medium text-neutral-400">Hunks extracted:</div>
+                          <div className="break-all text-neutral-300 select-all">
                             {diagnosticInfo.hunkCount}
                           </div>
                         </div>
@@ -658,7 +658,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
                   )}
                 </div>
               ) : filteredHunks.length === 0 ? (
-                <div className="flex flex-col items-center justify-start gap-3 px-6 pt-12 pb-6 text-center text-neutral-500">
+                <div className="flex flex-col items-center justify-start gap-3 px-6 pt-12 pb-6 text-center text-neutral-400">
                   <div className="text-[13px] leading-[1.5]">
                     {debouncedSearchTerm.trim()
                       ? `No hunks match "${debouncedSearchTerm}". Try a different search term.`

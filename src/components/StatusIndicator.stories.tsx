@@ -60,22 +60,22 @@ export const AllStates: Story = {
     <div className="flex flex-wrap items-center gap-[30px] p-5">
       <div className="flex flex-col items-center gap-2">
         <StatusIndicator streaming={false} unread={false} />
-        <span className="text-neutral-500-light font-primary text-[11px]">Default</span>
+        <span className="text-neutral-400-light font-primary text-[11px]">Default</span>
       </div>
 
       <div className="flex flex-col items-center gap-2">
         <StatusIndicator streaming={true} unread={false} />
-        <span className="text-neutral-500-light font-primary text-[11px]">Streaming</span>
+        <span className="text-neutral-400-light font-primary text-[11px]">Streaming</span>
       </div>
 
       <div className="flex flex-col items-center gap-2">
         <StatusIndicator streaming={false} unread={true} />
-        <span className="text-neutral-500-light font-primary text-[11px]">Unread</span>
+        <span className="text-neutral-400-light font-primary text-[11px]">Unread</span>
       </div>
 
       <div className="flex flex-col items-center gap-2">
         <StatusIndicator streaming={true} unread={true} />
-        <span className="text-neutral-500-light font-primary text-[11px]">
+        <span className="text-neutral-400-light font-primary text-[11px]">
           Streaming (unread ignored)
         </span>
       </div>
@@ -89,27 +89,27 @@ export const DifferentSizes: Story = {
     <div className="flex flex-wrap items-center gap-[30px] p-5">
       <div className="flex flex-col items-center gap-2">
         <StatusIndicator streaming={false} unread={true} size={4} />
-        <span className="text-neutral-500-light font-primary text-[11px]">4px</span>
+        <span className="text-neutral-400-light font-primary text-[11px]">4px</span>
       </div>
 
       <div className="flex flex-col items-center gap-2">
         <StatusIndicator streaming={false} unread={true} size={8} />
-        <span className="text-neutral-500-light font-primary text-[11px]">8px (default)</span>
+        <span className="text-neutral-400-light font-primary text-[11px]">8px (default)</span>
       </div>
 
       <div className="flex flex-col items-center gap-2">
         <StatusIndicator streaming={false} unread={true} size={12} />
-        <span className="text-neutral-500-light font-primary text-[11px]">12px</span>
+        <span className="text-neutral-400-light font-primary text-[11px]">12px</span>
       </div>
 
       <div className="flex flex-col items-center gap-2">
         <StatusIndicator streaming={false} unread={true} size={16} />
-        <span className="text-neutral-500-light font-primary text-[11px]">16px</span>
+        <span className="text-neutral-400-light font-primary text-[11px]">16px</span>
       </div>
 
       <div className="flex flex-col items-center gap-2">
         <StatusIndicator streaming={false} unread={true} size={20} />
-        <span className="text-neutral-500-light font-primary text-[11px]">20px</span>
+        <span className="text-neutral-400-light font-primary text-[11px]">20px</span>
       </div>
     </div>
   ),

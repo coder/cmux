@@ -47,7 +47,7 @@ export function LeftSidebar(props: LeftSidebarProps) {
           className={cn(
             "hidden max-md:flex fixed top-3 left-3 z-[998]",
             "w-10 h-10 bg-neutral-900 border border-neutral-800 rounded-md cursor-pointer",
-            "items-center justify-center text-neutral-200 text-xl transition-all duration-200",
+            "items-center justify-center text-neutral-300 text-xl transition-all duration-200",
             "shadow-[0_2px_4px_rgba(0,0,0,0.3)]",
             "hover:bg-neutral-900 hover:border-neutral-800",
             "active:scale-95"

@@ -162,7 +162,7 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
       >
         <TooltipWrapper inline>
           <button
-            className="col-start-1 flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center border-none bg-transparent p-0 text-base text-neutral-500 opacity-0 transition-all duration-200 hover:rounded-sm hover:bg-white/10 hover:text-neutral-200"
+            className="col-start-1 flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center border-none bg-transparent p-0 text-base text-neutral-400 opacity-0 transition-all duration-200 hover:rounded-sm hover:bg-white/10 hover:text-neutral-300"
             onClick={(e) => {
               e.stopPropagation();
               void onRemoveWorkspace(workspaceId, e.currentTarget);
@@ -195,7 +195,7 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
           />
         ) : (
           <span
-            className="min-w-0 cursor-pointer truncate rounded-sm px-1 py-0.5 text-right text-[14px] text-neutral-200 transition-colors duration-200 hover:bg-white/5"
+            className="min-w-0 cursor-pointer truncate rounded-sm px-1 py-0.5 text-right text-[14px] text-neutral-300 transition-colors duration-200 hover:bg-white/5"
             onDoubleClick={(e) => {
               e.stopPropagation();
               startRenaming();

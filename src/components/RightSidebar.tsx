@@ -230,7 +230,7 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
                   "w-full py-2.5 px-[15px] border-none border-solid cursor-pointer font-primary text-[13px] font-medium transition-all duration-200",
                   selectedTab === "costs"
                     ? "text-white bg-neutral-900 border-b-2 border-b-plan-mode"
-                    : "bg-transparent text-neutral-600 border-b-2 border-b-transparent hover:bg-neutral-950-secondary hover:text-neutral-200"
+                    : "bg-transparent text-neutral-400 border-b-2 border-b-transparent hover:bg-neutral-950-secondary hover:text-neutral-300"
                 )}
                 onClick={() => setSelectedTab("costs")}
                 id={costsTabId}
@@ -251,7 +251,7 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
                   "w-full py-2.5 px-[15px] border-none border-solid cursor-pointer font-primary text-[13px] font-medium transition-all duration-200",
                   selectedTab === "review"
                     ? "text-white bg-neutral-900 border-b-2 border-b-plan-mode"
-                    : "bg-transparent text-neutral-600 border-b-2 border-b-transparent hover:bg-neutral-950-secondary hover:text-neutral-200"
+                    : "bg-transparent text-neutral-400 border-b-2 border-b-transparent hover:bg-neutral-950-secondary hover:text-neutral-300"
                 )}
                 onClick={() => setSelectedTab("review")}
                 id={reviewTabId}

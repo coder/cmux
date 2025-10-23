@@ -12,7 +12,7 @@ interface ConsumerBreakdownProps {
 
 const ConsumerBreakdownComponent: React.FC<ConsumerBreakdownProps> = ({ consumers }) => {
   if (consumers.isCalculating) {
-    return <div className="py-3 text-neutral-600 italic">Calculating consumer breakdown...</div>;
+    return <div className="py-3 text-neutral-400 italic">Calculating consumer breakdown...</div>;
   }
 
   if (consumers.consumers.length === 0) {
@@ -21,7 +21,7 @@ const ConsumerBreakdownComponent: React.FC<ConsumerBreakdownProps> = ({ consumer
 
   return (
     <>
-      <div className="mb-2 text-xs text-neutral-500">
+      <div className="mb-2 text-xs text-neutral-400">
         Tokenizer: <span>{consumers.tokenizerName}</span>
       </div>
       <div className="flex flex-col gap-3">
@@ -39,7 +39,7 @@ const ConsumerBreakdownComponent: React.FC<ConsumerBreakdownProps> = ({ consumer
           return (
             <div key={consumer.name} className="mb-2 flex flex-col gap-1">
               <div className="mb-1 flex items-center justify-between">
-                <span className="flex items-center gap-1 font-medium text-neutral-200">
+                <span className="flex items-center gap-1 font-medium text-neutral-300">
                   {consumer.name}
                   {consumer.name === "web_search" && (
                     <TooltipWrapper inline>
@@ -51,7 +51,7 @@ const ConsumerBreakdownComponent: React.FC<ConsumerBreakdownProps> = ({ consumer
                     </TooltipWrapper>
                   )}
                 </span>
-                <span className="text-xs text-neutral-500">
+                <span className="text-xs text-neutral-400">
                   {tokenDisplay} ({consumer.percentage.toFixed(1)}%)
                 </span>
               </div>

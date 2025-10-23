@@ -22,7 +22,7 @@ interface ChatInputToastProps {
 }
 
 export const SolutionLabel: React.FC<{ children: ReactNode }> = ({ children }) => (
-  <div className="text-neutral-500-light mb-1 text-[10px] uppercase">{children}</div>
+  <div className="text-neutral-400-light mb-1 text-[10px] uppercase">{children}</div>
 );
 
 export const ChatInputToast: React.FC<ChatInputToastProps> = ({ toast, onDismiss }) => {
@@ -71,7 +71,7 @@ export const ChatInputToast: React.FC<ChatInputToastProps> = ({ toast, onDismiss
             <span className="text-sm leading-none">⚠</span>
             <div className="flex-1">
               {toast.title && <div className="mb-1.5 font-semibold">{toast.title}</div>}
-              <div className="mt-1.5 leading-[1.4] text-neutral-200">{toast.message}</div>
+              <div className="mt-1.5 leading-[1.4] text-neutral-300">{toast.message}</div>
               {toast.solution && (
                 <div className="font-monospace text-code-type mt-2 rounded bg-neutral-950 px-2 py-1.5 text-[11px]">
                   {toast.solution}

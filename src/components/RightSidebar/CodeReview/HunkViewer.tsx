@@ -163,7 +163,7 @@ export const HunkViewer = React.memo<HunkViewerProps>(
             </TooltipWrapper>
           )}
           <div
-            className="min-w-0 truncate font-medium text-neutral-200"
+            className="min-w-0 truncate font-medium text-neutral-300"
             dangerouslySetInnerHTML={{ __html: highlightedFilePath }}
           />
           <div className="flex shrink-0 items-center gap-2 text-[11px] whitespace-nowrap">
@@ -173,13 +173,13 @@ export const HunkViewer = React.memo<HunkViewerProps>(
                 {deletions > 0 && <span className="text-warning-light">-{deletions}</span>}
               </span>
             )}
-            <span className="text-neutral-500">
+            <span className="text-neutral-400">
               ({lineCount} {lineCount === 1 ? "line" : "lines"})
             </span>
             {onToggleRead && (
               <TooltipWrapper inline>
                 <button
-                  className="hover:border-read hover:text-read flex cursor-pointer items-center gap-1 rounded-[3px] border border-neutral-800 bg-transparent px-1.5 py-0.5 text-[11px] text-neutral-500 transition-all duration-200 hover:bg-white/5 active:scale-95"
+                  className="hover:border-read hover:text-read flex cursor-pointer items-center gap-1 rounded-[3px] border border-neutral-800 bg-transparent px-1.5 py-0.5 text-[11px] text-neutral-400 transition-all duration-200 hover:bg-white/5 active:scale-95"
                   data-hunk-id={hunkId}
                   onClick={handleToggleRead}
                   aria-label={`Mark as read (${formatKeybind(KEYBINDS.TOGGLE_HUNK_READ)})`}
@@ -195,7 +195,7 @@ export const HunkViewer = React.memo<HunkViewerProps>(
         </div>
 
         {isPureRename ? (
-          <div className="bg-code-keyword-overlay-light before:text-code-keyword flex items-center gap-2 p-3 text-[11px] text-neutral-500 before:text-sm before:content-['→']">
+          <div className="bg-code-keyword-overlay-light before:text-code-keyword flex items-center gap-2 p-3 text-[11px] text-neutral-400 before:text-sm before:content-['→']">
             Renamed from <code>{hunk.oldPath}</code>
           </div>
         ) : isExpanded ? (
@@ -219,7 +219,7 @@ export const HunkViewer = React.memo<HunkViewerProps>(
           </div>
         ) : (
           <div
-            className="cursor-pointer px-3 py-2 text-center text-[11px] text-neutral-500 italic hover:text-neutral-200"
+            className="cursor-pointer px-3 py-2 text-center text-[11px] text-neutral-400 italic hover:text-neutral-300"
             onClick={handleToggleExpand}
           >
             {isRead && "Hunk marked as read. "}Click to expand ({lineCount} lines) or press{" "}
@@ -229,7 +229,7 @@ export const HunkViewer = React.memo<HunkViewerProps>(
 
         {hasManualState && isExpanded && !isPureRename && (
           <div
-            className="cursor-pointer px-3 py-2 text-center text-[11px] text-neutral-500 italic hover:text-neutral-200"
+            className="cursor-pointer px-3 py-2 text-center text-[11px] text-neutral-400 italic hover:text-neutral-300"
             onClick={handleToggleExpand}
           >
             Click here or press {formatKeybind(KEYBINDS.TOGGLE_HUNK_COLLAPSE)} to collapse

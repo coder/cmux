@@ -16,7 +16,7 @@ const VerticalTokenMeterComponent: React.FC<{ data: TokenMeterData }> = ({ data 
     >
       {data.maxTokens && (
         <div
-          className="font-primary mb-1 shrink-0 text-center text-[8px] font-semibold text-neutral-200"
+          className="font-primary mb-1 shrink-0 text-center text-[8px] font-semibold text-neutral-300"
           data-label="context-percentage"
         >
           {Math.round(data.totalPercentage)}
@@ -49,7 +49,7 @@ const VerticalTokenMeterComponent: React.FC<{ data: TokenMeterData }> = ({ data 
                   data-tooltip-content="usage-breakdown"
                 >
                   <div
-                    className="text-[13px] font-semibold text-neutral-200"
+                    className="text-[13px] font-semibold text-neutral-300"
                     data-tooltip-title="last-request"
                   >
                     Last Request
@@ -72,14 +72,14 @@ const VerticalTokenMeterComponent: React.FC<{ data: TokenMeterData }> = ({ data 
                         />
                         <span data-label="segment-name">{getSegmentLabel(seg.type)}</span>
                       </div>
-                      <span className="font-medium text-neutral-200" data-value="tokens">
+                      <span className="font-medium text-neutral-300" data-value="tokens">
                         {formatTokens(seg.tokens)}
                       </span>
                     </div>
                   ))}
                   <div className="my-1 border-t border-neutral-800" data-divider="bottom" />
                   <div
-                    className="text-[11px] text-neutral-500"
+                    className="text-[11px] text-neutral-400"
                     data-summary="total"
                     data-total-tokens={data.totalTokens}
                     data-max-tokens={data.maxTokens}

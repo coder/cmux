@@ -17,7 +17,7 @@ export const Context1MCheckbox: React.FC<Context1MCheckboxProps> = ({ modelStrin
 
   return (
     <div className="ml-2 flex items-center gap-1.5">
-      <label className="flex cursor-pointer items-center gap-1 truncate text-[10px] text-neutral-200 select-none hover:text-white">
+      <label className="flex cursor-pointer items-center gap-1 truncate text-[10px] text-neutral-300 select-none hover:text-white">
         <input
           type="checkbox"
           checked={use1M}
@@ -27,7 +27,7 @@ export const Context1MCheckbox: React.FC<Context1MCheckboxProps> = ({ modelStrin
         1M Context
       </label>
       <TooltipWrapper inline>
-        <span className="flex cursor-help items-center text-[10px] leading-none text-neutral-500">
+        <span className="flex cursor-help items-center text-[10px] leading-none text-neutral-400">
           ?
         </span>
         <Tooltip className="tooltip" align="center" width="auto">
