@@ -211,7 +211,6 @@ export class SSHRuntime implements Runtime {
     return {
       size,
       modifiedTime: new Date(mtime * 1000),
-      isFile: fileType === "regular file" || fileType === "regular empty file",
       isDirectory: fileType === "directory",
     };
   }

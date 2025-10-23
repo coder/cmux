@@ -50,10 +50,10 @@ export const createFileReadTool: ToolFactory = (config: ToolConfiguration) => {
           throw err;
         }
 
-        if (!fileStat.isFile) {
+        if (fileStat.isDirectory) {
           return {
             success: false,
-            error: `Path exists but is not a file: ${resolvedPath}`,
+            error: `Path is a directory, not a file: ${resolvedPath}`,
           };
         }
 
