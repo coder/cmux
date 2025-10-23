@@ -155,7 +155,7 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
     return (
       <div style={{ width: "100%" }} data-component="VimTextAreaContainer">
         <div
-          className="text-[9px] text-vim-status tracking-[0.8px] select-none h-[11px] leading-[11px] mb-px flex items-center justify-between gap-1"
+          className="text-vim-status mb-px flex h-[11px] items-center justify-between gap-1 text-[9px] leading-[11px] tracking-[0.8px] select-none"
           aria-live="polite"
         >
           <div className="flex items-center gap-1">
@@ -190,7 +190,7 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
             )}
           </div>
           {showFocusHint && (
-            <div className="flex items-center gap-1 ml-auto font-mono">
+            <div className="ml-auto flex items-center gap-1 font-mono">
               <span>{formatKeybind(KEYBINDS.FOCUS_CHAT)} to focus</span>
             </div>
           )}
@@ -222,7 +222,7 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
             )}
           />
           {vimMode === "normal" && value.length === 0 && (
-            <div className="absolute w-2 h-4 bg-white/50 pointer-events-none left-2 top-1.5" />
+            <div className="pointer-events-none absolute top-1.5 left-2 h-4 w-2 bg-white/50" />
           )}
         </div>
       </div>

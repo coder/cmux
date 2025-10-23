@@ -93,7 +93,7 @@ export const CommandSuggestions: React.FC<CommandSuggestionsProps> = ({
         activeSuggestion ? `${resolvedListId}-option-${activeSuggestion.id}` : undefined
       }
       data-command-suggestions
-      className="absolute bottom-full left-0 right-0 mb-2 bg-separator border border-border-light rounded shadow-[0_-4px_12px_rgba(0,0,0,0.4)] max-h-[200px] overflow-y-auto z-[100] flex flex-col"
+      className="bg-separator border-border-light absolute right-0 bottom-full left-0 z-[100] mb-2 flex max-h-[200px] flex-col overflow-y-auto rounded border shadow-[0_-4px_12px_rgba(0,0,0,0.4)]"
     >
       {suggestions.map((suggestion, index) => (
         <div
@@ -108,15 +108,13 @@ export const CommandSuggestions: React.FC<CommandSuggestionsProps> = ({
             index === selectedIndex ? "bg-accent-darker" : "bg-transparent"
           )}
         >
-          <div className="text-accent font-monospace text-xs flex-shrink-0">
-            {suggestion.display}
-          </div>
-          <div className="text-medium text-[11px] text-right overflow-hidden text-ellipsis whitespace-nowrap">
+          <div className="text-accent font-monospace shrink-0 text-xs">{suggestion.display}</div>
+          <div className="text-medium truncate text-right text-[11px]">
             {suggestion.description}
           </div>
         </div>
       ))}
-      <div className="px-2.5 py-1 border-t border-border-light bg-dark text-placeholder text-[10px] text-center flex-shrink-0 [&_span]:text-medium [&_span]:font-medium">
+      <div className="border-border-light bg-dark text-placeholder [&_span]:text-medium shrink-0 border-t px-2.5 py-1 text-center text-[10px] [&_span]:font-medium">
         <span>Tab</span> to complete • <span>↑↓</span> to navigate • <span>Esc</span> to dismiss
       </div>
     </div>

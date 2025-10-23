@@ -135,15 +135,15 @@ export const UntrackedStatus: React.FC<UntrackedStatusProps> = ({
       </div>
 
       {showTooltip && hasUntracked && (
-        <div className="absolute top-[calc(100%+8px)] right-0 bg-modal-bg border border-bg-medium rounded p-2 min-w-48 max-w-96 z-[1000] shadow-[0_4px_12px_rgba(0,0,0,0.3)] animate-in fade-in slide-in-from-top-1 duration-150">
-          <div className="text-[11px] font-semibold text-foreground mb-2 pb-1.5 border-b border-border-light">
+        <div className="bg-modal-bg border-bg-medium animate-in fade-in slide-in-from-top-1 absolute top-[calc(100%+8px)] right-0 z-[1000] max-w-96 min-w-48 rounded border p-2 shadow-[0_4px_12px_rgba(0,0,0,0.3)] duration-150">
+          <div className="text-foreground border-border-light mb-2 border-b pb-1.5 text-[11px] font-semibold">
             Untracked Files ({count})
           </div>
-          <div className="max-h-[200px] overflow-y-auto mb-2">
+          <div className="mb-2 max-h-[200px] overflow-y-auto">
             {untrackedFiles.map((file) => (
               <div
                 key={file}
-                className="text-[11px] text-label py-0.5 px-1 font-mono whitespace-nowrap overflow-hidden text-ellipsis hover:bg-bg-subtle"
+                className="text-label hover:bg-bg-subtle truncate px-1 py-0.5 font-mono text-[11px]"
               >
                 {file}
               </div>

@@ -355,7 +355,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ getSlashContext 
 
   return (
     <div
-      className="fixed inset-0 bg-black/40 z-[2000] flex items-start justify-center pt-[10vh]"
+      className="fixed inset-0 z-[2000] flex items-start justify-center bg-black/40 pt-[10vh]"
       onMouseDown={() => {
         setActivePrompt(null);
         setPromptError(null);
@@ -364,12 +364,12 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ getSlashContext 
       }}
     >
       <Command
-        className="w-[min(720px,92vw)] bg-separator border border-border rounded-lg shadow-[0_10px_40px_rgba(0,0,0,0.4)] text-lighter font-primary overflow-hidden"
+        className="bg-separator border-border text-lighter font-primary w-[min(720px,92vw)] overflow-hidden rounded-lg border shadow-[0_10px_40px_rgba(0,0,0,0.4)]"
         onMouseDown={(e: React.MouseEvent) => e.stopPropagation()}
         shouldFilter={shouldUseCmdkFilter}
       >
         <Command.Input
-          className="w-full py-3 px-3.5 bg-darker text-lighter border-none outline-none text-sm border-b border-hover"
+          className="bg-darker text-lighter border-hover w-full border-b border-none px-3.5 py-3 text-sm outline-none"
           value={query}
           onValueChange={handleQueryChange}
           placeholder={
@@ -405,12 +405,12 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ getSlashContext 
             <Command.Group
               key={group.name}
               heading={group.name}
-              className="[&[cmdk-group]]:py-2 [&[cmdk-group]]:px-1.5 [&[cmdk-group-heading]]:py-1 [&[cmdk-group-heading]]:px-2.5 [&[cmdk-group-heading]]:text-subdued [&[cmdk-group-heading]]:text-[11px] [&[cmdk-group-heading]]:uppercase [&[cmdk-group-heading]]:tracking-[0.08em]"
+              className="[&[cmdk-group-heading]]:text-subdued [&[cmdk-group-heading]]:px-2.5 [&[cmdk-group-heading]]:py-1 [&[cmdk-group-heading]]:text-[11px] [&[cmdk-group-heading]]:tracking-[0.08em] [&[cmdk-group-heading]]:uppercase [&[cmdk-group]]:px-1.5 [&[cmdk-group]]:py-2"
             >
               {group.items.map((item) => (
                 <Command.Item
                   key={item.id}
-                  className="grid grid-cols-[1fr_auto] items-center gap-2 py-2 px-3 text-[13px] cursor-pointer rounded-md my-0.5 mx-1 hover:bg-hover aria-selected:bg-hover"
+                  className="hover:bg-hover aria-selected:bg-hover mx-1 my-0.5 grid cursor-pointer grid-cols-[1fr_auto] items-center gap-2 rounded-md px-3 py-2 text-[13px]"
                   onSelect={() => {
                     if ("prompt" in item && item.prompt) {
                       addRecent(item.id);
@@ -440,7 +440,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ getSlashContext 
                     )}
                   </div>
                   {"shortcutHint" in item && item.shortcutHint && (
-                    <span className="text-subdued text-[11px] font-monospace">
+                    <span className="text-subdued font-monospace text-[11px]">
                       {item.shortcutHint}
                     </span>
                   )}
@@ -449,7 +449,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ getSlashContext 
             </Command.Group>
           ))}
           {!hasAnyItems && (
-            <div className="p-4 text-gray text-[13px]">{emptyText ?? "No results"}</div>
+            <div className="text-gray p-4 text-[13px]">{emptyText ?? "No results"}</div>
           )}
         </Command.List>
       </Command>

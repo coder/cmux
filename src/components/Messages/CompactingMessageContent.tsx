@@ -13,7 +13,7 @@ interface CompactingMessageContentProps {
 export const CompactingMessageContent: React.FC<CompactingMessageContentProps> = ({ children }) => {
   return (
     <div
-      className="max-h-[300px] overflow-hidden relative flex flex-col justify-end"
+      className="relative flex max-h-[300px] flex-col justify-end overflow-hidden"
       style={{
         maskImage:
           "linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.3) 5%, rgba(0,0,0,0.6) 10%, rgba(0,0,0,0.85) 15%, black 20%)",

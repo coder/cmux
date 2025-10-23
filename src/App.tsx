@@ -662,7 +662,7 @@ function AppInner() {
 
   return (
     <>
-      <div className="flex h-screen overflow-hidden bg-bg-dark [@media(max-width:768px)]:flex-col">
+      <div className="bg-bg-dark flex h-screen overflow-hidden [@media(max-width:768px)]:flex-col">
         <LeftSidebar
           projects={projects}
           workspaceMetadata={workspaceMetadata}
@@ -682,8 +682,8 @@ function AppInner() {
           sortedWorkspacesByProject={sortedWorkspacesByProject}
           workspaceRecency={workspaceRecency}
         />
-        <div className="flex-1 flex flex-col overflow-hidden min-w-0 [@media(max-width:768px)]:w-full">
-          <div className="flex-1 flex overflow-hidden [@media(max-width:768px)]:flex-col">
+        <div className="flex min-w-0 flex-1 flex-col overflow-hidden [@media(max-width:768px)]:w-full">
+          <div className="flex flex-1 overflow-hidden [@media(max-width:768px)]:flex-col">
             {selectedWorkspace ? (
               <ErrorBoundary
                 workspaceInfo={`${selectedWorkspace.projectName}/${selectedWorkspace.namedWorkspacePath?.split("/").pop() ?? selectedWorkspace.workspaceId}`}
@@ -701,7 +701,7 @@ function AppInner() {
               </ErrorBoundary>
             ) : (
               <div
-                className="text-center max-w-3xl mx-auto w-full [&_h2]:text-white [&_h2]:mb-4 [&_h2]:font-bold [&_h2]:tracking-tight [&_p]:text-muted [&_p]:leading-[1.6]"
+                className="[&_p]:text-muted mx-auto w-full max-w-3xl text-center [&_h2]:mb-4 [&_h2]:font-bold [&_h2]:tracking-tight [&_h2]:text-white [&_p]:leading-[1.6]"
                 style={{
                   padding: "clamp(40px, 10vh, 100px) 20px",
                   fontSize: "clamp(14px, 2vw, 16px)",

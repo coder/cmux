@@ -23,19 +23,19 @@ export const BaseBarrier: React.FC<BaseBarrierProps> = ({
       )}
     >
       <div
-        className="flex-1 h-px opacity-30"
+        className="h-px flex-1 opacity-30"
         style={{
           background: `linear-gradient(to right, transparent, ${color} 20%, ${color} 80%, transparent)`,
         }}
       />
       <div
-        className="font-mono text-[10px] uppercase tracking-wide whitespace-nowrap"
+        className="font-mono text-[10px] tracking-wide whitespace-nowrap uppercase"
         style={{ color }}
       >
         {text}
       </div>
       <div
-        className="flex-1 h-px opacity-30"
+        className="h-px flex-1 opacity-30"
         style={{
           background: `linear-gradient(to right, transparent, ${color} 20%, ${color} 80%, transparent)`,
         }}

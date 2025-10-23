@@ -68,18 +68,18 @@ export const MessageWindow: React.FC<MessageWindowProps> = ({
     >
       {backgroundEffect}
       <div
-        className="relative z-10 py-1 px-3 bg-white/5 border-b border-white/10 flex justify-between items-center text-[11px] text-message-header font-medium"
+        className="text-message-header relative z-10 flex items-center justify-between border-b border-white/10 bg-white/5 px-3 py-1 text-[11px] font-medium"
         data-message-header
       >
-        <div className="flex items-baseline gap-3 min-w-0 flex-1" data-message-header-left>
+        <div className="flex min-w-0 flex-1 items-baseline gap-3" data-message-header-left>
           <div
-            className="font-mono inline-flex items-baseline uppercase tracking-wider whitespace-nowrap overflow-hidden min-w-0"
+            className="inline-flex min-w-0 items-baseline overflow-hidden font-mono tracking-wider whitespace-nowrap uppercase"
             data-message-type-label
           >
             {label}
           </div>
           {formattedTimestamp && (
-            <span className="text-[10px] font-normal font-mono opacity-50" data-message-timestamp>
+            <span className="font-mono text-[10px] font-normal opacity-50" data-message-timestamp>
               {formattedTimestamp}
             </span>
           )}
@@ -124,7 +124,7 @@ export const MessageWindow: React.FC<MessageWindowProps> = ({
       </div>
       <div className="relative z-10 p-3" data-message-content>
         {showJson ? (
-          <pre className="m-0 font-mono text-[11px] leading-snug whitespace-pre-wrap text-light bg-black/30 p-2 rounded-sm overflow-x-auto">
+          <pre className="text-light m-0 overflow-x-auto rounded-sm bg-black/30 p-2 font-mono text-[11px] leading-snug whitespace-pre-wrap">
             {JSON.stringify(message, null, 2)}
           </pre>
         ) : (

@@ -250,7 +250,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
         )}
         style={{ containerType: "inline-size" }}
       >
-        <div className="flex-1 flex flex-col items-center justify-center h-full text-placeholder text-center">
+        <div className="text-placeholder flex h-full flex-1 flex-col items-center justify-center text-center">
           <h3 className="m-0 mb-2.5 text-base font-medium">Loading workspace...</h3>
         </div>
       </div>
@@ -291,7 +291,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
         )}
         style={{ containerType: "inline-size" }}
       >
-        <div className="flex-1 flex flex-col items-center justify-center h-full text-placeholder text-center">
+        <div className="text-placeholder flex h-full flex-1 flex-col items-center justify-center text-center">
           <h3 className="m-0 mb-2.5 text-base font-medium">Loading workspace...</h3>
         </div>
       </div>
@@ -307,7 +307,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
         )}
         style={{ containerType: "inline-size" }}
       >
-        <div className="flex-1 flex flex-col items-center justify-center h-full text-placeholder text-center">
+        <div className="text-placeholder flex h-full flex-1 flex-col items-center justify-center text-center">
           <h3 className="m-0 mb-2.5 text-base font-medium">No Workspace Selected</h3>
           <p className="m-0 text-[13px]">
             Select a workspace from the sidebar to view and interact with Claude
@@ -327,10 +327,10 @@ const AIViewInner: React.FC<AIViewProps> = ({
     >
       <div
         ref={chatAreaRef}
-        className="flex-1 min-w-96 flex flex-col [@media(max-width:768px)]:min-w-0 [@media(max-width:768px)]:w-full [@media(max-width:768px)]:max-h-full"
+        className="flex min-w-96 flex-1 flex-col [@media(max-width:768px)]:max-h-full [@media(max-width:768px)]:w-full [@media(max-width:768px)]:min-w-0"
       >
-        <div className="py-1 px-[15px] bg-separator border-b border-border-light flex justify-between items-center [@media(max-width:768px)]:py-2 [@media(max-width:768px)]:pl-[60px] [@media(max-width:768px)]:flex-wrap [@media(max-width:768px)]:gap-2">
-          <div className="font-semibold text-foreground flex items-center gap-2 min-w-0 overflow-hidden">
+        <div className="bg-separator border-border-light flex items-center justify-between border-b px-[15px] py-1 [@media(max-width:768px)]:flex-wrap [@media(max-width:768px)]:gap-2 [@media(max-width:768px)]:py-2 [@media(max-width:768px)]:pl-[60px]">
+          <div className="text-foreground flex min-w-0 items-center gap-2 overflow-hidden font-semibold">
             <StatusIndicator
               streaming={canInterrupt}
               title={
@@ -342,16 +342,16 @@ const AIViewInner: React.FC<AIViewProps> = ({
               workspaceId={workspaceId}
               tooltipPosition="bottom"
             />
-            <span className="font-mono text-xs whitespace-nowrap overflow-hidden text-ellipsis min-w-0">
+            <span className="min-w-0 truncate font-mono text-xs">
               {projectName} / {branch}
             </span>
-            <span className="font-mono text-muted font-normal text-[11px] whitespace-nowrap overflow-hidden text-ellipsis min-w-0">
+            <span className="text-muted min-w-0 truncate font-mono text-[11px] font-normal">
               {namedWorkspacePath}
             </span>
             <TooltipWrapper inline>
               <button
                 onClick={handleOpenTerminal}
-                className="bg-transparent border-none cursor-pointer p-1 flex items-center justify-center text-muted transition-colors hover:text-foreground [&_svg]:w-4 [&_svg]:h-4"
+                className="text-muted hover:text-foreground flex cursor-pointer items-center justify-center border-none bg-transparent p-1 transition-colors [&_svg]:h-4 [&_svg]:w-4"
               >
                 <svg viewBox="0 0 16 16" fill="currentColor">
                   <path d="M0 2.75C0 1.784.784 1 1.75 1h12.5c.966 0 1.75.784 1.75 1.75v10.5A1.75 1.75 0 0114.25 15H1.75A1.75 1.75 0 010 13.25V2.75zm1.75-.25a.25.25 0 00-.25.25v10.5c0 .138.112.25.25.25h12.5a.25.25 0 00.25-.25V2.75a.25.25 0 00-.25-.25H1.75zM7.25 8a.75.75 0 01-.22.53l-2.25 2.25a.75.75 0 01-1.06-1.06L5.44 8 3.72 6.28a.75.75 0 111.06-1.06l2.25 2.25c.141.14.22.331.22.53zm1.5 1.5a.75.75 0 000 1.5h3a.75.75 0 000-1.5h-3z" />
@@ -364,7 +364,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
           </div>
         </div>
 
-        <div className="flex-1 relative overflow-hidden">
+        <div className="relative flex-1 overflow-hidden">
           <div
             ref={contentRef}
             onWheel={markUserInteraction}
@@ -375,10 +375,10 @@ const AIViewInner: React.FC<AIViewProps> = ({
             aria-busy={canInterrupt}
             aria-label="Conversation transcript"
             tabIndex={0}
-            className="h-full overflow-y-auto p-[15px] whitespace-pre-wrap break-words leading-[1.5]"
+            className="h-full overflow-y-auto p-[15px] leading-[1.5] break-words whitespace-pre-wrap"
           >
             {mergedMessages.length === 0 ? (
-              <div className="flex-1 flex flex-col items-center justify-center h-full text-placeholder text-center [&_h3]:m-0 [&_h3]:mb-2.5 [&_h3]:text-base [&_h3]:font-medium [&_p]:m-0 [&_p]:text-[13px]">
+              <div className="text-placeholder flex h-full flex-1 flex-col items-center justify-center text-center [&_h3]:m-0 [&_h3]:mb-2.5 [&_h3]:text-base [&_h3]:font-medium [&_p]:m-0 [&_p]:text-[13px]">
                 <h3>No Messages Yet</h3>
                 <p>Send a message below to begin</p>
               </div>
@@ -404,7 +404,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
                       </div>
                       {isAtCutoff && (
                         <div
-                          className="my-5 py-3 px-[15px] text-xs font-medium text-center text-edit-mode bg-edit-mode/10"
+                          className="text-edit-mode bg-edit-mode/10 my-5 px-[15px] py-3 text-center text-xs font-medium"
                           style={{
                             borderBottom: "3px solid",
                             borderImage:
@@ -463,7 +463,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
             <button
               onClick={jumpToBottom}
               type="button"
-              className="absolute bottom-2 left-1/2 -translate-x-1/2 py-1 px-2 text-white border rounded-[20px] text-xs font-medium shadow-[0_4px_12px_rgba(0,0,0,0.3)] cursor-pointer transition-all duration-200 z-[100] font-primary backdrop-blur-[1px] hover:scale-105 active:scale-95"
+              className="font-primary absolute bottom-2 left-1/2 z-[100] -translate-x-1/2 cursor-pointer rounded-[20px] border px-2 py-1 text-xs font-medium text-white shadow-[0_4px_12px_rgba(0,0,0,0.3)] backdrop-blur-[1px] transition-all duration-200 hover:scale-105 active:scale-95"
               style={{
                 background: "hsl(from var(--color-assistant-border) h s l / 0.1)",
                 borderColor: "hsl(from var(--color-assistant-border) h s l / 0.4)",

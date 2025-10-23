@@ -41,13 +41,13 @@ export const ModelDisplay: React.FC<ModelDisplayProps> = ({ modelString, showToo
     <span className="inline normal-case" data-model-display>
       {providerIcon && (
         <span
-          className="inline-block align-[-0.19em] w-[1.1em] h-[1.1em] mr-[0.3em] [&_svg]:block [&_svg]:w-full [&_svg]:h-full [&_svg_.st0]:fill-current [&_svg_path]:!fill-current [&_svg_circle]:!fill-current [&_svg_rect]:!fill-current"
+          className="mr-[0.3em] inline-block h-[1.1em] w-[1.1em] align-[-0.19em] [&_svg]:block [&_svg]:h-full [&_svg]:w-full [&_svg_.st0]:fill-current [&_svg_circle]:!fill-current [&_svg_path]:!fill-current [&_svg_rect]:!fill-current"
           data-model-icon
         >
           {providerIcon}
         </span>
       )}
-      <span className="font-mono inline">{displayName}</span>
+      <span className="inline font-mono">{displayName}</span>
     </span>
   );
 

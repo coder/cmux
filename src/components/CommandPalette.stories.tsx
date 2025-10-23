@@ -132,7 +132,7 @@ const PaletteDemo: React.FC<{ autoOpen?: boolean }> = ({ autoOpen = true }) => {
     <>
       <button
         onClick={() => open()}
-        className="py-2 px-4 bg-accent-dark text-white border-none rounded cursor-pointer font-primary text-[13px] self-start hover:bg-accent-hover active:bg-accent-dark"
+        className="bg-accent-dark font-primary hover:bg-accent-hover active:bg-accent-dark cursor-pointer self-start rounded border-none px-4 py-2 text-[13px] text-white"
       >
         Open Command Palette (⌘⇧P)
       </button>
@@ -174,8 +174,8 @@ type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {
   render: () => (
-    <div className="min-h-[600px] bg-dark p-5 flex flex-col gap-5">
-      <div className="p-4 bg-separator border border-border-light rounded text-bright font-primary text-[13px] leading-[1.6] [&_kbd]:py-0.5 [&_kbd]:px-1.5 [&_kbd]:bg-dark [&_kbd]:border [&_kbd]:border-border-light [&_kbd]:rounded-[3px] [&_kbd]:font-monospace [&_kbd]:text-[11px]">
+    <div className="bg-dark flex min-h-[600px] flex-col gap-5 p-5">
+      <div className="bg-separator border-border-light text-bright font-primary [&_kbd]:bg-dark [&_kbd]:border-border-light [&_kbd]:font-monospace rounded border p-4 text-[13px] leading-[1.6] [&_kbd]:rounded-[3px] [&_kbd]:border [&_kbd]:px-1.5 [&_kbd]:py-0.5 [&_kbd]:text-[11px]">
         <strong>Command Palette</strong>
         <br />
         <br />

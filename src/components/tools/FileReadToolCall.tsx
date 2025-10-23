@@ -82,11 +82,9 @@ export const FileReadToolCall: React.FC<FileReadToolCallProps> = ({
           <span>📖</span>
           <Tooltip>file_read</Tooltip>
         </TooltipWrapper>
-        <span className="text-text font-monospace whitespace-nowrap overflow-hidden text-ellipsis max-w-96">
-          {filePath}
-        </span>
+        <span className="text-text font-monospace max-w-96 truncate">{filePath}</span>
         {result && result.success && parsedContent && (
-          <span className="text-secondary text-[10px] ml-2">
+          <span className="text-secondary ml-2 text-[10px]">
             read {formatBytes(parsedContent.actualBytes)} of {formatBytes(result.file_size)}
           </span>
         )}
@@ -96,7 +94,7 @@ export const FileReadToolCall: React.FC<FileReadToolCallProps> = ({
       {expanded && (
         <ToolDetails>
           <DetailSection>
-            <div className="flex flex-wrap gap-4 px-2 py-1.5 bg-code-bg rounded text-[11px] leading-[1.4]">
+            <div className="bg-code-bg flex flex-wrap gap-4 rounded px-2 py-1.5 text-[11px] leading-[1.4]">
               <div className="flex gap-1.5">
                 <span className="text-secondary font-medium">Path:</span>
                 <span className="text-text font-monospace break-all">{args.filePath}</span>
@@ -121,7 +119,7 @@ export const FileReadToolCall: React.FC<FileReadToolCallProps> = ({
               {result.success === false && result.error && (
                 <DetailSection>
                   <DetailLabel>Error</DetailLabel>
-                  <div className="text-danger text-[11px] px-2 py-1.5 bg-danger-overlay rounded border-l-2 border-danger">
+                  <div className="text-danger bg-danger-overlay border-danger rounded border-l-2 px-2 py-1.5 text-[11px]">
                     {result.error}
                   </div>
                 </DetailSection>
@@ -130,13 +128,13 @@ export const FileReadToolCall: React.FC<FileReadToolCallProps> = ({
               {result.success && result.content && parsedContent && (
                 <DetailSection>
                   <DetailLabel>Content</DetailLabel>
-                  <div className="m-0 px-2 py-1.5 bg-code-bg rounded text-[11px] leading-[1.4] max-h-[200px] overflow-y-auto flex">
-                    <div className="text-secondary opacity-40 pr-3 mr-2 border-r border-white/10 select-none text-right min-w-10 font-monospace">
+                  <div className="bg-code-bg m-0 flex max-h-[200px] overflow-y-auto rounded px-2 py-1.5 text-[11px] leading-[1.4]">
+                    <div className="text-secondary font-monospace mr-2 min-w-10 border-r border-white/10 pr-3 text-right opacity-40 select-none">
                       {parsedContent.lineNumbers.map((lineNum, i) => (
                         <div key={i}>{lineNum}</div>
                       ))}
                     </div>
-                    <pre className="m-0 p-0 whitespace-pre-wrap break-words flex-1 font-monospace">
+                    <pre className="font-monospace m-0 flex-1 p-0 break-words whitespace-pre-wrap">
                       {parsedContent.actualContent}
                     </pre>
                   </div>

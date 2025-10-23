@@ -82,9 +82,9 @@ export const DirectorySelectModal: React.FC = () => {
         onKeyDown={handleKeyDown}
         placeholder="/home/user/projects/my-project"
         autoFocus
-        className="w-full px-3 py-2 bg-modal-bg border border-border-medium rounded text-white text-sm font-mono mb-5 focus:outline-none focus:border-accent placeholder:text-muted"
+        className="bg-modal-bg border-border-medium focus:border-accent placeholder:text-muted mb-5 w-full rounded border px-3 py-2 font-mono text-sm text-white focus:outline-none"
       />
-      {error && <div className="text-error text-xs -mt-3 mb-3">{error}</div>}
+      {error && <div className="text-error -mt-3 mb-3 text-xs">{error}</div>}
       <ModalActions>
         <CancelButton onClick={handleCancel}>Cancel</CancelButton>
         <PrimaryButton onClick={handleSelect}>Select</PrimaryButton>

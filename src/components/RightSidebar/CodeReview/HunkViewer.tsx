@@ -148,11 +148,11 @@ export const HunkViewer = React.memo<HunkViewerProps>(
         tabIndex={0}
         data-hunk-id={hunkId}
       >
-        <div className="bg-separator py-2 px-3 border-b border-border-light flex justify-between items-center font-monospace text-xs gap-2">
+        <div className="bg-separator border-border-light font-monospace flex items-center justify-between gap-2 border-b px-3 py-2 text-xs">
           {isRead && (
             <TooltipWrapper inline>
               <span
-                className="inline-flex items-center text-read text-sm mr-1"
+                className="text-read mr-1 inline-flex items-center text-sm"
                 aria-label="Marked as read"
               >
                 ✓
@@ -163,10 +163,10 @@ export const HunkViewer = React.memo<HunkViewerProps>(
             </TooltipWrapper>
           )}
           <div
-            className="text-foreground font-medium whitespace-nowrap overflow-hidden text-ellipsis min-w-0"
+            className="text-foreground min-w-0 truncate font-medium"
             dangerouslySetInnerHTML={{ __html: highlightedFilePath }}
           />
-          <div className="flex items-center gap-2 text-[11px] whitespace-nowrap flex-shrink-0">
+          <div className="flex shrink-0 items-center gap-2 text-[11px] whitespace-nowrap">
             {!isPureRename && (
               <span className="flex gap-2 text-[11px]">
                 {additions > 0 && <span className="text-success-light">+{additions}</span>}
@@ -179,7 +179,7 @@ export const HunkViewer = React.memo<HunkViewerProps>(
             {onToggleRead && (
               <TooltipWrapper inline>
                 <button
-                  className="bg-transparent border border-border-light rounded-[3px] py-0.5 px-1.5 text-muted text-[11px] cursor-pointer transition-all duration-200 flex items-center gap-1 hover:bg-white/5 hover:border-read hover:text-read active:scale-95"
+                  className="border-border-light text-muted hover:border-read hover:text-read flex cursor-pointer items-center gap-1 rounded-[3px] border bg-transparent px-1.5 py-0.5 text-[11px] transition-all duration-200 hover:bg-white/5 active:scale-95"
                   data-hunk-id={hunkId}
                   onClick={handleToggleRead}
                   aria-label={`Mark as read (${formatKeybind(KEYBINDS.TOGGLE_HUNK_READ)})`}
@@ -195,11 +195,11 @@ export const HunkViewer = React.memo<HunkViewerProps>(
         </div>
 
         {isPureRename ? (
-          <div className="p-3 text-muted text-[11px] flex items-center gap-2 bg-code-keyword-overlay-light before:content-['→'] before:text-sm before:text-code-keyword">
+          <div className="text-muted bg-code-keyword-overlay-light before:text-code-keyword flex items-center gap-2 p-3 text-[11px] before:text-sm before:content-['→']">
             Renamed from <code>{hunk.oldPath}</code>
           </div>
         ) : isExpanded ? (
-          <div className="py-1.5 px-2 font-monospace text-[11px] leading-[1.4] overflow-x-auto bg-code-bg grid grid-cols-[minmax(min-content,1fr)]">
+          <div className="font-monospace bg-code-bg grid grid-cols-[minmax(min-content,1fr)] overflow-x-auto px-2 py-1.5 text-[11px] leading-[1.4]">
             <SelectableDiffRenderer
               content={hunk.content}
               filePath={hunk.filePath}
@@ -219,7 +219,7 @@ export const HunkViewer = React.memo<HunkViewerProps>(
           </div>
         ) : (
           <div
-            className="py-2 px-3 text-center text-muted text-[11px] italic cursor-pointer hover:text-foreground"
+            className="text-muted hover:text-foreground cursor-pointer px-3 py-2 text-center text-[11px] italic"
             onClick={handleToggleExpand}
           >
             {isRead && "Hunk marked as read. "}Click to expand ({lineCount} lines) or press{" "}
@@ -229,7 +229,7 @@ export const HunkViewer = React.memo<HunkViewerProps>(
 
         {hasManualState && isExpanded && !isPureRename && (
           <div
-            className="py-2 px-3 text-center text-muted text-[11px] italic cursor-pointer hover:text-foreground"
+            className="text-muted hover:text-foreground cursor-pointer px-3 py-2 text-center text-[11px] italic"
             onClick={handleToggleExpand}
           >
             Click here or press {formatKeybind(KEYBINDS.TOGGLE_HUNK_COLLAPSE)} to collapse

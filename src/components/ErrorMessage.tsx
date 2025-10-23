@@ -8,9 +8,9 @@ interface ErrorMessageProps {
 
 export const ErrorMessage: React.FC<ErrorMessageProps> = ({ title, message, details }) => {
   return (
-    <div className="bg-error-bg text-error border border-error rounded p-3 my-2 font-mono text-sm leading-relaxed whitespace-pre-wrap break-words">
+    <div className="bg-error-bg text-error border-error my-2 rounded border p-3 font-mono text-sm leading-relaxed break-words whitespace-pre-wrap">
       {title && (
-        <div className="font-bold mb-2 flex items-center gap-2">
+        <div className="mb-2 flex items-center gap-2 font-bold">
           <span className="text-lg">⚠️</span>
           {title}
         </div>

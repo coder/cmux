@@ -67,11 +67,9 @@ export const BashToolCall: React.FC<BashToolCallProps> = ({
           <span>🔧</span>
           <Tooltip>bash</Tooltip>
         </TooltipWrapper>
-        <span className="text-text font-monospace whitespace-nowrap overflow-hidden text-ellipsis max-w-96">
-          {args.script}
-        </span>
+        <span className="text-text font-monospace max-w-96 truncate">{args.script}</span>
         <span
-          className="text-[10px] ml-2 whitespace-nowrap [@container(max-width:500px)]:hidden"
+          className="ml-2 text-[10px] whitespace-nowrap [@container(max-width:500px)]:hidden"
           style={{
             color: isPending ? "var(--color-pending)" : "var(--color-text-secondary)",
           }}
@@ -82,7 +80,7 @@ export const BashToolCall: React.FC<BashToolCallProps> = ({
         </span>
         {result && (
           <span
-            className="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium ml-2 whitespace-nowrap flex-shrink-0"
+            className="ml-2 inline-block shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium whitespace-nowrap"
             style={{
               background: result.exitCode === 0 ? "#4caf50" : "#f44336",
               color: "white",
@@ -106,7 +104,7 @@ export const BashToolCall: React.FC<BashToolCallProps> = ({
               {result.success === false && result.error && (
                 <DetailSection>
                   <DetailLabel>Error</DetailLabel>
-                  <div className="text-danger text-[11px] px-2 py-1.5 bg-danger-overlay rounded border-l-2 border-danger">
+                  <div className="text-danger bg-danger-overlay border-danger rounded border-l-2 px-2 py-1.5 text-[11px]">
                     {result.error}
                   </div>
                 </DetailSection>
@@ -115,7 +113,7 @@ export const BashToolCall: React.FC<BashToolCallProps> = ({
               {result.output && (
                 <DetailSection>
                   <DetailLabel>Output</DetailLabel>
-                  <pre className="m-0 px-2 py-1.5 bg-code-bg rounded border-l-2 border-success text-[11px] leading-[1.4] whitespace-pre-wrap break-words max-h-[200px] overflow-y-auto">
+                  <pre className="bg-code-bg border-success m-0 max-h-[200px] overflow-y-auto rounded border-l-2 px-2 py-1.5 text-[11px] leading-[1.4] break-words whitespace-pre-wrap">
                     {result.output}
                   </pre>
                 </DetailSection>

@@ -101,22 +101,22 @@ export const RetryBarrier: React.FC<RetryBarrierProps> = ({
           className
         )}
       >
-        <div className="flex items-center gap-3 flex-1">
+        <div className="flex flex-1 items-center gap-3">
           <span className="text-lg leading-none">🔄</span>
-          <div className="font-primary text-[13px] text-foreground font-medium">
+          <div className="font-primary text-foreground text-[13px] font-medium">
             {countdown === 0 ? (
               <>Retrying... (attempt {attempt + 1})</>
             ) : (
               <>
                 Retrying in{" "}
-                <span className="font-mono font-semibold text-warning">{countdown}s</span> (attempt{" "}
+                <span className="text-warning font-mono font-semibold">{countdown}s</span> (attempt{" "}
                 {attempt + 1})
               </>
             )}
           </div>
         </div>
         <button
-          className="bg-transparent border border-warning rounded px-4 py-2 font-primary text-xs font-semibold text-warning cursor-pointer transition-all duration-200 whitespace-nowrap hover:bg-warning-overlay hover:-translate-y-px active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="border-warning font-primary text-warning hover:bg-warning-overlay cursor-pointer rounded border bg-transparent px-4 py-2 text-xs font-semibold whitespace-nowrap transition-all duration-200 hover:-translate-y-px active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50"
           onClick={handleStopAutoRetry}
         >
           Stop Auto-Retry
@@ -132,14 +132,14 @@ export const RetryBarrier: React.FC<RetryBarrierProps> = ({
           className
         )}
       >
-        <div className="flex items-center gap-3 flex-1">
+        <div className="flex flex-1 items-center gap-3">
           <span className="text-lg leading-none">⚠️</span>
-          <div className="font-primary text-[13px] text-foreground font-medium">
+          <div className="font-primary text-foreground text-[13px] font-medium">
             Stream interrupted
           </div>
         </div>
         <button
-          className="bg-warning border-none rounded px-4 py-2 font-primary text-xs font-semibold text-background cursor-pointer transition-all duration-200 whitespace-nowrap hover:brightness-120 hover:-translate-y-px active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="bg-warning font-primary text-background cursor-pointer rounded border-none px-4 py-2 text-xs font-semibold whitespace-nowrap transition-all duration-200 hover:-translate-y-px hover:brightness-120 active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50"
           onClick={handleManualRetry}
         >
           Retry

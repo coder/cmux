@@ -7,9 +7,9 @@ import React from "react";
 
 export const CompactionBackground: React.FC = () => {
   return (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none rounded-md">
+    <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-md">
       <div
-        className="absolute inset-0 opacity-40 animate-[gradient-move_8s_ease_infinite]"
+        className="absolute inset-0 animate-[gradient-move_8s_ease_infinite] opacity-40"
         style={{
           background:
             "linear-gradient(-45deg, var(--color-plan-mode-alpha), color-mix(in srgb, var(--color-plan-mode) 30%, transparent), var(--color-plan-mode-alpha), color-mix(in srgb, var(--color-plan-mode) 25%, transparent))",

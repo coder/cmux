@@ -14,7 +14,7 @@ interface ToggleGroupProps<T extends string> {
 
 export function ToggleGroup<T extends string>({ options, value, onChange }: ToggleGroupProps<T>) {
   return (
-    <div className="flex gap-0 bg-toggle-bg rounded">
+    <div className="bg-toggle-bg flex gap-0 rounded">
       {options.map((option) => {
         const isActive = value === option.value;
         return (

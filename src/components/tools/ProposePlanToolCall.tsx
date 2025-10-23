@@ -71,7 +71,7 @@ export const ProposePlanToolCall: React.FC<ProposePlanToolCallProps> = ({
       {expanded && (
         <ToolDetails>
           <div
-            className="p-3 rounded-md shadow-md"
+            className="rounded-md p-3 shadow-md"
             style={{
               background:
                 "linear-gradient(135deg, color-mix(in srgb, var(--color-plan-mode), transparent 92%) 0%, color-mix(in srgb, var(--color-plan-mode), transparent 95%) 100%)",
@@ -79,15 +79,15 @@ export const ProposePlanToolCall: React.FC<ProposePlanToolCallProps> = ({
             }}
           >
             <div
-              className="flex items-center gap-2 mb-3 pb-2"
+              className="mb-3 flex items-center gap-2 pb-2"
               style={{
                 borderBottom:
                   "1px solid color-mix(in srgb, var(--color-plan-mode), transparent 80%)",
               }}
             >
-              <div className="flex items-center gap-2 flex-1">
+              <div className="flex flex-1 items-center gap-2">
                 <div className="text-base">📋</div>
-                <div className="text-[13px] font-semibold text-plan-mode font-mono">
+                <div className="text-plan-mode font-mono text-[13px] font-semibold">
                   {args.title}
                 </div>
               </div>
@@ -135,7 +135,7 @@ export const ProposePlanToolCall: React.FC<ProposePlanToolCallProps> = ({
                 )}
                 <button
                   onClick={() => void handleCopy()}
-                  className="px-2 py-1 text-[10px] font-mono text-muted bg-transparent rounded-sm cursor-pointer transition-all duration-150 active:translate-y-px hover:text-plan-mode"
+                  className="text-muted hover:text-plan-mode cursor-pointer rounded-sm bg-transparent px-2 py-1 font-mono text-[10px] transition-all duration-150 active:translate-y-px"
                   style={{
                     border: "1px solid rgba(136, 136, 136, 0.3)",
                   }}
@@ -188,7 +188,7 @@ export const ProposePlanToolCall: React.FC<ProposePlanToolCallProps> = ({
             </div>
 
             {showRaw ? (
-              <pre className="font-mono text-xs leading-relaxed text-text whitespace-pre-wrap break-words m-0 p-2 bg-code-bg rounded-sm">
+              <pre className="text-text bg-code-bg m-0 rounded-sm p-2 font-mono text-xs leading-relaxed break-words whitespace-pre-wrap">
                 {args.plan}
               </pre>
             ) : (
@@ -199,7 +199,7 @@ export const ProposePlanToolCall: React.FC<ProposePlanToolCallProps> = ({
 
             {status === "completed" && (
               <div
-                className="mt-3 pt-3 text-[11px] text-muted italic leading-normal"
+                className="text-muted mt-3 pt-3 text-[11px] leading-normal italic"
                 style={{
                   borderTop:
                     "1px solid color-mix(in srgb, var(--color-plan-mode), transparent 80%)",

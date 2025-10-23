@@ -83,7 +83,7 @@ function renderDiff(
     ));
   } catch (error) {
     return (
-      <div className="text-danger text-[11px] px-2 py-1.5 bg-danger-overlay rounded border-l-2 border-danger">
+      <div className="text-danger bg-danger-overlay border-danger rounded border-l-2 px-2 py-1.5 text-[11px]">
         Failed to parse diff: {String(error)}
       </div>
     );
@@ -133,19 +133,17 @@ export const FileEditToolCall: React.FC<FileEditToolCallProps> = ({
 
   return (
     <ToolContainer expanded={expanded}>
-      <ToolHeader className="cursor-default hover:text-secondary">
+      <ToolHeader className="hover:text-secondary cursor-default">
         <div
           onClick={toggleExpanded}
-          className="flex items-center gap-2 flex-1 cursor-pointer hover:text-text"
+          className="hover:text-text flex flex-1 cursor-pointer items-center gap-2"
         >
           <ExpandIcon expanded={expanded}>▶</ExpandIcon>
           <TooltipWrapper inline>
             <span>✏️</span>
             <Tooltip>{toolName}</Tooltip>
           </TooltipWrapper>
-          <span className="text-text font-monospace whitespace-nowrap overflow-hidden text-ellipsis max-w-96">
-            {filePath}
-          </span>
+          <span className="text-text font-monospace max-w-96 truncate">{filePath}</span>
         </div>
         {!(result && result.success && result.diff) && (
           <StatusIndicator status={status}>{getStatusDisplay(status)}</StatusIndicator>
@@ -164,7 +162,7 @@ export const FileEditToolCall: React.FC<FileEditToolCallProps> = ({
               {result.success === false && result.error && (
                 <DetailSection>
                   <DetailLabel>Error</DetailLabel>
-                  <div className="text-danger text-[11px] px-2 py-1.5 bg-danger-overlay rounded border-l-2 border-danger">
+                  <div className="text-danger bg-danger-overlay border-danger rounded border-l-2 px-2 py-1.5 text-[11px]">
                     {result.error}
                   </div>
                 </DetailSection>
@@ -173,7 +171,7 @@ export const FileEditToolCall: React.FC<FileEditToolCallProps> = ({
               {result.success && result.diff && (
                 <DiffContainer>
                   {showRaw ? (
-                    <pre className="m-0 whitespace-pre-wrap break-words">{result.diff}</pre>
+                    <pre className="m-0 break-words whitespace-pre-wrap">{result.diff}</pre>
                   ) : (
                     renderDiff(result.diff, filePath, onReviewNote)
                   )}
@@ -184,7 +182,7 @@ export const FileEditToolCall: React.FC<FileEditToolCallProps> = ({
 
           {status === "executing" && !result && (
             <DetailSection>
-              <div className="text-[11px] text-secondary">
+              <div className="text-secondary text-[11px]">
                 Waiting for result
                 <LoadingDots />
               </div>

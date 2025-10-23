@@ -162,7 +162,7 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
       >
         <TooltipWrapper inline>
           <button
-            className="opacity-0 bg-transparent text-muted border-none cursor-pointer text-base p-0 w-5 h-5 flex items-center justify-center transition-all duration-200 flex-shrink-0 col-start-1 hover:text-foreground hover:bg-white/10 hover:rounded-sm"
+            className="text-muted hover:text-foreground col-start-1 flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center border-none bg-transparent p-0 text-base opacity-0 transition-all duration-200 hover:rounded-sm hover:bg-white/10"
             onClick={(e) => {
               e.stopPropagation();
               void onRemoveWorkspace(workspaceId, e.currentTarget);
@@ -183,7 +183,7 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
         />
         {isEditing ? (
           <input
-            className="bg-input-bg text-input-text border border-input-border rounded-sm px-1 py-0.5 text-[13px] font-inherit outline-none min-w-0 text-right focus:border-input-border-focus"
+            className="bg-input-bg text-input-text border-input-border font-inherit focus:border-input-border-focus min-w-0 rounded-sm border px-1 py-0.5 text-right text-[13px] outline-none"
             value={editingName}
             onChange={(e) => setEditingName(e.target.value)}
             onKeyDown={handleRenameKeyDown}
@@ -195,7 +195,7 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
           />
         ) : (
           <span
-            className="text-foreground text-[14px] whitespace-nowrap overflow-hidden text-ellipsis cursor-pointer px-1 py-0.5 rounded-sm transition-colors duration-200 min-w-0 text-right hover:bg-white/5"
+            className="text-foreground min-w-0 cursor-pointer truncate rounded-sm px-1 py-0.5 text-right text-[14px] transition-colors duration-200 hover:bg-white/5"
             onDoubleClick={(e) => {
               e.stopPropagation();
               startRenaming();
@@ -214,7 +214,7 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
         />
       </div>
       {renameError && isEditing && (
-        <div className="absolute top-full left-7 right-8 mt-1 px-2 py-1.5 bg-error-bg border border-error rounded-sm text-error text-xs z-10">
+        <div className="bg-error-bg border-error text-error absolute top-full right-8 left-7 z-10 mt-1 rounded-sm border px-2 py-1.5 text-xs">
           {renameError}
         </div>
       )}

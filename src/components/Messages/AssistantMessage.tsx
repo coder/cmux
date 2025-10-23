@@ -90,7 +90,7 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({
     // Empty streaming state
     if (isStreaming && !content) {
       return (
-        <div className="font-primary text-[13px] text-secondary italic">
+        <div className="font-primary text-secondary text-[13px] italic">
           Waiting for response...
         </div>
       );
@@ -111,7 +111,7 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({
     // Completed text renders as static content
     return content ? (
       showRaw ? (
-        <pre className="font-mono text-xs leading-relaxed text-text whitespace-pre-wrap break-words m-0 p-2 bg-code-bg rounded-sm">
+        <pre className="text-text bg-code-bg m-0 rounded-sm p-2 font-mono text-xs leading-relaxed break-words whitespace-pre-wrap">
           {content}
         </pre>
       ) : (
@@ -129,7 +129,7 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({
       <div className="flex items-center gap-2">
         {modelName && <ModelDisplay modelString={modelName} />}
         {isCompacted && (
-          <span className="text-plan-mode font-medium text-[10px] px-1.5 py-0.5 bg-plan-mode/10 rounded-sm uppercase">
+          <span className="text-plan-mode bg-plan-mode/10 rounded-sm px-1.5 py-0.5 text-[10px] font-medium uppercase">
             {COMPACTED_EMOJI} compacted
           </span>
         )}

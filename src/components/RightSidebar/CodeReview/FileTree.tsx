@@ -135,7 +135,7 @@ const TreeNodeContent: React.FC<{
         {node.isDirectory ? (
           <>
             <span
-              className="w-3 inline-block transition-transform duration-200"
+              className="inline-block w-3 transition-transform duration-200"
               style={{ transform: isOpen ? "rotate(90deg)" : "rotate(0deg)" }}
               data-toggle
               onClick={handleToggleClick}
@@ -246,20 +246,20 @@ export const FileTree: React.FC<FileTreeExternalProps> = ({
 
   return (
     <>
-      <div className="py-2 px-3 border-b border-border-light text-xs font-medium text-foreground font-primary flex items-center gap-2">
+      <div className="border-border-light text-foreground font-primary flex items-center gap-2 border-b px-3 py-2 text-xs font-medium">
         <span>Files Changed</span>
         {selectedPath && (
           <button
-            className="py-0.5 px-2 bg-transparent text-muted border-none rounded-[3px] text-[11px] cursor-pointer transition-all duration-200 font-primary ml-auto hover:bg-white/5 hover:text-foreground"
+            className="text-muted font-primary hover:text-foreground ml-auto cursor-pointer rounded-[3px] border-none bg-transparent px-2 py-0.5 text-[11px] transition-all duration-200 hover:bg-white/5"
             onClick={() => onSelectFile(null)}
           >
             Clear filter
           </button>
         )}
       </div>
-      <div className="flex-1 min-h-0 p-3 overflow-y-auto font-monospace text-xs">
+      <div className="font-monospace min-h-0 flex-1 overflow-y-auto p-3 text-xs">
         {isLoading && !root ? (
-          <div className="py-5 text-muted text-center">Loading file tree...</div>
+          <div className="text-muted py-5 text-center">Loading file tree...</div>
         ) : root ? (
           root.children.map((child) => (
             <TreeNodeContent
@@ -274,7 +274,7 @@ export const FileTree: React.FC<FileTreeExternalProps> = ({
             />
           ))
         ) : (
-          <div className="py-5 text-muted text-center">No files changed</div>
+          <div className="text-muted py-5 text-center">No files changed</div>
         )}
       </div>
     </>
