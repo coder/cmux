@@ -5,6 +5,7 @@ import { MessageWindow } from "./MessageWindow";
 import { TerminalOutput } from "./TerminalOutput";
 import { formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
 import type { KebabMenuItem } from "@/components/KebabMenu";
+import { MarkdownRenderer } from "./MarkdownRenderer";
 
 interface UserMessageProps {
   message: DisplayedMessage & { type: "user" };
@@ -120,11 +121,7 @@ export const UserMessage: React.FC<UserMessageProps> = ({
       kebabMenuItems={kebabMenuItems}
       className={className}
     >
-      {content && (
-        <pre className="text-subtle m-0 font-mono text-xs leading-4 break-words whitespace-pre-wrap opacity-90">
-          {content}
-        </pre>
-      )}
+      {content && <MarkdownRenderer content={content} />}
       {message.imageParts && message.imageParts.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-2">
           {message.imageParts.map((img, idx) => (
