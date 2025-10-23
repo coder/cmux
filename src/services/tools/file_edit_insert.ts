@@ -8,6 +8,7 @@ import { WRITE_DENIED_PREFIX } from "@/types/tools";
 import { executeFileEditOperation } from "./file_edit_operation";
 import { RuntimeError } from "@/runtime/Runtime";
 import { fileExists } from "@/utils/runtime/fileExists";
+import { writeFileString } from "@/utils/runtime/helpers";
 
 /**
  * File edit insert tool factory for AI assistant
@@ -55,9 +56,9 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
             };
           }
 
-          // Create empty file using runtime
+          // Create empty file using runtime helper
           try {
-            await config.runtime.writeFile(resolvedPath, "");
+            await writeFileString(config.runtime, resolvedPath, "");
           } catch (err) {
             if (err instanceof RuntimeError) {
               return {
