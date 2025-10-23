@@ -242,7 +242,9 @@ export const HelpIndicator: React.FC<{ className?: string; children?: React.Reac
   className,
   children,
 }) => (
-  <span className={cn("text-muted flex cursor-help items-center text-[10px] leading-none", className)}>
+  <span
+    className={cn("text-muted flex cursor-help items-center text-[10px] leading-none", className)}
+  >
     {children}
   </span>
 );
