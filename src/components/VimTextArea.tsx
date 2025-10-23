@@ -209,12 +209,12 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
             autoComplete="off"
             {...rest}
             className={cn(
-              "w-full border text-[#d4d4d4] py-1.5 px-2 rounded font-mono text-[13px] resize-none min-h-8 max-h-[50vh] overflow-y-auto",
+              "w-full border text-text-light py-1.5 px-2 rounded font-mono text-[13px] resize-none min-h-8 max-h-[50vh] overflow-y-auto",
               "placeholder:text-[#6b6b6b]",
               "focus:outline-none",
               isEditing
                 ? "bg-[var(--color-editing-mode-alpha)] border-[var(--color-editing-mode)] focus:border-[var(--color-editing-mode)]"
-                : "bg-[#1e1e1e] border-[#3e3e42]",
+                : "bg-bg-dark border-border-light",
               !isEditing && (mode === "plan" ? "focus:border-plan-mode" : "focus:border-exec-mode"),
               vimMode === "normal"
                 ? "caret-transparent selection:bg-white/50"

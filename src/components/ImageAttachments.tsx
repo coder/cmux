@@ -19,7 +19,7 @@ export const ImageAttachments: React.FC<ImageAttachmentsProps> = ({ images, onRe
       {images.map((image) => (
         <div
           key={image.id}
-          className="relative w-20 h-20 rounded overflow-hidden border border-[#3e3e42] bg-[#1e1e1e]"
+          className="relative w-20 h-20 rounded overflow-hidden border border-border-light bg-bg-dark"
         >
           <img src={image.url} alt="Attached image" className="w-full h-full object-cover" />
           <button

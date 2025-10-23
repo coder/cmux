@@ -704,7 +704,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
   return (
     <div
-      className="relative pt-[5px] px-[15px] pb-[15px] bg-[#252526] border-t border-[#3e3e42] flex flex-col gap-1"
+      className="relative pt-[5px] px-[15px] pb-[15px] bg-separator border-t border-border-light flex flex-col gap-1"
       style={{ containerType: "inline-size" }}
       data-component="ChatInputSection"
     >

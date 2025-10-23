@@ -110,7 +110,7 @@ export const GitStatusIndicatorView: React.FC<GitStatusIndicatorViewProps> = ({
               ))}
               <span style={{ color: getIndicatorColor(header.columnIndex) }}>!</span>
             </span>
-            <span className="text-[#cccccc]">[{header.branch}]</span>
+            <span className="text-foreground">[{header.branch}]</span>
           </div>
         ))}
       </div>
@@ -134,7 +134,7 @@ export const GitStatusIndicatorView: React.FC<GitStatusIndicatorViewProps> = ({
           {displayFiles.map((line, index) => (
             <div
               key={index}
-              className="text-[#cccccc] font-mono text-[11px] leading-snug whitespace-pre"
+              className="text-foreground font-mono text-[11px] leading-snug whitespace-pre"
             >
               {line}
             </div>
@@ -174,7 +174,7 @@ export const GitStatusIndicatorView: React.FC<GitStatusIndicatorViewProps> = ({
                 {renderIndicators(commit.indicators)}
                 <span className="text-[#569cd6] flex-shrink-0 select-all">{commit.hash}</span>
                 <span className="text-[#808080] flex-shrink-0">{commit.date}</span>
-                <span className="text-[#cccccc] flex-1 break-words">{commit.subject}</span>
+                <span className="text-foreground flex-1 break-words">{commit.subject}</span>
               </div>
             </div>
           ))}
@@ -187,7 +187,7 @@ export const GitStatusIndicatorView: React.FC<GitStatusIndicatorViewProps> = ({
   const tooltipElement = (
     <div
       className={cn(
-        "fixed z-[10000] bg-[#2d2d30] text-[#cccccc] border border-[#464647] rounded px-3 py-2 text-[11px] font-mono whitespace-pre max-w-[600px] max-h-[400px] overflow-auto shadow-[0_4px_12px_rgba(0,0,0,0.5)] pointer-events-auto transition-opacity duration-200",
+        "fixed z-[10000] bg-modal-bg text-foreground border border-[#464647] rounded px-3 py-2 text-[11px] font-mono whitespace-pre max-w-[600px] max-h-[400px] overflow-auto shadow-[0_4px_12px_rgba(0,0,0,0.5)] pointer-events-auto transition-opacity duration-200",
         showTooltip ? "opacity-100 visible" : "opacity-0 invisible"
       )}
       style={{

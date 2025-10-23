@@ -245,7 +245,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
     return (
       <div
         className={cn(
-          "flex flex-1 flex-row bg-[#1e1e1e] text-[#d4d4d4] overflow-x-auto overflow-y-hidden [@media(max-width:768px)]:flex-col",
+          "flex flex-1 flex-row bg-bg-dark text-text-light overflow-x-auto overflow-y-hidden [@media(max-width:768px)]:flex-col",
           className
         )}
         style={{ containerType: "inline-size" }}
@@ -286,7 +286,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
     return (
       <div
         className={cn(
-          "flex flex-1 flex-row bg-[#1e1e1e] text-[#d4d4d4] overflow-x-auto overflow-y-hidden [@media(max-width:768px)]:flex-col",
+          "flex flex-1 flex-row bg-bg-dark text-text-light overflow-x-auto overflow-y-hidden [@media(max-width:768px)]:flex-col",
           className
         )}
         style={{ containerType: "inline-size" }}
@@ -302,7 +302,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
     return (
       <div
         className={cn(
-          "flex flex-1 flex-row bg-[#1e1e1e] text-[#d4d4d4] overflow-x-auto overflow-y-hidden [@media(max-width:768px)]:flex-col",
+          "flex flex-1 flex-row bg-bg-dark text-text-light overflow-x-auto overflow-y-hidden [@media(max-width:768px)]:flex-col",
           className
         )}
         style={{ containerType: "inline-size" }}
@@ -320,7 +320,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
   return (
     <div
       className={cn(
-        "flex flex-1 flex-row bg-[#1e1e1e] text-[#d4d4d4] overflow-x-auto overflow-y-hidden [@media(max-width:768px)]:flex-col",
+        "flex flex-1 flex-row bg-bg-dark text-text-light overflow-x-auto overflow-y-hidden [@media(max-width:768px)]:flex-col",
         className
       )}
       style={{ containerType: "inline-size" }}
@@ -329,8 +329,8 @@ const AIViewInner: React.FC<AIViewProps> = ({
         ref={chatAreaRef}
         className="flex-1 min-w-[400px] flex flex-col [@media(max-width:768px)]:min-w-0 [@media(max-width:768px)]:w-full [@media(max-width:768px)]:max-h-full"
       >
-        <div className="py-1 px-[15px] bg-[#252526] border-b border-[#3e3e42] flex justify-between items-center [@media(max-width:768px)]:py-2 [@media(max-width:768px)]:pl-[60px] [@media(max-width:768px)]:flex-wrap [@media(max-width:768px)]:gap-2">
-          <div className="font-semibold text-[#ccc] flex items-center gap-2 min-w-0 overflow-hidden">
+        <div className="py-1 px-[15px] bg-separator border-b border-border-light flex justify-between items-center [@media(max-width:768px)]:py-2 [@media(max-width:768px)]:pl-[60px] [@media(max-width:768px)]:flex-wrap [@media(max-width:768px)]:gap-2">
+          <div className="font-semibold text-foreground flex items-center gap-2 min-w-0 overflow-hidden">
             <StatusIndicator
               streaming={canInterrupt}
               title={
@@ -345,13 +345,13 @@ const AIViewInner: React.FC<AIViewProps> = ({
             <span className="font-mono text-xs whitespace-nowrap overflow-hidden text-ellipsis min-w-0">
               {projectName} / {branch}
             </span>
-            <span className="font-mono text-[#888] font-normal text-[11px] whitespace-nowrap overflow-hidden text-ellipsis min-w-0">
+            <span className="font-mono text-muted font-normal text-[11px] whitespace-nowrap overflow-hidden text-ellipsis min-w-0">
               {namedWorkspacePath}
             </span>
             <TooltipWrapper inline>
               <button
                 onClick={handleOpenTerminal}
-                className="bg-transparent border-none cursor-pointer p-1 flex items-center justify-center text-[#888] transition-colors hover:text-[#ccc] [&_svg]:w-4 [&_svg]:h-4"
+                className="bg-transparent border-none cursor-pointer p-1 flex items-center justify-center text-muted transition-colors hover:text-foreground [&_svg]:w-4 [&_svg]:h-4"
               >
                 <svg viewBox="0 0 16 16" fill="currentColor">
                   <path d="M0 2.75C0 1.784.784 1 1.75 1h12.5c.966 0 1.75.784 1.75 1.75v10.5A1.75 1.75 0 0114.25 15H1.75A1.75 1.75 0 010 13.25V2.75zm1.75-.25a.25.25 0 00-.25.25v10.5c0 .138.112.25.25.25h12.5a.25.25 0 00.25-.25V2.75a.25.25 0 00-.25-.25H1.75zM7.25 8a.75.75 0 01-.22.53l-2.25 2.25a.75.75 0 01-1.06-1.06L5.44 8 3.72 6.28a.75.75 0 111.06-1.06l2.25 2.25c.141.14.22.331.22.53zm1.5 1.5a.75.75 0 000 1.5h3a.75.75 0 000-1.5h-3z" />

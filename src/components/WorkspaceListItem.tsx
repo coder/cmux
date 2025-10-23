@@ -132,8 +132,8 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
     <React.Fragment>
       <div
         className={cn(
-          "py-1.5 px-3 pl-7 cursor-pointer grid grid-cols-[auto_auto_1fr_auto] gap-2 items-center border-l-[3px] border-transparent transition-all duration-150 text-[13px] relative hover:bg-[#2a2a2b] [&:hover_button]:opacity-100",
-          isSelected && "bg-[#2a2a2b] border-l-[#569cd6]"
+          "py-1.5 px-3 pl-7 cursor-pointer grid grid-cols-[auto_auto_1fr_auto] gap-2 items-center border-l-[3px] border-transparent transition-all duration-150 text-[13px] relative hover:bg-bg-hover [&:hover_button]:opacity-100",
+          isSelected && "bg-bg-hover border-l-[#569cd6]"
         )}
         onClick={() =>
           onSelectWorkspace({
@@ -162,7 +162,7 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
       >
         <TooltipWrapper inline>
           <button
-            className="opacity-0 bg-transparent text-[#888] border-none cursor-pointer text-base p-0 w-5 h-5 flex items-center justify-center transition-all duration-200 flex-shrink-0 col-start-1 hover:text-[#ccc] hover:bg-white/10 hover:rounded-sm"
+            className="opacity-0 bg-transparent text-muted border-none cursor-pointer text-base p-0 w-5 h-5 flex items-center justify-center transition-all duration-200 flex-shrink-0 col-start-1 hover:text-foreground hover:bg-white/10 hover:rounded-sm"
             onClick={(e) => {
               e.stopPropagation();
               void onRemoveWorkspace(workspaceId, e.currentTarget);
@@ -195,7 +195,7 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
           />
         ) : (
           <span
-            className="text-[#ccc] text-[14px] whitespace-nowrap overflow-hidden text-ellipsis cursor-pointer px-1 py-0.5 rounded-sm transition-colors duration-200 min-w-0 text-right hover:bg-white/5"
+            className="text-foreground text-[14px] whitespace-nowrap overflow-hidden text-ellipsis cursor-pointer px-1 py-0.5 rounded-sm transition-colors duration-200 min-w-0 text-right hover:bg-white/5"
             onDoubleClick={(e) => {
               e.stopPropagation();
               startRenaming();

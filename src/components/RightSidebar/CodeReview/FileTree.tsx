@@ -146,9 +146,9 @@ const TreeNodeContent: React.FC<{
               className={cn(
                 "flex-1",
                 isFullyRead &&
-                  "text-[#666] line-through [text-decoration-color:var(--color-read)] [text-decoration-thickness:2px]",
-                isUnknownState && !isFullyRead && "text-[#666]",
-                !isFullyRead && !isUnknownState && "text-[#888]"
+                  "text-text-dim line-through [text-decoration-color:var(--color-read)] [text-decoration-thickness:2px]",
+                isUnknownState && !isFullyRead && "text-text-dim",
+                !isFullyRead && !isUnknownState && "text-muted"
               )}
             >
               {node.name || "/"}
@@ -181,9 +181,9 @@ const TreeNodeContent: React.FC<{
               className={cn(
                 "flex-1",
                 isFullyRead &&
-                  "text-[#666] line-through [text-decoration-color:var(--color-read)] [text-decoration-thickness:2px]",
-                isUnknownState && !isFullyRead && "text-[#666]",
-                !isFullyRead && !isUnknownState && "text-[#ccc]"
+                  "text-text-dim line-through [text-decoration-color:var(--color-read)] [text-decoration-thickness:2px]",
+                isUnknownState && !isFullyRead && "text-text-dim",
+                !isFullyRead && !isUnknownState && "text-foreground"
               )}
             >
               {node.name}
@@ -246,11 +246,11 @@ export const FileTree: React.FC<FileTreeExternalProps> = ({
 
   return (
     <>
-      <div className="py-2 px-3 border-b border-[#3e3e42] text-xs font-medium text-[#ccc] font-primary flex items-center gap-2">
+      <div className="py-2 px-3 border-b border-border-light text-xs font-medium text-foreground font-primary flex items-center gap-2">
         <span>Files Changed</span>
         {selectedPath && (
           <button
-            className="py-0.5 px-2 bg-transparent text-[#888] border-none rounded-[3px] text-[11px] cursor-pointer transition-all duration-200 font-primary ml-auto hover:bg-white/5 hover:text-[#ccc]"
+            className="py-0.5 px-2 bg-transparent text-muted border-none rounded-[3px] text-[11px] cursor-pointer transition-all duration-200 font-primary ml-auto hover:bg-white/5 hover:text-foreground"
             onClick={() => onSelectFile(null)}
           >
             Clear filter
@@ -259,7 +259,7 @@ export const FileTree: React.FC<FileTreeExternalProps> = ({
       </div>
       <div className="flex-1 min-h-0 p-3 overflow-y-auto font-monospace text-xs">
         {isLoading && !root ? (
-          <div className="py-5 text-[#888] text-center">Loading file tree...</div>
+          <div className="py-5 text-muted text-center">Loading file tree...</div>
         ) : root ? (
           root.children.map((child) => (
             <TreeNodeContent
@@ -274,7 +274,7 @@ export const FileTree: React.FC<FileTreeExternalProps> = ({
             />
           ))
         ) : (
-          <div className="py-5 text-[#888] text-center">No files changed</div>
+          <div className="py-5 text-muted text-center">No files changed</div>
         )}
       </div>
     </>

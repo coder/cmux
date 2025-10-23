@@ -132,7 +132,7 @@ export const UserMessage: React.FC<UserMessageProps> = ({
               key={idx}
               src={img.url}
               alt={`Attachment ${idx + 1}`}
-              className="max-w-[300px] max-h-[300px] rounded border border-[#3e3e42]"
+              className="max-w-[300px] max-h-[300px] rounded border border-border-light"
             />
           ))}
         </div>

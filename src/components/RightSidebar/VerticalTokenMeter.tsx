@@ -11,12 +11,12 @@ const VerticalTokenMeterComponent: React.FC<{ data: TokenMeterData }> = ({ data 
 
   return (
     <div
-      className="w-5 h-full flex flex-col items-center py-3 bg-[#252526] border-l border-[#3e3e42]"
+      className="w-5 h-full flex flex-col items-center py-3 bg-separator border-l border-border-light"
       data-component="vertical-token-meter"
     >
       {data.maxTokens && (
         <div
-          className="font-primary text-[8px] font-semibold text-[#cccccc] mb-1 text-center flex-shrink-0"
+          className="font-primary text-[8px] font-semibold text-foreground mb-1 text-center flex-shrink-0"
           data-label="context-percentage"
         >
           {Math.round(data.totalPercentage)}
@@ -49,12 +49,12 @@ const VerticalTokenMeterComponent: React.FC<{ data: TokenMeterData }> = ({ data 
                   data-tooltip-content="usage-breakdown"
                 >
                   <div
-                    className="font-semibold text-[13px] text-[#cccccc]"
+                    className="font-semibold text-[13px] text-foreground"
                     data-tooltip-title="last-request"
                   >
                     Last Request
                   </div>
-                  <div className="border-t border-[#3e3e42] my-1" data-divider="top" />
+                  <div className="border-t border-border-light my-1" data-divider="top" />
                   {data.segments.map((seg, i) => (
                     <div
                       key={i}
@@ -72,14 +72,14 @@ const VerticalTokenMeterComponent: React.FC<{ data: TokenMeterData }> = ({ data 
                         />
                         <span data-label="segment-name">{getSegmentLabel(seg.type)}</span>
                       </div>
-                      <span className="text-[#cccccc] font-medium" data-value="tokens">
+                      <span className="text-foreground font-medium" data-value="tokens">
                         {formatTokens(seg.tokens)}
                       </span>
                     </div>
                   ))}
-                  <div className="border-t border-[#3e3e42] my-1" data-divider="bottom" />
+                  <div className="border-t border-border-light my-1" data-divider="bottom" />
                   <div
-                    className="text-[#888] text-[11px]"
+                    className="text-muted text-[11px]"
                     data-summary="total"
                     data-total-tokens={data.totalTokens}
                     data-max-tokens={data.maxTokens}
@@ -88,7 +88,7 @@ const VerticalTokenMeterComponent: React.FC<{ data: TokenMeterData }> = ({ data 
                     {data.maxTokens && ` / ${formatTokens(data.maxTokens)}`}
                     {data.maxTokens && ` (${data.totalPercentage.toFixed(1)}%)`}
                   </div>
-                  <div className="text-[#666] text-[10px] mt-2 italic">
+                  <div className="text-text-dim text-[10px] mt-2 italic">
                     💡 Expand your viewport to see full details
                   </div>
                 </div>

@@ -64,9 +64,9 @@ const getStatusColor = (status: string) => {
     case "executing":
       return "text-pending";
     case "completed":
-      return "text-[#4caf50]";
+      return "text-success";
     case "failed":
-      return "text-[#f44336]";
+      return "text-danger";
     case "interrupted":
       return "text-interrupted";
     default:
@@ -149,7 +149,7 @@ interface HeaderButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement
 export const HeaderButton: React.FC<HeaderButtonProps> = ({ active, className, ...props }) => (
   <button
     className={cn(
-      "border border-white/20 text-[#ccc] px-2 py-0.5 rounded-sm cursor-pointer text-[10px]",
+      "border border-white/20 text-foreground px-2 py-0.5 rounded-sm cursor-pointer text-[10px]",
       "transition-all duration-200 whitespace-nowrap hover:bg-white/10 hover:border-white/30",
       active && "bg-white/10",
       className

@@ -336,12 +336,12 @@ const ReviewNoteInput: React.FC<ReviewNoteInputProps> = React.memo(
 
     return (
       <div
-        className="py-1.5 px-2 bg-[#1e1e1e] border-t m-0"
+        className="py-1.5 px-2 bg-bg-dark border-t m-0"
         style={{ borderColor: "hsl(from var(--color-review-accent) h s l / 0.3)" }}
       >
         <textarea
           ref={textareaRef}
-          className="w-full px-2 py-1.5 font-mono text-xs leading-[1.4] bg-[#1e1e1e] border rounded-sm text-text resize-none overflow-y-hidden placeholder:text-[#888] focus:outline-none focus:border-[hsl(from_var(--color-review-accent)_h_s_l_/_0.6)]"
+          className="w-full px-2 py-1.5 font-mono text-xs leading-[1.4] bg-bg-dark border rounded-sm text-text resize-none overflow-y-hidden placeholder:text-muted focus:outline-none focus:border-[hsl(from_var(--color-review-accent)_h_s_l_/_0.6)]"
           style={{
             minHeight: "calc(12px * 1.4 * 3 + 12px)",
             borderColor: "hsl(from var(--color-review-accent) h s l / 0.4)",

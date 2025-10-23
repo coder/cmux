@@ -138,9 +138,9 @@ export const HunkViewer = React.memo<HunkViewerProps>(
     return (
       <div
         className={cn(
-          "bg-[#1e1e1e] border rounded mb-3 overflow-hidden cursor-pointer transition-all duration-200",
+          "bg-bg-dark border rounded mb-3 overflow-hidden cursor-pointer transition-all duration-200",
           "focus:outline-none focus-visible:outline-none",
-          isRead ? "border-[var(--color-read)]" : "border-[#3e3e42]",
+          isRead ? "border-[var(--color-read)]" : "border-border-light",
           isSelected &&
             "border-[var(--color-review-accent)] shadow-[0_0_0_1px_var(--color-review-accent)]"
         )}
@@ -149,7 +149,7 @@ export const HunkViewer = React.memo<HunkViewerProps>(
         tabIndex={0}
         data-hunk-id={hunkId}
       >
-        <div className="bg-[#252526] py-2 px-3 border-b border-[#3e3e42] flex justify-between items-center font-monospace text-xs gap-2">
+        <div className="bg-separator py-2 px-3 border-b border-border-light flex justify-between items-center font-monospace text-xs gap-2">
           {isRead && (
             <TooltipWrapper inline>
               <span
@@ -164,7 +164,7 @@ export const HunkViewer = React.memo<HunkViewerProps>(
             </TooltipWrapper>
           )}
           <div
-            className="text-[#cccccc] font-medium whitespace-nowrap overflow-hidden text-ellipsis min-w-0"
+            className="text-foreground font-medium whitespace-nowrap overflow-hidden text-ellipsis min-w-0"
             dangerouslySetInnerHTML={{ __html: highlightedFilePath }}
           />
           <div className="flex items-center gap-2 text-[11px] whitespace-nowrap flex-shrink-0">
@@ -174,13 +174,13 @@ export const HunkViewer = React.memo<HunkViewerProps>(
                 {deletions > 0 && <span className="text-[#f87171]">-{deletions}</span>}
               </span>
             )}
-            <span className="text-[#888888]">
+            <span className="text-muted">
               ({lineCount} {lineCount === 1 ? "line" : "lines"})
             </span>
             {onToggleRead && (
               <TooltipWrapper inline>
                 <button
-                  className="bg-transparent border border-[#3e3e42] rounded-[3px] py-0.5 px-1.5 text-[#888] text-[11px] cursor-pointer transition-all duration-200 flex items-center gap-1 hover:bg-white/5 hover:border-[var(--color-read)] hover:text-[var(--color-read)] active:scale-95"
+                  className="bg-transparent border border-border-light rounded-[3px] py-0.5 px-1.5 text-muted text-[11px] cursor-pointer transition-all duration-200 flex items-center gap-1 hover:bg-white/5 hover:border-[var(--color-read)] hover:text-[var(--color-read)] active:scale-95"
                   data-hunk-id={hunkId}
                   onClick={handleToggleRead}
                   aria-label={`Mark as read (${formatKeybind(KEYBINDS.TOGGLE_HUNK_READ)})`}
@@ -196,7 +196,7 @@ export const HunkViewer = React.memo<HunkViewerProps>(
         </div>
 
         {isPureRename ? (
-          <div className="p-3 text-[#888] text-[11px] flex items-center gap-2 bg-[rgba(100,150,255,0.05)] before:content-['→'] before:text-sm before:text-[#6496ff]">
+          <div className="p-3 text-muted text-[11px] flex items-center gap-2 bg-[rgba(100,150,255,0.05)] before:content-['→'] before:text-sm before:text-[#6496ff]">
             Renamed from <code>{hunk.oldPath}</code>
           </div>
         ) : isExpanded ? (
@@ -220,7 +220,7 @@ export const HunkViewer = React.memo<HunkViewerProps>(
           </div>
         ) : (
           <div
-            className="py-2 px-3 text-center text-[#888] text-[11px] italic cursor-pointer hover:text-[#ccc]"
+            className="py-2 px-3 text-center text-muted text-[11px] italic cursor-pointer hover:text-foreground"
             onClick={handleToggleExpand}
           >
             {isRead && "Hunk marked as read. "}Click to expand ({lineCount} lines) or press{" "}
@@ -230,7 +230,7 @@ export const HunkViewer = React.memo<HunkViewerProps>(
 
         {hasManualState && isExpanded && !isPureRename && (
           <div
-            className="py-2 px-3 text-center text-[#888] text-[11px] italic cursor-pointer hover:text-[#ccc]"
+            className="py-2 px-3 text-center text-muted text-[11px] italic cursor-pointer hover:text-foreground"
             onClick={handleToggleExpand}
           >
             Click here or press {formatKeybind(KEYBINDS.TOGGLE_HUNK_COLLAPSE)} to collapse

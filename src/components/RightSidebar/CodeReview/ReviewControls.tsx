@@ -82,9 +82,9 @@ export const ReviewControls: React.FC<ReviewControlsProps> = ({
   const showSetDefault = filters.diffBase !== defaultBase;
 
   return (
-    <div className="py-2 px-3 bg-[#252526] border-b border-[#3e3e42] flex gap-3 items-center flex-wrap text-[11px]">
+    <div className="py-2 px-3 bg-separator border-b border-border-light flex gap-3 items-center flex-wrap text-[11px]">
       {onRefresh && <RefreshButton onClick={onRefresh} isLoading={isLoading} />}
-      <label className="text-[#888] font-medium whitespace-nowrap">Base:</label>
+      <label className="text-muted font-medium whitespace-nowrap">Base:</label>
       <input
         type="text"
         list="base-suggestions"
@@ -93,7 +93,7 @@ export const ReviewControls: React.FC<ReviewControlsProps> = ({
         onBlur={handleBaseBlur}
         onKeyDown={handleBaseKeyDown}
         placeholder="HEAD, main, etc."
-        className="py-1 px-2 bg-[#1e1e1e] text-[#ccc] border border-[#444] rounded text-[11px] font-mono w-[140px] transition-[border-color] duration-200 hover:border-[#007acc] focus:outline-none focus:border-[#007acc] placeholder:text-[#666]"
+        className="py-1 px-2 bg-bg-dark text-foreground border border-[#444] rounded text-[11px] font-mono w-[140px] transition-[border-color] duration-200 hover:border-accent focus:outline-none focus:border-accent placeholder:text-text-dim"
       />
       <datalist id="base-suggestions">
         <option value="HEAD" />
@@ -109,13 +109,13 @@ export const ReviewControls: React.FC<ReviewControlsProps> = ({
       {showSetDefault && (
         <button
           onClick={handleSetDefault}
-          className="py-0.5 px-2 bg-transparent text-[#888] border-none rounded text-[11px] cursor-pointer transition-all duration-200 font-primary whitespace-nowrap hover:bg-[rgba(255,255,255,0.05)] hover:text-[#ccc]"
+          className="py-0.5 px-2 bg-transparent text-muted border-none rounded text-[11px] cursor-pointer transition-all duration-200 font-primary whitespace-nowrap hover:bg-[rgba(255,255,255,0.05)] hover:text-foreground"
         >
           Set Default
         </button>
       )}
 
-      <label className="flex items-center gap-1.5 text-[#ccc] text-[11px] cursor-pointer whitespace-nowrap hover:text-white [&_input[type='checkbox']]:cursor-pointer">
+      <label className="flex items-center gap-1.5 text-foreground text-[11px] cursor-pointer whitespace-nowrap hover:text-white [&_input[type='checkbox']]:cursor-pointer">
         <input
           type="checkbox"
           checked={filters.includeUncommitted}
@@ -124,7 +124,7 @@ export const ReviewControls: React.FC<ReviewControlsProps> = ({
         Uncommitted
       </label>
 
-      <label className="flex items-center gap-1.5 text-[#ccc] text-[11px] cursor-pointer whitespace-nowrap hover:text-white [&_input[type='checkbox']]:cursor-pointer">
+      <label className="flex items-center gap-1.5 text-foreground text-[11px] cursor-pointer whitespace-nowrap hover:text-white [&_input[type='checkbox']]:cursor-pointer">
         <input type="checkbox" checked={filters.showReadHunks} onChange={handleShowReadToggle} />
         Show read
       </label>
@@ -138,7 +138,7 @@ export const ReviewControls: React.FC<ReviewControlsProps> = ({
 
       <div className="w-px h-4 bg-[#3e3e42]" />
 
-      <div className="py-1 px-2.5 rounded font-medium text-[11px] bg-transparent border border-transparent whitespace-nowrap text-[#888]">
+      <div className="py-1 px-2.5 rounded font-medium text-[11px] bg-transparent border border-transparent whitespace-nowrap text-muted">
         {stats.read} read / {stats.total} total
       </div>
     </div>

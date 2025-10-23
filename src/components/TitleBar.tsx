@@ -214,7 +214,7 @@ export function TitleBar() {
   const showUpdateIndicator = true;
 
   return (
-    <div className="px-4 py-2 bg-[#1e1e1e] border-b border-[#3c3c3c] flex items-center justify-between font-primary text-[11px] text-[#858585] select-none flex-shrink-0">
+    <div className="px-4 py-2 bg-bg-dark border-b border-[#3c3c3c] flex items-center justify-between font-primary text-[11px] text-[#858585] select-none flex-shrink-0">
       <div className="flex items-center gap-2 min-w-0 mr-4">
         {showUpdateIndicator && (
           <TooltipWrapper>

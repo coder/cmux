@@ -135,7 +135,7 @@ export const ProposePlanToolCall: React.FC<ProposePlanToolCallProps> = ({
                 )}
                 <button
                   onClick={() => void handleCopy()}
-                  className="px-2 py-1 text-[10px] font-mono text-[#888] bg-transparent rounded-sm cursor-pointer transition-all duration-150 active:translate-y-px hover:text-plan-mode"
+                  className="px-2 py-1 text-[10px] font-mono text-muted bg-transparent rounded-sm cursor-pointer transition-all duration-150 active:translate-y-px hover:text-plan-mode"
                   style={{
                     border: "1px solid rgba(136, 136, 136, 0.3)",
                   }}
@@ -199,7 +199,7 @@ export const ProposePlanToolCall: React.FC<ProposePlanToolCallProps> = ({
 
             {status === "completed" && (
               <div
-                className="mt-3 pt-3 text-[11px] text-[#888] italic leading-normal"
+                className="mt-3 pt-3 text-[11px] text-muted italic leading-normal"
                 style={{
                   borderTop:
                     "1px solid color-mix(in srgb, var(--color-plan-mode), transparent 80%)",

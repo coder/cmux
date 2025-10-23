@@ -127,7 +127,7 @@ export const UntrackedStatus: React.FC<UntrackedStatusProps> = ({
           "py-1 px-2.5 rounded font-medium text-[11px] whitespace-nowrap transition-all duration-200",
           hasUntracked
             ? "bg-[#3e2a00] border border-[#806000] text-[#ffb347] cursor-pointer hover:bg-[#4a3200] hover:border-[#a07000]"
-            : "bg-transparent border border-transparent text-[#888] cursor-default"
+            : "bg-transparent border border-transparent text-muted cursor-default"
         )}
         onClick={() => hasUntracked && setShowTooltip(!showTooltip)}
       >
@@ -135,8 +135,8 @@ export const UntrackedStatus: React.FC<UntrackedStatusProps> = ({
       </div>
 
       {showTooltip && hasUntracked && (
-        <div className="absolute top-[calc(100%+8px)] right-0 bg-[#2d2d30] border border-[#454545] rounded p-2 min-w-[200px] max-w-[400px] z-[1000] shadow-[0_4px_12px_rgba(0,0,0,0.3)] animate-in fade-in slide-in-from-top-1 duration-150">
-          <div className="text-[11px] font-semibold text-[#ccc] mb-2 pb-1.5 border-b border-[#3e3e42]">
+        <div className="absolute top-[calc(100%+8px)] right-0 bg-modal-bg border border-[#454545] rounded p-2 min-w-[200px] max-w-[400px] z-[1000] shadow-[0_4px_12px_rgba(0,0,0,0.3)] animate-in fade-in slide-in-from-top-1 duration-150">
+          <div className="text-[11px] font-semibold text-foreground mb-2 pb-1.5 border-b border-border-light">
             Untracked Files ({count})
           </div>
           <div className="max-h-[200px] overflow-y-auto mb-2">
@@ -153,8 +153,8 @@ export const UntrackedStatus: React.FC<UntrackedStatusProps> = ({
             onClick={() => void handleTrackAll()}
             disabled={isTracking}
             className={cn(
-              "w-full py-1 px-2 bg-transparent text-[#888] border border-[#444] rounded text-[11px] cursor-pointer transition-all duration-200 font-primary",
-              "hover:bg-[rgba(255,255,255,0.05)] hover:text-[#ccc] hover:border-[#666]",
+              "w-full py-1 px-2 bg-transparent text-muted border border-[#444] rounded text-[11px] cursor-pointer transition-all duration-200 font-primary",
+              "hover:bg-[rgba(255,255,255,0.05)] hover:text-foreground hover:border-[#666]",
               "active:bg-[rgba(255,255,255,0.1)]",
               "disabled:text-[#555] disabled:border-[#333] disabled:cursor-not-allowed disabled:bg-transparent"
             )}
