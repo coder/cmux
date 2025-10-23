@@ -132,4 +132,25 @@ describe("Browser API invokeIPC", () => {
       error: structuredError,
     });
   });
+
+  test("should handle failed Result without error property", async () => {
+    // This tests the fix for the force-deletion bug where results like
+    // { success: false } (without error property) weren't being passed through correctly
+    const mockFetch = createMockFetch({
+      success: false,
+    });
+
+    const invokeIPC = createInvokeIPC(mockFetch);
+
+    const result = await invokeIPC<{ success: boolean; error?: string }>(
+      "WORKSPACE_REMOVE",
+      "test-workspace",
+      { force: false }
+    );
+
+    // Should return the failure result as-is, even without error property
+    expect(result).toEqual({
+      success: false,
+    });
+  });
 });

@@ -36,8 +36,7 @@ class HttpIpcMainAdapter {
           result &&
           typeof result === "object" &&
           "success" in result &&
-          result.success === false &&
-          "error" in result
+          result.success === false
         ) {
           // Pass through failed Result to preserve error structure
           res.json(result);
