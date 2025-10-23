@@ -242,14 +242,7 @@ export const HelpIndicator: React.FC<{ className?: string; children?: React.Reac
   className,
   children,
 }) => (
-  <span
-    className={cn(
-      "text-text-dim text-[7px] cursor-help inline-block align-baseline",
-      "border border-border-subtle rounded-full w-2.5 h-[10px] leading-[8px]",
-      "text-center font-bold mb-[2px]",
-      className
-    )}
-  >
+  <span className={cn("text-muted flex cursor-help items-center text-[10px] leading-none", className)}>
     {children}
   </span>
 );
