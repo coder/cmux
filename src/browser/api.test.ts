@@ -153,5 +153,4 @@ describe("Browser API invokeIPC", () => {
       success: false,
     });
   });
-
 });
