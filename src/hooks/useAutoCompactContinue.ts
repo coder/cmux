@@ -81,11 +81,25 @@ export function useAutoCompactContinue() {
 
       // Build options and send message directly
       const options = buildSendMessageOptions(workspaceId);
-      window.api.workspace.sendMessage(workspaceId, continueMessage, options).catch((error) => {
-        console.error("Failed to send continue message:", error);
-        // If sending failed, remove from processed set to allow retry
-        processedMessageIds.current.delete(idForGuard);
-      });
+      void (async () => {
+        try {
+          const result = await window.api.workspace.sendMessage(
+            workspaceId,
+            continueMessage,
+            options
+          );
+          // Check if send failed (browser API returns error object, not throw)
+          if (!result.success && "error" in result) {
+            console.error("Failed to send continue message:", result.error);
+            // If sending failed, remove from processed set to allow retry
+            processedMessageIds.current.delete(idForGuard);
+          }
+        } catch (error) {
+          // Handle network/parsing errors (HTTP errors, etc.)
+          console.error("Failed to send continue message:", error);
+          processedMessageIds.current.delete(idForGuard);
+        }
+      })();
     }
   };
 

@@ -29,14 +29,10 @@ async function invokeIPC<T>(channel: string, ...args: unknown[]): Promise<T> {
 
   const result = (await response.json()) as InvokeResponse<T>;
 
+  // Return the result as-is - let the caller handle success/failure
+  // This matches the behavior of Electron's ipcRenderer.invoke() which doesn't throw on error
   if (!result.success) {
-    // Failed response - check if it's a structured error or simple string
-    if (typeof result.error === "object" && result.error !== null) {
-      // Structured error (e.g., SendMessageError) - return as Result<T, E> for caller to handle
-      return result as T;
-    }
-    // Simple string error - throw it
-    throw new Error(typeof result.error === "string" ? result.error : "Unknown error");
+    return result as T;
   }
 
   // Success - unwrap and return the data
