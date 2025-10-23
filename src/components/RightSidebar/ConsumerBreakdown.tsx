@@ -56,7 +56,7 @@ const ConsumerBreakdownComponent: React.FC<ConsumerBreakdownProps> = ({ consumer
                 </span>
               </div>
               <div className="flex flex-col gap-1">
-                <div className="w-full h-2 bg-[#2a2a2a] rounded overflow-hidden flex">
+                <div className="w-full h-2 bg-hover rounded overflow-hidden flex">
                   {consumer.fixedTokens && consumer.variableTokens ? (
                     <>
                       <div

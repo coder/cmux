@@ -532,7 +532,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
       tabIndex={0}
       onFocus={() => setIsPanelFocused(true)}
       onBlur={() => setIsPanelFocused(false)}
-      className="flex flex-col h-full min-h-0 bg-bg-dark [container-type:inline-size] [container-name:review-panel] outline-none focus-within:shadow-[inset_0_0_0_1px_rgba(0,122,204,0.2)]"
+      className="flex flex-col h-full min-h-0 bg-dark [container-type:inline-size] [container-name:review-panel] outline-none focus-within:shadow-[inset_0_0_0_1px_rgba(0,122,204,0.2)]"
     >
       {/* Always show controls so user can change diff base */}
       <ReviewControls
@@ -547,7 +547,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
       />
 
       {error ? (
-        <div className="p-6 text-[#f48771] bg-[#f48771]/10 border border-[#f48771]/30 rounded m-3 font-monospace text-xs leading-[1.5] whitespace-pre-wrap break-words">
+        <div className="p-6 text-danger-soft bg-danger-soft/10 border border-danger-soft/30 rounded m-3 font-monospace text-xs leading-[1.5] whitespace-pre-wrap break-words">
           {error}
         </div>
       ) : isLoadingHunks && hunks.length === 0 && !fileTree ? (
@@ -558,28 +558,28 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
         <div className="flex flex-row flex-1 min-h-0 overflow-hidden @[800px]:flex-col">
           <div className="flex-1 min-h-0 flex flex-col overflow-hidden min-w-0 order-1">
             {truncationWarning && (
-              <div className="bg-[#ffc107]/10 border border-[#ffc107]/30 rounded py-1.5 px-3 mx-3 my-3 text-[#ffc107] text-[10px] flex items-center gap-1.5 leading-[1.3] before:content-['⚠️'] before:text-xs">
+              <div className="bg-warning/10 border border-warning/30 rounded py-1.5 px-3 mx-3 my-3 text-warning text-[10px] flex items-center gap-1.5 leading-[1.3] before:content-['⚠️'] before:text-xs">
                 {truncationWarning}
               </div>
             )}
 
             <div className="py-2 px-3 border-b border-border-light bg-separator">
-              <div className="flex items-stretch border border-border-light rounded overflow-hidden bg-bg-dark transition-[border-color] duration-150 hover:border-[#4e4e52] focus-within:border-accent focus-within:hover:border-accent">
+              <div className="flex items-stretch border border-border-light rounded overflow-hidden bg-dark transition-[border-color] duration-150 hover:border-border-gray focus-within:border-accent focus-within:hover:border-accent">
                 <input
                   ref={searchInputRef}
                   type="text"
                   placeholder={`Search in files and hunks... (${formatKeybind(KEYBINDS.FOCUS_REVIEW_SEARCH)})`}
                   value={searchState.input}
                   onChange={(e) => setSearchState({ ...searchState, input: e.target.value })}
-                  className="flex-1 py-1.5 px-2.5 bg-transparent border-none text-foreground text-xs font-sans leading-[1.4] outline-none flex items-center h-full placeholder:text-text-dim focus:bg-[#1a1a1a]"
+                  className="flex-1 py-1.5 px-2.5 bg-transparent border-none text-foreground text-xs font-sans leading-[1.4] outline-none flex items-center h-full placeholder:text-text-dim focus:bg-separator"
                 />
                 <TooltipWrapper inline>
                   <button
                     className={cn(
                       "py-1.5 px-2.5 border-none border-l border-l-border-light text-[11px] font-monospace font-semibold leading-[1.4] cursor-pointer outline-none transition-all duration-150 whitespace-nowrap flex items-center h-full",
                       searchState.useRegex
-                        ? "bg-[#2a3a4a] text-[#4db8ff] shadow-[inset_0_0_0_1px_rgba(77,184,255,0.4)] hover:bg-[#2a4050] hover:text-[#4db8ff]"
-                        : "bg-transparent text-[#999] hover:bg-separator hover:text-foreground",
+                        ? "bg-review-bg-blue text-accent-light shadow-[inset_0_0_0_1px_rgba(77,184,255,0.4)] hover:bg-review-bg-info hover:text-accent-light"
+                        : "bg-transparent text-subtle hover:bg-separator hover:text-foreground",
                       "active:translate-y-px"
                     )}
                     onClick={() =>
@@ -597,8 +597,8 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
                     className={cn(
                       "py-1.5 px-2.5 border-none border-l border-l-border-light text-[11px] font-monospace font-semibold leading-[1.4] cursor-pointer outline-none transition-all duration-150 whitespace-nowrap flex items-center h-full",
                       searchState.matchCase
-                        ? "bg-[#2a3a4a] text-[#4db8ff] shadow-[inset_0_0_0_1px_rgba(77,184,255,0.4)] hover:bg-[#2a4050] hover:text-[#4db8ff]"
-                        : "bg-transparent text-[#999] hover:bg-separator hover:text-foreground",
+                        ? "bg-review-bg-blue text-accent-light shadow-[inset_0_0_0_1px_rgba(77,184,255,0.4)] hover:bg-review-bg-info hover:text-accent-light"
+                        : "bg-transparent text-subtle hover:bg-separator hover:text-foreground",
                       "active:translate-y-px"
                     )}
                     onClick={() =>

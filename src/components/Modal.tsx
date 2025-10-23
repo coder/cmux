@@ -28,7 +28,7 @@ export const ModalContent: React.FC<
 > = ({ children, maxWidth = "500px", maxHeight, className, ...props }) => (
   <div
     className={cn(
-      "bg-bg-dark rounded-lg p-6 w-[90%] flex flex-col shadow-lg border border-[#333]",
+      "bg-dark rounded-lg p-6 w-[90%] flex flex-col shadow-lg border border-border",
       "[&_h2]:mt-0 [&_h2]:mb-2 [&_h2]:text-white",
       className
     )}
@@ -57,9 +57,9 @@ export const ModalInfo: React.FC<{
   <div
     id={id}
     className={cn(
-      "bg-modal-bg border border-[#444] rounded p-3 mb-5 text-[13px]",
+      "bg-modal-bg border border-border-medium rounded p-3 mb-5 text-[13px]",
       "[&_p]:m-0 [&_p]:mb-2 [&_p]:text-muted [&_p:last-child]:mb-0",
-      "[&_code]:text-[#569cd6] [&_code]:font-mono",
+      "[&_code]:text-accent [&_code]:font-mono",
       className
     )}
   >
@@ -143,7 +143,10 @@ export const Button: React.FC<ButtonProps> = ({ children, className, ...props })
 
 export const CancelButton: React.FC<ButtonProps> = ({ children, className, ...props }) => (
   <Button
-    className={cn("bg-[#444] text-foreground hover:bg-[#555] disabled:hover:bg-[#444]", className)}
+    className={cn(
+      "bg-border-medium text-foreground hover:bg-border-darker disabled:hover:bg-border-medium",
+      className
+    )}
     {...props}
   >
     {children}

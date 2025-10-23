@@ -69,7 +69,7 @@ const CostsTabComponent: React.FC<CostsTabProps> = ({ workspaceId }) => {
   // Only show empty state if truly no data anywhere
   if (!hasAnyData) {
     return (
-      <div className="text-text-light font-primary text-[13px] leading-relaxed">
+      <div className="text-light font-primary text-[13px] leading-relaxed">
         <div className="text-secondary text-center py-10 px-5">
           <p>No messages yet.</p>
           <p>Send a message to see token usage statistics.</p>
@@ -90,7 +90,7 @@ const CostsTabComponent: React.FC<CostsTabProps> = ({ workspaceId }) => {
       : sumUsageHistory(usage.usageHistory);
 
   return (
-    <div className="text-text-light font-primary text-[13px] leading-relaxed">
+    <div className="text-light font-primary text-[13px] leading-relaxed">
       {hasUsageData && (
         <div data-testid="context-usage-section" className="mt-2 mb-5">
           <div data-testid="context-usage-list" className="flex flex-col gap-3">
@@ -173,7 +173,7 @@ const CostsTabComponent: React.FC<CostsTabProps> = ({ workspaceId }) => {
                       </span>
                     </div>
                     <div className="relative w-full">
-                      <div className="w-full h-1.5 bg-[#3e3e42] rounded-[3px] overflow-hidden flex">
+                      <div className="w-full h-1.5 bg-border-light rounded-[3px] overflow-hidden flex">
                         {cachedPercentage > 0 && (
                           <div
                             className="h-full transition-[width] duration-300"
@@ -219,7 +219,7 @@ const CostsTabComponent: React.FC<CostsTabProps> = ({ workspaceId }) => {
                     </div>
                   </div>
                   {showWarning && (
-                    <div className="text-[#999999] text-[11px] mt-2 italic">
+                    <div className="text-subtle text-[11px] mt-2 italic">
                       Unknown model limits - showing relative usage only
                     </div>
                   )}
@@ -362,7 +362,7 @@ const CostsTabComponent: React.FC<CostsTabProps> = ({ workspaceId }) => {
                         </span>
                       </div>
                       <div className="relative w-full">
-                        <div className="w-full h-1.5 bg-[#3e3e42] rounded-[3px] overflow-hidden flex">
+                        <div className="w-full h-1.5 bg-border-light rounded-[3px] overflow-hidden flex">
                           {cachedCostPercentage > 0 && (
                             <div
                               className="h-full transition-[width] duration-300"
@@ -467,7 +467,7 @@ const CostsTabComponent: React.FC<CostsTabProps> = ({ workspaceId }) => {
       )}
 
       <div className="mb-6">
-        <h3 className="text-[#999999] text-sm font-semibold m-0 mb-3 uppercase tracking-wide">
+        <h3 className="text-subtle text-sm font-semibold m-0 mb-3 uppercase tracking-wide">
           Breakdown by Consumer
         </h3>
         <ConsumerBreakdown consumers={consumers} />

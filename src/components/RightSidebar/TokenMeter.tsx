@@ -19,7 +19,7 @@ const TokenMeterComponent: React.FC<TokenMeterProps> = ({
   return (
     <div
       className={cn(
-        "bg-[#3e3e42] overflow-hidden flex",
+        "bg-border-light overflow-hidden flex",
         orientation === "horizontal"
           ? "rounded w-full h-1.5 flex-row"
           : "rounded-[4px] w-2 h-full flex-col",

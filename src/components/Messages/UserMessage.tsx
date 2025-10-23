@@ -121,7 +121,7 @@ export const UserMessage: React.FC<UserMessageProps> = ({
       className={className}
     >
       {content && (
-        <pre className="m-0 font-mono text-xs leading-4 whitespace-pre-wrap break-words text-[#999999] opacity-90">
+        <pre className="m-0 font-mono text-xs leading-4 whitespace-pre-wrap break-words text-subtle opacity-90">
           {content}
         </pre>
       )}

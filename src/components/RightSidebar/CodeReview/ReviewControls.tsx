@@ -93,7 +93,7 @@ export const ReviewControls: React.FC<ReviewControlsProps> = ({
         onBlur={handleBaseBlur}
         onKeyDown={handleBaseKeyDown}
         placeholder="HEAD, main, etc."
-        className="py-1 px-2 bg-bg-dark text-foreground border border-[#444] rounded text-[11px] font-mono w-[140px] transition-[border-color] duration-200 hover:border-accent focus:outline-none focus:border-accent placeholder:text-text-dim"
+        className="py-1 px-2 bg-dark text-foreground border border-border-medium rounded text-[11px] font-mono w-[140px] transition-[border-color] duration-200 hover:border-accent focus:outline-none focus:border-accent placeholder:text-text-dim"
       />
       <datalist id="base-suggestions">
         <option value="HEAD" />
@@ -109,7 +109,7 @@ export const ReviewControls: React.FC<ReviewControlsProps> = ({
       {showSetDefault && (
         <button
           onClick={handleSetDefault}
-          className="py-0.5 px-2 bg-transparent text-muted border-none rounded text-[11px] cursor-pointer transition-all duration-200 font-primary whitespace-nowrap hover:bg-[rgba(255,255,255,0.05)] hover:text-foreground"
+          className="py-0.5 px-2 bg-transparent text-muted border-none rounded text-[11px] cursor-pointer transition-all duration-200 font-primary whitespace-nowrap hover:bg-white-overlay-light hover:text-foreground"
         >
           Set Default
         </button>
@@ -136,7 +136,7 @@ export const ReviewControls: React.FC<ReviewControlsProps> = ({
         onRefresh={onRefresh}
       />
 
-      <div className="w-px h-4 bg-[#3e3e42]" />
+      <div className="w-px h-4 bg-border-light" />
 
       <div className="py-1 px-2.5 rounded font-medium text-[11px] bg-transparent border border-transparent whitespace-nowrap text-muted">
         {stats.read} read / {stats.total} total

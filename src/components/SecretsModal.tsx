@@ -155,7 +155,7 @@ const SecretsModal: React.FC<SecretsModalProps> = ({
                   onChange={(e) => updateSecret(index, "key", e.target.value)}
                   placeholder="SECRET_NAME"
                   disabled={isLoading}
-                  className="py-1.5 px-2.5 bg-modal-bg border border-[#444] rounded text-white text-[13px] font-mono w-full focus:outline-none focus:border-accent placeholder:text-text-dim"
+                  className="py-1.5 px-2.5 bg-modal-bg border border-border-medium rounded text-white text-[13px] font-mono w-full focus:outline-none focus:border-accent placeholder:text-text-dim"
                 />
                 <input
                   type={visibleSecrets.has(index) ? "text" : "password"}
@@ -163,7 +163,7 @@ const SecretsModal: React.FC<SecretsModalProps> = ({
                   onChange={(e) => updateSecret(index, "value", e.target.value)}
                   placeholder="secret value"
                   disabled={isLoading}
-                  className="py-1.5 px-2.5 bg-modal-bg border border-[#444] rounded text-white text-[13px] font-mono w-full focus:outline-none focus:border-accent placeholder:text-text-dim"
+                  className="py-1.5 px-2.5 bg-modal-bg border border-border-medium rounded text-white text-[13px] font-mono w-full focus:outline-none focus:border-accent placeholder:text-text-dim"
                 />
                 <button
                   type="button"
@@ -177,7 +177,7 @@ const SecretsModal: React.FC<SecretsModalProps> = ({
                   type="button"
                   onClick={() => removeSecret(index)}
                   disabled={isLoading}
-                  className="py-1.5 px-2.5 bg-transparent text-[#ff5555] border border-[#ff5555] rounded cursor-pointer text-[13px] transition-all duration-200 hover:bg-[#ff5555]/10"
+                  className="py-1.5 px-2.5 bg-transparent text-danger-light border border-danger-light rounded cursor-pointer text-[13px] transition-all duration-200 hover:bg-danger-light/10"
                 >
                   ×
                 </button>
@@ -190,7 +190,7 @@ const SecretsModal: React.FC<SecretsModalProps> = ({
       <button
         onClick={addSecret}
         disabled={isLoading}
-        className="w-full py-2 px-3 bg-transparent text-muted border border-dashed border-[#444] rounded cursor-pointer text-[13px] transition-all duration-200 mb-4 hover:bg-bg-hover hover:border-[#555] hover:text-foreground"
+        className="w-full py-2 px-3 bg-transparent text-muted border border-dashed border-border-medium rounded cursor-pointer text-[13px] transition-all duration-200 mb-4 hover:bg-hover hover:border-border-darker hover:text-foreground"
       >
         + Add Secret
       </button>

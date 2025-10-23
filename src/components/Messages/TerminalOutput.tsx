@@ -17,7 +17,7 @@ export const TerminalOutput: React.FC<TerminalOutputProps> = ({
       className={cn(
         "m-0 p-2 bg-black/30 rounded-sm font-mono text-[11px] leading-relaxed",
         "overflow-x-auto max-h-[300px] overflow-y-auto whitespace-pre-wrap break-all",
-        isError ? "text-[#f48771]" : "text-text-light",
+        isError ? "text-danger-soft" : "text-light",
         className
       )}
     >

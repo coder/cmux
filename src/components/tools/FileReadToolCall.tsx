@@ -96,7 +96,7 @@ export const FileReadToolCall: React.FC<FileReadToolCallProps> = ({
       {expanded && (
         <ToolDetails>
           <DetailSection>
-            <div className="flex flex-wrap gap-4 px-2 py-1.5 bg-[var(--color-code-bg)] rounded text-[11px] leading-[1.4]">
+            <div className="flex flex-wrap gap-4 px-2 py-1.5 bg-code-bg rounded text-[11px] leading-[1.4]">
               <div className="flex gap-1.5">
                 <span className="text-secondary font-medium">Path:</span>
                 <span className="text-text font-monospace break-all">{args.filePath}</span>
@@ -121,7 +121,7 @@ export const FileReadToolCall: React.FC<FileReadToolCallProps> = ({
               {result.success === false && result.error && (
                 <DetailSection>
                   <DetailLabel>Error</DetailLabel>
-                  <div className="text-danger text-[11px] px-2 py-1.5 bg-[rgba(244,67,54,0.1)] rounded border-l-2 border-[#f44336]">
+                  <div className="text-danger text-[11px] px-2 py-1.5 bg-danger-overlay rounded border-l-2 border-danger">
                     {result.error}
                   </div>
                 </DetailSection>
@@ -130,7 +130,7 @@ export const FileReadToolCall: React.FC<FileReadToolCallProps> = ({
               {result.success && result.content && parsedContent && (
                 <DetailSection>
                   <DetailLabel>Content</DetailLabel>
-                  <div className="m-0 px-2 py-1.5 bg-[var(--color-code-bg)] rounded text-[11px] leading-[1.4] max-h-[200px] overflow-y-auto flex">
+                  <div className="m-0 px-2 py-1.5 bg-code-bg rounded text-[11px] leading-[1.4] max-h-[200px] overflow-y-auto flex">
                     <div className="text-secondary opacity-40 pr-3 mr-2 border-r border-white/10 select-none text-right min-w-[40px] font-monospace">
                       {parsedContent.lineNumbers.map((lineNum, i) => (
                         <div key={i}>{lineNum}</div>

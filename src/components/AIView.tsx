@@ -245,12 +245,12 @@ const AIViewInner: React.FC<AIViewProps> = ({
     return (
       <div
         className={cn(
-          "flex flex-1 flex-row bg-bg-dark text-text-light overflow-x-auto overflow-y-hidden [@media(max-width:768px)]:flex-col",
+          "flex flex-1 flex-row bg-dark text-light overflow-x-auto overflow-y-hidden [@media(max-width:768px)]:flex-col",
           className
         )}
         style={{ containerType: "inline-size" }}
       >
-        <div className="flex-1 flex flex-col items-center justify-center h-full text-[#6b6b6b] text-center">
+        <div className="flex-1 flex flex-col items-center justify-center h-full text-placeholder text-center">
           <h3 className="m-0 mb-2.5 text-base font-medium">Loading workspace...</h3>
         </div>
       </div>
@@ -286,12 +286,12 @@ const AIViewInner: React.FC<AIViewProps> = ({
     return (
       <div
         className={cn(
-          "flex flex-1 flex-row bg-bg-dark text-text-light overflow-x-auto overflow-y-hidden [@media(max-width:768px)]:flex-col",
+          "flex flex-1 flex-row bg-dark text-light overflow-x-auto overflow-y-hidden [@media(max-width:768px)]:flex-col",
           className
         )}
         style={{ containerType: "inline-size" }}
       >
-        <div className="flex-1 flex flex-col items-center justify-center h-full text-[#6b6b6b] text-center">
+        <div className="flex-1 flex flex-col items-center justify-center h-full text-placeholder text-center">
           <h3 className="m-0 mb-2.5 text-base font-medium">Loading workspace...</h3>
         </div>
       </div>
@@ -302,12 +302,12 @@ const AIViewInner: React.FC<AIViewProps> = ({
     return (
       <div
         className={cn(
-          "flex flex-1 flex-row bg-bg-dark text-text-light overflow-x-auto overflow-y-hidden [@media(max-width:768px)]:flex-col",
+          "flex flex-1 flex-row bg-dark text-light overflow-x-auto overflow-y-hidden [@media(max-width:768px)]:flex-col",
           className
         )}
         style={{ containerType: "inline-size" }}
       >
-        <div className="flex-1 flex flex-col items-center justify-center h-full text-[#6b6b6b] text-center">
+        <div className="flex-1 flex flex-col items-center justify-center h-full text-placeholder text-center">
           <h3 className="m-0 mb-2.5 text-base font-medium">No Workspace Selected</h3>
           <p className="m-0 text-[13px]">
             Select a workspace from the sidebar to view and interact with Claude
@@ -320,7 +320,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
   return (
     <div
       className={cn(
-        "flex flex-1 flex-row bg-bg-dark text-text-light overflow-x-auto overflow-y-hidden [@media(max-width:768px)]:flex-col",
+        "flex flex-1 flex-row bg-dark text-light overflow-x-auto overflow-y-hidden [@media(max-width:768px)]:flex-col",
         className
       )}
       style={{ containerType: "inline-size" }}
@@ -378,7 +378,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
             className="h-full overflow-y-auto p-[15px] whitespace-pre-wrap break-words leading-[1.5]"
           >
             {mergedMessages.length === 0 ? (
-              <div className="flex-1 flex flex-col items-center justify-center h-full text-[#6b6b6b] text-center [&_h3]:m-0 [&_h3]:mb-2.5 [&_h3]:text-base [&_h3]:font-medium [&_p]:m-0 [&_p]:text-[13px]">
+              <div className="flex-1 flex flex-col items-center justify-center h-full text-placeholder text-center [&_h3]:m-0 [&_h3]:mb-2.5 [&_h3]:text-base [&_h3]:font-medium [&_p]:m-0 [&_p]:text-[13px]">
                 <h3>No Messages Yet</h3>
                 <p>Send a message below to begin</p>
               </div>

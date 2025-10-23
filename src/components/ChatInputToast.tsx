@@ -3,8 +3,8 @@ import React, { useEffect, useCallback } from "react";
 import { cn } from "@/lib/utils";
 
 const toastTypeStyles: Record<"success" | "error", string> = {
-  success: "bg-[#0e639c20] border border-[#0e639c] text-[#3794ff]",
-  error: "bg-[#f1483620] border border-[#f14836] text-[#f14836]",
+  success: "bg-toast-success-bg border border-accent-dark text-toast-success-text",
+  error: "bg-toast-error-bg border border-toast-error-border text-toast-error-text",
 };
 
 export interface Toast {
@@ -22,7 +22,7 @@ interface ChatInputToastProps {
 }
 
 export const SolutionLabel: React.FC<{ children: ReactNode }> = ({ children }) => (
-  <div className="text-[#808080] text-[10px] mb-1 uppercase">{children}</div>
+  <div className="text-muted-light text-[10px] mb-1 uppercase">{children}</div>
 );
 
 export const ChatInputToast: React.FC<ChatInputToastProps> = ({ toast, onDismiss }) => {
@@ -65,15 +65,15 @@ export const ChatInputToast: React.FC<ChatInputToastProps> = ({ toast, onDismiss
         <div
           role="alert"
           aria-live="assertive"
-          className="bg-[#2d1f1f] border border-[#5a2c2c] rounded px-3 py-2.5 text-xs text-[#f48771] animate-[toastSlideIn_0.2s_ease-out] shadow-[0_4px_12px_rgba(0,0,0,0.3)]"
+          className="bg-toast-fatal-bg border border-toast-fatal-border rounded px-3 py-2.5 text-xs text-danger-soft animate-[toastSlideIn_0.2s_ease-out] shadow-[0_4px_12px_rgba(0,0,0,0.3)]"
         >
           <div className="flex items-start gap-1.5">
             <span className="text-sm leading-none">⚠</span>
             <div className="flex-1">
               {toast.title && <div className="font-semibold mb-1.5">{toast.title}</div>}
-              <div className="text-text-light leading-[1.4] mt-1.5">{toast.message}</div>
+              <div className="text-light leading-[1.4] mt-1.5">{toast.message}</div>
               {toast.solution && (
-                <div className="bg-bg-dark rounded px-2 py-1.5 mt-2 font-monospace text-[11px] text-[#9cdcfe]">
+                <div className="bg-dark rounded px-2 py-1.5 mt-2 font-monospace text-[11px] text-code-type">
                   {toast.solution}
                 </div>
               )}

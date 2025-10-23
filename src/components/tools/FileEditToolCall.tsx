@@ -83,7 +83,7 @@ function renderDiff(
     ));
   } catch (error) {
     return (
-      <div className="text-danger text-[11px] px-2 py-1.5 bg-[rgba(244,67,54,0.1)] rounded border-l-2 border-[#f44336]">
+      <div className="text-danger text-[11px] px-2 py-1.5 bg-danger-overlay rounded border-l-2 border-danger">
         Failed to parse diff: {String(error)}
       </div>
     );
@@ -164,7 +164,7 @@ export const FileEditToolCall: React.FC<FileEditToolCallProps> = ({
               {result.success === false && result.error && (
                 <DetailSection>
                   <DetailLabel>Error</DetailLabel>
-                  <div className="text-danger text-[11px] px-2 py-1.5 bg-[rgba(244,67,54,0.1)] rounded border-l-2 border-[#f44336]">
+                  <div className="text-danger text-[11px] px-2 py-1.5 bg-danger-overlay rounded border-l-2 border-danger">
                     {result.error}
                   </div>
                 </DetailSection>
