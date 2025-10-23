@@ -119,6 +119,7 @@ Verify with React DevTools Profiler - MarkdownCore should only re-render when co
   - Use standard markdown + mermaid diagrams
 - **Developer docs** → inline with the code its documenting as comments. Consider them notes as notes to future Assistants to understand the logic more quickly.
   **DO NOT** create standalone documentation files in the project root or random locations.
+- **Test documentation** → inline comments in test files explaining complex test setup or edge cases, NOT separate README files.
 
 **NEVER create markdown documentation files (README, guides, summaries, etc.) in the project root during feature development unless the user explicitly requests documentation.** Code + tests + inline comments are complete documentation.
 
