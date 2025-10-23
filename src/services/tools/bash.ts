@@ -78,7 +78,7 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
     inputSchema: TOOL_DEFINITIONS.bash.schema,
     execute: async ({ script, timeout_secs }, { abortSignal }): Promise<BashToolResult> => {
       // Validate script is not empty - likely indicates a malformed tool call
-      // eslint-disable-next-line @typescript-eslint/prefer-optional-chain
+       
       if (!script || script.trim().length === 0) {
         return {
           success: false,
