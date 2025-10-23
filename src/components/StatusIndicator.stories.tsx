@@ -3,6 +3,7 @@ import { action } from "@storybook/addon-actions";
 import { expect, userEvent, waitFor } from "@storybook/test";
 import { StatusIndicator } from "./StatusIndicator";
 import { useArgs } from "storybook/internal/preview-api";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 const meta = {
   title: "Components/StatusIndicator",
@@ -28,6 +29,13 @@ const meta = {
       description: "Size of the indicator in pixels",
     },
   },
+  decorators: [
+    (Story) => (
+      <TooltipProvider>
+        <Story />
+      </TooltipProvider>
+    ),
+  ],
 } satisfies Meta<typeof StatusIndicator>;
 
 export default meta;
