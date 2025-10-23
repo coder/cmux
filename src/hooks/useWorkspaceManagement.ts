@@ -117,27 +117,33 @@ export function useWorkspaceManagement({
       workspaceId: string,
       options?: { force?: boolean }
     ): Promise<{ success: boolean; error?: string }> => {
-      const result = await window.api.workspace.remove(workspaceId, options);
-      if (result.success) {
-        // Clean up workspace-specific localStorage keys
-        deleteWorkspaceStorage(workspaceId);
+      try {
+        const result = await window.api.workspace.remove(workspaceId, options);
+        if (result.success) {
+          // Clean up workspace-specific localStorage keys
+          deleteWorkspaceStorage(workspaceId);
 
-        // Backend has already updated the config - reload projects to get updated state
-        const projectsList = await window.api.projects.list();
-        const loadedProjects = new Map<string, ProjectConfig>(projectsList);
-        onProjectsUpdate(loadedProjects);
+          // Backend has already updated the config - reload projects to get updated state
+          const projectsList = await window.api.projects.list();
+          const loadedProjects = new Map<string, ProjectConfig>(projectsList);
+          onProjectsUpdate(loadedProjects);
 
-        // Reload workspace metadata
-        await loadWorkspaceMetadata();
+          // Reload workspace metadata
+          await loadWorkspaceMetadata();
 
-        // Clear selected workspace if it was removed
-        if (selectedWorkspace?.workspaceId === workspaceId) {
-          onSelectedWorkspaceUpdate(null);
+          // Clear selected workspace if it was removed
+          if (selectedWorkspace?.workspaceId === workspaceId) {
+            onSelectedWorkspaceUpdate(null);
+          }
+          return { success: true };
+        } else {
+          console.error("Failed to remove workspace:", result.error);
+          return { success: false, error: result.error };
         }
-        return { success: true };
-      } else {
-        console.error("Failed to remove workspace:", result.error);
-        return { success: false, error: result.error };
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error("Failed to remove workspace:", errorMessage);
+        return { success: false, error: errorMessage };
       }
     },
     [loadWorkspaceMetadata, onProjectsUpdate, onSelectedWorkspaceUpdate, selectedWorkspace]
@@ -145,35 +151,41 @@ export function useWorkspaceManagement({
 
   const renameWorkspace = useCallback(
     async (workspaceId: string, newName: string): Promise<{ success: boolean; error?: string }> => {
-      const result = await window.api.workspace.rename(workspaceId, newName);
-      if (result.success) {
-        // Backend has already updated the config - reload projects to get updated state
-        const projectsList = await window.api.projects.list();
-        const loadedProjects = new Map<string, ProjectConfig>(projectsList);
-        onProjectsUpdate(loadedProjects);
+      try {
+        const result = await window.api.workspace.rename(workspaceId, newName);
+        if (result.success) {
+          // Backend has already updated the config - reload projects to get updated state
+          const projectsList = await window.api.projects.list();
+          const loadedProjects = new Map<string, ProjectConfig>(projectsList);
+          onProjectsUpdate(loadedProjects);
 
-        // Reload workspace metadata
-        await loadWorkspaceMetadata();
+          // Reload workspace metadata
+          await loadWorkspaceMetadata();
 
-        // Update selected workspace if it was renamed
-        if (selectedWorkspace?.workspaceId === workspaceId) {
-          const newWorkspaceId = result.data.newWorkspaceId;
+          // Update selected workspace if it was renamed
+          if (selectedWorkspace?.workspaceId === workspaceId) {
+            const newWorkspaceId = result.data.newWorkspaceId;
 
-          // Get updated workspace metadata from backend
-          const newMetadata = await window.api.workspace.getInfo(newWorkspaceId);
-          if (newMetadata) {
-            onSelectedWorkspaceUpdate({
-              projectPath: selectedWorkspace.projectPath,
-              projectName: newMetadata.projectName,
-              namedWorkspacePath: newMetadata.namedWorkspacePath,
-              workspaceId: newWorkspaceId,
-            });
+            // Get updated workspace metadata from backend
+            const newMetadata = await window.api.workspace.getInfo(newWorkspaceId);
+            if (newMetadata) {
+              onSelectedWorkspaceUpdate({
+                projectPath: selectedWorkspace.projectPath,
+                projectName: newMetadata.projectName,
+                namedWorkspacePath: newMetadata.namedWorkspacePath,
+                workspaceId: newWorkspaceId,
+              });
+            }
           }
+          return { success: true };
+        } else {
+          console.error("Failed to rename workspace:", result.error);
+          return { success: false, error: result.error };
         }
-        return { success: true };
-      } else {
-        console.error("Failed to rename workspace:", result.error);
-        return { success: false, error: result.error };
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error("Failed to rename workspace:", errorMessage);
+        return { success: false, error: errorMessage };
       }
     },
     [loadWorkspaceMetadata, onProjectsUpdate, onSelectedWorkspaceUpdate, selectedWorkspace]
