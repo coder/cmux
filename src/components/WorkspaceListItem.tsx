@@ -195,7 +195,7 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
           />
         ) : (
           <span
-            className="text-[#ccc] whitespace-nowrap overflow-hidden text-ellipsis cursor-pointer px-1 py-0.5 rounded-sm transition-colors duration-200 min-w-0 text-right hover:bg-white/5"
+            className="text-[#ccc] text-[14px] whitespace-nowrap overflow-hidden text-ellipsis cursor-pointer px-1 py-0.5 rounded-sm transition-colors duration-200 min-w-0 text-right hover:bg-white/5"
             onDoubleClick={(e) => {
               e.stopPropagation();
               startRenaming();

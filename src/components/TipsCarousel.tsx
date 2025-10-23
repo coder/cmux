@@ -80,7 +80,7 @@ export const TipsCarousel: React.FC = () => {
       <span className="tip-label font-medium text-[color-mix(in_srgb,var(--color-text-secondary),transparent_20%)] transition-colors duration-300">
         Tip:
       </span>
-      <span className="tip-content text-text-secondary transition-colors duration-300">
+      <span className="tip-content text-secondary transition-colors duration-300">
         {TIPS[currentTipIndex]?.content}
       </span>
     </div>

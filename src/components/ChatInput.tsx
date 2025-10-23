@@ -704,7 +704,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
   return (
     <div
-      className="relative pt-[5px] px-[15px] pb-[15px] bg-[#252526] border-t border-[#3e3e42] flex flex-col gap-2"
+      className="relative pt-[5px] px-[15px] pb-[15px] bg-[#252526] border-t border-[#3e3e42] flex flex-col gap-1"
       style={{ containerType: "inline-size" }}
       data-component="ChatInputSection"
     >
@@ -792,8 +792,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             >
               <ToggleGroup<UIMode>
                 options={[
-                  { value: "exec", label: "Exec" },
-                  { value: "plan", label: "Plan" },
+                  { value: "exec", label: "Exec", activeClassName: "bg-exec-mode text-white" },
+                  { value: "plan", label: "Plan", activeClassName: "bg-plan-mode text-white" },
                 ]}
                 value={mode}
                 onChange={setMode}

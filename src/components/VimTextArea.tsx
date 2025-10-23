@@ -190,7 +190,7 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
             )}
           </div>
           {showFocusHint && (
-            <div className="flex items-center gap-1 ml-auto">
+            <div className="flex items-center gap-1 ml-auto font-mono">
               <span>{formatKeybind(KEYBINDS.FOCUS_CHAT)} to focus</span>
             </div>
           )}
@@ -209,7 +209,7 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
             autoComplete="off"
             {...rest}
             className={cn(
-              "w-full border text-[#d4d4d4] py-1.5 px-2 rounded font-inherit text-[13px] resize-none min-h-8 max-h-[50vh] overflow-y-auto",
+              "w-full border text-[#d4d4d4] py-1.5 px-2 rounded font-mono text-[13px] resize-none min-h-8 max-h-[50vh] overflow-y-auto",
               "placeholder:text-[#6b6b6b]",
               "focus:outline-none",
               isEditing

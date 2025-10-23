@@ -73,13 +73,13 @@ export const MessageWindow: React.FC<MessageWindowProps> = ({
       >
         <div className="flex items-baseline gap-3 min-w-0 flex-1" data-message-header-left>
           <div
-            className="inline-flex items-baseline uppercase tracking-wider whitespace-nowrap overflow-hidden min-w-0"
+            className="font-mono inline-flex items-baseline uppercase tracking-wider whitespace-nowrap overflow-hidden min-w-0"
             data-message-type-label
           >
             {label}
           </div>
           {formattedTimestamp && (
-            <span className="text-[10px] text-text-secondary font-normal" data-message-timestamp>
+            <span className="text-[10px] font-normal font-mono opacity-50" data-message-timestamp>
               {formattedTimestamp}
             </span>
           )}

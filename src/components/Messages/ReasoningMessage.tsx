@@ -72,7 +72,7 @@ export const ReasoningMessage: React.FC<ReasoningMessageProps> = ({ message, cla
       </div>
 
       {isExpanded && (
-        <div className="font-primary text-xs leading-6 text-text-secondary italic opacity-85 [&_p]:mb-1 [&_p]:mt-0 [&_p:last-child]:mb-0">
+        <div className="font-primary text-sm leading-6 italic opacity-85 [&_p]:mb-1 [&_p]:mt-0 [&_p:last-child]:mb-0">
           {renderContent()}
         </div>
       )}

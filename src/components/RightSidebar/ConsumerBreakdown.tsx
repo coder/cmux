@@ -12,7 +12,7 @@ interface ConsumerBreakdownProps {
 
 const ConsumerBreakdownComponent: React.FC<ConsumerBreakdownProps> = ({ consumers }) => {
   if (consumers.isCalculating) {
-    return <div className="text-text-secondary italic py-3">Calculating consumer breakdown...</div>;
+    return <div className="text-secondary italic py-3">Calculating consumer breakdown...</div>;
   }
 
   if (consumers.consumers.length === 0) {

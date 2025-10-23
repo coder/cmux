@@ -133,7 +133,7 @@ export const FileEditToolCall: React.FC<FileEditToolCallProps> = ({
 
   return (
     <ToolContainer expanded={expanded}>
-      <ToolHeader className="cursor-default hover:text-text-secondary">
+      <ToolHeader className="cursor-default hover:text-secondary">
         <div
           onClick={toggleExpanded}
           className="flex items-center gap-2 flex-1 cursor-pointer hover:text-text"
@@ -184,7 +184,7 @@ export const FileEditToolCall: React.FC<FileEditToolCallProps> = ({
 
           {status === "executing" && !result && (
             <DetailSection>
-              <div className="text-[11px] text-text-secondary">
+              <div className="text-[11px] text-secondary">
                 Waiting for result
                 <LoadingDots />
               </div>

@@ -342,7 +342,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
               workspaceId={workspaceId}
               tooltipPosition="bottom"
             />
-            <span className="whitespace-nowrap overflow-hidden text-ellipsis min-w-0">
+            <span className="font-mono text-xs whitespace-nowrap overflow-hidden text-ellipsis min-w-0">
               {projectName} / {branch}
             </span>
             <span className="font-mono text-[#888] font-normal text-[11px] whitespace-nowrap overflow-hidden text-ellipsis min-w-0">

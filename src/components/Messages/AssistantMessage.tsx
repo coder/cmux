@@ -90,7 +90,7 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({
     // Empty streaming state
     if (isStreaming && !content) {
       return (
-        <div className="font-primary text-[13px] text-text-secondary italic">
+        <div className="font-primary text-[13px] text-secondary italic">
           Waiting for response...
         </div>
       );

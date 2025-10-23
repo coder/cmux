@@ -70,7 +70,7 @@ const CostsTabComponent: React.FC<CostsTabProps> = ({ workspaceId }) => {
   if (!hasAnyData) {
     return (
       <div className="text-[#d4d4d4] font-primary text-[13px] leading-relaxed">
-        <div className="text-text-secondary text-center py-10 px-5">
+        <div className="text-secondary text-center py-10 px-5">
           <p>No messages yet.</p>
           <p>Send a message to see token usage statistics.</p>
         </div>

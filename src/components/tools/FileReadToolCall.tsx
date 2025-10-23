@@ -86,7 +86,7 @@ export const FileReadToolCall: React.FC<FileReadToolCallProps> = ({
           {filePath}
         </span>
         {result && result.success && parsedContent && (
-          <span className="text-text-secondary text-[10px] ml-2">
+          <span className="text-secondary text-[10px] ml-2">
             read {formatBytes(parsedContent.actualBytes)} of {formatBytes(result.file_size)}
           </span>
         )}
@@ -98,18 +98,18 @@ export const FileReadToolCall: React.FC<FileReadToolCallProps> = ({
           <DetailSection>
             <div className="flex flex-wrap gap-4 px-2 py-1.5 bg-[var(--color-code-bg)] rounded text-[11px] leading-[1.4]">
               <div className="flex gap-1.5">
-                <span className="text-text-secondary font-medium">Path:</span>
+                <span className="text-secondary font-medium">Path:</span>
                 <span className="text-text font-monospace break-all">{args.filePath}</span>
               </div>
               {args.offset !== undefined && (
                 <div className="flex gap-1.5">
-                  <span className="text-text-secondary font-medium">Offset:</span>
+                  <span className="text-secondary font-medium">Offset:</span>
                   <span className="text-text font-monospace break-all">line {args.offset}</span>
                 </div>
               )}
               {args.limit !== undefined && (
                 <div className="flex gap-1.5">
-                  <span className="text-text-secondary font-medium">Limit:</span>
+                  <span className="text-secondary font-medium">Limit:</span>
                   <span className="text-text font-monospace break-all">{args.limit} lines</span>
                 </div>
               )}
@@ -131,7 +131,7 @@ export const FileReadToolCall: React.FC<FileReadToolCallProps> = ({
                 <DetailSection>
                   <DetailLabel>Content</DetailLabel>
                   <div className="m-0 px-2 py-1.5 bg-[var(--color-code-bg)] rounded text-[11px] leading-[1.4] max-h-[200px] overflow-y-auto flex">
-                    <div className="text-text-secondary opacity-40 pr-3 mr-2 border-r border-white/10 select-none text-right min-w-[40px] font-monospace">
+                    <div className="text-secondary opacity-40 pr-3 mr-2 border-r border-white/10 select-none text-right min-w-[40px] font-monospace">
                       {parsedContent.lineNumbers.map((lineNum, i) => (
                         <div key={i}>{lineNum}</div>
                       ))}

@@ -78,7 +78,7 @@ const DraggableProjectItemBase: React.FC<DraggableProjectItemProps> = ({
     <div
       ref={(node) => drag(drop(node))}
       className={cn(
-        "py-1 px-3 flex items-center border-l-[3px] border-l-transparent transition-all duration-150",
+        "py-1 px-3 flex items-center border-l-transparent transition-all duration-150",
         isDragging ? "cursor-grabbing opacity-40 [&_*]:!cursor-grabbing" : "cursor-grab",
         isOver && "bg-[rgba(0,122,204,0.08)]",
         selected && "bg-[#2a2a2b] border-l-[#007acc]",
@@ -422,7 +422,7 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
         >
           {!collapsed && (
             <>
-              <div className="flex justify-between items-center p-4 border-b border-[#1e1e1e]">
+              <div className="flex justify-between items-center p-4 border-b border-b-[#1e1e1e]">
                 <h2 className="m-0 text-[13px] font-semibold text-[#cccccc] uppercase tracking-[0.8px]">
                   Projects
                 </h2>

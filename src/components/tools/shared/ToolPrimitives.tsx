@@ -28,7 +28,7 @@ export const ToolHeader: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
 }) => (
   <div
     className={cn(
-      "flex items-center gap-2 cursor-pointer select-none text-foreground-secondary hover:text-foreground",
+      "flex items-center gap-2 cursor-pointer select-none text-secondary hover:text-foreground",
       className
     )}
     {...props}

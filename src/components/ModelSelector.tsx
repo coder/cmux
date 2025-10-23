@@ -185,7 +185,7 @@ export const ModelSelector = forwardRef<ModelSelectorRef, ModelSelectorProps>(
       return (
         <div ref={containerRef} className="relative flex items-center gap-1">
           <div
-            className="text-[10px] text-[#808080] font-monospace leading-[11px] cursor-pointer py-0.5 px-1 rounded-sm transition-colors duration-200 whitespace-nowrap overflow-hidden text-ellipsis max-w-[150px] dir-rtl text-left hover:bg-[#2a2a2b]"
+            className="font-mono text-[10px] text-[#808080] font-monospace leading-[11px] cursor-pointer py-0.5 px-1 rounded-sm transition-colors duration-200 whitespace-nowrap overflow-hidden text-ellipsis max-w-[150px] dir-rtl text-left hover:bg-[#2a2a2b]"
             onClick={handleClick}
           >
             {value}

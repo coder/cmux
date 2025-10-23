@@ -220,17 +220,17 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
 
         <div className="flex flex-col flex-1 min-w-0">
           <div
-            className="flex bg-[#2d2d2d] border-b border-[#3e3e42] [&>*]:flex-1"
+            className="flex bg-background-secondary border-b border-border [&>*]:flex-1"
             role="tablist"
             aria-label="Metadata views"
           >
             <TooltipWrapper inline>
               <button
                 className={cn(
-                  "w-full py-2.5 px-[15px] border-none cursor-pointer font-primary text-[13px] font-medium transition-all duration-200",
+                  "w-full py-2.5 px-[15px] border-none border-solid cursor-pointer font-primary text-[13px] font-medium transition-all duration-200",
                   selectedTab === "costs"
-                    ? "bg-[#252526] text-white border-b-2 border-b-[#007acc]"
-                    : "bg-transparent text-[#888888] border-b-2 border-b-transparent hover:bg-[#2d2d2d] hover:text-[#cccccc]"
+                    ? "text-white bg-[#252526] border-b-2 border-b-plan-mode"
+                    : "bg-transparent text-secondary border-b-2 border-b-transparent hover:bg-background-secondary hover:text-foreground"
                 )}
                 onClick={() => setSelectedTab("costs")}
                 id={costsTabId}
@@ -248,10 +248,10 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
             <TooltipWrapper inline>
               <button
                 className={cn(
-                  "w-full py-2.5 px-[15px] border-none cursor-pointer font-primary text-[13px] font-medium transition-all duration-200",
+                  "w-full py-2.5 px-[15px] border-none border-solid cursor-pointer font-primary text-[13px] font-medium transition-all duration-200",
                   selectedTab === "review"
-                    ? "bg-[#252526] text-white border-b-2 border-b-[#007acc]"
-                    : "bg-transparent text-[#888888] border-b-2 border-b-transparent hover:bg-[#2d2d2d] hover:text-[#cccccc]"
+                    ? "text-white bg-[#252526] border-b-2 border-b-plan-mode"
+                    : "bg-transparent text-secondary border-b-2 border-b-transparent hover:bg-background-secondary hover:text-foreground"
                 )}
                 onClick={() => setSelectedTab("review")}
                 id={reviewTabId}

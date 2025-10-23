@@ -110,7 +110,7 @@ export const KebabMenu: React.FC<KebabMenuProps> = ({ items, className }) => {
                 onClick={() => handleItemClick(item)}
                 title={item.tooltip}
                 className={cn(
-                  "w-full border-none border-b border-[#2d2d30] text-[11px] py-2 px-3 text-left transition-all duration-150 font-primary flex items-center gap-2",
+                  "w-full border-none border-b border-[#2d2d30] text-xs py-2 px-3 text-left transition-all duration-150 font-primary flex items-center gap-2",
                   "last:border-b-0",
                   item.disabled
                     ? "bg-[#1e1e1e] text-[#808080] cursor-not-allowed opacity-50 hover:bg-[#1e1e1e] hover:text-[#808080]"

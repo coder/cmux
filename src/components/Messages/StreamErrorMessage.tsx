@@ -16,7 +16,7 @@ export const StreamErrorMessage: React.FC<StreamErrorMessageProps> = ({ message,
       <div className="font-primary text-[13px] font-semibold text-error mb-3 flex items-center gap-2.5 tracking-wide">
         <span className="text-base leading-none">●</span>
         <span>Stream Error</span>
-        <span className="font-mono text-[10px] text-text-secondary uppercase bg-black/40 px-2 py-0.5 rounded-sm tracking-wider">
+        <span className="font-mono text-[10px] text-secondary uppercase bg-black/40 px-2 py-0.5 rounded-sm tracking-wider">
           {message.errorType}
         </span>
         {showCount && (

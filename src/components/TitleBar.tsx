@@ -242,12 +242,12 @@ export function TitleBar() {
             </Tooltip>
           </TooltipWrapper>
         )}
-        <div className="font-normal tracking-wide select-text cursor-text whitespace-nowrap overflow-hidden text-ellipsis min-w-0">
+        <div className="font-normal text-xs tracking-wider select-text cursor-text whitespace-nowrap overflow-hidden text-ellipsis min-w-0">
           cmux {gitDescribe ?? "(dev)"}
         </div>
       </div>
       <TooltipWrapper>
-        <div className="text-[10px] opacity-70 cursor-default">{buildDate}</div>
+        <div className="text-[11px] opacity-70 cursor-default">{buildDate}</div>
         <Tooltip align="right">Built at {extendedTimestamp}</Tooltip>
       </TooltipWrapper>
     </div>
