@@ -791,7 +791,7 @@ input[type="checkbox"] {
   @apply relative m-0 h-3 w-3 cursor-pointer appearance-none rounded-sm border border-border-light bg-dark;
   @apply hover:border-accent;
   @apply checked:bg-accent checked:border-accent;
-  @apply checked:after:absolute checked:after:top-0 checked:after:left-[3px] checked:after:h-[6px] checked:after:w-1;
+  @apply checked:after:absolute checked:after:top-[1px] checked:after:left-[3.5px] checked:after:h-[6px] checked:after:w-[1.5px];
   @apply checked:after:rotate-45 checked:after:border-r-[1.5px] checked:after:border-b-[1.5px];
   @apply checked:after:border-solid checked:after:border-white checked:after:content-[''];
 }
