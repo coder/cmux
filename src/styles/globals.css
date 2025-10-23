@@ -205,16 +205,21 @@
   --color-token-cached: hsl(0 0% 50%);
 
   /* Font Variables */
-  --font-primary: IBM Plex Sans, sans-serif;
-  --font-monospace: JetBrains Mono, Consolas, Monaco, monospace;
+  /* Primary UI Font - System fonts for best native appearance */
+  --font-primary:
+    system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Helvetica Neue",
+    Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+  
+  /* Monospace Font - Code and technical content */
+  --font-monospace:
+    "Monaco", "Menlo", "Ubuntu Mono", "Consolas", "Courier New", monospace,
+    "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
 }
 
 body {
   background-color: var(--color-background);
   color: var(--color-foreground);
-  font-family:
-    IBM Plex Sans,
-    sans-serif;
+  font-family: var(--font-primary);
   font-size: 14px;
 }
 
@@ -271,11 +276,7 @@ body,
 }
 
 code {
-  font-family:
-    JetBrains Mono,
-    Consolas,
-    Monaco,
-    monospace;
+  font-family: var(--font-monospace);
 }
 
 /* Native tooltips */
@@ -493,7 +494,8 @@ code {
 }
 
 .markdown-content li {
-  margin: 0.4em 0;
+  margin: 0;
+  padding: 0 0 4px 0;
   display: list-item;
 }
 
@@ -773,3 +775,30 @@ pre code {
     background-position: 0% 50%;
   }
 }
+
+/* Font utility classes */
+.font-primary {
+  font-family: var(--font-primary);
+}
+
+.font-monospace {
+  font-family: var(--font-monospace);
+}
+
+/* Text color utility classes */
+
+/* Checkbox utility classes */
+input[type="checkbox"] {
+  @apply relative m-0 h-3 w-3 cursor-pointer appearance-none rounded-sm border border-border-light bg-dark;
+  @apply hover:border-accent;
+  @apply focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2;
+  @apply checked:bg-accent checked:border-accent;
+  @apply checked:after:absolute checked:after:top-[2px] checked:after:left-[4px] checked:after:h-[6px] checked:after:w-[2.5px];
+  @apply checked:after:rotate-45 checked:after:border-r-[1.5px] checked:after:border-b-[1.5px];
+  @apply checked:after:border-solid checked:after:border-white checked:after:content-[''];
+}
+
+.text-dim {
+  color: var(--color-dim);
+}
+

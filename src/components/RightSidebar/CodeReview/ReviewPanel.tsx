@@ -571,7 +571,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
                   placeholder={`Search in files and hunks... (${formatKeybind(KEYBINDS.FOCUS_REVIEW_SEARCH)})`}
                   value={searchState.input}
                   onChange={(e) => setSearchState({ ...searchState, input: e.target.value })}
-                  className="text-foreground placeholder:text-text-dim focus:bg-separator flex h-full flex-1 items-center border-none bg-transparent px-2.5 py-1.5 font-sans text-xs leading-[1.4] outline-none"
+                  className="text-foreground placeholder:text-dim focus:bg-separator flex h-full flex-1 items-center border-none bg-transparent px-2.5 py-1.5 font-sans text-xs leading-[1.4] outline-none"
                 />
                 <TooltipWrapper inline>
                   <button
