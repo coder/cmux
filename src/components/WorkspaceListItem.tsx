@@ -9,6 +9,12 @@ import { ModelDisplay } from "./Messages/ModelDisplay";
 import { StatusIndicator } from "./StatusIndicator";
 import { useRename } from "@/contexts/WorkspaceRenameContext";
 import { cn } from "@/lib/utils";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 
 export interface WorkspaceSelection {
   projectPath: string;
@@ -130,89 +136,112 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
 
   return (
     <React.Fragment>
-      <div
-        className={cn(
-          "py-1.5 px-3 pl-7 cursor-pointer grid grid-cols-[auto_auto_1fr_auto] gap-2 items-center border-l-[3px] border-transparent transition-all duration-150 text-[13px] relative hover:bg-bg-hover [&:hover_button]:opacity-100",
-          isSelected && "bg-bg-hover border-l-[#569cd6]"
-        )}
-        onClick={() =>
-          onSelectWorkspace({
-            projectPath,
-            projectName,
-            namedWorkspacePath,
-            workspaceId,
-          })
-        }
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            onSelectWorkspace({
-              projectPath,
-              projectName,
-              namedWorkspacePath,
-              workspaceId,
-            });
-          }
-        }}
-        role="button"
-        tabIndex={0}
-        aria-current={isSelected ? "true" : undefined}
-        data-workspace-path={namedWorkspacePath}
-        data-workspace-id={workspaceId}
-      >
-        <TooltipWrapper inline>
-          <button
-            className="opacity-0 bg-transparent text-muted border-none cursor-pointer text-base p-0 w-5 h-5 flex items-center justify-center transition-all duration-200 flex-shrink-0 col-start-1 hover:text-foreground hover:bg-white/10 hover:rounded-sm"
-            onClick={(e) => {
-              e.stopPropagation();
-              void onRemoveWorkspace(workspaceId, e.currentTarget);
+      <ContextMenu>
+        <ContextMenuTrigger asChild>
+          <div
+            className={cn(
+              "py-1.5 px-3 pl-7 cursor-pointer grid grid-cols-[auto_auto_1fr_auto] gap-2 items-center border-l-[3px] border-transparent transition-all duration-150 text-[13px] relative hover:bg-bg-hover [&:hover_button]:opacity-100",
+              isSelected && "bg-bg-hover border-l-[#569cd6]"
+            )}
+            onClick={() =>
+              onSelectWorkspace({
+                projectPath,
+                projectName,
+                namedWorkspacePath,
+                workspaceId,
+              })
+            }
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onSelectWorkspace({
+                  projectPath,
+                  projectName,
+                  namedWorkspacePath,
+                  workspaceId,
+                });
+              }
             }}
-            aria-label={`Remove workspace ${displayName}`}
+            role="button"
+            tabIndex={0}
+            aria-current={isSelected ? "true" : undefined}
+            data-workspace-path={namedWorkspacePath}
             data-workspace-id={workspaceId}
           >
-            ×
-          </button>
-          <Tooltip className="tooltip" align="right">
-            Remove workspace
-          </Tooltip>
-        </TooltipWrapper>
-        <GitStatusIndicator
-          gitStatus={gitStatus}
-          workspaceId={workspaceId}
-          tooltipPosition="right"
-        />
-        {isEditing ? (
-          <input
-            className="bg-input-bg text-input-text border border-input-border rounded-sm px-1 py-0.5 text-[13px] font-inherit outline-none min-w-0 text-right focus:border-input-border-focus"
-            value={editingName}
-            onChange={(e) => setEditingName(e.target.value)}
-            onKeyDown={handleRenameKeyDown}
-            onBlur={() => void handleConfirmRename()}
-            autoFocus
-            onClick={(e) => e.stopPropagation()}
-            aria-label={`Rename workspace ${displayName}`}
-            data-workspace-id={workspaceId}
-          />
-        ) : (
-          <span
-            className="text-foreground text-[14px] whitespace-nowrap overflow-hidden text-ellipsis cursor-pointer px-1 py-0.5 rounded-sm transition-colors duration-200 min-w-0 text-right hover:bg-white/5"
-            onDoubleClick={(e) => {
+            <TooltipWrapper inline>
+              <button
+                className="opacity-0 bg-transparent text-muted border-none cursor-pointer text-base p-0 w-5 h-5 flex items-center justify-center transition-all duration-200 flex-shrink-0 col-start-1 hover:text-foreground hover:bg-white/10 hover:rounded-sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void onRemoveWorkspace(workspaceId, e.currentTarget);
+                }}
+                aria-label={`Remove workspace ${displayName}`}
+                data-workspace-id={workspaceId}
+              >
+                ×
+              </button>
+              <Tooltip className="tooltip" align="right">
+                Remove workspace
+              </Tooltip>
+            </TooltipWrapper>
+            <GitStatusIndicator
+              gitStatus={gitStatus}
+              workspaceId={workspaceId}
+              tooltipPosition="right"
+            />
+            {isEditing ? (
+              <input
+                className="bg-input-bg text-input-text border border-input-border rounded-sm px-1 py-0.5 text-[13px] font-inherit outline-none min-w-0 text-right focus:border-input-border-focus"
+                value={editingName}
+                onChange={(e) => setEditingName(e.target.value)}
+                onKeyDown={handleRenameKeyDown}
+                onBlur={() => void handleConfirmRename()}
+                autoFocus
+                onClick={(e) => e.stopPropagation()}
+                aria-label={`Rename workspace ${displayName}`}
+                data-workspace-id={workspaceId}
+              />
+            ) : (
+              <span
+                className="text-foreground text-[14px] whitespace-nowrap overflow-hidden text-ellipsis cursor-pointer px-1 py-0.5 rounded-sm transition-colors duration-200 min-w-0 text-right hover:bg-white/5"
+                onDoubleClick={(e) => {
+                  e.stopPropagation();
+                  startRenaming();
+                }}
+                title="Double-click to rename"
+              >
+                {displayName}
+              </span>
+            )}
+            <StatusIndicator
+              className="ml-2"
+              streaming={isStreaming}
+              unread={isUnread}
+              onClick={handleToggleUnread}
+              title={statusTooltipTitle}
+            />
+          </div>
+        </ContextMenuTrigger>
+        <ContextMenuContent>
+          <ContextMenuItem
+            onClick={(e) => {
               e.stopPropagation();
               startRenaming();
             }}
-            title="Double-click to rename"
           >
-            {displayName}
-          </span>
-        )}
-        <StatusIndicator
-          className="ml-2"
-          streaming={isStreaming}
-          unread={isUnread}
-          onClick={handleToggleUnread}
-          title={statusTooltipTitle}
-        />
-      </div>
+            Rename
+          </ContextMenuItem>
+          <ContextMenuItem
+            onClick={(e) => {
+              e.stopPropagation();
+              void onRemoveWorkspace(workspaceId, e.currentTarget as HTMLElement);
+            }}
+            className="text-error focus:text-error"
+          >
+            Remove
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
       {renameError && isEditing && (
         <div className="absolute top-full left-7 right-8 mt-1 px-2 py-1.5 bg-error-bg border border-error rounded-sm text-error text-xs z-10">
           {renameError}

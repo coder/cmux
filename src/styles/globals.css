@@ -101,6 +101,27 @@
   --color-separator: hsl(0 0% 15%);          /* #252526 - separators */
   --color-modal-bg: hsl(0 0% 18%);           /* #2d2d30 - modal backgrounds */
   
+  /* Shadcn/UI Standard Variables */
+  --background: hsl(0 0% 12%);               /* Same as --color-background */
+  --foreground: hsl(0 0% 83%);               /* Same as --color-foreground */
+  --popover: hsl(0 0% 11.5%);                /* Same as --color-bg-dark */
+  --popover-foreground: hsl(0 0% 83%);       /* Same as --color-foreground */
+  --card: hsl(0 0% 11.5%);                   /* Same as --color-bg-dark */
+  --card-foreground: hsl(0 0% 83%);          /* Same as --color-foreground */
+  --primary: hsl(207 100% 40%);              /* Same as --color-accent */
+  --primary-foreground: hsl(0 0% 100%);      /* White text on primary */
+  --secondary: hsl(0 0% 42%);                /* Same as --color-secondary */
+  --secondary-foreground: hsl(0 0% 83%);     /* Same as --color-foreground */
+  --muted: hsl(0 0% 16.5%);                  /* Same as --color-bg-hover */
+  --muted-foreground: hsl(0 0% 53%);         /* Same as --color-muted */
+  --accent: hsl(0 0% 16.5%);                 /* Same as --color-bg-hover */
+  --accent-foreground: hsl(0 0% 83%);        /* Same as --color-foreground */
+  --destructive: hsl(0 70% 50%);             /* Same as --color-error */
+  --destructive-foreground: hsl(0 0% 100%);  /* White text on destructive */
+  --border: hsl(240 2% 25%);                 /* Same as --color-border */
+  --input: hsl(240 2% 25%);                  /* Same as --color-border */
+  --ring: hsl(207 100% 40%);                 /* Same as --color-accent */
+  
   /* Radius */
   --radius: 0.5rem;
 }
