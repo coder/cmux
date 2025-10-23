@@ -28,7 +28,7 @@ export const ModalContent: React.FC<
 > = ({ children, maxWidth = "500px", maxHeight, className, ...props }) => (
   <div
     className={cn(
-      "bg-gray-950 rounded-lg p-6 w-[90%] flex flex-col shadow-lg border border-gray-800",
+      "bg-neutral-950 rounded-lg p-6 w-[90%] flex flex-col shadow-lg border border-neutral-800",
       "[&_h2]:mt-0 [&_h2]:mb-2 [&_h2]:text-white",
       className
     )}
@@ -44,7 +44,7 @@ export const ModalSubtitle: React.FC<{
   id?: string;
   className?: string;
 }> = ({ children, id, className }) => (
-  <p id={id} className={cn("text-gray-500 text-sm mb-5", className)}>
+  <p id={id} className={cn("text-neutral-500 text-sm mb-5", className)}>
     {children}
   </p>
 );
@@ -57,8 +57,8 @@ export const ModalInfo: React.FC<{
   <div
     id={id}
     className={cn(
-      "bg-gray-900 border border-gray-700 rounded p-3 mb-5 text-[13px]",
-      "[&_p]:m-0 [&_p]:mb-2 [&_p]:text-gray-500 [&_p:last-child]:mb-0",
+      "bg-neutral-900 border border-neutral-700 rounded p-3 mb-5 text-[13px]",
+      "[&_p]:m-0 [&_p]:mb-2 [&_p]:text-neutral-500 [&_p:last-child]:mb-0",
       "[&_code]:text-sky-600 [&_code]:font-mono",
       className
     )}
@@ -83,7 +83,7 @@ export const ErrorLabel: React.FC<{ children: React.ReactNode; className?: strin
   className,
 }) => (
   <div
-    className={cn("text-[11px] text-gray-200-secondary uppercase tracking-wide mb-2", className)}
+    className={cn("text-[11px] text-neutral-200-secondary uppercase tracking-wide mb-2", className)}
   >
     {children}
   </div>
@@ -95,8 +95,8 @@ export const ErrorCodeBlock: React.FC<{ children: React.ReactNode; className?: s
 }) => (
   <pre
     className={cn(
-      "bg-gray-950-secondary border border-gray-800 rounded p-3",
-      "text-xs font-mono text-gray-200 overflow-x-auto whitespace-pre-wrap break-words leading-relaxed",
+      "bg-neutral-950-secondary border border-neutral-800 rounded p-3",
+      "text-xs font-mono text-neutral-200 overflow-x-auto whitespace-pre-wrap break-words leading-relaxed",
       className
     )}
   >
@@ -121,7 +121,7 @@ export const WarningTitle: React.FC<{ children: React.ReactNode; className?: str
 export const WarningText: React.FC<{ children: React.ReactNode; className?: string }> = ({
   children,
   className,
-}) => <div className={cn("text-[13px] text-gray-200 leading-normal", className)}>{children}</div>;
+}) => <div className={cn("text-[13px] text-neutral-200 leading-normal", className)}>{children}</div>;
 
 // Button components
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -144,7 +144,7 @@ export const Button: React.FC<ButtonProps> = ({ children, className, ...props })
 export const CancelButton: React.FC<ButtonProps> = ({ children, className, ...props }) => (
   <Button
     className={cn(
-      "bg-gray-700 text-gray-200 hover:bg-gray-800 disabled:hover:bg-gray-700",
+      "bg-neutral-700 text-neutral-200 hover:bg-neutral-800 disabled:hover:bg-neutral-700",
       className
     )}
     {...props}

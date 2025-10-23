@@ -28,7 +28,7 @@ export const ToolHeader: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
 }) => (
   <div
     className={cn(
-      "flex items-center gap-2 cursor-pointer select-none text-gray-600 hover:text-gray-200",
+      "flex items-center gap-2 cursor-pointer select-none text-neutral-600 hover:text-neutral-200",
       className
     )}
     {...props}
@@ -70,7 +70,7 @@ const getStatusColor = (status: string) => {
     case "interrupted":
       return "text-interrupted";
     default:
-      return "text-gray-200-secondary";
+      return "text-neutral-200-secondary";
   }
 };
 
@@ -97,7 +97,7 @@ export const ToolDetails: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
   className,
   ...props
 }) => (
-  <div className={cn("mt-2 pt-2 border-t border-white/5 text-gray-200", className)} {...props} />
+  <div className={cn("mt-2 pt-2 border-t border-white/5 text-neutral-200", className)} {...props} />
 );
 
 export const DetailSection: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
@@ -110,7 +110,7 @@ export const DetailLabel: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
   ...props
 }) => (
   <div
-    className={cn("text-[10px] text-gray-200-secondary mb-1 uppercase tracking-wide", className)}
+    className={cn("text-[10px] text-neutral-200-secondary mb-1 uppercase tracking-wide", className)}
     {...props}
   />
 );
@@ -149,7 +149,7 @@ interface HeaderButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement
 export const HeaderButton: React.FC<HeaderButtonProps> = ({ active, className, ...props }) => (
   <button
     className={cn(
-      "border border-white/20 text-gray-200 px-2 py-0.5 rounded-sm cursor-pointer text-[10px]",
+      "border border-white/20 text-neutral-200 px-2 py-0.5 rounded-sm cursor-pointer text-[10px]",
       "transition-all duration-200 whitespace-nowrap hover:bg-white/10 hover:border-white/30",
       active && "bg-white/10",
       className

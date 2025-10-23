@@ -174,8 +174,8 @@ type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {
   render: () => (
-    <div className="flex min-h-[600px] flex-col gap-5 bg-gray-950 p-5">
-      <div className="font-primary [&_kbd]:font-monospace rounded border border-gray-800 bg-gray-900 p-4 text-[13px] leading-[1.6] text-gray-300 [&_kbd]:rounded-[3px] [&_kbd]:border [&_kbd]:border-gray-800 [&_kbd]:bg-gray-950 [&_kbd]:px-1.5 [&_kbd]:py-0.5 [&_kbd]:text-[11px]">
+    <div className="flex min-h-[600px] flex-col gap-5 bg-neutral-950 p-5">
+      <div className="font-primary [&_kbd]:font-monospace rounded border border-neutral-800 bg-neutral-900 p-4 text-[13px] leading-[1.6] text-neutral-300 [&_kbd]:rounded-[3px] [&_kbd]:border [&_kbd]:border-neutral-800 [&_kbd]:bg-neutral-950 [&_kbd]:px-1.5 [&_kbd]:py-0.5 [&_kbd]:text-[11px]">
         <strong>Command Palette</strong>
         <br />
         <br />

@@ -93,7 +93,7 @@ export const CommandSuggestions: React.FC<CommandSuggestionsProps> = ({
         activeSuggestion ? `${resolvedListId}-option-${activeSuggestion.id}` : undefined
       }
       data-command-suggestions
-      className="absolute right-0 bottom-full left-0 z-[100] mb-2 flex max-h-[200px] flex-col overflow-y-auto rounded border border-gray-800 bg-gray-900 shadow-[0_-4px_12px_rgba(0,0,0,0.4)]"
+      className="absolute right-0 bottom-full left-0 z-[100] mb-2 flex max-h-[200px] flex-col overflow-y-auto rounded border border-neutral-800 bg-neutral-900 shadow-[0_-4px_12px_rgba(0,0,0,0.4)]"
     >
       {suggestions.map((suggestion, index) => (
         <div
@@ -109,12 +109,12 @@ export const CommandSuggestions: React.FC<CommandSuggestionsProps> = ({
           )}
         >
           <div className="font-monospace shrink-0 text-xs text-sky-600">{suggestion.display}</div>
-          <div className="truncate text-right text-[11px] text-gray-400">
+          <div className="truncate text-right text-[11px] text-neutral-400">
             {suggestion.description}
           </div>
         </div>
       ))}
-      <div className="shrink-0 border-t border-gray-800 bg-gray-950 px-2.5 py-1 text-center text-[10px] text-gray-500 [&_span]:font-medium [&_span]:text-gray-400">
+      <div className="shrink-0 border-t border-neutral-800 bg-neutral-950 px-2.5 py-1 text-center text-[10px] text-neutral-500 [&_span]:font-medium [&_span]:text-neutral-400">
         <span>Tab</span> to complete • <span>↑↓</span> to navigate • <span>Esc</span> to dismiss
       </div>
     </div>

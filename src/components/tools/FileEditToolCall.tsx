@@ -133,17 +133,17 @@ export const FileEditToolCall: React.FC<FileEditToolCallProps> = ({
 
   return (
     <ToolContainer expanded={expanded}>
-      <ToolHeader className="cursor-default hover:text-gray-600">
+      <ToolHeader className="cursor-default hover:text-neutral-600">
         <div
           onClick={toggleExpanded}
-          className="flex flex-1 cursor-pointer items-center gap-2 hover:text-gray-200"
+          className="flex flex-1 cursor-pointer items-center gap-2 hover:text-neutral-200"
         >
           <ExpandIcon expanded={expanded}>▶</ExpandIcon>
           <TooltipWrapper inline>
             <span>✏️</span>
             <Tooltip>{toolName}</Tooltip>
           </TooltipWrapper>
-          <span className="font-monospace max-w-96 truncate text-gray-200">{filePath}</span>
+          <span className="font-monospace max-w-96 truncate text-neutral-200">{filePath}</span>
         </div>
         {!(result && result.success && result.diff) && (
           <StatusIndicator status={status}>{getStatusDisplay(status)}</StatusIndicator>
@@ -182,7 +182,7 @@ export const FileEditToolCall: React.FC<FileEditToolCallProps> = ({
 
           {status === "executing" && !result && (
             <DetailSection>
-              <div className="text-[11px] text-gray-600">
+              <div className="text-[11px] text-neutral-600">
                 Waiting for result
                 <LoadingDots />
               </div>

@@ -364,12 +364,12 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ getSlashContext 
       }}
     >
       <Command
-        className="font-primary w-[min(720px,92vw)] overflow-hidden rounded-lg border border-gray-800 bg-gray-900 text-gray-100 shadow-[0_10px_40px_rgba(0,0,0,0.4)]"
+        className="font-primary w-[min(720px,92vw)] overflow-hidden rounded-lg border border-neutral-800 bg-neutral-900 text-neutral-100 shadow-[0_10px_40px_rgba(0,0,0,0.4)]"
         onMouseDown={(e: React.MouseEvent) => e.stopPropagation()}
         shouldFilter={shouldUseCmdkFilter}
       >
         <Command.Input
-          className="w-full border-b border-none border-gray-900 bg-gray-950 px-3.5 py-3 text-sm text-gray-100 outline-none"
+          className="w-full border-b border-none border-neutral-900 bg-neutral-950 px-3.5 py-3 text-sm text-neutral-100 outline-none"
           value={query}
           onValueChange={handleQueryChange}
           placeholder={
@@ -405,12 +405,12 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ getSlashContext 
             <Command.Group
               key={group.name}
               heading={group.name}
-              className="[&[cmdk-group-heading]]:px-2.5 [&[cmdk-group-heading]]:py-1 [&[cmdk-group-heading]]:text-[11px] [&[cmdk-group-heading]]:tracking-[0.08em] [&[cmdk-group-heading]]:text-gray-400 [&[cmdk-group-heading]]:uppercase [&[cmdk-group]]:px-1.5 [&[cmdk-group]]:py-2"
+              className="[&[cmdk-group-heading]]:px-2.5 [&[cmdk-group-heading]]:py-1 [&[cmdk-group-heading]]:text-[11px] [&[cmdk-group-heading]]:tracking-[0.08em] [&[cmdk-group-heading]]:text-neutral-400 [&[cmdk-group-heading]]:uppercase [&[cmdk-group]]:px-1.5 [&[cmdk-group]]:py-2"
             >
               {group.items.map((item) => (
                 <Command.Item
                   key={item.id}
-                  className="mx-1 my-0.5 grid cursor-pointer grid-cols-[1fr_auto] items-center gap-2 rounded-md px-3 py-2 text-[13px] hover:bg-gray-900 aria-selected:bg-gray-900"
+                  className="mx-1 my-0.5 grid cursor-pointer grid-cols-[1fr_auto] items-center gap-2 rounded-md px-3 py-2 text-[13px] hover:bg-neutral-900 aria-selected:bg-neutral-900"
                   onSelect={() => {
                     if ("prompt" in item && item.prompt) {
                       addRecent(item.id);
@@ -435,12 +435,12 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ getSlashContext 
                     {"subtitle" in item && item.subtitle && (
                       <>
                         <br />
-                        <span className="text-xs text-gray-400">{item.subtitle}</span>
+                        <span className="text-xs text-neutral-400">{item.subtitle}</span>
                       </>
                     )}
                   </div>
                   {"shortcutHint" in item && item.shortcutHint && (
-                    <span className="font-monospace text-[11px] text-gray-400">
+                    <span className="font-monospace text-[11px] text-neutral-400">
                       {item.shortcutHint}
                     </span>
                   )}

@@ -68,7 +68,7 @@ export const MessageWindow: React.FC<MessageWindowProps> = ({
     >
       {backgroundEffect}
       <div
-        className="relative z-10 flex items-center justify-between border-b border-white/10 bg-white/5 px-3 py-1 text-[11px] font-medium text-gray-300"
+        className="relative z-10 flex items-center justify-between border-b border-white/10 bg-white/5 px-3 py-1 text-[11px] font-medium text-neutral-300"
         data-message-header
       >
         <div className="flex min-w-0 flex-1 items-baseline gap-3" data-message-header-left>
@@ -124,7 +124,7 @@ export const MessageWindow: React.FC<MessageWindowProps> = ({
       </div>
       <div className="relative z-10 p-3" data-message-content>
         {showJson ? (
-          <pre className="m-0 overflow-x-auto rounded-sm bg-black/30 p-2 font-mono text-[11px] leading-snug whitespace-pre-wrap text-gray-200">
+          <pre className="m-0 overflow-x-auto rounded-sm bg-black/30 p-2 font-mono text-[11px] leading-snug whitespace-pre-wrap text-neutral-200">
             {JSON.stringify(message, null, 2)}
           </pre>
         ) : (

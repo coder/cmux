@@ -74,7 +74,7 @@ export const KebabMenu: React.FC<KebabMenuProps> = ({ items, className }) => {
       ref={buttonRef}
       onClick={() => setIsOpen(!isOpen)}
       className={cn(
-        "border border-white/20 text-gray-200 text-[10px] py-0.5 px-2 rounded-[3px] cursor-pointer transition-all duration-200 font-primary flex items-center justify-center whitespace-nowrap",
+        "border border-white/20 text-neutral-200 text-[10px] py-0.5 px-2 rounded-[3px] cursor-pointer transition-all duration-200 font-primary flex items-center justify-center whitespace-nowrap",
         isOpen ? "bg-white/10" : "bg-none",
         "hover:bg-white/10 hover:border-white/30",
         "disabled:opacity-50 disabled:cursor-not-allowed",
@@ -98,7 +98,7 @@ export const KebabMenu: React.FC<KebabMenuProps> = ({ items, className }) => {
         createPortal(
           <div
             ref={menuRef}
-            className="fixed z-[10000] min-w-40 overflow-hidden rounded-[3px] border border-gray-800 bg-gray-950 shadow-[0_4px_16px_rgba(0,0,0,0.8)]"
+            className="fixed z-[10000] min-w-40 overflow-hidden rounded-[3px] border border-neutral-800 bg-neutral-950 shadow-[0_4px_16px_rgba(0,0,0,0.8)]"
             style={{
               top: `${dropdownPosition.top}px`,
               left: `${dropdownPosition.left}px`,
@@ -113,10 +113,10 @@ export const KebabMenu: React.FC<KebabMenuProps> = ({ items, className }) => {
                   "w-full border-none border-b border-modal-bg text-xs py-2 px-3 text-left transition-all duration-150 font-primary flex items-center gap-2",
                   "last:border-b-0",
                   item.disabled
-                    ? "bg-gray-950 text-gray-500-light cursor-not-allowed opacity-50 hover:bg-gray-950 hover:text-gray-500-light"
+                    ? "bg-neutral-950 text-neutral-500-light cursor-not-allowed opacity-50 hover:bg-neutral-950 hover:text-neutral-500-light"
                     : item.active
-                      ? "bg-white/15 text-gray-200 cursor-pointer hover:bg-white/15 hover:text-white"
-                      : "bg-gray-950 text-gray-200 cursor-pointer hover:bg-white/15 hover:text-white"
+                      ? "bg-white/15 text-neutral-200 cursor-pointer hover:bg-white/15 hover:text-white"
+                      : "bg-neutral-950 text-neutral-200 cursor-pointer hover:bg-white/15 hover:text-white"
                 )}
               >
                 {item.emoji && (

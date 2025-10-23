@@ -245,12 +245,12 @@ const AIViewInner: React.FC<AIViewProps> = ({
     return (
       <div
         className={cn(
-          "flex flex-1 flex-row bg-gray-950 text-gray-200 overflow-x-auto overflow-y-hidden [@media(max-width:768px)]:flex-col",
+          "flex flex-1 flex-row bg-neutral-950 text-neutral-200 overflow-x-auto overflow-y-hidden [@media(max-width:768px)]:flex-col",
           className
         )}
         style={{ containerType: "inline-size" }}
       >
-        <div className="flex h-full flex-1 flex-col items-center justify-center text-center text-gray-500">
+        <div className="flex h-full flex-1 flex-col items-center justify-center text-center text-neutral-500">
           <h3 className="m-0 mb-2.5 text-base font-medium">Loading workspace...</h3>
         </div>
       </div>
@@ -286,12 +286,12 @@ const AIViewInner: React.FC<AIViewProps> = ({
     return (
       <div
         className={cn(
-          "flex flex-1 flex-row bg-gray-950 text-gray-200 overflow-x-auto overflow-y-hidden [@media(max-width:768px)]:flex-col",
+          "flex flex-1 flex-row bg-neutral-950 text-neutral-200 overflow-x-auto overflow-y-hidden [@media(max-width:768px)]:flex-col",
           className
         )}
         style={{ containerType: "inline-size" }}
       >
-        <div className="flex h-full flex-1 flex-col items-center justify-center text-center text-gray-500">
+        <div className="flex h-full flex-1 flex-col items-center justify-center text-center text-neutral-500">
           <h3 className="m-0 mb-2.5 text-base font-medium">Loading workspace...</h3>
         </div>
       </div>
@@ -302,12 +302,12 @@ const AIViewInner: React.FC<AIViewProps> = ({
     return (
       <div
         className={cn(
-          "flex flex-1 flex-row bg-gray-950 text-gray-200 overflow-x-auto overflow-y-hidden [@media(max-width:768px)]:flex-col",
+          "flex flex-1 flex-row bg-neutral-950 text-neutral-200 overflow-x-auto overflow-y-hidden [@media(max-width:768px)]:flex-col",
           className
         )}
         style={{ containerType: "inline-size" }}
       >
-        <div className="flex h-full flex-1 flex-col items-center justify-center text-center text-gray-500">
+        <div className="flex h-full flex-1 flex-col items-center justify-center text-center text-neutral-500">
           <h3 className="m-0 mb-2.5 text-base font-medium">No Workspace Selected</h3>
           <p className="m-0 text-[13px]">
             Select a workspace from the sidebar to view and interact with Claude
@@ -320,7 +320,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
   return (
     <div
       className={cn(
-        "flex flex-1 flex-row bg-gray-950 text-gray-200 overflow-x-auto overflow-y-hidden [@media(max-width:768px)]:flex-col",
+        "flex flex-1 flex-row bg-neutral-950 text-neutral-200 overflow-x-auto overflow-y-hidden [@media(max-width:768px)]:flex-col",
         className
       )}
       style={{ containerType: "inline-size" }}
@@ -329,8 +329,8 @@ const AIViewInner: React.FC<AIViewProps> = ({
         ref={chatAreaRef}
         className="flex min-w-96 flex-1 flex-col [@media(max-width:768px)]:max-h-full [@media(max-width:768px)]:w-full [@media(max-width:768px)]:min-w-0"
       >
-        <div className="flex items-center justify-between border-b border-gray-800 bg-gray-900 px-[15px] py-1 [@media(max-width:768px)]:flex-wrap [@media(max-width:768px)]:gap-2 [@media(max-width:768px)]:py-2 [@media(max-width:768px)]:pl-[60px]">
-          <div className="flex min-w-0 items-center gap-2 overflow-hidden font-semibold text-gray-200">
+        <div className="flex items-center justify-between border-b border-neutral-800 bg-neutral-900 px-[15px] py-1 [@media(max-width:768px)]:flex-wrap [@media(max-width:768px)]:gap-2 [@media(max-width:768px)]:py-2 [@media(max-width:768px)]:pl-[60px]">
+          <div className="flex min-w-0 items-center gap-2 overflow-hidden font-semibold text-neutral-200">
             <StatusIndicator
               streaming={canInterrupt}
               title={
@@ -345,13 +345,13 @@ const AIViewInner: React.FC<AIViewProps> = ({
             <span className="min-w-0 truncate font-mono text-xs">
               {projectName} / {branch}
             </span>
-            <span className="min-w-0 truncate font-mono text-[11px] font-normal text-gray-500">
+            <span className="min-w-0 truncate font-mono text-[11px] font-normal text-neutral-500">
               {namedWorkspacePath}
             </span>
             <TooltipWrapper inline>
               <button
                 onClick={handleOpenTerminal}
-                className="flex cursor-pointer items-center justify-center border-none bg-transparent p-1 text-gray-500 transition-colors hover:text-gray-200 [&_svg]:h-4 [&_svg]:w-4"
+                className="flex cursor-pointer items-center justify-center border-none bg-transparent p-1 text-neutral-500 transition-colors hover:text-neutral-200 [&_svg]:h-4 [&_svg]:w-4"
               >
                 <svg viewBox="0 0 16 16" fill="currentColor">
                   <path d="M0 2.75C0 1.784.784 1 1.75 1h12.5c.966 0 1.75.784 1.75 1.75v10.5A1.75 1.75 0 0114.25 15H1.75A1.75 1.75 0 010 13.25V2.75zm1.75-.25a.25.25 0 00-.25.25v10.5c0 .138.112.25.25.25h12.5a.25.25 0 00.25-.25V2.75a.25.25 0 00-.25-.25H1.75zM7.25 8a.75.75 0 01-.22.53l-2.25 2.25a.75.75 0 01-1.06-1.06L5.44 8 3.72 6.28a.75.75 0 111.06-1.06l2.25 2.25c.141.14.22.331.22.53zm1.5 1.5a.75.75 0 000 1.5h3a.75.75 0 000-1.5h-3z" />
@@ -378,7 +378,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
             className="h-full overflow-y-auto p-[15px] leading-[1.5] break-words whitespace-pre-wrap"
           >
             {mergedMessages.length === 0 ? (
-              <div className="flex h-full flex-1 flex-col items-center justify-center text-center text-gray-500 [&_h3]:m-0 [&_h3]:mb-2.5 [&_h3]:text-base [&_h3]:font-medium [&_p]:m-0 [&_p]:text-[13px]">
+              <div className="flex h-full flex-1 flex-col items-center justify-center text-center text-neutral-500 [&_h3]:m-0 [&_h3]:mb-2.5 [&_h3]:text-base [&_h3]:font-medium [&_p]:m-0 [&_p]:text-[13px]">
                 <h3>No Messages Yet</h3>
                 <p>Send a message below to begin</p>
               </div>

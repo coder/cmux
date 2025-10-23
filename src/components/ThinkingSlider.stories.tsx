@@ -39,19 +39,19 @@ export const Default: Story = {};
 
 export const DifferentModels: Story = {
   render: () => (
-    <div className="flex min-w-80 flex-col gap-[30px] bg-gray-950 p-10">
+    <div className="flex min-w-80 flex-col gap-[30px] bg-neutral-950 p-10">
       <div>
-        <div className="text-gray-500-light font-primary mb-2 text-xs">Claude Sonnet 4.5</div>
+        <div className="text-neutral-500-light font-primary mb-2 text-xs">Claude Sonnet 4.5</div>
         <ThinkingSliderComponent modelString="anthropic:claude-sonnete-4-5" />
       </div>
 
       <div>
-        <div className="text-gray-500-light font-primary mb-2 text-xs">Claude Opus 4.1</div>
+        <div className="text-neutral-500-light font-primary mb-2 text-xs">Claude Opus 4.1</div>
         <ThinkingSliderComponent modelString="anthropic:claude-opus-4-1" />
       </div>
 
       <div>
-        <div className="text-gray-500-light font-primary mb-2 text-xs">GPT-5 Codex</div>
+        <div className="text-neutral-500-light font-primary mb-2 text-xs">GPT-5 Codex</div>
         <ThinkingSliderComponent modelString="openai:gpt-5-codex" />
       </div>
     </div>
@@ -60,12 +60,12 @@ export const DifferentModels: Story = {
 
 export const InteractiveDemo: Story = {
   render: () => (
-    <div className="flex min-w-80 flex-col gap-[30px] bg-gray-950 p-10">
-      <div className="font-primary mb-2.5 text-[13px] text-gray-300">
+    <div className="flex min-w-80 flex-col gap-[30px] bg-neutral-950 p-10">
+      <div className="font-primary mb-2.5 text-[13px] text-neutral-300">
         Try moving the slider to see the purple glow effect intensify:
       </div>
       <ThinkingSliderComponent modelString="claude-3-5-sonnet-20241022" />
-      <div className="text-gray-500-light font-primary mt-2.5 text-[11px]">
+      <div className="text-neutral-500-light font-primary mt-2.5 text-[11px]">
         • <strong>Off</strong>: No thinking (gray)
         <br />• <strong>Low</strong>: Minimal thinking (light purple)
         <br />• <strong>Medium</strong>: Moderate thinking (purple)
@@ -95,17 +95,17 @@ export const InteractiveDemo: Story = {
 export const LockedThinking: Story = {
   args: { modelString: "openai:gpt-5-pro" },
   render: (args) => (
-    <div className="flex min-w-80 flex-col gap-[30px] bg-gray-950 p-10">
-      <div className="font-primary mb-2.5 text-[13px] text-gray-300">
+    <div className="flex min-w-80 flex-col gap-[30px] bg-neutral-950 p-10">
+      <div className="font-primary mb-2.5 text-[13px] text-neutral-300">
         Some models have locked thinking levels based on their capabilities:
       </div>
       <div>
-        <div className="text-gray-500-light font-primary mb-2 text-xs">
+        <div className="text-neutral-500-light font-primary mb-2 text-xs">
           GPT-5-Pro (locked to &ldquo;high&rdquo;)
         </div>
         <ThinkingSliderComponent modelString={args.modelString} />
       </div>
-      <div className="text-gray-500-light font-primary mt-2.5 text-[11px]">
+      <div className="text-neutral-500-light font-primary mt-2.5 text-[11px]">
         Hover over the locked indicator to see why it&apos;s fixed.
       </div>
     </div>

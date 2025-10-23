@@ -12,18 +12,16 @@ interface ConsumerBreakdownProps {
 
 const ConsumerBreakdownComponent: React.FC<ConsumerBreakdownProps> = ({ consumers }) => {
   if (consumers.isCalculating) {
-    return <div className="py-3 text-gray-600 italic">Calculating consumer breakdown...</div>;
+    return <div className="py-3 text-neutral-600 italic">Calculating consumer breakdown...</div>;
   }
 
   if (consumers.consumers.length === 0) {
-    return (
-      <div className="py-3 text-left text-gray-400 italic">No consumer data available</div>
-    );
+    return <div className="py-3 text-left text-neutral-400 italic">No consumer data available</div>;
   }
 
   return (
     <>
-      <div className="mb-2 text-xs text-gray-500">
+      <div className="mb-2 text-xs text-neutral-500">
         Tokenizer: <span>{consumers.tokenizerName}</span>
       </div>
       <div className="flex flex-col gap-3">
@@ -41,7 +39,7 @@ const ConsumerBreakdownComponent: React.FC<ConsumerBreakdownProps> = ({ consumer
           return (
             <div key={consumer.name} className="mb-2 flex flex-col gap-1">
               <div className="mb-1 flex items-center justify-between">
-                <span className="flex items-center gap-1 font-medium text-gray-200">
+                <span className="flex items-center gap-1 font-medium text-neutral-200">
                   {consumer.name}
                   {consumer.name === "web_search" && (
                     <TooltipWrapper inline>
@@ -53,12 +51,12 @@ const ConsumerBreakdownComponent: React.FC<ConsumerBreakdownProps> = ({ consumer
                     </TooltipWrapper>
                   )}
                 </span>
-                <span className="text-xs text-gray-500">
+                <span className="text-xs text-neutral-500">
                   {tokenDisplay} ({consumer.percentage.toFixed(1)}%)
                 </span>
               </div>
               <div className="flex flex-col gap-1">
-                <div className="flex h-2 w-full overflow-hidden rounded bg-gray-900">
+                <div className="flex h-2 w-full overflow-hidden rounded bg-neutral-900">
                   {consumer.fixedTokens && consumer.variableTokens ? (
                     <>
                       <div
@@ -87,7 +85,7 @@ const ConsumerBreakdownComponent: React.FC<ConsumerBreakdownProps> = ({ consumer
                   )}
                 </div>
                 {consumer.fixedTokens && consumer.variableTokens && (
-                  <div className="text-left text-[11px] text-gray-400">
+                  <div className="text-left text-[11px] text-neutral-400">
                     Tool definition: {formatTokens(consumer.fixedTokens)} • Usage:{" "}
                     {formatTokens(consumer.variableTokens)}
                   </div>

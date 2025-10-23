@@ -69,8 +69,8 @@ const CostsTabComponent: React.FC<CostsTabProps> = ({ workspaceId }) => {
   // Only show empty state if truly no data anywhere
   if (!hasAnyData) {
     return (
-      <div className="font-primary text-[13px] leading-relaxed text-gray-200">
-        <div className="px-5 py-10 text-center text-gray-600">
+      <div className="font-primary text-[13px] leading-relaxed text-neutral-200">
+        <div className="px-5 py-10 text-center text-neutral-600">
           <p>No messages yet.</p>
           <p>Send a message to see token usage statistics.</p>
         </div>
@@ -90,7 +90,7 @@ const CostsTabComponent: React.FC<CostsTabProps> = ({ workspaceId }) => {
       : sumUsageHistory(usage.usageHistory);
 
   return (
-    <div className="font-primary text-[13px] leading-relaxed text-gray-200">
+    <div className="font-primary text-[13px] leading-relaxed text-neutral-200">
       {hasUsageData && (
         <div data-testid="context-usage-section" className="mt-2 mb-5">
           <div data-testid="context-usage-list" className="flex flex-col gap-3">
@@ -163,17 +163,17 @@ const CostsTabComponent: React.FC<CostsTabProps> = ({ workspaceId }) => {
                 <>
                   <div data-testid="context-usage" className="relative mb-2 flex flex-col gap-1">
                     <div className="flex items-baseline justify-between">
-                      <span className="inline-flex items-baseline gap-1 font-medium text-gray-200">
+                      <span className="inline-flex items-baseline gap-1 font-medium text-neutral-200">
                         Context Usage
                       </span>
-                      <span className="text-xs text-gray-500">
+                      <span className="text-xs text-neutral-500">
                         {totalDisplay}
                         {maxDisplay}
                         {` (${totalPercentage.toFixed(1)}%)`}
                       </span>
                     </div>
                     <div className="relative w-full">
-                      <div className="bg-border-gray-800 flex h-1.5 w-full overflow-hidden rounded-[3px]">
+                      <div className="bg-border-neutral-800 flex h-1.5 w-full overflow-hidden rounded-[3px]">
                         {cachedPercentage > 0 && (
                           <div
                             className="h-full transition-[width] duration-300"
@@ -219,7 +219,7 @@ const CostsTabComponent: React.FC<CostsTabProps> = ({ workspaceId }) => {
                     </div>
                   </div>
                   {showWarning && (
-                    <div className="mt-2 text-[11px] text-gray-400 italic">
+                    <div className="mt-2 text-[11px] text-neutral-400 italic">
                       Unknown model limits - showing relative usage only
                     </div>
                   )}
@@ -348,7 +348,7 @@ const CostsTabComponent: React.FC<CostsTabProps> = ({ workspaceId }) => {
                         className="mb-2 flex items-baseline justify-between"
                       >
                         <div className="flex items-center gap-3">
-                          <span className="inline-flex items-baseline gap-1 font-medium text-gray-200">
+                          <span className="inline-flex items-baseline gap-1 font-medium text-neutral-200">
                             Cost
                           </span>
                           <ToggleGroup
@@ -357,12 +357,12 @@ const CostsTabComponent: React.FC<CostsTabProps> = ({ workspaceId }) => {
                             onChange={setViewMode}
                           />
                         </div>
-                        <span className="text-xs text-gray-500">
+                        <span className="text-xs text-neutral-500">
                           {formatCostWithDollar(totalCost)}
                         </span>
                       </div>
                       <div className="relative w-full">
-                        <div className="bg-border-gray-800 flex h-1.5 w-full overflow-hidden rounded-[3px]">
+                        <div className="bg-border-neutral-800 flex h-1.5 w-full overflow-hidden rounded-[3px]">
                           {cachedCostPercentage > 0 && (
                             <div
                               className="h-full transition-[width] duration-300"
@@ -413,14 +413,14 @@ const CostsTabComponent: React.FC<CostsTabProps> = ({ workspaceId }) => {
                     className="mt-1 w-full border-collapse text-[11px]"
                   >
                     <thead>
-                      <tr className="border-b border-gray-800">
-                        <th className="py-1 pr-2 text-left font-medium text-gray-500 [&:last-child]:pr-0 [&:last-child]:text-right">
+                      <tr className="border-b border-neutral-800">
+                        <th className="py-1 pr-2 text-left font-medium text-neutral-500 [&:last-child]:pr-0 [&:last-child]:text-right">
                           Component
                         </th>
-                        <th className="py-1 pr-2 text-left font-medium text-gray-500 [&:last-child]:pr-0 [&:last-child]:text-right">
+                        <th className="py-1 pr-2 text-left font-medium text-neutral-500 [&:last-child]:pr-0 [&:last-child]:text-right">
                           Tokens
                         </th>
-                        <th className="py-1 pr-2 text-left font-medium text-gray-500 [&:last-child]:pr-0 [&:last-child]:text-right">
+                        <th className="py-1 pr-2 text-left font-medium text-neutral-500 [&:last-child]:pr-0 [&:last-child]:text-right">
                           Cost
                         </th>
                       </tr>
@@ -435,7 +435,7 @@ const CostsTabComponent: React.FC<CostsTabProps> = ({ workspaceId }) => {
 
                         return (
                           <tr key={component.name}>
-                            <td className="py-1 pr-2 text-gray-200 [&:last-child]:pr-0 [&:last-child]:text-right">
+                            <td className="py-1 pr-2 text-neutral-200 [&:last-child]:pr-0 [&:last-child]:text-right">
                               <div className="flex items-center gap-1.5">
                                 <div
                                   className="h-2 w-2 shrink-0 rounded-sm"
@@ -444,12 +444,12 @@ const CostsTabComponent: React.FC<CostsTabProps> = ({ workspaceId }) => {
                                 {component.name}
                               </div>
                             </td>
-                            <td className="py-1 pr-2 text-gray-200 [&:last-child]:pr-0 [&:last-child]:text-right">
+                            <td className="py-1 pr-2 text-neutral-200 [&:last-child]:pr-0 [&:last-child]:text-right">
                               {formatTokens(component.tokens)}
                             </td>
-                            <td className="py-1 pr-2 text-gray-200 [&:last-child]:pr-0 [&:last-child]:text-right">
+                            <td className="py-1 pr-2 text-neutral-200 [&:last-child]:pr-0 [&:last-child]:text-right">
                               {isNegligible ? (
-                                <span className="text-gray-400 italic">{costDisplay}</span>
+                                <span className="text-neutral-400 italic">{costDisplay}</span>
                               ) : (
                                 costDisplay
                               )}
@@ -467,7 +467,7 @@ const CostsTabComponent: React.FC<CostsTabProps> = ({ workspaceId }) => {
       )}
 
       <div className="mb-6">
-        <h3 className="m-0 mb-3 text-sm font-semibold tracking-wide text-gray-400 uppercase">
+        <h3 className="m-0 mb-3 text-sm font-semibold tracking-wide text-neutral-400 uppercase">
           Breakdown by Consumer
         </h3>
         <ConsumerBreakdown consumers={consumers} />
