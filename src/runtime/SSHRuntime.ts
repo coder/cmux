@@ -332,18 +332,4 @@ export class SSHRuntime implements Runtime {
       });
     });
   }
-
-  async exists(path: string): Promise<boolean> {
-    await this.ensureConnected();
-
-    if (!this.sftpClient) {
-      throw new RuntimeErrorClass("SFTP client not connected", "network");
-    }
-
-    return new Promise((resolve) => {
-      this.sftpClient!.stat(path, (err) => {
-        resolve(!err);
-      });
-    });
-  }
 }

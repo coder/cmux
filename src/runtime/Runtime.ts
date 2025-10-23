@@ -85,13 +85,6 @@ export interface Runtime {
    * @throws RuntimeError if path does not exist or cannot be accessed
    */
   stat(path: string): Promise<FileStat>;
-
-  /**
-   * Check if path exists
-   * @param path Absolute or relative path to check
-   * @returns True if path exists, false otherwise
-   */
-  exists(path: string): Promise<boolean>;
 }
 
 /**
