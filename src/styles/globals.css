@@ -495,7 +495,7 @@ code {
 
 .markdown-content li {
   margin: 0;
-  padding: 0;
+  padding: 0 0 4px 0;
   display: list-item;
 }
 
