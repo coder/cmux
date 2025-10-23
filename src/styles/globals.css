@@ -788,7 +788,7 @@ pre code {
 
 /* Checkbox utility classes */
 input[type="checkbox"] {
-  @apply relative m-0 h-[11px] w-3 cursor-pointer appearance-none rounded-sm border border-border-light bg-dark;
+  @apply relative m-0 h-3 w-3 cursor-pointer appearance-none rounded-sm border border-border-light bg-dark;
   @apply hover:border-accent;
   @apply checked:bg-accent checked:border-accent;
   @apply checked:after:absolute checked:after:top-0 checked:after:left-[3px] checked:after:h-[6px] checked:after:w-1;
