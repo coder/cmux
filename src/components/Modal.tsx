@@ -57,7 +57,7 @@ export const ModalInfo: React.FC<{
   <div
     id={id}
     className={cn(
-      "bg-gray-900 border border-gray-800-medium rounded p-3 mb-5 text-[13px]",
+      "bg-gray-900 border border-gray-700 rounded p-3 mb-5 text-[13px]",
       "[&_p]:m-0 [&_p]:mb-2 [&_p]:text-gray-500 [&_p:last-child]:mb-0",
       "[&_code]:text-sky-600 [&_code]:font-mono",
       className
@@ -144,7 +144,7 @@ export const Button: React.FC<ButtonProps> = ({ children, className, ...props })
 export const CancelButton: React.FC<ButtonProps> = ({ children, className, ...props }) => (
   <Button
     className={cn(
-      "bg-border-gray-700 text-gray-200 hover:bg-border-darker disabled:hover:bg-border-gray-700",
+      "bg-gray-700 text-gray-200 hover:bg-gray-800 disabled:hover:bg-gray-700",
       className
     )}
     {...props}
@@ -155,7 +155,7 @@ export const CancelButton: React.FC<ButtonProps> = ({ children, className, ...pr
 
 export const PrimaryButton: React.FC<ButtonProps> = ({ children, className, ...props }) => (
   <Button
-    className={cn("bg-accent text-white hover:bg-accent-dark disabled:hover:bg-accent", className)}
+    className={cn("bg-sky-600 text-white hover:bg-sky-700 disabled:hover:bg-sky-600", className)}
     {...props}
   >
     {children}

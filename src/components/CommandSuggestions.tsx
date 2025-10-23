@@ -104,8 +104,8 @@ export const CommandSuggestions: React.FC<CommandSuggestionsProps> = ({
           role="option"
           aria-selected={index === selectedIndex}
           className={cn(
-            "px-2.5 py-1.5 cursor-pointer transition-colors duration-150 flex items-center justify-between gap-3 hover:bg-accent-darker",
-            index === selectedIndex ? "bg-accent-darker" : "bg-transparent"
+            "px-2.5 py-1.5 cursor-pointer transition-colors duration-150 flex items-center justify-between gap-3 hover:bg-sky-600-darker",
+            index === selectedIndex ? "bg-sky-600-darker" : "bg-transparent"
           )}
         >
           <div className="font-monospace shrink-0 text-xs text-sky-600">{suggestion.display}</div>

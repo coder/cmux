@@ -132,7 +132,7 @@ const PaletteDemo: React.FC<{ autoOpen?: boolean }> = ({ autoOpen = true }) => {
     <>
       <button
         onClick={() => open()}
-        className="bg-accent-dark font-primary hover:bg-accent-hover active:bg-accent-dark cursor-pointer self-start rounded border-none px-4 py-2 text-[13px] text-white"
+        className="bg-sky-600-dark font-primary hover:bg-sky-600-hover active:bg-sky-600-dark cursor-pointer self-start rounded border-none px-4 py-2 text-[13px] text-white"
       >
         Open Command Palette (⌘⇧P)
       </button>

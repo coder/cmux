@@ -449,7 +449,7 @@ const CostsTabComponent: React.FC<CostsTabProps> = ({ workspaceId }) => {
                             </td>
                             <td className="py-1 pr-2 text-gray-200 [&:last-child]:pr-0 [&:last-child]:text-right">
                               {isNegligible ? (
-                                <span className="text-gray-200-dim italic">{costDisplay}</span>
+                                <span className="text-gray-400 italic">{costDisplay}</span>
                               ) : (
                                 costDisplay
                               )}

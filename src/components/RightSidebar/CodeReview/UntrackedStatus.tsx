@@ -153,10 +153,10 @@ export const UntrackedStatus: React.FC<UntrackedStatusProps> = ({
             onClick={() => void handleTrackAll()}
             disabled={isTracking}
             className={cn(
-              "w-full py-1 px-2 bg-transparent text-gray-500 border border-gray-800-medium rounded text-[11px] cursor-pointer transition-all duration-200 font-primary",
+              "w-full py-1 px-2 bg-transparent text-gray-500 border border-gray-700 rounded text-[11px] cursor-pointer transition-all duration-200 font-primary",
               "hover:bg-white-overlay-light hover:text-gray-200 hover:border-gray-800-subtle",
               "active:bg-white-overlay",
-              "disabled:text-border-darker disabled:border-gray-800 disabled:cursor-not-allowed disabled:bg-transparent"
+              "disabled:text-gray-800 disabled:border-gray-800 disabled:cursor-not-allowed disabled:bg-transparent"
             )}
           >
             {isTracking ? "Tracking..." : "Track All"}

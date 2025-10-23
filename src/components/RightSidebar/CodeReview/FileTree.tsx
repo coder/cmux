@@ -146,8 +146,8 @@ const TreeNodeContent: React.FC<{
               className={cn(
                 "flex-1",
                 isFullyRead &&
-                  "text-gray-200-dim line-through [text-decoration-color:var(--color-read)] [text-decoration-thickness:2px]",
-                isUnknownState && !isFullyRead && "text-gray-200-dim",
+                  "text-gray-400 line-through [text-decoration-color:var(--color-read)] [text-decoration-thickness:2px]",
+                isUnknownState && !isFullyRead && "text-gray-400",
                 !isFullyRead && !isUnknownState && "text-gray-500"
               )}
             >
@@ -181,8 +181,8 @@ const TreeNodeContent: React.FC<{
               className={cn(
                 "flex-1",
                 isFullyRead &&
-                  "text-gray-200-dim line-through [text-decoration-color:var(--color-read)] [text-decoration-thickness:2px]",
-                isUnknownState && !isFullyRead && "text-gray-200-dim",
+                  "text-gray-400 line-through [text-decoration-color:var(--color-read)] [text-decoration-thickness:2px]",
+                isUnknownState && !isFullyRead && "text-gray-400",
                 !isFullyRead && !isUnknownState && "text-gray-200"
               )}
             >

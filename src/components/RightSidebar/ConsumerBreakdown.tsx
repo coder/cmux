@@ -17,7 +17,7 @@ const ConsumerBreakdownComponent: React.FC<ConsumerBreakdownProps> = ({ consumer
 
   if (consumers.consumers.length === 0) {
     return (
-      <div className="text-gray-200-dim py-3 text-left italic">No consumer data available</div>
+      <div className="text-gray-400 py-3 text-left italic">No consumer data available</div>
     );
   }
 
@@ -87,7 +87,7 @@ const ConsumerBreakdownComponent: React.FC<ConsumerBreakdownProps> = ({ consumer
                   )}
                 </div>
                 {consumer.fixedTokens && consumer.variableTokens && (
-                  <div className="text-gray-200-dim text-left text-[11px]">
+                  <div className="text-gray-400 text-left text-[11px]">
                     Tool definition: {formatTokens(consumer.fixedTokens)} • Usage:{" "}
                     {formatTokens(consumer.variableTokens)}
                   </div>

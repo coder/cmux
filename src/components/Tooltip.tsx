@@ -244,7 +244,7 @@ export const HelpIndicator: React.FC<{ className?: string; children?: React.Reac
 }) => (
   <span
     className={cn(
-      "text-gray-200-dim text-[7px] cursor-help inline-block align-baseline",
+      "text-gray-400 text-[7px] cursor-help inline-block align-baseline",
       "border border-gray-800-subtle rounded-full w-2.5 h-[10px] leading-[8px]",
       "text-center font-bold mb-[2px]",
       className
