@@ -327,7 +327,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
     >
       <div
         ref={chatAreaRef}
-        className="flex-1 min-w-[400px] flex flex-col [@media(max-width:768px)]:min-w-0 [@media(max-width:768px)]:w-full [@media(max-width:768px)]:max-h-full"
+        className="flex-1 min-w-96 flex flex-col [@media(max-width:768px)]:min-w-0 [@media(max-width:768px)]:w-full [@media(max-width:768px)]:max-h-full"
       >
         <div className="py-1 px-[15px] bg-separator border-b border-border-light flex justify-between items-center [@media(max-width:768px)]:py-2 [@media(max-width:768px)]:pl-[60px] [@media(max-width:768px)]:flex-wrap [@media(max-width:768px)]:gap-2">
           <div className="font-semibold text-foreground flex items-center gap-2 min-w-0 overflow-hidden">

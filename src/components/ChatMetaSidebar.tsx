@@ -60,7 +60,7 @@ const ChatMetaSidebarComponent: React.FC<ChatMetaSidebarProps> = ({ workspaceId,
     <div
       className={cn(
         "bg-separator border-l border-border-light flex flex-col overflow-hidden transition-[width] duration-200 flex-shrink-0",
-        showCollapsed ? "w-5 sticky right-0 z-10 shadow-[-2px_0_4px_rgba(0,0,0,0.2)]" : "w-[300px]"
+        showCollapsed ? "w-5 sticky right-0 z-10 shadow-[-2px_0_4px_rgba(0,0,0,0.2)]" : "w-80"
       )}
       role="complementary"
       aria-label="Workspace insights"

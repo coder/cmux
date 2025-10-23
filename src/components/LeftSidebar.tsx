@@ -71,8 +71,8 @@ export function LeftSidebar(props: LeftSidebarProps) {
         className={cn(
           "h-screen bg-separator border-r border-dark flex flex-col shrink-0",
           "transition-all duration-200 overflow-hidden relative z-[100]",
-          collapsed ? "w-8" : "w-[280px]",
-          "max-md:fixed max-md:left-0 max-md:top-0 max-md:w-[280px] max-md:z-[1000]",
+          collapsed ? "w-8" : "w-72",
+          "max-md:fixed max-md:left-0 max-md:top-0 max-md:w-72 max-md:z-[1000]",
           "max-md:transition-transform max-md:duration-300",
           collapsed
             ? "max-md:-translate-x-full max-md:shadow-none"

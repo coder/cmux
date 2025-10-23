@@ -226,7 +226,7 @@ export const DiffRenderer: React.FC<DiffRendererProps> = ({
                 </span>
                 {showLineNumbers && (
                   <span
-                    className="flex items-center justify-end min-w-[35px] pr-1 select-none shrink-0"
+                    className="flex items-center justify-end min-w-9 pr-1 select-none shrink-0"
                     style={{
                       color: getContrastColor(chunk.type),
                       opacity: chunk.type === "add" || chunk.type === "remove" ? 0.9 : 0.6,
@@ -569,7 +569,7 @@ export const SelectableDiffRenderer = React.memo<SelectableDiffRendererProps>(
                   </span>
                   {showLineNumbers && (
                     <span
-                      className="flex items-center justify-end min-w-[35px] pr-1 select-none shrink-0"
+                      className="flex items-center justify-end min-w-9 pr-1 select-none shrink-0"
                       style={{
                         color: getContrastColor(lineInfo.type),
                         opacity: lineInfo.type === "add" || lineInfo.type === "remove" ? 0.9 : 0.6,

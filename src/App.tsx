@@ -701,7 +701,7 @@ function AppInner() {
               </ErrorBoundary>
             ) : (
               <div
-                className="text-center max-w-[800px] mx-auto w-full [&_h2]:text-white [&_h2]:mb-4 [&_h2]:font-bold [&_h2]:tracking-tight [&_p]:text-muted [&_p]:leading-[1.6]"
+                className="text-center max-w-3xl mx-auto w-full [&_h2]:text-white [&_h2]:mb-4 [&_h2]:font-bold [&_h2]:tracking-tight [&_p]:text-muted [&_p]:leading-[1.6]"
                 style={{
                   padding: "clamp(40px, 10vh, 100px) 20px",
                   fontSize: "clamp(14px, 2vw, 16px)",

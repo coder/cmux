@@ -67,7 +67,7 @@ export const BashToolCall: React.FC<BashToolCallProps> = ({
           <span>🔧</span>
           <Tooltip>bash</Tooltip>
         </TooltipWrapper>
-        <span className="text-text font-monospace whitespace-nowrap overflow-hidden text-ellipsis max-w-[400px]">
+        <span className="text-text font-monospace whitespace-nowrap overflow-hidden text-ellipsis max-w-96">
           {args.script}
         </span>
         <span

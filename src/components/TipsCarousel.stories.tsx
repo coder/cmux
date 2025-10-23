@@ -24,7 +24,7 @@ export const Default: Story = {
 
 export const WithExplanation: Story = {
   render: () => (
-    <div className="flex flex-col gap-5 p-5 bg-dark min-w-[500px]">
+    <div className="flex flex-col gap-5 p-5 bg-dark min-w-96">
       <div className="text-[13px] text-bright font-primary">
         Tips rotate automatically based on time. Hover to see the gradient effect:
       </div>
@@ -38,7 +38,7 @@ export const WithExplanation: Story = {
 
 export const DebugControls: Story = {
   render: () => (
-    <div className="flex flex-col gap-5 p-5 bg-dark min-w-[500px]">
+    <div className="flex flex-col gap-5 p-5 bg-dark min-w-96">
       <div className="text-[13px] text-bright font-primary">For debugging, you can use:</div>
       <TipsCarousel fixedTipIndex={1} />
       <div className="text-[11px] text-muted-light font-monospace p-3 bg-modal-bg rounded">

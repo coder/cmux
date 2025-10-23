@@ -187,7 +187,7 @@ export const GitStatusIndicatorView: React.FC<GitStatusIndicatorViewProps> = ({
   const tooltipElement = (
     <div
       className={cn(
-        "fixed z-[10000] bg-modal-bg text-foreground border border-separator-light rounded px-3 py-2 text-[11px] font-mono whitespace-pre max-w-[600px] max-h-[400px] overflow-auto shadow-[0_4px_12px_rgba(0,0,0,0.5)] pointer-events-auto transition-opacity duration-200",
+        "fixed z-[10000] bg-modal-bg text-foreground border border-separator-light rounded px-3 py-2 text-[11px] font-mono whitespace-pre max-w-96 max-h-[400px] overflow-auto shadow-[0_4px_12px_rgba(0,0,0,0.5)] pointer-events-auto transition-opacity duration-200",
         showTooltip ? "opacity-100 visible" : "opacity-0 invisible"
       )}
       style={{

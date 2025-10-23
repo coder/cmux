@@ -143,7 +143,7 @@ export const FileEditToolCall: React.FC<FileEditToolCallProps> = ({
             <span>✏️</span>
             <Tooltip>{toolName}</Tooltip>
           </TooltipWrapper>
-          <span className="text-text font-monospace whitespace-nowrap overflow-hidden text-ellipsis max-w-[400px]">
+          <span className="text-text font-monospace whitespace-nowrap overflow-hidden text-ellipsis max-w-96">
             {filePath}
           </span>
         </div>

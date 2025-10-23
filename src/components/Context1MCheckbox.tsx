@@ -22,7 +22,7 @@ export const Context1MCheckbox: React.FC<Context1MCheckboxProps> = ({ modelStrin
           type="checkbox"
           checked={use1M}
           onChange={(e) => setUse1M(e.target.checked)}
-          className="cursor-pointer w-[11px] h-[11px] m-0 appearance-none border border-border-light rounded-sm bg-dark relative hover:border-accent checked:bg-accent checked:border-accent checked:after:content-[''] checked:after:absolute checked:after:left-[3px] checked:after:top-0 checked:after:w-[3px] checked:after:h-[6px] checked:after:border-solid checked:after:border-white checked:after:border-r-[1.5px] checked:after:border-b-[1.5px] checked:after:rotate-45"
+          className="cursor-pointer w-3 h-[11px] m-0 appearance-none border border-border-light rounded-sm bg-dark relative hover:border-accent checked:bg-accent checked:border-accent checked:after:content-[''] checked:after:absolute checked:after:left-[3px] checked:after:top-0 checked:after:w-1 checked:after:h-[6px] checked:after:border-solid checked:after:border-white checked:after:border-r-[1.5px] checked:after:border-b-[1.5px] checked:after:rotate-45"
         />
         1M Context
       </label>

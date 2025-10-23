@@ -626,7 +626,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
                     Try selecting a different base or make some changes.
                   </div>
                   {diagnosticInfo && (
-                    <details className="mt-4 max-w-[500px] w-full bg-modal-bg border border-border-light rounded p-3 cursor-pointer [&_summary]:text-muted [&_summary]:text-xs [&_summary]:font-medium [&_summary]:select-none [&_summary]:list-none [&_summary]:flex [&_summary]:items-center [&_summary]:gap-1.5 [&_summary::-webkit-details-marker]:hidden [&_summary::before]:content-['▶'] [&_summary::before]:text-[10px] [&_summary::before]:transition-transform [&_summary::before]:duration-200 [&[open]_summary::before]:rotate-90">
+                    <details className="mt-4 max-w-96 w-full bg-modal-bg border border-border-light rounded p-3 cursor-pointer [&_summary]:text-muted [&_summary]:text-xs [&_summary]:font-medium [&_summary]:select-none [&_summary]:list-none [&_summary]:flex [&_summary]:items-center [&_summary]:gap-1.5 [&_summary::-webkit-details-marker]:hidden [&_summary::before]:content-['▶'] [&_summary::before]:text-[10px] [&_summary::before]:transition-transform [&_summary::before]:duration-200 [&[open]_summary::before]:rotate-90">
                       <summary>Show diagnostic info</summary>
                       <div className="mt-3 font-monospace text-[11px] text-foreground leading-[1.6]">
                         <div className="grid grid-cols-[140px_1fr] gap-3 py-1 [&:not(:last-child)]:border-b [&:not(:last-child)]:border-border-light">
@@ -694,7 +694,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
 
           {/* FileTree positioning handled by CSS order property */}
           {(fileTree ?? isLoadingTree) && (
-            <div className="w-[300px] flex-shrink-0 border-l border-border-light flex flex-col overflow-hidden min-h-0 order-2 @[800px]:w-full @[800px]:h-auto @[800px]:flex-[0_0_auto] @[800px]:border-l-0 @[800px]:border-b @[800px]:border-border-light @[800px]:order-0">
+            <div className="w-80 flex-shrink-0 border-l border-border-light flex flex-col overflow-hidden min-h-0 order-2 @[800px]:w-full @[800px]:h-auto @[800px]:flex-[0_0_auto] @[800px]:border-l-0 @[800px]:border-b @[800px]:border-border-light @[800px]:order-0">
               <FileTree
                 root={fileTree}
                 selectedPath={selectedFilePath}
