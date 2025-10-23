@@ -11,29 +11,29 @@ const VerticalTokenMeterComponent: React.FC<{ data: TokenMeterData }> = ({ data 
 
   return (
     <div
-      className="w-5 h-full flex flex-col items-center py-3 bg-separator border-l border-border-light"
+      className="bg-separator border-border-light flex h-full w-5 flex-col items-center border-l py-3"
       data-component="vertical-token-meter"
     >
       {data.maxTokens && (
         <div
-          className="font-primary text-[8px] font-semibold text-foreground mb-1 text-center flex-shrink-0"
+          className="font-primary text-foreground mb-1 shrink-0 text-center text-[8px] font-semibold"
           data-label="context-percentage"
         >
           {Math.round(data.totalPercentage)}
         </div>
       )}
       <div
-        className="flex-1 w-full flex flex-col items-center min-h-0"
+        className="flex min-h-0 w-full flex-1 flex-col items-center"
         data-wrapper="meter-wrapper"
       >
         <div
-          className="w-full flex flex-col items-center min-h-[20px]"
+          className="flex min-h-[20px] w-full flex-col items-center"
           style={{ flex: usagePercentage }}
           data-container="meter-container"
           data-usage-percentage={Math.round(usagePercentage)}
         >
           <div
-            className="flex-1 flex flex-col items-center w-full [&>*]:flex-1 [&>*]:flex [&>*]:flex-col"
+            className="flex w-full flex-1 flex-col items-center [&>*]:flex [&>*]:flex-1 [&>*]:flex-col"
             data-bar-wrapper="expand"
           >
             <TooltipWrapper data-tooltip-wrapper="vertical-meter">
@@ -45,16 +45,16 @@ const VerticalTokenMeterComponent: React.FC<{ data: TokenMeterData }> = ({ data 
               />
               <Tooltip data-tooltip="meter-details">
                 <div
-                  className="flex flex-col gap-2 font-primary text-xs"
+                  className="font-primary flex flex-col gap-2 text-xs"
                   data-tooltip-content="usage-breakdown"
                 >
                   <div
-                    className="font-semibold text-[13px] text-foreground"
+                    className="text-foreground text-[13px] font-semibold"
                     data-tooltip-title="last-request"
                   >
                     Last Request
                   </div>
-                  <div className="border-t border-border-light my-1" data-divider="top" />
+                  <div className="border-border-light my-1 border-t" data-divider="top" />
                   {data.segments.map((seg, i) => (
                     <div
                       key={i}
@@ -66,7 +66,7 @@ const VerticalTokenMeterComponent: React.FC<{ data: TokenMeterData }> = ({ data 
                     >
                       <div className="flex items-center gap-1.5">
                         <div
-                          className="w-2 h-2 rounded-full flex-shrink-0"
+                          className="h-2 w-2 shrink-0 rounded-full"
                           style={{ background: seg.color }}
                           data-dot={seg.type}
                         />
@@ -77,7 +77,7 @@ const VerticalTokenMeterComponent: React.FC<{ data: TokenMeterData }> = ({ data 
                       </span>
                     </div>
                   ))}
-                  <div className="border-t border-border-light my-1" data-divider="bottom" />
+                  <div className="border-border-light my-1 border-t" data-divider="bottom" />
                   <div
                     className="text-muted text-[11px]"
                     data-summary="total"
@@ -88,7 +88,7 @@ const VerticalTokenMeterComponent: React.FC<{ data: TokenMeterData }> = ({ data 
                     {data.maxTokens && ` / ${formatTokens(data.maxTokens)}`}
                     {data.maxTokens && ` (${data.totalPercentage.toFixed(1)}%)`}
                   </div>
-                  <div className="text-text-dim text-[10px] mt-2 italic">
+                  <div className="text-text-dim mt-2 text-[10px] italic">
                     💡 Expand your viewport to see full details
                   </div>
                 </div>

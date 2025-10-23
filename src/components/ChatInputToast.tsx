@@ -22,7 +22,7 @@ interface ChatInputToastProps {
 }
 
 export const SolutionLabel: React.FC<{ children: ReactNode }> = ({ children }) => (
-  <div className="text-muted-light text-[10px] mb-1 uppercase">{children}</div>
+  <div className="text-muted-light mb-1 text-[10px] uppercase">{children}</div>
 );
 
 export const ChatInputToast: React.FC<ChatInputToastProps> = ({ toast, onDismiss }) => {
@@ -61,19 +61,19 @@ export const ChatInputToast: React.FC<ChatInputToastProps> = ({ toast, onDismiss
 
   if (isRichError) {
     return (
-      <div className="absolute bottom-full left-[15px] right-[15px] mb-2 z-[1000] pointer-events-none [&>*]:pointer-events-auto">
+      <div className="pointer-events-none absolute right-[15px] bottom-full left-[15px] z-[1000] mb-2 [&>*]:pointer-events-auto">
         <div
           role="alert"
           aria-live="assertive"
-          className="bg-toast-fatal-bg border border-toast-fatal-border rounded px-3 py-2.5 text-xs text-danger-soft animate-[toastSlideIn_0.2s_ease-out] shadow-[0_4px_12px_rgba(0,0,0,0.3)]"
+          className="bg-toast-fatal-bg border-toast-fatal-border text-danger-soft animate-[toastSlideIn_0.2s_ease-out] rounded border px-3 py-2.5 text-xs shadow-[0_4px_12px_rgba(0,0,0,0.3)]"
         >
           <div className="flex items-start gap-1.5">
             <span className="text-sm leading-none">⚠</span>
             <div className="flex-1">
-              {toast.title && <div className="font-semibold mb-1.5">{toast.title}</div>}
-              <div className="text-light leading-[1.4] mt-1.5">{toast.message}</div>
+              {toast.title && <div className="mb-1.5 font-semibold">{toast.title}</div>}
+              <div className="text-light mt-1.5 leading-[1.4]">{toast.message}</div>
               {toast.solution && (
-                <div className="bg-dark rounded px-2 py-1.5 mt-2 font-monospace text-[11px] text-code-type">
+                <div className="bg-dark font-monospace text-code-type mt-2 rounded px-2 py-1.5 text-[11px]">
                   {toast.solution}
                 </div>
               )}
@@ -81,7 +81,7 @@ export const ChatInputToast: React.FC<ChatInputToastProps> = ({ toast, onDismiss
             <button
               onClick={handleDismiss}
               aria-label="Dismiss"
-              className="bg-transparent border-0 text-inherit cursor-pointer p-0 w-4 h-4 flex items-center justify-center text-base leading-none opacity-60 transition-opacity hover:opacity-100"
+              className="flex h-4 w-4 cursor-pointer items-center justify-center border-0 bg-transparent p-0 text-base leading-none text-inherit opacity-60 transition-opacity hover:opacity-100"
             >
               ×
             </button>
@@ -93,7 +93,7 @@ export const ChatInputToast: React.FC<ChatInputToastProps> = ({ toast, onDismiss
 
   // Regular toast for simple messages and success
   return (
-    <div className="absolute bottom-full left-[15px] right-[15px] mb-2 z-[1000] pointer-events-none [&>*]:pointer-events-auto">
+    <div className="pointer-events-none absolute right-[15px] bottom-full left-[15px] z-[1000] mb-2 [&>*]:pointer-events-auto">
       <div
         role={toast.type === "error" ? "alert" : "status"}
         aria-live={toast.type === "error" ? "assertive" : "polite"}
@@ -107,14 +107,14 @@ export const ChatInputToast: React.FC<ChatInputToastProps> = ({ toast, onDismiss
       >
         <span className="text-sm leading-none">{toast.type === "success" ? "✓" : "⚠"}</span>
         <div className="flex-1">
-          {toast.title && <div className="font-semibold mb-px text-[11px]">{toast.title}</div>}
+          {toast.title && <div className="mb-px text-[11px] font-semibold">{toast.title}</div>}
           <div className="opacity-90">{toast.message}</div>
         </div>
         {toast.type === "error" && (
           <button
             onClick={handleDismiss}
             aria-label="Dismiss"
-            className="bg-transparent border-0 text-inherit cursor-pointer p-0 w-4 h-4 flex items-center justify-center text-base leading-none opacity-60 transition-opacity hover:opacity-100"
+            className="flex h-4 w-4 cursor-pointer items-center justify-center border-0 bg-transparent p-0 text-base leading-none text-inherit opacity-60 transition-opacity hover:opacity-100"
           >
             ×
           </button>

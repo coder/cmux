@@ -100,10 +100,10 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
       describedById={infoId}
     >
       <form onSubmit={(event) => void handleSubmit(event)}>
-        <div className="mb-5 [&_label]:block [&_label]:mb-2 [&_label]:text-foreground [&_label]:text-sm [&_input]:w-full [&_input]:py-2 [&_input]:px-3 [&_input]:bg-modal-bg [&_input]:border [&_input]:border-border-medium [&_input]:rounded [&_input]:text-white [&_input]:text-sm [&_input]:focus:outline-none [&_input]:focus:border-accent [&_input]:disabled:opacity-60 [&_input]:disabled:cursor-not-allowed [&_select]:w-full [&_select]:py-2 [&_select]:px-3 [&_select]:bg-modal-bg [&_select]:border [&_select]:border-border-medium [&_select]:rounded [&_select]:text-white [&_select]:text-sm [&_select]:focus:outline-none [&_select]:focus:border-accent [&_select]:disabled:opacity-60 [&_select]:disabled:cursor-not-allowed [&_select]:cursor-pointer [&_option]:bg-modal-bg [&_option]:text-white">
+        <div className="[&_label]:text-foreground [&_input]:bg-modal-bg [&_input]:border-border-medium [&_input]:focus:border-accent [&_select]:bg-modal-bg [&_select]:border-border-medium [&_select]:focus:border-accent [&_option]:bg-modal-bg mb-5 [&_input]:w-full [&_input]:rounded [&_input]:border [&_input]:px-3 [&_input]:py-2 [&_input]:text-sm [&_input]:text-white [&_input]:focus:outline-none [&_input]:disabled:cursor-not-allowed [&_input]:disabled:opacity-60 [&_label]:mb-2 [&_label]:block [&_label]:text-sm [&_option]:text-white [&_select]:w-full [&_select]:cursor-pointer [&_select]:rounded [&_select]:border [&_select]:px-3 [&_select]:py-2 [&_select]:text-sm [&_select]:text-white [&_select]:focus:outline-none [&_select]:disabled:cursor-not-allowed [&_select]:disabled:opacity-60">
           <label htmlFor="branchName">
             <TooltipWrapper inline>
-              <span className="underline decoration-dotted decoration-[#666] underline-offset-2 cursor-help">
+              <span className="cursor-help underline decoration-[#666] decoration-dotted underline-offset-2">
                 Workspace Branch Name:
               </span>
               <Tooltip width="wide" position="bottom" interactive>
@@ -134,10 +134,10 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
             required
             aria-required="true"
           />
-          {error && <div className="text-danger-light text-[13px] mt-1.5">{error}</div>}
+          {error && <div className="text-danger-light mt-1.5 text-[13px]">{error}</div>}
         </div>
 
-        <div className="mb-5 [&_label]:block [&_label]:mb-2 [&_label]:text-foreground [&_label]:text-sm [&_input]:w-full [&_input]:py-2 [&_input]:px-3 [&_input]:bg-modal-bg [&_input]:border [&_input]:border-border-medium [&_input]:rounded [&_input]:text-white [&_input]:text-sm [&_input]:focus:outline-none [&_input]:focus:border-accent [&_input]:disabled:opacity-60 [&_input]:disabled:cursor-not-allowed [&_select]:w-full [&_select]:py-2 [&_select]:px-3 [&_select]:bg-modal-bg [&_select]:border [&_select]:border-border-medium [&_select]:rounded [&_select]:text-white [&_select]:text-sm [&_select]:focus:outline-none [&_select]:focus:border-accent [&_select]:disabled:opacity-60 [&_select]:disabled:cursor-not-allowed [&_select]:cursor-pointer [&_option]:bg-modal-bg [&_option]:text-white">
+        <div className="[&_label]:text-foreground [&_input]:bg-modal-bg [&_input]:border-border-medium [&_input]:focus:border-accent [&_select]:bg-modal-bg [&_select]:border-border-medium [&_select]:focus:border-accent [&_option]:bg-modal-bg mb-5 [&_input]:w-full [&_input]:rounded [&_input]:border [&_input]:px-3 [&_input]:py-2 [&_input]:text-sm [&_input]:text-white [&_input]:focus:outline-none [&_input]:disabled:cursor-not-allowed [&_input]:disabled:opacity-60 [&_label]:mb-2 [&_label]:block [&_label]:text-sm [&_option]:text-white [&_select]:w-full [&_select]:cursor-pointer [&_select]:rounded [&_select]:border [&_select]:px-3 [&_select]:py-2 [&_select]:text-sm [&_select]:text-white [&_select]:focus:outline-none [&_select]:disabled:cursor-not-allowed [&_select]:disabled:opacity-60">
           <label htmlFor="trunkBranch">Trunk Branch:</label>
           {hasBranches ? (
             <select
@@ -167,7 +167,7 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
             />
           )}
           {!hasBranches && (
-            <div className="text-danger-light text-[13px] mt-1.5">
+            <div className="text-danger-light mt-1.5 text-[13px]">
               No branches were detected automatically. Enter the trunk branch manually.
             </div>
           )}
@@ -182,8 +182,8 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
 
         {branchName.trim() && (
           <div>
-            <div className="text-xs text-muted mb-2 font-sans">Equivalent command:</div>
-            <div className="mt-5 p-3 bg-dark border border-border-light rounded font-mono text-[13px] text-light whitespace-pre-wrap break-all">
+            <div className="text-muted mb-2 font-sans text-xs">Equivalent command:</div>
+            <div className="bg-dark border-border-light text-light mt-5 rounded border p-3 font-mono text-[13px] break-all whitespace-pre-wrap">
               {formatNewCommand(branchName.trim(), trunkBranch.trim() || undefined)}
             </div>
           </div>

@@ -110,17 +110,15 @@ export const TodoList: React.FC<TodoListProps> = ({ todos }) => {
         return (
           <div
             key={index}
-            className="flex items-start gap-1.5 px-2 py-1 rounded border-l-2 font-monospace text-[11px] leading-[1.35]"
+            className="font-monospace flex items-start gap-1.5 rounded border-l-2 px-2 py-1 text-[11px] leading-[1.35]"
             style={{
               background: statusBgColors[todo.status],
               borderLeftColor: statusBorderColors[todo.status],
               color: "var(--color-text)",
             }}
           >
-            <div className="text-xs flex-shrink-0 mt-px opacity-80">
-              {getStatusIcon(todo.status)}
-            </div>
-            <div className="flex-1 min-w-0">
+            <div className="mt-px shrink-0 text-xs opacity-80">{getStatusIcon(todo.status)}</div>
+            <div className="min-w-0 flex-1">
               <div
                 className={cn(
                   "whitespace-nowrap",

@@ -16,18 +16,18 @@ export const Context1MCheckbox: React.FC<Context1MCheckboxProps> = ({ modelStrin
   }
 
   return (
-    <div className="flex items-center gap-1.5 ml-2">
-      <label className="flex items-center gap-1 text-[10px] text-foreground cursor-pointer select-none whitespace-nowrap overflow-hidden text-ellipsis hover:text-white">
+    <div className="ml-2 flex items-center gap-1.5">
+      <label className="text-foreground flex cursor-pointer items-center gap-1 truncate text-[10px] select-none hover:text-white">
         <input
           type="checkbox"
           checked={use1M}
           onChange={(e) => setUse1M(e.target.checked)}
-          className="cursor-pointer w-3 h-[11px] m-0 appearance-none border border-border-light rounded-sm bg-dark relative hover:border-accent checked:bg-accent checked:border-accent checked:after:content-[''] checked:after:absolute checked:after:left-[3px] checked:after:top-0 checked:after:w-1 checked:after:h-[6px] checked:after:border-solid checked:after:border-white checked:after:border-r-[1.5px] checked:after:border-b-[1.5px] checked:after:rotate-45"
+          className="border-border-light bg-dark hover:border-accent checked:bg-accent checked:border-accent relative m-0 h-[11px] w-3 cursor-pointer appearance-none rounded-sm border checked:after:absolute checked:after:top-0 checked:after:left-[3px] checked:after:h-[6px] checked:after:w-1 checked:after:rotate-45 checked:after:border-r-[1.5px] checked:after:border-b-[1.5px] checked:after:border-solid checked:after:border-white checked:after:content-['']"
         />
         1M Context
       </label>
       <TooltipWrapper inline>
-        <span className="cursor-help text-muted text-[10px] leading-none flex items-center">?</span>
+        <span className="text-muted flex cursor-help items-center text-[10px] leading-none">?</span>
         <Tooltip className="tooltip" align="center" width="auto">
           Enable 1M token context window (beta feature for Claude Sonnet 4/4.5)
         </Tooltip>

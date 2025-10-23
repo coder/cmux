@@ -98,7 +98,7 @@ export const KebabMenu: React.FC<KebabMenuProps> = ({ items, className }) => {
         createPortal(
           <div
             ref={menuRef}
-            className="fixed bg-dark border border-border-light rounded-[3px] shadow-[0_4px_16px_rgba(0,0,0,0.8)] z-[10000] min-w-40 overflow-hidden"
+            className="bg-dark border-border-light fixed z-[10000] min-w-40 overflow-hidden rounded-[3px] border shadow-[0_4px_16px_rgba(0,0,0,0.8)]"
             style={{
               top: `${dropdownPosition.top}px`,
               left: `${dropdownPosition.left}px`,
@@ -120,7 +120,7 @@ export const KebabMenu: React.FC<KebabMenuProps> = ({ items, className }) => {
                 )}
               >
                 {item.emoji && (
-                  <span className="text-[13px] w-4 text-center flex-shrink-0">{item.emoji}</span>
+                  <span className="w-4 shrink-0 text-center text-[13px]">{item.emoji}</span>
                 )}
                 <span className="flex-1">{item.label}</span>
               </button>

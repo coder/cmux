@@ -201,7 +201,7 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
       <div className={cn("flex-row h-full", !showCollapsed ? "flex" : "hidden")}>
         {/* Render meter when Review tab is active */}
         {selectedTab === "review" && (
-          <div className="w-5 bg-separator border-r border-border-light flex flex-col flex-shrink-0">
+          <div className="bg-separator border-border-light flex w-5 shrink-0 flex-col border-r">
             {verticalMeter}
           </div>
         )}
@@ -218,9 +218,9 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
           />
         )}
 
-        <div className="flex flex-col flex-1 min-w-0">
+        <div className="flex min-w-0 flex-1 flex-col">
           <div
-            className="flex bg-background-secondary border-b border-border [&>*]:flex-1"
+            className="bg-background-secondary border-border flex border-b [&>*]:flex-1"
             role="tablist"
             aria-label="Metadata views"
           >

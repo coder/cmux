@@ -2,6 +2,7 @@ import js from "@eslint/js";
 import { defineConfig } from "eslint/config";
 import react from "eslint-plugin-react";
 import reactHooks from "eslint-plugin-react-hooks";
+import tailwindcss from "eslint-plugin-tailwindcss";
 import tseslint from "typescript-eslint";
 
 /**
@@ -154,11 +155,20 @@ export default defineConfig([
     plugins: {
       react,
       "react-hooks": reactHooks,
+      tailwindcss,
       local: localPlugin,
     },
     settings: {
       react: {
         version: "detect",
+      },
+      tailwindcss: {
+        // Don't try to load Tailwind config (v4 doesn't export resolveConfig)
+        config: false,
+        // CSS files to check
+        cssFiles: ["**/*.css", "!**/node_modules", "!**/.*", "!**/dist", "!**/build"],
+        // Disable callees check to avoid resolving config
+        callees: [],
       },
     },
     rules: {
@@ -239,6 +249,15 @@ export default defineConfig([
       // React specific
       "react/react-in-jsx-scope": "off",
       "react/prop-types": "off",
+
+      // Tailwind CSS
+      "tailwindcss/classnames-order": "warn",
+      "tailwindcss/enforces-negative-arbitrary-values": "warn",
+      "tailwindcss/enforces-shorthand": "warn",
+      "tailwindcss/migration-from-tailwind-2": "warn",
+      "tailwindcss/no-arbitrary-value": "off",
+      "tailwindcss/no-contradicting-classname": "error",
+      "tailwindcss/no-custom-classname": "off",
 
       // Safe Node.js patterns
       "local/no-unsafe-child-process": "error",

@@ -179,7 +179,7 @@ export const DiffRenderer: React.FC<DiffRendererProps> = ({
   if (!highlightedChunks) {
     return (
       <div
-        className="m-0 py-1.5 bg-code-bg rounded grid overflow-y-auto overflow-x-auto [&_*]:text-[inherit]"
+        className="bg-code-bg m-0 grid overflow-auto rounded py-1.5 [&_*]:text-[inherit]"
         style={{
           fontSize: fontSize ?? "12px",
           lineHeight: 1.4,
@@ -194,7 +194,7 @@ export const DiffRenderer: React.FC<DiffRendererProps> = ({
 
   return (
     <div
-      className="m-0 py-1.5 bg-code-bg rounded grid overflow-y-auto overflow-x-auto [&_*]:text-[inherit]"
+      className="bg-code-bg m-0 grid overflow-auto rounded py-1.5 [&_*]:text-[inherit]"
       style={{
         fontSize: fontSize ?? "12px",
         lineHeight: 1.4,
@@ -212,11 +212,11 @@ export const DiffRenderer: React.FC<DiffRendererProps> = ({
               style={{ background: getDiffLineBackground(chunk.type) }}
             >
               <div
-                className="font-mono whitespace-pre flex px-2"
+                className="flex px-2 font-mono whitespace-pre"
                 style={{ color: getDiffLineColor(chunk.type) }}
               >
                 <span
-                  className="inline-block w-1 text-center shrink-0"
+                  className="inline-block w-1 shrink-0 text-center"
                   style={{
                     color: getContrastColor(chunk.type),
                     opacity: chunk.type === "add" || chunk.type === "remove" ? 0.9 : 0.6,
@@ -226,7 +226,7 @@ export const DiffRenderer: React.FC<DiffRendererProps> = ({
                 </span>
                 {showLineNumbers && (
                   <span
-                    className="flex items-center justify-end min-w-9 pr-1 select-none shrink-0"
+                    className="flex min-w-9 shrink-0 items-center justify-end pr-1 select-none"
                     style={{
                       color: getContrastColor(chunk.type),
                       opacity: chunk.type === "add" || chunk.type === "remove" ? 0.9 : 0.6,
@@ -336,12 +336,12 @@ const ReviewNoteInput: React.FC<ReviewNoteInputProps> = React.memo(
 
     return (
       <div
-        className="py-1.5 px-2 bg-dark border-t m-0"
+        className="bg-dark m-0 border-t px-2 py-1.5"
         style={{ borderColor: "hsl(from var(--color-review-accent) h s l / 0.3)" }}
       >
         <textarea
           ref={textareaRef}
-          className="w-full px-2 py-1.5 font-mono text-xs leading-[1.4] bg-dark border rounded-sm text-text resize-none overflow-y-hidden placeholder:text-muted focus:outline-none focus:border-[hsl(from_var(--color-review-accent)_h_s_l_/_0.6)]"
+          className="bg-dark text-text placeholder:text-muted w-full resize-none overflow-y-hidden rounded-sm border px-2 py-1.5 font-mono text-xs leading-[1.4] focus:border-[hsl(from_var(--color-review-accent)_h_s_l_/_0.6)] focus:outline-none"
           style={{
             minHeight: "calc(12px * 1.4 * 3 + 12px)",
             borderColor: "hsl(from var(--color-review-accent) h s l / 0.4)",
@@ -480,7 +480,7 @@ export const SelectableDiffRenderer = React.memo<SelectableDiffRendererProps>(
     if (!highlightedChunks || highlightedLineData.length === 0) {
       return (
         <div
-          className="m-0 py-1.5 bg-code-bg rounded grid overflow-y-auto overflow-x-auto [&_*]:text-[inherit]"
+          className="bg-code-bg m-0 grid overflow-auto rounded py-1.5 [&_*]:text-[inherit]"
           style={{
             fontSize: fontSize ?? "12px",
             lineHeight: 1.4,
@@ -498,7 +498,7 @@ export const SelectableDiffRenderer = React.memo<SelectableDiffRendererProps>(
 
     return (
       <div
-        className="m-0 py-1.5 bg-code-bg rounded grid overflow-y-auto overflow-x-auto [&_*]:text-[inherit]"
+        className="bg-code-bg m-0 grid overflow-auto rounded py-1.5 [&_*]:text-[inherit]"
         style={{
           fontSize: fontSize ?? "12px",
           lineHeight: 1.4,
@@ -523,10 +523,10 @@ export const SelectableDiffRenderer = React.memo<SelectableDiffRendererProps>(
                     : getDiffLineBackground(lineInfo.type),
                 }}
               >
-                <span className="absolute left-1 top-1/2 -translate-y-1/2 z-[1]">
+                <span className="absolute top-1/2 left-1 z-[1] -translate-y-1/2">
                   <TooltipWrapper inline>
                     <button
-                      className="opacity-0 bg-review-accent border-none rounded-sm w-3.5 h-3.5 p-0 cursor-pointer transition-opacity duration-150 flex items-center justify-center text-white font-bold shrink-0 group-hover:opacity-70 hover:!opacity-100 active:scale-90"
+                      className="bg-review-accent flex h-3.5 w-3.5 shrink-0 cursor-pointer items-center justify-center rounded-sm border-none p-0 font-bold text-white opacity-0 transition-opacity duration-150 group-hover:opacity-70 hover:!opacity-100 active:scale-90"
                       style={{
                         background: "var(--color-review-accent)",
                       }}
@@ -555,11 +555,11 @@ export const SelectableDiffRenderer = React.memo<SelectableDiffRendererProps>(
                   </TooltipWrapper>
                 </span>
                 <div
-                  className="font-mono whitespace-pre flex px-2"
+                  className="flex px-2 font-mono whitespace-pre"
                   style={{ color: getDiffLineColor(lineInfo.type) }}
                 >
                   <span
-                    className="inline-block w-1 text-center shrink-0"
+                    className="inline-block w-1 shrink-0 text-center"
                     style={{
                       color: getContrastColor(lineInfo.type),
                       opacity: lineInfo.type === "add" || lineInfo.type === "remove" ? 0.9 : 0.6,
@@ -569,7 +569,7 @@ export const SelectableDiffRenderer = React.memo<SelectableDiffRendererProps>(
                   </span>
                   {showLineNumbers && (
                     <span
-                      className="flex items-center justify-end min-w-9 pr-1 select-none shrink-0"
+                      className="flex min-w-9 shrink-0 items-center justify-end pr-1 select-none"
                       style={{
                         color: getContrastColor(lineInfo.type),
                         opacity: lineInfo.type === "add" || lineInfo.type === "remove" ? 0.9 : 0.6,

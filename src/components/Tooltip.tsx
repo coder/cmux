@@ -230,7 +230,7 @@ export const Tooltip: React.FC<TooltipProps> = ({
     >
       {children}
       <div
-        className="absolute border-[5px] border-solid -translate-x-1/2"
+        className="absolute -translate-x-1/2 border-[5px] border-solid"
         style={tooltipState.arrowStyle}
       />
     </div>,

@@ -121,18 +121,18 @@ export const UserMessage: React.FC<UserMessageProps> = ({
       className={className}
     >
       {content && (
-        <pre className="m-0 font-mono text-xs leading-4 whitespace-pre-wrap break-words text-subtle opacity-90">
+        <pre className="text-subtle m-0 font-mono text-xs leading-4 break-words whitespace-pre-wrap opacity-90">
           {content}
         </pre>
       )}
       {message.imageParts && message.imageParts.length > 0 && (
-        <div className="flex flex-wrap gap-2 mt-2">
+        <div className="mt-2 flex flex-wrap gap-2">
           {message.imageParts.map((img, idx) => (
             <img
               key={idx}
               src={img.url}
               alt={`Attachment ${idx + 1}`}
-              className="max-w-80 max-h-[300px] rounded border border-border-light"
+              className="border-border-light max-h-[300px] max-w-80 rounded border"
             />
           ))}
         </div>

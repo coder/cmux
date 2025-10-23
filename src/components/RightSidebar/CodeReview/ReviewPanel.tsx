@@ -532,7 +532,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
       tabIndex={0}
       onFocus={() => setIsPanelFocused(true)}
       onBlur={() => setIsPanelFocused(false)}
-      className="flex flex-col h-full min-h-0 bg-dark [container-type:inline-size] [container-name:review-panel] outline-none focus-within:shadow-[inset_0_0_0_1px_rgba(0,122,204,0.2)]"
+      className="bg-dark [container-type:inline-size] flex h-full min-h-0 flex-col outline-none [container-name:review-panel] focus-within:shadow-[inset_0_0_0_1px_rgba(0,122,204,0.2)]"
     >
       {/* Always show controls so user can change diff base */}
       <ReviewControls
@@ -547,31 +547,31 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
       />
 
       {error ? (
-        <div className="p-6 text-danger-soft bg-danger-soft/10 border border-danger-soft/30 rounded m-3 font-monospace text-xs leading-[1.5] whitespace-pre-wrap break-words">
+        <div className="text-danger-soft bg-danger-soft/10 border-danger-soft/30 font-monospace m-3 rounded border p-6 text-xs leading-[1.5] break-words whitespace-pre-wrap">
           {error}
         </div>
       ) : isLoadingHunks && hunks.length === 0 && !fileTree ? (
-        <div className="flex items-center justify-center h-full text-muted text-sm">
+        <div className="text-muted flex h-full items-center justify-center text-sm">
           Loading diff...
         </div>
       ) : (
-        <div className="flex flex-row flex-1 min-h-0 overflow-hidden @[800px]:flex-col">
-          <div className="flex-1 min-h-0 flex flex-col overflow-hidden min-w-0 order-1">
+        <div className="flex min-h-0 flex-1 flex-row overflow-hidden @[800px]:flex-col">
+          <div className="order-1 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
             {truncationWarning && (
-              <div className="bg-warning/10 border border-warning/30 rounded py-1.5 px-3 mx-3 my-3 text-warning text-[10px] flex items-center gap-1.5 leading-[1.3] before:content-['⚠️'] before:text-xs">
+              <div className="bg-warning/10 border-warning/30 text-warning mx-3 my-3 flex items-center gap-1.5 rounded border px-3 py-1.5 text-[10px] leading-[1.3] before:text-xs before:content-['⚠️']">
                 {truncationWarning}
               </div>
             )}
 
-            <div className="py-2 px-3 border-b border-border-light bg-separator">
-              <div className="flex items-stretch border border-border-light rounded overflow-hidden bg-dark transition-[border-color] duration-150 hover:border-border-gray focus-within:border-accent focus-within:hover:border-accent">
+            <div className="border-border-light bg-separator border-b px-3 py-2">
+              <div className="border-border-light bg-dark hover:border-border-gray focus-within:border-accent focus-within:hover:border-accent flex items-stretch overflow-hidden rounded border transition-[border-color] duration-150">
                 <input
                   ref={searchInputRef}
                   type="text"
                   placeholder={`Search in files and hunks... (${formatKeybind(KEYBINDS.FOCUS_REVIEW_SEARCH)})`}
                   value={searchState.input}
                   onChange={(e) => setSearchState({ ...searchState, input: e.target.value })}
-                  className="flex-1 py-1.5 px-2.5 bg-transparent border-none text-foreground text-xs font-sans leading-[1.4] outline-none flex items-center h-full placeholder:text-text-dim focus:bg-separator"
+                  className="text-foreground placeholder:text-text-dim focus:bg-separator flex h-full flex-1 items-center border-none bg-transparent px-2.5 py-1.5 font-sans text-xs leading-[1.4] outline-none"
                 />
                 <TooltipWrapper inline>
                   <button
@@ -616,32 +616,32 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
               </div>
             </div>
 
-            <div className="flex-1 min-h-0 overflow-y-auto p-3">
+            <div className="min-h-0 flex-1 overflow-y-auto p-3">
               {hunks.length === 0 ? (
-                <div className="flex flex-col items-center justify-start pt-12 px-6 pb-6 text-muted text-center gap-3">
-                  <div className="text-base font-medium text-foreground">No changes found</div>
+                <div className="text-muted flex flex-col items-center justify-start gap-3 px-6 pt-12 pb-6 text-center">
+                  <div className="text-foreground text-base font-medium">No changes found</div>
                   <div className="text-[13px] leading-[1.5]">
                     No changes found for the selected diff base.
                     <br />
                     Try selecting a different base or make some changes.
                   </div>
                   {diagnosticInfo && (
-                    <details className="mt-4 max-w-96 w-full bg-modal-bg border border-border-light rounded p-3 cursor-pointer [&_summary]:text-muted [&_summary]:text-xs [&_summary]:font-medium [&_summary]:select-none [&_summary]:list-none [&_summary]:flex [&_summary]:items-center [&_summary]:gap-1.5 [&_summary::-webkit-details-marker]:hidden [&_summary::before]:content-['▶'] [&_summary::before]:text-[10px] [&_summary::before]:transition-transform [&_summary::before]:duration-200 [&[open]_summary::before]:rotate-90">
+                    <details className="bg-modal-bg border-border-light [&_summary]:text-muted mt-4 w-full max-w-96 cursor-pointer rounded border p-3 [&_summary]:flex [&_summary]:list-none [&_summary]:items-center [&_summary]:gap-1.5 [&_summary]:text-xs [&_summary]:font-medium [&_summary]:select-none [&_summary::-webkit-details-marker]:hidden [&_summary::before]:text-[10px] [&_summary::before]:transition-transform [&_summary::before]:duration-200 [&_summary::before]:content-['▶'] [&[open]_summary::before]:rotate-90">
                       <summary>Show diagnostic info</summary>
-                      <div className="mt-3 font-monospace text-[11px] text-foreground leading-[1.6]">
-                        <div className="grid grid-cols-[140px_1fr] gap-3 py-1 [&:not(:last-child)]:border-b [&:not(:last-child)]:border-border-light">
+                      <div className="font-monospace text-foreground mt-3 text-[11px] leading-[1.6]">
+                        <div className="[&:not(:last-child)]:border-border-light grid grid-cols-[140px_1fr] gap-3 py-1 [&:not(:last-child)]:border-b">
                           <div className="text-muted font-medium">Command:</div>
                           <div className="text-foreground break-all select-all">
                             {diagnosticInfo.command}
                           </div>
                         </div>
-                        <div className="grid grid-cols-[140px_1fr] gap-3 py-1 [&:not(:last-child)]:border-b [&:not(:last-child)]:border-border-light">
+                        <div className="[&:not(:last-child)]:border-border-light grid grid-cols-[140px_1fr] gap-3 py-1 [&:not(:last-child)]:border-b">
                           <div className="text-muted font-medium">Output size:</div>
                           <div className="text-foreground break-all select-all">
                             {diagnosticInfo.outputLength.toLocaleString()} bytes
                           </div>
                         </div>
-                        <div className="grid grid-cols-[140px_1fr] gap-3 py-1 [&:not(:last-child)]:border-b [&:not(:last-child)]:border-border-light">
+                        <div className="[&:not(:last-child)]:border-border-light grid grid-cols-[140px_1fr] gap-3 py-1 [&:not(:last-child)]:border-b">
                           <div className="text-muted font-medium">Files parsed:</div>
                           <div className="text-foreground break-all select-all">
                             {diagnosticInfo.fileDiffCount}
@@ -658,7 +658,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
                   )}
                 </div>
               ) : filteredHunks.length === 0 ? (
-                <div className="flex flex-col items-center justify-start pt-12 px-6 pb-6 text-muted text-center gap-3">
+                <div className="text-muted flex flex-col items-center justify-start gap-3 px-6 pt-12 pb-6 text-center">
                   <div className="text-[13px] leading-[1.5]">
                     {debouncedSearchTerm.trim()
                       ? `No hunks match "${debouncedSearchTerm}". Try a different search term.`
@@ -694,7 +694,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
 
           {/* FileTree positioning handled by CSS order property */}
           {(fileTree ?? isLoadingTree) && (
-            <div className="w-80 flex-shrink-0 border-l border-border-light flex flex-col overflow-hidden min-h-0 order-2 @[800px]:w-full @[800px]:h-auto @[800px]:flex-[0_0_auto] @[800px]:border-l-0 @[800px]:border-b @[800px]:border-border-light @[800px]:order-0">
+            <div className="border-border-light @[800px]:border-border-light order-2 flex min-h-0 w-80 shrink-0 flex-col overflow-hidden border-l @[800px]:order-0 @[800px]:h-auto @[800px]:w-full @[800px]:flex-[0_0_auto] @[800px]:border-b @[800px]:border-l-0">
               <FileTree
                 root={fileTree}
                 selectedPath={selectedFilePath}

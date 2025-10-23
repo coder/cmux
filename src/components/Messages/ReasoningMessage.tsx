@@ -52,10 +52,10 @@ export const ReasoningMessage: React.FC<ReasoningMessageProps> = ({ message, cla
       )}
     >
       <div
-        className="flex items-center justify-between gap-2 mb-1.5 cursor-pointer select-none"
+        className="mb-1.5 flex cursor-pointer items-center justify-between gap-2 select-none"
         onClick={toggleExpanded}
       >
-        <div className="flex items-center gap-2 text-[10px] uppercase tracking-wide text-thinking-mode font-semibold opacity-80">
+        <div className="text-thinking-mode flex items-center gap-2 text-[10px] font-semibold tracking-wide uppercase opacity-80">
           <span className="text-xs">💭</span>
           <span>Thinking</span>
         </div>
@@ -72,7 +72,7 @@ export const ReasoningMessage: React.FC<ReasoningMessageProps> = ({ message, cla
       </div>
 
       {isExpanded && (
-        <div className="font-primary text-sm leading-6 italic opacity-85 [&_p]:mb-1 [&_p]:mt-0 [&_p:last-child]:mb-0">
+        <div className="font-primary text-sm leading-6 italic opacity-85 [&_p]:mt-0 [&_p]:mb-1 [&_p:last-child]:mb-0">
           {renderContent()}
         </div>
       )}

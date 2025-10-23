@@ -57,25 +57,25 @@ export const Unread: Story = {
 export const AllStates: Story = {
   args: { streaming: false, unread: false },
   render: () => (
-    <div className="flex gap-[30px] p-5 items-center flex-wrap">
-      <div className="flex flex-col gap-2 items-center">
+    <div className="flex flex-wrap items-center gap-[30px] p-5">
+      <div className="flex flex-col items-center gap-2">
         <StatusIndicator streaming={false} unread={false} />
-        <span className="text-[11px] text-muted-light font-primary">Default</span>
+        <span className="text-muted-light font-primary text-[11px]">Default</span>
       </div>
 
-      <div className="flex flex-col gap-2 items-center">
+      <div className="flex flex-col items-center gap-2">
         <StatusIndicator streaming={true} unread={false} />
-        <span className="text-[11px] text-muted-light font-primary">Streaming</span>
+        <span className="text-muted-light font-primary text-[11px]">Streaming</span>
       </div>
 
-      <div className="flex flex-col gap-2 items-center">
+      <div className="flex flex-col items-center gap-2">
         <StatusIndicator streaming={false} unread={true} />
-        <span className="text-[11px] text-muted-light font-primary">Unread</span>
+        <span className="text-muted-light font-primary text-[11px]">Unread</span>
       </div>
 
-      <div className="flex flex-col gap-2 items-center">
+      <div className="flex flex-col items-center gap-2">
         <StatusIndicator streaming={true} unread={true} />
-        <span className="text-[11px] text-muted-light font-primary">
+        <span className="text-muted-light font-primary text-[11px]">
           Streaming (unread ignored)
         </span>
       </div>
@@ -86,30 +86,30 @@ export const AllStates: Story = {
 export const DifferentSizes: Story = {
   args: { streaming: false, unread: false },
   render: () => (
-    <div className="flex gap-[30px] p-5 items-center flex-wrap">
-      <div className="flex flex-col gap-2 items-center">
+    <div className="flex flex-wrap items-center gap-[30px] p-5">
+      <div className="flex flex-col items-center gap-2">
         <StatusIndicator streaming={false} unread={true} size={4} />
-        <span className="text-[11px] text-muted-light font-primary">4px</span>
+        <span className="text-muted-light font-primary text-[11px]">4px</span>
       </div>
 
-      <div className="flex flex-col gap-2 items-center">
+      <div className="flex flex-col items-center gap-2">
         <StatusIndicator streaming={false} unread={true} size={8} />
-        <span className="text-[11px] text-muted-light font-primary">8px (default)</span>
+        <span className="text-muted-light font-primary text-[11px]">8px (default)</span>
       </div>
 
-      <div className="flex flex-col gap-2 items-center">
+      <div className="flex flex-col items-center gap-2">
         <StatusIndicator streaming={false} unread={true} size={12} />
-        <span className="text-[11px] text-muted-light font-primary">12px</span>
+        <span className="text-muted-light font-primary text-[11px]">12px</span>
       </div>
 
-      <div className="flex flex-col gap-2 items-center">
+      <div className="flex flex-col items-center gap-2">
         <StatusIndicator streaming={false} unread={true} size={16} />
-        <span className="text-[11px] text-muted-light font-primary">16px</span>
+        <span className="text-muted-light font-primary text-[11px]">16px</span>
       </div>
 
-      <div className="flex flex-col gap-2 items-center">
+      <div className="flex flex-col items-center gap-2">
         <StatusIndicator streaming={false} unread={true} size={20} />
-        <span className="text-[11px] text-muted-light font-primary">20px</span>
+        <span className="text-muted-light font-primary text-[11px]">20px</span>
       </div>
     </div>
   ),
@@ -245,17 +245,17 @@ export const InContext: Story = {
   render: () => {
     return (
       <div className="flex flex-col gap-2">
-        <div className="flex items-center gap-2 py-2 px-3 bg-modal-bg rounded font-primary text-[13px] text-bright">
+        <div className="bg-modal-bg font-primary text-bright flex items-center gap-2 rounded px-3 py-2 text-[13px]">
           <StatusIndicator streaming={false} unread={false} />
           <span>workspace-feature-branch</span>
         </div>
 
-        <div className="flex items-center gap-2 py-2 px-3 bg-modal-bg rounded font-primary text-[13px] text-bright">
+        <div className="bg-modal-bg font-primary text-bright flex items-center gap-2 rounded px-3 py-2 text-[13px]">
           <StatusIndicator streaming={true} unread={false} />
           <span>workspace-main (streaming)</span>
         </div>
 
-        <div className="flex items-center gap-2 py-2 px-3 bg-modal-bg rounded font-primary text-[13px] text-bright">
+        <div className="bg-modal-bg font-primary text-bright flex items-center gap-2 rounded px-3 py-2 text-[13px]">
           <StatusIndicator streaming={false} unread={true} />
           <span>workspace-bugfix (3 unread)</span>
         </div>

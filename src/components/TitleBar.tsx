@@ -214,8 +214,8 @@ export function TitleBar() {
   const showUpdateIndicator = true;
 
   return (
-    <div className="px-4 py-2 bg-dark border-b border-border-light flex items-center justify-between font-primary text-[11px] text-muted select-none flex-shrink-0">
-      <div className="flex items-center gap-2 min-w-0 mr-4">
+    <div className="bg-dark border-border-light font-primary text-muted flex shrink-0 items-center justify-between border-b px-4 py-2 text-[11px] select-none">
+      <div className="mr-4 flex min-w-0 items-center gap-2">
         {showUpdateIndicator && (
           <TooltipWrapper>
             <div
@@ -242,12 +242,12 @@ export function TitleBar() {
             </Tooltip>
           </TooltipWrapper>
         )}
-        <div className="font-normal text-xs tracking-wider select-text cursor-text whitespace-nowrap overflow-hidden text-ellipsis min-w-0">
+        <div className="min-w-0 cursor-text truncate text-xs font-normal tracking-wider select-text">
           cmux {gitDescribe ?? "(dev)"}
         </div>
       </div>
       <TooltipWrapper>
-        <div className="text-[11px] opacity-70 cursor-default">{buildDate}</div>
+        <div className="cursor-default text-[11px] opacity-70">{buildDate}</div>
         <Tooltip align="right">Built at {extendedTimestamp}</Tooltip>
       </TooltipWrapper>
     </div>

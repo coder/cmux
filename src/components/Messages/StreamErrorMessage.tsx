@@ -13,19 +13,19 @@ export const StreamErrorMessage: React.FC<StreamErrorMessageProps> = ({ message,
 
   return (
     <div className={cn("bg-error-bg border border-error rounded px-5 py-4 my-3", className)}>
-      <div className="font-primary text-[13px] font-semibold text-error mb-3 flex items-center gap-2.5 tracking-wide">
+      <div className="font-primary text-error mb-3 flex items-center gap-2.5 text-[13px] font-semibold tracking-wide">
         <span className="text-base leading-none">●</span>
         <span>Stream Error</span>
-        <span className="font-mono text-[10px] text-secondary uppercase bg-black/40 px-2 py-0.5 rounded-sm tracking-wider">
+        <span className="text-secondary rounded-sm bg-black/40 px-2 py-0.5 font-mono text-[10px] tracking-wider uppercase">
           {message.errorType}
         </span>
         {showCount && (
-          <span className="font-mono text-[10px] text-error bg-red-500/15 px-2 py-0.5 rounded-sm tracking-wide font-semibold ml-auto">
+          <span className="text-error ml-auto rounded-sm bg-red-500/15 px-2 py-0.5 font-mono text-[10px] font-semibold tracking-wide">
             ×{message.errorCount}
           </span>
         )}
       </div>
-      <div className="font-mono text-[13px] text-foreground leading-relaxed break-words">
+      <div className="text-foreground font-mono text-[13px] leading-relaxed break-words">
         {message.error}
       </div>
     </div>

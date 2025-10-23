@@ -704,7 +704,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
   return (
     <div
-      className="relative pt-[5px] px-[15px] pb-[15px] bg-separator border-t border-border-light flex flex-col gap-1"
+      className="bg-separator border-border-light relative flex flex-col gap-1 border-t px-[15px] pt-[5px] pb-[15px]"
       style={{ containerType: "inline-size" }}
       data-component="ChatInputSection"
     >
@@ -717,7 +717,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         ariaLabel="Slash command suggestions"
         listId={commandListId}
       />
-      <div className="flex gap-2.5 items-end" data-component="ChatInputControls">
+      <div className="flex items-end gap-2.5" data-component="ChatInputControls">
         <VimTextArea
           ref={inputRef}
           value={input}
@@ -742,13 +742,13 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       <ImageAttachments images={imageAttachments} onRemove={handleRemoveImage} />
       <div className="flex flex-col gap-1" data-component="ChatModeToggles">
         {editingMessage && (
-          <div className="text-[11px] text-edit-mode font-medium">
+          <div className="text-edit-mode text-[11px] font-medium">
             Editing message ({formatKeybind(KEYBINDS.CANCEL_EDIT)} to cancel)
           </div>
         )}
         <div className="flex items-center">
           <ChatToggles modelString={preferredModel}>
-            <div className="flex items-center gap-1 mr-3 h-[11px] @[700px]:[&_.help-indicator-wrapper]:hidden">
+            <div className="mr-3 flex h-[11px] items-center gap-1 @[700px]:[&_.help-indicator-wrapper]:hidden">
               <ModelSelector
                 ref={modelSelectorRef}
                 value={preferredModel}
@@ -779,7 +779,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
               </span>
             </div>
           </ChatToggles>
-          <div className="flex items-center gap-1.5 ml-auto max-@[700px]:hidden">
+          <div className="max-@[700px]:hidden ml-auto flex items-center gap-1.5">
             <div
               className={cn(
                 "flex gap-0 bg-toggle-bg rounded",
