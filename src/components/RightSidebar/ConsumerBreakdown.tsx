@@ -16,7 +16,9 @@ const ConsumerBreakdownComponent: React.FC<ConsumerBreakdownProps> = ({ consumer
   }
 
   if (consumers.consumers.length === 0) {
-    return <div className="text-gray-200-dim py-3 text-left italic">No consumer data available</div>;
+    return (
+      <div className="text-gray-200-dim py-3 text-left italic">No consumer data available</div>
+    );
   }
 
   return (

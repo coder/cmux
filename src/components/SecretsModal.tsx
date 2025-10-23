@@ -140,7 +140,9 @@ const SecretsModal: React.FC<SecretsModalProps> = ({
 
       <div className="mb-4 min-h-[200px] flex-1 overflow-y-auto">
         {secrets.length === 0 ? (
-          <div className="px-4 py-8 text-center text-[13px] text-gray-500">No secrets configured</div>
+          <div className="px-4 py-8 text-center text-[13px] text-gray-500">
+            No secrets configured
+          </div>
         ) : (
           <div className="grid grid-cols-[1fr_1fr_auto_auto] items-end gap-1 [&>label]:mb-0.5 [&>label]:text-[11px] [&>label]:text-gray-500">
             <label>Key</label>
