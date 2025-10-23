@@ -24,7 +24,7 @@ This ensures transparency about AI-generated contributions.
 
 ## PR Management
 
-**Prefer to reuse existing PRs** by force-pushing to the same branch, even if the branch name becomes irrelevant. Avoid closing and recreating PRs unnecessarily - PR spam clutters the repository history.
+**Prefer to reuse existing PRs** by force-pushing to the same branch, even if the branch name becomes irrelevant. Avoid closing and recreating PRs unnecessarily - PR spam clutters the repository history. **Never close PRs without explicit user instruction.** Always force-push to the existing branch instead of creating new PRs.
 
 After submitting or updating PRs, **always check merge status**:
 
