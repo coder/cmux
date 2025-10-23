@@ -140,9 +140,9 @@ const SecretsModal: React.FC<SecretsModalProps> = ({
 
       <div className="flex-1 overflow-y-auto mb-4 min-h-[200px]">
         {secrets.length === 0 ? (
-          <div className="py-8 px-4 text-center text-[#888] text-[13px]">No secrets configured</div>
+          <div className="py-8 px-4 text-center text-muted text-[13px]">No secrets configured</div>
         ) : (
-          <div className="grid grid-cols-[1fr_1fr_auto_auto] gap-1 items-end [&>label]:text-[11px] [&>label]:text-[#888] [&>label]:mb-0.5">
+          <div className="grid grid-cols-[1fr_1fr_auto_auto] gap-1 items-end [&>label]:text-[11px] [&>label]:text-muted [&>label]:mb-0.5">
             <label>Key</label>
             <label>Value</label>
             <div /> {/* Empty cell for eye icon column */}
@@ -155,7 +155,7 @@ const SecretsModal: React.FC<SecretsModalProps> = ({
                   onChange={(e) => updateSecret(index, "key", e.target.value)}
                   placeholder="SECRET_NAME"
                   disabled={isLoading}
-                  className="py-1.5 px-2.5 bg-[#2d2d2d] border border-[#444] rounded text-white text-[13px] font-mono w-full focus:outline-none focus:border-[#007acc] placeholder:text-[#666]"
+                  className="py-1.5 px-2.5 bg-modal-bg border border-[#444] rounded text-white text-[13px] font-mono w-full focus:outline-none focus:border-accent placeholder:text-text-dim"
                 />
                 <input
                   type={visibleSecrets.has(index) ? "text" : "password"}
@@ -163,13 +163,13 @@ const SecretsModal: React.FC<SecretsModalProps> = ({
                   onChange={(e) => updateSecret(index, "value", e.target.value)}
                   placeholder="secret value"
                   disabled={isLoading}
-                  className="py-1.5 px-2.5 bg-[#2d2d2d] border border-[#444] rounded text-white text-[13px] font-mono w-full focus:outline-none focus:border-[#007acc] placeholder:text-[#666]"
+                  className="py-1.5 px-2.5 bg-modal-bg border border-[#444] rounded text-white text-[13px] font-mono w-full focus:outline-none focus:border-accent placeholder:text-text-dim"
                 />
                 <button
                   type="button"
                   onClick={() => toggleVisibility(index)}
                   disabled={isLoading}
-                  className="bg-transparent border-none text-[#888] cursor-pointer text-base px-1 py-0.5 rounded-sm transition-all duration-200 flex items-center justify-center self-center hover:text-[#ccc]"
+                  className="bg-transparent border-none text-muted cursor-pointer text-base px-1 py-0.5 rounded-sm transition-all duration-200 flex items-center justify-center self-center hover:text-foreground"
                 >
                   <ToggleVisibilityIcon visible={visibleSecrets.has(index)} />
                 </button>
@@ -190,7 +190,7 @@ const SecretsModal: React.FC<SecretsModalProps> = ({
       <button
         onClick={addSecret}
         disabled={isLoading}
-        className="w-full py-2 px-3 bg-transparent text-[#888] border border-dashed border-[#444] rounded cursor-pointer text-[13px] transition-all duration-200 mb-4 hover:bg-[#2a2a2b] hover:border-[#555] hover:text-[#ccc]"
+        className="w-full py-2 px-3 bg-transparent text-muted border border-dashed border-[#444] rounded cursor-pointer text-[13px] transition-all duration-200 mb-4 hover:bg-bg-hover hover:border-[#555] hover:text-foreground"
       >
         + Add Secret
       </button>

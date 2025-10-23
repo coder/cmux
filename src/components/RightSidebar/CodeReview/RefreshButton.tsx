@@ -54,8 +54,8 @@ export const RefreshButton: React.FC<RefreshButtonProps> = ({ onClick, isLoading
         className={cn(
           "flex items-center justify-center bg-transparent border-none p-0.5 transition-colors duration-[1500ms] ease-out",
           animationState === "spinning"
-            ? "text-[#007acc] cursor-default hover:text-[#007acc]"
-            : "text-[#888] cursor-pointer hover:text-[#ccc]",
+            ? "text-accent cursor-default hover:text-accent"
+            : "text-muted cursor-pointer hover:text-foreground",
           animationState === "stopping" && "cursor-default"
         )}
       >

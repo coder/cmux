@@ -93,7 +93,7 @@ export const CommandSuggestions: React.FC<CommandSuggestionsProps> = ({
         activeSuggestion ? `${resolvedListId}-option-${activeSuggestion.id}` : undefined
       }
       data-command-suggestions
-      className="absolute bottom-full left-0 right-0 mb-2 bg-[#252526] border border-[#3e3e42] rounded shadow-[0_-4px_12px_rgba(0,0,0,0.4)] max-h-[200px] overflow-y-auto z-[100] flex flex-col"
+      className="absolute bottom-full left-0 right-0 mb-2 bg-separator border border-border-light rounded shadow-[0_-4px_12px_rgba(0,0,0,0.4)] max-h-[200px] overflow-y-auto z-[100] flex flex-col"
     >
       {suggestions.map((suggestion, index) => (
         <div
@@ -116,7 +116,7 @@ export const CommandSuggestions: React.FC<CommandSuggestionsProps> = ({
           </div>
         </div>
       ))}
-      <div className="px-2.5 py-1 border-t border-[#3e3e42] bg-[#1e1e1e] text-[#6b6b6b] text-[10px] text-center flex-shrink-0 [&_span]:text-[#969696] [&_span]:font-medium">
+      <div className="px-2.5 py-1 border-t border-border-light bg-bg-dark text-[#6b6b6b] text-[10px] text-center flex-shrink-0 [&_span]:text-[#969696] [&_span]:font-medium">
         <span>Tab</span> to complete • <span>↑↓</span> to navigate • <span>Esc</span> to dismiss
       </div>
     </div>

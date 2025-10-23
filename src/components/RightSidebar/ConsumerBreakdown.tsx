@@ -16,12 +16,12 @@ const ConsumerBreakdownComponent: React.FC<ConsumerBreakdownProps> = ({ consumer
   }
 
   if (consumers.consumers.length === 0) {
-    return <div className="text-[#666666] italic py-3 text-left">No consumer data available</div>;
+    return <div className="text-text-dim italic py-3 text-left">No consumer data available</div>;
   }
 
   return (
     <>
-      <div className="text-[#888888] text-xs mb-2">
+      <div className="text-muted text-xs mb-2">
         Tokenizer: <span>{consumers.tokenizerName}</span>
       </div>
       <div className="flex flex-col gap-3">
@@ -39,7 +39,7 @@ const ConsumerBreakdownComponent: React.FC<ConsumerBreakdownProps> = ({ consumer
           return (
             <div key={consumer.name} className="flex flex-col gap-1 mb-2">
               <div className="flex justify-between items-center mb-1">
-                <span className="text-[#cccccc] font-medium flex items-center gap-1">
+                <span className="text-foreground font-medium flex items-center gap-1">
                   {consumer.name}
                   {consumer.name === "web_search" && (
                     <TooltipWrapper inline>
@@ -51,7 +51,7 @@ const ConsumerBreakdownComponent: React.FC<ConsumerBreakdownProps> = ({ consumer
                     </TooltipWrapper>
                   )}
                 </span>
-                <span className="text-[#888888] text-xs">
+                <span className="text-muted text-xs">
                   {tokenDisplay} ({consumer.percentage.toFixed(1)}%)
                 </span>
               </div>
@@ -85,7 +85,7 @@ const ConsumerBreakdownComponent: React.FC<ConsumerBreakdownProps> = ({ consumer
                   )}
                 </div>
                 {consumer.fixedTokens && consumer.variableTokens && (
-                  <div className="text-[#666666] text-[11px] text-left">
+                  <div className="text-text-dim text-[11px] text-left">
                     Tool definition: {formatTokens(consumer.fixedTokens)} • Usage:{" "}
                     {formatTokens(consumer.variableTokens)}
                   </div>

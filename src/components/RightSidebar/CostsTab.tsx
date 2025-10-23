@@ -69,7 +69,7 @@ const CostsTabComponent: React.FC<CostsTabProps> = ({ workspaceId }) => {
   // Only show empty state if truly no data anywhere
   if (!hasAnyData) {
     return (
-      <div className="text-[#d4d4d4] font-primary text-[13px] leading-relaxed">
+      <div className="text-text-light font-primary text-[13px] leading-relaxed">
         <div className="text-secondary text-center py-10 px-5">
           <p>No messages yet.</p>
           <p>Send a message to see token usage statistics.</p>
@@ -90,7 +90,7 @@ const CostsTabComponent: React.FC<CostsTabProps> = ({ workspaceId }) => {
       : sumUsageHistory(usage.usageHistory);
 
   return (
-    <div className="text-[#d4d4d4] font-primary text-[13px] leading-relaxed">
+    <div className="text-text-light font-primary text-[13px] leading-relaxed">
       {hasUsageData && (
         <div data-testid="context-usage-section" className="mt-2 mb-5">
           <div data-testid="context-usage-list" className="flex flex-col gap-3">
@@ -163,10 +163,10 @@ const CostsTabComponent: React.FC<CostsTabProps> = ({ workspaceId }) => {
                 <>
                   <div data-testid="context-usage" className="flex flex-col gap-1 mb-2 relative">
                     <div className="flex justify-between items-baseline">
-                      <span className="text-[#cccccc] font-medium inline-flex items-baseline gap-1">
+                      <span className="text-foreground font-medium inline-flex items-baseline gap-1">
                         Context Usage
                       </span>
-                      <span className="text-[#888888] text-xs">
+                      <span className="text-muted text-xs">
                         {totalDisplay}
                         {maxDisplay}
                         {` (${totalPercentage.toFixed(1)}%)`}
@@ -348,7 +348,7 @@ const CostsTabComponent: React.FC<CostsTabProps> = ({ workspaceId }) => {
                         className="flex justify-between items-baseline mb-2"
                       >
                         <div className="flex gap-3 items-center">
-                          <span className="text-[#cccccc] font-medium inline-flex items-baseline gap-1">
+                          <span className="text-foreground font-medium inline-flex items-baseline gap-1">
                             Cost
                           </span>
                           <ToggleGroup
@@ -357,7 +357,7 @@ const CostsTabComponent: React.FC<CostsTabProps> = ({ workspaceId }) => {
                             onChange={setViewMode}
                           />
                         </div>
-                        <span className="text-[#888888] text-xs">
+                        <span className="text-muted text-xs">
                           {formatCostWithDollar(totalCost)}
                         </span>
                       </div>
@@ -413,14 +413,14 @@ const CostsTabComponent: React.FC<CostsTabProps> = ({ workspaceId }) => {
                     className="w-full mt-1 border-collapse text-[11px]"
                   >
                     <thead>
-                      <tr className="border-b border-[#3e3e42]">
-                        <th className="text-left text-[#888888] font-medium py-1 pr-2 [&:last-child]:text-right [&:last-child]:pr-0">
+                      <tr className="border-b border-border-light">
+                        <th className="text-left text-muted font-medium py-1 pr-2 [&:last-child]:text-right [&:last-child]:pr-0">
                           Component
                         </th>
-                        <th className="text-left text-[#888888] font-medium py-1 pr-2 [&:last-child]:text-right [&:last-child]:pr-0">
+                        <th className="text-left text-muted font-medium py-1 pr-2 [&:last-child]:text-right [&:last-child]:pr-0">
                           Tokens
                         </th>
-                        <th className="text-left text-[#888888] font-medium py-1 pr-2 [&:last-child]:text-right [&:last-child]:pr-0">
+                        <th className="text-left text-muted font-medium py-1 pr-2 [&:last-child]:text-right [&:last-child]:pr-0">
                           Cost
                         </th>
                       </tr>
@@ -435,7 +435,7 @@ const CostsTabComponent: React.FC<CostsTabProps> = ({ workspaceId }) => {
 
                         return (
                           <tr key={component.name}>
-                            <td className="py-1 pr-2 text-[#cccccc] [&:last-child]:text-right [&:last-child]:pr-0">
+                            <td className="py-1 pr-2 text-foreground [&:last-child]:text-right [&:last-child]:pr-0">
                               <div className="flex items-center gap-1.5">
                                 <div
                                   className="w-2 h-2 rounded-sm flex-shrink-0"
@@ -444,12 +444,12 @@ const CostsTabComponent: React.FC<CostsTabProps> = ({ workspaceId }) => {
                                 {component.name}
                               </div>
                             </td>
-                            <td className="py-1 pr-2 text-[#cccccc] [&:last-child]:text-right [&:last-child]:pr-0">
+                            <td className="py-1 pr-2 text-foreground [&:last-child]:text-right [&:last-child]:pr-0">
                               {formatTokens(component.tokens)}
                             </td>
-                            <td className="py-1 pr-2 text-[#cccccc] [&:last-child]:text-right [&:last-child]:pr-0">
+                            <td className="py-1 pr-2 text-foreground [&:last-child]:text-right [&:last-child]:pr-0">
                               {isNegligible ? (
-                                <span className="text-[#666666] italic">{costDisplay}</span>
+                                <span className="text-text-dim italic">{costDisplay}</span>
                               ) : (
                                 costDisplay
                               )}

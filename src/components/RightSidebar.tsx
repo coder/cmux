@@ -49,10 +49,10 @@ const SidebarContainer: React.FC<SidebarContainerProps> = ({
   return (
     <div
       className={cn(
-        "bg-[#252526] border-l border-[#3e3e42] flex flex-col overflow-hidden flex-shrink-0",
+        "bg-separator border-l border-border-light flex flex-col overflow-hidden flex-shrink-0",
         customWidth ? "" : "transition-[width] duration-200",
         collapsed && "sticky right-0 z-10 shadow-[-2px_0_4px_rgba(0,0,0,0.2)]",
-        "max-md:border-l-0 max-md:border-t max-md:border-[#3e3e42]",
+        "max-md:border-l-0 max-md:border-t max-md:border-border-light",
         collapsed && "max-md:w-0 max-md:absolute max-md:bottom-0",
         !collapsed && "max-md:w-full max-md:relative max-md:max-h-[50vh]"
       )}
@@ -201,7 +201,7 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
       <div className={cn("flex-row h-full", !showCollapsed ? "flex" : "hidden")}>
         {/* Render meter when Review tab is active */}
         {selectedTab === "review" && (
-          <div className="w-5 bg-[#252526] border-r border-[#3e3e42] flex flex-col flex-shrink-0">
+          <div className="w-5 bg-separator border-r border-border-light flex flex-col flex-shrink-0">
             {verticalMeter}
           </div>
         )}
@@ -211,8 +211,8 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
           <div
             className={cn(
               "w-1 flex-shrink-0 z-10 transition-[background] duration-150",
-              "bg-[#3e3e42] cursor-col-resize hover:bg-[#007acc]",
-              isResizing && "bg-[#007acc]"
+              "bg-[#3e3e42] cursor-col-resize hover:bg-accent",
+              isResizing && "bg-accent"
             )}
             onMouseDown={(e) => onStartResize(e as unknown as React.MouseEvent)}
           />
@@ -229,7 +229,7 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
                 className={cn(
                   "w-full py-2.5 px-[15px] border-none border-solid cursor-pointer font-primary text-[13px] font-medium transition-all duration-200",
                   selectedTab === "costs"
-                    ? "text-white bg-[#252526] border-b-2 border-b-plan-mode"
+                    ? "text-white bg-separator border-b-2 border-b-plan-mode"
                     : "bg-transparent text-secondary border-b-2 border-b-transparent hover:bg-background-secondary hover:text-foreground"
                 )}
                 onClick={() => setSelectedTab("costs")}
@@ -250,7 +250,7 @@ const RightSidebarComponent: React.FC<RightSidebarProps> = ({
                 className={cn(
                   "w-full py-2.5 px-[15px] border-none border-solid cursor-pointer font-primary text-[13px] font-medium transition-all duration-200",
                   selectedTab === "review"
-                    ? "text-white bg-[#252526] border-b-2 border-b-plan-mode"
+                    ? "text-white bg-separator border-b-2 border-b-plan-mode"
                     : "bg-transparent text-secondary border-b-2 border-b-transparent hover:bg-background-secondary hover:text-foreground"
                 )}
                 onClick={() => setSelectedTab("review")}

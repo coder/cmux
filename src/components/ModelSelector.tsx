@@ -185,7 +185,7 @@ export const ModelSelector = forwardRef<ModelSelectorRef, ModelSelectorProps>(
       return (
         <div ref={containerRef} className="relative flex items-center gap-1">
           <div
-            className="font-mono text-[10px] text-[#808080] font-monospace leading-[11px] cursor-pointer py-0.5 px-1 rounded-sm transition-colors duration-200 whitespace-nowrap overflow-hidden text-ellipsis max-w-[150px] dir-rtl text-left hover:bg-[#2a2a2b]"
+            className="font-mono text-[10px] text-[#808080] font-monospace leading-[11px] cursor-pointer py-0.5 px-1 rounded-sm transition-colors duration-200 whitespace-nowrap overflow-hidden text-ellipsis max-w-[150px] dir-rtl text-left hover:bg-bg-hover"
             onClick={handleClick}
           >
             {value}
@@ -203,12 +203,12 @@ export const ModelSelector = forwardRef<ModelSelectorRef, ModelSelectorProps>(
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
             placeholder="provider:model-name"
-            className="text-[10px] text-[#d4d4d4] bg-[#1e1e1e] border border-[#3e3e42] rounded-sm py-0.5 px-1 font-monospace leading-[11px] w-[200px] outline-none focus:border-exec-mode"
+            className="text-[10px] text-text-light bg-bg-dark border border-border-light rounded-sm py-0.5 px-1 font-monospace leading-[11px] w-[200px] outline-none focus:border-exec-mode"
           />
           {error && <div className="text-[9px] text-[#f48771] font-monospace mt-0.5">{error}</div>}
         </div>
         {showDropdown && filteredModels.length > 0 && (
-          <div className="absolute bottom-full left-0 mb-1 bg-[#252526] border border-[#3e3e42] rounded shadow-[0_4px_12px_rgba(0,0,0,0.3)] z-[1000] min-w-[300px] max-h-[200px] overflow-y-auto">
+          <div className="absolute bottom-full left-0 mb-1 bg-separator border border-border-light rounded shadow-[0_4px_12px_rgba(0,0,0,0.3)] z-[1000] min-w-[300px] max-h-[200px] overflow-y-auto">
             {filteredModels.map((model, index) => (
               <div
                 key={model}
@@ -217,8 +217,8 @@ export const ModelSelector = forwardRef<ModelSelectorRef, ModelSelectorProps>(
                   "text-[11px] font-monospace py-1.5 px-2.5 cursor-pointer transition-colors duration-100",
                   "first:rounded-t last:rounded-b",
                   index === highlightedIndex
-                    ? "text-white bg-[#2a2a2b]"
-                    : "text-[#d4d4d4] bg-transparent hover:bg-[#2a2a2b] hover:text-white"
+                    ? "text-white bg-bg-hover"
+                    : "text-text-light bg-transparent hover:bg-bg-hover hover:text-white"
                 )}
                 onClick={() => handleSelectModel(model)}
               >

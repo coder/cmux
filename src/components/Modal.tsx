@@ -28,7 +28,7 @@ export const ModalContent: React.FC<
 > = ({ children, maxWidth = "500px", maxHeight, className, ...props }) => (
   <div
     className={cn(
-      "bg-[#1e1e1e] rounded-lg p-6 w-[90%] flex flex-col shadow-lg border border-[#333]",
+      "bg-bg-dark rounded-lg p-6 w-[90%] flex flex-col shadow-lg border border-[#333]",
       "[&_h2]:mt-0 [&_h2]:mb-2 [&_h2]:text-white",
       className
     )}
@@ -44,7 +44,7 @@ export const ModalSubtitle: React.FC<{
   id?: string;
   className?: string;
 }> = ({ children, id, className }) => (
-  <p id={id} className={cn("text-[#888] text-sm mb-5", className)}>
+  <p id={id} className={cn("text-muted text-sm mb-5", className)}>
     {children}
   </p>
 );
@@ -57,8 +57,8 @@ export const ModalInfo: React.FC<{
   <div
     id={id}
     className={cn(
-      "bg-[#2d2d2d] border border-[#444] rounded p-3 mb-5 text-[13px]",
-      "[&_p]:m-0 [&_p]:mb-2 [&_p]:text-[#888] [&_p:last-child]:mb-0",
+      "bg-modal-bg border border-[#444] rounded p-3 mb-5 text-[13px]",
+      "[&_p]:m-0 [&_p]:mb-2 [&_p]:text-muted [&_p:last-child]:mb-0",
       "[&_code]:text-[#569cd6] [&_code]:font-mono",
       className
     )}
@@ -143,7 +143,7 @@ export const Button: React.FC<ButtonProps> = ({ children, className, ...props })
 
 export const CancelButton: React.FC<ButtonProps> = ({ children, className, ...props }) => (
   <Button
-    className={cn("bg-[#444] text-[#ccc] hover:bg-[#555] disabled:hover:bg-[#444]", className)}
+    className={cn("bg-[#444] text-foreground hover:bg-[#555] disabled:hover:bg-[#444]", className)}
     {...props}
   >
     {children}
@@ -153,7 +153,7 @@ export const CancelButton: React.FC<ButtonProps> = ({ children, className, ...pr
 export const PrimaryButton: React.FC<ButtonProps> = ({ children, className, ...props }) => (
   <Button
     className={cn(
-      "bg-[#007acc] text-white hover:bg-[#005a9e] disabled:hover:bg-[#007acc]",
+      "bg-accent text-white hover:bg-accent-dark disabled:hover:bg-accent",
       className
     )}
     {...props}

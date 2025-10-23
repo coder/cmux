@@ -83,6 +83,24 @@
   --color-scrollbar-thumb: hsl(0 0% 32%);
   --color-scrollbar-thumb-hover: hsl(0 0% 42%);
   
+  /* Additional Semantic Colors */
+  --color-muted: hsl(0 0% 53%);              /* #888 - muted text */
+  --color-border-light: hsl(240 3% 25%);     /* #3e3e42 - lighter borders */
+  --color-border-medium: hsl(0 0% 27%);      /* #444 - medium borders */
+  --color-bg-hover: hsl(0 0% 16.5%);         /* #2a2a2b - hover states */
+  --color-bg-dark: hsl(0 0% 11.5%);          /* #1e1e1e - dark backgrounds */
+  --color-bg-darker: hsl(0 0% 8.6%);         /* #161616 - darker backgrounds */
+  --color-accent: hsl(207 100% 40%);         /* #007acc - VS Code blue */
+  --color-accent-dark: hsl(207 100% 37%);    /* #0e639c - darker accent */
+  --color-success: hsl(122 39% 49%);         /* #4caf50 - success green */
+  --color-danger: hsl(4 90% 58%);            /* #f44336 - error red */
+  --color-text-dim: hsl(0 0% 42%);           /* #666 - dimmed text */
+  --color-text-light: hsl(0 0% 83%);         /* #d4d4d4 - light text */
+  --color-text-lighter: hsl(0 0% 90%);       /* #e5e5e5 - lighter text */
+  --color-text-subdued: hsl(0 0% 60%);       /* #9a9a9a - subdued text */
+  --color-separator: hsl(0 0% 15%);          /* #252526 - separators */
+  --color-modal-bg: hsl(0 0% 18%);           /* #2d2d30 - modal backgrounds */
+  
   /* Radius */
   --radius: 0.5rem;
 }
@@ -203,8 +221,8 @@ code {
   transform: translateX(-50%);
   margin-bottom: 8px;
   padding: 6px 10px;
-  background: #2d2d30;
-  color: #cccccc;
+  background: var(--color-modal-bg);
+  color: var(--color-foreground);
   border: 1px solid #464647;
   border-radius: 4px;
   font-size: 11px;
@@ -218,7 +236,7 @@ code {
 .plan-content {
   font-size: 12px;
   line-height: 1.6;
-  color: #d4d4d4;
+  color: var(--color-text-light);
 }
 
 .plan-content h1,
@@ -324,7 +342,7 @@ code {
   border-left: 3px solid var(--color-plan-mode);
   padding-left: 12px;
   margin: 8px 0;
-  color: #a0a0a0;
+  color: var(--color-secondary);
   font-style: italic;
 }
 
@@ -337,7 +355,7 @@ code {
   margin-bottom: 3px;
   border-width: 5px;
   border-style: solid;
-  border-color: #2d2d30 transparent transparent transparent;
+  border-color: var(--color-modal-bg) transparent transparent transparent;
   z-index: 1000;
   pointer-events: none;
 }
@@ -457,7 +475,7 @@ code {
 }
 
 .markdown-content a {
-  color: #569cd6;
+  color: var(--color-accent);
   text-decoration: none;
 }
 
@@ -597,7 +615,7 @@ pre code {
   height: 4px;
   -webkit-appearance: none;
   appearance: none;
-  background: #3e3e42;
+  background: var(--color-border-light);
   outline: none;
   border-radius: 2px;
   transition: box-shadow 0.2s ease;
