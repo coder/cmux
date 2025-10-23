@@ -145,9 +145,8 @@ export const Clickable: Story = {
     );
   },
   play: async ({ canvasElement }) => {
-    // Find the indicator div directly
-    const wrapper = canvasElement.querySelector("span");
-    const indicator = wrapper?.querySelector("div");
+    // Find the indicator div (inside tooltip trigger when title is provided)
+    const indicator = canvasElement.querySelector("div");
     if (!indicator) throw new Error("Could not find indicator");
 
     // Initial state - should be unread (white background)
