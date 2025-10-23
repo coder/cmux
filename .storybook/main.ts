@@ -19,9 +19,8 @@ const config: StorybookConfig = {
       resolve: {
         alias: {
           "@": path.join(process.cwd(), "src"),
-          // Override version.ts with mock for stable visual testing
-          // Use absolute path with $ to ensure exact match
-          "@/version$": path.resolve(process.cwd(), ".storybook/mocks/version.ts"),
+          // Note: VERSION mocking for stable visual testing is handled by overwriting
+          // src/version.ts in the Chromatic CI workflow, not via alias here
         },
       },
     });
