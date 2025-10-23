@@ -141,7 +141,10 @@ code {
   transform: translateX(-50%);
   margin-bottom: 8px;
   padding: 6px 10px;
-  @apply bg-neutral-900 text-neutral-300 border border-neutral-700 rounded;
+  background: hsl(0 0% 18%);
+  color: hsl(0 0% 83%);
+  border: 1px solid hsl(0 0% 27%);
+  border-radius: 4px;
   font-size: 11px;
   white-space: nowrap;
   z-index: 1000;
@@ -272,7 +275,7 @@ code {
   margin-bottom: 3px;
   border-width: 5px;
   border-style: solid;
-  border-color: theme(colors.neutral.900) transparent transparent transparent;
+  border-color: hsl(0 0% 18%) transparent transparent transparent;
   z-index: 1000;
   pointer-events: none;
 }
