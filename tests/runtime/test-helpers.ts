@@ -65,6 +65,7 @@ export class TestWorkspace {
       // Create directory on remote
       const stream = runtime.exec(`mkdir -p ${workspacePath}`, {
         cwd: "/home/testuser",
+        timeout: 30,
       });
       await stream.stdin.close();
       const exitCode = await stream.exitCode;
@@ -90,6 +91,7 @@ export class TestWorkspace {
       try {
         const stream = this.runtime.exec(`rm -rf ${this.path}`, {
           cwd: "/home/testuser",
+          timeout: 60,
         });
         await stream.stdin.close();
         await stream.exitCode;

@@ -123,6 +123,7 @@ export class SSHRuntime implements Runtime {
   readFile(path: string): ReadableStream<Uint8Array> {
     const stream = this.exec(`cat ${JSON.stringify(path)}`, {
       cwd: this.config.workdir,
+      timeout: 300, // 5 minutes - reasonable for large files
     });
 
     // Return stdout, but wrap to handle errors from exit code
@@ -174,6 +175,7 @@ export class SSHRuntime implements Runtime {
 
     const stream = this.exec(writeCommand, {
       cwd: this.config.workdir,
+      timeout: 300, // 5 minutes - reasonable for large files
     });
 
     // Wrap stdin to handle errors from exit code
@@ -211,6 +213,7 @@ export class SSHRuntime implements Runtime {
     // %s = size, %Y = mtime (seconds since epoch), %F = file type
     const stream = this.exec(`stat -c '%s %Y %F' ${JSON.stringify(path)}`, {
       cwd: this.config.workdir,
+      timeout: 10, // 10 seconds - stat should be fast
     });
 
     const [stdout, stderr, exitCode] = await Promise.all([
