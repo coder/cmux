@@ -416,13 +416,13 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
       <DndProvider backend={HTML5Backend}>
         <ProjectDragLayer />
         <div
-          className="font-primary flex flex-1 flex-col overflow-hidden bg-dark border-r border-border-light"
+          className="font-primary bg-dark border-border-light flex flex-1 flex-col overflow-hidden border-r"
           role="navigation"
           aria-label="Projects"
         >
           {!collapsed && (
             <>
-              <div className="border-dark flex items-center justify-between border-b p-4 bg-separator">
+              <div className="border-dark bg-separator flex items-center justify-between border-b p-4">
                 <h2 className="text-foreground m-0 text-[13px] font-semibold tracking-[0.8px] uppercase">
                   Projects
                 </h2>
