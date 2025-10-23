@@ -205,6 +205,9 @@ export const EscapeKeyCloses: Story = {
     const modal = document.querySelector('[role="dialog"]');
     await expect(modal).toBeInTheDocument();
 
+    // Wait for modal to be fully mounted and event listeners attached
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
     // Press Escape key
     await userEvent.keyboard("{Escape}");
 
@@ -242,6 +245,9 @@ export const OverlayClickCloses: Story = {
     // Modal is initially open
     const modal = document.querySelector('[role="dialog"]');
     await expect(modal).toBeInTheDocument();
+
+    // Wait for modal to be fully mounted and event listeners attached
+    await new Promise((resolve) => setTimeout(resolve, 100));
 
     // Click on overlay (role="presentation")
     const overlay = document.querySelector('[role="presentation"]');
