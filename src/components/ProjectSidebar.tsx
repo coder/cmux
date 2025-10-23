@@ -137,7 +137,7 @@ const ProjectDragLayer: React.FC = () => {
     <div className="pointer-events-none fixed inset-0 z-[9999] cursor-grabbing">
       <div style={{ transform: `translate(${currentOffset.x + 10}px, ${currentOffset.y + 10}px)` }}>
         <div className="bg-hover/95 text-foreground border-l-accent flex w-fit max-w-72 min-w-44 items-center rounded border-l-[3px] px-3 py-1.5 shadow-[0_6px_24px_rgba(0,0,0,0.4)]">
-          <span className="text-text-dim mr-1.5 text-xs">⠿</span>
+          <span className="text-dim mr-1.5 text-xs">⠿</span>
           <span className="text-muted mr-2 text-[10px]">▶</span>
           <div className="min-w-0 flex-1">
             <div className="text-foreground truncate text-sm font-medium tracking-[0.2px]">
@@ -482,7 +482,7 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
                           <span
                             data-drag-handle
                             aria-hidden
-                            className="text-text-dim mr-1.5 cursor-grab text-xs opacity-0 transition-opacity duration-150 select-none"
+                            className="text-dim mr-1.5 cursor-grab text-xs opacity-0 transition-opacity duration-150 select-none"
                           >
                             ⠿
                           </span>
@@ -596,12 +596,12 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
                                       >
                                         <div className="flex items-center gap-1.5">
                                           <span>Older than {formatOldWorkspaceThreshold()}</span>
-                                          <span className="text-text-dim font-normal">
+                                          <span className="text-dim font-normal">
                                             ({old.length})
                                           </span>
                                         </div>
                                         <span
-                                          className="arrow text-text-dim text-[11px] transition-transform duration-200 ease-in-out"
+                                          className="arrow text-dim text-[11px] transition-transform duration-200 ease-in-out"
                                           style={{
                                             transform: showOldWorkspaces
                                               ? "rotate(90deg)"
