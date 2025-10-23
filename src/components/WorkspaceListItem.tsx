@@ -133,7 +133,7 @@ const WorkspaceListItemInner: React.FC<WorkspaceListItemProps> = ({
       <div
         className={cn(
           "py-1.5 px-3 pl-7 cursor-pointer grid grid-cols-[auto_auto_1fr_auto] gap-2 items-center border-l-[3px] border-transparent transition-all duration-150 text-[13px] relative hover:bg-hover [&:hover_button]:opacity-100",
-          isSelected && "bg-[hsl(0_0%_20%)] border-l-[#4a8bc7]"
+          isSelected && "bg-button-bg border-l-[#4a8bc7]"
         )}
         onClick={() =>
           onSelectWorkspace({
