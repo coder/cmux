@@ -78,10 +78,10 @@ const DraggableProjectItemBase: React.FC<DraggableProjectItemProps> = ({
     <div
       ref={(node) => drag(drop(node))}
       className={cn(
-        "py-1 px-3 flex items-center border-l-transparent transition-all duration-150 bg-neutral-800",
+        "py-1 px-3 flex items-center border-l-transparent transition-all duration-150 bg-neutral-900",
         isDragging ? "cursor-grabbing opacity-40 [&_*]:!cursor-grabbing" : "cursor-grab",
         isOver && "bg-sky-600/[0.08]",
-        selected && "bg-neutral-800 border-l-accent",
+        selected selected && "bg-neutral-800 border-l-accent"selected && "bg-neutral-800 border-l-accent" "bg-white/[0.02] border-l-accent",
         "hover:bg-neutral-800 hover:[&_button]:opacity-100 hover:[&_[data-drag-handle]]:opacity-100"
       )}
       {...rest}
