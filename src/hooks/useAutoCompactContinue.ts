@@ -40,17 +40,6 @@ export function useAutoCompactContinue() {
 
     // Check all workspaces for completed compaction
     for (const [workspaceId, state] of newStates) {
-      // Debug logging to understand state
-      const firstMsg = state.messages[0];
-      console.log(`[useAutoCompactContinue] [${state.name}] Checking:`, {
-        messagesLength: state.messages.length,
-        firstMessageType: firstMsg?.type,
-        isCompacted: firstMsg?.type === "assistant" ? firstMsg.isCompacted : undefined,
-        cmuxMessagesLength: state.cmuxMessages.length,
-        hasMetadata: !!state.cmuxMessages[0]?.metadata?.cmuxMetadata,
-        metadataType: state.cmuxMessages[0]?.metadata?.cmuxMetadata?.type,
-      });
-
       // Detect if workspace is in "single compacted message" state
       // Skip workspace-init messages since they're UI-only metadata
       const cmuxMessages = state.messages.filter((m) => m.type !== "workspace-init");
@@ -63,7 +52,6 @@ export function useAutoCompactContinue() {
         // Workspace no longer in compacted state - no action needed
         // Processed message IDs will naturally accumulate but stay bounded
         // (one per compaction), and get cleared when user sends new messages
-        console.log(`[useAutoCompactContinue] [${state.name}] Not in single compacted state`);
         continue;
       }
 
@@ -73,8 +61,6 @@ export function useAutoCompactContinue() {
       const cmuxMeta = summaryMessage?.metadata?.cmuxMetadata;
       const continueMessage =
         cmuxMeta?.type === "compaction-result" ? cmuxMeta.continueMessage : undefined;
-
-      console.log(`[useAutoCompactContinue] [${state.name}] continueMessage:`, continueMessage);
 
       if (!continueMessage) continue;
 
@@ -89,11 +75,6 @@ export function useAutoCompactContinue() {
 
       // Mark THIS RESULT as processed before sending to prevent duplicates
       processedMessageIds.current.add(idForGuard);
-
-      console.log(
-        `[useAutoCompactContinue] Sending continue message for ${workspaceId}:`,
-        continueMessage
-      );
 
       // Build options and send message directly
       const options = buildSendMessageOptions(workspaceId);
