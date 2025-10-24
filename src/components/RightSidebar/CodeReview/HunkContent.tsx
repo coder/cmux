@@ -2,13 +2,18 @@
  * HunkContent - Main content area for a hunk with read-more functionality
  */
 
-import React from "react";
+import React, { useMemo } from "react";
 import type { DiffHunk, HunkReadMoreState } from "@/types/review";
 import type { SearchHighlightConfig } from "@/utils/highlighting/highlightSearchTerms";
 import { SelectableDiffRenderer } from "../../shared/DiffRenderer";
 import { ReadMoreButton } from "./ReadMoreButton";
-import { ExpandedDiffContent } from "./ExpandedDiffContent";
 import { calculateUpwardExpansion, calculateDownwardExpansion } from "@/utils/review/readFileLines";
+
+interface ExpansionState {
+  content: string;
+  isLoading: boolean;
+  onExpand: (e: React.MouseEvent) => void;
+}
 
 interface HunkContentProps {
   /** The hunk to display */
@@ -17,18 +22,10 @@ interface HunkContentProps {
   hunkId: string;
   /** Read-more expansion state */
   readMoreState: HunkReadMoreState;
-  /** Expanded content upward */
-  expandedContentUp: string;
-  /** Expanded content downward */
-  expandedContentDown: string;
-  /** Loading state for upward expansion */
-  isLoadingUp: boolean;
-  /** Loading state for downward expansion */
-  isLoadingDown: boolean;
-  /** Handler for expand up */
-  onExpandUp: (e: React.MouseEvent) => void;
-  /** Handler for expand down */
-  onExpandDown: (e: React.MouseEvent) => void;
+  /** Upward expansion state */
+  upExpansion: ExpansionState;
+  /** Downward expansion state */
+  downExpansion: ExpansionState;
   /** Handler for line clicks (triggers parent onClick) */
   onClick?: (e: React.MouseEvent<HTMLElement>) => void;
   /** Handler for review notes */
@@ -42,26 +39,36 @@ export const HunkContent = React.memo<HunkContentProps>(
     hunk,
     hunkId,
     readMoreState,
-    expandedContentUp,
-    expandedContentDown,
-    isLoadingUp,
-    isLoadingDown,
-    onExpandUp,
-    onExpandDown,
+    upExpansion,
+    downExpansion,
     onClick,
     onReviewNote,
     searchConfig,
   }) => {
-    // Calculate if upward expansion is possible
+    // Calculate expansion metadata
     const upwardExpansion = calculateUpwardExpansion(hunk.oldStart, readMoreState.up);
     const canExpandUp = upwardExpansion.startLine >= 1 && upwardExpansion.numLines > 0;
 
-    // Calculate downward expansion info
-    const downwardExpansion = calculateDownwardExpansion(
-      hunk.oldStart,
-      hunk.oldLines,
-      readMoreState.down
-    );
+    // Combine all content into single unified diff for proper syntax highlighting
+    // This ensures grammar state (multi-line comments, strings, etc.) spans correctly
+    const combinedContent = useMemo(() => {
+      const parts: string[] = [];
+
+      if (upExpansion.content) {
+        parts.push(upExpansion.content);
+      }
+
+      parts.push(hunk.content);
+
+      if (downExpansion.content) {
+        parts.push(downExpansion.content);
+      }
+
+      return parts.join("\n");
+    }, [upExpansion.content, hunk.content, downExpansion.content]);
+
+    // Calculate starting line number for combined content
+    const combinedStartLine = upExpansion.content ? upwardExpansion.startLine : hunk.oldStart;
 
     return (
       <div className="font-monospace bg-code-bg grid grid-cols-[minmax(min-content,1fr)] overflow-x-auto text-[11px] leading-[1.4]">
@@ -70,26 +77,18 @@ export const HunkContent = React.memo<HunkContentProps>(
           <ReadMoreButton
             direction="up"
             numLines={upwardExpansion.numLines}
-            isLoading={isLoadingUp}
-            onClick={onExpandUp}
+            isLoading={upExpansion.isLoading}
+            onClick={upExpansion.onExpand}
           />
         )}
 
-        {/* Expanded content upward */}
-        <ExpandedDiffContent
-          content={expandedContentUp}
-          filePath={hunk.filePath}
-          startLine={upwardExpansion.startLine}
-          searchConfig={searchConfig}
-        />
-
-        {/* Original hunk content */}
+        {/* Combined content - single pass through syntax highlighter */}
         <div className="px-2 py-1.5">
           <SelectableDiffRenderer
-            content={hunk.content}
+            content={combinedContent}
             filePath={hunk.filePath}
-            oldStart={hunk.oldStart}
-            newStart={hunk.newStart}
+            oldStart={combinedStartLine}
+            newStart={combinedStartLine}
             maxHeight="none"
             onReviewNote={onReviewNote}
             onLineClick={() => {
@@ -103,22 +102,14 @@ export const HunkContent = React.memo<HunkContentProps>(
           />
         </div>
 
-        {/* Expanded content downward */}
-        <ExpandedDiffContent
-          content={expandedContentDown}
-          filePath={hunk.filePath}
-          startLine={downwardExpansion.startLine}
-          searchConfig={searchConfig}
-        />
-
         {/* Read more downward button */}
         <div className="border-border-light border-t px-2 py-1.5">
           <button
-            onClick={onExpandDown}
-            disabled={isLoadingDown}
+            onClick={downExpansion.onExpand}
+            disabled={downExpansion.isLoading}
             className="text-muted hover:text-foreground disabled:text-muted w-full text-center text-[11px] italic disabled:cursor-not-allowed"
           >
-            {isLoadingDown ? "Loading..." : "Read 30 more lines ↓"}
+            {downExpansion.isLoading ? "Loading..." : "Read 30 more lines ↓"}
           </button>
         </div>
       </div>

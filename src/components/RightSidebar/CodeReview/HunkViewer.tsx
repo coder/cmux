@@ -285,12 +285,16 @@ export const HunkViewer = React.memo<HunkViewerProps>(
             hunk={hunk}
             hunkId={hunkId}
             readMoreState={readMoreState}
-            expandedContentUp={expandedContentUp}
-            expandedContentDown={expandedContentDown}
-            isLoadingUp={isLoadingUp}
-            isLoadingDown={isLoadingDown}
-            onExpandUp={handleExpandUp}
-            onExpandDown={handleExpandDown}
+            upExpansion={{
+              content: expandedContentUp,
+              isLoading: isLoadingUp,
+              onExpand: handleExpandUp,
+            }}
+            downExpansion={{
+              content: expandedContentDown,
+              isLoading: isLoadingDown,
+              onExpand: handleExpandDown,
+            }}
             onClick={onClick}
             onReviewNote={onReviewNote}
             searchConfig={searchConfig}
