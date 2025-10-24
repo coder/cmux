@@ -1,4 +1,11 @@
-import { useState, useEffect, useCallback, useRef, type Dispatch, type SetStateAction } from "react";
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import "./styles/globals.css";
 import type { ProjectConfig } from "./config";
 import type { WorkspaceSelection } from "./components/ProjectSidebar";
@@ -61,7 +68,7 @@ interface AppInnerProps {
 
 function AppInner({
   projects,
-  setProjects,
+  setProjects: _setProjects,
   addProject,
   removeProject,
   workspaceMetadata,
@@ -72,7 +79,6 @@ function AppInner({
   selectedWorkspace,
   setSelectedWorkspace,
 }: AppInnerProps) {
-
   const [workspaceModalOpen, setWorkspaceModalOpen] = useState(false);
   const [workspaceModalProject, setWorkspaceModalProject] = useState<string | null>(null);
   const [workspaceModalProjectName, setWorkspaceModalProjectName] = useState<string>("");

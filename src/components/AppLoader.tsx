@@ -88,7 +88,12 @@ export function AppLoader() {
     }
 
     setHasRestoredFromHash(true);
-  }, [storesSynced, workspaceManagement.workspaceMetadata, hasRestoredFromHash, setSelectedWorkspace]);
+  }, [
+    storesSynced,
+    workspaceManagement.workspaceMetadata,
+    hasRestoredFromHash,
+    setSelectedWorkspace,
+  ]);
 
   // Show loading screen until stores are synced
   if (workspaceManagement.loading || !storesSynced) {
@@ -112,4 +117,3 @@ export function AppLoader() {
     />
   );
 }
-

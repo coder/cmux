@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { useRef } from "react";
-import App from "./App";
+import { AppLoader } from "./components/AppLoader";
 import type { ProjectConfig } from "./config";
 import type { FrontendWorkspaceMetadata } from "./types/workspace";
 import type { IPCApi } from "./types/ipc";
@@ -94,7 +94,7 @@ function setupMockAPI(options: {
 
 const meta = {
   title: "App/Full Application",
-  component: App,
+  component: AppLoader,
   parameters: {
     layout: "fullscreen",
     backgrounds: {
@@ -103,7 +103,7 @@ const meta = {
     },
   },
   tags: ["autodocs"],
-} satisfies Meta<typeof App>;
+} satisfies Meta<typeof AppLoader>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
@@ -122,7 +122,7 @@ const AppWithMocks: React.FC<{
     initialized.current = true;
   }
 
-  return <App />;
+  return <AppLoader />;
 };
 
 export const WelcomeScreen: Story = {
@@ -618,7 +618,7 @@ export const ActiveWorkspaceWithChat: Story = {
         initialized.current = true;
       }
 
-      return <App />;
+      return <AppLoader />;
     };
 
     return <AppWithChatMocks />;
