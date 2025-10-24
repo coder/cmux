@@ -4,12 +4,8 @@
 
 import React, { useState, useMemo } from "react";
 import type { DiffHunk, HunkReadMoreState } from "@/types/review";
-import { SelectableDiffRenderer } from "../../shared/DiffRenderer";
-import {
-  type SearchHighlightConfig,
-  highlightSearchInText,
-} from "@/utils/highlighting/highlightSearchTerms";
-import { Tooltip, TooltipWrapper } from "../../Tooltip";
+import type { SearchHighlightConfig } from "@/utils/highlighting/highlightSearchTerms";
+import { highlightSearchInText } from "@/utils/highlighting/highlightSearchTerms";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { getReviewExpandStateKey, getReviewReadMoreStateKey } from "@/constants/storage";
 import { KEYBINDS, formatKeybind } from "@/utils/ui/keybinds";
@@ -20,6 +16,8 @@ import {
   calculateDownwardExpansion,
   formatAsContextLines,
 } from "@/utils/review/readFileLines";
+import { HunkHeader } from "./HunkHeader";
+import { HunkContent } from "./HunkContent";
 
 interface HunkViewerProps {
   hunk: DiffHunk;
@@ -227,7 +225,7 @@ export const HunkViewer = React.memo<HunkViewerProps>(
 
     // Detect pure rename: if renamed and content hasn't changed (zero additions and deletions)
     const isPureRename =
-      hunk.changeType === "renamed" && hunk.oldPath && additions === 0 && deletions === 0;
+      hunk.changeType === "renamed" && !!hunk.oldPath && additions === 0 && deletions === 0;
 
     return (
       <div
@@ -242,138 +240,36 @@ export const HunkViewer = React.memo<HunkViewerProps>(
         tabIndex={0}
         data-hunk-id={hunkId}
       >
-        <div className="bg-separator border-border-light font-monospace flex items-center justify-between gap-2 border-b px-3 py-2 text-xs">
-          {isRead && (
-            <TooltipWrapper inline>
-              <span
-                className="text-read mr-1 inline-flex items-center text-sm"
-                aria-label="Marked as read"
-              >
-                ✓
-              </span>
-              <Tooltip align="center" position="top">
-                Marked as read
-              </Tooltip>
-            </TooltipWrapper>
-          )}
-          <div
-            className="text-foreground min-w-0 truncate font-medium"
-            dangerouslySetInnerHTML={{ __html: highlightedFilePath }}
-          />
-          <div className="flex shrink-0 items-center gap-2 text-[11px] whitespace-nowrap">
-            {!isPureRename && (
-              <span className="flex gap-2 text-[11px]">
-                {additions > 0 && <span className="text-success-light">+{additions}</span>}
-                {deletions > 0 && <span className="text-warning-light">-{deletions}</span>}
-              </span>
-            )}
-            <span className="text-muted">
-              ({lineCount} {lineCount === 1 ? "line" : "lines"})
-            </span>
-            {onToggleRead && (
-              <TooltipWrapper inline>
-                <button
-                  className="border-border-light text-muted hover:border-read hover:text-read flex cursor-pointer items-center gap-1 rounded-[3px] border bg-transparent px-1.5 py-0.5 text-[11px] transition-all duration-200 hover:bg-white/5 active:scale-95"
-                  data-hunk-id={hunkId}
-                  onClick={handleToggleRead}
-                  aria-label={`Mark as read (${formatKeybind(KEYBINDS.TOGGLE_HUNK_READ)})`}
-                >
-                  {isRead ? "○" : "◉"}
-                </button>
-                <Tooltip align="right" position="top">
-                  Mark as read ({formatKeybind(KEYBINDS.TOGGLE_HUNK_READ)})
-                </Tooltip>
-              </TooltipWrapper>
-            )}
-          </div>
-        </div>
+        <HunkHeader
+          highlightedFilePath={highlightedFilePath}
+          isRead={isRead}
+          additions={additions}
+          deletions={deletions}
+          lineCount={lineCount}
+          isPureRename={isPureRename}
+          hunkId={hunkId}
+          onToggleRead={onToggleRead ? handleToggleRead : undefined}
+        />
 
         {isPureRename ? (
           <div className="text-muted bg-code-keyword-overlay-light before:text-code-keyword flex items-center gap-2 p-3 text-[11px] before:text-sm before:content-['→']">
             Renamed from <code>{hunk.oldPath}</code>
           </div>
         ) : isExpanded ? (
-          <div className="font-monospace bg-code-bg grid grid-cols-[minmax(min-content,1fr)] overflow-x-auto text-[11px] leading-[1.4]">
-            {/* Read more upward button */}
-            {(() => {
-              const expansion = calculateUpwardExpansion(hunk.oldStart, readMoreState.up);
-              const canExpandUp = expansion.startLine >= 1 && expansion.numLines > 0;
-              return (
-                canExpandUp && (
-                  <div className="border-border-light border-b px-2 py-1.5">
-                    <button
-                      onClick={handleExpandUp}
-                      disabled={isLoadingUp}
-                      className="text-muted hover:text-foreground disabled:text-muted w-full text-center text-[11px] italic disabled:cursor-not-allowed"
-                    >
-                      {isLoadingUp ? "Loading..." : `Read ${expansion.numLines} more lines ↑`}
-                    </button>
-                  </div>
-                )
-              );
-            })()}
-            {/* Expanded content upward */}
-            {expandedContentUp && (
-              <div className="px-2 py-1.5">
-                <SelectableDiffRenderer
-                  content={expandedContentUp}
-                  filePath={hunk.filePath}
-                  oldStart={calculateUpwardExpansion(hunk.oldStart, readMoreState.up).startLine}
-                  newStart={calculateUpwardExpansion(hunk.oldStart, readMoreState.up).startLine}
-                  maxHeight="none"
-                  searchConfig={searchConfig}
-                />
-              </div>
-            )}
-            {/* Original hunk content */}
-            <div className="px-2 py-1.5">
-              <SelectableDiffRenderer
-                content={hunk.content}
-                filePath={hunk.filePath}
-                oldStart={hunk.oldStart}
-                newStart={hunk.newStart}
-                maxHeight="none"
-                onReviewNote={onReviewNote}
-                onLineClick={() => {
-                  // Create synthetic event with data-hunk-id for parent handler
-                  const syntheticEvent = {
-                    currentTarget: { dataset: { hunkId } },
-                  } as unknown as React.MouseEvent<HTMLElement>;
-                  onClick?.(syntheticEvent);
-                }}
-                searchConfig={searchConfig}
-              />
-            </div>
-            {/* Expanded content downward */}
-            {expandedContentDown && (
-              <div className="px-2 py-1.5">
-                <SelectableDiffRenderer
-                  content={expandedContentDown}
-                  filePath={hunk.filePath}
-                  oldStart={
-                    calculateDownwardExpansion(hunk.oldStart, hunk.oldLines, readMoreState.down)
-                      .startLine
-                  }
-                  newStart={
-                    calculateDownwardExpansion(hunk.oldStart, hunk.oldLines, readMoreState.down)
-                      .startLine
-                  }
-                  maxHeight="none"
-                  searchConfig={searchConfig}
-                />
-              </div>
-            )}
-            {/* Read more downward button */}
-            <div className="border-border-light border-t px-2 py-1.5">
-              <button
-                onClick={handleExpandDown}
-                disabled={isLoadingDown}
-                className="text-muted hover:text-foreground disabled:text-muted w-full text-center text-[11px] italic disabled:cursor-not-allowed"
-              >
-                {isLoadingDown ? "Loading..." : "Read 30 more lines ↓"}
-              </button>
-            </div>
-          </div>
+          <HunkContent
+            hunk={hunk}
+            hunkId={hunkId}
+            readMoreState={readMoreState}
+            expandedContentUp={expandedContentUp}
+            expandedContentDown={expandedContentDown}
+            isLoadingUp={isLoadingUp}
+            isLoadingDown={isLoadingDown}
+            onExpandUp={handleExpandUp}
+            onExpandDown={handleExpandDown}
+            onClick={onClick}
+            onReviewNote={onReviewNote}
+            searchConfig={searchConfig}
+          />
         ) : (
           <div
             className="text-muted hover:text-foreground cursor-pointer px-3 py-2 text-center text-[11px] italic"
