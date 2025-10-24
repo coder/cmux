@@ -3,7 +3,6 @@ import type { FrontendWorkspaceMetadata } from "@/types/workspace";
 import type { WorkspaceSelection } from "@/components/ProjectSidebar";
 import type { ProjectConfig } from "@/config";
 import { deleteWorkspaceStorage } from "@/constants/storage";
-import { getWorkspaceStoreForEagerSubscription } from "@/stores/WorkspaceStore";
 
 interface UseWorkspaceManagementProps {
   selectedWorkspace: WorkspaceSelection | null;
@@ -98,22 +97,7 @@ export function useWorkspaceManagement({
       const loadedProjects = new Map<string, ProjectConfig>(projectsList);
       onProjectsUpdate(loadedProjects);
 
-      // OPTIMIZATION: Subscribe immediately to workspace to receive init hook events in real-time
-      // Without this, we'd wait for loadWorkspaceMetadata() + React effect, during which
-      // early init hook events would be emitted but dropped (not subscribed yet).
-      // Those events would then be replayed in a batch when subscription finally happens,
-      // losing the real-time streaming UX.
-      const workspaceStore = getWorkspaceStoreForEagerSubscription();
-      workspaceStore.addWorkspace({
-        id: result.metadata.id,
-        name: result.metadata.name,
-        projectName: result.metadata.projectName,
-        projectPath: result.metadata.projectPath,
-        namedWorkspacePath: result.metadata.namedWorkspacePath,
-        createdAt: result.metadata.createdAt,
-      });
-
-      // Reload workspace metadata to get the new workspace ID (for consistency with other state)
+      // Reload workspace metadata to get the new workspace ID
       await loadWorkspaceMetadata();
 
       // Return the new workspace selection

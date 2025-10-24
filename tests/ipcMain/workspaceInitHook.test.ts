@@ -16,6 +16,7 @@ async function createTempGitRepoWithInitHook(options: {
   exitCode: number;
   stdoutLines?: string[];
   stderrLines?: string[];
+  sleepBetweenLines?: number; // milliseconds
 }): Promise<string> {
   const fs = await import("fs/promises");
   const { exec } = await import("child_process");
@@ -40,7 +41,15 @@ async function createTempGitRepoWithInitHook(options: {
 
   // Create init hook script
   const hookPath = path.join(cmuxDir, "init");
-  const stdoutCmds = (options.stdoutLines ?? []).map((line) => `echo "${line}"`).join("\n");
+  const sleepCmd = options.sleepBetweenLines ? `sleep ${options.sleepBetweenLines / 1000}` : "";
+
+  const stdoutCmds = (options.stdoutLines ?? [])
+    .map((line, idx) => {
+      const needsSleep = sleepCmd && idx < (options.stdoutLines?.length ?? 0) - 1;
+      return `echo "${line}"${needsSleep ? `\n${sleepCmd}` : ""}`;
+    })
+    .join("\n");
+
   const stderrCmds = (options.stderrLines ?? []).map((line) => `echo "${line}" >&2`).join("\n");
 
   const scriptContent = `#!/usr/bin/env bash
@@ -335,7 +344,10 @@ describeIntegration("IpcMain workspace init hook integration tests", () => {
         const status = JSON.parse(statusContent);
         expect(status.status).toBe("success");
         expect(status.exitCode).toBe(0);
-        expect(status.lines).toEqual(["Installing dependencies", "Done!"]);
+        expect(status.lines).toEqual([
+          { line: "Installing dependencies", isError: false, timestamp: expect.any(Number) },
+          { line: "Done!", isError: false, timestamp: expect.any(Number) },
+        ]);
         expect(status.hookPath).toContain(".cmux/init");
         expect(status.startTime).toBeGreaterThan(0);
         expect(status.endTime).toBeGreaterThan(status.startTime);
@@ -347,3 +359,78 @@ describeIntegration("IpcMain workspace init hook integration tests", () => {
     15000
   );
 });
+
+test.concurrent(
+  "should receive init events with natural timing (not batched)",
+  async () => {
+    const env = await createTestEnvironment();
+
+    // Create project with slow init hook (100ms sleep between lines)
+    const tempGitRepo = await createTempGitRepoWithInitHook({
+      exitCode: 0,
+      stdoutLines: ["Line 1", "Line 2", "Line 3", "Line 4"],
+      sleepBetweenLines: 100, // 100ms between each echo
+    });
+
+    try {
+      const branchName = generateBranchName("timing-test");
+      const startTime = Date.now();
+
+      // Create workspace - init hook will start immediately
+      const createResult = await createWorkspace(env.mockIpcRenderer, tempGitRepo, branchName);
+      expect(createResult.success).toBe(true);
+      if (!createResult.success) return;
+
+      const workspaceId = createResult.metadata.id;
+
+      // Wait for all init events to arrive
+      const deadline = Date.now() + 10000;
+      let initOutputEvents: Array<{ timestamp: number; line: string }> = [];
+
+      while (Date.now() < deadline) {
+        const currentEvents = env.sentEvents
+          .filter((e) => e.channel === getChatChannel(workspaceId))
+          .filter((e) => isInitOutput(e.data as WorkspaceChatMessage));
+
+        initOutputEvents = currentEvents.map((e) => ({
+          timestamp: e.timestamp, // Use timestamp from when event was sent
+          line: (e.data as { line: string }).line,
+        }));
+
+        if (initOutputEvents.length >= 4) break;
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+
+      expect(initOutputEvents.length).toBe(4);
+
+      // Calculate time between consecutive events
+      const timeDiffs = initOutputEvents
+        .slice(1)
+        .map((event, i) => event.timestamp - initOutputEvents[i].timestamp);
+
+      console.log("Time between events (ms):", timeDiffs);
+      console.log(
+        "Event lines:",
+        initOutputEvents.map((e) => e.line)
+      );
+
+      // ASSERTION: If streaming in real-time, events should be ~100ms apart
+      // If batched/replayed, events will be <10ms apart
+      const avgTimeDiff = timeDiffs.reduce((a, b) => a + b, 0) / timeDiffs.length;
+      console.log("Average time between events:", avgTimeDiff, "ms");
+
+      // Real-time streaming: expect at least 70ms average (accounting for variance)
+      // Batched replay: would be <10ms
+      expect(avgTimeDiff).toBeGreaterThan(70);
+
+      // Also verify first event arrives early (not waiting for hook to complete)
+      const firstEventDelay = initOutputEvents[0].timestamp - startTime;
+      console.log("First event delay:", firstEventDelay, "ms");
+      expect(firstEventDelay).toBeLessThan(1000); // Should arrive reasonably quickly (bash startup + git worktree setup)
+    } finally {
+      await cleanupTestEnvironment(env);
+      await cleanupTempGitRepo(tempGitRepo);
+    }
+  },
+  15000
+);

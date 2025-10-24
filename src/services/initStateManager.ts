@@ -5,6 +5,15 @@ import type { WorkspaceInitEvent } from "@/types/ipc";
 import { log } from "@/services/log";
 
 /**
+ * Output line with timestamp for replay timing.
+ */
+export interface TimedLine {
+  line: string;
+  isError: boolean; // true if from stderr
+  timestamp: number;
+}
+
+/**
  * Persisted state for init hooks.
  * Stored in ~/.cmux/sessions/{workspaceId}/init-status.json
  */
@@ -12,7 +21,7 @@ export interface InitStatus {
   status: "running" | "success" | "error";
   hookPath: string;
   startTime: number;
-  lines: string[]; // Accumulated output (stderr prefixed with "ERROR: ")
+  lines: TimedLine[];
   exitCode: number | null;
   endTime: number | null; // When init-end event occurred
 }
@@ -76,17 +85,14 @@ export class InitStateManager extends EventEmitter {
       timestamp: state.startTime,
     });
 
-    // Emit init-output for each accumulated line
-    for (const line of state.lines) {
-      const isError = line.startsWith("ERROR: ");
-      const cleanLine = isError ? line.slice(7) : line;
-
+    // Emit init-output for each accumulated line with original timestamps
+    for (const timedLine of state.lines) {
       events.push({
         type: "init-output",
         workspaceId,
-        line: cleanLine,
-        isError,
-        timestamp: state.startTime, // Use original timestamp for replay
+        line: timedLine.line,
+        isError: timedLine.isError,
+        timestamp: timedLine.timestamp, // Use original timestamp for replay
       });
     }
 
@@ -144,9 +150,10 @@ export class InitStateManager extends EventEmitter {
       return;
     }
 
-    // Prefix stderr lines with "ERROR: " for visual distinction
-    const displayLine = isError ? `ERROR: ${line}` : line;
-    state.lines.push(displayLine);
+    const timestamp = Date.now();
+
+    // Store line with isError flag and timestamp
+    state.lines.push({ line, isError, timestamp });
 
     // Emit init-output event
     this.emit("init-output", {
@@ -154,7 +161,7 @@ export class InitStateManager extends EventEmitter {
       workspaceId,
       line,
       isError,
-      timestamp: Date.now(),
+      timestamp,
     } satisfies WorkspaceInitEvent & { workspaceId: string });
   }
 

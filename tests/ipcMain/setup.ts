@@ -19,7 +19,7 @@ export interface TestEnvironment {
   mockIpcRenderer: Electron.IpcRenderer;
   mockWindow: BrowserWindow;
   tempDir: string;
-  sentEvents: Array<{ channel: string; data: unknown }>;
+  sentEvents: Array<{ channel: string; data: unknown; timestamp: number }>;
 }
 
 /**
@@ -27,14 +27,14 @@ export interface TestEnvironment {
  */
 function createMockBrowserWindow(): {
   window: BrowserWindow;
-  sentEvents: Array<{ channel: string; data: unknown }>;
+  sentEvents: Array<{ channel: string; data: unknown; timestamp: number }>;
 } {
-  const sentEvents: Array<{ channel: string; data: unknown }> = [];
+  const sentEvents: Array<{ channel: string; data: unknown; timestamp: number }> = [];
 
   const mockWindow = {
     webContents: {
       send: (channel: string, data: unknown) => {
-        sentEvents.push({ channel, data });
+        sentEvents.push({ channel, data, timestamp: Date.now() });
       },
       openDevTools: jest.fn(),
     } as unknown as WebContents,

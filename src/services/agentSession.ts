@@ -151,18 +151,17 @@ export class AgentSession {
       listener({ workspaceId: this.workspaceId, message: partial });
     }
 
-    // Send caught-up IMMEDIATELY after chat history loads
-    // This signals frontend that historical chat data is complete
+    // Replay init state BEFORE caught-up (treat as historical data)
+    // This ensures init events are buffered correctly by the frontend,
+    // preserving their natural timing characteristics from the hook execution.
+    await this.initStateManager.replayInit(this.workspaceId);
+
+    // Send caught-up after ALL historical data (including init events)
+    // This signals frontend that replay is complete and future events are real-time
     listener({
       workspaceId: this.workspaceId,
       message: { type: "caught-up" },
     });
-
-    // Replay init state AFTER caught-up
-    // Init events are workspace lifecycle metadata (not chat history), so they're
-    // processed in real-time without buffering. This eliminates O(N) re-renders
-    // when init hooks emit many lines during workspace creation.
-    await this.initStateManager.replayInit(this.workspaceId);
   }
 
   ensureMetadata(args: { workspacePath: string; projectName?: string }): void {

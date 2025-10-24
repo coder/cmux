@@ -52,7 +52,10 @@ describe("InitStateManager", () => {
       // Append output
       manager.appendOutput(workspaceId, "Installing deps...", false);
       manager.appendOutput(workspaceId, "Done!", false);
-      expect(manager.getInitState(workspaceId)?.lines).toEqual(["Installing deps...", "Done!"]);
+      expect(manager.getInitState(workspaceId)?.lines).toEqual([
+        { line: "Installing deps...", isError: false, timestamp: expect.any(Number) },
+        { line: "Done!", isError: false, timestamp: expect.any(Number) },
+      ]);
 
       // End init (await to ensure event fires)
       await manager.endInit(workspaceId, 0);
@@ -67,7 +70,7 @@ describe("InitStateManager", () => {
       expect(events[3].type).toBe("init-end");
     });
 
-    it("should prefix stderr lines with ERROR:", () => {
+    it("should track stderr lines with isError flag", () => {
       const workspaceId = "test-workspace";
       manager.startInit(workspaceId, "/path/to/hook");
 
@@ -75,7 +78,10 @@ describe("InitStateManager", () => {
       manager.appendOutput(workspaceId, "stderr line", true);
 
       const state = manager.getInitState(workspaceId);
-      expect(state?.lines).toEqual(["stdout line", "ERROR: stderr line"]);
+      expect(state?.lines).toEqual([
+        { line: "stdout line", isError: false, timestamp: expect.any(Number) },
+        { line: "stderr line", isError: true, timestamp: expect.any(Number) },
+      ]);
     });
 
     it("should set status to error on non-zero exit code", async () => {
@@ -102,7 +108,10 @@ describe("InitStateManager", () => {
       expect(diskState).toBeTruthy();
       expect(diskState?.status).toBe("success");
       expect(diskState?.exitCode).toBe(0);
-      expect(diskState?.lines).toEqual(["Line 1", "ERROR: Line 2"]);
+      expect(diskState?.lines).toEqual([
+        { line: "Line 1", isError: false, timestamp: expect.any(Number) },
+        { line: "Line 2", isError: true, timestamp: expect.any(Number) },
+      ]);
     });
 
     it("should replay from in-memory state when available", async () => {
