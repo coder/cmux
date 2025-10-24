@@ -31,10 +31,8 @@ import { secretsToRecord } from "@/types/secrets";
 import { DisposableTempDir } from "@/services/tempDir";
 import { BashExecutionService } from "@/services/bashExecutionService";
 import { InitStateManager } from "@/services/initStateManager";
-import { LocalRuntime } from "@/runtime/LocalRuntime";
 import { createRuntime } from "@/runtime/runtimeFactory";
-
-import { checkInitHookExists } from "@/runtime/initHook";
+import type { RuntimeConfig } from "@/types/runtime";
 /**
  * IpcMain - Manages all IPC handlers and service coordination
  *
@@ -259,7 +257,13 @@ export class IpcMain {
   private registerWorkspaceHandlers(ipcMain: ElectronIpcMain): void {
     ipcMain.handle(
       IPC_CHANNELS.WORKSPACE_CREATE,
-      async (_event, projectPath: string, branchName: string, trunkBranch: string) => {
+      async (
+        _event,
+        projectPath: string,
+        branchName: string,
+        trunkBranch: string,
+        runtimeConfig?: RuntimeConfig
+      ) => {
         // Validate workspace name
         const validation = validateWorkspaceName(branchName);
         if (!validation.valid) {
@@ -277,8 +281,14 @@ export class IpcMain {
 
         // Create runtime for workspace creation (defaults to local)
         const workspacePath = this.config.getWorkspacePath(projectPath, branchName);
-        const runtimeConfig = { type: "local" as const, workdir: workspacePath };
-        const runtime = createRuntime(runtimeConfig);
+        const finalRuntimeConfig: RuntimeConfig = runtimeConfig ?? {
+          type: "local",
+          workdir: workspacePath,
+        };
+        const runtime = createRuntime(finalRuntimeConfig);
+
+        // Create session BEFORE starting init so events can be forwarded
+        const session = this.getOrCreateSession(workspaceId);
 
         // Start init tracking (creates in-memory state + emits init-start event)
         // This MUST complete before workspace creation returns so replayInit() finds state
@@ -352,8 +362,7 @@ export class IpcMain {
             return { success: false, error: "Failed to retrieve workspace metadata" };
           }
 
-          // Emit metadata event for new workspace
-          const session = this.getOrCreateSession(workspaceId);
+          // Emit metadata event for new workspace (session already created above)
           session.emitMetadata(completeMetadata);
 
           // Init hook has already been run by the runtime

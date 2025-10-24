@@ -7,8 +7,11 @@ import type {
   FileStat,
   WorkspaceCreationParams,
   WorkspaceCreationResult,
+  InitLogger,
 } from "./Runtime";
 import { RuntimeError as RuntimeErrorClass } from "./Runtime";
+import { log } from "../services/log";
+import { checkInitHookExists, createLineBufferedLoggers } from "./initHook";
 
 /**
  * SSH Runtime Configuration
@@ -249,15 +252,318 @@ export class SSHRuntime implements Runtime {
     };
   }
 
-  async createWorkspace(params: WorkspaceCreationParams): Promise<WorkspaceCreationResult> {
-    const { initLogger } = params;
+  /**
+   * Build common SSH arguments based on runtime config
+   * @param includeHost - Whether to include the host in the args (for direct ssh commands)
+   */
+  private buildSSHArgs(includeHost = false): string[] {
+    const args: string[] = [];
 
-    initLogger.logStep("SSH workspace creation not yet implemented");
-    
-    return {
-      success: false,
-      error: "SSH workspace creation is not yet implemented. Use local workspaces for now.",
+    // Add port if specified
+    if (this.config.port) {
+      args.push("-p", this.config.port.toString());
+    }
+
+    // Add identity file if specified
+    if (this.config.identityFile) {
+      args.push("-i", this.config.identityFile);
+      // Disable strict host key checking for test environments
+      args.push("-o", "StrictHostKeyChecking=no");
+      args.push("-o", "UserKnownHostsFile=/dev/null");
+      args.push("-o", "LogLevel=ERROR");
+    }
+
+    if (includeHost) {
+      args.push(this.config.host);
+    }
+
+    return args;
+  }
+
+  /**
+   * Build SSH command string for rsync's -e flag
+   * Returns format like: "ssh -p 2222 -i key -o Option=value"
+   */
+  private buildRsyncSSHCommand(): string {
+    const sshOpts: string[] = [];
+
+    if (this.config.port) {
+      sshOpts.push(`-p ${this.config.port}`);
+    }
+    if (this.config.identityFile) {
+      sshOpts.push(`-i ${this.config.identityFile}`);
+      sshOpts.push("-o StrictHostKeyChecking=no");
+      sshOpts.push("-o UserKnownHostsFile=/dev/null");
+      sshOpts.push("-o LogLevel=ERROR");
+    }
+
+    return sshOpts.length > 0 ? `ssh ${sshOpts.join(" ")}` : "ssh";
+  }
+
+  /**
+   * Build SSH target string for rsync/scp
+   */
+  private buildSSHTarget(): string {
+    return `${this.config.host}:${this.config.workdir}`;
+  }
+
+  /**
+   * Check if error indicates command not found
+   */
+  private isCommandNotFoundError(error: unknown): boolean {
+    if (!(error instanceof Error)) return false;
+    const msg = error.message.toLowerCase();
+    return msg.includes("command not found") || msg.includes("not found") || msg.includes("enoent");
+  }
+
+  /**
+   * Sync project to remote using rsync (with scp fallback)
+   */
+  private async syncProjectToRemote(projectPath: string, initLogger: InitLogger): Promise<void> {
+    // Try rsync first
+    try {
+      await this.rsyncProject(projectPath, initLogger);
+      return;
+    } catch (error) {
+      // Check if error is "command not found"
+      if (this.isCommandNotFoundError(error)) {
+        log.info("rsync not available, falling back to scp");
+        initLogger.logStep("rsync not available, using tar+ssh instead");
+        await this.scpProject(projectPath, initLogger);
+        return;
+      }
+      // Re-throw other errors (network, permissions, etc.)
+      throw error;
+    }
+  }
+
+  /**
+   * Sync project using rsync
+   */
+  private async rsyncProject(projectPath: string, initLogger: InitLogger): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      const args = ["-az", "--delete", `${projectPath}/`, `${this.buildSSHTarget()}`];
+
+      // Add SSH options for rsync
+      const sshCommand = this.buildRsyncSSHCommand();
+      if (sshCommand !== "ssh") {
+        args.splice(2, 0, "-e", sshCommand);
+      }
+
+      const rsyncProc = spawn("rsync", args);
+
+      let stderr = "";
+      rsyncProc.stderr.on("data", (data: Buffer) => {
+        const msg = data.toString();
+        stderr += msg;
+        // Stream rsync errors to logger
+        initLogger.logStderr(msg.trim());
+      });
+
+      rsyncProc.on("close", (code) => {
+        if (code === 0) {
+          resolve();
+        } else {
+          reject(new Error(`rsync failed with exit code ${code ?? "unknown"}: ${stderr}`));
+        }
+      });
+
+      rsyncProc.on("error", (err) => {
+        reject(err);
+      });
+    });
+  }
+
+  /**
+   * Sync project using tar over ssh
+   * More reliable than scp for syncing directory contents
+   */
+  private async scpProject(projectPath: string, initLogger: InitLogger): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      // Build SSH args
+      const sshArgs = this.buildSSHArgs(true);
+
+      // For paths starting with ~/, expand to $HOME
+      let remoteWorkdir: string;
+      if (this.config.workdir.startsWith("~/")) {
+        const pathWithoutTilde = this.config.workdir.slice(2);
+        remoteWorkdir = `"\\\\$HOME/${pathWithoutTilde}"`; // Escape $ so local shell doesn't expand it
+      } else {
+        remoteWorkdir = JSON.stringify(this.config.workdir);
+      }
+
+      // Use bash to tar and pipe over ssh
+      // This is more reliable than scp for directory contents
+      const command = `cd ${JSON.stringify(projectPath)} && tar -cf - . | ssh ${sshArgs.join(" ")} "cd ${remoteWorkdir} && tar -xf -"`;
+
+      const proc = spawn("bash", ["-c", command]);
+
+      let stderr = "";
+      proc.stderr.on("data", (data: Buffer) => {
+        const msg = data.toString();
+        stderr += msg;
+        // Stream tar/ssh errors to logger
+        initLogger.logStderr(msg.trim());
+      });
+
+      proc.on("close", (code) => {
+        if (code === 0) {
+          resolve();
+        } else {
+          reject(new Error(`tar+ssh failed with exit code ${code ?? "unknown"}: ${stderr}`));
+        }
+      });
+
+      proc.on("error", (err) => {
+        reject(err);
+      });
+    });
+  }
+
+  /**
+   * Run .cmux/init hook on remote machine if it exists
+   */
+  private async runInitHook(projectPath: string, initLogger: InitLogger): Promise<void> {
+    // Check if hook exists locally (we synced the project, so local check is sufficient)
+    const hookExists = await checkInitHookExists(projectPath);
+    if (!hookExists) {
+      return;
+    }
+
+    const remoteHookPath = `${this.config.workdir}/.cmux/init`;
+    initLogger.logStep(`Running init hook: ${remoteHookPath}`);
+
+    // Run hook remotely and stream output
+    const hookStream = this.exec(`"${remoteHookPath}"`, {
+      cwd: this.config.workdir,
+      timeout: 300, // 5 minutes for init hook
+    });
+
+    // Create line-buffered loggers
+    const loggers = createLineBufferedLoggers(initLogger);
+
+    // Stream stdout/stderr through line-buffered loggers
+    const stdoutReader = hookStream.stdout.getReader();
+    const stderrReader = hookStream.stderr.getReader();
+    const decoder = new TextDecoder();
+
+    // Read stdout in parallel
+    const readStdout = async () => {
+      try {
+        while (true) {
+          const { done, value } = await stdoutReader.read();
+          if (done) break;
+          loggers.stdout.append(decoder.decode(value, { stream: true }));
+        }
+        loggers.stdout.flush();
+      } finally {
+        stdoutReader.releaseLock();
+      }
     };
+
+    // Read stderr in parallel
+    const readStderr = async () => {
+      try {
+        while (true) {
+          const { done, value } = await stderrReader.read();
+          if (done) break;
+          loggers.stderr.append(decoder.decode(value, { stream: true }));
+        }
+        loggers.stderr.flush();
+      } finally {
+        stderrReader.releaseLock();
+      }
+    };
+
+    // Wait for completion
+    const [exitCode] = await Promise.all([hookStream.exitCode, readStdout(), readStderr()]);
+
+    initLogger.logComplete(exitCode);
+  }
+
+  async createWorkspace(params: WorkspaceCreationParams): Promise<WorkspaceCreationResult> {
+    try {
+      const { projectPath, branchName, trunkBranch, initLogger } = params;
+
+      // 1. Create remote directory
+      initLogger.logStep("Creating remote directory...");
+      try {
+        // For paths starting with ~/, expand to $HOME
+        let mkdirCommand: string;
+        if (this.config.workdir.startsWith("~/")) {
+          const pathWithoutTilde = this.config.workdir.slice(2);
+          mkdirCommand = `mkdir -p "$HOME/${pathWithoutTilde}"`;
+        } else {
+          mkdirCommand = `mkdir -p ${JSON.stringify(this.config.workdir)}`;
+        }
+        const mkdirStream = this.exec(mkdirCommand, {
+          cwd: "/tmp",
+          timeout: 10,
+        });
+        const mkdirExitCode = await mkdirStream.exitCode;
+        if (mkdirExitCode !== 0) {
+          const stderr = await streamToString(mkdirStream.stderr);
+          return {
+            success: false,
+            error: `Failed to create remote directory: ${stderr}`,
+          };
+        }
+      } catch (error) {
+        return {
+          success: false,
+          error: `Failed to create remote directory: ${error instanceof Error ? error.message : String(error)}`,
+        };
+      }
+
+      // 2. Sync project to remote (opportunistic rsync with scp fallback)
+      initLogger.logStep("Syncing project files to remote...");
+      try {
+        await this.syncProjectToRemote(projectPath, initLogger);
+      } catch (error) {
+        return {
+          success: false,
+          error: `Failed to sync project: ${error instanceof Error ? error.message : String(error)}`,
+        };
+      }
+      initLogger.logStep("Files synced successfully");
+
+      // 3. Checkout branch remotely
+      initLogger.logStep(`Checking out branch: ${branchName}`);
+      // No need for explicit cd here - exec() handles cwd
+      const checkoutCmd = `(git checkout ${JSON.stringify(branchName)} 2>/dev/null || git checkout -b ${JSON.stringify(branchName)} ${JSON.stringify(trunkBranch)})`;
+
+      const checkoutStream = this.exec(checkoutCmd, {
+        cwd: this.config.workdir,
+        timeout: 60,
+      });
+
+      const [stdout, stderr, exitCode] = await Promise.all([
+        streamToString(checkoutStream.stdout),
+        streamToString(checkoutStream.stderr),
+        checkoutStream.exitCode,
+      ]);
+
+      if (exitCode !== 0) {
+        return {
+          success: false,
+          error: `Failed to checkout branch: ${stderr || stdout}`,
+        };
+      }
+      initLogger.logStep("Branch checked out successfully");
+
+      // 4. Run .cmux/init hook if it exists
+      await this.runInitHook(projectPath, initLogger);
+
+      return {
+        success: true,
+        workspacePath: this.config.workdir,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
   }
 }
 
