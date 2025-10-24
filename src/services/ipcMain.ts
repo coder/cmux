@@ -60,62 +60,72 @@ export class IpcMain {
   private mainWindow: BrowserWindow | null = null;
 
   // Run optional .cmux/init hook for a newly created workspace and stream its output
-  private async runWorkspaceInitHook(params: {
+  private async startWorkspaceInitHook(params: {
     projectPath: string;
     worktreePath: string;
     workspaceId: string;
   }): Promise<void> {
-    // Non-blocking fire-and-forget; errors are reported via init state manager
-    try {
-      const hookPath = path.join(params.projectPath, ".cmux", "init");
+    const { projectPath, worktreePath, workspaceId } = params;
+    const hookPath = path.join(projectPath, ".cmux", "init");
 
-      log.debug(`Checking for init hook at ${hookPath}`);
+    // Check if hook exists and is executable
+    const exists = await fsPromises
+      .access(hookPath, fs.constants.X_OK)
+      .then(() => true)
+      .catch(() => false);
 
-      // Check if hook exists and is executable
-      const exists = await fsPromises
-        .access(hookPath, fs.constants.X_OK)
-        .then(() => true)
-        .catch(() => false);
-
-      if (!exists) {
-        log.debug(`No init hook found at ${hookPath}`);
-        return; // Nothing to do
-      }
-
-      log.info(`Running init hook for workspace ${params.workspaceId}: ${hookPath}`);
-
-      // Start init hook tracking (automatically emits init-start event)
-      this.initStateManager.startInit(params.workspaceId, hookPath);
-
-      // Execute init hook through centralized bash service
-      this.bashService.executeStreaming(
-        hookPath,
-        {
-          cwd: params.worktreePath,
-          detached: false, // Don't need process group for simple script execution
-        },
-        {
-          onStdout: (line) => {
-            this.initStateManager.appendOutput(params.workspaceId, line, false);
-          },
-          onStderr: (line) => {
-            this.initStateManager.appendOutput(params.workspaceId, line, true);
-          },
-          onExit: (exitCode) => {
-            void this.initStateManager.endInit(params.workspaceId, exitCode);
-          },
-        }
-      );
-    } catch (error) {
-      log.error(`Failed to run init hook for workspace ${params.workspaceId}:`, error);
-      // Report error through init state manager
-      this.initStateManager.appendOutput(
-        params.workspaceId,
-        error instanceof Error ? error.message : String(error),
-        true
-      );
-      void this.initStateManager.endInit(params.workspaceId, -1);
+    if (!exists) {
+      log.debug(`No init hook found at ${hookPath}`);
+      return; // Nothing to do
     }
+
+    log.info(`Starting init hook for workspace ${workspaceId}: ${hookPath}`);
+
+    // Start init hook tracking (creates in-memory state + emits init-start event)
+    // This MUST complete before we return so replayInit() finds state
+    this.initStateManager.startInit(workspaceId, hookPath);
+
+    // Launch the hook process (async, don't await completion)
+    void (async () => {
+      try {
+        const startTime = Date.now();
+
+        // Execute init hook through centralized bash service
+        this.bashService.executeStreaming(
+          hookPath,
+          {
+            cwd: worktreePath,
+            detached: false, // Don't need process group for simple script execution
+          },
+          {
+            onStdout: (line) => {
+              this.initStateManager.appendOutput(workspaceId, line, false);
+            },
+            onStderr: (line) => {
+              this.initStateManager.appendOutput(workspaceId, line, true);
+            },
+            onExit: (exitCode) => {
+              const duration = Date.now() - startTime;
+              const status = exitCode === 0 ? "success" : "error";
+              log.info(
+                `Init hook ${status} for workspace ${workspaceId} (exit code ${exitCode}, duration ${duration}ms)`
+              );
+              // Finalize init state (automatically emits init-end event and persists to disk)
+              void this.initStateManager.endInit(workspaceId, exitCode);
+            },
+          }
+        );
+      } catch (error) {
+        log.error(`Failed to run init hook for workspace ${workspaceId}:`, error);
+        // Report error through init state manager
+        this.initStateManager.appendOutput(
+          workspaceId,
+          error instanceof Error ? error.message : String(error),
+          true
+        );
+        void this.initStateManager.endInit(workspaceId, -1);
+      }
+    })();
   }
   private registered = false;
 
@@ -314,8 +324,9 @@ export class IpcMain {
           const session = this.getOrCreateSession(workspaceId);
           session.emitMetadata(completeMetadata);
 
-          // Fire-and-forget: run optional .cmux/init hook and stream output to renderer
-          void this.runWorkspaceInitHook({
+          // Start optional .cmux/init hook (waits for state creation, then returns)
+          // This ensures replayInit() will find state when frontend subscribes
+          await this.startWorkspaceInitHook({
             projectPath,
             worktreePath: result.path,
             workspaceId,
