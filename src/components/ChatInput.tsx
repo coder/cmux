@@ -746,7 +746,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             Editing message ({formatKeybind(KEYBINDS.CANCEL_EDIT)} to cancel)
           </div>
         )}
-        <div className="flex items-center">
+        <div className="flex flex-wrap items-center gap-y-1">
           <ChatToggles modelString={preferredModel}>
             <div className="mr-3 flex items-center gap-1.5">
               <ModelSelector
