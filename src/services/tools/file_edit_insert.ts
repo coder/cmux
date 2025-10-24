@@ -4,7 +4,8 @@ import * as path from "path";
 import type { FileEditInsertToolResult } from "@/types/tools";
 import type { ToolConfiguration, ToolFactory } from "@/utils/tools/tools";
 import { TOOL_DEFINITIONS } from "@/utils/tools/toolDefinitions";
-import { validatePathInCwd, WRITE_DENIED_PREFIX } from "./fileCommon";
+import { validatePathInCwd } from "./fileCommon";
+import { WRITE_DENIED_PREFIX } from "@/types/tools";
 import { executeFileEditOperation } from "./file_edit_operation";
 
 /**

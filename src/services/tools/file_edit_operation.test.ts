@@ -1,6 +1,6 @@
 import { describe, it, expect } from "bun:test";
 import { executeFileEditOperation } from "./file_edit_operation";
-import { WRITE_DENIED_PREFIX } from "./fileCommon";
+import { WRITE_DENIED_PREFIX } from "@/types/tools";
 
 const TEST_CWD = "/tmp";
 

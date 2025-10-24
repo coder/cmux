@@ -2,13 +2,9 @@ import * as fs from "fs/promises";
 import * as path from "path";
 import writeFileAtomic from "write-file-atomic";
 import type { FileEditDiffSuccessBase, FileEditErrorResult } from "@/types/tools";
+import { WRITE_DENIED_PREFIX } from "@/types/tools";
 import type { ToolConfiguration } from "@/utils/tools/tools";
-import {
-  generateDiff,
-  validateFileSize,
-  validatePathInCwd,
-  WRITE_DENIED_PREFIX,
-} from "./fileCommon";
+import { generateDiff, validateFileSize, validatePathInCwd } from "./fileCommon";
 
 type FileEditOperationResult<TMetadata> =
   | {
