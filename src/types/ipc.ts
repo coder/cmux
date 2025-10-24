@@ -53,7 +53,7 @@ export interface DeleteMessage {
   historySequences: number[];
 }
 
-// Workspace init hook events (ephemeral, not persisted to history)
+// Workspace init hook events (persisted to init-status.json, not chat.jsonl)
 export type WorkspaceInitEvent =
   | {
       type: "init-start";
