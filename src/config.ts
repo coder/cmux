@@ -111,14 +111,14 @@ export class Config {
   }
 
   /**
-   * DEPRECATED: Generate workspace ID from project and workspace paths.
+   * DEPRECATED: Generate legacy workspace ID from project and workspace paths.
    * This method is used only for legacy workspace migration to look up old workspaces.
    * New workspaces use generateStableId() which returns a random stable ID.
    *
    * DO NOT use this method or its format to construct workspace IDs anywhere in the codebase.
    * Workspace IDs are backend implementation details and must only come from backend operations.
    */
-  generateWorkspaceId(projectPath: string, workspacePath: string): string {
+  generateLegacyId(projectPath: string, workspacePath: string): string {
     const projectBasename = this.getProjectName(projectPath);
     const workspaceBasename =
       workspacePath.split("/").pop() ?? workspacePath.split("\\").pop() ?? "unknown";
@@ -198,7 +198,7 @@ export class Config {
           }
 
           // Try legacy ID format as last resort
-          const legacyId = this.generateWorkspaceId(projectPath, workspace.path);
+          const legacyId = this.generateLegacyId(projectPath, workspace.path);
           if (legacyId === workspaceId) {
             return { workspacePath: workspace.path, projectPath };
           }
@@ -273,7 +273,7 @@ export class Config {
 
           // LEGACY FORMAT: Fall back to reading metadata.json
           // Try legacy ID format first (project-workspace) - used by E2E tests and old workspaces
-          const legacyId = this.generateWorkspaceId(projectPath, workspace.path);
+          const legacyId = this.generateLegacyId(projectPath, workspace.path);
           const metadataPath = path.join(this.getSessionDir(legacyId), "metadata.json");
           let metadataFound = false;
 
@@ -303,7 +303,7 @@ export class Config {
 
           // No metadata found anywhere - create basic metadata
           if (!metadataFound) {
-            const legacyId = this.generateWorkspaceId(projectPath, workspace.path);
+            const legacyId = this.generateLegacyId(projectPath, workspace.path);
             const metadata: WorkspaceMetadata = {
               id: legacyId,
               name: workspaceBasename,
@@ -321,7 +321,7 @@ export class Config {
         } catch (error) {
           console.error(`Failed to load/migrate workspace metadata:`, error);
           // Fallback to basic metadata if migration fails
-          const legacyId = this.generateWorkspaceId(projectPath, workspace.path);
+          const legacyId = this.generateLegacyId(projectPath, workspace.path);
           const metadata: WorkspaceMetadata = {
             id: legacyId,
             name: workspaceBasename,

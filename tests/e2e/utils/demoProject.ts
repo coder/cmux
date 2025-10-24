@@ -52,7 +52,7 @@ export function prepareDemoProject(
   // E2E tests use legacy workspace ID format to test backward compatibility.
   // Production code now uses generateStableId() for new workspaces.
   const config = new Config(rootDir);
-  const workspaceId = config.generateWorkspaceId(projectPath, workspacePath);
+  const workspaceId = config.generateLegacyId(projectPath, workspacePath);
   const metadata = {
     id: workspaceId,
     name: workspaceBranch,

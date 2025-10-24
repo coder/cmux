@@ -81,7 +81,7 @@ describe("Config", () => {
 
       // Test backward compatibility: Create metadata file using legacy ID format.
       // This simulates workspaces created before stable IDs were introduced.
-      const legacyId = config.generateWorkspaceId(projectPath, workspacePath);
+      const legacyId = config.generateLegacyId(projectPath, workspacePath);
       const sessionDir = config.getSessionDir(legacyId);
       fs.mkdirSync(sessionDir, { recursive: true });
       const metadataPath = path.join(sessionDir, "metadata.json");
