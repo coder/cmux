@@ -13,30 +13,36 @@ export interface PromptSuggestion {
  * Get prompt suggestions for the current input
  *
  * Returns suggestions when the input contains "@" followed by optional characters
+ * at the current cursor position.
  *
  * @param input - Current input text
+ * @param cursorPos - Current cursor position in the input
  * @param prompts - Available prompts from IPC
  * @returns Array of matching prompt suggestions
  */
 export function getPromptSuggestions(
   input: string,
+  cursorPos: number,
   prompts: Array<{ name: string; path: string; location: "repo" | "system" }>
 ): PromptSuggestion[] {
-  // Find the last "@" in the input
-  const lastAtIndex = input.lastIndexOf("@");
+  // Get text before cursor
+  const textBeforeCursor = input.slice(0, cursorPos);
+
+  // Find the last "@" before the cursor
+  const lastAtIndex = textBeforeCursor.lastIndexOf("@");
   if (lastAtIndex === -1) {
     return [];
   }
 
-  // Get the text after the last "@"
-  const afterAt = input.slice(lastAtIndex + 1);
+  // Get the text between @ and cursor
+  const afterAt = textBeforeCursor.slice(lastAtIndex + 1);
 
   // If there's a space after @, don't show suggestions
-  if (afterAt.startsWith(" ")) {
+  if (afterAt.includes(" ") || afterAt.includes("\n")) {
     return [];
   }
 
-  // Get the partial prompt name (text between @ and cursor/end)
+  // Get the partial prompt name (text between @ and cursor)
   // This supports typing like "@my-prom" -> shows "my-prompt"
   const partialName = afterAt.toLowerCase();
 

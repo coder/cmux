@@ -14,31 +14,52 @@ describe("promptSuggestions", () => {
 
   describe("getPromptSuggestions", () => {
     test("returns all prompts when input is just @", () => {
-      const suggestions = getPromptSuggestions("@", mockPrompts);
+      const input = "@";
+      const suggestions = getPromptSuggestions(input, input.length, mockPrompts);
       expect(suggestions.length).toBe(3);
     });
 
     test("filters prompts by partial name", () => {
-      const suggestions = getPromptSuggestions("@test", mockPrompts);
+      const input = "@test";
+      const suggestions = getPromptSuggestions(input, input.length, mockPrompts);
       expect(suggestions.length).toBe(1);
       expect(suggestions[0].name).toBe("test-prompt");
     });
 
     test("returns empty array when no @ present", () => {
-      const suggestions = getPromptSuggestions("no at sign", mockPrompts);
+      const input = "no at sign";
+      const suggestions = getPromptSuggestions(input, input.length, mockPrompts);
       expect(suggestions).toEqual([]);
     });
 
     test("returns empty array when space follows @", () => {
-      const suggestions = getPromptSuggestions("@ ", mockPrompts);
+      const input = "@ ";
+      const suggestions = getPromptSuggestions(input, input.length, mockPrompts);
       expect(suggestions).toEqual([]);
     });
 
     test("sorts repo prompts before system prompts", () => {
-      const suggestions = getPromptSuggestions("@", mockPrompts);
+      const input = "@";
+      const suggestions = getPromptSuggestions(input, input.length, mockPrompts);
       expect(suggestions[0].location).toBe("repo");
       expect(suggestions[1].location).toBe("system");
       expect(suggestions[2].location).toBe("system");
+    });
+
+    test("only considers @ before cursor position", () => {
+      const input = "@test @explain";
+      // Cursor is after "test" (position 5)
+      const suggestions = getPromptSuggestions(input, 5, mockPrompts);
+      expect(suggestions.length).toBe(1);
+      expect(suggestions[0].name).toBe("test-prompt");
+    });
+
+    test("ignores @ after cursor position", () => {
+      const input = "@explain @test";
+      // Cursor is after "explain" (position 8)
+      const suggestions = getPromptSuggestions(input, 8, mockPrompts);
+      expect(suggestions.length).toBe(1);
+      expect(suggestions[0].name).toBe("explain");
     });
   });
 

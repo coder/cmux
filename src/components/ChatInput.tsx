@@ -220,7 +220,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
   // Watch input for prompt mentions (@)
   useEffect(() => {
-    const suggestions = getPromptSuggestions(input, availablePrompts);
+    const cursorPos = inputRef.current?.selectionStart ?? input.length;
+    const suggestions = getPromptSuggestions(input, cursorPos, availablePrompts);
     setPromptSuggestions(suggestions);
     setShowPromptSuggestions(suggestions.length > 0);
   }, [input, availablePrompts]);
@@ -383,18 +384,44 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
   const handlePromptSelect = useCallback(
     (suggestion: PromptSuggestion) => {
-      // Replace the "@partial" with "@full-name"
-      const lastAtIndex = input.lastIndexOf("@");
-      if (lastAtIndex !== -1) {
-        const before = input.slice(0, lastAtIndex);
-        const after = input.slice(lastAtIndex);
-        // Find where the partial mention ends (space or end of string)
-        const spaceIndex = after.indexOf(" ");
-        const afterMention = spaceIndex === -1 ? "" : after.slice(spaceIndex);
-        setInput(`${before}${suggestion.replacement}${afterMention}`);
-      }
+      // Replace the "@partial" at cursor position with "@full-name"
+      const textarea = inputRef.current;
+      if (!textarea) return;
+
+      const cursorPos = textarea.selectionStart;
+      const textBeforeCursor = input.slice(0, cursorPos);
+
+      // Find the last @ before the cursor
+      const lastAtIndex = textBeforeCursor.lastIndexOf("@");
+      if (lastAtIndex === -1) return;
+
+      // Extract text after the @
+      const textAfter = input.slice(lastAtIndex + 1);
+
+      // Find where the partial mention ends (space, newline, or end of string)
+      const endMatch = textAfter.match(/[\s\n]/);
+      const endIndex = endMatch && endMatch.index !== undefined
+        ? lastAtIndex + 1 + endMatch.index
+        : input.length;
+
+      // Build the new input with the completed mention
+      const before = input.slice(0, lastAtIndex);
+      const after = input.slice(endIndex);
+      const newInput = `${before}${suggestion.replacement}${after}`;
+
+      setInput(newInput);
+
+      // Set cursor position after the completed mention
+      const newCursorPos = before.length + suggestion.replacement.length;
+      setTimeout(() => {
+        if (textarea) {
+          textarea.selectionStart = newCursorPos;
+          textarea.selectionEnd = newCursorPos;
+          textarea.focus();
+        }
+      }, 0);
+
       setShowPromptSuggestions(false);
-      inputRef.current?.focus();
     },
     [input, setInput]
   );
