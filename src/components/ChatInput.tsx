@@ -400,9 +400,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
       // Find where the partial mention ends (space, newline, or end of string)
       const endMatch = /[\s\n]/.exec(textAfter);
-      const endIndex = endMatch?.index !== undefined
-        ? lastAtIndex + 1 + endMatch.index
-        : input.length;
+      const endIndex =
+        endMatch?.index !== undefined ? lastAtIndex + 1 + endMatch.index : input.length;
 
       // Build the new input with the completed mention
       const before = input.slice(0, lastAtIndex);
