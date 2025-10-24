@@ -521,7 +521,9 @@ export class AIService extends EventEmitter {
       const tempDir = this.streamManager.createTempDirForStream(streamToken);
 
       // Create runtime from workspace metadata config (defaults to local)
-      const runtime = createRuntime(metadata.runtimeConfig ?? { type: "local", workdir: workspacePath });
+      const runtime = createRuntime(
+        metadata.runtimeConfig ?? { type: "local", workdir: workspacePath }
+      );
 
       // Get model-specific tools with workspace path configuration and secrets
       const allTools = await getToolsForModel(modelString, {

@@ -14,13 +14,9 @@ import type {
 } from "./Runtime";
 import { RuntimeError as RuntimeErrorClass } from "./Runtime";
 import { NON_INTERACTIVE_ENV_VARS } from "../constants/env";
-import { createWorktree } from "../git";
-import { Config } from "../config";
-import {
-  checkInitHookExists,
-  getInitHookPath,
-  createLineBufferedLoggers,
-} from "./initHook";
+import { listLocalBranches } from "../git";
+import { checkInitHookExists, getInitHookPath, createLineBufferedLoggers } from "./initHook";
+import { execAsync } from "../utils/disposableExec";
 
 /**
  * Local runtime implementation that executes commands and file operations
@@ -189,32 +185,61 @@ export class LocalRuntime implements Runtime {
   }
 
   async createWorkspace(params: WorkspaceCreationParams): Promise<WorkspaceCreationResult> {
-    const { projectPath, branchName, trunkBranch, workspaceId, initLogger } = params;
+    const { projectPath, branchName, trunkBranch, initLogger } = params;
 
-    // Log creation step
-    initLogger.logStep("Creating git worktree...");
+    try {
+      // Create workspace at workdir
+      const workspacePath = this.workdir;
+      initLogger.logStep("Creating git worktree...");
 
-    // Load config to use existing git helpers
-    const config = new Config();
+      // Create parent directory if needed
+      const parentDir = path.dirname(workspacePath);
+      // eslint-disable-next-line local/no-sync-fs-methods
+      if (!fs.existsSync(parentDir)) {
+        // eslint-disable-next-line local/no-sync-fs-methods
+        fs.mkdirSync(parentDir, { recursive: true });
+      }
 
-    // Use existing createWorktree helper which handles all the git logic
-    const result = await createWorktree(config, projectPath, branchName, {
-      trunkBranch,
-      workspaceId,
-    });
+      // Check if workspace already exists
+      // eslint-disable-next-line local/no-sync-fs-methods
+      if (fs.existsSync(workspacePath)) {
+        return {
+          success: false,
+          error: `Workspace already exists at ${workspacePath}`,
+        };
+      }
 
-    // Map WorktreeResult to WorkspaceCreationResult
-    if (!result.success) {
-      return { success: false, error: result.error };
+      // Check if branch exists locally
+      const localBranches = await listLocalBranches(projectPath);
+      const branchExists = localBranches.includes(branchName);
+
+      // Create worktree
+      if (branchExists) {
+        // Branch exists, just add worktree pointing to it
+        using proc = execAsync(
+          `git -C "${projectPath}" worktree add "${workspacePath}" "${branchName}"`
+        );
+        await proc.result;
+      } else {
+        // Branch doesn't exist, create it from trunk
+        using proc = execAsync(
+          `git -C "${projectPath}" worktree add -b "${branchName}" "${workspacePath}" "${trunkBranch}"`
+        );
+        await proc.result;
+      }
+
+      initLogger.logStep("Worktree created successfully");
+
+      // Run .cmux/init hook if it exists
+      await this.runInitHook(projectPath, workspacePath, initLogger);
+
+      return { success: true, workspacePath };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
     }
-
-    const workspacePath = result.path!;
-    initLogger.logStep("Worktree created successfully");
-
-    // Run .cmux/init hook if it exists
-    await this.runInitHook(projectPath, workspacePath, initLogger);
-
-    return { success: true, workspacePath };
   }
 
   /**

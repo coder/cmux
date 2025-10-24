@@ -6,7 +6,11 @@ import { createRuntime } from "@/runtime/runtimeFactory";
 const TEST_CWD = "/tmp";
 
 function createConfig() {
-  return { cwd: TEST_CWD, runtime: createRuntime({ type: "local", workdir: TEST_CWD }), tempDir: "/tmp" };
+  return {
+    cwd: TEST_CWD,
+    runtime: createRuntime({ type: "local", workdir: TEST_CWD }),
+    tempDir: "/tmp",
+  };
 }
 
 describe("executeFileEditOperation", () => {

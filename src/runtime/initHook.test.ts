@@ -59,10 +59,14 @@ describe("createLineBufferedLoggers", () => {
     const stderrLines: string[] = [];
 
     const mockLogger: InitLogger = {
-      logStep: () => {},
+      logStep: () => {
+        /* no-op for test */
+      },
       logStdout: (line) => stdoutLines.push(line),
       logStderr: (line) => stderrLines.push(line),
-      logComplete: () => {},
+      logComplete: () => {
+        /* no-op for test */
+      },
     };
 
     const loggers = createLineBufferedLoggers(mockLogger);
@@ -79,10 +83,14 @@ describe("createLineBufferedLoggers", () => {
     const stderrLines: string[] = [];
 
     const mockLogger: InitLogger = {
-      logStep: () => {},
+      logStep: () => {
+        /* no-op for test */
+      },
       logStdout: (line) => stdoutLines.push(line),
       logStderr: (line) => stderrLines.push(line),
-      logComplete: () => {},
+      logComplete: () => {
+        /* no-op for test */
+      },
     };
 
     const loggers = createLineBufferedLoggers(mockLogger);

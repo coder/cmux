@@ -15,6 +15,8 @@ export function createRuntime(config: RuntimeConfig): Runtime {
       return new SSHRuntime({
         host: config.host,
         workdir: config.workdir,
+        identityFile: config.identityFile,
+        port: config.port,
       });
 
     default: {

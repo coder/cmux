@@ -14,4 +14,8 @@ export type RuntimeConfig =
       host: string;
       /** Working directory on remote host */
       workdir: string;
+      /** Optional: Path to SSH private key (if not using ~/.ssh/config or ssh-agent) */
+      identityFile?: string;
+      /** Optional: SSH port (default: 22) */
+      port?: number;
     };
