@@ -91,8 +91,9 @@ export class IpcMain {
         const startTime = Date.now();
 
         // Execute init hook through centralized bash service
+        // Quote path to handle spaces and special characters
         this.bashService.executeStreaming(
-          hookPath,
+          `"${hookPath}"`,
           {
             cwd: worktreePath,
             detached: false, // Don't need process group for simple script execution
