@@ -122,6 +122,9 @@ jobs:
         with:
           fetch-depth: 0 # Required for git describe to find tags
 
+      - name: Setup Docker on macOS
+        uses: douglascamata/setup-docker-macos-action@v1-alpha
+
       - uses: ./.github/actions/setup-cmux
 
       - name: Run runtime integration tests
