@@ -29,10 +29,7 @@ const TooltipContent = React.forwardRef<
     {...props}
   >
     {props.children}
-    <TooltipPrimitive.Arrow
-      className="drop-shadow-sm"
-      style={{ fill: "var(--color-popover)" }}
-    />
+    <TooltipPrimitive.Arrow className="drop-shadow-sm" style={{ fill: "var(--color-popover)" }} />
   </TooltipPrimitive.Content>
 ));
 TooltipContent.displayName = TooltipPrimitive.Content.displayName;
