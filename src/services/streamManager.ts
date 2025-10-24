@@ -4,6 +4,7 @@ import * as path from "path";
 import * as os from "os";
 import {
   streamText,
+  stepCountIs,
   type ModelMessage,
   type LanguageModel,
   type Tool,
@@ -475,8 +476,8 @@ export class StreamManager extends EventEmitter {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
         toolChoice: toolChoice as any, // Force tool use when required by policy
         // When toolChoice is set (required tool), limit to 1 step to prevent infinite loops
-        // Otherwise limit to 25 steps to prevent models (especially reasoning models) from getting stuck
-        ...(toolChoice ? { maxSteps: 1 } : { maxSteps: 25 }),
+        // Otherwise allow unlimited steps for multi-turn tool use
+        ...(toolChoice ? { maxSteps: 1 } : { stopWhen: stepCountIs(100000) }),
         // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
         providerOptions: providerOptions as any, // Pass provider-specific options (thinking/reasoning config)
         // Default to 32000 tokens if not specified (Anthropic defaults to 4096)
