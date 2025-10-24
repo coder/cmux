@@ -9,7 +9,7 @@ import { updatePersistedState } from "@/hooks/usePersistedState";
 import { getRetryStateKey } from "@/constants/storage";
 import { CUSTOM_EVENTS } from "@/constants/events";
 import { useSyncExternalStore } from "react";
-import { isCaughtUpMessage, isStreamError, isDeleteMessage } from "@/types/ipc";
+import { isCaughtUpMessage, isStreamError, isDeleteMessage, isCmuxMessage } from "@/types/ipc";
 import { MapStore } from "./MapStore";
 import { createDisplayUsage } from "@/utils/tokens/displayUsage";
 import { WorkspaceConsumerManager } from "./WorkspaceConsumerManager";
@@ -20,6 +20,7 @@ import { getCancelledCompactionKey } from "@/constants/storage";
 import { isCompactingStream, findCompactionRequestMessage } from "@/utils/compaction/handler";
 
 export interface WorkspaceState {
+  name: string; // User-facing workspace name (e.g., "feature-branch")
   messages: DisplayedMessage[];
   canInterrupt: boolean;
   isCompacting: boolean;
@@ -108,6 +109,7 @@ export class WorkspaceStore {
   private caughtUp = new Map<string, boolean>();
   private historicalMessages = new Map<string, CmuxMessage[]>();
   private pendingStreamEvents = new Map<string, WorkspaceChatMessage[]>();
+  private workspaceMetadata = new Map<string, FrontendWorkspaceMetadata>(); // Store metadata for name lookup
 
   /**
    * Map of event types to their handlers. This is the single source of truth for:
@@ -335,8 +337,10 @@ export class WorkspaceStore {
       const isCaughtUp = this.caughtUp.get(workspaceId) ?? false;
       const activeStreams = aggregator.getActiveStreams();
       const messages = aggregator.getAllMessages();
+      const metadata = this.workspaceMetadata.get(workspaceId);
 
       return {
+        name: metadata?.name ?? workspaceId, // Fall back to ID if metadata missing
         messages: aggregator.getDisplayedMessages(),
         canInterrupt: activeStreams.length > 0,
         isCompacting: aggregator.isCompacting(),
@@ -730,6 +734,9 @@ export class WorkspaceStore {
       return;
     }
 
+    // Store metadata for name lookup
+    this.workspaceMetadata.set(workspaceId, metadata);
+
     const aggregator = this.getOrCreateAggregator(workspaceId, metadata.createdAt);
 
     // Initialize recency cache and bump derived store immediately
@@ -958,23 +965,26 @@ export class WorkspaceStore {
     }
 
     // Regular messages (CmuxMessage without type field)
-    const isCaughtUp = this.caughtUp.get(workspaceId) ?? false;
-    if (!isCaughtUp && "role" in data && !("type" in data)) {
-      // Buffer historical CmuxMessages
-      const historicalMsgs = this.historicalMessages.get(workspaceId) ?? [];
-      historicalMsgs.push(data);
-      this.historicalMessages.set(workspaceId, historicalMsgs);
-    } else if (isCaughtUp && "role" in data) {
-      // Process live events immediately (after history loaded)
-      // Check for role field to ensure this is a CmuxMessage
-      aggregator.handleMessage(data);
-      this.states.bump(workspaceId);
-      this.checkAndBumpRecencyIfChanged();
-    } else if ("role" in data || "type" in data) {
-      // Unexpected: message with role/type field didn't match any condition
-      console.error("[WorkspaceStore] Message not processed - unexpected state", {
+    if (isCmuxMessage(data)) {
+      const isCaughtUp = this.caughtUp.get(workspaceId) ?? false;
+      if (!isCaughtUp) {
+        // Buffer historical CmuxMessages
+        const historicalMsgs = this.historicalMessages.get(workspaceId) ?? [];
+        historicalMsgs.push(data);
+        this.historicalMessages.set(workspaceId, historicalMsgs);
+      } else {
+        // Process live events immediately (after history loaded)
+        aggregator.handleMessage(data);
+        this.states.bump(workspaceId);
+        this.checkAndBumpRecencyIfChanged();
+      }
+      return;
+    }
+
+    // If we reach here, unknown message type - log for debugging
+    if ("role" in data || "type" in data) {
+      console.error("[WorkspaceStore] Unknown message type - not processed", {
         workspaceId,
-        isCaughtUp,
         hasRole: "role" in data,
         hasType: "type" in data,
         type: "type" in data ? (data as { type: string }).type : undefined,
