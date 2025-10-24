@@ -275,13 +275,13 @@ export class Config {
               // GUARANTEE: All workspaces must have createdAt (assign now if missing)
               createdAt: workspace.createdAt ?? new Date().toISOString(),
             };
-            
+
             // Migrate missing createdAt to config for next load
             if (!workspace.createdAt) {
               workspace.createdAt = metadata.createdAt;
               configModified = true;
             }
-            
+
             workspaceMetadata.push(this.addPathsToMetadata(metadata, workspace.path, projectPath));
             continue; // Skip metadata file lookup
           }
@@ -305,11 +305,9 @@ export class Config {
                 projectName: metadata.projectName ?? projectName,
               };
             }
-            
+
             // GUARANTEE: All workspaces must have createdAt
-            if (!metadata.createdAt) {
-              metadata.createdAt = new Date().toISOString();
-            }
+            metadata.createdAt ??= new Date().toISOString();
 
             // Migrate to config for next load
             workspace.id = metadata.id;

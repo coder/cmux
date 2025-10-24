@@ -4,6 +4,7 @@ import type { ProjectConfig } from "./config";
 import type { WorkspaceSelection } from "./components/ProjectSidebar";
 import type { FrontendWorkspaceMetadata } from "./types/workspace";
 import { LeftSidebar } from "./components/LeftSidebar";
+import { LoadingScreen } from "./components/LoadingScreen";
 import NewWorkspaceModal from "./components/NewWorkspaceModal";
 import { DirectorySelectModal } from "./components/DirectorySelectModal";
 import { AIView } from "./components/AIView";
@@ -34,27 +35,10 @@ import { useTelemetry } from "./hooks/useTelemetry";
 const THINKING_LEVELS: ThinkingLevel[] = ["off", "low", "medium", "high"];
 
 function AppInner() {
-  // CRITICAL ARCHITECTURE: Two-stage workspace selection
-  // =======================================================
-  // Problem: Components using selectedWorkspace call WorkspaceStore methods that require
-  // addWorkspace() to be called first. But localStorage can restore selectedWorkspace
-  // BEFORE metadata loads and syncWorkspaces() runs.
-  //
-  // Solution: Gate selectedWorkspace behind metadata loading:
-  // 1. persistedSelection - restored from localStorage immediately (internal only)
-  // 2. selectedWorkspace - null until metadata loads, then restored from persistedSelection
-  //
-  // This ensures WorkspaceStore.syncWorkspaces() runs before any component can access
-  // workspace-related functionality.
-
-  // Stage 1: Persisted value (internal, not exposed to components until ready)
-  const [persistedSelection, setPersistedSelection] = usePersistedState<WorkspaceSelection | null>(
+  // Workspace selection - restored from localStorage immediately,
+  // but entire UI is gated behind metadata loading (see early return below)
+  const [selectedWorkspace, setSelectedWorkspace] = usePersistedState<WorkspaceSelection | null>(
     "selectedWorkspace",
-    null
-  );
-
-  // Stage 2: Actual selectedWorkspace (null until metadata loads)
-  const [selectedWorkspace, setSelectedWorkspaceInternal] = useState<WorkspaceSelection | null>(
     null
   );
 
@@ -79,10 +63,10 @@ function AppInner() {
   // Telemetry tracking
   const telemetry = useTelemetry();
 
-  // Wrapper that persists changes and tracks telemetry
-  const setSelectedWorkspace = useCallback(
+  // Wrapper for setSelectedWorkspace that tracks telemetry
+  const handleWorkspaceSwitch = useCallback(
     (newWorkspace: WorkspaceSelection | null) => {
-      console.debug("[App] setSelectedWorkspace called", {
+      console.debug("[App] handleWorkspaceSwitch called", {
         from: selectedWorkspace?.workspaceId,
         to: newWorkspace?.workspaceId,
       });
@@ -97,19 +81,9 @@ function AppInner() {
         telemetry.workspaceSwitched(selectedWorkspace.workspaceId, newWorkspace.workspaceId);
       }
 
-      // Update both internal state and persisted value
-      setSelectedWorkspaceInternal(newWorkspace);
-      setPersistedSelection(newWorkspace);
-    },
-    [selectedWorkspace, setPersistedSelection, telemetry]
-  );
-
-  // Wrapper for setSelectedWorkspace that tracks telemetry (kept for compatibility)
-  const handleWorkspaceSwitch = useCallback(
-    (newWorkspace: WorkspaceSelection | null) => {
       setSelectedWorkspace(newWorkspace);
     },
-    [setSelectedWorkspace]
+    [selectedWorkspace, setSelectedWorkspace, telemetry]
   );
 
   // Use custom hooks for project and workspace management
@@ -136,34 +110,28 @@ function AppInner() {
     onSelectedWorkspaceUpdate: setSelectedWorkspace,
   });
 
-  // NEW: Sync workspace metadata with the stores
+  // Sync workspace metadata with the stores BEFORE rendering workspace UI
   const workspaceStore = useWorkspaceStoreRaw();
   const gitStatusStore = useGitStatusStoreRaw();
 
   useEffect(() => {
-    // Only sync when metadata has actually loaded (not empty initial state)
-    if (workspaceMetadata.size > 0) {
+    if (!metadataLoading) {
       workspaceStore.syncWorkspaces(workspaceMetadata);
-    }
-  }, [workspaceMetadata, workspaceStore]);
-
-  useEffect(() => {
-    // Only sync when metadata has actually loaded (not empty initial state)
-    if (workspaceMetadata.size > 0) {
       gitStatusStore.syncWorkspaces(workspaceMetadata);
     }
-  }, [workspaceMetadata, gitStatusStore]);
+  }, [metadataLoading, workspaceMetadata, workspaceStore, gitStatusStore]);
 
-  // Restore persisted selection once metadata is loaded and stores are synced
-  // This ensures WorkspaceStore.addWorkspace() is called before any workspace access
+  // Validate selectedWorkspace when metadata changes
+  // Clear selection if workspace was deleted
   useEffect(() => {
-    if (metadataLoading) return;
-
-    // Restore persisted selection if it still exists in metadata
-    if (persistedSelection && workspaceMetadata.has(persistedSelection.workspaceId)) {
-      setSelectedWorkspaceInternal(persistedSelection);
+    if (
+      !metadataLoading &&
+      selectedWorkspace &&
+      !workspaceMetadata.has(selectedWorkspace.workspaceId)
+    ) {
+      setSelectedWorkspace(null);
     }
-  }, [metadataLoading, persistedSelection, workspaceMetadata]);
+  }, [metadataLoading, selectedWorkspace, workspaceMetadata, setSelectedWorkspace]);
 
   // Track last-read timestamps for unread indicators
   const { lastReadTimestamps, onToggleUnread } = useUnreadTracking(selectedWorkspace);
@@ -205,9 +173,6 @@ function AppInner() {
     // Only run once
     if (hasRestoredFromHash) return;
 
-    // Wait for metadata to finish loading
-    if (metadataLoading) return;
-
     const hash = window.location.hash;
     if (hash.startsWith("#workspace=")) {
       const workspaceId = decodeURIComponent(hash.substring("#workspace=".length));
@@ -227,13 +192,10 @@ function AppInner() {
     }
 
     setHasRestoredFromHash(true);
-  }, [metadataLoading, workspaceMetadata, hasRestoredFromHash, setSelectedWorkspace]);
+  }, [workspaceMetadata, hasRestoredFromHash, setSelectedWorkspace]);
 
   // Validate selected workspace exists and has all required fields
   useEffect(() => {
-    // Don't validate until metadata is loaded
-    if (metadataLoading) return;
-
     if (selectedWorkspace) {
       const metadata = workspaceMetadata.get(selectedWorkspace.workspaceId);
 
@@ -257,7 +219,7 @@ function AppInner() {
         });
       }
     }
-  }, [metadataLoading, selectedWorkspace, workspaceMetadata, setSelectedWorkspace]);
+  }, [selectedWorkspace, workspaceMetadata, setSelectedWorkspace]);
 
   const openWorkspaceInTerminal = useCallback(
     (workspaceId: string) => {
@@ -701,6 +663,12 @@ function AppInner() {
         handleForkSwitch as EventListener
       );
   }, [projects, setSelectedWorkspace, setWorkspaceMetadata]);
+
+  // CRITICAL: Don't render workspace UI until metadata loads and stores are synced
+  // This ensures WorkspaceStore.addWorkspace() is called before any component accesses workspaces
+  if (metadataLoading) {
+    return <LoadingScreen />;
+  }
 
   return (
     <>

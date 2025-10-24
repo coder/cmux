@@ -1,7 +1,6 @@
 import { describe, test, expect } from "bun:test";
 import { StreamingMessageAggregator } from "./StreamingMessageAggregator";
 
-
 // Test helper: create aggregator with default createdAt for tests
 const TEST_CREATED_AT = "2024-01-01T00:00:00.000Z";
 

@@ -89,14 +89,14 @@ describe("WorkspaceStore", () => {
 
       // Add workspace with createdAt
       store.addWorkspace(metadata);
-      
+
       // Get state - should have recency based on createdAt
       const state = store.getWorkspaceState(workspaceId);
-      
+
       // Recency should be based on createdAt, not null or 0
       expect(state.recencyTimestamp).not.toBeNull();
       expect(state.recencyTimestamp).toBe(new Date(createdAt).getTime());
-      
+
       // Check that workspace appears in recency map with correct timestamp
       const recency = store.getWorkspaceRecency();
       expect(recency[workspaceId]).toBe(new Date(createdAt).getTime());
@@ -116,31 +116,29 @@ describe("WorkspaceStore", () => {
 
       // Add workspace
       store.addWorkspace(metadata);
-      
+
       // Check initial recency
       const initialState = store.getWorkspaceState(workspaceId);
       expect(initialState.recencyTimestamp).toBe(new Date(createdAt).getTime());
-      
+
       // Get the IPC callback to simulate messages
       const callback = getOnChatCallback();
-      
+
       // Simulate CAUGHT_UP message with no history (new workspace with no messages)
       callback({ type: "caught-up" });
-      
+
       // Wait for async processing
-      await new Promise(resolve => setTimeout(resolve, 10));
-      
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
       // Recency should still be based on createdAt
       const stateAfterCaughtUp = store.getWorkspaceState(workspaceId);
       expect(stateAfterCaughtUp.recencyTimestamp).toBe(new Date(createdAt).getTime());
-      
+
       // Verify recency map
       const recency = store.getWorkspaceRecency();
       expect(recency[workspaceId]).toBe(new Date(createdAt).getTime());
     });
   });
-
-
 
   describe("subscription", () => {
     it("should call listener when workspace state changes", async () => {
@@ -460,7 +458,7 @@ describe("WorkspaceStore", () => {
       expect(states1).not.toBe(states2); // Cache should be invalidated
     });
 
-    it("maintains recency based on createdAt for new workspaces", async () => {
+    it("maintains recency based on createdAt for new workspaces", () => {
       const createdAt = new Date("2024-01-01T00:00:00Z").toISOString();
       const metadata: FrontendWorkspaceMetadata = {
         id: "test-workspace",
@@ -473,7 +471,7 @@ describe("WorkspaceStore", () => {
       store.addWorkspace(metadata);
 
       const recency = store.getWorkspaceRecency();
-      
+
       // Recency should be based on createdAt
       expect(recency["test-workspace"]).toBe(new Date(createdAt).getTime());
     });
@@ -507,7 +505,7 @@ describe("WorkspaceStore", () => {
   });
 
   describe("race conditions", () => {
-    it("properly cleans up workspace on removal", async () => {
+    it("properly cleans up workspace on removal", () => {
       const metadata: FrontendWorkspaceMetadata = {
         id: "test-workspace",
         name: "test-workspace",
@@ -528,10 +526,11 @@ describe("WorkspaceStore", () => {
       // Verify workspace is completely removed
       allStates = store.getAllStates();
       expect(allStates.size).toBe(0);
-      
+
       // Verify aggregator is gone
-      expect(store.getAggregator).toBeDefined();
-      expect(() => store.getAggregator("test-workspace")).toThrow(/Workspace test-workspace not found/);
+      expect(() => store.getAggregator("test-workspace")).toThrow(
+        /Workspace test-workspace not found/
+      );
     });
 
     it("handles concurrent workspace additions", () => {
