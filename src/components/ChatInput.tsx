@@ -7,7 +7,8 @@ import { createCommandToast, createErrorToast } from "./ChatInputToasts";
 import { parseCommand } from "@/utils/slashCommands/parser";
 import { usePersistedState, updatePersistedState } from "@/hooks/usePersistedState";
 import { useMode } from "@/contexts/ModeContext";
-import { ChatToggles } from "./ChatToggles";
+import { ThinkingSliderComponent } from "./ThinkingSlider";
+import { Context1MCheckbox } from "./Context1MCheckbox";
 import { useSendMessageOptions } from "@/hooks/useSendMessageOptions";
 import { getModelKey, getInputKey } from "@/constants/storage";
 import {
@@ -746,37 +747,45 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             Editing message ({formatKeybind(KEYBINDS.CANCEL_EDIT)} to cancel)
           </div>
         )}
-        <div className="flex flex-wrap items-center gap-y-1">
-          <ChatToggles modelString={preferredModel}>
-            <div className="mr-3 flex items-center gap-1.5">
-              <ModelSelector
-                ref={modelSelectorRef}
-                value={preferredModel}
-                onChange={setPreferredModel}
-                recentModels={recentModels}
-                onComplete={() => inputRef.current?.focus()}
-              />
-              <TooltipWrapper inline>
-                <HelpIndicator>?</HelpIndicator>
-                <Tooltip className="tooltip" align="left" width="wide">
-                  <strong>Click to edit</strong> or use{" "}
-                  {formatKeybind(KEYBINDS.OPEN_MODEL_SELECTOR)}
-                  <br />
-                  <br />
-                  <strong>Abbreviations:</strong>
-                  <br />• <code>/model opus</code> - Claude Opus 4.1
-                  <br />• <code>/model sonnet</code> - Claude Sonnet 4.5
-                  <br />
-                  <br />
-                  <strong>Full format:</strong>
-                  <br />
-                  <code>/model provider:model-name</code>
-                  <br />
-                  (e.g., <code>/model anthropic:claude-sonnet-4-5</code>)
-                </Tooltip>
-              </TooltipWrapper>
-            </div>
-          </ChatToggles>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          {/* Model Selector */}
+          <div className="flex shrink items-center gap-1.5" data-component="ModelSelectorGroup">
+            <ModelSelector
+              ref={modelSelectorRef}
+              value={preferredModel}
+              onChange={setPreferredModel}
+              recentModels={recentModels}
+              onComplete={() => inputRef.current?.focus()}
+            />
+            <TooltipWrapper inline>
+              <HelpIndicator>?</HelpIndicator>
+              <Tooltip className="tooltip" align="left" width="wide">
+                <strong>Click to edit</strong> or use {formatKeybind(KEYBINDS.OPEN_MODEL_SELECTOR)}
+                <br />
+                <br />
+                <strong>Abbreviations:</strong>
+                <br />• <code>/model opus</code> - Claude Opus 4.1
+                <br />• <code>/model sonnet</code> - Claude Sonnet 4.5
+                <br />
+                <br />
+                <strong>Full format:</strong>
+                <br />
+                <code>/model provider:model-name</code>
+                <br />
+                (e.g., <code>/model anthropic:claude-sonnet-4-5</code>)
+              </Tooltip>
+            </TooltipWrapper>
+          </div>
+
+          {/* Thinking Slider */}
+          <div className="flex shrink-0 items-center" data-component="ThinkingSliderGroup">
+            <ThinkingSliderComponent modelString={preferredModel} />
+          </div>
+
+          {/* Context 1M Checkbox */}
+          <div className="flex shrink-0 items-center" data-component="Context1MGroup">
+            <Context1MCheckbox modelString={preferredModel} />
+          </div>
           <div className="max-@[700px]:hidden ml-auto flex items-center gap-1.5">
             <div
               className={cn(
