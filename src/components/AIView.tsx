@@ -52,6 +52,9 @@ const AIViewInner: React.FC<AIViewProps> = ({
   const [activeTab, setActiveTab] = useState<TabType>("costs");
   const isReviewTabActive = activeTab === "review";
 
+  // Force re-check state for retry barrier (incremented to trigger re-evaluation)
+  const [, setForceRecheck] = useState(0);
+
   // Resizable sidebar for Review tab only
   // Hook encapsulates all drag logic, persistence, and constraints
   // Returns width to apply to RightSidebar and startResize for handle's onMouseDown
@@ -268,6 +271,26 @@ const AIViewInner: React.FC<AIViewProps> = ({
   // Track if last message was interrupted or errored (for RetryBarrier)
   // Uses same logic as useResumeManager for DRY
   const showRetryBarrier = !canInterrupt && hasInterruptedStream(messages);
+
+  // Force re-evaluation after 2s when last message is a recent user message
+  // This ensures retry barrier appears even if stream-start never arrives
+  useEffect(() => {
+    if (messages.length === 0) return;
+    const lastMessage = messages[messages.length - 1];
+    
+    if (lastMessage.type === "user" && !canInterrupt) {
+      const messageAge = Date.now() - (lastMessage.timestamp ?? 0);
+      const timeUntilCheck = Math.max(0, 2100 - messageAge); // 2.1s to ensure we're past threshold
+      
+      if (timeUntilCheck > 0) {
+        const timer = setTimeout(() => {
+          // Force re-render to re-evaluate showRetryBarrier
+          setForceRecheck((prev) => prev + 1);
+        }, timeUntilCheck);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [messages, canInterrupt]);
 
   // Note: We intentionally do NOT reset autoRetry when streams start.
   // If user pressed Ctrl+C, autoRetry stays false until they manually retry.
