@@ -12,6 +12,12 @@ import { NON_INTERACTIVE_ENV_VARS } from "../constants/env";
  * directly on the host machine using Node.js APIs.
  */
 export class LocalRuntime implements Runtime {
+  private readonly workdir: string;
+
+  constructor(workdir: string) {
+    this.workdir = workdir;
+  }
+
   exec(command: string, options: ExecOptions): ExecStream {
     const startTime = performance.now();
 
@@ -23,7 +29,7 @@ export class LocalRuntime implements Runtime {
         : ["-c", command];
 
     const childProcess = spawn(spawnCommand, spawnArgs, {
-      cwd: options.cwd,
+      cwd: options.cwd ?? this.workdir,
       env: {
         ...process.env,
         ...(options.env ?? {}),

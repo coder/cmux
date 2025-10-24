@@ -21,7 +21,7 @@ function createTestBashTool(options?: { niceness?: number }) {
   const tempDir = new TestTempDir("test-bash");
   const tool = createBashTool({
     cwd: process.cwd(),
-    runtime: createRuntime({ type: "local" }),
+    runtime: createRuntime({ type: "local", workdir: "/tmp" }),
     tempDir: tempDir.path,
     ...options,
   });
@@ -163,7 +163,7 @@ describe("bash tool", () => {
     const tempDir = new TestTempDir("test-bash-truncate");
     const tool = createBashTool({
       cwd: process.cwd(),
-      runtime: createRuntime({ type: "local" }),
+      runtime: createRuntime({ type: "local", workdir: "/tmp" }),
       tempDir: tempDir.path,
       overflow_policy: "truncate",
     });
@@ -202,7 +202,7 @@ describe("bash tool", () => {
     const tempDir = new TestTempDir("test-bash-overlong-line");
     const tool = createBashTool({
       cwd: process.cwd(),
-      runtime: createRuntime({ type: "local" }),
+      runtime: createRuntime({ type: "local", workdir: "/tmp" }),
       tempDir: tempDir.path,
       overflow_policy: "truncate",
     });
@@ -234,7 +234,7 @@ describe("bash tool", () => {
     const tempDir = new TestTempDir("test-bash-boundary");
     const tool = createBashTool({
       cwd: process.cwd(),
-      runtime: createRuntime({ type: "local" }),
+      runtime: createRuntime({ type: "local", workdir: "/tmp" }),
       tempDir: tempDir.path,
       overflow_policy: "truncate",
     });
@@ -270,7 +270,7 @@ describe("bash tool", () => {
     const tempDir = new TestTempDir("test-bash-default");
     const tool = createBashTool({
       cwd: process.cwd(),
-      runtime: createRuntime({ type: "local" }),
+      runtime: createRuntime({ type: "local", workdir: "/tmp" }),
       tempDir: tempDir.path,
       // overflow_policy not specified - should default to tmpfile
     });
@@ -302,7 +302,7 @@ describe("bash tool", () => {
     const tempDir = new TestTempDir("test-bash-100kb");
     const tool = createBashTool({
       cwd: process.cwd(),
-      runtime: createRuntime({ type: "local" }),
+      runtime: createRuntime({ type: "local", workdir: "/tmp" }),
       tempDir: tempDir.path,
     });
 
@@ -354,7 +354,7 @@ describe("bash tool", () => {
     const tempDir = new TestTempDir("test-bash-100kb-limit");
     const tool = createBashTool({
       cwd: process.cwd(),
-      runtime: createRuntime({ type: "local" }),
+      runtime: createRuntime({ type: "local", workdir: "/tmp" }),
       tempDir: tempDir.path,
     });
 
@@ -397,7 +397,7 @@ describe("bash tool", () => {
     const tempDir = new TestTempDir("test-bash-no-kill-display");
     const tool = createBashTool({
       cwd: process.cwd(),
-      runtime: createRuntime({ type: "local" }),
+      runtime: createRuntime({ type: "local", workdir: "/tmp" }),
       tempDir: tempDir.path,
     });
 
@@ -439,7 +439,7 @@ describe("bash tool", () => {
     const tempDir = new TestTempDir("test-bash-per-line-kill");
     const tool = createBashTool({
       cwd: process.cwd(),
-      runtime: createRuntime({ type: "local" }),
+      runtime: createRuntime({ type: "local", workdir: "/tmp" }),
       tempDir: tempDir.path,
     });
 
@@ -479,7 +479,7 @@ describe("bash tool", () => {
     const tempDir = new TestTempDir("test-bash-under-limit");
     const tool = createBashTool({
       cwd: process.cwd(),
-      runtime: createRuntime({ type: "local" }),
+      runtime: createRuntime({ type: "local", workdir: "/tmp" }),
       tempDir: tempDir.path,
     });
 
@@ -509,7 +509,7 @@ describe("bash tool", () => {
     const tempDir = new TestTempDir("test-bash-exact-limit");
     const tool = createBashTool({
       cwd: process.cwd(),
-      runtime: createRuntime({ type: "local" }),
+      runtime: createRuntime({ type: "local", workdir: "/tmp" }),
       tempDir: tempDir.path,
     });
 

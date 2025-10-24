@@ -420,7 +420,7 @@ export class AIService extends EventEmitter {
       const [providerName] = modelString.split(":");
 
       // Get tool names early for mode transition sentinel (stub config, no workspace context needed)
-      const earlyRuntime = createRuntime({ type: "local" });
+      const earlyRuntime = createRuntime({ type: "local", workdir: process.cwd() });
       const earlyAllTools = await getToolsForModel(modelString, {
         cwd: process.cwd(),
         runtime: earlyRuntime,
@@ -521,7 +521,7 @@ export class AIService extends EventEmitter {
       const tempDir = this.streamManager.createTempDirForStream(streamToken);
 
       // Create runtime from workspace metadata config (defaults to local)
-      const runtime = createRuntime(metadata.runtimeConfig ?? { type: "local" });
+      const runtime = createRuntime(metadata.runtimeConfig ?? { type: "local", workdir: workspacePath });
 
       // Get model-specific tools with workspace path configuration and secrets
       const allTools = await getToolsForModel(modelString, {

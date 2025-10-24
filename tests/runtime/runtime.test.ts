@@ -51,7 +51,9 @@ describeIntegration("Runtime integration tests", () => {
     "Runtime: $type",
     ({ type }) => {
       // Helper to create runtime for this test type
-      const createRuntime = (): Runtime => createTestRuntime(type, sshConfig);
+      // Use a base working directory - TestWorkspace will create subdirectories as needed
+      const getBaseWorkdir = () => (type === "ssh" ? sshConfig!.workdir : "/tmp");
+      const createRuntime = (): Runtime => createTestRuntime(type, getBaseWorkdir(), sshConfig);
 
       describe("exec() - Command execution", () => {
         test.concurrent("captures stdout and stderr separately", async () => {
