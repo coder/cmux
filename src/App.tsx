@@ -34,10 +34,30 @@ import { useTelemetry } from "./hooks/useTelemetry";
 const THINKING_LEVELS: ThinkingLevel[] = ["off", "low", "medium", "high"];
 
 function AppInner() {
-  const [selectedWorkspace, setSelectedWorkspace] = usePersistedState<WorkspaceSelection | null>(
+  // CRITICAL ARCHITECTURE: Two-stage workspace selection
+  // =======================================================
+  // Problem: Components using selectedWorkspace call WorkspaceStore methods that require
+  // addWorkspace() to be called first. But localStorage can restore selectedWorkspace
+  // BEFORE metadata loads and syncWorkspaces() runs.
+  //
+  // Solution: Gate selectedWorkspace behind metadata loading:
+  // 1. persistedSelection - restored from localStorage immediately (internal only)
+  // 2. selectedWorkspace - null until metadata loads, then restored from persistedSelection
+  //
+  // This ensures WorkspaceStore.syncWorkspaces() runs before any component can access
+  // workspace-related functionality.
+
+  // Stage 1: Persisted value (internal, not exposed to components until ready)
+  const [persistedSelection, setPersistedSelection] = usePersistedState<WorkspaceSelection | null>(
     "selectedWorkspace",
     null
   );
+
+  // Stage 2: Actual selectedWorkspace (null until metadata loads)
+  const [selectedWorkspace, setSelectedWorkspaceInternal] = useState<WorkspaceSelection | null>(
+    null
+  );
+
   const [workspaceModalOpen, setWorkspaceModalOpen] = useState(false);
   const [workspaceModalProject, setWorkspaceModalProject] = useState<string | null>(null);
   const [workspaceModalProjectName, setWorkspaceModalProjectName] = useState<string>("");
@@ -59,10 +79,10 @@ function AppInner() {
   // Telemetry tracking
   const telemetry = useTelemetry();
 
-  // Wrapper for setSelectedWorkspace that tracks telemetry
-  const handleWorkspaceSwitch = useCallback(
+  // Wrapper that persists changes and tracks telemetry
+  const setSelectedWorkspace = useCallback(
     (newWorkspace: WorkspaceSelection | null) => {
-      console.debug("[App] handleWorkspaceSwitch called", {
+      console.debug("[App] setSelectedWorkspace called", {
         from: selectedWorkspace?.workspaceId,
         to: newWorkspace?.workspaceId,
       });
@@ -76,9 +96,20 @@ function AppInner() {
         console.debug("[App] Calling telemetry.workspaceSwitched");
         telemetry.workspaceSwitched(selectedWorkspace.workspaceId, newWorkspace.workspaceId);
       }
+
+      // Update both internal state and persisted value
+      setSelectedWorkspaceInternal(newWorkspace);
+      setPersistedSelection(newWorkspace);
+    },
+    [selectedWorkspace, setPersistedSelection, telemetry]
+  );
+
+  // Wrapper for setSelectedWorkspace that tracks telemetry (kept for compatibility)
+  const handleWorkspaceSwitch = useCallback(
+    (newWorkspace: WorkspaceSelection | null) => {
       setSelectedWorkspace(newWorkspace);
     },
-    [selectedWorkspace, setSelectedWorkspace, telemetry]
+    [setSelectedWorkspace]
   );
 
   // Use custom hooks for project and workspace management
@@ -122,6 +153,17 @@ function AppInner() {
       gitStatusStore.syncWorkspaces(workspaceMetadata);
     }
   }, [workspaceMetadata, gitStatusStore]);
+
+  // Restore persisted selection once metadata is loaded and stores are synced
+  // This ensures WorkspaceStore.addWorkspace() is called before any workspace access
+  useEffect(() => {
+    if (metadataLoading) return;
+
+    // Restore persisted selection if it still exists in metadata
+    if (persistedSelection && workspaceMetadata.has(persistedSelection.workspaceId)) {
+      setSelectedWorkspaceInternal(persistedSelection);
+    }
+  }, [metadataLoading, persistedSelection, workspaceMetadata]);
 
   // Track last-read timestamps for unread indicators
   const { lastReadTimestamps, onToggleUnread } = useUnreadTracking(selectedWorkspace);

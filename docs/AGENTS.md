@@ -178,6 +178,10 @@ This project uses **Make** as the primary build orchestrator. See `Makefile` for
 
 - When refactoring, use `git mv` to preserve file history instead of rewriting files from scratch
 
+**⚠️ NEVER kill the running cmux process** - The main cmux instance is used for active development. Use `make test` or `make typecheck` to verify changes instead of starting the app in test worktrees.
+
+
+
 ## Testing
 
 ### Test-Driven Development (TDD)
