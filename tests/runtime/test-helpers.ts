@@ -18,10 +18,14 @@ export type RuntimeType = "local" | "ssh";
 /**
  * Create runtime instance based on type
  */
-export function createTestRuntime(type: RuntimeType, sshConfig?: SSHServerConfig): Runtime {
+export function createTestRuntime(
+  type: RuntimeType,
+  workdir: string,
+  sshConfig?: SSHServerConfig
+): Runtime {
   switch (type) {
     case "local":
-      return new LocalRuntime();
+      return new LocalRuntime(workdir);
     case "ssh":
       if (!sshConfig) {
         throw new Error("SSH config required for SSH runtime");

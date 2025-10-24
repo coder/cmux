@@ -20,7 +20,7 @@ function createTestFileReadTool(options?: { cwd?: string }) {
   const tempDir = new TestTempDir("test-file-read");
   const tool = createFileReadTool({
     cwd: options?.cwd ?? process.cwd(),
-    runtime: createRuntime({ type: "local" }),
+    runtime: createRuntime({ type: "local", workdir: "/tmp" }),
     tempDir: tempDir.path,
   });
 
@@ -334,7 +334,7 @@ describe("file_read tool", () => {
     // Try to read file outside cwd by going up
     const tool = createFileReadTool({
       cwd: subDir,
-      runtime: createRuntime({ type: "local" }),
+      runtime: createRuntime({ type: "local", workdir: "/tmp" }),
       tempDir: "/tmp",
     });
     const args: FileReadToolArgs = {

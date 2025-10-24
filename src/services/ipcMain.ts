@@ -841,7 +841,7 @@ export class IpcMain {
           // All IPC bash calls are from UI (background operations) - use truncate to avoid temp file spam
           const bashTool = createBashTool({
             cwd: namedPath,
-            runtime: createRuntime({ type: "local" }),
+            runtime: createRuntime({ type: "local", workdir: namedPath }),
             secrets: secretsToRecord(projectSecrets),
             niceness: options?.niceness,
             tempDir: tempDir.path,
