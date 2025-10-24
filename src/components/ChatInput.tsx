@@ -747,10 +747,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             Editing message ({formatKeybind(KEYBINDS.CANCEL_EDIT)} to cancel)
           </div>
         )}
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           {/* Model Selector - always visible */}
           <div
-            className="flex items-center gap-1.5"
+            className="flex items-center"
             data-component="ModelSelectorGroup"
           >
             <ModelSelector
@@ -795,7 +795,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           >
             <Context1MCheckbox modelString={preferredModel} />
           </div>
-          <div className="max-@[700px]:hidden flex items-center gap-1.5">
+          <div className="max-@[700px]:hidden flex items-center">
             <div
               className={cn(
                 "flex gap-0 bg-toggle-bg rounded",

@@ -96,7 +96,6 @@ export const ThinkingSliderComponent: React.FC<ThinkingControlProps> = ({ modelS
     return (
       <TooltipWrapper>
         <div className="flex items-center gap-2">
-          <label className="text-subdued text-[10px] select-none">Thinking:</label>
           <span
             className="min-w-11 uppercase transition-all duration-200 select-none"
             style={textStyle}
