@@ -22,8 +22,7 @@ import { useToolExpansion, getStatusDisplay, type ToolStatus } from "./shared/to
 import { TooltipWrapper, Tooltip } from "../Tooltip";
 import { DiffContainer, DiffRenderer, SelectableDiffRenderer } from "../shared/DiffRenderer";
 import { KebabMenu, type KebabMenuItem } from "../KebabMenu";
-
-const WRITE_DENIED_PREFIX = "WRITE DENIED, FILE UNMODIFIED:";
+import { WRITE_DENIED_PREFIX } from "@/services/tools/fileCommon";
 
 type FileEditOperationArgs =
   | FileEditReplaceStringToolArgs
