@@ -31,8 +31,13 @@ import { secretsToRecord } from "@/types/secrets";
 import { DisposableTempDir } from "@/services/tempDir";
 import { BashExecutionService } from "@/services/bashExecutionService";
 import { InitStateManager } from "@/services/initStateManager";
+<<<<<<< HEAD
 import { LocalRuntime } from "@/runtime/LocalRuntime";
 import { createRuntime } from "@/runtime/runtimeFactory";
+||||||| parent of f7f18ddf (🤖 Integrate init hooks with Runtime.createWorkspace())
+=======
+import { createRuntime } from "@/runtime/runtimeFactory";
+>>>>>>> f7f18ddf (🤖 Integrate init hooks with Runtime.createWorkspace())
 
 /**
  * IpcMain - Manages all IPC handlers and service coordination
@@ -274,13 +279,41 @@ export class IpcMain {
         // Generate stable workspace ID (stored in config, not used for directory name)
         const workspaceId = this.config.generateStableId();
 
-        // Create the git worktree with the workspace name as directory name
-        const result = await createWorktree(this.config, projectPath, branchName, {
+        // Create runtime for workspace creation (defaults to local)
+        const workspacePath = this.config.getWorkspacePath(projectPath, branchName);
+        const runtimeConfig = { type: "local" as const, workdir: workspacePath };
+        const runtime = createRuntime(runtimeConfig);
+
+        // Start init tracking (creates in-memory state + emits init-start event)
+        // This MUST complete before workspace creation returns so replayInit() finds state
+        this.initStateManager.startInit(workspaceId, projectPath);
+
+        // Create InitLogger that bridges to InitStateManager
+        const initLogger = {
+          logStep: (message: string) => {
+            this.initStateManager.appendOutput(workspaceId, message, false);
+          },
+          logStdout: (line: string) => {
+            this.initStateManager.appendOutput(workspaceId, line, false);
+          },
+          logStderr: (line: string) => {
+            this.initStateManager.appendOutput(workspaceId, line, true);
+          },
+          logComplete: (exitCode: number) => {
+            void this.initStateManager.endInit(workspaceId, exitCode);
+          },
+        };
+
+        // Create workspace through runtime abstraction
+        const result = await runtime.createWorkspace({
+          projectPath,
+          branchName,
           trunkBranch: normalizedTrunkBranch,
-          directoryName: branchName,
+          directoryName: branchName, // Use branch name as directory name
+          initLogger,
         });
 
-        if (result.success && result.path) {
+        if (result.success && result.workspacePath) {
           const projectName =
             projectPath.split("/").pop() ?? projectPath.split("\\").pop() ?? "unknown";
 
@@ -306,7 +339,7 @@ export class IpcMain {
             }
             // Add workspace to project config with full metadata
             projectConfig.workspaces.push({
-              path: result.path!,
+              path: result.workspacePath!,
               id: workspaceId,
               name: branchName,
               createdAt: metadata.createdAt,
@@ -327,13 +360,8 @@ export class IpcMain {
           const session = this.getOrCreateSession(workspaceId);
           session.emitMetadata(completeMetadata);
 
-          // Start optional .cmux/init hook (waits for state creation, then returns)
-          // This ensures replayInit() will find state when frontend subscribes
-          await this.startWorkspaceInitHook({
-            projectPath,
-            worktreePath: result.path,
-            workspaceId,
-          });
+          // Init hook has already been run by the runtime
+          // No need to call startWorkspaceInitHook here anymore
 
           // Return complete metadata with paths for frontend
           return {
