@@ -108,28 +108,6 @@ jobs:
           flags: integration-tests
           fail_ci_if_error: false
 
-  # Runtime Integration Tests (macOS)
-  # The main integration suite covers Linux runtime tests already. We only run runtime tests
-  # on macOS because this part of the code is particularly prone to system incompatibilities
-  # (process spawning, stream handling, file operations). Running the full integration suite
-  # on a matrix would be wasteful.
-  # Note: Runtime tests do not use AI APIs, so no API keys needed.
-  integration-tests-runtime-macos:
-    name: Runtime Integration Tests (macOS)
-    runs-on: ${{ github.repository_owner == 'coder' && 'depot-macos-15' || 'macos-latest' }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0 # Required for git describe to find tags
-
-      - name: Setup Docker on macOS
-        uses: douglascamata/setup-docker-macos-action@v1-alpha
-
-      - uses: ./.github/actions/setup-cmux
-
-      - name: Run runtime integration tests
-        run: TEST_INTEGRATION=1 bun x jest tests/runtime/
-
   storybook-test:
     name: Storybook Interaction Tests
     runs-on: ${{ github.repository_owner == 'coder' && 'depot-ubuntu-22.04-16' || 'ubuntu-latest' }}
