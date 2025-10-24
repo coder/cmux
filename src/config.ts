@@ -112,10 +112,11 @@ export class Config {
 
   /**
    * DEPRECATED: Generate workspace ID from project and workspace paths.
-   * This method is used only for legacy workspace migration.
-   * New workspaces should use generateStableId() instead.
+   * This method is used only for legacy workspace migration to look up old workspaces.
+   * New workspaces use generateStableId() which returns a random stable ID.
    *
-   * Format: ${projectBasename}-${workspaceBasename}
+   * DO NOT use this method or its format to construct workspace IDs anywhere in the codebase.
+   * Workspace IDs are backend implementation details and must only come from backend operations.
    */
   generateWorkspaceId(projectPath: string, workspacePath: string): string {
     const projectBasename = this.getProjectName(projectPath);

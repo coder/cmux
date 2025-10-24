@@ -170,6 +170,8 @@ async function main(): Promise<void> {
             throw new Error("Provide --workspace-id or --project-path to derive workspace ID");
           }
           const projectPath = path.resolve(projectPathRaw.trim());
+          // Fallback to legacy ID format for looking up old workspaces.
+          // This is only used when --workspace-id is not explicitly provided.
           return config.generateWorkspaceId(projectPath, workspacePath);
         })();
 

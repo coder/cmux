@@ -79,7 +79,8 @@ describe("Config", () => {
       // Create workspace directory
       fs.mkdirSync(workspacePath, { recursive: true });
 
-      // Create metadata file using legacy ID format (project-workspace)
+      // Test backward compatibility: Create metadata file using legacy ID format.
+      // This simulates workspaces created before stable IDs were introduced.
       const legacyId = config.generateWorkspaceId(projectPath, workspacePath);
       const sessionDir = config.getSessionDir(legacyId);
       fs.mkdirSync(sessionDir, { recursive: true });

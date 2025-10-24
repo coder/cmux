@@ -31,7 +31,8 @@ function setupMockAPI(options: {
         Promise.resolve({
           success: true,
           metadata: {
-            id: `${projectPath.split("/").pop() ?? "project"}-${branchName}`,
+            // Mock stable ID (production uses crypto.randomBytes(5).toString('hex'))
+            id: Math.random().toString(36).substring(2, 12),
             name: branchName,
             projectPath,
             projectName: projectPath.split("/").pop() ?? "project",
@@ -135,15 +136,15 @@ export const SingleProject: Story = {
         "/home/user/projects/my-app",
         {
           workspaces: [
-            { path: "/home/user/.cmux/src/my-app/main", id: "my-app-main", name: "main" },
+            { path: "/home/user/.cmux/src/my-app/main", id: "a1b2c3d4e5", name: "main" },
             {
               path: "/home/user/.cmux/src/my-app/feature-auth",
-              id: "my-app-feature-auth",
+              id: "f6g7h8i9j0",
               name: "feature/auth",
             },
             {
               path: "/home/user/.cmux/src/my-app/bugfix",
-              id: "my-app-bugfix",
+              id: "k1l2m3n4o5",
               name: "bugfix/memory-leak",
             },
           ],
@@ -153,14 +154,14 @@ export const SingleProject: Story = {
 
     const workspaces: FrontendWorkspaceMetadata[] = [
       {
-        id: "my-app-main",
+        id: "a1b2c3d4e5",
         name: "main",
         projectPath: "/home/user/projects/my-app",
         projectName: "my-app",
         namedWorkspacePath: "/home/user/.cmux/src/my-app/main",
       },
       {
-        id: "my-app-feature-auth",
+        id: "f6g7h8i9j0",
         name: "feature/auth",
         projectPath: "/home/user/projects/my-app",
         projectName: "my-app",
@@ -351,7 +352,8 @@ export const ActiveWorkspaceWithChat: Story = {
                 Promise.resolve({
                   success: true,
                   metadata: {
-                    id: `${projectPath.split("/").pop() ?? "project"}-${branchName}`,
+                    // Mock stable ID (production uses crypto.randomBytes(5).toString('hex'))
+                    id: Math.random().toString(36).substring(2, 12),
                     name: branchName,
                     projectPath,
                     projectName: projectPath.split("/").pop() ?? "project",

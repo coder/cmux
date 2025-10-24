@@ -15,8 +15,10 @@ export function listWorkspacesCommand() {
     console.log(`  Workspaces: ${project.workspaces.length}`);
 
     for (const workspace of project.workspaces) {
+      // Note: This generates legacy-format IDs for display. Actual workspace IDs come from
+      // metadata.json (stable IDs) or config.json (migrated workspaces).
       const workspaceId = defaultConfig.generateWorkspaceId(projectPath, workspace.path);
-      console.log(`    - ID: ${workspaceId} (generated)`);
+      console.log(`    - Legacy ID: ${workspaceId} (for lookup only)`);
       console.log(`      Path: ${workspace.path}`);
       console.log(`      Exists: ${fs.existsSync(workspace.path)}`);
     }
