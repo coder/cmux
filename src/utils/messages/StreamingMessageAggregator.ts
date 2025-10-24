@@ -507,6 +507,10 @@ export class StreamingMessageAggregator {
   handleMessage(data: WorkspaceChatMessage): void {
     // Handle init hook events (ephemeral, not persisted to history)
     if (isInitStart(data)) {
+      console.debug("[StreamingMessageAggregator] Init started:", {
+        hookPath: data.hookPath,
+        timestamp: data.timestamp,
+      });
       this.initState = {
         status: "running",
         hookPath: data.hookPath,
@@ -522,7 +526,14 @@ export class StreamingMessageAggregator {
       if (this.initState) {
         const line = data.isError ? `ERROR: ${data.line}` : data.line;
         this.initState.lines.push(line.trimEnd());
+        console.debug("[StreamingMessageAggregator] Init output:", {
+          line: data.line,
+          isError: data.isError,
+          totalLines: this.initState.lines.length,
+        });
         this.invalidateCache();
+      } else {
+        console.warn("[StreamingMessageAggregator] Init output received without active init state");
       }
       return;
     }
@@ -531,15 +542,23 @@ export class StreamingMessageAggregator {
       if (this.initState) {
         this.initState.exitCode = data.exitCode;
         this.initState.status = data.exitCode === 0 ? "success" : "error";
+        console.debug("[StreamingMessageAggregator] Init ended:", {
+          exitCode: data.exitCode,
+          status: this.initState.status,
+          totalLines: this.initState.lines.length,
+        });
         this.invalidateCache();
 
         // Auto-dismiss on success after 800ms
         if (data.exitCode === 0) {
           setTimeout(() => {
+            console.debug("[StreamingMessageAggregator] Auto-dismissing successful init");
             this.initState = null;
             this.invalidateCache();
           }, 800);
         }
+      } else {
+        console.warn("[StreamingMessageAggregator] Init end received without active init state");
       }
       return;
     }
