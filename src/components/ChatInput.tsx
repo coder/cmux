@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect, useId } from "react";
 import { cn } from "@/lib/utils";
 import { CommandSuggestions, COMMAND_SUGGESTION_KEYS } from "./CommandSuggestions";
+import { PromptSuggestions, PROMPT_SUGGESTION_KEYS } from "./PromptSuggestions";
 import type { Toast } from "./ChatInputToast";
 import { ChatInputToast } from "./ChatInputToast";
 import { createCommandToast, createErrorToast } from "./ChatInputToasts";
@@ -24,6 +25,8 @@ import {
   getSlashCommandSuggestions,
   type SlashSuggestion,
 } from "@/utils/slashCommands/suggestions";
+import { usePrompts } from "@/hooks/usePrompts";
+import type { PromptSuggestion } from "@/utils/promptSuggestions";
 import { TooltipWrapper, Tooltip, HelpIndicator } from "./Tooltip";
 import { matchesKeybind, formatKeybind, KEYBINDS, isEditableElement } from "@/utils/ui/keybinds";
 import { ModelSelector, type ModelSelectorRef } from "./ModelSelector";
@@ -85,14 +88,25 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const [providerNames, setProviderNames] = useState<string[]>([]);
   const [toast, setToast] = useState<Toast | null>(null);
   const [imageAttachments, setImageAttachments] = useState<ImageAttachment[]>([]);
+
   const handleToastDismiss = useCallback(() => {
     setToast(null);
   }, []);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const modelSelectorRef = useRef<ModelSelectorRef>(null);
+
+  // Use the prompts hook to handle all prompt-related logic
+  const cursorPos = inputRef.current?.selectionStart ?? input.length;
+  const {
+    suggestions: promptSuggestions,
+    showSuggestions: showPromptSuggestions,
+    dismissSuggestions: dismissPromptSuggestions,
+    expandMentions: expandPromptMentions,
+  } = usePrompts({ workspaceId, input, cursorPos });
   const [mode, setMode] = useMode();
   const { recentModels, addModel } = useModelLRU();
   const commandListId = useId();
+  const promptListId = useId();
   const telemetry = useTelemetry();
 
   // Get current send message options from shared hook (must be at component top level)
@@ -339,13 +353,57 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     [setInput]
   );
 
+  const handlePromptSelect = useCallback(
+    (suggestion: PromptSuggestion) => {
+      // Replace the "@partial" at cursor position with "@full-name"
+      const textarea = inputRef.current;
+      if (!textarea) return;
+
+      const cursorPos = textarea.selectionStart;
+      const textBeforeCursor = input.slice(0, cursorPos);
+
+      // Find the last @ before the cursor
+      const lastAtIndex = textBeforeCursor.lastIndexOf("@");
+      if (lastAtIndex === -1) return;
+
+      // Extract text after the @
+      const textAfter = input.slice(lastAtIndex + 1);
+
+      // Find where the partial mention ends (space, newline, or end of string)
+      const endMatch = /[\s\n]/.exec(textAfter);
+      const endIndex =
+        endMatch?.index !== undefined ? lastAtIndex + 1 + endMatch.index : input.length;
+
+      // Build the new input with the completed mention
+      const before = input.slice(0, lastAtIndex);
+      const after = input.slice(endIndex);
+      const newInput = `${before}${suggestion.replacement}${after}`;
+
+      setInput(newInput);
+
+      // Set cursor position after the completed mention
+      const newCursorPos = before.length + suggestion.replacement.length;
+      setTimeout(() => {
+        if (textarea) {
+          textarea.selectionStart = newCursorPos;
+          textarea.selectionEnd = newCursorPos;
+          textarea.focus();
+        }
+      }, 0);
+    },
+    [input, setInput]
+  );
+
   const handleSend = async () => {
     // Allow sending if there's text or images
     if ((!input.trim() && imageAttachments.length === 0) || disabled || isSending || isCompacting) {
       return;
     }
 
-    const messageText = input.trim();
+    let messageText = input.trim();
+
+    // Expand prompt mentions before sending
+    messageText = await expandPromptMentions(messageText);
 
     try {
       // Parse command
@@ -663,7 +721,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       return;
     }
 
-    // Note: ESC handled by VimTextArea (for mode transitions) and CommandSuggestions (for dismissal)
+    // Note: ESC handled by VimTextArea (for mode transitions), CommandSuggestions, and PromptSuggestions (for dismissal)
     // Edit canceling is Ctrl+Q, stream interruption is Ctrl+C
 
     // Don't handle keys if command suggestions are visible
@@ -673,6 +731,15 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       COMMAND_SUGGESTION_KEYS.includes(e.key)
     ) {
       return; // Let CommandSuggestions handle it
+    }
+
+    // Don't handle keys if prompt suggestions are visible
+    if (
+      showPromptSuggestions &&
+      promptSuggestions.length > 0 &&
+      PROMPT_SUGGESTION_KEYS.includes(e.key)
+    ) {
+      return; // Let PromptSuggestions handle it
     }
 
     // Handle send message (Shift+Enter for newline is default behavior)
@@ -717,6 +784,14 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         ariaLabel="Slash command suggestions"
         listId={commandListId}
       />
+      <PromptSuggestions
+        suggestions={promptSuggestions}
+        onSelectSuggestion={handlePromptSelect}
+        onDismiss={dismissPromptSuggestions}
+        isVisible={showPromptSuggestions}
+        ariaLabel="Prompt mention suggestions"
+        listId={promptListId}
+      />
       <div className="flex items-end gap-2.5" data-component="ChatInputControls">
         <VimTextArea
           ref={inputRef}
@@ -728,15 +803,28 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           onPaste={handlePaste}
           onDragOver={handleDragOver}
           onDrop={handleDrop}
-          suppressKeys={showCommandSuggestions ? COMMAND_SUGGESTION_KEYS : undefined}
+          suppressKeys={
+            showCommandSuggestions
+              ? COMMAND_SUGGESTION_KEYS
+              : showPromptSuggestions
+                ? PROMPT_SUGGESTION_KEYS
+                : undefined
+          }
           placeholder={placeholder}
           disabled={!editingMessage && (disabled || isSending || isCompacting)}
           aria-label={editingMessage ? "Edit your last message" : "Message Claude"}
           aria-autocomplete="list"
           aria-controls={
-            showCommandSuggestions && commandSuggestions.length > 0 ? commandListId : undefined
+            showCommandSuggestions && commandSuggestions.length > 0
+              ? commandListId
+              : showPromptSuggestions && promptSuggestions.length > 0
+                ? promptListId
+                : undefined
           }
-          aria-expanded={showCommandSuggestions && commandSuggestions.length > 0}
+          aria-expanded={
+            (showCommandSuggestions && commandSuggestions.length > 0) ||
+            (showPromptSuggestions && promptSuggestions.length > 0)
+          }
         />
       </div>
       <ImageAttachments images={imageAttachments} onRemove={handleRemoveImage} />

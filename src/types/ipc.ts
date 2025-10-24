@@ -248,6 +248,12 @@ export interface IPCApi {
     install(): void;
     onStatus(callback: (status: UpdateStatus) => void): () => void;
   };
+  prompts: {
+    list(
+      workspaceId: string
+    ): Promise<Array<{ name: string; path: string; location: "repo" | "system" }>>;
+    read(workspaceId: string, promptName: string): Promise<string | null>;
+  };
 }
 
 // Update status type (matches updater service)

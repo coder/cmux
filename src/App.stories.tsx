@@ -84,6 +84,10 @@ function setupMockAPI(options: {
       install: () => undefined,
       onStatus: () => () => undefined,
     },
+    prompts: {
+      list: () => Promise.resolve([]),
+      read: () => Promise.resolve(null),
+    },
     ...options.apiOverrides,
   };
 
