@@ -114,24 +114,26 @@ function AppInner() {
   const workspaceStore = useWorkspaceStoreRaw();
   const gitStatusStore = useGitStatusStoreRaw();
 
+  // Track whether stores have been synced (separate from metadata loading)
+  const [storesSynced, setStoresSynced] = useState(false);
+
   useEffect(() => {
     if (!metadataLoading) {
       workspaceStore.syncWorkspaces(workspaceMetadata);
       gitStatusStore.syncWorkspaces(workspaceMetadata);
+      setStoresSynced(true);
+    } else {
+      setStoresSynced(false);
     }
   }, [metadataLoading, workspaceMetadata, workspaceStore, gitStatusStore]);
 
   // Validate selectedWorkspace when metadata changes
   // Clear selection if workspace was deleted
   useEffect(() => {
-    if (
-      !metadataLoading &&
-      selectedWorkspace &&
-      !workspaceMetadata.has(selectedWorkspace.workspaceId)
-    ) {
+    if (storesSynced && selectedWorkspace && !workspaceMetadata.has(selectedWorkspace.workspaceId)) {
       setSelectedWorkspace(null);
     }
-  }, [metadataLoading, selectedWorkspace, workspaceMetadata, setSelectedWorkspace]);
+  }, [storesSynced, selectedWorkspace, workspaceMetadata, setSelectedWorkspace]);
 
   // Track last-read timestamps for unread indicators
   const { lastReadTimestamps, onToggleUnread } = useUnreadTracking(selectedWorkspace);
@@ -672,9 +674,9 @@ function AppInner() {
       );
   }, [projects, setSelectedWorkspace, setWorkspaceMetadata]);
 
-  // CRITICAL: Don't render workspace UI until metadata loads and stores are synced
+  // CRITICAL: Don't render workspace UI until metadata loads AND stores are synced
   // This ensures WorkspaceStore.addWorkspace() is called before any component accesses workspaces
-  if (metadataLoading) {
+  if (metadataLoading || !storesSynced) {
     return <LoadingScreen />;
   }
 
