@@ -25,12 +25,8 @@ import {
   getSlashCommandSuggestions,
   type SlashSuggestion,
 } from "@/utils/slashCommands/suggestions";
-import {
-  getPromptSuggestions,
-  extractPromptMentions,
-  expandPromptMentions,
-  type PromptSuggestion,
-} from "@/utils/promptSuggestions";
+import { usePrompts } from "@/hooks/usePrompts";
+import type { PromptSuggestion } from "@/utils/promptSuggestions";
 import { TooltipWrapper, Tooltip, HelpIndicator } from "./Tooltip";
 import { matchesKeybind, formatKeybind, KEYBINDS, isEditableElement } from "@/utils/ui/keybinds";
 import { ModelSelector, type ModelSelectorRef } from "./ModelSelector";
@@ -89,19 +85,24 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const [isSending, setIsSending] = useState(false);
   const [showCommandSuggestions, setShowCommandSuggestions] = useState(false);
   const [commandSuggestions, setCommandSuggestions] = useState<SlashSuggestion[]>([]);
-  const [showPromptSuggestions, setShowPromptSuggestions] = useState(false);
-  const [promptSuggestions, setPromptSuggestions] = useState<PromptSuggestion[]>([]);
-  const [availablePrompts, setAvailablePrompts] = useState<
-    Array<{ name: string; path: string; location: "repo" | "system" }>
-  >([]);
   const [providerNames, setProviderNames] = useState<string[]>([]);
   const [toast, setToast] = useState<Toast | null>(null);
   const [imageAttachments, setImageAttachments] = useState<ImageAttachment[]>([]);
+
   const handleToastDismiss = useCallback(() => {
     setToast(null);
   }, []);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const modelSelectorRef = useRef<ModelSelectorRef>(null);
+
+  // Use the prompts hook to handle all prompt-related logic
+  const cursorPos = inputRef.current?.selectionStart ?? input.length;
+  const {
+    suggestions: promptSuggestions,
+    showSuggestions: showPromptSuggestions,
+    dismissSuggestions: dismissPromptSuggestions,
+    expandMentions: expandPromptMentions,
+  } = usePrompts({ workspaceId, input, cursorPos });
   const [mode, setMode] = useMode();
   const { recentModels, addModel } = useModelLRU();
   const commandListId = useId();
@@ -218,14 +219,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     setShowCommandSuggestions(suggestions.length > 0);
   }, [input, providerNames]);
 
-  // Watch input for prompt mentions (@)
-  useEffect(() => {
-    const cursorPos = inputRef.current?.selectionStart ?? input.length;
-    const suggestions = getPromptSuggestions(input, cursorPos, availablePrompts);
-    setPromptSuggestions(suggestions);
-    setShowPromptSuggestions(suggestions.length > 0);
-  }, [input, availablePrompts]);
-
   // Load provider names for suggestions
   useEffect(() => {
     let isMounted = true;
@@ -247,28 +240,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       isMounted = false;
     };
   }, []);
-
-  // Load available prompts for the current workspace
-  useEffect(() => {
-    let isMounted = true;
-
-    const loadPrompts = async () => {
-      try {
-        const prompts = await window.api.prompts.list(workspaceId);
-        if (isMounted && Array.isArray(prompts)) {
-          setAvailablePrompts(prompts);
-        }
-      } catch (error) {
-        console.error("Failed to load prompts:", error);
-      }
-    };
-
-    void loadPrompts();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [workspaceId]);
 
   // Allow external components (e.g., CommandPalette) to insert text
   useEffect(() => {
@@ -419,8 +390,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           textarea.focus();
         }
       }, 0);
-
-      setShowPromptSuggestions(false);
     },
     [input, setInput]
   );
@@ -434,21 +403,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     let messageText = input.trim();
 
     // Expand prompt mentions before sending
-    const mentions = extractPromptMentions(messageText);
-    if (mentions.length > 0) {
-      const promptContents = new Map<string, string>();
-      for (const mention of mentions) {
-        try {
-          const content = await window.api.prompts.read(workspaceId, mention);
-          if (content) {
-            promptContents.set(mention, content);
-          }
-        } catch (error) {
-          console.error(`Failed to read prompt "${mention}":`, error);
-        }
-      }
-      messageText = expandPromptMentions(messageText, promptContents);
-    }
+    messageText = await expandPromptMentions(messageText);
 
     try {
       // Parse command
@@ -832,7 +787,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       <PromptSuggestions
         suggestions={promptSuggestions}
         onSelectSuggestion={handlePromptSelect}
-        onDismiss={() => setShowPromptSuggestions(false)}
+        onDismiss={dismissPromptSuggestions}
         isVisible={showPromptSuggestions}
         ariaLabel="Prompt mention suggestions"
         listId={promptListId}
