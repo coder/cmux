@@ -22,6 +22,9 @@ import {
   isToolCallEnd,
   isReasoningDelta,
   isReasoningEnd,
+  isInitStart,
+  isInitOutput,
+  isInitEnd,
 } from "@/types/ipc";
 import { MapStore } from "./MapStore";
 import { createDisplayUsage } from "@/utils/tokens/displayUsage";
@@ -780,6 +783,15 @@ export class WorkspaceStore {
     return this.aggregators.get(workspaceId)!;
   }
 
+  /**
+   * Check if data is a stream event or init event that should be buffered until caught-up.
+   *
+   * Init events may arrive:
+   * - BEFORE caught-up: During replay from init-status.json (historical)
+   * - AFTER caught-up: During live workspace creation (real-time)
+   *
+   * Like stream events, init events are buffered during replay to avoid O(N) re-renders.
+   */
   private isStreamEvent(data: WorkspaceChatMessage): boolean {
     return (
       isStreamStart(data) ||
@@ -790,9 +802,10 @@ export class WorkspaceStore {
       isToolCallDelta(data) ||
       isToolCallEnd(data) ||
       isReasoningDelta(data) ||
-      isReasoningEnd(data)
-      // Note: Init events (type:"init-*") and regular messages (role:"user"|"assistant")
-      // are excluded from this list and flow through the regular message path below
+      isReasoningEnd(data) ||
+      isInitStart(data) ||
+      isInitOutput(data) ||
+      isInitEnd(data)
     );
   }
 
@@ -978,19 +991,20 @@ export class WorkspaceStore {
       return;
     }
 
-    // Regular messages and other events (init, etc.)
+    // Regular messages (CmuxMessage without type field)
     const isCaughtUp = this.caughtUp.get(workspaceId) ?? false;
     if (!isCaughtUp && "role" in data && !("type" in data)) {
-      // Buffer historical CmuxMessages only
+      // Buffer historical CmuxMessages
       const historicalMsgs = this.historicalMessages.get(workspaceId) ?? [];
       historicalMsgs.push(data);
       this.historicalMessages.set(workspaceId, historicalMsgs);
-    } else {
-      // Process all other events immediately (init events, live messages, etc.)
+    } else if (isCaughtUp) {
+      // Process live events immediately (after history loaded)
       aggregator.handleMessage(data);
       this.states.bump(workspaceId);
       this.checkAndBumpRecencyIfChanged();
     }
+    // Note: Init events and stream events are handled by isStreamEvent() buffering above
   }
 }
 
