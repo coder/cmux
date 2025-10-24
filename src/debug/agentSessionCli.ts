@@ -160,19 +160,12 @@ async function main(): Promise<void> {
   const config = new Config(configRoot);
 
   const workspaceIdRaw = values["workspace-id"];
+  if (typeof workspaceIdRaw !== "string" || workspaceIdRaw.trim().length === 0) {
+    throw new Error("--workspace-id is required");
+  }
+  const workspaceId = workspaceIdRaw.trim();
+
   const projectPathRaw = values["project-path"];
-
-  const workspaceId =
-    workspaceIdRaw && workspaceIdRaw.trim().length > 0
-      ? workspaceIdRaw.trim()
-      : (() => {
-          if (typeof projectPathRaw !== "string" || projectPathRaw.trim().length === 0) {
-            throw new Error("Provide --workspace-id or --project-path to derive workspace ID");
-          }
-          const projectPath = path.resolve(projectPathRaw.trim());
-          return config.generateWorkspaceId(projectPath, workspacePath);
-        })();
-
   const projectName =
     typeof projectPathRaw === "string" && projectPathRaw.trim().length > 0
       ? path.basename(path.resolve(projectPathRaw.trim()))
