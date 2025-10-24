@@ -116,7 +116,7 @@ jobs:
   # Note: Runtime tests do not use AI APIs, so no API keys needed.
   integration-tests-runtime-macos:
     name: Runtime Integration Tests (macOS)
-    runs-on: ${{ github.repository_owner == 'coder' && 'depot-macos-latest-arm-16' || 'macos-latest' }}
+    runs-on: ${{ github.repository_owner == 'coder' && 'depot-macos-15' || 'macos-latest' }}
     steps:
       - uses: actions/checkout@v4
         with:
