@@ -91,17 +91,17 @@ export async function readFileLines(
 /**
  * Calculate line range for expanding context upward
  * @param oldStart - Starting line number of the hunk in the old file
- * @param currentExpansion - Current number of lines expanded upward
+ * @param currentExpansion - Total number of lines to show above hunk (cumulative)
  * @returns Object with startLine and endLine for the expansion
  */
 export function calculateUpwardExpansion(
   oldStart: number,
   currentExpansion: number
 ): { startLine: number; endLine: number; numLines: number } {
-  const newExpansion = currentExpansion + LINES_PER_EXPANSION;
-  const startLine = Math.max(1, oldStart - newExpansion);
-  const endLine = oldStart - currentExpansion - 1;
-  const numLines = endLine - startLine + 1;
+  // currentExpansion is the total lines to show, not the delta
+  const startLine = Math.max(1, oldStart - currentExpansion);
+  const endLine = oldStart - 1; // Always end right before hunk starts
+  const numLines = Math.max(0, endLine - startLine + 1);
 
   return { startLine, endLine, numLines };
 }
@@ -110,7 +110,7 @@ export function calculateUpwardExpansion(
  * Calculate line range for expanding context downward
  * @param oldStart - Starting line number of the hunk in the old file
  * @param oldLines - Number of lines in the hunk
- * @param currentExpansion - Current number of lines expanded downward
+ * @param currentExpansion - Total number of lines to show below hunk (cumulative)
  * @returns Object with startLine and endLine for the expansion
  */
 export function calculateDownwardExpansion(
@@ -118,11 +118,10 @@ export function calculateDownwardExpansion(
   oldLines: number,
   currentExpansion: number
 ): { startLine: number; endLine: number; numLines: number } {
-  const newExpansion = currentExpansion + LINES_PER_EXPANSION;
   const hunkEnd = oldStart + oldLines - 1;
-  const startLine = hunkEnd + currentExpansion + 1;
-  const endLine = hunkEnd + newExpansion;
-  const numLines = endLine - startLine + 1;
+  const startLine = hunkEnd + 1; // Always start right after hunk ends
+  const endLine = hunkEnd + currentExpansion; // Extend by currentExpansion lines
+  const numLines = Math.max(0, endLine - startLine + 1);
 
   return { startLine, endLine, numLines };
 }
