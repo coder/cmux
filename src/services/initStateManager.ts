@@ -19,11 +19,9 @@ export interface InitStatus {
 
 /**
  * In-memory state for active init hooks.
- * Extends InitStatus with event emission tracking.
+ * Currently identical to InitStatus, but kept separate for future extension.
  */
-interface InitHookState extends InitStatus {
-  // No additional fields needed for now, but keeps type separate for future extension
-}
+type InitHookState = InitStatus;
 
 /**
  * InitStateManager - Manages init hook lifecycle with persistence and replay.
@@ -66,8 +64,8 @@ export class InitStateManager extends EventEmitter {
    */
   private serializeInitEvents(
     state: InitHookState & { workspaceId?: string }
-  ): (WorkspaceInitEvent & { workspaceId: string })[] {
-    const events: (WorkspaceInitEvent & { workspaceId: string })[] = [];
+  ): Array<WorkspaceInitEvent & { workspaceId: string }> {
+    const events: Array<WorkspaceInitEvent & { workspaceId: string }> = [];
     const workspaceId = state.workspaceId ?? "unknown";
 
     // Emit init-start

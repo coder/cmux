@@ -1025,6 +1025,15 @@ function getStoreInstance(): WorkspaceStore {
 }
 
 /**
+ * Get the WorkspaceStore instance for eager workspace subscription.
+ * Used by useWorkspaceManagement to subscribe to new workspaces immediately
+ * after creation, before React effects run.
+ */
+export function getWorkspaceStoreForEagerSubscription(): WorkspaceStore {
+  return getStoreInstance();
+}
+
+/**
  * Hook to get state for a specific workspace.
  * Only re-renders when THIS workspace's state changes.
  *

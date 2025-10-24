@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "@jest/globals";
-import * as fs from "fs";
+import * as fs from "fs/promises";
 import * as path from "path";
 import { EventStore } from "./eventStore";
 import type { Config } from "@/config";
@@ -42,10 +42,12 @@ describe("EventStore", () => {
     emittedEvents.push(event);
   };
 
-  beforeEach(() => {
+  beforeEach(async () => {
     // Create test session directory
-    if (!fs.existsSync(testSessionDir)) {
-      fs.mkdirSync(testSessionDir, { recursive: true });
+    try {
+      await fs.access(testSessionDir);
+    } catch {
+      await fs.mkdir(testSessionDir, { recursive: true });
     }
 
     mockConfig = {
@@ -59,10 +61,13 @@ describe("EventStore", () => {
     store = new EventStore(mockConfig, testFilename, serializeState, emitEvent, "TestStore");
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     // Clean up test files
-    if (fs.existsSync(testSessionDir)) {
-      fs.rmSync(testSessionDir, { recursive: true, force: true });
+    try {
+      await fs.access(testSessionDir);
+      await fs.rm(testSessionDir, { recursive: true, force: true });
+    } catch {
+      // Directory doesn't exist, nothing to clean up
     }
   });
 
@@ -119,11 +124,15 @@ describe("EventStore", () => {
       // Verify file exists
       const workspaceDir = path.join(testSessionDir, testWorkspaceId);
       const filePath = path.join(workspaceDir, testFilename);
-      expect(fs.existsSync(filePath)).toBe(true);
+      try {
+        await fs.access(filePath);
+      } catch {
+        throw new Error(`File ${filePath} does not exist`);
+      }
 
       // Verify content
-      const content = fs.readFileSync(filePath, "utf-8");
-      const parsed = JSON.parse(content);
+      const content = await fs.readFile(filePath, "utf-8");
+      const parsed = JSON.parse(content) as TestState;
       expect(parsed).toEqual(state);
     });
 
@@ -240,4 +249,3 @@ describe("EventStore", () => {
     });
   });
 });
-

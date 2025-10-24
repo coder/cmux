@@ -1,4 +1,3 @@
-import { EventEmitter } from "events";
 import { SessionFileManager } from "@/utils/sessionFile";
 import type { Config } from "@/config";
 import { log } from "@/services/log";
@@ -147,8 +146,6 @@ export class EventStore<TState, TEvent> {
       state = diskState;
     }
 
-    log.debug(`[${this.storeName}] Replaying events for ${workspaceId}`);
-
     // Augment state with context for serialization
     const augmentedState = { ...state, ...context };
 
@@ -196,4 +193,3 @@ export class EventStore<TState, TEvent> {
  *
  * See InitStateManager refactor (this PR) for reference implementation.
  */
-

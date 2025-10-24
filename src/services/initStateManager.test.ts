@@ -34,9 +34,15 @@ describe("InitStateManager", () => {
       const events: Array<WorkspaceInitEvent & { workspaceId: string }> = [];
 
       // Subscribe to events
-      manager.on("init-start", (event) => events.push(event));
-      manager.on("init-output", (event) => events.push(event));
-      manager.on("init-end", (event) => events.push(event));
+      manager.on("init-start", (event: WorkspaceInitEvent & { workspaceId: string }) =>
+        events.push(event)
+      );
+      manager.on("init-output", (event: WorkspaceInitEvent & { workspaceId: string }) =>
+        events.push(event)
+      );
+      manager.on("init-end", (event: WorkspaceInitEvent & { workspaceId: string }) =>
+        events.push(event)
+      );
 
       // Start init
       manager.startInit(workspaceId, "/path/to/hook");
@@ -103,9 +109,15 @@ describe("InitStateManager", () => {
       const workspaceId = "test-workspace";
       const events: Array<WorkspaceInitEvent & { workspaceId: string }> = [];
 
-      manager.on("init-start", (event) => events.push(event));
-      manager.on("init-output", (event) => events.push(event));
-      manager.on("init-end", (event) => events.push(event));
+      manager.on("init-start", (event: WorkspaceInitEvent & { workspaceId: string }) =>
+        events.push(event)
+      );
+      manager.on("init-output", (event: WorkspaceInitEvent & { workspaceId: string }) =>
+        events.push(event)
+      );
+      manager.on("init-end", (event: WorkspaceInitEvent & { workspaceId: string }) =>
+        events.push(event)
+      );
 
       // Create state
       manager.startInit(workspaceId, "/path/to/hook");
@@ -138,9 +150,15 @@ describe("InitStateManager", () => {
       expect(manager.getInitState(workspaceId)).toBeUndefined();
 
       // Subscribe to events
-      manager.on("init-start", (event) => events.push(event));
-      manager.on("init-output", (event) => events.push(event));
-      manager.on("init-end", (event) => events.push(event));
+      manager.on("init-start", (event: WorkspaceInitEvent & { workspaceId: string }) =>
+        events.push(event)
+      );
+      manager.on("init-output", (event: WorkspaceInitEvent & { workspaceId: string }) =>
+        events.push(event)
+      );
+      manager.on("init-end", (event: WorkspaceInitEvent & { workspaceId: string }) =>
+        events.push(event)
+      );
 
       // Replay from disk
       await manager.replayInit(workspaceId);
@@ -160,9 +178,15 @@ describe("InitStateManager", () => {
       const workspaceId = "nonexistent-workspace";
       const events: Array<WorkspaceInitEvent & { workspaceId: string }> = [];
 
-      manager.on("init-start", (event) => events.push(event));
-      manager.on("init-output", (event) => events.push(event));
-      manager.on("init-end", (event) => events.push(event));
+      manager.on("init-start", (event: WorkspaceInitEvent & { workspaceId: string }) =>
+        events.push(event)
+      );
+      manager.on("init-output", (event: WorkspaceInitEvent & { workspaceId: string }) =>
+        events.push(event)
+      );
+      manager.on("init-end", (event: WorkspaceInitEvent & { workspaceId: string }) =>
+        events.push(event)
+      );
 
       await manager.replayInit(workspaceId);
 

@@ -42,7 +42,7 @@ describe("StreamingMessageAggregator - Init Events", () => {
     let displayedMessages = aggregator.getDisplayedMessages();
     let initMessage = displayedMessages.find((msg) => msg.type === "workspace-init");
     expect(initMessage).toBeDefined();
-    if (initMessage && initMessage.type === "workspace-init") {
+    if (initMessage?.type === "workspace-init") {
       expect(initMessage.status).toBe("running");
       expect(initMessage.exitCode).toBeNull();
       expect(initMessage.lines).toEqual([
@@ -65,7 +65,7 @@ describe("StreamingMessageAggregator - Init Events", () => {
     displayedMessages = aggregator.getDisplayedMessages();
     initMessage = displayedMessages.find((msg) => msg.type === "workspace-init");
     expect(initMessage).toBeDefined();
-    if (initMessage && initMessage.type === "workspace-init") {
+    if (initMessage?.type === "workspace-init") {
       expect(initMessage.status).toBe("success");
       expect(initMessage.exitCode).toBe(0);
     }
@@ -99,7 +99,7 @@ describe("StreamingMessageAggregator - Init Events", () => {
     const displayedMessages = aggregator.getDisplayedMessages();
     const initMessage = displayedMessages.find((msg) => msg.type === "workspace-init");
     expect(initMessage).toBeDefined();
-    if (initMessage && initMessage.type === "workspace-init") {
+    if (initMessage?.type === "workspace-init") {
       expect(initMessage.status).toBe("error");
       expect(initMessage.exitCode).toBe(1);
       expect(initMessage.lines).toContain("ERROR: Failed to install dependencies");

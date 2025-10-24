@@ -136,7 +136,7 @@ export class BashExecutionService {
       detached: config.detached ?? true,
     });
 
-    log.debug(`BashExecutionService: Spawned process with PID ${child.pid}`);
+    log.debug(`BashExecutionService: Spawned process with PID ${child.pid ?? "unknown"}`);
 
     // Line-by-line streaming with incremental buffers
     let outBuf = "";
@@ -168,7 +168,7 @@ export class BashExecutionService {
     });
 
     child.on("close", (code: number | null) => {
-      log.debug(`BashExecutionService: Process exited with code ${code}`);
+      log.debug(`BashExecutionService: Process exited with code ${code ?? "unknown"}`);
       // Flush any remaining partial lines
       if (outBuf.trim().length > 0) {
         callbacks.onStdout(outBuf);

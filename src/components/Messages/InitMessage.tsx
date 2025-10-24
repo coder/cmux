@@ -35,7 +35,7 @@ export const InitMessage = React.memo<InitMessageProps>(({ message, className })
         </div>
       </div>
       {message.lines.length > 0 && (
-        <pre className="m-0 max-h-[120px] overflow-auto whitespace-pre-wrap rounded border border-white/[0.08] bg-black/15 px-2 py-1.5">
+        <pre className="m-0 max-h-[120px] overflow-auto rounded border border-white/[0.08] bg-black/15 px-2 py-1.5 whitespace-pre-wrap">
           {message.lines.join("\n")}
         </pre>
       )}
