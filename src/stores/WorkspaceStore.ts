@@ -978,18 +978,18 @@ export class WorkspaceStore {
       return;
     }
 
-    // Regular messages (CmuxMessage without type field)
+    // Regular messages and other events (init, etc.)
     const isCaughtUp = this.caughtUp.get(workspaceId) ?? false;
-    if (!isCaughtUp) {
-      if ("role" in data && !("type" in data)) {
-        const historicalMsgs = this.historicalMessages.get(workspaceId) ?? [];
-        historicalMsgs.push(data);
-        this.historicalMessages.set(workspaceId, historicalMsgs);
-      }
+    if (!isCaughtUp && "role" in data && !("type" in data)) {
+      // Buffer historical CmuxMessages only
+      const historicalMsgs = this.historicalMessages.get(workspaceId) ?? [];
+      historicalMsgs.push(data);
+      this.historicalMessages.set(workspaceId, historicalMsgs);
     } else {
+      // Process all other events immediately (init events, live messages, etc.)
       aggregator.handleMessage(data);
       this.states.bump(workspaceId);
-      this.checkAndBumpRecencyIfChanged(); // New message, update recency
+      this.checkAndBumpRecencyIfChanged();
     }
   }
 }
