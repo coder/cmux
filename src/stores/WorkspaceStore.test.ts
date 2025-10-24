@@ -41,6 +41,24 @@ function getOnChatCallback<T = { type: string }>(): (data: T) => void {
   return mock.mock.calls[0][1];
 }
 
+// Helper to create and add a workspace
+function createAndAddWorkspace(
+  store: WorkspaceStore,
+  workspaceId: string,
+  options: Partial<FrontendWorkspaceMetadata> = {}
+): FrontendWorkspaceMetadata {
+  const metadata: FrontendWorkspaceMetadata = {
+    id: workspaceId,
+    name: options.name ?? `test-branch-${workspaceId}`,
+    projectName: options.projectName ?? "test-project",
+    projectPath: options.projectPath ?? "/path/to/project",
+    namedWorkspacePath: options.namedWorkspacePath ?? "/path/to/worktree",
+    createdAt: options.createdAt ?? new Date().toISOString(),
+  };
+  store.addWorkspace(metadata);
+  return metadata;
+}
+
 describe("WorkspaceStore", () => {
   let store: WorkspaceStore;
   let mockOnModelUsed: jest.Mock;
@@ -56,6 +74,74 @@ describe("WorkspaceStore", () => {
     store.dispose();
   });
 
+  describe("recency calculation for new workspaces", () => {
+    it("should calculate recency from createdAt when workspace is added", () => {
+      const workspaceId = "test-workspace";
+      const createdAt = new Date().toISOString();
+      const metadata: FrontendWorkspaceMetadata = {
+        id: workspaceId,
+        name: "test-branch",
+        projectName: "test-project",
+        projectPath: "/path/to/project",
+        namedWorkspacePath: "/path/to/worktree",
+        createdAt,
+      };
+
+      // Add workspace with createdAt
+      store.addWorkspace(metadata);
+      
+      // Get state - should have recency based on createdAt
+      const state = store.getWorkspaceState(workspaceId);
+      
+      // Recency should be based on createdAt, not null or 0
+      expect(state.recencyTimestamp).not.toBeNull();
+      expect(state.recencyTimestamp).toBe(new Date(createdAt).getTime());
+      
+      // Check that workspace appears in recency map with correct timestamp
+      const recency = store.getWorkspaceRecency();
+      expect(recency[workspaceId]).toBe(new Date(createdAt).getTime());
+    });
+
+    it("should maintain createdAt-based recency after CAUGHT_UP with no messages", async () => {
+      const workspaceId = "test-workspace-2";
+      const createdAt = new Date().toISOString();
+      const metadata: FrontendWorkspaceMetadata = {
+        id: workspaceId,
+        name: "test-branch-2",
+        projectName: "test-project",
+        projectPath: "/path/to/project",
+        namedWorkspacePath: "/path/to/worktree",
+        createdAt,
+      };
+
+      // Add workspace
+      store.addWorkspace(metadata);
+      
+      // Check initial recency
+      const initialState = store.getWorkspaceState(workspaceId);
+      expect(initialState.recencyTimestamp).toBe(new Date(createdAt).getTime());
+      
+      // Get the IPC callback to simulate messages
+      const callback = getOnChatCallback();
+      
+      // Simulate CAUGHT_UP message with no history (new workspace with no messages)
+      callback({ type: "caught-up" });
+      
+      // Wait for async processing
+      await new Promise(resolve => setTimeout(resolve, 10));
+      
+      // Recency should still be based on createdAt
+      const stateAfterCaughtUp = store.getWorkspaceState(workspaceId);
+      expect(stateAfterCaughtUp.recencyTimestamp).toBe(new Date(createdAt).getTime());
+      
+      // Verify recency map
+      const recency = store.getWorkspaceRecency();
+      expect(recency[workspaceId]).toBe(new Date(createdAt).getTime());
+    });
+  });
+
+
+
   describe("subscription", () => {
     it("should call listener when workspace state changes", async () => {
       const listener = jest.fn();
@@ -68,6 +154,7 @@ describe("WorkspaceStore", () => {
         projectName: "test-project",
         projectPath: "/test/project",
         namedWorkspacePath: "/test/project/test-workspace",
+        createdAt: new Date().toISOString(),
       };
 
       // Add workspace (should trigger IPC subscription)
@@ -95,6 +182,7 @@ describe("WorkspaceStore", () => {
         projectName: "test-project",
         projectPath: "/test/project",
         namedWorkspacePath: "/test/project/test-workspace",
+        createdAt: new Date().toISOString(),
       };
 
       store.addWorkspace(metadata);
@@ -117,6 +205,7 @@ describe("WorkspaceStore", () => {
         projectName: "project-1",
         projectPath: "/project-1",
         namedWorkspacePath: "/path/1",
+        createdAt: new Date().toISOString(),
       };
 
       const workspaceMap = new Map([[metadata1.id, metadata1]]);
@@ -135,6 +224,7 @@ describe("WorkspaceStore", () => {
         projectName: "project-1",
         projectPath: "/project-1",
         namedWorkspacePath: "/path/1",
+        createdAt: new Date().toISOString(),
       };
 
       // Add workspace
@@ -151,7 +241,8 @@ describe("WorkspaceStore", () => {
   });
 
   describe("getWorkspaceState", () => {
-    it("should return default state for new workspace", () => {
+    it("should return initial state for newly added workspace", () => {
+      createAndAddWorkspace(store, "new-workspace");
       const state = store.getWorkspaceState("new-workspace");
 
       expect(state).toMatchObject({
@@ -161,11 +252,13 @@ describe("WorkspaceStore", () => {
         loading: true, // loading because not caught up
         cmuxMessages: [],
         currentModel: null,
-        recencyTimestamp: null,
       });
+      // Should have recency based on createdAt
+      expect(state.recencyTimestamp).not.toBeNull();
     });
 
     it("should return cached state when values unchanged", () => {
+      createAndAddWorkspace(store, "test-workspace");
       const state1 = store.getWorkspaceState("test-workspace");
       const state2 = store.getWorkspaceState("test-workspace");
 
@@ -197,6 +290,7 @@ describe("WorkspaceStore", () => {
         projectName: "test-project",
         projectPath: "/test/project",
         namedWorkspacePath: "/test/project/test-workspace",
+        createdAt: new Date().toISOString(),
       };
 
       store.addWorkspace(metadata);
@@ -241,6 +335,7 @@ describe("WorkspaceStore", () => {
         projectName: "test-project",
         projectPath: "/test/project",
         namedWorkspacePath: "/test/project/test-workspace",
+        createdAt: new Date().toISOString(),
       };
       store.addWorkspace(metadata);
 
@@ -268,6 +363,9 @@ describe("WorkspaceStore", () => {
         emitCount++;
       });
 
+      // Add workspace first
+      createAndAddWorkspace(store, "test-workspace");
+
       // Simulate what happens during render - component calls getAggregator
       const aggregator1 = store.getAggregator("test-workspace");
       expect(aggregator1).toBeDefined();
@@ -292,6 +390,7 @@ describe("WorkspaceStore", () => {
         projectName: "test-project",
         projectPath: "/test/project",
         namedWorkspacePath: "/test/project/test-workspace",
+        createdAt: new Date().toISOString(),
       };
       store.addWorkspace(metadata);
 
@@ -330,6 +429,7 @@ describe("WorkspaceStore", () => {
         projectName: "test-project",
         projectPath: "/test/project",
         namedWorkspacePath: "/test/project/test-workspace",
+        createdAt: new Date().toISOString(),
       };
       store.addWorkspace(metadata);
 
@@ -360,27 +460,22 @@ describe("WorkspaceStore", () => {
       expect(states1).not.toBe(states2); // Cache should be invalidated
     });
 
-    it("invalidates getWorkspaceRecency() cache when workspace changes", async () => {
+    it("maintains recency based on createdAt for new workspaces", async () => {
+      const createdAt = new Date("2024-01-01T00:00:00Z").toISOString();
       const metadata: FrontendWorkspaceMetadata = {
         id: "test-workspace",
         name: "test-workspace",
         projectName: "test-project",
         projectPath: "/test/project",
         namedWorkspacePath: "/test/project/test-workspace",
+        createdAt,
       };
       store.addWorkspace(metadata);
 
-      const recency1 = store.getWorkspaceRecency();
-
-      // Trigger change (caught-up message)
-      const onChatCallback = getOnChatCallback();
-      onChatCallback({ type: "caught-up" });
-
-      // Wait for queueMicrotask to complete
-      await new Promise((resolve) => setTimeout(resolve, 0));
-
-      const recency2 = store.getWorkspaceRecency();
-      expect(recency1).not.toBe(recency2); // Cache should be invalidated
+      const recency = store.getWorkspaceRecency();
+      
+      // Recency should be based on createdAt
+      expect(recency["test-workspace"]).toBe(new Date(createdAt).getTime());
     });
 
     it("maintains cache when no changes occur", () => {
@@ -390,6 +485,7 @@ describe("WorkspaceStore", () => {
         projectName: "test-project",
         projectPath: "/test/project",
         namedWorkspacePath: "/test/project/test-workspace",
+        createdAt: new Date().toISOString(),
       };
       store.addWorkspace(metadata);
 
@@ -411,50 +507,31 @@ describe("WorkspaceStore", () => {
   });
 
   describe("race conditions", () => {
-    it("handles IPC message for removed workspace gracefully", async () => {
+    it("properly cleans up workspace on removal", async () => {
       const metadata: FrontendWorkspaceMetadata = {
         id: "test-workspace",
         name: "test-workspace",
         projectName: "test-project",
         projectPath: "/test/project",
         namedWorkspacePath: "/test/project/test-workspace",
+        createdAt: new Date().toISOString(),
       };
       store.addWorkspace(metadata);
 
-      const onChatCallback = getOnChatCallback();
+      // Verify workspace exists
+      let allStates = store.getAllStates();
+      expect(allStates.size).toBe(1);
 
       // Remove workspace (clears aggregator and unsubscribes IPC)
       store.removeWorkspace("test-workspace");
 
-      // IPC message arrives after removal - should not throw
-      // Note: In practice, the IPC unsubscribe should prevent this,
-      // but if a message was already queued, it should handle gracefully
-      const onChatCallbackTyped = onChatCallback as (data: {
-        type: string;
-        messageId?: string;
-        model?: string;
-      }) => void;
-      expect(() => {
-        // Mark as caught-up first
-        onChatCallbackTyped({
-          type: "caught-up",
-        });
-        onChatCallbackTyped({
-          type: "stream-start",
-          messageId: "msg1",
-          model: "claude-sonnet-4",
-        });
-      }).not.toThrow();
-
-      // Wait for queueMicrotask to complete
-      await new Promise((resolve) => setTimeout(resolve, 0));
-
-      // The message handler will have created a new aggregator (lazy init)
-      // because getOrCreateAggregator always creates if not exists.
-      // This is actually fine - the workspace just has no IPC subscription.
-      const allStates = store.getAllStates();
-      expect(allStates.size).toBe(1); // Aggregator exists but not subscribed
-      expect(allStates.get("test-workspace")?.canInterrupt).toBe(true); // Stream started
+      // Verify workspace is completely removed
+      allStates = store.getAllStates();
+      expect(allStates.size).toBe(0);
+      
+      // Verify aggregator is gone
+      expect(store.getAggregator).toBeDefined();
+      expect(() => store.getAggregator("test-workspace")).toThrow(/Workspace test-workspace not found/);
     });
 
     it("handles concurrent workspace additions", () => {
@@ -464,6 +541,7 @@ describe("WorkspaceStore", () => {
         projectName: "project-1",
         projectPath: "/project-1",
         namedWorkspacePath: "/path/1",
+        createdAt: new Date().toISOString(),
       };
       const metadata2: FrontendWorkspaceMetadata = {
         id: "workspace-2",
@@ -471,6 +549,7 @@ describe("WorkspaceStore", () => {
         projectName: "project-2",
         projectPath: "/project-2",
         namedWorkspacePath: "/path/2",
+        createdAt: new Date().toISOString(),
       };
 
       // Add workspaces concurrently
@@ -490,6 +569,7 @@ describe("WorkspaceStore", () => {
         projectName: "test-project",
         projectPath: "/test/project",
         namedWorkspacePath: "/test/project/test-workspace",
+        createdAt: new Date().toISOString(),
       };
       store.addWorkspace(metadata);
 

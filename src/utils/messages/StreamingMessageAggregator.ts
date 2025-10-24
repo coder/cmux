@@ -61,16 +61,13 @@ export class StreamingMessageAggregator {
   } | null = null;
 
   // Workspace creation timestamp (used for recency calculation)
-  private readonly createdAt?: string;
+  // REQUIRED: Backend guarantees every workspace has createdAt via config.ts
+  private readonly createdAt: string;
 
-  constructor(createdAt?: string) {
+  constructor(createdAt: string) {
     this.createdAt = createdAt;
-    // Initialize recency immediately (ensures workspace appears at correct position before messages load)
-    if (createdAt) {
-      this.updateRecency();
-    }
+    this.updateRecency();
   }
-
   private invalidateCache(): void {
     this.cachedAllMessages = null;
     this.cachedDisplayedMessages = null;
