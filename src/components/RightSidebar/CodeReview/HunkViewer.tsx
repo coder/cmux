@@ -3,7 +3,7 @@
  */
 
 import React, { useState, useMemo } from "react";
-import type { DiffHunk } from "@/types/review";
+import type { DiffHunk, HunkReadMoreState } from "@/types/review";
 import { SelectableDiffRenderer } from "../../shared/DiffRenderer";
 import {
   type SearchHighlightConfig,
@@ -11,9 +11,15 @@ import {
 } from "@/utils/highlighting/highlightSearchTerms";
 import { Tooltip, TooltipWrapper } from "../../Tooltip";
 import { usePersistedState } from "@/hooks/usePersistedState";
-import { getReviewExpandStateKey } from "@/constants/storage";
+import { getReviewExpandStateKey, getReviewReadMoreStateKey } from "@/constants/storage";
 import { KEYBINDS, formatKeybind } from "@/utils/ui/keybinds";
 import { cn } from "@/lib/utils";
+import {
+  readFileLines,
+  calculateUpwardExpansion,
+  calculateDownwardExpansion,
+  formatAsContextLines,
+} from "@/utils/review/readFileLines";
 
 interface HunkViewerProps {
   hunk: DiffHunk;
@@ -105,6 +111,61 @@ export const HunkViewer = React.memo<HunkViewerProps>(
       }
     }, [hasManualState, manualExpandState]);
 
+    // Read-more state: tracks expanded lines up/down per hunk
+    const [readMoreStateMap, setReadMoreStateMap] = usePersistedState<
+      Record<string, HunkReadMoreState>
+    >(getReviewReadMoreStateKey(workspaceId), {}, { listener: true });
+
+    const readMoreState = useMemo(
+      () => readMoreStateMap[hunkId] || { up: 0, down: 0 },
+      [readMoreStateMap, hunkId]
+    );
+
+    // State for expanded content
+    const [expandedContentUp, setExpandedContentUp] = useState<string>("");
+    const [expandedContentDown, setExpandedContentDown] = useState<string>("");
+    const [isLoadingUp, setIsLoadingUp] = useState(false);
+    const [isLoadingDown, setIsLoadingDown] = useState(false);
+
+    // Load expanded content when read-more state changes
+    React.useEffect(() => {
+      if (readMoreState.up > 0) {
+        const expansion = calculateUpwardExpansion(hunk.oldStart, readMoreState.up);
+        if (expansion.numLines > 0) {
+          setIsLoadingUp(true);
+          void readFileLines(workspaceId, hunk.filePath, expansion.startLine, expansion.endLine)
+            .then((lines) => {
+              if (lines) {
+                setExpandedContentUp(formatAsContextLines(lines));
+              }
+            })
+            .finally(() => setIsLoadingUp(false));
+        }
+      } else {
+        setExpandedContentUp("");
+      }
+    }, [readMoreState.up, hunk.oldStart, hunk.filePath, workspaceId]);
+
+    React.useEffect(() => {
+      if (readMoreState.down > 0) {
+        const expansion = calculateDownwardExpansion(
+          hunk.oldStart,
+          hunk.oldLines,
+          readMoreState.down
+        );
+        setIsLoadingDown(true);
+        void readFileLines(workspaceId, hunk.filePath, expansion.startLine, expansion.endLine)
+          .then((lines) => {
+            if (lines) {
+              setExpandedContentDown(formatAsContextLines(lines));
+            }
+          })
+          .finally(() => setIsLoadingDown(false));
+      } else {
+        setExpandedContentDown("");
+      }
+    }, [readMoreState.down, hunk.oldStart, hunk.oldLines, hunk.filePath, workspaceId]);
+
     const handleToggleExpand = React.useCallback(
       (e?: React.MouseEvent) => {
         e?.stopPropagation();
@@ -130,6 +191,39 @@ export const HunkViewer = React.memo<HunkViewerProps>(
       e.stopPropagation();
       onToggleRead?.(e);
     };
+
+    const handleExpandUp = React.useCallback(
+      (e: React.MouseEvent) => {
+        e.stopPropagation();
+        const expansion = calculateUpwardExpansion(hunk.oldStart, readMoreState.up);
+        if (expansion.startLine < 1 || expansion.numLines <= 0) {
+          // Already at beginning of file
+          return;
+        }
+        setReadMoreStateMap((prev) => ({
+          ...prev,
+          [hunkId]: {
+            ...readMoreState,
+            up: readMoreState.up + 30,
+          },
+        }));
+      },
+      [hunkId, hunk.oldStart, readMoreState, setReadMoreStateMap]
+    );
+
+    const handleExpandDown = React.useCallback(
+      (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setReadMoreStateMap((prev) => ({
+          ...prev,
+          [hunkId]: {
+            ...readMoreState,
+            down: readMoreState.down + 30,
+          },
+        }));
+      },
+      [hunkId, readMoreState, setReadMoreStateMap]
+    );
 
     // Detect pure rename: if renamed and content hasn't changed (zero additions and deletions)
     const isPureRename =
@@ -199,23 +293,86 @@ export const HunkViewer = React.memo<HunkViewerProps>(
             Renamed from <code>{hunk.oldPath}</code>
           </div>
         ) : isExpanded ? (
-          <div className="font-monospace bg-code-bg grid grid-cols-[minmax(min-content,1fr)] overflow-x-auto px-2 py-1.5 text-[11px] leading-[1.4]">
-            <SelectableDiffRenderer
-              content={hunk.content}
-              filePath={hunk.filePath}
-              oldStart={hunk.oldStart}
-              newStart={hunk.newStart}
-              maxHeight="none"
-              onReviewNote={onReviewNote}
-              onLineClick={() => {
-                // Create synthetic event with data-hunk-id for parent handler
-                const syntheticEvent = {
-                  currentTarget: { dataset: { hunkId } },
-                } as unknown as React.MouseEvent<HTMLElement>;
-                onClick?.(syntheticEvent);
-              }}
-              searchConfig={searchConfig}
-            />
+          <div className="font-monospace bg-code-bg grid grid-cols-[minmax(min-content,1fr)] overflow-x-auto text-[11px] leading-[1.4]">
+            {/* Read more upward button */}
+            {(() => {
+              const expansion = calculateUpwardExpansion(hunk.oldStart, readMoreState.up);
+              const canExpandUp = expansion.startLine >= 1 && expansion.numLines > 0;
+              return (
+                canExpandUp && (
+                  <div className="border-border-light border-b px-2 py-1.5">
+                    <button
+                      onClick={handleExpandUp}
+                      disabled={isLoadingUp}
+                      className="text-muted hover:text-foreground disabled:text-muted w-full text-center text-[11px] italic disabled:cursor-not-allowed"
+                    >
+                      {isLoadingUp ? "Loading..." : `Read ${expansion.numLines} more lines ↑`}
+                    </button>
+                  </div>
+                )
+              );
+            })()}
+            {/* Expanded content upward */}
+            {expandedContentUp && (
+              <div className="px-2 py-1.5">
+                <SelectableDiffRenderer
+                  content={expandedContentUp}
+                  filePath={hunk.filePath}
+                  oldStart={calculateUpwardExpansion(hunk.oldStart, readMoreState.up).startLine}
+                  newStart={calculateUpwardExpansion(hunk.oldStart, readMoreState.up).startLine}
+                  maxHeight="none"
+                  searchConfig={searchConfig}
+                />
+              </div>
+            )}
+            {/* Original hunk content */}
+            <div className="px-2 py-1.5">
+              <SelectableDiffRenderer
+                content={hunk.content}
+                filePath={hunk.filePath}
+                oldStart={hunk.oldStart}
+                newStart={hunk.newStart}
+                maxHeight="none"
+                onReviewNote={onReviewNote}
+                onLineClick={() => {
+                  // Create synthetic event with data-hunk-id for parent handler
+                  const syntheticEvent = {
+                    currentTarget: { dataset: { hunkId } },
+                  } as unknown as React.MouseEvent<HTMLElement>;
+                  onClick?.(syntheticEvent);
+                }}
+                searchConfig={searchConfig}
+              />
+            </div>
+            {/* Expanded content downward */}
+            {expandedContentDown && (
+              <div className="px-2 py-1.5">
+                <SelectableDiffRenderer
+                  content={expandedContentDown}
+                  filePath={hunk.filePath}
+                  oldStart={
+                    calculateDownwardExpansion(hunk.oldStart, hunk.oldLines, readMoreState.down)
+                      .startLine
+                  }
+                  newStart={
+                    calculateDownwardExpansion(hunk.oldStart, hunk.oldLines, readMoreState.down)
+                      .startLine
+                  }
+                  maxHeight="none"
+                  searchConfig={searchConfig}
+                />
+              </div>
+            )}
+            {/* Read more downward button */}
+            <div className="border-border-light border-t px-2 py-1.5">
+              <button
+                onClick={handleExpandDown}
+                disabled={isLoadingDown}
+                className="text-muted hover:text-foreground disabled:text-muted w-full text-center text-[11px] italic disabled:cursor-not-allowed"
+              >
+                {isLoadingDown ? "Loading..." : "Read 30 more lines ↓"}
+              </button>
+            </div>
           </div>
         ) : (
           <div
