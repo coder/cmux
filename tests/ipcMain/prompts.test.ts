@@ -192,4 +192,3 @@ describeIntegration("IpcMain prompts integration tests", () => {
     15000
   );
 });
-
