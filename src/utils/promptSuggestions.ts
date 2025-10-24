@@ -89,10 +89,7 @@ export function extractPromptMentions(input: string): string[] {
  * @param promptContents - Map of prompt name to content
  * @returns Input with @mentions expanded to content
  */
-export function expandPromptMentions(
-  input: string,
-  promptContents: Map<string, string>
-): string {
+export function expandPromptMentions(input: string, promptContents: Map<string, string>): string {
   let result = input;
 
   // Replace each mention with its content
@@ -111,4 +108,3 @@ export function expandPromptMentions(
 function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
-

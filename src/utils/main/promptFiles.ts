@@ -63,9 +63,7 @@ export async function listPrompts(
   repoPromptsDir?: string,
   systemPromptsDir?: string
 ): Promise<PromptFile[]> {
-  const repoPrompts = repoPromptsDir
-    ? await findPromptsInDirectory(repoPromptsDir, "repo")
-    : [];
+  const repoPrompts = repoPromptsDir ? await findPromptsInDirectory(repoPromptsDir, "repo") : [];
   const systemPrompts = systemPromptsDir
     ? await findPromptsInDirectory(systemPromptsDir, "system")
     : [];
@@ -136,4 +134,3 @@ export async function findAndReadPrompt(
 
   return null;
 }
-

@@ -125,4 +125,3 @@ export const PromptSuggestions: React.FC<PromptSuggestionsProps> = ({
     </div>
   );
 };
-

@@ -249,7 +249,9 @@ export interface IPCApi {
     onStatus(callback: (status: UpdateStatus) => void): () => void;
   };
   prompts: {
-    list(workspaceId: string): Promise<Array<{ name: string; path: string; location: "repo" | "system" }>>;
+    list(
+      workspaceId: string
+    ): Promise<Array<{ name: string; path: string; location: "repo" | "system" }>>;
     read(workspaceId: string, promptName: string): Promise<string | null>;
   };
 }

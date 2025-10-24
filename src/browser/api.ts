@@ -272,7 +272,8 @@ const webApi: IPCApi = {
   },
   prompts: {
     list: (workspaceId) => invokeIPC(IPC_CHANNELS.PROMPTS_LIST, workspaceId),
-    read: (workspaceId, promptName) => invokeIPC(IPC_CHANNELS.PROMPTS_READ, workspaceId, promptName),
+    read: (workspaceId, promptName) =>
+      invokeIPC(IPC_CHANNELS.PROMPTS_READ, workspaceId, promptName),
   },
 };
 
