@@ -162,7 +162,9 @@ export const ThinkingSliderComponent: React.FC<ThinkingControlProps> = ({ modelS
           {thinkingLevel}
         </span>
       </div>
-      <Tooltip align="center">Thinking: {formatKeybind(KEYBINDS.TOGGLE_THINKING)} to toggle</Tooltip>
+      <Tooltip align="center">
+        Thinking: {formatKeybind(KEYBINDS.TOGGLE_THINKING)} to toggle
+      </Tooltip>
     </TooltipWrapper>
   );
 };

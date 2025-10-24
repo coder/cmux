@@ -749,10 +749,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         )}
         <div className="flex flex-wrap items-center justify-between">
           {/* Model Selector - always visible */}
-          <div
-            className="flex items-center"
-            data-component="ModelSelectorGroup"
-          >
+          <div className="flex items-center" data-component="ModelSelectorGroup">
             <ModelSelector
               ref={modelSelectorRef}
               value={preferredModel}
@@ -789,10 +786,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           </div>
 
           {/* Context 1M Checkbox - hide on smaller viewports */}
-          <div
-            className="max-@[500px]:hidden flex items-center"
-            data-component="Context1MGroup"
-          >
+          <div className="max-@[500px]:hidden flex items-center" data-component="Context1MGroup">
             <Context1MCheckbox modelString={preferredModel} />
           </div>
           <div className="max-@[700px]:hidden flex items-center gap-1.5">
