@@ -59,6 +59,47 @@ export interface FileStat {
 }
 
 /**
+ * Logger for streaming workspace initialization events to frontend.
+ * Used to report progress during workspace creation and init hook execution.
+ */
+export interface InitLogger {
+  /** Log a creation step (e.g., "Creating worktree", "Syncing files") */
+  logStep(message: string): void;
+  /** Log stdout line from init hook */
+  logStdout(line: string): void;
+  /** Log stderr line from init hook */
+  logStderr(line: string): void;
+  /** Report init hook completion */
+  logComplete(exitCode: number): void;
+}
+
+/**
+ * Parameters for workspace creation
+ */
+export interface WorkspaceCreationParams {
+  /** Absolute path to project directory on local machine */
+  projectPath: string;
+  /** Branch name to checkout in workspace */
+  branchName: string;
+  /** Trunk branch to base new branches on */
+  trunkBranch: string;
+  /** Unique workspace identifier for directory naming */
+  workspaceId: string;
+  /** Logger for streaming creation progress and init hook output */
+  initLogger: InitLogger;
+}
+
+/**
+ * Result from workspace creation
+ */
+export interface WorkspaceCreationResult {
+  success: boolean;
+  /** Absolute path to workspace (local path for LocalRuntime, remote path for SSHRuntime) */
+  workspacePath?: string;
+  error?: string;
+}
+
+/**
  * Runtime interface - minimal, low-level abstraction for tool execution environments.
  *
  * All methods return streaming primitives for memory efficiency.
@@ -97,6 +138,13 @@ export interface Runtime {
    * @throws RuntimeError if path does not exist or cannot be accessed
    */
   stat(path: string): Promise<FileStat>;
+
+  /**
+   * Create a workspace for this runtime
+   * @param params Workspace creation parameters
+   * @returns Result with workspace path or error
+   */
+  createWorkspace(params: WorkspaceCreationParams): Promise<WorkspaceCreationResult>;
 }
 
 /**

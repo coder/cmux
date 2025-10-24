@@ -31,14 +31,10 @@ import { secretsToRecord } from "@/types/secrets";
 import { DisposableTempDir } from "@/services/tempDir";
 import { BashExecutionService } from "@/services/bashExecutionService";
 import { InitStateManager } from "@/services/initStateManager";
-<<<<<<< HEAD
 import { LocalRuntime } from "@/runtime/LocalRuntime";
 import { createRuntime } from "@/runtime/runtimeFactory";
-||||||| parent of f7f18ddf (🤖 Integrate init hooks with Runtime.createWorkspace())
-=======
-import { createRuntime } from "@/runtime/runtimeFactory";
->>>>>>> f7f18ddf (🤖 Integrate init hooks with Runtime.createWorkspace())
 
+import { checkInitHookExists } from "@/runtime/initHook";
 /**
  * IpcMain - Manages all IPC handlers and service coordination
  *

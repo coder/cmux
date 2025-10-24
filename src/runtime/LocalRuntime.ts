@@ -3,9 +3,24 @@ import * as fs from "fs";
 import * as fsPromises from "fs/promises";
 import * as path from "path";
 import { Readable, Writable } from "stream";
-import type { Runtime, ExecOptions, ExecStream, FileStat } from "./Runtime";
+import type {
+  Runtime,
+  ExecOptions,
+  ExecStream,
+  FileStat,
+  WorkspaceCreationParams,
+  WorkspaceCreationResult,
+  InitLogger,
+} from "./Runtime";
 import { RuntimeError as RuntimeErrorClass } from "./Runtime";
 import { NON_INTERACTIVE_ENV_VARS } from "../constants/env";
+import { createWorktree } from "../git";
+import { Config } from "../config";
+import {
+  checkInitHookExists,
+  getInitHookPath,
+  createLineBufferedLoggers,
+} from "./initHook";
 
 /**
  * Local runtime implementation that executes commands and file operations
@@ -171,5 +186,85 @@ export class LocalRuntime implements Runtime {
         err instanceof Error ? err : undefined
       );
     }
+  }
+
+  async createWorkspace(params: WorkspaceCreationParams): Promise<WorkspaceCreationResult> {
+    const { projectPath, branchName, trunkBranch, workspaceId, initLogger } = params;
+
+    // Log creation step
+    initLogger.logStep("Creating git worktree...");
+
+    // Load config to use existing git helpers
+    const config = new Config();
+
+    // Use existing createWorktree helper which handles all the git logic
+    const result = await createWorktree(config, projectPath, branchName, {
+      trunkBranch,
+      workspaceId,
+    });
+
+    // Map WorktreeResult to WorkspaceCreationResult
+    if (!result.success) {
+      return { success: false, error: result.error };
+    }
+
+    const workspacePath = result.path!;
+    initLogger.logStep("Worktree created successfully");
+
+    // Run .cmux/init hook if it exists
+    await this.runInitHook(projectPath, workspacePath, initLogger);
+
+    return { success: true, workspacePath };
+  }
+
+  /**
+   * Run .cmux/init hook if it exists and is executable
+   */
+  private async runInitHook(
+    projectPath: string,
+    workspacePath: string,
+    initLogger: InitLogger
+  ): Promise<void> {
+    // Check if hook exists and is executable
+    const hookExists = await checkInitHookExists(projectPath);
+    if (!hookExists) {
+      return;
+    }
+
+    const hookPath = getInitHookPath(projectPath);
+    initLogger.logStep(`Running init hook: ${hookPath}`);
+
+    // Create line-buffered loggers
+    const loggers = createLineBufferedLoggers(initLogger);
+
+    return new Promise<void>((resolve) => {
+      const proc = spawn("bash", ["-c", `"${hookPath}"`], {
+        cwd: workspacePath,
+        stdio: ["ignore", "pipe", "pipe"],
+      });
+
+      proc.stdout.on("data", (data: Buffer) => {
+        loggers.stdout.append(data.toString());
+      });
+
+      proc.stderr.on("data", (data: Buffer) => {
+        loggers.stderr.append(data.toString());
+      });
+
+      proc.on("close", (code) => {
+        // Flush any remaining buffered output
+        loggers.stdout.flush();
+        loggers.stderr.flush();
+
+        initLogger.logComplete(code ?? 0);
+        resolve();
+      });
+
+      proc.on("error", (err) => {
+        initLogger.logStderr(`Error running init hook: ${err.message}`);
+        initLogger.logComplete(-1);
+        resolve();
+      });
+    });
   }
 }
