@@ -11,6 +11,20 @@ interface UseWorkspaceManagementProps {
 }
 
 /**
+ * Ensure workspace metadata has createdAt timestamp.
+ * DEFENSIVE: Backend guarantees createdAt, but default to 2025-01-01 if missing.
+ * This prevents crashes if backend contract is violated.
+ */
+function ensureCreatedAt(metadata: FrontendWorkspaceMetadata): void {
+  if (!metadata.createdAt) {
+    console.warn(
+      `[Frontend] Workspace ${metadata.id} missing createdAt - using default (2025-01-01)`
+    );
+    metadata.createdAt = "2025-01-01T00:00:00.000Z";
+  }
+}
+
+/**
  * Hook to manage workspace operations (create, remove, rename, list)
  */
 export function useWorkspaceManagement({
@@ -28,6 +42,7 @@ export function useWorkspaceManagement({
       const metadataList = await window.api.workspace.list();
       const metadataMap = new Map();
       for (const metadata of metadataList) {
+        ensureCreatedAt(metadata);
         // Use stable workspace ID as key (not path, which can change)
         metadataMap.set(metadata.id, metadata);
       }
@@ -62,6 +77,7 @@ export function useWorkspaceManagement({
             // Workspace deleted - remove from map
             updated.delete(event.workspaceId);
           } else {
+            ensureCreatedAt(event.metadata);
             updated.set(event.workspaceId, event.metadata);
           }
 
@@ -169,6 +185,7 @@ export function useWorkspaceManagement({
             // Get updated workspace metadata from backend
             const newMetadata = await window.api.workspace.getInfo(newWorkspaceId);
             if (newMetadata) {
+              ensureCreatedAt(newMetadata);
               onSelectedWorkspaceUpdate({
                 projectPath: selectedWorkspace.projectPath,
                 projectName: newMetadata.projectName,

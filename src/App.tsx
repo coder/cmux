@@ -639,6 +639,14 @@ function AppInner() {
         return;
       }
 
+      // DEFENSIVE: Ensure createdAt exists
+      if (!workspaceInfo.createdAt) {
+        console.warn(
+          `[Frontend] Workspace ${workspaceInfo.id} missing createdAt in fork switch - using default (2025-01-01)`
+        );
+        workspaceInfo.createdAt = "2025-01-01T00:00:00.000Z";
+      }
+
       // Update metadata Map immediately (don't wait for async metadata event)
       // This ensures the title bar effect has the workspace name available
       setWorkspaceMetadata((prev) => {
