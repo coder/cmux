@@ -981,9 +981,7 @@ export class WorkspaceStore {
       return;
     }
 
-    // Handle init events
-    // Note: Init events are processed immediately in handleChatMessage() (not buffered)
-    // because they arrive during workspace creation before any chat history exists.
+    // Handle init events (workspace lifecycle events, not chat history - process immediately)
     if (isInitStart(data) || isInitOutput(data) || isInitEnd(data)) {
       aggregator.handleMessage(data);
       this.states.bump(workspaceId);

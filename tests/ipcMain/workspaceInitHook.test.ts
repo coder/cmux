@@ -408,16 +408,9 @@ test.concurrent(
         .slice(1)
         .map((event, i) => event.timestamp - initOutputEvents[i].timestamp);
 
-      console.log("Time between events (ms):", timeDiffs);
-      console.log(
-        "Event lines:",
-        initOutputEvents.map((e) => e.line)
-      );
-
       // ASSERTION: If streaming in real-time, events should be ~100ms apart
       // If batched/replayed, events will be <10ms apart
       const avgTimeDiff = timeDiffs.reduce((a, b) => a + b, 0) / timeDiffs.length;
-      console.log("Average time between events:", avgTimeDiff, "ms");
 
       // Real-time streaming: expect at least 70ms average (accounting for variance)
       // Batched replay: would be <10ms
@@ -425,7 +418,6 @@ test.concurrent(
 
       // Also verify first event arrives early (not waiting for hook to complete)
       const firstEventDelay = initOutputEvents[0].timestamp - startTime;
-      console.log("First event delay:", firstEventDelay, "ms");
       expect(firstEventDelay).toBeLessThan(1000); // Should arrive reasonably quickly (bash startup + git worktree setup)
     } finally {
       await cleanupTestEnvironment(env);
