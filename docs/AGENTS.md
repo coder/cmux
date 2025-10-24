@@ -482,6 +482,7 @@ Notice when you've made the same change many times, refactor to create a shared 
 or component, update all the duplicated code, and then continue on with the original work.
 When repeating string literals (especially in error messages, UI text, or system instructions), extract them to named constants in a relevant constants/utils file - never define the same string literal multiple times across files.
 Before defining a constant, search the codebase to see if it already exists and import it instead.
+If a constant exists in a layer-specific location (`services/`, `utils/main/`) but is needed across layers, move it to a shared location (`src/constants/`, `src/types/`) rather than duplicating it.
 
 **Avoid unnecessary callback indirection**: If a hook detects a condition and has access to all data needed to handle it, let it handle the action directly rather than passing callbacks up to parent components. Keep hooks self-contained when possible.
 

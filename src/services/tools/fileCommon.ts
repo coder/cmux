@@ -2,11 +2,7 @@ import type * as fs from "fs";
 import * as path from "path";
 import { createPatch } from "diff";
 
-/**
- * Prefix for all file write error messages.
- * This consistent prefix helps models detect when writes fail and need to retry.
- */
-export const WRITE_DENIED_PREFIX = "WRITE DENIED, FILE UNMODIFIED:";
+// WRITE_DENIED_PREFIX moved to @/types/tools for frontend/backend sharing
 
 /**
  * Maximum file size for file operations (1MB)
