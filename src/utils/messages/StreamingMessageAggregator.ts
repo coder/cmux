@@ -511,8 +511,14 @@ export class StreamingMessageAggregator {
     }
 
     if (isInitOutput(data)) {
-      if (!this.initState) return; // Defensive: shouldn't happen but handle gracefully
-      if (!data.line) return; // Defensive: skip events with missing line data
+      if (!this.initState) {
+        console.error("Received init-output without init-start", { data });
+        return;
+      }
+      if (!data.line) {
+        console.error("Received init-output with missing line field", { data });
+        return;
+      }
       const line = data.isError ? `ERROR: ${data.line}` : data.line;
       this.initState.lines.push(line.trimEnd());
       this.invalidateCache();
@@ -520,7 +526,10 @@ export class StreamingMessageAggregator {
     }
 
     if (isInitEnd(data)) {
-      if (!this.initState) return; // Defensive: shouldn't happen but handle gracefully
+      if (!this.initState) {
+        console.error("Received init-end without init-start", { data });
+        return;
+      }
       this.initState.exitCode = data.exitCode;
       this.initState.status = data.exitCode === 0 ? "success" : "error";
       this.invalidateCache();

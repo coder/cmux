@@ -970,10 +970,18 @@ export class WorkspaceStore {
       aggregator.handleMessage(data);
       this.states.bump(workspaceId);
       this.checkAndBumpRecencyIfChanged();
+    } else if ("role" in data || "type" in data) {
+      // Unexpected: message with role/type field didn't match any condition
+      console.error("[WorkspaceStore] Message not processed - unexpected state", {
+        workspaceId,
+        isCaughtUp,
+        hasRole: "role" in data,
+        hasType: "type" in data,
+        type: "type" in data ? (data as { type: string }).type : undefined,
+        role: "role" in data ? (data as { role: string }).role : undefined,
+      });
     }
-    // Note: Messages not matching above conditions are silently ignored
-    // This is expected for malformed messages or events handled elsewhere
-    // Note: Init events and stream events are handled by isStreamEvent() buffering above
+    // Note: Messages without role/type are silently ignored (expected for some IPC events)
   }
 }
 
