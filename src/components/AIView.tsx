@@ -205,15 +205,20 @@ const AIViewInner: React.FC<AIViewProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workspaceId, workspaceState?.loading]);
 
+  // Compute showRetryBarrier once for both keybinds and UI
+  // Track if last message was interrupted or errored (for RetryBarrier)
+  // Uses same logic as useResumeManager for DRY
+  const showRetryBarrier = workspaceState
+    ? !workspaceState.canInterrupt &&
+      hasInterruptedStream(workspaceState.messages, workspaceState.pendingStreamStartTime)
+    : false;
+
   // Handle keyboard shortcuts (using optional refs that are safe even if not initialized)
   useAIViewKeybinds({
     workspaceId,
     currentModel: workspaceState?.currentModel ?? null,
     canInterrupt: workspaceState?.canInterrupt ?? false,
-    showRetryBarrier: workspaceState
-      ? !workspaceState.canInterrupt &&
-        hasInterruptedStream(workspaceState.messages, workspaceState.pendingStreamStartTime)
-      : false,
+    showRetryBarrier,
     currentWorkspaceThinking,
     setThinkingLevel,
     setAutoRetry,
@@ -261,15 +266,10 @@ const AIViewInner: React.FC<AIViewProps> = ({
   }
 
   // Extract state from workspace state
-  const { messages, canInterrupt, isCompacting, loading, currentModel, pendingStreamStartTime } =
-    workspaceState;
+  const { messages, canInterrupt, isCompacting, loading, currentModel } = workspaceState;
 
   // Get active stream message ID for token counting
   const activeStreamMessageId = aggregator.getActiveStreamMessageId();
-
-  // Track if last message was interrupted or errored (for RetryBarrier)
-  // Uses same logic as useResumeManager for DRY
-  const showRetryBarrier = !canInterrupt && hasInterruptedStream(messages, pendingStreamStartTime);
 
   // Note: We intentionally do NOT reset autoRetry when streams start.
   // If user pressed Ctrl+C, autoRetry stays false until they manually retry.
