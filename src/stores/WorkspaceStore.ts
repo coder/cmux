@@ -29,7 +29,7 @@ export interface WorkspaceState {
   currentModel: string | null;
   recencyTimestamp: number | null;
   todos: TodoItem[];
-  pendingStreamStart: boolean;
+  pendingStreamStartTime: number | null;
 }
 
 /**
@@ -363,7 +363,7 @@ export class WorkspaceStore {
         currentModel: aggregator.getCurrentModel() ?? null,
         recencyTimestamp: aggregator.getRecencyTimestamp(),
         todos: aggregator.getCurrentTodos(),
-        pendingStreamStart: aggregator.isPendingStreamStart(),
+        pendingStreamStartTime: aggregator.getPendingStreamStartTime(),
       };
     });
   }

@@ -212,7 +212,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
     canInterrupt: workspaceState?.canInterrupt ?? false,
     showRetryBarrier: workspaceState
       ? !workspaceState.canInterrupt &&
-        hasInterruptedStream(workspaceState.messages, workspaceState.pendingStreamStart)
+        hasInterruptedStream(workspaceState.messages, workspaceState.pendingStreamStartTime)
       : false,
     currentWorkspaceThinking,
     setThinkingLevel,
@@ -261,7 +261,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
   }
 
   // Extract state from workspace state
-  const { messages, canInterrupt, isCompacting, loading, currentModel, pendingStreamStart } =
+  const { messages, canInterrupt, isCompacting, loading, currentModel, pendingStreamStartTime } =
     workspaceState;
 
   // Get active stream message ID for token counting
@@ -269,7 +269,7 @@ const AIViewInner: React.FC<AIViewProps> = ({
 
   // Track if last message was interrupted or errored (for RetryBarrier)
   // Uses same logic as useResumeManager for DRY
-  const showRetryBarrier = !canInterrupt && hasInterruptedStream(messages, pendingStreamStart);
+  const showRetryBarrier = !canInterrupt && hasInterruptedStream(messages, pendingStreamStartTime);
 
   // Note: We intentionally do NOT reset autoRetry when streams start.
   // If user pressed Ctrl+C, autoRetry stays false until they manually retry.

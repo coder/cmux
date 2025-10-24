@@ -157,10 +157,10 @@ describe("hasInterruptedStream", () => {
         historySequence: 3,
       },
     ];
-    expect(hasInterruptedStream(messages, false)).toBe(true);
+    expect(hasInterruptedStream(messages, null)).toBe(true);
   });
 
-  it("returns false when pendingStreamStart is true", () => {
+  it("returns false when message was sent very recently (< 3s)", () => {
     const messages: DisplayedMessage[] = [
       {
         type: "user",
@@ -189,7 +189,9 @@ describe("hasInterruptedStream", () => {
         historySequence: 3,
       },
     ];
-    expect(hasInterruptedStream(messages, true)).toBe(false);
+    // Message sent 1 second ago - still within 3s window
+    const recentTimestamp = Date.now() - 1000;
+    expect(hasInterruptedStream(messages, recentTimestamp)).toBe(false);
   });
 
   it("returns true when user message has no response (slow model scenario)", () => {
@@ -202,10 +204,10 @@ describe("hasInterruptedStream", () => {
         historySequence: 1,
       },
     ];
-    expect(hasInterruptedStream(messages, false)).toBe(true);
+    expect(hasInterruptedStream(messages, null)).toBe(true);
   });
 
-  it("returns false when user message just sent and pendingStreamStart is true", () => {
+  it("returns false when user message just sent (< 3s ago)", () => {
     const messages: DisplayedMessage[] = [
       {
         type: "user",
@@ -215,6 +217,21 @@ describe("hasInterruptedStream", () => {
         historySequence: 1,
       },
     ];
-    expect(hasInterruptedStream(messages, true)).toBe(false);
+    const justSent = Date.now() - 500; // 0.5s ago
+    expect(hasInterruptedStream(messages, justSent)).toBe(false);
+  });
+
+  it("returns true when message sent over 3s ago (stream likely hung)", () => {
+    const messages: DisplayedMessage[] = [
+      {
+        type: "user",
+        id: "user-1",
+        historyId: "user-1",
+        content: "Hello",
+        historySequence: 1,
+      },
+    ];
+    const longAgo = Date.now() - 4000; // 4s ago - past 3s threshold
+    expect(hasInterruptedStream(messages, longAgo)).toBe(true);
   });
 });

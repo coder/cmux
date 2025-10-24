@@ -62,8 +62,8 @@ export class StreamingMessageAggregator {
 
   // Track when we're waiting for stream-start after user message
   // Prevents retry barrier flash during normal send flow
-  private pendingStreamStart = false;
-  private pendingStreamStartTimer: ReturnType<typeof setTimeout> | null = null;
+  // Stores timestamp of when user message was sent (null = no pending stream)
+  private pendingStreamStartTime: number | null = null;
 
   // Workspace creation timestamp (used for recency calculation)
   // REQUIRED: Backend guarantees every workspace has createdAt via config.ts
@@ -186,27 +186,12 @@ export class StreamingMessageAggregator {
     return this.messages.size > 0;
   }
 
-  isPendingStreamStart(): boolean {
-    return this.pendingStreamStart;
+  getPendingStreamStartTime(): number | null {
+    return this.pendingStreamStartTime;
   }
 
-  private setPendingStreamStart(pending: boolean): void {
-    // Clear existing timer if any
-    if (this.pendingStreamStartTimer) {
-      clearTimeout(this.pendingStreamStartTimer);
-      this.pendingStreamStartTimer = null;
-    }
-
-    this.pendingStreamStart = pending;
-
-    if (pending) {
-      // Set 30s timeout - if stream hasn't started by then, something is wrong
-      this.pendingStreamStartTimer = setTimeout(() => {
-        this.pendingStreamStart = false;
-        this.pendingStreamStartTimer = null;
-        this.invalidateCache(); // Trigger re-render to show retry barrier
-      }, 30000);
-    }
+  private setPendingStreamStartTime(time: number | null): void {
+    this.pendingStreamStartTime = time;
   }
 
   getActiveStreams(): StreamingContext[] {
@@ -279,8 +264,8 @@ export class StreamingMessageAggregator {
 
   // Unified event handlers that encapsulate all complex logic
   handleStreamStart(data: StreamStartEvent): void {
-    // Clear pending stream start flag - stream has started
-    this.setPendingStreamStart(false);
+    // Clear pending stream start timestamp - stream has started
+    this.setPendingStreamStartTime(null);
 
     // Detect if this stream is compacting by checking if last user message is a compaction-request
     const messages = this.getAllMessages();
@@ -603,9 +588,9 @@ export class StreamingMessageAggregator {
       // Now add the new message
       this.addMessage(incomingMessage);
 
-      // If this is a user message, set pendingStreamStart flag and start timeout
+      // If this is a user message, record timestamp for pending stream detection
       if (incomingMessage.role === "user") {
-        this.setPendingStreamStart(true);
+        this.setPendingStreamStartTime(Date.now());
       }
     }
   }
