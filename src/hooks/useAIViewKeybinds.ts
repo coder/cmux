@@ -67,15 +67,19 @@ export function useAIViewKeybinds({
         }
 
         // Normal stream interrupt (non-compaction)
-        // Don't intercept if user is typing in an input field
-        if (!isEditableElement(e.target) && (canInterrupt || showRetryBarrier)) {
+        // Allow interrupt in editable elements if there's no text selection
+        // This way Ctrl+C works for both copy (when text is selected) and interrupt (when not)
+        const hasSelection = window.getSelection()?.toString().length ?? 0 > 0;
+        const inEditableElement = isEditableElement(e.target);
+
+        if ((canInterrupt || showRetryBarrier) && (!inEditableElement || !hasSelection)) {
           e.preventDefault();
           setAutoRetry(false); // User explicitly stopped - don't auto-retry
           void window.api.workspace.interruptStream(workspaceId);
           return;
         }
 
-        // Let browser handle Ctrl+C (copy) in editable elements
+        // Let browser handle Ctrl+C (copy) when there's a selection
         return;
       }
 
