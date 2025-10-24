@@ -248,6 +248,36 @@ export const HunkViewer = React.memo<HunkViewerProps>(
       [hunkId, readMoreState, setReadMoreStateMap]
     );
 
+    const handleCollapseUp = React.useCallback(
+      (e: React.MouseEvent) => {
+        e.stopPropagation();
+        const newExpansion = Math.max(0, readMoreState.up - 30);
+        setReadMoreStateMap((prev) => ({
+          ...prev,
+          [hunkId]: {
+            ...readMoreState,
+            up: newExpansion,
+          },
+        }));
+      },
+      [hunkId, readMoreState, setReadMoreStateMap]
+    );
+
+    const handleCollapseDown = React.useCallback(
+      (e: React.MouseEvent) => {
+        e.stopPropagation();
+        const newExpansion = Math.max(0, readMoreState.down - 30);
+        setReadMoreStateMap((prev) => ({
+          ...prev,
+          [hunkId]: {
+            ...readMoreState,
+            down: newExpansion,
+          },
+        }));
+      },
+      [hunkId, readMoreState, setReadMoreStateMap]
+    );
+
     // Detect pure rename: if renamed and content hasn't changed (zero additions and deletions)
     const isPureRename =
       hunk.changeType === "renamed" && !!hunk.oldPath && additions === 0 && deletions === 0;
@@ -289,11 +319,15 @@ export const HunkViewer = React.memo<HunkViewerProps>(
               content: expandedContentUp,
               isLoading: isLoadingUp,
               onExpand: handleExpandUp,
+              onCollapse: handleCollapseUp,
+              canCollapse: readMoreState.up > 0,
             }}
             downExpansion={{
               content: expandedContentDown,
               isLoading: isLoadingDown,
               onExpand: handleExpandDown,
+              onCollapse: handleCollapseDown,
+              canCollapse: readMoreState.down > 0,
             }}
             onClick={onClick}
             onReviewNote={onReviewNote}

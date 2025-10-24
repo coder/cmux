@@ -1,13 +1,15 @@
 /**
- * ReadMoreButton - Button for expanding context in code review hunks
+ * ReadMoreButton - Button for expanding/collapsing context in code review hunks
  */
 
 import React from "react";
 
 interface ReadMoreButtonProps {
-  /** Direction of expansion */
+  /** Direction of expansion/collapse */
   direction: "up" | "down";
-  /** Number of lines that will be loaded */
+  /** Action type */
+  action: "expand" | "collapse";
+  /** Number of lines that will be added/removed */
   numLines: number;
   /** Whether the button is in loading state */
   isLoading: boolean;
@@ -18,9 +20,12 @@ interface ReadMoreButtonProps {
 }
 
 export const ReadMoreButton = React.memo<ReadMoreButtonProps>(
-  ({ direction, numLines, isLoading, disabled = false, onClick }) => {
+  ({ direction, action, numLines, isLoading, disabled = false, onClick }) => {
     const arrow = direction === "up" ? "↑" : "↓";
-    const label = isLoading ? "Loading..." : `Read ${numLines} more lines ${arrow}`;
+    const verb = action === "expand" ? "Read" : "Show";
+    const qualifier = action === "expand" ? "more" : "fewer";
+
+    const label = isLoading ? "Loading..." : `${verb} ${numLines} ${qualifier} lines ${arrow}`;
 
     return (
       <div className="border-border-light border-b px-2 py-1.5">
