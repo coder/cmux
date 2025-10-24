@@ -270,6 +270,10 @@ const webApi: IPCApi = {
       return wsManager.on(IPC_CHANNELS.UPDATE_STATUS, callback as (data: unknown) => void);
     },
   },
+  prompts: {
+    list: (workspaceId) => invokeIPC(IPC_CHANNELS.PROMPTS_LIST, workspaceId),
+    read: (workspaceId, promptName) => invokeIPC(IPC_CHANNELS.PROMPTS_READ, workspaceId, promptName),
+  },
 };
 
 if (typeof window.api === "undefined") {

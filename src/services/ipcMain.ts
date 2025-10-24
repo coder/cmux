@@ -28,6 +28,7 @@ import { createBashTool } from "@/services/tools/bash";
 import type { BashToolResult } from "@/types/tools";
 import { secretsToRecord } from "@/types/secrets";
 import { DisposableTempDir } from "@/services/tempDir";
+import { listPrompts, findAndReadPrompt, type PromptFile } from "@/utils/main/promptFiles";
 
 /**
  * IpcMain - Manages all IPC handlers and service coordination
@@ -144,6 +145,7 @@ export class IpcMain {
     this.registerWorkspaceHandlers(ipcMain);
     this.registerProviderHandlers(ipcMain);
     this.registerProjectHandlers(ipcMain);
+    this.registerPromptHandlers(ipcMain);
     this.registerSubscriptionHandlers(ipcMain);
     this.registered = true;
   }
@@ -1259,5 +1261,55 @@ export class IpcMain {
       }
     }
     return null;
+  }
+
+  private registerPromptHandlers(ipcMain: ElectronIpcMain): void {
+    ipcMain.handle(
+      IPC_CHANNELS.PROMPTS_LIST,
+      async (_event, workspaceId: string): Promise<PromptFile[]> => {
+        try {
+          const workspace = this.config.findWorkspace(workspaceId);
+          if (!workspace) {
+            return [];
+          }
+
+          // Get workspace path to find repo .cmux directory
+          const workspacePath = workspace.workspacePath;
+          const repoPromptsDir = path.join(workspacePath, ".cmux");
+
+          // Get system prompts directory
+          const systemPromptsDir = path.join(this.config.rootDir, "prompts");
+
+          return await listPrompts(repoPromptsDir, systemPromptsDir);
+        } catch (error) {
+          log.error("Failed to list prompts:", error);
+          return [];
+        }
+      }
+    );
+
+    ipcMain.handle(
+      IPC_CHANNELS.PROMPTS_READ,
+      async (_event, workspaceId: string, promptName: string): Promise<string | null> => {
+        try {
+          const workspace = this.config.findWorkspace(workspaceId);
+          if (!workspace) {
+            return null;
+          }
+
+          // Get workspace path to find repo .cmux directory
+          const workspacePath = workspace.workspacePath;
+          const repoPromptsDir = path.join(workspacePath, ".cmux");
+
+          // Get system prompts directory
+          const systemPromptsDir = path.join(this.config.rootDir, "prompts");
+
+          return await findAndReadPrompt(promptName, repoPromptsDir, systemPromptsDir);
+        } catch (error) {
+          log.error(`Failed to read prompt "${promptName}":`, error);
+          return null;
+        }
+      }
+    );
   }
 }

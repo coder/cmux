@@ -49,6 +49,10 @@ export const IPC_CHANNELS = {
   UPDATE_STATUS: "update:status",
   UPDATE_STATUS_SUBSCRIBE: "update:status:subscribe",
 
+  // Prompt channels
+  PROMPTS_LIST: "prompts:list",
+  PROMPTS_READ: "prompts:read",
+
   // Dynamic channel prefixes
   WORKSPACE_CHAT_PREFIX: "workspace:chat:",
   WORKSPACE_METADATA: "workspace:metadata",

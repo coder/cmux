@@ -136,6 +136,11 @@ const api: IPCApi = {
       };
     },
   },
+  prompts: {
+    list: (workspaceId: string) => ipcRenderer.invoke(IPC_CHANNELS.PROMPTS_LIST, workspaceId),
+    read: (workspaceId: string, promptName: string) =>
+      ipcRenderer.invoke(IPC_CHANNELS.PROMPTS_READ, workspaceId, promptName),
+  },
 };
 
 // Expose the API along with platform/versions
