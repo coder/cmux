@@ -768,6 +768,11 @@ export class StreamingMessageAggregator {
 
       // Add init state if present (ephemeral, appears at top)
       if (this.initState) {
+        console.debug("[StreamingMessageAggregator] Serializing init state to DisplayedMessage:", {
+          status: this.initState.status,
+          lineCount: this.initState.lines.length,
+          exitCode: this.initState.exitCode,
+        });
         const initMessage: DisplayedMessage = {
           type: "workspace-init",
           id: "workspace-init",

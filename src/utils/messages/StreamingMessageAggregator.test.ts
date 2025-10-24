@@ -9,7 +9,6 @@ describe("StreamingMessageAggregator", () => {
       // Start init hook
       aggregator.handleMessage({
         type: "init-start",
-        workspaceId: "test",
         hookPath: "/test/init",
         timestamp: Date.now(),
       });
@@ -19,7 +18,6 @@ describe("StreamingMessageAggregator", () => {
       // Add output to change state
       aggregator.handleMessage({
         type: "init-output",
-        workspaceId: "test",
         line: "Line 1",
         isError: false,
         timestamp: Date.now(),
@@ -37,7 +35,6 @@ describe("StreamingMessageAggregator", () => {
       // Start init hook
       aggregator.handleMessage({
         type: "init-start",
-        workspaceId: "test",
         hookPath: "/test/init",
         timestamp: Date.now(),
       });
@@ -49,7 +46,6 @@ describe("StreamingMessageAggregator", () => {
       // Add output
       aggregator.handleMessage({
         type: "init-output",
-        workspaceId: "test",
         line: "Line 1",
         isError: false,
         timestamp: Date.now(),
@@ -73,7 +69,6 @@ describe("StreamingMessageAggregator", () => {
       // Start init hook
       aggregator.handleMessage({
         type: "init-start",
-        workspaceId: "test",
         hookPath: "/test/init",
         timestamp: Date.now(),
       });
@@ -84,7 +79,6 @@ describe("StreamingMessageAggregator", () => {
       // Add multiple outputs
       aggregator.handleMessage({
         type: "init-output",
-        workspaceId: "test",
         line: "Line 1",
         isError: false,
         timestamp: Date.now(),
@@ -95,7 +89,6 @@ describe("StreamingMessageAggregator", () => {
 
       aggregator.handleMessage({
         type: "init-output",
-        workspaceId: "test",
         line: "Line 2",
         isError: false,
         timestamp: Date.now(),
@@ -130,7 +123,6 @@ describe("StreamingMessageAggregator", () => {
       // Start init hook
       aggregator.handleMessage({
         type: "init-start",
-        workspaceId: "test",
         hookPath: "/test/init",
         timestamp: Date.now(),
       });
