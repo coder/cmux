@@ -327,6 +327,16 @@ export class WorkspaceStore {
   };
 
   /**
+   * Assert that workspace exists and return its aggregator.
+   * Centralized assertion for all workspace access methods.
+   */
+  private assertGet(workspaceId: string): StreamingMessageAggregator {
+    const aggregator = this.aggregators.get(workspaceId);
+    assert(aggregator, `Workspace ${workspaceId} not found - must call addWorkspace() first`);
+    return aggregator;
+  }
+
+  /**
    * Get state for a specific workspace.
    * Lazy computation - only runs when version changes.
    *
@@ -334,8 +344,7 @@ export class WorkspaceStore {
    */
   getWorkspaceState(workspaceId: string): WorkspaceState {
     return this.states.get(workspaceId, () => {
-      const aggregator = this.aggregators.get(workspaceId);
-      assert(aggregator, `Workspace ${workspaceId} not found - must call addWorkspace() first`);
+      const aggregator = this.assertGet(workspaceId);
 
       const hasMessages = aggregator.hasMessages();
       const isCaughtUp = this.caughtUp.get(workspaceId) ?? false;
@@ -425,9 +434,7 @@ export class WorkspaceStore {
    * REQUIRES: Workspace must have been added via addWorkspace() first.
    */
   getAggregator(workspaceId: string): StreamingMessageAggregator {
-    const aggregator = this.aggregators.get(workspaceId);
-    assert(aggregator, `Workspace ${workspaceId} not found - must call addWorkspace() first`);
-    return aggregator;
+    return this.assertGet(workspaceId);
   }
 
   /**
@@ -447,8 +454,7 @@ export class WorkspaceStore {
    */
   getWorkspaceUsage(workspaceId: string): WorkspaceUsageState {
     return this.usageStore.get(workspaceId, () => {
-      const aggregator = this.aggregators.get(workspaceId);
-      assert(aggregator, `Workspace ${workspaceId} not found - must call addWorkspace() first`);
+      const aggregator = this.assertGet(workspaceId);
 
       const messages = aggregator.getAllMessages();
 
@@ -893,11 +899,7 @@ export class WorkspaceStore {
 
   private handleChatMessage(workspaceId: string, data: WorkspaceChatMessage): void {
     // Aggregator must exist - IPC subscription happens in addWorkspace()
-    const aggregator = this.aggregators.get(workspaceId);
-    assert(
-      aggregator,
-      `Workspace ${workspaceId} not found - IPC message arrived before addWorkspace()`
-    );
+    const aggregator = this.assertGet(workspaceId);
 
     const isCaughtUp = this.caughtUp.get(workspaceId) ?? false;
     const historicalMsgs = this.historicalMessages.get(workspaceId) ?? [];
