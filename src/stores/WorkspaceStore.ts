@@ -791,8 +791,8 @@ export class WorkspaceStore {
       isToolCallEnd(data) ||
       isReasoningDelta(data) ||
       isReasoningEnd(data)
-      // Note: Init events are NOT buffered - they're workspace lifecycle events
-      // that should stream in real-time, not wait for caught-up signal
+      // Note: Init events (type:"init-*") and regular messages (role:"user"|"assistant")
+      // are excluded from this list and flow through the regular message path below
     );
   }
 
