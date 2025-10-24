@@ -127,9 +127,6 @@ export const ThinkingSliderComponent: React.FC<ThinkingControlProps> = ({ modelS
   return (
     <TooltipWrapper>
       <div className="flex items-center gap-2">
-        <label htmlFor={sliderId} className="text-subdued text-[10px] select-none">
-          Thinking:
-        </label>
         <input
           type="range"
           min="0"
@@ -147,6 +144,7 @@ export const ThinkingSliderComponent: React.FC<ThinkingControlProps> = ({ modelS
           aria-valuemax={3}
           aria-valuenow={value}
           aria-valuetext={thinkingLevel}
+          aria-label="Thinking level"
           className="thinking-slider"
           style={
             {
@@ -164,7 +162,7 @@ export const ThinkingSliderComponent: React.FC<ThinkingControlProps> = ({ modelS
           {thinkingLevel}
         </span>
       </div>
-      <Tooltip align="center">{formatKeybind(KEYBINDS.TOGGLE_THINKING)} to toggle</Tooltip>
+      <Tooltip align="center">Thinking: {formatKeybind(KEYBINDS.TOGGLE_THINKING)} to toggle</Tooltip>
     </TooltipWrapper>
   );
 };
