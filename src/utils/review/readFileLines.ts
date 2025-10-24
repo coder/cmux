@@ -3,7 +3,8 @@
  * Used by the read-more feature in code review
  */
 
-const LINES_PER_EXPANSION = 30;
+/** Number of lines to expand per click (used by HunkViewer component) */
+export const LINES_PER_EXPANSION = 30;
 
 /**
  * Determine which git ref to use for reading file context based on diffBase
