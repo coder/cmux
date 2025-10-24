@@ -41,7 +41,7 @@ export function useAutoCompactContinue() {
     // Check all workspaces for completed compaction
     for (const [workspaceId, state] of newStates) {
       // Debug logging to understand state
-      console.log(`[useAutoCompactContinue] Checking workspace ${workspaceId}:`, {
+      console.log(`[useAutoCompactContinue] [${workspaceId}] Checking:`, {
         messagesLength: state.messages.length,
         firstMessageType: state.messages[0]?.type,
         isCompacted: state.messages[0]?.isCompacted,
@@ -60,7 +60,7 @@ export function useAutoCompactContinue() {
         // Workspace no longer in compacted state - no action needed
         // Processed message IDs will naturally accumulate but stay bounded
         // (one per compaction), and get cleared when user sends new messages
-        console.log(`[useAutoCompactContinue] ${workspaceId} not in single compacted state`);
+        console.log(`[useAutoCompactContinue] [${workspaceId}] Not in single compacted state`);
         continue;
       }
 
@@ -71,7 +71,7 @@ export function useAutoCompactContinue() {
       const continueMessage =
         cmuxMeta?.type === "compaction-result" ? cmuxMeta.continueMessage : undefined;
 
-      console.log(`[useAutoCompactContinue] ${workspaceId} continueMessage:`, continueMessage);
+      console.log(`[useAutoCompactContinue] [${workspaceId}] continueMessage:`, continueMessage);
 
       if (!continueMessage) continue;
 
