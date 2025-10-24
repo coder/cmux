@@ -7,7 +7,7 @@ import type { DiffHunk, HunkReadMoreState } from "@/types/review";
 import type { SearchHighlightConfig } from "@/utils/highlighting/highlightSearchTerms";
 import { SelectableDiffRenderer } from "../../shared/DiffRenderer";
 import { ReadMoreButton } from "./ReadMoreButton";
-import { calculateUpwardExpansion, calculateDownwardExpansion } from "@/utils/review/readFileLines";
+import { calculateUpwardExpansion } from "@/utils/review/readFileLines";
 
 interface ExpansionState {
   content: string;
