@@ -82,9 +82,9 @@ export const ReviewControls: React.FC<ReviewControlsProps> = ({
   const showSetDefault = filters.diffBase !== defaultBase;
 
   return (
-    <div className="bg-separator border-border-light flex flex-wrap items-center gap-3 border-b px-3 py-2 text-[11px]">
+    <div className="flex flex-wrap items-center gap-3 border-b border-neutral-800 bg-neutral-900 px-3 py-2 text-[11px]">
       {onRefresh && <RefreshButton onClick={onRefresh} isLoading={isLoading} />}
-      <label className="text-muted font-medium whitespace-nowrap">Base:</label>
+      <label className="font-medium whitespace-nowrap text-neutral-400">Base:</label>
       <input
         type="text"
         list="base-suggestions"
@@ -93,7 +93,7 @@ export const ReviewControls: React.FC<ReviewControlsProps> = ({
         onBlur={handleBaseBlur}
         onKeyDown={handleBaseKeyDown}
         placeholder="HEAD, main, etc."
-        className="bg-dark text-foreground border-border-medium hover:border-accent focus:border-accent placeholder:text-dim w-36 rounded border px-2 py-1 font-mono text-[11px] transition-[border-color] duration-200 focus:outline-none"
+        className="w-36 rounded border border-neutral-700 bg-neutral-900 px-2 py-1 font-mono text-[11px] text-neutral-300 transition-[border-color] duration-200 placeholder:text-neutral-400 hover:border-sky-600 focus:border-sky-600 focus:outline-none"
       />
       <datalist id="base-suggestions">
         <option value="HEAD" />
@@ -109,13 +109,13 @@ export const ReviewControls: React.FC<ReviewControlsProps> = ({
       {showSetDefault && (
         <button
           onClick={handleSetDefault}
-          className="text-muted font-primary hover:bg-white-overlay-light hover:text-foreground cursor-pointer rounded border-none bg-transparent px-2 py-0.5 text-[11px] whitespace-nowrap transition-all duration-200"
+          className="font-primary hover:bg-white-overlay-light cursor-pointer rounded border-none bg-transparent px-2 py-0.5 text-[11px] whitespace-nowrap text-neutral-400 transition-all duration-200 hover:text-neutral-300"
         >
           Set Default
         </button>
       )}
 
-      <label className="text-foreground flex cursor-pointer items-center gap-1.5 text-[11px] whitespace-nowrap hover:text-white [&_input[type='checkbox']]:cursor-pointer">
+      <label className="flex cursor-pointer items-center gap-1.5 text-[11px] whitespace-nowrap text-neutral-300 hover:text-white [&_input[type='checkbox']]:cursor-pointer">
         <input
           type="checkbox"
           checked={filters.includeUncommitted}
@@ -124,7 +124,7 @@ export const ReviewControls: React.FC<ReviewControlsProps> = ({
         Uncommitted
       </label>
 
-      <label className="text-foreground flex cursor-pointer items-center gap-1.5 text-[11px] whitespace-nowrap hover:text-white [&_input[type='checkbox']]:cursor-pointer">
+      <label className="flex cursor-pointer items-center gap-1.5 text-[11px] whitespace-nowrap text-neutral-300 hover:text-white [&_input[type='checkbox']]:cursor-pointer">
         <input type="checkbox" checked={filters.showReadHunks} onChange={handleShowReadToggle} />
         Show read
       </label>
@@ -136,9 +136,9 @@ export const ReviewControls: React.FC<ReviewControlsProps> = ({
         onRefresh={onRefresh}
       />
 
-      <div className="bg-border-light h-4 w-px" />
+      <div className="bg-border-neutral-800 h-4 w-px" />
 
-      <div className="text-muted rounded border border-transparent bg-transparent px-2.5 py-1 text-[11px] font-medium whitespace-nowrap">
+      <div className="rounded border border-transparent bg-transparent px-2.5 py-1 text-[11px] font-medium whitespace-nowrap text-neutral-400">
         {stats.read} read / {stats.total} total
       </div>
     </div>

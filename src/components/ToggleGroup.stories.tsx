@@ -174,7 +174,7 @@ const StyledModeToggle = ({
 }) => (
   <div
     className={cn(
-      "flex gap-0 bg-toggle-bg rounded",
+      "flex gap-0 bg-neutral-900 rounded",
       mode === "exec" &&
         "[&_button:first-of-type]:bg-exec-mode [&_button:first-of-type]:text-white [&_button:first-of-type:hover]:bg-exec-mode-hover",
       mode === "plan" &&
@@ -260,8 +260,8 @@ export const WithStateDisplay: Story = {
           value={value}
           onChange={(newValue) => updateArgs({ value: newValue })}
         />
-        <div className="text-muted-light font-primary text-xs">
-          Current selection: <strong className="text-bright">{value}</strong>
+        <div className="text-neutral-400-light font-primary text-xs">
+          Current selection: <strong className="text-neutral-300">{value}</strong>
         </div>
       </div>
     );
@@ -316,17 +316,17 @@ export const MultipleGroups: Story = {
     return (
       <div className="flex flex-col gap-5 p-5">
         <div>
-          <div className="text-muted-light font-primary mb-1.5 text-[11px]">Theme</div>
+          <div className="text-neutral-400-light font-primary mb-1.5 text-[11px]">Theme</div>
           <ToggleGroup options={themeOptions} value={theme} onChange={handleThemeChange} />
         </div>
 
         <div>
-          <div className="text-muted-light font-primary mb-1.5 text-[11px]">Size</div>
+          <div className="text-neutral-400-light font-primary mb-1.5 text-[11px]">Size</div>
           <ToggleGroup options={sizeOptions} value={size} onChange={handleSizeChange} />
         </div>
 
         <div>
-          <div className="text-muted-light font-primary mb-1.5 text-[11px]">Layout</div>
+          <div className="text-neutral-400-light font-primary mb-1.5 text-[11px]">Layout</div>
           <ToggleGroup options={layoutOptions} value={layout} onChange={handleLayoutChange} />
         </div>
       </div>

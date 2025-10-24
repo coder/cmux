@@ -18,7 +18,7 @@ export const BasicTooltip: Story = {
   args: { children: "This is a helpful tooltip" },
   render: () => (
     <TooltipWrapper>
-      <button className="bg-accent-dark font-primary hover:bg-accent-hover cursor-pointer rounded border-none px-4 py-2 text-[13px] text-white">
+      <button className="bg-sky-600-dark font-primary hover:bg-sky-600-hover cursor-pointer rounded border-none px-4 py-2 text-[13px] text-white">
         Hover me
       </button>
       <Tooltip>This is a helpful tooltip</Tooltip>
@@ -66,14 +66,14 @@ export const TooltipPositions: Story = {
   render: () => (
     <div className="flex flex-wrap gap-5 p-10">
       <TooltipWrapper>
-        <button className="bg-accent-dark font-primary hover:bg-accent-hover cursor-pointer rounded border-none px-4 py-2 text-[13px] text-white">
+        <button className="bg-sky-600-dark font-primary hover:bg-sky-600-hover cursor-pointer rounded border-none px-4 py-2 text-[13px] text-white">
           Top (default)
         </button>
         <Tooltip position="top">Tooltip appears above</Tooltip>
       </TooltipWrapper>
 
       <TooltipWrapper>
-        <button className="bg-accent-dark font-primary hover:bg-accent-hover cursor-pointer rounded border-none px-4 py-2 text-[13px] text-white">
+        <button className="bg-sky-600-dark font-primary hover:bg-sky-600-hover cursor-pointer rounded border-none px-4 py-2 text-[13px] text-white">
           Bottom
         </button>
         <Tooltip position="bottom">Tooltip appears below</Tooltip>
@@ -87,21 +87,21 @@ export const TooltipAlignments: Story = {
   render: () => (
     <div className="flex flex-wrap gap-5 p-10">
       <TooltipWrapper>
-        <button className="bg-accent-dark font-primary hover:bg-accent-hover cursor-pointer rounded border-none px-4 py-2 text-[13px] text-white">
+        <button className="bg-sky-600-dark font-primary hover:bg-sky-600-hover cursor-pointer rounded border-none px-4 py-2 text-[13px] text-white">
           Left Aligned
         </button>
         <Tooltip align="left">Left-aligned tooltip</Tooltip>
       </TooltipWrapper>
 
       <TooltipWrapper>
-        <button className="bg-accent-dark font-primary hover:bg-accent-hover cursor-pointer rounded border-none px-4 py-2 text-[13px] text-white">
+        <button className="bg-sky-600-dark font-primary hover:bg-sky-600-hover cursor-pointer rounded border-none px-4 py-2 text-[13px] text-white">
           Center Aligned
         </button>
         <Tooltip align="center">Center-aligned tooltip</Tooltip>
       </TooltipWrapper>
 
       <TooltipWrapper>
-        <button className="bg-accent-dark font-primary hover:bg-accent-hover cursor-pointer rounded border-none px-4 py-2 text-[13px] text-white">
+        <button className="bg-sky-600-dark font-primary hover:bg-sky-600-hover cursor-pointer rounded border-none px-4 py-2 text-[13px] text-white">
           Right Aligned
         </button>
         <Tooltip align="right">Right-aligned tooltip</Tooltip>
@@ -114,7 +114,7 @@ export const WideTooltip: Story = {
   args: { children: "Tooltip content" },
   render: () => (
     <TooltipWrapper>
-      <button className="bg-accent-dark font-primary hover:bg-accent-hover cursor-pointer rounded border-none px-4 py-2 text-[13px] text-white">
+      <button className="bg-sky-600-dark font-primary hover:bg-sky-600-hover cursor-pointer rounded border-none px-4 py-2 text-[13px] text-white">
         Hover for detailed info
       </button>
       <Tooltip width="wide">
@@ -161,7 +161,7 @@ export const KeyboardShortcut: Story = {
   args: { children: "Tooltip content" },
   render: () => (
     <TooltipWrapper>
-      <button className="bg-accent-dark font-primary hover:bg-accent-hover cursor-pointer rounded border-none px-4 py-2 text-[13px] text-white">
+      <button className="bg-sky-600-dark font-primary hover:bg-sky-600-hover cursor-pointer rounded border-none px-4 py-2 text-[13px] text-white">
         Save File
       </button>
       <Tooltip align="center">
@@ -175,7 +175,7 @@ export const LongContent: Story = {
   args: { children: "Tooltip content" },
   render: () => (
     <TooltipWrapper>
-      <button className="bg-accent-dark font-primary hover:bg-accent-hover cursor-pointer rounded border-none px-4 py-2 text-[13px] text-white">
+      <button className="bg-sky-600-dark font-primary hover:bg-sky-600-hover cursor-pointer rounded border-none px-4 py-2 text-[13px] text-white">
         Documentation
       </button>
       <Tooltip width="wide">

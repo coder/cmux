@@ -42,7 +42,7 @@ export class ErrorBoundary extends Component<Props, State> {
       }
 
       return (
-        <div className="bg-error-bg-dark border-danger-soft text-danger-soft m-5 rounded border p-5">
+        <div className="bg-error-bg-neutral-900 m-5 rounded border border-red-600 p-5 text-red-400">
           <h3 className="m-0 mb-2.5 text-base">
             Something went wrong{this.props.workspaceInfo && ` in ${this.props.workspaceInfo}`}
           </h3>
@@ -59,7 +59,7 @@ export class ErrorBoundary extends Component<Props, State> {
           )}
           <button
             onClick={this.handleReset}
-            className="bg-danger-soft hover:bg-info-light cursor-pointer rounded-sm border-none px-4 py-2 text-sm text-white"
+            className="cursor-pointer rounded-sm border-none bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-500"
           >
             Reset
           </button>

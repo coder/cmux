@@ -23,11 +23,13 @@ export const StreamingBarrier: React.FC<StreamingBarrierProps> = ({
         {tokenCount !== undefined && (
           <span className="text-assistant-border font-mono text-[11px] whitespace-nowrap select-none">
             ~{tokenCount.toLocaleString()} tokens
-            {tps !== undefined && tps > 0 && <span className="text-dim ml-1">@ {tps} t/s</span>}
+            {tps !== undefined && tps > 0 && (
+              <span className="ml-1 text-neutral-400">@ {tps} t/s</span>
+            )}
           </span>
         )}
       </div>
-      <div className="text-muted ml-auto text-[11px] whitespace-nowrap select-none">
+      <div className="ml-auto text-[11px] whitespace-nowrap text-neutral-400 select-none">
         {cancelText}
       </div>
     </div>

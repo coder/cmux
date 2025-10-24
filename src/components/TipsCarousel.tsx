@@ -14,11 +14,11 @@ const TIPS = [
     content: (
       <>
         Navigate workspaces with{" "}
-        <span className="keybind font-primary text-[color-mix(in_srgb,var(--color-text),transparent_30%)] transition-colors duration-300">
+        <span className="keybind font-primary text-[color-mix(in_srgb,theme(colors.gray.200),transparent_30%)] transition-colors duration-300">
           {formatKeybind(KEYBINDS.PREV_WORKSPACE)}
         </span>{" "}
         and{" "}
-        <span className="keybind font-primary text-[color-mix(in_srgb,var(--color-text),transparent_30%)] transition-colors duration-300">
+        <span className="keybind font-primary text-[color-mix(in_srgb,theme(colors.gray.200),transparent_30%)] transition-colors duration-300">
           {formatKeybind(KEYBINDS.NEXT_WORKSPACE)}
         </span>
       </>
@@ -28,7 +28,7 @@ const TIPS = [
     content: (
       <>
         Use{" "}
-        <code className="command font-monospace text-[color-mix(in_srgb,var(--color-text),transparent_30%)] transition-colors duration-300">
+        <code className="command font-monospace text-[color-mix(in_srgb,theme(colors.gray.200),transparent_30%)] transition-colors duration-300">
           /truncate 50
         </code>{" "}
         to trim the first 50% of the chat from context
@@ -80,12 +80,12 @@ export const TipsCarousel: React.FC<TipsCarouselProps> = ({ fixedTipIndex }) => 
       role="status"
       aria-live="polite"
       aria-atomic="true"
-      className="text-text font-primary [&:hover_.tip-label]:text-text [&:hover_.tip-content]:text-text mt-[3px] flex cursor-default items-center gap-1.5 rounded px-2 py-1 text-[11px] leading-5 transition-all duration-300 hover:bg-[linear-gradient(135deg,color-mix(in_srgb,var(--color-plan-mode),transparent_85%)_0%,color-mix(in_srgb,var(--color-exec-mode),transparent_85%)_50%,color-mix(in_srgb,var(--color-thinking-mode),transparent_85%)_100%)] [&:hover_.command]:text-white [&:hover_.keybind]:text-white"
+      className="font-primary mt-[3px] flex cursor-default items-center gap-1.5 rounded px-2 py-1 text-[11px] leading-5 text-neutral-300 transition-all duration-300 hover:bg-[linear-gradient(135deg,color-mix(in_srgb,var(--color-plan-mode),transparent_85%)_0%,color-mix(in_srgb,var(--color-exec-mode),transparent_85%)_50%,color-mix(in_srgb,var(--color-thinking-mode),transparent_85%)_100%)] [&:hover_.command]:text-white [&:hover_.keybind]:text-white [&:hover_.tip-content]:text-neutral-300 [&:hover_.tip-label]:text-neutral-300"
     >
-      <span className="tip-label font-medium text-[color-mix(in_srgb,var(--color-text-secondary),transparent_20%)] transition-colors duration-300">
+      <span className="tip-label font-medium text-[color-mix(in_srgb,theme(colors.gray.600),transparent_20%)] transition-colors duration-300">
         Tip:
       </span>
-      <span className="tip-content text-secondary transition-colors duration-300">
+      <span className="tip-content text-neutral-400 transition-colors duration-300">
         {TIPS[currentTipIndex]?.content}
       </span>
     </div>

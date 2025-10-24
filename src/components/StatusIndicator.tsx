@@ -30,7 +30,7 @@ const StatusIndicatorInner: React.FC<StatusIndicatorProps> = ({
     [streaming, onClick]
   );
 
-  const bgColor = streaming ? "bg-assistant-border" : unread ? "bg-white" : "bg-muted-dark";
+  const bgColor = streaming ? "bg-assistant-border" : unread ? "bg-white" : "bg-neutral-600";
 
   const cursor = onClick && !streaming ? "cursor-pointer" : "cursor-default";
 

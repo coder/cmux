@@ -3,7 +3,7 @@ import React, { useEffect, useCallback } from "react";
 import { cn } from "@/lib/utils";
 
 const toastTypeStyles: Record<"success" | "error", string> = {
-  success: "bg-toast-success-bg border border-accent-dark text-toast-success-text",
+  success: "bg-toast-success-bg border border-sky-700 text-toast-success-text",
   error: "bg-toast-error-bg border border-toast-error-border text-toast-error-text",
 };
 
@@ -22,7 +22,7 @@ interface ChatInputToastProps {
 }
 
 export const SolutionLabel: React.FC<{ children: ReactNode }> = ({ children }) => (
-  <div className="text-muted-light mb-1 text-[10px] uppercase">{children}</div>
+  <div className="text-neutral-400-light mb-1 text-[10px] uppercase">{children}</div>
 );
 
 export const ChatInputToast: React.FC<ChatInputToastProps> = ({ toast, onDismiss }) => {
@@ -71,9 +71,9 @@ export const ChatInputToast: React.FC<ChatInputToastProps> = ({ toast, onDismiss
             <span className="text-sm leading-none">⚠</span>
             <div className="flex-1">
               {toast.title && <div className="mb-1.5 font-semibold">{toast.title}</div>}
-              <div className="text-light mt-1.5 leading-[1.4]">{toast.message}</div>
+              <div className="mt-1.5 leading-[1.4] text-neutral-300">{toast.message}</div>
               {toast.solution && (
-                <div className="bg-dark font-monospace text-code-type mt-2 rounded px-2 py-1.5 text-[11px]">
+                <div className="font-monospace text-code-type mt-2 rounded bg-neutral-900 px-2 py-1.5 text-[11px]">
                   {toast.solution}
                 </div>
               )}

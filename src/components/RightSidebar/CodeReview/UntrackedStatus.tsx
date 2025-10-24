@@ -127,7 +127,7 @@ export const UntrackedStatus: React.FC<UntrackedStatusProps> = ({
           "py-1 px-2.5 rounded font-medium text-[11px] whitespace-nowrap transition-all duration-200",
           hasUntracked
             ? "bg-review-bg-warning border border-review-warning text-info-yellow cursor-pointer hover:bg-review-warning-light hover:border-review-warning-medium"
-            : "bg-transparent border border-transparent text-muted cursor-default"
+            : "bg-transparent border border-transparent text-neutral-400 cursor-default"
         )}
         onClick={() => hasUntracked && setShowTooltip(!showTooltip)}
       >
@@ -135,15 +135,15 @@ export const UntrackedStatus: React.FC<UntrackedStatusProps> = ({
       </div>
 
       {showTooltip && hasUntracked && (
-        <div className="bg-modal-bg border-bg-medium animate-in fade-in slide-in-from-top-1 absolute top-[calc(100%+8px)] right-0 z-[1000] max-w-96 min-w-48 rounded border p-2 shadow-[0_4px_12px_rgba(0,0,0,0.3)] duration-150">
-          <div className="text-foreground border-border-light mb-2 border-b pb-1.5 text-[11px] font-semibold">
+        <div className="border-bg-medium animate-in fade-in slide-in-from-top-1 absolute top-[calc(100%+8px)] right-0 z-[1000] max-w-96 min-w-48 rounded border bg-neutral-900 p-2 shadow-[0_4px_12px_rgba(0,0,0,0.3)] duration-150">
+          <div className="mb-2 border-b border-neutral-800 pb-1.5 text-[11px] font-semibold text-neutral-300">
             Untracked Files ({count})
           </div>
           <div className="mb-2 max-h-[200px] overflow-y-auto">
             {untrackedFiles.map((file) => (
               <div
                 key={file}
-                className="text-label hover:bg-bg-subtle truncate px-1 py-0.5 font-mono text-[11px]"
+                className="truncate px-1 py-0.5 font-mono text-[11px] text-neutral-400 hover:bg-neutral-800"
               >
                 {file}
               </div>
@@ -153,10 +153,10 @@ export const UntrackedStatus: React.FC<UntrackedStatusProps> = ({
             onClick={() => void handleTrackAll()}
             disabled={isTracking}
             className={cn(
-              "w-full py-1 px-2 bg-transparent text-muted border border-border-medium rounded text-[11px] cursor-pointer transition-all duration-200 font-primary",
-              "hover:bg-white-overlay-light hover:text-foreground hover:border-border-subtle",
+              "w-full py-1 px-2 bg-transparent text-neutral-400 border border-neutral-700 rounded text-[11px] cursor-pointer transition-all duration-200 font-primary",
+              "hover:bg-white-overlay-light hover:text-neutral-300 hover:border-neutral-800-subtle",
               "active:bg-white-overlay",
-              "disabled:text-border-darker disabled:border-border disabled:cursor-not-allowed disabled:bg-transparent"
+              "disabled:text-neutral-800 disabled:border-neutral-800 disabled:cursor-not-allowed disabled:bg-transparent"
             )}
           >
             {isTracking ? "Tracking..." : "Track All"}

@@ -532,7 +532,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
       tabIndex={0}
       onFocus={() => setIsPanelFocused(true)}
       onBlur={() => setIsPanelFocused(false)}
-      className="bg-dark [container-type:inline-size] flex h-full min-h-0 flex-col outline-none [container-name:review-panel] focus-within:shadow-[inset_0_0_0_1px_rgba(0,122,204,0.2)]"
+      className="[container-type:inline-size] flex h-full min-h-0 flex-col bg-neutral-900 outline-none [container-name:review-panel] focus-within:shadow-[inset_0_0_0_1px_rgba(0,122,204,0.2)]"
     >
       {/* Always show controls so user can change diff base */}
       <ReviewControls
@@ -551,122 +551,105 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
           {error}
         </div>
       ) : isLoadingHunks && hunks.length === 0 && !fileTree ? (
-        <div className="text-muted flex h-full items-center justify-center text-sm">
+        <div className="flex h-full items-center justify-center text-sm text-neutral-400">
           Loading diff...
         </div>
       ) : (
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          {truncationWarning && (
-            <div className="bg-warning/10 border-warning/30 text-warning mx-3 my-3 flex items-center gap-1.5 rounded border px-3 py-1.5 text-[10px] leading-[1.3] before:text-xs before:content-['⚠️']">
-              {truncationWarning}
-            </div>
-          )}
-
-          {/* Search bar - always visible at top, not sticky */}
-          <div className="border-border-light bg-separator border-b px-3 py-2">
-            <div className="border-border-light bg-dark hover:border-border-gray focus-within:border-accent focus-within:hover:border-accent flex items-stretch overflow-hidden rounded border transition-[border-color] duration-150">
-              <input
-                ref={searchInputRef}
-                type="text"
-                placeholder={`Search in files and hunks... (${formatKeybind(KEYBINDS.FOCUS_REVIEW_SEARCH)})`}
-                value={searchState.input}
-                onChange={(e) => setSearchState({ ...searchState, input: e.target.value })}
-                className="text-foreground placeholder:text-dim focus:bg-separator flex h-full flex-1 items-center border-none bg-transparent px-2.5 py-1.5 font-sans text-xs leading-[1.4] outline-none"
-              />
-              <TooltipWrapper inline>
-                <button
-                  className={cn(
-                    "py-1.5 px-2.5 border-none border-l border-light text-[11px] font-monospace font-semibold leading-[1.4] cursor-pointer outline-none transition-all duration-150 whitespace-nowrap flex items-center h-full",
-                    searchState.useRegex
-                      ? "bg-review-bg-blue text-accent-light shadow-[inset_0_0_0_1px_rgba(77,184,255,0.4)] hover:bg-review-bg-info hover:text-accent-light"
-                      : "bg-transparent text-subtle hover:bg-separator hover:text-foreground",
-                    "active:translate-y-px"
-                  )}
-                  onClick={() =>
-                    setSearchState({ ...searchState, useRegex: !searchState.useRegex })
-                  }
-                >
-                  .*
-                </button>
-                <Tooltip position="bottom">
-                  {searchState.useRegex ? "Using regex search" : "Using substring search"}
-                </Tooltip>
-              </TooltipWrapper>
-              <TooltipWrapper inline>
-                <button
-                  className={cn(
-                    "py-1.5 px-2.5 border-none border-l border-light text-[11px] font-monospace font-semibold leading-[1.4] cursor-pointer outline-none transition-all duration-150 whitespace-nowrap flex items-center h-full",
-                    searchState.matchCase
-                      ? "bg-review-bg-blue text-accent-light shadow-[inset_0_0_0_1px_rgba(77,184,255,0.4)] hover:bg-review-bg-info hover:text-accent-light"
-                      : "bg-transparent text-subtle hover:bg-separator hover:text-foreground",
-                    "active:translate-y-px"
-                  )}
-                  onClick={() =>
-                    setSearchState({ ...searchState, matchCase: !searchState.matchCase })
-                  }
-                >
-                  Aa
-                </button>
-                <Tooltip position="bottom">
-                  {searchState.matchCase
-                    ? "Match case (case-sensitive)"
-                    : "Ignore case (case-insensitive)"}
-                </Tooltip>
-              </TooltipWrapper>
-            </div>
-          </div>
-
-          {/* Single scrollable area containing both file tree and hunks */}
-          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-            {/* FileTree at the top */}
-            {(fileTree ?? isLoadingTree) && (
-              <div className="border-border-light flex w-full flex-[0_0_auto] flex-col overflow-hidden border-b">
-                <FileTree
-                  root={fileTree}
-                  selectedPath={selectedFilePath}
-                  onSelectFile={setSelectedFilePath}
-                  isLoading={isLoadingTree}
-                  getFileReadStatus={getFileReadStatus}
-                  workspaceId={workspaceId}
-                />
+        <div className="flex min-h-0 flex-1 flex-row overflow-hidden @[800px]:flex-col">
+          <div className="order-1 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+            {truncationWarning && (
+              <div className="bg-warning/10 border-warning/30 text-warning mx-3 my-3 flex items-center gap-1.5 rounded border px-3 py-1.5 text-[10px] leading-[1.3] before:text-xs before:content-['⚠️']">
+                {truncationWarning}
               </div>
             )}
 
-            {/* Hunks below the file tree */}
-            <div className="flex flex-[0_0_auto] flex-col p-3">
+            <div className="border-b border-neutral-800 bg-neutral-900 px-3 py-2">
+              <div className="hover:border-neutral-800-gray flex items-stretch overflow-hidden rounded border border-neutral-800 bg-neutral-900 transition-[border-color] duration-150 focus-within:border-sky-600 focus-within:hover:border-sky-600">
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  placeholder={`Search in files and hunks... (${formatKeybind(KEYBINDS.FOCUS_REVIEW_SEARCH)})`}
+                  value={searchState.input}
+                  onChange={(e) => setSearchState({ ...searchState, input: e.target.value })}
+                  className="flex h-full flex-1 items-center border-none bg-transparent px-2.5 py-1.5 font-sans text-xs leading-[1.4] text-neutral-300 outline-none placeholder:text-neutral-400 focus:bg-neutral-900"
+                />
+                <TooltipWrapper inline>
+                  <button
+                    className={cn(
+                      "py-1.5 px-2.5 border-none border-l border-neutral-800 text-[11px] font-monospace font-semibold leading-[1.4] cursor-pointer outline-none transition-all duration-150 whitespace-nowrap flex items-center h-full",
+                      searchState.useRegex
+                        ? "bg-review-bg-blue text-sky-600-light shadow-[inset_0_0_0_1px_rgba(77,184,255,0.4)] hover:bg-review-bg-info hover:text-sky-600-light"
+                        : "bg-transparent text-neutral-400 hover:bg-neutral-900 hover:text-neutral-300",
+                      "active:translate-y-px"
+                    )}
+                    onClick={() =>
+                      setSearchState({ ...searchState, useRegex: !searchState.useRegex })
+                    }
+                  >
+                    .*
+                  </button>
+                  <Tooltip position="bottom">
+                    {searchState.useRegex ? "Using regex search" : "Using substring search"}
+                  </Tooltip>
+                </TooltipWrapper>
+                <TooltipWrapper inline>
+                  <button
+                    className={cn(
+                      "py-1.5 px-2.5 border-none border-l border-neutral-800 text-[11px] font-monospace font-semibold leading-[1.4] cursor-pointer outline-none transition-all duration-150 whitespace-nowrap flex items-center h-full",
+                      searchState.matchCase
+                        ? "bg-review-bg-blue text-sky-600-light shadow-[inset_0_0_0_1px_rgba(77,184,255,0.4)] hover:bg-review-bg-info hover:text-sky-600-light"
+                        : "bg-transparent text-neutral-400 hover:bg-neutral-900 hover:text-neutral-300",
+                      "active:translate-y-px"
+                    )}
+                    onClick={() =>
+                      setSearchState({ ...searchState, matchCase: !searchState.matchCase })
+                    }
+                  >
+                    Aa
+                  </button>
+                  <Tooltip position="bottom">
+                    {searchState.matchCase
+                      ? "Match case (case-sensitive)"
+                      : "Ignore case (case-insensitive)"}
+                  </Tooltip>
+                </TooltipWrapper>
+              </div>
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto p-3">
               {hunks.length === 0 ? (
-                <div className="text-muted flex flex-col items-center justify-start gap-3 px-6 pt-12 pb-6 text-center">
-                  <div className="text-foreground text-base font-medium">No changes found</div>
+                <div className="flex flex-col items-center justify-start gap-3 px-6 pt-12 pb-6 text-center text-neutral-400">
+                  <div className="text-base font-medium text-neutral-300">No changes found</div>
                   <div className="text-[13px] leading-[1.5]">
                     No changes found for the selected diff base.
                     <br />
                     Try selecting a different base or make some changes.
                   </div>
                   {diagnosticInfo && (
-                    <details className="bg-modal-bg border-border-light [&_summary]:text-muted mt-4 w-full max-w-96 cursor-pointer rounded border p-3 [&_summary]:flex [&_summary]:list-none [&_summary]:items-center [&_summary]:gap-1.5 [&_summary]:text-xs [&_summary]:font-medium [&_summary]:select-none [&_summary::-webkit-details-marker]:hidden [&_summary::before]:text-[10px] [&_summary::before]:transition-transform [&_summary::before]:duration-200 [&_summary::before]:content-['▶'] [&[open]_summary::before]:rotate-90">
+                    <details className="mt-4 w-full max-w-96 cursor-pointer rounded border border-neutral-800 bg-neutral-900 p-3 [&_summary]:flex [&_summary]:list-none [&_summary]:items-center [&_summary]:gap-1.5 [&_summary]:text-xs [&_summary]:font-medium [&_summary]:text-neutral-400 [&_summary]:select-none [&_summary::-webkit-details-marker]:hidden [&_summary::before]:text-[10px] [&_summary::before]:transition-transform [&_summary::before]:duration-200 [&_summary::before]:content-['▶'] [&[open]_summary::before]:rotate-90">
                       <summary>Show diagnostic info</summary>
-                      <div className="font-monospace text-foreground mt-3 text-[11px] leading-[1.6]">
-                        <div className="[&:not(:last-child)]:border-border-light grid grid-cols-[140px_1fr] gap-3 py-1 [&:not(:last-child)]:border-b">
-                          <div className="text-muted font-medium">Command:</div>
-                          <div className="text-foreground break-all select-all">
+                      <div className="font-monospace mt-3 text-[11px] leading-[1.6] text-neutral-300">
+                        <div className="grid grid-cols-[140px_1fr] gap-3 py-1 [&:not(:last-child)]:border-b [&:not(:last-child)]:border-neutral-800">
+                          <div className="font-medium text-neutral-400">Command:</div>
+                          <div className="break-all text-neutral-300 select-all">
                             {diagnosticInfo.command}
                           </div>
                         </div>
-                        <div className="[&:not(:last-child)]:border-border-light grid grid-cols-[140px_1fr] gap-3 py-1 [&:not(:last-child)]:border-b">
-                          <div className="text-muted font-medium">Output size:</div>
-                          <div className="text-foreground break-all select-all">
+                        <div className="grid grid-cols-[140px_1fr] gap-3 py-1 [&:not(:last-child)]:border-b [&:not(:last-child)]:border-neutral-800">
+                          <div className="font-medium text-neutral-400">Output size:</div>
+                          <div className="break-all text-neutral-300 select-all">
                             {diagnosticInfo.outputLength.toLocaleString()} bytes
                           </div>
                         </div>
-                        <div className="[&:not(:last-child)]:border-border-light grid grid-cols-[140px_1fr] gap-3 py-1 [&:not(:last-child)]:border-b">
-                          <div className="text-muted font-medium">Files parsed:</div>
-                          <div className="text-foreground break-all select-all">
+                        <div className="grid grid-cols-[140px_1fr] gap-3 py-1 [&:not(:last-child)]:border-b [&:not(:last-child)]:border-neutral-800">
+                          <div className="font-medium text-neutral-400">Files parsed:</div>
+                          <div className="break-all text-neutral-300 select-all">
                             {diagnosticInfo.fileDiffCount}
                           </div>
                         </div>
                         <div className="grid grid-cols-[140px_1fr] gap-3 py-1">
-                          <div className="text-muted font-medium">Hunks extracted:</div>
-                          <div className="text-foreground break-all select-all">
+                          <div className="font-medium text-neutral-400">Hunks extracted:</div>
+                          <div className="break-all text-neutral-300 select-all">
                             {diagnosticInfo.hunkCount}
                           </div>
                         </div>
@@ -675,7 +658,7 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
                   )}
                 </div>
               ) : filteredHunks.length === 0 ? (
-                <div className="text-muted flex flex-col items-center justify-start gap-3 px-6 pt-12 pb-6 text-center">
+                <div className="flex flex-col items-center justify-start gap-3 px-6 pt-12 pb-6 text-center text-neutral-400">
                   <div className="text-[13px] leading-[1.5]">
                     {debouncedSearchTerm.trim()
                       ? `No hunks match "${debouncedSearchTerm}". Try a different search term.`
@@ -708,6 +691,20 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
               )}
             </div>
           </div>
+
+          {/* FileTree positioning handled by CSS order property */}
+          {(fileTree ?? isLoadingTree) && (
+            <div className="order-2 flex min-h-0 w-80 shrink-0 flex-col overflow-hidden border-l border-neutral-800 @[800px]:order-0 @[800px]:h-auto @[800px]:w-full @[800px]:flex-[0_0_auto] @[800px]:border-b @[800px]:border-l-0 @[800px]:border-neutral-800">
+              <FileTree
+                root={fileTree}
+                selectedPath={selectedFilePath}
+                onSelectFile={setSelectedFilePath}
+                isLoading={isLoadingTree}
+                getFileReadStatus={getFileReadStatus}
+                workspaceId={workspaceId}
+              />
+            </div>
+          )}
         </div>
       )}
     </div>
