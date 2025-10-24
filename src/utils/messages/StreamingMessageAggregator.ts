@@ -774,7 +774,7 @@ export class StreamingMessageAggregator {
           historySequence: -1, // Appears before all history
           status: this.initState.status,
           hookPath: this.initState.hookPath,
-          lines: this.initState.lines,
+          lines: [...this.initState.lines], // Shallow copy for React.memo change detection
           exitCode: this.initState.exitCode,
           timestamp: this.initState.timestamp,
         };

@@ -793,10 +793,9 @@ export class WorkspaceStore {
       isToolCallDelta(data) ||
       isToolCallEnd(data) ||
       isReasoningDelta(data) ||
-      isReasoningEnd(data) ||
-      isInitStart(data) ||
-      isInitOutput(data) ||
-      isInitEnd(data)
+      isReasoningEnd(data)
+      // Note: Init events are NOT buffered - they're workspace lifecycle events
+      // that should stream in real-time, not wait for caught-up signal
     );
   }
 
