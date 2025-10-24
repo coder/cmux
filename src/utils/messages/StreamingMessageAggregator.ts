@@ -512,6 +512,7 @@ export class StreamingMessageAggregator {
 
     if (isInitOutput(data)) {
       if (!this.initState) return; // Defensive: shouldn't happen but handle gracefully
+      if (!data.line) return; // Defensive: skip events with missing line data
       const line = data.isError ? `ERROR: ${data.line}` : data.line;
       this.initState.lines.push(line.trimEnd());
       this.invalidateCache();

@@ -964,12 +964,15 @@ export class WorkspaceStore {
       const historicalMsgs = this.historicalMessages.get(workspaceId) ?? [];
       historicalMsgs.push(data);
       this.historicalMessages.set(workspaceId, historicalMsgs);
-    } else if (isCaughtUp) {
+    } else if (isCaughtUp && "role" in data) {
       // Process live events immediately (after history loaded)
+      // Check for role field to ensure this is a CmuxMessage
       aggregator.handleMessage(data);
       this.states.bump(workspaceId);
       this.checkAndBumpRecencyIfChanged();
     }
+    // Note: Messages not matching above conditions are silently ignored
+    // This is expected for malformed messages or events handled elsewhere
     // Note: Init events and stream events are handled by isStreamEvent() buffering above
   }
 }
