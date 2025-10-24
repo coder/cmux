@@ -476,7 +476,9 @@ export class StreamManager extends EventEmitter {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
         toolChoice: toolChoice as any, // Force tool use when required by policy
         // When toolChoice is set (required tool), limit to 1 step to prevent infinite loops
-        // Otherwise allow unlimited steps for multi-turn tool use
+        // Otherwise allow effectively unlimited steps (100k) for autonomous multi-turn workflows.
+        // IMPORTANT: Models should be able to run for hours or even days calling tools repeatedly
+        // to complete complex tasks. The stopWhen condition allows the model to decide when it's done.
         ...(toolChoice ? { maxSteps: 1 } : { stopWhen: stepCountIs(100000) }),
         // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
         providerOptions: providerOptions as any, // Pass provider-specific options (thinking/reasoning config)
