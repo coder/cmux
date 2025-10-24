@@ -1,6 +1,13 @@
 import { spawn } from "child_process";
 import { Readable, Writable } from "stream";
-import type { Runtime, ExecOptions, ExecStream, FileStat } from "./Runtime";
+import type {
+  Runtime,
+  ExecOptions,
+  ExecStream,
+  FileStat,
+  WorkspaceCreationParams,
+  WorkspaceCreationResult,
+} from "./Runtime";
 import { RuntimeError as RuntimeErrorClass } from "./Runtime";
 
 /**
@@ -239,6 +246,17 @@ export class SSHRuntime implements Runtime {
       size,
       modifiedTime: new Date(mtime * 1000),
       isDirectory: fileType === "directory",
+    };
+  }
+
+  async createWorkspace(params: WorkspaceCreationParams): Promise<WorkspaceCreationResult> {
+    const { initLogger } = params;
+
+    initLogger.logStep("SSH workspace creation not yet implemented");
+    
+    return {
+      success: false,
+      error: "SSH workspace creation is not yet implemented. Use local workspaces for now.",
     };
   }
 }
