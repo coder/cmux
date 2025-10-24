@@ -1,23 +1,19 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, type Dispatch, type SetStateAction } from "react";
 import "./styles/globals.css";
 import type { ProjectConfig } from "./config";
 import type { WorkspaceSelection } from "./components/ProjectSidebar";
 import type { FrontendWorkspaceMetadata } from "./types/workspace";
 import { LeftSidebar } from "./components/LeftSidebar";
-import { LoadingScreen } from "./components/LoadingScreen";
 import NewWorkspaceModal from "./components/NewWorkspaceModal";
 import { DirectorySelectModal } from "./components/DirectorySelectModal";
 import { AIView } from "./components/AIView";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { usePersistedState, updatePersistedState } from "./hooks/usePersistedState";
 import { matchesKeybind, KEYBINDS } from "./utils/ui/keybinds";
-import { useProjectManagement } from "./hooks/useProjectManagement";
-import { useWorkspaceManagement } from "./hooks/useWorkspaceManagement";
 import { useResumeManager } from "./hooks/useResumeManager";
 import { useUnreadTracking } from "./hooks/useUnreadTracking";
 import { useAutoCompactContinue } from "./hooks/useAutoCompactContinue";
 import { useWorkspaceStoreRaw, useWorkspaceRecency } from "./stores/WorkspaceStore";
-import { useGitStatusStoreRaw } from "./stores/GitStatusStore";
 
 import { useStableReference, compareMaps } from "./hooks/useStableReference";
 import { CommandRegistryProvider, useCommandRegistry } from "./contexts/CommandRegistryContext";
@@ -34,13 +30,48 @@ import { useTelemetry } from "./hooks/useTelemetry";
 
 const THINKING_LEVELS: ThinkingLevel[] = ["off", "low", "medium", "high"];
 
-function AppInner() {
-  // Workspace selection - restored from localStorage immediately,
-  // but entire UI is gated behind metadata loading (see early return below)
-  const [selectedWorkspace, setSelectedWorkspace] = usePersistedState<WorkspaceSelection | null>(
-    "selectedWorkspace",
-    null
-  );
+interface AppInnerProps {
+  projects: Map<string, ProjectConfig>;
+  setProjects: Dispatch<SetStateAction<Map<string, ProjectConfig>>>;
+  addProject: () => Promise<void>;
+  removeProject: (path: string) => Promise<void>;
+  workspaceMetadata: Map<string, FrontendWorkspaceMetadata>;
+  setWorkspaceMetadata: Dispatch<SetStateAction<Map<string, FrontendWorkspaceMetadata>>>;
+  createWorkspace: (
+    projectPath: string,
+    branchName: string,
+    trunkBranch: string
+  ) => Promise<{
+    projectPath: string;
+    projectName: string;
+    namedWorkspacePath: string;
+    workspaceId: string;
+  }>;
+  removeWorkspace: (
+    workspaceId: string,
+    options?: { force?: boolean }
+  ) => Promise<{ success: boolean; error?: string }>;
+  renameWorkspace: (
+    workspaceId: string,
+    newName: string
+  ) => Promise<{ success: boolean; error?: string }>;
+  selectedWorkspace: WorkspaceSelection | null;
+  setSelectedWorkspace: (workspace: WorkspaceSelection | null) => void;
+}
+
+function AppInner({
+  projects,
+  setProjects,
+  addProject,
+  removeProject,
+  workspaceMetadata,
+  setWorkspaceMetadata,
+  createWorkspace,
+  removeWorkspace,
+  renameWorkspace,
+  selectedWorkspace,
+  setSelectedWorkspace,
+}: AppInnerProps) {
 
   const [workspaceModalOpen, setWorkspaceModalOpen] = useState(false);
   const [workspaceModalProject, setWorkspaceModalProject] = useState<string | null>(null);
@@ -63,21 +94,18 @@ function AppInner() {
   // Telemetry tracking
   const telemetry = useTelemetry();
 
+  // Get workspace store for command palette
+  const workspaceStore = useWorkspaceStoreRaw();
+
   // Wrapper for setSelectedWorkspace that tracks telemetry
   const handleWorkspaceSwitch = useCallback(
     (newWorkspace: WorkspaceSelection | null) => {
-      console.debug("[App] handleWorkspaceSwitch called", {
-        from: selectedWorkspace?.workspaceId,
-        to: newWorkspace?.workspaceId,
-      });
-
       // Track workspace switch when both old and new are non-null (actual switch, not init/clear)
       if (
         selectedWorkspace &&
         newWorkspace &&
         selectedWorkspace.workspaceId !== newWorkspace.workspaceId
       ) {
-        console.debug("[App] Calling telemetry.workspaceSwitched");
         telemetry.workspaceSwitched(selectedWorkspace.workspaceId, newWorkspace.workspaceId);
       }
 
@@ -86,54 +114,13 @@ function AppInner() {
     [selectedWorkspace, setSelectedWorkspace, telemetry]
   );
 
-  // Use custom hooks for project and workspace management
-  const { projects, setProjects, addProject, removeProject } = useProjectManagement();
-
-  // Workspace management needs to update projects state when workspace operations complete
-  const handleProjectsUpdate = useCallback(
-    (newProjects: Map<string, ProjectConfig>) => {
-      setProjects(newProjects);
-    },
-    [setProjects]
-  );
-
-  const {
-    workspaceMetadata,
-    setWorkspaceMetadata,
-    loading: metadataLoading,
-    createWorkspace,
-    removeWorkspace,
-    renameWorkspace,
-  } = useWorkspaceManagement({
-    selectedWorkspace,
-    onProjectsUpdate: handleProjectsUpdate,
-    onSelectedWorkspaceUpdate: setSelectedWorkspace,
-  });
-
-  // Sync workspace metadata with the stores BEFORE rendering workspace UI
-  const workspaceStore = useWorkspaceStoreRaw();
-  const gitStatusStore = useGitStatusStoreRaw();
-
-  // Track whether stores have been synced (separate from metadata loading)
-  const [storesSynced, setStoresSynced] = useState(false);
-
-  useEffect(() => {
-    if (!metadataLoading) {
-      workspaceStore.syncWorkspaces(workspaceMetadata);
-      gitStatusStore.syncWorkspaces(workspaceMetadata);
-      setStoresSynced(true);
-    } else {
-      setStoresSynced(false);
-    }
-  }, [metadataLoading, workspaceMetadata, workspaceStore, gitStatusStore]);
-
   // Validate selectedWorkspace when metadata changes
   // Clear selection if workspace was deleted
   useEffect(() => {
-    if (storesSynced && selectedWorkspace && !workspaceMetadata.has(selectedWorkspace.workspaceId)) {
+    if (selectedWorkspace && !workspaceMetadata.has(selectedWorkspace.workspaceId)) {
       setSelectedWorkspace(null);
     }
-  }, [storesSynced, selectedWorkspace, workspaceMetadata, setSelectedWorkspace]);
+  }, [selectedWorkspace, workspaceMetadata, setSelectedWorkspace]);
 
   // Track last-read timestamps for unread indicators
   const { lastReadTimestamps, onToggleUnread } = useUnreadTracking(selectedWorkspace);
@@ -166,35 +153,6 @@ function AppInner() {
       void window.api.window.setTitle("cmux");
     }
   }, [selectedWorkspace, workspaceMetadata]);
-
-  // Restore workspace from URL on mount (if valid)
-  // This effect runs once on mount to restore from hash, which takes priority over localStorage
-  const [hasRestoredFromHash, setHasRestoredFromHash] = useState(false);
-
-  useEffect(() => {
-    // Only run once
-    if (hasRestoredFromHash) return;
-
-    const hash = window.location.hash;
-    if (hash.startsWith("#workspace=")) {
-      const workspaceId = decodeURIComponent(hash.substring("#workspace=".length));
-
-      // Find workspace in metadata
-      const metadata = workspaceMetadata.get(workspaceId);
-
-      if (metadata) {
-        // Restore from hash (overrides localStorage)
-        setSelectedWorkspace({
-          workspaceId: metadata.id,
-          projectPath: metadata.projectPath,
-          projectName: metadata.projectName,
-          namedWorkspacePath: metadata.namedWorkspacePath,
-        });
-      }
-    }
-
-    setHasRestoredFromHash(true);
-  }, [workspaceMetadata, hasRestoredFromHash, setSelectedWorkspace]);
 
   // Validate selected workspace exists and has all required fields
   useEffect(() => {
@@ -674,12 +632,6 @@ function AppInner() {
       );
   }, [projects, setSelectedWorkspace, setWorkspaceMetadata]);
 
-  // CRITICAL: Don't render workspace UI until metadata loads AND stores are synced
-  // This ensures WorkspaceStore.addWorkspace() is called before any component accesses workspaces
-  if (metadataLoading || !storesSynced) {
-    return <LoadingScreen />;
-  }
-
   return (
     <>
       <div className="bg-bg-dark flex h-screen overflow-hidden [@media(max-width:768px)]:flex-col">
@@ -766,10 +718,10 @@ function AppInner() {
   );
 }
 
-function App() {
+function App(props: AppInnerProps) {
   return (
     <CommandRegistryProvider>
-      <AppInner />
+      <AppInner {...props} />
     </CommandRegistryProvider>
   );
 }

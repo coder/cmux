@@ -1,6 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import App from "./App";
+import { AppLoader } from "./components/AppLoader";
 import { initTelemetry, trackAppStarted } from "./telemetry";
 
 // Shims the `window.api` object with the browser API.
@@ -35,7 +35,7 @@ window.addEventListener("unhandledrejection", (event) => {
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <App />
+    <AppLoader />
   </React.StrictMode>
 );
 
