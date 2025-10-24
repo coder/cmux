@@ -96,3 +96,59 @@ describe("calculateDownwardExpansion", () => {
     expect(exp.numLines).toBe(30);
   });
 });
+
+describe("collapse behavior", () => {
+  it("collapses upward expansion correctly", () => {
+    const oldStart = 100;
+
+    // Expanded to 60 lines
+    const exp1 = calculateUpwardExpansion(oldStart, 60);
+    expect(exp1.numLines).toBe(60);
+    expect(exp1.startLine).toBe(40);
+    expect(exp1.endLine).toBe(99);
+
+    // Collapse back to 30 lines
+    const exp2 = calculateUpwardExpansion(oldStart, 30);
+    expect(exp2.numLines).toBe(30);
+    expect(exp2.startLine).toBe(70);
+    expect(exp2.endLine).toBe(99); // Same boundary
+
+    // Collapse to zero (hide all)
+    const exp3 = calculateUpwardExpansion(oldStart, 0);
+    expect(exp3.numLines).toBe(0);
+  });
+
+  it("collapses downward expansion correctly", () => {
+    const oldStart = 100;
+    const oldLines = 10;
+
+    // Expanded to 60 lines
+    const exp1 = calculateDownwardExpansion(oldStart, oldLines, 60);
+    expect(exp1.numLines).toBe(60);
+    expect(exp1.startLine).toBe(110);
+    expect(exp1.endLine).toBe(169);
+
+    // Collapse back to 30 lines
+    const exp2 = calculateDownwardExpansion(oldStart, oldLines, 30);
+    expect(exp2.numLines).toBe(30);
+    expect(exp2.startLine).toBe(110); // Same boundary
+    expect(exp2.endLine).toBe(139);
+
+    // Collapse to zero (hide all)
+    const exp3 = calculateDownwardExpansion(oldStart, oldLines, 0);
+    expect(exp3.numLines).toBe(0);
+  });
+
+  it("handles partial collapse at file boundary", () => {
+    const oldStart = 20;
+
+    // Expanded to 30 but only 19 lines available
+    const exp1 = calculateUpwardExpansion(oldStart, 30);
+    expect(exp1.numLines).toBe(19);
+
+    // Simulate collapse by 30 → should go to 0, not negative
+    const newExpansion = Math.max(0, 30 - 30);
+    const exp2 = calculateUpwardExpansion(oldStart, newExpansion);
+    expect(exp2.numLines).toBe(0);
+  });
+});
