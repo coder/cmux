@@ -964,13 +964,24 @@ export class WorkspaceStore {
       const historicalMsgs = this.historicalMessages.get(workspaceId) ?? [];
       historicalMsgs.push(data);
       this.historicalMessages.set(workspaceId, historicalMsgs);
-    } else if (isCaughtUp) {
+    } else if (isCaughtUp && "role" in data) {
       // Process live events immediately (after history loaded)
+      // Check for role field to ensure this is a CmuxMessage
       aggregator.handleMessage(data);
       this.states.bump(workspaceId);
       this.checkAndBumpRecencyIfChanged();
+    } else if ("role" in data || "type" in data) {
+      // Unexpected: message with role/type field didn't match any condition
+      console.error("[WorkspaceStore] Message not processed - unexpected state", {
+        workspaceId,
+        isCaughtUp,
+        hasRole: "role" in data,
+        hasType: "type" in data,
+        type: "type" in data ? (data as { type: string }).type : undefined,
+        role: "role" in data ? (data as { role: string }).role : undefined,
+      });
     }
-    // Note: Init events and stream events are handled by isStreamEvent() buffering above
+    // Note: Messages without role/type are silently ignored (expected for some IPC events)
   }
 }
 

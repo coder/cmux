@@ -511,15 +511,30 @@ export class StreamingMessageAggregator {
     }
 
     if (isInitOutput(data)) {
-      if (!this.initState) return; // Defensive: shouldn't happen but handle gracefully
+      if (!this.initState) {
+        console.error("Received init-output without init-start", { data });
+        return;
+      }
+      if (!data.line) {
+        console.error("Received init-output with missing line field", { data });
+        return;
+      }
       const line = data.isError ? `ERROR: ${data.line}` : data.line;
+      // Extra defensive check (should never hit due to check above, but prevents crash if data changes)
+      if (typeof line !== "string") {
+        console.error("Init-output line is not a string", { line, data });
+        return;
+      }
       this.initState.lines.push(line.trimEnd());
       this.invalidateCache();
       return;
     }
 
     if (isInitEnd(data)) {
-      if (!this.initState) return; // Defensive: shouldn't happen but handle gracefully
+      if (!this.initState) {
+        console.error("Received init-end without init-start", { data });
+        return;
+      }
       this.initState.exitCode = data.exitCode;
       this.initState.status = data.exitCode === 0 ? "success" : "error";
       this.invalidateCache();
