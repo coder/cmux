@@ -991,6 +991,13 @@ export class WorkspaceStore {
       return;
     }
 
+    // Handle init events (buffered like stream events during replay)
+    if (isInitStart(data) || isInitOutput(data) || isInitEnd(data)) {
+      aggregator.handleMessage(data);
+      this.states.bump(workspaceId);
+      return;
+    }
+
     // Regular messages (CmuxMessage without type field)
     const isCaughtUp = this.caughtUp.get(workspaceId) ?? false;
     if (!isCaughtUp && "role" in data && !("type" in data)) {
