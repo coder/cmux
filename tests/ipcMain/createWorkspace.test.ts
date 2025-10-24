@@ -12,7 +12,10 @@
 
 import * as fs from "fs/promises";
 import * as path from "path";
+import { exec } from "child_process";
+import { promisify } from "util";
 import { shouldRunIntegrationTests, createTestEnvironment, cleanupTestEnvironment } from "./setup";
+import type { TestEnvironment } from "./setup";
 import { IPC_CHANNELS } from "../../src/constants/ipc-constants";
 import { createTempGitRepo, cleanupTempGitRepo, generateBranchName } from "./helpers";
 import { detectDefaultTrunkBranch } from "../../src/git";
@@ -23,12 +26,127 @@ import {
   type SSHServerConfig,
 } from "../runtime/ssh-fixture";
 import type { RuntimeConfig } from "../../src/types/runtime";
+import type { FrontendWorkspaceMetadata } from "../../src/types/workspace";
+
+const execAsync = promisify(exec);
+
+// Test constants
+const TEST_TIMEOUT_MS = 60000;
+const INIT_HOOK_WAIT_MS = 1500; // Wait for async init hook completion
+const CMUX_DIR = ".cmux";
+const INIT_HOOK_FILENAME = "init";
+
+// Event type constants
+const EVENT_PREFIX_WORKSPACE_CHAT = "workspace:chat:";
+const EVENT_TYPE_PREFIX_INIT = "init-";
+const EVENT_TYPE_INIT_OUTPUT = "init-output";
+const EVENT_TYPE_INIT_END = "init-end";
 
 // Skip all tests if TEST_INTEGRATION is not set
 const describeIntegration = shouldRunIntegrationTests() ? describe : describe.skip;
 
 // SSH server config (shared across all SSH tests)
 let sshConfig: SSHServerConfig | undefined;
+
+// ============================================================================
+// Test Helpers
+// ============================================================================
+
+/**
+ * Type guard to check if an event is an init event with a type field
+ */
+function isInitEvent(data: unknown): data is { type: string } {
+  return (
+    data !== null &&
+    typeof data === "object" &&
+    "type" in data &&
+    typeof (data as { type: unknown }).type === "string" &&
+    (data as { type: string }).type.startsWith(EVENT_TYPE_PREFIX_INIT)
+  );
+}
+
+/**
+ * Filter events by type
+ */
+function filterEventsByType(
+  events: Array<{ channel: string; data: unknown }>,
+  eventType: string
+): Array<{ channel: string; data: { type: string } }> {
+  return events.filter((e) => isInitEvent(e.data) && e.data.type === eventType) as Array<{
+    channel: string;
+    data: { type: string };
+  }>;
+}
+
+/**
+ * Set up event capture for init events on workspace chat channel
+ * Returns array that will be populated with captured events
+ */
+function setupInitEventCapture(env: TestEnvironment): Array<{ channel: string; data: unknown }> {
+  const capturedEvents: Array<{ channel: string; data: unknown }> = [];
+  const originalSend = env.mockWindow.webContents.send;
+
+  env.mockWindow.webContents.send = ((channel: string, data: unknown) => {
+    if (channel.startsWith(EVENT_PREFIX_WORKSPACE_CHAT) && isInitEvent(data)) {
+      capturedEvents.push({ channel, data });
+    }
+    originalSend.call(env.mockWindow.webContents, channel, data);
+  }) as typeof originalSend;
+
+  return capturedEvents;
+}
+
+/**
+ * Create init hook file in git repo
+ */
+async function createInitHook(repoPath: string, hookContent: string): Promise<void> {
+  const cmuxDir = path.join(repoPath, CMUX_DIR);
+  await fs.mkdir(cmuxDir, { recursive: true });
+  const initHookPath = path.join(cmuxDir, INIT_HOOK_FILENAME);
+  await fs.writeFile(initHookPath, hookContent, { mode: 0o755 });
+}
+
+/**
+ * Commit changes in git repo
+ */
+async function commitChanges(repoPath: string, message: string): Promise<void> {
+  await execAsync(`git add -A && git commit -m "${message}"`, {
+    cwd: repoPath,
+  });
+}
+
+/**
+ * Create workspace and handle cleanup on test failure
+ * Returns result and cleanup function
+ */
+async function createWorkspaceWithCleanup(
+  env: TestEnvironment,
+  projectPath: string,
+  branchName: string,
+  trunkBranch: string,
+  runtimeConfig?: RuntimeConfig
+): Promise<{
+  result:
+    | { success: true; metadata: FrontendWorkspaceMetadata }
+    | { success: false; error: string };
+  cleanup: () => Promise<void>;
+}> {
+  const result = await env.mockIpcRenderer.invoke(
+    IPC_CHANNELS.WORKSPACE_CREATE,
+    projectPath,
+    branchName,
+    trunkBranch,
+    runtimeConfig
+  );
+
+  const cleanup = async () => {
+    if (result.success) {
+      await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, result.metadata.id);
+    }
+  };
+
+  return { result, cleanup };
+}
 
 describeIntegration("WORKSPACE_CREATE with both runtimes", () => {
   beforeAll(async () => {
@@ -82,8 +200,8 @@ describeIntegration("WORKSPACE_CREATE with both runtimes", () => {
               const trunkBranch = await detectDefaultTrunkBranch(tempGitRepo);
               const runtimeConfig = getRuntimeConfig(branchName);
 
-              const result = await env.mockIpcRenderer.invoke(
-                IPC_CHANNELS.WORKSPACE_CREATE,
+              const { result, cleanup } = await createWorkspaceWithCleanup(
+                env,
                 tempGitRepo,
                 branchName,
                 trunkBranch,
@@ -92,8 +210,9 @@ describeIntegration("WORKSPACE_CREATE with both runtimes", () => {
 
               expect(result.success).toBe(true);
               if (!result.success) {
-                console.error("Failed to create workspace:", result.error);
-                return;
+                throw new Error(
+                  `Failed to create workspace for new branch '${branchName}': ${result.error}`
+                );
               }
 
               // Verify workspace metadata
@@ -101,14 +220,13 @@ describeIntegration("WORKSPACE_CREATE with both runtimes", () => {
               expect(result.metadata.namedWorkspacePath).toBeDefined();
               expect(result.metadata.projectName).toBeDefined();
 
-              // Clean up
-              await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, result.metadata.id);
+              await cleanup();
             } finally {
               await cleanupTestEnvironment(env);
               await cleanupTempGitRepo(tempGitRepo);
             }
           },
-          60000
+          TEST_TIMEOUT_MS
         );
 
         test.concurrent(
@@ -123,8 +241,8 @@ describeIntegration("WORKSPACE_CREATE with both runtimes", () => {
               const trunkBranch = await detectDefaultTrunkBranch(tempGitRepo);
               const runtimeConfig = getRuntimeConfig(branchName);
 
-              const result = await env.mockIpcRenderer.invoke(
-                IPC_CHANNELS.WORKSPACE_CREATE,
+              const { result, cleanup } = await createWorkspaceWithCleanup(
+                env,
                 tempGitRepo,
                 branchName,
                 trunkBranch,
@@ -133,20 +251,20 @@ describeIntegration("WORKSPACE_CREATE with both runtimes", () => {
 
               expect(result.success).toBe(true);
               if (!result.success) {
-                console.error("Failed to create workspace:", result.error);
-                return;
+                throw new Error(
+                  `Failed to check out existing branch '${branchName}': ${result.error}`
+                );
               }
 
               expect(result.metadata.id).toBeDefined();
 
-              // Clean up
-              await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, result.metadata.id);
+              await cleanup();
             } finally {
               await cleanupTestEnvironment(env);
               await cleanupTempGitRepo(tempGitRepo);
             }
           },
-          60000
+          TEST_TIMEOUT_MS
         );
       });
 
@@ -158,55 +276,28 @@ describeIntegration("WORKSPACE_CREATE with both runtimes", () => {
             const tempGitRepo = await createTempGitRepo();
 
             try {
-              // Create init hook
-              const cmuxDir = path.join(tempGitRepo, ".cmux");
-              await fs.mkdir(cmuxDir, { recursive: true });
-              const initHook = path.join(cmuxDir, "init");
-              await fs.writeFile(
-                initHook,
+              // Create and commit init hook
+              await createInitHook(
+                tempGitRepo,
                 `#!/bin/bash
 echo "Init hook started"
 echo "Installing dependencies..."
 sleep 0.1
 echo "Build complete" >&2
 exit 0
-`,
-                { mode: 0o755 }
+`
               );
-
-              // Commit the hook so it's in the worktree
-              const { exec } = await import("child_process");
-              const { promisify } = await import("util");
-              const execAsync = promisify(exec);
-              await execAsync(`git add .cmux && git commit -m "Add init hook"`, {
-                cwd: tempGitRepo,
-              });
+              await commitChanges(tempGitRepo, "Add init hook");
 
               const branchName = generateBranchName("hook-test");
               const trunkBranch = await detectDefaultTrunkBranch(tempGitRepo);
               const runtimeConfig = getRuntimeConfig(branchName);
 
-              // Start listening for init events before creating workspace
-              const initEvents: Array<{ channel: string; data: unknown }> = [];
-              const originalSend = env.mockWindow.webContents.send;
-              env.mockWindow.webContents.send = ((channel: string, data: unknown) => {
-                // Init events are sent via the chat channel
-                if (
-                  channel.startsWith("workspace:chat:") &&
-                  data &&
-                  typeof data === "object" &&
-                  "type" in data
-                ) {
-                  const typedData = data as { type: string };
-                  if (typedData.type.startsWith("init-")) {
-                    initEvents.push({ channel, data });
-                  }
-                }
-                originalSend.call(env.mockWindow.webContents, channel, data);
-              }) as typeof originalSend;
+              // Capture init events
+              const initEvents = setupInitEventCapture(env);
 
-              const result = await env.mockIpcRenderer.invoke(
-                IPC_CHANNELS.WORKSPACE_CREATE,
+              const { result, cleanup } = await createWorkspaceWithCleanup(
+                env,
                 tempGitRepo,
                 branchName,
                 trunkBranch,
@@ -215,44 +306,30 @@ exit 0
 
               expect(result.success).toBe(true);
               if (!result.success) {
-                console.error("Failed to create workspace:", result.error);
-                return;
+                throw new Error(`Failed to create workspace with init hook: ${result.error}`);
               }
 
-              // Wait for init hook to complete (it runs asynchronously)
-              await new Promise((resolve) => setTimeout(resolve, 1500));
+              // Wait for init hook to complete (runs asynchronously after workspace creation)
+              await new Promise((resolve) => setTimeout(resolve, INIT_HOOK_WAIT_MS));
 
-              // Verify init hook events were sent
+              // Verify init events were emitted
               expect(initEvents.length).toBeGreaterThan(0);
 
-              // Look for init-output events
-              const outputEvents = initEvents.filter(
-                (e) =>
-                  e.data &&
-                  typeof e.data === "object" &&
-                  "type" in e.data &&
-                  e.data.type === "init-output"
-              );
+              // Verify output events (stdout/stderr from hook)
+              const outputEvents = filterEventsByType(initEvents, EVENT_TYPE_INIT_OUTPUT);
               expect(outputEvents.length).toBeGreaterThan(0);
 
-              // Look for init-end event
-              const endEvents = initEvents.filter(
-                (e) =>
-                  e.data &&
-                  typeof e.data === "object" &&
-                  "type" in e.data &&
-                  e.data.type === "init-end"
-              );
+              // Verify completion event
+              const endEvents = filterEventsByType(initEvents, EVENT_TYPE_INIT_END);
               expect(endEvents.length).toBe(1);
 
-              // Clean up
-              await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, result.metadata.id);
+              await cleanup();
             } finally {
               await cleanupTestEnvironment(env);
               await cleanupTempGitRepo(tempGitRepo);
             }
           },
-          60000
+          TEST_TIMEOUT_MS
         );
 
         test.concurrent(
@@ -262,53 +339,26 @@ exit 0
             const tempGitRepo = await createTempGitRepo();
 
             try {
-              // Create failing init hook
-              const cmuxDir = path.join(tempGitRepo, ".cmux");
-              await fs.mkdir(cmuxDir, { recursive: true });
-              const initHook = path.join(cmuxDir, "init");
-              await fs.writeFile(
-                initHook,
+              // Create and commit failing init hook
+              await createInitHook(
+                tempGitRepo,
                 `#!/bin/bash
 echo "Starting init..."
 echo "Error occurred!" >&2
 exit 1
-`,
-                { mode: 0o755 }
+`
               );
-
-              // Commit the hook
-              const { exec } = await import("child_process");
-              const { promisify } = await import("util");
-              const execAsync = promisify(exec);
-              await execAsync(`git add .cmux && git commit -m "Add failing hook"`, {
-                cwd: tempGitRepo,
-              });
+              await commitChanges(tempGitRepo, "Add failing hook");
 
               const branchName = generateBranchName("fail-hook");
               const trunkBranch = await detectDefaultTrunkBranch(tempGitRepo);
               const runtimeConfig = getRuntimeConfig(branchName);
 
-              // Track init events
-              const initEvents: Array<{ channel: string; data: unknown }> = [];
-              const originalSend = env.mockWindow.webContents.send;
-              env.mockWindow.webContents.send = ((channel: string, data: unknown) => {
-                // Init events are sent via the chat channel
-                if (
-                  channel.startsWith("workspace:chat:") &&
-                  data &&
-                  typeof data === "object" &&
-                  "type" in data
-                ) {
-                  const typedData = data as { type: string };
-                  if (typedData.type.startsWith("init-")) {
-                    initEvents.push({ channel, data });
-                  }
-                }
-                originalSend.call(env.mockWindow.webContents, channel, data);
-              }) as typeof originalSend;
+              // Capture init events
+              const initEvents = setupInitEventCapture(env);
 
-              const result = await env.mockIpcRenderer.invoke(
-                IPC_CHANNELS.WORKSPACE_CREATE,
+              const { result, cleanup } = await createWorkspaceWithCleanup(
+                env,
                 tempGitRepo,
                 branchName,
                 trunkBranch,
@@ -318,34 +368,27 @@ exit 1
               // Workspace creation should succeed even if hook fails
               expect(result.success).toBe(true);
               if (!result.success) {
-                console.error("Failed to create workspace:", result.error);
-                return;
+                throw new Error(`Failed to create workspace with failing hook: ${result.error}`);
               }
 
-              // Wait for init hook to complete (it runs asynchronously)
-              await new Promise((resolve) => setTimeout(resolve, 1500));
+              // Wait for init hook to complete asynchronously
+              await new Promise((resolve) => setTimeout(resolve, INIT_HOOK_WAIT_MS));
 
               // Verify init-end event with non-zero exit code
-              const endEvents = initEvents.filter(
-                (e) =>
-                  e.data &&
-                  typeof e.data === "object" &&
-                  "type" in e.data &&
-                  e.data.type === "init-end"
-              );
+              const endEvents = filterEventsByType(initEvents, EVENT_TYPE_INIT_END);
               expect(endEvents.length).toBe(1);
-              const endEvent = endEvents[0].data as { exitCode: number };
-              // Exit code can be 1 (script failure) or 127 (command not found, e.g., in SSH without bash)
-              expect(endEvent.exitCode).not.toBe(0);
 
-              // Clean up
-              await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, result.metadata.id);
+              const endEventData = endEvents[0].data as { type: string; exitCode: number };
+              expect(endEventData.exitCode).not.toBe(0);
+              // Exit code can be 1 (script failure) or 127 (command not found on some systems)
+
+              await cleanup();
             } finally {
               await cleanupTestEnvironment(env);
               await cleanupTempGitRepo(tempGitRepo);
             }
           },
-          60000
+          TEST_TIMEOUT_MS
         );
 
         test.concurrent(
@@ -359,8 +402,8 @@ exit 1
               const trunkBranch = await detectDefaultTrunkBranch(tempGitRepo);
               const runtimeConfig = getRuntimeConfig(branchName);
 
-              const result = await env.mockIpcRenderer.invoke(
-                IPC_CHANNELS.WORKSPACE_CREATE,
+              const { result, cleanup } = await createWorkspaceWithCleanup(
+                env,
                 tempGitRepo,
                 branchName,
                 trunkBranch,
@@ -369,20 +412,18 @@ exit 1
 
               expect(result.success).toBe(true);
               if (!result.success) {
-                console.error("Failed to create workspace:", result.error);
-                return;
+                throw new Error(`Failed to create workspace without init hook: ${result.error}`);
               }
 
               expect(result.metadata.id).toBeDefined();
 
-              // Clean up
-              await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, result.metadata.id);
+              await cleanup();
             } finally {
               await cleanupTestEnvironment(env);
               await cleanupTempGitRepo(tempGitRepo);
             }
           },
-          60000
+          TEST_TIMEOUT_MS
         );
       });
 
@@ -394,20 +435,20 @@ exit 1
             const tempGitRepo = await createTempGitRepo();
 
             try {
-              const invalidNames = [
-                { name: "", expectedError: "empty" },
-                { name: "My-Branch", expectedError: "lowercase" },
-                { name: "branch name", expectedError: "lowercase" },
-                { name: "branch@123", expectedError: "lowercase" },
-                { name: "a".repeat(65), expectedError: "64 characters" },
+              const invalidCases = [
+                { name: "", expectedErrorFragment: "empty" },
+                { name: "My-Branch", expectedErrorFragment: "lowercase" },
+                { name: "branch name", expectedErrorFragment: "lowercase" },
+                { name: "branch@123", expectedErrorFragment: "lowercase" },
+                { name: "a".repeat(65), expectedErrorFragment: "64 characters" },
               ];
 
               const trunkBranch = await detectDefaultTrunkBranch(tempGitRepo);
 
-              for (const { name, expectedError } of invalidNames) {
+              for (const { name, expectedErrorFragment } of invalidCases) {
                 const runtimeConfig = getRuntimeConfig(name);
-                const result = await env.mockIpcRenderer.invoke(
-                  IPC_CHANNELS.WORKSPACE_CREATE,
+                const { result } = await createWorkspaceWithCleanup(
+                  env,
                   tempGitRepo,
                   name,
                   trunkBranch,
@@ -415,8 +456,9 @@ exit 1
                 );
 
                 expect(result.success).toBe(false);
-                if (result.success === false) {
-                  expect(result.error.toLowerCase()).toContain(expectedError.toLowerCase());
+
+                if (!result.success) {
+                  expect(result.error.toLowerCase()).toContain(expectedErrorFragment.toLowerCase());
                 }
               }
             } finally {
@@ -424,7 +466,7 @@ exit 1
               await cleanupTempGitRepo(tempGitRepo);
             }
           },
-          60000
+          TEST_TIMEOUT_MS
         );
       });
     }
