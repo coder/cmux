@@ -1,7 +1,7 @@
-import { describe, test, expect, beforeEach } from "@jest/globals";
-import { LocalRuntime } from "@/runtime/LocalRuntime";
+import { describe, test, expect } from "@jest/globals";
+import { executeFileEditOperation } from "./file_edit_operation";
+import { WRITE_DENIED_PREFIX } from "@/types/tools";
 import { createRuntime } from "@/runtime/runtimeFactory";
->>>>>>> a522bfce (🤖 Integrate runtime config with workspace metadata and AIService)
 
 const TEST_CWD = "/tmp";
 
@@ -10,7 +10,7 @@ function createConfig() {
 }
 
 describe("executeFileEditOperation", () => {
-  it("should return error when path validation fails", async () => {
+  test("should return error when path validation fails", async () => {
     const result = await executeFileEditOperation({
       config: createConfig(),
       filePath: "../../etc/passwd",
