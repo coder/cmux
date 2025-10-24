@@ -10,6 +10,7 @@
 
 - [Workspaces](./workspaces.md)
   - [Forking](./fork.md)
+  - [Init Hooks](./init-hooks.md)
 - [Models](./models.md)
 - [Keyboard Shortcuts](./keybinds.md)
   - [Vim Mode](./vim-mode.md)

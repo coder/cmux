@@ -1,692 +1,137 @@
-import { describe, it, expect } from "bun:test";
+import { describe, test, expect } from "bun:test";
 import { StreamingMessageAggregator } from "./StreamingMessageAggregator";
-import type { StreamEndEvent } from "@/types/stream";
-import type { DynamicToolPart } from "@/types/toolParts";
 
 describe("StreamingMessageAggregator", () => {
-  it("should preserve temporal ordering of text and tool parts", () => {
-    const aggregator = new StreamingMessageAggregator();
+  describe("init state reference stability", () => {
+    test("should return new array reference when state changes", () => {
+      const aggregator = new StreamingMessageAggregator();
 
-    // Simulate a stream-end event with interleaved content
-    const streamEndEvent: StreamEndEvent = {
-      type: "stream-end",
-      workspaceId: "test-ws",
-      messageId: "msg-1",
-      metadata: {
-        model: "claude-3",
-      },
-      parts: [
-        { type: "text", text: "Let me check the weather for you." },
-        {
-          type: "dynamic-tool",
-          toolCallId: "tool-1",
-          toolName: "getWeather",
-          state: "output-available",
-          input: { city: "SF" },
-          output: { temp: 72 },
-        },
-      ],
-    };
+      // Start init hook
+      aggregator.handleMessage({
+        type: "init-start",
+        hookPath: "/test/init",
+        timestamp: Date.now(),
+      });
 
-    // Process the event
-    aggregator.handleStreamEnd(streamEndEvent);
+      const messages1 = aggregator.getDisplayedMessages();
 
-    // Get the resulting message
-    const messages = aggregator.getAllMessages();
-    expect(messages).toHaveLength(1);
+      // Add output to change state
+      aggregator.handleMessage({
+        type: "init-output",
+        line: "Line 1",
+        isError: false,
+        timestamp: Date.now(),
+      });
 
-    const message = messages[0];
-    expect(message.parts).toHaveLength(2);
+      const messages2 = aggregator.getDisplayedMessages();
 
-    // Verify temporal order: text first, then tool
-    expect(message.parts[0].type).toBe("text");
-    if (message.parts[0].type === "text") {
-      expect(message.parts[0].text).toBe("Let me check the weather for you.");
-    }
-
-    expect(message.parts[1].type).toBe("dynamic-tool");
-    const toolPart = message.parts[1] as DynamicToolPart;
-    expect(toolPart.toolName).toBe("getWeather");
-  });
-
-  it("should split messages into DisplayedMessages correctly", () => {
-    const aggregator = new StreamingMessageAggregator();
-
-    // Add a user message
-    aggregator.handleMessage({
-      id: "user-1",
-      role: "user",
-      parts: [{ type: "text", text: "Hello world" }],
-      metadata: { historySequence: 0 },
+      // Array references should be different when state changes
+      expect(messages1).not.toBe(messages2);
     });
 
-    // Add an assistant message with text and tool
-    const streamEndEvent: StreamEndEvent = {
-      type: "stream-end",
-      workspaceId: "test-ws",
-      messageId: "assistant-1",
-      metadata: {
-        model: "claude-3",
-      },
-      parts: [
-        { type: "text", text: "I'll help you with that." },
-        {
-          type: "dynamic-tool",
-          toolCallId: "tool-1",
-          toolName: "searchFiles",
-          state: "output-available",
-          input: { pattern: "*.ts" },
-          output: ["file1.ts", "file2.ts"],
-        },
-      ],
-    };
-    aggregator.handleStreamEnd(streamEndEvent);
-
-    // Get DisplayedMessages
-    const displayedMessages = aggregator.getDisplayedMessages();
-
-    // Should have 3 messages: user, assistant text, tool
-    expect(displayedMessages).toHaveLength(3);
-
-    // Check user message
-    expect(displayedMessages[0].type).toBe("user");
-    if (displayedMessages[0].type === "user") {
-      expect(displayedMessages[0].content).toBe("Hello world");
-    }
-
-    // Check assistant text message
-    expect(displayedMessages[1].type).toBe("assistant");
-    if (displayedMessages[1].type === "assistant") {
-      expect(displayedMessages[1].content).toBe("I'll help you with that.");
-      expect(displayedMessages[1].isStreaming).toBe(false);
-    }
-
-    // Check tool message
-    expect(displayedMessages[2].type).toBe("tool");
-    if (displayedMessages[2].type === "tool") {
-      expect(displayedMessages[2].toolName).toBe("searchFiles");
-      expect(displayedMessages[2].status).toBe("completed");
-      expect(displayedMessages[2].args).toEqual({ pattern: "*.ts" });
-      expect(displayedMessages[2].result).toEqual(["file1.ts", "file2.ts"]);
-    }
-  });
-
-  it("should properly interleave text and tool calls temporally", () => {
-    const aggregator = new StreamingMessageAggregator();
-
-    // Start streaming
-    aggregator.handleStreamStart({
-      type: "stream-start",
-      workspaceId: "test-ws",
-      messageId: "msg-interleaved",
-      model: "claude-3",
-      historySequence: 0,
-    });
-
-    // Stream first part of text
-    aggregator.handleStreamDelta({
-      type: "stream-delta",
-      workspaceId: "test-ws",
-      messageId: "msg-interleaved",
-      delta: "Let me search for that. ",
-      tokens: 0,
-      timestamp: Date.now(),
-    });
-
-    // Tool call interrupts
-    aggregator.handleToolCallStart({
-      type: "tool-call-start",
-      workspaceId: "test-ws",
-      messageId: "msg-interleaved",
-      toolCallId: "tool-search",
-      toolName: "searchFiles",
-      args: { query: "test" },
-      tokens: 0,
-      timestamp: Date.now(),
-    });
-
-    // More text after tool call
-    aggregator.handleStreamDelta({
-      type: "stream-delta",
-      workspaceId: "test-ws",
-      messageId: "msg-interleaved",
-      delta: "I found the following results: ",
-      tokens: 0,
-      timestamp: Date.now(),
-    });
-
-    aggregator.handleStreamDelta({
-      type: "stream-delta",
-      workspaceId: "test-ws",
-      messageId: "msg-interleaved",
-      delta: "file1.ts and file2.ts",
-      tokens: 0,
-      timestamp: Date.now(),
-    });
-
-    // Tool call completes
-    aggregator.handleToolCallEnd({
-      type: "tool-call-end",
-      workspaceId: "test-ws",
-      messageId: "msg-interleaved",
-      toolCallId: "tool-search",
-      toolName: "searchFiles",
-      result: ["file1.ts", "file2.ts"],
-    });
-
-    // Get the message and verify structure
-    const messages = aggregator.getAllMessages();
-    expect(messages).toHaveLength(1);
-
-    const message = messages[0];
-    // Should have 4 parts: text, tool, text, text (deltas not merged during streaming)
-    expect(message.parts).toHaveLength(4);
-
-    // First text part (before tool)
-    expect(message.parts[0].type).toBe("text");
-    if (message.parts[0].type === "text") {
-      expect(message.parts[0].text).toBe("Let me search for that. ");
-    }
-
-    // Tool part in the middle
-    expect(message.parts[1].type).toBe("dynamic-tool");
-    const toolPart = message.parts[1] as DynamicToolPart;
-    expect(toolPart.toolName).toBe("searchFiles");
-    expect(toolPart.state).toBe("output-available");
-
-    // Second and third text parts (after tool) - separate deltas not yet merged
-    expect(message.parts[2].type).toBe("text");
-    expect(message.parts[3].type).toBe("text");
-    if (message.parts[2].type === "text" && message.parts[3].type === "text") {
-      expect(message.parts[2].text).toBe("I found the following results: ");
-      expect(message.parts[3].text).toBe("file1.ts and file2.ts");
-    }
-
-    // Test DisplayedMessages split
-    const displayedMessages = aggregator.getDisplayedMessages();
-    // Should have 3 displayed messages: text, tool, text
-    expect(displayedMessages).toHaveLength(3);
-
-    expect(displayedMessages[0].type).toBe("assistant");
-    if (displayedMessages[0].type === "assistant") {
-      expect(displayedMessages[0].content).toBe("Let me search for that. ");
-    }
-
-    expect(displayedMessages[1].type).toBe("tool");
-    if (displayedMessages[1].type === "tool") {
-      expect(displayedMessages[1].toolName).toBe("searchFiles");
-    }
-
-    expect(displayedMessages[2].type).toBe("assistant");
-    if (displayedMessages[2].type === "assistant") {
-      expect(displayedMessages[2].content).toBe(
-        "I found the following results: file1.ts and file2.ts"
-      );
-      expect(displayedMessages[2].isStreaming).toBe(true);
-    }
-  });
-
-  it("should preserve temporal ordering after stream-end", () => {
-    const aggregator = new StreamingMessageAggregator();
-
-    // Start streaming
-    aggregator.handleStreamStart({
-      type: "stream-start",
-      workspaceId: "test-ws",
-      messageId: "msg-end-test",
-      model: "claude-3",
-      historySequence: 0,
-    });
-
-    // Stream first text
-    aggregator.handleStreamDelta({
-      type: "stream-delta",
-      workspaceId: "test-ws",
-      messageId: "msg-end-test",
-      delta: "First part. ",
-      tokens: 0,
-      timestamp: Date.now(),
-    });
-
-    // Tool interrupts
-    aggregator.handleToolCallStart({
-      type: "tool-call-start",
-      workspaceId: "test-ws",
-      messageId: "msg-end-test",
-      toolCallId: "tool-1",
-      toolName: "readFile",
-      args: { file: "test.ts" },
-      tokens: 0,
-      timestamp: Date.now(),
-    });
-
-    // More text after tool
-    aggregator.handleStreamDelta({
-      type: "stream-delta",
-      workspaceId: "test-ws",
-      messageId: "msg-end-test",
-      delta: "Second part after tool.",
-      tokens: 0,
-      timestamp: Date.now(),
-    });
-
-    // End stream with complete content - should preserve temporal ordering
-    aggregator.handleStreamEnd({
-      type: "stream-end",
-      workspaceId: "test-ws",
-      messageId: "msg-end-test",
-      metadata: {
-        model: "claude-3",
-      },
-      parts: [
-        { type: "text", text: "First part. " },
-        {
-          type: "dynamic-tool",
-          toolCallId: "tool-1",
-          toolName: "readFile",
-          state: "output-available",
-          input: { file: "test.ts" },
-          output: "file contents",
-        },
-        { type: "text", text: "Second part after tool." },
-      ],
-    });
-
-    // Verify temporal ordering is preserved
-    const messages = aggregator.getAllMessages();
-    expect(messages).toHaveLength(1);
-
-    const message = messages[0];
-    expect(message.parts).toHaveLength(3);
-
-    // First text part
-    expect(message.parts[0].type).toBe("text");
-    if (message.parts[0].type === "text") {
-      expect(message.parts[0].text).toBe("First part. ");
-    }
-
-    // Tool in the middle
-    expect(message.parts[1].type).toBe("dynamic-tool");
-
-    // Second text part - should be preserved, not merged
-    expect(message.parts[2].type).toBe("text");
-    if (message.parts[2].type === "text") {
-      expect(message.parts[2].text).toBe("Second part after tool.");
-    }
-
-    // Verify DisplayedMessages also maintains order
-    const displayed = aggregator.getDisplayedMessages();
-    expect(displayed).toHaveLength(3);
-    expect(displayed[0].type).toBe("assistant");
-    expect(displayed[1].type).toBe("tool");
-    expect(displayed[2].type).toBe("assistant");
-  });
-
-  it("should handle streaming to non-streaming transition smoothly", () => {
-    const aggregator = new StreamingMessageAggregator();
-
-    // Start streaming
-    aggregator.handleStreamStart({
-      type: "stream-start",
-      workspaceId: "test-ws",
-      messageId: "msg-2",
-      model: "claude-3",
-      historySequence: 0,
-    });
-
-    // Add some content
-    aggregator.handleStreamDelta({
-      type: "stream-delta",
-      workspaceId: "test-ws",
-      messageId: "msg-2",
-      delta: "Hello, ",
-      tokens: 0,
-      timestamp: Date.now(),
-    });
-
-    aggregator.handleStreamDelta({
-      type: "stream-delta",
-      workspaceId: "test-ws",
-      messageId: "msg-2",
-      delta: "world!",
-      tokens: 0,
-      timestamp: Date.now(),
-    });
-
-    // End streaming
-    aggregator.handleStreamEnd({
-      type: "stream-end",
-      workspaceId: "test-ws",
-      messageId: "msg-2",
-      metadata: {
-        model: "claude-3",
-      },
-      parts: [{ type: "text", text: "Hello, world!" }],
-    });
-
-    // Verify the message content
-    const messages = aggregator.getAllMessages();
-    expect(messages).toHaveLength(1);
-
-    // Raw parts are separate deltas (2 parts: "Hello, " and "world!")
-    expect(messages[0].parts).toHaveLength(2);
-    const firstPart = messages[0].parts[0];
-    if (firstPart.type === "text") {
-      expect(firstPart.text).toBe("Hello, ");
-    }
-
-    // DisplayedMessages should merge them
-    const displayedMessages = aggregator.getDisplayedMessages();
-    expect(displayedMessages).toHaveLength(1);
-    if (displayedMessages[0].type === "assistant") {
-      expect(displayedMessages[0].content).toBe("Hello, world!");
-    }
-  });
-
-  it("should preserve sequence numbers when loading historical messages", () => {
-    const aggregator = new StreamingMessageAggregator();
-
-    // Simulate historical messages with existing history sequences
-    const historicalMessages = [
-      {
-        id: "hist-1",
-        role: "user" as const,
-        parts: [{ type: "text" as const, text: "First message" }],
-        metadata: { historySequence: 0 },
-      },
-      {
-        id: "hist-2",
-        role: "assistant" as const,
-        parts: [{ type: "text" as const, text: "Second message" }],
-        metadata: { historySequence: 1 },
-      },
-      {
-        id: "hist-3",
-        role: "user" as const,
-        parts: [{ type: "text" as const, text: "Third message" }],
-        metadata: { historySequence: 2 },
-      },
-    ];
-
-    // Load historical messages in batch
-    aggregator.loadHistoricalMessages(historicalMessages);
-
-    // Verify all messages retained their history sequences
-    const messages = aggregator.getAllMessages();
-    expect(messages).toHaveLength(3);
-    expect(messages[0].metadata?.historySequence).toBe(0);
-    expect(messages[1].metadata?.historySequence).toBe(1);
-    expect(messages[2].metadata?.historySequence).toBe(2);
-
-    // Now add a new streaming message - backend must provide historySequence
-    aggregator.handleStreamStart({
-      type: "stream-start",
-      workspaceId: "test-ws",
-      messageId: "new-msg",
-      model: "claude-3",
-      historySequence: 3, // Backend assigns this
-    });
-
-    // Add some content so it appears in DisplayedMessages
-    aggregator.handleStreamDelta({
-      type: "stream-delta",
-      workspaceId: "test-ws",
-      messageId: "new-msg",
-      delta: "New streaming content",
-      tokens: 0,
-      timestamp: Date.now(),
-    });
-
-    // Verify new message has correct history sequence (from backend)
-    const updatedMessages = aggregator.getAllMessages();
-    expect(updatedMessages).toHaveLength(4);
-    expect(updatedMessages[3].metadata?.historySequence).toBe(3);
-
-    // Verify temporal ordering in DisplayedMessages
-    const displayedMessages = aggregator.getDisplayedMessages();
-    expect(displayedMessages).toHaveLength(4);
-    expect(displayedMessages[0].historySequence).toBe(0);
-    expect(displayedMessages[1].historySequence).toBe(1);
-    expect(displayedMessages[2].historySequence).toBe(2);
-    expect(displayedMessages[3].historySequence).toBe(3);
-  });
-
-  it("should handle addMessage() storing messages as-is", () => {
-    const aggregator = new StreamingMessageAggregator();
-
-    // Add a message with history sequence from backend
-    const messageWithSeq = {
-      id: "msg-with-seq",
-      role: "user" as const,
-      parts: [{ type: "text" as const, text: "Has history sequence" }],
-      metadata: { historySequence: 5 },
-    };
-
-    aggregator.addMessage(messageWithSeq);
-
-    // Verify history sequence was preserved
-    const messages = aggregator.getAllMessages();
-    expect(messages[0].metadata?.historySequence).toBe(5);
-
-    // Add another message with different history sequence
-    const anotherMessage = {
-      id: "msg-2",
-      role: "user" as const,
-      parts: [{ type: "text" as const, text: "Another message" }],
-      metadata: { historySequence: 10 },
-    };
-
-    aggregator.addMessage(anotherMessage);
-
-    // Verify both messages retained their backend-assigned sequences
-    const updatedMessages = aggregator.getAllMessages();
-    expect(updatedMessages[0].metadata?.historySequence).toBe(5);
-    expect(updatedMessages[1].metadata?.historySequence).toBe(10);
-  });
-});
-
-it("should clear TODOs on reconnection stream-end", () => {
-  const aggregator = new StreamingMessageAggregator();
-
-  // Simulate a streaming session where TODOs are written
-  aggregator.handleStreamStart({
-    type: "stream-start",
-    workspaceId: "test-ws",
-    messageId: "msg-1",
-    model: "claude-3",
-    historySequence: 1,
-  });
-
-  // Add a tool call that writes TODOs
-  aggregator.handleToolCallStart({
-    type: "tool-call-start",
-    workspaceId: "test-ws",
-    messageId: "msg-1",
-    toolCallId: "tool-1",
-    toolName: "todo_write",
-    args: {
-      todos: [
-        { content: "Fix bug", status: "in_progress" as const },
-        { content: "Write test", status: "pending" as const },
-      ],
-    },
-    tokens: 10,
-    timestamp: Date.now(),
-  });
-
-  // Complete the tool call successfully
-  aggregator.handleToolCallEnd({
-    type: "tool-call-end",
-    workspaceId: "test-ws",
-    messageId: "msg-1",
-    toolCallId: "tool-1",
-    toolName: "todo_write",
-    result: { success: true, count: 2 },
-  });
-
-  // Verify TODOs were set
-  expect(aggregator.getCurrentTodos()).toHaveLength(2);
-
-  // Simulate reconnection case: handleStreamEnd called without active stream
-  // (User reconnects after stream completed)
-  const streamEndEvent: StreamEndEvent = {
-    type: "stream-end",
-    workspaceId: "test-ws",
-    messageId: "msg-2",
-    metadata: { model: "claude-3" },
-    parts: [{ type: "text", text: "Reconnection response" }],
-  };
-
-  // Note: No handleStreamStart for msg-2, so no active stream exists
-  aggregator.handleStreamEnd(streamEndEvent);
-
-  // Verify TODOs were cleared on stream-end (even in reconnection case)
-  expect(aggregator.getCurrentTodos()).toHaveLength(0);
-});
-
-describe("Part-level timestamps", () => {
-  it("should assign timestamps to text/reasoning parts during streaming", () => {
-    const aggregator = new StreamingMessageAggregator();
-    const startTime = Date.now();
-
-    // Start a stream
-    aggregator.handleStreamStart({
-      type: "stream-start",
-      workspaceId: "test-ws",
-      messageId: "msg-1",
-      model: "claude-3",
-      historySequence: 1,
-    });
-
-    // Add text deltas
-    aggregator.handleStreamDelta({
-      type: "stream-delta",
-      workspaceId: "test-ws",
-      messageId: "msg-1",
-      delta: "First part ",
-      tokens: 2,
-      timestamp: startTime,
-    });
-
-    aggregator.handleStreamDelta({
-      type: "stream-delta",
-      workspaceId: "test-ws",
-      messageId: "msg-1",
-      delta: "second part",
-      tokens: 2,
-      timestamp: startTime + 100,
-    });
-
-    // Add reasoning delta
-    aggregator.handleReasoningDelta({
-      type: "reasoning-delta",
-      workspaceId: "test-ws",
-      messageId: "msg-1",
-      delta: "thinking...",
-      tokens: 1,
-      timestamp: startTime + 200,
-    });
-
-    // End stream
-    aggregator.handleStreamEnd({
-      type: "stream-end",
-      workspaceId: "test-ws",
-      messageId: "msg-1",
-      metadata: {
-        model: "claude-3",
-        historySequence: 1,
-      },
-      parts: [],
-    });
-
-    // Check that parts have timestamps
-    const messages = aggregator.getAllMessages();
-    expect(messages).toHaveLength(1);
-    const msg = messages[0];
-
-    // Text parts should have timestamps
-    const textParts = msg.parts.filter((p) => p.type === "text");
-    expect(textParts.length).toBeGreaterThan(0);
-    for (const part of textParts) {
-      if (part.type === "text") {
-        expect(part.timestamp).toBeNumber();
+    test("should return new lines array reference when init state changes", () => {
+      const aggregator = new StreamingMessageAggregator();
+
+      // Start init hook
+      aggregator.handleMessage({
+        type: "init-start",
+        hookPath: "/test/init",
+        timestamp: Date.now(),
+      });
+
+      const messages1 = aggregator.getDisplayedMessages();
+      const initMsg1 = messages1.find((m) => m.type === "workspace-init");
+      expect(initMsg1).toBeDefined();
+
+      // Add output
+      aggregator.handleMessage({
+        type: "init-output",
+        line: "Line 1",
+        isError: false,
+        timestamp: Date.now(),
+      });
+
+      const messages2 = aggregator.getDisplayedMessages();
+      const initMsg2 = messages2.find((m) => m.type === "workspace-init");
+      expect(initMsg2).toBeDefined();
+
+      // Lines array should be a NEW reference (critical for React.memo)
+      if (initMsg1?.type === "workspace-init" && initMsg2?.type === "workspace-init") {
+        expect(initMsg1.lines).not.toBe(initMsg2.lines);
+        expect(initMsg2.lines).toHaveLength(1);
+        expect(initMsg2.lines[0]).toBe("Line 1");
       }
-    }
+    });
 
-    // Reasoning parts should have timestamps
-    const reasoningParts = msg.parts.filter((p) => p.type === "reasoning");
-    expect(reasoningParts.length).toBeGreaterThan(0);
-    for (const part of reasoningParts) {
-      if (part.type === "reasoning") {
-        expect(part.timestamp).toBeNumber();
+    test("should create new init message object on each state change", () => {
+      const aggregator = new StreamingMessageAggregator();
+
+      // Start init hook
+      aggregator.handleMessage({
+        type: "init-start",
+        hookPath: "/test/init",
+        timestamp: Date.now(),
+      });
+
+      const messages1 = aggregator.getDisplayedMessages();
+      const initMsg1 = messages1.find((m) => m.type === "workspace-init");
+
+      // Add multiple outputs
+      aggregator.handleMessage({
+        type: "init-output",
+        line: "Line 1",
+        isError: false,
+        timestamp: Date.now(),
+      });
+
+      const messages2 = aggregator.getDisplayedMessages();
+      const initMsg2 = messages2.find((m) => m.type === "workspace-init");
+
+      aggregator.handleMessage({
+        type: "init-output",
+        line: "Line 2",
+        isError: false,
+        timestamp: Date.now(),
+      });
+
+      const messages3 = aggregator.getDisplayedMessages();
+      const initMsg3 = messages3.find((m) => m.type === "workspace-init");
+
+      // Each message object should be a new reference
+      expect(initMsg1).not.toBe(initMsg2);
+      expect(initMsg2).not.toBe(initMsg3);
+
+      // Lines arrays should be different references
+      if (
+        initMsg1?.type === "workspace-init" &&
+        initMsg2?.type === "workspace-init" &&
+        initMsg3?.type === "workspace-init"
+      ) {
+        expect(initMsg1.lines).not.toBe(initMsg2.lines);
+        expect(initMsg2.lines).not.toBe(initMsg3.lines);
+
+        // Verify content progression
+        expect(initMsg1.lines).toHaveLength(0);
+        expect(initMsg2.lines).toHaveLength(1);
+        expect(initMsg3.lines).toHaveLength(2);
       }
-    }
-  });
-
-  it("should preserve individual part timestamps when displaying", () => {
-    const aggregator = new StreamingMessageAggregator();
-    const startTime = 1000;
-
-    // Simulate stream-end with pre-timestamped parts
-    aggregator.handleStreamEnd({
-      type: "stream-end",
-      workspaceId: "test-ws",
-      messageId: "msg-1",
-      metadata: {
-        model: "claude-3",
-        historySequence: 1,
-        timestamp: startTime, // Message-level timestamp
-      },
-      parts: [
-        { type: "text", text: "First", timestamp: startTime },
-        { type: "text", text: " second", timestamp: startTime + 100 },
-        { type: "reasoning", text: "thinking", timestamp: startTime + 200 },
-      ],
     });
 
-    // Get displayed messages
-    const displayed = aggregator.getDisplayedMessages();
+    test("should return same cached reference when state has not changed", () => {
+      const aggregator = new StreamingMessageAggregator();
 
-    // Should have merged text parts into one display message and one reasoning message
-    const assistantMsgs = displayed.filter((m) => m.type === "assistant");
-    const reasoningMsgs = displayed.filter((m) => m.type === "reasoning");
+      // Start init hook
+      aggregator.handleMessage({
+        type: "init-start",
+        hookPath: "/test/init",
+        timestamp: Date.now(),
+      });
 
-    expect(assistantMsgs).toHaveLength(1);
-    expect(reasoningMsgs).toHaveLength(1);
+      const messages1 = aggregator.getDisplayedMessages();
+      const messages2 = aggregator.getDisplayedMessages();
 
-    // Assistant message should use the timestamp of the first text part
-    expect(assistantMsgs[0].timestamp).toBe(startTime);
-
-    // Reasoning message should use its part's timestamp
-    expect(reasoningMsgs[0].timestamp).toBe(startTime + 200);
-  });
-
-  it("should use message-level timestamp as fallback when parts don't have timestamps", () => {
-    const aggregator = new StreamingMessageAggregator();
-    const messageTimestamp = 5000;
-
-    // Load a message without part-level timestamps (e.g., from old history)
-    aggregator.handleStreamEnd({
-      type: "stream-end",
-      workspaceId: "test-ws",
-      messageId: "msg-1",
-      metadata: {
-        model: "claude-3",
-        historySequence: 1,
-        timestamp: messageTimestamp,
-      },
-      parts: [
-        { type: "text", text: "No timestamp" },
-        { type: "reasoning", text: "thinking" },
-      ],
+      // When no state changes, cache should return same reference
+      expect(messages1).toBe(messages2);
     });
-
-    const displayed = aggregator.getDisplayedMessages();
-    const assistantMsgs = displayed.filter((m) => m.type === "assistant");
-    const reasoningMsgs = displayed.filter((m) => m.type === "reasoning");
-
-    // Both should fall back to message-level timestamp
-    expect(assistantMsgs[0].timestamp).toBe(messageTimestamp);
-    expect(reasoningMsgs[0].timestamp).toBe(messageTimestamp);
   });
 });

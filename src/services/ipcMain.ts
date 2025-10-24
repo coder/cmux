@@ -1,6 +1,7 @@
 import assert from "@/utils/assert";
 import type { BrowserWindow, IpcMain as ElectronIpcMain } from "electron";
 import { spawn, spawnSync } from "child_process";
+import * as fs from "fs";
 import * as fsPromises from "fs/promises";
 import * as path from "path";
 import type { Config, ProjectConfig } from "@/config";
@@ -28,13 +29,15 @@ import { createBashTool } from "@/services/tools/bash";
 import type { BashToolResult } from "@/types/tools";
 import { secretsToRecord } from "@/types/secrets";
 import { DisposableTempDir } from "@/services/tempDir";
+import { BashExecutionService } from "@/services/bashExecutionService";
+import { InitStateManager } from "@/services/initStateManager";
 
 /**
  * IpcMain - Manages all IPC handlers and service coordination
  *
  * This class encapsulates:
  * - All ipcMain handler registration
- * - Service lifecycle management (AIService, HistoryService, PartialService)
+ * - Service lifecycle management (AIService, HistoryService, PartialService, InitStateManager)
  * - Event forwarding from services to renderer
  *
  * Design:
@@ -47,12 +50,84 @@ export class IpcMain {
   private readonly historyService: HistoryService;
   private readonly partialService: PartialService;
   private readonly aiService: AIService;
+  private readonly bashService: BashExecutionService;
+  private readonly initStateManager: InitStateManager;
   private readonly sessions = new Map<string, AgentSession>();
   private readonly sessionSubscriptions = new Map<
     string,
     { chat: () => void; metadata: () => void }
   >();
   private mainWindow: BrowserWindow | null = null;
+
+  // Run optional .cmux/init hook for a newly created workspace and stream its output
+  private async startWorkspaceInitHook(params: {
+    projectPath: string;
+    worktreePath: string;
+    workspaceId: string;
+  }): Promise<void> {
+    const { projectPath, worktreePath, workspaceId } = params;
+    const hookPath = path.join(projectPath, ".cmux", "init");
+
+    // Check if hook exists and is executable
+    const exists = await fsPromises
+      .access(hookPath, fs.constants.X_OK)
+      .then(() => true)
+      .catch(() => false);
+
+    if (!exists) {
+      log.debug(`No init hook found at ${hookPath}`);
+      return; // Nothing to do
+    }
+
+    log.info(`Starting init hook for workspace ${workspaceId}: ${hookPath}`);
+
+    // Start init hook tracking (creates in-memory state + emits init-start event)
+    // This MUST complete before we return so replayInit() finds state
+    this.initStateManager.startInit(workspaceId, hookPath);
+
+    // Launch the hook process (don't await completion)
+    void (() => {
+      try {
+        const startTime = Date.now();
+
+        // Execute init hook through centralized bash service
+        // Quote path to handle spaces and special characters
+        this.bashService.executeStreaming(
+          `"${hookPath}"`,
+          {
+            cwd: worktreePath,
+            detached: false, // Don't need process group for simple script execution
+          },
+          {
+            onStdout: (line) => {
+              this.initStateManager.appendOutput(workspaceId, line, false);
+            },
+            onStderr: (line) => {
+              this.initStateManager.appendOutput(workspaceId, line, true);
+            },
+            onExit: (exitCode) => {
+              const duration = Date.now() - startTime;
+              const status = exitCode === 0 ? "success" : "error";
+              log.info(
+                `Init hook ${status} for workspace ${workspaceId} (exit code ${exitCode}, duration ${duration}ms)`
+              );
+              // Finalize init state (automatically emits init-end event and persists to disk)
+              void this.initStateManager.endInit(workspaceId, exitCode);
+            },
+          }
+        );
+      } catch (error) {
+        log.error(`Failed to run init hook for workspace ${workspaceId}:`, error);
+        // Report error through init state manager
+        this.initStateManager.appendOutput(
+          workspaceId,
+          error instanceof Error ? error.message : String(error),
+          true
+        );
+        void this.initStateManager.endInit(workspaceId, -1);
+      }
+    })();
+  }
   private registered = false;
 
   constructor(config: Config) {
@@ -60,6 +135,8 @@ export class IpcMain {
     this.historyService = new HistoryService(config);
     this.partialService = new PartialService(config, this.historyService);
     this.aiService = new AIService(config, this.historyService, this.partialService);
+    this.bashService = new BashExecutionService();
+    this.initStateManager = new InitStateManager(config);
   }
 
   private getOrCreateSession(workspaceId: string): AgentSession {
@@ -78,6 +155,7 @@ export class IpcMain {
       historyService: this.historyService,
       partialService: this.partialService,
       aiService: this.aiService,
+      initStateManager: this.initStateManager,
     });
 
     const chatUnsubscribe = session.onChatEvent((event) => {
@@ -246,6 +324,14 @@ export class IpcMain {
           // Emit metadata event for new workspace
           const session = this.getOrCreateSession(workspaceId);
           session.emitMetadata(completeMetadata);
+
+          // Start optional .cmux/init hook (waits for state creation, then returns)
+          // This ensures replayInit() will find state when frontend subscribes
+          await this.startWorkspaceInitHook({
+            projectPath,
+            worktreePath: result.path,
+            workspaceId,
+          });
 
           // Return complete metadata with paths for frontend
           return {

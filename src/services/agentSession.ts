@@ -6,6 +6,7 @@ import type { Config } from "@/config";
 import type { AIService } from "@/services/aiService";
 import type { HistoryService } from "@/services/historyService";
 import type { PartialService } from "@/services/partialService";
+import type { InitStateManager } from "@/services/initStateManager";
 import type { WorkspaceMetadata } from "@/types/workspace";
 import type { WorkspaceChatMessage, StreamErrorMessage, SendMessageOptions } from "@/types/ipc";
 import type { SendMessageError } from "@/types/errors";
@@ -36,6 +37,7 @@ interface AgentSessionOptions {
   historyService: HistoryService;
   partialService: PartialService;
   aiService: AIService;
+  initStateManager: InitStateManager;
 }
 
 export class AgentSession {
@@ -44,14 +46,18 @@ export class AgentSession {
   private readonly historyService: HistoryService;
   private readonly partialService: PartialService;
   private readonly aiService: AIService;
+  private readonly initStateManager: InitStateManager;
   private readonly emitter = new EventEmitter();
   private readonly aiListeners: Array<{ event: string; handler: (...args: unknown[]) => void }> =
+    [];
+  private readonly initListeners: Array<{ event: string; handler: (...args: unknown[]) => void }> =
     [];
   private disposed = false;
 
   constructor(options: AgentSessionOptions) {
     assert(options, "AgentSession requires options");
-    const { workspaceId, config, historyService, partialService, aiService } = options;
+    const { workspaceId, config, historyService, partialService, aiService, initStateManager } =
+      options;
 
     assert(typeof workspaceId === "string", "workspaceId must be a string");
     const trimmedWorkspaceId = workspaceId.trim();
@@ -62,8 +68,10 @@ export class AgentSession {
     this.historyService = historyService;
     this.partialService = partialService;
     this.aiService = aiService;
+    this.initStateManager = initStateManager;
 
     this.attachAiListeners();
+    this.attachInitListeners();
   }
 
   dispose(): void {
@@ -75,6 +83,10 @@ export class AgentSession {
       this.aiService.off(event, handler as never);
     }
     this.aiListeners.length = 0;
+    for (const { event, handler } of this.initListeners) {
+      this.initStateManager.off(event, handler as never);
+    }
+    this.initListeners.length = 0;
     this.emitter.removeAllListeners();
   }
 
@@ -121,6 +133,7 @@ export class AgentSession {
   private async emitHistoricalEvents(
     listener: (event: AgentSessionChatEvent) => void
   ): Promise<void> {
+    // Load chat history (persisted messages from chat.jsonl)
     const historyResult = await this.historyService.getHistory(this.workspaceId);
     if (historyResult.success) {
       for (const message of historyResult.data) {
@@ -128,6 +141,7 @@ export class AgentSession {
       }
     }
 
+    // Check for interrupted streams (active streaming state)
     const streamInfo = this.aiService.getStreamInfo(this.workspaceId);
     const partial = await this.partialService.readPartial(this.workspaceId);
 
@@ -137,6 +151,13 @@ export class AgentSession {
       listener({ workspaceId: this.workspaceId, message: partial });
     }
 
+    // Replay init state BEFORE caught-up (treat as historical data)
+    // This ensures init events are buffered correctly by the frontend,
+    // preserving their natural timing characteristics from the hook execution.
+    await this.initStateManager.replayInit(this.workspaceId);
+
+    // Send caught-up after ALL historical data (including init events)
+    // This signals frontend that replay is complete and future events are real-time
     listener({
       workspaceId: this.workspaceId,
       message: { type: "caught-up" },
@@ -405,7 +426,35 @@ export class AgentSession {
     this.aiService.on("error", errorHandler as never);
   }
 
-  private emitChatEvent(message: WorkspaceChatMessage): void {
+  private attachInitListeners(): void {
+    const forward = (event: string, handler: (payload: WorkspaceChatMessage) => void) => {
+      const wrapped = (...args: unknown[]) => {
+        const [payload] = args;
+        if (
+          typeof payload === "object" &&
+          payload !== null &&
+          "workspaceId" in payload &&
+          (payload as { workspaceId: unknown }).workspaceId !== this.workspaceId
+        ) {
+          return;
+        }
+        // Strip workspaceId from payload before forwarding (WorkspaceInitEvent doesn't include it)
+        const { workspaceId: _, ...message } = payload as WorkspaceChatMessage & {
+          workspaceId: string;
+        };
+        handler(message as WorkspaceChatMessage);
+      };
+      this.initListeners.push({ event, handler: wrapped });
+      this.initStateManager.on(event, wrapped as never);
+    };
+
+    forward("init-start", (payload) => this.emitChatEvent(payload));
+    forward("init-output", (payload) => this.emitChatEvent(payload));
+    forward("init-end", (payload) => this.emitChatEvent(payload));
+  }
+
+  // Public method to emit chat events (used by init hooks and other workspace events)
+  emitChatEvent(message: WorkspaceChatMessage): void {
     this.assertNotDisposed("emitChatEvent");
     this.emitter.emit("chat-event", {
       workspaceId: this.workspaceId,
