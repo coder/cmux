@@ -20,6 +20,7 @@ import { getCancelledCompactionKey } from "@/constants/storage";
 import { isCompactingStream, findCompactionRequestMessage } from "@/utils/compaction/handler";
 
 export interface WorkspaceState {
+  name: string; // User-facing workspace name (e.g., "feature-branch")
   messages: DisplayedMessage[];
   canInterrupt: boolean;
   isCompacting: boolean;
@@ -108,6 +109,7 @@ export class WorkspaceStore {
   private caughtUp = new Map<string, boolean>();
   private historicalMessages = new Map<string, CmuxMessage[]>();
   private pendingStreamEvents = new Map<string, WorkspaceChatMessage[]>();
+  private workspaceMetadata = new Map<string, FrontendWorkspaceMetadata>(); // Store metadata for name lookup
 
   /**
    * Map of event types to their handlers. This is the single source of truth for:
@@ -335,8 +337,10 @@ export class WorkspaceStore {
       const isCaughtUp = this.caughtUp.get(workspaceId) ?? false;
       const activeStreams = aggregator.getActiveStreams();
       const messages = aggregator.getAllMessages();
+      const metadata = this.workspaceMetadata.get(workspaceId);
 
       return {
+        name: metadata?.name ?? workspaceId, // Fall back to ID if metadata missing
         messages: aggregator.getDisplayedMessages(),
         canInterrupt: activeStreams.length > 0,
         isCompacting: aggregator.isCompacting(),
@@ -729,6 +733,9 @@ export class WorkspaceStore {
     if (this.ipcUnsubscribers.has(workspaceId)) {
       return;
     }
+
+    // Store metadata for name lookup
+    this.workspaceMetadata.set(workspaceId, metadata);
 
     const aggregator = this.getOrCreateAggregator(workspaceId, metadata.createdAt);
 

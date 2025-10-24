@@ -41,26 +41,28 @@ export function useAutoCompactContinue() {
     // Check all workspaces for completed compaction
     for (const [workspaceId, state] of newStates) {
       // Debug logging to understand state
-      console.log(`[useAutoCompactContinue] [${workspaceId}] Checking:`, {
+      const firstMsg = state.messages[0];
+      console.log(`[useAutoCompactContinue] [${state.name}] Checking:`, {
         messagesLength: state.messages.length,
-        firstMessageType: state.messages[0]?.type,
-        isCompacted: state.messages[0]?.isCompacted,
+        firstMessageType: firstMsg?.type,
+        isCompacted: firstMsg?.type === "assistant" ? firstMsg.isCompacted : undefined,
         cmuxMessagesLength: state.cmuxMessages.length,
         hasMetadata: !!state.cmuxMessages[0]?.metadata?.cmuxMetadata,
         metadataType: state.cmuxMessages[0]?.metadata?.cmuxMetadata?.type,
       });
 
       // Detect if workspace is in "single compacted message" state
+      const firstMessage = state.messages[0];
       const isSingleCompacted =
         state.messages.length === 1 &&
-        state.messages[0].type === "assistant" &&
-        state.messages[0].isCompacted === true;
+        firstMessage?.type === "assistant" &&
+        firstMessage.isCompacted === true;
 
       if (!isSingleCompacted) {
         // Workspace no longer in compacted state - no action needed
         // Processed message IDs will naturally accumulate but stay bounded
         // (one per compaction), and get cleared when user sends new messages
-        console.log(`[useAutoCompactContinue] [${workspaceId}] Not in single compacted state`);
+        console.log(`[useAutoCompactContinue] [${state.name}] Not in single compacted state`);
         continue;
       }
 
@@ -71,7 +73,7 @@ export function useAutoCompactContinue() {
       const continueMessage =
         cmuxMeta?.type === "compaction-result" ? cmuxMeta.continueMessage : undefined;
 
-      console.log(`[useAutoCompactContinue] [${workspaceId}] continueMessage:`, continueMessage);
+      console.log(`[useAutoCompactContinue] [${state.name}] continueMessage:`, continueMessage);
 
       if (!continueMessage) continue;
 

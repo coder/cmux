@@ -23,6 +23,7 @@ const mockWindow = {
       }),
       replaceChatHistory: jest.fn(),
       executeBash: mockExecuteBash,
+      sendMessage: jest.fn(),
     },
   },
 };
@@ -510,10 +511,11 @@ describe("WorkspaceStore", () => {
     it("should process compacted message and trigger continue message send", async () => {
       // Setup: Track sendMessage calls
       const sendMessageCalls: Array<{ workspaceId: string; message: string; options?: any }> = [];
-      mockWindow.api.workspace.sendMessage = jest.fn((workspaceId, message, options) => {
+      const mockSendMessage = jest.fn((workspaceId, message, options) => {
         sendMessageCalls.push({ workspaceId, message, options });
         return Promise.resolve({ success: true });
       });
+      mockWindow.api.workspace.sendMessage = mockSendMessage;
 
       const metadata: FrontendWorkspaceMetadata = {
         id: "compact-test",
@@ -572,14 +574,18 @@ describe("WorkspaceStore", () => {
       expect(state.cmuxMessages).toHaveLength(1);
       expect(state.cmuxMessages[0].metadata?.compacted).toBe(true);
       expect(state.cmuxMessages[0].metadata?.cmuxMetadata?.type).toBe("compaction-result");
-      expect(state.cmuxMessages[0].metadata?.cmuxMetadata?.continueMessage).toBe(
-        "Please continue helping me"
-      );
+      if (state.cmuxMessages[0].metadata?.cmuxMetadata?.type === "compaction-result") {
+        expect(state.cmuxMessages[0].metadata.cmuxMetadata.continueMessage).toBe(
+          "Please continue helping me"
+        );
+      }
 
       // Verify displayed messages have the isCompacted flag (what the hook checks)
       expect(state.messages).toHaveLength(1);
       expect(state.messages[0].type).toBe("assistant");
-      expect(state.messages[0].isCompacted).toBe(true);
+      if (state.messages[0].type === "assistant") {
+        expect(state.messages[0].isCompacted).toBe(true);
+      }
 
       // Now simulate what useAutoCompactContinue hook does:
       // It subscribes to store changes and checks for single compacted message
@@ -588,6 +594,7 @@ describe("WorkspaceStore", () => {
         // Check if workspace is in "single compacted message" state
         const isSingleCompacted =
           workspaceState.messages.length === 1 &&
+          workspaceState.messages[0].type === "assistant" &&
           workspaceState.messages[0].type === "assistant" &&
           workspaceState.messages[0].isCompacted === true;
 
