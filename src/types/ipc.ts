@@ -149,6 +149,11 @@ export function isReasoningEnd(msg: WorkspaceChatMessage): msg is ReasoningEndEv
   return "type" in msg && msg.type === "reasoning-end";
 }
 
+// Type guard for CmuxMessage (messages with role but no type field)
+export function isCmuxMessage(msg: WorkspaceChatMessage): msg is CmuxMessage {
+  return "role" in msg && !("type" in msg);
+}
+
 // Type guards for init events
 export function isInitStart(
   msg: WorkspaceChatMessage

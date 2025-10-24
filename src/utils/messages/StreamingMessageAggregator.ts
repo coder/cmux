@@ -14,7 +14,7 @@ import type {
 import type { TodoItem } from "@/types/tools";
 
 import type { WorkspaceChatMessage, StreamErrorMessage, DeleteMessage } from "@/types/ipc";
-import { isInitStart, isInitOutput, isInitEnd } from "@/types/ipc";
+import { isInitStart, isInitOutput, isInitEnd, isCmuxMessage } from "@/types/ipc";
 import type {
   DynamicToolPart,
   DynamicToolPartPending,
@@ -543,7 +543,7 @@ export class StreamingMessageAggregator {
 
     // Handle regular messages (user messages, historical messages)
     // Check if it's a CmuxMessage (has role property but no type)
-    if ("role" in data && !("type" in data)) {
+    if (isCmuxMessage(data)) {
       const incomingMessage = data;
 
       // Smart replacement logic for edits:
