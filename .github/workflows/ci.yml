@@ -116,15 +116,13 @@ jobs:
   # Note: Runtime tests do not use AI APIs, so no API keys needed.
   integration-tests-runtime-macos:
     name: Runtime Integration Tests (macOS)
-    runs-on: macos-latest
+    runs-on: ${{ github.repository_owner == 'coder' && 'depot-macos-latest-arm-16' || 'macos-latest' }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Required for git describe to find tags
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
+      - uses: ./.github/actions/setup-cmux
 
       - name: Run runtime integration tests
         run: TEST_INTEGRATION=1 bun x jest tests/runtime/
