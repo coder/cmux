@@ -15,6 +15,7 @@ import {
   calculateUpwardExpansion,
   calculateDownwardExpansion,
   formatAsContextLines,
+  getOldFileRef,
 } from "@/utils/review/readFileLines";
 import { HunkHeader } from "./HunkHeader";
 import { HunkContent } from "./HunkContent";
@@ -30,6 +31,10 @@ interface HunkViewerProps {
   onRegisterToggleExpand?: (hunkId: string, toggleFn: () => void) => void;
   onReviewNote?: (note: string) => void;
   searchConfig?: SearchHighlightConfig;
+  /** Diff base for determining which git ref to read from */
+  diffBase: string;
+  /** Whether uncommitted changes are included in the diff */
+  includeUncommitted: boolean;
 }
 
 export const HunkViewer = React.memo<HunkViewerProps>(
@@ -44,6 +49,8 @@ export const HunkViewer = React.memo<HunkViewerProps>(
     onRegisterToggleExpand,
     onReviewNote,
     searchConfig,
+    diffBase,
+    includeUncommitted,
   }) => {
     // Parse diff lines (memoized - only recompute if hunk.content changes)
     // Must be done before state initialization to determine initial collapse state
@@ -125,13 +132,25 @@ export const HunkViewer = React.memo<HunkViewerProps>(
     const [isLoadingUp, setIsLoadingUp] = useState(false);
     const [isLoadingDown, setIsLoadingDown] = useState(false);
 
+    // Determine which git ref to read the old file from
+    const gitRef = useMemo(
+      () => getOldFileRef(diffBase, includeUncommitted),
+      [diffBase, includeUncommitted]
+    );
+
     // Load expanded content when read-more state changes
     React.useEffect(() => {
       if (readMoreState.up > 0) {
         const expansion = calculateUpwardExpansion(hunk.oldStart, readMoreState.up);
         if (expansion.numLines > 0) {
           setIsLoadingUp(true);
-          void readFileLines(workspaceId, hunk.filePath, expansion.startLine, expansion.endLine)
+          void readFileLines(
+            workspaceId,
+            hunk.filePath,
+            expansion.startLine,
+            expansion.endLine,
+            gitRef
+          )
             .then((lines) => {
               if (lines) {
                 setExpandedContentUp(formatAsContextLines(lines));
@@ -142,7 +161,7 @@ export const HunkViewer = React.memo<HunkViewerProps>(
       } else {
         setExpandedContentUp("");
       }
-    }, [readMoreState.up, hunk.oldStart, hunk.filePath, workspaceId]);
+    }, [readMoreState.up, hunk.oldStart, hunk.filePath, workspaceId, gitRef]);
 
     React.useEffect(() => {
       if (readMoreState.down > 0) {
@@ -152,7 +171,13 @@ export const HunkViewer = React.memo<HunkViewerProps>(
           readMoreState.down
         );
         setIsLoadingDown(true);
-        void readFileLines(workspaceId, hunk.filePath, expansion.startLine, expansion.endLine)
+        void readFileLines(
+          workspaceId,
+          hunk.filePath,
+          expansion.startLine,
+          expansion.endLine,
+          gitRef
+        )
           .then((lines) => {
             if (lines) {
               setExpandedContentDown(formatAsContextLines(lines));
@@ -162,7 +187,7 @@ export const HunkViewer = React.memo<HunkViewerProps>(
       } else {
         setExpandedContentDown("");
       }
-    }, [readMoreState.down, hunk.oldStart, hunk.oldLines, hunk.filePath, workspaceId]);
+    }, [readMoreState.down, hunk.oldStart, hunk.oldLines, hunk.filePath, workspaceId, gitRef]);
 
     const handleToggleExpand = React.useCallback(
       (e?: React.MouseEvent) => {

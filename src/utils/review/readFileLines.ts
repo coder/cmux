@@ -6,27 +6,61 @@
 const LINES_PER_EXPANSION = 30;
 
 /**
- * Read lines from a file using sed
+ * Determine which git ref to use for reading file context based on diffBase
+ * @param diffBase - The diff base from review filters
+ * @param includeUncommitted - Whether uncommitted changes are included
+ * @returns Git ref to read old file from (empty string for working tree)
+ */
+export function getOldFileRef(diffBase: string, includeUncommitted: boolean): string {
+  // For staged changes, old version is HEAD
+  if (diffBase === "--staged") {
+    return "HEAD";
+  }
+
+  // For uncommitted-only diffs, old version is HEAD
+  if (diffBase === "HEAD") {
+    return "HEAD";
+  }
+
+  // For branch diffs with uncommitted, we use merge-base as the old version
+  if (includeUncommitted) {
+    // Note: This would need to be computed dynamically via git merge-base
+    // For simplicity, we'll use the diffBase ref itself
+    return diffBase;
+  }
+
+  // For branch diffs without uncommitted (three-dot), old is at merge-base
+  // But since three-dot shows merge-base..HEAD, we use HEAD as the old version
+  return diffBase;
+}
+
+/**
+ * Read lines from a file at a specific git ref using sed
  * @param workspaceId - The workspace ID
  * @param filePath - Path to the file relative to workspace root
  * @param startLine - Starting line number (1-indexed)
  * @param endLine - Ending line number (inclusive)
+ * @param gitRef - Git reference to read from (e.g., "HEAD", "origin/main", or empty string for working tree)
  * @returns Array of lines or null if error
  */
 export async function readFileLines(
   workspaceId: string,
   filePath: string,
   startLine: number,
-  endLine: number
+  endLine: number,
+  gitRef: string
 ): Promise<string[] | null> {
   // Ensure valid line range
   if (startLine < 1 || endLine < startLine) {
     return null;
   }
 
-  // Use sed to read lines from the file
-  // sed -n 'START,ENDp' FILE reads lines from START to END (inclusive)
-  const script = `sed -n '${startLine},${endLine}p' "${filePath.replace(/"/g, '\\"')}"`;
+  // Build command: either read from git ref or working tree
+  const script = gitRef
+    ? // Read from git object database and pipe to sed for line range
+      `git show "${gitRef}:${filePath.replace(/"/g, '\\"')}" | sed -n '${startLine},${endLine}p'`
+    : // Read from working tree file
+      `sed -n '${startLine},${endLine}p' "${filePath.replace(/"/g, '\\"')}"`;
 
   const result = await window.api.workspace.executeBash(workspaceId, script, {
     timeout_secs: 3,

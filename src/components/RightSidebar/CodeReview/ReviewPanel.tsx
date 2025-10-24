@@ -702,6 +702,8 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
                       onRegisterToggleExpand={handleRegisterToggleExpand}
                       onReviewNote={onReviewNote}
                       searchConfig={searchConfig}
+                      diffBase={filters.diffBase}
+                      includeUncommitted={filters.includeUncommitted}
                     />
                   );
                 })
