@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 export interface WorkspaceSelection {
   projectPath: string;
   projectName: string;
-  namedWorkspacePath: string; // User-friendly path (symlink for new workspaces)
+  namedWorkspacePath: string; // Worktree path (directory uses workspace name)
   workspaceId: string;
 }
 export interface WorkspaceListItemProps {

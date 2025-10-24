@@ -126,12 +126,12 @@ export class Config {
   }
 
   /**
-   * Get the workspace worktree path for a given workspace ID.
-   * New workspaces use stable IDs, legacy workspaces use the old format.
+   * Get the workspace worktree path for a given directory name.
+   * The directory name is the workspace name (branch name).
    */
-  getWorkspacePath(projectPath: string, workspaceId: string): string {
+  getWorkspacePath(projectPath: string, directoryName: string): string {
     const projectName = this.getProjectName(projectPath);
-    return path.join(this.srcDir, projectName, workspaceId);
+    return path.join(this.srcDir, projectName, directoryName);
   }
 
   /**
@@ -212,10 +212,13 @@ export class Config {
   /**
    * Workspace Path Architecture:
    *
-   * Workspace paths are computed on-demand from projectPath + workspaceId using
-   * config.getWorkspacePath(). This ensures single source of truth for path format.
+   * Workspace paths are computed on-demand from projectPath + workspace name using
+   * config.getWorkspacePath(projectPath, directoryName). This ensures a single source of truth.
    *
-   * Backend: Uses getWorkspacePath(metadata.projectPath, metadata.name) for directory paths (worktree directories use name)
+   * - Worktree directory name: uses workspace.name (the branch name)
+   * - Workspace ID: stable random identifier for identity and sessions (not used for directories)
+   *
+   * Backend: Uses getWorkspacePath(metadata.projectPath, metadata.name) for worktree directory paths
    * Frontend: Gets enriched metadata with paths via IPC (FrontendWorkspaceMetadata)
    *
    * WorkspaceMetadata.workspacePath is deprecated and will be removed. Use computed

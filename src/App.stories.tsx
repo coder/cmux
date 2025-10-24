@@ -182,15 +182,16 @@ export const SingleProject: Story = {
 
 export const MultipleProjects: Story = {
   render: () => {
+    // Note: Workspace IDs are fixtures using hex-like format (production uses random 10-hex chars)
     const projects = new Map<string, ProjectConfig>([
       [
         "/home/user/projects/frontend",
         {
           workspaces: [
-            { path: "/home/user/.cmux/src/frontend/main", id: "frontend-main", name: "main" },
+            { path: "/home/user/.cmux/src/frontend/main", id: "1a2b3c4d5e", name: "main" },
             {
               path: "/home/user/.cmux/src/frontend/redesign",
-              id: "frontend-redesign",
+              id: "2b3c4d5e6f",
               name: "redesign",
             },
           ],
@@ -200,11 +201,11 @@ export const MultipleProjects: Story = {
         "/home/user/projects/backend",
         {
           workspaces: [
-            { path: "/home/user/.cmux/src/backend/main", id: "backend-main", name: "main" },
-            { path: "/home/user/.cmux/src/backend/api-v2", id: "backend-api-v2", name: "api-v2" },
+            { path: "/home/user/.cmux/src/backend/main", id: "3c4d5e6f7a", name: "main" },
+            { path: "/home/user/.cmux/src/backend/api-v2", id: "4d5e6f7a8b", name: "api-v2" },
             {
               path: "/home/user/.cmux/src/backend/db-migration",
-              id: "backend-db-migration",
+              id: "5e6f7a8b9c",
               name: "db-migration",
             },
           ],
@@ -214,7 +215,7 @@ export const MultipleProjects: Story = {
         "/home/user/projects/mobile",
         {
           workspaces: [
-            { path: "/home/user/.cmux/src/mobile/main", id: "mobile-main", name: "main" },
+            { path: "/home/user/.cmux/src/mobile/main", id: "6f7a8b9c0d", name: "main" },
           ],
         },
       ],
@@ -222,42 +223,42 @@ export const MultipleProjects: Story = {
 
     const workspaces: FrontendWorkspaceMetadata[] = [
       {
-        id: "frontend-main",
+        id: "1a2b3c4d5e",
         name: "main",
         projectPath: "/home/user/projects/frontend",
         projectName: "frontend",
         namedWorkspacePath: "/home/user/.cmux/src/frontend/main",
       },
       {
-        id: "frontend-redesign",
+        id: "2b3c4d5e6f",
         name: "redesign",
         projectPath: "/home/user/projects/frontend",
         projectName: "frontend",
         namedWorkspacePath: "/home/user/.cmux/src/frontend/redesign",
       },
       {
-        id: "backend-main",
+        id: "3c4d5e6f7a",
         name: "main",
         projectPath: "/home/user/projects/backend",
         projectName: "backend",
         namedWorkspacePath: "/home/user/.cmux/src/backend/main",
       },
       {
-        id: "backend-api-v2",
+        id: "4d5e6f7a8b",
         name: "api-v2",
         projectPath: "/home/user/projects/backend",
         projectName: "backend",
         namedWorkspacePath: "/home/user/.cmux/src/backend/api-v2",
       },
       {
-        id: "backend-db-migration",
+        id: "5e6f7a8b9c",
         name: "db-migration",
         projectPath: "/home/user/projects/backend",
         projectName: "backend",
         namedWorkspacePath: "/home/user/.cmux/src/backend/db-migration",
       },
       {
-        id: "mobile-main",
+        id: "6f7a8b9c0d",
         name: "main",
         projectPath: "/home/user/projects/mobile",
         projectName: "mobile",
