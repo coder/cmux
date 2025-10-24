@@ -749,7 +749,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         )}
         <div className="grid grid-cols-[1fr_auto] items-center gap-3">
           {/* Left column: Model controls */}
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 min-w-0">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
             {/* Model Selector - always visible */}
             <div className="flex items-center gap-1.5" data-component="ModelSelectorGroup">
               <ModelSelector
@@ -762,7 +762,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
               <TooltipWrapper inline>
                 <HelpIndicator>?</HelpIndicator>
                 <Tooltip className="tooltip" align="left" width="wide">
-                  <strong>Click to edit</strong> or use {formatKeybind(KEYBINDS.OPEN_MODEL_SELECTOR)}
+                  <strong>Click to edit</strong> or use{" "}
+                  {formatKeybind(KEYBINDS.OPEN_MODEL_SELECTOR)}
                   <br />
                   <br />
                   <strong>Abbreviations:</strong>
