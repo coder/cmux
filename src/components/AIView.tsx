@@ -245,6 +245,30 @@ const AIViewInner: React.FC<AIViewProps> = ({
     }
   }, [workspaceState, editingMessage]);
 
+  // Force re-evaluation after 2s when last message is a recent user message
+  // This ensures retry barrier appears even if stream-start never arrives
+  // Must be before early return to satisfy React Hooks rules
+  useEffect(() => {
+    if (!workspaceState) return;
+    const { messages, canInterrupt } = workspaceState;
+
+    if (messages.length === 0) return;
+    const lastMessage = messages[messages.length - 1];
+
+    if (lastMessage.type === "user" && !canInterrupt) {
+      const messageAge = Date.now() - (lastMessage.timestamp ?? 0);
+      const timeUntilCheck = Math.max(0, 2100 - messageAge); // 2.1s to ensure we're past threshold
+
+      if (timeUntilCheck > 0) {
+        const timer = setTimeout(() => {
+          // Force re-render to re-evaluate showRetryBarrier
+          setForceRecheck((prev) => prev + 1);
+        }, timeUntilCheck);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [workspaceState]);
+
   // Return early if workspace state not loaded yet
   if (!workspaceState) {
     return (
@@ -271,26 +295,6 @@ const AIViewInner: React.FC<AIViewProps> = ({
   // Track if last message was interrupted or errored (for RetryBarrier)
   // Uses same logic as useResumeManager for DRY
   const showRetryBarrier = !canInterrupt && hasInterruptedStream(messages);
-
-  // Force re-evaluation after 2s when last message is a recent user message
-  // This ensures retry barrier appears even if stream-start never arrives
-  useEffect(() => {
-    if (messages.length === 0) return;
-    const lastMessage = messages[messages.length - 1];
-    
-    if (lastMessage.type === "user" && !canInterrupt) {
-      const messageAge = Date.now() - (lastMessage.timestamp ?? 0);
-      const timeUntilCheck = Math.max(0, 2100 - messageAge); // 2.1s to ensure we're past threshold
-      
-      if (timeUntilCheck > 0) {
-        const timer = setTimeout(() => {
-          // Force re-render to re-evaluate showRetryBarrier
-          setForceRecheck((prev) => prev + 1);
-        }, timeUntilCheck);
-        return () => clearTimeout(timer);
-      }
-    }
-  }, [messages, canInterrupt]);
 
   // Note: We intentionally do NOT reset autoRetry when streams start.
   // If user pressed Ctrl+C, autoRetry stays false until they manually retry.
