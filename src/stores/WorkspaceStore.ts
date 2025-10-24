@@ -22,9 +22,6 @@ import {
   isToolCallEnd,
   isReasoningDelta,
   isReasoningEnd,
-  isInitStart,
-  isInitOutput,
-  isInitEnd,
 } from "@/types/ipc";
 import { MapStore } from "./MapStore";
 import { createDisplayUsage } from "@/utils/tokens/displayUsage";
@@ -977,13 +974,6 @@ export class WorkspaceStore {
 
     if (isReasoningEnd(data)) {
       aggregator.handleReasoningEnd(data);
-      this.states.bump(workspaceId);
-      return;
-    }
-
-    // Handle init events (workspace lifecycle events, not chat history - process immediately)
-    if (isInitStart(data) || isInitOutput(data) || isInitEnd(data)) {
-      aggregator.handleMessage(data);
       this.states.bump(workspaceId);
       return;
     }
