@@ -85,8 +85,8 @@ export class IpcMain {
     // This MUST complete before we return so replayInit() finds state
     this.initStateManager.startInit(workspaceId, hookPath);
 
-    // Launch the hook process (async, don't await completion)
-    void (async () => {
+    // Launch the hook process (don't await completion)
+    void (() => {
       try {
         const startTime = Date.now();
 

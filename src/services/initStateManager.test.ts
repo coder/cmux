@@ -53,8 +53,8 @@ describe("InitStateManager", () => {
       manager.appendOutput(workspaceId, "Installing deps...", false);
       manager.appendOutput(workspaceId, "Done!", false);
       expect(manager.getInitState(workspaceId)?.lines).toEqual([
-        { line: "Installing deps...", isError: false, timestamp: expect.any(Number) },
-        { line: "Done!", isError: false, timestamp: expect.any(Number) },
+        { line: "Installing deps...", isError: false, timestamp: expect.any(Number) as number },
+        { line: "Done!", isError: false, timestamp: expect.any(Number) as number },
       ]);
 
       // End init (await to ensure event fires)
@@ -79,8 +79,8 @@ describe("InitStateManager", () => {
 
       const state = manager.getInitState(workspaceId);
       expect(state?.lines).toEqual([
-        { line: "stdout line", isError: false, timestamp: expect.any(Number) },
-        { line: "stderr line", isError: true, timestamp: expect.any(Number) },
+        { line: "stdout line", isError: false, timestamp: expect.any(Number) as number },
+        { line: "stderr line", isError: true, timestamp: expect.any(Number) as number },
       ]);
     });
 
@@ -109,8 +109,8 @@ describe("InitStateManager", () => {
       expect(diskState?.status).toBe("success");
       expect(diskState?.exitCode).toBe(0);
       expect(diskState?.lines).toEqual([
-        { line: "Line 1", isError: false, timestamp: expect.any(Number) },
-        { line: "Line 2", isError: true, timestamp: expect.any(Number) },
+        { line: "Line 1", isError: false, timestamp: expect.any(Number) as number },
+        { line: "Line 2", isError: true, timestamp: expect.any(Number) as number },
       ]);
     });
 
