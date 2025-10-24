@@ -789,7 +789,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           <div className="max-@[500px]:hidden flex items-center" data-component="Context1MGroup">
             <Context1MCheckbox modelString={preferredModel} />
           </div>
-          <div className="max-@[550px]:hidden ml-auto flex items-center gap-1.5">
+          <div className="max-@[800px]:hidden ml-auto flex items-center gap-1.5">
             <div
               className={cn(
                 "flex gap-0 bg-toggle-bg rounded",
