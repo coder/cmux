@@ -747,10 +747,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             Editing message ({formatKeybind(KEYBINDS.CANCEL_EDIT)} to cancel)
           </div>
         )}
-        <div className="flex items-center overflow-x-auto overflow-y-hidden">
+        <div className="flex items-center gap-3 overflow-x-auto overflow-y-hidden">
           {/* Model Selector - always visible */}
           <div
-            className="flex shrink-0 items-center gap-1.5 pr-3"
+            className="flex shrink-0 items-center gap-1.5"
             data-component="ModelSelectorGroup"
           >
             <ModelSelector
