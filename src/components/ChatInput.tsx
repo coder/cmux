@@ -747,10 +747,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             Editing message ({formatKeybind(KEYBINDS.CANCEL_EDIT)} to cancel)
           </div>
         )}
-        <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
-          {/* Model Selector */}
+        <div className="flex items-center overflow-x-auto overflow-y-hidden">
+          {/* Model Selector - always visible */}
           <div
-            className="flex min-w-0 shrink items-center gap-1.5"
+            className="flex shrink-0 items-center gap-1.5 pr-3"
             data-component="ModelSelectorGroup"
           >
             <ModelSelector
@@ -780,13 +780,19 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             </TooltipWrapper>
           </div>
 
-          {/* Thinking Slider */}
-          <div className="flex min-w-0 shrink-0 items-center" data-component="ThinkingSliderGroup">
+          {/* Thinking Slider - hide on small viewports */}
+          <div
+            className="max-@[600px]:hidden flex shrink-0 items-center"
+            data-component="ThinkingSliderGroup"
+          >
             <ThinkingSliderComponent modelString={preferredModel} />
           </div>
 
-          {/* Context 1M Checkbox */}
-          <div className="flex min-w-0 shrink-0 items-center" data-component="Context1MGroup">
+          {/* Context 1M Checkbox - hide on smaller viewports */}
+          <div
+            className="max-@[500px]:hidden flex shrink-0 items-center"
+            data-component="Context1MGroup"
+          >
             <Context1MCheckbox modelString={preferredModel} />
           </div>
           <div className="max-@[700px]:hidden ml-auto flex items-center gap-1.5">
