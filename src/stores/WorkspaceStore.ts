@@ -9,23 +9,7 @@ import { updatePersistedState } from "@/hooks/usePersistedState";
 import { getRetryStateKey } from "@/constants/storage";
 import { CUSTOM_EVENTS } from "@/constants/events";
 import { useSyncExternalStore } from "react";
-import {
-  isCaughtUpMessage,
-  isStreamError,
-  isDeleteMessage,
-  isStreamStart,
-  isStreamDelta,
-  isStreamEnd,
-  isStreamAbort,
-  isToolCallStart,
-  isToolCallDelta,
-  isToolCallEnd,
-  isReasoningDelta,
-  isReasoningEnd,
-  isInitStart,
-  isInitOutput,
-  isInitEnd,
-} from "@/types/ipc";
+import { isCaughtUpMessage, isStreamError, isDeleteMessage } from "@/types/ipc";
 import { MapStore } from "./MapStore";
 import { createDisplayUsage } from "@/utils/tokens/displayUsage";
 import { WorkspaceConsumerManager } from "./WorkspaceConsumerManager";
@@ -124,6 +108,96 @@ export class WorkspaceStore {
   private caughtUp = new Map<string, boolean>();
   private historicalMessages = new Map<string, CmuxMessage[]>();
   private pendingStreamEvents = new Map<string, WorkspaceChatMessage[]>();
+
+  /**
+   * Map of event types to their handlers. This is the single source of truth for:
+   * 1. Which events should be buffered during replay (the keys)
+   * 2. How to process those events (the values)
+   *
+   * By keeping check and processing in one place, we make it structurally impossible
+   * to buffer an event type without having a handler for it.
+   */
+  private readonly bufferedEventHandlers: Record<
+    string,
+    (
+      workspaceId: string,
+      aggregator: StreamingMessageAggregator,
+      data: WorkspaceChatMessage
+    ) => void
+  > = {
+    "stream-start": (workspaceId, aggregator, data) => {
+      aggregator.handleStreamStart(data as never);
+      if (this.onModelUsed) {
+        this.onModelUsed((data as { model: string }).model);
+      }
+      updatePersistedState(getRetryStateKey(workspaceId), {
+        attempt: 0,
+        retryStartTime: Date.now(),
+      });
+      this.states.bump(workspaceId);
+    },
+    "stream-delta": (workspaceId, aggregator, data) => {
+      aggregator.handleStreamDelta(data as never);
+      this.states.bump(workspaceId);
+    },
+    "stream-end": (workspaceId, aggregator, data) => {
+      aggregator.handleStreamEnd(data as never);
+      aggregator.clearTokenState((data as { messageId: string }).messageId);
+
+      if (this.handleCompactionCompletion(workspaceId, aggregator, data)) {
+        return;
+      }
+
+      this.states.bump(workspaceId);
+      this.checkAndBumpRecencyIfChanged();
+      this.finalizeUsageStats(workspaceId, (data as { metadata?: never }).metadata);
+    },
+    "stream-abort": (workspaceId, aggregator, data) => {
+      aggregator.clearTokenState((data as { messageId: string }).messageId);
+      aggregator.handleStreamAbort(data as never);
+
+      if (this.handleCompactionAbort(workspaceId, aggregator, data)) {
+        return;
+      }
+
+      this.states.bump(workspaceId);
+      this.dispatchResumeCheck(workspaceId);
+      this.finalizeUsageStats(workspaceId, (data as { metadata?: never }).metadata);
+    },
+    "tool-call-start": (workspaceId, aggregator, data) => {
+      aggregator.handleToolCallStart(data as never);
+      this.states.bump(workspaceId);
+    },
+    "tool-call-delta": (workspaceId, aggregator, data) => {
+      aggregator.handleToolCallDelta(data as never);
+      this.states.bump(workspaceId);
+    },
+    "tool-call-end": (workspaceId, aggregator, data) => {
+      aggregator.handleToolCallEnd(data as never);
+      this.states.bump(workspaceId);
+      this.consumerManager.scheduleCalculation(workspaceId, aggregator);
+    },
+    "reasoning-delta": (workspaceId, aggregator, data) => {
+      aggregator.handleReasoningDelta(data as never);
+      this.states.bump(workspaceId);
+    },
+    "reasoning-end": (workspaceId, aggregator, data) => {
+      aggregator.handleReasoningEnd(data as never);
+      this.states.bump(workspaceId);
+    },
+    "init-start": (workspaceId, aggregator, data) => {
+      aggregator.handleMessage(data);
+      this.states.bump(workspaceId);
+    },
+    "init-output": (workspaceId, aggregator, data) => {
+      aggregator.handleMessage(data);
+      this.states.bump(workspaceId);
+    },
+    "init-end": (workspaceId, aggregator, data) => {
+      aggregator.handleMessage(data);
+      this.states.bump(workspaceId);
+    },
+  };
 
   // Cache of last known recency per workspace (for change detection)
   private recencyCache = new Map<string, number | null>();
@@ -784,29 +858,11 @@ export class WorkspaceStore {
   }
 
   /**
-   * Check if data is a stream event or init event that should be buffered until caught-up.
-   *
-   * Init events may arrive:
-   * - BEFORE caught-up: During replay from init-status.json (historical)
-   * - AFTER caught-up: During live workspace creation (real-time)
-   *
-   * Like stream events, init events are buffered during replay to avoid O(N) re-renders.
+   * Check if data is a buffered event type by checking the handler map.
+   * This ensures isStreamEvent() and processStreamEvent() can never fall out of sync.
    */
-  private isStreamEvent(data: WorkspaceChatMessage): boolean {
-    return (
-      isStreamStart(data) ||
-      isStreamDelta(data) ||
-      isStreamEnd(data) ||
-      isStreamAbort(data) ||
-      isToolCallStart(data) ||
-      isToolCallDelta(data) ||
-      isToolCallEnd(data) ||
-      isReasoningDelta(data) ||
-      isReasoningEnd(data) ||
-      isInitStart(data) ||
-      isInitOutput(data) ||
-      isInitEnd(data)
-    );
+  private isBufferedEvent(data: WorkspaceChatMessage): boolean {
+    return "type" in data && data.type in this.bufferedEventHandlers;
   }
 
   private handleChatMessage(workspaceId: string, data: WorkspaceChatMessage): void {
@@ -864,7 +920,7 @@ export class WorkspaceStore {
     //
     // This is especially important for workspaces with long histories (100+ messages),
     // where unbuffered rendering would cause visible lag and UI stutter.
-    if (!isCaughtUp && this.isStreamEvent(data)) {
+    if (!isCaughtUp && this.isBufferedEvent(data)) {
       const pending = this.pendingStreamEvents.get(workspaceId) ?? [];
       pending.push(data);
       this.pendingStreamEvents.set(workspaceId, pending);
@@ -880,6 +936,7 @@ export class WorkspaceStore {
     aggregator: StreamingMessageAggregator,
     data: WorkspaceChatMessage
   ): void {
+    // Handle non-buffered special events first
     if (isStreamError(data)) {
       aggregator.handleStreamError(data);
       this.states.bump(workspaceId);
@@ -890,111 +947,13 @@ export class WorkspaceStore {
     if (isDeleteMessage(data)) {
       aggregator.handleDeleteMessage(data);
       this.states.bump(workspaceId);
-      this.checkAndBumpRecencyIfChanged(); // Message deleted, update recency
+      this.checkAndBumpRecencyIfChanged();
       return;
     }
 
-    if (isStreamStart(data)) {
-      aggregator.handleStreamStart(data);
-      if (this.onModelUsed) {
-        this.onModelUsed(data.model);
-      }
-      updatePersistedState(getRetryStateKey(workspaceId), {
-        attempt: 0,
-        retryStartTime: Date.now(),
-      });
-      this.states.bump(workspaceId);
-      return;
-    }
-
-    if (isStreamDelta(data)) {
-      aggregator.handleStreamDelta(data);
-      // Always bump for chat components to see deltas
-      // Sidebar components won't re-render because getWorkspaceSidebarState() returns cached object
-      this.states.bump(workspaceId);
-      return;
-    }
-
-    if (isStreamEnd(data)) {
-      aggregator.handleStreamEnd(data);
-      aggregator.clearTokenState(data.messageId);
-
-      // Early return if compaction handled (async replacement in progress)
-      if (this.handleCompactionCompletion(workspaceId, aggregator, data)) {
-        return;
-      }
-
-      // Normal stream-end handling
-      this.states.bump(workspaceId);
-      this.checkAndBumpRecencyIfChanged(); // Stream ended, update recency
-
-      // Update usage stats and schedule consumer calculation
-      // MUST happen after aggregator.handleStreamEnd() stores the metadata
-      this.finalizeUsageStats(workspaceId, data.metadata);
-
-      return;
-    }
-
-    if (isStreamAbort(data)) {
-      aggregator.clearTokenState(data.messageId);
-      aggregator.handleStreamAbort(data);
-
-      // Check if this was a compaction stream that got interrupted
-      if (this.handleCompactionAbort(workspaceId, aggregator, data)) {
-        // Compaction abort handled, don't do normal abort processing
-        return;
-      }
-
-      // Normal abort handling
-      this.states.bump(workspaceId);
-      this.dispatchResumeCheck(workspaceId);
-
-      // Update usage stats if available (abort may have usage if stream completed processing)
-      // MUST happen after aggregator.handleStreamAbort() stores the metadata
-      this.finalizeUsageStats(workspaceId, data.metadata);
-
-      return;
-    }
-
-    if (isToolCallStart(data)) {
-      aggregator.handleToolCallStart(data);
-      this.states.bump(workspaceId);
-      return;
-    }
-
-    if (isToolCallDelta(data)) {
-      aggregator.handleToolCallDelta(data);
-      this.states.bump(workspaceId);
-      return;
-    }
-
-    if (isToolCallEnd(data)) {
-      aggregator.handleToolCallEnd(data);
-      this.states.bump(workspaceId);
-
-      // Bump consumers on tool-end for real-time updates during streaming
-      // Tools complete before stream-end, so we want breakdown to update immediately
-      this.consumerManager.scheduleCalculation(workspaceId, aggregator);
-
-      return;
-    }
-
-    if (isReasoningDelta(data)) {
-      aggregator.handleReasoningDelta(data);
-      this.states.bump(workspaceId);
-      return;
-    }
-
-    if (isReasoningEnd(data)) {
-      aggregator.handleReasoningEnd(data);
-      this.states.bump(workspaceId);
-      return;
-    }
-
-    // Handle init events (buffered like stream events during replay)
-    if (isInitStart(data) || isInitOutput(data) || isInitEnd(data)) {
-      aggregator.handleMessage(data);
-      this.states.bump(workspaceId);
+    // Try buffered event handlers (single source of truth)
+    if ("type" in data && data.type in this.bufferedEventHandlers) {
+      this.bufferedEventHandlers[data.type](workspaceId, aggregator, data);
       return;
     }
 
