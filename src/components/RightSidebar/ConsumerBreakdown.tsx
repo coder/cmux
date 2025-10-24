@@ -1,6 +1,7 @@
 import React from "react";
 import type { WorkspaceConsumersState } from "@/stores/WorkspaceStore";
-import { TooltipWrapper, Tooltip, HelpIndicator } from "../Tooltip";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { HelpIndicator } from "@/components/HelpIndicator";
 
 // Format token display - show k for thousands with 1 decimal
 const formatTokens = (tokens: number) =>
@@ -42,13 +43,15 @@ const ConsumerBreakdownComponent: React.FC<ConsumerBreakdownProps> = ({ consumer
                 <span className="text-foreground flex items-center gap-1 font-medium">
                   {consumer.name}
                   {consumer.name === "web_search" && (
-                    <TooltipWrapper inline>
-                      <HelpIndicator>?</HelpIndicator>
-                      <Tooltip className="tooltip" align="center" width="wide">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <HelpIndicator>?</HelpIndicator>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-md">
                         Web search results are encrypted and decrypted server-side. This estimate is
                         approximate.
-                      </Tooltip>
-                    </TooltipWrapper>
+                      </TooltipContent>
+                    </Tooltip>
                   )}
                 </span>
                 <span className="text-muted text-xs">

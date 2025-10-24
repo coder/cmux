@@ -30,7 +30,7 @@ import { usePersistedState } from "@/hooks/usePersistedState";
 import { useReviewState } from "@/hooks/useReviewState";
 import { parseDiff, extractAllHunks } from "@/utils/git/diffParser";
 import { getReviewSearchStateKey } from "@/constants/storage";
-import { Tooltip, TooltipWrapper } from "@/components/Tooltip";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { parseNumstat, buildFileTree, extractNewPath } from "@/utils/git/numstatParser";
 import type { DiffHunk, ReviewFilters as ReviewFiltersType } from "@/types/review";
 import type { FileTreeNode } from "@/utils/git/numstatParser";
@@ -555,85 +555,72 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
           Loading diff...
         </div>
       ) : (
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          {truncationWarning && (
-            <div className="bg-warning/10 border-warning/30 text-warning mx-3 my-3 flex items-center gap-1.5 rounded border px-3 py-1.5 text-[10px] leading-[1.3] before:text-xs before:content-['⚠️']">
-              {truncationWarning}
-            </div>
-          )}
-
-          {/* Search bar - always visible at top, not sticky */}
-          <div className="border-border-light bg-separator border-b px-3 py-2">
-            <div className="border-border-light bg-dark hover:border-border-gray focus-within:border-accent focus-within:hover:border-accent flex items-stretch overflow-hidden rounded border transition-[border-color] duration-150">
-              <input
-                ref={searchInputRef}
-                type="text"
-                placeholder={`Search in files and hunks... (${formatKeybind(KEYBINDS.FOCUS_REVIEW_SEARCH)})`}
-                value={searchState.input}
-                onChange={(e) => setSearchState({ ...searchState, input: e.target.value })}
-                className="text-foreground placeholder:text-dim focus:bg-separator flex h-full flex-1 items-center border-none bg-transparent px-2.5 py-1.5 font-sans text-xs leading-[1.4] outline-none"
-              />
-              <TooltipWrapper inline>
-                <button
-                  className={cn(
-                    "py-1.5 px-2.5 border-none border-l border-light text-[11px] font-monospace font-semibold leading-[1.4] cursor-pointer outline-none transition-all duration-150 whitespace-nowrap flex items-center h-full",
-                    searchState.useRegex
-                      ? "bg-review-bg-blue text-accent-light shadow-[inset_0_0_0_1px_rgba(77,184,255,0.4)] hover:bg-review-bg-info hover:text-accent-light"
-                      : "bg-transparent text-subtle hover:bg-separator hover:text-foreground",
-                    "active:translate-y-px"
-                  )}
-                  onClick={() =>
-                    setSearchState({ ...searchState, useRegex: !searchState.useRegex })
-                  }
-                >
-                  .*
-                </button>
-                <Tooltip position="bottom">
-                  {searchState.useRegex ? "Using regex search" : "Using substring search"}
-                </Tooltip>
-              </TooltipWrapper>
-              <TooltipWrapper inline>
-                <button
-                  className={cn(
-                    "py-1.5 px-2.5 border-none border-l border-light text-[11px] font-monospace font-semibold leading-[1.4] cursor-pointer outline-none transition-all duration-150 whitespace-nowrap flex items-center h-full",
-                    searchState.matchCase
-                      ? "bg-review-bg-blue text-accent-light shadow-[inset_0_0_0_1px_rgba(77,184,255,0.4)] hover:bg-review-bg-info hover:text-accent-light"
-                      : "bg-transparent text-subtle hover:bg-separator hover:text-foreground",
-                    "active:translate-y-px"
-                  )}
-                  onClick={() =>
-                    setSearchState({ ...searchState, matchCase: !searchState.matchCase })
-                  }
-                >
-                  Aa
-                </button>
-                <Tooltip position="bottom">
-                  {searchState.matchCase
-                    ? "Match case (case-sensitive)"
-                    : "Ignore case (case-insensitive)"}
-                </Tooltip>
-              </TooltipWrapper>
-            </div>
-          </div>
-
-          {/* Single scrollable area containing both file tree and hunks */}
-          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-            {/* FileTree at the top */}
-            {(fileTree ?? isLoadingTree) && (
-              <div className="border-border-light flex w-full flex-[0_0_auto] flex-col overflow-hidden border-b">
-                <FileTree
-                  root={fileTree}
-                  selectedPath={selectedFilePath}
-                  onSelectFile={setSelectedFilePath}
-                  isLoading={isLoadingTree}
-                  getFileReadStatus={getFileReadStatus}
-                  workspaceId={workspaceId}
-                />
+        <div className="flex min-h-0 flex-1 flex-row overflow-hidden @[800px]:flex-col">
+          <div className="order-1 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+            {truncationWarning && (
+              <div className="bg-warning/10 border-warning/30 text-warning mx-3 my-3 flex items-center gap-1.5 rounded border px-3 py-1.5 text-[10px] leading-[1.3] before:text-xs before:content-['⚠️']">
+                {truncationWarning}
               </div>
             )}
 
-            {/* Hunks below the file tree */}
-            <div className="flex flex-[0_0_auto] flex-col p-3">
+            <div className="border-border-light bg-separator border-b px-3 py-2">
+              <div className="border-border-light bg-dark hover:border-border-gray focus-within:border-accent focus-within:hover:border-accent flex items-stretch overflow-hidden rounded border transition-[border-color] duration-150">
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  placeholder={`Search in files and hunks... (${formatKeybind(KEYBINDS.FOCUS_REVIEW_SEARCH)})`}
+                  value={searchState.input}
+                  onChange={(e) => setSearchState({ ...searchState, input: e.target.value })}
+                  className="text-foreground placeholder:text-text-dim focus:bg-separator flex h-full flex-1 items-center border-none bg-transparent px-2.5 py-1.5 font-sans text-xs leading-[1.4] outline-none"
+                />
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      className={cn(
+                        "py-1.5 px-2.5 border-none border-l border-light text-[11px] font-monospace font-semibold leading-[1.4] cursor-pointer outline-none transition-all duration-150 whitespace-nowrap flex items-center h-full",
+                        searchState.useRegex
+                          ? "bg-review-bg-blue text-accent-light shadow-[inset_0_0_0_1px_rgba(77,184,255,0.4)] hover:bg-review-bg-info hover:text-accent-light"
+                          : "bg-transparent text-subtle hover:bg-separator hover:text-foreground",
+                        "active:translate-y-px"
+                      )}
+                      onClick={() =>
+                        setSearchState({ ...searchState, useRegex: !searchState.useRegex })
+                      }
+                    >
+                      .*
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">
+                    {searchState.useRegex ? "Using regex search" : "Using substring search"}
+                  </TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      className={cn(
+                        "py-1.5 px-2.5 border-none border-l border-light text-[11px] font-monospace font-semibold leading-[1.4] cursor-pointer outline-none transition-all duration-150 whitespace-nowrap flex items-center h-full",
+                        searchState.matchCase
+                          ? "bg-review-bg-blue text-accent-light shadow-[inset_0_0_0_1px_rgba(77,184,255,0.4)] hover:bg-review-bg-info hover:text-accent-light"
+                          : "bg-transparent text-subtle hover:bg-separator hover:text-foreground",
+                        "active:translate-y-px"
+                      )}
+                      onClick={() =>
+                        setSearchState({ ...searchState, matchCase: !searchState.matchCase })
+                      }
+                    >
+                      Aa
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">
+                    {searchState.matchCase
+                      ? "Match case (case-sensitive)"
+                      : "Ignore case (case-insensitive)"}
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto p-3">
               {hunks.length === 0 ? (
                 <div className="text-muted flex flex-col items-center justify-start gap-3 px-6 pt-12 pb-6 text-center">
                   <div className="text-foreground text-base font-medium">No changes found</div>
@@ -708,6 +695,20 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({
               )}
             </div>
           </div>
+
+          {/* FileTree positioning handled by CSS order property */}
+          {(fileTree ?? isLoadingTree) && (
+            <div className="border-border-light @[800px]:border-border-light order-2 flex min-h-0 w-80 shrink-0 flex-col overflow-hidden border-l @[800px]:order-0 @[800px]:h-auto @[800px]:w-full @[800px]:flex-[0_0_auto] @[800px]:border-b @[800px]:border-l-0">
+              <FileTree
+                root={fileTree}
+                selectedPath={selectedFilePath}
+                onSelectFile={setSelectedFilePath}
+                isLoading={isLoadingTree}
+                getFileReadStatus={getFileReadStatus}
+                workspaceId={workspaceId}
+              />
+            </div>
+          )}
         </div>
       )}
     </div>

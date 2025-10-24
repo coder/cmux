@@ -1,7 +1,7 @@
 import React from "react";
 import { use1MContext } from "@/hooks/use1MContext";
 import { supports1MContext } from "@/utils/ai/models";
-import { TooltipWrapper, Tooltip } from "./Tooltip";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 
 interface Context1MCheckboxProps {
   modelString: string;
@@ -21,12 +21,16 @@ export const Context1MCheckbox: React.FC<Context1MCheckboxProps> = ({ modelStrin
         <input type="checkbox" checked={use1M} onChange={(e) => setUse1M(e.target.checked)} />
         1M Context
       </label>
-      <TooltipWrapper inline>
-        <span className="text-muted flex cursor-help items-center text-[10px] leading-none">?</span>
-        <Tooltip className="tooltip" align="center" width="auto">
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="text-muted flex cursor-help items-center text-[10px] leading-none">
+            ?
+          </span>
+        </TooltipTrigger>
+        <TooltipContent>
           Enable 1M token context window (beta feature for Claude Sonnet 4/4.5)
-        </Tooltip>
-      </TooltipWrapper>
+        </TooltipContent>
+      </Tooltip>
     </div>
   );
 };

@@ -1,7 +1,7 @@
 import React from "react";
 import AnthropicIcon from "@/assets/icons/anthropic.svg?react";
 import OpenAIIcon from "@/assets/icons/openai.svg?react";
-import { TooltipWrapper, Tooltip } from "@/components/Tooltip";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { formatModelDisplayName } from "@/utils/ai/modelDisplay";
 
 interface ModelDisplayProps {
@@ -56,11 +56,11 @@ export const ModelDisplay: React.FC<ModelDisplayProps> = ({ modelString, showToo
   }
 
   return (
-    <TooltipWrapper inline data-model-display-tooltip>
-      {content}
-      <Tooltip align="center" data-model-tooltip-text>
-        {modelString}
-      </Tooltip>
-    </TooltipWrapper>
+    <Tooltip>
+      <TooltipTrigger asChild data-model-display-tooltip>
+        {content}
+      </TooltipTrigger>
+      <TooltipContent data-model-tooltip-text>{modelString}</TooltipContent>
+    </Tooltip>
   );
 };

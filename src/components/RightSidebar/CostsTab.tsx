@@ -3,7 +3,7 @@ import { useWorkspaceUsage, useWorkspaceConsumers } from "@/stores/WorkspaceStor
 import { getModelStats } from "@/utils/tokens/modelStats";
 import { sumUsageHistory } from "@/utils/tokens/usageAggregator";
 import { usePersistedState } from "@/hooks/usePersistedState";
-import { ToggleGroup, type ToggleOption } from "../ToggleGroup";
+import { ToggleGroup, ToggleGroupItem } from "../ui/toggle-group";
 import { use1MContext } from "@/hooks/use1MContext";
 import { supports1MContext } from "@/utils/ai/models";
 import { TOKEN_COMPONENT_COLORS } from "@/utils/tokens/tokenMeterUtils";
@@ -45,11 +45,6 @@ const calculateElevatedCost = (tokens: number, standardRate: number, isInput: bo
 };
 
 type ViewMode = "last-request" | "session";
-
-const VIEW_MODE_OPTIONS: Array<ToggleOption<ViewMode>> = [
-  { value: "session", label: "Session" },
-  { value: "last-request", label: "Last Request" },
-];
 
 interface CostsTabProps {
   workspaceId: string;
@@ -352,10 +347,26 @@ const CostsTabComponent: React.FC<CostsTabProps> = ({ workspaceId }) => {
                             Cost
                           </span>
                           <ToggleGroup
-                            options={VIEW_MODE_OPTIONS}
+                            type="single"
                             value={viewMode}
-                            onChange={setViewMode}
-                          />
+                            onValueChange={(value) => value && setViewMode(value as ViewMode)}
+                            className="bg-toggle-bg flex gap-0 rounded"
+                          >
+                            <ToggleGroupItem
+                              value="session"
+                              aria-label="Session view"
+                              className="data-[state=on]:text-toggle-text-active data-[state=on]:bg-toggle-active text-toggle-text hover:text-toggle-text-hover hover:bg-toggle-hover cursor-pointer rounded-sm border-none bg-transparent px-2 py-1 font-sans text-[11px] font-normal transition-all duration-150 data-[state=on]:font-medium"
+                            >
+                              Session
+                            </ToggleGroupItem>
+                            <ToggleGroupItem
+                              value="last-request"
+                              aria-label="Last request view"
+                              className="data-[state=on]:text-toggle-text-active data-[state=on]:bg-toggle-active text-toggle-text hover:text-toggle-text-hover hover:bg-toggle-hover cursor-pointer rounded-sm border-none bg-transparent px-2 py-1 font-sans text-[11px] font-normal transition-all duration-150 data-[state=on]:font-medium"
+                            >
+                              Last Request
+                            </ToggleGroupItem>
+                          </ToggleGroup>
                         </div>
                         <span className="text-muted text-xs">
                           {formatCostWithDollar(totalCost)}

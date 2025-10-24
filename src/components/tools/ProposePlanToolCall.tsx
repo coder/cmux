@@ -12,7 +12,7 @@ import { useToolExpansion, getStatusDisplay, type ToolStatus } from "./shared/to
 import { MarkdownRenderer } from "../Messages/MarkdownRenderer";
 import { formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
 import { useStartHere } from "@/hooks/useStartHere";
-import { TooltipWrapper, Tooltip } from "../Tooltip";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 interface ProposePlanToolCallProps {
@@ -93,45 +93,49 @@ export const ProposePlanToolCall: React.FC<ProposePlanToolCallProps> = ({
               </div>
               <div className="flex items-center gap-1.5">
                 {workspaceId && (
-                  <TooltipWrapper inline>
-                    <button
-                      onClick={openModal}
-                      disabled={startHereDisabled}
-                      className={cn(
-                        "px-2 py-1 text-[10px] font-mono rounded-sm cursor-pointer transition-all duration-150",
-                        "active:translate-y-px",
-                        startHereDisabled ? "opacity-50 cursor-not-allowed" : "hover:text-plan-mode"
-                      )}
-                      style={{
-                        color: "var(--color-plan-mode)",
-                        background: "color-mix(in srgb, var(--color-plan-mode), transparent 90%)",
-                        border:
-                          "1px solid color-mix(in srgb, var(--color-plan-mode), transparent 70%)",
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!startHereDisabled) {
-                          setIsHovered(true);
-                          (e.currentTarget as HTMLButtonElement).style.background =
-                            "color-mix(in srgb, var(--color-plan-mode), transparent 85%)";
-                          (e.currentTarget as HTMLButtonElement).style.borderColor =
-                            "color-mix(in srgb, var(--color-plan-mode), transparent 60%)";
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        setIsHovered(false);
-                        if (!startHereDisabled) {
-                          (e.currentTarget as HTMLButtonElement).style.background =
-                            "color-mix(in srgb, var(--color-plan-mode), transparent 90%)";
-                          (e.currentTarget as HTMLButtonElement).style.borderColor =
-                            "color-mix(in srgb, var(--color-plan-mode), transparent 70%)";
-                        }
-                      }}
-                    >
-                      {isHovered && <span className="mr-1">{buttonEmoji}</span>}
-                      {buttonLabel}
-                    </button>
-                    <Tooltip align="center">Replace all chat history with this plan</Tooltip>
-                  </TooltipWrapper>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={openModal}
+                        disabled={startHereDisabled}
+                        className={cn(
+                          "px-2 py-1 text-[10px] font-mono rounded-sm cursor-pointer transition-all duration-150",
+                          "active:translate-y-px",
+                          startHereDisabled
+                            ? "opacity-50 cursor-not-allowed"
+                            : "hover:text-plan-mode"
+                        )}
+                        style={{
+                          color: "var(--color-plan-mode)",
+                          background: "color-mix(in srgb, var(--color-plan-mode), transparent 90%)",
+                          border:
+                            "1px solid color-mix(in srgb, var(--color-plan-mode), transparent 70%)",
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!startHereDisabled) {
+                            setIsHovered(true);
+                            (e.currentTarget as HTMLButtonElement).style.background =
+                              "color-mix(in srgb, var(--color-plan-mode), transparent 85%)";
+                            (e.currentTarget as HTMLButtonElement).style.borderColor =
+                              "color-mix(in srgb, var(--color-plan-mode), transparent 60%)";
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          setIsHovered(false);
+                          if (!startHereDisabled) {
+                            (e.currentTarget as HTMLButtonElement).style.background =
+                              "color-mix(in srgb, var(--color-plan-mode), transparent 90%)";
+                            (e.currentTarget as HTMLButtonElement).style.borderColor =
+                              "color-mix(in srgb, var(--color-plan-mode), transparent 70%)";
+                          }
+                        }}
+                      >
+                        {isHovered && <span className="mr-1">{buttonEmoji}</span>}
+                        {buttonLabel}
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>Replace all chat history with this plan</TooltipContent>
+                  </Tooltip>
                 )}
                 <button
                   onClick={() => void handleCopy()}

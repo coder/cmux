@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { action } from "@storybook/addon-actions";
 import NewWorkspaceModal from "./NewWorkspaceModal";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 const meta = {
   title: "Components/NewWorkspaceModal",
@@ -38,6 +39,13 @@ const meta = {
       await new Promise((resolve) => setTimeout(resolve, 1000));
     },
   },
+  decorators: [
+    (Story) => (
+      <TooltipProvider>
+        <Story />
+      </TooltipProvider>
+    ),
+  ],
 } satisfies Meta<typeof NewWorkspaceModal>;
 
 export default meta;

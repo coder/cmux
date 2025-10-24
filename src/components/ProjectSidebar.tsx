@@ -14,7 +14,7 @@ import {
   partitionWorkspacesByAge,
   formatOldWorkspaceThreshold,
 } from "@/utils/ui/workspaceFiltering";
-import { TooltipWrapper, Tooltip } from "./Tooltip";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import SecretsModal from "./SecretsModal";
 import type { Secret } from "@/types/secrets";
 import { ForceDeleteModal } from "./ForceDeleteModal";
@@ -426,18 +426,18 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
                 <h2 className="text-foreground m-0 text-[13px] font-semibold tracking-[0.8px] uppercase">
                   Projects
                 </h2>
-                <TooltipWrapper inline>
-                  <button
-                    onClick={onAddProject}
-                    aria-label="Add project"
-                    className="text-foreground hover:bg-hover hover:border-border-light flex h-6 w-6 cursor-pointer items-center justify-center rounded border border-transparent bg-transparent p-0 text-lg transition-all duration-200"
-                  >
-                    +
-                  </button>
-                  <Tooltip className="tooltip" align="right">
-                    Add Project
-                  </Tooltip>
-                </TooltipWrapper>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={onAddProject}
+                      aria-label="Add project"
+                      className="text-foreground hover:bg-hover hover:border-border-light flex h-6 w-6 cursor-pointer items-center justify-center rounded border border-transparent bg-transparent p-0 text-lg transition-all duration-200"
+                    >
+                      +
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">Add Project</TooltipContent>
+                </Tooltip>
               </div>
               <div className="flex-1 overflow-y-auto">
                 {projects.size === 0 ? (
@@ -498,48 +498,48 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
                             <div className="text-foreground truncate text-sm font-medium tracking-[0.2px]">
                               {projectName}
                             </div>
-                            <TooltipWrapper inline>
-                              <div className="text-muted-dark font-monospace mt-px truncate text-[11px]">
-                                {abbreviatePath(projectPath)}
-                              </div>
-                              <Tooltip className="tooltip" align="left">
-                                {projectPath}
-                              </Tooltip>
-                            </TooltipWrapper>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div className="text-muted-dark font-monospace mt-px truncate text-[11px]">
+                                  {abbreviatePath(projectPath)}
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent side="left">{projectPath}</TooltipContent>
+                            </Tooltip>
                           </div>
-                          <TooltipWrapper inline>
-                            <button
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                void handleOpenSecrets(projectPath);
-                              }}
-                              aria-label={`Manage secrets for ${projectName}`}
-                              data-project-path={projectPath}
-                              className="text-muted-dark hover:text-accent hover:bg-accent/10 mr-1 flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-[3px] border-none bg-transparent text-sm opacity-0 transition-all duration-200"
-                            >
-                              🔑
-                            </button>
-                            <Tooltip className="tooltip" align="right">
-                              Manage secrets
-                            </Tooltip>
-                          </TooltipWrapper>
-                          <TooltipWrapper inline>
-                            <button
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                onRemoveProject(projectPath);
-                              }}
-                              title="Remove project"
-                              aria-label={`Remove project ${projectName}`}
-                              data-project-path={projectPath}
-                              className="text-muted-dark hover:text-danger-light hover:bg-danger-light/10 flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-[3px] border-none bg-transparent text-base opacity-0 transition-all duration-200"
-                            >
-                              ×
-                            </button>
-                            <Tooltip className="tooltip" align="right">
-                              Remove project
-                            </Tooltip>
-                          </TooltipWrapper>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  void handleOpenSecrets(projectPath);
+                                }}
+                                aria-label={`Manage secrets for ${projectName}`}
+                                data-project-path={projectPath}
+                                className="text-muted-dark hover:text-accent hover:bg-accent/10 mr-1 flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-[3px] border-none bg-transparent text-sm opacity-0 transition-all duration-200"
+                              >
+                                🔑
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent side="right">Manage secrets</TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  onRemoveProject(projectPath);
+                                }}
+                                title="Remove project"
+                                aria-label={`Remove project ${projectName}`}
+                                data-project-path={projectPath}
+                                className="text-muted-dark hover:text-danger-light hover:bg-danger-light/10 flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-[3px] border-none bg-transparent text-base opacity-0 transition-all duration-200"
+                              >
+                                ×
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent side="right">Remove project</TooltipContent>
+                          </Tooltip>
                         </DraggableProjectItem>
 
                         {isExpanded && (
@@ -626,18 +626,20 @@ const ProjectSidebarInner: React.FC<ProjectSidebarProps> = ({
               </div>
             </>
           )}
-          <TooltipWrapper inline>
-            <button
-              onClick={onToggleCollapsed}
-              className="text-muted border-dark hover:bg-hover hover:text-foreground mt-auto flex h-9 w-full cursor-pointer items-center justify-center border-t border-none bg-transparent p-0 text-sm transition-all duration-200"
-            >
-              {collapsed ? "»" : "«"}
-            </button>
-            <Tooltip className="tooltip" align="center">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={onToggleCollapsed}
+                className="text-muted border-dark hover:bg-hover hover:text-foreground mt-auto flex h-9 w-full cursor-pointer items-center justify-center border-t border-none bg-transparent p-0 text-sm transition-all duration-200"
+              >
+                {collapsed ? "»" : "«"}
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>
               {collapsed ? "Expand sidebar" : "Collapse sidebar"} (
               {formatKeybind(KEYBINDS.TOGGLE_SIDEBAR)})
-            </Tooltip>
-          </TooltipWrapper>
+            </TooltipContent>
+          </Tooltip>
           {secretsModalState && (
             <SecretsModal
               isOpen={secretsModalState.isOpen}

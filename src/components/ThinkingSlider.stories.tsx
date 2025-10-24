@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { expect, within } from "@storybook/test";
 import { ThinkingSliderComponent } from "./ThinkingSlider";
 import { ThinkingProvider } from "@/contexts/ThinkingContext";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 const meta = {
   title: "Components/ThinkingSlider",
@@ -25,9 +26,11 @@ const meta = {
   },
   decorators: [
     (Story) => (
-      <ThinkingProvider workspaceId="storybook-demo">
-        <Story />
-      </ThinkingProvider>
+      <TooltipProvider>
+        <ThinkingProvider workspaceId="storybook-demo">
+          <Story />
+        </ThinkingProvider>
+      </TooltipProvider>
     ),
   ],
 } satisfies Meta<typeof ThinkingSliderComponent>;

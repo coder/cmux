@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { TooltipWrapper, Tooltip } from "./Tooltip";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 export interface KebabMenuItem {
@@ -88,10 +88,10 @@ export const KebabMenu: React.FC<KebabMenuProps> = ({ items, className }) => {
   return (
     <>
       <div className="relative">
-        <TooltipWrapper inline>
-          {button}
-          <Tooltip align="center">More actions</Tooltip>
-        </TooltipWrapper>
+        <Tooltip>
+          <TooltipTrigger asChild>{button}</TooltipTrigger>
+          <TooltipContent>More actions</TooltipContent>
+        </Tooltip>
       </div>
 
       {isOpen &&

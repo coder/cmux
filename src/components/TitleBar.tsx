@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { VERSION } from "@/version";
-import { TooltipWrapper, Tooltip } from "./Tooltip";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import type { UpdateStatus } from "@/types/ipc";
 import { isTelemetryEnabled } from "@/telemetry";
 
@@ -217,39 +217,41 @@ export function TitleBar() {
     <div className="bg-dark border-border-light font-primary text-muted flex shrink-0 items-center justify-between border-b px-4 py-2 text-[11px] select-none">
       <div className="mr-4 flex min-w-0 items-center gap-2">
         {showUpdateIndicator && (
-          <TooltipWrapper>
-            <div
-              className={cn(
-                "w-4 h-4 flex items-center justify-center",
-                indicatorStatus === "disabled"
-                  ? "cursor-default"
-                  : "cursor-pointer hover:opacity-70"
-              )}
-              style={{ color: updateStatusColors[indicatorStatus] }}
-              onClick={handleUpdateClick}
-              onMouseEnter={handleIndicatorHover}
-            >
-              <span className="text-sm">
-                {indicatorStatus === "disabled"
-                  ? "⊘"
-                  : indicatorStatus === "downloading"
-                    ? "⟳"
-                    : "↓"}
-              </span>
-            </div>
-            <Tooltip align="left" interactive={true}>
-              {getUpdateTooltip()}
-            </Tooltip>
-          </TooltipWrapper>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div
+                className={cn(
+                  "w-4 h-4 flex items-center justify-center",
+                  indicatorStatus === "disabled"
+                    ? "cursor-default"
+                    : "cursor-pointer hover:opacity-70"
+                )}
+                style={{ color: updateStatusColors[indicatorStatus] }}
+                onClick={handleUpdateClick}
+                onMouseEnter={handleIndicatorHover}
+              >
+                <span className="text-sm">
+                  {indicatorStatus === "disabled"
+                    ? "⊘"
+                    : indicatorStatus === "downloading"
+                      ? "⟳"
+                      : "↓"}
+                </span>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="left">{getUpdateTooltip()}</TooltipContent>
+          </Tooltip>
         )}
         <div className="min-w-0 cursor-text truncate text-xs font-normal tracking-wider select-text">
           cmux {gitDescribe ?? "(dev)"}
         </div>
       </div>
-      <TooltipWrapper>
-        <div className="cursor-default text-[11px] opacity-70">{buildDate}</div>
-        <Tooltip align="right">Built at {extendedTimestamp}</Tooltip>
-      </TooltipWrapper>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className="cursor-default text-[11px] opacity-70">{buildDate}</div>
+        </TooltipTrigger>
+        <TooltipContent side="right">Built at {extendedTimestamp}</TooltipContent>
+      </Tooltip>
     </div>
   );
 }

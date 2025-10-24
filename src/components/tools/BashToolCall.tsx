@@ -13,7 +13,7 @@ import {
   LoadingDots,
 } from "./shared/ToolPrimitives";
 import { useToolExpansion, getStatusDisplay, type ToolStatus } from "./shared/toolUtils";
-import { TooltipWrapper, Tooltip } from "../Tooltip";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 
 interface BashToolCallProps {
   args: BashToolArgs;
@@ -63,10 +63,12 @@ export const BashToolCall: React.FC<BashToolCallProps> = ({
     <ToolContainer expanded={expanded}>
       <ToolHeader onClick={toggleExpanded}>
         <ExpandIcon expanded={expanded}>▶</ExpandIcon>
-        <TooltipWrapper inline>
-          <span>🔧</span>
-          <Tooltip>bash</Tooltip>
-        </TooltipWrapper>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span>🔧</span>
+          </TooltipTrigger>
+          <TooltipContent>bash</TooltipContent>
+        </Tooltip>
         <span className="text-text font-monospace max-w-96 truncate">{args.script}</span>
         <span
           className="ml-2 text-[10px] whitespace-nowrap [@container(max-width:500px)]:hidden"

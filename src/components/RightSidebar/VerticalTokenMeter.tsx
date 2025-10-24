@@ -1,5 +1,5 @@
 import React from "react";
-import { TooltipWrapper, Tooltip } from "../Tooltip";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { TokenMeter } from "./TokenMeter";
 import { type TokenMeterData, formatTokens, getSegmentLabel } from "@/utils/tokens/tokenMeterUtils";
 
@@ -36,14 +36,16 @@ const VerticalTokenMeterComponent: React.FC<{ data: TokenMeterData }> = ({ data 
             className="flex w-full flex-1 flex-col items-center [&>*]:flex [&>*]:flex-1 [&>*]:flex-col"
             data-bar-wrapper="expand"
           >
-            <TooltipWrapper data-tooltip-wrapper="vertical-meter">
-              <TokenMeter
-                segments={data.segments}
-                orientation="vertical"
-                data-meter="token-bar"
-                data-segment-count={data.segments.length}
-              />
-              <Tooltip data-tooltip="meter-details">
+            <Tooltip>
+              <TooltipTrigger asChild data-tooltip-wrapper="vertical-meter">
+                <TokenMeter
+                  segments={data.segments}
+                  orientation="vertical"
+                  data-meter="token-bar"
+                  data-segment-count={data.segments.length}
+                />
+              </TooltipTrigger>
+              <TooltipContent data-tooltip="meter-details">
                 <div
                   className="font-primary flex flex-col gap-2 text-xs"
                   data-tooltip-content="usage-breakdown"
@@ -92,8 +94,8 @@ const VerticalTokenMeterComponent: React.FC<{ data: TokenMeterData }> = ({ data 
                     💡 Expand your viewport to see full details
                   </div>
                 </div>
-              </Tooltip>
-            </TooltipWrapper>
+              </TooltipContent>
+            </Tooltip>
           </div>
         </div>
         <div

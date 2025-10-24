@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import type { UIMode } from "@/types/mode";
 import * as vim from "@/utils/vim";
-import { TooltipWrapper, Tooltip, HelpIndicator } from "./Tooltip";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { HelpIndicator } from "@/components/HelpIndicator";
 import { formatKeybind, KEYBINDS } from "@/utils/ui/keybinds";
 import { cn } from "@/lib/utils";
 
@@ -161,9 +162,11 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
           <div className="flex items-center gap-1">
             {showVimMode && (
               <>
-                <TooltipWrapper>
-                  <HelpIndicator>?</HelpIndicator>
-                  <Tooltip align="left" width="wide">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <HelpIndicator>?</HelpIndicator>
+                  </TooltipTrigger>
+                  <TooltipContent side="left" className="max-w-md">
                     <strong>Vim Mode Enabled</strong>
                     <br />
                     <br />
@@ -182,8 +185,8 @@ export const VimTextArea = React.forwardRef<HTMLTextAreaElement, VimTextAreaProp
                       Vim Mode docs
                     </a>{" "}
                     for full command reference.
-                  </Tooltip>
-                </TooltipWrapper>
+                  </TooltipContent>
+                </Tooltip>
                 <span className="uppercase">normal</span>
                 {pendingCommand && <span>{pendingCommand}</span>}
               </>
