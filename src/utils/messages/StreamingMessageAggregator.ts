@@ -511,15 +511,17 @@ export class StreamingMessageAggregator {
     }
 
     if (isInitOutput(data)) {
+      if (!this.initState) return; // Defensive: shouldn't happen but handle gracefully
       const line = data.isError ? `ERROR: ${data.line}` : data.line;
-      this.initState!.lines.push(line.trimEnd());
+      this.initState.lines.push(line.trimEnd());
       this.invalidateCache();
       return;
     }
 
     if (isInitEnd(data)) {
-      this.initState!.exitCode = data.exitCode;
-      this.initState!.status = data.exitCode === 0 ? "success" : "error";
+      if (!this.initState) return; // Defensive: shouldn't happen but handle gracefully
+      this.initState.exitCode = data.exitCode;
+      this.initState.status = data.exitCode === 0 ? "success" : "error";
       this.invalidateCache();
       return;
     }
