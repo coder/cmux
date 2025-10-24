@@ -415,6 +415,232 @@ describeIntegration("Runtime integration tests", () => {
           expect(content).toBe("nested");
         });
       });
+
+      describe("Git operations", () => {
+        test.concurrent("can initialize a git repository", async () => {
+          const runtime = createRuntime();
+          await using workspace = await TestWorkspace.create(runtime, type);
+
+          // Initialize git repo
+          const result = await execBuffered(runtime, "git init", {
+            cwd: workspace.path,
+            timeout: 30,
+          });
+
+          expect(result.exitCode).toBe(0);
+
+          // Verify .git directory exists
+          const stat = await runtime.stat(`${workspace.path}/.git`);
+          expect(stat.isDirectory).toBe(true);
+        });
+
+        test.concurrent("can create commits", async () => {
+          const runtime = createRuntime();
+          await using workspace = await TestWorkspace.create(runtime, type);
+
+          // Initialize git and configure user
+          await execBuffered(
+            runtime,
+            `git init && git config user.email "test@example.com" && git config user.name "Test User"`,
+            { cwd: workspace.path, timeout: 30 }
+          );
+
+          // Create a file and commit
+          await writeFileString(runtime, `${workspace.path}/test.txt`, "initial content");
+          await execBuffered(runtime, `git add test.txt && git commit -m "Initial commit"`, {
+            cwd: workspace.path,
+            timeout: 30,
+          });
+
+          // Verify commit exists
+          const logResult = await execBuffered(runtime, "git log --oneline", {
+            cwd: workspace.path,
+            timeout: 30,
+          });
+
+          expect(logResult.stdout).toContain("Initial commit");
+        });
+
+        test.concurrent("can create and checkout branches", async () => {
+          const runtime = createRuntime();
+          await using workspace = await TestWorkspace.create(runtime, type);
+
+          // Setup git repo
+          await execBuffered(
+            runtime,
+            `git init && git config user.email "test@example.com" && git config user.name "Test"`,
+            { cwd: workspace.path, timeout: 30 }
+          );
+
+          // Create initial commit
+          await writeFileString(runtime, `${workspace.path}/file.txt`, "content");
+          await execBuffered(runtime, `git add file.txt && git commit -m "init"`, {
+            cwd: workspace.path,
+            timeout: 30,
+          });
+
+          // Create and checkout new branch
+          await execBuffered(runtime, "git checkout -b feature-branch", {
+            cwd: workspace.path,
+            timeout: 30,
+          });
+
+          // Verify branch
+          const branchResult = await execBuffered(runtime, "git branch --show-current", {
+            cwd: workspace.path,
+            timeout: 30,
+          });
+
+          expect(branchResult.stdout.trim()).toBe("feature-branch");
+        });
+
+        test.concurrent("can handle git status in dirty workspace", async () => {
+          const runtime = createRuntime();
+          await using workspace = await TestWorkspace.create(runtime, type);
+
+          // Setup git repo with commit
+          await execBuffered(
+            runtime,
+            `git init && git config user.email "test@example.com" && git config user.name "Test"`,
+            { cwd: workspace.path, timeout: 30 }
+          );
+          await writeFileString(runtime, `${workspace.path}/file.txt`, "original");
+          await execBuffered(runtime, `git add file.txt && git commit -m "init"`, {
+            cwd: workspace.path,
+            timeout: 30,
+          });
+
+          // Make changes
+          await writeFileString(runtime, `${workspace.path}/file.txt`, "modified");
+
+          // Check status
+          const statusResult = await execBuffered(runtime, "git status --short", {
+            cwd: workspace.path,
+            timeout: 30,
+          });
+
+          expect(statusResult.stdout).toContain("M file.txt");
+        });
+      });
+
+      describe("Environment and shell behavior", () => {
+        test.concurrent("preserves multi-line output formatting", async () => {
+          const runtime = createRuntime();
+          await using workspace = await TestWorkspace.create(runtime, type);
+
+          const result = await execBuffered(runtime, 'echo "line1\nline2\nline3"', {
+            cwd: workspace.path,
+            timeout: 30,
+          });
+
+          expect(result.stdout).toContain("line1");
+          expect(result.stdout).toContain("line2");
+          expect(result.stdout).toContain("line3");
+        });
+
+        test.concurrent("handles commands with pipes", async () => {
+          const runtime = createRuntime();
+          await using workspace = await TestWorkspace.create(runtime, type);
+
+          await writeFileString(runtime, `${workspace.path}/test.txt`, "line1\nline2\nline3");
+
+          const result = await execBuffered(runtime, "cat test.txt | grep line2", {
+            cwd: workspace.path,
+            timeout: 30,
+          });
+
+          expect(result.stdout.trim()).toBe("line2");
+        });
+
+        test.concurrent("handles command substitution", async () => {
+          const runtime = createRuntime();
+          await using workspace = await TestWorkspace.create(runtime, type);
+
+          const result = await execBuffered(runtime, 'echo "Current dir: $(basename $(pwd))"', {
+            cwd: workspace.path,
+            timeout: 30,
+          });
+
+          expect(result.stdout).toContain("Current dir:");
+        });
+
+        test.concurrent("handles large stdout output", async () => {
+          const runtime = createRuntime();
+          await using workspace = await TestWorkspace.create(runtime, type);
+
+          // Generate large output (1000 lines)
+          const result = await execBuffered(runtime, "seq 1 1000", {
+            cwd: workspace.path,
+            timeout: 30,
+          });
+
+          const lines = result.stdout.trim().split("\n");
+          expect(lines.length).toBe(1000);
+          expect(lines[0]).toBe("1");
+          expect(lines[999]).toBe("1000");
+        });
+
+        test.concurrent("handles commands that produce no output but take time", async () => {
+          const runtime = createRuntime();
+          await using workspace = await TestWorkspace.create(runtime, type);
+
+          const result = await execBuffered(runtime, "sleep 0.1", {
+            cwd: workspace.path,
+            timeout: 30,
+          });
+
+          expect(result.exitCode).toBe(0);
+          expect(result.stdout).toBe("");
+          expect(result.duration).toBeGreaterThanOrEqual(100);
+        });
+      });
+
+      describe("Error handling", () => {
+        test.concurrent("handles command not found", async () => {
+          const runtime = createRuntime();
+          await using workspace = await TestWorkspace.create(runtime, type);
+
+          const result = await execBuffered(runtime, "nonexistentcommand", {
+            cwd: workspace.path,
+            timeout: 30,
+          });
+
+          expect(result.exitCode).not.toBe(0);
+          expect(result.stderr.toLowerCase()).toContain("not found");
+        });
+
+        test.concurrent("handles syntax errors in bash", async () => {
+          const runtime = createRuntime();
+          await using workspace = await TestWorkspace.create(runtime, type);
+
+          const result = await execBuffered(runtime, "if true; then echo 'missing fi'", {
+            cwd: workspace.path,
+            timeout: 30,
+          });
+
+          expect(result.exitCode).not.toBe(0);
+        });
+
+        test.concurrent("handles permission denied errors", async () => {
+          const runtime = createRuntime();
+          await using workspace = await TestWorkspace.create(runtime, type);
+
+          // Create file without execute permission and try to execute it
+          await writeFileString(runtime, `${workspace.path}/script.sh`, "#!/bin/sh\necho test");
+          await execBuffered(runtime, "chmod 644 script.sh", {
+            cwd: workspace.path,
+            timeout: 30,
+          });
+
+          const result = await execBuffered(runtime, "./script.sh", {
+            cwd: workspace.path,
+            timeout: 30,
+          });
+
+          expect(result.exitCode).not.toBe(0);
+          expect(result.stderr.toLowerCase()).toContain("permission denied");
+        });
+      });
     }
   );
 });

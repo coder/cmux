@@ -1,7 +1,7 @@
 FROM alpine:latest
 
-# Install OpenSSH server
-RUN apk add --no-cache openssh-server
+# Install OpenSSH server and git
+RUN apk add --no-cache openssh-server git
 
 # Create test user
 RUN adduser -D -s /bin/sh testuser && \
