@@ -520,6 +520,11 @@ export class StreamingMessageAggregator {
         return;
       }
       const line = data.isError ? `ERROR: ${data.line}` : data.line;
+      // Extra defensive check (should never hit due to check above, but prevents crash if data changes)
+      if (typeof line !== "string") {
+        console.error("Init-output line is not a string", { line, data });
+        return;
+      }
       this.initState.lines.push(line.trimEnd());
       this.invalidateCache();
       return;
