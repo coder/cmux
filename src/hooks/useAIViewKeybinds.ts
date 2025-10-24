@@ -69,8 +69,21 @@ export function useAIViewKeybinds({
         // Normal stream interrupt (non-compaction)
         // Allow interrupt in editable elements if there's no text selection
         // This way Ctrl+C works for both copy (when text is selected) and interrupt (when not)
-        const hasSelection = window.getSelection()?.toString().length ?? 0 > 0;
         const inEditableElement = isEditableElement(e.target);
+        let hasSelection = false;
+
+        if (inEditableElement) {
+          // For input/textarea elements, check selectionStart/selectionEnd
+          // (window.getSelection() doesn't work for form elements)
+          const target = e.target as HTMLInputElement | HTMLTextAreaElement;
+          hasSelection =
+            typeof target.selectionStart === "number" &&
+            typeof target.selectionEnd === "number" &&
+            target.selectionStart !== target.selectionEnd;
+        } else {
+          // For contentEditable and other elements, use window.getSelection()
+          hasSelection = (window.getSelection()?.toString().length ?? 0) > 0;
+        }
 
         if ((canInterrupt || showRetryBarrier) && (!inEditableElement || !hasSelection)) {
           e.preventDefault();
