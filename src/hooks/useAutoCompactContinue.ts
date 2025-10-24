@@ -52,11 +52,12 @@ export function useAutoCompactContinue() {
       });
 
       // Detect if workspace is in "single compacted message" state
-      const firstMessage = state.messages[0];
+      // Skip workspace-init messages since they're UI-only metadata
+      const cmuxMessages = state.messages.filter((m) => m.type !== "workspace-init");
       const isSingleCompacted =
-        state.messages.length === 1 &&
-        firstMessage?.type === "assistant" &&
-        firstMessage.isCompacted === true;
+        cmuxMessages.length === 1 &&
+        cmuxMessages[0]?.type === "assistant" &&
+        cmuxMessages[0].isCompacted === true;
 
       if (!isSingleCompacted) {
         // Workspace no longer in compacted state - no action needed
