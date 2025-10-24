@@ -60,6 +60,11 @@ export class StreamingMessageAggregator {
     timestamp: number;
   } | null = null;
 
+  // Track when we're waiting for stream-start after user message
+  // Prevents retry barrier flash during normal send flow
+  private pendingStreamStart = false;
+  private pendingStreamStartTimer: ReturnType<typeof setTimeout> | null = null;
+
   // Workspace creation timestamp (used for recency calculation)
   // REQUIRED: Backend guarantees every workspace has createdAt via config.ts
   private readonly createdAt: string;
@@ -181,6 +186,29 @@ export class StreamingMessageAggregator {
     return this.messages.size > 0;
   }
 
+  isPendingStreamStart(): boolean {
+    return this.pendingStreamStart;
+  }
+
+  private setPendingStreamStart(pending: boolean): void {
+    // Clear existing timer if any
+    if (this.pendingStreamStartTimer) {
+      clearTimeout(this.pendingStreamStartTimer);
+      this.pendingStreamStartTimer = null;
+    }
+
+    this.pendingStreamStart = pending;
+
+    if (pending) {
+      // Set 30s timeout - if stream hasn't started by then, something is wrong
+      this.pendingStreamStartTimer = setTimeout(() => {
+        this.pendingStreamStart = false;
+        this.pendingStreamStartTimer = null;
+        this.invalidateCache(); // Trigger re-render to show retry barrier
+      }, 30000);
+    }
+  }
+
   getActiveStreams(): StreamingContext[] {
     return Array.from(this.activeStreams.values());
   }
@@ -251,6 +279,9 @@ export class StreamingMessageAggregator {
 
   // Unified event handlers that encapsulate all complex logic
   handleStreamStart(data: StreamStartEvent): void {
+    // Clear pending stream start flag - stream has started
+    this.setPendingStreamStart(false);
+
     // Detect if this stream is compacting by checking if last user message is a compaction-request
     const messages = this.getAllMessages();
     const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
@@ -571,6 +602,11 @@ export class StreamingMessageAggregator {
 
       // Now add the new message
       this.addMessage(incomingMessage);
+
+      // If this is a user message, set pendingStreamStart flag and start timeout
+      if (incomingMessage.role === "user") {
+        this.setPendingStreamStart(true);
+      }
     }
   }
 

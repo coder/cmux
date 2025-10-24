@@ -95,7 +95,7 @@ export function useResumeManager() {
     // 1. Must have interrupted stream (not currently streaming)
     if (state.canInterrupt) return false; // Currently streaming
 
-    if (!hasInterruptedStream(state.messages)) {
+    if (!hasInterruptedStream(state.messages, state.pendingStreamStart)) {
       return false;
     }
 
