@@ -23,6 +23,8 @@ import { TooltipWrapper, Tooltip } from "../Tooltip";
 import { DiffContainer, DiffRenderer, SelectableDiffRenderer } from "../shared/DiffRenderer";
 import { KebabMenu, type KebabMenuItem } from "../KebabMenu";
 
+const WRITE_DENIED_PREFIX = "WRITE DENIED, FILE UNMODIFIED:";
+
 type FileEditOperationArgs =
   | FileEditReplaceStringToolArgs
   | FileEditReplaceLinesToolArgs
@@ -97,7 +99,11 @@ export const FileEditToolCall: React.FC<FileEditToolCallProps> = ({
   status = "pending",
   onReviewNote,
 }) => {
-  const { expanded, toggleExpanded } = useToolExpansion(true);
+  // Collapse WRITE DENIED errors by default since they're common and expected
+  const isWriteDenied = result && !result.success && result.error?.startsWith(WRITE_DENIED_PREFIX);
+  const initialExpanded = !isWriteDenied;
+
+  const { expanded, toggleExpanded } = useToolExpansion(initialExpanded);
   const [showRaw, setShowRaw] = React.useState(false);
   const [copied, setCopied] = React.useState(false);
 
