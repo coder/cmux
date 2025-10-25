@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import type { FrontendWorkspaceMetadata } from "@/types/workspace";
 import type { WorkspaceSelection } from "@/components/ProjectSidebar";
 import type { ProjectConfig } from "@/config";
+import type { RuntimeConfig } from "@/types/runtime";
 import { deleteWorkspaceStorage } from "@/constants/storage";
 
 interface UseWorkspaceManagementProps {
@@ -101,12 +102,22 @@ export function useWorkspaceManagement({
     };
   }, [onProjectsUpdate]);
 
-  const createWorkspace = async (projectPath: string, branchName: string, trunkBranch: string) => {
+  const createWorkspace = async (
+    projectPath: string,
+    branchName: string,
+    trunkBranch: string,
+    runtimeConfig?: RuntimeConfig
+  ) => {
     console.assert(
       typeof trunkBranch === "string" && trunkBranch.trim().length > 0,
       "Expected trunk branch to be provided when creating a workspace"
     );
-    const result = await window.api.workspace.create(projectPath, branchName, trunkBranch);
+    const result = await window.api.workspace.create(
+      projectPath,
+      branchName,
+      trunkBranch,
+      runtimeConfig
+    );
     if (result.success) {
       // Backend has already updated the config - reload projects to get updated state
       const projectsList = await window.api.projects.list();
