@@ -10,6 +10,8 @@ on:
         description: 'Optional test filter (e.g., "workspace", "tests/file.test.ts", or "-t pattern")'
         required: false
         type: string
+        # This filter is passed to unit tests, integration tests, e2e tests, and storybook tests
+        # to enable faster iteration when debugging specific test failures in CI
 
 jobs:
   static-check:
@@ -131,7 +133,12 @@ jobs:
           sleep 5
 
       - name: Run Storybook tests
-        run: make test-storybook
+        run: |
+          if [ -n "${{ github.event.inputs.test_filter }}" ]; then
+            bun x test-storybook --stories-json --url http://localhost:6006 ${{ github.event.inputs.test_filter }}
+          else
+            make test-storybook
+          fi
 
   e2e-test:
     name: End-to-End Tests
@@ -156,9 +163,18 @@ jobs:
         run: bun x playwright install --with-deps
 
       - name: Run e2e tests
-        run: xvfb-run -a make test-e2e
+        run: |
+          if [ -n "${{ github.event.inputs.test_filter }}" ]; then
+            make build
+            xvfb-run -a bun x playwright test --project=electron --grep "${{ github.event.inputs.test_filter }}"
+          else
+            xvfb-run -a make test-e2e
+          fi
         env:
           ELECTRON_DISABLE_SANDBOX: 1
+          CMUX_E2E_LOAD_DIST: 1
+          CMUX_E2E_SKIP_BUILD: 1
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
 
   check-codex-comments:
     name: Check Codex Comments
