@@ -434,7 +434,8 @@ function AppInner() {
         typeof trunkBranch === "string" && trunkBranch.trim().length > 0,
         "Expected trunk branch to be provided by the command palette"
       );
-      const newWs = await createWorkspace(projectPath, branchName, trunkBranch);
+      // Command palette doesn't support runtime config yet, pass undefined (defaults to local)
+      const newWs = await createWorkspace(projectPath, branchName, trunkBranch, undefined);
       if (newWs) {
         telemetry.workspaceCreated(newWs.workspaceId);
         setSelectedWorkspace(newWs);
