@@ -34,9 +34,6 @@ const mk = (over: Partial<Parameters<typeof buildCoreSources>[0]> = {}) => {
     streamingModels: new Map<string, string>(),
     getThinkingLevel: () => "off",
     onSetThinkingLevel: () => undefined,
-    onCreateWorkspace: async (_projectPath, _branchName, _trunkBranch) => {
-      await Promise.resolve();
-    },
     onOpenNewWorkspaceModal: () => undefined,
     onSelectWorkspace: () => undefined,
     onRemoveWorkspace: () => Promise.resolve({ success: true }),

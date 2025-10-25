@@ -428,21 +428,7 @@ function AppInner() {
     [handleAddWorkspace]
   );
 
-  const createWorkspaceFromPalette = useCallback(
-    async (projectPath: string, branchName: string, trunkBranch: string) => {
-      console.assert(
-        typeof trunkBranch === "string" && trunkBranch.trim().length > 0,
-        "Expected trunk branch to be provided by the command palette"
-      );
-      // Command palette doesn't support runtime config yet, pass undefined (defaults to local)
-      const newWs = await createWorkspace(projectPath, branchName, trunkBranch, undefined);
-      if (newWs) {
-        telemetry.workspaceCreated(newWs.workspaceId);
-        setSelectedWorkspace(newWs);
-      }
-    },
-    [createWorkspace, setSelectedWorkspace, telemetry]
-  );
+
 
   const getBranchesForProject = useCallback(
     async (projectPath: string): Promise<BranchListResult> => {
@@ -511,7 +497,6 @@ function AppInner() {
     getThinkingLevel: getThinkingLevelForWorkspace,
     onSetThinkingLevel: setThinkingLevelFromPalette,
     onOpenNewWorkspaceModal: openNewWorkspaceFromPalette,
-    onCreateWorkspace: createWorkspaceFromPalette,
     getBranchesForProject,
     onSelectWorkspace: selectWorkspaceFromPalette,
     onRemoveWorkspace: removeWorkspaceFromPalette,
