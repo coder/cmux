@@ -151,7 +151,7 @@ describeIntegration("IpcMain executeBash integration tests", () => {
 
         expect(timeoutResult.success).toBe(true);
         expect(timeoutResult.data.success).toBe(false);
-        expect(timeoutResult.data.error).toContain("timed out");
+        expect(timeoutResult.data.error).toContain("timeout");
 
         // Clean up
         await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, workspaceId);

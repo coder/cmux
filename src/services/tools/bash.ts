@@ -12,6 +12,7 @@ import {
   BASH_TRUNCATE_MAX_TOTAL_BYTES,
   BASH_TRUNCATE_MAX_FILE_BYTES,
 } from "@/constants/toolLimits";
+import { EXIT_CODE_ABORTED, EXIT_CODE_TIMEOUT } from "@/constants/exitCodes";
 
 import type { BashToolResult } from "@/types/tools";
 import type { ToolConfiguration, ToolFactory } from "@/utils/tools/tools";
@@ -154,18 +155,23 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
         let tryFinalize: () => void;
         let finalize: () => void;
 
+        // Helper to tear down streams and readline interfaces
+        const teardown = () => {
+          stdoutReader.close();
+          stderrReader.close();
+          stdoutNodeStream.destroy();
+          stderrNodeStream.destroy();
+        };
+
         // IMPORTANT: Attach exit handler IMMEDIATELY to prevent unhandled rejection
-        // Handle both normal exits and special error codes (-997 abort, -998 timeout)
+        // Handle both normal exits and special error codes (EXIT_CODE_ABORTED, EXIT_CODE_TIMEOUT)
         execStream.exitCode.then((code) => {
           exitCode = code;
           
           // Check for special error codes from runtime
-          if (code === -997) {
+          if (code === EXIT_CODE_ABORTED) {
             // Aborted via AbortSignal
-            stdoutReader.close();
-            stderrReader.close();
-            stdoutNodeStream.destroy();
-            stderrNodeStream.destroy();
+            teardown();
             resolveOnce({
               success: false,
               error: "Command execution was aborted",
@@ -175,12 +181,9 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
             return;
           }
           
-          if (code === -998) {
+          if (code === EXIT_CODE_TIMEOUT) {
             // Exceeded timeout
-            stdoutReader.close();
-            stderrReader.close();
-            stdoutNodeStream.destroy();
-            stderrNodeStream.destroy();
+            teardown();
             resolveOnce({
               success: false,
               error: `Command exceeded timeout of ${effectiveTimeout} seconds`,
@@ -204,10 +207,7 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
           }, 50);
         }).catch((err) => {
           // Only actual errors (like spawn failure) should reach here now
-          stdoutReader.close();
-          stderrReader.close();
-          stdoutNodeStream.destroy();
-          stderrNodeStream.destroy();
+          teardown();
           resolveOnce({
             success: false,
             error: `Failed to execute command: ${err.message}`,

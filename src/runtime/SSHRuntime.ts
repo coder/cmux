@@ -12,6 +12,7 @@ import type {
   InitLogger,
 } from "./Runtime";
 import { RuntimeError as RuntimeErrorClass } from "./Runtime";
+import { EXIT_CODE_ABORTED, EXIT_CODE_TIMEOUT } from "../constants/exitCodes";
 import { log } from "../services/log";
 import { checkInitHookExists, createLineBufferedLoggers } from "./initHook";
 import { streamProcessToLogger } from "./streamProcess";
@@ -115,18 +116,22 @@ export class SSHRuntime implements Runtime {
     const stderr = Readable.toWeb(sshProcess.stderr) as unknown as ReadableStream<Uint8Array>;
     const stdin = Writable.toWeb(sshProcess.stdin) as unknown as WritableStream<Uint8Array>;
 
+    // Track if we killed the process due to timeout
+    let timedOut = false;
+
     // Create promises for exit code and duration
-    // Special exit codes for expected error conditions:
-    // -997: Aborted via AbortSignal
-    // -998: Exceeded timeout
+    // Uses special exit codes (EXIT_CODE_ABORTED, EXIT_CODE_TIMEOUT) for expected error conditions
     const exitCode = new Promise<number>((resolve, reject) => {
       sshProcess.on("close", (code, signal) => {
+        // Check abort first (highest priority)
         if (options.abortSignal?.aborted) {
-          resolve(-997); // Special code for abort
+          resolve(EXIT_CODE_ABORTED);
           return;
         }
-        if (signal === "SIGTERM" && options.timeout !== undefined) {
-          resolve(-998); // Special code for timeout
+        // Check if we killed the process due to timeout
+        // Don't check signal - if we set timedOut, we timed out regardless of how process died
+        if (timedOut) {
+          resolve(EXIT_CODE_TIMEOUT);
           return;
         }
         resolve(code ?? (signal ? -1 : 0));
@@ -146,7 +151,10 @@ export class SSHRuntime implements Runtime {
 
     // Handle timeout
     if (options.timeout !== undefined) {
-      setTimeout(() => sshProcess.kill(), options.timeout * 1000);
+      setTimeout(() => {
+        timedOut = true;
+        sshProcess.kill();
+      }, options.timeout * 1000);
     }
 
     return { stdout, stderr, stdin, exitCode, duration };
