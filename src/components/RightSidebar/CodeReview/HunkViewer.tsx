@@ -215,65 +215,63 @@ export const HunkViewer = React.memo<HunkViewerProps>(
       onToggleRead?.(e);
     };
 
-    const handleExpandUp = React.useCallback(
+    const handleToggleUp = React.useCallback(
       (e: React.MouseEvent) => {
         e.stopPropagation();
-        const expansion = calculateUpwardExpansion(hunk.oldStart, readMoreState.up);
-        if (expansion.startLine < 1 || expansion.numLines <= 0) {
-          // Already at beginning of file
-          return;
+        // If currently expanded, collapse by 30. Otherwise, expand by 30.
+        if (readMoreState.up > 0) {
+          // Collapse
+          const newExpansion = Math.max(0, readMoreState.up - 30);
+          setReadMoreStateMap((prev) => ({
+            ...prev,
+            [hunkId]: {
+              ...readMoreState,
+              up: newExpansion,
+            },
+          }));
+        } else {
+          // Expand
+          const expansion = calculateUpwardExpansion(hunk.oldStart, readMoreState.up);
+          if (expansion.startLine < 1 || expansion.numLines <= 0) {
+            // Already at beginning of file
+            return;
+          }
+          setReadMoreStateMap((prev) => ({
+            ...prev,
+            [hunkId]: {
+              ...readMoreState,
+              up: readMoreState.up + 30,
+            },
+          }));
         }
-        setReadMoreStateMap((prev) => ({
-          ...prev,
-          [hunkId]: {
-            ...readMoreState,
-            up: readMoreState.up + 30,
-          },
-        }));
       },
       [hunkId, hunk.oldStart, readMoreState, setReadMoreStateMap]
     );
 
-    const handleExpandDown = React.useCallback(
+    const handleToggleDown = React.useCallback(
       (e: React.MouseEvent) => {
         e.stopPropagation();
-        setReadMoreStateMap((prev) => ({
-          ...prev,
-          [hunkId]: {
-            ...readMoreState,
-            down: readMoreState.down + 30,
-          },
-        }));
-      },
-      [hunkId, readMoreState, setReadMoreStateMap]
-    );
-
-    const handleCollapseUp = React.useCallback(
-      (e: React.MouseEvent) => {
-        e.stopPropagation();
-        const newExpansion = Math.max(0, readMoreState.up - 30);
-        setReadMoreStateMap((prev) => ({
-          ...prev,
-          [hunkId]: {
-            ...readMoreState,
-            up: newExpansion,
-          },
-        }));
-      },
-      [hunkId, readMoreState, setReadMoreStateMap]
-    );
-
-    const handleCollapseDown = React.useCallback(
-      (e: React.MouseEvent) => {
-        e.stopPropagation();
-        const newExpansion = Math.max(0, readMoreState.down - 30);
-        setReadMoreStateMap((prev) => ({
-          ...prev,
-          [hunkId]: {
-            ...readMoreState,
-            down: newExpansion,
-          },
-        }));
+        // If currently expanded, collapse by 30. Otherwise, expand by 30.
+        if (readMoreState.down > 0) {
+          // Collapse
+          const newExpansion = Math.max(0, readMoreState.down - 30);
+          setReadMoreStateMap((prev) => ({
+            ...prev,
+            [hunkId]: {
+              ...readMoreState,
+              down: newExpansion,
+            },
+          }));
+        } else {
+          // Expand
+          setReadMoreStateMap((prev) => ({
+            ...prev,
+            [hunkId]: {
+              ...readMoreState,
+              down: readMoreState.down + 30,
+            },
+          }));
+        }
       },
       [hunkId, readMoreState, setReadMoreStateMap]
     );
@@ -318,16 +316,16 @@ export const HunkViewer = React.memo<HunkViewerProps>(
             upExpansion={{
               content: expandedContentUp,
               isLoading: isLoadingUp,
-              onExpand: handleExpandUp,
-              onCollapse: handleCollapseUp,
-              canCollapse: readMoreState.up > 0,
+              onToggle: handleToggleUp,
+              isExpanded: readMoreState.up > 0,
+              canExpand: calculateUpwardExpansion(hunk.oldStart, readMoreState.up).numLines > 0,
             }}
             downExpansion={{
               content: expandedContentDown,
               isLoading: isLoadingDown,
-              onExpand: handleExpandDown,
-              onCollapse: handleCollapseDown,
-              canCollapse: readMoreState.down > 0,
+              onToggle: handleToggleDown,
+              isExpanded: readMoreState.down > 0,
+              canExpand: true, // Always allow expanding downward
             }}
             onClick={onClick}
             onReviewNote={onReviewNote}

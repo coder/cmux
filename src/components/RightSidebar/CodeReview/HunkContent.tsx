@@ -6,15 +6,15 @@ import React, { useMemo } from "react";
 import type { DiffHunk, HunkReadMoreState } from "@/types/review";
 import type { SearchHighlightConfig } from "@/utils/highlighting/highlightSearchTerms";
 import { SelectableDiffRenderer } from "../../shared/DiffRenderer";
-import { ReadMoreButton } from "./ReadMoreButton";
-import { calculateUpwardExpansion, LINES_PER_EXPANSION } from "@/utils/review/readFileLines";
+import { ExpanderArrow } from "./ExpanderArrow";
+import { calculateUpwardExpansion } from "@/utils/review/readFileLines";
 
 interface ExpansionState {
   content: string;
   isLoading: boolean;
-  onExpand: (e: React.MouseEvent) => void;
-  onCollapse: (e: React.MouseEvent) => void;
-  canCollapse: boolean;
+  onToggle: (e: React.MouseEvent) => void;
+  isExpanded: boolean;
+  canExpand: boolean;
 }
 
 interface HunkContentProps {
@@ -74,16 +74,14 @@ export const HunkContent = React.memo<HunkContentProps>(
 
     return (
       <div className="font-monospace bg-code-bg grid grid-cols-[minmax(min-content,1fr)] overflow-x-auto text-[11px] leading-[1.4]">
-        {/* Expand upward button - show if can expand further */}
-        {canExpandUp && (
-          <ReadMoreButton
-            direction="up"
-            action="expand"
-            numLines={LINES_PER_EXPANSION}
-            isLoading={upExpansion.isLoading}
-            onClick={upExpansion.onExpand}
-          />
-        )}
+        {/* Upward expander arrow */}
+        <ExpanderArrow
+          direction="up"
+          isExpanded={upExpansion.isExpanded}
+          isLoading={upExpansion.isLoading}
+          canExpand={canExpandUp}
+          onClick={upExpansion.onToggle}
+        />
 
         {/* Combined content - single pass through syntax highlighter */}
         <div className="px-2 py-1.5">
@@ -105,35 +103,13 @@ export const HunkContent = React.memo<HunkContentProps>(
           />
         </div>
 
-        {/* Collapse upward button - show if currently expanded upward */}
-        {upExpansion.canCollapse && (
-          <ReadMoreButton
-            direction="up"
-            action="collapse"
-            numLines={Math.min(LINES_PER_EXPANSION, readMoreState.up)}
-            isLoading={false}
-            onClick={upExpansion.onCollapse}
-          />
-        )}
-
-        {/* Collapse downward button - show if currently expanded downward */}
-        {downExpansion.canCollapse && (
-          <ReadMoreButton
-            direction="down"
-            action="collapse"
-            numLines={Math.min(LINES_PER_EXPANSION, readMoreState.down)}
-            isLoading={false}
-            onClick={downExpansion.onCollapse}
-          />
-        )}
-
-        {/* Expand downward button */}
-        <ReadMoreButton
+        {/* Downward expander arrow */}
+        <ExpanderArrow
           direction="down"
-          action="expand"
-          numLines={LINES_PER_EXPANSION}
+          isExpanded={downExpansion.isExpanded}
           isLoading={downExpansion.isLoading}
-          onClick={downExpansion.onExpand}
+          canExpand={downExpansion.canExpand}
+          onClick={downExpansion.onToggle}
         />
       </div>
     );
