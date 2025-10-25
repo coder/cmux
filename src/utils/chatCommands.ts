@@ -135,11 +135,15 @@ export async function createNewWorkspace(
 export function formatNewCommand(
   workspaceName: string,
   trunkBranch?: string,
+  runtime?: string,
   startMessage?: string
 ): string {
   let cmd = `/new ${workspaceName}`;
   if (trunkBranch) {
     cmd += ` -t ${trunkBranch}`;
+  }
+  if (runtime) {
+    cmd += ` -r '${runtime}'`;
   }
   if (startMessage) {
     cmd += `\n${startMessage}`;
