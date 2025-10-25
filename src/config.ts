@@ -274,6 +274,8 @@ export class Config {
               projectPath,
               // GUARANTEE: All workspaces must have createdAt (assign now if missing)
               createdAt: workspace.createdAt ?? new Date().toISOString(),
+              // Include runtime config if present (for SSH workspaces)
+              runtimeConfig: workspace.runtimeConfig,
             };
 
             // Migrate missing createdAt to config for next load

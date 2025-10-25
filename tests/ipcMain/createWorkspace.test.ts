@@ -600,6 +600,61 @@ echo "Init hook executed with tilde path"
             },
             TEST_TIMEOUT_MS
           );
+
+          test.concurrent(
+            "can execute commands in workspace immediately after creation (SSH only)",
+            async () => {
+              const env = await createTestEnvironment();
+              const tempGitRepo = await createTempGitRepo();
+
+              try {
+                const branchName = generateBranchName("exec-test");
+                const trunkBranch = await detectDefaultTrunkBranch(tempGitRepo);
+                const runtimeConfig = getRuntimeConfig(branchName);
+
+                const { result, cleanup } = await createWorkspaceWithCleanup(
+                  env,
+                  tempGitRepo,
+                  branchName,
+                  trunkBranch,
+                  runtimeConfig
+                );
+
+                expect(result.success).toBe(true);
+                if (!result.success) {
+                  throw new Error(`Failed to create workspace: ${result.error}`);
+                }
+
+                // Wait for init to complete
+                await new Promise((resolve) => setTimeout(resolve, getInitWaitTime()));
+
+                // Try to execute a command in the workspace
+                const workspaceId = result.metadata.id;
+                const execResult = await env.mockIpcRenderer.invoke(
+                  IPC_CHANNELS.WORKSPACE_EXECUTE_BASH,
+                  workspaceId,
+                  "pwd"
+                );
+                
+                expect(execResult.success).toBe(true);
+                if (!execResult.success) {
+                  throw new Error(`Failed to exec in workspace: ${execResult.error}`);
+                }
+
+                // Verify we got output from the command
+                expect(execResult.data).toBeDefined();
+                expect(execResult.data.output).toBeDefined();
+                expect(execResult.data.output!.trim().length).toBeGreaterThan(0);
+
+                await cleanup();
+              } finally {
+                await cleanupTestEnvironment(env);
+                await cleanupTempGitRepo(tempGitRepo);
+              }
+            },
+            TEST_TIMEOUT_MS
+          );
+
         }
 
       });

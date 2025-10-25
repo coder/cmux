@@ -580,7 +580,7 @@ describe("bash tool", () => {
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error).toContain("timed out");
+      expect(result.error).toContain("timeout");
       expect(result.exitCode).toBe(-1);
     }
   });
@@ -863,7 +863,7 @@ describe("bash tool", () => {
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error).toContain("timed out");
+      expect(result.error).toContain("timeout");
       expect(duration).toBeLessThan(2000);
     }
   });

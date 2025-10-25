@@ -49,6 +49,12 @@ export class LocalRuntime implements Runtime {
         ...NON_INTERACTIVE_ENV_VARS,
       },
       stdio: ["pipe", "pipe", "pipe"],
+      // CRITICAL: Spawn as detached process group leader to prevent zombie processes.
+      // When a bash script spawns background processes (e.g., `sleep 100 &`), those
+      // children would normally be reparented to init when bash exits, becoming orphans.
+      // With detached:true, bash becomes a process group leader, allowing us to kill
+      // the entire group (including all backgrounded children) via process.kill(-pid).
+      detached: true,
     });
 
     // Convert Node.js streams to Web Streams
@@ -56,17 +62,22 @@ export class LocalRuntime implements Runtime {
     const stderr = Readable.toWeb(childProcess.stderr) as unknown as ReadableStream<Uint8Array>;
     const stdin = Writable.toWeb(childProcess.stdin) as unknown as WritableStream<Uint8Array>;
 
+    // Track if we killed the process due to timeout
+    let timedOut = false;
+
     // Create promises for exit code and duration
+    // Special exit codes for expected error conditions:
+    // -997: Aborted via AbortSignal
+    // -998: Exceeded timeout
     const exitCode = new Promise<number>((resolve, reject) => {
       childProcess.on("close", (code, signal) => {
         if (options.abortSignal?.aborted) {
-          reject(new RuntimeErrorClass("Command execution was aborted", "exec"));
+          resolve(-997); // Special code for abort
           return;
         }
-        if (signal === "SIGTERM" && options.timeout !== undefined) {
-          reject(
-            new RuntimeErrorClass(`Command exceeded timeout of ${options.timeout} seconds`, "exec")
-          );
+        // Check if process was killed by us due to timeout
+        if (timedOut && (signal === "SIGKILL" || signal === "SIGTERM")) {
+          resolve(-998); // Special code for timeout
           return;
         }
         resolve(code ?? (signal ? -1 : 0));
@@ -79,14 +90,34 @@ export class LocalRuntime implements Runtime {
 
     const duration = exitCode.then(() => performance.now() - startTime);
 
+    // Helper to kill entire process group (including background children)
+    const killProcessGroup = () => {
+      if (childProcess.pid === undefined) return;
+
+      try {
+        // Kill entire process group with SIGKILL - cannot be caught/ignored
+        process.kill(-childProcess.pid, "SIGKILL");
+      } catch {
+        // Fallback: try killing just the main process
+        try {
+          childProcess.kill("SIGKILL");
+        } catch {
+          // Process already dead - ignore
+        }
+      }
+    };
+
     // Handle abort signal
     if (options.abortSignal) {
-      options.abortSignal.addEventListener("abort", () => childProcess.kill());
+      options.abortSignal.addEventListener("abort", killProcessGroup);
     }
 
     // Handle timeout
     if (options.timeout !== undefined) {
-      setTimeout(() => childProcess.kill(), options.timeout * 1000);
+      setTimeout(() => {
+        timedOut = true;
+        killProcessGroup();
+      }, options.timeout * 1000);
     }
 
     return { stdout, stderr, stdin, exitCode, duration };

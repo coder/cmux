@@ -116,16 +116,17 @@ export class SSHRuntime implements Runtime {
     const stdin = Writable.toWeb(sshProcess.stdin) as unknown as WritableStream<Uint8Array>;
 
     // Create promises for exit code and duration
+    // Special exit codes for expected error conditions:
+    // -997: Aborted via AbortSignal
+    // -998: Exceeded timeout
     const exitCode = new Promise<number>((resolve, reject) => {
       sshProcess.on("close", (code, signal) => {
         if (options.abortSignal?.aborted) {
-          reject(new RuntimeErrorClass("Command execution was aborted", "exec"));
+          resolve(-997); // Special code for abort
           return;
         }
         if (signal === "SIGTERM" && options.timeout !== undefined) {
-          reject(
-            new RuntimeErrorClass(`Command exceeded timeout of ${options.timeout} seconds`, "exec")
-          );
+          resolve(-998); // Special code for timeout
           return;
         }
         resolve(code ?? (signal ? -1 : 0));
