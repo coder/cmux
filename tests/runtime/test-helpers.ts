@@ -93,7 +93,7 @@ export class TestWorkspace {
     if (this.isRemote) {
       // Remove remote directory
       try {
-        const stream = this.runtime.exec(`rm -rf ${this.path}`, {
+        const stream = await this.runtime.exec(`rm -rf ${this.path}`, {
           cwd: "/home/testuser",
           timeout: 60,
         });
