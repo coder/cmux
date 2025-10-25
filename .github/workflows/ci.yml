@@ -5,6 +5,11 @@ on:
     branches: ["**"]
   merge_group:
   workflow_dispatch:
+    inputs:
+      test_filter:
+        description: 'Optional test filter (e.g., "workspace", "tests/file.test.ts", or "-t pattern")'
+        required: false
+        type: string
 
 jobs:
   static-check:
@@ -68,7 +73,7 @@ jobs:
       - uses: ./.github/actions/setup-cmux
 
       - name: Run tests with coverage
-        run: bun test --coverage --coverage-reporter=lcov src
+        run: bun test --coverage --coverage-reporter=lcov ${{ inputs.test_filter || 'src' }}
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
@@ -90,7 +95,7 @@ jobs:
       - uses: ./.github/actions/setup-cmux
 
       - name: Run integration tests with coverage
-        run: TEST_INTEGRATION=1 bun x jest --coverage tests
+        run: TEST_INTEGRATION=1 bun x jest --coverage ${{ inputs.test_filter || 'tests' }}
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
