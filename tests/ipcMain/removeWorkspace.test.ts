@@ -40,14 +40,14 @@ describeIntegration("IpcMain remove workspace integration tests", () => {
           .catch(() => false);
         expect(worktreeExistsBefore).toBe(true);
 
-        // Get the symlink path before removing
+        // Get the worktree directory path before removing
         const projectName = tempGitRepo.split("/").pop() || "unknown";
-        const symlinkPath = `${env.config.srcDir}/${projectName}/${metadata.name}`;
-        const symlinkExistsBefore = await fs
-          .lstat(symlinkPath)
+        const worktreeDirPath = `${env.config.srcDir}/${projectName}/${metadata.name}`;
+        const worktreeDirExistsBefore = await fs
+          .lstat(worktreeDirPath)
           .then(() => true)
           .catch(() => false);
-        expect(symlinkExistsBefore).toBe(true);
+        expect(worktreeDirExistsBefore).toBe(true);
 
         // Remove the workspace
         const removeResult = await env.mockIpcRenderer.invoke(
@@ -60,12 +60,12 @@ describeIntegration("IpcMain remove workspace integration tests", () => {
         const worktreeRemoved = await waitForFileNotExists(workspacePath, 5000);
         expect(worktreeRemoved).toBe(true);
 
-        // Verify symlink is removed
-        const symlinkExistsAfter = await fs
-          .lstat(symlinkPath)
+        // Verify worktree directory is removed
+        const worktreeDirExistsAfter = await fs
+          .lstat(worktreeDirPath)
           .then(() => true)
           .catch(() => false);
-        expect(symlinkExistsAfter).toBe(false);
+        expect(worktreeDirExistsAfter).toBe(false);
 
         // Verify workspace is no longer in config
         const config = env.config.loadConfigOrDefault();

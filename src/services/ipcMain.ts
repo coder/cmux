@@ -275,7 +275,7 @@ export class IpcMain {
         // Create the git worktree with the workspace name as directory name
         const result = await createWorktree(this.config, projectPath, branchName, {
           trunkBranch: normalizedTrunkBranch,
-          workspaceId: branchName, // Use name for directory (workspaceId param is misnamed, it's directoryName)
+          directoryName: branchName,
         });
 
         if (result.success && result.path) {
@@ -504,7 +504,7 @@ export class IpcMain {
           // Create new git worktree branching from source workspace's branch
           const result = await createWorktree(this.config, foundProjectPath, newName, {
             trunkBranch: sourceBranch,
-            workspaceId: newName, // Use name for directory (workspaceId param is misnamed, it's directoryName)
+            directoryName: newName,
           });
 
           if (!result.success || !result.path) {
