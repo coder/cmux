@@ -5,6 +5,7 @@ import type { DiffHunk } from "@/types/review";
 describe("combineOverlappingHunks", () => {
   // Helper to create a simple hunk
   const createHunk = (oldStart: number, oldLines: number, content = "test"): DiffHunk => ({
+    id: `hunk-${oldStart}`,
     oldStart,
     oldLines,
     newStart: oldStart,
@@ -12,6 +13,7 @@ describe("combineOverlappingHunks", () => {
     content,
     filePath: "test.ts",
     changeType: "modified",
+    header: `@@ -${oldStart},${oldLines} +${oldStart},${oldLines} @@`,
   });
 
   test("returns single hunk unchanged", () => {
