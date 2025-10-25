@@ -287,111 +287,20 @@ export class SSHRuntime implements Runtime {
     return args;
   }
 
-  /**
-   * Build SSH command string for rsync's -e flag
-   * Returns format like: "ssh -p 2222 -i key -o Option=value"
-   */
-  private buildRsyncSSHCommand(): string {
-    const sshOpts: string[] = [];
 
-    if (this.config.port) {
-      sshOpts.push(`-p ${this.config.port}`);
-    }
-    if (this.config.identityFile) {
-      sshOpts.push(`-i ${this.config.identityFile}`);
-      sshOpts.push("-o StrictHostKeyChecking=no");
-      sshOpts.push("-o UserKnownHostsFile=/dev/null");
-      sshOpts.push("-o LogLevel=ERROR");
-    }
-
-    return sshOpts.length > 0 ? `ssh ${sshOpts.join(" ")}` : "ssh";
-  }
 
   /**
-   * Build SSH target string for rsync/scp
-   */
-  private buildSSHTarget(): string {
-    return `${this.config.host}:${this.config.workdir}`;
-  }
-
-  /**
-   * Check if error indicates command not found
-   */
-  private isCommandNotFoundError(error: unknown): boolean {
-    if (!(error instanceof Error)) return false;
-    const msg = error.message.toLowerCase();
-    return msg.includes("command not found") || msg.includes("not found") || msg.includes("enoent");
-  }
-
-  /**
-   * Sync project to remote using rsync (with scp fallback)
+   * Sync project to remote using git archive
+   * 
+   * Uses `git archive` to create a tarball of tracked files and extracts it on the remote.
+   * 
+   * Benefits over rsync/scp:
+   * - Better parity with git worktrees (only tracked files, no untracked junk)
+   * - Much faster (avoids node_modules, .git, build artifacts, etc.)
+   * - Simpler implementation (single git command)
+   * - No external dependencies (git is always available)
    */
   private async syncProjectToRemote(projectPath: string, initLogger: InitLogger): Promise<void> {
-    // Try rsync first
-    try {
-      await this.rsyncProject(projectPath, initLogger);
-      return;
-    } catch (error) {
-      // Check if error is "command not found"
-      if (this.isCommandNotFoundError(error)) {
-        log.info("rsync not available, falling back to scp");
-        initLogger.logStep("rsync not available, using tar+ssh instead");
-        await this.scpProject(projectPath, initLogger);
-        return;
-      }
-      // Re-throw other errors (network, permissions, etc.)
-      throw error;
-    }
-  }
-
-  /**
-   * Sync project using rsync
-   */
-  private async rsyncProject(projectPath: string, initLogger: InitLogger): Promise<void> {
-    return new Promise<void>((resolve, reject) => {
-      const args = ["-az", "--delete", `${projectPath}/`, `${this.buildSSHTarget()}`];
-
-      // Add SSH options for rsync
-      const sshCommand = this.buildRsyncSSHCommand();
-      if (sshCommand !== "ssh") {
-        args.splice(2, 0, "-e", sshCommand);
-      }
-
-      const fullCommand = `rsync ${args.join(" ")}`;
-      log.debug(`Starting rsync: ${fullCommand}`);
-      const rsyncProc = spawn("rsync", args);
-
-      // Use helper to stream output and prevent buffer overflow
-      streamProcessToLogger(rsyncProc, initLogger, {
-        logStdout: false, // Rsync stdout is noisy, drain silently
-        logStderr: true, // Errors go to init stream
-        command: fullCommand, // Log the full command
-      });
-
-      let stderr = "";
-      rsyncProc.stderr.on("data", (data: Buffer) => {
-        stderr += data.toString();
-      });
-
-      rsyncProc.on("close", (code) => {
-        if (code === 0) {
-          resolve();
-        } else {
-          reject(new Error(`rsync failed with exit code ${code ?? "unknown"}: ${stderr}`));
-        }
-      });
-
-      rsyncProc.on("error", (err) => {
-        reject(err);
-      });
-    });
-  }
-
-  /**
-   * Sync project using tar over ssh
-   * More reliable than scp for syncing directory contents
-   */
-  private async scpProject(projectPath: string, initLogger: InitLogger): Promise<void> {
     return new Promise<void>((resolve, reject) => {
       // Build SSH args
       const sshArgs = this.buildSSHArgs(true);
@@ -405,19 +314,19 @@ export class SSHRuntime implements Runtime {
         remoteWorkdir = JSON.stringify(this.config.workdir);
       }
 
-      // Use bash to tar and pipe over ssh
-      // This is more reliable than scp for directory contents
+      // Use git archive to create tarball of tracked files, pipe through ssh for extraction
+      // git archive only includes tracked files, providing better parity with worktrees
       // Wrap remote commands in bash to avoid issues with non-bash shells (fish, zsh, etc)
-      const command = `cd ${JSON.stringify(projectPath)} && tar -cf - . | ssh ${sshArgs.join(" ")} "bash -c 'cd ${remoteWorkdir} && tar -xf -'"`;
+      const command = `cd ${JSON.stringify(projectPath)} && git archive --format=tar HEAD | ssh ${sshArgs.join(" ")} "bash -c 'cd ${remoteWorkdir} && tar -xf -'"`;
 
-      log.debug(`Starting tar+ssh: ${command}`);
+      log.debug(`Starting git archive+ssh: ${command}`);
       const proc = spawn("bash", ["-c", command]);
 
       // Use helper to stream output and prevent buffer overflow
       streamProcessToLogger(proc, initLogger, {
         logStdout: false, // tar stdout is binary, drain silently
         logStderr: true, // Errors go to init stream
-        command: `tar+ssh: ${command}`, // Log the full command
+        command: `git archive+ssh: ${command}`, // Log the full command
       });
 
       let stderr = "";
@@ -429,7 +338,7 @@ export class SSHRuntime implements Runtime {
         if (code === 0) {
           resolve();
         } else {
-          reject(new Error(`tar+ssh failed with exit code ${code ?? "unknown"}: ${stderr}`));
+          reject(new Error(`git archive+ssh failed with exit code ${code ?? "unknown"}: ${stderr}`));
         }
       });
 

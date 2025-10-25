@@ -33,7 +33,7 @@ const execAsync = promisify(exec);
 // Test constants
 const TEST_TIMEOUT_MS = 60000;
 const INIT_HOOK_WAIT_MS = 1500; // Wait for async init hook completion (local runtime)
-const SSH_INIT_WAIT_MS = 7000; // SSH init includes rsync + checkout + hook, takes longer
+const SSH_INIT_WAIT_MS = 7000; // SSH init includes sync + checkout + hook, takes longer
 const CMUX_DIR = ".cmux";
 const INIT_HOOK_FILENAME = "init";
 
@@ -430,16 +430,16 @@ exit 1
           TEST_TIMEOUT_MS
         );
 
-        // SSH-specific test: verify rsync/sync output appears in init stream
+        // SSH-specific test: verify sync output appears in init stream
         if (type === "ssh") {
           test.concurrent(
-            "streams rsync progress to init events (SSH only)",
+            "streams sync progress to init events (SSH only)",
             async () => {
               const env = await createTestEnvironment();
               const tempGitRepo = await createTempGitRepo();
 
               try {
-                const branchName = generateBranchName("rsync-test");
+                const branchName = generateBranchName("sync-test");
                 const trunkBranch = await detectDefaultTrunkBranch(tempGitRepo);
                 const runtimeConfig = getRuntimeConfig(branchName);
 
@@ -456,10 +456,10 @@ exit 1
 
                 expect(result.success).toBe(true);
                 if (!result.success) {
-                  throw new Error(`Failed to create workspace for rsync test: ${result.error}`);
+                  throw new Error(`Failed to create workspace for sync test: ${result.error}`);
                 }
 
-                // Wait for init to complete (includes rsync + checkout)
+                // Wait for init to complete (includes sync + checkout)
                 await new Promise((resolve) => setTimeout(resolve, getInitWaitTime()));
 
                 // Verify init events contain sync and checkout steps
