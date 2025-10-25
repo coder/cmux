@@ -424,10 +424,13 @@ test.concurrent(
           .filter((e) => e.channel === getChatChannel(workspaceId))
           .filter((e) => isInitOutput(e.data as WorkspaceChatMessage));
 
-        initOutputEvents = currentEvents.map((e) => ({
+        const allOutputEvents = currentEvents.map((e) => ({
           timestamp: e.timestamp, // Use timestamp from when event was sent
           line: (e.data as { line: string }).line,
         }));
+
+        // Filter to only hook output lines (exclude workspace creation logs)
+        initOutputEvents = allOutputEvents.filter((e) => e.line.startsWith("Line "));
 
         if (initOutputEvents.length >= 4) break;
         await new Promise((resolve) => setTimeout(resolve, 50));
