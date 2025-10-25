@@ -155,7 +155,7 @@ describeIntegration("IpcMain workspace init hook integration tests", () => {
 
         // Should have workspace creation logs + hook output
         expect(outputEvents.length).toBeGreaterThanOrEqual(2);
-        
+
         // Verify hook output is present (may have workspace creation logs before it)
         const outputLines = outputEvents.map((e) => e.line);
         expect(outputLines).toContain("Installing dependencies...");
@@ -362,15 +362,19 @@ describeIntegration("IpcMain workspace init hook integration tests", () => {
         const status = JSON.parse(statusContent);
         expect(status.status).toBe("success");
         expect(status.exitCode).toBe(0);
-        
+
         // Should include workspace creation logs + hook output
         expect(status.lines).toEqual(
           expect.arrayContaining([
             { line: "Creating git worktree...", isError: false, timestamp: expect.any(Number) },
-            { line: "Worktree created successfully", isError: false, timestamp: expect.any(Number) },
-            expect.objectContaining({ 
-              line: expect.stringMatching(/Running init hook:/), 
-              isError: false 
+            {
+              line: "Worktree created successfully",
+              isError: false,
+              timestamp: expect.any(Number),
+            },
+            expect.objectContaining({
+              line: expect.stringMatching(/Running init hook:/),
+              isError: false,
             }),
             { line: "Installing dependencies", isError: false, timestamp: expect.any(Number) },
             { line: "Done!", isError: false, timestamp: expect.any(Number) },
