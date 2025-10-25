@@ -888,7 +888,7 @@ export class IpcMain {
           // Create bash tool with workspace's cwd and secrets
           // All IPC bash calls are from UI (background operations) - use truncate to avoid temp file spam
           // Use workspace's runtime config if available, otherwise default to local
-          const runtimeConfig = metadata.runtimeConfig || {
+          const runtimeConfig = metadata.runtimeConfig ?? {
             type: "local" as const,
             workdir: namedPath,
           };

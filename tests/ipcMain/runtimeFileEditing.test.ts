@@ -32,7 +32,7 @@ import type { FrontendWorkspaceMetadata } from "../../src/types/workspace";
 import type { WorkspaceChatMessage } from "../../src/types/ipc";
 import type { ToolPolicy } from "../../src/utils/tools/toolPolicy";
 
-// Test constants  
+// Test constants
 const TEST_TIMEOUT_LOCAL_MS = 25000; // Includes init wait time
 const TEST_TIMEOUT_SSH_MS = 45000; // SSH has more overhead (network, rsync, etc.)
 const HAIKU_MODEL = "anthropic:claude-haiku-4-5";
@@ -148,7 +148,9 @@ async function createWorkspaceHelper(
   } catch (err) {
     // Init hook might not exist or might have already completed before we started waiting
     // This is not necessarily an error - just log it
-    console.log(`Note: init-end event not detected within ${initTimeout}ms (may have completed early)`);
+    console.log(
+      `Note: init-end event not detected within ${initTimeout}ms (may have completed early)`
+    );
   }
 
   const cleanup = async () => {
@@ -466,4 +468,3 @@ describeIntegration("Runtime File Editing Tools", () => {
     }
   );
 });
-

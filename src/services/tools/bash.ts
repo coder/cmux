@@ -78,8 +78,8 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
 
       // Detect redundant cd to working directory
       // Note: config.cwd is the actual execution path (local for LocalRuntime, remote for SSHRuntime)
-      // Match patterns like: "cd /path &&", "cd /path;", "cd '/path' &&", "cd \"/path\" &&"
-      const cdPattern = /^\s*cd\s+['\"]?([^'\";&|]+)['\"]?\s*[;&|]/;
+      // Match patterns like: "cd /path &&", "cd /path;", "cd '/path' &&", "cd "/path" &&"
+      const cdPattern = /^\s*cd\s+['"]?([^'";\\&|]+)['"]?\s*[;&|]/;
       const match = cdPattern.exec(script);
       if (match) {
         const targetPath = match[1].trim();
@@ -110,12 +110,11 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
       });
 
       // Use a promise to wait for completion
-      return await new Promise<BashToolResult>((resolve, reject) => {
+      return await new Promise<BashToolResult>((resolve, _reject) => {
         const lines: string[] = [];
         let truncated = false;
         let exitCode: number | null = null;
         let resolved = false;
-        let processError: Error | null = null;
 
         // Helper to resolve once
         const resolveOnce = (result: BashToolResult) => {
@@ -142,7 +141,10 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
         }
 
         // Convert Web Streams to Node.js streams for readline
+        // Type mismatch between Node.js ReadableStream and Web ReadableStream - safe to cast
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-explicit-any
         const stdoutNodeStream = Readable.fromWeb(execStream.stdout as any);
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-explicit-any
         const stderrNodeStream = Readable.fromWeb(execStream.stderr as any);
 
         // Set up readline for both stdout and stderr to handle line buffering
@@ -154,7 +156,9 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
         let stderrEnded = false;
 
         // Forward-declare functions that will be defined below
+        // eslint-disable-next-line prefer-const
         let tryFinalize: () => void;
+        // eslint-disable-next-line prefer-const
         let finalize: () => void;
 
         // Helper to tear down streams and readline interfaces
@@ -209,7 +213,7 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
               }
             }, 50);
           })
-          .catch((err) => {
+          .catch((err: Error) => {
             // Only actual errors (like spawn failure) should reach here now
             teardown();
             resolveOnce({
@@ -237,7 +241,9 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
           stdoutReader.close();
           stderrReader.close();
           // Cancel the streams to stop the process
+          // eslint-disable-next-line @typescript-eslint/no-empty-function
           execStream.stdout.cancel().catch(() => {});
+          // eslint-disable-next-line @typescript-eslint/no-empty-function
           execStream.stderr.cancel().catch(() => {});
         };
 

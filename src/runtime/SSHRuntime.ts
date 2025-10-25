@@ -26,7 +26,6 @@ function escapeShellArg(arg: string): string {
   return `'${arg.replace(/'/g, "'\\''")}'`;
 }
 
-
 /**
  * SSH Runtime Configuration
  */
@@ -561,7 +560,7 @@ export class SSHRuntime implements Runtime {
   }
 
   async initWorkspace(params: WorkspaceInitParams): Promise<WorkspaceInitResult> {
-    const { projectPath, branchName, trunkBranch, initLogger } = params;
+    const { projectPath, branchName, trunkBranch: _trunkBranch, initLogger } = params;
 
     try {
       // 1. Sync project to remote (opportunistic rsync with scp fallback)

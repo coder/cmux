@@ -3,6 +3,8 @@
  * Kept lightweight for preload script usage.
  */
 
+import type { RuntimeConfig } from "./runtime";
+
 /**
  * Workspace configuration in config.json.
  *
@@ -36,7 +38,7 @@ export interface Workspace {
   createdAt?: string;
 
   /** Runtime configuration (local vs SSH) - optional, defaults to local */
-  runtimeConfig?: import("./runtime").RuntimeConfig;
+  runtimeConfig?: RuntimeConfig;
 }
 
 export interface ProjectConfig {
