@@ -62,8 +62,14 @@ export class SSHRuntime implements Runtime {
       envPrefix = `export ${envPairs}; `;
     }
 
+    // Expand ~/path to $HOME/path before quoting (~ doesn't expand in quotes)
+    let cwd = options.cwd;
+    if (cwd.startsWith("~/")) {
+      cwd = "$HOME/" + cwd.slice(2);
+    }
+
     // Build full command with cwd and env
-    const fullCommand = `cd ${JSON.stringify(options.cwd)} && ${envPrefix}${command}`;
+    const fullCommand = `cd ${JSON.stringify(cwd)} && ${envPrefix}${command}`;
 
     // Wrap command in bash to ensure bash execution regardless of user's default shell
     // This prevents issues with fish, zsh, or other non-bash shells
