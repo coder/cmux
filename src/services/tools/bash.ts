@@ -102,7 +102,7 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
       // Execute using runtime interface (works for both local and SSH)
       // The runtime handles bash wrapping and niceness internally
       // Don't pass cwd - let runtime use its workdir (correct path for local or remote)
-      const execStream = config.runtime.exec(script, {
+      const execStream = await config.runtime.exec(script, {
         env: config.secrets,
         timeout: effectiveTimeout,
         niceness: config.niceness,

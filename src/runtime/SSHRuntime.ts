@@ -68,7 +68,7 @@ export class SSHRuntime implements Runtime {
   /**
    * Execute command over SSH with streaming I/O
    */
-  exec(command: string, options: ExecOptions): ExecStream {
+  async exec(command: string, options: ExecOptions): Promise<ExecStream> {
     const startTime = performance.now();
 
     // Build command parts
@@ -184,15 +184,15 @@ export class SSHRuntime implements Runtime {
    * Read file contents over SSH as a stream
    */
   readFile(path: string): ReadableStream<Uint8Array> {
-    const stream = this.exec(`cat ${shescape.quote(path)}`, {
-      cwd: this.config.workdir,
-      timeout: 300, // 5 minutes - reasonable for large files
-    });
-
-    // Return stdout, but wrap to handle errors from exit code
+    // Return stdout, but wrap to handle errors from exec() and exit code
     return new ReadableStream<Uint8Array>({
-      async start(controller: ReadableStreamDefaultController<Uint8Array>) {
+      start: async (controller: ReadableStreamDefaultController<Uint8Array>) => {
         try {
+          const stream = await this.exec(`cat ${shescape.quote(path)}`, {
+            cwd: this.config.workdir,
+            timeout: 300, // 5 minutes - reasonable for large files
+          });
+
           const reader = stream.stdout.getReader();
           const exitCode = stream.exitCode;
 
@@ -237,14 +237,23 @@ export class SSHRuntime implements Runtime {
     // Use shescape.quote for safe path escaping
     const writeCommand = `mkdir -p $(dirname ${shescape.quote(path)}) && cat > ${shescape.quote(tempPath)} && chmod 600 ${shescape.quote(tempPath)} && mv ${shescape.quote(tempPath)} ${shescape.quote(path)}`;
 
-    const stream = this.exec(writeCommand, {
-      cwd: this.config.workdir,
-      timeout: 300, // 5 minutes - reasonable for large files
-    });
+    // Need to get the exec stream in async callbacks
+    let execPromise: Promise<ExecStream> | null = null;
+
+    const getExecStream = () => {
+      if (!execPromise) {
+        execPromise = this.exec(writeCommand, {
+          cwd: this.config.workdir,
+          timeout: 300, // 5 minutes - reasonable for large files
+        });
+      }
+      return execPromise;
+    };
 
     // Wrap stdin to handle errors from exit code
     return new WritableStream<Uint8Array>({
-      async write(chunk: Uint8Array) {
+      write: async (chunk: Uint8Array) => {
+        const stream = await getExecStream();
         const writer = stream.stdin.getWriter();
         try {
           await writer.write(chunk);
@@ -252,7 +261,8 @@ export class SSHRuntime implements Runtime {
           writer.releaseLock();
         }
       },
-      async close() {
+      close: async () => {
+        const stream = await getExecStream();
         // Close stdin and wait for command to complete
         await stream.stdin.close();
         const exitCode = await stream.exitCode;
@@ -262,7 +272,8 @@ export class SSHRuntime implements Runtime {
           throw new RuntimeErrorClass(`Failed to write file ${path}: ${stderr}`, "file_io");
         }
       },
-      async abort(reason?: unknown) {
+      abort: async (reason?: unknown) => {
+        const stream = await getExecStream();
         await stream.stdin.abort();
         throw new RuntimeErrorClass(`Failed to write file ${path}: ${String(reason)}`, "file_io");
       },
@@ -275,7 +286,7 @@ export class SSHRuntime implements Runtime {
   async stat(path: string): Promise<FileStat> {
     // Use stat with format string to get: size, mtime, type
     // %s = size, %Y = mtime (seconds since epoch), %F = file type
-    const stream = this.exec(`stat -c '%s %Y %F' ${shescape.quote(path)}`, {
+    const stream = await this.exec(`stat -c '%s %Y %F' ${shescape.quote(path)}`, {
       cwd: this.config.workdir,
       timeout: 10, // 10 seconds - stat should be fast
     });
@@ -397,7 +408,7 @@ export class SSHRuntime implements Runtime {
       // git doesn't expand tilde when it's quoted, so we need to expand it ourselves
       const cloneDestPath = expandTildeForSSH(this.config.workdir);
 
-      const cloneStream = this.exec(`git clone --quiet ${bundleTempPath} ${cloneDestPath}`, {
+      const cloneStream = await this.exec(`git clone --quiet ${bundleTempPath} ${cloneDestPath}`, {
         cwd: "~",
         timeout: 300, // 5 minutes for clone
       });
@@ -414,7 +425,7 @@ export class SSHRuntime implements Runtime {
 
       // Step 3: Remove bundle file
       initLogger.logStep(`Cleaning up bundle file...`);
-      const rmStream = this.exec(`rm ${bundleTempPath}`, {
+      const rmStream = await this.exec(`rm ${bundleTempPath}`, {
         cwd: "~",
         timeout: 10,
       });
@@ -428,7 +439,7 @@ export class SSHRuntime implements Runtime {
     } catch (error) {
       // Try to clean up bundle file on error
       try {
-        const rmStream = this.exec(`rm -f ${bundleTempPath}`, {
+        const rmStream = await this.exec(`rm -f ${bundleTempPath}`, {
           cwd: "~",
           timeout: 10,
         });
@@ -461,7 +472,7 @@ export class SSHRuntime implements Runtime {
 
     // Run hook remotely and stream output
     // No timeout - user init hooks can be arbitrarily long
-    const hookStream = this.exec(hookCommand, {
+    const hookStream = await this.exec(hookCommand, {
       cwd: this.config.workdir,
       timeout: 3600, // 1 hour - generous timeout for init hooks
     });
@@ -543,7 +554,7 @@ export class SSHRuntime implements Runtime {
           }
         }
 
-        const mkdirStream = this.exec(parentDirCommand, {
+        const mkdirStream = await this.exec(parentDirCommand, {
           cwd: "/tmp",
           timeout: 10,
         });
@@ -602,7 +613,7 @@ export class SSHRuntime implements Runtime {
       initLogger.logStep(`Checking out branch: ${branchName}`);
       const checkoutCmd = `(git checkout ${JSON.stringify(branchName)} 2>/dev/null || git checkout -b ${JSON.stringify(branchName)} HEAD)`;
 
-      const checkoutStream = this.exec(checkoutCmd, {
+      const checkoutStream = await this.exec(checkoutCmd, {
         cwd: this.config.workdir,
         timeout: 300, // 5 minutes for git checkout (can be slow on large repos)
       });

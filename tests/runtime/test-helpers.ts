@@ -67,7 +67,7 @@ export class TestWorkspace {
       const workspacePath = `/home/testuser/workspace/${testId}`;
 
       // Create directory on remote
-      const stream = runtime.exec(`mkdir -p ${workspacePath}`, {
+      const stream = await runtime.exec(`mkdir -p ${workspacePath}`, {
         cwd: "/home/testuser",
         timeout: 30,
       });

@@ -134,10 +134,10 @@ export interface Runtime {
    * Execute a bash command with streaming I/O
    * @param command The bash script to execute
    * @param options Execution options (cwd, env, timeout, etc.)
-   * @returns Streaming handles for stdin/stdout/stderr and completion promises
+   * @returns Promise that resolves to streaming handles for stdin/stdout/stderr and completion promises
    * @throws RuntimeError if execution fails in an unrecoverable way
    */
-  exec(command: string, options: ExecOptions): ExecStream;
+  exec(command: string, options: ExecOptions): Promise<ExecStream>;
 
   /**
    * Read file contents as a stream

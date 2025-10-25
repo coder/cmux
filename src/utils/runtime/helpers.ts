@@ -27,7 +27,7 @@ export async function execBuffered(
   command: string,
   options: ExecOptions & { stdin?: string }
 ): Promise<ExecResult> {
-  const stream = runtime.exec(command, options);
+  const stream = await runtime.exec(command, options);
 
   // Write stdin if provided
   if (options.stdin !== undefined) {

@@ -33,19 +33,21 @@ export class LocalRuntime implements Runtime {
     this.workdir = workdir;
   }
 
-  exec(command: string, options: ExecOptions): ExecStream {
+  async exec(command: string, options: ExecOptions): Promise<ExecStream> {
     const startTime = performance.now();
 
     // Determine working directory
     const cwd = options.cwd ?? this.workdir;
 
-    // Verify working directory exists before spawning
-    // If it doesn't exist, spawn will fail with ENOENT which is confusing
-    if (!fs.existsSync(cwd)) {
+    // Check if working directory exists before spawning
+    // This prevents confusing ENOENT errors from spawn()
+    try {
+      await fsPromises.access(cwd);
+    } catch (err) {
       throw new RuntimeErrorClass(
         `Working directory does not exist: ${cwd}`,
         "exec",
-        new Error(`ENOENT: no such file or directory, stat '${cwd}'`)
+        err instanceof Error ? err : undefined
       );
     }
 
