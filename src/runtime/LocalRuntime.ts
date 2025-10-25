@@ -10,6 +10,8 @@ import type {
   FileStat,
   WorkspaceCreationParams,
   WorkspaceCreationResult,
+  WorkspaceInitParams,
+  WorkspaceInitResult,
   InitLogger,
 } from "./Runtime";
 import { RuntimeError as RuntimeErrorClass } from "./Runtime";
@@ -213,7 +215,7 @@ export class LocalRuntime implements Runtime {
       const localBranches = await listLocalBranches(projectPath);
       const branchExists = localBranches.includes(branchName);
 
-      // Create worktree
+      // Create worktree (git worktree is typically fast)
       if (branchExists) {
         // Branch exists, just add worktree pointing to it
         using proc = execAsync(
@@ -230,14 +232,36 @@ export class LocalRuntime implements Runtime {
 
       initLogger.logStep("Worktree created successfully");
 
-      // Run .cmux/init hook if it exists
-      await this.runInitHook(projectPath, workspacePath, initLogger);
-
       return { success: true, workspacePath };
     } catch (error) {
       return {
         success: false,
         error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+
+  async initWorkspace(params: WorkspaceInitParams): Promise<WorkspaceInitResult> {
+    const { projectPath, workspacePath, initLogger } = params;
+
+    try {
+      // Run .cmux/init hook if it exists
+      // Note: runInitHook calls logComplete() internally if hook exists
+      const hookExists = await checkInitHookExists(projectPath);
+      if (hookExists) {
+        await this.runInitHook(projectPath, workspacePath, initLogger);
+      } else {
+        // No hook - signal completion immediately
+        initLogger.logComplete(0);
+      }
+      return { success: true };
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      initLogger.logStderr(`Initialization failed: ${errorMsg}`);
+      initLogger.logComplete(-1);
+      return {
+        success: false,
+        error: errorMsg,
       };
     }
   }

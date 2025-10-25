@@ -7,11 +7,14 @@ import type {
   FileStat,
   WorkspaceCreationParams,
   WorkspaceCreationResult,
+  WorkspaceInitParams,
+  WorkspaceInitResult,
   InitLogger,
 } from "./Runtime";
 import { RuntimeError as RuntimeErrorClass } from "./Runtime";
 import { log } from "../services/log";
 import { checkInitHookExists, createLineBufferedLoggers } from "./initHook";
+import { streamProcessToLogger } from "./streamProcess";
 
 /**
  * SSH Runtime Configuration
@@ -350,14 +353,18 @@ export class SSHRuntime implements Runtime {
         args.splice(2, 0, "-e", sshCommand);
       }
 
+      log.debug(`Starting rsync: rsync ${args.join(" ")}`);
       const rsyncProc = spawn("rsync", args);
+
+      // Use helper to stream output and prevent buffer overflow
+      streamProcessToLogger(rsyncProc, initLogger, {
+        logStdout: false, // Rsync stdout is noisy, drain silently
+        logStderr: true, // Errors go to init stream
+      });
 
       let stderr = "";
       rsyncProc.stderr.on("data", (data: Buffer) => {
-        const msg = data.toString();
-        stderr += msg;
-        // Stream rsync errors to logger
-        initLogger.logStderr(msg.trim());
+        stderr += data.toString();
       });
 
       rsyncProc.on("close", (code) => {
@@ -396,14 +403,18 @@ export class SSHRuntime implements Runtime {
       // This is more reliable than scp for directory contents
       const command = `cd ${JSON.stringify(projectPath)} && tar -cf - . | ssh ${sshArgs.join(" ")} "cd ${remoteWorkdir} && tar -xf -"`;
 
+      log.debug(`Starting tar+ssh: ${command}`);
       const proc = spawn("bash", ["-c", command]);
+
+      // Use helper to stream output and prevent buffer overflow
+      streamProcessToLogger(proc, initLogger, {
+        logStdout: false, // tar stdout is binary, drain silently
+        logStderr: true, // Errors go to init stream
+      });
 
       let stderr = "";
       proc.stderr.on("data", (data: Buffer) => {
-        const msg = data.toString();
-        stderr += msg;
-        // Stream tar/ssh errors to logger
-        initLogger.logStderr(msg.trim());
+        stderr += data.toString();
       });
 
       proc.on("close", (code) => {
@@ -434,9 +445,10 @@ export class SSHRuntime implements Runtime {
     initLogger.logStep(`Running init hook: ${remoteHookPath}`);
 
     // Run hook remotely and stream output
+    // No timeout - user init hooks can be arbitrarily long
     const hookStream = this.exec(`"${remoteHookPath}"`, {
       cwd: this.config.workdir,
-      timeout: 300, // 5 minutes for init hook
+      timeout: 3600, // 1 hour - generous timeout for init hooks
     });
 
     // Create line-buffered loggers
@@ -483,9 +495,9 @@ export class SSHRuntime implements Runtime {
 
   async createWorkspace(params: WorkspaceCreationParams): Promise<WorkspaceCreationResult> {
     try {
-      const { projectPath, branchName, trunkBranch, initLogger } = params;
+      const { initLogger } = params;
 
-      // 1. Create remote directory
+      // Create remote directory (fast - returns immediately)
       initLogger.logStep("Creating remote directory...");
       try {
         // For paths starting with ~/, expand to $HOME
@@ -515,44 +527,7 @@ export class SSHRuntime implements Runtime {
         };
       }
 
-      // 2. Sync project to remote (opportunistic rsync with scp fallback)
-      initLogger.logStep("Syncing project files to remote...");
-      try {
-        await this.syncProjectToRemote(projectPath, initLogger);
-      } catch (error) {
-        return {
-          success: false,
-          error: `Failed to sync project: ${error instanceof Error ? error.message : String(error)}`,
-        };
-      }
-      initLogger.logStep("Files synced successfully");
-
-      // 3. Checkout branch remotely
-      initLogger.logStep(`Checking out branch: ${branchName}`);
-      // No need for explicit cd here - exec() handles cwd
-      const checkoutCmd = `(git checkout ${JSON.stringify(branchName)} 2>/dev/null || git checkout -b ${JSON.stringify(branchName)} ${JSON.stringify(trunkBranch)})`;
-
-      const checkoutStream = this.exec(checkoutCmd, {
-        cwd: this.config.workdir,
-        timeout: 60,
-      });
-
-      const [stdout, stderr, exitCode] = await Promise.all([
-        streamToString(checkoutStream.stdout),
-        streamToString(checkoutStream.stderr),
-        checkoutStream.exitCode,
-      ]);
-
-      if (exitCode !== 0) {
-        return {
-          success: false,
-          error: `Failed to checkout branch: ${stderr || stdout}`,
-        };
-      }
-      initLogger.logStep("Branch checked out successfully");
-
-      // 4. Run .cmux/init hook if it exists
-      await this.runInitHook(projectPath, initLogger);
+      initLogger.logStep("Remote directory created");
 
       return {
         success: true,
@@ -562,6 +537,73 @@ export class SSHRuntime implements Runtime {
       return {
         success: false,
         error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+
+  async initWorkspace(params: WorkspaceInitParams): Promise<WorkspaceInitResult> {
+    const { projectPath, branchName, trunkBranch, initLogger } = params;
+
+    try {
+      // 1. Sync project to remote (opportunistic rsync with scp fallback)
+      initLogger.logStep("Syncing project files to remote...");
+      try {
+        await this.syncProjectToRemote(projectPath, initLogger);
+      } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        initLogger.logStderr(`Failed to sync project: ${errorMsg}`);
+        initLogger.logComplete(-1);
+        return {
+          success: false,
+          error: `Failed to sync project: ${errorMsg}`,
+        };
+      }
+      initLogger.logStep("Files synced successfully");
+
+      // 2. Checkout branch remotely
+      initLogger.logStep(`Checking out branch: ${branchName}`);
+      const checkoutCmd = `(git checkout ${JSON.stringify(branchName)} 2>/dev/null || git checkout -b ${JSON.stringify(branchName)} ${JSON.stringify(trunkBranch)})`;
+
+      const checkoutStream = this.exec(checkoutCmd, {
+        cwd: this.config.workdir,
+        timeout: 300, // 5 minutes for git checkout (can be slow on large repos)
+      });
+
+      const [stdout, stderr, exitCode] = await Promise.all([
+        streamToString(checkoutStream.stdout),
+        streamToString(checkoutStream.stderr),
+        checkoutStream.exitCode,
+      ]);
+
+      if (exitCode !== 0) {
+        const errorMsg = `Failed to checkout branch: ${stderr || stdout}`;
+        initLogger.logStderr(errorMsg);
+        initLogger.logComplete(-1);
+        return {
+          success: false,
+          error: errorMsg,
+        };
+      }
+      initLogger.logStep("Branch checked out successfully");
+
+      // 3. Run .cmux/init hook if it exists
+      // Note: runInitHook calls logComplete() internally if hook exists
+      const hookExists = await checkInitHookExists(projectPath);
+      if (hookExists) {
+        await this.runInitHook(projectPath, initLogger);
+      } else {
+        // No hook - signal completion immediately
+        initLogger.logComplete(0);
+      }
+
+      return { success: true };
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      initLogger.logStderr(`Initialization failed: ${errorMsg}`);
+      initLogger.logComplete(-1);
+      return {
+        success: false,
+        error: errorMsg,
       };
     }
   }

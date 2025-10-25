@@ -100,6 +100,30 @@ export interface WorkspaceCreationResult {
 }
 
 /**
+ * Parameters for workspace initialization
+ */
+export interface WorkspaceInitParams {
+  /** Absolute path to project directory on local machine */
+  projectPath: string;
+  /** Branch name to checkout in workspace */
+  branchName: string;
+  /** Trunk branch to base new branches on */
+  trunkBranch: string;
+  /** Absolute path to workspace (from createWorkspace result) */
+  workspacePath: string;
+  /** Logger for streaming initialization progress and output */
+  initLogger: InitLogger;
+}
+
+/**
+ * Result from workspace initialization
+ */
+export interface WorkspaceInitResult {
+  success: boolean;
+  error?: string;
+}
+
+/**
  * Runtime interface - minimal, low-level abstraction for tool execution environments.
  *
  * All methods return streaming primitives for memory efficiency.
@@ -140,11 +164,24 @@ export interface Runtime {
   stat(path: string): Promise<FileStat>;
 
   /**
-   * Create a workspace for this runtime
+   * Create a workspace for this runtime (fast, returns immediately)
+   * - LocalRuntime: Creates git worktree
+   * - SSHRuntime: Creates remote directory only
+   * Does NOT run init hook or sync files.
    * @param params Workspace creation parameters
    * @returns Result with workspace path or error
    */
   createWorkspace(params: WorkspaceCreationParams): Promise<WorkspaceCreationResult>;
+
+  /**
+   * Initialize workspace asynchronously (may be slow, streams progress)
+   * - LocalRuntime: Runs init hook if present
+   * - SSHRuntime: Syncs files, checks out branch, runs init hook
+   * Streams progress via initLogger.
+   * @param params Workspace initialization parameters
+   * @returns Result indicating success or error
+   */
+  initWorkspace(params: WorkspaceInitParams): Promise<WorkspaceInitResult>;
 }
 
 /**
