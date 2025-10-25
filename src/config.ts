@@ -246,6 +246,10 @@ export class Config {
    *
    * This centralizes workspace metadata in config.json and eliminates the need
    * for scattered metadata.json files (kept for backward compat with older versions).
+   *
+   * GUARANTEE: Every workspace returned will have a createdAt timestamp.
+   * If missing from config or legacy metadata, a new timestamp is assigned and
+   * saved to config for subsequent loads.
    */
   getAllWorkspaceMetadata(): FrontendWorkspaceMetadata[] {
     const config = this.loadConfigOrDefault();
@@ -268,8 +272,16 @@ export class Config {
               name: workspace.name,
               projectName,
               projectPath,
-              createdAt: workspace.createdAt,
+              // GUARANTEE: All workspaces must have createdAt (assign now if missing)
+              createdAt: workspace.createdAt ?? new Date().toISOString(),
             };
+
+            // Migrate missing createdAt to config for next load
+            if (!workspace.createdAt) {
+              workspace.createdAt = metadata.createdAt;
+              configModified = true;
+            }
+
             workspaceMetadata.push(this.addPathsToMetadata(metadata, workspace.path, projectPath));
             continue; // Skip metadata file lookup
           }
@@ -294,6 +306,9 @@ export class Config {
               };
             }
 
+            // GUARANTEE: All workspaces must have createdAt
+            metadata.createdAt ??= new Date().toISOString();
+
             // Migrate to config for next load
             workspace.id = metadata.id;
             workspace.name = metadata.name;
@@ -312,11 +327,14 @@ export class Config {
               name: workspaceBasename,
               projectName,
               projectPath,
+              // GUARANTEE: All workspaces must have createdAt
+              createdAt: new Date().toISOString(),
             };
 
             // Save to config for next load
             workspace.id = metadata.id;
             workspace.name = metadata.name;
+            workspace.createdAt = metadata.createdAt;
             configModified = true;
 
             workspaceMetadata.push(this.addPathsToMetadata(metadata, workspace.path, projectPath));
@@ -330,6 +348,8 @@ export class Config {
             name: workspaceBasename,
             projectName,
             projectPath,
+            // GUARANTEE: All workspaces must have createdAt (even in error cases)
+            createdAt: new Date().toISOString(),
           };
           workspaceMetadata.push(this.addPathsToMetadata(metadata, workspace.path, projectPath));
         }

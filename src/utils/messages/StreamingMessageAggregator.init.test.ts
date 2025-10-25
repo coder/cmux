@@ -9,7 +9,7 @@ interface InitDisplayedMessage {
 
 describe("Init display after cleanup changes", () => {
   it("should display init messages correctly", () => {
-    const aggregator = new StreamingMessageAggregator();
+    const aggregator = new StreamingMessageAggregator("2024-01-01T00:00:00.000Z");
 
     // Simulate init start
     aggregator.handleMessage({
@@ -49,7 +49,7 @@ describe("Init display after cleanup changes", () => {
   });
 
   it("should handle init-output without init-start (defensive)", () => {
-    const aggregator = new StreamingMessageAggregator();
+    const aggregator = new StreamingMessageAggregator("2024-01-01T00:00:00.000Z");
 
     // This might crash with non-null assertion if initState is null
     expect(() => {
@@ -63,7 +63,7 @@ describe("Init display after cleanup changes", () => {
   });
 
   it("should handle init-end without init-start (defensive)", () => {
-    const aggregator = new StreamingMessageAggregator();
+    const aggregator = new StreamingMessageAggregator("2024-01-01T00:00:00.000Z");
 
     expect(() => {
       aggregator.handleMessage({

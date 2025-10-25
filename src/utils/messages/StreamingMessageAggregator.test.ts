@@ -1,10 +1,13 @@
 import { describe, test, expect } from "bun:test";
 import { StreamingMessageAggregator } from "./StreamingMessageAggregator";
 
+// Test helper: create aggregator with default createdAt for tests
+const TEST_CREATED_AT = "2024-01-01T00:00:00.000Z";
+
 describe("StreamingMessageAggregator", () => {
   describe("init state reference stability", () => {
     test("should return new array reference when state changes", () => {
-      const aggregator = new StreamingMessageAggregator();
+      const aggregator = new StreamingMessageAggregator(TEST_CREATED_AT);
 
       // Start init hook
       aggregator.handleMessage({
@@ -30,7 +33,7 @@ describe("StreamingMessageAggregator", () => {
     });
 
     test("should return new lines array reference when init state changes", () => {
-      const aggregator = new StreamingMessageAggregator();
+      const aggregator = new StreamingMessageAggregator(TEST_CREATED_AT);
 
       // Start init hook
       aggregator.handleMessage({
@@ -64,7 +67,7 @@ describe("StreamingMessageAggregator", () => {
     });
 
     test("should create new init message object on each state change", () => {
-      const aggregator = new StreamingMessageAggregator();
+      const aggregator = new StreamingMessageAggregator(TEST_CREATED_AT);
 
       // Start init hook
       aggregator.handleMessage({
@@ -118,7 +121,7 @@ describe("StreamingMessageAggregator", () => {
     });
 
     test("should return same cached reference when state has not changed", () => {
-      const aggregator = new StreamingMessageAggregator();
+      const aggregator = new StreamingMessageAggregator(TEST_CREATED_AT);
 
       // Start init hook
       aggregator.handleMessage({

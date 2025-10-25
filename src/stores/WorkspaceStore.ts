@@ -327,12 +327,25 @@ export class WorkspaceStore {
   };
 
   /**
+   * Assert that workspace exists and return its aggregator.
+   * Centralized assertion for all workspace access methods.
+   */
+  private assertGet(workspaceId: string): StreamingMessageAggregator {
+    const aggregator = this.aggregators.get(workspaceId);
+    assert(aggregator, `Workspace ${workspaceId} not found - must call addWorkspace() first`);
+    return aggregator;
+  }
+
+  /**
    * Get state for a specific workspace.
    * Lazy computation - only runs when version changes.
+   *
+   * REQUIRES: Workspace must have been added via addWorkspace() first.
    */
   getWorkspaceState(workspaceId: string): WorkspaceState {
     return this.states.get(workspaceId, () => {
-      const aggregator = this.getOrCreateAggregator(workspaceId);
+      const aggregator = this.assertGet(workspaceId);
+
       const hasMessages = aggregator.hasMessages();
       const isCaughtUp = this.caughtUp.get(workspaceId) ?? false;
       const activeStreams = aggregator.getActiveStreams();
@@ -417,9 +430,11 @@ export class WorkspaceStore {
 
   /**
    * Get aggregator for a workspace (used by components that need direct access).
+   *
+   * REQUIRES: Workspace must have been added via addWorkspace() first.
    */
   getAggregator(workspaceId: string): StreamingMessageAggregator {
-    return this.getOrCreateAggregator(workspaceId);
+    return this.assertGet(workspaceId);
   }
 
   /**
@@ -434,10 +449,13 @@ export class WorkspaceStore {
   /**
    * Extract usage from messages (no tokenization).
    * Each usage entry calculated with its own model for accurate costs.
+   *
+   * REQUIRES: Workspace must have been added via addWorkspace() first.
    */
   getWorkspaceUsage(workspaceId: string): WorkspaceUsageState {
     return this.usageStore.get(workspaceId, () => {
-      const aggregator = this.getOrCreateAggregator(workspaceId);
+      const aggregator = this.assertGet(workspaceId);
+
       const messages = aggregator.getAllMessages();
 
       // Extract usage from assistant messages
@@ -737,6 +755,12 @@ export class WorkspaceStore {
     // Store metadata for name lookup
     this.workspaceMetadata.set(workspaceId, metadata);
 
+    // Backend guarantees createdAt via config.ts - this should never be undefined
+    assert(
+      metadata.createdAt,
+      `Workspace ${workspaceId} missing createdAt - backend contract violated`
+    );
+
     const aggregator = this.getOrCreateAggregator(workspaceId, metadata.createdAt);
 
     // Initialize recency cache and bump derived store immediately
@@ -844,23 +868,24 @@ export class WorkspaceStore {
 
   // Private methods
 
+  /**
+   * Get or create aggregator for a workspace.
+   *
+   * REQUIRES: createdAt must be provided for new aggregators.
+   * Backend guarantees every workspace has createdAt via config.ts.
+   *
+   * If aggregator already exists, createdAt is optional (it was already set during creation).
+   */
   private getOrCreateAggregator(
     workspaceId: string,
-    createdAt?: string
+    createdAt: string
   ): StreamingMessageAggregator {
-    // Store createdAt if provided (ensures it's never lost)
-    if (createdAt) {
+    if (!this.aggregators.has(workspaceId)) {
+      // Create new aggregator with required createdAt
+      this.aggregators.set(workspaceId, new StreamingMessageAggregator(createdAt));
       this.workspaceCreatedAt.set(workspaceId, createdAt);
     }
 
-    if (!this.aggregators.has(workspaceId)) {
-      // Use stored createdAt if available, otherwise use provided value
-      const storedCreatedAt = this.workspaceCreatedAt.get(workspaceId);
-      this.aggregators.set(
-        workspaceId,
-        new StreamingMessageAggregator(storedCreatedAt ?? createdAt)
-      );
-    }
     return this.aggregators.get(workspaceId)!;
   }
 
@@ -873,7 +898,9 @@ export class WorkspaceStore {
   }
 
   private handleChatMessage(workspaceId: string, data: WorkspaceChatMessage): void {
-    const aggregator = this.getOrCreateAggregator(workspaceId);
+    // Aggregator must exist - IPC subscription happens in addWorkspace()
+    const aggregator = this.assertGet(workspaceId);
+
     const isCaughtUp = this.caughtUp.get(workspaceId) ?? false;
     const historicalMsgs = this.historicalMessages.get(workspaceId) ?? [];
 
