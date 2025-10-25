@@ -20,8 +20,9 @@ interface ExpanderArrowProps {
 
 export const ExpanderArrow = React.memo<ExpanderArrowProps>(
   ({ direction, isExpanded, isLoading, canExpand, onClick }) => {
-    // Don't show arrow if we can't expand and nothing is currently expanded
-    if (!canExpand && !isExpanded) {
+    // Always show arrow if expanded (to allow collapsing)
+    // Show if can expand and not yet expanded
+    if (!isExpanded && !canExpand) {
       return null;
     }
 
@@ -36,41 +37,46 @@ export const ExpanderArrow = React.memo<ExpanderArrowProps>(
         : isExpanded
           ? "▲"
           : "▼"; // Down: show ▼ to expand down, ▲ to collapse
-    const actionText = isExpanded ? "Collapse" : "Expand";
 
     return (
       <div
         className={cn(
-          "border-border-light flex items-center justify-center px-2 py-1.5 transition-colors",
+          "border-border-light block w-full px-2 py-1",
           direction === "up" ? "border-b" : "border-t"
         )}
+        style={{
+          background: "transparent",
+        }}
       >
         <button
           onClick={onClick}
           disabled={isLoading}
           className={cn(
-            "flex items-center gap-2 text-[11px] font-medium transition-all",
-            "disabled:cursor-not-allowed disabled:opacity-50",
-            "hover:bg-[hsl(from_var(--color-accent)_h_s_l_/_0.15)]",
-            "rounded px-2 py-1"
+            "flex w-full items-center font-mono whitespace-pre text-[11px]",
+            "disabled:cursor-wait hover:bg-[hsl(from_var(--color-accent)_h_s_l_/_0.1)]",
+            "transition-colors"
           )}
           style={{
             color: "var(--color-accent)",
           }}
-          aria-label={`${actionText} context ${direction}`}
+          aria-label={`${isExpanded ? "Collapse" : "Expand"} context ${direction}`}
         >
-          {/* Line number gutter spacing to align with diff lines */}
-          <span className="inline-block w-1" />
-          <span className="min-w-9" />
+          {/* Indicator column (like +/- in diff) */}
+          <span className="inline-block w-1 shrink-0 text-center opacity-60">·</span>
 
-          {isLoading ? (
-            <span className="text-muted">Loading...</span>
-          ) : (
-            <>
-              <span className="font-mono text-sm">{arrow}</span>
-              <span>{actionText}</span>
-            </>
-          )}
+          {/* Line number column */}
+          <span className="flex min-w-9 shrink-0 items-center justify-center">
+            {isLoading ? (
+              <span className="text-muted text-[9px]">...</span>
+            ) : (
+              <span className="text-sm leading-none">{arrow}</span>
+            )}
+          </span>
+
+          {/* Content area */}
+          <span className="pl-2 text-[11px] opacity-70">
+            {isLoading ? "Loading..." : isExpanded ? "" : ""}
+          </span>
         </button>
       </div>
     );
