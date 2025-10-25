@@ -310,8 +310,8 @@ export class IpcMain {
           },
         };
 
-        // Create workspace through runtime abstraction
-        const result = await runtime.createWorkspace({
+        // Phase 1: Create workspace structure (FAST - returns immediately)
+        const createResult = await runtime.createWorkspace({
           projectPath,
           branchName,
           trunkBranch: normalizedTrunkBranch,
@@ -319,63 +319,77 @@ export class IpcMain {
           initLogger,
         });
 
-        if (result.success && result.workspacePath) {
-          const projectName =
-            projectPath.split("/").pop() ?? projectPath.split("\\").pop() ?? "unknown";
-
-          // Initialize workspace metadata with stable ID and name
-          const metadata = {
-            id: workspaceId,
-            name: branchName, // Name is separate from ID
-            projectName,
-            projectPath, // Full project path for computing worktree path
-            createdAt: new Date().toISOString(),
-          };
-          // Note: metadata.json no longer written - config is the only source of truth
-
-          // Update config to include the new workspace (with full metadata)
-          this.config.editConfig((config) => {
-            let projectConfig = config.projects.get(projectPath);
-            if (!projectConfig) {
-              // Create project config if it doesn't exist
-              projectConfig = {
-                workspaces: [],
-              };
-              config.projects.set(projectPath, projectConfig);
-            }
-            // Add workspace to project config with full metadata
-            projectConfig.workspaces.push({
-              path: result.workspacePath!,
-              id: workspaceId,
-              name: branchName,
-              createdAt: metadata.createdAt,
-            });
-            return config;
-          });
-
-          // No longer creating symlinks - directory name IS the workspace name
-
-          // Get complete metadata from config (includes paths)
-          const allMetadata = this.config.getAllWorkspaceMetadata();
-          const completeMetadata = allMetadata.find((m) => m.id === workspaceId);
-          if (!completeMetadata) {
-            return { success: false, error: "Failed to retrieve workspace metadata" };
-          }
-
-          // Emit metadata event for new workspace (session already created above)
-          session.emitMetadata(completeMetadata);
-
-          // Init hook has already been run by the runtime
-          // No need to call startWorkspaceInitHook here anymore
-
-          // Return complete metadata with paths for frontend
-          return {
-            success: true,
-            metadata: completeMetadata,
-          };
+        if (!createResult.success || !createResult.workspacePath) {
+          return { success: false, error: createResult.error ?? "Failed to create workspace" };
         }
 
-        return { success: false, error: result.error ?? "Failed to create workspace" };
+        const projectName =
+          projectPath.split("/").pop() ?? projectPath.split("\\").pop() ?? "unknown";
+
+        // Initialize workspace metadata with stable ID and name
+        const metadata = {
+          id: workspaceId,
+          name: branchName, // Name is separate from ID
+          projectName,
+          projectPath, // Full project path for computing worktree path
+          createdAt: new Date().toISOString(),
+        };
+        // Note: metadata.json no longer written - config is the only source of truth
+
+        // Update config to include the new workspace (with full metadata)
+        this.config.editConfig((config) => {
+          let projectConfig = config.projects.get(projectPath);
+          if (!projectConfig) {
+            // Create project config if it doesn't exist
+            projectConfig = {
+              workspaces: [],
+            };
+            config.projects.set(projectPath, projectConfig);
+          }
+          // Add workspace to project config with full metadata
+          projectConfig.workspaces.push({
+            path: createResult.workspacePath!,
+            id: workspaceId,
+            name: branchName,
+            createdAt: metadata.createdAt,
+          });
+          return config;
+        });
+
+        // No longer creating symlinks - directory name IS the workspace name
+
+        // Get complete metadata from config (includes paths)
+        const allMetadata = this.config.getAllWorkspaceMetadata();
+        const completeMetadata = allMetadata.find((m) => m.id === workspaceId);
+        if (!completeMetadata) {
+          return { success: false, error: "Failed to retrieve workspace metadata" };
+        }
+
+        // Emit metadata event for new workspace (session already created above)
+        session.emitMetadata(completeMetadata);
+
+        // Phase 2: Initialize workspace asynchronously (SLOW - runs in background)
+        // This streams progress via initLogger and doesn't block the IPC return
+        void runtime
+          .initWorkspace({
+            projectPath,
+            branchName,
+            trunkBranch: normalizedTrunkBranch,
+            workspacePath: createResult.workspacePath,
+            initLogger,
+          })
+          .catch((error: unknown) => {
+            const errorMsg = error instanceof Error ? error.message : String(error);
+            log.error(`initWorkspace failed for ${workspaceId}:`, error);
+            initLogger.logStderr(`Initialization failed: ${errorMsg}`);
+            initLogger.logComplete(-1);
+          });
+
+        // Return immediately - init streams separately via initLogger events
+        return {
+          success: true,
+          metadata: completeMetadata,
+        };
       }
     );
 

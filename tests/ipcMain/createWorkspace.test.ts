@@ -32,7 +32,8 @@ const execAsync = promisify(exec);
 
 // Test constants
 const TEST_TIMEOUT_MS = 60000;
-const INIT_HOOK_WAIT_MS = 1500; // Wait for async init hook completion
+const INIT_HOOK_WAIT_MS = 1500; // Wait for async init hook completion (local runtime)
+const SSH_INIT_WAIT_MS = 7000; // SSH init includes rsync + checkout + hook, takes longer
 const CMUX_DIR = ".cmux";
 const INIT_HOOK_FILENAME = "init";
 
@@ -188,6 +189,9 @@ describeIntegration("WORKSPACE_CREATE with both runtimes", () => {
         return undefined; // undefined = defaults to local
       };
 
+      // Get runtime-specific init wait time (SSH needs more time for rsync)
+      const getInitWaitTime = () => (type === "ssh" ? SSH_INIT_WAIT_MS : INIT_HOOK_WAIT_MS);
+
       describe("Branch handling", () => {
         test.concurrent(
           "creates new branch from trunk when branch doesn't exist",
@@ -310,7 +314,7 @@ exit 0
               }
 
               // Wait for init hook to complete (runs asynchronously after workspace creation)
-              await new Promise((resolve) => setTimeout(resolve, INIT_HOOK_WAIT_MS));
+              await new Promise((resolve) => setTimeout(resolve, getInitWaitTime()));
 
               // Verify init events were emitted
               expect(initEvents.length).toBeGreaterThan(0);
@@ -372,7 +376,7 @@ exit 1
               }
 
               // Wait for init hook to complete asynchronously
-              await new Promise((resolve) => setTimeout(resolve, INIT_HOOK_WAIT_MS));
+              await new Promise((resolve) => setTimeout(resolve, getInitWaitTime()));
 
               // Verify init-end event with non-zero exit code
               const endEvents = filterEventsByType(initEvents, EVENT_TYPE_INIT_END);
@@ -425,6 +429,68 @@ exit 1
           },
           TEST_TIMEOUT_MS
         );
+
+        // SSH-specific test: verify rsync/sync output appears in init stream
+        if (type === "ssh") {
+          test.concurrent(
+            "streams rsync progress to init events (SSH only)",
+            async () => {
+              const env = await createTestEnvironment();
+              const tempGitRepo = await createTempGitRepo();
+
+              try {
+                const branchName = generateBranchName("rsync-test");
+                const trunkBranch = await detectDefaultTrunkBranch(tempGitRepo);
+                const runtimeConfig = getRuntimeConfig(branchName);
+
+                // Capture init events
+                const initEvents = setupInitEventCapture(env);
+
+                const { result, cleanup } = await createWorkspaceWithCleanup(
+                  env,
+                  tempGitRepo,
+                  branchName,
+                  trunkBranch,
+                  runtimeConfig
+                );
+
+                expect(result.success).toBe(true);
+                if (!result.success) {
+                  throw new Error(`Failed to create workspace for rsync test: ${result.error}`);
+                }
+
+                // Wait for init to complete (includes rsync + checkout)
+                await new Promise((resolve) => setTimeout(resolve, getInitWaitTime()));
+
+                // Verify init events contain sync and checkout steps
+                const outputEvents = filterEventsByType(initEvents, EVENT_TYPE_INIT_OUTPUT);
+                const outputLines = outputEvents.map((e) => {
+                  const data = e.data as { line?: string };
+                  return data.line ?? "";
+                });
+
+                // Verify key init phases appear in output
+                expect(outputLines.some((line) => line.includes("Syncing project files"))).toBe(
+                  true
+                );
+                expect(outputLines.some((line) => line.includes("Checking out branch"))).toBe(
+                  true
+                );
+
+                // Verify init-end event was emitted
+                const endEvents = filterEventsByType(initEvents, EVENT_TYPE_INIT_END);
+                expect(endEvents.length).toBe(1);
+
+                await cleanup();
+              } finally {
+                await cleanupTestEnvironment(env);
+                await cleanupTempGitRepo(tempGitRepo);
+              }
+            },
+            TEST_TIMEOUT_MS
+          );
+        }
+
       });
 
       describe("Validation", () => {
