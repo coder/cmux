@@ -73,43 +73,40 @@ export const HunkContent = React.memo<HunkContentProps>(
     const combinedStartLine = upExpansion.content ? upwardExpansion.startLine : hunk.oldStart;
 
     return (
-      <div className="font-monospace bg-code-bg grid grid-cols-[minmax(min-content,1fr)] overflow-x-auto text-[11px] leading-[1.4]">
-        {/* Upward expander arrow */}
-        <ExpanderArrow
-          direction="up"
-          isExpanded={upExpansion.isExpanded}
-          isLoading={upExpansion.isLoading}
-          canExpand={canExpandUp}
-          onClick={upExpansion.onToggle}
-        />
-
-        {/* Combined content - single pass through syntax highlighter */}
-        <div className="px-2 py-1.5">
-          <SelectableDiffRenderer
-            content={combinedContent}
-            filePath={hunk.filePath}
-            oldStart={combinedStartLine}
-            newStart={combinedStartLine}
-            maxHeight="none"
-            onReviewNote={onReviewNote}
-            onLineClick={() => {
-              // Create synthetic event with data-hunk-id for parent handler
-              const syntheticEvent = {
-                currentTarget: { dataset: { hunkId } },
-              } as unknown as React.MouseEvent<HTMLElement>;
-              onClick?.(syntheticEvent);
-            }}
-            searchConfig={searchConfig}
-          />
-        </div>
-
-        {/* Downward expander arrow */}
-        <ExpanderArrow
-          direction="down"
-          isExpanded={downExpansion.isExpanded}
-          isLoading={downExpansion.isLoading}
-          canExpand={downExpansion.canExpand}
-          onClick={downExpansion.onToggle}
+      <div className="px-2 py-1.5">
+        <SelectableDiffRenderer
+          content={combinedContent}
+          filePath={hunk.filePath}
+          oldStart={combinedStartLine}
+          newStart={combinedStartLine}
+          maxHeight="none"
+          onReviewNote={onReviewNote}
+          onLineClick={() => {
+            // Create synthetic event with data-hunk-id for parent handler
+            const syntheticEvent = {
+              currentTarget: { dataset: { hunkId } },
+            } as unknown as React.MouseEvent<HTMLElement>;
+            onClick?.(syntheticEvent);
+          }}
+          searchConfig={searchConfig}
+          expanderTop={
+            <ExpanderArrow
+              direction="up"
+              isExpanded={upExpansion.isExpanded}
+              isLoading={upExpansion.isLoading}
+              canExpand={canExpandUp}
+              onClick={upExpansion.onToggle}
+            />
+          }
+          expanderBottom={
+            <ExpanderArrow
+              direction="down"
+              isExpanded={downExpansion.isExpanded}
+              isLoading={downExpansion.isLoading}
+              canExpand={downExpansion.canExpand}
+              onClick={downExpansion.onToggle}
+            />
+          }
         />
       </div>
     );

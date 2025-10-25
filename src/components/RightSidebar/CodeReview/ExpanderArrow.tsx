@@ -41,43 +41,31 @@ export const ExpanderArrow = React.memo<ExpanderArrowProps>(
     return (
       <div
         className={cn(
-          "border-border-light block w-full px-2 py-1",
-          direction === "up" ? "border-b" : "border-t"
+          "block w-full cursor-pointer transition-colors hover:bg-[rgba(0,122,204,0.08)]"
         )}
-        style={{
-          background: "transparent",
-        }}
+        onClick={onClick}
+        role="button"
+        aria-label={`${isExpanded ? "Collapse" : "Expand"} context ${direction}`}
       >
-        <button
-          onClick={onClick}
-          disabled={isLoading}
-          className={cn(
-            "flex w-full items-center font-mono whitespace-pre text-[11px]",
-            "disabled:cursor-wait hover:bg-[hsl(from_var(--color-accent)_h_s_l_/_0.1)]",
-            "transition-colors"
-          )}
-          style={{
-            color: "var(--color-accent)",
-          }}
-          aria-label={`${isExpanded ? "Collapse" : "Expand"} context ${direction}`}
+        <div
+          className="flex px-2 font-mono whitespace-pre"
+          style={{ color: "var(--color-accent)" }}
         >
-          {/* Indicator column (like +/- in diff) */}
-          <span className="inline-block w-1 shrink-0 text-center opacity-60">·</span>
+          {/* Indicator column - matches diff line structure */}
+          <span className="inline-block w-1 shrink-0 text-center opacity-40">·</span>
 
-          {/* Line number column */}
-          <span className="flex min-w-9 shrink-0 items-center justify-center">
+          {/* Line number column - matches diff line structure */}
+          <span className="flex min-w-9 shrink-0 items-center justify-end pr-1 select-none">
             {isLoading ? (
-              <span className="text-muted text-[9px]">...</span>
+              <span className="text-[9px] opacity-50">...</span>
             ) : (
               <span className="text-sm leading-none">{arrow}</span>
             )}
           </span>
 
-          {/* Content area */}
-          <span className="pl-2 text-[11px] opacity-70">
-            {isLoading ? "Loading..." : isExpanded ? "" : ""}
-          </span>
-        </button>
+          {/* Content area - matches diff line structure */}
+          <span className="pl-2 text-[11px] opacity-0">{isLoading ? "Loading..." : ""}</span>
+        </div>
       </div>
     );
   }

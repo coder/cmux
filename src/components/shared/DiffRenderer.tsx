@@ -260,6 +260,10 @@ interface SelectableDiffRendererProps extends Omit<DiffRendererProps, "filePath"
   onLineClick?: () => void;
   /** Search highlight configuration (optional) */
   searchConfig?: SearchHighlightConfig;
+  /** Optional expander component to render at top of grid */
+  expanderTop?: React.ReactNode;
+  /** Optional expander component to render at bottom of grid */
+  expanderBottom?: React.ReactNode;
 }
 
 interface LineSelection {
@@ -386,6 +390,8 @@ export const SelectableDiffRenderer = React.memo<SelectableDiffRendererProps>(
     onReviewNote,
     onLineClick,
     searchConfig,
+    expanderTop,
+    expanderBottom,
   }) => {
     const [selection, setSelection] = React.useState<LineSelection | null>(null);
 
@@ -506,6 +512,7 @@ export const SelectableDiffRenderer = React.memo<SelectableDiffRendererProps>(
           gridTemplateColumns: "minmax(min-content, 1fr)",
         }}
       >
+        {expanderTop}
         {highlightedLineData.map((lineInfo, displayIndex) => {
           const isSelected = isLineSelected(displayIndex);
           const indicator = lineInfo.type === "add" ? "+" : lineInfo.type === "remove" ? "-" : " ";
@@ -603,6 +610,7 @@ export const SelectableDiffRenderer = React.memo<SelectableDiffRendererProps>(
             </React.Fragment>
           );
         })}
+        {expanderBottom}
       </div>
     );
   }
