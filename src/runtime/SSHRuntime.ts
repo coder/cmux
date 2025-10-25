@@ -20,6 +20,7 @@ import { EXIT_CODE_ABORTED, EXIT_CODE_TIMEOUT } from "../constants/exitCodes";
 import { log } from "../services/log";
 import { checkInitHookExists, createLineBufferedLoggers } from "./initHook";
 import { streamProcessToLogger } from "./streamProcess";
+import { expandTildeForSSH, cdCommandForSSH } from "./tildeExpansion";
 
 /**
  * Shescape instance for bash shell escaping.
@@ -74,20 +75,7 @@ export class SSHRuntime implements Runtime {
 
     // Add cd command if cwd is specified
     const cwd = options.cwd ?? this.config.workdir;
-    // Handle tilde paths specially - shescape.quote() would quote the tilde,
-    // preventing bash from expanding it. For ~/path, we expand to $HOME/path
-    if (cwd.startsWith("~/")) {
-      const pathAfterTilde = cwd.slice(2);
-      // Escape special chars for use inside double quotes
-      const escaped = pathAfterTilde
-        .replace(/\\/g, "\\\\")
-        .replace(/"/g, '\\"')
-        .replace(/\$/g, "\\$")
-        .replace(/`/g, "\\`");
-      parts.push(`cd "$HOME/${escaped}"`);
-    } else {
-      parts.push(`cd ${shescape.quote(cwd)}`);
-    }
+    parts.push(cdCommandForSSH(cwd));
 
     // Add environment variable exports
     if (options.env) {
@@ -402,8 +390,13 @@ export class SSHRuntime implements Runtime {
 
       // Step 2: Clone from bundle on remote using this.exec
       initLogger.logStep(`Cloning repository on remote...`);
+      
+      // Expand tilde in destination path for git clone
+      // git doesn't expand tilde when it's quoted, so we need to expand it ourselves
+      const cloneDestPath = expandTildeForSSH(this.config.workdir);
+      
       const cloneStream = this.exec(
-        `git clone --quiet ${bundleTempPath} ${shescape.quote(this.config.workdir)}`,
+        `git clone --quiet ${bundleTempPath} ${cloneDestPath}`,
         {
           cwd: "~",
           timeout: 300, // 5 minutes for clone
@@ -459,13 +452,17 @@ export class SSHRuntime implements Runtime {
       return;
     }
 
-    // Construct hook path - shescape will handle tilde expansion when used in commands
+    // Construct hook path - expand tilde if present
     const remoteHookPath = `${this.config.workdir}/.cmux/init`;
     initLogger.logStep(`Running init hook: ${remoteHookPath}`);
 
+    // Expand tilde in hook path for execution
+    // Tilde won't be expanded when the path is quoted, so we need to expand it ourselves
+    const hookCommand = expandTildeForSSH(remoteHookPath);
+
     // Run hook remotely and stream output
     // No timeout - user init hooks can be arbitrarily long
-    const hookStream = this.exec(`"${remoteHookPath}"`, {
+    const hookStream = this.exec(hookCommand, {
       cwd: this.config.workdir,
       timeout: 3600, // 1 hour - generous timeout for init hooks
     });

@@ -465,9 +465,18 @@ exit 1
                 // Verify init events contain sync and checkout steps
                 const outputEvents = filterEventsByType(initEvents, EVENT_TYPE_INIT_OUTPUT);
                 const outputLines = outputEvents.map((e) => {
-                  const data = e.data as { line?: string };
+                  const data = e.data as { line?: string; isError?: boolean };
                   return data.line ?? "";
                 });
+
+                // Debug: Print all output including errors
+                console.log("=== ALL INIT OUTPUT ===");
+                outputEvents.forEach((e) => {
+                  const data = e.data as { line?: string; isError?: boolean };
+                  const prefix = data.isError ? "[ERROR]" : "[INFO] ";
+                  console.log(prefix + (data.line ?? ""));
+                });
+                console.log("=== END INIT OUTPUT ===");
 
                 // Verify key init phases appear in output
                 expect(outputLines.some((line) => line.includes("Syncing project files"))).toBe(
@@ -591,6 +600,15 @@ echo "Init hook executed with tilde path"
                   const data = e.data as { line?: string };
                   return data.line ?? "";
                 });
+
+                // Debug: Print all output including errors
+                console.log("=== TILDE INIT HOOK OUTPUT ===");
+                outputEvents.forEach((e) => {
+                  const data = e.data as { line?: string; isError?: boolean };
+                  const prefix = data.isError ? "[ERROR]" : "[INFO] ";
+                  console.log(prefix + (data.line ?? ""));
+                });
+                console.log("=== END TILDE INIT HOOK OUTPUT ===");
 
                 expect(outputLines.some((line) => line.includes("Running init hook"))).toBe(true);
                 expect(outputLines.some((line) => line.includes("Init hook executed"))).toBe(true);
