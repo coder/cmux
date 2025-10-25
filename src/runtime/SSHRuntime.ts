@@ -1,5 +1,6 @@
 import { spawn } from "child_process";
 import { Readable, Writable } from "stream";
+import { Shescape } from "shescape";
 import type {
   Runtime,
   ExecOptions,
@@ -18,36 +19,10 @@ import { checkInitHookExists, createLineBufferedLoggers } from "./initHook";
 import { streamProcessToLogger } from "./streamProcess";
 
 /**
- * Escape a string for safe use in a shell command
- * Uses single quotes and escapes any single quotes in the string
+ * Shescape instance for bash shell escaping.
+ * Reused across all SSH runtime operations for performance.
  */
-function escapeShellArg(arg: string): string {
-  // Replace ' with '\'' (end quote, escaped quote, start quote)
-  return `'${arg.replace(/'/g, "'\\''")}'`;
-}
-
-/**
- * Build export statements for setting environment variables.
- * Uses bash export with single-quote escaping for safe variable passing over SSH.
- *
- * @example
- * buildEnvExports({ TEST_VAR: "hello" })
- * // => "export TEST_VAR='hello'; "
- *
- * buildEnvExports({ VAR: "can't" })
- * // => "export VAR='can'\\''t'; "
- */
-export function buildEnvExports(env: Record<string, string> | undefined): string {
-  if (!env || Object.keys(env).length === 0) {
-    return "";
-  }
-
-  const exports = Object.entries(env)
-    .map(([key, value]) => `export ${key}=${escapeShellArg(value)}`)
-    .join("; ");
-
-  return `${exports}; `;
-}
+const shescape = new Shescape({ shell: "/bin/bash" });
 
 /**
  * SSH Runtime Configuration
@@ -81,65 +56,33 @@ export class SSHRuntime implements Runtime {
   }
 
   /**
-   * Expand tilde in path for use in remote commands
-   * Bash doesn't expand ~ when it's inside quotes, so we need to do it manually
-   */
-  private expandTilde(path: string): string {
-    if (path === "~") {
-      return "$HOME";
-    } else if (path.startsWith("~/")) {
-      return "$HOME/" + path.slice(2);
-    }
-    return path;
-  }
-
-  /**
    * Execute command over SSH with streaming I/O
    */
   exec(command: string, options: ExecOptions): ExecStream {
     const startTime = performance.now();
 
-    // Build environment exports using bash export
-    const envPrefix = buildEnvExports(options.env);
+    // Build command parts
+    const parts: string[] = [];
 
-    // Get cwd path - keep tilde as-is, we'll handle it in cd command
+    // Add cd command if cwd is specified
     const cwd = options.cwd ?? this.config.workdir;
+    parts.push(`cd ${shescape.quote(cwd)}`);
 
-    // Build cd command
-    // For paths starting with ~, use it directly without quotes so bash expands it
-    // For other paths, use double quotes with proper escaping
-    let cdCommand: string;
-    if (cwd === "~" || cwd.startsWith("~/")) {
-      // Use tilde directly - bash will expand it even in double quotes
-      // But we need to handle the part after ~ if it has special characters
-      if (cwd === "~") {
-        cdCommand = "cd ~";
-      } else {
-        const pathAfterTilde = cwd.slice(2); // Remove ~/
-        const escapedPath = pathAfterTilde
-          .replace(/\\/g, "\\\\")
-          .replace(/"/g, '\\"')
-          .replace(/\$/g, "\\$")
-          .replace(/`/g, "\\`");
-        cdCommand = `cd ~/"${escapedPath}"`;
+    // Add environment variable exports
+    if (options.env) {
+      for (const [key, value] of Object.entries(options.env)) {
+        parts.push(`export ${key}=${shescape.quote(value)}`);
       }
-    } else {
-      // Absolute path - use double quotes with escaping
-      const escapedCwd = cwd
-        .replace(/\\/g, "\\\\")
-        .replace(/"/g, '\\"')
-        .replace(/\$/g, "\\$")
-        .replace(/`/g, "\\`");
-      cdCommand = `cd "${escapedCwd}"`;
     }
 
-    // Build full command with cwd and env
-    const fullCommand = `${cdCommand} && ${envPrefix}${command}`;
+    // Add the actual command
+    parts.push(command);
 
-    // Wrap command in bash to ensure bash execution regardless of user's default shell
-    // This prevents issues with fish, zsh, or other non-bash shells
-    // Use escapeShellArg instead of JSON.stringify to prevent premature variable expansion
-    const remoteCommand = `bash -c ${escapeShellArg(fullCommand)}`;
+    // Join all parts with && to ensure each step succeeds before continuing
+    const fullCommand = parts.join(" && ");
+
+    // Wrap in bash -c with shescape for safe shell execution
+    const remoteCommand = `bash -c ${shescape.quote(fullCommand)}`;
 
     // Build SSH args
     const sshArgs: string[] = ["-T"];
@@ -222,7 +165,7 @@ export class SSHRuntime implements Runtime {
    * Read file contents over SSH as a stream
    */
   readFile(path: string): ReadableStream<Uint8Array> {
-    const stream = this.exec(`cat ${escapeShellArg(path)}`, {
+    const stream = this.exec(`cat ${shescape.quote(path)}`, {
       cwd: this.config.workdir,
       timeout: 300, // 5 minutes - reasonable for large files
     });
@@ -272,8 +215,8 @@ export class SSHRuntime implements Runtime {
   writeFile(path: string): WritableStream<Uint8Array> {
     const tempPath = `${path}.tmp.${Date.now()}`;
     // Create parent directory if needed, then write file atomically
-    // Use escapeShellArg instead of JSON.stringify to avoid double-escaping issues
-    const writeCommand = `mkdir -p $(dirname ${escapeShellArg(path)}) && cat > ${escapeShellArg(tempPath)} && chmod 600 ${escapeShellArg(tempPath)} && mv ${escapeShellArg(tempPath)} ${escapeShellArg(path)}`;
+    // Use shescape.quote for safe path escaping
+    const writeCommand = `mkdir -p $(dirname ${shescape.quote(path)}) && cat > ${shescape.quote(tempPath)} && chmod 600 ${shescape.quote(tempPath)} && mv ${shescape.quote(tempPath)} ${shescape.quote(path)}`;
 
     const stream = this.exec(writeCommand, {
       cwd: this.config.workdir,
@@ -313,7 +256,7 @@ export class SSHRuntime implements Runtime {
   async stat(path: string): Promise<FileStat> {
     // Use stat with format string to get: size, mtime, type
     // %s = size, %Y = mtime (seconds since epoch), %F = file type
-    const stream = this.exec(`stat -c '%s %Y %F' ${escapeShellArg(path)}`, {
+    const stream = this.exec(`stat -c '%s %Y %F' ${shescape.quote(path)}`, {
       cwd: this.config.workdir,
       timeout: 10, // 10 seconds - stat should be fast
     });
@@ -427,11 +370,10 @@ export class SSHRuntime implements Runtime {
         });
       });
 
-      // Step 2: Clone from bundle on remote using this.exec (handles tilde expansion)
+      // Step 2: Clone from bundle on remote using this.exec
       initLogger.logStep(`Cloning repository on remote...`);
-      const expandedWorkdir = this.expandTilde(this.config.workdir);
       const cloneStream = this.exec(
-        `git clone --quiet ${bundleTempPath} ${JSON.stringify(expandedWorkdir)}`,
+        `git clone --quiet ${bundleTempPath} ${shescape.quote(this.config.workdir)}`,
         {
           cwd: "~",
           timeout: 300, // 5 minutes for clone
@@ -487,9 +429,8 @@ export class SSHRuntime implements Runtime {
       return;
     }
 
-    // Expand tilde in workdir path before constructing hook path
-    const expandedWorkdir = this.expandTilde(this.config.workdir);
-    const remoteHookPath = `${expandedWorkdir}/.cmux/init`;
+    // Construct hook path - shescape will handle tilde expansion when used in commands
+    const remoteHookPath = `${this.config.workdir}/.cmux/init`;
     initLogger.logStep(`Running init hook: ${remoteHookPath}`);
 
     // Run hook remotely and stream output
