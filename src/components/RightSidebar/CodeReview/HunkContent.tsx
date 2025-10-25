@@ -7,12 +7,14 @@ import type { DiffHunk, HunkReadMoreState } from "@/types/review";
 import type { SearchHighlightConfig } from "@/utils/highlighting/highlightSearchTerms";
 import { SelectableDiffRenderer } from "../../shared/DiffRenderer";
 import { ExpanderArrow } from "./ExpanderArrow";
+import { EOFMarker } from "./EOFMarker";
 import { calculateUpwardExpansion } from "@/utils/review/readFileLines";
 
 interface ExpansionState {
   content: string;
   isLoading: boolean;
-  onToggle: (e: React.MouseEvent) => void;
+  onExpand: (e: React.MouseEvent) => void;
+  onCollapse: (e: React.MouseEvent) => void;
   isExpanded: boolean;
   canExpand: boolean;
 }
@@ -50,6 +52,18 @@ export const HunkContent = React.memo<HunkContentProps>(
     // Calculate expansion metadata
     const upwardExpansion = calculateUpwardExpansion(hunk.oldStart, readMoreState.up);
     const canExpandUp = upwardExpansion.startLine >= 1 && upwardExpansion.numLines > 0;
+
+    // Check if we've reached beginning of file (line 1)
+    const atBeginningOfFile = upExpansion.isExpanded && upwardExpansion.startLine === 1;
+
+    // Detect EOF: if downward expansion returned fewer lines than expected (30 lines per expansion)
+    // This means we hit the end of the file on the last expansion
+    const atEndOfFile = useMemo(() => {
+      if (!downExpansion.content || readMoreState.down === 0) return false;
+      const lines = downExpansion.content.split("\n").filter((l) => l.length > 0);
+      // If we have expansion but got fewer lines than requested, we're at EOF
+      return lines.length < readMoreState.down;
+    }, [downExpansion.content, readMoreState.down]);
 
     // Combine all content into single unified diff for proper syntax highlighting
     // This ensures grammar state (multi-line comments, strings, etc.) spans correctly
@@ -90,22 +104,66 @@ export const HunkContent = React.memo<HunkContentProps>(
           }}
           searchConfig={searchConfig}
           expanderTop={
-            <ExpanderArrow
-              direction="up"
-              isExpanded={upExpansion.isExpanded}
-              isLoading={upExpansion.isLoading}
-              canExpand={canExpandUp}
-              onClick={upExpansion.onToggle}
-            />
+            <>
+              {/* Show BOF marker if we've reached the beginning of file */}
+              {atBeginningOfFile && (
+                <div className="block w-full">
+                  <div className="flex px-2 font-mono text-[11px] whitespace-pre">
+                    <span className="inline-block w-1 shrink-0 text-center opacity-40">·</span>
+                    <span className="flex min-w-9 shrink-0 items-center justify-end pr-1 select-none">
+                      <span className="text-[9px] opacity-40">BOF</span>
+                    </span>
+                    <span className="pl-2 text-[11px] italic opacity-40">Beginning of file</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Collapse arrow - show if currently expanded */}
+              {upExpansion.isExpanded && (
+                <ExpanderArrow
+                  direction="up"
+                  mode="collapse"
+                  isLoading={upExpansion.isLoading}
+                  onClick={upExpansion.onCollapse}
+                />
+              )}
+
+              {/* Expand arrow - show if can expand more */}
+              {canExpandUp && !atBeginningOfFile && (
+                <ExpanderArrow
+                  direction="up"
+                  mode="expand"
+                  isLoading={upExpansion.isLoading}
+                  onClick={upExpansion.onExpand}
+                />
+              )}
+            </>
           }
           expanderBottom={
-            <ExpanderArrow
-              direction="down"
-              isExpanded={downExpansion.isExpanded}
-              isLoading={downExpansion.isLoading}
-              canExpand={downExpansion.canExpand}
-              onClick={downExpansion.onToggle}
-            />
+            <>
+              {/* Expand arrow - show if can expand more */}
+              {downExpansion.canExpand && !atEndOfFile && (
+                <ExpanderArrow
+                  direction="down"
+                  mode="expand"
+                  isLoading={downExpansion.isLoading}
+                  onClick={downExpansion.onExpand}
+                />
+              )}
+
+              {/* Collapse arrow - show if currently expanded */}
+              {downExpansion.isExpanded && (
+                <ExpanderArrow
+                  direction="down"
+                  mode="collapse"
+                  isLoading={downExpansion.isLoading}
+                  onClick={downExpansion.onCollapse}
+                />
+              )}
+
+              {/* EOF marker - show if we've reached end of file */}
+              {atEndOfFile && <EOFMarker />}
+            </>
           }
         />
       </div>

@@ -8,35 +8,24 @@ import { cn } from "@/lib/utils";
 interface ExpanderArrowProps {
   /** Direction of the arrow */
   direction: "up" | "down";
-  /** Is content currently expanded? */
-  isExpanded: boolean;
+  /** Mode: expand adds lines, collapse removes lines */
+  mode: "expand" | "collapse";
   /** Is expansion/collapse in progress? */
   isLoading: boolean;
-  /** Can we expand more in this direction? */
-  canExpand: boolean;
-  /** Click handler to toggle expansion */
+  /** Click handler */
   onClick: (e: React.MouseEvent) => void;
 }
 
 export const ExpanderArrow = React.memo<ExpanderArrowProps>(
-  ({ direction, isExpanded, isLoading, canExpand, onClick }) => {
-    // Always show arrow if expanded (to allow collapsing)
-    // Show if can expand and not yet expanded
-    if (!isExpanded && !canExpand) {
-      return null;
-    }
-
-    // Arrow direction:
-    // - For "up" arrow: Points up (▲) when collapsed (to expand up), down (▼) when expanded (to collapse)
-    // - For "down" arrow: Points down (▼) when collapsed (to expand down), up (▲) when expanded (to collapse)
+  ({ direction, mode, isLoading, onClick }) => {
+    // Arrow symbol based on direction and mode
+    // Expand: always points toward direction (▲ for up, ▼ for down)
+    // Collapse: always points away from direction (▼ for up, ▲ for down)
     const arrow =
-      direction === "up"
-        ? isExpanded
-          ? "▼"
-          : "▲" // Up: show ▲ to expand up, ▼ to collapse
-        : isExpanded
-          ? "▲"
-          : "▼"; // Down: show ▼ to expand down, ▲ to collapse
+      mode === "expand" ? (direction === "up" ? "▲" : "▼") : direction === "up" ? "▼" : "▲";
+
+    // Collapse arrows are more muted
+    const opacity = mode === "collapse" ? 0.5 : 1;
 
     return (
       <div
@@ -45,11 +34,11 @@ export const ExpanderArrow = React.memo<ExpanderArrowProps>(
         )}
         onClick={onClick}
         role="button"
-        aria-label={`${isExpanded ? "Collapse" : "Expand"} context ${direction}`}
+        aria-label={`${mode === "expand" ? "Expand" : "Collapse"} context ${direction}`}
       >
         <div
           className="flex px-2 font-mono whitespace-pre"
-          style={{ color: "var(--color-accent)" }}
+          style={{ color: "var(--color-accent)", opacity }}
         >
           {/* Indicator column - matches diff line structure */}
           <span className="inline-block w-1 shrink-0 text-center opacity-40">·</span>
