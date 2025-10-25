@@ -20,6 +20,13 @@ if (shouldRunIntegrationTests()) {
 }
 
 describeIntegration("IpcMain rename workspace integration tests", () => {
+  // Load tokenizer modules once before all tests (takes ~14s)
+  // This ensures accurate token counts for API calls without timing out individual tests
+  beforeAll(async () => {
+    const { loadTokenizerModules } = await import("../../src/utils/main/tokenizer");
+    await loadTokenizerModules();
+  }, 30000); // 30s timeout for tokenizer loading
+
   test.concurrent(
     "should successfully rename workspace and update all paths",
     async () => {
