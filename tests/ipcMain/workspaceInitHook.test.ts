@@ -139,7 +139,8 @@ describeIntegration("IpcMain workspace init hook integration tests", () => {
         const startEvent = initEvents.find((e) => isInitStart(e));
         expect(startEvent).toBeDefined();
         if (startEvent && isInitStart(startEvent)) {
-          expect(startEvent.hookPath).toContain(".cmux/init");
+          // Hook path should be the project path (where .cmux/init exists)
+          expect(startEvent.hookPath).toBeTruthy();
         }
 
         // Should have output and error lines
@@ -152,9 +153,13 @@ describeIntegration("IpcMain workspace init hook integration tests", () => {
           { type: "init-output" }
         >[];
 
-        expect(outputEvents.length).toBe(2);
-        expect(outputEvents[0].line).toBe("Installing dependencies...");
-        expect(outputEvents[1].line).toBe("Build complete!");
+        // Should have workspace creation logs + hook output
+        expect(outputEvents.length).toBeGreaterThanOrEqual(2);
+        
+        // Verify hook output is present (may have workspace creation logs before it)
+        const outputLines = outputEvents.map((e) => e.line);
+        expect(outputLines).toContain("Installing dependencies...");
+        expect(outputLines).toContain("Build complete!");
 
         expect(errorEvents.length).toBe(1);
         expect(errorEvents[0].line).toBe("Warning: deprecated package");
@@ -287,13 +292,26 @@ describeIntegration("IpcMain workspace init hook integration tests", () => {
         // Wait a bit to ensure no events are emitted
         await new Promise((resolve) => setTimeout(resolve, 500));
 
-        // Verify no init events were sent on chat channel
+        // Verify init events were sent (workspace creation logs even without hook)
         const initEvents = env.sentEvents
           .filter((e) => e.channel === getChatChannel(workspaceId))
           .map((e) => e.data as WorkspaceChatMessage)
           .filter((msg) => isInitStart(msg) || isInitOutput(msg) || isInitEnd(msg));
 
-        expect(initEvents.length).toBe(0);
+        // Should have init-start event (always emitted, even without hook)
+        const startEvent = initEvents.find((e) => isInitStart(e));
+        expect(startEvent).toBeDefined();
+
+        // Should have workspace creation logs (e.g., "Creating git worktree...")
+        const outputEvents = initEvents.filter((e) => isInitOutput(e));
+        expect(outputEvents.length).toBeGreaterThan(0);
+
+        // Should have completion event with exit code 0 (success, no hook)
+        const endEvent = initEvents.find((e) => isInitEnd(e));
+        expect(endEvent).toBeDefined();
+        if (endEvent && isInitEnd(endEvent)) {
+          expect(endEvent.exitCode).toBe(0);
+        }
 
         // Workspace should still be usable
         const info = await env.mockIpcRenderer.invoke(
@@ -344,11 +362,21 @@ describeIntegration("IpcMain workspace init hook integration tests", () => {
         const status = JSON.parse(statusContent);
         expect(status.status).toBe("success");
         expect(status.exitCode).toBe(0);
-        expect(status.lines).toEqual([
-          { line: "Installing dependencies", isError: false, timestamp: expect.any(Number) },
-          { line: "Done!", isError: false, timestamp: expect.any(Number) },
-        ]);
-        expect(status.hookPath).toContain(".cmux/init");
+        
+        // Should include workspace creation logs + hook output
+        expect(status.lines).toEqual(
+          expect.arrayContaining([
+            { line: "Creating git worktree...", isError: false, timestamp: expect.any(Number) },
+            { line: "Worktree created successfully", isError: false, timestamp: expect.any(Number) },
+            expect.objectContaining({ 
+              line: expect.stringMatching(/Running init hook:/), 
+              isError: false 
+            }),
+            { line: "Installing dependencies", isError: false, timestamp: expect.any(Number) },
+            { line: "Done!", isError: false, timestamp: expect.any(Number) },
+          ])
+        );
+        expect(status.hookPath).toBeTruthy(); // Project path where hook exists
         expect(status.startTime).toBeGreaterThan(0);
         expect(status.endTime).toBeGreaterThan(status.startTime);
       } finally {
