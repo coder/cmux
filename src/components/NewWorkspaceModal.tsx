@@ -86,13 +86,11 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
     if (runtimeMode === "ssh") {
       const trimmedHost = sshHost.trim();
       if (trimmedHost.length === 0) {
-        setError("SSH host is required (e.g., user@host)");
+        setError("SSH host is required (e.g., hostname or user@host)");
         return;
       }
-      if (!trimmedHost.includes("@")) {
-        setError("SSH host must include user (e.g., user@host)");
-        return;
-      }
+      // Accept both "hostname" and "user@hostname" formats
+      // SSH will use current user or ~/.ssh/config if user not specified
     }
 
     setIsLoading(true);
@@ -226,7 +224,7 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
                 setSshHost(event.target.value);
                 setError(null);
               }}
-              placeholder="user@hostname"
+              placeholder="hostname or user@hostname"
               disabled={isLoading}
               required
               aria-required="true"

@@ -493,7 +493,7 @@ const forkCommandDefinition: SlashCommandDefinition = {
 const newCommandDefinition: SlashCommandDefinition = {
   key: "new",
   description:
-    "Create new workspace with optional trunk branch and runtime. Use -t <branch> to specify trunk, -r <runtime> for remote execution (e.g., 'ssh user@host'). Add start message on lines after the command.",
+    "Create new workspace with optional trunk branch and runtime. Use -t <branch> to specify trunk, -r <runtime> for remote execution (e.g., 'ssh hostname' or 'ssh user@host'). Add start message on lines after the command.",
   handler: ({ rawInput }): ParsedCommand => {
     const {
       tokens: firstLineTokens,

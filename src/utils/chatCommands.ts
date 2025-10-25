@@ -23,7 +23,7 @@ import { resolveCompactionModel } from "@/utils/messages/compactionModelPreferen
 /**
  * Parse runtime string from -r flag into RuntimeConfig
  * Supports formats:
- * - "ssh <user@host>" -> SSH runtime
+ * - "ssh <host>" or "ssh <user@host>" -> SSH runtime
  * - "local" -> Local runtime (explicit)
  * - undefined -> Local runtime (default)
  */
@@ -39,18 +39,15 @@ export function parseRuntimeString(runtime: string | undefined, workspaceName: s
     return undefined; // Explicit local - let backend use default
   }
 
-  // Parse "ssh <user@host>" format
+  // Parse "ssh <host>" or "ssh <user@host>" format
   if (lowerTrimmed === "ssh" || lowerTrimmed.startsWith("ssh ")) {
     const hostPart = trimmed.slice(3).trim(); // Preserve original case for host, skip "ssh"
     if (!hostPart) {
-      throw new Error("SSH runtime requires host (e.g., 'ssh user@host')");
+      throw new Error("SSH runtime requires host (e.g., 'ssh hostname' or 'ssh user@host')");
     }
 
-    // Basic host validation
-    if (!hostPart.includes("@")) {
-      throw new Error("SSH host must include user (e.g., 'user@host')");
-    }
-
+    // Accept both "hostname" and "user@hostname" formats
+    // SSH will use current user or ~/.ssh/config if user not specified
     return {
       type: "ssh",
       host: hostPart,
@@ -58,7 +55,7 @@ export function parseRuntimeString(runtime: string | undefined, workspaceName: s
     };
   }
 
-  throw new Error(`Unknown runtime type: '${runtime}'. Use 'ssh <user@host>' or 'local'`);
+  throw new Error(`Unknown runtime type: '${runtime}'. Use 'ssh <host>' or 'local'`);
 }
 
 export interface CreateWorkspaceOptions {
