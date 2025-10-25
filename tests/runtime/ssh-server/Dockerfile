@@ -1,7 +1,8 @@
 FROM alpine:latest
 
-# Install OpenSSH server and git
-RUN apk add --no-cache openssh-server git
+# Install OpenSSH server, git, and bash
+# bash is required for remote command execution (cmux forces bash to avoid shell compatibility issues)
+RUN apk add --no-cache openssh-server git bash
 
 # Create test user
 RUN adduser -D -s /bin/sh testuser && \

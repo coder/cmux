@@ -63,7 +63,11 @@ export class SSHRuntime implements Runtime {
     }
 
     // Build full command with cwd and env
-    const remoteCommand = `cd ${JSON.stringify(options.cwd)} && ${envPrefix}${command}`;
+    const fullCommand = `cd ${JSON.stringify(options.cwd)} && ${envPrefix}${command}`;
+
+    // Wrap command in bash to ensure bash execution regardless of user's default shell
+    // This prevents issues with fish, zsh, or other non-bash shells
+    const remoteCommand = `bash -c ${JSON.stringify(fullCommand)}`;
 
     // Build SSH args
     const sshArgs: string[] = ["-T"];
@@ -353,13 +357,15 @@ export class SSHRuntime implements Runtime {
         args.splice(2, 0, "-e", sshCommand);
       }
 
-      log.debug(`Starting rsync: rsync ${args.join(" ")}`);
+      const fullCommand = `rsync ${args.join(" ")}`;
+      log.debug(`Starting rsync: ${fullCommand}`);
       const rsyncProc = spawn("rsync", args);
 
       // Use helper to stream output and prevent buffer overflow
       streamProcessToLogger(rsyncProc, initLogger, {
         logStdout: false, // Rsync stdout is noisy, drain silently
         logStderr: true, // Errors go to init stream
+        command: fullCommand, // Log the full command
       });
 
       let stderr = "";
@@ -401,7 +407,8 @@ export class SSHRuntime implements Runtime {
 
       // Use bash to tar and pipe over ssh
       // This is more reliable than scp for directory contents
-      const command = `cd ${JSON.stringify(projectPath)} && tar -cf - . | ssh ${sshArgs.join(" ")} "cd ${remoteWorkdir} && tar -xf -"`;
+      // Wrap remote commands in bash to avoid issues with non-bash shells (fish, zsh, etc)
+      const command = `cd ${JSON.stringify(projectPath)} && tar -cf - . | ssh ${sshArgs.join(" ")} "bash -c 'cd ${remoteWorkdir} && tar -xf -'"`;
 
       log.debug(`Starting tar+ssh: ${command}`);
       const proc = spawn("bash", ["-c", command]);
@@ -410,6 +417,7 @@ export class SSHRuntime implements Runtime {
       streamProcessToLogger(proc, initLogger, {
         logStdout: false, // tar stdout is binary, drain silently
         logStderr: true, // Errors go to init stream
+        command: `tar+ssh: ${command}`, // Log the full command
       });
 
       let stderr = "";

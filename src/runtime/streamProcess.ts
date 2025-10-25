@@ -25,9 +25,16 @@ export function streamProcessToLogger(
     logStdout?: boolean;
     /** If true, log stderr via logStderr. If false, drain silently. Default: true */
     logStderr?: boolean;
+    /** Optional: Command string to log before streaming starts */
+    command?: string;
   }
 ): void {
-  const { logStdout = false, logStderr = true } = options ?? {};
+  const { logStdout = false, logStderr = true, command } = options ?? {};
+
+  // Log the command being executed (if provided)
+  if (command) {
+    initLogger.logStep(`Executing: ${command}`);
+  }
 
   // Drain stdout (prevent pipe overflow)
   if (process.stdout) {
