@@ -66,7 +66,20 @@ export class SSHRuntime implements Runtime {
 
     // Add cd command if cwd is specified
     const cwd = options.cwd ?? this.config.workdir;
-    parts.push(`cd ${shescape.quote(cwd)}`);
+    // Handle tilde paths specially - shescape.quote() would quote the tilde,
+    // preventing bash from expanding it. For ~/path, we expand to $HOME/path
+    if (cwd.startsWith("~/")) {
+      const pathAfterTilde = cwd.slice(2);
+      // Escape special chars for use inside double quotes
+      const escaped = pathAfterTilde
+        .replace(/\\/g, "\\\\")
+        .replace(/"/g, '\\"')
+        .replace(/\$/g, "\\$")
+        .replace(/`/g, "\\`");
+      parts.push(`cd "$HOME/${escaped}"`);
+    } else {
+      parts.push(`cd ${shescape.quote(cwd)}`);
+    }
 
     // Add environment variable exports
     if (options.env) {
