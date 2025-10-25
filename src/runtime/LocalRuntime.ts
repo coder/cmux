@@ -36,6 +36,19 @@ export class LocalRuntime implements Runtime {
   exec(command: string, options: ExecOptions): ExecStream {
     const startTime = performance.now();
 
+    // Determine working directory
+    const cwd = options.cwd ?? this.workdir;
+
+    // Verify working directory exists before spawning
+    // If it doesn't exist, spawn will fail with ENOENT which is confusing
+    if (!fs.existsSync(cwd)) {
+      throw new RuntimeErrorClass(
+        `Working directory does not exist: ${cwd}`,
+        "exec",
+        new Error(`ENOENT: no such file or directory, stat '${cwd}'`)
+      );
+    }
+
     // Find bash path (important for CI environments where PATH may not be set)
     const bashPath = findBashPath();
     const nicePath = findNicePath();
@@ -48,7 +61,7 @@ export class LocalRuntime implements Runtime {
         : ["-c", command];
 
     const childProcess = spawn(spawnCommand, spawnArgs, {
-      cwd: options.cwd ?? this.workdir,
+      cwd,
       env: {
         ...process.env,
         ...(options.env ?? {}),
