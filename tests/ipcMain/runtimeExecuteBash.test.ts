@@ -134,10 +134,9 @@ describeIntegration("Runtime Bash Execution", () => {
               expect(responseText.toLowerCase()).toContain("hello world");
 
               // Verify bash tool was called
-              const toolCalls = events.filter(
-                (e: any) => e.type === "tool-call-delta" && e.toolName
-              );
-              const bashCall = toolCalls.find((e: any) => e.toolName === "bash");
+              // Tool calls now emit tool-call-start and tool-call-end events (not tool-call-delta)
+              const toolCallStarts = events.filter((e: any) => e.type === "tool-call-start");
+              const bashCall = toolCallStarts.find((e: any) => e.toolName === "bash");
               expect(bashCall).toBeDefined();
             } finally {
               await cleanup();
@@ -192,10 +191,9 @@ describeIntegration("Runtime Bash Execution", () => {
               expect(responseText).toContain("test123");
 
               // Verify bash tool was called
-              const toolCalls = events.filter(
-                (e: any) => e.type === "tool-call-delta" && e.toolName
-              );
-              const bashCall = toolCalls.find((e: any) => e.toolName === "bash");
+              // Tool calls now emit tool-call-start and tool-call-end events (not tool-call-delta)
+              const toolCallStarts = events.filter((e: any) => e.type === "tool-call-start");
+              const bashCall = toolCallStarts.find((e: any) => e.toolName === "bash");
               expect(bashCall).toBeDefined();
             } finally {
               await cleanup();
@@ -251,10 +249,9 @@ describeIntegration("Runtime Bash Execution", () => {
               expect(responseText).toContain("quotes");
 
               // Verify bash tool was called
-              const toolCalls = events.filter(
-                (e: any) => e.type === "tool-call-delta" && e.toolName
-              );
-              const bashCall = toolCalls.find((e: any) => e.toolName === "bash");
+              // Tool calls now emit tool-call-start and tool-call-end events (not tool-call-delta)
+              const toolCallStarts = events.filter((e: any) => e.type === "tool-call-start");
+              const bashCall = toolCallStarts.find((e: any) => e.toolName === "bash");
               expect(bashCall).toBeDefined();
             } finally {
               await cleanup();
