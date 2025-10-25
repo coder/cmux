@@ -27,14 +27,17 @@ import { resolveCompactionModel } from "@/utils/messages/compactionModelPreferen
  * - "local" -> Local runtime (explicit)
  * - undefined -> Local runtime (default)
  */
-export function parseRuntimeString(runtime: string | undefined, workspaceName: string): RuntimeConfig | undefined {
+export function parseRuntimeString(
+  runtime: string | undefined,
+  workspaceName: string
+): RuntimeConfig | undefined {
   if (!runtime) {
     return undefined; // Default to local (backend decides)
   }
 
   const trimmed = runtime.trim();
   const lowerTrimmed = trimmed.toLowerCase();
-  
+
   if (lowerTrimmed === "local") {
     return undefined; // Explicit local - let backend use default
   }

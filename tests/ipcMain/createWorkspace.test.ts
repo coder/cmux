@@ -473,9 +473,7 @@ exit 1
                 expect(outputLines.some((line) => line.includes("Syncing project files"))).toBe(
                   true
                 );
-                expect(outputLines.some((line) => line.includes("Checking out branch"))).toBe(
-                  true
-                );
+                expect(outputLines.some((line) => line.includes("Checking out branch"))).toBe(true);
 
                 // Verify init-end event was emitted
                 const endEvents = filterEventsByType(initEvents, EVENT_TYPE_INIT_END);
@@ -546,9 +544,12 @@ exit 1
 
               try {
                 // Add init hook to repo
-                await createInitHook(tempGitRepo, `#!/bin/bash
+                await createInitHook(
+                  tempGitRepo,
+                  `#!/bin/bash
 echo "Init hook executed with tilde path"
-`);
+`
+                );
                 await commitChanges(tempGitRepo, "Add init hook for tilde test");
 
                 const branchName = generateBranchName("tilde-init-test");
@@ -576,7 +577,9 @@ echo "Init hook executed with tilde path"
 
                 expect(result.success).toBe(true);
                 if (!result.success) {
-                  throw new Error(`Failed to create workspace with tilde path + init hook: ${result.error}`);
+                  throw new Error(
+                    `Failed to create workspace with tilde path + init hook: ${result.error}`
+                  );
                 }
 
                 // Wait for init to complete (including hook)
@@ -635,7 +638,7 @@ echo "Init hook executed with tilde path"
                   workspaceId,
                   "pwd"
                 );
-                
+
                 expect(execResult.success).toBe(true);
                 if (!execResult.success) {
                   throw new Error(`Failed to exec in workspace: ${execResult.error}`);
@@ -654,9 +657,7 @@ echo "Init hook executed with tilde path"
             },
             TEST_TIMEOUT_MS
           );
-
         }
-
       });
 
       describe("Validation", () => {

@@ -428,8 +428,6 @@ function AppInner() {
     [handleAddWorkspace]
   );
 
-
-
   const getBranchesForProject = useCallback(
     async (projectPath: string): Promise<BranchListResult> => {
       const branchResult = await window.api.projects.listBranches(projectPath);

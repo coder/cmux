@@ -41,12 +41,8 @@ describe("parseRuntimeString", () => {
   });
 
   test("throws error for SSH without host", () => {
-    expect(() => parseRuntimeString("ssh", workspaceName)).toThrow(
-      "SSH runtime requires host"
-    );
-    expect(() => parseRuntimeString("ssh ", workspaceName)).toThrow(
-      "SSH runtime requires host"
-    );
+    expect(() => parseRuntimeString("ssh", workspaceName)).toThrow("SSH runtime requires host");
+    expect(() => parseRuntimeString("ssh ", workspaceName)).toThrow("SSH runtime requires host");
   });
 
   test("accepts SSH with hostname only (user will be inferred)", () => {

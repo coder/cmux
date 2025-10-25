@@ -48,7 +48,6 @@ export class SSHRuntime implements Runtime {
     this.config = config;
   }
 
-
   /**
    * Expand tilde in path for use in remote commands
    * Bash doesn't expand ~ when it's inside quotes, so we need to do it manually
@@ -313,20 +312,18 @@ export class SSHRuntime implements Runtime {
     return args;
   }
 
-
-
   /**
    * Sync project to remote using git bundle
-   * 
+   *
    * Uses `git bundle` to create a packfile and clones it on the remote.
-   * 
+   *
    * Benefits over git archive:
    * - Creates a real git repository on remote (can run git commands)
    * - Better parity with git worktrees (full .git directory with metadata)
    * - Enables remote git operations (commit, branch, status, diff, etc.)
    * - Only tracked files in checkout (no node_modules, build artifacts)
    * - Includes full history for flexibility
-   * 
+   *
    * Benefits over rsync/scp:
    * - Much faster (only tracked files)
    * - No external dependencies (git is always available)
@@ -373,10 +370,13 @@ export class SSHRuntime implements Runtime {
       // Step 2: Clone from bundle on remote using this.exec (handles tilde expansion)
       initLogger.logStep(`Cloning repository on remote...`);
       const expandedWorkdir = this.expandTilde(this.config.workdir);
-      const cloneStream = this.exec(`git clone --quiet ${bundleTempPath} ${JSON.stringify(expandedWorkdir)}`, {
-        cwd: "~",
-        timeout: 300, // 5 minutes for clone
-      });
+      const cloneStream = this.exec(
+        `git clone --quiet ${bundleTempPath} ${JSON.stringify(expandedWorkdir)}`,
+        {
+          cwd: "~",
+          timeout: 300, // 5 minutes for clone
+        }
+      );
 
       const [cloneStdout, cloneStderr, cloneExitCode] = await Promise.all([
         streamToString(cloneStream.stdout),
@@ -416,7 +416,6 @@ export class SSHRuntime implements Runtime {
       throw error;
     }
   }
-
 
   /**
    * Run .cmux/init hook on remote machine if it exists

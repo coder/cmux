@@ -118,7 +118,7 @@ export class LocalRuntime implements Runtime {
       childProcess.on("exit", (code) => {
         processExited = true;
         exitedCode = code;
-        
+
         // Clean up any background processes (process group cleanup)
         // This prevents zombie processes when scripts spawn background tasks
         if (childProcess.pid !== undefined) {
@@ -130,7 +130,7 @@ export class LocalRuntime implements Runtime {
             // Process group already dead or doesn't exist - ignore
           }
         }
-        
+
         // Try to resolve immediately if streams have already closed
         tryResolve();
 

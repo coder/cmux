@@ -99,7 +99,6 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
         }
       }
 
-
       // Execute using runtime interface (works for both local and SSH)
       // The runtime handles bash wrapping and niceness internally
       // Don't pass cwd - let runtime use its workdir (correct path for local or remote)
@@ -168,56 +167,58 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
 
         // IMPORTANT: Attach exit handler IMMEDIATELY to prevent unhandled rejection
         // Handle both normal exits and special error codes (EXIT_CODE_ABORTED, EXIT_CODE_TIMEOUT)
-        execStream.exitCode.then((code) => {
-          exitCode = code;
-          
-          // Check for special error codes from runtime
-          if (code === EXIT_CODE_ABORTED) {
-            // Aborted via AbortSignal
-            teardown();
-            resolveOnce({
-              success: false,
-              error: "Command execution was aborted",
-              exitCode: -1,
-              wall_duration_ms: Math.round(performance.now() - startTime),
-            });
-            return;
-          }
-          
-          if (code === EXIT_CODE_TIMEOUT) {
-            // Exceeded timeout
-            teardown();
-            resolveOnce({
-              success: false,
-              error: `Command exceeded timeout of ${effectiveTimeout} seconds`,
-              exitCode: -1,
-              wall_duration_ms: Math.round(performance.now() - startTime),
-            });
-            return;
-          }
-          
-          // Normal exit - try to finalize if streams have already closed
-          tryFinalize();
-          // Set a grace period - if streams don't close within 50ms, force finalize
-          setTimeout(() => {
-            if (!resolved && exitCode !== null) {
-              stdoutNodeStream.destroy();
-              stderrNodeStream.destroy();
-              stdoutEnded = true;
-              stderrEnded = true;
-              tryFinalize();
+        execStream.exitCode
+          .then((code) => {
+            exitCode = code;
+
+            // Check for special error codes from runtime
+            if (code === EXIT_CODE_ABORTED) {
+              // Aborted via AbortSignal
+              teardown();
+              resolveOnce({
+                success: false,
+                error: "Command execution was aborted",
+                exitCode: -1,
+                wall_duration_ms: Math.round(performance.now() - startTime),
+              });
+              return;
             }
-          }, 50);
-        }).catch((err) => {
-          // Only actual errors (like spawn failure) should reach here now
-          teardown();
-          resolveOnce({
-            success: false,
-            error: `Failed to execute command: ${err.message}`,
-            exitCode: -1,
-            wall_duration_ms: Math.round(performance.now() - startTime),
+
+            if (code === EXIT_CODE_TIMEOUT) {
+              // Exceeded timeout
+              teardown();
+              resolveOnce({
+                success: false,
+                error: `Command exceeded timeout of ${effectiveTimeout} seconds`,
+                exitCode: -1,
+                wall_duration_ms: Math.round(performance.now() - startTime),
+              });
+              return;
+            }
+
+            // Normal exit - try to finalize if streams have already closed
+            tryFinalize();
+            // Set a grace period - if streams don't close within 50ms, force finalize
+            setTimeout(() => {
+              if (!resolved && exitCode !== null) {
+                stdoutNodeStream.destroy();
+                stderrNodeStream.destroy();
+                stdoutEnded = true;
+                stderrEnded = true;
+                tryFinalize();
+              }
+            }, 50);
+          })
+          .catch((err) => {
+            // Only actual errors (like spawn failure) should reach here now
+            teardown();
+            resolveOnce({
+              success: false,
+              error: `Failed to execute command: ${err.message}`,
+              exitCode: -1,
+              wall_duration_ms: Math.round(performance.now() - startTime),
+            });
           });
-        });
 
         // Helper to trigger display truncation (stop showing to agent, keep collecting)
         const triggerDisplayTruncation = (reason: string) => {
@@ -411,7 +412,7 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
                   const fileId = Math.random().toString(16).substring(2, 10);
                   const overflowPath = path.join(config.tempDir, `bash-${fileId}.txt`);
                   const fullOutput = lines.join("\n");
-                  
+
                   // Use runtime.writeFile() for SSH support
                   const writer = config.runtime.writeFile(overflowPath);
                   const encoder = new TextEncoder();
@@ -477,7 +478,6 @@ File will be automatically cleaned up when stream ends.`;
             });
           }
         };
-
       });
     },
   });

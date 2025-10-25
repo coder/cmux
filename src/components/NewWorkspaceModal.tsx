@@ -99,7 +99,7 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
     try {
       // Build runtime string if SSH selected
       const runtime = runtimeMode === "ssh" ? `ssh ${sshHost.trim()}` : undefined;
-      
+
       await onAdd(trimmedBranchName, normalizedTrunkBranch, runtime);
       setBranchName("");
       setTrunkBranch(defaultTrunkBranch ?? branches[0] ?? "");
