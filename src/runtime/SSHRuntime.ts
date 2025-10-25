@@ -78,7 +78,7 @@ export class SSHRuntime implements Runtime {
     }
 
     // Expand ~/path to $HOME/path before quoting (~ doesn't expand in quotes)
-    const cwd = this.expandTilde(options.cwd);
+    const cwd = this.expandTilde(options.cwd ?? this.config.workdir);
 
     // Build full command with cwd and env
     const fullCommand = `cd ${JSON.stringify(cwd)} && ${envPrefix}${command}`;

@@ -14,7 +14,7 @@ import type { Runtime } from "@/runtime/Runtime";
  * Configuration for tools that need runtime context
  */
 export interface ToolConfiguration {
-  /** Working directory for command execution (required) */
+  /** Working directory for command execution - actual path in runtime's context (local or remote) */
   cwd: string;
   /** Runtime environment for executing commands and file operations */
   runtime: Runtime;

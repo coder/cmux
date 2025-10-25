@@ -1,7 +1,6 @@
 import { tool } from "ai";
 import { createInterface } from "readline";
 import * as path from "path";
-import * as fs from "fs";
 import { Readable } from "stream";
 import {
   BASH_DEFAULT_TIMEOUT_SECS,
@@ -78,12 +77,15 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
       let fileTruncated = false; // Hit 100KB file limit
 
       // Detect redundant cd to working directory
+      // Note: config.cwd is the actual execution path (local for LocalRuntime, remote for SSHRuntime)
       // Match patterns like: "cd /path &&", "cd /path;", "cd '/path' &&", "cd \"/path\" &&"
-      const cdPattern = /^\s*cd\s+['"]?([^'";&|]+)['"]?\s*[;&|]/;
+      const cdPattern = /^\s*cd\s+['\"]?([^'\";&|]+)['\"]?\s*[;&|]/;
       const match = cdPattern.exec(script);
       if (match) {
         const targetPath = match[1].trim();
-        // Normalize paths for comparison (resolve to absolute)
+        // For SSH runtime, config.cwd might use $HOME - need to handle this
+        // Normalize paths for comparison (resolve to absolute where possible)
+        // Note: This check is best-effort - it won't catch all cases on SSH (e.g., ~/path vs $HOME/path)
         const normalizedTarget = path.resolve(config.cwd, targetPath);
         const normalizedCwd = path.resolve(config.cwd);
 
@@ -97,10 +99,11 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
         }
       }
 
+
       // Execute using runtime interface (works for both local and SSH)
       // The runtime handles bash wrapping and niceness internally
+      // Don't pass cwd - let runtime use its workdir (correct path for local or remote)
       const execStream = config.runtime.exec(script, {
-        cwd: config.cwd,
         env: config.secrets,
         timeout: effectiveTimeout,
         niceness: config.niceness,
@@ -402,14 +405,21 @@ export const createBashTool: ToolFactory = (config: ToolConfiguration) => {
               // tmpfile policy: Save overflow output to temp file instead of returning an error
               // We don't show ANY of the actual output to avoid overwhelming context.
               // Instead, save it to a temp file and encourage the agent to use filtering tools.
-              try {
-                // Use 8 hex characters for short, memorable temp file IDs
-                const fileId = Math.random().toString(16).substring(2, 10);
-                const overflowPath = path.join(config.tempDir, `bash-${fileId}.txt`);
-                const fullOutput = lines.join("\n");
-                fs.writeFileSync(overflowPath, fullOutput, "utf-8");
+              (async () => {
+                try {
+                  // Use 8 hex characters for short, memorable temp file IDs
+                  const fileId = Math.random().toString(16).substring(2, 10);
+                  const overflowPath = path.join(config.tempDir, `bash-${fileId}.txt`);
+                  const fullOutput = lines.join("\n");
+                  
+                  // Use runtime.writeFile() for SSH support
+                  const writer = config.runtime.writeFile(overflowPath);
+                  const encoder = new TextEncoder();
+                  const writerInstance = writer.getWriter();
+                  await writerInstance.write(encoder.encode(fullOutput));
+                  await writerInstance.close();
 
-                const output = `[OUTPUT OVERFLOW - ${overflowReason ?? "unknown reason"}]
+                  const output = `[OUTPUT OVERFLOW - ${overflowReason ?? "unknown reason"}]
 
 Full output (${lines.length} lines) saved to ${overflowPath}
 
@@ -417,22 +427,39 @@ Use selective filtering tools (e.g. grep) to extract relevant information and co
 
 File will be automatically cleaned up when stream ends.`;
 
-                resolveOnce({
-                  success: false,
-                  error: output,
-                  exitCode: -1,
-                  wall_duration_ms,
-                });
-              } catch (err) {
-                // If temp file creation fails, fall back to original error
-                resolveOnce({
-                  success: false,
-                  error: `Command output overflow: ${overflowReason ?? "unknown reason"}. Failed to save overflow to temp file: ${String(err)}`,
-                  exitCode: -1,
-                  wall_duration_ms,
-                });
-              }
+                  resolveOnce({
+                    success: false,
+                    error: output,
+                    exitCode: -1,
+                    wall_duration_ms,
+                  });
+                } catch (err) {
+                  // If temp file creation fails, fall back to original error
+                  resolveOnce({
+                    success: false,
+                    error: `Command output overflow: ${overflowReason ?? "unknown reason"}. Failed to save overflow to temp file: ${String(err)}`,
+                    exitCode: -1,
+                    wall_duration_ms,
+                  });
+                }
+              })();
             }
+          } else if (exitCode === EXIT_CODE_TIMEOUT) {
+            // Timeout - special exit code from runtime
+            resolveOnce({
+              success: false,
+              error: `Command exceeded timeout of ${effectiveTimeout} seconds`,
+              exitCode: -1,
+              wall_duration_ms,
+            });
+          } else if (exitCode === EXIT_CODE_ABORTED) {
+            // Aborted - special exit code from runtime
+            resolveOnce({
+              success: false,
+              error: "Command execution was aborted",
+              exitCode: -1,
+              wall_duration_ms,
+            });
           } else if (exitCode === 0 || exitCode === null) {
             resolveOnce({
               success: true,

@@ -13,8 +13,8 @@
  * Options for executing a command
  */
 export interface ExecOptions {
-  /** Working directory for command execution */
-  cwd: string;
+  /** Working directory for command execution (defaults to runtime's workdir) */
+  cwd?: string;
   /** Environment variables to inject */
   env?: Record<string, string>;
   /**
