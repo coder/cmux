@@ -390,18 +390,15 @@ export class SSHRuntime implements Runtime {
 
       // Step 2: Clone from bundle on remote using this.exec
       initLogger.logStep(`Cloning repository on remote...`);
-      
+
       // Expand tilde in destination path for git clone
       // git doesn't expand tilde when it's quoted, so we need to expand it ourselves
       const cloneDestPath = expandTildeForSSH(this.config.workdir);
-      
-      const cloneStream = this.exec(
-        `git clone --quiet ${bundleTempPath} ${cloneDestPath}`,
-        {
-          cwd: "~",
-          timeout: 300, // 5 minutes for clone
-        }
-      );
+
+      const cloneStream = this.exec(`git clone --quiet ${bundleTempPath} ${cloneDestPath}`, {
+        cwd: "~",
+        timeout: 300, // 5 minutes for clone
+      });
 
       const [cloneStdout, cloneStderr, cloneExitCode] = await Promise.all([
         streamToString(cloneStream.stdout),

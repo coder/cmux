@@ -1,6 +1,6 @@
 /**
  * Utilities for handling tilde path expansion in SSH commands
- * 
+ *
  * When running commands over SSH, tilde paths need special handling:
  * - Quoted tildes won't expand: `cd '~'` fails, but `cd "$HOME"` works
  * - Must escape special shell characters when using $HOME expansion
@@ -8,18 +8,18 @@
 
 /**
  * Expand tilde path to $HOME-based path for use in SSH commands.
- * 
+ *
  * Converts:
  * - "~" → "$HOME"
  * - "~/path" → "$HOME/path"
  * - "/abs/path" → quoted absolute path (no expansion)
- * 
+ *
  * The result is safe to use in bash commands and will properly expand at runtime.
  * Special characters in paths are escaped for use inside double quotes.
- * 
+ *
  * @param path - Path that may contain tilde prefix
  * @returns Bash-safe string ready to use in commands
- * 
+ *
  * @example
  * expandTildeForSSH("~")           // => "$HOME"
  * expandTildeForSSH("~/workspace") // => "$HOME/workspace"
@@ -46,10 +46,10 @@ export function expandTildeForSSH(path: string): string {
 
 /**
  * Generate a cd command for use in SSH exec, handling tilde paths correctly.
- * 
+ *
  * @param path - Working directory path (may contain tilde)
  * @returns Bash command string like `cd "$HOME/path"`
- * 
+ *
  * @example
  * cdCommandForSSH("~")           // => 'cd "$HOME"'
  * cdCommandForSSH("~/workspace") // => 'cd "$HOME/workspace"'
@@ -58,4 +58,3 @@ export function expandTildeForSSH(path: string): string {
 export function cdCommandForSSH(path: string): string {
   return `cd ${expandTildeForSSH(path)}`;
 }
-
