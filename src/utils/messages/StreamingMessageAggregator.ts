@@ -60,6 +60,11 @@ export class StreamingMessageAggregator {
     timestamp: number;
   } | null = null;
 
+  // Track when we're waiting for stream-start after user message
+  // Prevents retry barrier flash during normal send flow
+  // Stores timestamp of when user message was sent (null = no pending stream)
+  private pendingStreamStartTime: number | null = null;
+
   // Workspace creation timestamp (used for recency calculation)
   // REQUIRED: Backend guarantees every workspace has createdAt via config.ts
   private readonly createdAt: string;
@@ -181,6 +186,14 @@ export class StreamingMessageAggregator {
     return this.messages.size > 0;
   }
 
+  getPendingStreamStartTime(): number | null {
+    return this.pendingStreamStartTime;
+  }
+
+  private setPendingStreamStartTime(time: number | null): void {
+    this.pendingStreamStartTime = time;
+  }
+
   getActiveStreams(): StreamingContext[] {
     return Array.from(this.activeStreams.values());
   }
@@ -251,6 +264,9 @@ export class StreamingMessageAggregator {
 
   // Unified event handlers that encapsulate all complex logic
   handleStreamStart(data: StreamStartEvent): void {
+    // Clear pending stream start timestamp - stream has started
+    this.setPendingStreamStartTime(null);
+
     // Detect if this stream is compacting by checking if last user message is a compaction-request
     const messages = this.getAllMessages();
     const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
@@ -571,6 +587,11 @@ export class StreamingMessageAggregator {
 
       // Now add the new message
       this.addMessage(incomingMessage);
+
+      // If this is a user message, record timestamp for pending stream detection
+      if (incomingMessage.role === "user") {
+        this.setPendingStreamStartTime(Date.now());
+      }
     }
   }
 
