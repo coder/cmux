@@ -23,7 +23,13 @@ export type ParsedCommand =
   | { type: "telemetry-help" }
   | { type: "fork"; newName: string; startMessage?: string }
   | { type: "fork-help" }
-  | { type: "new"; workspaceName?: string; trunkBranch?: string; startMessage?: string }
+  | {
+      type: "new";
+      workspaceName?: string;
+      trunkBranch?: string;
+      runtime?: string;
+      startMessage?: string;
+    }
   | { type: "unknown-command"; command: string; subcommand?: string }
   | null;
 

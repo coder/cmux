@@ -493,7 +493,7 @@ const forkCommandDefinition: SlashCommandDefinition = {
 const newCommandDefinition: SlashCommandDefinition = {
   key: "new",
   description:
-    "Create new workspace with optional trunk branch. Use -t <branch> to specify trunk. Add start message on lines after the command.",
+    "Create new workspace with optional trunk branch and runtime. Use -t <branch> to specify trunk, -r <runtime> for remote execution (e.g., 'ssh hostname' or 'ssh user@host'). Add start message on lines after the command.",
   handler: ({ rawInput }): ParsedCommand => {
     const {
       tokens: firstLineTokens,
@@ -503,7 +503,7 @@ const newCommandDefinition: SlashCommandDefinition = {
 
     // Parse flags from first line using minimist
     const parsed = minimist(firstLineTokens, {
-      string: ["t"],
+      string: ["t", "r"],
       unknown: (arg: string) => {
         // Unknown flags starting with - are errors
         if (arg.startsWith("-")) {
@@ -514,12 +514,15 @@ const newCommandDefinition: SlashCommandDefinition = {
     });
 
     // Check for unknown flags - return undefined workspaceName to open modal
-    const unknownFlags = firstLineTokens.filter((token) => token.startsWith("-") && token !== "-t");
+    const unknownFlags = firstLineTokens.filter(
+      (token) => token.startsWith("-") && token !== "-t" && token !== "-r"
+    );
     if (unknownFlags.length > 0) {
       return {
         type: "new",
         workspaceName: undefined,
         trunkBranch: undefined,
+        runtime: undefined,
         startMessage: undefined,
       };
     }
@@ -530,6 +533,7 @@ const newCommandDefinition: SlashCommandDefinition = {
         type: "new",
         workspaceName: undefined,
         trunkBranch: undefined,
+        runtime: undefined,
         startMessage: undefined,
       };
     }
@@ -543,6 +547,7 @@ const newCommandDefinition: SlashCommandDefinition = {
         type: "new",
         workspaceName: undefined,
         trunkBranch: undefined,
+        runtime: undefined,
         startMessage: undefined,
       };
     }
@@ -553,10 +558,17 @@ const newCommandDefinition: SlashCommandDefinition = {
       trunkBranch = parsed.t.trim();
     }
 
+    // Get runtime from -r flag
+    let runtime: string | undefined;
+    if (parsed.r !== undefined && typeof parsed.r === "string" && parsed.r.trim().length > 0) {
+      runtime = parsed.r.trim();
+    }
+
     return {
       type: "new",
       workspaceName,
       trunkBranch,
+      runtime,
       startMessage: remainingLines,
     };
   },

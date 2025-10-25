@@ -66,7 +66,8 @@ export async function createWorkspace(
   mockIpcRenderer: IpcRenderer,
   projectPath: string,
   branchName: string,
-  trunkBranch?: string
+  trunkBranch?: string,
+  runtimeConfig?: import("../../src/types/runtime").RuntimeConfig
 ): Promise<
   { success: true; metadata: WorkspaceMetadataWithPaths } | { success: false; error: string }
 > {
@@ -79,7 +80,8 @@ export async function createWorkspace(
     IPC_CHANNELS.WORKSPACE_CREATE,
     projectPath,
     branchName,
-    resolvedTrunk
+    resolvedTrunk,
+    runtimeConfig
   )) as { success: true; metadata: WorkspaceMetadataWithPaths } | { success: false; error: string };
 }
 

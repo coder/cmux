@@ -8,6 +8,7 @@ import type { ToolPolicy } from "@/utils/tools/toolPolicy";
 import type { BashToolResult } from "./tools";
 import type { Secret } from "./secrets";
 import type { CmuxProviderOptions } from "./providerOptions";
+import type { RuntimeConfig } from "./runtime";
 import type {
   StreamStartEvent,
   StreamDeltaEvent,
@@ -225,7 +226,8 @@ export interface IPCApi {
     create(
       projectPath: string,
       branchName: string,
-      trunkBranch: string
+      trunkBranch: string,
+      runtimeConfig?: RuntimeConfig
     ): Promise<
       { success: true; metadata: FrontendWorkspaceMetadata } | { success: false; error: string }
     >;

@@ -1,0 +1,25 @@
+# SSH daemon configuration for testing
+
+# Listen on all interfaces
+ListenAddress 0.0.0.0
+
+# Disable password authentication - key-based only
+PasswordAuthentication no
+PubkeyAuthentication yes
+ChallengeResponseAuthentication no
+
+# Allow testuser only
+AllowUsers testuser
+
+# Disable strict modes for test simplicity
+StrictModes no
+
+# Logging
+LogLevel INFO
+
+# Disable DNS lookups for faster connection
+UseDNS no
+
+# Subsystems
+Subsystem sftp /usr/lib/openssh/sftp-server
+

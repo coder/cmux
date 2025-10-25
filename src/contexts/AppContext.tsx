@@ -3,6 +3,7 @@ import { createContext, useContext } from "react";
 import type { ProjectConfig } from "@/config";
 import type { FrontendWorkspaceMetadata } from "@/types/workspace";
 import type { WorkspaceSelection } from "@/components/ProjectSidebar";
+import type { RuntimeConfig } from "@/types/runtime";
 
 /**
  * App-level state and operations shared across the component tree.
@@ -21,7 +22,8 @@ interface AppContextType {
   createWorkspace: (
     projectPath: string,
     branchName: string,
-    trunkBranch: string
+    trunkBranch: string,
+    runtimeConfig?: RuntimeConfig
   ) => Promise<{
     projectPath: string;
     projectName: string;

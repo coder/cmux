@@ -31,7 +31,8 @@ import { secretsToRecord } from "@/types/secrets";
 import { DisposableTempDir } from "@/services/tempDir";
 import { BashExecutionService } from "@/services/bashExecutionService";
 import { InitStateManager } from "@/services/initStateManager";
-
+import { createRuntime } from "@/runtime/runtimeFactory";
+import type { RuntimeConfig } from "@/types/runtime";
 /**
  * IpcMain - Manages all IPC handlers and service coordination
  *
@@ -256,7 +257,13 @@ export class IpcMain {
   private registerWorkspaceHandlers(ipcMain: ElectronIpcMain): void {
     ipcMain.handle(
       IPC_CHANNELS.WORKSPACE_CREATE,
-      async (_event, projectPath: string, branchName: string, trunkBranch: string) => {
+      async (
+        _event,
+        projectPath: string,
+        branchName: string,
+        trunkBranch: string,
+        runtimeConfig?: RuntimeConfig
+      ) => {
         // Validate workspace name
         const validation = validateWorkspaceName(branchName);
         if (!validation.valid) {
@@ -272,75 +279,117 @@ export class IpcMain {
         // Generate stable workspace ID (stored in config, not used for directory name)
         const workspaceId = this.config.generateStableId();
 
-        // Create the git worktree with the workspace name as directory name
-        const result = await createWorktree(this.config, projectPath, branchName, {
+        // Create runtime for workspace creation (defaults to local)
+        const workspacePath = this.config.getWorkspacePath(projectPath, branchName);
+        const finalRuntimeConfig: RuntimeConfig = runtimeConfig ?? {
+          type: "local",
+          workdir: workspacePath,
+        };
+        const runtime = createRuntime(finalRuntimeConfig);
+
+        // Create session BEFORE starting init so events can be forwarded
+        const session = this.getOrCreateSession(workspaceId);
+
+        // Start init tracking (creates in-memory state + emits init-start event)
+        // This MUST complete before workspace creation returns so replayInit() finds state
+        this.initStateManager.startInit(workspaceId, projectPath);
+
+        // Create InitLogger that bridges to InitStateManager
+        const initLogger = {
+          logStep: (message: string) => {
+            this.initStateManager.appendOutput(workspaceId, message, false);
+          },
+          logStdout: (line: string) => {
+            this.initStateManager.appendOutput(workspaceId, line, false);
+          },
+          logStderr: (line: string) => {
+            this.initStateManager.appendOutput(workspaceId, line, true);
+          },
+          logComplete: (exitCode: number) => {
+            void this.initStateManager.endInit(workspaceId, exitCode);
+          },
+        };
+
+        // Phase 1: Create workspace structure (FAST - returns immediately)
+        const createResult = await runtime.createWorkspace({
+          projectPath,
+          branchName,
           trunkBranch: normalizedTrunkBranch,
-          directoryName: branchName,
+          directoryName: branchName, // Use branch name as directory name
+          initLogger,
         });
 
-        if (result.success && result.path) {
-          const projectName =
-            projectPath.split("/").pop() ?? projectPath.split("\\").pop() ?? "unknown";
-
-          // Initialize workspace metadata with stable ID and name
-          const metadata = {
-            id: workspaceId,
-            name: branchName, // Name is separate from ID
-            projectName,
-            projectPath, // Full project path for computing worktree path
-            createdAt: new Date().toISOString(),
-          };
-          // Note: metadata.json no longer written - config is the only source of truth
-
-          // Update config to include the new workspace (with full metadata)
-          this.config.editConfig((config) => {
-            let projectConfig = config.projects.get(projectPath);
-            if (!projectConfig) {
-              // Create project config if it doesn't exist
-              projectConfig = {
-                workspaces: [],
-              };
-              config.projects.set(projectPath, projectConfig);
-            }
-            // Add workspace to project config with full metadata
-            projectConfig.workspaces.push({
-              path: result.path!,
-              id: workspaceId,
-              name: branchName,
-              createdAt: metadata.createdAt,
-            });
-            return config;
-          });
-
-          // No longer creating symlinks - directory name IS the workspace name
-
-          // Get complete metadata from config (includes paths)
-          const allMetadata = this.config.getAllWorkspaceMetadata();
-          const completeMetadata = allMetadata.find((m) => m.id === workspaceId);
-          if (!completeMetadata) {
-            return { success: false, error: "Failed to retrieve workspace metadata" };
-          }
-
-          // Emit metadata event for new workspace
-          const session = this.getOrCreateSession(workspaceId);
-          session.emitMetadata(completeMetadata);
-
-          // Start optional .cmux/init hook (waits for state creation, then returns)
-          // This ensures replayInit() will find state when frontend subscribes
-          await this.startWorkspaceInitHook({
-            projectPath,
-            worktreePath: result.path,
-            workspaceId,
-          });
-
-          // Return complete metadata with paths for frontend
-          return {
-            success: true,
-            metadata: completeMetadata,
-          };
+        if (!createResult.success || !createResult.workspacePath) {
+          return { success: false, error: createResult.error ?? "Failed to create workspace" };
         }
 
-        return { success: false, error: result.error ?? "Failed to create workspace" };
+        const projectName =
+          projectPath.split("/").pop() ?? projectPath.split("\\").pop() ?? "unknown";
+
+        // Initialize workspace metadata with stable ID and name
+        const metadata = {
+          id: workspaceId,
+          name: branchName, // Name is separate from ID
+          projectName,
+          projectPath, // Full project path for computing worktree path
+          createdAt: new Date().toISOString(),
+        };
+        // Note: metadata.json no longer written - config is the only source of truth
+
+        // Update config to include the new workspace (with full metadata)
+        this.config.editConfig((config) => {
+          let projectConfig = config.projects.get(projectPath);
+          if (!projectConfig) {
+            // Create project config if it doesn't exist
+            projectConfig = {
+              workspaces: [],
+            };
+            config.projects.set(projectPath, projectConfig);
+          }
+          // Add workspace to project config with full metadata
+          projectConfig.workspaces.push({
+            path: createResult.workspacePath!,
+            id: workspaceId,
+            name: branchName,
+            createdAt: metadata.createdAt,
+          });
+          return config;
+        });
+
+        // No longer creating symlinks - directory name IS the workspace name
+
+        // Get complete metadata from config (includes paths)
+        const allMetadata = this.config.getAllWorkspaceMetadata();
+        const completeMetadata = allMetadata.find((m) => m.id === workspaceId);
+        if (!completeMetadata) {
+          return { success: false, error: "Failed to retrieve workspace metadata" };
+        }
+
+        // Emit metadata event for new workspace (session already created above)
+        session.emitMetadata(completeMetadata);
+
+        // Phase 2: Initialize workspace asynchronously (SLOW - runs in background)
+        // This streams progress via initLogger and doesn't block the IPC return
+        void runtime
+          .initWorkspace({
+            projectPath,
+            branchName,
+            trunkBranch: normalizedTrunkBranch,
+            workspacePath: createResult.workspacePath,
+            initLogger,
+          })
+          .catch((error: unknown) => {
+            const errorMsg = error instanceof Error ? error.message : String(error);
+            log.error(`initWorkspace failed for ${workspaceId}:`, error);
+            initLogger.logStderr(`Initialization failed: ${errorMsg}`);
+            initLogger.logComplete(-1);
+          });
+
+        // Return immediately - init streams separately via initLogger events
+        return {
+          success: true,
+          metadata: completeMetadata,
+        };
       }
     );
 
@@ -839,6 +888,7 @@ export class IpcMain {
           // All IPC bash calls are from UI (background operations) - use truncate to avoid temp file spam
           const bashTool = createBashTool({
             cwd: namedPath,
+            runtime: createRuntime({ type: "local", workdir: namedPath }),
             secrets: secretsToRecord(projectSecrets),
             niceness: options?.niceness,
             tempDir: tempDir.path,
