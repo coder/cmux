@@ -49,10 +49,22 @@ describe("parseRuntimeString", () => {
     );
   });
 
-  test("throws error for SSH without user", () => {
-    expect(() => parseRuntimeString("ssh hostname", workspaceName)).toThrow(
-      "SSH host must include user"
-    );
+  test("accepts SSH with hostname only (user will be inferred)", () => {
+    const result = parseRuntimeString("ssh hostname", workspaceName);
+    expect(result).toEqual({
+      type: "ssh",
+      host: "hostname",
+      workdir: "~/cmux/test-workspace",
+    });
+  });
+
+  test("accepts SSH with hostname.domain only", () => {
+    const result = parseRuntimeString("ssh dev.example.com", workspaceName);
+    expect(result).toEqual({
+      type: "ssh",
+      host: "dev.example.com",
+      workdir: "~/cmux/test-workspace",
+    });
   });
 
   test("throws error for unknown runtime type", () => {
