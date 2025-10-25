@@ -537,6 +537,69 @@ exit 1
             },
             TEST_TIMEOUT_MS
           );
+
+          test.concurrent(
+            "handles tilde paths with init hooks (SSH only)",
+            async () => {
+              const env = await createTestEnvironment();
+              const tempGitRepo = await createTempGitRepo();
+
+              try {
+                // Add init hook to repo
+                await createInitHook(tempGitRepo, `#!/bin/bash
+echo "Init hook executed with tilde path"
+`);
+                await commitChanges(tempGitRepo, "Add init hook for tilde test");
+
+                const branchName = generateBranchName("tilde-init-test");
+                const trunkBranch = await detectDefaultTrunkBranch(tempGitRepo);
+
+                // Use ~/workspace/... path instead of absolute path
+                const tildeRuntimeConfig: RuntimeConfig = {
+                  type: "ssh",
+                  host: `testuser@localhost`,
+                  workdir: `~/workspace/${branchName}`,
+                  identityFile: sshConfig!.privateKeyPath,
+                  port: sshConfig!.port,
+                };
+
+                // Capture init events to verify hook output
+                const initEvents = setupInitEventCapture(env);
+
+                const { result, cleanup } = await createWorkspaceWithCleanup(
+                  env,
+                  tempGitRepo,
+                  branchName,
+                  trunkBranch,
+                  tildeRuntimeConfig
+                );
+
+                expect(result.success).toBe(true);
+                if (!result.success) {
+                  throw new Error(`Failed to create workspace with tilde path + init hook: ${result.error}`);
+                }
+
+                // Wait for init to complete (including hook)
+                await new Promise((resolve) => setTimeout(resolve, getInitWaitTime()));
+
+                // Verify init hook was executed
+                const outputEvents = filterEventsByType(initEvents, EVENT_TYPE_INIT_OUTPUT);
+                const outputLines = outputEvents.map((e) => {
+                  const data = e.data as { line?: string };
+                  return data.line ?? "";
+                });
+
+                expect(outputLines.some((line) => line.includes("Running init hook"))).toBe(true);
+                expect(outputLines.some((line) => line.includes("Init hook executed"))).toBe(true);
+
+                await cleanup();
+              } finally {
+                await cleanupTestEnvironment(env);
+                await cleanupTempGitRepo(tempGitRepo);
+              }
+            },
+            TEST_TIMEOUT_MS
+          );
         }
 
       });

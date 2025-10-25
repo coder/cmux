@@ -419,7 +419,9 @@ export class SSHRuntime implements Runtime {
       return;
     }
 
-    const remoteHookPath = `${this.config.workdir}/.cmux/init`;
+    // Expand tilde in workdir path before constructing hook path
+    const expandedWorkdir = this.expandTilde(this.config.workdir);
+    const remoteHookPath = `${expandedWorkdir}/.cmux/init`;
     initLogger.logStep(`Running init hook: ${remoteHookPath}`);
 
     // Run hook remotely and stream output
