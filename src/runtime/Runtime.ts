@@ -83,8 +83,8 @@ export interface WorkspaceCreationParams {
   branchName: string;
   /** Trunk branch to base new branches on */
   trunkBranch: string;
-  /** Unique workspace identifier for directory naming */
-  workspaceId: string;
+  /** Directory name to use for workspace (typically branch name) */
+  directoryName: string;
   /** Logger for streaming creation progress and init hook output */
   initLogger: InitLogger;
 }

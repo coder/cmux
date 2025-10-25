@@ -9,6 +9,7 @@
 import type { SendMessageOptions } from "@/types/ipc";
 import type { CmuxFrontendMetadata, CompactionRequestData } from "@/types/message";
 import type { FrontendWorkspaceMetadata } from "@/types/workspace";
+import type { RuntimeConfig } from "@/types/runtime";
 import { CUSTOM_EVENTS } from "@/constants/events";
 import type { Toast } from "@/components/ChatInputToast";
 import type { ParsedCommand } from "@/utils/slashCommands/types";
@@ -19,10 +20,52 @@ import { resolveCompactionModel } from "@/utils/messages/compactionModelPreferen
 // Workspace Creation
 // ============================================================================
 
+/**
+ * Parse runtime string from -r flag into RuntimeConfig
+ * Supports formats:
+ * - "ssh <user@host>" -> SSH runtime
+ * - "local" -> Local runtime (explicit)
+ * - undefined -> Local runtime (default)
+ */
+export function parseRuntimeString(runtime: string | undefined, workspaceName: string): RuntimeConfig | undefined {
+  if (!runtime) {
+    return undefined; // Default to local (backend decides)
+  }
+
+  const trimmed = runtime.trim();
+  const lowerTrimmed = trimmed.toLowerCase();
+  
+  if (lowerTrimmed === "local") {
+    return undefined; // Explicit local - let backend use default
+  }
+
+  // Parse "ssh <user@host>" format
+  if (lowerTrimmed === "ssh" || lowerTrimmed.startsWith("ssh ")) {
+    const hostPart = trimmed.slice(3).trim(); // Preserve original case for host, skip "ssh"
+    if (!hostPart) {
+      throw new Error("SSH runtime requires host (e.g., 'ssh user@host')");
+    }
+
+    // Basic host validation
+    if (!hostPart.includes("@")) {
+      throw new Error("SSH host must include user (e.g., 'user@host')");
+    }
+
+    return {
+      type: "ssh",
+      host: hostPart,
+      workdir: `~/cmux/${workspaceName}`, // Default remote workdir
+    };
+  }
+
+  throw new Error(`Unknown runtime type: '${runtime}'. Use 'ssh <user@host>' or 'local'`);
+}
+
 export interface CreateWorkspaceOptions {
   projectPath: string;
   workspaceName: string;
   trunkBranch?: string;
+  runtime?: string;
   startMessage?: string;
   sendMessageOptions?: SendMessageOptions;
 }
@@ -49,10 +92,14 @@ export async function createNewWorkspace(
     effectiveTrunk = recommendedTrunk ?? "main";
   }
 
+  // Parse runtime config if provided
+  const runtimeConfig = parseRuntimeString(options.runtime, options.workspaceName);
+
   const result = await window.api.workspace.create(
     options.projectPath,
     options.workspaceName,
-    effectiveTrunk
+    effectiveTrunk,
+    runtimeConfig
   );
 
   if (!result.success) {
@@ -262,6 +309,7 @@ export async function handleNewCommand(
       projectPath: workspaceInfo.projectPath,
       workspaceName: parsed.workspaceName,
       trunkBranch: parsed.trunkBranch,
+      runtime: parsed.runtime,
       startMessage: parsed.startMessage,
       sendMessageOptions,
     });
