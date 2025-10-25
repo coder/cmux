@@ -10,8 +10,12 @@ interface NewWorkspaceModalProps {
   defaultTrunkBranch?: string;
   loadErrorMessage?: string | null;
   onClose: () => void;
-  onAdd: (branchName: string, trunkBranch: string) => Promise<void>;
+  onAdd: (branchName: string, trunkBranch: string, runtime?: string) => Promise<void>;
 }
+
+// Shared form field styles
+const formFieldClasses =
+  "[&_label]:text-foreground [&_input]:bg-modal-bg [&_input]:border-border-medium [&_input]:focus:border-accent [&_select]:bg-modal-bg [&_select]:border-border-medium [&_select]:focus:border-accent [&_option]:bg-modal-bg mb-5 [&_input]:w-full [&_input]:rounded [&_input]:border [&_input]:px-3 [&_input]:py-2 [&_input]:text-sm [&_input]:text-white [&_input]:focus:outline-none [&_input]:disabled:cursor-not-allowed [&_input]:disabled:opacity-60 [&_label]:mb-2 [&_label]:block [&_label]:text-sm [&_option]:text-white [&_select]:w-full [&_select]:cursor-pointer [&_select]:rounded [&_select]:border [&_select]:px-3 [&_select]:py-2 [&_select]:text-sm [&_select]:text-white [&_select]:focus:outline-none [&_select]:disabled:cursor-not-allowed [&_select]:disabled:opacity-60";
 
 const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
   isOpen,
@@ -24,6 +28,8 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
 }) => {
   const [branchName, setBranchName] = useState("");
   const [trunkBranch, setTrunkBranch] = useState(defaultTrunkBranch ?? branches[0] ?? "");
+  const [runtimeMode, setRuntimeMode] = useState<"local" | "ssh">("local");
+  const [sshHost, setSshHost] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const infoId = useId();
@@ -53,6 +59,8 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
   const handleCancel = () => {
     setBranchName("");
     setTrunkBranch(defaultTrunkBranch ?? branches[0] ?? "");
+    setRuntimeMode("local");
+    setSshHost("");
     setError(loadErrorMessage ?? null);
     onClose();
   };
@@ -74,13 +82,31 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
     console.assert(normalizedTrunkBranch.length > 0, "Expected trunk branch name to be validated");
     console.assert(trimmedBranchName.length > 0, "Expected branch name to be validated");
 
+    // Validate SSH host if SSH runtime selected
+    if (runtimeMode === "ssh") {
+      const trimmedHost = sshHost.trim();
+      if (trimmedHost.length === 0) {
+        setError("SSH host is required (e.g., user@host)");
+        return;
+      }
+      if (!trimmedHost.includes("@")) {
+        setError("SSH host must include user (e.g., user@host)");
+        return;
+      }
+    }
+
     setIsLoading(true);
     setError(null);
 
     try {
-      await onAdd(trimmedBranchName, normalizedTrunkBranch);
+      // Build runtime string if SSH selected
+      const runtime = runtimeMode === "ssh" ? `ssh ${sshHost.trim()}` : undefined;
+      
+      await onAdd(trimmedBranchName, normalizedTrunkBranch, runtime);
       setBranchName("");
       setTrunkBranch(defaultTrunkBranch ?? branches[0] ?? "");
+      setRuntimeMode("local");
+      setSshHost("");
       onClose();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to create workspace";
@@ -100,7 +126,7 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
       describedById={infoId}
     >
       <form onSubmit={(event) => void handleSubmit(event)}>
-        <div className="[&_label]:text-foreground [&_input]:bg-modal-bg [&_input]:border-border-medium [&_input]:focus:border-accent [&_select]:bg-modal-bg [&_select]:border-border-medium [&_select]:focus:border-accent [&_option]:bg-modal-bg mb-5 [&_input]:w-full [&_input]:rounded [&_input]:border [&_input]:px-3 [&_input]:py-2 [&_input]:text-sm [&_input]:text-white [&_input]:focus:outline-none [&_input]:disabled:cursor-not-allowed [&_input]:disabled:opacity-60 [&_label]:mb-2 [&_label]:block [&_label]:text-sm [&_option]:text-white [&_select]:w-full [&_select]:cursor-pointer [&_select]:rounded [&_select]:border [&_select]:px-3 [&_select]:py-2 [&_select]:text-sm [&_select]:text-white [&_select]:focus:outline-none [&_select]:disabled:cursor-not-allowed [&_select]:disabled:opacity-60">
+        <div className={formFieldClasses}>
           <label htmlFor="branchName">
             <TooltipWrapper inline>
               <span className="cursor-help underline decoration-[#666] decoration-dotted underline-offset-2">
@@ -137,7 +163,7 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
           {error && <div className="text-danger-light mt-1.5 text-[13px]">{error}</div>}
         </div>
 
-        <div className="[&_label]:text-foreground [&_input]:bg-modal-bg [&_input]:border-border-medium [&_input]:focus:border-accent [&_select]:bg-modal-bg [&_select]:border-border-medium [&_select]:focus:border-accent [&_option]:bg-modal-bg mb-5 [&_input]:w-full [&_input]:rounded [&_input]:border [&_input]:px-3 [&_input]:py-2 [&_input]:text-sm [&_input]:text-white [&_input]:focus:outline-none [&_input]:disabled:cursor-not-allowed [&_input]:disabled:opacity-60 [&_label]:mb-2 [&_label]:block [&_label]:text-sm [&_option]:text-white [&_select]:w-full [&_select]:cursor-pointer [&_select]:rounded [&_select]:border [&_select]:px-3 [&_select]:py-2 [&_select]:text-sm [&_select]:text-white [&_select]:focus:outline-none [&_select]:disabled:cursor-not-allowed [&_select]:disabled:opacity-60">
+        <div className={formFieldClasses}>
           <label htmlFor="trunkBranch">Trunk Branch:</label>
           {hasBranches ? (
             <select
@@ -173,10 +199,50 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
           )}
         </div>
 
+        <div className={formFieldClasses}>
+          <label htmlFor="runtimeMode">Runtime:</label>
+          <select
+            id="runtimeMode"
+            value={runtimeMode}
+            onChange={(event) => {
+              setRuntimeMode(event.target.value as "local" | "ssh");
+              setError(null);
+            }}
+            disabled={isLoading}
+          >
+            <option value="local">Local</option>
+            <option value="ssh">SSH Remote</option>
+          </select>
+        </div>
+
+        {runtimeMode === "ssh" && (
+          <div className={formFieldClasses}>
+            <label htmlFor="sshHost">SSH Host:</label>
+            <input
+              id="sshHost"
+              type="text"
+              value={sshHost}
+              onChange={(event) => {
+                setSshHost(event.target.value);
+                setError(null);
+              }}
+              placeholder="user@hostname"
+              disabled={isLoading}
+              required
+              aria-required="true"
+            />
+            <div className="text-muted mt-1.5 text-[13px]">
+              Workspace will be created at ~/cmux/{branchName || "<branch-name>"} on remote host
+            </div>
+          </div>
+        )}
+
         <ModalInfo id={infoId}>
           <p>This will create a git worktree at:</p>
           <code className="block break-all">
-            ~/.cmux/src/{projectName}/{branchName || "<branch-name>"}
+            {runtimeMode === "ssh"
+              ? `${sshHost || "<host>"}:~/cmux/${branchName || "<branch-name>"}`
+              : `~/.cmux/src/${projectName}/${branchName || "<branch-name>"}`}
           </code>
         </ModalInfo>
 
@@ -184,7 +250,11 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
           <div>
             <div className="text-muted mb-2 font-sans text-xs">Equivalent command:</div>
             <div className="bg-dark border-border-light text-light mt-5 rounded border p-3 font-mono text-[13px] break-all whitespace-pre-wrap">
-              {formatNewCommand(branchName.trim(), trunkBranch.trim() || undefined)}
+              {formatNewCommand(
+                branchName.trim(),
+                trunkBranch.trim() || undefined,
+                runtimeMode === "ssh" && sshHost.trim() ? `ssh ${sshHost.trim()}` : undefined
+              )}
             </div>
           </div>
         )}
