@@ -20,6 +20,7 @@ import { EXIT_CODE_ABORTED, EXIT_CODE_TIMEOUT } from "../constants/exitCodes";
 import { listLocalBranches } from "../git";
 import { checkInitHookExists, getInitHookPath, createLineBufferedLoggers } from "./initHook";
 import { execAsync } from "../utils/disposableExec";
+import { findBashPath, findNicePath } from "./executablePaths";
 
 /**
  * Local runtime implementation that executes commands and file operations
@@ -35,11 +36,15 @@ export class LocalRuntime implements Runtime {
   exec(command: string, options: ExecOptions): ExecStream {
     const startTime = performance.now();
 
+    // Find bash path (important for CI environments where PATH may not be set)
+    const bashPath = findBashPath();
+    const nicePath = findNicePath();
+
     // If niceness is specified, spawn nice directly to avoid escaping issues
-    const spawnCommand = options.niceness !== undefined ? "nice" : "bash";
+    const spawnCommand = options.niceness !== undefined ? nicePath : bashPath;
     const spawnArgs =
       options.niceness !== undefined
-        ? ["-n", options.niceness.toString(), "bash", "-c", command]
+        ? ["-n", options.niceness.toString(), bashPath, "-c", command]
         : ["-c", command];
 
     const childProcess = spawn(spawnCommand, spawnArgs, {
@@ -382,7 +387,8 @@ export class LocalRuntime implements Runtime {
     const loggers = createLineBufferedLoggers(initLogger);
 
     return new Promise<void>((resolve) => {
-      const proc = spawn("bash", ["-c", `"${hookPath}"`], {
+      const bashPath = findBashPath();
+      const proc = spawn(bashPath, ["-c", `"${hookPath}"`], {
         cwd: workspacePath,
         stdio: ["ignore", "pipe", "pipe"],
       });
