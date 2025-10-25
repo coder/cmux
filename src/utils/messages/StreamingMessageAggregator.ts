@@ -737,8 +737,22 @@ export class StreamingMessageAggregator {
                 timestamp: part.timestamp ?? baseTimestamp,
               });
             } else if (isDynamicToolPart(part)) {
-              const status =
-                part.state === "output-available"
+              // Check if output contains an error
+              // Handles two formats:
+              // 1. Tool implementation errors: { success: false, error: "..." }
+              // 2. AI SDK tool-error events: { error: "..." }
+              const hasError =
+                part.state === "output-available" &&
+                part.output &&
+                typeof part.output === "object" &&
+                "error" in part.output &&
+                typeof part.output.error === "string" &&
+                part.output.error.length > 0 &&
+                (!("success" in part.output) || part.output.success === false);
+
+              const status = hasError
+                ? "failed"
+                : part.state === "output-available"
                   ? "completed"
                   : part.state === "input-available" && message.metadata?.partial
                     ? "interrupted"
