@@ -55,7 +55,7 @@ function hunksOverlap(
   if (hunk1.hunk.filePath !== hunk2.hunk.filePath) {
     return false;
   }
-  
+
   // Check if ranges overlap or are adjacent (within 3 lines)
   // Adjacent hunks should be combined for cleaner display
   const gap = range2.start - range1.end;

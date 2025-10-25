@@ -56,12 +56,20 @@ export const HunkContent = React.memo<HunkContentProps>(
     // Check if we've reached beginning of file (line 1)
     const atBeginningOfFile = upExpansion.isExpanded && upwardExpansion.startLine === 1;
 
-    // Detect EOF: if downward expansion returned fewer lines than expected (30 lines per expansion)
-    // This means we hit the end of the file on the last expansion
+    // Detect EOF: multiple scenarios
+    // 1. Expanded down and got fewer lines than requested
+    // 2. Expanded down and got empty/no content (hunk was already at EOF)
     const atEndOfFile = useMemo(() => {
-      if (!downExpansion.content || readMoreState.down === 0) return false;
+      // If we've never expanded, we don't know if we're at EOF yet
+      if (readMoreState.down === 0) return false;
+
+      // If we expanded but got no content, we're at EOF
+      if (!downExpansion.content?.trim().length) {
+        return true;
+      }
+
       const lines = downExpansion.content.split("\n").filter((l) => l.length > 0);
-      // If we have expansion but got fewer lines than requested, we're at EOF
+      // If we got fewer lines than requested, we're at EOF
       return lines.length < readMoreState.down;
     }, [downExpansion.content, readMoreState.down]);
 

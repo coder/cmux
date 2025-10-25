@@ -181,6 +181,9 @@ export const HunkViewer = React.memo<HunkViewerProps>(
           .then((lines) => {
             if (lines) {
               setExpandedContentDown(formatAsContextLines(lines));
+            } else {
+              // No lines returned - at EOF
+              setExpandedContentDown("");
             }
           })
           .finally(() => setIsLoadingDown(false));
