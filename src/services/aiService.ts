@@ -97,20 +97,12 @@ if (typeof globalFetchWithExtras.certificate === "function") {
  * In production, providers are lazy-loaded on first use to optimize startup time.
  * In tests, we preload them once during setup to ensure reliable concurrent execution.
  */
+// eslint-disable-next-line @typescript-eslint/require-await
 export async function preloadAISDKProviders(): Promise<void> {
-  // In Jest, skip preloading to avoid ESM import constraints; model code will lazy-load as needed
-  if (process.env.JEST_WORKER_ID) return;
-  // Prefer CJS require first; fall back to ESM if not available
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    require("@ai-sdk/anthropic");
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    require("@ai-sdk/openai");
-    return;
-  } catch {
-    // Fallback for ESM-only environments
-    await Promise.all([import("@ai-sdk/anthropic"), import("@ai-sdk/openai")]);
-  }
+  // No-op: Providers are lazy-loaded in createModel().
+  // Preloading was previously used to avoid race conditions in concurrent tests,
+  // but Jest concurrency has been stabilized elsewhere and this is no longer necessary.
+  return;
 }
 
 export class AIService extends EventEmitter {
@@ -263,17 +255,8 @@ export class AIService extends EventEmitter {
               ? { "anthropic-beta": "context-1m-2025-08-07" }
               : existingHeaders;
 
-        // Lazy-load Anthropic provider to reduce startup time (CJS first for Jest)
-        let createAnthropic: typeof import("@ai-sdk/anthropic").createAnthropic;
-        try {
-          // eslint-disable-next-line @typescript-eslint/no-var-requires
-          ({ createAnthropic } =
-            require("@ai-sdk/anthropic") as typeof import("@ai-sdk/anthropic"));
-        } catch {
-          ({ createAnthropic } = (await import(
-            "@ai-sdk/anthropic"
-          )) as typeof import("@ai-sdk/anthropic"));
-        }
+        // Lazy-load Anthropic provider to reduce startup time
+        const { createAnthropic } = await import("@ai-sdk/anthropic");
         const provider = createAnthropic({ ...providerConfig, headers });
         return Ok(provider(modelId));
       }
@@ -364,14 +347,8 @@ export class AIService extends EventEmitter {
             : {}
         );
 
-        // Lazy-load OpenAI provider to reduce startup time (CJS first for Jest)
-        let createOpenAI: typeof import("@ai-sdk/openai").createOpenAI;
-        try {
-          // eslint-disable-next-line @typescript-eslint/no-var-requires
-          ({ createOpenAI } = require("@ai-sdk/openai") as typeof import("@ai-sdk/openai"));
-        } catch {
-          ({ createOpenAI } = (await import("@ai-sdk/openai")) as typeof import("@ai-sdk/openai"));
-        }
+        // Lazy-load OpenAI provider to reduce startup time
+        const { createOpenAI } = await import("@ai-sdk/openai");
         const provider = createOpenAI({
           ...providerConfig,
           // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
