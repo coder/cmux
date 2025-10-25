@@ -93,3 +93,14 @@ export interface ReviewStats {
   /** Number of unread hunks */
   unread: number;
 }
+
+/**
+ * Read-more expansion state for a hunk
+ * Tracks how many lines have been expanded in each direction
+ */
+export interface HunkReadMoreState {
+  /** Lines expanded upward from the hunk start */
+  up: number;
+  /** Lines expanded downward from the hunk end */
+  down: number;
+}
