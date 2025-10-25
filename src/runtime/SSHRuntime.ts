@@ -1,5 +1,8 @@
 import { spawn } from "child_process";
 import { Readable, Writable } from "stream";
+import * as path from "path";
+import * as os from "os";
+import * as crypto from "crypto";
 import { Shescape } from "shescape";
 import type {
   Runtime,
@@ -50,9 +53,14 @@ export interface SSHRuntimeConfig {
  */
 export class SSHRuntime implements Runtime {
   private readonly config: SSHRuntimeConfig;
+  private readonly controlPath: string;
 
   constructor(config: SSHRuntimeConfig) {
     this.config = config;
+    // Generate unique control path for SSH connection multiplexing
+    // This allows multiple SSH sessions to reuse a single TCP connection
+    const randomId = crypto.randomBytes(8).toString("hex");
+    this.controlPath = path.join(os.tmpdir(), `cmux-ssh-${randomId}`);
   }
 
   /**
@@ -113,6 +121,15 @@ export class SSHRuntime implements Runtime {
       sshArgs.push("-o", "UserKnownHostsFile=/dev/null");
       sshArgs.push("-o", "LogLevel=ERROR"); // Suppress SSH warnings
     }
+
+    // Enable SSH connection multiplexing for better performance and to avoid
+    // exhausting connection limits when running many concurrent operations
+    // ControlMaster=auto: Create master connection if none exists, otherwise reuse
+    // ControlPath: Unix socket path for multiplexing
+    // ControlPersist=60: Keep master connection alive for 60s after last session
+    sshArgs.push("-o", "ControlMaster=auto");
+    sshArgs.push("-o", `ControlPath=${this.controlPath}`);
+    sshArgs.push("-o", "ControlPersist=60");
 
     sshArgs.push(this.config.host, remoteCommand);
 
@@ -630,6 +647,28 @@ export class SSHRuntime implements Runtime {
         success: false,
         error: errorMsg,
       };
+    }
+  }
+
+  /**
+   * Cleanup SSH control socket on disposal
+   * Note: ControlPersist will automatically close the master connection after timeout,
+   * but we try to clean up immediately for good hygiene
+   */
+  dispose(): void {
+    try {
+      // Send exit command to master connection (if it exists)
+      // This is a best-effort cleanup - the socket will auto-cleanup anyway
+      const exitArgs = ["-O", "exit", "-o", `ControlPath=${this.controlPath}`, this.config.host];
+
+      const exitProc = spawn("ssh", exitArgs, { stdio: "ignore" });
+
+      // Don't wait for it - fire and forget
+      exitProc.unref();
+    } catch (error) {
+      // Ignore errors - control socket will timeout naturally
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      log.debug(`SSH control socket cleanup failed (non-fatal): ${errorMsg}`);
     }
   }
 }
