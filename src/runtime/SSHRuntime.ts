@@ -102,12 +102,39 @@ export class SSHRuntime implements Runtime {
     // Build environment exports using bash export
     const envPrefix = buildEnvExports(options.env);
 
-    // Expand ~/path to $HOME/path before quoting (~ doesn't expand in quotes)
-    const cwd = this.expandTilde(options.cwd ?? this.config.workdir);
+    // Get cwd path - keep tilde as-is, we'll handle it in cd command
+    const cwd = options.cwd ?? this.config.workdir;
+
+    // Build cd command
+    // For paths starting with ~, use it directly without quotes so bash expands it
+    // For other paths, use double quotes with proper escaping
+    let cdCommand: string;
+    if (cwd === "~" || cwd.startsWith("~/")) {
+      // Use tilde directly - bash will expand it even in double quotes
+      // But we need to handle the part after ~ if it has special characters
+      if (cwd === "~") {
+        cdCommand = "cd ~";
+      } else {
+        const pathAfterTilde = cwd.slice(2); // Remove ~/
+        const escapedPath = pathAfterTilde
+          .replace(/\\/g, "\\\\")
+          .replace(/"/g, '\\"')
+          .replace(/\$/g, "\\$")
+          .replace(/`/g, "\\`");
+        cdCommand = `cd ~/"${escapedPath}"`;
+      }
+    } else {
+      // Absolute path - use double quotes with escaping
+      const escapedCwd = cwd
+        .replace(/\\/g, "\\\\")
+        .replace(/"/g, '\\"')
+        .replace(/\$/g, "\\$")
+        .replace(/`/g, "\\`");
+      cdCommand = `cd "${escapedCwd}"`;
+    }
 
     // Build full command with cwd and env
-    // Use escapeShellArg for cwd to properly handle paths with special characters
-    const fullCommand = `cd ${escapeShellArg(cwd)} && ${envPrefix}${command}`;
+    const fullCommand = `${cdCommand} && ${envPrefix}${command}`;
 
     // Wrap command in bash to ensure bash execution regardless of user's default shell
     // This prevents issues with fish, zsh, or other non-bash shells
