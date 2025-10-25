@@ -27,6 +27,29 @@ function escapeShellArg(arg: string): string {
 }
 
 /**
+ * Build export statements for setting environment variables.
+ * Uses bash export with single-quote escaping for safe variable passing over SSH.
+ *
+ * @example
+ * buildEnvExports({ TEST_VAR: "hello" })
+ * // => "export TEST_VAR='hello'; "
+ *
+ * buildEnvExports({ VAR: "can't" })
+ * // => "export VAR='can'\\''t'; "
+ */
+export function buildEnvExports(env: Record<string, string> | undefined): string {
+  if (!env || Object.keys(env).length === 0) {
+    return "";
+  }
+
+  const exports = Object.entries(env)
+    .map(([key, value]) => `export ${key}=${escapeShellArg(value)}`)
+    .join("; ");
+
+  return `${exports}; `;
+}
+
+/**
  * SSH Runtime Configuration
  */
 export interface SSHRuntimeConfig {
@@ -76,24 +99,20 @@ export class SSHRuntime implements Runtime {
   exec(command: string, options: ExecOptions): ExecStream {
     const startTime = performance.now();
 
-    // Build environment string
-    let envPrefix = "";
-    if (options.env) {
-      const envPairs = Object.entries(options.env)
-        .map(([key, value]) => `${key}=${JSON.stringify(value)}`)
-        .join(" ");
-      envPrefix = `export ${envPairs}; `;
-    }
+    // Build environment exports using bash export
+    const envPrefix = buildEnvExports(options.env);
 
     // Expand ~/path to $HOME/path before quoting (~ doesn't expand in quotes)
     const cwd = this.expandTilde(options.cwd ?? this.config.workdir);
 
     // Build full command with cwd and env
-    const fullCommand = `cd ${JSON.stringify(cwd)} && ${envPrefix}${command}`;
+    // Use escapeShellArg for cwd to properly handle paths with special characters
+    const fullCommand = `cd ${escapeShellArg(cwd)} && ${envPrefix}${command}`;
 
     // Wrap command in bash to ensure bash execution regardless of user's default shell
     // This prevents issues with fish, zsh, or other non-bash shells
-    const remoteCommand = `bash -c ${JSON.stringify(fullCommand)}`;
+    // Use escapeShellArg instead of JSON.stringify to prevent premature variable expansion
+    const remoteCommand = `bash -c ${escapeShellArg(fullCommand)}`;
 
     // Build SSH args
     const sshArgs: string[] = ["-T"];
@@ -113,6 +132,10 @@ export class SSHRuntime implements Runtime {
     }
 
     sshArgs.push(this.config.host, remoteCommand);
+
+    // Debug: log the actual SSH command being executed
+    log.debug(`SSH command: ssh ${sshArgs.join(" ")}`);
+    log.debug(`Remote command: ${remoteCommand}`);
 
     // Spawn ssh command
     const sshProcess = spawn("ssh", sshArgs, {
