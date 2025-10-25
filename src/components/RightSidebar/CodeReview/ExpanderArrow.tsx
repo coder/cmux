@@ -14,7 +14,7 @@ interface ExpanderArrowProps {
   isLoading: boolean;
   /** Click handler */
   onClick: (e: React.MouseEvent) => void;
-  /** Optional marker text to show in content area (e.g., "Beginning of file") */
+  /** Optional marker text to show (e.g., "Beginning of file") */
   markerText?: string;
 }
 
@@ -55,9 +55,14 @@ export const ExpanderArrow = React.memo<ExpanderArrowProps>(
           </span>
 
           {/* Content area - matches diff line structure */}
-          <span className={cn("pl-2 text-[11px]", markerText ? "italic opacity-40" : "opacity-0")}>
-            {markerText ?? (isLoading ? "Loading..." : "")}
-          </span>
+          {markerText ? (
+            <span className="text-muted flex items-center gap-1.5 pl-2 text-[11px] italic">
+              <span className="opacity-50">•</span>
+              <span>{markerText}</span>
+            </span>
+          ) : (
+            <span className="pl-2 text-[11px] opacity-0">{isLoading ? "Loading..." : ""}</span>
+          )}
         </div>
       </div>
     );
