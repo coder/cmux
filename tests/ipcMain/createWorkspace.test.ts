@@ -489,6 +489,54 @@ exit 1
             },
             TEST_TIMEOUT_MS
           );
+
+          test.concurrent(
+            "handles tilde (~/) paths correctly (SSH only)",
+            async () => {
+              const env = await createTestEnvironment();
+              const tempGitRepo = await createTempGitRepo();
+
+              try {
+                const branchName = generateBranchName("tilde-test");
+                const trunkBranch = await detectDefaultTrunkBranch(tempGitRepo);
+
+                // Use ~/workspace/... path instead of absolute path
+                const tildeRuntimeConfig: RuntimeConfig = {
+                  type: "ssh",
+                  host: `testuser@localhost`,
+                  workdir: `~/workspace/${branchName}`,
+                  identityFile: sshConfig!.privateKeyPath,
+                  port: sshConfig!.port,
+                };
+
+                const { result, cleanup } = await createWorkspaceWithCleanup(
+                  env,
+                  tempGitRepo,
+                  branchName,
+                  trunkBranch,
+                  tildeRuntimeConfig
+                );
+
+                expect(result.success).toBe(true);
+                if (!result.success) {
+                  throw new Error(`Failed to create workspace with tilde path: ${result.error}`);
+                }
+
+                // Wait for init to complete
+                await new Promise((resolve) => setTimeout(resolve, getInitWaitTime()));
+
+                // Verify workspace exists
+                expect(result.metadata.id).toBeDefined();
+                expect(result.metadata.namedWorkspacePath).toBeDefined();
+
+                await cleanup();
+              } finally {
+                await cleanupTestEnvironment(env);
+                await cleanupTempGitRepo(tempGitRepo);
+              }
+            },
+            TEST_TIMEOUT_MS
+          );
         }
 
       });
