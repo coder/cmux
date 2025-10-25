@@ -68,6 +68,7 @@ export class SSHRuntime implements Runtime {
   /**
    * Execute command over SSH with streaming I/O
    */
+  // eslint-disable-next-line @typescript-eslint/require-await
   async exec(command: string, options: ExecOptions): Promise<ExecStream> {
     const startTime = performance.now();
 
@@ -241,12 +242,10 @@ export class SSHRuntime implements Runtime {
     let execPromise: Promise<ExecStream> | null = null;
 
     const getExecStream = () => {
-      if (!execPromise) {
-        execPromise = this.exec(writeCommand, {
-          cwd: this.config.workdir,
-          timeout: 300, // 5 minutes - reasonable for large files
-        });
-      }
+      execPromise ??= this.exec(writeCommand, {
+        cwd: this.config.workdir,
+        timeout: 300, // 5 minutes - reasonable for large files
+      });
       return execPromise;
     };
 
