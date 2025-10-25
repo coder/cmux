@@ -1,13 +1,6 @@
-import {
-  useState,
-  useEffect,
-  useCallback,
-  useRef,
-  type Dispatch,
-  type SetStateAction,
-} from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import "./styles/globals.css";
-import type { ProjectConfig } from "./config";
+import { useApp } from "./contexts/AppContext";
 import type { WorkspaceSelection } from "./components/ProjectSidebar";
 import type { FrontendWorkspaceMetadata } from "./types/workspace";
 import { LeftSidebar } from "./components/LeftSidebar";
@@ -37,48 +30,20 @@ import { useTelemetry } from "./hooks/useTelemetry";
 
 const THINKING_LEVELS: ThinkingLevel[] = ["off", "low", "medium", "high"];
 
-interface AppInnerProps {
-  projects: Map<string, ProjectConfig>;
-  setProjects: Dispatch<SetStateAction<Map<string, ProjectConfig>>>;
-  addProject: () => Promise<void>;
-  removeProject: (path: string) => Promise<void>;
-  workspaceMetadata: Map<string, FrontendWorkspaceMetadata>;
-  setWorkspaceMetadata: Dispatch<SetStateAction<Map<string, FrontendWorkspaceMetadata>>>;
-  createWorkspace: (
-    projectPath: string,
-    branchName: string,
-    trunkBranch: string
-  ) => Promise<{
-    projectPath: string;
-    projectName: string;
-    namedWorkspacePath: string;
-    workspaceId: string;
-  }>;
-  removeWorkspace: (
-    workspaceId: string,
-    options?: { force?: boolean }
-  ) => Promise<{ success: boolean; error?: string }>;
-  renameWorkspace: (
-    workspaceId: string,
-    newName: string
-  ) => Promise<{ success: boolean; error?: string }>;
-  selectedWorkspace: WorkspaceSelection | null;
-  setSelectedWorkspace: (workspace: WorkspaceSelection | null) => void;
-}
-
-function AppInner({
-  projects,
-  setProjects: _setProjects,
-  addProject,
-  removeProject,
-  workspaceMetadata,
-  setWorkspaceMetadata,
-  createWorkspace,
-  removeWorkspace,
-  renameWorkspace,
-  selectedWorkspace,
-  setSelectedWorkspace,
-}: AppInnerProps) {
+function AppInner() {
+  // Get app-level state from context
+  const {
+    projects,
+    addProject,
+    removeProject,
+    workspaceMetadata,
+    setWorkspaceMetadata,
+    createWorkspace,
+    removeWorkspace,
+    renameWorkspace,
+    selectedWorkspace,
+    setSelectedWorkspace,
+  } = useApp();
   const [workspaceModalOpen, setWorkspaceModalOpen] = useState(false);
   const [workspaceModalProject, setWorkspaceModalProject] = useState<string | null>(null);
   const [workspaceModalProjectName, setWorkspaceModalProjectName] = useState<string>("");
@@ -642,15 +607,10 @@ function AppInner({
     <>
       <div className="bg-bg-dark flex h-screen overflow-hidden [@media(max-width:768px)]:flex-col">
         <LeftSidebar
-          projects={projects}
-          workspaceMetadata={workspaceMetadata}
-          selectedWorkspace={selectedWorkspace}
           onSelectWorkspace={handleWorkspaceSwitch}
           onAddProject={handleAddProjectCallback}
           onAddWorkspace={handleAddWorkspaceCallback}
           onRemoveProject={handleRemoveProjectCallback}
-          onRemoveWorkspace={removeWorkspace}
-          onRenameWorkspace={renameWorkspace}
           lastReadTimestamps={lastReadTimestamps}
           onToggleUnread={onToggleUnread}
           collapsed={sidebarCollapsed}
@@ -724,10 +684,10 @@ function AppInner({
   );
 }
 
-function App(props: AppInnerProps) {
+function App() {
   return (
     <CommandRegistryProvider>
-      <AppInner {...props} />
+      <AppInner />
     </CommandRegistryProvider>
   );
 }

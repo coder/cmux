@@ -7,6 +7,7 @@ import { useWorkspaceStoreRaw } from "../stores/WorkspaceStore";
 import { useGitStatusStoreRaw } from "../stores/GitStatusStore";
 import { usePersistedState } from "../hooks/usePersistedState";
 import type { WorkspaceSelection } from "./ProjectSidebar";
+import { AppProvider } from "../contexts/AppContext";
 
 /**
  * AppLoader handles all initialization before rendering the main App:
@@ -100,9 +101,9 @@ export function AppLoader() {
     return <LoadingScreen />;
   }
 
-  // Render App with all initialized data
+  // Render App with all initialized data via context
   return (
-    <App
+    <AppProvider
       projects={projectManagement.projects}
       setProjects={projectManagement.setProjects}
       addProject={projectManagement.addProject}
@@ -114,6 +115,8 @@ export function AppLoader() {
       renameWorkspace={workspaceManagement.renameWorkspace}
       selectedWorkspace={selectedWorkspace}
       setSelectedWorkspace={setSelectedWorkspace}
-    />
+    >
+      <App />
+    </AppProvider>
   );
 }
