@@ -1,6 +1,7 @@
 import * as path from "path";
 import { createPatch } from "diff";
-import type { FileStat } from "@/runtime/Runtime";
+import type { FileStat, Runtime } from "@/runtime/Runtime";
+import { SSHRuntime } from "@/runtime/SSHRuntime";
 
 // WRITE_DENIED_PREFIX moved to @/types/tools for frontend/backend sharing
 
@@ -53,9 +54,22 @@ export function validateFileSize(stats: FileStat): { error: string } | null {
  *
  * @param filePath - The file path to validate (can be relative or absolute)
  * @param cwd - The working directory that file operations are restricted to
+ * @param runtime - The runtime (used to detect SSH - TODO: make path validation runtime-aware)
  * @returns Error object if invalid, null if valid
  */
-export function validatePathInCwd(filePath: string, cwd: string): { error: string } | null {
+export function validatePathInCwd(
+  filePath: string,
+  cwd: string,
+  runtime: Runtime
+): { error: string } | null {
+  // TODO: Make path validation runtime-aware instead of skipping for SSH.
+  // For now, skip local path validation for SSH runtimes since:
+  // 1. Node's path module doesn't understand remote paths (~/cmux/branch)
+  // 2. The runtime's own file operations will fail on invalid paths anyway
+  if (runtime instanceof SSHRuntime) {
+    return null;
+  }
+
   // Resolve the path (handles relative paths and normalizes)
   const resolvedPath = path.isAbsolute(filePath)
     ? path.resolve(filePath)

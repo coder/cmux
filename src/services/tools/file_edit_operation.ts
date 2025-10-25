@@ -37,7 +37,7 @@ export async function executeFileEditOperation<TMetadata>({
   FileEditErrorResult | (FileEditDiffSuccessBase & TMetadata)
 > {
   try {
-    const pathValidation = validatePathInCwd(filePath, config.cwd);
+    const pathValidation = validatePathInCwd(filePath, config.cwd, config.runtime);
     if (pathValidation) {
       return {
         success: false,

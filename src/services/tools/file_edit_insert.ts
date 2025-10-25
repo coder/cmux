@@ -26,7 +26,7 @@ export const createFileEditInsertTool: ToolFactory = (config: ToolConfiguration)
       create,
     }): Promise<FileEditInsertToolResult> => {
       try {
-        const pathValidation = validatePathInCwd(file_path, config.cwd);
+        const pathValidation = validatePathInCwd(file_path, config.cwd, config.runtime);
         if (pathValidation) {
           return {
             success: false,

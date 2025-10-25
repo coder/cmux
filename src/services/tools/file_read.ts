@@ -23,7 +23,7 @@ export const createFileReadTool: ToolFactory = (config: ToolConfiguration) => {
       // Note: abortSignal available but not used - file reads are fast and complete quickly
       try {
         // Validate that the path is within the working directory
-        const pathValidation = validatePathInCwd(filePath, config.cwd);
+        const pathValidation = validatePathInCwd(filePath, config.cwd, config.runtime);
         if (pathValidation) {
           return {
             success: false,
