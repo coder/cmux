@@ -18,6 +18,16 @@ import { checkInitHookExists, createLineBufferedLoggers } from "./initHook";
 import { streamProcessToLogger } from "./streamProcess";
 
 /**
+ * Escape a string for safe use in a shell command
+ * Uses single quotes and escapes any single quotes in the string
+ */
+function escapeShellArg(arg: string): string {
+  // Replace ' with '\'' (end quote, escaped quote, start quote)
+  return `'${arg.replace(/'/g, "'\\''")}'`;
+}
+
+
+/**
  * SSH Runtime Configuration
  */
 export interface SSHRuntimeConfig {
@@ -163,7 +173,7 @@ export class SSHRuntime implements Runtime {
    * Read file contents over SSH as a stream
    */
   readFile(path: string): ReadableStream<Uint8Array> {
-    const stream = this.exec(`cat ${JSON.stringify(path)}`, {
+    const stream = this.exec(`cat ${escapeShellArg(path)}`, {
       cwd: this.config.workdir,
       timeout: 300, // 5 minutes - reasonable for large files
     });
@@ -213,7 +223,8 @@ export class SSHRuntime implements Runtime {
   writeFile(path: string): WritableStream<Uint8Array> {
     const tempPath = `${path}.tmp.${Date.now()}`;
     // Create parent directory if needed, then write file atomically
-    const writeCommand = `mkdir -p $(dirname ${JSON.stringify(path)}) && cat > ${JSON.stringify(tempPath)} && chmod 600 ${JSON.stringify(tempPath)} && mv ${JSON.stringify(tempPath)} ${JSON.stringify(path)}`;
+    // Use escapeShellArg instead of JSON.stringify to avoid double-escaping issues
+    const writeCommand = `mkdir -p $(dirname ${escapeShellArg(path)}) && cat > ${escapeShellArg(tempPath)} && chmod 600 ${escapeShellArg(tempPath)} && mv ${escapeShellArg(tempPath)} ${escapeShellArg(path)}`;
 
     const stream = this.exec(writeCommand, {
       cwd: this.config.workdir,
@@ -253,7 +264,7 @@ export class SSHRuntime implements Runtime {
   async stat(path: string): Promise<FileStat> {
     // Use stat with format string to get: size, mtime, type
     // %s = size, %Y = mtime (seconds since epoch), %F = file type
-    const stream = this.exec(`stat -c '%s %Y %F' ${JSON.stringify(path)}`, {
+    const stream = this.exec(`stat -c '%s %Y %F' ${escapeShellArg(path)}`, {
       cwd: this.config.workdir,
       timeout: 10, // 10 seconds - stat should be fast
     });
