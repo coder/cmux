@@ -47,6 +47,20 @@ export class SSHRuntime implements Runtime {
     this.config = config;
   }
 
+
+  /**
+   * Expand tilde in path for use in remote commands
+   * Bash doesn't expand ~ when it's inside quotes, so we need to do it manually
+   */
+  private expandTilde(path: string): string {
+    if (path === "~") {
+      return "$HOME";
+    } else if (path.startsWith("~/")) {
+      return "$HOME/" + path.slice(2);
+    }
+    return path;
+  }
+
   /**
    * Execute command over SSH with streaming I/O
    */
@@ -63,10 +77,7 @@ export class SSHRuntime implements Runtime {
     }
 
     // Expand ~/path to $HOME/path before quoting (~ doesn't expand in quotes)
-    let cwd = options.cwd;
-    if (cwd.startsWith("~/")) {
-      cwd = "$HOME/" + cwd.slice(2);
-    }
+    const cwd = this.expandTilde(options.cwd);
 
     // Build full command with cwd and env
     const fullCommand = `cd ${JSON.stringify(cwd)} && ${envPrefix}${command}`;
@@ -313,55 +324,90 @@ export class SSHRuntime implements Runtime {
    * - Simpler implementation
    */
   private async syncProjectToRemote(projectPath: string, initLogger: InitLogger): Promise<void> {
-    return new Promise<void>((resolve, reject) => {
-      // Build SSH args
-      const sshArgs = this.buildSSHArgs(true);
+    // Use timestamp-based bundle path to avoid conflicts (simpler than $$)
+    const timestamp = Date.now();
+    const bundleTempPath = `~/.cmux-bundle-${timestamp}.bundle`;
 
-      // For paths starting with ~/, expand to $HOME
-      let remoteWorkdir: string;
-      if (this.config.workdir.startsWith("~/")) {
-        const pathWithoutTilde = this.config.workdir.slice(2);
-        remoteWorkdir = `"\\\\$HOME/${pathWithoutTilde}"`; // Escape $ so local shell doesn't expand it
-      } else {
-        remoteWorkdir = JSON.stringify(this.config.workdir);
+    try {
+      // Step 1: Create bundle locally and pipe to remote file via SSH
+      initLogger.logStep(`Creating git bundle...`);
+      await new Promise<void>((resolve, reject) => {
+        const sshArgs = this.buildSSHArgs(true);
+        const command = `cd ${JSON.stringify(projectPath)} && git bundle create - --all | ssh ${sshArgs.join(" ")} "cat > ${bundleTempPath}"`;
+
+        log.debug(`Creating bundle: ${command}`);
+        const proc = spawn("bash", ["-c", command]);
+
+        streamProcessToLogger(proc, initLogger, {
+          logStdout: false,
+          logStderr: true,
+        });
+
+        let stderr = "";
+        proc.stderr.on("data", (data: Buffer) => {
+          stderr += data.toString();
+        });
+
+        proc.on("close", (code) => {
+          if (code === 0) {
+            resolve();
+          } else {
+            reject(new Error(`Failed to create bundle: ${stderr}`));
+          }
+        });
+
+        proc.on("error", (err) => {
+          reject(err);
+        });
+      });
+
+      // Step 2: Clone from bundle on remote using this.exec (handles tilde expansion)
+      initLogger.logStep(`Cloning repository on remote...`);
+      const expandedWorkdir = this.expandTilde(this.config.workdir);
+      const cloneStream = this.exec(`git clone --quiet ${bundleTempPath} ${JSON.stringify(expandedWorkdir)}`, {
+        cwd: "~",
+        timeout: 300, // 5 minutes for clone
+      });
+
+      const [cloneStdout, cloneStderr, cloneExitCode] = await Promise.all([
+        streamToString(cloneStream.stdout),
+        streamToString(cloneStream.stderr),
+        cloneStream.exitCode,
+      ]);
+
+      if (cloneExitCode !== 0) {
+        throw new Error(`Failed to clone repository: ${cloneStderr || cloneStdout}`);
       }
 
-      // Use git bundle to create a packfile of all refs, pipe through ssh for cloning
-      // This creates a real git repository on the remote with full history
-      // Wrap remote commands in bash to avoid issues with non-bash shells (fish, zsh, etc)
-      // Save bundle to temp file on remote, clone from it, then clean up
-      // Use $$ for PID to avoid conflicts, escape $ so it's evaluated on remote
-      const bundleTempPath = `\\$HOME/.cmux-bundle-\\$\\$.bundle`;
-      const command = `cd ${JSON.stringify(projectPath)} && git bundle create - --all | ssh ${sshArgs.join(" ")} "bash -c 'cat > ${bundleTempPath} && git clone --quiet ${bundleTempPath} ${remoteWorkdir} && rm ${bundleTempPath}'"`;
-
-      log.debug(`Starting git bundle+ssh: ${command}`);
-      const proc = spawn("bash", ["-c", command]);
-
-      // Use helper to stream output and prevent buffer overflow
-      streamProcessToLogger(proc, initLogger, {
-        logStdout: false, // bundle stdout is binary, drain silently
-        logStderr: true, // Errors go to init stream
-        command: `git bundle+ssh: ${command}`, // Log the full command
+      // Step 3: Remove bundle file
+      initLogger.logStep(`Cleaning up bundle file...`);
+      const rmStream = this.exec(`rm ${bundleTempPath}`, {
+        cwd: "~",
+        timeout: 10,
       });
 
-      let stderr = "";
-      proc.stderr.on("data", (data: Buffer) => {
-        stderr += data.toString();
-      });
+      const rmExitCode = await rmStream.exitCode;
+      if (rmExitCode !== 0) {
+        log.info(`Failed to remove bundle file ${bundleTempPath}, but continuing`);
+      }
 
-      proc.on("close", (code) => {
-        if (code === 0) {
-          resolve();
-        } else {
-          reject(new Error(`git bundle+ssh failed with exit code ${code ?? "unknown"}: ${stderr}`));
-        }
-      });
+      initLogger.logStep(`Repository cloned successfully`);
+    } catch (error) {
+      // Try to clean up bundle file on error
+      try {
+        const rmStream = this.exec(`rm -f ${bundleTempPath}`, {
+          cwd: "~",
+          timeout: 10,
+        });
+        await rmStream.exitCode;
+      } catch {
+        // Ignore cleanup errors
+      }
 
-      proc.on("error", (err) => {
-        reject(err);
-      });
-    });
+      throw error;
+    }
   }
+
 
   /**
    * Run .cmux/init hook on remote machine if it exists
