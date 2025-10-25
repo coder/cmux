@@ -43,11 +43,19 @@ function getEffectiveRange(
 
 /**
  * Check if two hunks overlap based on their expanded ranges
+ * Only hunks from the same file can overlap
  */
 function hunksOverlap(
+  hunk1: HunkWithExpansion,
+  hunk2: HunkWithExpansion,
   range1: { start: number; end: number },
   range2: { start: number; end: number }
 ): boolean {
+  // Different files cannot overlap
+  if (hunk1.hunk.filePath !== hunk2.hunk.filePath) {
+    return false;
+  }
+  
   // Check if ranges overlap or are adjacent (within 3 lines)
   // Adjacent hunks should be combined for cleaner display
   const gap = range2.start - range1.end;
@@ -122,8 +130,13 @@ export function combineOverlappingHunks(hunks: HunkWithExpansion[]): CombinedHun
     return [];
   }
 
-  // Sort by starting line number
-  const sorted = [...hunks].sort((a, b) => a.hunk.oldStart - b.hunk.oldStart);
+  // Sort by file path first, then by starting line number
+  // This ensures we process files separately
+  const sorted = [...hunks].sort((a, b) => {
+    const fileCompare = a.hunk.filePath.localeCompare(b.hunk.filePath);
+    if (fileCompare !== 0) return fileCompare;
+    return a.hunk.oldStart - b.hunk.oldStart;
+  });
 
   const result: CombinedHunk[] = [];
   let currentGroup: HunkWithExpansion[] = [sorted[0]];
@@ -133,7 +146,8 @@ export function combineOverlappingHunks(hunks: HunkWithExpansion[]): CombinedHun
     const current = sorted[i];
     const currentHunkRange = getEffectiveRange(current.hunk, current.expansion);
 
-    if (hunksOverlap(currentRange, currentHunkRange)) {
+    // Pass the hunk objects to check file path matching
+    if (hunksOverlap(currentGroup[0], current, currentRange, currentHunkRange)) {
       // Overlaps - add to current group
       currentGroup.push(current);
       // Extend the range to include this hunk

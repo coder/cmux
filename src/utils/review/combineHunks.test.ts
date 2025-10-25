@@ -203,3 +203,45 @@ describe("combineOverlappingHunks", () => {
     expect(result[0].combinedId).toBe("hunk-1+hunk-2");
   });
 });
+
+  test("does not combine hunks from different files", () => {
+    const hunks: HunkWithExpansion[] = [
+      {
+        hunk: {
+          id: "hunk-1",
+          oldStart: 10,
+          oldLines: 5,
+          newStart: 10,
+          newLines: 5,
+          content: "test",
+          filePath: "file1.ts",
+          changeType: "modified",
+          header: "@@ -10,5 +10,5 @@",
+        },
+        hunkId: "hunk-1",
+        expansion: { up: 0, down: 30 }, // Expands to line 44
+      },
+      {
+        hunk: {
+          id: "hunk-2",
+          oldStart: 40,
+          oldLines: 5,
+          newStart: 40,
+          newLines: 5,
+          content: "test",
+          filePath: "file2.ts", // DIFFERENT FILE
+          changeType: "modified",
+          header: "@@ -40,5 +40,5 @@",
+        },
+        hunkId: "hunk-2",
+        expansion: { up: 0, down: 0 },
+      },
+    ];
+
+    const result = combineOverlappingHunks(hunks);
+
+    // Should keep hunks separate because they're from different files
+    expect(result).toHaveLength(2);
+    expect(result[0].sourceHunks[0].hunk.filePath).toBe("file1.ts");
+    expect(result[1].sourceHunks[0].hunk.filePath).toBe("file2.ts");
+  });
