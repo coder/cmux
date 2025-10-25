@@ -290,15 +290,21 @@ export class SSHRuntime implements Runtime {
 
 
   /**
-   * Sync project to remote using git archive
+   * Sync project to remote using git bundle
    * 
-   * Uses `git archive` to create a tarball of tracked files and extracts it on the remote.
+   * Uses `git bundle` to create a packfile and clones it on the remote.
+   * 
+   * Benefits over git archive:
+   * - Creates a real git repository on remote (can run git commands)
+   * - Better parity with git worktrees (full .git directory with metadata)
+   * - Enables remote git operations (commit, branch, status, diff, etc.)
+   * - Only tracked files in checkout (no node_modules, build artifacts)
+   * - Includes full history for flexibility
    * 
    * Benefits over rsync/scp:
-   * - Better parity with git worktrees (only tracked files, no untracked junk)
-   * - Much faster (avoids node_modules, .git, build artifacts, etc.)
-   * - Simpler implementation (single git command)
+   * - Much faster (only tracked files)
    * - No external dependencies (git is always available)
+   * - Simpler implementation
    */
   private async syncProjectToRemote(projectPath: string, initLogger: InitLogger): Promise<void> {
     return new Promise<void>((resolve, reject) => {
@@ -314,19 +320,22 @@ export class SSHRuntime implements Runtime {
         remoteWorkdir = JSON.stringify(this.config.workdir);
       }
 
-      // Use git archive to create tarball of tracked files, pipe through ssh for extraction
-      // git archive only includes tracked files, providing better parity with worktrees
+      // Use git bundle to create a packfile of all refs, pipe through ssh for cloning
+      // This creates a real git repository on the remote with full history
       // Wrap remote commands in bash to avoid issues with non-bash shells (fish, zsh, etc)
-      const command = `cd ${JSON.stringify(projectPath)} && git archive --format=tar HEAD | ssh ${sshArgs.join(" ")} "bash -c 'cd ${remoteWorkdir} && tar -xf -'"`;
+      // Save bundle to temp file on remote, clone from it, then clean up
+      // Use $$ for PID to avoid conflicts, escape $ so it's evaluated on remote
+      const bundleTempPath = `\\$HOME/.cmux-bundle-\\$\\$.bundle`;
+      const command = `cd ${JSON.stringify(projectPath)} && git bundle create - --all | ssh ${sshArgs.join(" ")} "bash -c 'cat > ${bundleTempPath} && git clone --quiet ${bundleTempPath} ${remoteWorkdir} && rm ${bundleTempPath}'"`;
 
-      log.debug(`Starting git archive+ssh: ${command}`);
+      log.debug(`Starting git bundle+ssh: ${command}`);
       const proc = spawn("bash", ["-c", command]);
 
       // Use helper to stream output and prevent buffer overflow
       streamProcessToLogger(proc, initLogger, {
-        logStdout: false, // tar stdout is binary, drain silently
+        logStdout: false, // bundle stdout is binary, drain silently
         logStderr: true, // Errors go to init stream
-        command: `git archive+ssh: ${command}`, // Log the full command
+        command: `git bundle+ssh: ${command}`, // Log the full command
       });
 
       let stderr = "";
@@ -338,7 +347,7 @@ export class SSHRuntime implements Runtime {
         if (code === 0) {
           resolve();
         } else {
-          reject(new Error(`git archive+ssh failed with exit code ${code ?? "unknown"}: ${stderr}`));
+          reject(new Error(`git bundle+ssh failed with exit code ${code ?? "unknown"}: ${stderr}`));
         }
       });
 
@@ -414,18 +423,38 @@ export class SSHRuntime implements Runtime {
     try {
       const { initLogger } = params;
 
-      // Create remote directory (fast - returns immediately)
-      initLogger.logStep("Creating remote directory...");
+      // Prepare parent directory for git clone (fast - returns immediately)
+      // Note: git clone will create the workspace directory itself during initWorkspace,
+      // but the parent directory must exist first
+      initLogger.logStep("Preparing remote workspace...");
       try {
+        // Get parent directory path
         // For paths starting with ~/, expand to $HOME
-        let mkdirCommand: string;
+        let parentDirCommand: string;
         if (this.config.workdir.startsWith("~/")) {
           const pathWithoutTilde = this.config.workdir.slice(2);
-          mkdirCommand = `mkdir -p "$HOME/${pathWithoutTilde}"`;
+          // Extract parent: /a/b/c -> /a/b
+          const lastSlash = pathWithoutTilde.lastIndexOf("/");
+          if (lastSlash > 0) {
+            const parentPath = pathWithoutTilde.substring(0, lastSlash);
+            parentDirCommand = `mkdir -p "$HOME/${parentPath}"`;
+          } else {
+            // If no slash, parent is HOME itself (already exists)
+            parentDirCommand = "echo 'Using HOME as parent'";
+          }
         } else {
-          mkdirCommand = `mkdir -p ${JSON.stringify(this.config.workdir)}`;
+          // Extract parent from absolute path
+          const lastSlash = this.config.workdir.lastIndexOf("/");
+          if (lastSlash > 0) {
+            const parentPath = this.config.workdir.substring(0, lastSlash);
+            parentDirCommand = `mkdir -p ${JSON.stringify(parentPath)}`;
+          } else {
+            // Root directory (shouldn't happen, but handle it)
+            parentDirCommand = "echo 'Using root as parent'";
+          }
         }
-        const mkdirStream = this.exec(mkdirCommand, {
+
+        const mkdirStream = this.exec(parentDirCommand, {
           cwd: "/tmp",
           timeout: 10,
         });
@@ -434,17 +463,17 @@ export class SSHRuntime implements Runtime {
           const stderr = await streamToString(mkdirStream.stderr);
           return {
             success: false,
-            error: `Failed to create remote directory: ${stderr}`,
+            error: `Failed to prepare remote workspace: ${stderr}`,
           };
         }
       } catch (error) {
         return {
           success: false,
-          error: `Failed to create remote directory: ${error instanceof Error ? error.message : String(error)}`,
+          error: `Failed to prepare remote workspace: ${error instanceof Error ? error.message : String(error)}`,
         };
       }
 
-      initLogger.logStep("Remote directory created");
+      initLogger.logStep("Remote workspace prepared");
 
       return {
         success: true,
@@ -478,8 +507,11 @@ export class SSHRuntime implements Runtime {
       initLogger.logStep("Files synced successfully");
 
       // 2. Checkout branch remotely
+      // Note: After git clone, HEAD is already checked out to the default branch from the bundle
+      // We create new branches from HEAD instead of the trunkBranch name to avoid issues
+      // where the local repo's trunk name doesn't match the cloned repo's default branch
       initLogger.logStep(`Checking out branch: ${branchName}`);
-      const checkoutCmd = `(git checkout ${JSON.stringify(branchName)} 2>/dev/null || git checkout -b ${JSON.stringify(branchName)} ${JSON.stringify(trunkBranch)})`;
+      const checkoutCmd = `(git checkout ${JSON.stringify(branchName)} 2>/dev/null || git checkout -b ${JSON.stringify(branchName)} HEAD)`;
 
       const checkoutStream = this.exec(checkoutCmd, {
         cwd: this.config.workdir,
