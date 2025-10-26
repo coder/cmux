@@ -8,13 +8,21 @@ runs:
       with:
         bun-version: latest
 
-    - name: Cache bun dependencies
+    - name: Cache node_modules
+      uses: actions/cache@v4
+      with:
+        path: node_modules
+        key: ${{ runner.os }}-node-modules-${{ hashFiles('**/bun.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-node-modules-
+
+    - name: Cache bun install cache
       uses: actions/cache@v4
       with:
         path: ~/.bun/install/cache
-        key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
+        key: ${{ runner.os }}-bun-cache-${{ hashFiles('**/bun.lock') }}
         restore-keys: |
-          ${{ runner.os }}-bun-
+          ${{ runner.os }}-bun-cache-
 
     - name: Cache Homebrew (macOS)
       if: runner.os == 'macOS'
