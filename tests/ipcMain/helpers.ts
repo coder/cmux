@@ -7,6 +7,18 @@ import type { WorkspaceMetadataWithPaths } from "../../src/types/workspace";
 import * as path from "path";
 import * as os from "os";
 import { detectDefaultTrunkBranch } from "../../src/git";
+import type { TestEnvironment } from "./setup";
+import type { RuntimeConfig } from "../../src/types/runtime";
+import type { ToolPolicy } from "../../src/utils/tools/toolPolicy";
+
+// Test constants - centralized for consistency across all tests
+export const INIT_HOOK_WAIT_MS = 1500; // Wait for async init hook completion (local runtime)
+export const SSH_INIT_WAIT_MS = 7000; // SSH init includes sync + checkout + hook, takes longer
+export const HAIKU_MODEL = "anthropic:claude-haiku-4-5"; // Fast model for tests
+export const TEST_TIMEOUT_LOCAL_MS = 25000; // Recommended timeout for local runtime tests
+export const TEST_TIMEOUT_SSH_MS = 60000; // Recommended timeout for SSH runtime tests
+export const STREAM_TIMEOUT_LOCAL_MS = 15000; // Stream timeout for local runtime
+export const STREAM_TIMEOUT_SSH_MS = 25000; // Stream timeout for SSH runtime
 
 /**
  * Generate a unique branch name
@@ -96,6 +108,104 @@ export async function clearHistory(
     IPC_CHANNELS.WORKSPACE_TRUNCATE_HISTORY,
     workspaceId
   )) as Result<void, string>;
+}
+
+/**
+ * Extract text content from stream events
+ * Filters for stream-delta events and concatenates the delta text
+ */
+export function extractTextFromEvents(events: WorkspaceChatMessage[]): string {
+  return events
+    .filter((e: any) => e.type === "stream-delta" && "delta" in e)
+    .map((e: any) => e.delta || "")
+    .join("");
+}
+
+/**
+ * Create workspace with optional init hook wait
+ * Enhanced version that can wait for init hook completion (needed for runtime tests)
+ */
+export async function createWorkspaceWithInit(
+  env: TestEnvironment,
+  projectPath: string,
+  branchName: string,
+  runtimeConfig?: RuntimeConfig,
+  waitForInit: boolean = false,
+  isSSH: boolean = false
+): Promise<{ workspaceId: string; workspacePath: string; cleanup: () => Promise<void> }> {
+  const trunkBranch = await detectDefaultTrunkBranch(projectPath);
+
+  const result: any = await env.mockIpcRenderer.invoke(
+    IPC_CHANNELS.WORKSPACE_CREATE,
+    projectPath,
+    branchName,
+    trunkBranch,
+    runtimeConfig
+  );
+
+  if (!result.success) {
+    throw new Error(`Failed to create workspace: ${result.error}`);
+  }
+
+  const workspaceId = result.metadata.id;
+  const workspacePath = result.metadata.namedWorkspacePath;
+
+  // Wait for init hook to complete if requested
+  if (waitForInit) {
+    const initTimeout = isSSH ? SSH_INIT_WAIT_MS : INIT_HOOK_WAIT_MS;
+    const collector = createEventCollector(env.sentEvents, workspaceId);
+    try {
+      await collector.waitForEvent("init-end", initTimeout);
+    } catch (err) {
+      // Init hook might not exist or might have already completed before we started waiting
+      // This is not necessarily an error - just log it
+      console.log(
+        `Note: init-end event not detected within ${initTimeout}ms (may have completed early)`
+      );
+    }
+  }
+
+  const cleanup = async () => {
+    await env.mockIpcRenderer.invoke(IPC_CHANNELS.WORKSPACE_REMOVE, workspaceId);
+  };
+
+  return { workspaceId, workspacePath, cleanup };
+}
+
+/**
+ * Send message and wait for stream completion
+ * Convenience helper that combines message sending with event collection
+ */
+export async function sendMessageAndWait(
+  env: TestEnvironment,
+  workspaceId: string,
+  message: string,
+  model: string,
+  toolPolicy?: ToolPolicy,
+  timeoutMs: number = STREAM_TIMEOUT_LOCAL_MS
+): Promise<WorkspaceChatMessage[]> {
+  // Clear previous events
+  env.sentEvents.length = 0;
+
+  // Send message
+  const result = await env.mockIpcRenderer.invoke(
+    IPC_CHANNELS.WORKSPACE_SEND_MESSAGE,
+    workspaceId,
+    message,
+    {
+      model,
+      toolPolicy,
+    }
+  );
+
+  if (!result.success) {
+    throw new Error(`Failed to send message: ${result.error}`);
+  }
+
+  // Wait for stream completion
+  const collector = createEventCollector(env.sentEvents, workspaceId);
+  await collector.waitForEvent("stream-end", timeoutMs);
+  return collector.getEvents();
 }
 
 /**
