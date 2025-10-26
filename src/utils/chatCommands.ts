@@ -15,6 +15,7 @@ import type { Toast } from "@/components/ChatInputToast";
 import type { ParsedCommand } from "@/utils/slashCommands/types";
 import { applyCompactionOverrides } from "@/utils/messages/compactionOptions";
 import { resolveCompactionModel } from "@/utils/messages/compactionModelPreference";
+import { getRuntimeKey } from "@/constants/storage";
 
 // ============================================================================
 // Workspace Creation
@@ -92,8 +93,18 @@ export async function createNewWorkspace(
     effectiveTrunk = recommendedTrunk ?? "main";
   }
 
+  // Use saved runtime preference if not explicitly provided
+  let effectiveRuntime = options.runtime;
+  if (effectiveRuntime === undefined) {
+    const runtimeKey = getRuntimeKey(options.projectPath);
+    const savedRuntime = localStorage.getItem(runtimeKey);
+    if (savedRuntime) {
+      effectiveRuntime = savedRuntime;
+    }
+  }
+
   // Parse runtime config if provided
-  const runtimeConfig = parseRuntimeString(options.runtime, options.workspaceName);
+  const runtimeConfig = parseRuntimeString(effectiveRuntime, options.workspaceName);
 
   const result = await window.api.workspace.create(
     options.projectPath,

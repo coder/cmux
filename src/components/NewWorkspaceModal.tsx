@@ -2,7 +2,7 @@ import React, { useEffect, useId, useState } from "react";
 import { Modal, ModalInfo, ModalActions, CancelButton, PrimaryButton } from "./Modal";
 import { TooltipWrapper, Tooltip } from "./Tooltip";
 import { formatNewCommand } from "@/utils/chatCommands";
-import { getRuntimeKey } from "@/constants/storage";
+import { useNewWorkspaceOptions } from "@/hooks/useNewWorkspaceOptions";
 
 interface NewWorkspaceModalProps {
   isOpen: boolean;
@@ -31,12 +31,14 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
 }) => {
   const [branchName, setBranchName] = useState("");
   const [trunkBranch, setTrunkBranch] = useState(defaultTrunkBranch ?? branches[0] ?? "");
-  const [runtimeMode, setRuntimeMode] = useState<"local" | "ssh">("local");
-  const [sshHost, setSshHost] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const infoId = useId();
   const hasBranches = branches.length > 0;
+
+  // Load runtime preferences from localStorage for this project
+  const [runtimeOptions, setRuntimeOptions] = useNewWorkspaceOptions(projectPath, isOpen);
+  const { runtimeMode, sshHost, getRuntimeString } = runtimeOptions;
 
   useEffect(() => {
     setError(loadErrorMessage ?? null);
@@ -59,30 +61,10 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
     });
   }, [branches, defaultTrunkBranch, hasBranches]);
 
-  // Load saved runtime preference when modal opens
-  useEffect(() => {
-    if (isOpen && projectPath) {
-      const runtimeKey = getRuntimeKey(projectPath);
-      const savedRuntime = localStorage.getItem(runtimeKey);
-      if (savedRuntime) {
-        // Parse the saved runtime string (format: "ssh <host>" or undefined for local)
-        if (savedRuntime.startsWith("ssh ")) {
-          const host = savedRuntime.substring(4).trim();
-          setRuntimeMode("ssh");
-          setSshHost(host);
-        } else {
-          setRuntimeMode("local");
-          setSshHost("");
-        }
-      }
-    }
-  }, [isOpen, projectPath]);
-
   const handleCancel = () => {
     setBranchName("");
     setTrunkBranch(defaultTrunkBranch ?? branches[0] ?? "");
-    setRuntimeMode("local");
-    setSshHost("");
+    setRuntimeOptions("local", "");
     setError(loadErrorMessage ?? null);
     onClose();
   };
@@ -119,14 +101,13 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
     setError(null);
 
     try {
-      // Build runtime string if SSH selected
-      const runtime = runtimeMode === "ssh" ? `ssh ${sshHost.trim()}` : undefined;
+      // Get runtime string from hook helper
+      const runtime = getRuntimeString();
 
       await onAdd(trimmedBranchName, normalizedTrunkBranch, runtime);
       setBranchName("");
       setTrunkBranch(defaultTrunkBranch ?? branches[0] ?? "");
-      setRuntimeMode("local");
-      setSshHost("");
+      setRuntimeOptions("local", "");
       onClose();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to create workspace";
@@ -225,7 +206,8 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
             id="runtimeMode"
             value={runtimeMode}
             onChange={(event) => {
-              setRuntimeMode(event.target.value as "local" | "ssh");
+              const newMode = event.target.value as "local" | "ssh";
+              setRuntimeOptions(newMode, newMode === "local" ? "" : sshHost);
               setError(null);
             }}
             disabled={isLoading}
@@ -243,7 +225,7 @@ const NewWorkspaceModal: React.FC<NewWorkspaceModalProps> = ({
               type="text"
               value={sshHost}
               onChange={(event) => {
-                setSshHost(event.target.value);
+                setRuntimeOptions("ssh", event.target.value);
                 setError(null);
               }}
               placeholder="hostname or user@hostname"
