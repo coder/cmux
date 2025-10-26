@@ -523,10 +523,7 @@ export class AIService extends EventEmitter {
 
       // Generate stream token and create temp directory for tools
       const streamToken = this.streamManager.generateStreamToken();
-      const runtimeTempDir = await this.streamManager.createTempDirForStream(
-        streamToken,
-        runtime
-      );
+      const runtimeTempDir = await this.streamManager.createTempDirForStream(streamToken, runtime);
 
       // Get model-specific tools with workspace path (correct for local or remote)
       const allTools = await getToolsForModel(modelString, {

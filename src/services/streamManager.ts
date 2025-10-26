@@ -243,13 +243,10 @@ export class StreamManager extends EventEmitter {
    * - Agent mistakes when copying/manipulating paths
    * - Harder to read in tool outputs
    * - Potential path length issues on some systems
-   * 
+   *
    * Uses the Runtime abstraction so temp directories work for both local and SSH runtimes.
    */
-  public async createTempDirForStream(
-    streamToken: StreamToken,
-    runtime: Runtime
-  ): Promise<string> {
+  public async createTempDirForStream(streamToken: StreamToken, runtime: Runtime): Promise<string> {
     // Create directory and get absolute path (works for both local and remote)
     // Use 'cd' + 'pwd' to resolve ~ to absolute path
     const command = `mkdir -p ~/.cmux-tmp/${streamToken} && cd ~/.cmux-tmp/${streamToken} && pwd`;
@@ -257,13 +254,13 @@ export class StreamManager extends EventEmitter {
       cwd: "/",
       timeout: 10,
     });
-    
+
     if (result.exitCode !== 0) {
       throw new Error(
         `Failed to create temp directory ~/.cmux-tmp/${streamToken}: exit code ${result.exitCode}`
       );
     }
-    
+
     // Return absolute path (e.g., "/home/user/.cmux-tmp/abc123")
     return result.stdout.trim();
   }
@@ -984,13 +981,10 @@ export class StreamManager extends EventEmitter {
       // Clean up stream temp directory using runtime
       if (streamInfo.runtimeTempDir) {
         try {
-          const result = await streamInfo.runtime.exec(
-            `rm -rf "${streamInfo.runtimeTempDir}"`,
-            {
-              cwd: "~",
-              timeout: 10,
-            }
-          );
+          const result = await streamInfo.runtime.exec(`rm -rf "${streamInfo.runtimeTempDir}"`, {
+            cwd: "~",
+            timeout: 10,
+          });
           await result.exitCode; // Wait for completion
           log.debug(`Cleaned up temp dir: ${streamInfo.runtimeTempDir}`);
         } catch (error) {
