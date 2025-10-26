@@ -688,9 +688,11 @@ export class SSHRuntime implements Runtime {
       initLogger.logStep("Files synced successfully");
 
       // 2. Checkout branch remotely
-      // If branch exists, check it out; otherwise create it from the specified trunk branch
+      // If branch exists locally, check it out; otherwise create it from the specified trunk branch
+      // Note: After git clone from bundle, branches exist as origin/* refs, so we need to check both
+      // local branch and origin/branch when creating the new branch
       initLogger.logStep(`Checking out branch: ${branchName}`);
-      const checkoutCmd = `(git checkout ${shescape.quote(branchName)} 2>/dev/null || git checkout -b ${shescape.quote(branchName)} ${shescape.quote(trunkBranch)})`;
+      const checkoutCmd = `(git checkout ${shescape.quote(branchName)} 2>/dev/null || git checkout -b ${shescape.quote(branchName)} origin/${shescape.quote(trunkBranch)} 2>/dev/null || git checkout -b ${shescape.quote(branchName)} ${shescape.quote(trunkBranch)})`;
 
       const checkoutStream = await this.exec(checkoutCmd, {
         cwd: workspacePath, // Use the full workspace path for git operations
