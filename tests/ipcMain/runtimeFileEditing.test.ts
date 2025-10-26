@@ -563,7 +563,7 @@ describeIntegration("Runtime File Editing Tools", () => {
               const responseText = extractTextFromEvents(readEvents);
               // The file should contain "Modified" not "Original"
               expect(responseText.toLowerCase()).toContain("modified");
-              
+
               // If this is SSH, the bug would cause the edit to fail because
               // path.resolve() would resolve relative to the LOCAL filesystem
               // instead of the REMOTE filesystem

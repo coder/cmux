@@ -31,28 +31,32 @@ describe("executeFileEditOperation", () => {
   test("should use runtime.normalizePath for path resolution, not Node's path.resolve", async () => {
     // This test verifies that executeFileEditOperation uses runtime.normalizePath()
     // instead of path.resolve() for resolving file paths.
-    // 
+    //
     // Why this matters: path.resolve() uses LOCAL filesystem semantics (Node.js path module),
     // which normalizes paths differently than the remote filesystem expects.
     // For example, path.resolve() on Windows uses backslashes, and path normalization
     // can behave differently across platforms.
-    
+
     const normalizePathCalls: Array<{ targetPath: string; basePath: string }> = [];
-    
+
     const mockRuntime = {
-      stat: jest.fn<() => Promise<{ size: number; modifiedTime: Date; isDirectory: boolean }>>().mockResolvedValue({
-        size: 100,
-        modifiedTime: new Date(),
-        isDirectory: false,
-      }),
+      stat: jest
+        .fn<() => Promise<{ size: number; modifiedTime: Date; isDirectory: boolean }>>()
+        .mockResolvedValue({
+          size: 100,
+          modifiedTime: new Date(),
+          isDirectory: false,
+        }),
       readFile: jest.fn<() => Promise<Uint8Array>>().mockResolvedValue(new Uint8Array()),
       writeFile: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
-      normalizePath: jest.fn<(targetPath: string, basePath: string) => string>((targetPath: string, basePath: string) => {
-        normalizePathCalls.push({ targetPath, basePath });
-        // Mock SSH-style path normalization
-        if (targetPath.startsWith("/")) return targetPath;
-        return `${basePath}/${targetPath}`;
-      }),
+      normalizePath: jest.fn<(targetPath: string, basePath: string) => string>(
+        (targetPath: string, basePath: string) => {
+          normalizePathCalls.push({ targetPath, basePath });
+          // Mock SSH-style path normalization
+          if (targetPath.startsWith("/")) return targetPath;
+          return `${basePath}/${targetPath}`;
+        }
+      ),
     } as unknown as Runtime;
 
     const testFilePath = "relative/path/to/file.txt";
@@ -72,9 +76,9 @@ describe("executeFileEditOperation", () => {
     const normalizeCallForFilePath = normalizePathCalls.find(
       (call) => call.targetPath === testFilePath
     );
-    
+
     expect(normalizeCallForFilePath).toBeDefined();
-    
+
     if (normalizeCallForFilePath) {
       expect(normalizeCallForFilePath.basePath).toBe(testCwd);
     }
